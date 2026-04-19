@@ -22,6 +22,7 @@ import { Link } from "react-router-dom";
 import AlertDetailDialog from "./AlertDetailDialog";
 import { MyTasksCard } from "./TasksTab";
 import PagerFeedCard from "./PagerFeedCard";
+import DeviceStatusCard from "./DeviceStatusCard";
 
 function severityColor(s) {
   if (s === "emergency") return { border: "#B6463A", bg: "#FDECE9", text: "#98392F" };
@@ -310,6 +311,7 @@ export default function StaffDashboard() {
 
             <MyTasksCard />
             <PagerFeedCard />
+            <DeviceStatusCard />
           </section>
         </div>
       </div>
