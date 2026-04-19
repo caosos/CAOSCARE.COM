@@ -150,6 +150,43 @@ h1, h2, h3, h4, h5, h6, .font-display {
 }
 .caos-kiosk-btn:active { transform: scale(0.98); }
 
+/* Kiosk accessibility — text-size scaling via a single root class on the
+   idle screen. Tailwind font-size utilities emit px values so we can't
+   scale everything via inherited em; instead we override the specific
+   kiosk typography tokens used on the idle screen. */
+.kiosk-text-lg h1.kiosk-hello { font-size: clamp(4rem, 11vw, 9.5rem); }
+.kiosk-text-lg p.kiosk-prompt { font-size: 2.6rem; line-height: 1.3; }
+.kiosk-text-lg .caos-emergency-btn { font-size: 3.6rem; }
+.kiosk-text-lg .caos-kiosk-btn { font-size: 2.4rem; min-height: 140px; }
+
+.kiosk-text-xl h1.kiosk-hello { font-size: clamp(5rem, 14vw, 12rem); }
+.kiosk-text-xl p.kiosk-prompt { font-size: 3.2rem; line-height: 1.25; }
+.kiosk-text-xl .caos-emergency-btn { font-size: 4.5rem; }
+.kiosk-text-xl .caos-kiosk-btn { font-size: 3rem; min-height: 170px; }
+
+/* High-contrast amber-on-black — built for residents with low vision or
+   cataracts. Overrides the forest/bone palette with a WCAG-AAA pairing. */
+.kiosk-hc { background: #000 !important; color: #FFC857 !important; }
+.kiosk-hc h1,
+.kiosk-hc p,
+.kiosk-hc span { color: #FFC857 !important; }
+.kiosk-hc [data-testid="kiosk-label"] { color: #FFC857 !important; opacity: 0.8; }
+.kiosk-hc .caos-emergency-btn {
+  background: #FFC857 !important;
+  color: #000 !important;
+  border-bottom-color: #B8902F !important;
+}
+.kiosk-hc .caos-kiosk-btn {
+  background: #000 !important;
+  color: #FFC857 !important;
+  border: 3px solid #FFC857 !important;
+}
+.kiosk-hc .kiosk-a11y-row button {
+  background: #000 !important;
+  color: #FFC857 !important;
+  border: 2px solid #FFC857 !important;
+}
+
 /* Noise texture overlay */
 .caos-grain::before {
   content: '';

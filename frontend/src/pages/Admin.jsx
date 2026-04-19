@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Textarea } from "../components/ui/textarea";
 import { Checkbox } from "../components/ui/checkbox";
 import { Badge } from "../components/ui/badge";
-import { Trash2, Plus, LogOut, Activity } from "lucide-react";
+import { Trash2, Plus, LogOut, Activity, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 import PendantsTab from "./PendantsTab";
 import Roadmap from "./Roadmap";
@@ -241,6 +241,30 @@ function ResidentsTab({ residents, onChange }) {
     onChange();
   };
 
+  // Voice briefing — fetches the narrative then streams the pre-composed line
+  // through OpenAI TTS so the nurse can literally hear the resident's
+  // clinical bands + open alerts + cheat-sheet memories without reading.
+  const [briefingId, setBriefingId] = useState(null); // resident_id currently speaking
+  const audioRef = React.useRef(null);
+  const speakBriefing = async (r) => {
+    try {
+      // Stop any in-flight playback
+      if (audioRef.current) { try { audioRef.current.pause(); } catch {} audioRef.current = null; }
+      setBriefingId(r.resident_id);
+      const { data: brief } = await api.get(`/residents/${r.resident_id}/briefing`);
+      const { data: tts } = await api.post("/ai/tts", { text: brief.narrative, voice: "sage" });
+      const audio = new Audio(`data:audio/mp3;base64,${tts.audio_base64}`);
+      audioRef.current = audio;
+      audio.onended = () => { if (audioRef.current === audio) { audioRef.current = null; setBriefingId(null); } };
+      audio.onerror = () => { setBriefingId(null); toast.error("Briefing playback failed"); };
+      await audio.play();
+      toast.success(`Briefing: ${r.name}`);
+    } catch (err) {
+      setBriefingId(null);
+      toast.error(err?.response?.data?.detail || "Briefing failed");
+    }
+  };
+
   return (
     <Card className="border-caos-line p-6">
       <div className="flex justify-between items-center mb-4">
@@ -350,6 +374,9 @@ function ResidentsTab({ residents, onChange }) {
               </TableCell>
               <TableCell>
                 <div className="flex gap-1">
+                  <Button variant="ghost" size="sm" onClick={() => speakBriefing(r)} data-testid={`brief-res-${r.resident_id}`} title="Speak a clinical briefing for this resident">
+                    {briefingId === r.resident_id ? <span className="inline-flex items-center gap-1 text-caos-forest"><Volume2 className="w-4 h-4 animate-pulse" /> Speaking</span> : <span className="inline-flex items-center gap-1"><Volume2 className="w-4 h-4" /> Brief</span>}
+                  </Button>
                   <Button variant="ghost" size="sm" onClick={() => setMemoryFor(r)} data-testid={`mem-res-${r.resident_id}`}>Memory</Button>
                   <Button variant="ghost" size="sm" onClick={() => setMovementFor(r)} data-testid={`move-res-${r.resident_id}`}>Movement</Button>
                   <Button variant="ghost" size="sm" onClick={() => open_edit(r)} data-testid={`edit-res-${r.resident_id}`}>Edit</Button>

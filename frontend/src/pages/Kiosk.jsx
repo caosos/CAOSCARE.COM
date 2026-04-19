@@ -4,7 +4,7 @@ import axios from "axios";
 import { API } from "../lib/api";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
-import { AlertCircle, Mic, MicOff, Volume2, Phone, X, Lightbulb, Fan, Thermometer, Tv, Power } from "lucide-react";
+import { AlertCircle, Mic, MicOff, Volume2, Phone, X, Lightbulb, Fan, Thermometer, Tv, Power, Type, Contrast } from "lucide-react";
 import { toast } from "sonner";
 
 // Kiosk is PUBLIC - no login. Selected/identified by kiosk_id in URL.
@@ -37,6 +37,15 @@ export default function Kiosk() {
   const voiceLoopRef = useRef(false);      // is continuous listen loop active?
   const callStateRef = useRef("idle");     // sync callState for async callbacks
   useEffect(() => { callStateRef.current = callState; }, [callState]);
+
+  // Accessibility — text-size & high-contrast per kiosk, persisted so a room
+  // set for a low-vision resident stays that way across reboots.
+  const [textSize, setTextSize] = useState(() => localStorage.getItem("caos_kiosk_textsize") || "md"); // md | lg | xl
+  const [highContrast, setHighContrast] = useState(() => localStorage.getItem("caos_kiosk_hc") === "1");
+  useEffect(() => { localStorage.setItem("caos_kiosk_textsize", textSize); }, [textSize]);
+  useEffect(() => { localStorage.setItem("caos_kiosk_hc", highContrast ? "1" : "0"); }, [highContrast]);
+  const cycleTextSize = () => setTextSize((s) => (s === "md" ? "lg" : s === "lg" ? "xl" : "md"));
+  const a11yRootClass = `${textSize === "lg" ? "kiosk-text-lg" : textSize === "xl" ? "kiosk-text-xl" : ""} ${highContrast ? "kiosk-hc" : ""}`.trim();
 
   // Prime browser audio + mic permission on the first user click.
   // Without a user gesture, Chrome will silently block both TTS playback and getUserMedia.
@@ -479,26 +488,51 @@ export default function Kiosk() {
   // IDLE state layout
   if (callState === "idle") {
     return (
-      <div className="min-h-screen bg-caos-ambient text-caos-ink p-8 md:p-12 flex flex-col">
+      <div className={`min-h-screen bg-caos-ambient text-caos-ink p-8 md:p-12 flex flex-col ${a11yRootClass}`}>
         <div className="flex items-center justify-between">
           <div>
             <span className="font-display font-bold tracking-tighter text-caos-forest text-2xl">CAOS</span>
             <span className="font-display font-light text-caos-forest text-2xl">Care</span>
           </div>
-          {kiosk && (
-            <div className="text-right text-caos-mute text-sm" data-testid="kiosk-label">
-              <div className="font-bold">Room {kiosk.room}</div>
-              <div>{kiosk.zone}</div>
-            </div>
-          )}
+          <div className="flex items-center gap-2 kiosk-a11y-row">
+            <button
+              onClick={cycleTextSize}
+              data-testid="kiosk-a11y-text-size"
+              aria-label={`Text size: ${textSize}. Tap to cycle.`}
+              title="Text size"
+              className="px-3 py-2 rounded-full bg-white border border-caos-line text-caos-forest hover:bg-caos-forest hover:text-white flex items-center gap-1 text-sm font-bold uppercase tracking-wider"
+            >
+              <Type className="w-4 h-4" /> {textSize === "md" ? "A" : textSize === "lg" ? "A+" : "A++"}
+            </button>
+            <button
+              onClick={() => setHighContrast((v) => !v)}
+              data-testid="kiosk-a11y-contrast"
+              aria-label={`High contrast mode ${highContrast ? "on" : "off"}. Tap to toggle.`}
+              title="High contrast"
+              aria-pressed={highContrast}
+              className={`px-3 py-2 rounded-full border flex items-center gap-1 text-sm font-bold uppercase tracking-wider ${
+                highContrast
+                  ? "bg-caos-forest text-white border-caos-forest"
+                  : "bg-white text-caos-forest border-caos-line hover:bg-caos-forest hover:text-white"
+              }`}
+            >
+              <Contrast className="w-4 h-4" /> {highContrast ? "HC on" : "HC"}
+            </button>
+            {kiosk && (
+              <div className="text-right text-caos-mute text-sm ml-2" data-testid="kiosk-label">
+                <div className="font-bold">Room {kiosk.room}</div>
+                <div>{kiosk.zone}</div>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center text-center max-w-4xl mx-auto">
           <p className="text-xs font-bold uppercase tracking-[0.3em] text-caos-mute">Welcome</p>
-          <h1 className="mt-6 font-display text-5xl md:text-7xl lg:text-[110px] font-light tracking-tighter leading-[0.95] text-caos-forest">
+          <h1 className="kiosk-hello mt-6 font-display text-5xl md:text-7xl lg:text-[110px] font-light tracking-tighter leading-[0.95] text-caos-forest">
             {resident ? `Hello, ${resident.name.split(" ")[0]}.` : "Hello."}
           </h1>
-          <p className="mt-8 text-2xl md:text-3xl text-caos-ink/80 leading-snug">
+          <p className="kiosk-prompt mt-8 text-2xl md:text-3xl text-caos-ink/80 leading-snug">
             If you need help, press the big red button.<br />
             I'll stay with you until someone arrives.
           </p>

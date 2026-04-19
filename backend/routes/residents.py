@@ -93,3 +93,104 @@ async def resident_movement(resident_id: str, hours: int = 24, user=Depends(get_
                 "source": l.get("source"),
             })
     return {"visits": visits, "total_pings": len(locs)}
+
+
+@router.get("/{resident_id}/briefing")
+async def resident_briefing(resident_id: str, user=Depends(get_current_user)):
+    """Concise clinical + situational briefing — structured JSON plus a
+    pre-composed natural-language line ready for TTS. Built for nurse
+    accessibility: a shift-change reader, a sighted-overview for the
+    caregiver entering the room, or a voice read-back on the kiosk."""
+    from datetime import datetime, timezone, timedelta
+    resident = await db.residents.find_one({"resident_id": resident_id}, {"_id": 0})
+    if not resident:
+        raise HTTPException(status_code=404, detail="Resident not found")
+
+    # Active/unresolved alerts in the last 24h
+    cutoff_24h = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+    active_alerts = await db.alerts.count_documents({
+        "resident_id": resident_id,
+        "status": {"$in": ["active", "acknowledged"]},
+        "created_at": {"$gte": cutoff_24h},
+    })
+
+    # Top pinned memories (nurse's cheat-sheet)
+    pinned = await db.memories.find(
+        {"resident_id": resident_id, "pinned": True},
+        {"_id": 0, "text": 1, "category": 1, "importance": 1},
+    ).sort([("importance", -1)]).to_list(5)
+
+    # Last known zone
+    last_loc = await db.locations.find_one(
+        {"resident_id": resident_id}, {"_id": 0},
+        sort=[("created_at", -1)],
+    )
+    last_zone = last_loc.get("zone") if last_loc else None
+
+    thresholds = resident.get("clinical_thresholds") or {}
+    preferred = resident.get("preferred_name") or resident["name"].split(" ")[0]
+
+    # --- Compose the spoken narrative ---
+    parts = [f"Briefing for {resident['name']}, room {resident['room']}."]
+    if resident.get("preferred_name") and resident["preferred_name"] != preferred:
+        parts.append(f"Goes by {resident['preferred_name']}.")
+    elif resident.get("preferred_name"):
+        parts.append(f"Goes by {resident['preferred_name']}.")
+
+    # Clinical thresholds, spoken plain-English
+    def _t(k):
+        v = thresholds.get(k)
+        return v if (isinstance(v, (int, float)) and v) else None
+
+    hr_min, hr_max, hr_ex = _t("hr_resting_min"), _t("hr_resting_max"), _t("hr_exertion_max")
+    spo2 = _t("spo2_min")
+    if hr_min or hr_max or hr_ex or spo2:
+        bits = []
+        if hr_min and hr_max:
+            bits.append(f"resting heart rate band {hr_min} to {hr_max}")
+        elif hr_max:
+            bits.append(f"resting heart rate up to {hr_max}")
+        if hr_ex:
+            bits.append(f"exertion ceiling {hr_ex}")
+        if spo2:
+            bits.append(f"oxygen floor {spo2} percent")
+        parts.append("Clinical bands: " + ", ".join(bits) + ".")
+        if thresholds.get("notes"):
+            parts.append(f"Note: {thresholds['notes']}.")
+    else:
+        parts.append("No custom clinical bands set.")
+
+    # Active alerts
+    if active_alerts > 0:
+        parts.append(
+            f"{active_alerts} unresolved alert{'s' if active_alerts > 1 else ''} in the last 24 hours."
+        )
+    else:
+        parts.append("No open alerts.")
+
+    # Location
+    if last_zone:
+        parts.append(f"Last seen in {last_zone}.")
+
+    # Pinned cheat-sheet memories — keep it short, drop very similar ones
+    if pinned:
+        spoken_mem = "; ".join(p["text"].rstrip(".").strip() for p in pinned[:3])
+        parts.append(f"Key things to know: {spoken_mem}.")
+
+    narrative = " ".join(parts)
+
+    return {
+        "resident": {
+            "resident_id": resident["resident_id"],
+            "name": resident["name"],
+            "preferred_name": resident.get("preferred_name") or "",
+            "room": resident["room"],
+            "participation_level": resident.get("participation_level"),
+        },
+        "clinical_thresholds": resident.get("clinical_thresholds") or None,
+        "active_alerts_24h": active_alerts,
+        "pinned_memories": pinned,
+        "last_zone": last_zone,
+        "last_seen_at": last_loc.get("created_at") if last_loc else None,
+        "narrative": narrative,
+    }
