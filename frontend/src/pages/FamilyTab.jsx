@@ -9,7 +9,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from ".
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Checkbox } from "../components/ui/checkbox";
 import { Badge } from "../components/ui/badge";
-import { Trash2, Plus, Mail, Smartphone, Send, CheckCircle2, XCircle, Copy } from "lucide-react";
+import { Trash2, Plus, Mail, Smartphone, Send, CheckCircle2, XCircle, Copy, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 const NOTIFY_OPTIONS = [
@@ -100,6 +100,21 @@ export default function FamilyTab({ residents }) {
         <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
           <h3 className="font-display text-lg font-medium text-caos-forest">Family contacts</h3>
           <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="border-2 rounded-full"
+              data-testid="generate-haikus-btn"
+              onClick={async () => {
+                try {
+                  const { data } = await api.post("/haiku/generate-today");
+                  toast.success(`Tonight's haikus: ${data.created} created, ${data.skipped} already done`);
+                } catch (err) {
+                  toast.error(err?.response?.data?.detail || "Could not generate haikus");
+                }
+              }}
+            >
+              <Sparkles className="w-4 h-4 mr-2" /> Generate tonight's haikus
+            </Button>
             <Dialog open={testOpen} onOpenChange={setTestOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" className="border-2 rounded-full" data-testid="send-test-btn">

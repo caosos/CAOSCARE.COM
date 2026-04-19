@@ -29,6 +29,9 @@ from routes import family_portal as family_portal_routes  # noqa: E402
 from routes import devices as device_routes  # noqa: E402
 from routes import vision as vision_routes  # noqa: E402
 from routes import tasks as task_routes  # noqa: E402
+from routes import haiku as haiku_routes  # noqa: E402
+from routes import paging as paging_routes  # noqa: E402
+from routes import medications as medication_routes  # noqa: E402
 from seed import seed  # noqa: E402
 
 
@@ -77,6 +80,9 @@ api.include_router(family_portal_routes.router)
 api.include_router(device_routes.router)
 api.include_router(vision_routes.router)
 api.include_router(task_routes.router)
+api.include_router(haiku_routes.router)
+api.include_router(paging_routes.router)
+api.include_router(medication_routes.router)
 
 app.include_router(api)
 

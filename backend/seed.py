@@ -58,6 +58,10 @@ ROADMAP_SEED = [
     (5, "Panic-press → hands-free voice", "Pendant pressed ≥2x in 60s (or fall event) upgrades to emergency + auto_voice=True. Kiosk polls /api/kiosks/{id}/active-emergency and auto-enables its mic when a match is found.", "done"),
     (5, "Central nurse-station kiosk", "Kiosk.is_central=true listens for ANY facility-wide emergency, not just its room/zone.", "done"),
     (5, "Staff task management", "Daily templates spawn into assigned tasks. Start → in_progress → Complete → audit trail (who, when, duration, notes).", "done"),
+    (5, "Daily haiku generator", "POST /api/haiku/generate-today uses Claude to write one bedtime haiku per resident, surfaced on the family portal.", "done"),
+    (5, "Pager RF emulation", "Facility paging system bridged via /api/paging/event; live feed /api/paging/feed shown on every staff tablet.", "done"),
+    (5, "Medication reminder voice", "Scheduled per-resident reminders; kiosk polls /api/medications/due/by-room and speaks at the right minute.", "done"),
+    (5, "Floor-plan heatmap", "Admin → Map shows each resident's live zone as dots on a simple SVG floor plan.", "done"),
 ]
 
 
@@ -462,6 +466,49 @@ async def seed():
             "created_at": now_utc().isoformat(),
         }
         await db.staff_tasks.insert_one(task_doc)
+
+    # Seed medication reminders (1-2 per resident)
+    if residents_for_family and await db.med_reminders.count_documents({}) == 0:
+        med_samples = [
+            ("Blood pressure pill", "08:00", "One white tablet with water"),
+            ("Morning vitamins", "08:30", "Multivitamin + calcium"),
+            ("Evening heart pill", "20:00", "Blue tablet — take with food"),
+        ]
+        for i, r in enumerate(residents_for_family[:4]):
+            title, hhmm, notes = med_samples[i % len(med_samples)]
+            await db.med_reminders.insert_one({
+                "reminder_id": f"med_{_r.randint(100000, 999999)}",
+                "resident_id": r["resident_id"],
+                "resident_name": r["name"],
+                "room": r.get("room"),
+                "title": title,
+                "time_hhmm": hhmm,
+                "days": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
+                "dose_notes": notes,
+                "active": True,
+                "created_at": now_utc().isoformat(),
+            })
+
+    # Seed a couple of historical pager events for demo
+    if await db.pager_events.count_documents({}) == 0 and residents_for_family:
+        sample_pages = [
+            ("Call bell — Room 101", "page", residents_for_family[0]),
+            ("Assist bathroom — Room 108", "page", residents_for_family[1] if len(residents_for_family) > 1 else None),
+        ]
+        for msg, urgency, res in sample_pages:
+            when = now_utc() - timedelta(minutes=_r.randint(1, 25))
+            await db.pager_events.insert_one({
+                "page_id": f"page_{_r.randint(100000, 999999)}",
+                "source": "facility_rf",
+                "cap_code": res.get("pendant_id") if res else None,
+                "resident_id": res["resident_id"] if res else None,
+                "resident_name": res["name"] if res else None,
+                "room": res.get("room") if res else None,
+                "zone": None,
+                "message": msg,
+                "urgency": urgency,
+                "created_at": when.isoformat(),
+            })
 
     # Roadmap items (idempotent; advance status if this iteration marks done)
     for order, (phase, title, desc, status) in enumerate(ROADMAP_SEED):

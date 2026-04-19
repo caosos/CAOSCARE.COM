@@ -26,6 +26,8 @@ import WearablesTab from "./WearablesTab";
 import DeviceTokensTab from "./DeviceTokensTab";
 import DevicesTab from "./DevicesTab";
 import TasksTab from "./TasksTab";
+import MedicationsTab from "./MedicationsTab";
+import FloorPlanTab from "./FloorPlanTab";
 
 export default function Admin() {
   const { user, logout } = useAuth();
@@ -99,6 +101,8 @@ export default function Admin() {
             <TabsTrigger value="wearables" data-testid="tab-wearables">Wearables</TabsTrigger>
             <TabsTrigger value="devices" data-testid="tab-devices">Smart devices</TabsTrigger>
             <TabsTrigger value="tasks" data-testid="tab-tasks">Tasks</TabsTrigger>
+            <TabsTrigger value="meds" data-testid="tab-meds">Meds</TabsTrigger>
+            <TabsTrigger value="map" data-testid="tab-map">Map</TabsTrigger>
             <TabsTrigger value="staff" data-testid="tab-staff">Staff ({staff.length})</TabsTrigger>
             <TabsTrigger value="kiosks" data-testid="tab-kiosks">Kiosks ({kiosks.length})</TabsTrigger>
             <TabsTrigger value="zones" data-testid="tab-zones">Zones ({zones.length})</TabsTrigger>
@@ -122,6 +126,12 @@ export default function Admin() {
           </TabsContent>
           <TabsContent value="tasks" className="mt-6">
             <TasksTab residents={residents} staff={staff} />
+          </TabsContent>
+          <TabsContent value="meds" className="mt-6">
+            <MedicationsTab residents={residents} />
+          </TabsContent>
+          <TabsContent value="map" className="mt-6">
+            <FloorPlanTab />
           </TabsContent>
           <TabsContent value="staff" className="mt-6">
             <StaffTab staff={staff} onChange={fetchAll} />

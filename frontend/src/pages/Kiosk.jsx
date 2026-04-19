@@ -94,6 +94,29 @@ export default function Kiosk() {
     });
   };
 
+  // Medication reminder polling — only when idle
+  useEffect(() => {
+    if (!kiosk?.room) return;
+    let stop = false;
+    const checkMeds = async () => {
+      if (callState !== "idle") return;
+      try {
+        const { data: due } = await axios.get(`${API}/medications/due/by-room/${kiosk.room}`);
+        if (stop || !due || due.length === 0) return;
+        const m = due[0];
+        const name = (resident?.preferred_name || resident?.name || "there").split(" ")[0];
+        const line = `Hi ${name}, it's time for your ${m.title}.${m.dose_notes ? " " + m.dose_notes + "." : ""} If you need help, press the red button.`;
+        await speak(line);
+        await axios.post(`${API}/medications/ack/${m.reminder_id}`).catch(() => {});
+        toast.success(`Reminder spoken: ${m.title}`);
+      } catch { /* silent */ }
+    };
+    checkMeds();
+    const t = setInterval(checkMeds, 60000);
+    return () => { stop = true; clearInterval(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kiosk, resident, callState]);
+
   const startContinuousListen = async () => {
     // Uses same recorder but we stop it on silence using a 5s window.
     try {
