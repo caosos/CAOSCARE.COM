@@ -15,6 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Textarea } from "../components/ui/textarea";
 import { Trash2, Plus, LogOut, Activity } from "lucide-react";
 import { toast } from "sonner";
+import PendantsTab from "./PendantsTab";
+import Roadmap from "./Roadmap";
 
 export default function Admin() {
   const { user, logout } = useAuth();
@@ -84,13 +86,18 @@ export default function Admin() {
         <Tabs defaultValue="residents">
           <TabsList>
             <TabsTrigger value="residents" data-testid="tab-residents">Residents ({residents.length})</TabsTrigger>
+            <TabsTrigger value="pendants" data-testid="tab-pendants">Pendants</TabsTrigger>
             <TabsTrigger value="staff" data-testid="tab-staff">Staff ({staff.length})</TabsTrigger>
             <TabsTrigger value="kiosks" data-testid="tab-kiosks">Kiosks ({kiosks.length})</TabsTrigger>
             <TabsTrigger value="zones" data-testid="tab-zones">Zones ({zones.length})</TabsTrigger>
+            <TabsTrigger value="roadmap" data-testid="tab-roadmap">Roadmap</TabsTrigger>
           </TabsList>
 
           <TabsContent value="residents" className="mt-6">
             <ResidentsTab residents={residents} onChange={fetchAll} />
+          </TabsContent>
+          <TabsContent value="pendants" className="mt-6">
+            <PendantsTab residents={residents} />
           </TabsContent>
           <TabsContent value="staff" className="mt-6">
             <StaffTab staff={staff} onChange={fetchAll} />
@@ -101,6 +108,9 @@ export default function Admin() {
           <TabsContent value="zones" className="mt-6">
             <ZonesTab zones={zones} onChange={fetchAll} />
           </TabsContent>
+          <TabsContent value="roadmap" className="mt-6">
+            <Roadmap />
+          </TabsContent>
         </Tabs>
       </div>
     </div>
@@ -110,15 +120,40 @@ export default function Admin() {
 /* -------------- Residents -------------- */
 function ResidentsTab({ residents, onChange }) {
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", room: "", pendant_id: "", medical_notes: "", emergency_contact: "" });
+  const emptyForm = { name: "", preferred_name: "", room: "", pendant_id: "", medical_notes: "", emergency_contact: "", preferences: "", memory: "", participation_level: "pendant_enhanced" };
+  const [form, setForm] = useState(emptyForm);
+  const [editingId, setEditingId] = useState(null);
 
-  const create = async (e) => {
+  const open_new = () => { setEditingId(null); setForm(emptyForm); setOpen(true); };
+  const open_edit = (r) => {
+    setEditingId(r.resident_id);
+    setForm({
+      name: r.name || "",
+      preferred_name: r.preferred_name || "",
+      room: r.room || "",
+      pendant_id: r.pendant_id || "",
+      medical_notes: r.medical_notes || "",
+      emergency_contact: r.emergency_contact || "",
+      preferences: r.preferences || "",
+      memory: r.memory || "",
+      participation_level: r.participation_level || "pendant_enhanced",
+    });
+    setOpen(true);
+  };
+
+  const save = async (e) => {
     e.preventDefault();
     try {
-      await api.post("/residents", form);
-      toast.success("Resident added");
+      if (editingId) {
+        await api.put(`/residents/${editingId}`, form);
+        toast.success("Updated");
+      } else {
+        await api.post("/residents", form);
+        toast.success("Resident added");
+      }
       setOpen(false);
-      setForm({ name: "", room: "", pendant_id: "", medical_notes: "", emergency_contact: "" });
+      setForm(emptyForm);
+      setEditingId(null);
       onChange();
     } catch (err) {
       toast.error(err?.response?.data?.detail || "Failed");
@@ -138,20 +173,44 @@ function ResidentsTab({ residents, onChange }) {
         <h2 className="font-display text-xl font-medium text-caos-forest">Residents</h2>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-caos-forest hover:bg-caos-forest-hover rounded-full" data-testid="add-resident-btn">
+            <Button onClick={open_new} className="bg-caos-forest hover:bg-caos-forest-hover rounded-full" data-testid="add-resident-btn">
               <Plus className="w-4 h-4 mr-2" /> Add resident
             </Button>
           </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle className="font-display">New resident</DialogTitle></DialogHeader>
-            <form onSubmit={create} className="space-y-4">
-              <div><Label>Name</Label><Input required data-testid="res-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader><DialogTitle className="font-display">{editingId ? "Edit resident" : "New resident"}</DialogTitle></DialogHeader>
+            <form onSubmit={save} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label>Full name</Label><Input required data-testid="res-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+                <div><Label>Preferred name (used by AI)</Label><Input data-testid="res-preferred" value={form.preferred_name} onChange={(e) => setForm({ ...form, preferred_name: e.target.value })} placeholder="Maggie" /></div>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div><Label>Room</Label><Input required data-testid="res-room" value={form.room} onChange={(e) => setForm({ ...form, room: e.target.value })} /></div>
                 <div><Label>Pendant ID</Label><Input required data-testid="res-pendant" value={form.pendant_id} onChange={(e) => setForm({ ...form, pendant_id: e.target.value })} /></div>
               </div>
+              <div>
+                <Label>Participation level</Label>
+                <Select value={form.participation_level} onValueChange={(v) => setForm({ ...form, participation_level: v })}>
+                  <SelectTrigger data-testid="res-participation"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="room_only">Room only</SelectItem>
+                    <SelectItem value="pendant_enhanced">Pendant enhanced</SelectItem>
+                    <SelectItem value="wearable_enhanced">Wearable enhanced</SelectItem>
+                    <SelectItem value="family_connected">Family connected</SelectItem>
+                    <SelectItem value="full">Full (all layers)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div><Label>Emergency contact</Label><Input data-testid="res-contact" value={form.emergency_contact} onChange={(e) => setForm({ ...form, emergency_contact: e.target.value })} /></div>
               <div><Label>Medical notes</Label><Textarea data-testid="res-notes" value={form.medical_notes} onChange={(e) => setForm({ ...form, medical_notes: e.target.value })} /></div>
+              <div>
+                <Label>Comfort topics they love <span className="text-caos-mute text-xs">(AI personalizes chat)</span></Label>
+                <Textarea data-testid="res-preferences" value={form.preferences} onChange={(e) => setForm({ ...form, preferences: e.target.value })} placeholder="Piano hymns, her grandkids Liam & Aoife, rainy days…" />
+              </div>
+              <div>
+                <Label>Things CAOS should remember <span className="text-caos-mute text-xs">(AI memory)</span></Label>
+                <Textarea data-testid="res-memory" value={form.memory} onChange={(e) => setForm({ ...form, memory: e.target.value })} placeholder="Her late husband Frank passed in 2019. She was a schoolteacher in Boston." />
+              </div>
               <DialogFooter><Button type="submit" data-testid="res-save" className="bg-caos-forest">Save</Button></DialogFooter>
             </form>
           </DialogContent>
@@ -160,20 +219,29 @@ function ResidentsTab({ residents, onChange }) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Name</TableHead><TableHead>Room</TableHead><TableHead>Pendant</TableHead><TableHead>Notes</TableHead><TableHead></TableHead>
+            <TableHead>Name</TableHead><TableHead>Room</TableHead><TableHead>Pendant</TableHead><TableHead>Participation</TableHead><TableHead>AI personalization</TableHead><TableHead></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {residents.map((r) => (
             <TableRow key={r.resident_id} data-testid={`res-row-${r.resident_id}`}>
-              <TableCell className="font-medium">{r.name}</TableCell>
+              <TableCell>
+                <span className="font-medium">{r.name}</span>
+                {r.preferred_name && <span className="text-caos-mute text-xs block">"{r.preferred_name}"</span>}
+              </TableCell>
               <TableCell>{r.room}</TableCell>
               <TableCell className="font-mono text-xs">{r.pendant_id}</TableCell>
-              <TableCell className="text-caos-mute text-sm max-w-xs truncate">{r.medical_notes}</TableCell>
+              <TableCell className="text-xs uppercase tracking-wider font-bold text-caos-forest">{r.participation_level?.replace("_", " ") || "—"}</TableCell>
+              <TableCell className="text-caos-mute text-sm max-w-xs truncate" title={r.preferences}>
+                {r.preferences ? `✓ ${r.preferences.slice(0, 60)}${r.preferences.length > 60 ? "…" : ""}` : <span className="text-caos-mute/50">—</span>}
+              </TableCell>
               <TableCell>
-                <Button variant="ghost" size="sm" onClick={() => remove(r.resident_id)} data-testid={`del-res-${r.resident_id}`}>
-                  <Trash2 className="w-4 h-4 text-caos-terracotta" />
-                </Button>
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="sm" onClick={() => open_edit(r)} data-testid={`edit-res-${r.resident_id}`}>Edit</Button>
+                  <Button variant="ghost" size="sm" onClick={() => remove(r.resident_id)} data-testid={`del-res-${r.resident_id}`}>
+                    <Trash2 className="w-4 h-4 text-caos-terracotta" />
+                  </Button>
+                </div>
               </TableCell>
             </TableRow>
           ))}

@@ -14,9 +14,12 @@ import {
   Activity,
   RefreshCw,
   Users,
+  ChevronRight,
+  TrendingUp,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
+import AlertDetailDialog from "./AlertDetailDialog";
 
 function severityColor(s) {
   if (s === "emergency") return { border: "#B6463A", bg: "#FDECE9", text: "#98392F" };
@@ -40,6 +43,7 @@ export default function StaffDashboard() {
   const [locations, setLocations] = useState([]);
   const [stats, setStats] = useState({ active: 0, acknowledged: 0, resolved_24h: 0, emergency_active: 0 });
   const [loading, setLoading] = useState(true);
+  const [detailId, setDetailId] = useState(null);
 
   const fetchAll = async () => {
     try {
@@ -159,12 +163,14 @@ export default function StaffDashboard() {
               )}
               {alerts.map((a) => {
                 const c = severityColor(a.severity);
+                const escLevel = a.escalation_level || 0;
                 return (
                   <Card
                     key={a.alert_id}
                     data-testid={`alert-card-${a.alert_id}`}
-                    className={`p-5 border-2 relative ${a.severity === "emergency" && a.status === "active" ? "caos-alert-emergency" : ""}`}
+                    className={`p-5 border-2 relative cursor-pointer hover:shadow-md transition-shadow ${a.severity === "emergency" && a.status === "active" ? "caos-alert-emergency" : ""}`}
                     style={{ borderLeftColor: c.border, borderLeftWidth: 6, background: "#fff" }}
+                    onClick={() => setDetailId(a.alert_id)}
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
@@ -179,6 +185,14 @@ export default function StaffDashboard() {
                           <Badge variant="outline" className="uppercase tracking-wider text-xs">
                             {a.status}
                           </Badge>
+                          {escLevel > 0 && (
+                            <Badge
+                              data-testid={`esc-${a.alert_id}`}
+                              className="bg-caos-amber text-white uppercase tracking-wider text-xs font-bold flex items-center gap-1"
+                            >
+                              <TrendingUp className="w-3 h-3" /> Escalated Lv{escLevel}
+                            </Badge>
+                          )}
                           <span className="text-caos-mute text-sm">{timeAgo(a.created_at)}</span>
                         </div>
                         <h3 className="font-display text-xl font-medium text-caos-forest mt-2">
@@ -194,7 +208,7 @@ export default function StaffDashboard() {
                           <p className="text-caos-mute text-xs mt-2">Acknowledged by {a.acknowledged_by}</p>
                         )}
                       </div>
-                      <div className="flex flex-col gap-2 shrink-0">
+                      <div className="flex flex-col gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
                         {a.status === "active" && (
                           <Button
                             onClick={() => acknowledge(a.alert_id)}
@@ -205,11 +219,12 @@ export default function StaffDashboard() {
                           </Button>
                         )}
                         <Button
-                          onClick={() => resolve(a.alert_id)}
-                          data-testid={`resolve-btn-${a.alert_id}`}
-                          className="bg-caos-moss hover:bg-caos-moss/90 text-white"
+                          onClick={() => setDetailId(a.alert_id)}
+                          data-testid={`detail-btn-${a.alert_id}`}
+                          variant="outline"
+                          className="border-2"
                         >
-                          <CheckCircle2 className="w-4 h-4 mr-2" /> Resolve
+                          Details <ChevronRight className="w-4 h-4 ml-1" />
                         </Button>
                       </div>
                     </div>
@@ -266,6 +281,13 @@ export default function StaffDashboard() {
           </section>
         </div>
       </div>
+
+      <AlertDetailDialog
+        alertId={detailId}
+        open={!!detailId}
+        onOpenChange={(o) => { if (!o) setDetailId(null); }}
+        onChanged={fetchAll}
+      />
     </div>
   );
 }

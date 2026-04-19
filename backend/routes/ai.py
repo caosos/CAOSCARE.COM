@@ -57,10 +57,17 @@ async def chat(data: ChatInput):
     if data.resident_id:
         r = await db.residents.find_one({"resident_id": data.resident_id}, {"_id": 0})
         if r:
-            context_bits.append(f"Resident name: {r['name']}")
+            name = r.get("preferred_name") or r.get("name")
+            context_bits.append(f"Resident name: {name}")
             context_bits.append(f"Room: {r.get('room', 'unknown')}")
             if r.get("medical_notes"):
-                context_bits.append(f"Medical notes: {r['medical_notes']}")
+                context_bits.append(f"Medical notes (do not diagnose; use only to stay aware): {r['medical_notes']}")
+            if r.get("preferences"):
+                context_bits.append(f"Comfort topics they love: {r['preferences']}")
+            if r.get("memory"):
+                context_bits.append(f"Remember about them: {r['memory']}")
+            if r.get("participation_level"):
+                context_bits.append(f"Participation level: {r['participation_level']}")
 
     system = CAOS_SYSTEM_PROMPT
     if context_bits:

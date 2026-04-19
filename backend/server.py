@@ -19,6 +19,8 @@ from routes import kiosks as kiosk_routes  # noqa: E402
 from routes import alerts as alert_routes  # noqa: E402
 from routes import location as location_routes  # noqa: E402
 from routes import ai as ai_routes  # noqa: E402
+from routes import pendants as pendant_routes  # noqa: E402
+from routes import roadmap as roadmap_routes  # noqa: E402
 from seed import seed  # noqa: E402
 
 
@@ -57,6 +59,8 @@ api.include_router(kiosk_routes.router)
 api.include_router(alert_routes.router)
 api.include_router(location_routes.router)
 api.include_router(ai_routes.router)
+api.include_router(pendant_routes.router)
+api.include_router(roadmap_routes.router)
 
 app.include_router(api)
 

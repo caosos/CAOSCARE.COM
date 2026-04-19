@@ -1,0 +1,45 @@
+{
+  "summary": "Iteration 2 end-to-end review of pendants + roadmap + alert escalation/close-out + resident AI personalization. Expanded pytest suite from 32 -> 46 tests; 46/46 PASS. Verified route ordering: /alerts/stats is NOT clobbered by /alerts/{alert_id}. Verified seeded data: 34 roadmap items across phases 1-5, 7 pendants with resident_name attached. Public /api/pendants/event end-to-end: press creates pendant-triggered alert with resident_name, periodic_ping does NOT create alert, unknown frequency -> 404 + logged to pendant_unknown. AlertClose flow saves outcome/close_notes and timeline returns Created/Acknowledged/Resolved entries. Frontend verified with Playwright as admin: 6 tabs render, Roadmap (34 items / 5 phases) status+notes edits save, Pendants tab lists 7, Register + Simulate press dialogs fire and alerts appear in Staff dashboard, Residents Edit pre-fills preferred_name/participation_level/preferences/memory, AlertDetailDialog opens with timeline and close-out submits (Event closed toast). 10 escalation badges render in Staff dashboard.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/pendants/event", "issue": "Public ingest is unauthenticated/unsigned; any client can inject alerts by guessing a registered frequency. Add HMAC/device_token validation in production."},
+      {"endpoint": "POST /api/alerts/{alert_id}/close", "issue": "AlertClose model does not require outcome server-side; frontend enforces it, but backend accepts empty outcome silently. Consider Field(min_length=1) on outcome."},
+      {"endpoint": "GET /api/alerts/feed", "issue": "Lazy escalation only bumps level for alerts in status=='active'. Once a staffer acknowledges, escalation stops — correct in design, but once resolved, previously escalated alerts' escalation_level remains in history for auditing (good). Not a bug, just documenting."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin tabs", "issues": ["Tab list shows '(0)' count while data loads — harmless flicker; could show a skeleton or suppress counts until fetch resolves."]},
+      {"screen": "Staff dashboard", "issues": ["Escalation badge uses same amber for LV1 and LV3 in the sample rendered — consider distinct colors (amber→orange→red) to emphasize severity of unacked time."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "(Optional) Enforce outcome min_length=1 on AlertClose server-side for parity with UI validation.",
+    "(Optional) Add device_token/HMAC check on /api/pendants/event before production rollout.",
+    "(Optional) Differentiate LV1/LV2/LV3 escalation badge colors on Staff dashboard."
+  ],
+  "critical_code_review_comments": [
+    "alerts.py: /stats is correctly declared BEFORE /{alert_id} (regression-tested). Keep this ordering or migrate to explicit path on /stats.",
+    "pendants.py: create_pendant rejects duplicate frequency but does NOT reject duplicate pendant_id serial label — consider uniqueness on pendant_id too.",
+    "pendants.py: /event endpoint updates battery/signal and creates alert atomically but without a transaction — acceptable for MVP, flag if multi-doc consistency matters later.",
+    "roadmap.py: PATCH filters None values but does not validate that status transitions make sense (e.g., done->blocked allowed). Acceptable for admin-only tool.",
+    "seed.py (not read this iteration): 34 roadmap items + 7 pendants confirmed via API; seed idempotency assumed from prior iteration. No new seed bugs observed."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py"
+  ],
+  "success_rate": {"backend": "100% (46/46)", "frontend": "100% of listed flows"},
+  "test_credentials": "Admin admin@caoscare.com/admin1234, Staff nurse@caoscare.com/nurse1234 (both verified).",
+  "seed_data_creation": "Auto-seeded on startup: 34 roadmap items across phases 1-5, 7 pendants (several with resident_name joined), residents with preferred_name/preferences/memory/participation_level populated. Test suite also creates TEST_-prefixed residents/pendants/staff and cleans them up.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend regression suite at /app/backend/tests/backend_test.py covers 46 tests in ~14s including Claude chat, OpenAI TTS, pendant event ingest, roadmap CRUD, alert close-out/timeline. participation_level is a strict Literal: 'room_only'|'pendant_enhanced'|'wearable_enhanced'|'family_connected'|'full' — do not send free-form strings. Route ordering in alerts.py: /stats BEFORE /{alert_id} is required and currently correct.",
+  "rca_of_the_issue": "N/A — no regressions found. One test authoring miss (used 'active' for participation_level) was self-corrected to 'pendant_enhanced' per Literal definition."
+}

@@ -2,7 +2,7 @@
 from datetime import datetime, timezone
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, Query
-from models import Alert, AlertCreate, now_utc
+from models import Alert, AlertCreate, AlertClose, now_utc
 from deps import db, get_current_user
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
@@ -92,7 +92,7 @@ async def list_alerts(
 
 @router.get("/feed")
 async def alerts_feed(user=Depends(get_current_user)):
-    """Active + recently acknowledged for live staff dashboard."""
+    """Active + recently acknowledged for live staff dashboard, with lazy escalation."""
     items = (
         await db.alerts.find(
             {"status": {"$in": ["active", "acknowledged"]}},
@@ -101,10 +101,37 @@ async def alerts_feed(user=Depends(get_current_user)):
         .sort("created_at", -1)
         .to_list(200)
     )
+    # Escalation thresholds (seconds since created, while still active)
+    ESCALATION = [
+        (60, 1),   # after 1 min unacked -> level 1
+        (180, 2),  # after 3 min unacked -> level 2 (supervisor)
+        (420, 3),  # after 7 min unacked -> level 3 (code)
+    ]
+    now_ts = datetime.now(timezone.utc)
+
     for it in items:
         it["created_at"] = _iso(it.get("created_at"))
         it["acknowledged_at"] = _iso(it.get("acknowledged_at"))
         it["resolved_at"] = _iso(it.get("resolved_at"))
+
+        if it.get("status") == "active":
+            try:
+                created = datetime.fromisoformat(it["created_at"])
+            except Exception:
+                continue
+            if created.tzinfo is None:
+                created = created.replace(tzinfo=timezone.utc)
+            age = (now_ts - created).total_seconds()
+            new_level = 0
+            for threshold, level in ESCALATION:
+                if age >= threshold:
+                    new_level = level
+            if new_level > (it.get("escalation_level") or 0):
+                it["escalation_level"] = new_level
+                await db.alerts.update_one(
+                    {"alert_id": it["alert_id"]},
+                    {"$set": {"escalation_level": new_level}},
+                )
     return items
 
 
@@ -134,6 +161,29 @@ async def resolve(alert_id: str, user=Depends(get_current_user)):
     return doc
 
 
+@router.post("/{alert_id}/close")
+async def close_alert(alert_id: str, data: AlertClose, user=Depends(get_current_user)):
+    """Resolve + capture outcome and close-out notes (operational truth)."""
+    now = now_utc().isoformat()
+    r = await db.alerts.update_one(
+        {"alert_id": alert_id, "status": {"$in": ["active", "acknowledged", "resolved"]}},
+        {"$set": {
+            "status": "resolved",
+            "resolved_by": user["name"],
+            "resolved_at": now,
+            "outcome": data.outcome,
+            "close_notes": data.close_notes or "",
+        }},
+    )
+    if r.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    doc = await db.alerts.find_one({"alert_id": alert_id}, {"_id": 0})
+    for k in ("created_at", "acknowledged_at", "resolved_at"):
+        if doc.get(k) and not isinstance(doc[k], str):
+            doc[k] = doc[k].isoformat()
+    return doc
+
+
 @router.get("/stats")
 async def alert_stats(user=Depends(get_current_user)):
     active = await db.alerts.count_documents({"status": "active"})
@@ -154,3 +204,48 @@ async def alert_stats(user=Depends(get_current_user)):
         "resolved_24h": resolved_today_ct,
         "emergency_active": emergency_active,
     }
+
+
+@router.get("/{alert_id}")
+async def get_alert(alert_id: str, user=Depends(get_current_user)):
+    """Full event timeline for one alert (created → paged → acked → resolved)."""
+    doc = await db.alerts.find_one({"alert_id": alert_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    for k in ("created_at", "acknowledged_at", "resolved_at"):
+        if doc.get(k) and not isinstance(doc[k], str):
+            doc[k] = doc[k].isoformat()
+
+    timeline = []
+    timeline.append({"at": doc["created_at"], "label": "Created", "detail": f"via {doc.get('triggered_by', 'unknown')}"})
+    if doc.get("escalation_level"):
+        timeline.append({
+            "at": doc["created_at"],
+            "label": f"Escalation level {doc['escalation_level']}",
+            "detail": "Auto-escalated — unacknowledged",
+        })
+    if doc.get("acknowledged_at"):
+        timeline.append({
+            "at": doc["acknowledged_at"],
+            "label": "Acknowledged",
+            "detail": f"by {doc.get('acknowledged_by', 'staff')}",
+        })
+    if doc.get("resolved_at"):
+        timeline.append({
+            "at": doc["resolved_at"],
+            "label": "Resolved",
+            "detail": f"by {doc.get('resolved_by', 'staff')}" + (f" — {doc['outcome']}" if doc.get("outcome") else ""),
+        })
+
+    chat = []
+    if doc.get("resident_id"):
+        chat = await db.chat_messages.find(
+            {"resident_id": doc["resident_id"]},
+            {"_id": 0},
+        ).sort("created_at", -1).to_list(20)
+        for m in chat:
+            if m.get("created_at") and not isinstance(m["created_at"], str):
+                m["created_at"] = m["created_at"].isoformat()
+        chat.reverse()
+
+    return {"alert": doc, "timeline": timeline, "chat": chat}
