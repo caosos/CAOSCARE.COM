@@ -547,6 +547,48 @@ class StaffTaskTemplateCreate(BaseModel):
     description: Optional[str] = ""
     category: TaskCategory = "other"
     shift: TaskShift = "any"
+
+
+# ---------- Resident memory (long-term learned facts) ----------
+MemoryCategory = Literal[
+    "family", "preferences", "health", "history", "daily_pattern",
+    "concern", "relationship", "milestone", "other",
+]
+
+
+class ResidentMemory(BaseModel):
+    """One discrete fact CAOS has learned (or been told) about a resident.
+    These are pulled into every chat so the AI remembers across sessions and
+    stays a trusted companion that grows with the resident over time."""
+    model_config = ConfigDict(extra="ignore")
+    memory_id: str = Field(default_factory=lambda: uid("mem"))
+    resident_id: str
+    text: str                                              # the fact itself
+    category: MemoryCategory = "other"
+    importance: int = 3                                    # 1=minor, 5=critical to remember
+    source: Literal["chat", "admin", "staff", "family", "extraction"] = "extraction"
+    source_session: Optional[str] = None
+    last_referenced_at: Optional[datetime] = None
+    times_referenced: int = 0
+    pinned: bool = False                                   # admin-pinned memories never drop out
+    created_at: datetime = Field(default_factory=now_utc)
+
+
+class ResidentMemoryCreate(BaseModel):
+    resident_id: str
+    text: str
+    category: MemoryCategory = "other"
+    importance: int = 3
+    source: Literal["chat", "admin", "staff", "family", "extraction"] = "admin"
+    pinned: bool = False
+
+
+class ResidentMemoryUpdate(BaseModel):
+    text: Optional[str] = None
+    category: Optional[MemoryCategory] = None
+    importance: Optional[int] = None
+    pinned: Optional[bool] = None
+
     resident_id: Optional[str] = None
     room: Optional[str] = None
     recur: Literal["daily", "weekly", "per_shift"] = "daily"

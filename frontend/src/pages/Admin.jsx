@@ -28,6 +28,7 @@ import DevicesTab from "./DevicesTab";
 import TasksTab from "./TasksTab";
 import MedicationsTab from "./MedicationsTab";
 import FloorPlanTab from "./FloorPlanTab";
+import MemoryDialog from "./MemoryDialog";
 
 export default function Admin() {
   const { user, logout } = useAuth();
@@ -167,6 +168,7 @@ function ResidentsTab({ residents, onChange }) {
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [movementFor, setMovementFor] = useState(null);
+  const [memoryFor, setMemoryFor] = useState(null);
 
   const open_new = () => { setEditingId(null); setForm(emptyForm); setOpen(true); };
   const open_edit = (r) => {
@@ -281,6 +283,7 @@ function ResidentsTab({ residents, onChange }) {
               </TableCell>
               <TableCell>
                 <div className="flex gap-1">
+                  <Button variant="ghost" size="sm" onClick={() => setMemoryFor(r)} data-testid={`mem-res-${r.resident_id}`}>Memory</Button>
                   <Button variant="ghost" size="sm" onClick={() => setMovementFor(r)} data-testid={`move-res-${r.resident_id}`}>Movement</Button>
                   <Button variant="ghost" size="sm" onClick={() => open_edit(r)} data-testid={`edit-res-${r.resident_id}`}>Edit</Button>
                   <Button variant="ghost" size="sm" onClick={() => remove(r.resident_id)} data-testid={`del-res-${r.resident_id}`}>
@@ -293,6 +296,7 @@ function ResidentsTab({ residents, onChange }) {
         </TableBody>
       </Table>
       <MovementDialog resident={movementFor} open={!!movementFor} onOpenChange={(o) => { if (!o) setMovementFor(null); }} />
+      <MemoryDialog resident={memoryFor} open={!!memoryFor} onOpenChange={(o) => { if (!o) setMemoryFor(null); }} />
     </Card>
   );
 }
