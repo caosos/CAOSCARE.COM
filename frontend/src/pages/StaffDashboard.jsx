@@ -188,7 +188,13 @@ export default function StaffDashboard() {
                           {escLevel > 0 && (
                             <Badge
                               data-testid={`esc-${a.alert_id}`}
-                              className="bg-caos-amber text-white uppercase tracking-wider text-xs font-bold flex items-center gap-1"
+                              className={`text-white uppercase tracking-wider text-xs font-bold flex items-center gap-1 ${
+                                escLevel === 1
+                                  ? "bg-caos-amber"
+                                  : escLevel === 2
+                                  ? "bg-[#c8662b]"
+                                  : "bg-caos-terracotta"
+                              }`}
                             >
                               <TrendingUp className="w-3 h-3" /> Escalated Lv{escLevel}
                             </Badge>
