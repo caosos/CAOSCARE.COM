@@ -30,6 +30,10 @@ async def list_wearables(user=Depends(get_current_user)):
 
 @router.post("")
 async def create_wearable(data: WearableCreate, user=Depends(get_current_user)):
+    if data.mac_address:
+        existing = await db.wearables.find_one({"mac_address": data.mac_address}, {"_id": 0})
+        if existing:
+            raise HTTPException(status_code=400, detail="MAC address already registered")
     w = Wearable(**data.model_dump())
     doc = w.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
@@ -129,7 +133,7 @@ async def wearable_event(evt: WearableEventInput, request: Request):
         zone=evt.zone,
         severity=severity,
         message=msg,
-        triggered_by="pendant",  # reuse the pendant severity styling; semantically wearable-initiated
+        triggered_by="wearable",
     )
     doc = alert.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()

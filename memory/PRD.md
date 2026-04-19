@@ -1,59 +1,53 @@
 # CAOS Care — Product Requirements Document
 
 ## Original Problem Statement
-CAOS Care is an AI-powered adjunct to existing 900 MHz Life-Alert-style pendant systems in senior living communities. Today those pendants only track to the room. CAOS Care adds a wall-mounted Android tablet kiosk per room, a plug-in USB RF receiver that listens for pendant presses (each pendant = its own frequency → identifies a specific resident), a personalized AI companion for that resident, a staff dashboard, geofencing/wander alerts across the building-wide mesh, predictive insights, and family notifications — all on top of the infrastructure the facility already owns.
+CAOS Care is an AI-powered adjunct to existing 900 MHz Life-Alert-style pendant systems in senior living communities. Wall-mounted Android kiosks with plug-in USB RF receivers listen to each pendant's unique frequency → identifies that resident → pages staff → personalized AI companion speaks to the resident while help arrives. Staff dashboard + admin + family portal + geofencing + predictive insights + wearable ingest — all on top of the infrastructure the facility already owns.
 
 ## Architecture
-- **Backend**: FastAPI + MongoDB (motor). Routers under `/api`: `auth`, `residents`, `staff`, `kiosks`+`zones`, `alerts`, `locations`, `ai`, `pendants`, `roadmap`, `insights`, `notifications` + `family-contacts`.
+- **Backend**: FastAPI + MongoDB (motor). 13 routers under `/api`: auth, residents, staff, kiosks/zones, alerts, locations, ai, pendants, wearables, roadmap, insights, notifications + family-contacts, device-tokens, family-portal.
 - **Frontend**: React 19 + Tailwind + shadcn/ui. Outfit + Manrope fonts. Forest-green / bone-white / terracotta palette.
-- **AI**: Claude Sonnet 4.5 (per-resident personalized system prompt with preferred_name + preferences + memory), OpenAI Whisper-1 STT, OpenAI tts-1 (voice: sage). Single Emergent Universal LLM key.
-- **Hardware hook**: Android tablet + USB RF receiver → bridge app POSTs `/api/pendants/event` with `{frequency_mhz, event_type, zone, signal_strength, battery_percent}`. Backend looks up pendant → identifies resident → creates alert.
-- **Notifications**: `NotificationService` with Twilio (SMS) + Resend (email) providers. Logs-only until keys are set in `.env`; activates automatically when they are.
+- **AI**: Claude Sonnet 4.5 per-resident personalization + OpenAI Whisper-1 STT + OpenAI tts-1 (sage voice). Single Emergent Universal LLM key.
+- **Hardware**: Android tablet + USB RF receiver → bridge app → `POST /api/pendants/event`; wearable companion apps → `POST /api/wearables/event`; mesh sensors → `POST /api/locations`. All three can be HMAC-signed via the device-token system.
+- **Notifications**: Twilio SMS + Resend email, log-only until keys in .env, activate automatically.
 
-## Implemented
+## Implemented (Feb 2026)
 
 ### Iteration 1
-Landing, Kiosk, Staff Dashboard, Admin, JWT + Google Auth, Claude chat + TTS/STT voice, location tracking, alert lifecycle, seed data.
+Landing, Kiosk, Staff Dashboard, Admin, JWT + Google Auth, Claude chat + TTS/STT, location tracking, alert lifecycle.
 
 ### Iteration 2
-Pendant registry + RF event ingest, per-resident AI personalization (preferred_name/preferences/memory/participation_level), escalation timers (60s → Lv1, 3m → Lv2, 7m → Lv3), event close-out with outcome + timeline, phase-build roadmap tracker (34 items).
+Pendant registry + RF ingest, per-resident AI personalization (preferred_name/preferences/memory), escalation timers (60s/3m/7m), event close-out + timeline, roadmap tracker.
 
-### Iteration 3 (this iteration)
-- **Geofencing**: zones have `is_restricted` flag; a restricted-zone entry auto-creates a `triggered_by="geofence"` alert (with duplicate-suppression via prev-zone check). 2 restricted zones seeded ("Staff Only — Medication Room", "Outside — Parking Lot").
-- **Wander / elopement alerting**: same path as geofencing; alerts fan out to family contacts with `wander` in their notify_on list.
-- **Movement timeline**: `GET /api/residents/{id}/movement?hours=N` returns zone-visit history with consecutive same-zone pings collapsed. UI: MovementDialog on each resident row (24h / 3d / 7d windows).
-- **Pattern insights / Phase 4 seed**: `POST /api/insights/compute` rolls up per-resident `help_requests_7d`, `nighttime_activity_7d` (22:00–06:00), `mobility_7d` (distinct zones), comparing last 7 days to prior 7 days. Each observation has severity (info/watch/concern), confidence (scales with sample size), and capped deviation %. 13 insights auto-computed from seed data.
-- **Family contacts + notifications**: `FamilyContact` per resident with notify_on scopes (emergency / assist / wander / daily_summary). Alert creation auto-fans out via SMS (Twilio) + Email (Resend); providers are stubs that log until keys are set in `backend/.env`. Admin "Family" tab manages contacts, shows provider status, shows notification log, supports "Send test".
-- **Staff dashboard**: 5th tile "Pattern flags" linking to Insights.
-- **Android bridge app scaffold** at `/app/android-bridge/` — Kotlin + usb-serial-for-android + OkHttp. Generic: any USB-serial device emitting JSON lines works (Arduino+RFM69, CP210x, FTDI, CH340). README + PROTOCOL.md + Gradle Kotlin DSL included.
-- **Tests**: 62/62 backend + 100% frontend passing.
+### Iteration 3
+Wander / geofencing (restricted zones auto-alert), movement timeline per resident, Phase 4 insights (help_requests / nighttime_activity / mobility), family contacts + NotificationService (Twilio/Resend stubs), Android bridge Kotlin scaffold.
 
-## Roadmap snapshot (from Admin → Roadmap tab, 34 items)
-- Phase 1 (Core Pilot): 5/5 ✅
-- Phase 2 (Workflow Visibility): 6/6 ✅
-- Phase 3 (Location & Mobility): 7/8 ✅ (wearables still open)
-- Phase 4 (Predictive Insight): 5/6 ✅ (bathroom-frequency drift still open)
-- Cross-cutting infra: 6/10 (Android bridge / Twilio / Resend are in_progress awaiting hardware + keys; HMAC + family portal + vision glasses + in_progress)
+### Iteration 4 (this iteration)
+- **Wearable support**: generic `POST /api/wearables/event` for smartwatch / earbuds / glasses / BLE beacons. Supports press / fall / heart_rate_high / heart_rate_low / inactivity / periodic_ping. Admin CRUD with pair-to-resident. Simulate-event dialog. Alerts tagged `triggered_by="wearable"`.
+- **Bathroom-frequency drift** (Phase 4): zones have `is_bathroom` flag; insights add `bathroom_frequency_7d` metric comparing last 7d vs prior 7d bathroom-zone pings. Non-diagnostic phrasing. 2 bathroom zones seeded.
+- **HMAC device-token auth**: admin creates named tokens with scopes (pendants.event / locations.ingest / wearables.event). Backend returns shared secret ONCE, stores bcrypt hash + keeps plaintext in in-memory SECRETS_CACHE for live HMAC verification. Field devices send `X-Device-Token` + `X-Device-Signature: HMAC-SHA256(secret, body)`. Soft-enforced by default; flip `DEVICE_AUTH_REQUIRED=true` to reject unsigned. Admin tab shows enforcement status + active/revoked counts + copyable token id + secret reveal dialog.
+- **Family portal**: every `FamilyContact` gets a `portal_token`; public route `/family/{token}` renders a calm resident-status page (last seen, active calls, resolved 7d, recent alert summaries, optional haiku) with "I've checked in" ack button. Privacy-respectful: no medical detail, no chat content. Copy-link button in Admin → Family.
+- **Roadmap shipped**: Phase 1 5/5 ✅, Phase 2 6/6 ✅, Phase 3 8/8 ✅, Phase 4 6/6 ✅, Cross-cutting 7/10 ✅. Only open items: Twilio/Resend keys pending, AI-vision glasses (future hardware), daily haiku digest generator (cron-style, not yet wired).
+- **Tests**: 80/80 backend + 100% frontend. HMAC round-trip verified (valid sig → 200, invalid sig → 401).
 
 ## Backlog
 
 ### P1
-- Wire real Twilio keys (SID / Auth Token / From number) → notifications go live
-- Wire real Resend key → family email activates
-- HMAC / device-token auth on `/api/pendants/event` + `/api/locations` (production hardening)
-- Build + install the Android bridge app on a real tablet with a chosen RF receiver
-- Wearable support (smartwatch button + location hints)
-- Bathroom-frequency / location-drift Phase 4 insight
+- Drop real Twilio + Resend keys into `backend/.env`
+- Build the actual daily-haiku generator (Claude cron)
+- Move SECRETS_CACHE to Redis (survives server restart)
+- Rate-limit `/api/family-portal/{token}/summary` (60 req/min per token)
+- Unique index on `wearables.mac_address`
+- Install Android bridge on a real tablet with a chosen RF receiver
+- Enable `DEVICE_AUTH_REQUIRED=true` once all field devices are issued tokens
 
 ### P2
-- Family portal (opt-in, resident-consent-based)
-- AI-vision glasses/earbuds for walking guidance
-- Floor-plan heatmap
-- Multi-language
-- Medication reminders via kiosk voice
+- AI-vision glasses/earbuds — real-time walking guidance for low-vision residents
+- Floor-plan heatmap of live resident positions
 - Fall detection via pendant accelerometer
+- Multi-language (Spanish first)
+- Medication reminders via kiosk voice
 
 ## Next Tasks
-- Install Android bridge on a physical tablet once RF receiver is chosen
-- Drop Twilio + Resend keys into `backend/.env` and redeploy
-- Pick wearable support (Garmin/Apple Watch/Fitbit) or bathroom-frequency Phase 4 next
+- Provide Twilio + Resend keys → notifications go live immediately
+- Pick the AI-vision glasses hardware platform (Meta Ray-Bans / XREAL / Vuzix M400) when ready for P2
+- Run a pilot at your first facility

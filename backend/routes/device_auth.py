@@ -39,7 +39,7 @@ def _verify_secret(secret: str, hashed: str) -> bool:
 
 
 async def verify_device_token(request: Request, required_scope: str) -> Optional[dict]:
-    """Validate HMAC headers if present. Returns the token doc, or raises 401.
+    """Validate HMAC-SHA256(shared_secret, raw_body) against X-Device-Signature header.
     If no headers and DEVICE_AUTH_REQUIRED=false, returns None (backward-compatible).
     """
     token_id = request.headers.get("x-device-token")
@@ -60,15 +60,38 @@ async def verify_device_token(request: Request, required_scope: str) -> Optional
     if required_scope not in (token.get("scopes") or []):
         raise HTTPException(status_code=403, detail=f"Token lacks scope: {required_scope}")
 
-    # We cannot re-compute HMAC here (body already consumed by Pydantic) without reading raw.
-    # Do the verification against a cached raw-body set earlier by middleware. For MVP we
-    # accept the token_id + signature-presence pair and store the attempt. Tight HMAC check
-    # is available via the /_verify helper below when the caller provides the raw body.
+    # HMAC verification against the raw request body.
+    # Since we store only a bcrypt hash of the secret, we keep a short-lived reversible cache
+    # keyed by token_id. Populated at token-creation time in the in-memory SECRETS_CACHE
+    # below. If cache miss (server restart), we fall back to token-presence (and log a warning
+    # so ops knows to re-issue tokens for strict HMAC).
+    raw_body = await request.body()
+    secret = SECRETS_CACHE.get(token_id)
+    if secret:
+        expected = hmac.new(secret.encode(), raw_body, hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(expected, signature.lower()):
+            raise HTTPException(status_code=401, detail="Invalid device signature")
+    else:
+        import logging
+        logging.warning(
+            f"Device token {token_id} used but shared_secret not in in-memory cache "
+            "(likely a server restart). Accepting on token-presence only. "
+            "Re-issue the token to restore strict HMAC."
+        )
+
     await db.device_tokens.update_one(
         {"token_id": token_id},
         {"$set": {"last_used_at": now_utc().isoformat()}},
     )
     return token
+
+
+# In-memory cache of token_id -> shared_secret. Populated at create_token time.
+# Rationale: we never persist the plaintext secret (only bcrypt hash), so strict HMAC
+# verification requires the plaintext. This cache is lost on server restart; admins
+# must re-issue tokens after a restart for strict HMAC to resume. For production,
+# consider moving this to Redis with TLS or a proper KMS.
+SECRETS_CACHE: dict = {}
 
 
 def hmac_sign(secret: str, body: bytes) -> str:
@@ -101,6 +124,10 @@ async def create_token(data: DeviceTokenCreate, user=Depends(require_admin)):
     doc["last_used_at"] = None
     await db.device_tokens.insert_one(doc)
     doc.pop("_id", None)
+
+    # Cache plaintext secret in-memory for strict HMAC verification of incoming requests.
+    SECRETS_CACHE[tok.token_id] = secret
+
     return {
         "token_id": tok.token_id,
         "shared_secret": secret,
@@ -125,6 +152,7 @@ async def revoke_token(token_id: str, user=Depends(require_admin)):
     r = await db.device_tokens.update_one({"token_id": token_id}, {"$set": {"revoked": True}})
     if r.matched_count == 0:
         raise HTTPException(status_code=404, detail="Token not found")
+    SECRETS_CACHE.pop(token_id, None)
     return {"ok": True}
 
 

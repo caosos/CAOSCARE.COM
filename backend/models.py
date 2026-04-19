@@ -140,7 +140,7 @@ class Alert(BaseModel):
     status: AlertStatus = "active"
     escalation_level: int = 0  # 0=normal, 1=escalated, 2=supervisor, 3=code
     message: Optional[str] = ""
-    triggered_by: Literal["kiosk_button", "ai_triage", "pendant", "manual", "geofence"] = "kiosk_button"
+    triggered_by: Literal["kiosk_button", "ai_triage", "pendant", "manual", "geofence", "wearable"] = "kiosk_button"
     acknowledged_by: Optional[str] = None
     acknowledged_at: Optional[datetime] = None
     resolved_by: Optional[str] = None
@@ -157,7 +157,7 @@ class AlertCreate(BaseModel):
     resident_id: Optional[str] = None
     severity: AlertSeverity = "assist"
     message: Optional[str] = ""
-    triggered_by: Literal["kiosk_button", "ai_triage", "pendant", "manual", "geofence"] = "kiosk_button"
+    triggered_by: Literal["kiosk_button", "ai_triage", "pendant", "manual", "geofence", "wearable"] = "kiosk_button"
 
 
 class AlertClose(BaseModel):
