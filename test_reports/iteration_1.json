@@ -1,0 +1,50 @@
+{
+  "summary": "Full backend + frontend review for CAOS Care MVP. Found and fixed a critical blocker: every POST endpoint that inserted docs into MongoDB returned 500 because motor's insert_one mutates the dict with an ObjectId '_id' which FastAPI then cannot serialize. After the fix, 32/32 backend pytest tests pass (health, auth, residents CRUD, kiosks/zones CRUD, staff admin-only, alerts full lifecycle, locations ingest + mock + latest, AI chat via Claude Sonnet 4.5, OpenAI TTS, STT endpoint presence). Frontend flows verified via Playwright: landing, kiosk/demo emergency-button flow (alert created, AI greeting rendered, TTS spoken), staff dashboard live alerts + locations, admin 4-tab community panel.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "DELETE /api/residents/{id}", "issue": "Deleting a resident leaves orphaned documents in `locations` collection (TEST Jane Doe still visible in /locations/latest via resident join until list is filtered). Consider cascade delete or filtering latest by existing residents only."},
+      {"endpoint": "POST /api/alerts", "issue": "Public endpoint has no rate-limit / abuse protection; any client can spam alerts."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Admin.jsx (Zones tab)", "issue": "data-testid=\"add-zone-btn\" not found by selector during automation (other add-*-btn testids work). Please verify the attribute is attached to the Add Zone button.", "selector": "[data-testid=\"add-zone-btn\"]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Kiosk/demo", "issues": ["Console shows two 401s for an authenticated call (likely /auth/me probe without token). Harmless but noisy; guard the call when on the public kiosk route."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "(Already fixed by testing agent) pop '_id' after insert_one on residents/kiosks/zones/alerts/locations + mock/generate so responses serialize cleanly.",
+    "Add data-testid=\"add-zone-btn\" to the Zones-tab add button in Admin.jsx if missing.",
+    "Suppress /auth/me probe on public /kiosk/* routes (kills 401 console noise).",
+    "Consider cascading delete of locations + chat_messages when a resident is removed."
+  ],
+  "critical_code_review_comments": [
+    "routes/*.py: consistent MongoDB anti-pattern was returning the same dict passed to insert_one (which motor mutates with ObjectId). Fixed, but recommend centralising a helper like `await insert_and_return(db.coll, doc)` that always pops '_id'.",
+    "auth.py: password_hash column excluded via find_one projections in deps.get_current_user but login handler pulls full doc (fine, but ensure UserPublic strips password_hash explicitly — currently relies on model excluding it).",
+    "location.py /locations (public ingest): no auth + no signed-sensor check; in production this should require an HMAC or device token.",
+    "ai.py /ai/stt: uses tempfile.NamedTemporaryFile with delete=False and a best-effort unlink in finally; ensure the file is removed on exception too (wrap with try/finally).",
+    "Seed runs inside FastAPI lifespan with a broad try/except that only logs a warning — seed failures go unnoticed in production logs."
+  ],
+  "updated_files": [
+    "/app/backend/routes/residents.py",
+    "/app/backend/routes/kiosks.py",
+    "/app/backend/routes/alerts.py",
+    "/app/backend/routes/location.py",
+    "/app/backend/tests/backend_test.py"
+  ],
+  "success_rate": {"backend": "100% (32/32)", "frontend": "~95% (all critical flows; 1 missing testid)"},
+  "test_credentials": "Admin admin@caoscare.com/admin1234, Staff nurse@caoscare.com/nurse1234 (both verified working).",
+  "seed_data_creation": "Seed auto-populates on backend startup: 7 residents (6 seeded + 1 TEST leftover-safe), 2 users, 8 kiosks, 5 zones. Tests create TEST_-prefixed users/residents and clean them up.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend ObjectId/_id bug is fixed in 5 routes. If any new POST endpoint is added, ensure it pops '_id' before returning the inserted doc or returns a fresh model_dump(). Pytest suite at /app/backend/tests/backend_test.py runs in ~9s end-to-end and exercises all critical paths including Claude chat + OpenAI TTS (requires EMERGENT_LLM_KEY).",
+  "rca_of_the_issue": "Root cause: FastAPI's jsonable_encoder cannot serialize bson.ObjectId. Motor's AsyncIOMotorCollection.insert_one mutates the passed dict in-place to add `_id: ObjectId(...)`. Routes returned the same dict, so FastAPI tried to serialize ObjectId → ValueError('vars() argument must have __dict__ attribute') → HTTP 500. Reproduction: POST /api/residents with valid body and admin Bearer → 500. Fix applied: `doc.pop('_id', None)` after every insert_one in residents.py, kiosks.py, alerts.py, location.py (incl. mock/generate). Verified by pytest run: 7 previously-failing endpoints now 200."
+}

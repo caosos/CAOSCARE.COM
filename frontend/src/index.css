@@ -1,115 +1,198 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Manrope:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --background: 42 25% 96%;
+  --foreground: 150 30% 8%;
+  --surface: 0 0% 100%;
+  --card: 0 0% 100%;
+  --card-foreground: 150 30% 8%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 150 30% 8%;
+  --primary: 155 45% 14%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 42 15% 92%;
+  --secondary-foreground: 150 30% 8%;
+  --muted: 42 15% 92%;
+  --muted-foreground: 120 3% 44%;
+  --accent: 42 20% 90%;
+  --accent-foreground: 150 30% 8%;
+  --destructive: 8 50% 47%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 42 15% 86%;
+  --input: 42 15% 86%;
+  --ring: 155 45% 14%;
+  --radius: 0.75rem;
+
+  /* CAOS Care palette */
+  --caos-bone: #F7F6F2;
+  --caos-ambient: #EAE7DF;
+  --caos-surface: #FFFFFF;
+  --caos-forest: #153428;
+  --caos-forest-hover: #1E4738;
+  --caos-terracotta: #B6463A;
+  --caos-terracotta-dark: #98392F;
+  --caos-amber: #D28D38;
+  --caos-moss: #4A7C59;
+  --caos-ink: #0E1A14;
+  --caos-mute: #6B726A;
+  --caos-line: #E2DFD5;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+html, body, #root {
+  background: var(--caos-bone);
+  color: var(--caos-ink);
+  font-family: 'Manrope', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100%;
+}
+
 body {
-    margin: 0;
-    font-family:
-        -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
-        "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
-        sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+  margin: 0;
 }
 
-code {
-    font-family:
-        source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
+h1, h2, h3, h4, h5, h6, .font-display {
+  font-family: 'Outfit', 'Manrope', sans-serif;
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+/* Utility color classes */
+.bg-caos-bone { background-color: var(--caos-bone); }
+.bg-caos-ambient { background-color: var(--caos-ambient); }
+.bg-caos-surface { background-color: var(--caos-surface); }
+.bg-caos-forest { background-color: var(--caos-forest); }
+.bg-caos-forest-hover { background-color: var(--caos-forest-hover); }
+.bg-caos-terracotta { background-color: var(--caos-terracotta); }
+.bg-caos-moss { background-color: var(--caos-moss); }
+.bg-caos-amber { background-color: var(--caos-amber); }
+
+.text-caos-forest { color: var(--caos-forest); }
+.text-caos-terracotta { color: var(--caos-terracotta); }
+.text-caos-ink { color: var(--caos-ink); }
+.text-caos-mute { color: var(--caos-mute); }
+
+.border-caos-line { border-color: var(--caos-line); }
+.border-caos-forest { border-color: var(--caos-forest); }
+
+/* AI Orb pulse */
+@keyframes caos-breathe {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.06); opacity: 1; }
+}
+
+.caos-orb {
+  animation: caos-breathe 3.5s ease-in-out infinite;
+}
+
+.caos-orb-fast {
+  animation: caos-breathe 1.2s ease-in-out infinite;
+}
+
+/* Alert pulse for staff dashboard */
+@keyframes caos-alert-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(182, 70, 58, 0.55); }
+  50% { box-shadow: 0 0 0 12px rgba(182, 70, 58, 0); }
+}
+
+.caos-alert-emergency {
+  animation: caos-alert-pulse 1.8s ease-out infinite;
+}
+
+/* Entrance animations */
+@keyframes caos-fade-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.caos-fade-in {
+  animation: caos-fade-in 0.5s ease-out both;
+}
+
+.caos-delay-100 { animation-delay: 100ms; }
+.caos-delay-200 { animation-delay: 200ms; }
+.caos-delay-300 { animation-delay: 300ms; }
+.caos-delay-400 { animation-delay: 400ms; }
+
+/* Emergency button - tactile */
+.caos-emergency-btn {
+  background: var(--caos-terracotta);
+  color: #fff;
+  border-bottom: 6px solid var(--caos-terracotta-dark);
+  transition: transform 120ms ease, border-bottom-width 120ms ease, background 120ms ease;
+}
+.caos-emergency-btn:hover {
+  background: var(--caos-terracotta-dark);
+}
+.caos-emergency-btn:active {
+  transform: translateY(3px);
+  border-bottom-width: 3px;
+}
+
+/* Kiosk big buttons */
+.caos-kiosk-btn {
+  min-height: 120px;
+  border-radius: 32px;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 500;
+  font-size: 2rem;
+  transition: transform 150ms ease, background 150ms ease;
+}
+.caos-kiosk-btn:active { transform: scale(0.98); }
+
+/* Noise texture overlay */
+.caos-grain::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='240' height='240' filter='url(%23n)' opacity='0.6'/></svg>");
+}
+
+::selection {
+  background: var(--caos-forest);
+  color: #fff;
+}
+
+/* Shadcn base layer required tokens */
+@layer base {
+  :root {
+    --background: 42 25% 96%;
+    --foreground: 150 30% 8%;
+    --card: 0 0% 100%;
+    --card-foreground: 150 30% 8%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 150 30% 8%;
+    --primary: 155 45% 14%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 42 15% 92%;
+    --secondary-foreground: 150 30% 8%;
+    --muted: 42 15% 92%;
+    --muted-foreground: 120 3% 44%;
+    --accent: 42 20% 90%;
+    --accent-foreground: 150 30% 8%;
+    --destructive: 8 50% 47%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 42 15% 86%;
+    --input: 42 15% 86%;
+    --ring: 155 45% 14%;
+    --radius: 0.75rem;
+  }
 }
 
 @layer base {
-    :root {
-        --background: 0 0% 100%;
-        --foreground: 0 0% 3.9%;
-        --card: 0 0% 100%;
-        --card-foreground: 0 0% 3.9%;
-        --popover: 0 0% 100%;
-        --popover-foreground: 0 0% 3.9%;
-        --primary: 0 0% 9%;
-        --primary-foreground: 0 0% 98%;
-        --secondary: 0 0% 96.1%;
-        --secondary-foreground: 0 0% 9%;
-        --muted: 0 0% 96.1%;
-        --muted-foreground: 0 0% 45.1%;
-        --accent: 0 0% 96.1%;
-        --accent-foreground: 0 0% 9%;
-        --destructive: 0 84.2% 60.2%;
-        --destructive-foreground: 0 0% 98%;
-        --border: 0 0% 89.8%;
-        --input: 0 0% 89.8%;
-        --ring: 0 0% 3.9%;
-        --chart-1: 12 76% 61%;
-        --chart-2: 173 58% 39%;
-        --chart-3: 197 37% 24%;
-        --chart-4: 43 74% 66%;
-        --chart-5: 27 87% 67%;
-        --radius: 0.5rem;
-    }
-    .dark {
-        --background: 0 0% 3.9%;
-        --foreground: 0 0% 98%;
-        --card: 0 0% 3.9%;
-        --card-foreground: 0 0% 98%;
-        --popover: 0 0% 3.9%;
-        --popover-foreground: 0 0% 98%;
-        --primary: 0 0% 98%;
-        --primary-foreground: 0 0% 9%;
-        --secondary: 0 0% 14.9%;
-        --secondary-foreground: 0 0% 98%;
-        --muted: 0 0% 14.9%;
-        --muted-foreground: 0 0% 63.9%;
-        --accent: 0 0% 14.9%;
-        --accent-foreground: 0 0% 98%;
-        --destructive: 0 62.8% 30.6%;
-        --destructive-foreground: 0 0% 98%;
-        --border: 0 0% 14.9%;
-        --input: 0 0% 14.9%;
-        --ring: 0 0% 83.1%;
-        --chart-1: 220 70% 50%;
-        --chart-2: 160 60% 45%;
-        --chart-3: 30 80% 55%;
-        --chart-4: 280 65% 60%;
-        --chart-5: 340 75% 55%;
-    }
-}
-
-@layer base {
-    * {
-        @apply border-border;
-    }
-    body {
-        @apply bg-background text-foreground;
-    }
-}
-
-@layer base {
-    [data-debug-wrapper="true"] {
-        display: contents !important;
-    }
-
-    [data-debug-wrapper="true"] > * {
-        margin-left: inherit;
-        margin-right: inherit;
-        margin-top: inherit;
-        margin-bottom: inherit;
-        padding-left: inherit;
-        padding-right: inherit;
-        padding-top: inherit;
-        padding-bottom: inherit;
-        column-gap: inherit;
-        row-gap: inherit;
-        gap: inherit;
-        border-left-width: inherit;
-        border-right-width: inherit;
-        border-top-width: inherit;
-        border-bottom-width: inherit;
-        border-left-style: inherit;
-        border-right-style: inherit;
-        border-top-style: inherit;
-        border-bottom-style: inherit;
-        border-left-color: inherit;
-        border-right-color: inherit;
-        border-top-color: inherit;
-        border-bottom-color: inherit;
-    }
+  [data-debug-wrapper="true"] {
+    display: contents !important;
+  }
 }
