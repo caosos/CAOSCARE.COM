@@ -29,6 +29,13 @@ Wander / geofencing (restricted zones auto-alert), movement timeline per residen
 - **Roadmap shipped**: Phase 1 5/5 ✅, Phase 2 6/6 ✅, Phase 3 8/8 ✅, Phase 4 6/6 ✅, Cross-cutting 7/10 ✅. Only open items: Twilio/Resend keys pending, AI-vision glasses (future hardware), daily haiku digest generator (cron-style, not yet wired).
 - **Tests**: 80/80 backend + 100% frontend. HMAC round-trip verified (valid sig → 200, invalid sig → 401).
 
+### Iteration 6 (Feb 2026)
+- **Daily haiku generator**: `POST /api/haiku/generate-today` (admin) runs Claude Sonnet 4.5 per resident using their preferences+memory → 3-line warm bedtime haiku stored in `db.haikus`. Idempotent per `{resident_id, day}`. Family portal already renders latest haiku. Admin → Family → "Generate tonight's haikus" button.
+- **Pager RF emulation**: `/api/paging/event` (public, HMAC-optional) ingests from the facility's existing paging transmitter. Cap-code enrichment maps pendant_id → resident. `/api/paging/feed` (auth) returns last-30min events. Every staff tablet shows a live "Facility pages" card on the StaffDashboard rail; admin can also push `/api/paging/simulate`.
+- **Medication reminder voice**: `MedReminder` CRUD with `time_hhmm` + days-of-week. Kiosk polls `/api/medications/due/by-room/{room}` every 60s when idle; speaks reminder at the exact minute, POSTs `/api/medications/ack/{reminder_id}` so it doesn't repeat within the day. Admin → Meds tab.
+- **Floor-plan heatmap**: Admin → Map shows a simple 2-floor SVG with each resident as a dot at their most-recent mesh/pendant ping. Restricted zones in red. Refreshes every 5s. Ready to be swapped for a real CAD export per facility.
+- **Tests**: 12/12 new backend + full frontend verification, zero issues. Cumulative ~100 backend tests green.
+
 ### Iteration 5 (Feb 2026)
 - **Smart-room devices**: Full CRUD at Admin → Smart devices (BLE / WiFi / RF_433 / RF_915 / IR / Zigbee / Matter). Public kiosk endpoint `/api/devices/public/by-room/{room}` + `/api/devices/public/room/{room}/command`. Kiosk renders huge tap-on/tap-off buttons for lights / fan / heater / TV on the idle screen. Command queue for the per-room Android bridge to execute over BLE/WiFi/RF.
 - **AI vision scaffold**: `/app/android-vision/` Kotlin app for Vuzix M400/M4000 (CameraX + OkHttp + MediaPlayer). Streams JPEG frames every 4s to `/api/vision/describe`, plays back TTS. Personalization via resident_id. Ready for hardware.
