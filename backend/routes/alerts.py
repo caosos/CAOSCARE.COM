@@ -67,12 +67,13 @@ async def create_alert(data: AlertCreate):
     await db.alerts.insert_one(doc)
     doc.pop("_id", None)
 
-    # Fan out family notifications (best-effort, non-blocking behavior at caller level)
+    # Fan out family notifications (best-effort — log failures instead of silently swallowing)
     try:
         from routes.notifications import notify_family_for_alert
         await notify_family_for_alert(doc)
-    except Exception:
-        pass
+    except Exception as e:
+        import logging
+        logging.warning(f"Family notification fan-out failed for alert {doc.get('alert_id')}: {e}")
 
     return doc
 

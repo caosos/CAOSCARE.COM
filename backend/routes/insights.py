@@ -33,6 +33,15 @@ def _severity_and_confidence(deviation_pct: float, sample_size: int):
     return sev, confidence
 
 
+def _cap_deviation(dev: float) -> float:
+    """Cap extreme percentages so the UI shows at most ±999%. Baseline=0 edge cases otherwise render as +1800%+."""
+    if dev > 9.99:
+        return 9.99
+    if dev < -0.99:
+        return -0.99
+    return dev
+
+
 async def _count_alerts(resident_id: str, since_iso: str, until_iso: str, night_only: bool = False) -> int:
     q = {
         "resident_id": resident_id,
@@ -98,7 +107,7 @@ async def compute_for_resident(resident: dict):
             "metric": "help_requests_7d",
             "current_value": float(cur_help),
             "baseline_value": float(base_help),
-            "deviation_pct": round(dev, 2),
+            "deviation_pct": round(_cap_deviation(dev), 2),
             "severity": sev,
             "confidence": conf,
             "title": title,
@@ -123,7 +132,7 @@ async def compute_for_resident(resident: dict):
             "metric": "nighttime_activity_7d",
             "current_value": float(cur_night),
             "baseline_value": float(base_night),
-            "deviation_pct": round(dev, 2),
+            "deviation_pct": round(_cap_deviation(dev), 2),
             "severity": sev,
             "confidence": conf,
             "title": title,
@@ -151,7 +160,7 @@ async def compute_for_resident(resident: dict):
             "metric": "mobility_7d",
             "current_value": float(cur_mob),
             "baseline_value": float(base_mob),
-            "deviation_pct": round(dev, 2),
+            "deviation_pct": round(_cap_deviation(dev), 2),
             "severity": sev,
             "confidence": conf,
             "title": title,
