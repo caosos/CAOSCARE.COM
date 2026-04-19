@@ -26,13 +26,39 @@ export default function Kiosk() {
   const [speaking, setSpeaking] = useState(false);
   const [autoVoice, setAutoVoice] = useState(false);     // hands-free mode
   const [devices, setDevices] = useState([]);
+  const [micReady, setMicReady] = useState(false);       // user gesture received + mic permission granted
+  const [needsTap, setNeedsTap] = useState(false);       // remote pendant fired but we need a user tap first (autoplay/mic policy)
+  const [pendingAlert, setPendingAlert] = useState(null);
   const sessionRef = useRef(`sess_${Math.random().toString(36).slice(2)}`);
   const mediaRef = useRef(null);
   const audioRef = useRef(null);
+  const audioCtxRef = useRef(null);
   const seenEmergencyRef = useRef(null);
   const voiceLoopRef = useRef(false);      // is continuous listen loop active?
   const callStateRef = useRef("idle");     // sync callState for async callbacks
   useEffect(() => { callStateRef.current = callState; }, [callState]);
+
+  // Prime browser audio + mic permission on the first user click.
+  // Without a user gesture, Chrome will silently block both TTS playback and getUserMedia.
+  const primeMedia = async () => {
+    if (micReady) return true;
+    try {
+      // Unlock AudioContext for beep
+      if (!audioCtxRef.current) {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        audioCtxRef.current = new Ctx();
+        if (audioCtxRef.current.state === "suspended") await audioCtxRef.current.resume();
+      }
+      // Ask for mic access and immediately release the stream (we'll re-acquire per utterance)
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((t) => t.stop());
+      setMicReady(true);
+      return true;
+    } catch (e) {
+      toast.error("Microphone permission needed. Please allow it in your browser.");
+      return false;
+    }
+  };
 
   // Load kiosk + resident
   useEffect(() => {
@@ -104,6 +130,18 @@ export default function Kiosk() {
   const handleIncomingEmergency = async (a) => {
     setAlert(a);
     setAutoVoice(true);
+    // If the browser hasn't received a user gesture yet, we cannot play audio
+    // or open the mic. Defer until the user taps anywhere.
+    if (!micReady) {
+      setPendingAlert(a);
+      setNeedsTap(true);
+      setCallState("waiting");
+      return;
+    }
+    await beginConversation(a);
+  };
+
+  const beginConversation = async (a) => {
     setCallState("chatting");
     const name = (a.resident_name || resident?.name || "there").split(" ")[0];
     const line = a.press_count >= 2
@@ -135,29 +173,38 @@ export default function Kiosk() {
   // Listen for up to 8s, resolve blob (or null on abort).
   const listenOnce = () =>
     new Promise(async (resolve) => {
+      if (!voiceLoopRef.current) return resolve(null);
+      let stream = null;
       try {
-        if (!voiceLoopRef.current) return resolve(null);
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch {
+        voiceLoopRef.current = false;
+        toast.error("Microphone permission needed.");
+        return resolve(null);
+      }
+      try {
         const rec = new MediaRecorder(stream, { mimeType: "audio/webm" });
         const chunks = [];
         let settled = false;
         const done = (blob) => {
           if (settled) return;
           settled = true;
-          stream.getTracks().forEach((t) => t.stop());
+          try { stream.getTracks().forEach((t) => t.stop()); } catch {}
           setRecording(false);
           resolve(blob);
         };
-        rec.ondataavailable = (e) => chunks.push(e.data);
+        rec.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
         rec.onstop = () => done(new Blob(chunks, { type: "audio/webm" }));
+        rec.onerror = () => done(null);
         mediaRef.current = rec;
-        rec.start();
+        rec.start(250); // emit chunks every 250ms so we never end up with an empty blob
         setRecording(true);
         setTimeout(() => {
-          if (rec.state !== "inactive") rec.stop();
+          try { if (rec.state !== "inactive") rec.stop(); } catch {}
         }, 8000);
       } catch {
-        toast.error("Microphone permission needed for hands-free.");
+        try { stream.getTracks().forEach((t) => t.stop()); } catch {}
+        setRecording(false);
         resolve(null);
       }
     });
@@ -256,6 +303,9 @@ export default function Kiosk() {
 
   const triggerEmergency = async (severity = "emergency") => {
     if (!kiosk) return;
+    // A real user tap — prime audio+mic so the loop actually works
+    const ok = await primeMedia();
+    if (!ok) return;
     setCallState("calling");
     try {
       const { data } = await axios.post(`${API}/alerts`, {
@@ -350,10 +400,15 @@ export default function Kiosk() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const rec = new MediaRecorder(stream, { mimeType: "audio/webm" });
       const chunks = [];
-      rec.ondataavailable = (e) => chunks.push(e.data);
+      rec.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
       rec.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
         const blob = new Blob(chunks, { type: "audio/webm" });
+        if (blob.size < 1500) {
+          toast.info("I didn't catch that. Hold the button a bit longer and try again.");
+          setRecording(false);
+          return;
+        }
         const form = new FormData();
         form.append("audio", blob, "speech.webm");
         setThinking(true);
@@ -373,7 +428,7 @@ export default function Kiosk() {
         }
       };
       mediaRef.current = rec;
-      rec.start();
+      rec.start(250);
       setRecording(true);
     } catch {
       toast.error("Microphone permission needed.");
@@ -430,7 +485,7 @@ export default function Kiosk() {
               data-testid="kiosk-assist-btn"
               className="caos-kiosk-btn bg-caos-forest hover:bg-caos-forest-hover text-white px-10 rounded-[32px]"
             >
-              I need a little help
+              <Phone className="w-6 h-6 mr-3" /> I need a little help
             </Button>
             <Button
               onClick={() => triggerEmergency("comfort")}
@@ -438,9 +493,14 @@ export default function Kiosk() {
               variant="outline"
               className="caos-kiosk-btn border-2 border-caos-forest text-caos-forest hover:bg-caos-forest hover:text-white bg-white px-10 rounded-[32px]"
             >
-              I just want to talk
+              <Mic className="w-6 h-6 mr-3" /> I just want to talk
             </Button>
           </div>
+          {!micReady && (
+            <p className="mt-4 text-sm text-caos-mute italic" data-testid="kiosk-mic-prime-hint">
+              Tap any button above — the tablet will ask for microphone permission once, then the voice is hands-free.
+            </p>
+          )}
 
           {/* Smart-room controls */}
           {devices.length > 0 && (
@@ -570,30 +630,51 @@ export default function Kiosk() {
           </Card>
 
           <div className="mt-5 flex items-center justify-center gap-4">
-            <Button
-              onMouseDown={startRecord}
-              onMouseUp={stopRecord}
-              onTouchStart={startRecord}
-              onTouchEnd={stopRecord}
-              data-testid="kiosk-mic-btn"
-              className={`caos-kiosk-btn !min-h-[100px] w-full rounded-[32px] ${
-                recording
-                  ? "bg-caos-terracotta hover:bg-caos-terracotta text-white"
-                  : "bg-caos-forest hover:bg-caos-forest-hover text-white"
-              }`}
-            >
-              {recording ? (
-                <>
-                  <MicOff className="w-10 h-10 mr-4" />
-                  Release to send
-                </>
-              ) : (
-                <>
-                  <Mic className="w-10 h-10 mr-4" />
-                  Hold to talk
-                </>
-              )}
-            </Button>
+            {autoVoice ? (
+              <div className="w-full rounded-[32px] bg-white border-2 border-caos-line p-6 text-center" data-testid="kiosk-autovoice-indicator">
+                {speaking && (
+                  <div className="flex flex-col items-center gap-2">
+                    <Volume2 className="w-16 h-16 text-caos-terracotta animate-pulse" />
+                    <p className="text-2xl font-display font-medium text-caos-forest">CAOS is speaking...</p>
+                    <p className="text-sm text-caos-mute uppercase tracking-[0.2em]">please listen</p>
+                  </div>
+                )}
+                {!speaking && recording && (
+                  <div className="flex flex-col items-center gap-2">
+                    <Mic className="w-16 h-16 text-caos-moss animate-pulse" />
+                    <p className="text-2xl font-display font-medium text-caos-forest">Your turn — I'm listening</p>
+                    <p className="text-sm text-caos-mute uppercase tracking-[0.2em]">speak naturally</p>
+                  </div>
+                )}
+                {!speaking && !recording && thinking && (
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-16 h-16 rounded-full border-4 border-caos-forest border-t-transparent animate-spin" />
+                    <p className="text-2xl font-display font-medium text-caos-forest">Thinking...</p>
+                  </div>
+                )}
+                {!speaking && !recording && !thinking && (
+                  <div className="flex flex-col items-center gap-2">
+                    <Mic className="w-16 h-16 text-caos-mute" />
+                    <p className="text-xl font-display font-medium text-caos-mute">Ready</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Button
+                onMouseDown={startRecord}
+                onMouseUp={stopRecord}
+                onTouchStart={startRecord}
+                onTouchEnd={stopRecord}
+                data-testid="kiosk-mic-btn"
+                className={`caos-kiosk-btn !min-h-[100px] w-full rounded-[32px] ${
+                  recording
+                    ? "bg-caos-terracotta hover:bg-caos-terracotta text-white"
+                    : "bg-caos-forest hover:bg-caos-forest-hover text-white"
+                }`}
+              >
+                {recording ? (<><MicOff className="w-10 h-10 mr-4" /> Release to send</>) : (<><Mic className="w-10 h-10 mr-4" /> Hold to talk</>)}
+              </Button>
+            )}
           </div>
 
           {alert?.severity === "emergency" && (
@@ -606,6 +687,31 @@ export default function Kiosk() {
           )}
         </div>
       </div>
+
+      {/* Tap-to-answer overlay when remote pendant fired but we have no user gesture yet */}
+      {needsTap && (
+        <button
+          data-testid="kiosk-tap-to-answer"
+          onClick={async () => {
+            const ok = await primeMedia();
+            if (!ok) return;
+            setNeedsTap(false);
+            const a = pendingAlert;
+            setPendingAlert(null);
+            if (a) await beginConversation(a);
+          }}
+          className="fixed inset-0 z-50 bg-caos-forest/95 text-white flex flex-col items-center justify-center gap-6 p-8 cursor-pointer"
+        >
+          <div className="animate-pulse">
+            <Phone className="w-24 h-24" />
+          </div>
+          <p className="font-display text-5xl md:text-7xl font-light text-center">Incoming call</p>
+          <p className="text-2xl md:text-3xl text-center max-w-2xl">
+            {(pendingAlert?.resident_name || resident?.name || "A resident")} pressed their pendant.
+          </p>
+          <p className="text-xl uppercase tracking-[0.3em] text-caos-amber mt-4">TAP ANYWHERE TO ANSWER</p>
+        </button>
+      )}
     </div>
   );
 }
