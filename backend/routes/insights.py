@@ -71,6 +71,18 @@ async def _mobility(resident_id: str, since_iso: str, until_iso: str) -> int:
     return len([z for z in zones if z])
 
 
+async def _bathroom_visits(resident_id: str, since_iso: str, until_iso: str) -> int:
+    """Count location pings that landed in a zone flagged is_bathroom=true."""
+    bathroom_zone_names = await db.zones.distinct("name", {"is_bathroom": True})
+    if not bathroom_zone_names:
+        return 0
+    return await db.locations.count_documents({
+        "resident_id": resident_id,
+        "zone": {"$in": bathroom_zone_names},
+        "created_at": {"$gte": since_iso, "$lt": until_iso},
+    })
+
+
 async def compute_for_resident(resident: dict):
     """Returns list of Insight dicts for the given resident (already serialized)."""
     now_dt = datetime.now(timezone.utc)
@@ -160,6 +172,40 @@ async def compute_for_resident(resident: dict):
             "metric": "mobility_7d",
             "current_value": float(cur_mob),
             "baseline_value": float(base_mob),
+            "deviation_pct": round(_cap_deviation(dev), 2),
+            "severity": sev,
+            "confidence": conf,
+            "title": title,
+            "description": desc,
+        })
+
+    # 4. Bathroom frequency (P4 drift indicator)
+    cur_bath = await _bathroom_visits(rid, cur_from, cur_to)
+    base_bath = await _bathroom_visits(rid, base_from, base_to)
+    if cur_bath > 0 or base_bath > 0:
+        denom = base_bath if base_bath > 0 else 1
+        dev = (cur_bath - denom) / denom
+        sev, conf = _severity_and_confidence(dev, cur_bath + base_bath)
+        if cur_bath > base_bath * 1.5:
+            title = f"Bathroom visits up sharply for {name}"
+        elif cur_bath < base_bath * 0.5 and base_bath > 0:
+            title = f"Bathroom visits down sharply for {name}"
+        elif cur_bath > base_bath:
+            title = f"Bathroom visits up for {name}"
+        elif cur_bath < base_bath:
+            title = f"Bathroom visits down for {name}"
+        else:
+            title = f"Bathroom visits steady for {name}"
+        desc = (
+            f"Last 7 days: {cur_bath} bathroom zone ping{'s' if cur_bath != 1 else ''}. "
+            f"Prior 7: {base_bath}. Signal only — not a diagnosis."
+        )
+        out.append({
+            "resident_id": rid,
+            "resident_name": name,
+            "metric": "bathroom_frequency_7d",
+            "current_value": float(cur_bath),
+            "baseline_value": float(base_bath),
             "deviation_pct": round(_cap_deviation(dev), 2),
             "severity": sev,
             "confidence": conf,

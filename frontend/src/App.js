@@ -10,6 +10,7 @@ import Kiosk from "./pages/Kiosk";
 import StaffDashboard from "./pages/StaffDashboard";
 import Admin from "./pages/Admin";
 import AuthCallback from "./pages/AuthCallback";
+import FamilyPortal from "./pages/FamilyPortal";
 
 function Protected({ children, adminOnly = false }) {
   const { user, loading } = useAuth();
@@ -36,6 +37,7 @@ function AppRouter() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/kiosk/:kioskId" element={<Kiosk />} />
+      <Route path="/family/:token" element={<FamilyPortal />} />
       <Route path="/staff" element={<Protected><StaffDashboard /></Protected>} />
       <Route path="/admin" element={<Protected adminOnly><Admin /></Protected>} />
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -9,7 +9,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from ".
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Checkbox } from "../components/ui/checkbox";
 import { Badge } from "../components/ui/badge";
-import { Trash2, Plus, Mail, Smartphone, Send, CheckCircle2, XCircle } from "lucide-react";
+import { Trash2, Plus, Mail, Smartphone, Send, CheckCircle2, XCircle, Copy } from "lucide-react";
 import { toast } from "sonner";
 
 const NOTIFY_OPTIONS = [
@@ -200,9 +200,26 @@ export default function FamilyTab({ residents }) {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="sm" onClick={() => remove(c.contact_id)} data-testid={`del-fam-${c.contact_id}`}>
-                      <Trash2 className="w-4 h-4 text-caos-terracotta" />
-                    </Button>
+                    <div className="flex gap-1">
+                      {c.portal_token && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          title="Copy family portal link"
+                          onClick={() => {
+                            const url = `${window.location.origin}/family/${c.portal_token}`;
+                            navigator.clipboard.writeText(url);
+                            toast.success("Portal link copied");
+                          }}
+                          data-testid={`copy-portal-${c.contact_id}`}
+                        >
+                          <Copy className="w-4 h-4" />
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="sm" onClick={() => remove(c.contact_id)} data-testid={`del-fam-${c.contact_id}`}>
+                        <Trash2 className="w-4 h-4 text-caos-terracotta" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               );

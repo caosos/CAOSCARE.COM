@@ -22,6 +22,8 @@ import Roadmap from "./Roadmap";
 import Insights from "./Insights";
 import FamilyTab from "./FamilyTab";
 import MovementDialog from "./MovementDialog";
+import WearablesTab from "./WearablesTab";
+import DeviceTokensTab from "./DeviceTokensTab";
 
 export default function Admin() {
   const { user, logout } = useAuth();
@@ -92,10 +94,12 @@ export default function Admin() {
           <TabsList className="flex-wrap h-auto">
             <TabsTrigger value="residents" data-testid="tab-residents">Residents ({residents.length})</TabsTrigger>
             <TabsTrigger value="pendants" data-testid="tab-pendants">Pendants</TabsTrigger>
+            <TabsTrigger value="wearables" data-testid="tab-wearables">Wearables</TabsTrigger>
             <TabsTrigger value="staff" data-testid="tab-staff">Staff ({staff.length})</TabsTrigger>
             <TabsTrigger value="kiosks" data-testid="tab-kiosks">Kiosks ({kiosks.length})</TabsTrigger>
             <TabsTrigger value="zones" data-testid="tab-zones">Zones ({zones.length})</TabsTrigger>
             <TabsTrigger value="family" data-testid="tab-family">Family</TabsTrigger>
+            <TabsTrigger value="tokens" data-testid="tab-tokens">Device tokens</TabsTrigger>
             <TabsTrigger value="insights" data-testid="tab-insights">Insights</TabsTrigger>
             <TabsTrigger value="roadmap" data-testid="tab-roadmap">Roadmap</TabsTrigger>
           </TabsList>
@@ -105,6 +109,9 @@ export default function Admin() {
           </TabsContent>
           <TabsContent value="pendants" className="mt-6">
             <PendantsTab residents={residents} />
+          </TabsContent>
+          <TabsContent value="wearables" className="mt-6">
+            <WearablesTab residents={residents} />
           </TabsContent>
           <TabsContent value="staff" className="mt-6">
             <StaffTab staff={staff} onChange={fetchAll} />
@@ -117,6 +124,9 @@ export default function Admin() {
           </TabsContent>
           <TabsContent value="family" className="mt-6">
             <FamilyTab residents={residents} />
+          </TabsContent>
+          <TabsContent value="tokens" className="mt-6">
+            <DeviceTokensTab />
           </TabsContent>
           <TabsContent value="insights" className="mt-6">
             <Insights />

@@ -1,0 +1,41 @@
+{
+  "summary": "Iteration 4 testing complete. 80/80 backend pytest cases pass (18 new iter-4 tests covering Wearables CRUD+events, bathroom zones+insights, Device Tokens admin-only+create/revoke+HMAC soft-enforcement on /pendants/event, Family Portal public summary+invalid-token+acknowledge-read). Frontend Admin correctly shows all 10 tabs (Residents, Pendants, Wearables, Staff, Kiosks, Zones, Family, Device tokens, Insights, Roadmap). Wearables 'Pair wearable' + 'Simulate event' dialogs work (event fires POST /api/wearables/event). Device tokens 'Create token' reveals shared secret in secret-reveal-dialog with copy buttons and revoke works. Family tab shows copy-portal-{id} buttons on every contact row. Public /family/{token} renders a calm, no-login resident view (resident name, last-seen zone, active calls, resolved last 7d, 4 recent alert summaries, mark-read-btn). /family/invalid-xyz shows friendly 'Link not valid' card.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin dialogs (Wearables, Device tokens, etc.)", "issues": ["Radix DialogContent still missing <DialogDescription> / aria-describedby - repeated a11y console warnings. Non-blocking but recommended for screen readers."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/iter4_full.xml"
+  ],
+  "action_items": [
+    "(Optional) Add <DialogDescription> to all Radix Dialog components to silence repeated a11y warnings (WearablesTab pair/simulate dialogs, DeviceTokensTab create/reveal dialogs).",
+    "(Optional) The /api/insights/compute success response is a dict {computed, residents} while /api/insights returns a list - consistent, but worth documenting in API spec so future consumers don't miss it."
+  ],
+  "critical_code_review_comments": [
+    "device_auth.verify_device_token does NOT actually verify HMAC - comment on L63-66 admits it accepts any non-empty signature as long as token_id is valid. This means an attacker who steals a token_id can spoof signatures without the shared_secret. Should either (a) register a middleware that buffers raw body and recomputes HMAC, or (b) document this as a token-presence-only check until full HMAC is wired. Right now the 'HMAC' claim is misleading.",
+    "wearables.py create_wearable/update_wearable do not validate unique mac_address - a duplicate POST with the same mac_address silently creates a second wearable doc. Consider a unique index or pre-check.",
+    "wearables.py uses triggered_by='pendant' for all wearable-generated alerts (L132) - this loses signal for analytics/UI that want to distinguish wearable vs pendant origin. Add 'wearable' to Alert.triggered_by Literal and use it.",
+    "family_portal.py /summary has no rate limit - a leaked portal_token allows unlimited fetches. For MVP it's fine, but consider per-token throttle (e.g., 60 req/min) before production. Also consider rotating/expiring tokens (currently stored as permanent strings via seed backfill).",
+    "family_portal acknowledge-read accepts empty body but route signature still expects POST - works fine, but a 'note' field (optional text) would be valuable to capture family sentiment.",
+    "insights.py bathroom_frequency_7d denominator handling was not directly verifiable on live seed (no active bathroom pings) - add a unit test that seeds locations in a bathroom zone and asserts the metric fires.",
+    "DeviceTokensTab secret-value is an <Input readOnly> - correct UX (select+copy) but makes automated inner-text extraction return empty; worth leaving a test comment so future agents use el.inputValue() or getAttribute('value')."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py (added TestWearables, TestBathroomZones, TestDeviceTokens, TestFamilyPortal - 18 new tests; total 80)"
+  ],
+  "success_rate": {"backend": "100% (80/80)", "frontend": "100% (iter-4 flows verified: 10 tabs, wearables simulate, secret reveal dialog, family portal public page + invalid-token page)"},
+  "test_credentials": "admin@caoscare.com / admin1234 ; nurse@caoscare.com / nurse1234",
+  "seed_data_creation": "Relied on seeded 1 wearable (Maggie's demo smartwatch), 2 bathroom zones (Communal Bathroom East/West), 3 family contacts with portal_tokens backfilled. All TEST_* created data is cleaned up inside each test.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All iter-4 endpoints and UI flows green. To re-run regression: pytest /app/backend/tests/backend_test.py (80 tests). Seeded portal_token 'ptok_466c9e0a01' belongs to Elena Delgado / Frank Delgado for quick manual portal smoke. Known non-issues: (1) secret-value inputs need .inputValue() not .inner_text() during Playwright checks; (2) DialogDescription a11y warnings persist from iter-3. Known design caveat: device-token 'HMAC' is currently presence-only (see critical_code_review_comments).",
+  "rca of the issue": "N/A - no functional bugs found; all 5 initial pytest failures were in the newly-authored test payloads (wrong pendants.event field names 'event'/'pendant_id' vs required 'event_type'/'frequency_mhz'; and an over-strict assertion that /api/insights/compute returns a list when it actually returns a summary dict). All fixed in-script."
+}

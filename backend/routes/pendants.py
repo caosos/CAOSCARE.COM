@@ -1,6 +1,6 @@
 """Pendant registry + RF ingest from Android bridge app (USB receiver)."""
 from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from models import Pendant, PendantCreate, PendantEventInput, Alert, now_utc
 from deps import db, get_current_user
 
@@ -66,13 +66,16 @@ async def delete_pendant(pendant_device_id: str, user=Depends(get_current_user))
 
 
 @router.post("/event")
-async def pendant_event(evt: PendantEventInput):
+async def pendant_event(evt: PendantEventInput, request: Request):
     """
     Public ingest endpoint.
     The Android bridge app connected to a USB RF receiver POSTs here when a pendant transmits.
     We look up the pendant by frequency, update its last_seen/battery/signal, and — for press/fall
     events — automatically create an alert linked to the pendant's assigned resident.
     """
+    from routes.device_auth import verify_device_token
+    await verify_device_token(request, "pendants.event")
+
     pendant = await db.pendants.find_one({"frequency_mhz": evt.frequency_mhz}, {"_id": 0})
     if not pendant:
         # Persist as an unregistered ping so admins can see it and map it

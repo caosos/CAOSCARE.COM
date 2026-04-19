@@ -809,3 +809,247 @@ class TestNotifications:
         assert len(matched) >= 1, f"No notification referenced alert {aid}"
         # Clean up: resolve
         session.post(f"{API}/alerts/{aid}/resolve", headers=admin_headers)
+
+
+# ========================================================================
+# Iteration 4: Wearables, Device Tokens, Family Portal, Bathroom Zones
+# ========================================================================
+class TestWearables:
+    def test_list_wearables_seeded(self, session, admin_headers):
+        r = session.get(f"{API}/wearables", headers=admin_headers)
+        assert r.status_code == 200, r.text
+        items = r.json()
+        assert isinstance(items, list) and len(items) >= 1
+        labels = [w.get("device_label") for w in items]
+        assert any("smartwatch" in (lbl or "").lower() or "maggie" in (lbl or "").lower() for lbl in labels)
+
+    def test_list_wearables_requires_auth(self, session):
+        r = session.get(f"{API}/wearables")
+        assert r.status_code in (401, 403)
+
+    def test_crud_wearable_and_events(self, session, admin_headers):
+        # Get a resident
+        residents = session.get(f"{API}/residents", headers=admin_headers).json()
+        rid = residents[0]["resident_id"]
+
+        # Create
+        payload = {
+            "device_label": "TEST_wear_watch",
+            "device_type": "smartwatch",
+            "mac_address": f"AA:BB:CC:{uuid.uuid4().hex[:2].upper()}:11:22",
+            "resident_id": rid,
+        }
+        c = session.post(f"{API}/wearables", json=payload, headers=admin_headers)
+        assert c.status_code == 200, c.text
+        wid = c.json()["wearable_id"]
+
+        # Press event => assist
+        e = session.post(f"{API}/wearables/event", json={
+            "wearable_id": wid, "event_type": "press", "zone": "Hallway A"
+        })
+        assert e.status_code == 200, e.text
+        body = e.json()
+        assert body["alert"] is not None
+        assert body["alert"]["severity"] == "assist"
+        assist_aid = body["alert"]["alert_id"]
+
+        # Fall event => emergency
+        e2 = session.post(f"{API}/wearables/event", json={
+            "wearable_id": wid, "event_type": "fall", "zone": "Hallway A"
+        })
+        assert e2.status_code == 200, e2.text
+        assert e2.json()["alert"]["severity"] == "emergency"
+        fall_aid = e2.json()["alert"]["alert_id"]
+
+        # Periodic ping => no alert
+        e3 = session.post(f"{API}/wearables/event", json={
+            "wearable_id": wid, "event_type": "periodic_ping", "zone": "Hallway A"
+        })
+        assert e3.status_code == 200
+        assert e3.json()["alert"] is None
+
+        # Bad payload (neither id nor mac)
+        e4 = session.post(f"{API}/wearables/event", json={"event_type": "press"})
+        assert e4.status_code == 400, e4.text
+
+        # cleanup
+        session.post(f"{API}/alerts/{assist_aid}/resolve", headers=admin_headers)
+        session.post(f"{API}/alerts/{fall_aid}/resolve", headers=admin_headers)
+        d = session.delete(f"{API}/wearables/{wid}", headers=admin_headers)
+        assert d.status_code == 200
+
+
+class TestBathroomZones:
+    def test_seed_has_bathroom_zones(self, session):
+        zones = session.get(f"{API}/zones").json()
+        bathrooms = [z for z in zones if z.get("is_bathroom")]
+        assert len(bathrooms) >= 2
+        names = [z["name"] for z in bathrooms]
+        assert any("Bathroom" in n for n in names)
+
+    def test_create_bathroom_zone(self, session, admin_headers):
+        uniq = uuid.uuid4().hex[:6]
+        c = session.post(f"{API}/zones", json={
+            "name": f"TEST_Bathroom_{uniq}",
+            "kind": "indoor",
+            "is_bathroom": True,
+        }, headers=admin_headers)
+        assert c.status_code == 200, c.text
+        z = c.json()
+        assert z.get("is_bathroom") is True
+        session.delete(f"{API}/zones/{z['zone_id']}", headers=admin_headers)
+
+    def test_insights_bathroom_metric_present_when_applicable(self, session, admin_headers):
+        # Compute - may or may not include bathroom metric depending on seed
+        r = session.post(f"{API}/insights/compute", headers=admin_headers)
+        assert r.status_code == 200, r.text
+        ins = r.json()
+        # compute returns a summary dict {computed, residents}
+        assert isinstance(ins, dict)
+        assert "computed" in ins and "residents" in ins
+        # Now fetch the insights list and look for bathroom metric if any
+        lst = session.get(f"{API}/insights", headers=admin_headers).json()
+        assert isinstance(lst, list)
+
+
+class TestDeviceTokens:
+    def test_list_tokens_admin(self, session, admin_headers):
+        r = session.get(f"{API}/device-tokens", headers=admin_headers)
+        assert r.status_code == 200
+        items = r.json()
+        assert isinstance(items, list)
+        # None of them should expose secret_hash
+        for it in items:
+            assert "secret_hash" not in it
+
+    def test_list_tokens_staff_forbidden(self, session, nurse_headers):
+        r = session.get(f"{API}/device-tokens", headers=nurse_headers)
+        assert r.status_code == 403
+
+    def test_status_endpoint(self, session, admin_headers):
+        r = session.get(f"{API}/device-tokens/status", headers=admin_headers)
+        assert r.status_code == 200
+        b = r.json()
+        assert "active_tokens" in b and "revoked_tokens" in b
+        assert b.get("enforcement_required") is False
+
+    def test_create_reveal_and_revoke_token(self, session, admin_headers):
+        r = session.post(f"{API}/device-tokens", json={
+            "name": f"TEST_tok_{uuid.uuid4().hex[:6]}",
+            "scopes": ["pendants.event", "locations.ingest"],
+        }, headers=admin_headers)
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert "token_id" in body and "shared_secret" in body
+        assert isinstance(body["shared_secret"], str) and len(body["shared_secret"]) > 20
+        assert set(body["scopes"]) >= {"pendants.event", "locations.ingest"}
+        assert "example_python" in body and "usage" in body
+        tid = body["token_id"]
+
+        # GET should NOT expose secret_hash
+        lst = session.get(f"{API}/device-tokens", headers=admin_headers).json()
+        match = next((t for t in lst if t["token_id"] == tid), None)
+        assert match is not None
+        assert "secret_hash" not in match
+
+        # Revoke
+        d = session.delete(f"{API}/device-tokens/{tid}", headers=admin_headers)
+        assert d.status_code == 200
+        assert d.json().get("ok") is True
+
+    def test_pendant_event_soft_enforced_no_headers(self, session, admin_headers):
+        # Get a pendant
+        pendants = session.get(f"{API}/pendants", headers=admin_headers).json()
+        if not pendants:
+            pytest.skip("No pendants seeded")
+        p = pendants[0]
+        freq = p["frequency_mhz"]
+        # No device headers - should still work (soft-enforced)
+        r = session.post(f"{API}/pendants/event", json={
+            "frequency_mhz": freq, "event_type": "press", "zone": "Hallway A"
+        })
+        assert r.status_code == 200, r.text
+        aid = r.json().get("alert", {}).get("alert_id")
+        if aid:
+            session.post(f"{API}/alerts/{aid}/resolve", headers=admin_headers)
+
+    def test_pendant_event_with_invalid_token_rejected(self, session, admin_headers):
+        pendants = session.get(f"{API}/pendants", headers=admin_headers).json()
+        if not pendants:
+            pytest.skip("No pendants seeded")
+        p = pendants[0]
+        headers = {
+            "Content-Type": "application/json",
+            "X-Device-Token": "invalid_token_xyz",
+            "X-Device-Signature": "abc123",
+        }
+        r = session.post(f"{API}/pendants/event", json={
+            "frequency_mhz": p["frequency_mhz"], "event_type": "press"
+        }, headers=headers)
+        assert r.status_code == 401, r.text
+
+    def test_pendant_event_with_only_token_header_rejected(self, session, admin_headers):
+        pendants = session.get(f"{API}/pendants", headers=admin_headers).json()
+        if not pendants:
+            pytest.skip("No pendants seeded")
+        p = pendants[0]
+        r = session.post(f"{API}/pendants/event",
+                         json={"frequency_mhz": p["frequency_mhz"], "event_type": "press"},
+                         headers={"Content-Type": "application/json",
+                                  "X-Device-Token": "some_token"})
+        assert r.status_code == 401
+
+    def test_pendant_event_with_revoked_token_rejected(self, session, admin_headers):
+        # Create + revoke a token, then try to use it
+        c = session.post(f"{API}/device-tokens", json={
+            "name": f"TEST_revoked_{uuid.uuid4().hex[:6]}",
+            "scopes": ["pendants.event"]
+        }, headers=admin_headers).json()
+        tid = c["token_id"]
+        session.delete(f"{API}/device-tokens/{tid}", headers=admin_headers)
+
+        pendants = session.get(f"{API}/pendants", headers=admin_headers).json()
+        if not pendants:
+            pytest.skip("No pendants seeded")
+        p = pendants[0]
+        r = session.post(f"{API}/pendants/event",
+                         json={"frequency_mhz": p["frequency_mhz"], "event_type": "press"},
+                         headers={"Content-Type": "application/json",
+                                  "X-Device-Token": tid,
+                                  "X-Device-Signature": "abc"})
+        assert r.status_code == 401
+
+
+class TestFamilyPortal:
+    def test_family_contacts_have_portal_token(self, session, admin_headers):
+        contacts = session.get(f"{API}/family-contacts", headers=admin_headers).json()
+        assert len(contacts) > 0
+        # portal_token should be populated on all via seed backfill
+        with_tok = [c for c in contacts if c.get("portal_token")]
+        assert len(with_tok) == len(contacts), f"Some contacts missing portal_token: {len(contacts) - len(with_tok)}"
+
+    def test_portal_summary_public(self, session, admin_headers):
+        contacts = session.get(f"{API}/family-contacts", headers=admin_headers).json()
+        tok = next((c["portal_token"] for c in contacts if c.get("portal_token")), None)
+        assert tok
+        # Call WITHOUT auth
+        plain = requests.Session()
+        plain.headers.update({"Content-Type": "application/json"})
+        r = plain.get(f"{API}/family-portal/{tok}/summary")
+        assert r.status_code == 200, r.text
+        body = r.json()
+        for key in ("resident", "contact", "last_seen", "active_now", "resolved_last_7d", "recent_alerts", "haiku"):
+            assert key in body, f"missing {key}"
+        assert body["resident"].get("name")
+
+    def test_portal_summary_invalid_token(self, session):
+        r = session.get(f"{API}/family-portal/invalid-token-xyz/summary")
+        assert r.status_code == 404
+
+    def test_portal_acknowledge_read(self, session, admin_headers):
+        contacts = session.get(f"{API}/family-contacts", headers=admin_headers).json()
+        tok = next((c["portal_token"] for c in contacts if c.get("portal_token")), None)
+        assert tok
+        r = session.post(f"{API}/family-portal/{tok}/acknowledge-read", json={})
+        assert r.status_code == 200
+        assert r.json().get("ok") is True

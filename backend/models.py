@@ -107,6 +107,7 @@ class Zone(BaseModel):
     floor: Optional[str] = None
     description: Optional[str] = ""
     is_restricted: bool = False           # wander / elopement trigger
+    is_bathroom: bool = False             # used for bathroom-frequency drift analysis
     allowed_levels: Optional[List[ParticipationLevel]] = None  # if set, only these participation levels may enter
     created_at: datetime = Field(default_factory=now_utc)
 
@@ -116,6 +117,7 @@ class ZoneCreate(BaseModel):
     floor: Optional[str] = None
     description: Optional[str] = ""
     is_restricted: bool = False
+    is_bathroom: bool = False
     allowed_levels: Optional[List[ParticipationLevel]] = None
 
 
@@ -328,6 +330,7 @@ class FamilyContact(BaseModel):
     email: Optional[str] = ""
     phone: Optional[str] = ""
     notify_on: List[Literal["emergency", "assist", "wander", "daily_summary"]] = Field(default_factory=lambda: ["emergency", "wander"])
+    portal_token: str = Field(default_factory=lambda: uid("ptok"))   # magic-link token for family portal
     created_at: datetime = Field(default_factory=now_utc)
 
 
@@ -338,3 +341,60 @@ class FamilyContactCreate(BaseModel):
     email: Optional[str] = ""
     phone: Optional[str] = ""
     notify_on: List[Literal["emergency", "assist", "wander", "daily_summary"]] = Field(default_factory=lambda: ["emergency", "wander"])
+
+
+# ---------- Wearable devices (P3) ----------
+class Wearable(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    wearable_id: str = Field(default_factory=lambda: uid("wear"))
+    device_label: str                     # human identifier, e.g. "Margaret's blue watch"
+    device_type: Literal["smartwatch", "earbuds", "glasses", "ble_beacon", "generic"] = "smartwatch"
+    mac_address: Optional[str] = None
+    resident_id: Optional[str] = None
+    battery_percent: Optional[int] = None
+    last_heart_rate: Optional[int] = None
+    last_seen_at: Optional[datetime] = None
+    status: Literal["active", "inactive", "lost", "low_battery"] = "active"
+    notes: Optional[str] = ""
+    created_at: datetime = Field(default_factory=now_utc)
+
+
+class WearableCreate(BaseModel):
+    device_label: str
+    device_type: Literal["smartwatch", "earbuds", "glasses", "ble_beacon", "generic"] = "smartwatch"
+    mac_address: Optional[str] = None
+    resident_id: Optional[str] = None
+    status: Literal["active", "inactive", "lost", "low_battery"] = "active"
+    notes: Optional[str] = ""
+
+
+class WearableEventInput(BaseModel):
+    """Public ingest. Companion phone / watch posts here."""
+    wearable_id: Optional[str] = None     # known device id
+    mac_address: Optional[str] = None     # or match by MAC
+    event_type: Literal["press", "fall", "heart_rate_high", "heart_rate_low", "periodic_ping", "inactivity"] = "press"
+    zone: Optional[str] = None
+    heart_rate: Optional[int] = None
+    battery_percent: Optional[int] = None
+    signal_strength: Optional[int] = None
+    device_token: Optional[str] = None
+
+
+# ---------- Device tokens (HMAC auth for field hardware) ----------
+class DeviceToken(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    token_id: str = Field(default_factory=lambda: uid("devtok"))
+    name: str                              # human label, e.g. "Hallway A tablet"
+    scopes: List[Literal["pendants.event", "locations.ingest", "wearables.event"]]
+    secret_hash: str                       # bcrypt hash of the shared secret
+    created_by: Optional[str] = None
+    last_used_at: Optional[datetime] = None
+    revoked: bool = False
+    created_at: datetime = Field(default_factory=now_utc)
+
+
+class DeviceTokenCreate(BaseModel):
+    name: str
+    scopes: List[Literal["pendants.event", "locations.ingest", "wearables.event"]] = Field(
+        default_factory=lambda: ["pendants.event", "locations.ingest"]
+    )

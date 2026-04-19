@@ -27,7 +27,7 @@ ROADMAP_SEED = [
     (3, "Zone mapping", "Admin-defined zones with floor + description.", "done"),
     (3, "Router/receiver-based location narrowing", "Android bridge reports the tablet's zone with every pendant event.", "done"),
     (3, "Live latest-per-resident location view", "Staff dashboard shows last-seen zone for every resident.", "done"),
-    (3, "Wearable support", "Optional wearable trigger + location.", "not_started"),
+    (3, "Wearable support", "Optional wearable trigger + location via /api/wearables/event (smartwatch/earbuds/BLE beacon).", "done"),
     (3, "Geofencing", "Restricted zones + wander alerts.", "done"),
     (3, "Wander / elopement alerting", "Automatic alerts when a resident breaches a restricted zone.", "done"),
     (3, "Movement trend collection", "Store location history for pattern analysis.", "done"),
@@ -36,7 +36,7 @@ ROADMAP_SEED = [
     # Phase 4 — Predictive Insight
     (4, "Baseline behavior profiles", "Last 7d vs prior 7d rollups per resident.", "done"),
     (4, "Nighttime activity change detection", "Surface deviations vs baseline.", "done"),
-    (4, "Bathroom frequency / location drift indicators", "Non-diagnostic observations for staff review.", "not_started"),
+    (4, "Bathroom frequency / location drift indicators", "Count location pings in zones flagged is_bathroom; compare last 7d to prior 7d. Non-diagnostic.", "done"),
     (4, "Mobility decline indicators", "Movement trend analysis.", "done"),
     (4, "Response burden patterns", "Which residents need the most help this week?", "done"),
     (4, "Confidence-scored risk flags", "\"Margaret's nighttime help requests up 3x this week\".", "done"),
@@ -51,7 +51,7 @@ ROADMAP_SEED = [
     (5, "Email family notifications (Resend)", "NotificationService ready; flip on by adding RESEND_API_KEY to backend/.env.", "in_progress"),
     (5, "Device-token auth on /api/locations + /api/pendants/event", "HMAC or signed device token for field sensors.", "not_started"),
     (5, "AI-vision glasses/earbuds integration", "Walking guidance for low-vision residents.", "not_started"),
-    (5, "Family portal", "Opt-in family view with status + selected updates.", "not_started"),
+    (5, "Family portal", "Magic-link portal for family contacts: /family/{token} shows resident status, last-seen zone, recent alert summary, and bedtime haiku digest.", "done"),
 ]
 
 
@@ -92,23 +92,31 @@ async def seed():
 
     # Zones
     zones_data = [
-        ("First Floor East", "1", "Rooms 101-120 + Dining", False),
-        ("First Floor West", "1", "Rooms 121-140 + Chapel", False),
-        ("Second Floor", "2", "Rooms 201-240 + Lounge", False),
-        ("Common Areas", "1", "Lobby, Garden, Activity Room", False),
-        ("Staff Only — Medication Room", "1", "Restricted. Med storage, staff only.", True),
-        ("Outside — Parking Lot", "0", "Restricted — elopement risk beyond this point.", True),
+        ("First Floor East", "1", "Rooms 101-120 + Dining", False, False),
+        ("First Floor West", "1", "Rooms 121-140 + Chapel", False, False),
+        ("Second Floor", "2", "Rooms 201-240 + Lounge", False, False),
+        ("Common Areas", "1", "Lobby, Garden, Activity Room", False, False),
+        ("Staff Only — Medication Room", "1", "Restricted. Med storage, staff only.", True, False),
+        ("Outside — Parking Lot", "0", "Restricted — elopement risk beyond this point.", True, False),
+        ("Communal Bathroom - East", "1", "Shared bathroom, east wing.", False, True),
+        ("Communal Bathroom - West", "1", "Shared bathroom, west wing.", False, True),
     ]
-    for name, floor, desc, restricted in zones_data:
+    for name, floor, desc, restricted, bathroom in zones_data:
         existing_z = await db.zones.find_one({"name": name}, {"_id": 0})
         if not existing_z:
-            z = Zone(name=name, floor=floor, description=desc, is_restricted=restricted)
+            z = Zone(name=name, floor=floor, description=desc, is_restricted=restricted, is_bathroom=bathroom)
             d = z.model_dump()
             d["created_at"] = d["created_at"].isoformat()
             await db.zones.insert_one(d)
             d.pop("_id", None)
-        elif existing_z.get("is_restricted") is None:
-            await db.zones.update_one({"name": name}, {"$set": {"is_restricted": restricted}})
+        else:
+            patch = {}
+            if existing_z.get("is_restricted") is None:
+                patch["is_restricted"] = restricted
+            if existing_z.get("is_bathroom") is None:
+                patch["is_bathroom"] = bathroom
+            if patch:
+                await db.zones.update_one({"name": name}, {"$set": patch})
 
     # Residents (now with preferences + memory for AI personalization)
     residents_data = [
@@ -298,9 +306,63 @@ async def seed():
                 await db.locations.insert_one(loc)
                 loc.pop("_id", None)
 
-    # Roadmap items
+    # Backfill portal_token on any existing family contacts that don't have one
+    async for fc in db.family_contacts.find({"portal_token": {"$in": [None, ""]}}, {"_id": 0}):
+        tok = f"ptok_{_r.randint(10**11, 10**12-1):x}"
+        await db.family_contacts.update_one({"contact_id": fc["contact_id"]}, {"$set": {"portal_token": tok}})
+
+    # Seed a sample wearable for the first resident (demo)
+    if residents_for_family and await db.wearables.count_documents({}) == 0:
+        first = residents_for_family[0]
+        w_doc = {
+            "wearable_id": f"wear_demo_{_r.randint(100000, 999999)}",
+            "device_label": f"{first.get('preferred_name') or first['name']}'s demo smartwatch",
+            "device_type": "smartwatch",
+            "mac_address": "AA:BB:CC:DD:EE:01",
+            "resident_id": first["resident_id"],
+            "battery_percent": 78,
+            "status": "active",
+            "notes": "Seeded demo — pair your real device in Admin → Wearables.",
+            "created_at": now_utc().isoformat(),
+            "last_seen_at": None,
+        }
+        await db.wearables.insert_one(w_doc)
+        w_doc.pop("_id", None)
+
+    # Seed a few bathroom-zone pings so the insights bathroom metric has data
+    if residents_for_family and await db.locations.count_documents({"zone": {"$regex": "Bathroom"}}) == 0:
+        bathroom_names = ["Communal Bathroom - East", "Communal Bathroom - West"]
+        for i, r in enumerate(residents_for_family[:4]):
+            # Baseline window: 2 pings
+            for _ in range(2):
+                when = now_dt - timedelta(days=_r.uniform(7.5, 13.5), hours=_r.uniform(6, 22))
+                await db.locations.insert_one({
+                    "update_id": f"loc_bath_{_r.randint(100000, 999999)}",
+                    "resident_id": r["resident_id"],
+                    "zone": _r.choice(bathroom_names),
+                    "room": r.get("room"),
+                    "signal_strength": _r.randint(60, 95),
+                    "source": "mock",
+                    "created_at": when.isoformat(),
+                })
+            # Current window: more for first resident (trending up signal)
+            current_count = 6 if i == 0 else 3
+            for _ in range(current_count):
+                when = now_dt - timedelta(days=_r.uniform(0.2, 6.8), hours=_r.uniform(6, 22))
+                await db.locations.insert_one({
+                    "update_id": f"loc_bath_{_r.randint(100000, 999999)}",
+                    "resident_id": r["resident_id"],
+                    "zone": _r.choice(bathroom_names),
+                    "room": r.get("room"),
+                    "signal_strength": _r.randint(60, 95),
+                    "source": "mock",
+                    "created_at": when.isoformat(),
+                })
+
+    # Roadmap items (idempotent; advance status if this iteration marks done)
     for order, (phase, title, desc, status) in enumerate(ROADMAP_SEED):
-        if not await db.roadmap.find_one({"title": title}, {"_id": 0}):
+        existing_item = await db.roadmap.find_one({"title": title}, {"_id": 0})
+        if not existing_item:
             item = RoadmapItem(
                 phase=phase,
                 title=title,
@@ -313,6 +375,11 @@ async def seed():
             d["updated_at"] = d["updated_at"].isoformat()
             await db.roadmap.insert_one(d)
             d.pop("_id", None)
+        elif existing_item.get("status") != "done" and status == "done":
+            await db.roadmap.update_one(
+                {"title": title},
+                {"$set": {"status": status, "description": desc, "phase": phase, "updated_at": now_utc().isoformat()}},
+            )
 
     print("Seed complete.")
 

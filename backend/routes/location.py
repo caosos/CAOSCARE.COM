@@ -1,7 +1,7 @@
 """Indoor location tracking - mock generator + real sensor ingest + latest lookups."""
 import random
 from datetime import datetime, timezone, timedelta
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from models import LocationUpdate, LocationUpdateCreate, now_utc
 from deps import db, get_current_user
 
@@ -16,8 +16,13 @@ def _iso(doc: dict) -> dict:
 
 
 @router.post("")
-async def ingest_location(data: LocationUpdateCreate):
-    """Real sensors / mesh network POST here. Public so field hardware can report directly."""
+async def ingest_location(data: LocationUpdateCreate, request: Request):
+    """Real sensors / mesh network POST here. Public so field hardware can report directly.
+    If X-Device-Token+Signature headers are present, they must validate.
+    """
+    from routes.device_auth import verify_device_token
+    await verify_device_token(request, "locations.ingest")
+
     resident = await db.residents.find_one({"resident_id": data.resident_id}, {"_id": 0})
     if not resident:
         raise HTTPException(status_code=404, detail="Resident not found")

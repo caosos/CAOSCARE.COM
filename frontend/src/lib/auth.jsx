@@ -24,9 +24,9 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
       return;
     }
-    // Skip /me probe on public routes (kiosk, landing) to avoid 401 noise
+    // Skip /me probe on public routes (kiosk, family portal, landing) to avoid 401 noise
     const path = window.location.pathname;
-    const isPublic = path === "/" || path.startsWith("/kiosk");
+    const isPublic = path === "/" || path.startsWith("/kiosk") || path.startsWith("/family/");
     if (isPublic && !localStorage.getItem("caos_token")) {
       setLoading(false);
       return;
