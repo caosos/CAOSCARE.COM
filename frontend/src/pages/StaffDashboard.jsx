@@ -20,6 +20,7 @@ import {
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import AlertDetailDialog from "./AlertDetailDialog";
+import { MyTasksCard } from "./TasksTab";
 
 function severityColor(s) {
   if (s === "emergency") return { border: "#B6463A", bg: "#FDECE9", text: "#98392F" };
@@ -262,7 +263,7 @@ export default function StaffDashboard() {
           </section>
 
           {/* Locations */}
-          <section className="lg:col-span-2">
+          <section className="lg:col-span-2 space-y-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-display text-2xl font-medium text-caos-forest">Live locations</h2>
               <Button
@@ -305,6 +306,8 @@ export default function StaffDashboard() {
                 )}
               </div>
             </Card>
+
+            <MyTasksCard />
           </section>
         </div>
       </div>

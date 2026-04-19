@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">CAOS Vision</string>
+    <!-- Replace at build-time or via Android Studio BuildConfig -->
+    <string name="caos_base_url">https://your-caos-host.example.com</string>
+    <string name="caos_device_token"></string>
+</resources>

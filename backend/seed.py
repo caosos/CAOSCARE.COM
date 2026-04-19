@@ -55,6 +55,9 @@ ROADMAP_SEED = [
     (5, "Device-token auth on /api/locations + /api/pendants/event", "HMAC or signed device token for field sensors.", "not_started"),
     (5, "AI-vision glasses/earbuds integration", "Vuzix M400 + Android generic fallback. POST /api/vision/describe + /frame use Claude image-vision; companion app pairs to tablet via BLE.", "in_progress"),
     (5, "Family portal", "Magic-link portal for family contacts: /family/{token} shows resident status, last-seen zone, recent alert summary, and bedtime haiku digest.", "done"),
+    (5, "Panic-press → hands-free voice", "Pendant pressed ≥2x in 60s (or fall event) upgrades to emergency + auto_voice=True. Kiosk polls /api/kiosks/{id}/active-emergency and auto-enables its mic when a match is found.", "done"),
+    (5, "Central nurse-station kiosk", "Kiosk.is_central=true listens for ANY facility-wide emergency, not just its room/zone.", "done"),
+    (5, "Staff task management", "Daily templates spawn into assigned tasks. Start → in_progress → Complete → audit trail (who, when, duration, notes).", "done"),
 ]
 
 
@@ -179,7 +182,7 @@ async def seed():
             if patch:
                 await db.residents.update_one({"room": room}, {"$set": patch})
 
-    # Kiosks - one per resident room
+    # Kiosks - one per resident room + one central nurse station
     residents = await db.residents.find({}, {"_id": 0}).to_list(100)
     for r in residents:
         room = r["room"]
@@ -195,6 +198,20 @@ async def seed():
             d["created_at"] = d["created_at"].isoformat()
             await db.kiosks.insert_one(d)
             d.pop("_id", None)
+
+    # Central nurse-station kiosk (listens facility-wide for emergencies)
+    if not await db.kiosks.find_one({"is_central": True}, {"_id": 0}):
+        k = Kiosk(
+            name="Central Nurse Station",
+            room="NS-01",
+            zone="Common Areas",
+            mac_address="AA:BB:CC:NS:01:01",
+            is_central=True,
+        )
+        d = k.model_dump()
+        d["created_at"] = d["created_at"].isoformat()
+        await db.kiosks.insert_one(d)
+        d.pop("_id", None)
 
     # Pendants - assign a unique frequency to each resident
     base_freq = 916.000
@@ -389,6 +406,62 @@ async def seed():
                 doc["last_command_at"] = None
                 await db.smart_devices.insert_one(doc)
                 doc.pop("_id", None)
+
+    # Seed task templates (recurring daily work)
+    if await db.task_templates.count_documents({}) == 0:
+        default_templates = [
+            ("Morning med pass", "Deliver scheduled morning medications.", "meds", "day"),
+            ("Evening med pass", "Deliver scheduled evening medications.", "meds", "evening"),
+            ("Breakfast round", "Assist residents to the dining room or deliver trays.", "meal", "day"),
+            ("Dinner round", "Assist with dinner service.", "meal", "evening"),
+            ("Laundry — Floor 1", "Collect and start floor-1 laundry.", "laundry", "day"),
+            ("Laundry — Floor 2", "Collect and start floor-2 laundry.", "laundry", "day"),
+            ("Hourly safety rounds", "Walk each wing, check on residents.", "rounds", "any"),
+            ("Night check-in rounds", "Quiet walk-through — confirm each resident safe.", "rounds", "night"),
+            ("Bathing — Margaret", "Assist with morning bathing.", "bathing", "day"),
+            ("Activity — afternoon social", "Run the lounge activity.", "activity", "day"),
+        ]
+        for title, desc, cat, shift in default_templates:
+            tpl = {
+                "template_id": f"ttpl_{_r.randint(100000, 999999)}",
+                "title": title,
+                "description": desc,
+                "category": cat,
+                "shift": shift,
+                "recur": "daily",
+                "active": True,
+                "created_at": now_utc().isoformat(),
+            }
+            await db.task_templates.insert_one(tpl)
+
+    # Spawn today's tasks from templates (idempotent)
+    today = now_utc().date().isoformat()
+    start_iso = f"{today}T00:00:00+00:00"
+    end_iso = f"{today}T23:59:59+00:00"
+    staff_pool = await db.users.find({"role": "staff"}, {"_id": 0, "user_id": 1, "name": 1}).to_list(20)
+    async for tpl in db.task_templates.find({"active": True}, {"_id": 0}):
+        existing_task = await db.staff_tasks.find_one({
+            "template_id": tpl["template_id"],
+            "created_at": {"$gte": start_iso, "$lte": end_iso},
+        }, {"_id": 0})
+        if existing_task:
+            continue
+        assigned = _r.choice(staff_pool) if staff_pool else None
+        task_doc = {
+            "task_id": f"task_{_r.randint(100000, 999999)}",
+            "title": tpl["title"],
+            "description": tpl.get("description", ""),
+            "category": tpl.get("category", "other"),
+            "shift": tpl.get("shift", "any"),
+            "assigned_to": assigned["user_id"] if assigned else None,
+            "assigned_name": assigned["name"] if assigned else None,
+            "resident_id": tpl.get("resident_id"),
+            "room": tpl.get("room"),
+            "status": "pending",
+            "template_id": tpl["template_id"],
+            "created_at": now_utc().isoformat(),
+        }
+        await db.staff_tasks.insert_one(task_doc)
 
     # Roadmap items (idempotent; advance status if this iteration marks done)
     for order, (phase, title, desc, status) in enumerate(ROADMAP_SEED):

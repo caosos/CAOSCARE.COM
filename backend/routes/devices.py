@@ -96,6 +96,15 @@ async def send_command(device_id: str, cmd: DeviceCommandInput, user=Depends(get
     return queued
 
 
+@router.get("/public/by-room/{room}")
+async def public_list_room_devices(room: str):
+    """Kiosk (no login) needs to know which buttons to show."""
+    items = await db.smart_devices.find({"room": room}, {"_id": 0}).sort("label", 1).to_list(50)
+    for d in items:
+        _iso(d)
+    return items
+
+
 @router.post("/public/room/{room}/command")
 async def public_room_command(room: str, request: Request, cmd: DeviceCommandInput):
     """Kiosk path: big-button presses on the resident tablet. No auth — limited to devices

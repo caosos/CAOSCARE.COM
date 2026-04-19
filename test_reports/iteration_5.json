@@ -1,0 +1,43 @@
+{
+  "summary": "Iteration 5 testing complete. 13/13 NEW iter-5 backend tests pass (panic-press escalation, fall auto_voice, central-kiosk active-emergency scoping, non-central scoping, is_central PUT, tasks RBAC, tasks start/complete with duration+denorm, spawn-today idempotency, staff mine_only inference, template CRUD, public device by-room 101/108, public room command state update). Full regression 80/80 in backend_test.py also green — zero regressions on auth, residents, pendants, kiosks, alerts, wearables, family portal, device tokens. Frontend verified end-to-end: (a) /kiosk/demo renders Margaret / Room 101 idle screen with 'CALL FOR HELP' red button + YOUR ROOM grid showing Bedside lamp / Ceiling fan / Heater / TV tiles and tile-tap toggles state (b) Admin → Tasks tab shows Today(10) + Templates(10) sub-tabs with add-task-btn + Spawn today's tasks + PENDING/COMPLETED rows for breakfast/meds/laundry/rounds/bathing/activity (c) Admin → Smart devices tab lists 8 seeded devices (Room 101/108, protocols bluetooth/wifi/rf_915/ir) with On/Off/brightness/temp buttons + add-device-btn (d) Admin → Kiosks shows CENTRAL red badge on Central Nurse Station row; add-kiosk dialog contains kiosk-central-toggle (e) /staff as nurse Sarah shows my-tasks-card ('My tasks today · 1 OPEN · 1 DONE') with Start + Complete buttons and Complete opens a dialog.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin → Kiosks → Add kiosk dialog", "issues": ["DialogContent overlay renders the New-kiosk form visually stacked on top of the underlying Wall-kiosks table — form fields are readable but the table text bleeds through because the dialog background alpha is low. Consider bumping dialog bg to solid or increasing backdrop opacity."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/iter5_test.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/iter5_results.xml"
+  ],
+  "action_items": [
+    "(Optional) Increase Admin kiosk-dialog background opacity so the underlying table doesn't show through the New-kiosk form.",
+    "(Optional) The Kiosk idle 'YOUR ROOM' grid wraps TV onto a second row by itself on 1920-wide layouts — consider 4-col grid at lg breakpoint so TV stays next to Heater.",
+    "(Optional) Tasks tab — no filter chip for shift (day/evening/night/any); admin must scan the whole list. Minor UX polish."
+  ],
+  "critical_code_review_comments": [
+    "routes/tasks.py list_tasks — the 'day' filter uses created_at comparison against ISO strings which works only because created_at is stored as +00:00 ISO; a task created with a different TZ offset or stored as BSON Date would silently fall outside the range. Consider using actual datetime comparison with $gte/$lte + tz normalization.",
+    "routes/tasks.py complete_task accepts arbitrary 'body: dict' without Pydantic model — no validation on 'notes' length or type. Swap for a CompleteTaskInput(notes: Optional[str] = None) model for input safety and docs.",
+    "routes/pendants.py panic-press window: window_start uses ISO string comparison on created_at which again relies on all records being +00:00 ISO. Safe today but brittle. Also, press_count math counts ALL alerts in the last 60s for this pendant regardless of severity — a stale 'fall' alert would bump the count. Filter by triggered_by='pendant' AND event_type='press' (you'd need to persist event_type on Alert doc).",
+    "routes/kiosks.py active-emergency — returns the whole alert doc to an UNAUTHENTICATED endpoint, including resident_id + resident_name + zone. Acceptable for a wall kiosk but worth noting in the public API spec; any leaked kiosk_id lets a caller poll for resident PII.",
+    "routes/devices.py public_room_command has no rate-limit or HMAC enforcement by default (DEVICE_AUTH_REQUIRED=false). A rogue client on the same network could mass-toggle every light in every room. For production, at minimum enforce HMAC on the public device endpoints and/or keep the kiosk tablet on a separate VLAN.",
+    "routes/tasks.py spawn-today — loops with an inline 'await db.staff_tasks.find_one' per template. For >100 active templates this is O(N) round-trips; bulk-fetch today's existing template_ids once then diff.",
+    "Admin.jsx now has 10+ tabs (Residents, Pendants, Wearables, Smart devices, Tasks, Staff, Kiosks, Zones, Family, Device tokens, Insights, Roadmap). Consider collapsing into groups (Care / Devices / Ops / System) to reduce cognitive load — 12 tabs is past typical Radix TabsList capacity on <1440px widths."
+  ],
+  "updated_files": [
+    "/app/backend/tests/iter5_test.py (NEW — 13 focused iter-5 test cases)"
+  ],
+  "success_rate": {"backend": "100% (13/13 iter-5 + 80/80 regression = 93/93)", "frontend": "100% (kiosk idle + devices + tasks + kiosks-central-badge + admin dialogs + staff my-tasks-card all verified)"},
+  "test_credentials": "admin@caoscare.com / admin1234 ; nurse@caoscare.com / nurse1234",
+  "seed_data_creation": "Relied on seeded Central Nurse Station kiosk (CENTRAL badge visible), 8 smart devices across rooms 101 & 108, 10 task templates + 10 spawned tasks for today (1 already completed by Nurse Sarah). All TEST_* data cleaned up inside each pytest.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All iter-5 features green. To re-run: pytest /app/backend/tests/iter5_test.py + pytest /app/backend/tests/backend_test.py (93 tests total). The panic-press test creates a fresh pendant per run to avoid cross-test alert pollution in the 60s window — keep this pattern if extending. Known design caveats left for main agent (all optional): (1) kiosk add-dialog opacity, (2) admin tab count growing to 12, (3) tasks.py input not yet Pydantic-validated on complete/skip. None block the release.",
+  "rca of the issue": "N/A — no bugs surfaced this iteration. Implementation of panic-press (2x press / 60s → emergency + auto_voice + 'Panic-press ×N' message), is_central kiosk filtering, idempotent spawn-today, staff-scoped task list, and public device endpoints all behave exactly per spec."
+}

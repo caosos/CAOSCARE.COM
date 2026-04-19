@@ -90,6 +90,7 @@ class Kiosk(BaseModel):
     zone: str
     mac_address: Optional[str] = None
     status: Literal["online", "offline"] = "online"
+    is_central: bool = False  # central station listens for ANY resident's emergency, not just its zone
     created_at: datetime = Field(default_factory=now_utc)
 
 
@@ -98,6 +99,7 @@ class KioskCreate(BaseModel):
     room: str
     zone: str
     mac_address: Optional[str] = None
+    is_central: bool = False
 
 
 class Zone(BaseModel):
@@ -147,6 +149,8 @@ class Alert(BaseModel):
     resolved_at: Optional[datetime] = None
     outcome: Optional[str] = None      # e.g. "assisted to bathroom"
     close_notes: Optional[str] = None
+    auto_voice: bool = False             # hands-free mic activation on kiosk (panic-press / fall)
+    press_count: int = 1                 # how many rapid presses triggered this
     created_at: datetime = Field(default_factory=now_utc)
 
 
@@ -469,3 +473,81 @@ class VisionFrameInput(BaseModel):
 
 class VisionSessionStart(BaseModel):
     resident_id: Optional[str] = None
+
+
+
+# ---------- Staff tasks / daily work log ----------
+TaskCategory = Literal[
+    "laundry", "meds", "meal", "rounds", "bathing", "housekeeping",
+    "activity", "transport", "check_in", "paperwork", "other",
+]
+TaskStatus = Literal["pending", "in_progress", "completed", "skipped"]
+TaskShift = Literal["day", "evening", "night", "any"]
+
+
+class StaffTask(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    task_id: str = Field(default_factory=lambda: uid("task"))
+    title: str
+    description: Optional[str] = ""
+    category: TaskCategory = "other"
+    shift: TaskShift = "any"
+    assigned_to: Optional[str] = None        # user_id of staff member
+    assigned_name: Optional[str] = None      # denormalized for dashboard
+    resident_id: Optional[str] = None        # optional — tied to a resident
+    resident_name: Optional[str] = None
+    room: Optional[str] = None
+    status: TaskStatus = "pending"
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    completed_by: Optional[str] = None       # user_id of whoever closed it
+    completed_by_name: Optional[str] = None
+    duration_minutes: Optional[float] = None
+    notes: Optional[str] = ""
+    due_at: Optional[datetime] = None
+    template_id: Optional[str] = None        # if spawned from a recurring template
+    created_at: datetime = Field(default_factory=now_utc)
+
+
+class StaffTaskCreate(BaseModel):
+    title: str
+    description: Optional[str] = ""
+    category: TaskCategory = "other"
+    shift: TaskShift = "any"
+    assigned_to: Optional[str] = None
+    resident_id: Optional[str] = None
+    room: Optional[str] = None
+    due_at: Optional[datetime] = None
+    notes: Optional[str] = ""
+
+
+class StaffTaskUpdate(BaseModel):
+    notes: Optional[str] = None
+    assigned_to: Optional[str] = None
+    status: Optional[TaskStatus] = None
+
+
+class StaffTaskTemplate(BaseModel):
+    """Repeatable tasks — spun into real StaffTask rows each day/shift."""
+    model_config = ConfigDict(extra="ignore")
+    template_id: str = Field(default_factory=lambda: uid("ttpl"))
+    title: str
+    description: Optional[str] = ""
+    category: TaskCategory = "other"
+    shift: TaskShift = "any"
+    resident_id: Optional[str] = None
+    room: Optional[str] = None
+    recur: Literal["daily", "weekly", "per_shift"] = "daily"
+    active: bool = True
+    created_at: datetime = Field(default_factory=now_utc)
+
+
+class StaffTaskTemplateCreate(BaseModel):
+    title: str
+    description: Optional[str] = ""
+    category: TaskCategory = "other"
+    shift: TaskShift = "any"
+    resident_id: Optional[str] = None
+    room: Optional[str] = None
+    recur: Literal["daily", "weekly", "per_shift"] = "daily"
+    active: bool = True

@@ -29,6 +29,14 @@ Wander / geofencing (restricted zones auto-alert), movement timeline per residen
 - **Roadmap shipped**: Phase 1 5/5 ✅, Phase 2 6/6 ✅, Phase 3 8/8 ✅, Phase 4 6/6 ✅, Cross-cutting 7/10 ✅. Only open items: Twilio/Resend keys pending, AI-vision glasses (future hardware), daily haiku digest generator (cron-style, not yet wired).
 - **Tests**: 80/80 backend + 100% frontend. HMAC round-trip verified (valid sig → 200, invalid sig → 401).
 
+### Iteration 5 (Feb 2026)
+- **Smart-room devices**: Full CRUD at Admin → Smart devices (BLE / WiFi / RF_433 / RF_915 / IR / Zigbee / Matter). Public kiosk endpoint `/api/devices/public/by-room/{room}` + `/api/devices/public/room/{room}/command`. Kiosk renders huge tap-on/tap-off buttons for lights / fan / heater / TV on the idle screen. Command queue for the per-room Android bridge to execute over BLE/WiFi/RF.
+- **AI vision scaffold**: `/app/android-vision/` Kotlin app for Vuzix M400/M4000 (CameraX + OkHttp + MediaPlayer). Streams JPEG frames every 4s to `/api/vision/describe`, plays back TTS. Personalization via resident_id. Ready for hardware.
+- **Panic-press → hands-free voice** (safety-critical): 2+ pendant presses within 60s (or a fall event) upgrades the alert to `severity=emergency` + `auto_voice=true`. Kiosk polls `/api/kiosks/{id}/active-emergency` every 3s. On hit, kiosk speaks *"I'm here, \<name\>. Help is on the way — tell me what's happening."*, opens mic automatically for a 6s window, streams to Whisper. Resident never has to touch the screen.
+- **Central nurse-station kiosk**: Kiosks gain an `is_central` flag. Central kiosks listen for ANY facility-wide emergency (not just room/zone). Seeded 1 central station. Admin → Kiosks has a toggle.
+- **Staff task management**: New `/api/tasks` routes + `StaffTask` / `StaffTaskTemplate` models. Admin creates daily templates (meds, meal, rounds, laundry, bathing, activity) → `POST /api/tasks/spawn-today` materializes one task per template per day. Staff taps Start → `in_progress` + `started_at`; taps Complete with optional notes → `completed` + `completed_at` + `duration_minutes` + `completed_by`. Audit trail = full. Admin → Tasks shows today's board + templates. StaffDashboard has "My tasks today" card with Start/Complete.
+- **Backend test coverage**: panic-press detection + central kiosk query verified end-to-end via curl; task start→complete round-trip verified.
+
 ## Backlog
 
 ### P1

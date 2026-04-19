@@ -24,6 +24,8 @@ import FamilyTab from "./FamilyTab";
 import MovementDialog from "./MovementDialog";
 import WearablesTab from "./WearablesTab";
 import DeviceTokensTab from "./DeviceTokensTab";
+import DevicesTab from "./DevicesTab";
+import TasksTab from "./TasksTab";
 
 export default function Admin() {
   const { user, logout } = useAuth();
@@ -95,6 +97,8 @@ export default function Admin() {
             <TabsTrigger value="residents" data-testid="tab-residents">Residents ({residents.length})</TabsTrigger>
             <TabsTrigger value="pendants" data-testid="tab-pendants">Pendants</TabsTrigger>
             <TabsTrigger value="wearables" data-testid="tab-wearables">Wearables</TabsTrigger>
+            <TabsTrigger value="devices" data-testid="tab-devices">Smart devices</TabsTrigger>
+            <TabsTrigger value="tasks" data-testid="tab-tasks">Tasks</TabsTrigger>
             <TabsTrigger value="staff" data-testid="tab-staff">Staff ({staff.length})</TabsTrigger>
             <TabsTrigger value="kiosks" data-testid="tab-kiosks">Kiosks ({kiosks.length})</TabsTrigger>
             <TabsTrigger value="zones" data-testid="tab-zones">Zones ({zones.length})</TabsTrigger>
@@ -112,6 +116,12 @@ export default function Admin() {
           </TabsContent>
           <TabsContent value="wearables" className="mt-6">
             <WearablesTab residents={residents} />
+          </TabsContent>
+          <TabsContent value="devices" className="mt-6">
+            <DevicesTab residents={residents} />
+          </TabsContent>
+          <TabsContent value="tasks" className="mt-6">
+            <TasksTab residents={residents} staff={staff} />
           </TabsContent>
           <TabsContent value="staff" className="mt-6">
             <StaffTab staff={staff} onChange={fetchAll} />
@@ -364,7 +374,7 @@ function StaffTab({ staff, onChange }) {
 /* -------------- Kiosks -------------- */
 function KiosksTab({ kiosks, zones, onChange }) {
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", room: "", zone: "", mac_address: "" });
+  const [form, setForm] = useState({ name: "", room: "", zone: "", mac_address: "", is_central: false });
 
   const create = async (e) => {
     e.preventDefault();
@@ -372,7 +382,7 @@ function KiosksTab({ kiosks, zones, onChange }) {
       await api.post("/kiosks", form);
       toast.success("Kiosk added");
       setOpen(false);
-      setForm({ name: "", room: "", zone: "", mac_address: "" });
+      setForm({ name: "", room: "", zone: "", mac_address: "", is_central: false });
       onChange();
     } catch (err) {
       toast.error(err?.response?.data?.detail || "Failed");
@@ -413,6 +423,10 @@ function KiosksTab({ kiosks, zones, onChange }) {
                 </div>
               </div>
               <div><Label>MAC address (optional)</Label><Input data-testid="kiosk-mac" value={form.mac_address} onChange={(e) => setForm({ ...form, mac_address: e.target.value })} /></div>
+              <label className="flex items-center gap-2 cursor-pointer" data-testid="kiosk-central-toggle">
+                <Checkbox checked={form.is_central} onCheckedChange={(v) => setForm({ ...form, is_central: !!v })} />
+                <span className="text-sm font-semibold text-caos-forest">Central nurse station <span className="text-caos-mute font-normal">(listens for any facility emergency)</span></span>
+              </label>
               <DialogFooter><Button type="submit" className="bg-caos-forest" data-testid="kiosk-save">Save</Button></DialogFooter>
             </form>
           </DialogContent>
@@ -423,7 +437,10 @@ function KiosksTab({ kiosks, zones, onChange }) {
         <TableBody>
           {kiosks.map((k) => (
             <TableRow key={k.kiosk_id} data-testid={`kiosk-row-${k.kiosk_id}`}>
-              <TableCell className="font-medium">{k.name}</TableCell>
+              <TableCell className="font-medium">
+                {k.name}
+                {k.is_central && <Badge className="ml-2 bg-caos-terracotta text-white uppercase text-[10px] tracking-wider">Central</Badge>}
+              </TableCell>
               <TableCell>{k.room}</TableCell>
               <TableCell>{k.zone}</TableCell>
               <TableCell className="font-mono text-xs">{k.mac_address || "—"}</TableCell>

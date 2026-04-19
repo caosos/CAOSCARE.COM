@@ -4,11 +4,13 @@ import axios from "axios";
 import { API } from "../lib/api";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
-import { AlertCircle, Mic, MicOff, Volume2, Phone, X } from "lucide-react";
+import { AlertCircle, Mic, MicOff, Volume2, Phone, X, Lightbulb, Fan, Thermometer, Tv, Power } from "lucide-react";
 import { toast } from "sonner";
 
 // Kiosk is PUBLIC - no login. Selected/identified by kiosk_id in URL.
 // /kiosk/:kioskId  (use "demo" to pick an arbitrary kiosk automatically)
+
+const DEVICE_ICON = { light: Lightbulb, fan: Fan, heater: Thermometer, ac: Thermometer, tv: Tv };
 
 export default function Kiosk() {
   const { kioskId } = useParams();
@@ -22,9 +24,12 @@ export default function Kiosk() {
   const [recording, setRecording] = useState(false);
   const [thinking, setThinking] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const [autoVoice, setAutoVoice] = useState(false);     // hands-free mode
+  const [devices, setDevices] = useState([]);
   const sessionRef = useRef(`sess_${Math.random().toString(36).slice(2)}`);
   const mediaRef = useRef(null);
   const audioRef = useRef(null);
+  const seenEmergencyRef = useRef(null);
 
   // Load kiosk + resident
   useEffect(() => {
@@ -42,11 +47,87 @@ export default function Kiosk() {
         const { data } = await axios.get(`${API}/residents/public/by-kiosk/${id}`);
         setKiosk(data.kiosk);
         setResident(data.resident);
+        // Load smart devices for this room
+        if (data.kiosk?.room) {
+          try {
+            const { data: allDev } = await axios.get(`${API}/devices/public/by-room/${data.kiosk.room}`);
+            setDevices(allDev || []);
+          } catch { /* public endpoint may fall back silently */ }
+        }
       } catch {
         toast.error("Could not load kiosk");
       }
     })();
   }, [kioskId]);
+
+  // Poll for incoming emergencies (panic-press / fall) → auto hands-free
+  useEffect(() => {
+    if (!kiosk?.kiosk_id) return;
+    let stop = false;
+    const poll = async () => {
+      try {
+        const { data } = await axios.get(`${API}/kiosks/${kiosk.kiosk_id}/active-emergency`);
+        if (stop) return;
+        const a = data.alert;
+        if (a && a.alert_id !== seenEmergencyRef.current && callState === "idle") {
+          seenEmergencyRef.current = a.alert_id;
+          handleIncomingEmergency(a);
+        }
+      } catch { /* silent */ }
+    };
+    poll();
+    const t = setInterval(poll, 3000);
+    return () => { stop = true; clearInterval(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kiosk, callState]);
+
+  const handleIncomingEmergency = (a) => {
+    setAlert(a);
+    setAutoVoice(true);
+    setCallState("chatting");
+    const name = (a.resident_name || resident?.name || "there").split(" ")[0];
+    const line = `I'm here, ${name}. Help is on the way. Stay with me — tell me what's happening.`;
+    setMessages([{ role: "assistant", content: line }]);
+    speak(line).then(() => {
+      // Auto-start mic once TTS finishes
+      setTimeout(() => startContinuousListen(), 500);
+    });
+  };
+
+  const startContinuousListen = async () => {
+    // Uses same recorder but we stop it on silence using a 5s window.
+    try {
+      if (recording) return;
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const rec = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      const chunks = [];
+      rec.ondataavailable = (e) => chunks.push(e.data);
+      rec.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(chunks, { type: "audio/webm" });
+        if (blob.size < 2000) { setRecording(false); return; }
+        const form = new FormData();
+        form.append("audio", blob, "speech.webm");
+        setThinking(true);
+        try {
+          const { data } = await axios.post(`${API}/ai/stt`, form, { headers: { "Content-Type": "multipart/form-data" } });
+          if (data.text?.trim()) {
+            await sendMessage(data.text.trim());
+          }
+        } catch { /* ignore */ }
+        finally { setThinking(false); setRecording(false); }
+      };
+      mediaRef.current = rec;
+      rec.start();
+      setRecording(true);
+      // Auto-stop after 6s (emergency one-shot)
+      setTimeout(() => {
+        if (mediaRef.current && mediaRef.current.state !== "inactive") mediaRef.current.stop();
+      }, 6000);
+    } catch {
+      toast.error("Microphone permission needed for hands-free.");
+    }
+  };
 
   const speak = async (text) => {
     try {
@@ -98,6 +179,22 @@ export default function Kiosk() {
     setMessages([]);
     setCallState("idle");
     setSpeaking(false);
+    setAutoVoice(false);
+  };
+
+  const sendDeviceCommand = async (action, value) => {
+    if (!kiosk?.room) return;
+    try {
+      await axios.post(`${API}/devices/public/room/${kiosk.room}/command`, { action, value });
+      toast.success(`${action} → ${value}`);
+      // Refresh device state
+      try {
+        const { data: allDev } = await axios.get(`${API}/devices/public/by-room/${kiosk.room}`);
+        setDevices(allDev || []);
+      } catch { /* ignore */ }
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Couldn't reach the device");
+    }
   };
 
   const sendMessage = async (text) => {
@@ -228,6 +325,39 @@ export default function Kiosk() {
               I just want to talk
             </Button>
           </div>
+
+          {/* Smart-room controls */}
+          {devices.length > 0 && (
+            <div className="mt-14 w-full max-w-3xl" data-testid="kiosk-device-panel">
+              <p className="text-xs font-bold uppercase tracking-[0.3em] text-caos-mute mb-4">Your room</p>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {devices.map((d) => {
+                  const Icon = DEVICE_ICON[d.kind] || Power;
+                  const isOn = d.state?.power === "on";
+                  return (
+                    <button
+                      key={d.device_id}
+                      data-testid={`kiosk-dev-${d.device_id}`}
+                      onClick={() => sendDeviceCommand("power", isOn ? "off" : "on")}
+                      className={`rounded-3xl border-2 p-5 flex flex-col items-start gap-2 transition-all ${
+                        isOn
+                          ? "bg-caos-forest text-white border-caos-forest shadow-lg"
+                          : "bg-white text-caos-forest border-caos-line hover:border-caos-forest"
+                      }`}
+                    >
+                      <Icon className="w-8 h-8" strokeWidth={2} />
+                      <span className="font-display text-lg font-semibold leading-tight text-left">
+                        {d.label.replace(`Room ${kiosk.room} `, "")}
+                      </span>
+                      <span className={`text-xs font-bold uppercase tracking-wider ${isOn ? "text-white/80" : "text-caos-mute"}`}>
+                        {isOn ? "On — tap to turn off" : "Off — tap to turn on"}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="text-center text-caos-mute text-sm">
@@ -246,7 +376,7 @@ export default function Kiosk() {
       <div className="flex items-start justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.3em] text-caos-mute">
-            {alert?.severity === "emergency" ? "Emergency paged" : "Caregiver paged"}
+            {autoVoice ? "Panic-press detected — hands-free" : alert?.severity === "emergency" ? "Emergency paged" : "Caregiver paged"}
           </p>
           <h2 className="font-display text-3xl md:text-5xl font-light text-caos-forest mt-2">
             Help is on the way.
@@ -254,6 +384,11 @@ export default function Kiosk() {
           {resident && (
             <p className="text-caos-mute mt-1 text-lg" data-testid="kiosk-resident-name">
               Room {resident.room} · {resident.name}
+            </p>
+          )}
+          {autoVoice && (
+            <p className="mt-2 inline-flex items-center gap-2 bg-caos-terracotta/10 text-caos-terracotta-dark border border-caos-terracotta rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider" data-testid="kiosk-autovoice-banner">
+              <Mic className="w-3 h-3" /> Auto-listening · you don't have to touch anything
             </p>
           )}
         </div>

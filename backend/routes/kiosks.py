@@ -1,6 +1,7 @@
 """Kiosks + Zones CRUD."""
+from datetime import timedelta
 from fastapi import APIRouter, HTTPException, Depends
-from models import Kiosk, KioskCreate, Zone, ZoneCreate
+from models import Kiosk, KioskCreate, Zone, ZoneCreate, now_utc
 from deps import db, get_current_user
 
 router = APIRouter(tags=["kiosks"])
@@ -12,6 +13,34 @@ async def list_kiosks():
     """Public list - kiosks need to self-identify without auth."""
     items = await db.kiosks.find({}, {"_id": 0}).sort("room", 1).to_list(1000)
     return items
+
+
+@router.get("/kiosks/{kiosk_id}/active-emergency")
+async def active_emergency_for_kiosk(kiosk_id: str):
+    """Public — polled by the Kiosk UI every few seconds.
+
+    Returns the most-recent unresolved emergency alert with auto_voice=True that
+    belongs to this kiosk's zone / room. If the kiosk is flagged is_central it
+    listens for ANY facility-wide emergency.
+    Only alerts from the last 5 minutes are considered so the kiosk doesn't
+    re-trigger on stale records.
+    """
+    kiosk = await db.kiosks.find_one({"kiosk_id": kiosk_id}, {"_id": 0})
+    if not kiosk:
+        raise HTTPException(status_code=404, detail="Kiosk not found")
+
+    cutoff = (now_utc() - timedelta(minutes=5)).isoformat()
+    q = {
+        "auto_voice": True,
+        "status": "active",
+        "created_at": {"$gte": cutoff},
+    }
+    if not kiosk.get("is_central"):
+        # Same zone OR same room
+        q["$or"] = [{"zone": kiosk.get("zone")}, {"room": kiosk.get("room")}]
+
+    alert = await db.alerts.find_one(q, {"_id": 0}, sort=[("created_at", -1)])
+    return {"kiosk_is_central": bool(kiosk.get("is_central")), "alert": alert}
 
 
 @router.post("/kiosks")

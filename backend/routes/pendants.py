@@ -130,7 +130,28 @@ async def pendant_event(evt: PendantEventInput, request: Request):
             resident_name = r["name"]
             room = r.get("room")
 
+    # --- Panic-press detection ---------------------------------------------
+    # If this pendant has fired >=2 press events in the last 60s, treat as
+    # emergency and flag auto_voice so the kiosk auto-enables its mic.
+    from datetime import timedelta
+    press_count = 1
+    auto_voice = False
     severity = "emergency" if evt.event_type == "fall" else "assist"
+
+    if evt.event_type == "fall":
+        auto_voice = True  # falls always go hands-free
+    elif evt.event_type == "press" and pendant.get("pendant_id"):
+        window_start = (now_utc() - timedelta(seconds=60)).isoformat()
+        recent = await db.alerts.count_documents({
+            "pendant_id": pendant["pendant_id"],
+            "triggered_by": "pendant",
+            "created_at": {"$gte": window_start},
+        })
+        press_count = recent + 1  # +1 for the one we're about to create
+        if press_count >= 2:
+            severity = "emergency"
+            auto_voice = True
+
     alert = Alert(
         pendant_id=pendant["pendant_id"],
         frequency=evt.frequency_mhz,
@@ -139,8 +160,14 @@ async def pendant_event(evt: PendantEventInput, request: Request):
         room=room,
         zone=evt.zone,
         severity=severity,
-        message=f"Pendant {evt.event_type.replace('_', ' ')} at {evt.frequency_mhz} MHz",
+        message=(
+            f"Panic-press ×{press_count} at {evt.frequency_mhz} MHz"
+            if auto_voice and evt.event_type == "press"
+            else f"Pendant {evt.event_type.replace('_', ' ')} at {evt.frequency_mhz} MHz"
+        ),
         triggered_by="pendant",
+        auto_voice=auto_voice,
+        press_count=press_count,
     )
     doc = alert.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
