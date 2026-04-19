@@ -116,15 +116,13 @@ export default function StaffDashboard() {
             <span className="text-caos-mute text-sm">· Staff Dashboard</span>
           </div>
           <div className="flex items-center gap-3">
-            {user?.role === "admin" && (
-              <Link to="/admin" data-testid="nav-admin">
-                <Button variant="outline" className="border-2 h-10 rounded-full">
-                  <Shield className="w-4 h-4 mr-2" /> Admin
-                </Button>
-              </Link>
-            )}
+            <Link to="/admin" data-testid="nav-admin">
+              <Button variant="outline" className="border-2 h-10 rounded-full">
+                <Shield className="w-4 h-4 mr-2" /> Admin
+              </Button>
+            </Link>
             <span className="text-sm text-caos-mute hidden md:block" data-testid="staff-user-name">
-              {user?.name}
+              {user?.name}{user?.role !== "admin" && <span className="ml-1 text-xs uppercase tracking-wider">({user?.role})</span>}
             </span>
             <Button
               variant="outline"
@@ -266,6 +264,8 @@ export default function StaffDashboard() {
 
           {/* Locations */}
           <section className="lg:col-span-2 space-y-6">
+            <DeviceStatusCard />
+
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-display text-2xl font-medium text-caos-forest">Live locations</h2>
               <Button
@@ -311,7 +311,6 @@ export default function StaffDashboard() {
 
             <MyTasksCard />
             <PagerFeedCard />
-            <DeviceStatusCard />
           </section>
         </div>
       </div>
