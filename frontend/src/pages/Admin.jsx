@@ -13,10 +13,15 @@ import {
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "../components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Textarea } from "../components/ui/textarea";
+import { Checkbox } from "../components/ui/checkbox";
+import { Badge } from "../components/ui/badge";
 import { Trash2, Plus, LogOut, Activity } from "lucide-react";
 import { toast } from "sonner";
 import PendantsTab from "./PendantsTab";
 import Roadmap from "./Roadmap";
+import Insights from "./Insights";
+import FamilyTab from "./FamilyTab";
+import MovementDialog from "./MovementDialog";
 
 export default function Admin() {
   const { user, logout } = useAuth();
@@ -84,12 +89,14 @@ export default function Admin() {
       <div className="max-w-7xl mx-auto px-6 py-8">
         <h1 className="font-display text-4xl font-light text-caos-forest mb-6">Community administration</h1>
         <Tabs defaultValue="residents">
-          <TabsList>
+          <TabsList className="flex-wrap h-auto">
             <TabsTrigger value="residents" data-testid="tab-residents">Residents ({residents.length})</TabsTrigger>
             <TabsTrigger value="pendants" data-testid="tab-pendants">Pendants</TabsTrigger>
             <TabsTrigger value="staff" data-testid="tab-staff">Staff ({staff.length})</TabsTrigger>
             <TabsTrigger value="kiosks" data-testid="tab-kiosks">Kiosks ({kiosks.length})</TabsTrigger>
             <TabsTrigger value="zones" data-testid="tab-zones">Zones ({zones.length})</TabsTrigger>
+            <TabsTrigger value="family" data-testid="tab-family">Family</TabsTrigger>
+            <TabsTrigger value="insights" data-testid="tab-insights">Insights</TabsTrigger>
             <TabsTrigger value="roadmap" data-testid="tab-roadmap">Roadmap</TabsTrigger>
           </TabsList>
 
@@ -108,6 +115,12 @@ export default function Admin() {
           <TabsContent value="zones" className="mt-6">
             <ZonesTab zones={zones} onChange={fetchAll} />
           </TabsContent>
+          <TabsContent value="family" className="mt-6">
+            <FamilyTab residents={residents} />
+          </TabsContent>
+          <TabsContent value="insights" className="mt-6">
+            <Insights />
+          </TabsContent>
           <TabsContent value="roadmap" className="mt-6">
             <Roadmap />
           </TabsContent>
@@ -123,6 +136,7 @@ function ResidentsTab({ residents, onChange }) {
   const emptyForm = { name: "", preferred_name: "", room: "", pendant_id: "", medical_notes: "", emergency_contact: "", preferences: "", memory: "", participation_level: "pendant_enhanced" };
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
+  const [movementFor, setMovementFor] = useState(null);
 
   const open_new = () => { setEditingId(null); setForm(emptyForm); setOpen(true); };
   const open_edit = (r) => {
@@ -237,6 +251,7 @@ function ResidentsTab({ residents, onChange }) {
               </TableCell>
               <TableCell>
                 <div className="flex gap-1">
+                  <Button variant="ghost" size="sm" onClick={() => setMovementFor(r)} data-testid={`move-res-${r.resident_id}`}>Movement</Button>
                   <Button variant="ghost" size="sm" onClick={() => open_edit(r)} data-testid={`edit-res-${r.resident_id}`}>Edit</Button>
                   <Button variant="ghost" size="sm" onClick={() => remove(r.resident_id)} data-testid={`del-res-${r.resident_id}`}>
                     <Trash2 className="w-4 h-4 text-caos-terracotta" />
@@ -247,6 +262,7 @@ function ResidentsTab({ residents, onChange }) {
           ))}
         </TableBody>
       </Table>
+      <MovementDialog resident={movementFor} open={!!movementFor} onOpenChange={(o) => { if (!o) setMovementFor(null); }} />
     </Card>
   );
 }
@@ -420,7 +436,7 @@ function KiosksTab({ kiosks, zones, onChange }) {
 /* -------------- Zones -------------- */
 function ZonesTab({ zones, onChange }) {
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", floor: "", description: "" });
+  const [form, setForm] = useState({ name: "", floor: "", description: "", is_restricted: false });
 
   const create = async (e) => {
     e.preventDefault();
@@ -428,7 +444,7 @@ function ZonesTab({ zones, onChange }) {
       await api.post("/zones", form);
       toast.success("Zone added");
       setOpen(false);
-      setForm({ name: "", floor: "", description: "" });
+      setForm({ name: "", floor: "", description: "", is_restricted: false });
       onChange();
     } catch (err) {
       toast.error(err?.response?.data?.detail || "Failed");
@@ -445,7 +461,10 @@ function ZonesTab({ zones, onChange }) {
   return (
     <Card className="border-caos-line p-6">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="font-display text-xl font-medium text-caos-forest">Geo zones</h2>
+        <div>
+          <h2 className="font-display text-xl font-medium text-caos-forest">Geo zones</h2>
+          <p className="text-caos-mute text-sm mt-1">Mark a zone as <b>Restricted</b> to fire a wander/elopement alert if a resident enters it.</p>
+        </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button className="bg-caos-forest hover:bg-caos-forest-hover rounded-full" data-testid="add-zone-btn">
@@ -458,19 +477,28 @@ function ZonesTab({ zones, onChange }) {
               <div><Label>Name</Label><Input required data-testid="zone-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
               <div><Label>Floor</Label><Input data-testid="zone-floor" value={form.floor} onChange={(e) => setForm({ ...form, floor: e.target.value })} /></div>
               <div><Label>Description</Label><Textarea data-testid="zone-desc" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
+              <label className="flex items-center gap-2 cursor-pointer" data-testid="zone-restricted-toggle">
+                <Checkbox checked={form.is_restricted} onCheckedChange={(v) => setForm({ ...form, is_restricted: !!v })} />
+                <span className="text-sm font-semibold text-caos-forest">Restricted zone (fires wander alert on entry)</span>
+              </label>
               <DialogFooter><Button type="submit" className="bg-caos-forest" data-testid="zone-save">Save</Button></DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
       </div>
       <Table>
-        <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Floor</TableHead><TableHead>Description</TableHead><TableHead></TableHead></TableRow></TableHeader>
+        <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Floor</TableHead><TableHead>Description</TableHead><TableHead>Access</TableHead><TableHead></TableHead></TableRow></TableHeader>
         <TableBody>
           {zones.map((z) => (
             <TableRow key={z.zone_id} data-testid={`zone-row-${z.zone_id}`}>
               <TableCell className="font-medium">{z.name}</TableCell>
               <TableCell>{z.floor}</TableCell>
               <TableCell className="text-caos-mute text-sm">{z.description}</TableCell>
+              <TableCell>
+                {z.is_restricted
+                  ? <Badge className="bg-caos-terracotta text-white uppercase tracking-wider text-xs font-bold">Restricted</Badge>
+                  : <Badge variant="outline" className="uppercase tracking-wider text-xs">Open</Badge>}
+              </TableCell>
               <TableCell>
                 <Button variant="ghost" size="sm" onClick={() => remove(z.zone_id)} data-testid={`del-zone-${z.zone_id}`}>
                   <Trash2 className="w-4 h-4 text-caos-terracotta" />

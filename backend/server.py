@@ -21,6 +21,8 @@ from routes import location as location_routes  # noqa: E402
 from routes import ai as ai_routes  # noqa: E402
 from routes import pendants as pendant_routes  # noqa: E402
 from routes import roadmap as roadmap_routes  # noqa: E402
+from routes import insights as insight_routes  # noqa: E402
+from routes import notifications as notification_routes  # noqa: E402
 from seed import seed  # noqa: E402
 
 
@@ -61,6 +63,8 @@ api.include_router(location_routes.router)
 api.include_router(ai_routes.router)
 api.include_router(pendant_routes.router)
 api.include_router(roadmap_routes.router)
+api.include_router(insight_routes.router)
+api.include_router(notification_routes.router)
 
 app.include_router(api)
 

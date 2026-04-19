@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="24dp">
+
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:text="CAOS Bridge"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"/>
+
+        <TextView
+            android:text="Reads USB RF receiver → POSTs pendant events to CAOS Care."
+            android:layout_marginBottom="16dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"/>
+
+        <TextView android:text="Backend URL" android:layout_marginTop="8dp"
+            android:layout_width="match_parent" android:layout_height="wrap_content"/>
+        <EditText android:id="@+id/edit_url"
+            android:hint="https://caoscare.example.com"
+            android:inputType="textUri"
+            android:layout_width="match_parent" android:layout_height="wrap_content"/>
+
+        <TextView android:text="Zone (this tablet's location)" android:layout_marginTop="8dp"
+            android:layout_width="match_parent" android:layout_height="wrap_content"/>
+        <EditText android:id="@+id/edit_zone"
+            android:hint="Hallway A"
+            android:inputType="text"
+            android:layout_width="match_parent" android:layout_height="wrap_content"/>
+
+        <TextView android:text="Device token (optional, reserved for HMAC auth)" android:layout_marginTop="8dp"
+            android:layout_width="match_parent" android:layout_height="wrap_content"/>
+        <EditText android:id="@+id/edit_token"
+            android:hint="(leave blank for MVP)"
+            android:inputType="textPassword"
+            android:layout_width="match_parent" android:layout_height="wrap_content"/>
+
+        <LinearLayout android:orientation="horizontal"
+            android:layout_marginTop="24dp"
+            android:layout_width="match_parent" android:layout_height="wrap_content">
+            <Button android:id="@+id/btn_start"
+                android:text="Start bridge"
+                android:layout_weight="1"
+                android:layout_width="0dp" android:layout_height="wrap_content"/>
+            <Button android:id="@+id/btn_stop"
+                android:text="Stop"
+                android:layout_weight="1"
+                android:layout_width="0dp" android:layout_height="wrap_content"/>
+        </LinearLayout>
+
+        <TextView android:id="@+id/text_status"
+            android:layout_marginTop="16dp"
+            android:text="Idle."
+            android:textStyle="italic"
+            android:layout_width="match_parent" android:layout_height="wrap_content"/>
+    </LinearLayout>
+</ScrollView>

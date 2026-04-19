@@ -67,3 +67,29 @@ async def resident_by_kiosk(kiosk_id: str):
         raise HTTPException(status_code=404, detail="Kiosk not found")
     resident = await db.residents.find_one({"room": kiosk["room"]}, {"_id": 0})
     return {"kiosk": kiosk, "resident": resident}
+
+
+@router.get("/{resident_id}/movement")
+async def resident_movement(resident_id: str, hours: int = 24, user=Depends(get_current_user)):
+    """Zone-visit timeline for a resident over the last N hours."""
+    from datetime import datetime, timezone, timedelta
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+    locs = await db.locations.find(
+        {"resident_id": resident_id, "created_at": {"$gte": cutoff}},
+        {"_id": 0},
+    ).sort("created_at", 1).to_list(5000)
+    # Collapse consecutive pings in the same zone into a "visit"
+    visits = []
+    for l in locs:
+        if visits and visits[-1]["zone"] == l["zone"]:
+            visits[-1]["until"] = l["created_at"]
+            visits[-1]["pings"] += 1
+        else:
+            visits.append({
+                "zone": l["zone"],
+                "from": l["created_at"],
+                "until": l["created_at"],
+                "pings": 1,
+                "source": l.get("source"),
+            })
+    return {"visits": visits, "total_pings": len(locs)}

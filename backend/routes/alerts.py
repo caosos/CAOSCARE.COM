@@ -66,6 +66,14 @@ async def create_alert(data: AlertCreate):
     doc["resolved_at"] = None
     await db.alerts.insert_one(doc)
     doc.pop("_id", None)
+
+    # Fan out family notifications (best-effort, non-blocking behavior at caller level)
+    try:
+        from routes.notifications import notify_family_for_alert
+        await notify_family_for_alert(doc)
+    except Exception:
+        pass
+
     return doc
 
 

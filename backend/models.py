@@ -106,6 +106,8 @@ class Zone(BaseModel):
     name: str
     floor: Optional[str] = None
     description: Optional[str] = ""
+    is_restricted: bool = False           # wander / elopement trigger
+    allowed_levels: Optional[List[ParticipationLevel]] = None  # if set, only these participation levels may enter
     created_at: datetime = Field(default_factory=now_utc)
 
 
@@ -113,6 +115,8 @@ class ZoneCreate(BaseModel):
     name: str
     floor: Optional[str] = None
     description: Optional[str] = ""
+    is_restricted: bool = False
+    allowed_levels: Optional[List[ParticipationLevel]] = None
 
 
 # ---------- Alerts ----------
@@ -266,3 +270,71 @@ class RoadmapItem(BaseModel):
 class RoadmapItemUpdate(BaseModel):
     status: Optional[RoadmapStatus] = None
     notes: Optional[str] = None
+
+
+# ---------- Insights / pattern detection ----------
+InsightSeverity = Literal["info", "watch", "concern"]
+
+
+class Insight(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    insight_id: str = Field(default_factory=lambda: uid("ins"))
+    resident_id: str
+    resident_name: Optional[str] = None
+    metric: str                  # e.g. "help_requests_7d", "nighttime_activity_7d"
+    current_value: float
+    baseline_value: float
+    deviation_pct: float         # 0.3 = 30% above baseline
+    severity: InsightSeverity
+    confidence: float            # 0-1
+    title: str
+    description: str
+    created_at: datetime = Field(default_factory=now_utc)
+
+
+# ---------- Notifications ----------
+NotificationChannel = Literal["sms", "email", "pager", "inapp"]
+NotificationStatus = Literal["queued", "sent", "failed", "logged"]
+
+
+class Notification(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    notification_id: str = Field(default_factory=lambda: uid("notif"))
+    channel: NotificationChannel
+    to: str                       # phone or email
+    subject: Optional[str] = ""
+    body: str
+    alert_id: Optional[str] = None
+    resident_id: Optional[str] = None
+    status: NotificationStatus = "logged"
+    provider_response: Optional[str] = None
+    created_at: datetime = Field(default_factory=now_utc)
+
+
+class NotificationTest(BaseModel):
+    channel: NotificationChannel
+    to: str
+    body: str
+    subject: Optional[str] = "CAOS Care test"
+
+
+# ---------- Family contacts ----------
+class FamilyContact(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    contact_id: str = Field(default_factory=lambda: uid("fam"))
+    resident_id: str
+    name: str
+    relationship: Optional[str] = ""
+    email: Optional[str] = ""
+    phone: Optional[str] = ""
+    notify_on: List[Literal["emergency", "assist", "wander", "daily_summary"]] = Field(default_factory=lambda: ["emergency", "wander"])
+    created_at: datetime = Field(default_factory=now_utc)
+
+
+class FamilyContactCreate(BaseModel):
+    resident_id: str
+    name: str
+    relationship: Optional[str] = ""
+    email: Optional[str] = ""
+    phone: Optional[str] = ""
+    notify_on: List[Literal["emergency", "assist", "wander", "daily_summary"]] = Field(default_factory=lambda: ["emergency", "wander"])

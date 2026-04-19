@@ -44,17 +44,20 @@ export default function StaffDashboard() {
   const [stats, setStats] = useState({ active: 0, acknowledged: 0, resolved_24h: 0, emergency_active: 0 });
   const [loading, setLoading] = useState(true);
   const [detailId, setDetailId] = useState(null);
+  const [insightSummary, setInsightSummary] = useState({ concern: 0, watch: 0, info: 0, total: 0 });
 
   const fetchAll = async () => {
     try {
-      const [aRes, lRes, sRes] = await Promise.all([
+      const [aRes, lRes, sRes, iRes] = await Promise.all([
         api.get("/alerts/feed"),
         api.get("/locations/latest"),
         api.get("/alerts/stats"),
+        api.get("/insights/summary").catch(() => ({ data: null })),
       ]);
       setAlerts(aRes.data);
       setLocations(lRes.data);
       setStats(sRes.data);
+      if (iRes.data) setInsightSummary(iRes.data);
     } catch (e) {
       // stay silent on poll errors
     } finally {
@@ -137,11 +140,29 @@ export default function StaffDashboard() {
 
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
           <StatCard label="Active" value={stats.active} icon={AlertCircle} tone="emergency" testid="stat-active" />
           <StatCard label="Emergency now" value={stats.emergency_active} icon={AlertCircle} tone="emergency" testid="stat-emergency" />
           <StatCard label="Acknowledged" value={stats.acknowledged} icon={Activity} tone="amber" testid="stat-ack" />
           <StatCard label="Resolved 24h" value={stats.resolved_24h} icon={CheckCircle2} tone="moss" testid="stat-resolved" />
+          <Link to="/admin" className="block" data-testid="stat-insights-link">
+            <Card className="p-5 border-caos-line bg-white hover:border-caos-forest transition-colors cursor-pointer">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold uppercase tracking-widest text-caos-mute">Pattern flags</p>
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-[#FDF3E3]">
+                  <TrendingUp className="w-4 h-4 text-caos-amber" />
+                </div>
+              </div>
+              <div className="flex items-baseline gap-2 mt-2">
+                <p className="font-display text-4xl font-semibold tracking-tight text-caos-forest">{insightSummary.total}</p>
+                {insightSummary.concern > 0 && (
+                  <span className="text-xs font-bold text-caos-terracotta uppercase tracking-wider">
+                    {insightSummary.concern} concern
+                  </span>
+                )}
+              </div>
+            </Card>
+          </Link>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">

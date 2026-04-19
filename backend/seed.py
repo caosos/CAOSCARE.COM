@@ -21,33 +21,34 @@ ROADMAP_SEED = [
     (2, "Open/closed status tracking", "Close-out notes + outcome capture on every alert.", "done"),
     (2, "Handoff and follow-up logging", "Track who acknowledged, who resolved, timestamps.", "done"),
     (2, "Escalation timers", "Auto-escalate unacknowledged alerts at 60s / 3m / 7m.", "done"),
-    (2, "Family notification options", "Opt-in family contacts + configurable notification scope.", "not_started"),
+    (2, "Family notification options", "Opt-in family contacts + configurable notification scope.", "done"),
 
     # Phase 3 — Location & Mobility
     (3, "Zone mapping", "Admin-defined zones with floor + description.", "done"),
-    (3, "Router/receiver-based location narrowing", "Android bridge reports the tablet's zone with every pendant event.", "in_progress"),
+    (3, "Router/receiver-based location narrowing", "Android bridge reports the tablet's zone with every pendant event.", "done"),
     (3, "Live latest-per-resident location view", "Staff dashboard shows last-seen zone for every resident.", "done"),
     (3, "Wearable support", "Optional wearable trigger + location.", "not_started"),
-    (3, "Geofencing", "Restricted zones + wander alerts.", "not_started"),
-    (3, "Wander / elopement alerting", "Automatic alerts when a resident breaches a restricted zone.", "not_started"),
-    (3, "Movement trend collection", "Store location history for pattern analysis.", "in_progress"),
+    (3, "Geofencing", "Restricted zones + wander alerts.", "done"),
+    (3, "Wander / elopement alerting", "Automatic alerts when a resident breaches a restricted zone.", "done"),
+    (3, "Movement trend collection", "Store location history for pattern analysis.", "done"),
+    (3, "Per-resident movement timeline", "Visualize each resident's zone-visit history.", "done"),
 
     # Phase 4 — Predictive Insight
-    (4, "Baseline behavior profiles", "Nightly rollups per resident (help frequency, mobility, nighttime activity).", "not_started"),
-    (4, "Nighttime activity change detection", "Surface deviations vs baseline.", "not_started"),
+    (4, "Baseline behavior profiles", "Last 7d vs prior 7d rollups per resident.", "done"),
+    (4, "Nighttime activity change detection", "Surface deviations vs baseline.", "done"),
     (4, "Bathroom frequency / location drift indicators", "Non-diagnostic observations for staff review.", "not_started"),
-    (4, "Mobility decline indicators", "Movement trend analysis.", "not_started"),
-    (4, "Response burden patterns", "Which residents need the most help this week?", "not_started"),
-    (4, "Confidence-scored risk flags", "\"Margaret's nighttime help requests up 3x this week\".", "not_started"),
+    (4, "Mobility decline indicators", "Movement trend analysis.", "done"),
+    (4, "Response burden patterns", "Which residents need the most help this week?", "done"),
+    (4, "Confidence-scored risk flags", "\"Margaret's nighttime help requests up 3x this week\".", "done"),
 
     # Cross-cutting / infra
     (5, "Participation levels + consent", "Per-resident room-only / pendant / wearable / family-connected / full.", "done"),
     (5, "Pendant registry (frequency ↔ resident)", "Admin CRUD; each pendant has a unique frequency.", "done"),
     (5, "Pendant battery + signal status", "Surface low-battery + last-seen for every pendant.", "done"),
-    (5, "Android tablet bridge app", "Native app that reads USB RF receiver and POSTs /api/pendants/event.", "not_started"),
+    (5, "Android tablet bridge app", "Native Kotlin app that reads USB RF receiver and POSTs /api/pendants/event.", "in_progress"),
     (5, "Two-way voice path via kiosk", "Resident can talk, AI responds with voice.", "done"),
-    (5, "SMS pager integration (Twilio)", "Real pager channel for staff on their existing phones.", "not_started"),
-    (5, "Email/SMS family notifications", "Resend or SendGrid for opt-in family updates.", "not_started"),
+    (5, "SMS pager integration (Twilio)", "NotificationService ready; flip on by adding TWILIO_ACCOUNT_SID/AUTH_TOKEN/FROM_NUMBER to backend/.env.", "in_progress"),
+    (5, "Email family notifications (Resend)", "NotificationService ready; flip on by adding RESEND_API_KEY to backend/.env.", "in_progress"),
     (5, "Device-token auth on /api/locations + /api/pendants/event", "HMAC or signed device token for field sensors.", "not_started"),
     (5, "AI-vision glasses/earbuds integration", "Walking guidance for low-vision residents.", "not_started"),
     (5, "Family portal", "Opt-in family view with status + selected updates.", "not_started"),
@@ -91,18 +92,23 @@ async def seed():
 
     # Zones
     zones_data = [
-        ("First Floor East", "1", "Rooms 101-120 + Dining"),
-        ("First Floor West", "1", "Rooms 121-140 + Chapel"),
-        ("Second Floor", "2", "Rooms 201-240 + Lounge"),
-        ("Common Areas", "1", "Lobby, Garden, Activity Room"),
+        ("First Floor East", "1", "Rooms 101-120 + Dining", False),
+        ("First Floor West", "1", "Rooms 121-140 + Chapel", False),
+        ("Second Floor", "2", "Rooms 201-240 + Lounge", False),
+        ("Common Areas", "1", "Lobby, Garden, Activity Room", False),
+        ("Staff Only — Medication Room", "1", "Restricted. Med storage, staff only.", True),
+        ("Outside — Parking Lot", "0", "Restricted — elopement risk beyond this point.", True),
     ]
-    for name, floor, desc in zones_data:
-        if not await db.zones.find_one({"name": name}, {"_id": 0}):
-            z = Zone(name=name, floor=floor, description=desc)
+    for name, floor, desc, restricted in zones_data:
+        existing_z = await db.zones.find_one({"name": name}, {"_id": 0})
+        if not existing_z:
+            z = Zone(name=name, floor=floor, description=desc, is_restricted=restricted)
             d = z.model_dump()
             d["created_at"] = d["created_at"].isoformat()
             await db.zones.insert_one(d)
             d.pop("_id", None)
+        elif existing_z.get("is_restricted") is None:
+            await db.zones.update_one({"name": name}, {"$set": {"is_restricted": restricted}})
 
     # Residents (now with preferences + memory for AI personalization)
     residents_data = [
@@ -197,6 +203,100 @@ async def seed():
             d["last_seen_at"] = None
             await db.pendants.insert_one(d)
             d.pop("_id", None)
+
+    # Sample family contacts (for Margaret and Dorothy)
+    residents_for_family = await db.residents.find({}, {"_id": 0}).to_list(100)
+    existing_fam_count = await db.family_contacts.count_documents({})
+    if existing_fam_count == 0 and residents_for_family:
+        import random as _r
+        samples = [
+            {"name": "Liam O'Brien (son)", "relationship": "son", "email": "liam.obrien@example.com", "phone": "+15555551001"},
+            {"name": "Elena Delgado (daughter)", "relationship": "daughter", "email": "elena.delgado@example.com", "phone": "+15555551002"},
+            {"name": "Sue Park (daughter)", "relationship": "daughter", "email": "sue.park@example.com", "phone": "+15555551003"},
+        ]
+        for i, sample in enumerate(samples):
+            if i >= len(residents_for_family):
+                break
+            fc_doc = {
+                "contact_id": f"fam_{_r.randint(100000, 999999)}",
+                "resident_id": residents_for_family[i]["resident_id"],
+                "notify_on": ["emergency", "wander"],
+                "created_at": now_utc().isoformat(),
+                **sample,
+            }
+            await db.family_contacts.insert_one(fc_doc)
+            fc_doc.pop("_id", None)
+
+    # Seed historical alerts + locations so Insights has something to analyze
+    from datetime import timedelta
+    import random as _r
+    if await db.alerts.count_documents({}) < 5 and residents_for_family:
+        now_dt = now_utc()
+        for i, r in enumerate(residents_for_family[:4]):
+            base_count = 3 + (i % 3)  # 3..5
+            current_count = base_count + (2 if i < 2 else 0)  # a couple of residents trend up
+            # 7-14 days ago (baseline window)
+            for _ in range(base_count):
+                when = now_dt - timedelta(days=_r.uniform(7.5, 13.5), hours=_r.uniform(0, 23))
+                hist_alert = {
+                    "alert_id": f"alert_seed_{_r.randint(100000, 999999)}",
+                    "resident_id": r["resident_id"],
+                    "resident_name": r["name"],
+                    "room": r.get("room"),
+                    "zone": _r.choice(["Room", "Hallway A", "Dining Room"]),
+                    "severity": _r.choice(["assist", "assist", "comfort"]),
+                    "status": "resolved",
+                    "escalation_level": 0,
+                    "message": "Historical seed",
+                    "triggered_by": "kiosk_button",
+                    "outcome": "Attended",
+                    "created_at": when.isoformat(),
+                    "resolved_at": (when + timedelta(minutes=_r.randint(2, 8))).isoformat(),
+                    "resolved_by": "Nurse Sarah",
+                }
+                await db.alerts.insert_one(hist_alert)
+                hist_alert.pop("_id", None)
+            # last 0-7 days (current window)
+            for _ in range(current_count):
+                when = now_dt - timedelta(days=_r.uniform(0.2, 6.8), hours=_r.uniform(0, 23))
+                # give resident[0] more nighttime activity
+                if i == 0:
+                    when = when.replace(hour=_r.choice([23, 0, 1, 2, 3]))
+                hist_alert = {
+                    "alert_id": f"alert_seed_{_r.randint(100000, 999999)}",
+                    "resident_id": r["resident_id"],
+                    "resident_name": r["name"],
+                    "room": r.get("room"),
+                    "zone": _r.choice(["Room", "Hallway A", "Dining Room"]),
+                    "severity": _r.choice(["assist", "assist", "comfort"]),
+                    "status": "resolved",
+                    "escalation_level": 0,
+                    "message": "Historical seed",
+                    "triggered_by": "kiosk_button",
+                    "outcome": "Attended",
+                    "created_at": when.isoformat(),
+                    "resolved_at": (when + timedelta(minutes=_r.randint(2, 8))).isoformat(),
+                    "resolved_by": "Nurse Sarah",
+                }
+                await db.alerts.insert_one(hist_alert)
+                hist_alert.pop("_id", None)
+
+        # Location pings across windows for mobility metric
+        ZONES = ["Room", "Hallway A", "Dining Room", "Lounge", "Garden Patio", "Chapel"]
+        for r in residents_for_family[:4]:
+            for _ in range(25):
+                when = now_dt - timedelta(days=_r.uniform(0, 14), hours=_r.uniform(0, 23))
+                loc = {
+                    "update_id": f"loc_seed_{_r.randint(100000, 999999)}",
+                    "resident_id": r["resident_id"],
+                    "zone": _r.choice(ZONES),
+                    "room": r.get("room"),
+                    "signal_strength": _r.randint(60, 100),
+                    "source": "mock",
+                    "created_at": when.isoformat(),
+                }
+                await db.locations.insert_one(loc)
+                loc.pop("_id", None)
 
     # Roadmap items
     for order, (phase, title, desc, status) in enumerate(ROADMAP_SEED):

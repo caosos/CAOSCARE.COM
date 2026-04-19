@@ -589,3 +589,223 @@ class TestResidentPersonalization:
         }, timeout=60)
         assert r.status_code == 200, r.text
         assert "reply" in r.json() and len(r.json()["reply"]) > 0
+
+
+# ---------- Iteration 3: Zones / Geofence / Movement / Insights / Family / Notifications ----------
+class TestZonesAndGeofence:
+    def test_zones_include_is_restricted(self, session):
+        r = session.get(f"{API}/zones")
+        assert r.status_code == 200
+        zones = r.json()
+        assert isinstance(zones, list) and len(zones) > 0
+        # Skip stale leftover TEST zones from prior iterations pre-field-addition
+        prod_zones = [z for z in zones if not z.get("name", "").startswith("TEST")]
+        assert all("is_restricted" in z for z in prod_zones)
+        restricted = [z for z in prod_zones if z["is_restricted"]]
+        assert len(restricted) >= 2
+        names = {z["name"] for z in restricted}
+        assert "Staff Only — Medication Room" in names
+        assert "Outside — Parking Lot" in names
+
+    def test_create_restricted_zone(self, session, admin_headers):
+        name = f"TEST_restricted_{uuid.uuid4().hex[:6]}"
+        r = session.post(f"{API}/zones", json={
+            "name": name, "floor": "1", "description": "test", "is_restricted": True
+        }, headers=admin_headers)
+        assert r.status_code == 200, r.text
+        data = r.json()
+        assert data["is_restricted"] is True
+        # Cleanup
+        session.delete(f"{API}/zones/{data['zone_id']}", headers=admin_headers)
+
+    def test_post_location_to_non_restricted_no_alert(self, session, admin_headers):
+        residents = session.get(f"{API}/residents", headers=admin_headers).json()
+        rid = residents[0]["resident_id"]
+        r = session.post(f"{API}/locations", json={
+            "resident_id": rid, "zone": "Dining Room", "source": "mock"
+        })
+        assert r.status_code == 200
+        assert "geofence_alert" not in r.json() or r.json().get("geofence_alert") is None
+
+    def test_post_location_to_restricted_creates_alert_and_no_refire(self, session, admin_headers):
+        residents = session.get(f"{API}/residents", headers=admin_headers).json()
+        # Prefer a resident unlikely to be in allowed_levels (if any)
+        rid = residents[0]["resident_id"]
+        # First seed a non-restricted location to reset prev zone
+        session.post(f"{API}/locations", json={"resident_id": rid, "zone": "Hallway A", "source": "mock"})
+
+        # First breach
+        r1 = session.post(f"{API}/locations", json={
+            "resident_id": rid, "zone": "Outside — Parking Lot", "source": "mock"
+        })
+        assert r1.status_code == 200, r1.text
+        data1 = r1.json()
+        assert "geofence_alert" in data1 and data1["geofence_alert"], f"Expected geofence_alert, got {data1}"
+        alert_id = data1["geofence_alert"]
+        # Verify alert exists
+        a = session.get(f"{API}/alerts/{alert_id}", headers=admin_headers)
+        assert a.status_code == 200
+        alert_doc = a.json()["alert"]
+        assert alert_doc["triggered_by"] == "geofence"
+        assert alert_doc["severity"] == "assist"
+
+        # Second consecutive - should NOT refire
+        r2 = session.post(f"{API}/locations", json={
+            "resident_id": rid, "zone": "Outside — Parking Lot", "source": "mock"
+        })
+        assert r2.status_code == 200
+        assert r2.json().get("geofence_alert") in (None, "", False) or "geofence_alert" not in r2.json()
+
+
+class TestMovementTimeline:
+    def test_movement_returns_visits_and_total(self, session, admin_headers):
+        residents = session.get(f"{API}/residents", headers=admin_headers).json()
+        rid = residents[0]["resident_id"]
+        # Push a few pings in same zone + switch
+        for z in ["Hallway A", "Hallway A", "Dining Room", "Dining Room", "Dining Room"]:
+            session.post(f"{API}/locations", json={"resident_id": rid, "zone": z, "source": "mock"})
+        r = session.get(f"{API}/residents/{rid}/movement?hours=168", headers=admin_headers)
+        assert r.status_code == 200, r.text
+        data = r.json()
+        assert "visits" in data and "total_pings" in data
+        assert isinstance(data["visits"], list)
+        assert data["total_pings"] >= 5
+        # Verify collapsing: consecutive same-zone pings collapsed
+        for v in data["visits"]:
+            assert "zone" in v and "from" in v and "until" in v and "pings" in v
+
+
+class TestInsights:
+    def test_compute_insights(self, session, admin_headers):
+        r = session.post(f"{API}/insights/compute", headers=admin_headers)
+        assert r.status_code == 200, r.text
+        data = r.json()
+        assert "computed" in data and "residents" in data
+        assert data["residents"] > 0
+        # Seeded historical data should generate at least some insights
+        assert data["computed"] > 0
+
+    def test_list_insights_sorted(self, session, admin_headers):
+        # Ensure computed first
+        session.post(f"{API}/insights/compute", headers=admin_headers)
+        r = session.get(f"{API}/insights", headers=admin_headers)
+        assert r.status_code == 200
+        items = r.json()
+        assert isinstance(items, list)
+        if items:
+            required = {"metric", "current_value", "baseline_value", "deviation_pct",
+                        "severity", "confidence", "title", "description"}
+            assert required.issubset(items[0].keys())
+            sev_rank = {"concern": 0, "watch": 1, "info": 2}
+            ranks = [sev_rank.get(x["severity"], 99) for x in items]
+            assert ranks == sorted(ranks)
+
+    def test_insights_summary(self, session, admin_headers):
+        session.post(f"{API}/insights/compute", headers=admin_headers)
+        r = session.get(f"{API}/insights/summary", headers=admin_headers)
+        assert r.status_code == 200
+        data = r.json()
+        for k in ("concern", "watch", "info", "total"):
+            assert k in data
+        assert data["total"] == data["concern"] + data["watch"] + data["info"]
+
+    def test_insights_for_resident(self, session, admin_headers):
+        session.post(f"{API}/insights/compute", headers=admin_headers)
+        residents = session.get(f"{API}/residents", headers=admin_headers).json()
+        rid = residents[0]["resident_id"]
+        r = session.get(f"{API}/insights/resident/{rid}", headers=admin_headers)
+        assert r.status_code == 200
+        items = r.json()
+        assert isinstance(items, list)
+        for it in items:
+            assert it["resident_id"] == rid
+
+
+class TestFamilyContacts:
+    def test_list_family_seeded(self, session, admin_headers):
+        r = session.get(f"{API}/family-contacts", headers=admin_headers)
+        assert r.status_code == 200
+        items = r.json()
+        assert isinstance(items, list)
+        assert len(items) >= 3
+
+    def test_create_and_delete_family(self, session, admin_headers):
+        residents = session.get(f"{API}/residents", headers=admin_headers).json()
+        rid = residents[0]["resident_id"]
+        r = session.post(f"{API}/family-contacts", json={
+            "resident_id": rid,
+            "name": "TEST_Family_Jane",
+            "phone": "+15551234567",
+            "email": "jane@test.com",
+            "notify_on": ["emergency", "wander"],
+        }, headers=admin_headers)
+        assert r.status_code == 200, r.text
+        cid = r.json()["contact_id"]
+        # Delete
+        d = session.delete(f"{API}/family-contacts/{cid}", headers=admin_headers)
+        assert d.status_code == 200
+
+
+class TestNotifications:
+    def test_notifications_status_unconfigured(self, session, admin_headers):
+        r = session.get(f"{API}/notifications/status", headers=admin_headers)
+        assert r.status_code == 200
+        data = r.json()
+        assert data["twilio_configured"] is False
+        assert data["resend_configured"] is False
+
+    def test_notifications_test_sms_logged(self, session, admin_headers):
+        r = session.post(f"{API}/notifications/test", json={
+            "channel": "sms", "to": "+15551234567", "body": "test sms"
+        }, headers=admin_headers)
+        assert r.status_code == 200, r.text
+        data = r.json()
+        assert data["status"] == "logged"
+        assert "not configured" in (data.get("provider_response") or "").lower()
+
+    def test_notifications_test_email_logged(self, session, admin_headers):
+        r = session.post(f"{API}/notifications/test", json={
+            "channel": "email", "to": "x@y.com", "subject": "s", "body": "b"
+        }, headers=admin_headers)
+        assert r.status_code == 200, r.text
+        data = r.json()
+        assert data["status"] == "logged"
+        assert "not configured" in (data.get("provider_response") or "").lower()
+
+    def test_notifications_list(self, session, admin_headers):
+        # Ensure at least one exists
+        session.post(f"{API}/notifications/test", json={
+            "channel": "sms", "to": "+15551112222", "body": "seed"
+        }, headers=admin_headers)
+        r = session.get(f"{API}/notifications", headers=admin_headers)
+        assert r.status_code == 200
+        items = r.json()
+        assert isinstance(items, list) and len(items) >= 1
+
+    def test_create_alert_fans_out_to_family(self, session, admin_headers):
+        # Pick a resident who has a seeded family contact
+        contacts = session.get(f"{API}/family-contacts", headers=admin_headers).json()
+        assert len(contacts) > 0
+        # Find a contact with emergency in notify_on
+        target = next((c for c in contacts if "emergency" in c.get("notify_on", [])), contacts[0])
+        rid = target["resident_id"]
+        # Count notifications before
+        before = session.get(f"{API}/notifications?limit=500", headers=admin_headers).json()
+        before_ct = len(before)
+        # Create an emergency alert
+        r = session.post(f"{API}/alerts", json={
+            "resident_id": rid, "severity": "emergency",
+            "message": "TEST family fan-out", "triggered_by": "manual"
+        })
+        assert r.status_code == 200, r.text
+        aid = r.json()["alert_id"]
+        # Fetch notifications - should include new entries tied to this alert
+        import time
+        time.sleep(0.5)
+        after = session.get(f"{API}/notifications?limit=500", headers=admin_headers).json()
+        assert len(after) > before_ct, "No notifications fanned out to family"
+        # At least one notification references this alert_id
+        matched = [n for n in after if n.get("alert_id") == aid]
+        assert len(matched) >= 1, f"No notification referenced alert {aid}"
+        # Clean up: resolve
+        session.post(f"{API}/alerts/{aid}/resolve", headers=admin_headers)

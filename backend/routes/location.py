@@ -18,14 +18,56 @@ def _iso(doc: dict) -> dict:
 @router.post("")
 async def ingest_location(data: LocationUpdateCreate):
     """Real sensors / mesh network POST here. Public so field hardware can report directly."""
-    exists = await db.residents.find_one({"resident_id": data.resident_id}, {"_id": 0})
-    if not exists:
+    resident = await db.residents.find_one({"resident_id": data.resident_id}, {"_id": 0})
+    if not resident:
         raise HTTPException(status_code=404, detail="Resident not found")
     upd = LocationUpdate(**data.model_dump())
     doc = upd.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
     await db.locations.insert_one(doc)
     doc.pop("_id", None)
+
+    # ----- Wander / geofence check -----
+    zone_doc = await db.zones.find_one({"name": data.zone}, {"_id": 0})
+    if zone_doc and zone_doc.get("is_restricted"):
+        # Check if this resident is allowed here
+        allowed = zone_doc.get("allowed_levels") or []
+        if allowed and resident.get("participation_level") in allowed:
+            # Explicitly permitted - no alert
+            pass
+        else:
+            # Last known zone (before this one) - is this a NEW breach?
+            prev = await db.locations.find(
+                {"resident_id": data.resident_id},
+                {"_id": 0, "zone": 1, "created_at": 1},
+            ).sort("created_at", -1).skip(1).limit(1).to_list(1)
+            prev_zone = prev[0]["zone"] if prev else None
+            if prev_zone != data.zone:
+                # Create geofence alert
+                from models import Alert
+                alert = Alert(
+                    resident_id=resident["resident_id"],
+                    resident_name=resident["name"],
+                    room=resident.get("room"),
+                    zone=data.zone,
+                    severity="assist",
+                    message=f"Entered restricted zone: {data.zone}",
+                    triggered_by="geofence",
+                )
+                adoc = alert.model_dump()
+                adoc["created_at"] = adoc["created_at"].isoformat()
+                adoc["acknowledged_at"] = None
+                adoc["resolved_at"] = None
+                await db.alerts.insert_one(adoc)
+                adoc.pop("_id", None)
+                # Fire family notifications (non-blocking best-effort)
+                try:
+                    from routes.notifications import notify_family_for_alert
+                    await notify_family_for_alert(adoc)
+                except Exception:
+                    pass
+                doc["geofence_alert"] = adoc["alert_id"]
+
     return doc
 
 
