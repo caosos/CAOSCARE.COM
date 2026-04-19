@@ -398,3 +398,74 @@ class DeviceTokenCreate(BaseModel):
     scopes: List[Literal["pendants.event", "locations.ingest", "wearables.event"]] = Field(
         default_factory=lambda: ["pendants.event", "locations.ingest"]
     )
+
+
+# ---------- Smart-room devices (IoT: AC, fan, heater, lights, TV, etc.) ----------
+DeviceProtocol = Literal["bluetooth", "wifi", "rf_433", "rf_915", "ir", "zigbee", "matter"]
+DeviceKind = Literal[
+    "light", "fan", "heater", "ac", "thermostat", "tv", "speaker",
+    "blinds", "outlet", "humidifier", "bed", "door_lock", "generic",
+]
+DeviceCapability = Literal[
+    "power", "brightness", "temperature", "fan_speed", "volume",
+    "channel", "color", "position",
+]
+
+
+class SmartDevice(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    device_id: str = Field(default_factory=lambda: uid("dev"))
+    label: str                              # human name, e.g. "Margaret's bedside lamp"
+    kind: DeviceKind
+    protocol: DeviceProtocol
+    room: Optional[str] = None              # tied to resident's room by default
+    resident_id: Optional[str] = None
+    endpoint: Optional[str] = None          # MAC / IP / RF code / zigbee id
+    capabilities: List[DeviceCapability] = Field(default_factory=list)
+    state: dict = Field(default_factory=dict)   # e.g. {"power":"on","brightness":60,"temperature_c":22}
+    vendor: Optional[str] = None
+    model: Optional[str] = None
+    online: bool = True
+    last_command_at: Optional[datetime] = None
+    notes: Optional[str] = ""
+    created_at: datetime = Field(default_factory=now_utc)
+
+
+class SmartDeviceCreate(BaseModel):
+    label: str
+    kind: DeviceKind
+    protocol: DeviceProtocol
+    room: Optional[str] = None
+    resident_id: Optional[str] = None
+    endpoint: Optional[str] = None
+    capabilities: List[DeviceCapability] = Field(default_factory=list)
+    vendor: Optional[str] = None
+    model: Optional[str] = None
+    notes: Optional[str] = ""
+
+
+class DeviceCommandInput(BaseModel):
+    """Action = the capability being set; value = the new value.
+
+    Examples:
+      {"action": "power",       "value": "off"}
+      {"action": "temperature", "value": 22}
+      {"action": "brightness",  "value": 60}
+      {"action": "channel",     "value": "up"}
+    """
+    action: DeviceCapability
+    value: Optional[str | int | float] = None
+
+
+# ---------- AI vision ----------
+class VisionFrameInput(BaseModel):
+    """Base64-encoded JPEG from the glasses camera + optional spoken question."""
+    image_base64: str
+    question: Optional[str] = None      # if None → "describe what's in front of the person"
+    resident_id: Optional[str] = None
+    session_id: Optional[str] = None
+    speak: bool = True                   # return TTS audio base64
+
+
+class VisionSessionStart(BaseModel):
+    resident_id: Optional[str] = None

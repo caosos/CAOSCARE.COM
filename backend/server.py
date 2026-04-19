@@ -26,6 +26,8 @@ from routes import notifications as notification_routes  # noqa: E402
 from routes import wearables as wearable_routes  # noqa: E402
 from routes import device_auth as device_auth_routes  # noqa: E402
 from routes import family_portal as family_portal_routes  # noqa: E402
+from routes import devices as device_routes  # noqa: E402
+from routes import vision as vision_routes  # noqa: E402
 from seed import seed  # noqa: E402
 
 
@@ -71,6 +73,8 @@ api.include_router(notification_routes.router)
 api.include_router(wearable_routes.router)
 api.include_router(device_auth_routes.router)
 api.include_router(family_portal_routes.router)
+api.include_router(device_routes.router)
+api.include_router(vision_routes.router)
 
 app.include_router(api)
 

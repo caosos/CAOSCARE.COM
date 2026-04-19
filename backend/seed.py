@@ -4,7 +4,7 @@ import bcrypt
 from datetime import datetime, timezone
 
 from deps import db
-from models import User, Resident, Kiosk, Zone, Pendant, RoadmapItem, now_utc
+from models import User, Resident, Kiosk, Zone, Pendant, RoadmapItem, SmartDevice, now_utc
 
 
 ROADMAP_SEED = [
@@ -14,6 +14,9 @@ ROADMAP_SEED = [
     (1, "Staff notification + acknowledgment", "Live feed polling every 3s; acknowledge + resolve actions.", "done"),
     (1, "Resident reassurance loop (Claude + voice)", "Claude Sonnet 4.5 with resident-specific context; OpenAI TTS (sage voice).", "done"),
     (1, "Event log storage", "All alerts persisted with timestamps, responders, outcomes.", "done"),
+    (1, "Smart-room device control (lights/fan/heater/TV)", "Tablet as per-room hub. BLE / WiFi / RF_915 / IR / Zigbee / Matter devices. Admin Devices tab + kiosk big-button controls + command queue for bridge.", "done"),
+
+    # Phase 2 — Workflow Visibility (unchanged)
 
     # Phase 2 — Workflow Visibility
     (2, "Dashboard visibility", "Staff dashboard with alerts + locations + stats tiles.", "done"),
@@ -50,7 +53,7 @@ ROADMAP_SEED = [
     (5, "SMS pager integration (Twilio)", "NotificationService ready; flip on by adding TWILIO_ACCOUNT_SID/AUTH_TOKEN/FROM_NUMBER to backend/.env.", "in_progress"),
     (5, "Email family notifications (Resend)", "NotificationService ready; flip on by adding RESEND_API_KEY to backend/.env.", "in_progress"),
     (5, "Device-token auth on /api/locations + /api/pendants/event", "HMAC or signed device token for field sensors.", "not_started"),
-    (5, "AI-vision glasses/earbuds integration", "Walking guidance for low-vision residents.", "not_started"),
+    (5, "AI-vision glasses/earbuds integration", "Vuzix M400 + Android generic fallback. POST /api/vision/describe + /frame use Claude image-vision; companion app pairs to tablet via BLE.", "in_progress"),
     (5, "Family portal", "Magic-link portal for family contacts: /family/{token} shows resident status, last-seen zone, recent alert summary, and bedtime haiku digest.", "done"),
 ]
 
@@ -358,6 +361,34 @@ async def seed():
                     "source": "mock",
                     "created_at": when.isoformat(),
                 })
+
+    # Seed smart-room devices for the first 2 residents (demo)
+    if residents_for_family and await db.smart_devices.count_documents({}) == 0:
+        for r in residents_for_family[:2]:
+            room = r["room"]
+            sample_devs = [
+                ("Bedside lamp", "light", "bluetooth", ["power", "brightness"], {"power": "off", "brightness": 60}),
+                ("Ceiling fan", "fan", "rf_915", ["power", "fan_speed"], {"power": "off", "fan_speed": 1}),
+                ("Heater", "heater", "wifi", ["power", "temperature"], {"power": "off", "temperature": 22}),
+                ("TV", "tv", "ir", ["power", "volume", "channel"], {"power": "off", "volume": 15}),
+            ]
+            for label, kind, proto, caps, state in sample_devs:
+                d = SmartDevice(
+                    label=f"Room {room} {label}",
+                    kind=kind,
+                    protocol=proto,
+                    room=room,
+                    resident_id=r["resident_id"],
+                    capabilities=caps,
+                    state=state,
+                    endpoint="demo",
+                    vendor="Seed",
+                )
+                doc = d.model_dump()
+                doc["created_at"] = doc["created_at"].isoformat()
+                doc["last_command_at"] = None
+                await db.smart_devices.insert_one(doc)
+                doc.pop("_id", None)
 
     # Roadmap items (idempotent; advance status if this iteration marks done)
     for order, (phase, title, desc, status) in enumerate(ROADMAP_SEED):
