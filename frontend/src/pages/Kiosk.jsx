@@ -330,7 +330,7 @@ export default function Kiosk() {
           {devices.length > 0 && (
             <div className="mt-14 w-full max-w-3xl" data-testid="kiosk-device-panel">
               <p className="text-xs font-bold uppercase tracking-[0.3em] text-caos-mute mb-4">Your room</p>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                 {devices.map((d) => {
                   const Icon = DEVICE_ICON[d.kind] || Power;
                   const isOn = d.state?.power === "on";
