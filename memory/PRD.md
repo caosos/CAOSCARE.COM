@@ -29,6 +29,13 @@ Wander / geofencing (restricted zones auto-alert), movement timeline per residen
 - **Roadmap shipped**: Phase 1 5/5 ✅, Phase 2 6/6 ✅, Phase 3 8/8 ✅, Phase 4 6/6 ✅, Cross-cutting 7/10 ✅. Only open items: Twilio/Resend keys pending, AI-vision glasses (future hardware), daily haiku digest generator (cron-style, not yet wired).
 - **Tests**: 80/80 backend + 100% frontend. HMAC round-trip verified (valid sig → 200, invalid sig → 401).
 
+### Iteration 7 (Feb 2026) — CRITICAL SAFETY FIX
+- **Hands-free voice conversation on every pendant press**: removed the ≥2-press requirement for `auto_voice`. Any pendant press (single, panic, or fall) and any wearable press/fall now sets `auto_voice=true` so the in-room kiosk opens a continuous voice conversation. Severity escalation (assist → emergency) still happens on 2+ presses in 60s.
+- **Continuous voice loop** (`Kiosk.jsx`): AI speaks → short 880Hz beep cue → kiosk records up to 8s → Whisper STT → Claude reply → TTS → next iteration. Exits on (a) resident exit phrases like "I'm fine" / "never mind" / "that's all", (b) staff resolving the alert (kiosk detects via 4s polling, says "A caregiver is with you now — I'll step back."), or (c) Never mind button.
+- **Kiosk-button press** also runs through the same continuous voice loop — no "Hold to talk" required for blind residents.
+- **Visual indicator** for sighted users + audible beep before each listen for blind residents.
+- **Tests**: 8/8 new backend, zero regressions.
+
 ### Iteration 6 (Feb 2026)
 - **Daily haiku generator**: `POST /api/haiku/generate-today` (admin) runs Claude Sonnet 4.5 per resident using their preferences+memory → 3-line warm bedtime haiku stored in `db.haikus`. Idempotent per `{resident_id, day}`. Family portal already renders latest haiku. Admin → Family → "Generate tonight's haikus" button.
 - **Pager RF emulation**: `/api/paging/event` (public, HMAC-optional) ingests from the facility's existing paging transmitter. Cap-code enrichment maps pendant_id → resident. `/api/paging/feed` (auth) returns last-30min events. Every staff tablet shows a live "Facility pages" card on the StaffDashboard rail; admin can also push `/api/paging/simulate`.
