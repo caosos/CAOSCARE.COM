@@ -130,27 +130,26 @@ async def pendant_event(evt: PendantEventInput, request: Request):
             resident_name = r["name"]
             room = r.get("room")
 
-    # --- Panic-press detection ---------------------------------------------
-    # If this pendant has fired >=2 press events in the last 60s, treat as
-    # emergency and flag auto_voice so the kiosk auto-enables its mic.
+    # --- Auto-voice & panic-press detection --------------------------------
+    # EVERY pendant press must auto-start the kiosk's voice conversation so a
+    # resident who can't reach the screen — or who is blind — is heard.
+    # Panic-press (>=2 presses in 60s) or a fall event additionally escalates
+    # the severity to "emergency".
     from datetime import timedelta
     press_count = 1
-    auto_voice = False
+    auto_voice = True   # default ON — we always want voice for pendant events
     severity = "emergency" if evt.event_type == "fall" else "assist"
 
-    if evt.event_type == "fall":
-        auto_voice = True  # falls always go hands-free
-    elif evt.event_type == "press" and pendant.get("pendant_id"):
+    if evt.event_type == "press" and pendant.get("pendant_id"):
         window_start = (now_utc() - timedelta(seconds=60)).isoformat()
         recent = await db.alerts.count_documents({
             "pendant_id": pendant["pendant_id"],
             "triggered_by": "pendant",
             "created_at": {"$gte": window_start},
         })
-        press_count = recent + 1  # +1 for the one we're about to create
+        press_count = recent + 1
         if press_count >= 2:
             severity = "emergency"
-            auto_voice = True
 
     alert = Alert(
         pendant_id=pendant["pendant_id"],
@@ -162,7 +161,7 @@ async def pendant_event(evt: PendantEventInput, request: Request):
         severity=severity,
         message=(
             f"Panic-press ×{press_count} at {evt.frequency_mhz} MHz"
-            if auto_voice and evt.event_type == "press"
+            if press_count >= 2 and evt.event_type == "press"
             else f"Pendant {evt.event_type.replace('_', ' ')} at {evt.frequency_mhz} MHz"
         ),
         triggered_by="pendant",

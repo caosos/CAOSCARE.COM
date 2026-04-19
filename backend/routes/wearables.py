@@ -134,6 +134,7 @@ async def wearable_event(evt: WearableEventInput, request: Request):
         severity=severity,
         message=msg,
         triggered_by="wearable",
+        auto_voice=True,  # all wearable events open hands-free voice on the nearest kiosk
     )
     doc = alert.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()

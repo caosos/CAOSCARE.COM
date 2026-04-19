@@ -30,6 +30,9 @@ export default function Kiosk() {
   const mediaRef = useRef(null);
   const audioRef = useRef(null);
   const seenEmergencyRef = useRef(null);
+  const voiceLoopRef = useRef(false);      // is continuous listen loop active?
+  const callStateRef = useRef("idle");     // sync callState for async callbacks
+  useEffect(() => { callStateRef.current = callState; }, [callState]);
 
   // Load kiosk + resident
   useEffect(() => {
@@ -69,7 +72,7 @@ export default function Kiosk() {
         const { data } = await axios.get(`${API}/kiosks/${kiosk.kiosk_id}/active-emergency`);
         if (stop) return;
         const a = data.alert;
-        if (a && a.alert_id !== seenEmergencyRef.current && callState === "idle") {
+        if (a && a.alert_id !== seenEmergencyRef.current && callStateRef.current === "idle") {
           seenEmergencyRef.current = a.alert_id;
           handleIncomingEmergency(a);
         }
@@ -79,19 +82,137 @@ export default function Kiosk() {
     const t = setInterval(poll, 3000);
     return () => { stop = true; clearInterval(t); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kiosk, callState]);
+  }, [kiosk]);
 
-  const handleIncomingEmergency = (a) => {
+  // Watch for the current alert being resolved by staff → quietly end voice loop
+  useEffect(() => {
+    if (!alert?.alert_id) return;
+    const t = setInterval(async () => {
+      try {
+        const { data } = await axios.get(`${API}/alerts/${alert.alert_id}`);
+        if (data.status === "resolved") {
+          voiceLoopRef.current = false;
+          await speak("A caregiver is with you now. I'll step back.");
+          setTimeout(() => cancelCall(), 500);
+        }
+      } catch { /* silent */ }
+    }, 4000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alert?.alert_id]);
+
+  const handleIncomingEmergency = async (a) => {
     setAlert(a);
     setAutoVoice(true);
     setCallState("chatting");
     const name = (a.resident_name || resident?.name || "there").split(" ")[0];
-    const line = `I'm here, ${name}. Help is on the way. Stay with me — tell me what's happening.`;
+    const line = a.press_count >= 2
+      ? `I'm here, ${name}. I've called for help — they're on their way. Stay with me. Tell me what's happening.`
+      : `I'm here, ${name}. I've paged a caregiver. Can you tell me what you need?`;
     setMessages([{ role: "assistant", content: line }]);
-    speak(line).then(() => {
-      // Auto-start mic once TTS finishes
-      setTimeout(() => startContinuousListen(), 500);
+    await speak(line);
+    // Start the continuous loop (auto listen → transcribe → reply → repeat)
+    voiceLoopRef.current = true;
+    runVoiceLoop();
+  };
+
+  // ---------- Continuous voice loop (hands-free) ----------
+  // Plays a short beep so blind residents know it's listening.
+  const playBeep = () => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = 880;
+      gain.gain.value = 0.15;
+      osc.connect(gain).connect(ctx.destination);
+      osc.start();
+      setTimeout(() => { osc.stop(); ctx.close(); }, 150);
+    } catch { /* noop */ }
+  };
+
+  // Listen for up to 8s, resolve blob (or null on abort).
+  const listenOnce = () =>
+    new Promise(async (resolve) => {
+      try {
+        if (!voiceLoopRef.current) return resolve(null);
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const rec = new MediaRecorder(stream, { mimeType: "audio/webm" });
+        const chunks = [];
+        let settled = false;
+        const done = (blob) => {
+          if (settled) return;
+          settled = true;
+          stream.getTracks().forEach((t) => t.stop());
+          setRecording(false);
+          resolve(blob);
+        };
+        rec.ondataavailable = (e) => chunks.push(e.data);
+        rec.onstop = () => done(new Blob(chunks, { type: "audio/webm" }));
+        mediaRef.current = rec;
+        rec.start();
+        setRecording(true);
+        setTimeout(() => {
+          if (rec.state !== "inactive") rec.stop();
+        }, 8000);
+      } catch {
+        toast.error("Microphone permission needed for hands-free.");
+        resolve(null);
+      }
     });
+
+  const runVoiceLoop = async () => {
+    // Keep going until voiceLoopRef flipped off (cancel / alert resolved)
+    let emptyRounds = 0;
+    while (voiceLoopRef.current && callStateRef.current !== "idle") {
+      playBeep();
+      const blob = await listenOnce();
+      if (!voiceLoopRef.current) break;
+      if (!blob || blob.size < 1500) {
+        emptyRounds++;
+        if (emptyRounds === 1) {
+          await speak("I'm still here. Take your time.");
+          continue;
+        }
+        if (emptyRounds >= 3) {
+          // No response after 3 tries — stop politely but keep alert open
+          await speak("I'll wait quietly. Press the button or speak when you need me.");
+          break;
+        }
+        continue;
+      }
+      emptyRounds = 0;
+      const form = new FormData();
+      form.append("audio", blob, "speech.webm");
+      setThinking(true);
+      let text = "";
+      try {
+        const { data } = await axios.post(`${API}/ai/stt`, form, { headers: { "Content-Type": "multipart/form-data" } });
+        text = (data.text || "").trim();
+      } catch { /* ignore */ }
+      setThinking(false);
+      if (!voiceLoopRef.current) break;
+      if (!text) continue;
+
+      // Exit phrase heuristic
+      const lower = text.toLowerCase();
+      const exitKeywords = ["i'm fine", "i am fine", "never mind", "nevermind", "that's all", "thats all", "thank you goodbye", "all done", "i'm okay", "im okay"];
+      const wantsExit = exitKeywords.some((k) => lower.includes(k));
+
+      await sendMessage(text);
+      if (wantsExit) {
+        await speak("Alright. I'll let you rest. A caregiver is still on the way.");
+        break;
+      }
+    }
+    voiceLoopRef.current = false;
+  };
+
+  const startContinuousListen = () => {
+    // Legacy shim for older callers — just kick off the loop
+    voiceLoopRef.current = true;
+    runVoiceLoop();
   };
 
   // Medication reminder polling — only when idle
@@ -99,7 +220,7 @@ export default function Kiosk() {
     if (!kiosk?.room) return;
     let stop = false;
     const checkMeds = async () => {
-      if (callState !== "idle") return;
+      if (callStateRef.current !== "idle") return;
       try {
         const { data: due } = await axios.get(`${API}/medications/due/by-room/${kiosk.room}`);
         if (stop || !due || due.length === 0) return;
@@ -115,56 +236,23 @@ export default function Kiosk() {
     const t = setInterval(checkMeds, 60000);
     return () => { stop = true; clearInterval(t); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kiosk, resident, callState]);
+  }, [kiosk, resident]);
 
-  const startContinuousListen = async () => {
-    // Uses same recorder but we stop it on silence using a 5s window.
-    try {
-      if (recording) return;
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const rec = new MediaRecorder(stream, { mimeType: "audio/webm" });
-      const chunks = [];
-      rec.ondataavailable = (e) => chunks.push(e.data);
-      rec.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunks, { type: "audio/webm" });
-        if (blob.size < 2000) { setRecording(false); return; }
-        const form = new FormData();
-        form.append("audio", blob, "speech.webm");
-        setThinking(true);
-        try {
-          const { data } = await axios.post(`${API}/ai/stt`, form, { headers: { "Content-Type": "multipart/form-data" } });
-          if (data.text?.trim()) {
-            await sendMessage(data.text.trim());
-          }
-        } catch { /* ignore */ }
-        finally { setThinking(false); setRecording(false); }
-      };
-      mediaRef.current = rec;
-      rec.start();
-      setRecording(true);
-      // Auto-stop after 6s (emergency one-shot)
-      setTimeout(() => {
-        if (mediaRef.current && mediaRef.current.state !== "inactive") mediaRef.current.stop();
-      }, 6000);
-    } catch {
-      toast.error("Microphone permission needed for hands-free.");
-    }
-  };
-
-  const speak = async (text) => {
-    try {
-      setSpeaking(true);
-      const { data } = await axios.post(`${API}/ai/tts`, { text, voice: "sage" });
-      const audio = new Audio(`data:audio/mp3;base64,${data.audio_base64}`);
-      audioRef.current = audio;
-      audio.onended = () => setSpeaking(false);
-      audio.onerror = () => setSpeaking(false);
-      await audio.play();
-    } catch (e) {
-      setSpeaking(false);
-    }
-  };
+  const speak = (text) =>
+    new Promise(async (resolve) => {
+      try {
+        setSpeaking(true);
+        const { data } = await axios.post(`${API}/ai/tts`, { text, voice: "sage" });
+        const audio = new Audio(`data:audio/mp3;base64,${data.audio_base64}`);
+        audioRef.current = audio;
+        audio.onended = () => { setSpeaking(false); resolve(); };
+        audio.onerror = () => { setSpeaking(false); resolve(); };
+        await audio.play();
+      } catch {
+        setSpeaking(false);
+        resolve();
+      }
+    });
 
   const triggerEmergency = async (severity = "emergency") => {
     if (!kiosk) return;
@@ -177,14 +265,16 @@ export default function Kiosk() {
         triggered_by: "kiosk_button",
       });
       setAlert(data);
-      setCallState("waiting");
-      const name = resident?.name?.split(" ")[0] || "there";
-      const line = severity === "emergency"
-        ? `Hello ${name}. Help is on the way. Stay where you are. I am here with you.`
-        : `Hello ${name}. I've paged a caregiver. They'll be with you soon. I can stay and chat.`;
-      setMessages([{ role: "assistant", content: line }]);
-      speak(line);
+      setAutoVoice(true);
       setCallState("chatting");
+      const name = resident?.preferred_name || resident?.name?.split(" ")[0] || "there";
+      const line = severity === "emergency"
+        ? `Hello ${name}. Help is on the way. Stay where you are. I am here with you. Tell me what's happening.`
+        : `Hello ${name}. I've paged a caregiver. While we wait, what can I help with?`;
+      setMessages([{ role: "assistant", content: line }]);
+      await speak(line);
+      voiceLoopRef.current = true;
+      runVoiceLoop();
     } catch {
       toast.error("Could not send the call. Please try again.");
       setCallState("idle");
@@ -192,17 +282,20 @@ export default function Kiosk() {
   };
 
   const cancelCall = async () => {
-    if (alert) {
-      try {
-        // Not a real staff user - just mark as comfort via resolve using a staff? Skip - allow persist.
-      } catch {}
+    voiceLoopRef.current = false;
+    if (mediaRef.current && mediaRef.current.state !== "inactive") {
+      try { mediaRef.current.stop(); } catch {}
     }
-    if (audioRef.current) audioRef.current.pause();
+    if (audioRef.current) {
+      try { audioRef.current.pause(); } catch {}
+    }
     setAlert(null);
     setMessages([]);
     setCallState("idle");
     setSpeaking(false);
     setAutoVoice(false);
+    setRecording(false);
+    setThinking(false);
   };
 
   const sendDeviceCommand = async (action, value) => {
@@ -232,7 +325,7 @@ export default function Kiosk() {
         message: text,
       });
       setMessages((m) => [...m, { role: "assistant", content: data.reply }]);
-      speak(data.reply);
+      await speak(data.reply);
       if (data.auto_emergency_detected && alert?.severity !== "emergency") {
         // Escalate silently
         try {
@@ -443,10 +536,10 @@ export default function Kiosk() {
               aria-label="AI companion voice"
               data-testid="kiosk-ai-orb"
             />
-            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-white rounded-full px-5 py-2 border border-caos-line flex items-center gap-2">
-              <Volume2 className={`w-4 h-4 ${speaking ? "text-caos-terracotta" : "text-caos-mute"}`} />
+            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-white rounded-full px-5 py-2 border border-caos-line flex items-center gap-2" data-testid="kiosk-voice-status">
+              <Volume2 className={`w-4 h-4 ${speaking ? "text-caos-terracotta" : recording ? "text-caos-moss" : "text-caos-mute"}`} />
               <span className="text-sm font-semibold text-caos-forest">
-                {speaking ? "Speaking..." : thinking ? "Thinking..." : "Listening"}
+                {speaking ? "Speaking..." : recording ? "Listening..." : thinking ? "Thinking..." : "Ready"}
               </span>
             </div>
           </div>
