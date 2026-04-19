@@ -24,13 +24,14 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
       return;
     }
+    // Skip /me probe on public routes (kiosk, landing) to avoid 401 noise
+    const path = window.location.pathname;
+    const isPublic = path === "/" || path.startsWith("/kiosk");
+    if (isPublic && !localStorage.getItem("caos_token")) {
+      setLoading(false);
+      return;
+    }
     (async () => {
-      const token = localStorage.getItem("caos_token");
-      if (!token) {
-        await fetchMe(); // still try cookie
-        setLoading(false);
-        return;
-      }
       await fetchMe();
       setLoading(false);
     })();
