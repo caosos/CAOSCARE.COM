@@ -111,7 +111,10 @@ async def admin_login(data: LoginInput, request: Request):
     - Constant-time response when email is unknown — no user enumeration.
     - Rejects non-admin accounts with a 403 and a message pointing them to /login.
     """
-    client_ip = (request.client.host if request.client else "") or request.headers.get("x-forwarded-for", "unknown")
+    client_ip = (
+        request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+        or (request.client.host if request.client else "unknown")
+    )
     _admin_throttle_check(client_ip, data.email)
 
     user = await db.users.find_one({"email": data.email.lower()}, {"_id": 0})

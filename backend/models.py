@@ -56,11 +56,11 @@ class ClinicalThresholds(BaseModel):
     let CAOS stop spamming "heart rate high" alerts on a resident whose
     resting HR happens to run above a generic default."""
     model_config = ConfigDict(extra="ignore")
-    hr_resting_min: Optional[int] = None         # e.g. 50 bpm
-    hr_resting_max: Optional[int] = None         # e.g. 95 bpm
-    hr_exertion_max: Optional[int] = None        # e.g. 130 bpm — above this = alert regardless
-    spo2_min: Optional[int] = None               # e.g. 92 (%)
-    inactivity_minutes: Optional[int] = None     # e.g. 90 — no motion for this long = alert
+    hr_resting_min: Optional[int] = Field(default=None, ge=0, le=300)
+    hr_resting_max: Optional[int] = Field(default=None, ge=0, le=300)
+    hr_exertion_max: Optional[int] = Field(default=None, ge=0, le=300)
+    spo2_min: Optional[int] = Field(default=None, ge=0, le=100)
+    inactivity_minutes: Optional[int] = Field(default=None, ge=0, le=1440)
     notes: Optional[str] = ""                    # clinician note, e.g. "chronic afib, expect 100–120 resting"
 
 

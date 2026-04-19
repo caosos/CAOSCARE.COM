@@ -12,7 +12,14 @@ CAOS Care is an AI-powered adjunct to existing 900 MHz Life-Alert-style pendant 
 
 ## Implemented (Feb 2026)
 
-### Iteration 1
+### Iteration 10 (Feb 2026) — Pilot-hardening: per-resident thresholds, admin-login split, Haiku extractor
+- **Per-resident clinical thresholds**: New `ClinicalThresholds` sub-model on `Resident` with `hr_resting_min/max`, `hr_exertion_max`, `spo2_min`, `inactivity_minutes`, and `notes`. All fields optional, `ge/le` bounded. Admin → Residents → Edit dialog exposes a "Clinical thresholds" section (testids `res-hr-min`/`res-hr-max`/`res-hr-exert`/`res-spo2`/`res-inactivity`/`res-ct-notes`) with "NOT DIAGNOSTIC" caveat and plain-language helper copy. Blank-all persists as `null`.
+- **Wearable event threshold re-evaluation** (`routes/wearables.py`): when `heart_rate` is present and the resident has thresholds, the backend re-maps the wearable-reported event. Generic `heart_rate_high` inside the resident's personal band → suppressed (returns `alert:null` + `suppressed_event` field). Silent `periodic_ping` above `hr_exertion_max` or outside the resting band → upgraded to `heart_rate_high`/`heart_rate_low` and flagged in the alert message. Residents without thresholds behave identically to before.
+- **Separate `/admin-login` route**: New branded FastAPI endpoint `POST /api/auth/admin-login` + React page `/admin-login`. Admin happy path = 200 + JWT; staff credentials = 403 + clear "These are staff credentials" message (no lockout increment); wrong password = 401 + lockout increment. In-memory throttle: 5 failed attempts per `(ip, email)` within 15 min → 429 (IP read from `x-forwarded-for` first, then `request.client.host`). Constant-time bcrypt via dummy hash prevents user enumeration. Login page's demo credentials block updated to show only staff creds + a subtle "Administrator sign-in →" link. `AuthContext.loginAdmin()` added.
+- **Memory extractor model swap**: `/api/memory/extract` and the background extraction task now use `claude-haiku-4-5-20251001` instead of Sonnet 4.5. Same structured-JSON output, a fraction of the per-turn cost. Verified live — two i5 family-category memories extracted from a test exchange.
+- **Tests**: 14/14 new backend pytests (admin throttle, threshold re-map suppress/upgrade, Haiku live-call) + UI happy-path verified (admin redirect, threshold editor persistence).
+
+### Iteration 9 (Feb 2026) — Python-backed lifelong memory server
 Landing, Kiosk, Staff Dashboard, Admin, JWT + Google Auth, Claude chat + TTS/STT, location tracking, alert lifecycle.
 
 ### Iteration 2
@@ -29,7 +36,7 @@ Wander / geofencing (restricted zones auto-alert), movement timeline per residen
 - **Roadmap shipped**: Phase 1 5/5 ✅, Phase 2 6/6 ✅, Phase 3 8/8 ✅, Phase 4 6/6 ✅, Cross-cutting 7/10 ✅. Only open items: Twilio/Resend keys pending, AI-vision glasses (future hardware), daily haiku digest generator (cron-style, not yet wired).
 - **Tests**: 80/80 backend + 100% frontend. HMAC round-trip verified (valid sig → 200, invalid sig → 401).
 
-### Iteration 8 (Feb 2026) — Python-backed lifelong memory server
+### Iteration 9 (Feb 2026) — Python-backed lifelong memory server
 - **db.conversations** — every chat turn logged per resident. Last 40 turns flattened into a transcript block in Claude's system prompt so the AI picks up mid-conversation across sessions, across days.
 - **db.memories** — discrete learned facts. Fields: `text`, `category` (family/preferences/health/history/daily_pattern/concern/relationship/milestone/other), `importance` 1-5, `pinned`, `source` (extraction/chat/admin/staff/family), `times_referenced`, `last_referenced_at`. Pinned memories always in context.
 - **Auto-extraction**: after each AI reply, `asyncio.create_task` fires a background Claude call that reads the exchange, proposes new memory rows, dedupes by prefix, stores with `source="extraction"`. Best-effort — never blocks the response.
@@ -37,7 +44,7 @@ Wander / geofencing (restricted zones auto-alert), movement timeline per residen
 - **Verified across sessions**: turn 1 in session A teaches CAOS a fact → turn 2 in session B (same resident) recalls it. `memories_used` + `history_replayed` exposed in `/api/ai/chat` response.
 - **Tests**: 13/13 backend + full frontend E2E, zero critical issues.
 
-### Iteration 7 (Feb 2026) — CRITICAL SAFETY FIX
+### Iteration 1
 - **Hands-free voice conversation on every pendant press**: removed the ≥2-press requirement for `auto_voice`. Any pendant press (single, panic, or fall) and any wearable press/fall now sets `auto_voice=true` so the in-room kiosk opens a continuous voice conversation. Severity escalation (assist → emergency) still happens on 2+ presses in 60s.
 - **Continuous voice loop** (`Kiosk.jsx`): AI speaks → short 880Hz beep cue → kiosk records up to 8s → Whisper STT → Claude reply → TTS → next iteration. Exits on (a) resident exit phrases like "I'm fine" / "never mind" / "that's all", (b) staff resolving the alert (kiosk detects via 4s polling, says "A caregiver is with you now — I'll step back."), or (c) Never mind button.
 - **Kiosk-button press** also runs through the same continuous voice loop — no "Hold to talk" required for blind residents.
@@ -63,19 +70,21 @@ Wander / geofencing (restricted zones auto-alert), movement timeline per residen
 
 ### P1
 - Drop real Twilio + Resend keys into `backend/.env`
-- Build the actual daily-haiku generator (Claude cron)
-- Move SECRETS_CACHE to Redis (survives server restart)
-- Rate-limit `/api/family-portal/{token}/summary` (60 req/min per token)
+- Move admin-login throttle + SECRETS_CACHE to Redis (survive restart + multi-worker coordination)
+- Memory consolidation / redaction endpoint ("forgetting" authority domain — dementia, consent revocation, staff departure)
+- Rate-limit `/api/family-portal/{token}/summary` (60 req/min per token) — already shipped
 - Unique index on `wearables.mac_address`
 - Install Android bridge on a real tablet with a chosen RF receiver
 - Enable `DEVICE_AUTH_REQUIRED=true` once all field devices are issued tokens
 
 ### P2
+- HR trend charts per resident (Recharts) tied to `clinical_thresholds` bands
+- Escalation loop: unacknowledged alert → on-call rotation → Twilio/Resend once keys land
+- Photo upload per resident
 - AI-vision glasses/earbuds — real-time walking guidance for low-vision residents
-- Floor-plan heatmap of live resident positions
 - Fall detection via pendant accelerometer
 - Multi-language (Spanish first)
-- Medication reminders via kiosk voice
+- Magnetic recliner-charger R&D for "wearables for everyone" (hardware — no code)
 
 ## Next Tasks
 - Provide Twilio + Resend keys → notifications go live immediately
