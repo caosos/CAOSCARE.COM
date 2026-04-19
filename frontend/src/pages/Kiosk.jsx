@@ -285,17 +285,37 @@ export default function Kiosk() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kiosk, resident]);
 
+  const speakFallback = (text) =>
+    new Promise((resolve) => {
+      try {
+        if (!("speechSynthesis" in window)) return resolve();
+        const u = new SpeechSynthesisUtterance(text);
+        u.rate = 0.95;
+        u.pitch = 1.0;
+        u.onend = () => resolve();
+        u.onerror = () => resolve();
+        window.speechSynthesis.speak(u);
+      } catch { resolve(); }
+    });
+
   const speak = (text) =>
     new Promise(async (resolve) => {
       try {
         setSpeaking(true);
-        const { data } = await axios.post(`${API}/ai/tts`, { text, voice: "sage" });
+        const { data } = await axios.post(`${API}/ai/tts`, { text, voice: "sage" }, { timeout: 8000 });
         const audio = new Audio(`data:audio/mp3;base64,${data.audio_base64}`);
         audioRef.current = audio;
         audio.onended = () => { setSpeaking(false); resolve(); };
-        audio.onerror = () => { setSpeaking(false); resolve(); };
+        audio.onerror = async () => {
+          // Fallback: browser TTS so the resident never hears silence
+          await speakFallback(text);
+          setSpeaking(false);
+          resolve();
+        };
         await audio.play();
       } catch {
+        // Network / API down → canned local voice
+        await speakFallback(text);
         setSpeaking(false);
         resolve();
       }
@@ -363,6 +383,16 @@ export default function Kiosk() {
     }
   };
 
+  // Canned comfort lines used when Claude is unreachable. Rotates so the
+  // resident doesn't hear the same sentence every time.
+  const OFFLINE_LINES = [
+    "I'm here with you. Help is on the way. Just breathe — slow and easy.",
+    "Stay right where you are. A caregiver is coming to you now. I'm not going anywhere.",
+    "You're not alone. Someone will be there very soon. I'll wait with you.",
+    "Take your time. Help is on its way. I'm listening.",
+  ];
+  const offlineCursorRef = useRef(0);
+
   const sendMessage = async (text) => {
     const userMsg = { role: "user", content: text };
     setMessages((m) => [...m, userMsg]);
@@ -373,7 +403,7 @@ export default function Kiosk() {
         kiosk_id: kiosk?.kiosk_id,
         resident_id: resident?.resident_id,
         message: text,
-      });
+      }, { timeout: 15000 });
       setMessages((m) => [...m, { role: "assistant", content: data.reply }]);
       await speak(data.reply);
       if (data.auto_emergency_detected && alert?.severity !== "emergency") {
@@ -388,7 +418,11 @@ export default function Kiosk() {
         } catch {}
       }
     } catch {
-      toast.error("AI is having a moment. Try again in a sec.");
+      // Offline fallback — never let the resident hear silence.
+      const fallback = OFFLINE_LINES[offlineCursorRef.current % OFFLINE_LINES.length];
+      offlineCursorRef.current += 1;
+      setMessages((m) => [...m, { role: "assistant", content: fallback }]);
+      await speak(fallback);
     } finally {
       setThinking(false);
     }

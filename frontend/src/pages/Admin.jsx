@@ -29,6 +29,7 @@ import TasksTab from "./TasksTab";
 import MedicationsTab from "./MedicationsTab";
 import FloorPlanTab from "./FloorPlanTab";
 import MemoryDialog from "./MemoryDialog";
+import AuditTab from "./AuditTab";
 
 export default function Admin() {
   const { user, logout } = useAuth();
@@ -110,6 +111,7 @@ export default function Admin() {
             <TabsTrigger value="family" data-testid="tab-family">Family</TabsTrigger>
             <TabsTrigger value="tokens" data-testid="tab-tokens">Device tokens</TabsTrigger>
             <TabsTrigger value="insights" data-testid="tab-insights">Insights</TabsTrigger>
+            <TabsTrigger value="audit" data-testid="tab-audit">Audit</TabsTrigger>
             <TabsTrigger value="roadmap" data-testid="tab-roadmap">Roadmap</TabsTrigger>
           </TabsList>
 
@@ -151,6 +153,9 @@ export default function Admin() {
           </TabsContent>
           <TabsContent value="insights" className="mt-6">
             <Insights />
+          </TabsContent>
+          <TabsContent value="audit" className="mt-6">
+            <AuditTab />
           </TabsContent>
           <TabsContent value="roadmap" className="mt-6">
             <Roadmap />

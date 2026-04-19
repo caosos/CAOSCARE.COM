@@ -6,12 +6,36 @@ calls `GET /api/family-portal/{portal_token}/summary` to fetch a curated, privac
 respectful view of their loved one: name, room, participation level, last-seen zone,
 recent alerts (summarized, no medical detail), and the bedtime "Daily Haiku" digest
 when generated.
+
+Rate limiting
+  Public endpoint — capped at 100 req/min per token (sliding 60s window, in-memory).
+  Protects against leaked-link abuse and accidental runaway polling on the family's
+  browser tab.
 """
+import time
+from collections import defaultdict, deque
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException
 from deps import db
 
 router = APIRouter(prefix="/family-portal", tags=["family-portal"])
+
+
+# token -> deque[unix_ts of recent requests]
+_RATE_BUCKETS: dict[str, deque] = defaultdict(deque)
+_RATE_MAX = 100       # requests
+_RATE_WINDOW = 60.0   # seconds
+
+
+def _check_rate_limit(token: str) -> None:
+    now = time.time()
+    bucket = _RATE_BUCKETS[token]
+    # drop old
+    while bucket and now - bucket[0] > _RATE_WINDOW:
+        bucket.popleft()
+    if len(bucket) >= _RATE_MAX:
+        raise HTTPException(status_code=429, detail="Too many requests — please wait a moment")
+    bucket.append(now)
 
 
 def _iso(v):
@@ -21,6 +45,7 @@ def _iso(v):
 
 
 async def _contact_by_token(token: str) -> dict:
+    _check_rate_limit(token)
     contact = await db.family_contacts.find_one({"portal_token": token}, {"_id": 0})
     if not contact:
         raise HTTPException(status_code=404, detail="Invalid or expired family link")
