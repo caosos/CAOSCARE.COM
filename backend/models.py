@@ -50,6 +50,20 @@ class LoginInput(BaseModel):
 ParticipationLevel = Literal["room_only", "pendant_enhanced", "wearable_enhanced", "family_connected", "full"]
 
 
+class ClinicalThresholds(BaseModel):
+    """Per-resident vitals bands. Any field left None → fall back to generic
+    wearable-reported event typing. These are not diagnostic — they simply
+    let CAOS stop spamming "heart rate high" alerts on a resident whose
+    resting HR happens to run above a generic default."""
+    model_config = ConfigDict(extra="ignore")
+    hr_resting_min: Optional[int] = None         # e.g. 50 bpm
+    hr_resting_max: Optional[int] = None         # e.g. 95 bpm
+    hr_exertion_max: Optional[int] = None        # e.g. 130 bpm — above this = alert regardless
+    spo2_min: Optional[int] = None               # e.g. 92 (%)
+    inactivity_minutes: Optional[int] = None     # e.g. 90 — no motion for this long = alert
+    notes: Optional[str] = ""                    # clinician note, e.g. "chronic afib, expect 100–120 resting"
+
+
 class Resident(BaseModel):
     model_config = ConfigDict(extra="ignore")
     resident_id: str = Field(default_factory=lambda: uid("res"))
@@ -64,6 +78,7 @@ class Resident(BaseModel):
     preferences: Optional[str] = ""   # likes, hobbies, prayers, comfort topics
     memory: Optional[str] = ""         # things the AI should remember about them
     preferred_name: Optional[str] = ""
+    clinical_thresholds: Optional[ClinicalThresholds] = None
     created_at: datetime = Field(default_factory=now_utc)
 
 
@@ -79,6 +94,7 @@ class ResidentCreate(BaseModel):
     preferences: Optional[str] = ""
     memory: Optional[str] = ""
     preferred_name: Optional[str] = ""
+    clinical_thresholds: Optional[ClinicalThresholds] = None
 
 
 # ---------- Kiosks / Zones ----------

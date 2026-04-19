@@ -169,7 +169,8 @@ export default function Admin() {
 /* -------------- Residents -------------- */
 function ResidentsTab({ residents, onChange }) {
   const [open, setOpen] = useState(false);
-  const emptyForm = { name: "", preferred_name: "", room: "", pendant_id: "", medical_notes: "", emergency_contact: "", preferences: "", memory: "", participation_level: "pendant_enhanced" };
+  const emptyThresholds = { hr_resting_min: "", hr_resting_max: "", hr_exertion_max: "", spo2_min: "", inactivity_minutes: "", notes: "" };
+  const emptyForm = { name: "", preferred_name: "", room: "", pendant_id: "", medical_notes: "", emergency_contact: "", preferences: "", memory: "", participation_level: "pendant_enhanced", clinical_thresholds: { ...emptyThresholds } };
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [movementFor, setMovementFor] = useState(null);
@@ -178,6 +179,7 @@ function ResidentsTab({ residents, onChange }) {
   const open_new = () => { setEditingId(null); setForm(emptyForm); setOpen(true); };
   const open_edit = (r) => {
     setEditingId(r.resident_id);
+    const ct = r.clinical_thresholds || {};
     setForm({
       name: r.name || "",
       preferred_name: r.preferred_name || "",
@@ -188,6 +190,14 @@ function ResidentsTab({ residents, onChange }) {
       preferences: r.preferences || "",
       memory: r.memory || "",
       participation_level: r.participation_level || "pendant_enhanced",
+      clinical_thresholds: {
+        hr_resting_min: ct.hr_resting_min ?? "",
+        hr_resting_max: ct.hr_resting_max ?? "",
+        hr_exertion_max: ct.hr_exertion_max ?? "",
+        spo2_min: ct.spo2_min ?? "",
+        inactivity_minutes: ct.inactivity_minutes ?? "",
+        notes: ct.notes || "",
+      },
     });
     setOpen(true);
   };
@@ -195,11 +205,24 @@ function ResidentsTab({ residents, onChange }) {
   const save = async (e) => {
     e.preventDefault();
     try {
+      // Normalize thresholds: blank strings → null; numbers → int; drop empty
+      const ct = form.clinical_thresholds || {};
+      const toNumOrNull = (v) => (v === "" || v === null || v === undefined ? null : Number(v));
+      const normalized = {
+        hr_resting_min: toNumOrNull(ct.hr_resting_min),
+        hr_resting_max: toNumOrNull(ct.hr_resting_max),
+        hr_exertion_max: toNumOrNull(ct.hr_exertion_max),
+        spo2_min: toNumOrNull(ct.spo2_min),
+        inactivity_minutes: toNumOrNull(ct.inactivity_minutes),
+        notes: ct.notes || "",
+      };
+      const anySet = Object.entries(normalized).some(([k, v]) => k !== "notes" ? v !== null : !!v);
+      const payload = { ...form, clinical_thresholds: anySet ? normalized : null };
       if (editingId) {
-        await api.put(`/residents/${editingId}`, form);
+        await api.put(`/residents/${editingId}`, payload);
         toast.success("Updated");
       } else {
-        await api.post("/residents", form);
+        await api.post("/residents", payload);
         toast.success("Resident added");
       }
       setOpen(false);
@@ -262,6 +285,45 @@ function ResidentsTab({ residents, onChange }) {
                 <Label>Things CAOS should remember <span className="text-caos-mute text-xs">(AI memory)</span></Label>
                 <Textarea data-testid="res-memory" value={form.memory} onChange={(e) => setForm({ ...form, memory: e.target.value })} placeholder="Her late husband Frank passed in 2019. She was a schoolteacher in Boston." />
               </div>
+
+              {/* Per-resident clinical thresholds — optional, suppresses false-positive
+                  wearable alerts on residents with unusual baseline vitals. */}
+              <div className="border-t border-caos-line pt-4">
+                <div className="flex items-baseline justify-between mb-1">
+                  <Label className="text-caos-forest font-semibold">Clinical thresholds <span className="text-caos-mute text-xs font-normal">(optional — wearable alerts only)</span></Label>
+                  <span className="text-[10px] uppercase tracking-[0.2em] text-caos-mute">Not diagnostic</span>
+                </div>
+                <p className="text-xs text-caos-mute mb-3 leading-relaxed">
+                  Leave blank to use generic wearable defaults. Set these for residents whose baseline vitals fall outside normal ranges (e.g. chronic AFib, athlete, COPD) so CAOS doesn't page staff for non-events.
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <div>
+                    <Label className="text-xs">Resting HR min (bpm)</Label>
+                    <Input type="number" min="20" max="200" data-testid="res-hr-min" value={form.clinical_thresholds.hr_resting_min} onChange={(e) => setForm({ ...form, clinical_thresholds: { ...form.clinical_thresholds, hr_resting_min: e.target.value } })} placeholder="50" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Resting HR max (bpm)</Label>
+                    <Input type="number" min="20" max="220" data-testid="res-hr-max" value={form.clinical_thresholds.hr_resting_max} onChange={(e) => setForm({ ...form, clinical_thresholds: { ...form.clinical_thresholds, hr_resting_max: e.target.value } })} placeholder="95" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Exertion ceiling (bpm)</Label>
+                    <Input type="number" min="40" max="240" data-testid="res-hr-exert" value={form.clinical_thresholds.hr_exertion_max} onChange={(e) => setForm({ ...form, clinical_thresholds: { ...form.clinical_thresholds, hr_exertion_max: e.target.value } })} placeholder="130" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">SpO₂ floor (%)</Label>
+                    <Input type="number" min="50" max="100" data-testid="res-spo2" value={form.clinical_thresholds.spo2_min} onChange={(e) => setForm({ ...form, clinical_thresholds: { ...form.clinical_thresholds, spo2_min: e.target.value } })} placeholder="92" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Inactivity window (min)</Label>
+                    <Input type="number" min="5" max="720" data-testid="res-inactivity" value={form.clinical_thresholds.inactivity_minutes} onChange={(e) => setForm({ ...form, clinical_thresholds: { ...form.clinical_thresholds, inactivity_minutes: e.target.value } })} placeholder="90" />
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <Label className="text-xs">Clinician note</Label>
+                  <Input data-testid="res-ct-notes" value={form.clinical_thresholds.notes} onChange={(e) => setForm({ ...form, clinical_thresholds: { ...form.clinical_thresholds, notes: e.target.value } })} placeholder="Chronic afib — expect resting 100–120" />
+                </div>
+              </div>
+
               <DialogFooter><Button type="submit" data-testid="res-save" className="bg-caos-forest">Save</Button></DialogFooter>
             </form>
           </DialogContent>

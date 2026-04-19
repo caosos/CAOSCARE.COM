@@ -101,18 +101,52 @@ async def wearable_event(evt: WearableEventInput, request: Request):
         await db.locations.insert_one(loc_doc)
         loc_doc.pop("_id", None)
 
-    # No alert for periodic pings or plain inactivity
-    if evt.event_type in ("periodic_ping",):
-        return {"ok": True, "wearable": wearable["wearable_id"], "alert": None}
-
-    # Create alert
+    # Resolve resident + per-resident clinical thresholds first — we use
+    # them both for HR filtering and for enriching the alert.
     resident_name = None
     room = None
+    thresholds = None
     if wearable.get("resident_id"):
         r = await db.residents.find_one({"resident_id": wearable["resident_id"]}, {"_id": 0})
         if r:
             resident_name = r["name"]
             room = r.get("room")
+            thresholds = r.get("clinical_thresholds") or None
+
+    # Re-evaluate event_type against the resident's personal bands. The
+    # wearable's firmware uses generic defaults; we can either suppress a
+    # false-positive or upgrade a "periodic_ping" into a real alert.
+    effective_event = evt.event_type
+    if evt.heart_rate is not None and thresholds:
+        hr = evt.heart_rate
+        hr_min = thresholds.get("hr_resting_min")
+        hr_max = thresholds.get("hr_resting_max")
+        hr_exertion_max = thresholds.get("hr_exertion_max")
+
+        # Suppress a generic heart_rate_high if HR is within this resident's
+        # personal resting band (and below their exertion ceiling).
+        if effective_event == "heart_rate_high":
+            if hr_exertion_max is not None and hr < hr_exertion_max and (hr_max is None or hr <= hr_max):
+                effective_event = "periodic_ping"
+            elif hr_max is not None and hr <= hr_max:
+                effective_event = "periodic_ping"
+        if effective_event == "heart_rate_low":
+            if hr_min is not None and hr >= hr_min:
+                effective_event = "periodic_ping"
+
+        # Upgrade an otherwise-silent ping if HR drifts outside the band.
+        if effective_event == "periodic_ping":
+            if hr_exertion_max is not None and hr >= hr_exertion_max:
+                effective_event = "heart_rate_high"
+            elif hr_max is not None and hr > hr_max:
+                effective_event = "heart_rate_high"
+            elif hr_min is not None and hr < hr_min:
+                effective_event = "heart_rate_low"
+
+    # Ping-class events never page staff — return after thresholding.
+    if effective_event == "periodic_ping":
+        return {"ok": True, "wearable": wearable["wearable_id"], "alert": None,
+                "suppressed_event": evt.event_type if evt.event_type != "periodic_ping" else None}
 
     severity_map = {
         "press": "assist",
@@ -121,10 +155,12 @@ async def wearable_event(evt: WearableEventInput, request: Request):
         "heart_rate_low": "emergency",
         "inactivity": "assist",
     }
-    severity = severity_map.get(evt.event_type, "assist")
-    msg = f"Wearable {evt.event_type.replace('_', ' ')}"
+    severity = severity_map.get(effective_event, "assist")
+    msg = f"Wearable {effective_event.replace('_', ' ')}"
     if evt.heart_rate:
         msg += f" · HR {evt.heart_rate}"
+    if effective_event != evt.event_type:
+        msg += f" (upgraded from {evt.event_type} via resident thresholds)"
 
     alert = Alert(
         resident_id=wearable.get("resident_id"),

@@ -6,6 +6,7 @@ import { Toaster } from "./components/ui/sonner";
 
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
+import AdminLogin from "./pages/AdminLogin";
 import Kiosk from "./pages/Kiosk";
 import StaffDashboard from "./pages/StaffDashboard";
 import Admin from "./pages/Admin";
@@ -36,6 +37,7 @@ function AppRouter() {
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/admin-login" element={<AdminLogin />} />
       <Route path="/kiosk/:kioskId" element={<Kiosk />} />
       <Route path="/family/:token" element={<FamilyPortal />} />
       <Route path="/staff" element={<Protected><StaffDashboard /></Protected>} />

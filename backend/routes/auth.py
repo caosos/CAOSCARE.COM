@@ -1,5 +1,6 @@
 """Auth routes - JWT login/register + Emergent Google session exchange."""
 import os
+import time
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException, Request, Response, Depends
 from pydantic import BaseModel
@@ -15,6 +16,34 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 JWT_SECRET = os.environ["JWT_SECRET"]
 JWT_ALGO = "HS256"
 JWT_EXPIRE_DAYS = 7
+
+# Dummy bcrypt hash used to equalize timing when the email is unknown, so
+# /admin-login doesn't leak which admin emails exist via response latency.
+_DUMMY_HASH = bcrypt.hashpw(b"dummy_placeholder_never_matches", bcrypt.gensalt()).decode()
+
+# Simple in-memory admin-login throttle: { "ip:email": [ts, ts, ...] }. Any
+# identifier with 5+ failed attempts in the last 15 min is locked out.
+_ADMIN_ATTEMPTS: dict[str, list[float]] = {}
+ADMIN_LOCKOUT_MAX = 5
+ADMIN_LOCKOUT_WINDOW_S = 15 * 60
+
+
+def _admin_throttle_check(ip: str, email: str) -> None:
+    key = f"{ip}:{email.lower()}"
+    now = time.time()
+    attempts = [t for t in _ADMIN_ATTEMPTS.get(key, []) if now - t < ADMIN_LOCKOUT_WINDOW_S]
+    _ADMIN_ATTEMPTS[key] = attempts
+    if len(attempts) >= ADMIN_LOCKOUT_MAX:
+        raise HTTPException(status_code=429, detail="Too many admin sign-in attempts. Try again in 15 minutes.")
+
+
+def _admin_throttle_record(ip: str, email: str) -> None:
+    key = f"{ip}:{email.lower()}"
+    _ADMIN_ATTEMPTS.setdefault(key, []).append(time.time())
+
+
+def _admin_throttle_clear(ip: str, email: str) -> None:
+    _ADMIN_ATTEMPTS.pop(f"{ip}:{email.lower()}", None)
 
 
 def _hash_pw(pw: str) -> str:
@@ -66,6 +95,43 @@ async def login(data: LoginInput):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     if not _verify_pw(data.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    token = _issue_jwt(user["user_id"])
+    return {
+        "token": token,
+        "user": UserPublic(**user).model_dump(),
+    }
+
+
+@router.post("/admin-login")
+async def admin_login(data: LoginInput, request: Request):
+    """Admin-only sign-in. Separate endpoint so the admin console has its own
+    branded path and staff credentials can't slip in through the front door.
+
+    - Rate-limited per (ip, email) to slow brute-force attempts on admin accounts.
+    - Constant-time response when email is unknown — no user enumeration.
+    - Rejects non-admin accounts with a 403 and a message pointing them to /login.
+    """
+    client_ip = (request.client.host if request.client else "") or request.headers.get("x-forwarded-for", "unknown")
+    _admin_throttle_check(client_ip, data.email)
+
+    user = await db.users.find_one({"email": data.email.lower()}, {"_id": 0})
+
+    # Always run bcrypt once so missing-user responses are timing-equivalent.
+    pw_ok = _verify_pw(data.password, user["password_hash"] if user and user.get("password_hash") else _DUMMY_HASH)
+
+    if not user or not user.get("password_hash") or not pw_ok:
+        _admin_throttle_record(client_ip, data.email)
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    if user.get("role") != "admin":
+        # Do NOT increment the lockout counter for a valid staff login — that
+        # would let a malicious admin lock out legit staff. Just redirect.
+        raise HTTPException(
+            status_code=403,
+            detail="These are staff credentials. Please sign in at the staff portal.",
+        )
+
+    _admin_throttle_clear(client_ip, data.email)
     token = _issue_jwt(user["user_id"])
     return {
         "token": token,

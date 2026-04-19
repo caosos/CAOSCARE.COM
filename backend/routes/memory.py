@@ -153,11 +153,14 @@ async def extract_and_store_memories(resident_id: str, session_id: str, user_tex
             f"User said: \"{user_text}\"\nCAOS replied: \"{assistant_text}\"\n\n"
             f"Return JSON array of new durable memories."
         )
+        # Haiku 4.5 runs the extractor at a fraction of Sonnet's cost per
+        # turn. The prompt is small and the output is strictly-formatted JSON
+        # so Haiku's speed/accuracy trade-off is the right call here.
         llm = LlmChat(
             api_key=EMERGENT_KEY,
             session_id=f"extractor-{resident_id}",
             system_message=EXTRACTOR_SYSTEM,
-        ).with_model("anthropic", "claude-sonnet-4-5-20250929")
+        ).with_model("anthropic", "claude-haiku-4-5-20251001")
         raw = await llm.send_message(UserMessage(text=prompt))
         raw = (raw or "").strip()
         # Strip code fences if Claude wraps it

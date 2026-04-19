@@ -145,9 +145,15 @@ export default function Login() {
               </Button>
 
               <div className="mt-6 text-sm text-caos-mute bg-caos-ambient rounded-xl p-4">
-                <p className="font-semibold text-caos-forest">Demo credentials</p>
-                <p className="mt-1">Admin: <span className="font-mono">admin@caoscare.com / admin1234</span></p>
-                <p>Staff: <span className="font-mono">nurse@caoscare.com / nurse1234</span></p>
+                <p className="font-semibold text-caos-forest">Demo staff credentials</p>
+                <p className="mt-1">Staff: <span className="font-mono">nurse@caoscare.com / nurse1234</span></p>
+                <Link
+                  to="/admin-login"
+                  data-testid="login-to-admin-link"
+                  className="inline-block mt-3 text-xs font-bold uppercase tracking-[0.22em] text-caos-forest hover:text-caos-forest-hover underline"
+                >
+                  Administrator sign-in →
+                </Link>
               </div>
             </TabsContent>
 
