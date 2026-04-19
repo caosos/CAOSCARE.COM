@@ -29,6 +29,14 @@ Wander / geofencing (restricted zones auto-alert), movement timeline per residen
 - **Roadmap shipped**: Phase 1 5/5 ✅, Phase 2 6/6 ✅, Phase 3 8/8 ✅, Phase 4 6/6 ✅, Cross-cutting 7/10 ✅. Only open items: Twilio/Resend keys pending, AI-vision glasses (future hardware), daily haiku digest generator (cron-style, not yet wired).
 - **Tests**: 80/80 backend + 100% frontend. HMAC round-trip verified (valid sig → 200, invalid sig → 401).
 
+### Iteration 8 (Feb 2026) — Python-backed lifelong memory server
+- **db.conversations** — every chat turn logged per resident. Last 40 turns flattened into a transcript block in Claude's system prompt so the AI picks up mid-conversation across sessions, across days.
+- **db.memories** — discrete learned facts. Fields: `text`, `category` (family/preferences/health/history/daily_pattern/concern/relationship/milestone/other), `importance` 1-5, `pinned`, `source` (extraction/chat/admin/staff/family), `times_referenced`, `last_referenced_at`. Pinned memories always in context.
+- **Auto-extraction**: after each AI reply, `asyncio.create_task` fires a background Claude call that reads the exchange, proposes new memory rows, dedupes by prefix, stores with `source="extraction"`. Best-effort — never blocks the response.
+- **Admin UI**: per-resident **Memory** button on ResidentsTab → `MemoryDialog` with two tabs. Memories tab: CRUD, pin/unpin, set importance via 5-dot widget, manual "Teach CAOS something" form. Conversation tab: full chronological transcript.
+- **Verified across sessions**: turn 1 in session A teaches CAOS a fact → turn 2 in session B (same resident) recalls it. `memories_used` + `history_replayed` exposed in `/api/ai/chat` response.
+- **Tests**: 13/13 backend + full frontend E2E, zero critical issues.
+
 ### Iteration 7 (Feb 2026) — CRITICAL SAFETY FIX
 - **Hands-free voice conversation on every pendant press**: removed the ≥2-press requirement for `auto_voice`. Any pendant press (single, panic, or fall) and any wearable press/fall now sets `auto_voice=true` so the in-room kiosk opens a continuous voice conversation. Severity escalation (assist → emergency) still happens on 2+ presses in 60s.
 - **Continuous voice loop** (`Kiosk.jsx`): AI speaks → short 880Hz beep cue → kiosk records up to 8s → Whisper STT → Claude reply → TTS → next iteration. Exits on (a) resident exit phrases like "I'm fine" / "never mind" / "that's all", (b) staff resolving the alert (kiosk detects via 4s polling, says "A caregiver is with you now — I'll step back."), or (c) Never mind button.

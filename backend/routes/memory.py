@@ -26,6 +26,7 @@ Retrieval
 import os
 import json
 import logging
+import re
 from datetime import timedelta
 from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Depends
@@ -174,10 +175,11 @@ async def extract_and_store_memories(resident_id: str, session_id: str, user_tex
             text = (it.get("text") or "").strip()
             if not text or len(text) > 400:
                 continue
-            # Dedupe by resident_id + near-identical text (first 80 chars)
+            # Dedupe by resident_id + near-identical text prefix (first 60 chars, regex-safe)
+            prefix = re.escape(text[:60].strip())
             existing = await db.memories.find_one({
                 "resident_id": resident_id,
-                "text": {"$regex": f"^{text[:60].replace('.', ' ')[:60].strip()}", "$options": "i"},
+                "text": {"$regex": f"^{prefix}", "$options": "i"},
             }, {"_id": 0})
             if existing:
                 continue

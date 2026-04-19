@@ -588,8 +588,3 @@ class ResidentMemoryUpdate(BaseModel):
     category: Optional[MemoryCategory] = None
     importance: Optional[int] = None
     pinned: Optional[bool] = None
-
-    resident_id: Optional[str] = None
-    room: Optional[str] = None
-    recur: Literal["daily", "weekly", "per_shift"] = "daily"
-    active: bool = True
