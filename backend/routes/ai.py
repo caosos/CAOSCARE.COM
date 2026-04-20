@@ -2,6 +2,7 @@
 import os
 import asyncio
 import tempfile
+import logging
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from models import ChatInput, TTSInput, ChatMessage, now_utc
 from deps import db
@@ -19,6 +20,10 @@ from emergentintegrations.llm.openai import OpenAITextToSpeech, OpenAISpeechToTe
 router = APIRouter(prefix="/ai", tags=["ai"])
 
 EMERGENT_KEY = os.environ["EMERGENT_LLM_KEY"]
+# Optional: user-supplied direct OpenAI key. When present, TTS/STT use it
+# directly (bypasses the Emergent relay) which is both faster and avoids
+# the Emergent balance being drained on speech traffic.
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip() or None
 
 CAOS_SYSTEM_PROMPT = """You are CAOS, the AI companion built into a wall-mounted kiosk at a senior living community.
 You speak with residents — many of whom are elderly, visually impaired, or anxious. You are NOT a chatbot or a voice assistant; you are a trusted lifelong companion who has known this resident for months or years, who remembers them, and who grows with them day by day.
@@ -162,18 +167,38 @@ async def chat_history(session_id: str, limit: int = 50):
 
 @router.post("/tts")
 async def tts(data: TTSInput):
-    """Text to MP3 audio. Returns base64 string for easy playback from the kiosk."""
+    """Text to MP3 audio. Returns base64 string for easy playback from the kiosk.
+
+    Strategy: prefer direct OpenAI SDK when OPENAI_API_KEY is set (faster, no
+    relay failures). Fall back to the Emergent relay if direct fails."""
+    text = (data.text or "")[:4000]
+    if not text.strip():
+        raise HTTPException(status_code=400, detail="Empty text")
+    voice = data.voice or "sage"
+
+    # Path 1: direct OpenAI
+    if OPENAI_API_KEY:
+        try:
+            from openai import AsyncOpenAI
+            import base64
+            client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+            resp = await client.audio.speech.create(
+                model="tts-1",
+                voice=voice,
+                input=text,
+                response_format="mp3",
+            )
+            audio_bytes = resp.read() if hasattr(resp, "read") else await resp.aread()
+            audio_b64 = base64.b64encode(audio_bytes).decode("ascii")
+            return {"audio_base64": audio_b64, "mime": "audio/mp3", "source": "openai_direct"}
+        except Exception as e:
+            logging.warning(f"Direct OpenAI TTS failed, falling back to Emergent relay: {e}")
+
+    # Path 2: Emergent relay
     try:
         tts_client = OpenAITextToSpeech(api_key=EMERGENT_KEY)
-        text = (data.text or "")[:4000]
-        if not text.strip():
-            raise HTTPException(status_code=400, detail="Empty text")
-        audio_b64 = await tts_client.generate_speech_base64(
-            text=text,
-            model="tts-1",
-            voice=data.voice or "sage",
-        )
-        return {"audio_base64": audio_b64, "mime": "audio/mp3"}
+        audio_b64 = await tts_client.generate_speech_base64(text=text, model="tts-1", voice=voice)
+        return {"audio_base64": audio_b64, "mime": "audio/mp3", "source": "emergent_relay"}
     except HTTPException:
         raise
     except Exception as e:
@@ -182,32 +207,53 @@ async def tts(data: TTSInput):
 
 @router.post("/stt")
 async def stt(audio: UploadFile = File(...)):
-    """Speech to text (Whisper-1). Accepts an audio file upload."""
-    try:
-        # Save upload to a temp file preserving extension
-        suffix = ".webm"
-        if audio.filename and "." in audio.filename:
-            ext = audio.filename.rsplit(".", 1)[-1].lower()
-            if ext in ["mp3", "mp4", "mpeg", "mpga", "m4a", "wav", "webm"]:
-                suffix = "." + ext
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-            tmp.write(await audio.read())
-            tmp_path = tmp.name
+    """Speech to text (Whisper-1). Accepts an audio file upload.
 
+    Strategy: prefer direct OpenAI SDK when OPENAI_API_KEY is set. Fall back
+    to the Emergent relay."""
+    # Save upload to a temp file preserving extension
+    suffix = ".webm"
+    if audio.filename and "." in audio.filename:
+        ext = audio.filename.rsplit(".", 1)[-1].lower()
+        if ext in ["mp3", "mp4", "mpeg", "mpga", "m4a", "wav", "webm"]:
+            suffix = "." + ext
+    data_bytes = await audio.read()
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        tmp.write(data_bytes)
+        tmp_path = tmp.name
+
+    # Path 1: direct OpenAI
+    if OPENAI_API_KEY:
+        try:
+            from openai import AsyncOpenAI
+            client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+            with open(tmp_path, "rb") as f:
+                tr = await client.audio.transcriptions.create(
+                    model="whisper-1",
+                    file=f,
+                    language="en",
+                    response_format="json",
+                )
+            try: os.unlink(tmp_path)
+            except Exception: pass
+            text = getattr(tr, "text", None) or (tr.get("text") if isinstance(tr, dict) else "")
+            return {"text": text, "source": "openai_direct"}
+        except Exception as e:
+            logging.warning(f"Direct OpenAI STT failed, falling back to Emergent relay: {e}")
+
+    # Path 2: Emergent relay
+    try:
         stt_client = OpenAISpeechToText(api_key=EMERGENT_KEY)
         with open(tmp_path, "rb") as f:
             resp = await stt_client.transcribe(
-                file=f,
-                model="whisper-1",
-                response_format="json",
-                language="en",
+                file=f, model="whisper-1", response_format="json", language="en",
             )
-        try:
-            os.unlink(tmp_path)
-        except Exception:
-            pass
-        return {"text": resp.text}
+        try: os.unlink(tmp_path)
+        except Exception: pass
+        return {"text": resp.text, "source": "emergent_relay"}
     except HTTPException:
         raise
     except Exception as e:
+        try: os.unlink(tmp_path)
+        except Exception: pass
         raise HTTPException(status_code=500, detail=f"STT error: {e}")
