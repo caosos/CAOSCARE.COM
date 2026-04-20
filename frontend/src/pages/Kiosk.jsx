@@ -47,6 +47,19 @@ export default function Kiosk() {
   const cycleTextSize = () => setTextSize((s) => (s === "md" ? "lg" : s === "lg" ? "xl" : "md"));
   const a11yRootClass = `${textSize === "lg" ? "kiosk-text-lg" : textSize === "xl" ? "kiosk-text-xl" : ""} ${highContrast ? "kiosk-hc" : ""}`.trim();
 
+  // Quiet-companionship mode — resident wants CAOS nearby but not chatty.
+  // In quiet mode: no beeps, longer listen windows, only *clearly* loud
+  // speech wakes a reply. Triggered by voice phrase ("sit quietly with me")
+  // or the Quiet button on the chat screen.
+  const [quietMode, setQuietMode] = useState(false);
+  const quietModeRef = useRef(false);
+  useEffect(() => { quietModeRef.current = quietMode; }, [quietMode]);
+
+  // TVs-were-muted tracking: when a voice call begins we auto-mute any TV
+  // in the room so the mic doesn't pick up Wheel of Fortune dialogue as
+  // resident speech. On call end, we restore the prior power state.
+  const mutedDevicesRef = useRef([]); // [{ device_id, prior_power }]
+
   // Prime browser audio + mic permission on the first user click.
   // Without a user gesture, Chrome will silently block both TTS playback and getUserMedia.
   const primeMedia = async () => {
@@ -152,6 +165,19 @@ export default function Kiosk() {
 
   const beginConversation = async (a) => {
     setCallState("chatting");
+    // Auto-mute any TVs or loud audio devices in the room so the mic
+    // doesn't pick them up as resident speech. Restore on call end.
+    mutedDevicesRef.current = [];
+    try {
+      const noisy = (devices || []).filter((d) => (d.kind === "tv" || d.kind === "speaker") && d.state?.power === "on");
+      for (const d of noisy) {
+        try {
+          await axios.post(`${API}/devices/public/room/${kiosk.room}/command`, { action: "power", value: "off" });
+          mutedDevicesRef.current.push({ device_id: d.device_id, prior_power: "on" });
+        } catch { /* ignore */ }
+      }
+    } catch { /* ignore */ }
+
     const name = (a.resident_name || resident?.name || "there").split(" ")[0];
     const line = a.press_count >= 2
       ? `I'm here, ${name}. I've called for help — they're on their way. Stay with me. Tell me what's happening.`
@@ -164,8 +190,10 @@ export default function Kiosk() {
   };
 
   // ---------- Continuous voice loop (hands-free) ----------
-  // Plays a short beep so blind residents know it's listening.
+  // Plays a short beep so blind residents know it's listening. Suppressed
+  // in quiet companionship mode.
   const playBeep = () => {
+    if (quietModeRef.current) return;
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
       const osc = ctx.createOscillator();
@@ -179,9 +207,32 @@ export default function Kiosk() {
     } catch { /* noop */ }
   };
 
-  // Listen for up to ~14s per turn. Elderly speech pace is slower — 8s
-  // was cutting residents off mid-sentence, so we give them more room.
-  const LISTEN_MS = 14000;
+  // Post-hoc RMS analysis — any recording whose average audio energy is
+  // below this threshold is treated as "silence or background noise"
+  // (e.g. TV at low volume, hallway chatter). Prevents Whisper from
+  // dutifully transcribing TV dialogue and CAOS replying to it.
+  const ACTIVE_RMS = 0.018;   // clear resident speech sits around 0.03-0.1
+  const QUIET_RMS = 0.045;    // in quiet mode, demand noticeably louder speech
+  const computeRms = async (blob) => {
+    try {
+      const buf = await blob.arrayBuffer();
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      const actx = new Ctx();
+      const audioBuf = await actx.decodeAudioData(buf);
+      const ch = audioBuf.getChannelData(0);
+      let sum = 0;
+      for (let i = 0; i < ch.length; i++) sum += ch[i] * ch[i];
+      try { actx.close(); } catch {}
+      return Math.sqrt(sum / Math.max(ch.length, 1));
+    } catch {
+      return 1; // on decode failure, assume speech — don't starve the loop
+    }
+  };
+
+  // Listen for up to ~14s per turn (22s in quiet mode). Elderly speech pace
+  // is slower — 8s was cutting residents off mid-sentence.
+  const LISTEN_MS_ACTIVE = 14000;
+  const LISTEN_MS_QUIET = 22000;
   const MIN_BLOB_BYTES = 800; // quieter voices still count as speech
   const listenOnce = () =>
     new Promise(async (resolve) => {
@@ -211,9 +262,10 @@ export default function Kiosk() {
         mediaRef.current = rec;
         rec.start(250); // emit chunks every 250ms so we never end up with an empty blob
         setRecording(true);
+        const window_ms = quietModeRef.current ? LISTEN_MS_QUIET : LISTEN_MS_ACTIVE;
         setTimeout(() => {
           try { if (rec.state !== "inactive") rec.stop(); } catch {}
-        }, LISTEN_MS);
+        }, window_ms);
       } catch {
         try { stream.getTracks().forEach((t) => t.stop()); } catch {}
         setRecording(false);
@@ -230,20 +282,23 @@ export default function Kiosk() {
       playBeep();
       const blob = await listenOnce();
       if (!voiceLoopRef.current) break;
-      if (!blob || blob.size < MIN_BLOB_BYTES) {
+      // Energy gate — filters out TV, hallway noise, or very quiet ambient.
+      const rmsGate = quietModeRef.current ? QUIET_RMS : ACTIVE_RMS;
+      let rms = 0;
+      if (blob && blob.size >= MIN_BLOB_BYTES) {
+        rms = await computeRms(blob);
+      }
+      const speechDetected = blob && blob.size >= MIN_BLOB_BYTES && rms >= rmsGate;
+      if (!speechDetected) {
         emptyRounds++;
-        if (emptyRounds === 2) {
-          await speak("I'm still here. Take your time.");
-          continue;
-        }
-        if (emptyRounds === 4) {
-          await speak("No rush. I'll stay with you.");
-          continue;
-        }
-        if (emptyRounds >= 6) {
-          // ~90s of silence — politely step back but do NOT close the alert.
-          await speak("I'll wait quietly. Speak any time and I'll come right back.");
-          break;
+        // Quiet mode stays patient indefinitely — no reassurance speak-backs.
+        if (!quietModeRef.current) {
+          if (emptyRounds === 2) { await speak("I'm still here. Take your time."); continue; }
+          if (emptyRounds === 4) { await speak("No rush. I'll stay with you."); continue; }
+          if (emptyRounds >= 6) {
+            await speak("I'll wait quietly. Speak any time and I'll come right back.");
+            break;
+          }
         }
         continue;
       }
@@ -260,13 +315,35 @@ export default function Kiosk() {
       if (!voiceLoopRef.current) break;
       if (!text) continue;
 
+      // Intent phrases
+      const lower = text.toLowerCase();
+
+      // Quiet-mode toggles (by voice)
+      const quietTriggers = [
+        "sit quietly with me", "just sit with me", "sit with me quietly",
+        "stop talking for now", "be quiet for a bit", "shh",
+      ];
+      const chatAgainTriggers = [
+        "talk to me", "keep me company", "let's talk", "i want to talk",
+        "speak again", "say something",
+      ];
+      if (quietTriggers.some((k) => lower.includes(k)) && !quietModeRef.current) {
+        setQuietMode(true);
+        await speak("Of course. I'll sit with you. Speak anytime.");
+        continue;
+      }
+      if (chatAgainTriggers.some((k) => lower.includes(k)) && quietModeRef.current) {
+        setQuietMode(false);
+        await speak("I'm right here.");
+        continue;
+      }
+
       // Exit phrase heuristic — ONLY unambiguous dismissals. Conversational
       // fillers like "I'm fine" or "I'm okay" must NOT end the loop, because
       // a resident saying "I'll just sit quietly, I'm okay" means the
       // opposite — they want company, just less talking.
-      const lower = text.toLowerCase();
       const exitKeywords = [
-        "goodbye caos", "bye caos", "stop talking", "stop listening",
+        "goodbye caos", "bye caos", "stop listening",
         "leave me alone", "that's all i need", "that is all i need",
         "i'm done talking", "im done talking", "i am done talking",
         "no more questions", "please be quiet",
@@ -385,6 +462,17 @@ export default function Kiosk() {
     if (audioRef.current) {
       try { audioRef.current.pause(); } catch {}
     }
+    // Restore any TVs/speakers we muted when the call began.
+    if (mutedDevicesRef.current.length) {
+      for (const m of mutedDevicesRef.current) {
+        if (m.prior_power === "on") {
+          try {
+            await axios.post(`${API}/devices/public/room/${kiosk.room}/command`, { action: "power", value: "on" });
+          } catch { /* ignore */ }
+        }
+      }
+      mutedDevicesRef.current = [];
+    }
     setAlert(null);
     setMessages([]);
     setCallState("idle");
@@ -392,6 +480,7 @@ export default function Kiosk() {
     setAutoVoice(false);
     setRecording(false);
     setThinking(false);
+    setQuietMode(false);
   };
 
   const sendDeviceCommand = async (action, value) => {
@@ -740,9 +829,24 @@ export default function Kiosk() {
                 {!speaking && !recording && !thinking && (
                   <div className="flex flex-col items-center gap-2">
                     <Mic className="w-16 h-16 text-caos-mute" />
-                    <p className="text-xl font-display font-medium text-caos-mute">Ready</p>
+                    <p className="text-xl font-display font-medium text-caos-mute">
+                      {quietMode ? "Quiet mode — I'm right here" : "Ready"}
+                    </p>
                   </div>
                 )}
+                {/* Quiet-mode toggle — big, simple, one tap */}
+                <button
+                  onClick={() => setQuietMode((v) => !v)}
+                  data-testid="kiosk-quiet-toggle"
+                  aria-pressed={quietMode}
+                  className={`mt-4 px-6 py-3 rounded-full text-sm font-bold uppercase tracking-[0.2em] border-2 transition-all ${
+                    quietMode
+                      ? "bg-caos-forest text-white border-caos-forest"
+                      : "bg-white text-caos-forest border-caos-forest hover:bg-caos-forest hover:text-white"
+                  }`}
+                >
+                  {quietMode ? "★ Sitting with you — tap to chat" : "Sit quietly with me"}
+                </button>
               </div>
             ) : (
               <Button
