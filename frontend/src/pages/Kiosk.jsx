@@ -179,7 +179,10 @@ export default function Kiosk() {
     } catch { /* noop */ }
   };
 
-  // Listen for up to 8s, resolve blob (or null on abort).
+  // Listen for up to ~14s per turn. Elderly speech pace is slower — 8s
+  // was cutting residents off mid-sentence, so we give them more room.
+  const LISTEN_MS = 14000;
+  const MIN_BLOB_BYTES = 800; // quieter voices still count as speech
   const listenOnce = () =>
     new Promise(async (resolve) => {
       if (!voiceLoopRef.current) return resolve(null);
@@ -210,7 +213,7 @@ export default function Kiosk() {
         setRecording(true);
         setTimeout(() => {
           try { if (rec.state !== "inactive") rec.stop(); } catch {}
-        }, 8000);
+        }, LISTEN_MS);
       } catch {
         try { stream.getTracks().forEach((t) => t.stop()); } catch {}
         setRecording(false);
@@ -219,21 +222,27 @@ export default function Kiosk() {
     });
 
   const runVoiceLoop = async () => {
-    // Keep going until voiceLoopRef flipped off (cancel / alert resolved)
+    // Keep going until voiceLoopRef flipped off (cancel / alert resolved).
+    // Empty-round tolerance is deliberately generous: residents may sit
+    // quietly with CAOS for long stretches and still want it nearby.
     let emptyRounds = 0;
     while (voiceLoopRef.current && callStateRef.current !== "idle") {
       playBeep();
       const blob = await listenOnce();
       if (!voiceLoopRef.current) break;
-      if (!blob || blob.size < 1500) {
+      if (!blob || blob.size < MIN_BLOB_BYTES) {
         emptyRounds++;
-        if (emptyRounds === 1) {
+        if (emptyRounds === 2) {
           await speak("I'm still here. Take your time.");
           continue;
         }
-        if (emptyRounds >= 3) {
-          // No response after 3 tries — stop politely but keep alert open
-          await speak("I'll wait quietly. Press the button or speak when you need me.");
+        if (emptyRounds === 4) {
+          await speak("No rush. I'll stay with you.");
+          continue;
+        }
+        if (emptyRounds >= 6) {
+          // ~90s of silence — politely step back but do NOT close the alert.
+          await speak("I'll wait quietly. Speak any time and I'll come right back.");
           break;
         }
         continue;
@@ -251,9 +260,17 @@ export default function Kiosk() {
       if (!voiceLoopRef.current) break;
       if (!text) continue;
 
-      // Exit phrase heuristic
+      // Exit phrase heuristic — ONLY unambiguous dismissals. Conversational
+      // fillers like "I'm fine" or "I'm okay" must NOT end the loop, because
+      // a resident saying "I'll just sit quietly, I'm okay" means the
+      // opposite — they want company, just less talking.
       const lower = text.toLowerCase();
-      const exitKeywords = ["i'm fine", "i am fine", "never mind", "nevermind", "that's all", "thats all", "thank you goodbye", "all done", "i'm okay", "im okay"];
+      const exitKeywords = [
+        "goodbye caos", "bye caos", "stop talking", "stop listening",
+        "leave me alone", "that's all i need", "that is all i need",
+        "i'm done talking", "im done talking", "i am done talking",
+        "no more questions", "please be quiet",
+      ];
       const wantsExit = exitKeywords.some((k) => lower.includes(k));
 
       await sendMessage(text);
