@@ -146,10 +146,21 @@ async def alerts_feed(user=Depends(get_current_user)):
 
 @router.post("/{alert_id}/acknowledge")
 async def acknowledge(alert_id: str, user=Depends(get_current_user)):
-    now = now_utc().isoformat()
+    now_dt = now_utc()
+    now = now_dt.isoformat()
+    existing = await db.alerts.find_one({"alert_id": alert_id}, {"_id": 0})
+    update = {"status": "acknowledged", "acknowledged_by": user["name"], "acknowledged_at": now}
+    if existing and existing.get("created_at"):
+        try:
+            created = datetime.fromisoformat(existing["created_at"]) if isinstance(existing["created_at"], str) else existing["created_at"]
+            if created.tzinfo is None:
+                created = created.replace(tzinfo=timezone.utc)
+            update["response_seconds"] = int((now_dt - created).total_seconds())
+        except Exception:
+            pass
     r = await db.alerts.update_one(
         {"alert_id": alert_id, "status": "active"},
-        {"$set": {"status": "acknowledged", "acknowledged_by": user["name"], "acknowledged_at": now}},
+        {"$set": update},
     )
     if r.matched_count == 0:
         raise HTTPException(status_code=404, detail="Alert not active or not found")
@@ -159,10 +170,23 @@ async def acknowledge(alert_id: str, user=Depends(get_current_user)):
 
 @router.post("/{alert_id}/resolve")
 async def resolve(alert_id: str, user=Depends(get_current_user)):
-    now = now_utc().isoformat()
+    now_dt = now_utc()
+    now = now_dt.isoformat()
+    existing = await db.alerts.find_one({"alert_id": alert_id}, {"_id": 0})
+    update = {"status": "resolved", "resolved_by": user["name"], "resolved_at": now}
+    if existing:
+        anchor = existing.get("acknowledged_at") or existing.get("created_at")
+        if anchor:
+            try:
+                anc = datetime.fromisoformat(anchor) if isinstance(anchor, str) else anchor
+                if anc.tzinfo is None:
+                    anc = anc.replace(tzinfo=timezone.utc)
+                update["duration_seconds"] = int((now_dt - anc).total_seconds())
+            except Exception:
+                pass
     r = await db.alerts.update_one(
         {"alert_id": alert_id, "status": {"$in": ["active", "acknowledged"]}},
-        {"$set": {"status": "resolved", "resolved_by": user["name"], "resolved_at": now}},
+        {"$set": update},
     )
     if r.matched_count == 0:
         raise HTTPException(status_code=404, detail="Alert not found")
@@ -172,17 +196,32 @@ async def resolve(alert_id: str, user=Depends(get_current_user)):
 
 @router.post("/{alert_id}/close")
 async def close_alert(alert_id: str, data: AlertClose, user=Depends(get_current_user)):
-    """Resolve + capture outcome and close-out notes (operational truth)."""
-    now = now_utc().isoformat()
+    """Resolve + capture outcome, category, and close-out notes (operational truth)."""
+    now_dt = now_utc()
+    now = now_dt.isoformat()
+    existing = await db.alerts.find_one({"alert_id": alert_id}, {"_id": 0})
+    update = {
+        "status": "resolved",
+        "resolved_by": user["name"],
+        "resolved_at": now,
+        "outcome": data.outcome,
+        "close_notes": data.close_notes or "",
+    }
+    if data.category:
+        update["category"] = data.category
+    if existing:
+        anchor = existing.get("acknowledged_at") or existing.get("created_at")
+        if anchor:
+            try:
+                anc = datetime.fromisoformat(anchor) if isinstance(anchor, str) else anchor
+                if anc.tzinfo is None:
+                    anc = anc.replace(tzinfo=timezone.utc)
+                update["duration_seconds"] = int((now_dt - anc).total_seconds())
+            except Exception:
+                pass
     r = await db.alerts.update_one(
         {"alert_id": alert_id, "status": {"$in": ["active", "acknowledged", "resolved"]}},
-        {"$set": {
-            "status": "resolved",
-            "resolved_by": user["name"],
-            "resolved_at": now,
-            "outcome": data.outcome,
-            "close_notes": data.close_notes or "",
-        }},
+        {"$set": update},
     )
     if r.matched_count == 0:
         raise HTTPException(status_code=404, detail="Alert not found")
@@ -190,6 +229,16 @@ async def close_alert(alert_id: str, data: AlertClose, user=Depends(get_current_
     for k in ("created_at", "acknowledged_at", "resolved_at"):
         if doc.get(k) and not isinstance(doc[k], str):
             doc[k] = doc[k].isoformat()
+
+    # Auto-classify the category + AI summary if not set by staff
+    try:
+        from routes.ai import classify_alert_background
+        import asyncio
+        if not doc.get("category") or not doc.get("ai_summary"):
+            asyncio.create_task(classify_alert_background(doc["alert_id"]))
+    except Exception:
+        pass
+
     return doc
 
 

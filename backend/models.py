@@ -142,6 +142,10 @@ class ZoneCreate(BaseModel):
 # ---------- Alerts ----------
 AlertSeverity = Literal["emergency", "assist", "comfort"]
 AlertStatus = Literal["active", "acknowledged", "resolved"]
+AlertCategory = Literal[
+    "bathroom", "fall", "pain", "medication", "confusion",
+    "loneliness", "comfort", "mobility", "other",
+]
 
 
 class Alert(BaseModel):
@@ -167,6 +171,13 @@ class Alert(BaseModel):
     close_notes: Optional[str] = None
     auto_voice: bool = False             # hands-free mic activation on kiosk (panic-press / fall)
     press_count: int = 1                 # how many rapid presses triggered this
+    # ---- Event registry enrichment (auto-populated by AI classifier) ----
+    category: Optional[AlertCategory] = None     # what kind of call (bathroom, fall, ...)
+    ai_summary: Optional[str] = None             # 1-line Claude summary of the call
+    resident_stated_reason: Optional[str] = None # first thing resident actually said
+    response_seconds: Optional[int] = None       # time-to-acknowledge
+    duration_seconds: Optional[int] = None       # acknowledge → resolved
+    conversation_turns: Optional[int] = None     # how long CAOS talked with them
     created_at: datetime = Field(default_factory=now_utc)
 
 
@@ -183,6 +194,7 @@ class AlertCreate(BaseModel):
 class AlertClose(BaseModel):
     outcome: str
     close_notes: Optional[str] = ""
+    category: Optional[AlertCategory] = None
 
 
 # ---------- Location updates ----------

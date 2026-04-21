@@ -3,9 +3,9 @@ import os
 import asyncio
 import tempfile
 import logging
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from models import ChatInput, TTSInput, ChatMessage, now_utc
-from deps import db
+from deps import db, get_current_user
 from routes.memory import (
     build_memory_context,
     append_conversation,
@@ -242,6 +242,90 @@ async def chat_history(session_id: str, limit: int = 50):
         .to_list(limit)
     )
     return msgs
+
+
+# ---------- Event classification (clinician-facing) ----------
+CLASSIFIER_SYSTEM = """You read a senior-living resident's call with the CAOS AI
+companion and return ONE JSON object describing the call. No prose, no markdown.
+
+Required fields:
+{
+  "category": one of ["bathroom","fall","pain","medication","confusion","loneliness","comfort","mobility","other"],
+  "summary": one short clinician-readable sentence, 18 words or fewer,
+  "resident_stated_reason": the resident's own words for why they called (short quote or paraphrase)
+}
+
+Pick "fall" if the resident fell in THIS call. Pick "bathroom" if they needed toileting.
+Pick "confusion" if the resident seemed disoriented or kept changing what they needed.
+Pick "comfort" if they just wanted company / reassurance.
+Pick "mobility" if they needed help moving (not related to falls).
+"""
+
+
+async def classify_alert_background(alert_id: str) -> None:
+    """Read the alert + its conversation and classify it for clinicians.
+
+    Best-effort — swallows errors so a flaky classifier never blocks a resolve.
+    """
+    try:
+        a = await db.alerts.find_one({"alert_id": alert_id}, {"_id": 0})
+        if not a:
+            return
+        session_hint = f"alert-{alert_id}"
+        # Gather the turns from this alert's conversation. We use the
+        # conversations collection keyed by resident_id and the most recent
+        # window around the alert's timestamps.
+        rid = a.get("resident_id")
+        if not rid:
+            return
+        turns = await db.conversations.find(
+            {"resident_id": rid}, {"_id": 0}
+        ).sort("created_at", -1).to_list(30)
+        turns.reverse()
+        transcript_lines = []
+        for t in turns[-14:]:
+            who = "Resident" if t.get("role") == "user" else "CAOS"
+            transcript_lines.append(f"{who}: {t.get('content','')}")
+        transcript = "\n".join(transcript_lines) or "(no conversation captured)"
+        conversation_turns = len(turns)
+        prompt = (
+            f"Severity: {a.get('severity')}\n"
+            f"Outcome (if staff-entered): {a.get('outcome') or 'not entered'}\n"
+            f"Close notes: {a.get('close_notes') or ''}\n"
+            f"Conversation:\n{transcript}\n"
+        )
+        llm = LlmChat(
+            api_key=EMERGENT_KEY,
+            session_id=session_hint,
+            system_message=CLASSIFIER_SYSTEM,
+        ).with_model("anthropic", "claude-haiku-4-5-20251001")
+        raw = (await llm.send_message(UserMessage(text=prompt))) or ""
+        import re as _re, json as _json
+        m = _re.search(r"\{.*\}", raw, flags=_re.DOTALL)
+        if not m:
+            return
+        parsed = _json.loads(m.group(0))
+        update = {
+            "ai_summary": (parsed.get("summary") or "")[:300],
+            "resident_stated_reason": (parsed.get("resident_stated_reason") or "")[:300],
+            "conversation_turns": conversation_turns,
+        }
+        cat = parsed.get("category")
+        if cat in ["bathroom", "fall", "pain", "medication", "confusion", "loneliness", "comfort", "mobility", "other"]:
+            if not a.get("category"):
+                update["category"] = cat
+        await db.alerts.update_one({"alert_id": alert_id}, {"$set": update})
+    except Exception as e:
+        import logging
+        logging.warning(f"classify_alert_background failed for {alert_id}: {e}")
+
+
+@router.post("/classify/{alert_id}")
+async def classify_alert_now(alert_id: str, user=Depends(get_current_user)):
+    """Staff/admin trigger for re-classification."""
+    await classify_alert_background(alert_id)
+    doc = await db.alerts.find_one({"alert_id": alert_id}, {"_id": 0})
+    return doc
 
 
 @router.post("/tts")
