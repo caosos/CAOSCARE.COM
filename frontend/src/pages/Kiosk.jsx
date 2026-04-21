@@ -365,6 +365,10 @@ export default function Kiosk() {
     // Keep going until voiceLoopRef flipped off (cancel / alert resolved /
     // entered sleep). Empty-round tolerance is deliberately generous.
     let emptyRounds = 0;
+    // Circuit breaker: if we see two short/empty transcripts in a row that
+    // arrived via barge-in (or right after CAOS spoke), we assume CAOS's own
+    // voice is feeding back through the mic and silently drop the turn.
+    let echoSuspects = 0;
     while (voiceLoopRef.current && callStateRef.current !== "idle") {
       if (sleepingRef.current) break;
 
@@ -373,6 +377,7 @@ export default function Kiosk() {
       // so the full sentence lands even if barge-in fired on the first word.
       let blob = pendingBargeBlobRef.current;
       pendingBargeBlobRef.current = null;
+      const fromBargeIn = !!blob;
 
       if (blob) {
         // Give them another 2–3 seconds to finish their thought, merging
@@ -417,6 +422,22 @@ export default function Kiosk() {
       setThinking(false);
       if (!voiceLoopRef.current) break;
       if (!text) continue;
+
+      // Echo-loop circuit breaker. A very short transcript that arrived via
+      // barge-in is the classic "CAOS heard itself" symptom. Silently drop
+      // it and re-listen. Two in a row → force a sleep so the room quiets.
+      const wordCount = text.split(/\s+/).filter(Boolean).length;
+      if (fromBargeIn && wordCount <= 3) {
+        echoSuspects++;
+        if (echoSuspects >= 2) {
+          await speak("It sounds like I might be hearing myself. I'll rest a moment — press any button if you need me.");
+          sleepingRef.current = true;
+          setSleeping(true);
+          break;
+        }
+        continue;
+      }
+      echoSuspects = 0;
 
       const lower = text.toLowerCase();
 
@@ -479,7 +500,14 @@ export default function Kiosk() {
   // CAOS stops. The bargedInSpeechRef holds the rolling MediaRecorder so
   // runVoiceLoop can "adopt" what's already been recorded.
   const bargeInRef = useRef(null);     // { stream, rec, chunks, stopAnalyser, analyserCtx }
-  const BARGE_RMS_THRESHOLD = 0.035;   // higher than passive gate — avoids echo from CAOS's own voice
+  // Tuned against a self-feedback loop ("CAOS turns on by itself after ~4 turns"):
+  // 0.035 + 3 frames was low enough that CAOS's own voice bleeding through
+  // echo cancellation would trigger barge-in, Whisper would transcribe the
+  // echo back to Claude, Claude would reply, and the cycle compounded.
+  const BARGE_RMS_THRESHOLD = 0.06;    // was 0.035 — clearly above room ambient + TTS leak
+  const BARGE_HOT_FRAMES = 10;         // was 3 — require ~200ms of sustained voice
+  const BARGE_GRACE_MS = 800;          // don't accept barge-in for the first 800ms of TTS
+  const BARGE_MIN_BLOB_RMS = 0.025;    // adopted blob must itself be above this to count
 
   const startBargeInListener = async (onBargeIn) => {
     try {
@@ -499,6 +527,7 @@ export default function Kiosk() {
       const data = new Uint8Array(analyser.fftSize);
       let running = true;
       let hotFrames = 0;
+      const startedAt = performance.now();
       const tick = () => {
         if (!running) return;
         analyser.getByteTimeDomainData(data);
@@ -508,10 +537,10 @@ export default function Kiosk() {
           sum += v * v;
         }
         const rms = Math.sqrt(sum / data.length);
-        if (rms >= BARGE_RMS_THRESHOLD) {
+        const inGrace = performance.now() - startedAt < BARGE_GRACE_MS;
+        if (!inGrace && rms >= BARGE_RMS_THRESHOLD) {
           hotFrames++;
-          // Need 3 consecutive hot frames (~60ms of voice) to declare "barge-in"
-          if (hotFrames >= 3) {
+          if (hotFrames >= BARGE_HOT_FRAMES) {
             running = false;
             onBargeIn?.();
             return;
@@ -570,7 +599,21 @@ export default function Kiosk() {
           try {
             const blob = await bargeInRef.current.stop();
             if (bargedIn && blob && blob.size > 1000) {
-              pendingBargeBlobRef.current = blob;
+              // Second-pass sanity check: the adopted blob must itself carry
+              // real voice energy. If the mean RMS is low, it was almost
+              // certainly CAOS's own voice bleeding through — drop it so we
+              // don't feed the feedback loop.
+              try {
+                const blobRms = await computeRms(blob);
+                if (blobRms >= BARGE_MIN_BLOB_RMS) {
+                  pendingBargeBlobRef.current = blob;
+                } else {
+                  // Echo — ignore. The loop will passively listen next round.
+                  console.debug("[CAOS] dropped barge-in blob, rms=", blobRms);
+                }
+              } catch {
+                pendingBargeBlobRef.current = blob; // best-effort fallback
+              }
             }
           } catch {}
           bargeInRef.current = null;
