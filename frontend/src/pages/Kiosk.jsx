@@ -249,6 +249,35 @@ export default function Kiosk() {
     }
   };
 
+  // Short follow-on recording used to extend a barge-in recording — gives
+  // the resident a couple more seconds to finish their sentence.
+  const listenShort = (ms = 3000) =>
+    new Promise(async (resolve) => {
+      let stream = null;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch { return resolve(null); }
+      try {
+        const rec = new MediaRecorder(stream, { mimeType: "audio/webm" });
+        const chunks = [];
+        let settled = false;
+        const done = (blob) => {
+          if (settled) return;
+          settled = true;
+          try { stream.getTracks().forEach((t) => t.stop()); } catch {}
+          resolve(blob);
+        };
+        rec.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+        rec.onstop = () => done(new Blob(chunks, { type: "audio/webm" }));
+        rec.onerror = () => done(null);
+        rec.start(250);
+        setTimeout(() => { try { if (rec.state !== "inactive") rec.stop(); } catch {} }, ms);
+      } catch {
+        try { stream.getTracks().forEach((t) => t.stop()); } catch {}
+        resolve(null);
+      }
+    });
+
   // Listen for up to ~14s per turn. Elderly speech pace is slower — 8s
   // was cutting residents off mid-sentence.
   const LISTEN_MS = 14000;
@@ -319,8 +348,24 @@ export default function Kiosk() {
     let emptyRounds = 0;
     while (voiceLoopRef.current && callStateRef.current !== "idle") {
       if (sleepingRef.current) break;
-      playBeep();
-      const blob = await listenOnce();
+
+      // If the resident interrupted CAOS during TTS (barge-in), we already
+      // have a recording. Use it. Also extend: open a short follow-on window
+      // so the full sentence lands even if barge-in fired on the first word.
+      let blob = pendingBargeBlobRef.current;
+      pendingBargeBlobRef.current = null;
+
+      if (blob) {
+        // Give them another 2–3 seconds to finish their thought, merging
+        // the barge-in blob with a short follow-on recording.
+        const followOn = await listenShort(3000);
+        if (followOn && followOn.size > 500) {
+          blob = new Blob([blob, followOn], { type: "audio/webm" });
+        }
+      } else {
+        playBeep();
+        blob = await listenOnce();
+      }
       if (!voiceLoopRef.current || sleepingRef.current) break;
       // Energy gate — filters out TV, hallway noise, or very quiet ambient.
       let rms = 0;
@@ -408,6 +453,74 @@ export default function Kiosk() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kiosk, resident]);
 
+  // Barge-in: while CAOS is speaking, a parallel mic+analyzer listens for
+  // the resident's voice. If the resident starts speaking, we (1) stop TTS
+  // immediately, and (2) hand the recording over to the listen loop so
+  // their full statement is captured — not just what they say *after*
+  // CAOS stops. The bargedInSpeechRef holds the rolling MediaRecorder so
+  // runVoiceLoop can "adopt" what's already been recorded.
+  const bargeInRef = useRef(null);     // { stream, rec, chunks, stopAnalyser, analyserCtx }
+  const BARGE_RMS_THRESHOLD = 0.035;   // higher than passive gate — avoids echo from CAOS's own voice
+
+  const startBargeInListener = async (onBargeIn) => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      });
+      const rec = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      const chunks = [];
+      rec.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+      rec.start(150);
+      // Web Audio analyser — monitors live RMS
+      const actx = new (window.AudioContext || window.webkitAudioContext)();
+      const src = actx.createMediaStreamSource(stream);
+      const analyser = actx.createAnalyser();
+      analyser.fftSize = 512;
+      src.connect(analyser);
+      const data = new Uint8Array(analyser.fftSize);
+      let running = true;
+      let hotFrames = 0;
+      const tick = () => {
+        if (!running) return;
+        analyser.getByteTimeDomainData(data);
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) {
+          const v = (data[i] - 128) / 128;
+          sum += v * v;
+        }
+        const rms = Math.sqrt(sum / data.length);
+        if (rms >= BARGE_RMS_THRESHOLD) {
+          hotFrames++;
+          // Need 3 consecutive hot frames (~60ms of voice) to declare "barge-in"
+          if (hotFrames >= 3) {
+            running = false;
+            onBargeIn?.();
+            return;
+          }
+        } else {
+          hotFrames = 0;
+        }
+        requestAnimationFrame(tick);
+      };
+      tick();
+      bargeInRef.current = {
+        stream, rec, chunks,
+        stop: async () => {
+          running = false;
+          try { if (rec.state !== "inactive") rec.stop(); } catch {}
+          try { actx.close(); } catch {}
+          try { stream.getTracks().forEach((t) => t.stop()); } catch {}
+          // Wait briefly for final chunks to flush into chunks[]
+          await new Promise((r) => setTimeout(r, 100));
+          return new Blob(chunks, { type: "audio/webm" });
+        },
+      };
+    } catch {
+      // Mic unavailable — fall back to non-barge-in behavior
+      bargeInRef.current = null;
+    }
+  };
+
   const speakFallback = (text) =>
     new Promise((resolve) => {
       try {
@@ -421,26 +534,57 @@ export default function Kiosk() {
       } catch { resolve(); }
     });
 
-  const speak = (text) =>
+  // speak() now supports barge-in:
+  //   - While TTS plays, a parallel mic analyser watches for voice energy.
+  //   - On detected resident voice: TTS is PAUSED immediately and the
+  //     recording of what the resident said (from the moment CAOS started
+  //     speaking) is handed to runVoiceLoop via pendingBargeBlob.
+  //   - Result: the resident can interrupt at any time and everything they
+  //     say — even during CAOS's talk — is captured and processed.
+  const pendingBargeBlobRef = useRef(null);
+  const speak = (text, { allowBargeIn = true } = {}) =>
     new Promise(async (resolve) => {
+      let bargedIn = false;
+      const finish = async () => {
+        // Tear down barge-in listener if still running
+        if (bargeInRef.current) {
+          try {
+            const blob = await bargeInRef.current.stop();
+            if (bargedIn && blob && blob.size > 1000) {
+              pendingBargeBlobRef.current = blob;
+            }
+          } catch {}
+          bargeInRef.current = null;
+        }
+        setSpeaking(false);
+        resolve();
+      };
       try {
         setSpeaking(true);
         const { data } = await axios.post(`${API}/ai/tts`, { text, voice: voiceIdRef.current }, { timeout: 8000 });
         const audio = new Audio(`data:audio/mp3;base64,${data.audio_base64}`);
         audioRef.current = audio;
-        audio.onended = () => { setSpeaking(false); resolve(); };
+
+        // Kick off the barge-in listener just before playback starts
+        if (allowBargeIn && !sleepingRef.current) {
+          await startBargeInListener(() => {
+            // Resident started speaking → cut TTS immediately
+            bargedIn = true;
+            try { audio.pause(); } catch {}
+            try { audio.currentTime = audio.duration || 0; } catch {}
+          });
+        }
+
+        audio.onended = () => { finish(); };
+        audio.onpause = () => { if (bargedIn) finish(); };
         audio.onerror = async () => {
-          // Fallback: browser TTS so the resident never hears silence
           await speakFallback(text);
-          setSpeaking(false);
-          resolve();
+          await finish();
         };
         await audio.play();
       } catch {
-        // Network / API down → canned local voice
         await speakFallback(text);
-        setSpeaking(false);
-        resolve();
+        await finish();
       }
     });
 

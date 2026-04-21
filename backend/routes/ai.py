@@ -47,6 +47,17 @@ READ THE ROOM — CRITICAL
 - Don't praise someone for being calm, patient, or brave unless it genuinely fits the moment. Treat them like the adult they are.
 - If they're scared, acknowledge the fear before anything else. "That sounds frightening." Not: "Everything's going to be fine!"
 
+DO NOT GET STUCK IN AGREEMENT LOOPS
+- When corrected, acknowledge ONCE and move on. Do not say "you're absolutely right" twice in a row. Do not repeat the correction back to prove you heard it.
+- Never restate what the resident just said back to them as confirmation ("So you're in your chair now and you need the restroom" — they already know).
+- If you made a mistake, the fix is: one brief acknowledgment + the actual helpful action. Not three apologies.
+- Do not repeat reassurances ("help is on the way", "they should be there soon") more than once per minute. The resident heard you the first time.
+
+CURRENT SITUATION vs PAST EVENTS
+- The system prompt separates "THIS CALL" (the active conversation right now) from "PAST EVENTS" (prior calls, already resolved).
+- NEVER confuse a past event with what's happening now. If memories or past events suggest "the resident fell" but the resident in THIS CALL says they need the restroom or just want to chat, trust what they are telling you NOW. Past events are context, not current facts.
+- When in doubt about what's happening right now, ASK — don't assume.
+
 REST PROTOCOL — HOW YOU SIGNAL YOU'RE STOPPING
 When the resident indicates they want quiet, or when you've clearly agreed to "be quiet" / "let them rest" / "sit with them in silence":
 1. Respond with ONE short acknowledging sentence — eight words or fewer.
@@ -105,7 +116,36 @@ async def chat(data: ChatInput):
                 context_bits.append(f"Remember about them (admin-provided): {r['memory']}")
             if r.get("participation_level"):
                 context_bits.append(f"Participation level: {r['participation_level']}")
-        mem_ctx = await build_memory_context(data.resident_id)
+        mem_ctx = await build_memory_context(data.resident_id, session_id=data.session_id)
+
+    # Older sessions (prior events) — pulled in as HISTORICAL context only.
+    # Framed explicitly as "PAST EVENT" so Claude does not confuse yesterday's
+    # fall with today's "I need the restroom".
+    prior_events_block = ""
+    if data.resident_id:
+        prior = await db.conversations.find(
+            {"resident_id": data.resident_id, "session_id": {"$ne": data.session_id}},
+            {"_id": 0, "session_id": 1, "role": 1, "content": 1, "created_at": 1},
+        ).sort("created_at", -1).to_list(40)
+        if prior:
+            # Group by session_id, keep only last 3 sessions
+            from collections import OrderedDict
+            by_session = OrderedDict()
+            for m in prior:
+                sid = m.get("session_id") or "unknown"
+                by_session.setdefault(sid, []).append(m)
+                if len(by_session) > 3 and sid not in list(by_session.keys())[:3]:
+                    by_session.pop(sid)
+            lines = []
+            for sid, msgs in list(by_session.items())[:3]:
+                msgs.sort(key=lambda x: x.get("created_at", ""))
+                when = msgs[0].get("created_at", "")[:16].replace("T", " ")
+                lines.append(f"-- PAST EVENT {when} (session {sid[-6:]}) --")
+                for m in msgs[-6:]:  # last 6 turns of that past event
+                    who = "Resident" if m["role"] == "user" else "CAOS"
+                    lines.append(f"{who}: {m['content']}")
+            if lines:
+                prior_events_block = "\n".join(lines)
 
     system = CAOS_SYSTEM_PROMPT
     if context_bits:
@@ -125,9 +165,15 @@ async def chat(data: ChatInput):
                 who = "Resident" if h["role"] == "user" else "CAOS"
                 transcript_lines.append(f"{who}: {h['content']}")
             system += (
-                "\n\nRECENT CONVERSATION (most recent last — continue naturally)\n"
+                "\n\nTHIS CALL — what has happened so far in the CURRENT session (most recent last)\n"
                 + "\n".join(transcript_lines)
             )
+    if prior_events_block:
+        system += (
+            "\n\nPAST EVENTS — previous calls for context only. Do NOT treat any of these as the current situation. "
+            "They already happened and were resolved. Only mention them if the resident asks about the past.\n"
+            + prior_events_block
+        )
 
     try:
         llm = LlmChat(

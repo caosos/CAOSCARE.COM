@@ -68,11 +68,21 @@ def _iso(doc: dict) -> dict:
 
 # ---------------- Retrieval helpers (used by routes/ai.py) ----------------
 
-async def get_recent_conversation(resident_id: str, limit: int = MAX_HISTORY_MESSAGES) -> List[dict]:
+async def get_recent_conversation(resident_id: str, session_id: Optional[str] = None, limit: int = MAX_HISTORY_MESSAGES) -> List[dict]:
+    """Return conversation history.
+
+    If session_id is provided, return ONLY turns from this session — this is
+    the critical piece that stops CAOS from conflating a current emergency
+    ("I need the restroom now") with a past event ("you fell yesterday").
+    Long-term facts are still available via db.memories.
+    """
     if not resident_id:
         return []
+    query = {"resident_id": resident_id}
+    if session_id:
+        query["session_id"] = session_id
     msgs = await db.conversations.find(
-        {"resident_id": resident_id}, {"_id": 0},
+        query, {"_id": 0},
     ).sort("created_at", -1).to_list(limit)
     msgs.reverse()
     for m in msgs:
@@ -122,12 +132,16 @@ async def mark_referenced(memory_ids: List[str]) -> None:
     )
 
 
-async def build_memory_context(resident_id: Optional[str]) -> dict:
-    """Return {'memories_block': str, 'history': [{'role','content'}], 'memory_ids': [...]}."""
+async def build_memory_context(resident_id: Optional[str], session_id: Optional[str] = None) -> dict:
+    """Return {'memories_block': str, 'history': [{'role','content'}], 'memory_ids': [...]}.
+
+    History is scoped to the current session_id when provided — only the
+    CURRENT call is replayed into Claude's context. This prevents the AI
+    from treating a past emergency as the active one."""
     if not resident_id:
         return {"memories_block": "", "history": [], "memory_ids": []}
     memories = await get_top_memories(resident_id)
-    history = await get_recent_conversation(resident_id)
+    history = await get_recent_conversation(resident_id, session_id=session_id)
     memory_ids = [m["memory_id"] for m in memories]
     lines = []
     for m in memories:
