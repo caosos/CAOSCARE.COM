@@ -4,8 +4,9 @@ import axios from "axios";
 import { API } from "../lib/api";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
-import { AlertCircle, Mic, MicOff, Volume2, Phone, X, Lightbulb, Fan, Thermometer, Tv, Power, Type, Contrast } from "lucide-react";
+import { AlertCircle, Mic, MicOff, Volume2, Phone, X, Lightbulb, Fan, Thermometer, Tv, Power, Type, Contrast, Sparkles, Play } from "lucide-react";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 
 // Kiosk is PUBLIC - no login. Selected/identified by kiosk_id in URL.
 // /kiosk/:kioskId  (use "demo" to pick an arbitrary kiosk automatically)
@@ -47,12 +48,30 @@ export default function Kiosk() {
   const cycleTextSize = () => setTextSize((s) => (s === "md" ? "lg" : s === "lg" ? "xl" : "md"));
   const a11yRootClass = `${textSize === "lg" ? "kiosk-text-lg" : textSize === "xl" ? "kiosk-text-xl" : ""} ${highContrast ? "kiosk-hc" : ""}`.trim();
 
-  // Sleep-mode (formerly "quiet") — resident said something like "I'll just
-  // sit and wait". CAOS says ONE short line, fully stops the voice loop
-  // (mic released, no passive listening, no beeps), and the chat screen
-  // shows a big "Tap to talk again" button. The alert stays OPEN — help
-  // is still on the way. Resident never has to create a new alert just
-  // to get CAOS's attention back.
+  // Voice preference (OpenAI TTS voice). Persisted per-kiosk so each room
+  // can match its resident's preference.
+  const VOICES = [
+    { id: "shimmer", label: "Shimmer", desc: "Soft & gentle" },
+    { id: "coral",   label: "Coral",   desc: "Warm & inviting" },
+    { id: "nova",    label: "Nova",    desc: "Bright & kind" },
+    { id: "sage",    label: "Sage",    desc: "Articulate & refined" },
+    { id: "fable",   label: "Fable",   desc: "Storytelling warmth" },
+    { id: "ballad",  label: "Ballad",  desc: "Melodic & thoughtful" },
+    { id: "alloy",   label: "Alloy",   desc: "Neutral & clear" },
+    { id: "ash",     label: "Ash",     desc: "Deeper, calming" },
+    { id: "onyx",    label: "Onyx",    desc: "Deep & reassuring" },
+    { id: "echo",    label: "Echo",    desc: "Crisp & even" },
+    { id: "verse",   label: "Verse",   desc: "Expressive & friendly" },
+  ];
+  const [voiceId, setVoiceId] = useState(() => localStorage.getItem("caos_kiosk_voice") || "shimmer");
+  const voiceIdRef = useRef(voiceId);
+  useEffect(() => {
+    voiceIdRef.current = voiceId;
+    localStorage.setItem("caos_kiosk_voice", voiceId);
+  }, [voiceId]);
+  const [voicePickerOpen, setVoicePickerOpen] = useState(false);
+
+  // Sleep-mode — resident said something like "I'll just sit and wait".
   const [sleeping, setSleeping] = useState(false);
   const sleepingRef = useRef(false);
   useEffect(() => { sleepingRef.current = sleeping; }, [sleeping]);
@@ -316,6 +335,7 @@ export default function Kiosk() {
         if (emptyRounds >= 6) {
           // Long silence → gently step into sleep mode, don't walk off.
           await speak("Okay. I'll be right here if you need me.");
+          sleepingRef.current = true;
           setSleeping(true);
           break;
         }
@@ -339,6 +359,7 @@ export default function Kiosk() {
       // Sleep-intent — resident wants silence but not to end the alert.
       if (SLEEP_INTENT_PATTERNS.some((k) => lower.includes(k))) {
         await speak("Okay. I'll be right here if you need me.");
+        sleepingRef.current = true;
         setSleeping(true);
         break;
       }
@@ -349,7 +370,11 @@ export default function Kiosk() {
         break;
       }
 
+      // Normal path — Claude processes the message. sendMessage also
+      // auto-enters sleep mode if Claude's OWN reply signals rest intent
+      // ("I'll be quiet", "I'll be right here", "just rest", etc).
       await sendMessage(text);
+      if (sleepingRef.current) break;
     }
     voiceLoopRef.current = false;
   };
@@ -400,7 +425,7 @@ export default function Kiosk() {
     new Promise(async (resolve) => {
       try {
         setSpeaking(true);
-        const { data } = await axios.post(`${API}/ai/tts`, { text, voice: "shimmer" }, { timeout: 8000 });
+        const { data } = await axios.post(`${API}/ai/tts`, { text, voice: voiceIdRef.current }, { timeout: 8000 });
         const audio = new Audio(`data:audio/mp3;base64,${data.audio_base64}`);
         audioRef.current = audio;
         audio.onended = () => { setSpeaking(false); resolve(); };
@@ -517,6 +542,7 @@ export default function Kiosk() {
     const userMsg = { role: "user", content: text };
     setMessages((m) => [...m, userMsg]);
     setThinking(true);
+    let reply = "";
     try {
       const { data } = await axios.post(`${API}/ai/chat`, {
         session_id: sessionRef.current,
@@ -524,8 +550,9 @@ export default function Kiosk() {
         resident_id: resident?.resident_id,
         message: text,
       }, { timeout: 15000 });
-      setMessages((m) => [...m, { role: "assistant", content: data.reply }]);
-      await speak(data.reply);
+      reply = data.reply || "";
+      setMessages((m) => [...m, { role: "assistant", content: reply }]);
+      await speak(reply);
       if (data.auto_emergency_detected && alert?.severity !== "emergency") {
         // Escalate silently
         try {
@@ -541,10 +568,30 @@ export default function Kiosk() {
       // Offline fallback — never let the resident hear silence.
       const fallback = OFFLINE_LINES[offlineCursorRef.current % OFFLINE_LINES.length];
       offlineCursorRef.current += 1;
+      reply = fallback;
       setMessages((m) => [...m, { role: "assistant", content: fallback }]);
       await speak(fallback);
     } finally {
       setThinking(false);
+    }
+    // Claude is doing the semantic understanding — if CAOS's own reply
+    // signals "I'll be quiet / I'll rest / just rest", that IS the intent
+    // to enter sleep mode. Much more reliable than pattern-matching the
+    // resident's free-form speech.
+    const replyLower = (reply || "").toLowerCase();
+    const SLEEP_REPLY_CUES = [
+      "i'll be quiet", "ill be quiet", "i will be quiet",
+      "i'll be right here", "ill be right here", "i will be right here",
+      "i'll be here if you need", "ill be here if you need",
+      "i'll wait quietly", "ill wait quietly",
+      "i'll let you rest", "ill let you rest", "i will let you rest",
+      "just rest", "rest now", "get some rest",
+      "i understand. i'll", "i understand, i'll", "i understand. ill",
+      "i'll stop talking", "ill stop talking",
+    ];
+    if (SLEEP_REPLY_CUES.some((c) => replyLower.includes(c))) {
+      sleepingRef.current = true;
+      setSleeping(true);
     }
   };
 
@@ -614,6 +661,15 @@ export default function Kiosk() {
               className="px-3 py-2 rounded-full bg-white border border-caos-line text-caos-forest hover:bg-caos-forest hover:text-white flex items-center gap-1 text-sm font-bold uppercase tracking-wider"
             >
               <Type className="w-4 h-4" /> {textSize === "md" ? "A" : textSize === "lg" ? "A+" : "A++"}
+            </button>
+            <button
+              onClick={() => setVoicePickerOpen(true)}
+              data-testid="kiosk-a11y-voice"
+              aria-label={`Voice: ${voiceId}. Tap to change.`}
+              title="Change voice"
+              className="px-3 py-2 rounded-full bg-white border border-caos-line text-caos-forest hover:bg-caos-forest hover:text-white flex items-center gap-1 text-sm font-bold uppercase tracking-wider"
+            >
+              <Sparkles className="w-4 h-4" /> {voiceId}
             </button>
             <button
               onClick={() => setHighContrast((v) => !v)}
@@ -721,6 +777,64 @@ export default function Kiosk() {
             Staff sign in
           </button>
         </div>
+
+        {/* Voice picker — accessible from a11y row. Not part of the hero
+            flow, so residents don't get distracted. Admin/setup use only. */}
+        <Dialog open={voicePickerOpen} onOpenChange={setVoicePickerOpen}>
+          <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="font-display text-2xl text-caos-forest">Choose CAOS's voice</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-caos-mute mb-4">
+              Tap ▶ to preview. Tap the name to select. The voice is remembered per kiosk.
+            </p>
+            <div className="space-y-2">
+              {VOICES.map((v) => {
+                const selected = voiceId === v.id;
+                return (
+                  <div
+                    key={v.id}
+                    className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${
+                      selected ? "border-caos-forest bg-caos-forest/5" : "border-caos-line hover:border-caos-forest"
+                    }`}
+                    data-testid={`voice-row-${v.id}`}
+                  >
+                    <button
+                      onClick={async () => {
+                        try {
+                          const { data } = await axios.post(`${API}/ai/tts`, {
+                            text: "Hello. This is how I sound. I'll be right here with you.",
+                            voice: v.id,
+                          }, { timeout: 10000 });
+                          const a = new Audio(`data:audio/mp3;base64,${data.audio_base64}`);
+                          await a.play();
+                        } catch { toast.error("Couldn't preview this voice"); }
+                      }}
+                      data-testid={`voice-preview-${v.id}`}
+                      className="w-10 h-10 rounded-full bg-caos-forest text-white flex items-center justify-center hover:bg-caos-forest-hover flex-shrink-0"
+                      aria-label={`Preview ${v.label}`}
+                    >
+                      <Play className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => { setVoiceId(v.id); toast.success(`Voice set to ${v.label}`); }}
+                      data-testid={`voice-select-${v.id}`}
+                      className="flex-1 text-left"
+                    >
+                      <div className="font-display font-medium text-caos-forest text-lg">
+                        {v.label} {selected && <span className="ml-2 text-xs font-bold uppercase tracking-widest text-caos-forest/70">★ selected</span>}
+                      </div>
+                      <div className="text-sm text-caos-mute">{v.desc}</div>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-xs text-caos-mute italic mt-4 border-t border-caos-line pt-3">
+              Note: "Maple" is only available in the ChatGPT app, not in the OpenAI voice API. The voices above are the closest alternatives.
+            </p>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
