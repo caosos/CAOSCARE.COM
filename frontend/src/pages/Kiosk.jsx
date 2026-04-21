@@ -667,11 +667,13 @@ export default function Kiosk() {
             <button
               onClick={() => setVoicePickerOpen(true)}
               data-testid="kiosk-a11y-voice"
-              aria-label={`Voice: ${voiceId}. Tap to change.`}
-              title="Change voice"
-              className="px-3 py-2 rounded-full bg-white border border-caos-line text-caos-forest hover:bg-caos-forest hover:text-white flex items-center gap-1 text-sm font-bold uppercase tracking-wider"
+              aria-label={`Voice: ${voiceId}. Tap to change voice.`}
+              title="Change CAOS's voice"
+              className="px-4 py-2 rounded-full bg-caos-forest text-white hover:bg-caos-forest-hover flex items-center gap-2 text-sm font-bold uppercase tracking-wider shadow-sm"
             >
-              <Sparkles className="w-4 h-4" /> {voiceId}
+              <Volume2 className="w-4 h-4" />
+              <span className="opacity-80">Voice:</span>
+              <span>{voiceId}</span>
             </button>
             <button
               onClick={() => setHighContrast((v) => !v)}
