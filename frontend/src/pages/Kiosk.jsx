@@ -646,6 +646,66 @@ export default function Kiosk() {
   };
 
   // IDLE state layout
+  // Voice picker dialog — rendered in BOTH the idle and chat return blocks
+  // so the user can change voices from any state.
+  const voicePickerDialog = (
+    <Dialog open={voicePickerOpen} onOpenChange={setVoicePickerOpen}>
+      <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="font-display text-2xl text-caos-forest">Choose CAOS's voice</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-caos-mute mb-4">
+          Tap ▶ to preview. Tap the name to select. The voice is remembered per kiosk.
+        </p>
+        <div className="space-y-2">
+          {VOICES.map((v) => {
+            const selected = voiceId === v.id;
+            return (
+              <div
+                key={v.id}
+                className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${
+                  selected ? "border-caos-forest bg-caos-forest/5" : "border-caos-line hover:border-caos-forest"
+                }`}
+                data-testid={`voice-row-${v.id}`}
+              >
+                <button
+                  onClick={async () => {
+                    try {
+                      const { data } = await axios.post(`${API}/ai/tts`, {
+                        text: "Hello. This is how I sound. I'll be right here with you.",
+                        voice: v.id,
+                      }, { timeout: 10000 });
+                      const a = new Audio(`data:audio/mp3;base64,${data.audio_base64}`);
+                      await a.play();
+                    } catch { toast.error("Couldn't preview this voice"); }
+                  }}
+                  data-testid={`voice-preview-${v.id}`}
+                  className="w-10 h-10 rounded-full bg-caos-forest text-white flex items-center justify-center hover:bg-caos-forest-hover flex-shrink-0"
+                  aria-label={`Preview ${v.label}`}
+                >
+                  <Play className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => { setVoiceId(v.id); toast.success(`Voice set to ${v.label}`); }}
+                  data-testid={`voice-select-${v.id}`}
+                  className="flex-1 text-left"
+                >
+                  <div className="font-display font-medium text-caos-forest text-lg">
+                    {v.label} {selected && <span className="ml-2 text-xs font-bold uppercase tracking-widest text-caos-forest/70">★ selected</span>}
+                  </div>
+                  <div className="text-sm text-caos-mute">{v.desc}</div>
+                </button>
+              </div>
+            );
+          })}
+        </div>
+        <p className="text-xs text-caos-mute italic mt-4 border-t border-caos-line pt-3">
+          Note: "Maple" is only available in the ChatGPT app, not in the OpenAI voice API. The voices above are the closest alternatives.
+        </p>
+      </DialogContent>
+    </Dialog>
+  );
+
   if (callState === "idle") {
     return (
       <div className={`min-h-screen bg-caos-ambient text-caos-ink p-8 md:p-12 flex flex-col ${a11yRootClass}`}>
@@ -782,63 +842,8 @@ export default function Kiosk() {
           </button>
         </div>
 
-        {/* Voice picker — accessible from a11y row. Not part of the hero
-            flow, so residents don't get distracted. Admin/setup use only. */}
-        <Dialog open={voicePickerOpen} onOpenChange={setVoicePickerOpen}>
-          <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="font-display text-2xl text-caos-forest">Choose CAOS's voice</DialogTitle>
-            </DialogHeader>
-            <p className="text-sm text-caos-mute mb-4">
-              Tap ▶ to preview. Tap the name to select. The voice is remembered per kiosk.
-            </p>
-            <div className="space-y-2">
-              {VOICES.map((v) => {
-                const selected = voiceId === v.id;
-                return (
-                  <div
-                    key={v.id}
-                    className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${
-                      selected ? "border-caos-forest bg-caos-forest/5" : "border-caos-line hover:border-caos-forest"
-                    }`}
-                    data-testid={`voice-row-${v.id}`}
-                  >
-                    <button
-                      onClick={async () => {
-                        try {
-                          const { data } = await axios.post(`${API}/ai/tts`, {
-                            text: "Hello. This is how I sound. I'll be right here with you.",
-                            voice: v.id,
-                          }, { timeout: 10000 });
-                          const a = new Audio(`data:audio/mp3;base64,${data.audio_base64}`);
-                          await a.play();
-                        } catch { toast.error("Couldn't preview this voice"); }
-                      }}
-                      data-testid={`voice-preview-${v.id}`}
-                      className="w-10 h-10 rounded-full bg-caos-forest text-white flex items-center justify-center hover:bg-caos-forest-hover flex-shrink-0"
-                      aria-label={`Preview ${v.label}`}
-                    >
-                      <Play className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => { setVoiceId(v.id); toast.success(`Voice set to ${v.label}`); }}
-                      data-testid={`voice-select-${v.id}`}
-                      className="flex-1 text-left"
-                    >
-                      <div className="font-display font-medium text-caos-forest text-lg">
-                        {v.label} {selected && <span className="ml-2 text-xs font-bold uppercase tracking-widest text-caos-forest/70">★ selected</span>}
-                      </div>
-                      <div className="text-sm text-caos-mute">{v.desc}</div>
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-            <p className="text-xs text-caos-mute italic mt-4 border-t border-caos-line pt-3">
-              Note: "Maple" is only available in the ChatGPT app, not in the OpenAI voice API. The voices above are the closest alternatives.
-            </p>
-          </DialogContent>
-        </Dialog>
+        {/* Voice picker dialog — shared with chat state via voicePickerDialog */}
+        {voicePickerDialog}
       </div>
     );
   }
@@ -865,15 +870,25 @@ export default function Kiosk() {
             </p>
           )}
         </div>
-        <Button
-          onClick={cancelCall}
-          variant="outline"
-          data-testid="kiosk-cancel-btn"
-          className="rounded-full border-2 border-caos-forest text-caos-forest h-14 px-6 text-lg"
-        >
-          <X className="w-5 h-5 mr-2" />
-          Never mind
-        </Button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setVoicePickerOpen(true)}
+            data-testid="kiosk-chat-voice-btn"
+            title="Change CAOS's voice"
+            className="px-4 py-2 rounded-full bg-caos-forest text-white hover:bg-caos-forest-hover flex items-center gap-2 text-sm font-bold uppercase tracking-wider shadow-sm"
+          >
+            <Volume2 className="w-4 h-4" /> <span className="opacity-80">Voice:</span> {voiceId}
+          </button>
+          <Button
+            onClick={cancelCall}
+            variant="outline"
+            data-testid="kiosk-cancel-btn"
+            className="rounded-full border-2 border-caos-forest text-caos-forest h-14 px-6 text-lg"
+          >
+            <X className="w-5 h-5 mr-2" />
+            Never mind
+          </Button>
+        </div>
       </div>
 
       {/* AI Orb + transcript */}
@@ -1027,6 +1042,8 @@ export default function Kiosk() {
           <p className="text-xl uppercase tracking-[0.3em] text-caos-amber mt-4">TAP ANYWHERE TO ANSWER</p>
         </button>
       )}
+      {/* Voice picker shared with idle screen — available in chat state too */}
+      {voicePickerDialog}
     </div>
   );
 }
