@@ -83,6 +83,17 @@ export default function Kiosk() {
 
   // Prime browser audio + mic permission on the first user click.
   // Without a user gesture, Chrome will silently block both TTS playback and getUserMedia.
+  // Note: when running inside a cross-origin iframe (e.g. the Emergent preview pane),
+  // Chrome rejects getUserMedia synchronously unless the parent tag sets
+  // allow="microphone". We detect that case and offer a "open in full tab" escape.
+  const inSandboxedIframe = () => {
+    try { return window.self !== window.top; } catch { return true; }
+  };
+
+  const openInFullTab = () => {
+    try { window.open(window.location.href, "_blank", "noopener"); } catch { /* ignore */ }
+  };
+
   const primeMedia = async () => {
     if (micReady) return true;
     try {
@@ -98,7 +109,15 @@ export default function Kiosk() {
       setMicReady(true);
       return true;
     } catch (e) {
-      toast.error("Microphone permission needed. Please allow it in your browser.");
+      // Iframe sandbox = no prompt, direct NotAllowedError. Give the user a way out.
+      if (inSandboxedIframe()) {
+        toast.error("This preview frame can't ask for your mic. Tap to open in a full tab.", {
+          duration: 8000,
+          action: { label: "Open full tab", onClick: openInFullTab },
+        });
+      } else {
+        toast.error("Microphone permission needed. Please allow it in your browser.");
+      }
       return false;
     }
   };
@@ -853,6 +872,21 @@ export default function Kiosk() {
   if (callState === "idle") {
     return (
       <div className={`min-h-screen bg-caos-ambient text-caos-ink p-8 md:p-12 flex flex-col ${a11yRootClass}`}>
+        {inSandboxedIframe() && (
+          <button
+            onClick={openInFullTab}
+            data-testid="kiosk-iframe-warning"
+            className="mb-4 rounded-2xl border-2 border-caos-amber bg-caos-amber/10 px-4 py-3 text-left flex items-center gap-3 hover:bg-caos-amber/20 transition-colors"
+            title="Voice features require a full browser tab"
+          >
+            <AlertCircle className="w-5 h-5 text-caos-amber shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-caos-forest text-sm">Voice features need a full browser tab</p>
+              <p className="text-caos-mute text-xs">The preview pane can't request microphone access. Tap here to open the kiosk in a real tab — then the browser will prompt for mic permission as usual.</p>
+            </div>
+            <span className="text-xs font-bold uppercase tracking-widest text-caos-forest shrink-0">Open →</span>
+          </button>
+        )}
         <div className="flex items-center justify-between">
           <div>
             <span className="font-display font-bold tracking-tighter text-caos-forest text-2xl">CAOS</span>
