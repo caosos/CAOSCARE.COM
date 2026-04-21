@@ -18,7 +18,7 @@ class User(BaseModel):
     user_id: str = Field(default_factory=lambda: uid("user"))
     email: str
     name: str
-    role: Literal["admin", "staff"] = "staff"
+    role: Literal["owner", "admin", "staff"] = "staff"
     picture: Optional[str] = None
     auth_provider: Literal["jwt", "google"] = "jwt"
     password_hash: Optional[str] = None
@@ -38,7 +38,7 @@ class RegisterInput(BaseModel):
     email: EmailStr
     name: str
     password: str
-    role: Literal["admin", "staff"] = "staff"
+    role: Literal["owner", "admin", "staff"] = "staff"
 
 
 class LoginInput(BaseModel):
@@ -583,22 +583,36 @@ MemoryCategory = Literal[
     "concern", "relationship", "milestone", "other",
 ]
 
+# Two bins drive hydration:
+#   facts  = durable identity (family, preferences, health, daily patterns, relationships, history)
+#   events = dated moments (concerns, milestones, significant conversations)
+MemoryBin = Literal["facts", "events"]
+
+_FACTS_CATEGORIES = {"family", "preferences", "health", "history", "daily_pattern", "relationship"}
+
+
+def default_bin_for_category(category: str) -> str:
+    return "facts" if category in _FACTS_CATEGORIES else "events"
+
 
 class ResidentMemory(BaseModel):
-    """One discrete fact CAOS has learned (or been told) about a resident.
-    These are pulled into every chat so the AI remembers across sessions and
-    stays a trusted companion that grows with the resident over time."""
+    """One discrete fact or life-event CAOS has learned about a resident.
+    Pulled into every chat so the AI remembers across sessions and grows
+    with the resident over time. See /admin/blueprint for the full model."""
     model_config = ConfigDict(extra="ignore")
     memory_id: str = Field(default_factory=lambda: uid("mem"))
     resident_id: str
     text: str                                              # the fact itself
     category: MemoryCategory = "other"
+    bin: MemoryBin = "facts"                               # which bulletin bin it lives in
     importance: int = 3                                    # 1=minor, 5=critical to remember
     source: Literal["chat", "admin", "staff", "family", "extraction"] = "extraction"
     source_session: Optional[str] = None
+    event_at: Optional[datetime] = None                    # when the event happened (events bin)
     last_referenced_at: Optional[datetime] = None
     times_referenced: int = 0
     pinned: bool = False                                   # admin-pinned memories never drop out
+    archived: bool = False                                 # dehydrated / retired but retained
     created_at: datetime = Field(default_factory=now_utc)
 
 
@@ -606,13 +620,18 @@ class ResidentMemoryCreate(BaseModel):
     resident_id: str
     text: str
     category: MemoryCategory = "other"
+    bin: Optional[MemoryBin] = None                         # auto-derived from category if omitted
     importance: int = 3
     source: Literal["chat", "admin", "staff", "family", "extraction"] = "admin"
     pinned: bool = False
+    event_at: Optional[datetime] = None
 
 
 class ResidentMemoryUpdate(BaseModel):
     text: Optional[str] = None
     category: Optional[MemoryCategory] = None
+    bin: Optional[MemoryBin] = None
     importance: Optional[int] = None
     pinned: Optional[bool] = None
+    archived: Optional[bool] = None
+    event_at: Optional[datetime] = None

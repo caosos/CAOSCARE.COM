@@ -12,6 +12,16 @@ CAOS Care is an AI-powered adjunct to existing 900 MHz Life-Alert-style pendant 
 
 ## Implemented (Feb 2026)
 
+### Iteration 12 (Feb 2026) — Owner tier + Blueprint + two-bin memory
+- **Three-tier role hierarchy**: `owner` > `admin` > `staff`. `User.role` literal expanded; `/admin-login` now accepts both `owner` and `admin`. First Google sign-up is promoted to `owner` (was `admin`). Seeded accounts: `owner@caoscare.com / owner1234`, `admin@caoscare.com / admin1234` (now labelled "Admin Nurse"), `nurse@caoscare.com / nurse1234`.
+- **Owner-only `/admin/blueprint` page** (`pages/Blueprint.jsx`): single-source vision document — philosophy, role tiers, memory architecture, live bulletin, hardware stack, AI layers, clinician registry, family/compliance, what's next. Owner sees a terracotta "Blueprint" button in the admin header; admins and staff do not. Attempts by non-owners to hit the route are redirected to `/admin`.
+- **Memory two-bin model**: `ResidentMemory` gained `bin: "facts" | "events"`, `event_at`, and `archived` fields. `default_bin_for_category()` maps `family/preferences/health/history/daily_pattern/relationship → facts`, `concern/milestone/other → events`. Bin is auto-derived on create or extraction if not specified. Legacy rows migrated via `POST /api/memory/backfill-bins` (owner-only, idempotent) — 37 existing memories migrated in place.
+- **Rolling window raised 40 → 500 turns**. Claude Sonnet 4.5 has plenty of context headroom; the previous cap was truncating rich conversations before the dehydration pipeline could extract them. Session-scoping still prevents cross-event bleed.
+- **Hydration splits bins**: `build_memory_context()` now injects `PERSONAL FACTS (durable identity)` + `LIFE EVENTS (dated moments, newest first)` as two separate blocks in the system prompt, with up to 40 facts and 25 events.
+- **Owner-only bulletin endpoint**: `GET /api/memory/bulletin/{resident_id}` returns `{resident, facts[], events[], conversation_turns, rolling_window}` — consumed by the Blueprint page's live bulletin column view.
+- **Tests**: Owner login OK, admin gated out of `/admin/blueprint` + `/api/memory/bulletin/*` (403 / redirect), live bulletin renders 29 facts + 2 events for Dorothy Walsh.
+
+
 ### Iteration 11 (Feb 2026) — Voice briefing + kiosk accessibility
 - **Nurse voice briefing** (`GET /api/residents/{id}/briefing`): returns structured payload (thresholds, active alert count, pinned memories, last zone, last seen) plus a pre-composed natural-language `narrative` line. Admin → Residents now has a **Brief** button per row that fetches the narrative, pipes it through the existing OpenAI TTS endpoint, and plays it in the browser. Useful for shift-change hand-offs — "Dorothy Walsh, room 204. Clinical bands: resting heart rate band 55 to 105, exertion ceiling 135, oxygen floor 92 percent. Note: chronic afib…"
 - **Kiosk accessibility toggles** (per-kiosk, persisted via localStorage): (1) text-size cycle A / A+ / A++ scales the idle screen's hello / prompt / emergency / assist buttons, (2) high-contrast mode flips the entire kiosk to amber-on-black (#FFC857 on #000, WCAG-AAA) and swaps the emergency button to yellow-on-black for low-vision residents with cataracts or retinopathy.

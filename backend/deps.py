@@ -66,7 +66,17 @@ async def get_current_user(request: Request):
 
 
 async def require_admin(request: Request):
+    """Admin-tier access: owner or admin (clinical). Staff are rejected."""
     user = await get_current_user(request)
-    if user.get("role") != "admin":
+    if user.get("role") not in ("owner", "admin"):
         raise HTTPException(status_code=403, detail="Admin access required")
+    return user
+
+
+async def require_owner(request: Request):
+    """System-owner-only access. Used for Blueprint, memory bulletin internals,
+    and any route that exposes architecture or all-resident override."""
+    user = await get_current_user(request)
+    if user.get("role") != "owner":
+        raise HTTPException(status_code=403, detail="System owner access required")
     return user

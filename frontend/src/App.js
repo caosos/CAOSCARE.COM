@@ -10,10 +10,11 @@ import AdminLogin from "./pages/AdminLogin";
 import Kiosk from "./pages/Kiosk";
 import StaffDashboard from "./pages/StaffDashboard";
 import Admin from "./pages/Admin";
+import Blueprint from "./pages/Blueprint";
 import AuthCallback from "./pages/AuthCallback";
 import FamilyPortal from "./pages/FamilyPortal";
 
-function Protected({ children, adminOnly = false }) {
+function Protected({ children, adminOnly = false, ownerOnly = false }) {
   const { user, loading } = useAuth();
   if (loading) {
     return (
@@ -23,7 +24,9 @@ function Protected({ children, adminOnly = false }) {
     );
   }
   if (!user) return <Navigate to="/login" replace />;
-  if (adminOnly && user.role !== "admin") return <Navigate to="/staff" replace />;
+  if (ownerOnly && user.role !== "owner") return <Navigate to="/admin" replace />;
+  // "Admin" tier = owner OR admin (clinical admin nurse). Staff are rejected.
+  if (adminOnly && !["owner", "admin"].includes(user.role)) return <Navigate to="/staff" replace />;
   return children;
 }
 
@@ -42,6 +45,7 @@ function AppRouter() {
       <Route path="/family/:token" element={<FamilyPortal />} />
       <Route path="/staff" element={<Protected><StaffDashboard /></Protected>} />
       <Route path="/admin" element={<Protected adminOnly><Admin /></Protected>} />
+      <Route path="/admin/blueprint" element={<Protected ownerOnly><Blueprint /></Protected>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

@@ -22,7 +22,7 @@ export default function Login() {
     try {
       const u = await loginJwt(form.email, form.password);
       toast.success(`Welcome, ${u.name}`);
-      nav(u.role === "admin" ? "/admin" : "/staff");
+      nav(["owner", "admin"].includes(u.role) ? "/admin" : "/staff");
     } catch (err) {
       toast.error(err?.response?.data?.detail || "Login failed");
     } finally {
@@ -36,7 +36,7 @@ export default function Login() {
     try {
       const u = await registerJwt(form);
       toast.success("Account created");
-      nav(u.role === "admin" ? "/admin" : "/staff");
+      nav(["owner", "admin"].includes(u.role) ? "/admin" : "/staff");
     } catch (err) {
       toast.error(err?.response?.data?.detail || "Registration failed");
     } finally {
@@ -147,6 +147,7 @@ export default function Login() {
               <div className="mt-6 text-sm text-caos-mute bg-caos-ambient rounded-xl p-4">
                 <p className="font-semibold text-caos-forest">Demo staff credentials</p>
                 <p className="mt-1">Staff: <span className="font-mono">nurse@caoscare.com / nurse1234</span></p>
+                <p className="mt-1 text-xs">Admin nurse + Owner sign in at the admin portal →</p>
                 <Link
                   to="/admin-login"
                   data-testid="login-to-admin-link"

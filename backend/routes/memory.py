@@ -32,9 +32,10 @@ from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
-from deps import db, get_current_user
+from deps import db, get_current_user, require_owner
 from models import (
     ResidentMemory, ResidentMemoryCreate, ResidentMemoryUpdate, now_utc, uid,
+    default_bin_for_category,
 )
 
 from emergentintegrations.llm.chat import LlmChat, UserMessage
@@ -42,8 +43,14 @@ from emergentintegrations.llm.chat import LlmChat, UserMessage
 router = APIRouter(prefix="/memory", tags=["memory"])
 
 EMERGENT_KEY = os.environ["EMERGENT_LLM_KEY"]
-MAX_HISTORY_MESSAGES = 40
-MAX_MEMORIES_IN_CONTEXT = 25
+# Claude Sonnet 4.5 has a huge context window. We previously capped history
+# at 40 to keep prompts cheap, but that meant rich conversations aged out
+# before important context could dehydrate into the bins. Raise the rolling
+# window to 500 turns; the dehydration pipeline + two-bin bulletin do the
+# heavy lifting for anything older.
+MAX_HISTORY_MESSAGES = 500
+MAX_FACTS_IN_CONTEXT = 40   # durable identity facts (Personal Facts bin)
+MAX_EVENTS_IN_CONTEXT = 25  # dated moments (Life Events bin)
 
 EXTRACTOR_SYSTEM = """You read the most recent exchange between a senior living
 resident and their AI companion. Your only job is to extract durable facts
@@ -59,7 +66,7 @@ RULES
 
 
 def _iso(doc: dict) -> dict:
-    for k in ("created_at", "last_referenced_at"):
+    for k in ("created_at", "last_referenced_at", "event_at"):
         v = doc.get(k)
         if v and not isinstance(v, str):
             doc[k] = v.isoformat()
@@ -90,24 +97,54 @@ async def get_recent_conversation(resident_id: str, session_id: Optional[str] = 
     return msgs
 
 
-async def get_top_memories(resident_id: str, limit: int = MAX_MEMORIES_IN_CONTEXT) -> List[dict]:
+async def get_facts_bin(resident_id: str, limit: int = MAX_FACTS_IN_CONTEXT) -> List[dict]:
+    """Personal Facts bin: durable identity (family, preferences, health,
+    daily patterns, relationships, history). Pinned first, then importance."""
     if not resident_id:
         return []
-    # Pinned first, then by importance desc, then recency
+    q_base = {"resident_id": resident_id, "bin": "facts", "archived": {"$ne": True}}
     pinned = await db.memories.find(
-        {"resident_id": resident_id, "pinned": True}, {"_id": 0},
+        {**q_base, "pinned": True}, {"_id": 0},
     ).sort("importance", -1).to_list(limit)
     remaining = max(limit - len(pinned), 0)
+    rest = []
     if remaining:
         rest = await db.memories.find(
-            {"resident_id": resident_id, "pinned": {"$ne": True}}, {"_id": 0},
+            {**q_base, "pinned": {"$ne": True}}, {"_id": 0},
         ).sort([("importance", -1), ("created_at", -1)]).to_list(remaining)
-    else:
-        rest = []
     out = pinned + rest
     for m in out:
         _iso(m)
     return out
+
+
+async def get_events_bin(resident_id: str, limit: int = MAX_EVENTS_IN_CONTEXT) -> List[dict]:
+    """Life Events bin: dated moments (concerns, milestones, significant
+    conversations). Pinned first, then most-recent event_at/created_at."""
+    if not resident_id:
+        return []
+    q_base = {"resident_id": resident_id, "bin": "events", "archived": {"$ne": True}}
+    pinned = await db.memories.find(
+        {**q_base, "pinned": True}, {"_id": 0},
+    ).sort("importance", -1).to_list(limit)
+    remaining = max(limit - len(pinned), 0)
+    rest = []
+    if remaining:
+        rest = await db.memories.find(
+            {**q_base, "pinned": {"$ne": True}}, {"_id": 0},
+        ).sort([("event_at", -1), ("created_at", -1)]).to_list(remaining)
+    out = pinned + rest
+    for m in out:
+        _iso(m)
+    return out
+
+
+async def get_top_memories(resident_id: str, limit: int = MAX_FACTS_IN_CONTEXT + MAX_EVENTS_IN_CONTEXT) -> List[dict]:
+    """Backwards-compatible fetcher used by older callers. Returns facts+events
+    merged. Prefer get_facts_bin / get_events_bin for new code."""
+    facts = await get_facts_bin(resident_id, MAX_FACTS_IN_CONTEXT)
+    events = await get_events_bin(resident_id, MAX_EVENTS_IN_CONTEXT)
+    return facts + events
 
 
 async def append_conversation(resident_id: Optional[str], session_id: str, role: str, content: str) -> None:
@@ -135,19 +172,34 @@ async def mark_referenced(memory_ids: List[str]) -> None:
 async def build_memory_context(resident_id: Optional[str], session_id: Optional[str] = None) -> dict:
     """Return {'memories_block': str, 'history': [{'role','content'}], 'memory_ids': [...]}.
 
-    History is scoped to the current session_id when provided — only the
-    CURRENT call is replayed into Claude's context. This prevents the AI
-    from treating a past emergency as the active one."""
+    Hydration pipeline:
+      - Personal Facts bin — durable identity (pinned first, then importance)
+      - Life Events bin   — dated moments (pinned first, then most recent)
+      - Rolling recent window of this session's conversation
+
+    History is session-scoped when session_id is provided so the AI never
+    conflates a past emergency with the current one. The two bins cover
+    everything older than this session."""
     if not resident_id:
         return {"memories_block": "", "history": [], "memory_ids": []}
-    memories = await get_top_memories(resident_id)
+    facts = await get_facts_bin(resident_id)
+    events = await get_events_bin(resident_id)
     history = await get_recent_conversation(resident_id, session_id=session_id)
-    memory_ids = [m["memory_id"] for m in memories]
-    lines = []
-    for m in memories:
-        star = "★ " if m.get("pinned") else ""
-        lines.append(f"{star}[{m.get('category','other')} · i{m.get('importance',3)}] {m['text']}")
-    block = "\n".join(lines) if lines else "(no long-term memories yet)"
+    memory_ids = [m["memory_id"] for m in (facts + events)]
+
+    parts = []
+    if facts:
+        parts.append("PERSONAL FACTS (durable identity):")
+        for m in facts:
+            star = "★ " if m.get("pinned") else ""
+            parts.append(f"  {star}[{m.get('category','other')} · i{m.get('importance',3)}] {m['text']}")
+    if events:
+        parts.append("\nLIFE EVENTS (dated moments, newest first):")
+        for m in events:
+            star = "★ " if m.get("pinned") else ""
+            when = (m.get("event_at") or m.get("created_at") or "")[:10]
+            parts.append(f"  {star}[{when} · {m.get('category','other')}] {m['text']}")
+    block = "\n".join(parts) if parts else "(no long-term memories yet)"
     return {
         "memories_block": block,
         "history": [{"role": h["role"], "content": h["content"]} for h in history],
@@ -200,16 +252,21 @@ async def extract_and_store_memories(resident_id: str, session_id: str, user_tex
             }, {"_id": 0})
             if existing:
                 continue
+            cat = it.get("category", "other")
             m = ResidentMemory(
                 resident_id=resident_id,
                 text=text,
-                category=it.get("category", "other"),
+                category=cat,
+                bin=default_bin_for_category(cat),
                 importance=int(it.get("importance", 3)) if it.get("importance") is not None else 3,
                 source="extraction",
                 source_session=session_id,
+                event_at=now_utc() if default_bin_for_category(cat) == "events" else None,
             )
             doc = m.model_dump()
             doc["created_at"] = doc["created_at"].isoformat()
+            if doc.get("event_at"):
+                doc["event_at"] = doc["event_at"].isoformat()
             await db.memories.insert_one(doc)
             saved += 1
         return saved
@@ -235,9 +292,18 @@ async def create_memory(data: ResidentMemoryCreate, user=Depends(get_current_use
     r = await db.residents.find_one({"resident_id": data.resident_id}, {"_id": 0, "name": 1})
     if not r:
         raise HTTPException(status_code=404, detail="Resident not found")
-    m = ResidentMemory(**data.model_dump())
+    payload = data.model_dump()
+    # Auto-derive bin from category if caller didn't specify
+    if not payload.get("bin"):
+        payload["bin"] = default_bin_for_category(payload.get("category", "other"))
+    # Stamp event_at for events-bin items so they sort chronologically
+    if payload["bin"] == "events" and not payload.get("event_at"):
+        payload["event_at"] = now_utc()
+    m = ResidentMemory(**payload)
     doc = m.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
+    if doc.get("event_at"):
+        doc["event_at"] = doc["event_at"].isoformat()
     await db.memories.insert_one(doc)
     doc.pop("_id", None)
     return doc
@@ -289,3 +355,44 @@ async def conversation_history(resident_id: str, limit: int = 200, user=Depends(
     for i in items:
         _iso(i)
     return items
+
+
+# ---------------- Owner-only bulletin (the bin view) ----------------
+
+@router.get("/bulletin/{resident_id}")
+async def bulletin(resident_id: str, user=Depends(require_owner)):
+    """Owner-only. Returns both bins separately so the Blueprint bulletin
+    can render Personal Facts and Life Events as two columns."""
+    resident = await db.residents.find_one({"resident_id": resident_id}, {"_id": 0, "name": 1, "preferred_name": 1, "room": 1})
+    facts = await db.memories.find(
+        {"resident_id": resident_id, "bin": "facts"}, {"_id": 0},
+    ).sort([("pinned", -1), ("importance", -1), ("created_at", -1)]).to_list(1000)
+    events = await db.memories.find(
+        {"resident_id": resident_id, "bin": "events"}, {"_id": 0},
+    ).sort([("pinned", -1), ("event_at", -1), ("created_at", -1)]).to_list(1000)
+    for i in facts + events:
+        _iso(i)
+    conv_count = await db.conversations.count_documents({"resident_id": resident_id})
+    return {
+        "resident": resident,
+        "facts": facts,
+        "events": events,
+        "conversation_turns": conv_count,
+        "rolling_window": MAX_HISTORY_MESSAGES,
+    }
+
+
+@router.post("/backfill-bins")
+async def backfill_bins(user=Depends(require_owner)):
+    """Owner-only one-shot migration: assigns 'bin' to every legacy memory
+    that predates the two-bin model. Idempotent — only touches rows missing bin."""
+    cursor = db.memories.find({"bin": {"$exists": False}}, {"_id": 0, "memory_id": 1, "category": 1, "created_at": 1})
+    updated = 0
+    async for m in cursor:
+        b = default_bin_for_category(m.get("category", "other"))
+        patch: dict = {"bin": b}
+        if b == "events":
+            patch["event_at"] = m.get("created_at")
+        await db.memories.update_one({"memory_id": m["memory_id"]}, {"$set": patch})
+        updated += 1
+    return {"ok": True, "updated": updated}

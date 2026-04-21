@@ -126,7 +126,7 @@ async def admin_login(data: LoginInput, request: Request):
         _admin_throttle_record(client_ip, data.email)
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    if user.get("role") != "admin":
+    if user.get("role") not in ("owner", "admin"):
         # Do NOT increment the lockout counter for a valid staff login — that
         # would let a malicious admin lock out legit staff. Just redirect.
         raise HTTPException(
@@ -180,9 +180,9 @@ async def google_session(data: GoogleSessionInput, response: Response):
         role = existing.get("role", "staff")
     else:
         user_id = uid("user")
-        # First registered user becomes admin
+        # First registered user becomes owner (system-owner), subsequent = staff
         count = await db.users.count_documents({})
-        role = "admin" if count == 0 else "staff"
+        role = "owner" if count == 0 else "staff"
         doc = {
             "user_id": user_id,
             "email": email,

@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Textarea } from "../components/ui/textarea";
 import { Checkbox } from "../components/ui/checkbox";
 import { Badge } from "../components/ui/badge";
-import { Trash2, Plus, LogOut, Activity, Volume2 } from "lucide-react";
+import { Trash2, Plus, LogOut, Activity, Volume2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import PendantsTab from "./PendantsTab";
 import Roadmap from "./Roadmap";
@@ -73,9 +73,18 @@ export default function Admin() {
               <span className="font-display font-bold tracking-tighter text-caos-forest">CAOS</span>
               <span className="font-display font-light text-caos-forest">Care</span>
             </Link>
-            <span className="text-caos-mute text-sm">· Admin</span>
+            <span className="text-caos-mute text-sm">
+              · {user?.role === "owner" ? "Owner" : "Admin"}
+            </span>
           </div>
           <div className="flex items-center gap-3">
+            {user?.role === "owner" && (
+              <Link to="/admin/blueprint" data-testid="admin-blueprint-link">
+                <Button variant="outline" className="border-2 h-10 rounded-full border-caos-terracotta text-caos-terracotta hover:bg-caos-terracotta hover:text-white">
+                  <Sparkles className="w-4 h-4 mr-2" /> Blueprint
+                </Button>
+              </Link>
+            )}
             <Link to="/staff" data-testid="admin-staff-link">
               <Button variant="outline" className="border-2 h-10 rounded-full">
                 <Activity className="w-4 h-4 mr-2" /> Dashboard

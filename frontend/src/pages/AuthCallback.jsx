@@ -28,7 +28,7 @@ export default function AuthCallback() {
         const user = await fetchMe();
         // clear hash
         window.history.replaceState({}, document.title, window.location.pathname);
-        nav(user?.role === "admin" ? "/admin" : "/staff", { state: { user } });
+        nav(["owner", "admin"].includes(user?.role) ? "/admin" : "/staff", { state: { user } });
       } catch (e) {
         setErr("Authentication failed. Please try again.");
         setTimeout(() => nav("/login"), 1500);

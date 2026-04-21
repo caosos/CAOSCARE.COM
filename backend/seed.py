@@ -66,13 +66,29 @@ ROADMAP_SEED = [
 
 
 async def seed():
-    # Admin user
+    # System owner (highest tier — you, the product owner)
+    owner_email = "owner@caoscare.com"
+    existing = await db.users.find_one({"email": owner_email}, {"_id": 0})
+    if not existing:
+        owner = User(
+            email=owner_email,
+            name="System Owner",
+            role="owner",
+            auth_provider="jwt",
+            password_hash=bcrypt.hashpw(b"owner1234", bcrypt.gensalt()).decode(),
+        )
+        doc = owner.model_dump()
+        doc["created_at"] = doc["created_at"].isoformat()
+        await db.users.insert_one(doc)
+        print(f"Created owner: {owner_email} / owner1234")
+
+    # Admin (clinical admin / admin nurse) — facility leadership
     admin_email = "admin@caoscare.com"
     existing = await db.users.find_one({"email": admin_email}, {"_id": 0})
     if not existing:
         admin = User(
             email=admin_email,
-            name="Admin",
+            name="Admin Nurse",
             role="admin",
             auth_provider="jwt",
             password_hash=bcrypt.hashpw(b"admin1234", bcrypt.gensalt()).decode(),
@@ -81,7 +97,7 @@ async def seed():
         doc["created_at"] = doc["created_at"].isoformat()
         await db.users.insert_one(doc)
         doc.pop("_id", None)
-        print(f"Created admin: {admin_email} / admin1234")
+        print(f"Created admin nurse: {admin_email} / admin1234")
 
     # Staff user
     staff_email = "nurse@caoscare.com"
