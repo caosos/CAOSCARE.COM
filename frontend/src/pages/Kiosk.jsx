@@ -201,8 +201,8 @@ export default function Kiosk() {
 
     const name = (a.resident_name || resident?.name || "there").split(" ")[0];
     const line = a.press_count >= 2
-      ? `I'm here, ${name}. I've called for help — they're on their way. Stay with me. Tell me what's happening.`
-      : `I'm here, ${name}. I've paged a caregiver. Can you tell me what you need?`;
+      ? `I'm right here, ${name}. Help is on the way. Can you tell me what happened?`
+      : `Hi, ${name}. Help's on the way. Is there anything I can do for you while we wait?`;
     setMessages([{ role: "assistant", content: line }]);
     await speak(line);
     // Start the continuous loop (auto listen → transcribe → reply → repeat)
@@ -543,6 +543,7 @@ export default function Kiosk() {
     setMessages((m) => [...m, userMsg]);
     setThinking(true);
     let reply = "";
+    let sleepIntent = false;
     try {
       const { data } = await axios.post(`${API}/ai/chat`, {
         session_id: sessionRef.current,
@@ -551,6 +552,7 @@ export default function Kiosk() {
         message: text,
       }, { timeout: 15000 });
       reply = data.reply || "";
+      sleepIntent = !!data.sleep_intent;
       setMessages((m) => [...m, { role: "assistant", content: reply }]);
       await speak(reply);
       if (data.auto_emergency_detected && alert?.severity !== "emergency") {
@@ -574,22 +576,22 @@ export default function Kiosk() {
     } finally {
       setThinking(false);
     }
-    // Claude is doing the semantic understanding — if CAOS's own reply
-    // signals "I'll be quiet / I'll rest / just rest", that IS the intent
-    // to enter sleep mode. Much more reliable than pattern-matching the
-    // resident's free-form speech.
+
+    // AUTHORITATIVE sleep signal: Claude appends [REST] when it decides the
+    // resident wants quiet. Backend strips it and returns sleep_intent:true.
+    // Belt-and-suspenders: also fall back to reply-phrase matching for any
+    // case where Claude forgets the tag.
     const replyLower = (reply || "").toLowerCase();
     const SLEEP_REPLY_CUES = [
       "i'll be quiet", "ill be quiet", "i will be quiet",
       "i'll be right here", "ill be right here", "i will be right here",
       "i'll be here if you need", "ill be here if you need",
       "i'll wait quietly", "ill wait quietly",
-      "i'll let you rest", "ill let you rest", "i will let you rest",
+      "i'll let you rest", "ill let you rest",
       "just rest", "rest now", "get some rest",
-      "i understand. i'll", "i understand, i'll", "i understand. ill",
       "i'll stop talking", "ill stop talking",
     ];
-    if (SLEEP_REPLY_CUES.some((c) => replyLower.includes(c))) {
+    if (sleepIntent || SLEEP_REPLY_CUES.some((c) => replyLower.includes(c))) {
       sleepingRef.current = true;
       setSleeping(true);
     }
