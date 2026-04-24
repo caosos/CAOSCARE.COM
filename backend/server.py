@@ -34,6 +34,7 @@ from routes import paging as paging_routes  # noqa: E402
 from routes import medications as medication_routes  # noqa: E402
 from routes import memory as memory_routes  # noqa: E402
 from routes import audit as audit_routes  # noqa: E402
+from routes import realtime as realtime_routes  # noqa: E402
 from seed import seed  # noqa: E402
 
 
@@ -87,6 +88,7 @@ api.include_router(paging_routes.router)
 api.include_router(medication_routes.router)
 api.include_router(memory_routes.router)
 api.include_router(audit_routes.router)
+api.include_router(realtime_routes.router)
 
 app.include_router(api)
 

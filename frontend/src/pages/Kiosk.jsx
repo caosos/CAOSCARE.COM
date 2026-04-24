@@ -7,6 +7,7 @@ import { Card } from "../components/ui/card";
 import { AlertCircle, Mic, MicOff, Volume2, Phone, X, Lightbulb, Fan, Thermometer, Tv, Power, Type, Contrast, Sparkles, Play } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
+import RealtimeChatScreen from "./RealtimeChatScreen";
 
 // Kiosk is PUBLIC - no login. Selected/identified by kiosk_id in URL.
 // /kiosk/:kioskId  (use "demo" to pick an arbitrary kiosk automatically)
@@ -70,6 +71,13 @@ export default function Kiosk() {
     localStorage.setItem("caos_kiosk_voice", voiceId);
   }, [voiceId]);
   const [voicePickerOpen, setVoicePickerOpen] = useState(false);
+
+  // Realtime full-duplex mode (OpenAI Realtime API). When ON, the chat
+  // surface uses RealtimeChatScreen (WebRTC peer connection, sub-second
+  // latency, native chime-in support). When OFF, the legacy turn-based
+  // VAD + Whisper + TTS loop is used (kept as fallback).
+  const [realtimeMode, setRealtimeMode] = useState(() => localStorage.getItem("caos_kiosk_realtime") !== "0");
+  useEffect(() => { localStorage.setItem("caos_kiosk_realtime", realtimeMode ? "1" : "0"); }, [realtimeMode]);
 
   // Sleep-mode — resident said something like "I'll just sit and wait".
   const [sleeping, setSleeping] = useState(false);
@@ -957,6 +965,20 @@ export default function Kiosk() {
               <span>{voiceId}</span>
             </button>
             <button
+              onClick={() => setRealtimeMode((v) => !v)}
+              data-testid="kiosk-a11y-realtime"
+              aria-label={`Full-duplex mode ${realtimeMode ? "on" : "off"}. Tap to toggle.`}
+              title="Full-duplex realtime voice"
+              aria-pressed={realtimeMode}
+              className={`px-3 py-2 rounded-full border flex items-center gap-1 text-sm font-bold uppercase tracking-wider ${
+                realtimeMode
+                  ? "bg-caos-terracotta text-white border-caos-terracotta"
+                  : "bg-white text-caos-forest border-caos-line hover:bg-caos-forest hover:text-white"
+              }`}
+            >
+              <Sparkles className="w-4 h-4" /> {realtimeMode ? "Live" : "Turn"}
+            </button>
+            <button
               onClick={() => setHighContrast((v) => !v)}
               data-testid="kiosk-a11y-contrast"
               aria-label={`High contrast mode ${highContrast ? "on" : "off"}. Tap to toggle.`}
@@ -1070,6 +1092,29 @@ export default function Kiosk() {
   }
 
   // CALLING / WAITING / CHATTING
+  // Realtime mode hands the chat surface to RealtimeChatScreen as soon as
+  // an alert is open. Calling+waiting are skipped because the realtime
+  // peer connection establishes in under a second.
+  if (realtimeMode && callState !== "idle" && alert) {
+    return (
+      <>
+        <RealtimeChatScreen
+          resident={resident}
+          voiceId={voiceId}
+          a11yRootClass={a11yRootClass}
+          onOpenVoicePicker={() => setVoicePickerOpen(true)}
+          onEnd={() => {
+            setCallState("idle");
+            setAlert(null);
+            setMessages([]);
+            voiceLoopRef.current = false;
+          }}
+        />
+        {voicePickerDialog}
+      </>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-caos-ambient p-6 md:p-10 flex flex-col">
       <div className="flex items-start justify-between">
