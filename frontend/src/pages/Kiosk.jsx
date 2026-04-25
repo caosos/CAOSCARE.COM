@@ -188,14 +188,18 @@ export default function Kiosk() {
         const { data } = await axios.get(`${API}/alerts/${alert.alert_id}`);
         if (data.status === "resolved") {
           voiceLoopRef.current = false;
-          await speak("A caregiver is with you now. I'll step back.");
+          // In realtime mode, the WebRTC loop owns the goodbye. Just close
+          // the call silently — speaking here would step on the live AI.
+          if (!realtimeMode) {
+            await speak("A caregiver is with you now. I'll step back.");
+          }
           setTimeout(() => cancelCall(), 500);
         }
       } catch { /* silent */ }
     }, 4000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [alert?.alert_id]);
+  }, [alert?.alert_id, realtimeMode]);
 
   const handleIncomingEmergency = async (a) => {
     setAlert(a);
@@ -489,6 +493,7 @@ export default function Kiosk() {
     let stop = false;
     const checkMeds = async () => {
       if (callStateRef.current !== "idle") return;
+      if (realtimeMode) return; // realtime owns the voice surface; reminders need their own realtime path (TODO)
       try {
         const { data: due } = await axios.get(`${API}/medications/due/by-room/${kiosk.room}`);
         if (stop || !due || due.length === 0) return;
