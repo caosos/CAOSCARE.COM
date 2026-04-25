@@ -18,6 +18,7 @@ import { Badge } from "../components/ui/badge";
 import { Trash2, Plus, LogOut, Activity, Volume2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import PendantsTab from "./PendantsTab";
+import RFPairingTab from "./RFPairingTab";
 import Roadmap from "./Roadmap";
 import Insights from "./Insights";
 import FamilyTab from "./FamilyTab";
@@ -109,6 +110,7 @@ export default function Admin() {
           <TabsList className="flex-wrap h-auto">
             <TabsTrigger value="residents" data-testid="tab-residents">Residents ({residents.length})</TabsTrigger>
             <TabsTrigger value="pendants" data-testid="tab-pendants">Pendants</TabsTrigger>
+            <TabsTrigger value="rf" data-testid="tab-rf">RF Pendants</TabsTrigger>
             <TabsTrigger value="wearables" data-testid="tab-wearables">Wearables</TabsTrigger>
             <TabsTrigger value="devices" data-testid="tab-devices">Smart devices</TabsTrigger>
             <TabsTrigger value="tasks" data-testid="tab-tasks">Tasks</TabsTrigger>
@@ -129,6 +131,9 @@ export default function Admin() {
           </TabsContent>
           <TabsContent value="pendants" className="mt-6">
             <PendantsTab residents={residents} />
+          </TabsContent>
+          <TabsContent value="rf" className="mt-6">
+            <RFPairingTab />
           </TabsContent>
           <TabsContent value="wearables" className="mt-6">
             <WearablesTab residents={residents} />

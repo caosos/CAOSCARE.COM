@@ -162,7 +162,7 @@ class Alert(BaseModel):
     status: AlertStatus = "active"
     escalation_level: int = 0  # 0=normal, 1=escalated, 2=supervisor, 3=code
     message: Optional[str] = ""
-    triggered_by: Literal["kiosk_button", "ai_triage", "pendant", "manual", "geofence", "wearable"] = "kiosk_button"
+    triggered_by: Literal["kiosk_button", "ai_triage", "pendant", "manual", "geofence", "wearable", "rf_pendant"] = "kiosk_button"
     acknowledged_by: Optional[str] = None
     acknowledged_at: Optional[datetime] = None
     resolved_by: Optional[str] = None
@@ -171,6 +171,7 @@ class Alert(BaseModel):
     close_notes: Optional[str] = None
     auto_voice: bool = False             # hands-free mic activation on kiosk (panic-press / fall)
     press_count: int = 1                 # how many rapid presses triggered this
+    source_metadata: Optional[dict] = None  # arbitrary trigger-specific payload (rf_device_id, rssi, etc.)
     # ---- Event registry enrichment (auto-populated by AI classifier) ----
     category: Optional[AlertCategory] = None     # what kind of call (bathroom, fall, ...)
     ai_summary: Optional[str] = None             # 1-line Claude summary of the call
@@ -635,3 +636,75 @@ class ResidentMemoryUpdate(BaseModel):
     pinned: Optional[bool] = None
     archived: Optional[bool] = None
     event_at: Optional[datetime] = None
+
+
+
+# ---------- RF Pairing & Reception (sub-GHz SDR) ----------
+
+# A unique fingerprint of a sub-GHz button press. The kiosk's USB SDR captures
+# the air, demodulates whatever protocol it can, and reduces it to these fields.
+class RFFingerprint(BaseModel):
+    frequency_hz: int                                     # e.g. 319_000_000
+    modulation: Literal["OOK", "ASK", "FSK", "PWM", "unknown"] = "unknown"
+    bit_pattern_hex: str                                  # decoded payload, hex
+    bit_length: int                                       # length of bit_pattern in bits
+    rssi: Optional[float] = None                          # received signal strength (dBm-ish)
+
+
+# A paired device — bound to a resident and assigned a severity. Future
+# presses that match this fingerprint auto-fire alerts.
+class RFDevice(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    rf_device_id: str = Field(default_factory=lambda: uid("rfd"))
+    label: str                                            # "Margaret's bedside pendant"
+    resident_id: Optional[str] = None
+    room: Optional[str] = None
+    fingerprint: RFFingerprint
+    severity: Literal["help", "assist", "emergency", "comfort"] = "help"
+    match_threshold: float = 0.85                         # min similarity 0..1
+    enabled: bool = True
+    last_seen_at: Optional[datetime] = None
+    last_rssi: Optional[float] = None
+    press_count: int = 0
+    low_battery: bool = False
+    created_at: datetime = Field(default_factory=now_utc)
+    created_by: Optional[str] = None
+
+
+# A pairing capture window — the kiosk listens for ~10s, pushes whatever
+# it heard back here. Admin then turns it into an RFDevice via /pair.
+class RFCapture(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    capture_id: str = Field(default_factory=lambda: uid("cap"))
+    kiosk_id: str
+    requested_by: Optional[str] = None
+    bands: List[int] = Field(default_factory=list)        # frequencies to scan (Hz)
+    status: Literal["pending", "listening", "captured", "timeout", "cancelled"] = "pending"
+    captured: Optional[RFFingerprint] = None
+    started_at: datetime = Field(default_factory=now_utc)
+    expires_at: datetime
+    completed_at: Optional[datetime] = None
+
+
+class RFListenStart(BaseModel):
+    kiosk_id: str
+    duration_seconds: int = 10                            # capture window length
+    bands: Optional[List[int]] = None                     # default profile if omitted
+
+
+class RFPair(BaseModel):
+    capture_id: str
+    label: str
+    resident_id: Optional[str] = None
+    severity: Literal["help", "assist", "emergency", "comfort"] = "help"
+    match_threshold: float = 0.85
+
+
+# Bridge → backend. Fired every time the SDR sees a known-or-unknown press.
+# HMAC signed (header X-RF-Signature). Backend matches against db.rf_devices
+# and either fires an alert or logs as unmatched.
+class RFEventIn(BaseModel):
+    kiosk_id: str
+    fingerprint: RFFingerprint
+    sequence: int                                         # monotonic, replay protection
+    captured_at: Optional[datetime] = None
