@@ -19,8 +19,10 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 import hmac
 import hashlib
+import json
+import os
 
-from fastapi import APIRouter, Depends, HTTPException, Header, Body
+from fastapi import APIRouter, Depends, HTTPException, Header, Body, Request
 
 from deps import db, get_current_user, require_admin
 from models import (
@@ -181,6 +183,88 @@ async def list_devices(user=Depends(require_admin)):
     for i in items:
         _iso(i)
     return items
+
+
+# ---------------- Kiosk provisioning (install wizard + APK QR pairing) ----------------
+
+import secrets as _secrets
+
+
+def _public_api_url(request: Optional[object] = None) -> str:
+    """Best-effort backend public URL — used inside install commands.
+    Priority: PUBLIC_API_URL env var → X-Forwarded-Host (set by ingress) →
+    inbound request host → placeholder."""
+    env_url = os.environ.get("PUBLIC_API_URL")
+    if env_url:
+        return env_url.rstrip("/")
+    if request is not None:
+        try:
+            fwd_host = request.headers.get("x-forwarded-host")
+            fwd_proto = request.headers.get("x-forwarded-proto", "https")
+            if fwd_host:
+                return f"{fwd_proto}://{fwd_host}"
+            return f"{request.url.scheme}://{request.url.netloc}"
+        except Exception:
+            pass
+    return "https://YOUR-FACILITY.caoscare.com"
+
+
+@router.get("/kiosk/{kiosk_id}/install-info")
+async def kiosk_install_info(kiosk_id: str, request: Request, user=Depends(require_admin)):
+    """Return everything a tablet/host needs to run the bridge daemon —
+    api_url, kiosk_id, rf_secret. If no rf_secret exists yet, mint one.
+    Powers the install wizard *and* the APK QR-pairing flow."""
+    kiosk = await db.kiosks.find_one({"kiosk_id": kiosk_id}, {"_id": 0})
+    if not kiosk:
+        raise HTTPException(404, detail="Kiosk not found")
+    secret = kiosk.get("rf_secret")
+    if not secret:
+        secret = _secrets.token_urlsafe(32)
+        await db.kiosks.update_one(
+            {"kiosk_id": kiosk_id}, {"$set": {"rf_secret": secret}},
+        )
+    api_url = _public_api_url(request)
+    return {
+        "api_url": api_url,
+        "kiosk_id": kiosk_id,
+        "rf_secret": secret,
+        "kiosk_name": kiosk.get("name"),
+        "room": kiosk.get("room"),
+        "qr_payload": json.dumps({
+            "v": 1,
+            "api_url": api_url,
+            "kiosk_id": kiosk_id,
+            "rf_secret": secret,
+        }),
+    }
+
+
+@router.post("/kiosk/{kiosk_id}/regenerate-secret")
+async def kiosk_regenerate_secret(kiosk_id: str, user=Depends(require_admin)):
+    """Rotate the kiosk's rf_secret. Any running bridge using the old
+    secret will start getting 401 on /api/rf/event until re-paired."""
+    kiosk = await db.kiosks.find_one({"kiosk_id": kiosk_id}, {"_id": 0})
+    if not kiosk:
+        raise HTTPException(404, detail="Kiosk not found")
+    secret = _secrets.token_urlsafe(32)
+    await db.kiosks.update_one({"kiosk_id": kiosk_id}, {"$set": {"rf_secret": secret}})
+    return {"ok": True, "rf_secret": secret}
+
+
+@router.get("/bridge-daemon", include_in_schema=False)
+async def serve_bridge_daemon():
+    """Serve /app/android-bridge/caos_rf_bridge.py so the install wizard's
+    `curl` command resolves without requiring static-asset hosting setup."""
+    from fastapi.responses import FileResponse
+    path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", "android-bridge", "caos_rf_bridge.py")
+    path = os.path.abspath(path)
+    if not os.path.exists(path):
+        raise HTTPException(404, detail="bridge daemon not found on server")
+    return FileResponse(
+        path,
+        media_type="text/x-python",
+        filename="caos_rf_bridge.py",
+    )
 
 
 @router.delete("/devices/{rf_device_id}")

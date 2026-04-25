@@ -7,8 +7,9 @@ import { Badge } from "../components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
-import { Radio, Trash2, Activity, CheckCircle2, XCircle, Loader2, Plus } from "lucide-react";
+import { Radio, Trash2, Activity, CheckCircle2, XCircle, Loader2, Plus, Download } from "lucide-react";
 import { toast } from "sonner";
+import { Link } from "react-router-dom";
 
 // Implements the [FW-006] "Listen and Learn" pairing flow from the blueprint.
 // Admin clicks Add → modal opens → backend tells the kiosk SDR to listen →
@@ -64,13 +65,20 @@ export default function RFPairingTab() {
             Sub-GHz buttons paired to residents. Vendor-agnostic — any 315/319/433/868/915 MHz pendant works.
           </p>
         </div>
-        <Button
-          onClick={() => setAddOpen(true)}
-          data-testid="rf-add-pendant-btn"
-          className="bg-caos-terracotta hover:bg-caos-terracotta-dark rounded-full"
-        >
-          <Plus className="w-4 h-4 mr-2" /> Add new pendant
-        </Button>
+        <div className="flex items-center gap-2">
+          <Link to="/admin/install" data-testid="rf-install-link">
+            <Button variant="outline" className="rounded-full">
+              <Download className="w-4 h-4 mr-2" /> Install bridge
+            </Button>
+          </Link>
+          <Button
+            onClick={() => setAddOpen(true)}
+            data-testid="rf-add-pendant-btn"
+            className="bg-caos-terracotta hover:bg-caos-terracotta-dark rounded-full"
+          >
+            <Plus className="w-4 h-4 mr-2" /> Add new pendant
+          </Button>
+        </div>
       </div>
 
       <Card className="p-0 overflow-hidden border-caos-line">

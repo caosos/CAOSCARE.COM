@@ -11,6 +11,7 @@ import Kiosk from "./pages/Kiosk";
 import StaffDashboard from "./pages/StaffDashboard";
 import Admin from "./pages/Admin";
 import Blueprint from "./pages/Blueprint";
+import InstallKioskWizard from "./pages/InstallKioskWizard";
 import AuthCallback from "./pages/AuthCallback";
 import FamilyPortal from "./pages/FamilyPortal";
 
@@ -46,6 +47,8 @@ function AppRouter() {
       <Route path="/staff" element={<Protected><StaffDashboard /></Protected>} />
       <Route path="/admin" element={<Protected adminOnly><Admin /></Protected>} />
       <Route path="/admin/blueprint" element={<Protected ownerOnly><Blueprint /></Protected>} />
+      <Route path="/admin/install" element={<Protected adminOnly><InstallKioskWizard /></Protected>} />
+      <Route path="/admin/install/:kioskId" element={<Protected adminOnly><InstallKioskWizard /></Protected>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">CAOS Care Companion</string>
+    <string name="not_provisioned">Not provisioned</string>
+    <string name="bridge_running">RF Bridge running</string>
+    <string name="bridge_idle">RF Bridge idle</string>
+</resources>
