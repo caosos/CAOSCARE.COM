@@ -19,6 +19,7 @@ import { Trash2, Plus, LogOut, Activity, Volume2, Sparkles } from "lucide-react"
 import { toast } from "sonner";
 import PendantsTab from "./PendantsTab";
 import RFPairingTab from "./RFPairingTab";
+import ClinicianTab from "./ClinicianTab";
 import Roadmap from "./Roadmap";
 import Insights from "./Insights";
 import FamilyTab from "./FamilyTab";
@@ -109,6 +110,7 @@ export default function Admin() {
         <Tabs defaultValue="residents">
           <TabsList className="flex-wrap h-auto">
             <TabsTrigger value="residents" data-testid="tab-residents">Residents ({residents.length})</TabsTrigger>
+            <TabsTrigger value="clinician" data-testid="tab-clinician">Clinician</TabsTrigger>
             <TabsTrigger value="pendants" data-testid="tab-pendants">Pendants</TabsTrigger>
             <TabsTrigger value="rf" data-testid="tab-rf">RF Pendants</TabsTrigger>
             <TabsTrigger value="wearables" data-testid="tab-wearables">Wearables</TabsTrigger>
@@ -128,6 +130,9 @@ export default function Admin() {
 
           <TabsContent value="residents" className="mt-6">
             <ResidentsTab residents={residents} onChange={fetchAll} />
+          </TabsContent>
+          <TabsContent value="clinician" className="mt-6">
+            <ClinicianTab residents={residents} />
           </TabsContent>
           <TabsContent value="pendants" className="mt-6">
             <PendantsTab residents={residents} />

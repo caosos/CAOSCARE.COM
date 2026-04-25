@@ -72,11 +72,20 @@ export default function Landing() {
               Senior living · Life-safety AI
             </p>
             <h1 className="font-display text-5xl md:text-6xl lg:text-7xl font-light tracking-tighter leading-[0.95] text-caos-forest">
-              The button on the wall<br />
-              <span className="italic">that listens back.</span>
+              Create
+              <br />
+              <span className="italic">A Resident Experience.</span>
             </h1>
-            <p className="mt-8 text-lg md:text-xl text-caos-ink/80 max-w-xl leading-relaxed">
-              CAOS Care turns every room into a companion. Residents press one big button;
+            <div className="mt-8 space-y-2 text-caos-ink/80 max-w-xl">
+              <p className="text-base md:text-lg">
+                Through <b className="text-caos-forest">Compassionate Adaptive Resident Engagement</b>
+              </p>
+              <p className="text-base md:text-lg">
+                Powered by a <b className="text-caos-forest">Cognitive Adaptive Operating System</b>
+              </p>
+            </div>
+            <p className="mt-8 text-lg text-caos-ink/70 max-w-xl leading-relaxed">
+              CARE turns every room into a companion. Residents press one big button;
               a warm AI voice keeps them calm while staff are paged and routed — using the mesh
               network already humming inside your building.
             </p>

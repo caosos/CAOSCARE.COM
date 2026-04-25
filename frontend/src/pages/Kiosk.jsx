@@ -1030,11 +1030,13 @@ export default function Kiosk() {
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center text-center max-w-4xl mx-auto">
-          <p className="text-xs font-bold uppercase tracking-[0.3em] text-caos-mute">Welcome</p>
-          <h1 className="kiosk-hello mt-6 font-display text-5xl md:text-7xl lg:text-[110px] font-light tracking-tighter leading-[0.95] text-caos-forest">
+          <p className="text-[10px] md:text-xs font-bold uppercase tracking-[0.32em] text-caos-mute">
+            CARE · powered by CAOS
+          </p>
+          <h1 className="kiosk-hello mt-5 font-display text-5xl md:text-7xl lg:text-[110px] font-light tracking-tighter leading-[0.95] text-caos-forest">
             {resident ? `Hello, ${resident.name.split(" ")[0]}.` : "Hello."}
           </h1>
-          <p className="kiosk-prompt mt-8 text-2xl md:text-3xl text-caos-ink/80 leading-snug">
+          <p className="kiosk-prompt mt-6 text-2xl md:text-3xl text-caos-ink/80 leading-snug">
             If you need help, press the big red button.<br />
             I'll stay with you until someone arrives.
           </p>

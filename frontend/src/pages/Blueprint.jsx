@@ -83,15 +83,21 @@ function Hero() {
     <section className="caos-fade-in" data-testid="blueprint-hero">
       <p className="text-xs font-bold uppercase tracking-[0.22em] text-caos-mute mb-3">Vision · Living document</p>
       <h1 className="font-display text-5xl md:text-7xl font-light tracking-tighter text-caos-forest leading-[1.02]">
-        Not a chatbot.
+        Create
         <br />
-        <span className="text-caos-terracotta">A lifelong companion.</span>
+        <span className="text-caos-terracotta italic">A Resident Experience.</span>
       </h1>
-      <p className="text-caos-mute text-lg mt-6 max-w-2xl leading-relaxed">
-        CAOS Care is the operating system for a senior living facility. One calm
-        AI per resident, learning them for years — supported by pendants,
-        wearables, vision glasses, smart-room devices, and a clinician-grade
-        event registry. This page is the full architecture as it lives today.
+      <div className="mt-8 space-y-1 max-w-2xl">
+        <p className="text-lg text-caos-ink/80">
+          through <b className="text-caos-forest">Compassionate Adaptive Resident Engagement</b>
+        </p>
+        <p className="text-lg text-caos-ink/80">
+          powered by a <b className="text-caos-forest">Cognitive Adaptive Operating System</b>
+        </p>
+      </div>
+      <p className="text-caos-mute text-base mt-8 max-w-2xl leading-relaxed">
+        Two acronyms doing two jobs. Family hears <b>CARE</b>. Engineers hear <b>CAOS</b>. Same product, two doors,
+        neither one feels like marketing. This page is the full architecture as it lives today.
       </p>
     </section>
   );
@@ -286,6 +292,24 @@ function MemoryBulletin() {
     })();
   }, [selected]);
 
+  // CRUD: optimistically update the row, then PATCH. On failure we revert.
+  const updateRow = async (memory_id, patch) => {
+    setBulletin((b) => b ? {
+      ...b,
+      facts: b.facts.map((m) => m.memory_id === memory_id ? { ...m, ...patch } : m),
+      events: b.events.map((m) => m.memory_id === memory_id ? { ...m, ...patch } : m),
+    } : b);
+    try {
+      await api.patch(`/memory/${memory_id}`, patch);
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Couldn't save");
+      // refetch to recover
+      const { data } = await api.get(`/memory/bulletin/${selected}`);
+      setBulletin(data);
+    }
+  };
+  const archiveRow = (memory_id, archived) => updateRow(memory_id, { archived });
+
   return (
     <Section
       icon={Sparkles}
@@ -322,6 +346,8 @@ function MemoryBulletin() {
             rows={bulletin.facts}
             empty="No personal facts yet. Bins populate after conversations."
             testid="bulletin-facts-col"
+            onUpdate={updateRow}
+            onArchive={archiveRow}
           />
           <BinColumn
             title="Life Events"
@@ -330,6 +356,8 @@ function MemoryBulletin() {
             rows={bulletin.events}
             empty="No life events yet. Significant moments will land here."
             testid="bulletin-events-col"
+            onUpdate={updateRow}
+            onArchive={archiveRow}
           />
         </div>
       )}
@@ -337,7 +365,7 @@ function MemoryBulletin() {
   );
 }
 
-function BinColumn({ title, color, icon, rows, empty, testid }) {
+function BinColumn({ title, color, icon, rows, empty, testid, onUpdate, onArchive }) {
   return (
     <Card className="p-5 border-caos-line bg-white" data-testid={testid} style={{ borderTopWidth: 4, borderTopColor: color }}>
       <div className="flex items-center justify-between mb-3">
@@ -348,27 +376,75 @@ function BinColumn({ title, color, icon, rows, empty, testid }) {
       </div>
       <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
         {rows.map((m) => (
-          <div key={m.memory_id} data-testid={`bulletin-row-${m.memory_id}`} className="text-sm bg-caos-ambient/40 rounded-lg px-3 py-2">
-            <div className="flex items-start justify-between gap-2">
-              <p className="text-caos-ink leading-snug flex-1">
-                {m.pinned && <Pin className="inline w-3.5 h-3.5 text-caos-amber mr-1 -mt-0.5" />}
-                {m.archived && <Archive className="inline w-3.5 h-3.5 text-caos-mute mr-1 -mt-0.5" />}
-                {m.text}
-              </p>
-              <Badge variant="outline" className="text-[10px] uppercase tracking-wider shrink-0">
-                i{m.importance}
-              </Badge>
-            </div>
-            <div className="text-[10px] text-caos-mute uppercase tracking-wider mt-1">
-              {m.category?.replace("_", " ")} · {m.source}
-              {m.event_at && ` · ${m.event_at.slice(0, 10)}`}
-              {m.times_referenced ? ` · ref ${m.times_referenced}×` : ""}
-            </div>
-          </div>
+          <BulletinRow key={m.memory_id} m={m} onUpdate={onUpdate} onArchive={onArchive} />
         ))}
         {rows.length === 0 && <p className="text-caos-mute italic text-sm text-center py-6">{empty}</p>}
       </div>
     </Card>
+  );
+}
+
+function BulletinRow({ m, onUpdate, onArchive }) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(m.text);
+  const togglePin = async () => onUpdate(m.memory_id, { pinned: !m.pinned });
+  const archive = async () => {
+    if (!window.confirm(m.archived ? "Restore this memory?" : "Archive this memory? It won't be sent to the AI anymore.")) return;
+    onArchive(m.memory_id, !m.archived);
+  };
+  const saveEdit = async () => {
+    if (!text.trim() || text === m.text) { setEditing(false); return; }
+    await onUpdate(m.memory_id, { text: text.trim() });
+    setEditing(false);
+  };
+  return (
+    <div data-testid={`bulletin-row-${m.memory_id}`} className={`text-sm rounded-lg px-3 py-2 ${m.archived ? "bg-caos-mute/10 opacity-60" : "bg-caos-ambient/40"}`}>
+      <div className="flex items-start justify-between gap-2">
+        {editing ? (
+          <input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onBlur={saveEdit}
+            onKeyDown={(e) => e.key === "Enter" && saveEdit()}
+            autoFocus
+            data-testid={`bulletin-edit-${m.memory_id}`}
+            className="flex-1 bg-white border border-caos-forest rounded px-2 py-1 text-sm"
+          />
+        ) : (
+          <p className="text-caos-ink leading-snug flex-1 cursor-text" onClick={() => setEditing(true)}>
+            {m.pinned && <Pin className="inline w-3.5 h-3.5 text-caos-amber mr-1 -mt-0.5" />}
+            {m.archived && <Archive className="inline w-3.5 h-3.5 text-caos-mute mr-1 -mt-0.5" />}
+            {m.text}
+          </p>
+        )}
+        <Badge variant="outline" className="text-[10px] uppercase tracking-wider shrink-0">i{m.importance}</Badge>
+      </div>
+      <div className="flex items-center justify-between mt-1">
+        <div className="text-[10px] text-caos-mute uppercase tracking-wider">
+          {m.category?.replace("_", " ")} · {m.source}
+          {m.event_at && ` · ${m.event_at.slice(0, 10)}`}
+          {m.times_referenced ? ` · ref ${m.times_referenced}×` : ""}
+        </div>
+        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" style={{ opacity: 1 }}>
+          <button
+            onClick={togglePin}
+            data-testid={`bulletin-pin-${m.memory_id}`}
+            title={m.pinned ? "Unpin" : "Pin so it never drops out"}
+            className="p-1 hover:bg-caos-ambient rounded"
+          >
+            <Pin className={`w-3 h-3 ${m.pinned ? "text-caos-amber fill-caos-amber" : "text-caos-mute"}`} />
+          </button>
+          <button
+            onClick={archive}
+            data-testid={`bulletin-archive-${m.memory_id}`}
+            title={m.archived ? "Restore" : "Archive"}
+            className="p-1 hover:bg-caos-ambient rounded"
+          >
+            <Archive className={`w-3 h-3 ${m.archived ? "text-caos-forest" : "text-caos-mute"}`} />
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

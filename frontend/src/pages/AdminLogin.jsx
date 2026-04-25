@@ -66,6 +66,17 @@ export default function AdminLogin() {
             This portal is for facility administrators only. Sign-ins are rate-limited,
             audited, and isolated from the staff dashboard.
           </p>
+          <div className="mt-10 pt-6 border-t border-white/10 max-w-md">
+            <p className="text-[10px] font-bold uppercase tracking-[0.32em] text-white/40">
+              Create A Resident Experience
+            </p>
+            <p className="text-xs mt-1 text-white/70">
+              through <b className="text-white">Compassionate Adaptive Resident Engagement</b>
+            </p>
+            <p className="text-xs text-white/70">
+              powered by a <b className="text-white">Cognitive Adaptive Operating System</b>
+            </p>
+          </div>
         </div>
 
         <div className="relative z-10 text-xs uppercase tracking-[0.22em] text-white/50">
