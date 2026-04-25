@@ -19,16 +19,23 @@ export default function RealtimeChatScreen({
   onOpenVoicePicker,
   a11yRootClass,
 }) {
-  const { status, error, transcript, start, stop } = useRealtimeVoice({
+  const { status, error, transcript, start, stop, audioElRef } = useRealtimeVoice({
     voice: voiceId,
     residentId: resident?.resident_id,
   });
+  const localAudioElRef = useRef(null);
   const startedRef = useRef(false);
+
+  // Hand the in-DOM audio element to the hook so playback is reliable
+  // across browsers (some refuse to play off-DOM media).
   useEffect(() => {
-    if (!startedRef.current) {
-      startedRef.current = true;
-      start();
-    }
+    audioElRef.current = localAudioElRef.current;
+  }, [audioElRef]);
+
+  useEffect(() => {
+    if (startedRef.current) return;        // StrictMode guard — only ever start once
+    startedRef.current = true;
+    start();
     return () => stop();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -124,6 +131,9 @@ export default function RealtimeChatScreen({
           ))}
         </div>
       </Card>
+
+      {/* Hidden audio sink — must be mounted in the DOM for reliable playback. */}
+      <audio ref={localAudioElRef} autoPlay playsInline className="hidden" data-testid="kiosk-realtime-audio" />
     </div>
   );
 }

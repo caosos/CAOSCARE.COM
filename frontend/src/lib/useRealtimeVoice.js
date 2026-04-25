@@ -1,14 +1,14 @@
 /**
  * useRealtimeVoice — full-duplex voice via OpenAI Realtime API + WebRTC.
  *
- * Browser ↔ OpenAI directly stream audio over WebRTC. Our backend mints
- * an ephemeral session token (so the OpenAI key never ships to the browser)
- * and forwards the SDP offer/answer. After that, audio is peer-to-peer.
+ * Browser ↔ OpenAI directly stream audio over WebRTC. Backend mints an
+ * ephemeral session token and forwards SDP. Audio never touches our server.
  *
- * Late chime-ins are handled natively by the OpenAI Realtime API: as long
- * as the mic track stays live and server-side VAD is on (default), the
- * input audio buffer keeps appending and the model replies when you stop
- * talking. No custom turn detection on our side.
+ * StrictMode-safe: every start() carries a generation token. If a teardown
+ * happens mid-flight (StrictMode mount→unmount→remount, or user end-call
+ * during connect), we bump the generation and the in-flight start exits
+ * cleanly without leaving orphan peer connections — that's what caused the
+ * earlier "two voices back-to-back" bug.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { API } from "../lib/api";
@@ -18,11 +18,13 @@ export function useRealtimeVoice({ voice = "shimmer", residentId } = {}) {
   const dcRef = useRef(null);
   const audioElRef = useRef(null);
   const localStreamRef = useRef(null);
-  const [status, setStatus] = useState("idle"); // idle | connecting | live | speaking | listening | error
+  const startGenRef = useRef(0);            // bumps on every stop() — invalidates in-flight starts
+  const [status, setStatus] = useState("idle");
   const [error, setError] = useState(null);
-  const [transcript, setTranscript] = useState([]); // [{role, text, ts}]
+  const [transcript, setTranscript] = useState([]);
 
   const stop = useCallback(() => {
+    startGenRef.current += 1;               // cancel any pending start()
     try { dcRef.current?.close(); } catch {}
     try { pcRef.current?.getSenders().forEach((s) => s.track && s.track.stop()); } catch {}
     try { pcRef.current?.close(); } catch {}
@@ -37,9 +39,14 @@ export function useRealtimeVoice({ voice = "shimmer", residentId } = {}) {
   useEffect(() => () => stop(), [stop]);
 
   const start = useCallback(async () => {
-    if (pcRef.current) return;
+    if (pcRef.current) return;              // already connected
+    const myGen = ++startGenRef.current;
+    const alive = () => myGen === startGenRef.current && pcRef.current !== null || myGen === startGenRef.current;
+
     setError(null);
     setStatus("connecting");
+    let pc = null;
+    let stream = null;
     try {
       // 1. Mint ephemeral session
       const sessionRes = await fetch(`${API}/realtime/session`, {
@@ -47,39 +54,35 @@ export function useRealtimeVoice({ voice = "shimmer", residentId } = {}) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ voice, resident_id: residentId || null }),
       });
+      if (myGen !== startGenRef.current) return;   // canceled
       if (!sessionRes.ok) throw new Error(`session ${sessionRes.status}`);
       const session = await sessionRes.json();
+      if (myGen !== startGenRef.current) return;
       const ephemeral = session?.client_secret?.value;
       if (!ephemeral) throw new Error("no ephemeral key");
       const caos = session._caos || {};
 
-      // 2. WebRTC peer connection
-      const pc = new RTCPeerConnection();
-      pcRef.current = pc;
-
-      // 3. Remote audio sink
-      let audioEl = audioElRef.current;
-      if (!audioEl) {
-        audioEl = document.createElement("audio");
-        audioEl.autoplay = true;
-        audioElRef.current = audioEl;
-      }
-      pc.ontrack = (ev) => { audioEl.srcObject = ev.streams[0]; };
-
-      // 4. Local mic — full-duplex: track stays live for the entire session
-      const stream = await navigator.mediaDevices.getUserMedia({
+      // 2. Mic capture (full-duplex: track stays live for the whole session)
+      stream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
-      localStreamRef.current = stream;
+      if (myGen !== startGenRef.current) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+
+      // 3. Peer connection. Only commit refs once we know we're not canceled.
+      pc = new RTCPeerConnection();
+      pc.ontrack = (ev) => {
+        const el = audioElRef.current;
+        if (el) el.srcObject = ev.streams[0];
+      };
       stream.getTracks().forEach((t) => pc.addTrack(t, stream));
 
-      // 5. Data channel for events (transcripts, session.update, etc.)
+      // 4. Data channel — events, transcripts, session.update
       const dc = pc.createDataChannel("oai-events");
-      dcRef.current = dc;
       dc.onopen = () => {
-        // Inject CAOS Care system prompt + voice on connect.
-        // Server-side VAD is default ON, which gives us natural turn-taking
-        // and append-mode chime-ins out of the box.
+        if (myGen !== startGenRef.current) return;
         try {
           dc.send(JSON.stringify({
             type: "session.update",
@@ -94,6 +97,7 @@ export function useRealtimeVoice({ voice = "shimmer", residentId } = {}) {
         setStatus("live");
       };
       dc.onmessage = (ev) => {
+        if (myGen !== startGenRef.current) return;
         try {
           const msg = JSON.parse(ev.data);
           if (msg.type === "input_audio_buffer.speech_started") setStatus("listening");
@@ -110,23 +114,37 @@ export function useRealtimeVoice({ voice = "shimmer", residentId } = {}) {
         } catch { /* ignore non-JSON */ }
       };
 
-      // 6. SDP exchange (offer → backend → OpenAI → answer)
+      // 5. SDP exchange (offer → backend → OpenAI → answer)
       const offer = await pc.createOffer();
+      if (myGen !== startGenRef.current) throw new Error("canceled");
       await pc.setLocalDescription(offer);
       const negRes = await fetch(`${API}/realtime/negotiate`, {
         method: "POST",
         headers: { "Content-Type": "application/sdp" },
         body: offer.sdp,
       });
+      if (myGen !== startGenRef.current) throw new Error("canceled");
       if (!negRes.ok) throw new Error(`negotiate ${negRes.status}`);
       const { sdp: answerSdp } = await negRes.json();
+      if (myGen !== startGenRef.current) throw new Error("canceled");
       await pc.setRemoteDescription({ type: "answer", sdp: answerSdp });
-    } catch (e) {
-      setError(e?.message || "Failed to start voice");
-      setStatus("error");
-      stop();
-    }
-  }, [voice, residentId, stop]);
 
-  return { status, error, transcript, start, stop };
+      // Commit only after success — partial state never sticks
+      pcRef.current = pc;
+      dcRef.current = dc;
+      localStreamRef.current = stream;
+    } catch (e) {
+      // Fully tear down anything we built before the failure
+      try { pc?.close(); } catch {}
+      try { stream?.getTracks().forEach((t) => t.stop()); } catch {}
+      if (myGen === startGenRef.current && e?.message !== "canceled") {
+        setError(e?.message || "Failed to start voice");
+        setStatus("error");
+      }
+    }
+    // suppress unused eslint warning for the alive helper that documents intent
+    void alive;
+  }, [voice, residentId]);
+
+  return { status, error, transcript, start, stop, audioElRef };
 }
