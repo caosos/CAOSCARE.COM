@@ -231,6 +231,11 @@ export default function Kiosk() {
       ? `I'm right here, ${name}. Help is on the way. Can you tell me what happened?`
       : `Hi, ${name}. Help's on the way. Is there anything I can do for you while we wait?`;
     setMessages([{ role: "assistant", content: line }]);
+    if (realtimeMode) {
+      // Realtime WebRTC handles its own greeting + listening loop. Don't
+      // launch the legacy turn-based loop or it'll talk over the new one.
+      return;
+    }
     await speak(line);
     // Start the continuous loop (auto listen → transcribe → reply → repeat)
     voiceLoopRef.current = true;
@@ -679,6 +684,11 @@ export default function Kiosk() {
         ? `Hello ${name}. Help is on the way. Stay where you are. I am here with you. Tell me what's happening.`
         : `Hello ${name}. I've paged a caregiver. While we wait, what can I help with?`;
       setMessages([{ role: "assistant", content: line }]);
+      if (realtimeMode) {
+        // Realtime WebRTC owns the conversation from here. Skip the legacy
+        // greeting + voice loop or two AIs talk over each other.
+        return;
+      }
       await speak(line);
       voiceLoopRef.current = true;
       runVoiceLoop();

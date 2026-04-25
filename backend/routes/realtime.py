@@ -47,7 +47,7 @@ async def _build_companion_instructions(resident_id: str | None) -> str:
     name = r.get("preferred_name") or (r.get("name") or "").split(" ")[0]
     extras = []
     if name:
-        extras.append(f"You are speaking with {name}.")
+        extras.append(f"You are speaking with {name}. Always call them {name}, not their full name.")
     if r.get("preferences"):
         extras.append(f"They enjoy: {r['preferences']}.")
     if r.get("memory"):
