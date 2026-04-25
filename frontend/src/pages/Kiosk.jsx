@@ -77,7 +77,11 @@ export default function Kiosk() {
   // latency, native chime-in support). When OFF, the legacy turn-based
   // VAD + Whisper + TTS loop is used (kept as fallback).
   const [realtimeMode, setRealtimeMode] = useState(() => localStorage.getItem("caos_kiosk_realtime") !== "0");
-  useEffect(() => { localStorage.setItem("caos_kiosk_realtime", realtimeMode ? "1" : "0"); }, [realtimeMode]);
+  const realtimeModeRef = useRef(realtimeMode);
+  useEffect(() => {
+    realtimeModeRef.current = realtimeMode;
+    localStorage.setItem("caos_kiosk_realtime", realtimeMode ? "1" : "0");
+  }, [realtimeMode]);
 
   // Sleep-mode — resident said something like "I'll just sit and wait".
   const [sleeping, setSleeping] = useState(false);
@@ -379,6 +383,9 @@ export default function Kiosk() {
   ];
 
   const runVoiceLoop = async () => {
+    // Realtime-mode kill-switch — same reason as speak(). The WebRTC peer
+    // owns hearing AND speaking; legacy STT/TTS turn loop must not run.
+    if (realtimeModeRef.current) return;
     // Keep going until voiceLoopRef flipped off (cancel / alert resolved /
     // entered sleep). Empty-round tolerance is deliberately generous.
     let emptyRounds = 0;
@@ -610,6 +617,12 @@ export default function Kiosk() {
   const pendingBargeBlobRef = useRef(null);
   const speak = (text, { allowBargeIn = true } = {}) =>
     new Promise(async (resolve) => {
+      // Hard kill-switch: in realtime mode, the WebRTC peer owns the voice
+      // surface entirely. ANY legacy speak() call must be silently no-op'd
+      // or two AIs will talk over each other. This catches every entry
+      // point — explicit or accidental — without needing to gate them
+      // individually.
+      if (realtimeModeRef.current) { resolve(); return; }
       let bargedIn = false;
       const finish = async () => {
         // Tear down barge-in listener if still running
