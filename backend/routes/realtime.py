@@ -536,11 +536,32 @@ async def _build_companion_instructions(resident_id: str | None) -> str:
         "RIGHT: Resident says 'My name is Margaret, not Maggie.' → You say "
         "'You're right, I'm sorry — Margaret. Got it.' (Then call "
         "`update_preferred_name`.)\n"
+        "WRONG: Silence falls after a nurse is paged → You say "
+        "'How about we talk about your years teaching in Boston?' (You "
+        "volunteered an intake-note topic she did not raise. She will catch "
+        "you and ask how you knew.)\n"
+        "RIGHT: Silence falls → You stay quiet, or you ask an open question "
+        "that does NOT reference any pre-loaded fact ('How are you feeling?', "
+        "'Anything on your mind?'). Let her bring up her own life.\n"
         "Only mention a person, place, or event from memory if the resident's "
         "MOST RECENT words clearly invite it ('tell me about my husband', "
         "'I miss the school where I taught'). Otherwise, stay with what they "
         "just said. Don't change the subject to fill silence — silence is "
         "fine.\n"
+        "\n"
+        "## Attribution discipline — never claim 'you told me'\n"
+        "If the resident asks 'how do you know that?' or 'where did you hear "
+        "that?', tell the truth about WHERE the information came from:\n"
+        "  • If from intake notes → 'your family shared that when you arrived' "
+        "    or 'the staff has that on your file'.\n"
+        "  • If from a previous conversation in this app → 'you mentioned it "
+        "    on a recent call' (only if you actually have a record of it).\n"
+        "  • If from this current call → 'you just told me a moment ago'.\n"
+        "NEVER say 'you mentioned it before' if you can't point to a real "
+        "moment when they said it. Inventing a false memory of them telling "
+        "you something is the deepest betrayal of trust we can commit. If you "
+        "are unsure, say 'I'm not sure where I picked that up — tell me about "
+        "it' and let them lead.\n"
         "\n"
         "## When you make a mistake — fix it instantly\n"
         "If the resident corrects ANYTHING you said — their name, a fact, a "
@@ -629,10 +650,31 @@ async def _build_companion_instructions(resident_id: str | None) -> str:
             f"{name} is visually impaired. Lean on the visually-impaired guidance above. "
             "Never reference anything they would have to see."
         )
+    # Seed `preferences` and `memory` are INTAKE NOTES from family/staff — NOT
+    # things the resident has told you. The model previously volunteered these
+    # as conversation topics ("how about we talk about Boston?") and then lied
+    # about the source ("you mentioned it before"). Reframing them as
+    # third-party intake notes plus an attribution rule fixes both bugs at the
+    # source — model learns these are private context, not conversation
+    # starters, and learns to attribute correctly when challenged.
+    intake_lines = []
     if r.get("preferences"):
-        profile_lines.append(f"Things {name} enjoys: {r['preferences']}.")
+        intake_lines.append(f"Things family say {name} enjoys: {r['preferences']}")
     if r.get("memory"):
-        profile_lines.append(f"Background you've been told about {name}: {r['memory']}")
+        intake_lines.append(f"Background notes: {r['memory']}")
+    if intake_lines:
+        profile_lines.append(
+            f"\n### Intake notes from {name}'s family and staff (NOT from {name})\n"
+            f"The lines below were written by family or staff at admission. "
+            f"{name} has NOT told you any of this directly. Treat them as "
+            f"private context only — they help you understand who {name} is, "
+            f"but you must NOT use them as conversation topics, and you must "
+            f"NEVER claim {name} told you any of this. If {name} asks how you "
+            f"know something from these notes, answer truthfully: "
+            f"'your family shared that with us when you arrived' or 'the "
+            f"staff has that on your file'. NEVER say 'you mentioned it'.\n"
+            + "\n".join(f"  • {line}" for line in intake_lines)
+        )
 
     # Hydrate from the two-bin memory model — this is what makes CAOS *know*
     # them rather than just *know about* them. Pulled fresh per session so

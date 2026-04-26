@@ -12,6 +12,13 @@ CAOS Care is an AI-powered adjunct to existing 900 MHz Life-Alert-style pendant 
 
 ## Implemented (Feb 2026)
 
+### Iteration 18 (Feb 2026) — Attribution discipline (no false "you mentioned it")
+After a transcript caught CAOS volunteering "let's talk about your years teaching in Boston" out of nowhere AND then lying about the source ("you've mentioned it before") when Margaret challenged it. Root cause: Margaret's seed `memory` field literally said *"She loves when you ask about her years as a schoolteacher in Boston"* — the model read that as an instruction to bring it up, then couldn't distinguish seed knowledge from session knowledge.
+- **Reframed seed as "Intake notes from family/staff"** in `_build_companion_instructions` — `r.get("preferences")` and `r.get("memory")` now render under a section explicitly labeled "(NOT from {name})" with rules: treat as private context only, never volunteer as topics, never claim the resident told you.
+- **New `## Attribution discipline` block** — explicit rule that if asked "how do you know that?", CAOS must answer truthfully based on source: family intake → "your family shared that when you arrived"; previous session → "you mentioned it on a recent call" (only if real); current call → "you just told me a moment ago". NEVER fabricate "you mentioned it before."
+- **Added Boston wrong/right example** to the memory-as-filler rule: silence falls → CAOS must NOT raise a pre-loaded topic; instead stays quiet or asks an open question that doesn't reference any seed fact.
+- Verified: 7/7 prompt checks pass (intake reframing, NOT-from-Margaret marker, attribution section, Boston example present, never-claim-you-mentioned rule, family-source attribution, seed still accessible as context). Prompt size ~13.6k chars.
+
 ### Iteration 17 (Feb 2026) — Honest capability claims (no over-promising)
 After a transcript caught CAOS promising "live news, sports, recipes" then failing when Margaret asked for today's news, fixed `_system_self_knowledge()` to ground its capability list in actual env config. With `PERPLEXITY_API_KEY` empty, the prompt now says "I don't have live web access — I can recall general knowledge, prayers, scripture, jokes" and instructs the AI to say "I don't have today's news with me, but I can tell you what I remember." Auto-flips to live-mode wording when the key is added. Added explicit `## NEVER over-promise` rule covering capabilities not in the toolset (calling family on video, sending texts, playing music): respond "That's not something I can do yet, but I'll let the team know you asked." Verified both states with programmatic checks.
 
