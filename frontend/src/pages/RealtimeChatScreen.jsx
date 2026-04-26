@@ -25,6 +25,7 @@ export default function RealtimeChatScreen({
     residentId: resident?.resident_id,
     kioskId: kiosk?.kiosk_id,
     room: kiosk?.room || resident?.room,
+    onEndCall: onEnd,
   });
   const localAudioElRef = useRef(null);
   const startedRef = useRef(false);

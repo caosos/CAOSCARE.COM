@@ -154,13 +154,31 @@ async function executeTool({ name, args, ctx }) {
       if (!r.ok) return { ok: false, message: `couldn't set the timer (${r.status}).` };
       return { ok: true, message: `okay, I'll remind you in ${minutes < 1 ? `${Math.round(minutes * 60)} seconds` : `${minutes} minutes`}.` };
     }
+    if (name === "update_preferred_name") {
+      const newName = (args.preferred_name || "").toString().trim().slice(0, 60);
+      if (!newName) return { ok: false, message: "I didn't catch the name." };
+      if (!residentId) return { ok: true, message: `okay, I'll call you ${newName} from now on.` };
+      const r = await fetch(`${API}/residents/${residentId}/preferred-name`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ preferred_name: newName }),
+      });
+      if (!r.ok) return { ok: false, message: `I'll call you ${newName} from now on (didn't quite save it though).` };
+      return { ok: true, message: `okay, ${newName} it is. Saved.` };
+    }
+    if (name === "end_call") {
+      // The actual hang-up happens in the calling layer (handleFunctionCall)
+      // because we need access to the peer connection. Returning here just
+      // gives the model its short verbal goodbye to speak.
+      return { ok: true, message: "goodbye for now. I'm right here when you call." };
+    }
     return { ok: false, message: `tool ${name} is not wired yet.` };
   } catch (e) {
     return { ok: false, message: `tool error: ${e?.message || "unknown"}.` };
   }
 }
 
-export function useRealtimeVoice({ voice = "shimmer", residentId, kioskId, room } = {}) {
+export function useRealtimeVoice({ voice = "shimmer", residentId, kioskId, room, onEndCall } = {}) {
   const pcRef = useRef(null);
   const dcRef = useRef(null);
   const audioElRef = useRef(null);
@@ -268,6 +286,15 @@ export function useRealtimeVoice({ voice = "shimmer", residentId, kioskId, room 
           // Resident asked us to be quiet. Don't trigger a new spoken response;
           // the model will stay silent until VAD detects fresh speech.
           setResting(true);
+        } else if (fn.name === "end_call") {
+          // Resident asked us to hang up. Let the model speak its goodbye,
+          // then tear the connection down ~2.5s later (long enough for the
+          // farewell line to play out, short enough not to feel awkward).
+          send({ type: "response.create" });
+          setTimeout(() => {
+            try { stop(); } catch {}
+            try { onEndCall?.(); } catch {}
+          }, 2500);
         } else {
           // Ask the model to speak its short confirmation, drawing on the tool result.
           send({ type: "response.create" });

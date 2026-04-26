@@ -309,6 +309,52 @@ def _build_tools() -> list[dict]:
                 "additionalProperties": False
             }
         },
+        {
+            "type": "function",
+            "name": "update_preferred_name",
+            "description": (
+                "Call this IMMEDIATELY when the resident corrects what you call them "
+                "(e.g., 'my name is Margaret, not Maggie' or 'call me Mags'). This "
+                "permanently updates the name you use for them — across this call AND "
+                "every future call. After calling, apologize once briefly ('You're "
+                "right, sorry — Margaret it is') and use the new name from then on. "
+                "Do NOT keep using the old name after the resident has corrected you."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "preferred_name": {
+                        "type": "string",
+                        "description": "The exact name the resident asked to be called."
+                    }
+                },
+                "required": ["preferred_name"],
+                "additionalProperties": False
+            }
+        },
+        {
+            "type": "function",
+            "name": "end_call",
+            "description": (
+                "End the voice call and hang up. Call this whenever the resident says "
+                "'end the call', 'hang up', 'goodbye', 'I'm done', 'that's all', or "
+                "otherwise clearly wants the conversation OVER (different from "
+                "`mark_resting`, which just goes quiet but stays connected). After "
+                "calling, say one short warm goodbye and then stop talking — the kiosk "
+                "will tear down the connection."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "reason": {
+                        "type": "string",
+                        "description": "Why they ended (done / goodbye / staff arrived / other)."
+                    }
+                },
+                "required": [],
+                "additionalProperties": False
+            }
+        },
     ]
 
 
@@ -381,6 +427,32 @@ async def _build_companion_instructions(resident_id: str | None) -> str:
         "'her apple pie'), or weather ('rainy day', 'that storm') unless the "
         "resident or the memory blocks below mention them first.\n"
         "\n"
+        "## Memory is reference, not filler (CRITICAL)\n"
+        "The facts and events below are CONTEXT for understanding the resident "
+        "— they are NOT topics for you to bring up unprompted. You may quietly "
+        "factor them in (knowing she has a late husband Frank means you handle "
+        "grief gently), but you do NOT volunteer them as small talk, especially "
+        "not as a non-sequitur after the resident said something else. \n"
+        "WRONG: Resident says 'My name is Margaret, not Maggie.' → You say "
+        "'Of course, Frank sounds like he was very special to you.' (You "
+        "ignored the correction and changed the subject to a memory.)\n"
+        "RIGHT: Resident says 'My name is Margaret, not Maggie.' → You say "
+        "'You're right, I'm sorry — Margaret. Got it.' (Then call "
+        "`update_preferred_name`.)\n"
+        "Only mention a person, place, or event from memory if the resident's "
+        "MOST RECENT words clearly invite it ('tell me about my husband', "
+        "'I miss the school where I taught'). Otherwise, stay with what they "
+        "just said. Don't change the subject to fill silence — silence is "
+        "fine.\n"
+        "\n"
+        "## When you make a mistake — fix it instantly\n"
+        "If the resident corrects ANYTHING you said — their name, a fact, a "
+        "memory you misattributed, what they just asked for — accept the "
+        "correction immediately. One short apology ('You're right, sorry'), "
+        "then move on with the corrected version. NEVER repeat the mistake "
+        "after being corrected. If they corrected what you call them, call "
+        "`update_preferred_name` so the correction sticks across calls.\n"
+        "\n"
         "## Tools you can actually use\n"
         "You have real control over the resident's room — the air conditioning, "
         "lights, TV, and the nurse call system. If they ask you to make the room "
@@ -396,6 +468,13 @@ async def _build_companion_instructions(resident_id: str | None) -> str:
         "If they ask you to be quiet, say they're going to sleep, or otherwise "
         "dismiss the conversation, call `mark_resting` and then stop talking. "
         "Do not begin a new turn until they speak first.\n"
+        "If they say 'end the call', 'hang up', 'goodbye', 'I'm done', "
+        "'that's all', or otherwise want the conversation OVER, call "
+        "`end_call` IMMEDIATELY (not `mark_resting` — that just goes quiet). "
+        "Say one short warm goodbye and stop. The kiosk will hang up.\n"
+        "If they correct what you call them, call `update_preferred_name` "
+        "right away so the correction sticks for the rest of this call AND "
+        "future calls. Do not keep using the old name.\n"
         "You also have tools to **look things up on the live web** "
         "(`research_topic`), check the **weather** (`get_weather`), check "
         "the **current time and date** (`get_current_time`), and **set "

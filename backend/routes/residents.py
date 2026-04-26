@@ -59,6 +59,26 @@ async def delete_resident(resident_id: str, user=Depends(get_current_user)):
     return {"ok": True}
 
 
+@router.patch("/{resident_id}/preferred-name")
+async def update_preferred_name(resident_id: str, body: dict):
+    """Public endpoint — the Realtime AI tool dispatcher PATCHes this when the
+    resident corrects their name mid-call ('it's Margaret, not Maggie'). No
+    auth because we're inside an active voice session, not an admin flow.
+    Validates the name shape so the model can't blow away the field with empty
+    strings or 100-character payloads."""
+    name = (body or {}).get("preferred_name") or ""
+    name = name.strip()
+    if not name or len(name) > 60:
+        raise HTTPException(status_code=400, detail="preferred_name must be 1-60 chars")
+    r = await db.residents.update_one(
+        {"resident_id": resident_id},
+        {"$set": {"preferred_name": name}},
+    )
+    if r.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Resident not found")
+    return {"ok": True, "preferred_name": name}
+
+
 @router.get("/public/by-kiosk/{kiosk_id}")
 async def resident_by_kiosk(kiosk_id: str):
     """Public endpoint used by kiosks to look up the resident tied to their room."""

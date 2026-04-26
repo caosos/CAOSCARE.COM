@@ -12,6 +12,14 @@ CAOS Care is an AI-powered adjunct to existing 900 MHz Life-Alert-style pendant 
 
 ## Implemented (Feb 2026)
 
+### Iteration 15 (Feb 2026) — Listening discipline: name correction, end-call, memory-as-reference
+After a live pilot transcript revealed CAOS still saying "Maggie" after the resident said "my name is Margaret, not Maggie", volunteering "Frank" as a non-sequitur memory filler, and refusing to hang up when asked to end the call, three surgical fixes:
+- **`update_preferred_name` tool + `PATCH /api/residents/{id}/preferred-name`** (public, no auth — invoked mid-call). When the resident corrects what CAOS calls them, the model now persists the correction to the DB so it sticks across sessions. Validates 1-60 chars.
+- **`end_call` tool** that actually tears down the WebRTC peer connection. Distinct from `mark_resting` (go quiet, stay connected): `end_call` plays one short goodbye via `response.create`, then `setTimeout(2500ms)` calls `stop()` + the parent's `onEndCall` callback so the kiosk returns to idle. Triggered by "end the call", "hang up", "goodbye", "I'm done", "that's all".
+- **Prompt rewrite — "Memory is reference, not filler"**: explicit good-vs-bad example showing the model that bringing up Frank as a non-sequitur after a name correction is wrong. Memories now only surface when the resident's MOST RECENT words clearly invite them. Adds "fix it instantly" rule: any correction is accepted immediately with one short apology, never repeated.
+- **Realtime session now ships 11 tools** (was 9): adds `update_preferred_name` + `end_call`.
+- **Margaret's seed corrected**: `preferred_name` updated from "Maggie" to "Margaret" via the new endpoint to fix the demo data immediately.
+
 ### Iteration 14 (Feb 2026) — Companion superpowers: research, weather, time, timers, storyteller mode
 - **Live web research tool** (`POST /api/research`) — Perplexity Sonar primary (live web + citations), Claude Sonnet 4.5 fallback (training-data, no web) when `PERPLEXITY_API_KEY` is empty. Tool-shaped for spoken delivery: 2-4 short sentences, no bullets, sources mentioned naturally ("the AP says…"). When the resident asks about current events, sports scores, recipes, history, prayers, anything — CAOS calls the tool instead of guessing. Both providers wrapped behind `research_topic(question) -> {answer, citations[], source}`.
 - **Weather tool** (`GET /api/weather/current`) — Open-Meteo (no API key required) with free Open-Meteo geocoding so "what's the weather in Boston where my daughter lives?" actually resolves to Boston coords, not just relabels the facility's number. Returns a single spoken-friendly `narrative` line. Defaults to `FACILITY_LAT`/`FACILITY_LON`/`FACILITY_LABEL`/`FACILITY_TZ` from `.env` (currently Lancaster, PA — owner can change without code).
