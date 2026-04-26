@@ -54,6 +54,30 @@ def _c_to_f(c: float) -> float:
     return round(c * 9 / 5 + 32, 0)
 
 
+async def _geocode(name: str) -> tuple[float, float, str] | None:
+    """Resolve a free-form city name to (lat, lon, resolved_label) via
+    Open-Meteo's free geocoding API. Returns None if not found. Used so the
+    AI tool can say 'weather in Boston' and we actually look up Boston —
+    not just relabel the facility's weather."""
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            r = await client.get(
+                "https://geocoding-api.open-meteo.com/v1/search",
+                params={"name": name, "count": 1, "language": "en", "format": "json"},
+            )
+            r.raise_for_status()
+            results = (r.json() or {}).get("results") or []
+            if not results:
+                return None
+            top = results[0]
+            label_parts = [top.get("name"), top.get("admin1"), top.get("country_code")]
+            label = ", ".join([p for p in label_parts if p])
+            return float(top["latitude"]), float(top["longitude"]), label or name
+    except Exception as e:
+        logger.warning(f"geocode fail for '{name}': {e}")
+        return None
+
+
 async def current_weather(
     lat: float = DEFAULT_LAT,
     lon: float = DEFAULT_LON,
@@ -118,8 +142,14 @@ async def get_current_weather(
     label: Optional[str] = Query(None),
 ):
     """Public endpoint — used by the kiosk Realtime tool dispatcher.
-    Defaults to the facility's coordinates from .env."""
+    If both lat and lon are provided they take precedence. If only `label` is
+    given, we geocode it (free Open-Meteo geocoding API). Otherwise we fall
+    back to the facility's coordinates from .env."""
     try:
+        if lat is None and lon is None and label:
+            geo = await _geocode(label)
+            if geo:
+                lat, lon, label = geo
         return await current_weather(
             lat=lat if lat is not None else DEFAULT_LAT,
             lon=lon if lon is not None else DEFAULT_LON,
