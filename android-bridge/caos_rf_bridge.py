@@ -211,17 +211,16 @@ def run_rtl433(bands_mhz: list[float], on_record):
 
     def _stderr_drain():
         # rtl_433 talks to us on stderr (PLL warnings, "Allocating buffers",
-        # etc.). We don't act on them, but reading drains the pipe so the
-        # process doesn't block, AND each line counts as activity for the
-        # watchdog. Without this drain, rtl_433 would deadlock after stderr's
-        # 64KB OS buffer fills.
+        # "Found tuner", etc.). Print EVERYTHING — admins need to see startup
+        # messages to know rtl_433 actually launched cleanly. Without this,
+        # a stuck SDR or libusb error shows as "no output at all" which is
+        # impossible to debug.
         try:
             for line in proc.stderr:
                 last_activity[0] = time.monotonic()
-                # Only echo critical warnings; full stderr is too noisy
-                low = line.lower()
-                if "error" in low or "fail" in low or "lost" in low or "abort" in low:
-                    print(f"[rtl_433] {line.strip()}", file=sys.stderr, flush=True)
+                line = line.rstrip()
+                if line:
+                    print(f"[rtl_433] {line}", file=sys.stderr, flush=True)
         except Exception:
             pass
 
