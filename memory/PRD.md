@@ -12,6 +12,9 @@ CAOS Care is an AI-powered adjunct to existing 900 MHz Life-Alert-style pendant 
 
 ## Implemented (Feb 2026)
 
+### Iteration 17 (Feb 2026) — Honest capability claims (no over-promising)
+After a transcript caught CAOS promising "live news, sports, recipes" then failing when Margaret asked for today's news, fixed `_system_self_knowledge()` to ground its capability list in actual env config. With `PERPLEXITY_API_KEY` empty, the prompt now says "I don't have live web access — I can recall general knowledge, prayers, scripture, jokes" and instructs the AI to say "I don't have today's news with me, but I can tell you what I remember." Auto-flips to live-mode wording when the key is added. Added explicit `## NEVER over-promise` rule covering capabilities not in the toolset (calling family on video, sending texts, playing music): respond "That's not something I can do yet, but I'll let the team know you asked." Verified both states with programmatic checks.
+
 ### Iteration 16 (Feb 2026) — Self-aware CAOS + Realtime memory growth
 After a live transcript showed CAOS dodging the question "what does CAOS stand for" with "something technical" AND nothing said over WebRTC voice ever reaching the memory store, two surgical fixes:
 - **Platform self-knowledge block** in `realtime.py::_system_self_knowledge()` — every Realtime session now begins with the canonical brand stack (CARE = Compassionate Adaptive Resident Engagement; CAOS = Cognitive Adaptive Operating System; mission "Create A Resident Experience"), an inventory of every kiosk button (Call for Help / I need a little help / I just want to talk / Voice picker / A++ text / HC contrast / smart-room tiles), the hardware stack, and a plain-English capability list. Pulled from `/app/memory/PRD_HUB_v1.md` + Blueprint page so the source of truth is one file. CAOS can now answer "what does CAOS stand for", "what's that red button", "who made you", "what can you do" without dodging.
