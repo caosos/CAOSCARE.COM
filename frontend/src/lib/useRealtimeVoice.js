@@ -25,6 +25,21 @@ import { API } from "../lib/api";
 // confirm the action verbally. Designed so a missing room or device fails
 // gracefully (the model says "I couldn't reach the AC, I'll let the nurse
 // know") instead of throwing the whole session.
+//
+// IMPORTANT: the backend `/devices/.../command` endpoint validates `action`
+// against a strict enum (power | brightness | temperature | fan_speed |
+// volume | channel | color | position). The AI tools speak in human terms
+// (state="on", target_f=72) so this layer translates between them. Mismatch
+// = HTTP 422 = silent failure where CAOS promises an action that never ran.
+async function postRoomCommand(room, action, value) {
+  const r = await fetch(`${API}/devices/public/room/${encodeURIComponent(room)}/command`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action, value }),
+  });
+  return r;
+}
+
 async function executeTool({ name, args, ctx }) {
   const room = ctx?.room;
   const residentId = ctx?.resident_id;
@@ -33,36 +48,29 @@ async function executeTool({ name, args, ctx }) {
     if (name === "adjust_room_temperature") {
       if (!room) return { ok: false, message: "no room context — I can't reach the climate control here." };
       const targetF = Math.max(60, Math.min(85, Number(args.target_f) || 72));
-      const r = await fetch(`${API}/devices/public/room/${encodeURIComponent(room)}/command`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "set_temperature", value: targetF }),
-      });
+      const r = await postRoomCommand(room, "temperature", targetF);
       if (!r.ok) return { ok: false, message: `couldn't reach the AC (${r.status}). I'll let the nurse know.` };
       return { ok: true, message: `set the room to ${targetF} degrees.` };
     }
     if (name === "toggle_light") {
       if (!room) return { ok: false, message: "no room context — I can't reach the lights here." };
-      const value = args.state === "off" ? "off" : (args.brightness ?? "on");
-      const r = await fetch(`${API}/devices/public/room/${encodeURIComponent(room)}/command`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: args.state === "off" ? "off" : "on", value }),
-      });
+      // Power first; if a specific brightness was requested AND state="on",
+      // follow with a brightness command so dimmable bulbs land at the right level.
+      const r = await postRoomCommand(room, "power", args.state);
       if (!r.ok) return { ok: false, message: `couldn't reach the light (${r.status}).` };
+      if (args.state === "on" && typeof args.brightness === "number") {
+        await postRoomCommand(room, "brightness", Math.max(0, Math.min(100, args.brightness)));
+      }
       return { ok: true, message: `turned the light ${args.state}.` };
     }
     if (name === "toggle_tv") {
       if (!room) return { ok: false, message: "no room context — I can't reach the TV here." };
-      const action = args.state === "off" ? "off" : (typeof args.volume === "number" ? "volume" : "on");
-      const value = action === "volume" ? args.volume : args.state;
-      const r = await fetch(`${API}/devices/public/room/${encodeURIComponent(room)}/command`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, value }),
-      });
+      const r = await postRoomCommand(room, "power", args.state);
       if (!r.ok) return { ok: false, message: `couldn't reach the TV (${r.status}).` };
-      return { ok: true, message: `turned the TV ${args.state}${action === "volume" ? ` to volume ${value}` : ""}.` };
+      if (args.state === "on" && typeof args.volume === "number") {
+        await postRoomCommand(room, "volume", Math.max(0, Math.min(100, args.volume)));
+      }
+      return { ok: true, message: `turned the TV ${args.state}${args.state === "on" && typeof args.volume === "number" ? ` at volume ${args.volume}` : ""}.` };
     }
     if (name === "call_for_help") {
       const r = await fetch(`${API}/alerts`, {
