@@ -182,6 +182,59 @@ def fingerprint_from_rtl433(record: dict) -> Optional[dict]:
     }
 
 
+def _usb_reset_sdr() -> bool:
+    """Software-reset the Nooelec via the Linux USBDEVFS_RESET ioctl.
+
+    When rtl_433 stalls (PLL drift, autosuspend leak, USB endpoint hang),
+    a physical unplug/replug fixes it instantly — but that requires a human
+    in the room. This issues the same hardware reset the kernel performs on
+    replug, *programmatically*, so a 24/7 deployed kiosk recovers without
+    anyone touching it. Returns True on success, False if we couldn't reset
+    (e.g. no SDR plugged in, permissions denied).
+
+    Used by the watchdog when it detects a stall before respawning rtl_433."""
+    if not sys.platform.startswith("linux"):
+        return False
+    try:
+        import fcntl
+        # USBDEVFS_RESET ioctl number = 0x5514 (from <linux/usbdevice_fs.h>)
+        USBDEVFS_RESET = 0x5514
+        # Find the Nooelec by USB ID. 0bda:2838 is the Realtek RTL2838 chip
+        # used in every NESDR variant we support.
+        for entry in os.listdir("/sys/bus/usb/devices"):
+            path = f"/sys/bus/usb/devices/{entry}"
+            try:
+                with open(f"{path}/idVendor") as f:
+                    vid = f.read().strip()
+                with open(f"{path}/idProduct") as f:
+                    pid = f.read().strip()
+            except FileNotFoundError:
+                continue
+            if vid == "0bda" and pid == "2838":
+                # Resolve to /dev/bus/usb/BUS/DEV — the device file we ioctl
+                with open(f"{path}/busnum") as f:
+                    busnum = int(f.read().strip())
+                with open(f"{path}/devnum") as f:
+                    devnum = int(f.read().strip())
+                dev_path = f"/dev/bus/usb/{busnum:03d}/{devnum:03d}"
+                try:
+                    fd = os.open(dev_path, os.O_WRONLY)
+                except PermissionError:
+                    print("[rf-bridge] USB reset needs permission — try running with sudo, or add yourself to the plugdev group", file=sys.stderr, flush=True)
+                    return False
+                try:
+                    fcntl.ioctl(fd, USBDEVFS_RESET, 0)
+                    print(f"[rf-bridge] USB reset issued to SDR at {dev_path}", flush=True)
+                    return True
+                finally:
+                    os.close(fd)
+        print("[rf-bridge] USB reset: no Nooelec (0bda:2838) currently enumerated", file=sys.stderr, flush=True)
+        return False
+    except Exception as e:
+        print(f"[rf-bridge] USB reset failed: {e}", file=sys.stderr, flush=True)
+        return False
+
+
 def run_rtl433(bands_mhz: list[float], on_record):
     """Spawn rtl_433 across `bands_mhz` and call `on_record(record_dict)`
     for every parsed JSON line. Blocks until the subprocess exits, the
@@ -243,14 +296,32 @@ def run_rtl433(bands_mhz: list[float], on_record):
                 print(f"[rf-bridge] heartbeat — listening on {','.join(f'{b}M' for b in bands_mhz)}", flush=True)
                 last_heartbeat[0] = now
 
-            # Stall watchdog — SDR went silent, kill it so the outer loop respawns
+            # Stall watchdog — SDR went silent, kill it so the outer loop respawns.
+            # Before respawning, issue a USB reset to the Nooelec so the
+            # restart starts from a clean hardware state. This eliminates
+            # the manual "unplug/replug" recovery step a human used to do.
             if now - last_activity[0] > WATCHDOG_STALL_SECONDS:
                 print(
                     f"[rf-bridge] WATCHDOG: rtl_433 silent for {WATCHDOG_STALL_SECONDS:.0f}s "
-                    "— SDR may have suspended, restarting...",
+                    "— issuing USB reset and restarting...",
                     file=sys.stderr,
                     flush=True,
                 )
+                # Tear down rtl_433 first so it releases the SDR handle,
+                # otherwise the USB reset will fail with -EBUSY.
+                try:
+                    proc.terminate()
+                    proc.wait(timeout=2)
+                except Exception:
+                    try:
+                        proc.kill()
+                    except Exception:
+                        pass
+                # Small grace period for the kernel to release the device
+                time.sleep(0.5)
+                _usb_reset_sdr()
+                # Another grace period for the SDR to enumerate cleanly
+                time.sleep(2.0)
                 break
 
             if not ready:

@@ -12,6 +12,16 @@ CAOS Care is an AI-powered adjunct to existing 900 MHz Life-Alert-style pendant 
 
 ## Implemented (Feb 2026)
 
+### Iteration 19 (Feb 2026) — RF Bridge hardware reliability + self-healing
+After live SDR testing with the user's Nooelec NESDR SMArt v5 + Interlogix-Security 315 MHz pendant, surfaced + fixed multiple production-blocking issues:
+- **Interlogix `raw_message` field support** — bridge's `fingerprint_from_rtl433()` previously only checked `code/data/raw_signal`; Interlogix uses `raw_message`. Fixed + extended to `dipswitch/button` AND a model+id synthesized fallback so any rtl_433-decoded brand pairs cleanly.
+- **Stall watchdog** — rtl_433 sometimes goes silent (USB autosuspend, PLL drift) without exiting. Bridge now tracks last-activity timestamp on stdout/stderr; if silent for 90s, kills rtl_433 and restarts. With heartbeat log every 60s so admins know the daemon is alive.
+- **Software USB reset** — when watchdog fires, bridge now issues `USBDEVFS_RESET` ioctl to the Nooelec (vendor 0bda:2838) before respawning rtl_433. Same effect as physical unplug/replug. Eliminates the human-in-the-loop recovery that was killing 24/7 reliability.
+- **Verbose stderr drain** — bridge now prints ALL rtl_433 stderr (not just lines containing "error"), so admins can see kernel-driver attach, tuner detection, sample rate, PLL warnings — critical for diagnosing the next class of issue.
+- **Single-frequency lock support** — `CAOS_BANDS=315` overrides the default 5-band hop. One pendant-frequency-per-resident architecture (per user spec) — no missed presses, no dead-time.
+- **systemd unit template** documented in user instructions for production daemon mode (auto-restart on crash, survives reboot, logs to journalctl).
+- **Pendant identified**: Interlogix-Security at 315 MHz, ID `3ef83c`. Multiple Raw Message rotations (Interlogix's redundancy pattern); matching is on model+id, not raw_message, so this is correct behavior.
+
 ### Iteration 18 (Feb 2026) — Attribution discipline (no false "you mentioned it")
 After a transcript caught CAOS volunteering "let's talk about your years teaching in Boston" out of nowhere AND then lying about the source ("you've mentioned it before") when Margaret challenged it. Root cause: Margaret's seed `memory` field literally said *"She loves when you ask about her years as a schoolteacher in Boston"* — the model read that as an instruction to bring it up, then couldn't distinguish seed knowledge from session knowledge.
 - **Reframed seed as "Intake notes from family/staff"** in `_build_companion_instructions` — `r.get("preferences")` and `r.get("memory")` now render under a section explicitly labeled "(NOT from {name})" with rules: treat as private context only, never volunteer as topics, never claim the resident told you.
