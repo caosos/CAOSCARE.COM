@@ -68,6 +68,17 @@ DEFAULT_BANDS_MHZ = [float(x) for x in os.environ.get("CAOS_BANDS", "315,319,433
 RTL_433_BIN = os.environ.get("RTL_433", "rtl_433")
 POLL_INTERVAL = 2.0
 
+# Watchdog — when only one resident's pendant lives on this kiosk, real
+# transmissions are sparse (a press here, a press there). But the SDR's
+# kernel-driven sample stream should NEVER be silent: rtl_433 emits
+# stderr heartbeats and we sample noise constantly. If we haven't seen
+# ANY stderr/stdout activity for this long, the SDR has hung — usually
+# USB autosuspend, occasionally PLL drift on long runs. We tear rtl_433
+# down and respawn. The pilot transcript captured this exact failure
+# mode at the ~6-minute mark; this watchdog is the fix.
+WATCHDOG_STALL_SECONDS = float(os.environ.get("CAOS_WATCHDOG_SECONDS", "90"))
+HEARTBEAT_INTERVAL_SECONDS = 60.0  # log "alive" every minute so admins know the daemon hasn't crashed
+
 
 def _sign(body: bytes) -> Optional[str]:
     if not RF_SECRET:
@@ -147,15 +158,83 @@ def fingerprint_from_rtl433(record: dict) -> Optional[dict]:
 
 def run_rtl433(bands_mhz: list[float], on_record):
     """Spawn rtl_433 across `bands_mhz` and call `on_record(record_dict)`
-    for every parsed JSON line. Blocks until the subprocess exits or
-    on_record() raises."""
+    for every parsed JSON line. Blocks until the subprocess exits, the
+    watchdog detects a stall, or on_record() raises.
+
+    Stall detection: rtl_433 normally writes stderr lines (sample-rate,
+    block-size, occasional warnings) every few seconds even when no RF
+    is being captured. If both stdout AND stderr are silent for
+    WATCHDOG_STALL_SECONDS, the SDR has hung — kill the process so the
+    outer main() loop respawns it. This recovers from USB autosuspend
+    automatically (the respawn re-opens the device, waking it up)."""
     cmd = [RTL_433_BIN, "-F", "json", "-M", "utc"]
     for b in bands_mhz:
         cmd += ["-f", f"{b:.3f}M"]
     print(f"[rf-bridge] spawning: {shlex.join(cmd)}", flush=True)
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    proc = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        bufsize=1,  # line-buffered — events stream as they happen, not in chunks
+    )
+
+    # Activity tracking: any line on either stream resets the clock.
+    last_activity = [time.monotonic()]
+    last_heartbeat = [time.monotonic()]
+
+    def _stderr_drain():
+        # rtl_433 talks to us on stderr (PLL warnings, "Allocating buffers",
+        # etc.). We don't act on them, but reading drains the pipe so the
+        # process doesn't block, AND each line counts as activity for the
+        # watchdog. Without this drain, rtl_433 would deadlock after stderr's
+        # 64KB OS buffer fills.
+        try:
+            for line in proc.stderr:
+                last_activity[0] = time.monotonic()
+                # Only echo critical warnings; full stderr is too noisy
+                low = line.lower()
+                if "error" in low or "fail" in low or "lost" in low or "abort" in low:
+                    print(f"[rtl_433] {line.strip()}", file=sys.stderr, flush=True)
+        except Exception:
+            pass
+
+    threading.Thread(target=_stderr_drain, daemon=True).start()
+
     try:
-        for line in proc.stdout:
+        while True:
+            # Use the stdout pipe with a small read timeout so we can poll
+            # the watchdog. select() on a subprocess pipe is portable on Linux.
+            import select
+            if proc.poll() is not None:
+                # Process exited on its own — let the outer loop respawn
+                break
+            ready, _, _ = select.select([proc.stdout], [], [], 1.0)
+            now = time.monotonic()
+
+            # Heartbeat — proves to admins that the daemon is alive even
+            # when the resident hasn't pressed the pendant for hours
+            if now - last_heartbeat[0] >= HEARTBEAT_INTERVAL_SECONDS:
+                print(f"[rf-bridge] heartbeat — listening on {','.join(f'{b}M' for b in bands_mhz)}", flush=True)
+                last_heartbeat[0] = now
+
+            # Stall watchdog — SDR went silent, kill it so the outer loop respawns
+            if now - last_activity[0] > WATCHDOG_STALL_SECONDS:
+                print(
+                    f"[rf-bridge] WATCHDOG: rtl_433 silent for {WATCHDOG_STALL_SECONDS:.0f}s "
+                    "— SDR may have suspended, restarting...",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                break
+
+            if not ready:
+                continue
+            line = proc.stdout.readline()
+            if not line:
+                # EOF — process is closing
+                break
+            last_activity[0] = now
             line = line.strip()
             if not line or not line.startswith("{"):
                 continue
@@ -172,7 +251,13 @@ def run_rtl433(bands_mhz: list[float], on_record):
             proc.terminate()
         except Exception:
             pass
-        proc.wait(timeout=2)
+        try:
+            proc.wait(timeout=2)
+        except Exception:
+            try:
+                proc.kill()
+            except Exception:
+                pass
 
 
 # ---------------------------------------------------------------------------
