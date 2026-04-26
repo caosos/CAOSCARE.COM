@@ -12,6 +12,45 @@ def now_utc() -> datetime:
     return datetime.now(timezone.utc)
 
 
+# ---------- Facility (multi-tenant root) ----------
+class Facility(BaseModel):
+    """A senior-living facility. Top-level tenant. Every other entity should
+    eventually carry facility_id; for now we add it as Optional so existing
+    single-tenant data keeps working while new flows are scoped."""
+    model_config = ConfigDict(extra="ignore")
+    facility_id: str = Field(default_factory=lambda: uid("fac"))
+    name: str
+    timezone: str = "America/New_York"
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    contact_email: Optional[str] = None
+    on_call_phone: Optional[str] = None    # default escalation number
+    plan: Literal["pilot", "standard", "enterprise"] = "pilot"
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=now_utc)
+
+
+class FacilityCreate(BaseModel):
+    name: str
+    timezone: str = "America/New_York"
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    contact_email: Optional[str] = None
+    on_call_phone: Optional[str] = None
+    plan: Literal["pilot", "standard", "enterprise"] = "pilot"
+
+
+class FacilityUpdate(BaseModel):
+    name: Optional[str] = None
+    timezone: Optional[str] = None
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    contact_email: Optional[str] = None
+    on_call_phone: Optional[str] = None
+    plan: Optional[Literal["pilot", "standard", "enterprise"]] = None
+    is_active: Optional[bool] = None
+
+
 # ---------- Users (staff / admin) ----------
 class User(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -708,3 +747,112 @@ class RFEventIn(BaseModel):
     fingerprint: RFFingerprint
     sequence: int                                         # monotonic, replay protection
     captured_at: Optional[datetime] = None
+
+
+
+# ---------- Device Class doctrine (Blueprint [INF-004]) ----------
+# The capability-probe pipeline:
+#     Device Class → Capability Profile → Compatibility Probe →
+#     Hardware Receipt → Deployment Role → Admin Blueprint Stack
+
+DeviceClassEnum = Literal[
+    "kiosk_tablet", "caos_hub", "speaker_node",
+    "linux_bridge", "wearable_gateway", "wall_terminal",
+]
+
+DeploymentRoleEnum = Literal[
+    "room_companion", "pendant_gateway", "staff_pager_hub",
+    "lobby_kiosk", "medication_station",
+]
+
+CapabilityKey = Literal[
+    "far_field_mic", "speaker_quality", "wifi_ac", "persistent_power",
+    "haptic_feedback", "usb_host", "bluetooth_le", "mesh_radio_subghz",
+    "camera", "battery_min_hours", "touchscreen", "display_resolution_min",
+]
+
+
+class CapabilityProfile(BaseModel):
+    """The capability requirements declared by a Device Class. Required
+    capabilities must pass; optional ones are nice-to-have."""
+    model_config = ConfigDict(extra="ignore")
+    device_class: DeviceClassEnum
+    required: List[CapabilityKey] = Field(default_factory=list)
+    optional: List[CapabilityKey] = Field(default_factory=list)
+
+
+class ProbeResult(BaseModel):
+    capability: CapabilityKey
+    result: Literal["pass", "fail", "not_tested"] = "not_tested"
+    measurement: Optional[str] = None      # e.g. "SNR 28 dB @ 3m"
+    measured_at: Optional[datetime] = None
+
+
+class HardwareDevice(BaseModel):
+    """A piece of hardware in the field — claimed by class, role-assigned
+    only after a passing receipt."""
+    model_config = ConfigDict(extra="ignore")
+    hw_id: str = Field(default_factory=lambda: uid("hw"))
+    facility_id: Optional[str] = None
+    device_class: DeviceClassEnum
+    serial: Optional[str] = None
+    model_name: Optional[str] = None
+    deployment_role: Optional[DeploymentRoleEnum] = None
+    deployment_room: Optional[str] = None
+    last_receipt_id: Optional[str] = None
+    last_receipt_status: Literal["none", "pass", "fail", "expired"] = "none"
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=now_utc)
+
+
+class HardwareDeviceCreate(BaseModel):
+    facility_id: Optional[str] = None
+    device_class: DeviceClassEnum
+    serial: Optional[str] = None
+    model_name: Optional[str] = None
+    deployment_room: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class HardwareReceipt(BaseModel):
+    """Signed, timestamped certificate of probe results. Required before a
+    device can be assigned a deployment_role. Valid for 90 days."""
+    model_config = ConfigDict(extra="ignore")
+    receipt_id: str = Field(default_factory=lambda: uid("hwr"))
+    hw_id: str
+    facility_id: Optional[str] = None
+    device_class: DeviceClassEnum
+    probes: List[ProbeResult] = Field(default_factory=list)
+    overall: Literal["pass", "fail"] = "fail"
+    issued_at: datetime = Field(default_factory=now_utc)
+    expires_at: datetime
+    signature: Optional[str] = None
+    issued_by: Optional[str] = None
+
+
+class ProbeRequest(BaseModel):
+    hw_id: str
+    probes: List[ProbeResult]
+
+
+class RoleAssignment(BaseModel):
+    hw_id: str
+    deployment_role: DeploymentRoleEnum
+    deployment_room: Optional[str] = None
+
+
+# ---------- Escalation rules (auto-escalate unacknowledged alerts) ----------
+class EscalationRule(BaseModel):
+    """Per-facility config: how long before an unacknowledged alert escalates,
+    and to whom. Levels match the Blueprint [RS-002] flow:
+      Level 1 → all staff (already happens on alert.create)
+      Level 2 → staff + supervisor after `level_2_seconds`
+      Level 3 → staff + supervisor + on-call medical after `level_3_seconds`."""
+    model_config = ConfigDict(extra="ignore")
+    facility_id: Optional[str] = None
+    level_2_seconds: int = 90
+    level_3_seconds: int = 150
+    notify_supervisor_phone: Optional[str] = None
+    notify_oncall_phone: Optional[str] = None
+    enabled: bool = True
+    updated_at: datetime = Field(default_factory=now_utc)

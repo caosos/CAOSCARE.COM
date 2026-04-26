@@ -36,6 +36,9 @@ from routes import memory as memory_routes  # noqa: E402
 from routes import audit as audit_routes  # noqa: E402
 from routes import realtime as realtime_routes  # noqa: E402
 from routes import rf as rf_routes  # noqa: E402
+from routes import facilities as facilities_routes  # noqa: E402
+from routes import hardware as hardware_routes  # noqa: E402
+from routes import escalation as escalation_routes  # noqa: E402
 from seed import seed  # noqa: E402
 
 
@@ -91,6 +94,9 @@ api.include_router(memory_routes.router)
 api.include_router(audit_routes.router)
 api.include_router(realtime_routes.router)
 api.include_router(rf_routes.router)
+api.include_router(facilities_routes.router)
+api.include_router(hardware_routes.router)
+api.include_router(escalation_routes.router)
 
 app.include_router(api)
 

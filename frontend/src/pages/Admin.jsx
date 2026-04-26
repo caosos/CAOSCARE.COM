@@ -20,6 +20,9 @@ import { toast } from "sonner";
 import PendantsTab from "./PendantsTab";
 import RFPairingTab from "./RFPairingTab";
 import ClinicianTab from "./ClinicianTab";
+import HardwareReceiptsTab from "./HardwareReceiptsTab";
+import FacilitiesTab from "./FacilitiesTab";
+import EscalationTab from "./EscalationTab";
 import Roadmap from "./Roadmap";
 import Insights from "./Insights";
 import FamilyTab from "./FamilyTab";
@@ -87,6 +90,11 @@ export default function Admin() {
                 </Button>
               </Link>
             )}
+            <Link to="/admin/help" data-testid="admin-help-link">
+              <Button variant="outline" className="border-2 h-10 rounded-full">
+                Tutorials
+              </Button>
+            </Link>
             <Link to="/staff" data-testid="admin-staff-link">
               <Button variant="outline" className="border-2 h-10 rounded-full">
                 <Activity className="w-4 h-4 mr-2" /> Dashboard
@@ -125,6 +133,11 @@ export default function Admin() {
             <TabsTrigger value="tokens" data-testid="tab-tokens">Device tokens</TabsTrigger>
             <TabsTrigger value="insights" data-testid="tab-insights">Insights</TabsTrigger>
             <TabsTrigger value="audit" data-testid="tab-audit">Audit</TabsTrigger>
+            <TabsTrigger value="hardware" data-testid="tab-hardware">Hardware</TabsTrigger>
+            <TabsTrigger value="escalation" data-testid="tab-escalation">Escalation</TabsTrigger>
+            {user?.role === "owner" && (
+              <TabsTrigger value="facilities" data-testid="tab-facilities">Facilities</TabsTrigger>
+            )}
             <TabsTrigger value="roadmap" data-testid="tab-roadmap">Roadmap</TabsTrigger>
           </TabsList>
 
@@ -176,6 +189,17 @@ export default function Admin() {
           <TabsContent value="audit" className="mt-6">
             <AuditTab />
           </TabsContent>
+          <TabsContent value="hardware" className="mt-6">
+            <HardwareReceiptsTab />
+          </TabsContent>
+          <TabsContent value="escalation" className="mt-6">
+            <EscalationTab />
+          </TabsContent>
+          {user?.role === "owner" && (
+            <TabsContent value="facilities" className="mt-6">
+              <FacilitiesTab />
+            </TabsContent>
+          )}
           <TabsContent value="roadmap" className="mt-6">
             <Roadmap />
           </TabsContent>
