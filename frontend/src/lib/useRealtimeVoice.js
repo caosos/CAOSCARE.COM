@@ -185,6 +185,8 @@ export function useRealtimeVoice({ voice = "shimmer", residentId, kioskId, room,
   const localStreamRef = useRef(null);
   const startGenRef = useRef(0);            // bumps on every stop() — invalidates in-flight starts
   const ctxRef = useRef({ resident_id: residentId, kiosk_id: kioskId, room });
+  const pendingUserRef = useRef("");        // user transcript awaiting its assistant pair
+  const sessionIdRef = useRef(`rt_${Math.random().toString(36).slice(2, 10)}_${Date.now()}`);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState(null);
   const [transcript, setTranscript] = useState([]);
@@ -214,6 +216,8 @@ export function useRealtimeVoice({ voice = "shimmer", residentId, kioskId, room,
   const start = useCallback(async () => {
     if (pcRef.current) return;              // already connected
     const myGen = ++startGenRef.current;
+    sessionIdRef.current = `rt_${Math.random().toString(36).slice(2, 10)}_${Date.now()}`;
+    pendingUserRef.current = "";
 
     setError(null);
     setStatus("connecting");
@@ -336,10 +340,33 @@ export function useRealtimeVoice({ voice = "shimmer", residentId, kioskId, room,
         if (msg.type === "response.audio.delta") setStatus("speaking");
         if (msg.type === "response.done") setStatus("live");
         if (msg.type === "conversation.item.input_audio_transcription.completed") {
-          setTranscript((t) => [...t, { role: "user", text: msg.transcript || "", ts: Date.now() }]);
+          const userText = msg.transcript || "";
+          setTranscript((t) => [...t, { role: "user", text: userText, ts: Date.now() }]);
+          // Stash the user side of the turn so we can pair it with the
+          // assistant reply once that arrives, then ship it to the memory
+          // extractor. This is the single change that lets Realtime voice
+          // sessions actually grow CAOS's memory of the resident over time.
+          pendingUserRef.current = userText;
         }
         if (msg.type === "response.audio_transcript.done") {
-          setTranscript((t) => [...t, { role: "assistant", text: msg.transcript || "", ts: Date.now() }]);
+          const aiText = msg.transcript || "";
+          setTranscript((t) => [...t, { role: "assistant", text: aiText, ts: Date.now() }]);
+          const userText = pendingUserRef.current;
+          pendingUserRef.current = "";
+          const rid = ctxRef.current?.resident_id;
+          if (rid && (userText || aiText)) {
+            // Fire-and-forget; never block the voice loop on this.
+            fetch(`${API}/memory/realtime-turn`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                resident_id: rid,
+                session_id: sessionIdRef.current,
+                user_text: userText,
+                assistant_text: aiText,
+              }),
+            }).catch(() => {});
+          }
         }
         // Tool call dispatch — the OpenAI Realtime API streams arguments and
         // emits a single `done` event when the call is fully assembled.
