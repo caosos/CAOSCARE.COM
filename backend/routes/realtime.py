@@ -5,6 +5,14 @@ an ephemeral session token minted here. Our backend never relays audio; it
 only signs the session and forwards SDP. That keeps the OpenAI key server-side
 while letting the browser stream PCM audio bidirectionally with sub-second
 latency — the foundation of true full-duplex conversation.
+
+This module also assembles the *session config* that travels back to the
+browser inside the `_caos` blob: companion instructions, tool definitions,
+server-VAD timing, and the (cool, low) sampling temperature. The frontend
+applies these via a `session.update` event the moment the data channel
+opens, so by the time the model speaks its first word it already knows
+who the resident is, which physical devices it can touch, and how long
+to wait before deciding the resident is finished talking.
 """
 import os
 from fastapi import APIRouter, HTTPException, Request, Body
@@ -23,13 +31,172 @@ _realtime = OpenAIChatRealtime(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else No
 ALLOWED_VOICES = {"alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse"}
 DEFAULT_VOICE = "shimmer"
 
+# OpenAI Realtime min temperature is 0.6 (lower values are clamped). 0.6 is
+# the floor and gives us the most factual, least improvisational behaviour —
+# critical for a companion who must NEVER hallucinate medical history.
+DEFAULT_TEMPERATURE = 0.6
+
+# Server-side VAD timing. Older voices pause naturally between thoughts;
+# the default 500ms silence cutoff was clipping them mid-sentence. 1000ms
+# lets a senior gather their words without being interrupted, while still
+# feeling responsive.
+DEFAULT_VAD = {
+    "type": "server_vad",
+    "threshold": 0.5,
+    "prefix_padding_ms": 300,
+    "silence_duration_ms": 1000,
+    "create_response": True,
+}
+
+
+def _build_tools() -> list[dict]:
+    """Tool surface CAOS can invoke during a live conversation.
+
+    Each tool maps to a public backend endpoint the frontend will call when
+    the model emits a `function_call`. Keeping descriptions tight and
+    parameters strictly typed forces the model to choose deterministically
+    instead of hallucinating arguments.
+    """
+    return [
+        {
+            "type": "function",
+            "name": "adjust_room_temperature",
+            "description": (
+                "Set the air conditioning or heater target temperature in the resident's "
+                "room. Use ONLY when the resident clearly asks to be warmer or cooler. "
+                "After calling, briefly confirm what you did in one short sentence."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "target_f": {
+                        "type": "number",
+                        "minimum": 60,
+                        "maximum": 85,
+                        "description": "Target temperature in Fahrenheit (60-85)."
+                    },
+                    "mode": {
+                        "type": "string",
+                        "enum": ["cool", "heat", "auto"],
+                        "description": "Whether to cool or heat. Default 'auto' if uncertain."
+                    }
+                },
+                "required": ["target_f"],
+                "additionalProperties": False
+            }
+        },
+        {
+            "type": "function",
+            "name": "toggle_light",
+            "description": (
+                "Turn the resident's room light on or off, or set its brightness. "
+                "Use when they ask for the light or for it to be brighter/dimmer."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "state": {
+                        "type": "string",
+                        "enum": ["on", "off"],
+                        "description": "Whether to turn the light on or off."
+                    },
+                    "brightness": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 100,
+                        "description": "Optional brightness 0-100. Omit for full on."
+                    }
+                },
+                "required": ["state"],
+                "additionalProperties": False
+            }
+        },
+        {
+            "type": "function",
+            "name": "toggle_tv",
+            "description": (
+                "Turn the resident's TV on or off, change channel, or adjust volume. "
+                "If the resident asks for quiet or to mute the TV, use action='off' "
+                "or set volume to 0."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "state": {
+                        "type": "string",
+                        "enum": ["on", "off"],
+                        "description": "Power state for the TV."
+                    },
+                    "volume": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 100,
+                        "description": "Optional volume 0-100."
+                    }
+                },
+                "required": ["state"],
+                "additionalProperties": False
+            }
+        },
+        {
+            "type": "function",
+            "name": "call_for_help",
+            "description": (
+                "Escalate to a caregiver IMMEDIATELY when the resident describes "
+                "chest pain, breathing trouble, a fall, severe dizziness, confusion, "
+                "or directly asks for a nurse. Do NOT use for casual conversation. "
+                "After calling, reassure the resident that help is on the way and "
+                "stay with them."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "reason": {
+                        "type": "string",
+                        "description": "One short sentence summarising what the resident said."
+                    },
+                    "severity": {
+                        "type": "string",
+                        "enum": ["assist", "emergency"],
+                        "description": "'emergency' for chest pain/fall/breathing; 'assist' otherwise."
+                    }
+                },
+                "required": ["reason", "severity"],
+                "additionalProperties": False
+            }
+        },
+        {
+            "type": "function",
+            "name": "mark_resting",
+            "description": (
+                "Call this when the resident asks you to be quiet, says they want to rest, "
+                "are going to sleep, or otherwise dismisses the conversation. After this, "
+                "stop talking. Do NOT begin a new turn until they speak again."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "reason": {
+                        "type": "string",
+                        "description": "Why they're resting (sleep / quiet time / other)."
+                    }
+                },
+                "required": [],
+                "additionalProperties": False
+            }
+        },
+    ]
+
 
 async def _build_companion_instructions(resident_id: str | None) -> str:
     """System prompt CAOS speaks under.
 
-    This is the soul of the product — the difference between a chatbot and
-    a companion who knows the person they're with. Treat every word here as
-    permanent. Editing this prompt rewires CAOS's personality.
+    Hard rules in this prompt protect the user from the two failure modes the
+    pilot exposed: (1) the AI inventing past conversations / family memories,
+    and (2) the AI mixing up the resident's name. Both feel like betrayal to
+    a senior who has come to trust CAOS. The anti-hallucination block is
+    structured so that an empty memory bin produces an explicit "I don't know
+    that yet" answer, never an improvised one.
     """
     persona = (
         "## Who you are\n"
@@ -66,6 +233,37 @@ async def _build_companion_instructions(resident_id: str | None) -> str:
         "memory. If guiding them physically, count steps, name landmarks they "
         "can feel. Be their eyes by being their voice.\n"
         "\n"
+        "## Truth discipline (CRITICAL — never violate)\n"
+        "You ONLY know what is written under '## What you know about <name>' "
+        "and '## Recent moments with <name>' below. If a section is missing or "
+        "empty, you do NOT know that thing. NEVER invent details about the "
+        "resident's past, family, meals, weather, places they have lived, "
+        "conversations you have had, or anything you cannot point to in the "
+        "blocks below.\n"
+        "If they reference something you have no record of, say honestly: "
+        "'I don't have that with me — tell me about it' or 'remind me'. Then "
+        "listen and remember what they share. NEVER fabricate a shared memory "
+        "to seem closer to them. Pretending is the deepest betrayal here.\n"
+        "Do not invent place names ('Boston', 'the lake'), foods ('Irish stew', "
+        "'her apple pie'), or weather ('rainy day', 'that storm') unless the "
+        "resident or the memory blocks below mention them first.\n"
+        "\n"
+        "## Tools you can actually use\n"
+        "You have real control over the resident's room — the air conditioning, "
+        "lights, TV, and the nurse call system. If they ask you to make the room "
+        "warmer or cooler, turn lights on or off, or quiet the TV, CALL THE "
+        "MATCHING TOOL. Do NOT pretend or roleplay. Do NOT say 'I'm turning it "
+        "down' unless you have actually invoked the tool. After the tool returns, "
+        "confirm in one short sentence what you did ('Okay, I dropped it to "
+        "seventy-two').\n"
+        "If they describe chest pain, trouble breathing, a fall, sudden "
+        "confusion, severe dizziness, or directly ask for a nurse, call "
+        "`call_for_help` IMMEDIATELY with severity='emergency', then stay on "
+        "the line and keep them company.\n"
+        "If they ask you to be quiet, say they're going to sleep, or otherwise "
+        "dismiss the conversation, call `mark_resting` and then stop talking. "
+        "Do not begin a new turn until they speak first.\n"
+        "\n"
         "## Safety\n"
         "Never make medical claims, never diagnose, never recommend medication "
         "changes. If they describe chest pain, breathing trouble, a fall, or "
@@ -82,12 +280,19 @@ async def _build_companion_instructions(resident_id: str | None) -> str:
     if not r:
         return persona
 
-    name = r.get("preferred_name") or (r.get("name") or "").split(" ")[0]
+    full_name = (r.get("name") or "").strip()
+    preferred = (r.get("preferred_name") or "").strip()
+    name = preferred or (full_name.split(" ")[0] if full_name else "")
+
     profile_lines = []
     if name:
+        # Hard name discipline. The pilot revealed Margaret↔Maggie drift; this
+        # makes the chosen name a non-negotiable rule rather than a soft hint.
         profile_lines.append(
-            f"Their name is {name}. Always call them {name}. Never use their full name "
-            "and never ask them to tell you their name — you already know."
+            f"Their name is {name}. ALWAYS call them {name} — never any other "
+            f"variant, nickname, diminutive, or full name. If their full name is "
+            f"'{full_name}', do not use it. Just '{name}'. Never ask them what to "
+            f"call them — you already know."
         )
     if r.get("low_vision"):
         profile_lines.append(
@@ -117,25 +322,36 @@ async def _build_companion_instructions(resident_id: str | None) -> str:
         facts, events = [], []
 
     bins = []
+    bins.append(f"## What you know about {name} (durable facts)")
     if facts:
-        bins.append(f"## What you know about {name} (durable facts)")
         for f in facts:
             star = "★ " if f.get("pinned") else ""
             bins.append(f"- {star}{f['text']}")
+    else:
+        bins.append(
+            "- (No facts on file yet. You do NOT know their family, history, "
+            "preferences, medical details, or where they are from. Ask gently "
+            "and remember what they share. Do not invent anything.)"
+        )
+
+    bins.append(f"\n## Recent moments with {name}")
     if events:
-        bins.append(f"\n## Recent moments with {name}")
         for e in events:
             star = "★ " if e.get("pinned") else ""
             when = (e.get("event_at") or "")
             when = (when[:10] + " · ") if isinstance(when, str) and when else ""
             bins.append(f"- {star}{when}{e['text']}")
+    else:
+        bins.append(
+            "- (No prior moments on file. This is the start of your history "
+            "together. Do NOT reference past conversations, meals, weather, "
+            "trips, or anything that 'happened before' — there isn't one yet.)"
+        )
 
     profile = ""
     if profile_lines:
         profile = "\n## About this person\n" + "\n".join(profile_lines)
-    bin_block = ""
-    if bins:
-        bin_block = "\n\n" + "\n".join(bins)
+    bin_block = "\n\n" + "\n".join(bins)
 
     return persona + profile + bin_block
 
@@ -143,8 +359,10 @@ async def _build_companion_instructions(resident_id: str | None) -> str:
 @router.post("/session")
 async def create_session(payload: dict = Body(default={})):
     """Mint an ephemeral OpenAI Realtime session token for the browser.
-    Accepts optional {voice, resident_id} so the kiosk can request its
-    chosen voice and pre-load the resident's personalized prompt."""
+
+    Accepts optional {voice, resident_id, kiosk_id, room} so the kiosk can
+    request its chosen voice, pre-load the resident's personalized prompt,
+    and tag the session with the room context the tool calls will need."""
     if not _realtime:
         raise HTTPException(status_code=503, detail="OPENAI_API_KEY not configured")
     voice = (payload.get("voice") or DEFAULT_VOICE).lower()
@@ -154,9 +372,26 @@ async def create_session(payload: dict = Body(default={})):
         session = await _realtime.create_ephemeral_session_for_audio_chat(voice=voice)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"OpenAI session error: {e}")
-    # Attach our companion instructions so the frontend can session.update them
+
     instructions = await _build_companion_instructions(payload.get("resident_id"))
-    session["_caos"] = {"voice": voice, "instructions": instructions}
+
+    # Everything under `_caos` travels back to the browser so it can apply a
+    # `session.update` over the data channel the moment it opens. The OpenAI
+    # ephemeral mint endpoint does not currently accept tools/turn_detection
+    # at creation time, so we pass them here and let the client install them.
+    session["_caos"] = {
+        "voice": voice,
+        "instructions": instructions,
+        "tools": _build_tools(),
+        "tool_choice": "auto",
+        "turn_detection": DEFAULT_VAD,
+        "temperature": DEFAULT_TEMPERATURE,
+        "context": {
+            "resident_id": payload.get("resident_id"),
+            "kiosk_id": payload.get("kiosk_id"),
+            "room": payload.get("room"),
+        },
+    }
     return JSONResponse(content=session)
 
 

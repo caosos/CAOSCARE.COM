@@ -1,0 +1,34 @@
+{
+  "summary": "Iteration 10 — validated OpenAI Realtime session config (5 tools, anti-hallucination instructions, server_vad 1000ms, temperature 0.6, shimmer voice, ephemeral client_secret), public alert-status polling endpoint (kiosk 401 fix), full alert lifecycle with triggered_by='ai_triage', public room-device command endpoint reachability without auth, and full backend regressions (owner/admin admin-login, staff login, residents/alerts feed/stats). 14/14 pytests pass.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/devices/public/room/{room}/command", "issue": "Action enum is restricted to {power, brightness, temperature, fan_speed, volume, channel, color, position}. The Realtime tool argument schemas (toggle_light state=on/off, toggle_tv state=on/off, adjust_room_temperature target_f) do NOT match these action names directly. The browser tool-dispatch glue MUST translate: adjust_room_temperature.target_f -> {action:'temperature', value:<number>}, toggle_light.state -> {action:'power', value:'on'|'off'} (and brightness -> {action:'brightness'}), toggle_tv -> {action:'power'} or {action:'volume'}. If the frontend sends raw tool names like 'set_temperature' or values like 'on'/'off' against an enum-only action, the kiosk will get HTTP 422 and the AI's promise to the resident will silently fail. This was the only non-obvious gap — verify the frontend mapping layer."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/iter10_test.py",
+    "/app/test_reports/pytest/iter10_results.xml"
+  ],
+  "action_items": [
+    "Confirm the kiosk-side OpenAI tool dispatch maps tool names + arguments to the device action enum (power/temperature/brightness/volume) before POSTing to /api/devices/public/room/{room}/command. Backend will reject mismatches with 422.",
+    "Optional: surface the public room command 404/400/422 as an AI-visible failure signal so CAOS can apologise honestly ('I tried, but I can't reach the AC in this room') instead of silently confirming success.",
+    "Optional: reduce the public_alert_status response to also include a created_at or resolved_at delta so the kiosk can implement smart backoff polling, but this is post-MVP."
+  ],
+  "critical_code_review_comments": [
+    "realtime.py: instructions block is well-structured and explicitly addresses the two pilot failure modes (hallucinated memories + name drift). The empty-bin fallback text ('No facts on file yet', 'No prior moments on file') is correct and verified live.",
+    "realtime.py _build_tools(): tool argument schemas are tight (additionalProperties:false, enums, min/max bounds) which forces deterministic function-call payloads — good defensive design against argument hallucination.",
+    "realtime.py turn_detection silence_duration_ms=1000 is sane for senior speech cadence; flag for tuning if the pilot reports residents being cut off (consider 1200-1500ms for known low-vision/elderly cohort).",
+    "alerts.py public_alert_status: route correctly placed BEFORE the /{alert_id} catch-all, so the public path is reachable without auth and the authed legacy GET still requires a token. Projection only returns alert_id/status/severity — no PII leak verified.",
+    "devices.py public_room_command: action enum check is happening at Pydantic validation (DeviceCommandInput) and then again at capability check. The action-name surface is the single biggest mismatch risk between the AI tool layer and the device control layer (see minor issue above).",
+    "models.py AlertCreate.triggered_by includes 'ai_triage' — good, matches Alert model. Verified live via POST /api/alerts."
+  ],
+  "updated_files": ["/app/backend/tests/iter10_test.py (new)"],
+  "success_rate": {"backend": "100% (14/14 pytest)", "frontend": "skipped per request"},
+  "test_credentials": "owner@caoscare.com/owner1234, admin@caoscare.com/admin1234, nurse@caoscare.com/nurse1234",
+  "seed_data_creation": "Created and resolved one TEST alert per run (triggered_by=ai_triage, severity=assist) — left in DB as 'resolved' status; will not affect active feed.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Realtime session config tests live in /app/backend/tests/iter10_test.py. Action-enum mismatch between tools and devices endpoint is the only integration risk worth a re-check after frontend tool-dispatch is wired/edited. Public alert-status fix verified — kiosk can poll without 401. Voice/VAD/hallucination behaviour MUST be verified manually by the user via the browser; automation cannot drive WebRTC audio."
+}

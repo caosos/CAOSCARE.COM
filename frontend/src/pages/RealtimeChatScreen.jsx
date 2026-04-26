@@ -14,14 +14,17 @@ import { useRealtimeVoice } from "../lib/useRealtimeVoice";
 
 export default function RealtimeChatScreen({
   resident,
+  kiosk,
   voiceId,
   onEnd,
   onOpenVoicePicker,
   a11yRootClass,
 }) {
-  const { status, error, transcript, start, stop, audioElRef } = useRealtimeVoice({
+  const { status, error, transcript, resting, start, stop, audioElRef } = useRealtimeVoice({
     voice: voiceId,
     residentId: resident?.resident_id,
+    kioskId: kiosk?.kiosk_id,
+    room: kiosk?.room || resident?.room,
   });
   const localAudioElRef = useRef(null);
   const startedRef = useRef(false);
@@ -41,6 +44,7 @@ export default function RealtimeChatScreen({
   }, []);
 
   const orbState =
+    resting ? "" :
     status === "speaking" ? "caos-orb-speak" :
     status === "listening" ? "caos-orb-listen" :
     status === "live" ? "caos-orb" : "";
@@ -94,11 +98,12 @@ export default function RealtimeChatScreen({
           data-testid="kiosk-realtime-orb"
         />
         <p className="font-display text-2xl text-caos-forest text-center max-w-xl">
-          {status === "connecting" && "Connecting…"}
-          {status === "live" && "Speak any time — I'm listening."}
-          {status === "listening" && "Listening…"}
-          {status === "speaking" && "I'm speaking. You can chime in any time."}
-          {status === "error" && "Something went wrong. Try again."}
+          {resting && "Resting. I'll be quiet — speak any time."}
+          {!resting && status === "connecting" && "Connecting…"}
+          {!resting && status === "live" && "Speak any time — I'm listening."}
+          {!resting && status === "listening" && "Listening…"}
+          {!resting && status === "speaking" && "I'm speaking. You can chime in any time."}
+          {!resting && status === "error" && "Something went wrong. Try again."}
         </p>
         {error && (
           <p className="mt-3 inline-flex items-center gap-2 text-caos-terracotta text-sm">

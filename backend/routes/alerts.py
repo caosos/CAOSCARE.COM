@@ -264,6 +264,20 @@ async def alert_stats(user=Depends(get_current_user)):
     }
 
 
+@router.get("/public/{alert_id}/status")
+async def public_alert_status(alert_id: str):
+    """Kiosk (no login) polls this every 4s to detect when staff resolves the
+    call. Intentionally minimal — no PII, no chat content — so it can sit
+    behind a public route without leaking resident info."""
+    doc = await db.alerts.find_one(
+        {"alert_id": alert_id},
+        {"_id": 0, "alert_id": 1, "status": 1, "severity": 1},
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    return doc
+
+
 @router.get("/{alert_id}")
 async def get_alert(alert_id: str, user=Depends(get_current_user)):
     """Full event timeline for one alert (created → paged → acked → resolved)."""

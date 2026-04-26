@@ -189,7 +189,7 @@ export default function Kiosk() {
     if (!alert?.alert_id) return;
     const t = setInterval(async () => {
       try {
-        const { data } = await axios.get(`${API}/alerts/${alert.alert_id}`);
+        const { data } = await axios.get(`${API}/alerts/public/${alert.alert_id}/status`);
         if (data.status === "resolved") {
           voiceLoopRef.current = false;
           // In realtime mode, the WebRTC loop owns the goodbye. Just close
@@ -1130,6 +1130,7 @@ export default function Kiosk() {
       <>
         <RealtimeChatScreen
           resident={resident}
+          kiosk={kiosk}
           voiceId={voiceId}
           a11yRootClass={a11yRootClass}
           onOpenVoicePicker={() => setVoicePickerOpen(true)}
