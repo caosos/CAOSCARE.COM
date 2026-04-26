@@ -39,6 +39,9 @@ from routes import rf as rf_routes  # noqa: E402
 from routes import facilities as facilities_routes  # noqa: E402
 from routes import hardware as hardware_routes  # noqa: E402
 from routes import escalation as escalation_routes  # noqa: E402
+from routes import research as research_routes  # noqa: E402
+from routes import weather as weather_routes  # noqa: E402
+from routes import timers as timer_routes  # noqa: E402
 from seed import seed  # noqa: E402
 
 
@@ -97,6 +100,9 @@ api.include_router(rf_routes.router)
 api.include_router(facilities_routes.router)
 api.include_router(hardware_routes.router)
 api.include_router(escalation_routes.router)
+api.include_router(research_routes.router)
+api.include_router(weather_routes.router)
+api.include_router(timer_routes.router)
 
 app.include_router(api)
 

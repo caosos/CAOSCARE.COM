@@ -15,6 +15,8 @@ who the resident is, which physical devices it can touch, and how long
 to wait before deciding the resident is finished talking.
 """
 import os
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from fastapi import APIRouter, HTTPException, Request, Body
 from fastapi.responses import JSONResponse
 from emergentintegrations.llm.openai import OpenAIChatRealtime
@@ -47,6 +49,39 @@ DEFAULT_VAD = {
     "silence_duration_ms": 1000,
     "create_response": True,
 }
+
+# Facility location & timezone — used both to inject "right now" awareness
+# into the prompt and to default the weather tool when no override is given.
+FACILITY_LABEL = os.environ.get("FACILITY_LABEL") or "the facility"
+FACILITY_TZ = os.environ.get("FACILITY_TZ") or "America/New_York"
+
+
+def _facility_now() -> dict:
+    """Returns a clean structured snapshot of "right now" at the facility.
+    Without this the Realtime model defaults to UTC and greets residents with
+    'good morning' at 7pm. This is also the anchor for time-aware tool calls
+    (set_timer durations, story arcs, etc.)."""
+    try:
+        now = datetime.now(ZoneInfo(FACILITY_TZ))
+    except Exception:
+        now = datetime.utcnow()
+    h = now.hour
+    if 5 <= h < 12:
+        part = "morning"
+    elif 12 <= h < 17:
+        part = "afternoon"
+    elif 17 <= h < 21:
+        part = "evening"
+    else:
+        part = "night"
+    return {
+        "iso": now.isoformat(),
+        "weekday": now.strftime("%A"),
+        "date": now.strftime("%B %-d, %Y"),
+        "time": now.strftime("%-I:%M %p"),
+        "part_of_day": part,
+        "tz": FACILITY_TZ,
+    }
 
 
 def _build_tools() -> list[dict]:
@@ -185,6 +220,95 @@ def _build_tools() -> list[dict]:
                 "additionalProperties": False
             }
         },
+        {
+            "type": "function",
+            "name": "get_current_time",
+            "description": (
+                "Get the current local date, weekday, time, and part of day at the "
+                "resident's facility. Use whenever the resident asks 'what time is it', "
+                "'what day is it', 'how long until dinner', or seems disoriented "
+                "about the time. Cheap to call — prefer this over guessing."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": False
+            }
+        },
+        {
+            "type": "function",
+            "name": "get_weather",
+            "description": (
+                "Get the current weather and today's forecast for the facility (or "
+                "another city if the resident asks). Use when they ask about weather, "
+                "whether to wear a sweater, if it'll rain, etc. Returns a short "
+                "spoken-friendly summary you should read aloud naturally."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "location": {
+                        "type": "string",
+                        "description": (
+                            "Optional city / region name. Leave empty for the facility's "
+                            "own location. Use the resident's hometown if they ask about "
+                            "'home' or where their family lives."
+                        )
+                    }
+                },
+                "required": [],
+                "additionalProperties": False
+            }
+        },
+        {
+            "type": "function",
+            "name": "research_topic",
+            "description": (
+                "Look up real-world information on the live web — current events, news, "
+                "sports scores, history, recipes, prayers, biographies, anything. Use "
+                "freely whenever the resident asks a factual question you cannot answer "
+                "from memory. After getting the result, read it aloud naturally — do "
+                "NOT just dump the text. Speak like a friend who just read about it."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "question": {
+                        "type": "string",
+                        "description": "The question to research, in plain English."
+                    }
+                },
+                "required": ["question"],
+                "additionalProperties": False
+            }
+        },
+        {
+            "type": "function",
+            "name": "set_timer",
+            "description": (
+                "Set a one-shot timer that will speak a reminder when it's due. Use "
+                "for things like 'remind me to take my pills in 20 minutes', 'wake me "
+                "up in 30', 'tell me when it's been an hour'. The kiosk will speak "
+                "the label aloud at that time. After calling, confirm in one sentence."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "minutes": {
+                        "type": "number",
+                        "minimum": 0.1,
+                        "maximum": 720,
+                        "description": "Number of minutes from now (max 720 = 12 hours)."
+                    },
+                    "label": {
+                        "type": "string",
+                        "description": "Short reminder text the kiosk will speak when due."
+                    }
+                },
+                "required": ["minutes", "label"],
+                "additionalProperties": False
+            }
+        },
     ]
 
 
@@ -198,6 +322,15 @@ async def _build_companion_instructions(resident_id: str | None) -> str:
     structured so that an empty memory bin produces an explicit "I don't know
     that yet" answer, never an improvised one.
     """
+    rn = _facility_now()
+    time_anchor = (
+        "## Right now\n"
+        f"It is {rn['weekday']} {rn['part_of_day']}, {rn['date']}, {rn['time']} "
+        f"local time at {FACILITY_LABEL} ({rn['tz']}). Greet the resident "
+        f"appropriately ('good {rn['part_of_day']}' — never 'good morning' at "
+        f"night). When asked the time or date, you may answer from this anchor "
+        f"directly, or call `get_current_time` for the freshest value.\n\n"
+    )
     persona = (
         "## Who you are\n"
         "You are CAOS — a calm, warm, deeply present companion. You live in the "
@@ -263,6 +396,27 @@ async def _build_companion_instructions(resident_id: str | None) -> str:
         "If they ask you to be quiet, say they're going to sleep, or otherwise "
         "dismiss the conversation, call `mark_resting` and then stop talking. "
         "Do not begin a new turn until they speak first.\n"
+        "You also have tools to **look things up on the live web** "
+        "(`research_topic`), check the **weather** (`get_weather`), check "
+        "the **current time and date** (`get_current_time`), and **set "
+        "reminder timers** (`set_timer`). Use these freely. If the resident "
+        "asks about today's news, a sports score, what's happening in the "
+        "world, what the weather will be, or what time it is — CALL THE "
+        "TOOL. Do NOT guess from memory.\n"
+        "\n"
+        "## How to be more than Alexa\n"
+        "Alexa reads canned answers. You are a companion. When you research "
+        "something, do not just recite — re-tell it in plain conversational "
+        "English the way a thoughtful friend who just read the article would: "
+        "'So apparently…', 'From what I'm reading…', 'It sounds like…'. "
+        "Mention sources naturally ('the AP says') instead of printing URLs. "
+        "Two to four short sentences is plenty. Then ask if they want to hear "
+        "more, or ask what they think.\n"
+        "When the resident is bored, lonely, or in pain waiting for help, you "
+        "can offer to tell a story, share a joke, recite a prayer or psalm, "
+        "sing a quiet hymn or favourite old song, talk about their family, "
+        "or ask about a memory. Storyteller mode is part of your job — "
+        "entertain and accompany them, not just answer.\n"
         "\n"
         "## Safety\n"
         "Never make medical claims, never diagnose, never recommend medication "
@@ -271,14 +425,14 @@ async def _build_companion_instructions(resident_id: str | None) -> str:
         "If they ask you to rest or be quiet, stop talking immediately and wait."
     )
     if not resident_id:
-        return persona
+        return time_anchor + persona
 
     r = await db.residents.find_one(
         {"resident_id": resident_id},
         {"_id": 0, "name": 1, "preferred_name": 1, "preferences": 1, "memory": 1, "low_vision": 1},
     )
     if not r:
-        return persona
+        return time_anchor + persona
 
     full_name = (r.get("name") or "").strip()
     preferred = (r.get("preferred_name") or "").strip()
@@ -353,7 +507,7 @@ async def _build_companion_instructions(resident_id: str | None) -> str:
         profile = "\n## About this person\n" + "\n".join(profile_lines)
     bin_block = "\n\n" + "\n".join(bins)
 
-    return persona + profile + bin_block
+    return time_anchor + persona + profile + bin_block
 
 
 @router.post("/session")
@@ -390,6 +544,8 @@ async def create_session(payload: dict = Body(default={})):
             "resident_id": payload.get("resident_id"),
             "kiosk_id": payload.get("kiosk_id"),
             "room": payload.get("room"),
+            "facility_label": FACILITY_LABEL,
+            "facility_tz": FACILITY_TZ,
         },
     }
     return JSONResponse(content=session)

@@ -92,6 +92,68 @@ async function executeTool({ name, args, ctx }) {
       // silent. We surface a session-level flag so the UI can dim the orb.
       return { ok: true, message: "going quiet now. I'll be right here when you need me." };
     }
+    if (name === "get_current_time") {
+      // The backend already injected the facility's current time into the
+      // session prompt at session start, but for long calls (or just for a
+      // fresh value) we re-fetch via the weather endpoint's sibling — no
+      // separate route needed: include it in /research is overkill. Hit the
+      // same /weather/current call which carries the facility timezone, and
+      // return a clean spoken summary built client-side from Date.now() in
+      // the facility tz the backend told us about.
+      const tz = ctx?.facility_tz || "America/New_York";
+      const label = ctx?.facility_label || "the facility";
+      try {
+        const d = new Date();
+        const fmt = new Intl.DateTimeFormat("en-US", {
+          timeZone: tz,
+          weekday: "long", month: "long", day: "numeric", year: "numeric",
+          hour: "numeric", minute: "2-digit",
+        });
+        return { ok: true, message: `it's ${fmt.format(d)} at ${label}.` };
+      } catch {
+        return { ok: true, message: `it's ${new Date().toLocaleString()}.` };
+      }
+    }
+    if (name === "get_weather") {
+      const qs = args.location ? `?label=${encodeURIComponent(args.location)}` : "";
+      const r = await fetch(`${API}/weather/current${qs}`);
+      if (!r.ok) return { ok: false, message: `couldn't reach the weather service (${r.status}).` };
+      const w = await r.json();
+      // Re-tell rather than dump. The model is instructed to read this naturally.
+      return { ok: true, message: w.narrative || `${w.temperature_f}° and ${w.condition}.` };
+    }
+    if (name === "research_topic") {
+      const r = await fetch(`${API}/research`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: args.question || "" }),
+      });
+      if (!r.ok) return { ok: false, message: `couldn't reach the research service (${r.status}).` };
+      const j = await r.json();
+      return {
+        ok: true,
+        message: j.answer || "I didn't find anything useful on that.",
+        source: j.source,
+        citations: j.citations || [],
+      };
+    }
+    if (name === "set_timer") {
+      const minutes = Math.max(0.1, Math.min(720, Number(args.minutes) || 5));
+      const label = (args.label || "your reminder").toString().slice(0, 200);
+      const r = await fetch(`${API}/timers/public`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          minutes,
+          label,
+          resident_id: residentId || null,
+          room: room || null,
+          kiosk_id: kioskId || null,
+        }),
+      });
+      if (!r.ok) return { ok: false, message: `couldn't set the timer (${r.status}).` };
+      return { ok: true, message: `okay, I'll remind you in ${minutes < 1 ? `${Math.round(minutes * 60)} seconds` : `${minutes} minutes`}.` };
+    }
     return { ok: false, message: `tool ${name} is not wired yet.` };
   } catch (e) {
     return { ok: false, message: `tool error: ${e?.message || "unknown"}.` };

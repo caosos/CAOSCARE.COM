@@ -1,0 +1,40 @@
+{
+  "summary": "Iteration 11 — validated Research (Claude fallback live via Emergent universal key, source='claude' confirmed since PERPLEXITY_API_KEY is empty), Weather (Open-Meteo no-key default Lancaster + Boston override, narrative ends with period), Timers (public create + 6s due fire-and-mark idempotency, authed list/delete, validation min 0.1 / max 720), Realtime session (exactly 9 tools, '## Right now' time anchor with facility label, 'more than Alexa' storyteller block, research_topic/get_weather/get_current_time/set_timer guidance, _caos.context exposes facility_label + facility_tz), and full backend regressions (owner/admin/staff login, residents, alerts feed/stats, kiosk alert creation with ai_triage, public alert status, public device room command without auth). 19/19 pytests pass.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/research", "issue": "Claude fallback latency is ~5-8s on cold call. Acceptable for a one-shot lookup but may exceed the 4-5s 'feels conversational' budget mentioned in research.py docstring. Consider a streaming variant or a brief 'one second…' filler from the model while the tool resolves."},
+      {"endpoint": "GET /api/weather/current", "issue": "When chance_of_rain < 30 or daily highs/lows are missing, the narrative correctly omits them but the JSON still returns null for chance_of_rain. The frontend tool dispatcher should treat null-vs-int gracefully (current schema allows Optional[int])."},
+      {"endpoint": "POST /api/timers/public", "issue": "No max-per-room cap or per-resident dedupe — a misbehaving model could spam timers. Pre-MVP it's fine; post-MVP consider a soft cap (e.g., 20 active timers per room) to prevent runaway tool loops."},
+      {"endpoint": "GET /api/timers/due/by-room/{room}", "issue": "Race condition window between find() and update_many() is small but non-zero; under unlikely concurrent polls the same timer could be returned twice. find_one_and_update with a $set filter on fired:false would be strictly atomic per timer. Low risk in practice (single kiosk per room)."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/iter11_test.py",
+    "/app/test_reports/pytest/iter11_results.xml"
+  ],
+  "action_items": [
+    "When user adds PERPLEXITY_API_KEY, re-run TestResearch — source should flip to 'perplexity' and citations[] should be non-empty. Current Claude fallback path is verified working.",
+    "Frontend tool dispatcher (useRealtimeVoice.js) must map: research_topic.question -> POST /api/research; get_weather.location (optional) -> GET /api/weather/current?label=...&lat=...&lon=... (note: backend currently expects lat+lon, not city name — if model passes only 'Boston' the dispatcher needs a geocode step or a curated city->coords table); get_current_time -> derive client-side from facility_tz in _caos.context (no backend endpoint exists); set_timer -> POST /api/timers/public with room from _caos.context.room.",
+    "No backend endpoint exists for get_current_time tool — model is expected to derive from the time anchor in instructions, OR the frontend dispatcher returns a synthesized payload. Confirm dispatcher handles this synthetic-tool case; otherwise consider adding GET /api/time/current that returns the same _facility_now() payload."
+  ],
+  "critical_code_review_comments": [
+    "research.py: clean Perplexity-then-Claude failover with explicit 'none' source for the worst case (no Emergent key + Perplexity miss). Good. SYSTEM_PROMPT correctly forbids markdown/URLs in spoken delivery.",
+    "research.py: session_id uses question[:20] which can collide and let LlmChat reuse cached context across unrelated residents. Use uid() or a uuid4 per request to keep each lookup independent.",
+    "weather.py: narrative builder is well-defended (handles missing daily, low pop, missing condition). Single sentence ending with period verified. Good.",
+    "weather.py: _c_to_f rounds to 0 decimals which collapses 'feels like' nuance — but for spoken delivery this is correct. Keep as-is.",
+    "timers.py: TimerCreate validation (ge=0.1 le=720) is enforced at the Pydantic layer — verified 0 and 1000 both rejected with 422. Good.",
+    "timers.py: due_for_room uses update_many AFTER the read; consider a $find+$update aggregate if concurrent kiosks ever poll the same room. Minor.",
+    "realtime.py _build_tools: 9 tools with strict additionalProperties:false and tight enums. Good defensive shape against argument hallucination.",
+    "realtime.py _facility_now: uses datetime.strftime('%-I:%M %p') which is Linux-only (fails on Windows containers). Fine for current deploy target.",
+    "realtime.py: 'get_current_time' tool has NO matching backend route — relies on client-side derivation from _caos.context.facility_tz. This needs to be explicit in the frontend dispatcher contract or it will silently 404 / hang the call."
+  ],
+  "updated_files": ["/app/backend/tests/iter11_test.py (new)"],
+  "success_rate": {"backend": "100% (19/19 pytest)", "frontend": "skipped per request"},
+  "test_credentials": "owner@caoscare.com/owner1234, admin@caoscare.com/admin1234, nurse@caoscare.com/nurse1234",
+  "seed_data_creation": "Created TEST_iter11 timers in TEST_iter11_room (one consumed by fire-and-mark, one explicitly deleted) and one TEST_iter11 alert (left active in DB — admin should resolve via UI or it will appear in feed). Two failed-validation timer attempts (0 and 1000 min) were correctly rejected at Pydantic and never persisted.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "iter11_test.py covers research/weather/timers/realtime-9-tools end-to-end against real Open-Meteo + real Claude (Emergent key). When PERPLEXITY_API_KEY is added, only TestResearch::test_research_haiku_uses_claude_fallback needs its assertion flipped to source=='perplexity' and citations list expected non-empty. Voice/WebRTC remains untestable by automation — user must verify conversational quality manually. The biggest unanswered integration risk is the frontend tool-dispatcher mapping for get_weather (city name vs lat/lon) and get_current_time (no backend endpoint exists)."
+}
