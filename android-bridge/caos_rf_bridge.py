@@ -132,26 +132,52 @@ def next_sequence() -> int:
 def fingerprint_from_rtl433(record: dict) -> Optional[dict]:
     """Convert an rtl_433 JSON record into our blueprint fingerprint shape.
 
-    rtl_433 emits records like:
-        {"time":"...", "model":"Generic-Remote", "id":12345, "code":"a3f1c2",
-         "freq":319.000000, "rssi":-58, "modulation":"OOK_PWM"}
+    rtl_433 has thousands of brand-specific decoders, and they DO NOT use
+    a single field name for "the unique signal." Different brands publish
+    their identifying bits under different keys:
 
-    We tolerate missing fields — anything we don't have we return None for
-    (the backend handles it). The bit pattern is whatever's in `code` /
-    `data` / `raw_signal` (whichever is present and most specific)."""
-    pattern = record.get("code") or record.get("data") or record.get("raw_signal")
+      • Generic OOK remotes:    `code`
+      • Honeywell, GE legacy:   `data`
+      • Unknown OOK captures:   `raw_signal`
+      • Interlogix-Security:    `raw_message`     ← the user's pendant
+      • DIP-switch remotes:     `dipswitch`
+      • Some doorbells:         `button`
+
+    If NONE of those are present but the brand decoder did identify a
+    `model` + `id` pair, we synthesize a stable fingerprint from those
+    two — two presses of the same pendant produce the same model+id, so
+    matching still works. This makes the bridge brand-agnostic: any
+    pendant rtl_433 can decode, CAOS Care can pair.
+    """
+    pattern = (
+        record.get("code")
+        or record.get("data")
+        or record.get("raw_signal")
+        or record.get("raw_message")
+        or record.get("dipswitch")
+        or record.get("button")
+    )
+    if not pattern and record.get("model") and record.get("id") is not None:
+        pattern = f"{record['model']}_{record['id']}"
     if not pattern:
         return None
     pattern = str(pattern).strip().lower()
     if pattern.startswith("0x"):
         pattern = pattern[2:]
+    # Hex-only sanitize: replace anything that isn't 0-9a-f with empty.
+    # When we synthesized from "Interlogix-Security_3ef83c", the dash
+    # would otherwise leak through and confuse the matcher.
+    sanitized = "".join(ch for ch in pattern if ch in "0123456789abcdef")
+    if not sanitized:
+        # Pure-text fallback — keep something so the backend can still match
+        sanitized = "".join(ch.lower() for ch in pattern if ch.isalnum())[:32]
 
     freq_mhz = record.get("freq") or record.get("frequency") or 0.0
     return {
         "frequency_hz": int(float(freq_mhz) * 1_000_000),
         "modulation": (record.get("modulation") or "OOK").split("_")[0].upper(),
-        "bit_pattern_hex": pattern,
-        "bit_length": len(pattern) * 4,  # 4 bits per hex char
+        "bit_pattern_hex": sanitized,
+        "bit_length": len(sanitized) * 4,  # 4 bits per hex char
         "rssi": record.get("rssi"),
     }
 
@@ -293,8 +319,17 @@ def poll_loop():
 
 
 def on_record(rec: dict):
+    # Always log the raw arrival so admins can see presses landing in real
+    # time. This was missing before and made it impossible to tell whether
+    # rtl_433 was capturing nothing vs. capturing but the bridge was dropping.
+    model = rec.get("model") or "?"
+    rid = rec.get("id", "?")
+    freq = rec.get("freq", "?")
+    print(f"[rf-bridge] decoded: model={model} id={rid} freq={freq}MHz", flush=True)
+
     fp = fingerprint_from_rtl433(rec)
     if not fp:
+        print(f"[rf-bridge]   skipped — no fingerprint extracted (keys: {sorted(rec.keys())})", flush=True)
         return
     cap = _state["active_capture"]
     if cap:
