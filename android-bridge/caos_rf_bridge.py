@@ -106,21 +106,66 @@ def _get(path: str) -> dict:
 # ---------------------------------------------------------------------------
 # Sequence counter — replay protection. Persisted to disk so a reboot
 # doesn't reset to 0 (which the backend would reject as <= last_seq).
+# Pick a state dir we can actually write to. Order: systemd-friendly
+# /var/lib/caos-bridge if writable (production), then ~/.local/state, then
+# ~/.caos-bridge as a last resort. This gracefully handles every install
+# style — running as root via systemd, running as a user via terminal, or
+# running on Termux/Android where /var/lib is read-only.
 # ---------------------------------------------------------------------------
 
-_SEQ_FILE = "/var/lib/caos-bridge/seq" if os.path.isdir("/var/lib") else os.path.expanduser("~/.caos-bridge.seq")
+
+def _pick_state_dir() -> Optional[str]:
+    candidates = [
+        "/var/lib/caos-bridge",
+        os.path.expanduser("~/.local/state/caos-bridge"),
+        os.path.expanduser("~/.caos-bridge"),
+    ]
+    for d in candidates:
+        try:
+            os.makedirs(d, exist_ok=True)
+            test_path = os.path.join(d, ".write-test")
+            with open(test_path, "w") as f:
+                f.write("ok")
+            os.remove(test_path)
+            return d
+        except (PermissionError, OSError):
+            continue
+    return None
+
+
+_STATE_DIR = _pick_state_dir()
+_SEQ_FILE = os.path.join(_STATE_DIR, "seq") if _STATE_DIR else None
+if _STATE_DIR:
+    print(f"[rf-bridge] state dir: {_STATE_DIR}", flush=True)
+else:
+    print("[rf-bridge] WARNING: no writable state dir — sequence counter will reset on restart", file=sys.stderr, flush=True)
 
 
 def next_sequence() -> int:
+    """Monotonic, persistent sequence number for replay protection. Falls
+    back to in-process monotonic if disk persistence isn't available — a
+    restart will then increment from a fresh time-based seed, still
+    monotonic against the previous run as long as wallclock advances."""
+    if _SEQ_FILE is None:
+        # No disk persistence — bootstrap from current time, then keep
+        # incrementing within this process via a module-level counter.
+        global _RUNTIME_SEQ
+        try:
+            _RUNTIME_SEQ += 1
+        except NameError:
+            _RUNTIME_SEQ = int(time.time())
+        return _RUNTIME_SEQ
     try:
         with open(_SEQ_FILE, "r") as f:
             seq = int(f.read().strip() or "0")
     except FileNotFoundError:
         seq = int(time.time())  # bootstrap from epoch so we never collide
     seq += 1
-    os.makedirs(os.path.dirname(_SEQ_FILE), exist_ok=True)
-    with open(_SEQ_FILE, "w") as f:
-        f.write(str(seq))
+    try:
+        with open(_SEQ_FILE, "w") as f:
+            f.write(str(seq))
+    except OSError as e:
+        print(f"[rf-bridge] could not persist seq counter: {e}", file=sys.stderr, flush=True)
     return seq
 
 
