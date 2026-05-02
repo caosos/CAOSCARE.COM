@@ -45,6 +45,19 @@ from routes import timers as timer_routes  # noqa: E402
 from seed import seed  # noqa: E402
 
 
+def _cors_origins() -> list[str]:
+    """Return explicit CORS origins for credentialed browser requests.
+
+    Credentialed requests cannot use Access-Control-Allow-Origin: *.
+    The deployed CAOS Care frontend uses withCredentials=True, so the backend
+    must return the exact requesting origin.
+    """
+    configured = os.environ.get("CORS_ORIGINS", "")
+    defaults = "https://caoscare.com,https://www.caoscare.com,http://localhost:3000,http://127.0.0.1:3000"
+    raw = configured or defaults
+    return [origin.strip().rstrip("/") for origin in raw.split(",") if origin.strip()]
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
@@ -109,7 +122,7 @@ app.include_router(api)
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
+    allow_origins=_cors_origins(),
     allow_methods=["*"],
     allow_headers=["*"],
 )
