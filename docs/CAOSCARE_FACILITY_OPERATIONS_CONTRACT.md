@@ -20,7 +20,23 @@ The system must reduce paper loss, radio confusion, missed handoffs, duplicated 
 CAOSCare helps the entire facility operate in order.
 ```
 
-The resident remains central, but the system must also support kitchen, housekeeping, maintenance, caregiving, administration, fire drills, meal service, family communication, tasking, and shift handoff.
+The resident remains central, but the system must also support kitchen, housekeeping, maintenance, caregiving, nursing/clinical scheduling, administration, fire drills, meal service, family communication, tasking, and shift handoff.
+
+## Rollout principle
+
+CAOSCare should not attempt to absorb the whole building at once.
+
+Initial rollout should begin with the most operationally visible, least clinically regulated workflows:
+
+```text
+Phase 1: Maintenance + kitchen operations
+Phase 2: Housekeeping + meal workflows
+Phase 3: Fire drill / room-check workflows
+Phase 4: Staff tasking + shift handoff
+Phase 5: Clinical/nursing schedule support and care-team workflows
+```
+
+Clinical and nursing workflows are already more represented in the existing product direction, but non-clinical departments such as maintenance, kitchen, and housekeeping must be added as first-class operating surfaces.
 
 ## Problem statement
 
@@ -36,6 +52,8 @@ radio chatter overlaps during drills or incidents
 staff cannot see current building state
 kitchen prep depends on habit instead of checklist
 housekeeping work lacks clean status visibility
+maintenance rounds depend on memory or scattered notes
+nurse schedules and coverage are not visible enough to adjacent departments
 meal service can be delayed by unclear order of operations
 handoffs happen verbally and disappear
 residents wait too long for meals or responses
@@ -56,6 +74,10 @@ resident refusal tracking
 resident switchover tracking
 kitchen opening / prep / service / closing checklists
 housekeeping room/task tracking
+maintenance checklists and work orders
+preventive maintenance rounds
+nurse schedules and coverage visibility
+clinical/care-team task visibility where permitted
 fire drill participation and refusal logs
 staff task assignment
 shift handoff
@@ -198,6 +220,68 @@ lead/admin dashboard
 handoff to maintenance when issue found
 ```
 
+## Maintenance workflow
+
+Maintenance must be a first-class CAOSCare operating surface, not an afterthought.
+
+Required capabilities:
+
+```text
+work order intake
+room/building-area assignment
+priority and safety classification
+preventive maintenance checklists
+daily/weekly/monthly recurring inspections
+life-safety equipment checks where appropriate
+unit/room readiness checklists
+move-in / move-out task lists
+paint / repair / furniture / fixture tracking
+photo notes and completion receipts
+parts/materials needed
+vendor/mover/outside-service tracking
+handoff from housekeeping or care staff
+completion timestamps
+blocked/waiting status
+```
+
+Maintenance records should answer:
+
+```text
+What is broken or needed?
+Where is it?
+Who reported it?
+Who owns it?
+What priority is it?
+Is it resident-impacting?
+Is it safety-impacting?
+What materials or outside services are needed?
+Was it completed?
+When was it completed?
+Who verified it?
+```
+
+## Nursing / clinical schedule support
+
+Clinical authority remains human and regulated. CAOSCare may support visibility, scheduling, task awareness, and handoff, but must not make autonomous clinical decisions.
+
+Required support capabilities may include:
+
+```text
+nurse schedule visibility
+coverage gaps / role coverage view
+shift assignment visibility
+care-team handoff notes
+resident check task visibility
+follow-up task visibility
+incident/escalation linkage
+clinical task reminders where authorized
+read-only care context for non-clinical departments where permitted
+```
+
+Clinical/nursing workflows must preserve privacy, role-based access, and human authority.
+
+The system must not expose clinical details to staff who do not need them for their role.
+
 ## Staff task assignment
 
 Leads must be able to assign duties clearly.
@@ -263,8 +347,10 @@ Allowed AI uses:
 summarize shift status
 identify unresolved refusals
 flag repeated late meal delivery
-prepare kitchen/housekeeping handoff
+prepare kitchen/housekeeping/maintenance handoff
 summarize drill completion gaps
+summarize open work orders
+surface overdue recurring checklist items
 suggest follow-up questions
 surface likely workflow bottlenecks
 ```
@@ -292,6 +378,10 @@ fire drill participation status
 room-check completion rate
 housekeeping completion rate
 kitchen checklist completion rate
+maintenance work order completion rate
+preventive maintenance completion rate
+open/blocked maintenance tasks
+nurse schedule coverage visibility where permitted
 missed/late tasks
 department workload patterns
 recurring bottlenecks
@@ -309,6 +399,8 @@ Examples:
 repeated meal preference may become a low-risk preference memory
 repeated refusal may become a staff-review pattern
 repeated pain/not-feeling-well note may become care-sensitive candidate
+repeated maintenance issue may become a facility-context pattern
+repeated housekeeping refusal may become an operational follow-up item
 critical safety status must become alert/escalation first
 ```
 
@@ -328,6 +420,10 @@ FireDrillMode
 RoomCheckStatus
 KitchenChecklist
 HousekeepingChecklist
+MaintenanceChecklist
+MaintenanceWorkOrders
+PreventiveMaintenanceRounds
+NurseScheduleView
 StaffTaskAssignment
 ShiftHandoffSummary
 OperationalReceipt
