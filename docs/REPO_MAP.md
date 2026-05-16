@@ -45,6 +45,8 @@ README.md
 AGENTS.md
 docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md
 docs/REPO_MAP.md
+docs/BUILD_STATUS.md                         First runnable/deployment-prep status and blockers
+docs/DEPLOYMENT_RUNBOOK.md                   First non-Docker /opt/caoscare server path
 ```
 
 Then inspect the specific files relevant to the requested task.
@@ -257,6 +259,8 @@ README.md
 AGENTS.md
 docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md
 docs/REPO_MAP.md
+docs/BUILD_STATUS.md                         First runnable/deployment-prep status and blockers
+docs/DEPLOYMENT_RUNBOOK.md                   First non-Docker /opt/caoscare server path
 ```
 
 Recommended companion contracts still worth adding or expanding when needed:
@@ -266,13 +270,25 @@ docs/CAOS_CARE_PRODUCT_CONTRACT.md
 docs/CAOS_CARE_HARDWARE_CONTRACT.md
 docs/CAOS_CARE_PRIVACY_SAFETY_CONTRACT.md
 docs/CAOS_CARE_UX_BEHAVIOR_CONTRACT.md
-docs/BUILD_STATUS.md
 docs/TROUBLESHOOTING_VAULT.md
 docs/FEATURE_PARITY_MATRIX.md
 docs/API_SURFACE_MAP.md
 docs/ANDROID_DEVICE_MAP.md
-docs/DEPLOYMENT_RUNBOOK.md
 ```
+
+
+## Deployment readiness docs
+
+Verified first-run deployment-prep documents now include:
+
+```text
+backend/.env.example                           Backend environment template with placeholders only
+frontend/.env.example                          Frontend environment template with placeholders only
+docs/BUILD_STATUS.md                           Frontend/backend/Android run status and known blockers
+docs/DEPLOYMENT_RUNBOOK.md                     /opt/caoscare non-Docker first server path
+```
+
+These documents do not prove a live deployment. They define the first runnable path and preserve the CAOS Care safety posture: assistive, advisory, human-supervised, receipt-backed.
 
 ## Website status
 
@@ -363,13 +379,15 @@ selling or exposing private resident/staff/family data
 
 ```text
 1. Inspect live deployed CAOSCARE.COM site when reachable.
-2. Add or update BUILD_STATUS.md with actual runtime/build/deploy status.
+2. Runtime-verify docs/BUILD_STATUS.md commands on a deployment-like host.
 3. Add API_SURFACE_MAP.md by inspecting backend/routes/*.py.
 4. Add ANDROID_DEVICE_MAP.md by inspecting android-companion, android-bridge, and android-vision.
 5. Add privacy/safety contract specific to resident/staff/family data flows.
 6. Add hardware/device contract covering kiosk, RF bridge, wearables, and vision surfaces.
 7. Add feature parity matrix separating repo-visible, runtime-verified, planned, and blocked capabilities.
 8. Add smoke/regression checklist for frontend, backend, and Android surfaces.
+9. Decide whether to keep or replace Emergent LLM/auth dependencies before production deployment.
+10. Decide whether to guard or disable startup demo seed users before production deployment.
 ```
 
 ## Search terms for future agents

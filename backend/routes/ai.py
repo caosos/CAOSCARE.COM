@@ -1,8 +1,10 @@
-"""AI routes - Claude chat companion + OpenAI TTS + Whisper STT."""
+"""AI routes - OpenAI chat companion + OpenAI TTS + Whisper STT."""
 import os
 import asyncio
 import tempfile
 import logging
+import base64
+import requests
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from models import ChatInput, TTSInput, ChatMessage, now_utc
 from deps import db, get_current_user
@@ -14,16 +16,49 @@ from routes.memory import (
     MAX_HISTORY_MESSAGES,
 )
 
-from emergentintegrations.llm.chat import LlmChat, UserMessage
-from emergentintegrations.llm.openai import OpenAITextToSpeech, OpenAISpeechToText
-
 router = APIRouter(prefix="/ai", tags=["ai"])
 
-EMERGENT_KEY = os.environ["EMERGENT_LLM_KEY"]
-# Optional: user-supplied direct OpenAI key. When present, TTS/STT use it
-# directly (bypasses the Emergent relay) which is both faster and avoids
-# the Emergent balance being drained on speech traffic.
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip() or None
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
+OPENAI_TEXT_MODEL = os.environ.get("OPENAI_TEXT_MODEL", "gpt-4o-mini").strip() or "gpt-4o-mini"
+OPENAI_REALTIME_MODEL = os.environ.get("OPENAI_REALTIME_MODEL", "gpt-realtime").strip() or "gpt-realtime"
+OPENAI_VOICE = os.environ.get("OPENAI_VOICE", "sage").strip() or "sage"
+OPENAI_API_BASE = os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1").rstrip("/")
+
+
+def _require_openai_key() -> str:
+    if not OPENAI_API_KEY:
+        raise HTTPException(
+            status_code=503,
+            detail="OPENAI_API_KEY is not configured; OpenAI AI endpoints are unavailable.",
+        )
+    return OPENAI_API_KEY
+
+
+def _post_openai(path: str, payload: dict, *, timeout: int = 60) -> dict:
+    key = _require_openai_key()
+    resp = requests.post(
+        f"{OPENAI_API_BASE}{path}",
+        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+        json=payload,
+        timeout=timeout,
+    )
+    if resp.status_code >= 400:
+        raise HTTPException(status_code=502, detail=f"OpenAI request failed: {resp.text[:300]}")
+    return resp.json()
+
+
+async def _openai_chat(system_message: str, user_message: str, *, response_format: dict | None = None) -> str:
+    payload = {
+        "model": OPENAI_TEXT_MODEL,
+        "messages": [
+            {"role": "system", "content": system_message},
+            {"role": "user", "content": user_message},
+        ],
+    }
+    if response_format:
+        payload["response_format"] = response_format
+    data = await asyncio.to_thread(_post_openai, "/chat/completions", payload)
+    return (data.get("choices") or [{}])[0].get("message", {}).get("content", "")
 
 CAOS_SYSTEM_PROMPT = """You are CAOS — the AI companion built into a wall-mounted kiosk in this resident's room at a senior living community. You are NOT a chatbot, a voice assistant, or a customer-service agent. You are closer to a grandchild who stops by every day: familiar, unhurried, genuinely curious about the person in front of you, and someone they've come to trust over months and years.
 
@@ -84,7 +119,7 @@ Family, grandkids, old neighborhoods, music they grew up with, prayers, weather,
 
 @router.post("/chat")
 async def chat(data: ChatInput):
-    """Claude Sonnet 4.5 companion chat. Uses the memory server for context across sessions."""
+    """OpenAI text-model companion chat. Uses the memory server for context across sessions."""
     # Log user turn to the rolling conversation store
     await append_conversation(data.resident_id, data.session_id, "user", data.message)
     # Also mirror to legacy chat_messages for backwards compat
@@ -119,7 +154,7 @@ async def chat(data: ChatInput):
         mem_ctx = await build_memory_context(data.resident_id, session_id=data.session_id)
 
     # Older sessions (prior events) — pulled in as HISTORICAL context only.
-    # Framed explicitly as "PAST EVENT" so Claude does not confuse yesterday's
+    # Framed explicitly as "PAST EVENT" so the model does not confuse yesterday's
     # fall with today's "I need the restroom".
     prior_events_block = ""
     if data.resident_id:
@@ -155,7 +190,7 @@ async def chat(data: ChatInput):
             "\n\nLONG-TERM MEMORIES (★=pinned; categories+importance 1-5)\n"
             + mem_ctx["memories_block"]
         )
-    # Flatten recent conversation into a transcript Claude can read
+    # Flatten recent conversation into a transcript the model can read
     if mem_ctx["history"]:
         # Drop the final user message we're about to send as the prompt
         past = mem_ctx["history"][:-1][-MAX_HISTORY_MESSAGES:]
@@ -176,16 +211,13 @@ async def chat(data: ChatInput):
         )
 
     try:
-        llm = LlmChat(
-            api_key=EMERGENT_KEY,
-            session_id=data.session_id,
-            system_message=system,
-        ).with_model("anthropic", "claude-sonnet-4-5-20250929")
-        reply = await llm.send_message(UserMessage(text=data.message))
+        reply = await _openai_chat(system, data.message)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI error: {e}")
 
-    # REST PROTOCOL — Claude signals "stop listening, let the resident rest"
+    # REST PROTOCOL — the model signals "stop listening, let the resident rest"
     # by appending [REST] to its reply. Strip it before we speak and return
     # an explicit sleep_intent flag to the kiosk.
     sleep_intent = False
@@ -294,12 +326,7 @@ async def classify_alert_background(alert_id: str) -> None:
             f"Close notes: {a.get('close_notes') or ''}\n"
             f"Conversation:\n{transcript}\n"
         )
-        llm = LlmChat(
-            api_key=EMERGENT_KEY,
-            session_id=session_hint,
-            system_message=CLASSIFIER_SYSTEM,
-        ).with_model("anthropic", "claude-haiku-4-5-20251001")
-        raw = (await llm.send_message(UserMessage(text=prompt))) or ""
+        raw = (await _openai_chat(CLASSIFIER_SYSTEM, prompt, response_format={"type": "json_object"})) or ""
         import re as _re, json as _json
         m = _re.search(r"\{.*\}", raw, flags=_re.DOTALL)
         if not m:
@@ -323,6 +350,7 @@ async def classify_alert_background(alert_id: str) -> None:
 @router.post("/classify/{alert_id}")
 async def classify_alert_now(alert_id: str, user=Depends(get_current_user)):
     """Staff/admin trigger for re-classification."""
+    _require_openai_key()
     await classify_alert_background(alert_id)
     doc = await db.alerts.find_one({"alert_id": alert_id}, {"_id": 0})
     return doc
@@ -332,91 +360,63 @@ async def classify_alert_now(alert_id: str, user=Depends(get_current_user)):
 async def tts(data: TTSInput):
     """Text to MP3 audio. Returns base64 string for easy playback from the kiosk.
 
-    Strategy: prefer direct OpenAI SDK when OPENAI_API_KEY is set (faster, no
-    relay failures). Fall back to the Emergent relay if direct fails."""
+    Uses OpenAI directly. If OPENAI_API_KEY is missing, returns HTTP 503."""
     text = (data.text or "")[:4000]
     if not text.strip():
         raise HTTPException(status_code=400, detail="Empty text")
-    voice = data.voice or "sage"
+    voice = data.voice or OPENAI_VOICE
+    _require_openai_key()
 
-    # Path 1: direct OpenAI
-    if OPENAI_API_KEY:
-        try:
-            from openai import AsyncOpenAI
-            import base64
-            client = AsyncOpenAI(api_key=OPENAI_API_KEY)
-            resp = await client.audio.speech.create(
-                model="tts-1",
-                voice=voice,
-                input=text,
-                response_format="mp3",
-            )
-            audio_bytes = resp.read() if hasattr(resp, "read") else await resp.aread()
-            audio_b64 = base64.b64encode(audio_bytes).decode("ascii")
-            return {"audio_base64": audio_b64, "mime": "audio/mp3", "source": "openai_direct"}
-        except Exception as e:
-            logging.warning(f"Direct OpenAI TTS failed, falling back to Emergent relay: {e}")
+    def _request_tts() -> str:
+        resp = requests.post(
+            f"{OPENAI_API_BASE}/audio/speech",
+            headers={"Authorization": f"Bearer {OPENAI_API_KEY}"},
+            json={"model": "tts-1", "voice": voice, "input": text, "response_format": "mp3"},
+            timeout=60,
+        )
+        if resp.status_code >= 400:
+            raise HTTPException(status_code=502, detail=f"OpenAI TTS failed: {resp.text[:300]}")
+        return base64.b64encode(resp.content).decode("ascii")
 
-    # Path 2: Emergent relay
-    try:
-        tts_client = OpenAITextToSpeech(api_key=EMERGENT_KEY)
-        audio_b64 = await tts_client.generate_speech_base64(text=text, model="tts-1", voice=voice)
-        return {"audio_base64": audio_b64, "mime": "audio/mp3", "source": "emergent_relay"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"TTS error: {e}")
+    audio_b64 = await asyncio.to_thread(_request_tts)
+    return {"audio_base64": audio_b64, "mime": "audio/mp3", "source": "openai"}
 
 
 @router.post("/stt")
 async def stt(audio: UploadFile = File(...)):
     """Speech to text (Whisper-1). Accepts an audio file upload.
 
-    Strategy: prefer direct OpenAI SDK when OPENAI_API_KEY is set. Fall back
-    to the Emergent relay."""
+    Uses OpenAI directly. If OPENAI_API_KEY is missing, returns HTTP 503."""
     # Save upload to a temp file preserving extension
     suffix = ".webm"
     if audio.filename and "." in audio.filename:
         ext = audio.filename.rsplit(".", 1)[-1].lower()
         if ext in ["mp3", "mp4", "mpeg", "mpga", "m4a", "wav", "webm"]:
             suffix = "." + ext
+    _require_openai_key()
     data_bytes = await audio.read()
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         tmp.write(data_bytes)
         tmp_path = tmp.name
 
-    # Path 1: direct OpenAI
-    if OPENAI_API_KEY:
-        try:
-            from openai import AsyncOpenAI
-            client = AsyncOpenAI(api_key=OPENAI_API_KEY)
-            with open(tmp_path, "rb") as f:
-                tr = await client.audio.transcriptions.create(
-                    model="whisper-1",
-                    file=f,
-                    language="en",
-                    response_format="json",
-                )
-            try: os.unlink(tmp_path)
-            except Exception: pass
-            text = getattr(tr, "text", None) or (tr.get("text") if isinstance(tr, dict) else "")
-            return {"text": text, "source": "openai_direct"}
-        except Exception as e:
-            logging.warning(f"Direct OpenAI STT failed, falling back to Emergent relay: {e}")
-
-    # Path 2: Emergent relay
-    try:
-        stt_client = OpenAISpeechToText(api_key=EMERGENT_KEY)
+    def _request_stt() -> dict:
         with open(tmp_path, "rb") as f:
-            resp = await stt_client.transcribe(
-                file=f, model="whisper-1", response_format="json", language="en",
+            resp = requests.post(
+                f"{OPENAI_API_BASE}/audio/transcriptions",
+                headers={"Authorization": f"Bearer {OPENAI_API_KEY}"},
+                files={"file": (audio.filename or f"audio{suffix}", f)},
+                data={"model": "whisper-1", "language": "en", "response_format": "json"},
+                timeout=60,
             )
-        try: os.unlink(tmp_path)
-        except Exception: pass
-        return {"text": resp.text, "source": "emergent_relay"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        try: os.unlink(tmp_path)
-        except Exception: pass
-        raise HTTPException(status_code=500, detail=f"STT error: {e}")
+        if resp.status_code >= 400:
+            raise HTTPException(status_code=502, detail=f"OpenAI STT failed: {resp.text[:300]}")
+        return resp.json()
+
+    try:
+        tr = await asyncio.to_thread(_request_stt)
+        return {"text": tr.get("text", ""), "source": "openai"}
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except Exception:
+            pass

@@ -116,3 +116,7 @@ credentials.json
 *.pem
 *.key
 .credentials
+
+# Keep committed environment templates while ignoring real env files
+!.env.example
+!**/.env.example

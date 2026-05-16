@@ -1,20 +1,54 @@
-"""Daily haiku generator — Claude writes one short, warm haiku per resident
+"""Daily haiku generator — OpenAI writes one short, warm haiku per resident
 for the family portal. Uses each resident's preferences + memory for personal touch.
 
 Idempotent per resident per day (YYYY-MM-DD). Admin triggers via
 `POST /api/haiku/generate-today` or calls one-off `POST /api/haiku/{resident_id}`.
 """
 import os
+import asyncio
+import requests
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends
 from deps import db, get_current_user
 from models import now_utc, uid
 
-from emergentintegrations.llm.chat import LlmChat, UserMessage
-
 router = APIRouter(prefix="/haiku", tags=["haiku"])
 
-EMERGENT_KEY = os.environ["EMERGENT_LLM_KEY"]
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
+OPENAI_TEXT_MODEL = os.environ.get("OPENAI_TEXT_MODEL", "gpt-4o-mini").strip() or "gpt-4o-mini"
+OPENAI_API_BASE = os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1").rstrip("/")
+
+
+def _openai_unavailable() -> HTTPException:
+    return HTTPException(
+        status_code=503,
+        detail="OPENAI_API_KEY is not configured; OpenAI haiku generation is unavailable.",
+    )
+
+
+def _post_openai_chat(system_message: str, user_message: str) -> str:
+    if not OPENAI_API_KEY:
+        raise _openai_unavailable()
+    resp = requests.post(
+        f"{OPENAI_API_BASE}/chat/completions",
+        headers={"Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json"},
+        json={
+            "model": OPENAI_TEXT_MODEL,
+            "messages": [
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": user_message},
+            ],
+        },
+        timeout=60,
+    )
+    if resp.status_code >= 400:
+        raise HTTPException(status_code=502, detail=f"OpenAI haiku failed: {resp.text[:300]}")
+    data = resp.json()
+    return (data.get("choices") or [{}])[0].get("message", {}).get("content", "")
+
+
+async def _openai_chat(system_message: str, user_message: str) -> str:
+    return await asyncio.to_thread(_post_openai_chat, system_message, user_message)
 
 HAIKU_SYSTEM = """You are CAOS, writing a tiny bedtime haiku to send to a senior's family.
 RULES
@@ -34,15 +68,12 @@ async def _generate_one(resident: dict) -> dict:
         f"What they love: {prefs or 'quiet evenings, old songs'}. "
         f"Background: {memory or 'seeking peace'}."
     )
-    llm = LlmChat(
-        api_key=EMERGENT_KEY,
-        session_id=f"haiku-{resident['resident_id']}-{now_utc().date().isoformat()}",
-        system_message=HAIKU_SYSTEM,
-    ).with_model("anthropic", "claude-sonnet-4-5-20250929")
     try:
-        reply = await llm.send_message(UserMessage(text=prompt))
+        reply = await _openai_chat(HAIKU_SYSTEM, prompt)
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Claude haiku failed: {e}")
+        raise HTTPException(status_code=502, detail=f"OpenAI haiku failed: {e}")
 
     text = (reply or "").strip().strip('"').strip()
     doc = {
@@ -63,6 +94,8 @@ async def generate_today(user=Depends(get_current_user)):
     """Idempotent — skips residents who already have a haiku dated today."""
     if user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin required")
+    if not OPENAI_API_KEY:
+        raise _openai_unavailable()
     today = now_utc().date().isoformat()
     created = 0
     skipped = 0
