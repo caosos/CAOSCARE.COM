@@ -1,12 +1,11 @@
 """Research router — live web research for the Realtime AI tool dispatcher.
 
 Strategy:
-  - If PERPLEXITY_API_KEY is set, use Perplexity Sonar (real-time web search +
-    citations). This is the gold standard for "tell me what's happening with…"
-    style questions.
-  - If not, fall back to Claude Sonnet 4.5 (no web access — answers from
-    training data only). The companion will say so honestly when asked about
-    very recent events. No silent failure.
+  - If PERPLEXITY_API_KEY is set, use Perplexity Sonar for live web answers
+    with citations.
+  - If Perplexity is unavailable and OPENAI_API_KEY is set, use OpenAI for
+    general answers without live-source claims.
+  - If no supported provider key is configured, return HTTP 503.
   - In every case, the response is shaped for spoken delivery: short,
     conversational, no bullet points, no markdown.
 
@@ -29,7 +28,9 @@ PERPLEXITY_API_KEY = os.environ.get("PERPLEXITY_API_KEY", "").strip()
 PERPLEXITY_ENDPOINT = "https://api.perplexity.ai/chat/completions"
 PERPLEXITY_MODEL = "sonar"   # fast, cost-effective; "sonar-pro" for deeper retrieval
 
-EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "").strip()
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
+OPENAI_TEXT_MODEL = os.environ.get("OPENAI_TEXT_MODEL", "gpt-4o-mini").strip() or "gpt-4o-mini"
+OPENAI_API_BASE = os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1").rstrip("/")
 
 
 class ResearchInput(BaseModel):
@@ -39,7 +40,7 @@ class ResearchInput(BaseModel):
 class ResearchOutput(BaseModel):
     answer: str
     citations: List[str] = Field(default_factory=list)
-    source: str   # "perplexity" | "claude" | "none"
+    source: str   # "perplexity" | "openai" | "none"
 
 
 SYSTEM_PROMPT = (
@@ -75,53 +76,52 @@ async def _ask_perplexity(question: str) -> ResearchOutput:
     return ResearchOutput(answer=text, citations=citations, source="perplexity")
 
 
-async def _ask_claude(question: str) -> ResearchOutput:
-    """Fallback: Claude Sonnet 4.5 via the Emergent universal key. No web
-    search — purely training-data answers, but still useful for general
-    knowledge, jokes, history, recipes, prayers, life-history conversation."""
-    if not EMERGENT_LLM_KEY:
-        return ResearchOutput(
-            answer="I don't have web access right now, so I can only tell you what I already know — and I'd rather not guess on this one.",
-            citations=[],
-            source="none",
-        )
-    try:
-        from emergentintegrations.llm.chat import LlmChat, UserMessage
-        chat = (
-            LlmChat(
-                api_key=EMERGENT_LLM_KEY,
-                session_id=f"research_{question[:20]}",
-                system_message=SYSTEM_PROMPT + (
-                    "\n\nIMPORTANT: you do NOT have live web access. If the resident "
-                    "asks about something that happened recently (this week, today, "
-                    "last night), gently say you don't have today's news. Do not "
-                    "invent facts."
-                ),
-            )
-            .with_model("anthropic", "claude-sonnet-4-5-20250929")
-        )
-        text = await chat.send_message(UserMessage(text=question))
-        return ResearchOutput(answer=(text or "").strip(), citations=[], source="claude")
-    except Exception as e:
-        logger.error(f"Claude research fallback failed: {e}")
-        return ResearchOutput(
-            answer="I'm sorry — I'm having trouble reaching what I'd usually look up for this. Let's come back to it.",
-            citations=[],
-            source="none",
-        )
+async def _ask_openai(question: str) -> ResearchOutput:
+    payload = {
+        "model": OPENAI_TEXT_MODEL,
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT + (
+                "\n\nYou do not have live web access in this fallback path. "
+                "If the question depends on current facts, say you cannot verify it right now."
+            )},
+            {"role": "user", "content": question},
+        ],
+        "max_tokens": 400,
+        "temperature": 0.4,
+    }
+    headers = {
+        "Authorization": f"Bearer {OPENAI_API_KEY}",
+        "Content-Type": "application/json",
+    }
+    async with httpx.AsyncClient(timeout=25.0) as client:
+        r = await client.post(f"{OPENAI_API_BASE}/chat/completions", json=payload, headers=headers)
+        r.raise_for_status()
+        data = r.json()
+    text = (data.get("choices") or [{}])[0].get("message", {}).get("content", "").strip()
+    return ResearchOutput(answer=text, citations=[], source="openai")
 
 
 async def research_topic(question: str) -> ResearchOutput:
-    """Entry-point used by the AI tool dispatcher. Tries Perplexity first
-    (live web), falls back to Claude (training-data) if no key or on error."""
+    """Entry point used by the AI tool dispatcher. Tries Perplexity first
+    for live sources, then OpenAI for non-live fallback answers."""
     if PERPLEXITY_API_KEY:
         try:
             return await _ask_perplexity(question)
         except httpx.HTTPStatusError as e:
-            logger.warning(f"Perplexity HTTP {e.response.status_code} — falling back to Claude")
+            logger.warning(f"Perplexity HTTP {e.response.status_code}; trying OpenAI fallback")
         except Exception as e:
-            logger.warning(f"Perplexity error: {e} — falling back to Claude")
-    return await _ask_claude(question)
+            logger.warning(f"Perplexity error: {e}; trying OpenAI fallback")
+    if OPENAI_API_KEY:
+        try:
+            return await _ask_openai(question)
+        except httpx.HTTPStatusError as e:
+            logger.warning(f"OpenAI research HTTP {e.response.status_code}")
+        except Exception as e:
+            logger.warning(f"OpenAI research error: {e}")
+    raise HTTPException(
+        status_code=503,
+        detail="Research is unavailable; configure PERPLEXITY_API_KEY or OPENAI_API_KEY.",
+    )
 
 
 @router.post("", response_model=ResearchOutput)

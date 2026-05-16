@@ -92,8 +92,19 @@ Minimum required values:
 MONGO_URL=mongodb://localhost:27017
 DB_NAME=caoscare
 JWT_SECRET=<server-generated-random-secret>
-EMERGENT_LLM_KEY=<approved-runtime-llm-key>
 ```
+
+Optional OpenAI/research values:
+
+```text
+OPENAI_API_KEY=<approved-openai-key-if-ai-routes-are-used>
+OPENAI_TEXT_MODEL=gpt-4o-mini
+OPENAI_REALTIME_MODEL=gpt-realtime
+OPENAI_VOICE=sage
+PERPLEXITY_API_KEY=<approved-perplexity-key-if-live-research-is-used>
+```
+
+Backend AI, realtime, and research routes no longer require an Emergent key for import/startup. Missing provider keys should make provider-specific endpoints return HTTP 503 instead of blocking app import.
 
 Recommended public routing values for CAOSCARE.COM:
 
@@ -120,6 +131,11 @@ uvicorn server:app --host 127.0.0.1 --port 8000
 ```
 
 For a durable deployment, add a Michael-approved process manager later, such as systemd. Do not invent or install a service without explicit server approval.
+
+
+### Realtime voice status
+
+Backend import no longer depends on Emergent realtime helpers. The realtime route is OpenAI-only and should fail closed with HTTP 503 when `OPENAI_API_KEY` is missing. Full-duplex browser voice remains planned OpenAI Realtime / `gpt-realtime` work until a deployment-like WebRTC path is validated end-to-end.
 
 ### 5. Verify backend health
 
@@ -253,7 +269,7 @@ Michael must decide:
 - Docker/compose vs native systemd/venv/static proxy path
 - MongoDB location and backup process
 - secret ownership and rotation process
-- whether first run keeps Emergent LLM integrations or replaces them first
+- validate OpenAI Realtime / `gpt-realtime` browser voice end-to-end before presenting full-duplex voice as production-ready
 - whether first run keeps Emergent Google auth or uses JWT-only/owned OAuth first
 - whether startup seed/demo users stay enabled, are guarded, or are disabled
 - notification provider timing: log-only, Twilio, Resend, or both
