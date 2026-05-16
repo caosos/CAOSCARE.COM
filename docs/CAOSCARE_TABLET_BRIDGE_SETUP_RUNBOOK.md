@@ -13,19 +13,31 @@ Connection reliability comes before response workflow expansion.
 The immediate build objective is:
 
 ```text
-known RF frequency -> registered pendant -> tablet bridge receives event -> backend matches device -> alert/page created -> staff can respond
+known Lifeline 319.5 MHz pendant signal -> receiver/decoder -> tablet bridge receives decoded event -> backend matches registered pendant -> alert/page created -> staff can respond
 ```
 
 ## Current known foundation
 
-The hard RF discovery step has already been largely solved: target pendant frequencies have been isolated.
+The hard RF discovery step has already been largely solved.
 
-The Android bridge path is already part of the CAOSCare repo. It is designed to run on a wall-mounted Android tablet with a USB RF receiver or USB-serial device that outputs one JSON object per line.
+Known target context:
 
-Expected receiver line protocol:
+```text
+installed system family: Philips/Lifeline CarePoint-style infrastructure
+known pendant class: older Lifeline pendants
+known RF target: 319.5 MHz
+known FCC ID observed: XO8-319HALO-1
+prior building hardware context: Central Alarm Receiver / hallway repeaters / Lifeline head-end infrastructure
+```
+
+Do not treat the current pilot as a generic 900 MHz pendant project.
+
+The Android bridge path is already part of the CAOSCare repo. It is designed to run on a wall-mounted Android tablet with a USB RF receiver/decoder or USB-serial device that outputs one JSON object per line.
+
+Expected receiver line protocol for this pilot:
 
 ```json
-{"frequency_mhz": 916.1250, "signal_strength": 82, "battery_percent": 87, "event_type": "press"}
+{"frequency_mhz": 319.5, "signal_strength": 82, "battery_percent": 87, "event_type": "press"}
 ```
 
 The tablet bridge adds its configured zone and posts the event to:
@@ -33,6 +45,29 @@ The tablet bridge adds its configured zone and posts the event to:
 ```text
 POST /api/pendants/event
 ```
+
+## Hardware position
+
+Android tablets do not normally contain native 319.5 MHz RF receivers.
+
+The tablet is the UI / bridge / network node, not the raw RF receiver unless paired with receiver hardware.
+
+Pilot hardware path:
+
+```text
+Lifeline pendant -> 319.5 MHz receiver/decoder -> Android tablet bridge -> CAOSCare backend
+```
+
+Known practical receiver approaches include:
+
+```text
+Nooelec / RTL-SDR style receiver with decoder pipeline
+purpose-built 319.5 MHz receiver module
+security-panel/receiver integration capable of 319.5 MHz
+existing Lifeline/CarePoint infrastructure output if accessible
+```
+
+The cleanest pilot path is whichever receiver can reliably produce decoded JSON events for known Lifeline pendant presses.
 
 ## Google account / registration position
 
@@ -50,13 +85,15 @@ Preferred early setup:
 1. Prepare Android tablet
 2. Enable Wi-Fi
 3. Install CAOS Bridge APK directly
-4. Grant USB permission for receiver
-5. Configure backend URL
-6. Configure tablet zone
-7. Enter device token if available
-8. Start bridge foreground service
-9. Press known pendant
-10. Verify backend alert and staff dashboard event
+4. Connect USB-C hub / OTG / pass-through power as needed
+5. Connect 319.5 MHz receiver/decoder
+6. Grant USB permission for receiver if Android prompts
+7. Configure backend URL
+8. Configure tablet zone
+9. Enter device token if available
+10. Start bridge foreground service
+11. Press known Lifeline pendant
+12. Verify backend alert and staff dashboard event
 ```
 
 ## Tablet setup checklist
@@ -64,9 +101,9 @@ Preferred early setup:
 ```text
 Tablet charged / powered
 Wi-Fi connected
-Screen timeout adjusted for kiosk/bridge role
-USB-OTG adapter available if needed
-RF receiver connected
+USB-C hub with pass-through power if needed
+USB-OTG/host support working
+319.5 MHz receiver/decoder connected
 Bridge app installed
 USB permission granted
 Backend URL configured
@@ -118,7 +155,7 @@ device_label
 facility_id
 zone
 room_or_area optional
-device_type = rf_bridge_tablet
+device_type = rf_bridge_tablet_319_5
 backend_url
 device_token_id optional
 last_seen_at
@@ -137,7 +174,7 @@ Minimum registration fields:
 ```text
 pendant_device_id
 pendant_id
-frequency_mhz
+frequency_mhz = 319.5 for current Lifeline pilot unless decoded channel/ID provides more detail
 resident_id optional
 room_slot optional
 battery_percent optional
@@ -149,42 +186,45 @@ notes
 
 If privacy-preserving operation is required, room/slot can be used before resident name display.
 
+Important: if all pendants report the same carrier frequency, CAOSCare must also use decoded pendant identity, serial, packet signature, or another receiver-supplied unique identifier. Frequency alone is enough only if the receiver output uniquely differentiates pendants by channel or decoded identity.
+
 ## Connection test procedure
 
-For each known frequency:
+For each known Lifeline pendant:
 
 ```text
-1. Confirm pendant/frequency exists in Admin -> Pendants
+1. Confirm pendant/frequency or decoded pendant identifier exists in Admin -> Pendants
 2. Confirm tablet bridge zone is correct
 3. Start bridge
 4. Press pendant once
 5. Confirm receiver emits JSON
-6. Confirm tablet posts event
-7. Confirm backend updates last_seen_at
-8. Confirm alert appears in staff dashboard
-9. Confirm room/zone is correct
-10. Resolve test alert with note: connectivity test
+6. Confirm emitted event includes frequency_mhz = 319.5 and any available pendant identity/signature
+7. Confirm tablet posts event
+8. Confirm backend updates last_seen_at
+9. Confirm alert appears in staff dashboard
+10. Confirm room/zone/source are correct
+11. Resolve test alert with note: connectivity test
 ```
 
 ## Unknown signal behavior
 
-If a signal is detected but no pendant is registered at that frequency, CAOSCare should log it as unknown instead of losing it.
+If a signal is detected but no pendant/device match exists, CAOSCare should log it as unknown instead of losing it.
 
 Expected behavior:
 
 ```text
-unknown frequency detected
-store frequency/signal/event/zone/timestamp
+unknown 319.5 MHz signal detected
+store frequency/signal/event/zone/timestamp/raw decoded identifier if available
 surface in admin unknown pings view
 allow staff/admin to register it later
 ```
 
 ## Reconnect behavior target
 
-When a registered tablet or pendant comes back online, CAOSCare should:
+When a registered tablet, receiver, or pendant comes back online, CAOSCare should:
 
 ```text
-match known device or frequency
+match known device/frequency/decoded identity
 update last_seen_at
 update battery/signal telemetry
 restore active/online status
@@ -196,7 +236,7 @@ Manual setup should be required only for:
 
 ```text
 new device
-unknown frequency
+unknown 319.5 MHz signal/identifier
 identifier conflict
 revoked token
 failed auth
@@ -221,7 +261,7 @@ Production: DEVICE_AUTH_REQUIRED=true, unsigned requests rejected
 
 ## Staff dashboard acceptance proof
 
-Connectivity is not proven merely because the tablet receives RF.
+Connectivity is not proven merely because the receiver detects 319.5 MHz RF.
 
 Connectivity is proven only when:
 
@@ -241,7 +281,7 @@ Do not prioritize server migration, advanced memory automation, or full response
 The first live proof is simple:
 
 ```text
-press pendant -> tablet sees it -> backend matches it -> staff sees it
+press Lifeline pendant -> receiver decodes 319.5 MHz event -> tablet posts it -> backend matches it -> staff sees it
 ```
 
 ## Next implementation targets
@@ -251,8 +291,9 @@ RegisteredDevice table/model if not already complete
 DeviceReconnectReceipt
 Bridge heartbeat endpoint
 Bridge status dashboard
-Unknown signal registration flow
+Unknown 319.5 MHz signal registration flow
 Tablet zone verification
+Decoded pendant identifier support if frequency alone is not unique
 Soft/hard device-auth mode indicator
 ```
 
@@ -260,4 +301,4 @@ Soft/hard device-auth mode indicator
 
 CAOSCare field connectivity must be simple enough for real staff and real tablets.
 
-Known devices should reconnect automatically, known frequencies should map cleanly, and Google account setup must not block pilot proof unless the tablet's ownership policy makes it unavoidable.
+Known devices should reconnect automatically, known Lifeline 319.5 MHz signals should map cleanly, and Google account setup must not block pilot proof unless the tablet's ownership policy makes it unavoidable.
