@@ -139,7 +139,9 @@ DB_NAME=caoscare
 JWT_SECRET=replace-with-long-random-secret
 ```
 
-Optional values documented in `backend/.env.example` include CORS, public API URL, OpenAI models/voice, Perplexity, Twilio, Resend, facility defaults, device auth, and receipt signing settings. Backend AI, realtime, and research routes no longer require an Emergent key for import/startup. If `OPENAI_API_KEY` or `PERPLEXITY_API_KEY` is absent for an endpoint that needs it, that endpoint should return HTTP 503 instead of crashing app import.
+Optional values documented in `backend/.env.example` include CORS, public API URL, OpenAI models/voice, Perplexity, Twilio, Resend, facility defaults, device auth, receipt signing settings, and `CAOSCARE_ENABLE_DEMO_SEED=false`. Backend AI, realtime, and research routes no longer require an Emergent key for import/startup. If `OPENAI_API_KEY` or `PERPLEXITY_API_KEY` is absent for an endpoint that needs it, that endpoint should return HTTP 503 instead of crashing app import.
+
+Demo seed is disabled by default. Known demo credentials must not be enabled in production. Local/demo environments may opt in with `CAOSCARE_ENABLE_DEMO_SEED=true`, but first real admin/user creation remains a pending decision until an owned bootstrap flow exists.
 
 ### Install
 
@@ -185,7 +187,8 @@ Expected healthy shape:
 - Backend AI/realtime/research boot no longer depends on Emergent runtime imports or `EMERGENT_LLM_KEY`.
 - Realtime full-duplex voice remains planned OpenAI Realtime / `gpt-realtime` work until the browser flow is validated end-to-end; missing OpenAI configuration returns HTTP 503.
 - Emergent Google auth remains in place by design for this small backend-only task.
-- Startup seed behavior creates demo users if missing; Michael must decide whether to keep, guard, or disable that behavior before a production deployment.
+- Startup demo seed behavior is guarded by `CAOSCARE_ENABLE_DEMO_SEED=false` by default; production/server boot must not create known demo users/passwords unless explicitly and temporarily enabled outside production.
+- First real admin/user creation remains a pending decision until an owned bootstrap flow exists.
 - Twilio/Resend can remain unset for log-only notification behavior during first run.
 
 ## Android / device surfaces
