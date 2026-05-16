@@ -13,7 +13,7 @@ Connection reliability comes before response workflow expansion.
 The immediate build objective is:
 
 ```text
-known Lifeline 319.5 MHz pendant signal -> receiver/decoder -> tablet bridge receives decoded event with unique pendant/device ID -> backend matches registered pendant -> alert/page created -> staff can respond
+known Lifeline 319.5 MHz pendant signal -> receiver/decoder -> tablet bridge receives decoded event with unique pendant/device ID -> backend matches registered pendant -> resolves assigned resident/room-slot -> alert/page created -> staff can respond
 ```
 
 ## Current known foundation
@@ -53,6 +53,53 @@ The tablet bridge adds its configured zone and posts the event to:
 
 ```text
 POST /api/pendants/event
+```
+
+## Identity resolution rule
+
+When a resident presses a registered device, CAOSCare should know who the event belongs to because the device is already assigned.
+
+The event itself identifies the hardware. The backend resolves the person or room-slot through registration.
+
+Required resolution chain:
+
+```text
+raw activation
+-> decoded_device_id / device_id
+-> registered pendant/wearable/device record
+-> assigned resident_id and/or room_slot
+-> room/zone/facility context
+-> alert/page/voice workflow
+```
+
+For resident-linked devices, the backend must treat the registered device assignment as the source of identity.
+
+The bridge should not need to manually send the resident name. The bridge sends device identity and event context. The backend resolves the assigned resident or room-slot.
+
+## Device assignment model
+
+A registered device may be assigned to:
+
+```text
+resident_id
+room_slot
+room
+zone
+facility_id
+```
+
+Preferred production posture:
+
+```text
+resident_id where role/permission requires identity
+room_slot where privacy-preserving operations are enough
+```
+
+Examples:
+
+```text
+decoded_device_id LIFELINE_12345 -> resident_id res_abc / room_slot 214-A
+decoded_device_id LIFELINE_99210 -> room_slot 108-B while resident identity remains hidden from kitchen/maintenance views
 ```
 
 ## Hardware position
@@ -112,7 +159,8 @@ Preferred early setup:
 10. Start bridge foreground service
 11. Press known Lifeline pendant
 12. Verify decoded device ID appears
-13. Verify backend alert and staff dashboard event
+13. Verify backend resolves assigned resident/room-slot
+14. Verify backend alert and staff dashboard event
 ```
 
 ## Tablet setup checklist
@@ -228,17 +276,19 @@ For each known Lifeline pendant:
 
 ```text
 1. Confirm decoded_device_id exists in Admin -> Pendants
-2. Confirm frequency_mhz is 319.5
-3. Confirm tablet bridge zone is correct
-4. Start bridge
-5. Press pendant once
-6. Confirm receiver emits JSON with decoded_device_id/device_id
-7. Confirm tablet posts event
-8. Confirm backend matches pendant by decoded_device_id
-9. Confirm backend updates last_seen_at
-10. Confirm alert appears in staff dashboard
-11. Confirm room/zone/source are correct
-12. Resolve test alert with note: connectivity test
+2. Confirm decoded_device_id is assigned to correct resident_id and/or room_slot
+3. Confirm frequency_mhz is 319.5
+4. Confirm tablet bridge zone is correct
+5. Start bridge
+6. Press pendant once
+7. Confirm receiver emits JSON with decoded_device_id/device_id
+8. Confirm tablet posts event
+9. Confirm backend matches pendant by decoded_device_id
+10. Confirm backend resolves correct resident/room-slot
+11. Confirm backend updates last_seen_at
+12. Confirm alert appears in staff dashboard
+13. Confirm room/zone/source are correct
+14. Resolve test alert with note: connectivity test
 ```
 
 ## Unknown signal behavior
@@ -261,6 +311,7 @@ When a registered tablet, receiver, or pendant comes back online, CAOSCare shoul
 ```text
 match known decoded_device_id
 confirm supporting 319.5 MHz context
+resolve assigned resident/room-slot
 update last_seen_at
 update battery/signal telemetry
 restore active/online status
@@ -305,7 +356,7 @@ Connectivity is proven only when:
 pendant press creates backend alert
 staff dashboard receives it
 staff can acknowledge it
-alert has correct room/zone/source
+alert has correct resident/room-slot/zone/source according to permission level
 alert can be resolved
 receipt remains visible
 ```
@@ -317,7 +368,7 @@ Do not prioritize server migration, advanced memory automation, or full response
 The first live proof is simple:
 
 ```text
-press Lifeline pendant -> receiver decodes 319.5 MHz event + device ID -> tablet posts it -> backend matches it -> staff sees it
+press Lifeline pendant -> receiver decodes 319.5 MHz event + device ID -> tablet posts it -> backend resolves registered resident/room-slot -> staff sees it
 ```
 
 ## Next implementation targets
@@ -326,6 +377,7 @@ press Lifeline pendant -> receiver decodes 319.5 MHz event + device ID -> tablet
 Add decoded_device_id/device_id support to PendantEventInput
 Add decoded_device_id to Pendant model/registration
 Match pendant events by decoded_device_id first
+Resolve resident_id/room_slot from registered device assignment
 Keep frequency_mhz as supporting context
 RegisteredDevice table/model if not already complete
 DeviceReconnectReceipt
@@ -340,4 +392,4 @@ Soft/hard device-auth mode indicator
 
 CAOSCare field connectivity must be simple enough for real staff and real tablets.
 
-Known devices should reconnect automatically, known Lifeline 319.5 MHz decoded device IDs should map cleanly, and Google account setup must not block pilot proof unless the tablet's ownership policy makes it unavoidable.
+Known devices should reconnect automatically, known Lifeline 319.5 MHz decoded device IDs should map cleanly to the assigned resident or room-slot, and Google account setup must not block pilot proof unless the tablet's ownership policy makes it unavoidable.
