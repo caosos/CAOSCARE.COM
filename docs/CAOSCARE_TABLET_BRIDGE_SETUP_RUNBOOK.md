@@ -13,7 +13,7 @@ Connection reliability comes before response workflow expansion.
 The immediate build objective is:
 
 ```text
-known Lifeline 319.5 MHz pendant signal -> receiver/decoder -> tablet bridge receives decoded event -> backend matches registered pendant -> alert/page created -> staff can respond
+known Lifeline 319.5 MHz pendant signal -> receiver/decoder -> tablet bridge receives decoded event with unique pendant/device ID -> backend matches registered pendant -> alert/page created -> staff can respond
 ```
 
 ## Current known foundation
@@ -26,18 +26,27 @@ Known target context:
 installed system family: Philips/Lifeline CarePoint-style infrastructure
 known pendant class: older Lifeline pendants
 known RF target: 319.5 MHz
+known behavior: each button press decodes with its own device ID
 known FCC ID observed: XO8-319HALO-1
 prior building hardware context: Central Alarm Receiver / hallway repeaters / Lifeline head-end infrastructure
 ```
 
 Do not treat the current pilot as a generic 900 MHz pendant project.
 
+Do not treat frequency alone as the identity key when decoded pendant ID is available.
+
 The Android bridge path is already part of the CAOSCare repo. It is designed to run on a wall-mounted Android tablet with a USB RF receiver/decoder or USB-serial device that outputs one JSON object per line.
 
 Expected receiver line protocol for this pilot:
 
 ```json
-{"frequency_mhz": 319.5, "signal_strength": 82, "battery_percent": 87, "event_type": "press"}
+{"frequency_mhz": 319.5, "decoded_device_id": "DEVICE_ID_FROM_DECODER", "signal_strength": 82, "battery_percent": 87, "event_type": "press"}
+```
+
+Minimum acceptable receiver line protocol:
+
+```json
+{"frequency_mhz": 319.5, "device_id": "DEVICE_ID_FROM_DECODER", "event_type": "press"}
 ```
 
 The tablet bridge adds its configured zone and posts the event to:
@@ -56,6 +65,15 @@ Pilot hardware path:
 
 ```text
 Lifeline pendant -> 319.5 MHz receiver/decoder -> Android tablet bridge -> CAOSCare backend
+```
+
+Current practical hardware expectation:
+
+```text
+receiver/decoder already recognizes the button press and outputs a unique device ID
+Android tablet receives decoded serial/USB data
+USB-C hub / OTG / pass-through power keeps tablet and receiver powered
+CAOS Bridge app forwards decoded events to backend
 ```
 
 Known practical receiver approaches include:
@@ -93,7 +111,8 @@ Preferred early setup:
 9. Enter device token if available
 10. Start bridge foreground service
 11. Press known Lifeline pendant
-12. Verify backend alert and staff dashboard event
+12. Verify decoded device ID appears
+13. Verify backend alert and staff dashboard event
 ```
 
 ## Tablet setup checklist
@@ -111,6 +130,7 @@ Zone configured
 Device token configured if using auth
 Bridge service running
 Persistent notification visible
+Decoded device ID visible in bridge logs or event payload
 ```
 
 ## APK installation options
@@ -167,14 +187,15 @@ The system should recognize a previously registered tablet/receiver when it come
 
 ## Pendant registration model
 
-Each pendant/frequency should be registered before live use.
+Each pendant should be registered before live use.
 
 Minimum registration fields:
 
 ```text
 pendant_device_id
 pendant_id
-frequency_mhz = 319.5 for current Lifeline pilot unless decoded channel/ID provides more detail
+frequency_mhz = 319.5
+decoded_device_id
 resident_id optional
 room_slot optional
 battery_percent optional
@@ -184,26 +205,40 @@ last_seen_at
 notes
 ```
 
-If privacy-preserving operation is required, room/slot can be used before resident name display.
+Primary match key for this pilot:
 
-Important: if all pendants report the same carrier frequency, CAOSCare must also use decoded pendant identity, serial, packet signature, or another receiver-supplied unique identifier. Frequency alone is enough only if the receiver output uniquely differentiates pendants by channel or decoded identity.
+```text
+decoded_device_id
+```
+
+Secondary/supporting context:
+
+```text
+frequency_mhz = 319.5
+signal_strength
+zone
+receiver/tablet device_id
+```
+
+If privacy-preserving operation is required, room/slot can be used before resident name display.
 
 ## Connection test procedure
 
 For each known Lifeline pendant:
 
 ```text
-1. Confirm pendant/frequency or decoded pendant identifier exists in Admin -> Pendants
-2. Confirm tablet bridge zone is correct
-3. Start bridge
-4. Press pendant once
-5. Confirm receiver emits JSON
-6. Confirm emitted event includes frequency_mhz = 319.5 and any available pendant identity/signature
+1. Confirm decoded_device_id exists in Admin -> Pendants
+2. Confirm frequency_mhz is 319.5
+3. Confirm tablet bridge zone is correct
+4. Start bridge
+5. Press pendant once
+6. Confirm receiver emits JSON with decoded_device_id/device_id
 7. Confirm tablet posts event
-8. Confirm backend updates last_seen_at
-9. Confirm alert appears in staff dashboard
-10. Confirm room/zone/source are correct
-11. Resolve test alert with note: connectivity test
+8. Confirm backend matches pendant by decoded_device_id
+9. Confirm backend updates last_seen_at
+10. Confirm alert appears in staff dashboard
+11. Confirm room/zone/source are correct
+12. Resolve test alert with note: connectivity test
 ```
 
 ## Unknown signal behavior
@@ -214,7 +249,7 @@ Expected behavior:
 
 ```text
 unknown 319.5 MHz signal detected
-store frequency/signal/event/zone/timestamp/raw decoded identifier if available
+store frequency/signal/event/zone/timestamp/raw decoded device ID
 surface in admin unknown pings view
 allow staff/admin to register it later
 ```
@@ -224,7 +259,8 @@ allow staff/admin to register it later
 When a registered tablet, receiver, or pendant comes back online, CAOSCare should:
 
 ```text
-match known device/frequency/decoded identity
+match known decoded_device_id
+confirm supporting 319.5 MHz context
 update last_seen_at
 update battery/signal telemetry
 restore active/online status
@@ -236,7 +272,7 @@ Manual setup should be required only for:
 
 ```text
 new device
-unknown 319.5 MHz signal/identifier
+unknown decoded_device_id
 identifier conflict
 revoked token
 failed auth
@@ -281,19 +317,22 @@ Do not prioritize server migration, advanced memory automation, or full response
 The first live proof is simple:
 
 ```text
-press Lifeline pendant -> receiver decodes 319.5 MHz event -> tablet posts it -> backend matches it -> staff sees it
+press Lifeline pendant -> receiver decodes 319.5 MHz event + device ID -> tablet posts it -> backend matches it -> staff sees it
 ```
 
 ## Next implementation targets
 
 ```text
+Add decoded_device_id/device_id support to PendantEventInput
+Add decoded_device_id to Pendant model/registration
+Match pendant events by decoded_device_id first
+Keep frequency_mhz as supporting context
 RegisteredDevice table/model if not already complete
 DeviceReconnectReceipt
 Bridge heartbeat endpoint
 Bridge status dashboard
-Unknown 319.5 MHz signal registration flow
+Unknown decoded_device_id registration flow
 Tablet zone verification
-Decoded pendant identifier support if frequency alone is not unique
 Soft/hard device-auth mode indicator
 ```
 
@@ -301,4 +340,4 @@ Soft/hard device-auth mode indicator
 
 CAOSCare field connectivity must be simple enough for real staff and real tablets.
 
-Known devices should reconnect automatically, known Lifeline 319.5 MHz signals should map cleanly, and Google account setup must not block pilot proof unless the tablet's ownership policy makes it unavoidable.
+Known devices should reconnect automatically, known Lifeline 319.5 MHz decoded device IDs should map cleanly, and Google account setup must not block pilot proof unless the tablet's ownership policy makes it unavoidable.
