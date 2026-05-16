@@ -1,5 +1,6 @@
 """Seed data for first-run demo: admin user, zones, residents, kiosks, roadmap."""
 import asyncio
+import os
 import bcrypt
 from datetime import datetime, timezone
 
@@ -65,7 +66,28 @@ ROADMAP_SEED = [
 ]
 
 
+def demo_seed_enabled() -> bool:
+    """Return true only when demo seed data is explicitly enabled.
+
+    The safe default is disabled so production/server boot cannot silently create
+    known demo accounts with published passwords. Local demos may opt in by
+    setting CAOSCARE_ENABLE_DEMO_SEED=true.
+    """
+    return os.environ.get("CAOSCARE_ENABLE_DEMO_SEED", "false").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
 async def seed():
+    if not demo_seed_enabled():
+        print(
+            "Demo seed skipped; set CAOSCARE_ENABLE_DEMO_SEED=true only for local/demo environments."
+        )
+        return
+
     # System owner (highest tier — you, the product owner)
     owner_email = "owner@caoscare.com"
     existing = await db.users.find_one({"email": owner_email}, {"_id": 0})

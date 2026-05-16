@@ -92,6 +92,7 @@ Minimum required values:
 MONGO_URL=mongodb://localhost:27017
 DB_NAME=caoscare
 JWT_SECRET=<server-generated-random-secret>
+CAOSCARE_ENABLE_DEMO_SEED=false
 ```
 
 Optional OpenAI/research values:
@@ -105,6 +106,8 @@ PERPLEXITY_API_KEY=<approved-perplexity-key-if-live-research-is-used>
 ```
 
 Backend AI, realtime, and research routes no longer require an Emergent key for import/startup. Missing provider keys should make provider-specific endpoints return HTTP 503 instead of blocking app import.
+
+`CAOSCARE_ENABLE_DEMO_SEED` must remain `false` for production/server boot. Setting it to `true` enables known local/demo seed users and passwords and is only acceptable for disposable local demos or preview environments. If no owned bootstrap flow exists, first real admin/user creation remains a pending production decision.
 
 Recommended public routing values for CAOSCARE.COM:
 
@@ -271,6 +274,6 @@ Michael must decide:
 - secret ownership and rotation process
 - validate OpenAI Realtime / `gpt-realtime` browser voice end-to-end before presenting full-duplex voice as production-ready
 - whether first run keeps Emergent Google auth or uses JWT-only/owned OAuth first
-- whether startup seed/demo users stay enabled, are guarded, or are disabled
+- first real admin/user creation path if no owned bootstrap flow exists; demo seed users are disabled by default and must not be enabled in production
 - notification provider timing: log-only, Twilio, Resend, or both
 - Android/RF/vision timing relative to web/backend launch

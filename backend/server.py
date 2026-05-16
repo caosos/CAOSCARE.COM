@@ -42,7 +42,7 @@ from routes import escalation as escalation_routes  # noqa: E402
 from routes import research as research_routes  # noqa: E402
 from routes import weather as weather_routes  # noqa: E402
 from routes import timers as timer_routes  # noqa: E402
-from seed import seed  # noqa: E402
+from seed import demo_seed_enabled, seed  # noqa: E402
 
 
 def _cors_origins() -> list[str]:
@@ -60,10 +60,15 @@ def _cors_origins() -> list[str]:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    try:
-        await seed()
-    except Exception as e:
-        logging.warning(f"Seed failed: {e}")
+    if demo_seed_enabled():
+        try:
+            await seed()
+        except Exception as e:
+            logging.warning(f"Seed failed: {e}")
+    else:
+        logging.warning(
+            "Demo seed skipped; set CAOSCARE_ENABLE_DEMO_SEED=true only for local/demo environments."
+        )
     yield
 
 
