@@ -1,4 +1,4 @@
-"""Iteration 11 backend tests — Research (Perplexity+Claude fallback), Weather (Open-Meteo),
+"""Iteration 11 backend tests — Research (Perplexity+OpenAI fallback), Weather (Open-Meteo),
 Timers (public+authed), and Realtime session 9-tool surface + time-anchor + storyteller block."""
 import os
 import time
@@ -44,17 +44,19 @@ def seeded_resident(admin_client):
     return r.json()[0]
 
 
-# ---------- Research (Claude fallback because PERPLEXITY_API_KEY is empty) ----------
+# ---------- Research (Perplexity live source, OpenAI fallback, or 503 if unconfigured) ----------
 class TestResearch:
-    def test_research_haiku_uses_claude_fallback(self, s):
+    def test_research_haiku_uses_openai_fallback_or_503(self, s):
         r = s.post(f"{API}/research", json={"question": "what is a haiku"}, timeout=60)
+        if r.status_code == 503:
+            assert "PERPLEXITY_API_KEY or OPENAI_API_KEY" in r.text
+            return
         assert r.status_code == 200, r.text
         body = r.json()
         # Required fields
         assert "answer" in body and "citations" in body and "source" in body
         assert isinstance(body["citations"], list)
-        # PERPLEXITY_API_KEY empty -> must be claude (or "none" if Emergent key fails)
-        assert body["source"] == "claude", f"expected source=claude, got {body['source']} (full: {body})"
+        assert body["source"] in {"perplexity", "openai"}, f"unexpected source={body['source']} (full: {body})"
         # Non-empty answer
         assert isinstance(body["answer"], str) and len(body["answer"].strip()) > 10, body
 

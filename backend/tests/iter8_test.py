@@ -137,9 +137,9 @@ class TestMemoryExtract:
         d = r.json()
         assert d["ok"] is True
         assert isinstance(d.get("saved"), int)
-        # Allow 0 only if Claude deemed nothing durable — log but don't fail
+        # Allow 0 only if OpenAI deemed nothing durable — log but don't fail
         if d["saved"] == 0:
-            pytest.skip(f"Claude returned 0 extractions for a novel phrase: {d}")
+            pytest.skip(f"OpenAI returned 0 extractions for a novel phrase: {d}")
         assert d["saved"] >= 1, f"expected at least 1 extraction, got {d}"
         pytest.extract_saved = d["saved"]
 
@@ -211,7 +211,7 @@ class TestChatMemoryIntegration:
         assert any(pytest.first_msg[:30] in (c.get("content") or "") for c in conv)
 
     def test_background_extraction_produces_memories(self, headers, resident_id):
-        # Extraction is fire-and-forget — wait for Claude roundtrip
+        # Extraction is fire-and-forget — wait for OpenAI roundtrip
         time.sleep(10)
         r = requests.get(f"{API}/memory/{resident_id}", headers=headers, timeout=20)
         assert r.status_code == 200

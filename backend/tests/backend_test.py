@@ -299,7 +299,7 @@ class TestLocations:
 
 # ---------- AI ----------
 class TestAI:
-    def test_chat_claude(self, session):
+    def test_chat_openai(self, session):
         sid = f"test-{uuid.uuid4().hex[:8]}"
         r = session.post(f"{API}/ai/chat", json={
             "session_id": sid, "message": "Hello, just saying hi.",
