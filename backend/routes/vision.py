@@ -1,21 +1,75 @@
-"""AI vision - Claude image understanding for glasses / camera devices.
+"""AI vision - OpenAI image understanding for glasses / camera devices.
 
 The Android vision companion app (running on Vuzix M400 or any Android with a camera)
 captures frames + audio, forwards them via BLE to the wall-mounted tablet (kiosk),
-which POSTs them here. Claude describes the scene or answers the resident's spoken
+which POSTs them here. OpenAI describes the scene or answers the resident's spoken
 question. TTS audio is generated and streamed back through the earbuds.
 """
 import os
 import base64
 import binascii
+import asyncio
+import requests
 from fastapi import APIRouter, HTTPException
 from models import VisionFrameInput
 
-from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
-from emergentintegrations.llm.openai import OpenAITextToSpeech
-
 router = APIRouter(prefix="/vision", tags=["vision"])
-EMERGENT_KEY = os.environ["EMERGENT_LLM_KEY"]
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
+OPENAI_TEXT_MODEL = os.environ.get("OPENAI_TEXT_MODEL", "gpt-4o-mini").strip() or "gpt-4o-mini"
+OPENAI_VOICE = os.environ.get("OPENAI_VOICE", "sage").strip() or "sage"
+OPENAI_API_BASE = os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1").rstrip("/")
+
+
+def _require_openai_key() -> str:
+    if not OPENAI_API_KEY:
+        raise HTTPException(
+            status_code=503,
+            detail="OPENAI_API_KEY is not configured; OpenAI vision endpoints are unavailable.",
+        )
+    return OPENAI_API_KEY
+
+
+def _post_openai_vision(prompt: str, image_base64: str) -> str:
+    key = _require_openai_key()
+    resp = requests.post(
+        f"{OPENAI_API_BASE}/chat/completions",
+        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+        json={
+            "model": OPENAI_TEXT_MODEL,
+            "messages": [
+                {"role": "system", "content": VISION_SYSTEM_PROMPT},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}},
+                    ],
+                },
+            ],
+        },
+        timeout=60,
+    )
+    if resp.status_code >= 400:
+        raise HTTPException(status_code=502, detail=f"OpenAI vision failed: {resp.text[:300]}")
+    data = resp.json()
+    return (data.get("choices") or [{}])[0].get("message", {}).get("content", "")
+
+
+async def _openai_vision(prompt: str, image_base64: str) -> str:
+    return await asyncio.to_thread(_post_openai_vision, prompt, image_base64)
+
+
+def _post_openai_tts(text: str) -> str:
+    key = _require_openai_key()
+    resp = requests.post(
+        f"{OPENAI_API_BASE}/audio/speech",
+        headers={"Authorization": f"Bearer {key}"},
+        json={"model": "tts-1", "voice": OPENAI_VOICE, "input": text, "response_format": "mp3"},
+        timeout=60,
+    )
+    if resp.status_code >= 400:
+        raise HTTPException(status_code=502, detail=f"OpenAI vision TTS failed: {resp.text[:300]}")
+    return base64.b64encode(resp.content).decode("ascii")
 
 VISION_SYSTEM_PROMPT = """You are CAOS, a visual companion for a visually impaired or
 low-vision senior. You describe what the camera sees, warn about obstacles, and
@@ -44,31 +98,17 @@ async def describe_frame(data: VisionFrameInput):
         raise HTTPException(status_code=400, detail="image_base64 too small (must be JPEG/PNG)")
 
     prompt = data.question or "What do you see? If anything matters for safe walking, say that first."
-    session = data.session_id or "caos-vision"
     try:
-        llm = LlmChat(
-            api_key=EMERGENT_KEY,
-            session_id=session,
-            system_message=VISION_SYSTEM_PROMPT,
-        ).with_model("anthropic", "claude-sonnet-4-5-20250929")
-        reply = await llm.send_message(
-            UserMessage(
-                text=prompt,
-                image_contents=[ImageContent(image_base64=data.image_base64)],
-            )
-        )
+        reply = await _openai_vision(prompt, data.image_base64)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"vision error: {e}")
 
     audio_b64 = None
     if data.speak:
         try:
-            tts = OpenAITextToSpeech(api_key=EMERGENT_KEY)
-            audio_b64 = await tts.generate_speech_base64(
-                text=reply[:1000],
-                model="tts-1",
-                voice="sage",
-            )
+            audio_b64 = await asyncio.to_thread(_post_openai_tts, reply[:1000])
         except Exception as e:
             import logging
             logging.warning(f"TTS failed: {e}")

@@ -5,7 +5,7 @@ Philosophy
   them. We keep two parallel stores:
 
   1. db.conversations   — rolling conversation log. The last N messages are
-     replayed into Claude every turn so the AI stays coherent across days.
+     replayed into the OpenAI text model every turn so the AI stays coherent across days.
   2. db.memories        — discrete, human-readable facts the AI has learned
      ("Frank's dog Bruno died in 2023"; "Margaret hates the red chair").
      Pinned memories never drop out of context. Importance scores let us
@@ -15,7 +15,7 @@ Philosophy
 Flow
   1. Every /api/ai/chat turn writes a row to db.conversations.
   2. A background extractor (fire-and-forget after the reply is sent) runs
-     Claude on the latest exchange and proposes new ResidentMemory rows.
+     the OpenAI text model on the latest exchange and proposes new ResidentMemory rows.
   3. Admins + staff can manually add / edit / pin memories at any time.
 
 Retrieval
@@ -27,6 +27,8 @@ import os
 import json
 import logging
 import re
+import asyncio
+import requests
 from datetime import timedelta
 from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Depends
@@ -38,12 +40,45 @@ from models import (
     default_bin_for_category,
 )
 
-from emergentintegrations.llm.chat import LlmChat, UserMessage
-
 router = APIRouter(prefix="/memory", tags=["memory"])
 
-EMERGENT_KEY = os.environ["EMERGENT_LLM_KEY"]
-# Claude Sonnet 4.5 has a huge context window. We previously capped history
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
+OPENAI_TEXT_MODEL = os.environ.get("OPENAI_TEXT_MODEL", "gpt-4o-mini").strip() or "gpt-4o-mini"
+OPENAI_API_BASE = os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1").rstrip("/")
+
+
+def _openai_unavailable() -> HTTPException:
+    return HTTPException(
+        status_code=503,
+        detail="OPENAI_API_KEY is not configured; OpenAI memory extraction is unavailable.",
+    )
+
+
+def _post_openai_chat(system_message: str, user_message: str) -> str:
+    if not OPENAI_API_KEY:
+        raise _openai_unavailable()
+    resp = requests.post(
+        f"{OPENAI_API_BASE}/chat/completions",
+        headers={"Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json"},
+        json={
+            "model": OPENAI_TEXT_MODEL,
+            "messages": [
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": user_message},
+            ],
+        },
+        timeout=60,
+    )
+    if resp.status_code >= 400:
+        raise HTTPException(status_code=502, detail=f"OpenAI memory extraction failed: {resp.text[:300]}")
+    data = resp.json()
+    return (data.get("choices") or [{}])[0].get("message", {}).get("content", "")
+
+
+async def _openai_chat(system_message: str, user_message: str) -> str:
+    return await asyncio.to_thread(_post_openai_chat, system_message, user_message)
+
+# OpenAI text models have a large context window. We previously capped history
 # at 40 to keep prompts cheap, but that meant rich conversations aged out
 # before important context could dehydrate into the bins. Raise the rolling
 # window to 500 turns; the dehydration pipeline + two-bin bulletin do the
@@ -210,7 +245,7 @@ async def build_memory_context(resident_id: Optional[str], session_id: Optional[
 # ---------------- Extraction (runs async after each AI reply) ----------------
 
 async def extract_and_store_memories(resident_id: str, session_id: str, user_text: str, assistant_text: str) -> int:
-    """Lightweight Claude call that reads the latest exchange and proposes memories.
+    """Lightweight OpenAI call that reads the latest exchange and proposes memories.
     Runs best-effort; swallows all errors so a flaky extraction never breaks chat."""
     if not resident_id or not user_text:
         return 0
@@ -219,17 +254,12 @@ async def extract_and_store_memories(resident_id: str, session_id: str, user_tex
             f"User said: \"{user_text}\"\nCAOS replied: \"{assistant_text}\"\n\n"
             f"Return JSON array of new durable memories."
         )
-        # Haiku 4.5 runs the extractor at a fraction of Sonnet's cost per
-        # turn. The prompt is small and the output is strictly-formatted JSON
-        # so Haiku's speed/accuracy trade-off is the right call here.
-        llm = LlmChat(
-            api_key=EMERGENT_KEY,
-            session_id=f"extractor-{resident_id}",
-            system_message=EXTRACTOR_SYSTEM,
-        ).with_model("anthropic", "claude-haiku-4-5-20251001")
-        raw = await llm.send_message(UserMessage(text=prompt))
+        if not OPENAI_API_KEY:
+            logging.warning("Memory extraction skipped: OPENAI_API_KEY is not configured")
+            return 0
+        raw = await _openai_chat(EXTRACTOR_SYSTEM, prompt)
         raw = (raw or "").strip()
-        # Strip code fences if Claude wraps it
+        # Strip code fences if the model wraps it
         if raw.startswith("```"):
             raw = raw.split("\n", 1)[1]
             if raw.endswith("```"):
@@ -338,6 +368,8 @@ class ExtractRequest(BaseModel):
 @router.post("/extract")
 async def manual_extract(data: ExtractRequest, user=Depends(get_current_user)):
     """Admin convenience: force-extract memories from a specific exchange."""
+    if not OPENAI_API_KEY:
+        raise _openai_unavailable()
     saved = await extract_and_store_memories(
         data.resident_id, data.session_id or "manual", data.user_text, data.assistant_text,
     )
@@ -346,7 +378,7 @@ async def manual_extract(data: ExtractRequest, user=Depends(get_current_user)):
 
 class RealtimeTurnIngest(BaseModel):
     """One closed turn from a WebRTC voice session — captured client-side
-    in `useRealtimeVoice.js` and POSTed here so the same Haiku extractor
+    in `useRealtimeVoice.js` and POSTed here so the same OpenAI memory extractor
     that fed the legacy turn-based chat now also feeds Realtime calls.
     Without this, anything Margaret tells CAOS over voice vanishes the
     moment the call ends."""
