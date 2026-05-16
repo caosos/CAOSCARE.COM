@@ -17,16 +17,27 @@ to wait before deciding the resident is finished talking.
 import os
 from datetime import datetime
 from zoneinfo import ZoneInfo
+import json
+import httpx
 from fastapi import APIRouter, HTTPException, Request, Body
 from fastapi.responses import JSONResponse
-from emergentintegrations.llm.openai import OpenAIChatRealtime
 
 from deps import db
 
 router = APIRouter(prefix="/realtime", tags=["realtime"])
 
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-_realtime = OpenAIChatRealtime(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
+OPENAI_REALTIME_MODEL = os.environ.get("OPENAI_REALTIME_MODEL", "gpt-realtime").strip() or "gpt-realtime"
+OPENAI_API_BASE = os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1").rstrip("/")
+
+
+def _require_openai_key() -> str:
+    if not OPENAI_API_KEY:
+        raise HTTPException(
+            status_code=503,
+            detail="OPENAI_API_KEY is not configured; OpenAI Realtime is unavailable.",
+        )
+    return OPENAI_API_KEY
 
 # Voice list mirrors OpenAI Realtime API (Dec 2024). Defaults to shimmer to
 # match the rest of CAOS Care's TTS.
@@ -735,17 +746,32 @@ async def create_session(payload: dict = Body(default={})):
     Accepts optional {voice, resident_id, kiosk_id, room} so the kiosk can
     request its chosen voice, pre-load the resident's personalized prompt,
     and tag the session with the room context the tool calls will need."""
-    if not _realtime:
-        raise HTTPException(status_code=503, detail="OPENAI_API_KEY not configured")
+    key = _require_openai_key()
     voice = (payload.get("voice") or DEFAULT_VOICE).lower()
     if voice not in ALLOWED_VOICES:
         voice = DEFAULT_VOICE
-    try:
-        session = await _realtime.create_ephemeral_session_for_audio_chat(voice=voice)
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"OpenAI session error: {e}")
-
     instructions = await _build_companion_instructions(payload.get("resident_id"))
+    session_config = {
+        "type": "realtime",
+        "model": OPENAI_REALTIME_MODEL,
+        "instructions": instructions,
+        "audio": {"output": {"voice": voice}},
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.post(
+                f"{OPENAI_API_BASE}/realtime/client_secrets",
+                headers={"Authorization": f"Bearer {key}"},
+                json={"session": session_config},
+            )
+        if resp.status_code >= 400:
+            raise HTTPException(status_code=502, detail=f"OpenAI Realtime session error: {resp.text[:300]}")
+        session = resp.json()
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"OpenAI Realtime session error: {e}")
 
     # Everything under `_caos` travels back to the browser so it can apply a
     # `session.update` over the data channel the moment it opens. The OpenAI
@@ -773,11 +799,28 @@ async def create_session(payload: dict = Body(default={})):
 async def negotiate(request: Request):
     """Forward the browser's WebRTC SDP offer to OpenAI and return the
     SDP answer. After this exchange, audio streams browser ↔ OpenAI directly."""
-    if not _realtime:
-        raise HTTPException(status_code=503, detail="OPENAI_API_KEY not configured")
+    key = _require_openai_key()
     try:
         sdp_offer = (await request.body()).decode()
-        sdp_answer = await _realtime.negotiate_connection(sdp_offer)
-        return JSONResponse(content={"sdp": sdp_answer})
+        session_config = {
+            "type": "realtime",
+            "model": OPENAI_REALTIME_MODEL,
+            "audio": {"output": {"voice": DEFAULT_VOICE}},
+        }
+        files = {
+            "sdp": (None, sdp_offer),
+            "session": (None, json.dumps(session_config), "application/json"),
+        }
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                f"{OPENAI_API_BASE}/realtime/calls",
+                headers={"Authorization": f"Bearer {key}"},
+                files=files,
+            )
+        if resp.status_code >= 400:
+            raise HTTPException(status_code=502, detail=f"OpenAI Realtime negotiate error: {resp.text[:300]}")
+        return JSONResponse(content={"sdp": resp.text})
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Negotiate error: {e}")
+        raise HTTPException(status_code=502, detail=f"OpenAI Realtime negotiate error: {e}")

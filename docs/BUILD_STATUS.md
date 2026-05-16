@@ -137,10 +137,9 @@ Required for backend startup:
 MONGO_URL=mongodb://localhost:27017
 DB_NAME=caoscare
 JWT_SECRET=replace-with-long-random-secret
-EMERGENT_LLM_KEY=replace-with-emergent-or-approved-llm-key
 ```
 
-Optional values documented in `backend/.env.example` include CORS, public API URL, direct OpenAI, Perplexity, Twilio, Resend, facility defaults, device auth, and receipt signing settings.
+Optional values documented in `backend/.env.example` include CORS, public API URL, OpenAI models/voice, Perplexity, Twilio, Resend, facility defaults, device auth, and receipt signing settings. Backend AI, realtime, and research routes no longer require an Emergent key for import/startup. If `OPENAI_API_KEY` or `PERPLEXITY_API_KEY` is absent for an endpoint that needs it, that endpoint should return HTTP 503 instead of crashing app import.
 
 ### Install
 
@@ -182,9 +181,10 @@ Expected healthy shape:
 ### Backend blockers / pending decisions
 
 - MongoDB must exist and be reachable before `/api/health` can pass.
-- `MONGO_URL`, `DB_NAME`, `JWT_SECRET`, and `EMERGENT_LLM_KEY` are required for import/startup in the current code.
-- Runtime Emergent LLM integrations remain in place by design for this small prep task.
-- Emergent Google auth remains in place by design for this small prep task.
+- `MONGO_URL`, `DB_NAME`, and `JWT_SECRET` are still required for import/startup in the current code.
+- Backend AI/realtime/research boot no longer depends on Emergent runtime imports or `EMERGENT_LLM_KEY`.
+- Realtime full-duplex voice remains planned OpenAI Realtime / `gpt-realtime` work until the browser flow is validated end-to-end; missing OpenAI configuration returns HTTP 503.
+- Emergent Google auth remains in place by design for this small backend-only task.
 - Startup seed behavior creates demo users if missing; Michael must decide whether to keep, guard, or disable that behavior before a production deployment.
 - Twilio/Resend can remain unset for log-only notification behavior during first run.
 
