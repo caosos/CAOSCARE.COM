@@ -74,7 +74,9 @@ async def register(data: RegisterInput):
     user = User(
         email=data.email.lower(),
         name=data.name,
-        role=data.role,
+        # Public self-registration is staff-only. Owner/admin accounts must be
+        # created through a controlled bootstrap or admin-managed flow.
+        role="staff",
         auth_provider="jwt",
         password_hash=_hash_pw(data.password),
     )
