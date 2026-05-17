@@ -85,6 +85,7 @@ frontend/src/pages/RealtimeChatScreen.jsx      Realtime chat/voice interaction s
 frontend/src/pages/Blueprint.jsx               Blueprint/architecture display surface
 frontend/src/pages/HelpHub.jsx                 Help/onboarding support surface
 frontend/src/index.css                         Global frontend styling
+frontend/src/lib/api.js                         Frontend API client; fails loudly if REACT_APP_BACKEND_URL is missing/blank or ends with /api
 ```
 
 Observed frontend product claims and UX direction include:
@@ -102,6 +103,16 @@ kiosk demo and staff sign-in paths
 
 Important: public marketing copy and regulated/safety-sensitive claims must stay bounded by the CAOS Care safety doctrine. Do not add medical-device, clinical-authority, autonomous emergency-dispatch, or guaranteed-compliance claims unless Michael explicitly authorizes and the required legal/regulatory basis exists.
 
+Current frontend/deployment status notes:
+
+```text
+PR #7: public Emergent branding removed from frontend/public/index.html
+PR #8: REACT_APP_BACKEND_URL guard added; value must be backend origin without trailing /api
+PR #9: Emergent visual-edit tooling removed from frontend package/config surface
+PR #11: public provider/care-domain copy no longer hardcodes Claude/Sonnet/Haiku claims
+yarn.lock: still missing; reproducible frontend install remains blocked until lockfile policy is approved
+```
+
 ## Backend map
 
 Verified backend service entrypoint:
@@ -109,6 +120,7 @@ Verified backend service entrypoint:
 ```text
 backend/server.py                               FastAPI app, /api router, health endpoint, route registration
 backend/models.py                               Pydantic domain models and input schemas
+backend/scripts/bootstrap_owner.py             One-time/manual owner bootstrap using CAOSCARE_BOOTSTRAP_OWNER_* env values
 ```
 
 Verified/observed backend route domains registered from `backend/server.py` include:
@@ -161,6 +173,18 @@ APIRouter prefix /api
 CORS middleware configured from CORS_ORIGINS or wildcard fallback
 startup seed hook via lifespan
 Mongo-style db ping through deps.db
+Public /auth/register role guard creates staff users only
+CAOSCARE_ENABLE_DEMO_SEED defaults false; do not enable demo seed for production
+```
+
+Current backend/auth/deployment status notes:
+
+```text
+PR #10: backend/scripts/bootstrap_owner.py exists for one-time first-owner creation
+PR #10: public /auth/register is staff-only; owner/admin creation is no longer public self-registration
+Emergent Google auth: remains legacy/pending replacement through the existing Google session exchange
+owned OAuth / direct Google OAuth: not implemented
+First server validation: use bootstrapped owner admin/JWT login, not Google login, as the initial validation path
 ```
 
 ## Domain model map
@@ -290,11 +314,21 @@ docs/DEPLOYMENT_RUNBOOK.md                     /opt/caoscare non-Docker first se
 
 These documents do not prove a live deployment. They define the first runnable path and preserve the CAOS Care safety posture: assistive, advisory, human-supervised, receipt-backed.
 
+Current remaining auth/deployment blockers:
+
+```text
+Emergent Google auth remains legacy/pending owned OAuth replacement
+owned OAuth / direct Google OAuth is not implemented
+frontend lockfile / yarn.lock is missing
+server deployment is not done
+MongoDB, backend health, owner bootstrap, admin/JWT login, frontend build, reverse proxy, and live website behavior still require first-server validation
+```
+
 ## Website status
 
 The repository contains a frontend landing page and related web application pages.
 
-However, a live public CAOSCARE.COM website crawl was previously not available from ChatGPT tooling. Future agents must distinguish:
+However, a live public CAOSCARE.COM website crawl was previously not available from ChatGPT tooling. A follow-up attempt on 2026-05-17 from this environment to `https://caoscare.com` and `https://www.caoscare.com` failed with `Tunnel connection failed: 403 Forbidden`, so live website content remains pending source review. Future agents must distinguish:
 
 ```text
 verified repo frontend content
@@ -386,8 +420,10 @@ selling or exposing private resident/staff/family data
 6. Add hardware/device contract covering kiosk, RF bridge, wearables, and vision surfaces.
 7. Add feature parity matrix separating repo-visible, runtime-verified, planned, and blocked capabilities.
 8. Add smoke/regression checklist for frontend, backend, and Android surfaces.
-9. Decide whether to keep or replace Emergent LLM/auth dependencies before production deployment.
-10. Decide whether to guard or disable startup demo seed users before production deployment.
+9. Replace Emergent Google auth with owned OAuth / direct Google OAuth or explicitly choose JWT-only first-server validation.
+10. Keep `CAOSCARE_ENABLE_DEMO_SEED=false` for production/server boot; use `backend/scripts/bootstrap_owner.py` for first owner creation.
+11. Add/approve a frontend lockfile such as `yarn.lock` for reproducible deployment builds.
+12. Complete first server deployment and validate MongoDB, backend health, owner bootstrap, admin/JWT login, frontend build, reverse proxy, and live website behavior.
 ```
 
 ## Search terms for future agents
