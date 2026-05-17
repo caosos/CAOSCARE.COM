@@ -95,6 +95,15 @@ JWT_SECRET=<server-generated-random-secret>
 CAOSCARE_ENABLE_DEMO_SEED=false
 ```
 
+First-server boot requirements:
+
+- Set `MONGO_URL` to the selected MongoDB service and confirm MongoDB is reachable before backend health validation.
+- Set `DB_NAME` to the intended CAOS Care database name.
+- Set `JWT_SECRET` to a long server-generated random value; never commit or reuse a placeholder.
+- Keep `CAOSCARE_ENABLE_DEMO_SEED=false` for production/server boot. Do not enable demo seed for production.
+- Set `CAOSCARE_BOOTSTRAP_OWNER_EMAIL`, `CAOSCARE_BOOTSTRAP_OWNER_NAME`, and `CAOSCARE_BOOTSTRAP_OWNER_PASSWORD` only for the one-time owner bootstrap window.
+- After owner creation, unset/remove the bootstrap password env and any temporary bootstrap values from the server environment.
+
 Optional OpenAI/research values:
 
 ```text
@@ -107,7 +116,7 @@ PERPLEXITY_API_KEY=<approved-perplexity-key-if-live-research-is-used>
 
 Backend AI, realtime, and research routes no longer require an Emergent key for import/startup. Missing provider keys should make provider-specific endpoints return HTTP 503 instead of blocking app import.
 
-`CAOSCARE_ENABLE_DEMO_SEED` must remain `false` for production/server boot. Setting it to `true` enables known local/demo seed users and passwords and is only acceptable for disposable local demos or preview environments. If no owned bootstrap flow exists, first real admin/user creation remains a pending production decision.
+`CAOSCARE_ENABLE_DEMO_SEED` must remain `false` for production/server boot. Setting it to `true` enables known local/demo seed users and passwords and is only acceptable for disposable local demos or preview environments. First real owner creation now uses the manual bootstrap script; public registration is staff-only.
 
 Recommended public routing values for CAOSCARE.COM:
 
@@ -125,7 +134,27 @@ source /opt/caoscare/venv/backend/bin/activate
 pip install -r requirements.txt
 ```
 
-### 4. Start backend manually for first verification
+### 4. Run one-time owner bootstrap after backend env is configured
+
+After backend env is configured and MongoDB is reachable, create the first owner manually from the backend directory:
+
+```bash
+cd /opt/caoscare/app/backend
+source /opt/caoscare/venv/backend/bin/activate
+export CAOSCARE_BOOTSTRAP_OWNER_EMAIL=owner@example.com
+export CAOSCARE_BOOTSTRAP_OWNER_NAME="Facility Owner"
+export CAOSCARE_BOOTSTRAP_OWNER_PASSWORD='<one-time-strong-password>'
+python scripts/bootstrap_owner.py
+unset CAOSCARE_BOOTSTRAP_OWNER_PASSWORD
+unset CAOSCARE_BOOTSTRAP_OWNER_EMAIL
+unset CAOSCARE_BOOTSTRAP_OWNER_NAME
+```
+
+The repo path for the script is `backend/scripts/bootstrap_owner.py`; the command above uses `scripts/bootstrap_owner.py` because it is run from `/opt/caoscare/app/backend`. The critical rule is that `backend/scripts/bootstrap_owner.py` must run only after the real backend env is loaded and MongoDB can be reached.
+
+Do not leave `CAOSCARE_BOOTSTRAP_OWNER_PASSWORD` set after owner creation. Do not enable demo seed to create production users.
+
+### 5. Start backend manually for first verification
 
 ```bash
 cd /opt/caoscare/app/backend
@@ -140,7 +169,7 @@ For a durable deployment, add a Michael-approved process manager later, such as 
 
 Backend import no longer depends on Emergent realtime helpers. The realtime route is OpenAI-only and should fail closed with HTTP 503 when `OPENAI_API_KEY` is missing. Full-duplex browser voice remains planned OpenAI Realtime / `gpt-realtime` work until a deployment-like WebRTC path is validated end-to-end.
 
-### 5. Verify backend health
+### 6. Verify backend health and admin/JWT login
 
 ```bash
 curl -fsS http://127.0.0.1:8000/api/health
@@ -154,7 +183,9 @@ Healthy target shape:
 
 If MongoDB is unavailable, the endpoint may return an unhealthy database status and the deployment is not ready.
 
-### 6. Prepare frontend environment
+Use the bootstrapped owner account to validate admin/JWT login for first server validation. Google login remains legacy/Emergent-mediated until owned OAuth is implemented, so it must not be the first-server validation dependency.
+
+### 7. Prepare frontend environment
 
 Use the template:
 
@@ -162,7 +193,7 @@ Use the template:
 frontend/.env.example
 ```
 
-For a CAOSCARE.COM build:
+For a CAOSCARE.COM build, set `REACT_APP_BACKEND_URL` to the backend origin without trailing `/api`:
 
 ```bash
 cd /opt/caoscare/app/frontend
@@ -170,7 +201,9 @@ export REACT_APP_BACKEND_URL=https://caoscare.com
 export ENABLE_HEALTH_CHECK=false
 ```
 
-### 7. Install and build frontend
+The frontend will fail loudly if `REACT_APP_BACKEND_URL` is missing, blank, or ends with `/api`. Do not set `REACT_APP_BACKEND_URL=https://caoscare.com/api`; the app adds `/api` at request time.
+
+### 8. Install and build frontend
 
 ```bash
 cd /opt/caoscare/app/frontend
@@ -259,11 +292,13 @@ A first server run is ready for Michael review only when:
 
 1. backend starts without missing environment-variable errors
 2. MongoDB health returns `ok: true`
-3. frontend builds successfully with `REACT_APP_BACKEND_URL=https://caoscare.com`
-4. reverse proxy serves frontend routes and proxies `/api/*`
-5. no real secrets are committed
-6. live website state is verified directly after deployment
-7. safety boundaries remain assistive, advisory, human-supervised, and receipt-backed
+3. owner bootstrap runs once with `CAOSCARE_BOOTSTRAP_OWNER_*` values and the bootstrap password env is removed afterward
+4. admin/JWT login works with the bootstrapped owner account
+5. frontend builds successfully with `REACT_APP_BACKEND_URL=https://caoscare.com` and no trailing `/api`
+6. reverse proxy serves frontend routes and proxies `/api/*`
+7. no real secrets are committed
+8. live website state is verified directly after deployment
+9. safety boundaries remain assistive, advisory, human-supervised, and receipt-backed
 
 ## Pending decisions before production deployment
 
@@ -273,7 +308,7 @@ Michael must decide:
 - MongoDB location and backup process
 - secret ownership and rotation process
 - validate OpenAI Realtime / `gpt-realtime` browser voice end-to-end before presenting full-duplex voice as production-ready
-- whether first run keeps Emergent Google auth or uses JWT-only/owned OAuth first
-- first real admin/user creation path if no owned bootstrap flow exists; demo seed users are disabled by default and must not be enabled in production
+- whether first production login policy is JWT/admin-only until owned OAuth ships; Google login remains legacy/Emergent-mediated until owned OAuth is implemented
+- owned OAuth / direct Google OAuth implementation timing
 - notification provider timing: log-only, Twilio, Resend, or both
 - Android/RF/vision timing relative to web/backend launch
