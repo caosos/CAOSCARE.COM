@@ -183,7 +183,7 @@ export default function MemoryDialog({ resident, open, onOpenChange }) {
               )}
             </div>
             <p className="text-xs text-caos-mute mt-2 flex items-center gap-1">
-              <MessageSquare className="w-3 h-3" /> Only the last 40 turns are replayed to Claude to keep costs sane, but the full transcript is archived here.
+              <MessageSquare className="w-3 h-3" /> Only selected recent context is used by the configured conversation service, but the full transcript is archived here.
             </p>
           </TabsContent>
         </Tabs>

@@ -195,7 +195,7 @@ export default function Kiosk() {
           // In realtime mode, the WebRTC loop owns the goodbye. Just close
           // the call silently — speaking here would step on the live AI.
           if (!realtimeMode) {
-            await speak("A caregiver is with you now. I'll step back.");
+            await speak("Staff marked this call resolved. I'll step back.");
           }
           setTimeout(() => cancelCall(), 500);
         }
@@ -475,12 +475,12 @@ export default function Kiosk() {
       // Hard exit — resident clearly done conversing.
       if (EXIT_INTENT_PATTERNS.some((k) => lower.includes(k))) {
         await sendMessage(text);
-        await speak("Alright. I'll let you rest. A caregiver is still on the way.");
+        await speak("Alright. I'll let you rest. Staff have been notified.");
         break;
       }
 
-      // Normal path — Claude processes the message. sendMessage also
-      // auto-enters sleep mode if Claude's OWN reply signals rest intent
+      // Normal path — the configured conversation service processes the message. sendMessage also
+      // auto-enters sleep mode if the service reply signals rest intent
       // ("I'll be quiet", "I'll be right here", "just rest", etc).
       await sendMessage(text);
       if (sleepingRef.current) break;
@@ -528,7 +528,7 @@ export default function Kiosk() {
   // Tuned against a self-feedback loop ("CAOS turns on by itself after ~4 turns"):
   // 0.035 + 3 frames was low enough that CAOS's own voice bleeding through
   // echo cancellation would trigger barge-in, Whisper would transcribe the
-  // echo back to Claude, Claude would reply, and the cycle compounded.
+  // echo back to the conversation service, it would reply, and the cycle compounded.
   const BARGE_RMS_THRESHOLD = 0.06;    // was 0.035 — clearly above room ambient + TTS leak
   const BARGE_HOT_FRAMES = 10;         // was 3 — require ~200ms of sustained voice
   const BARGE_GRACE_MS = 800;          // don't accept barge-in for the first 800ms of TTS
@@ -699,8 +699,8 @@ export default function Kiosk() {
       setCallState("chatting");
       const name = resident?.preferred_name || resident?.name?.split(" ")[0] || "there";
       const line = severity === "emergency"
-        ? `Hello ${name}. Help is on the way. Stay where you are. I am here with you. Tell me what's happening.`
-        : `Hello ${name}. I've paged a caregiver. While we wait, what can I help with?`;
+        ? `Hello ${name}. Staff have been notified. Stay where you are if it is safe. I am here with you. Tell me what's happening.`
+        : `Hello ${name}. I've notified staff. While we wait, what can I help with?`;
       setMessages([{ role: "assistant", content: line }]);
       if (realtimeMode) {
         // Realtime WebRTC owns the conversation from here. Skip the legacy
@@ -770,12 +770,12 @@ export default function Kiosk() {
     }
   };
 
-  // Canned comfort lines used when Claude is unreachable. Rotates so the
+  // Canned comfort lines used when the conversation service is unreachable. Rotates so the
   // resident doesn't hear the same sentence every time.
   const OFFLINE_LINES = [
     "I'm here with you. Help is on the way. Just breathe — slow and easy.",
-    "Stay right where you are. A caregiver is coming to you now. I'm not going anywhere.",
-    "You're not alone. Someone will be there very soon. I'll wait with you.",
+    "Stay right where you are. Staff have been notified. I'm not going anywhere.",
+    "You're not alone. Staff have been notified. I'll wait with you.",
     "Take your time. Help is on its way. I'm listening.",
   ];
   const offlineCursorRef = useRef(0);
@@ -803,7 +803,7 @@ export default function Kiosk() {
           await axios.post(`${API}/alerts`, {
             kiosk_id: kiosk.kiosk_id,
             severity: "emergency",
-            message: "AI triage detected emergency language",
+            message: "AI-assisted review flagged possible urgent language for staff review",
             triggered_by: "ai_triage",
           });
         } catch {}
@@ -819,10 +819,10 @@ export default function Kiosk() {
       setThinking(false);
     }
 
-    // AUTHORITATIVE sleep signal: Claude appends [REST] when it decides the
-    // resident wants quiet. Backend strips it and returns sleep_intent:true.
+    // AUTHORITATIVE sleep signal: the conversation service appends [REST] when it detects
+    // the resident wants quiet. Backend strips it and returns sleep_intent:true.
     // Belt-and-suspenders: also fall back to reply-phrase matching for any
-    // case where Claude forgets the tag.
+    // case where the tag is missing.
     const replyLower = (reply || "").toLowerCase();
     const SLEEP_REPLY_CUES = [
       "i'll be quiet", "ill be quiet", "i will be quiet",
@@ -942,7 +942,7 @@ export default function Kiosk() {
           })}
         </div>
         <p className="text-xs text-caos-mute italic mt-4 border-t border-caos-line pt-3">
-          Note: "Maple" is only available in the ChatGPT app, not in the OpenAI voice API. The voices above are the closest alternatives.
+          Note: The available voices above are the supported kiosk voices for this deployment.
         </p>
       </DialogContent>
     </Dialog>
@@ -1038,7 +1038,7 @@ export default function Kiosk() {
           </h1>
           <p className="kiosk-prompt mt-6 text-2xl md:text-3xl text-caos-ink/80 leading-snug">
             If you need help, press the big red button.<br />
-            I'll stay with you until someone arrives.
+            I'll stay with you while staff are notified.
           </p>
 
           <button
@@ -1151,7 +1151,7 @@ export default function Kiosk() {
       <div className="flex items-start justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.3em] text-caos-mute">
-            {autoVoice ? "Panic-press detected — hands-free" : alert?.severity === "emergency" ? "Emergency paged" : "Caregiver paged"}
+            {autoVoice ? "Panic-press detected — hands-free" : alert?.severity === "emergency" ? "Emergency paged" : "Staff paged"}
           </p>
           <h2 className="font-display text-3xl md:text-5xl font-light text-caos-forest mt-2">
             Help is on the way.
@@ -1308,7 +1308,7 @@ export default function Kiosk() {
             <div className="mt-4 bg-caos-terracotta/10 border border-caos-terracotta rounded-2xl p-4 flex items-start gap-3">
               <AlertCircle className="w-6 h-6 text-caos-terracotta mt-0.5" />
               <p className="text-caos-terracotta-dark font-semibold">
-                Emergency paged. Stay where you are. A caregiver is coming to you now.
+                Emergency paged. Stay where you are. Staff have been notified.
               </p>
             </div>
           )}
