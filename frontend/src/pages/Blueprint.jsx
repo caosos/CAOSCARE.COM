@@ -176,7 +176,7 @@ function MemoryArchitecture() {
       icon={Brain}
       eyebrow="Memory"
       title="One thread per resident. For life."
-      subtitle="CAOS runs on a large-context model. We never arbitrarily cut history. Instead, conversations flow through a hydration pipeline that keeps important things present and lets throwaway chatter fade."
+      subtitle="CAOS Care uses a configured conversation model with a memory hydration pipeline. Important context stays available while throwaway chatter can fade."
       testid="blueprint-memory"
     >
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -185,7 +185,7 @@ function MemoryArchitecture() {
           <h3 className="font-display text-2xl text-caos-forest mt-1">Live conversation</h3>
           <p className="text-caos-ink/80 mt-3 text-sm leading-relaxed">
             Every turn is stored in <code className="text-xs bg-caos-ambient px-1.5 py-0.5 rounded">db.conversations</code> and
-            replayed into Claude each response. Today the rolling window is <b>500 turns / session-scoped</b>, which fits
+            made available to the CAOS Care conversation service each response. Today the rolling window is <b>500 turns / session-scoped</b>, which fits
             comfortably inside the model's context budget and covers even the longest same-day visit.
           </p>
         </Card>
@@ -199,9 +199,9 @@ function MemoryArchitecture() {
         </Card>
         <Card className="p-6 border-caos-line bg-white" data-testid="mem-dehydrate">
           <p className="text-xs font-bold uppercase tracking-widest text-caos-mute">Dehydrate</p>
-          <h3 className="font-display text-2xl text-caos-forest mt-1">Haiku extractor</h3>
+          <h3 className="font-display text-2xl text-caos-forest mt-1">Memory extractor</h3>
           <p className="text-caos-ink/80 mt-3 text-sm leading-relaxed">
-            After every exchange, a background Claude Haiku 4.5 call reads the turn and proposes durable
+            After every exchange, the configured memory extractor reads the turn and proposes durable
             facts. It auto-sorts each fact into one of two bins, dedupes against near-identical prior rows,
             and writes them to <code className="text-xs bg-caos-ambient px-1.5 py-0.5 rounded">db.memories</code>.
           </p>
@@ -450,10 +450,10 @@ function BulletinRow({ m, onUpdate, onArchive }) {
 
 function HardwareStack() {
   const layers = [
-    { icon: Cpu, title: "Room kiosk (tablet)", body: "The companion orb. Continuous voice loop, barge-in VAD, TV auto-mute, [REST] sleep tag, 11 OpenAI voices.", testid: "hw-kiosk" },
+    { icon: Cpu, title: "Room kiosk (tablet)", body: "The companion orb. Continuous voice loop, barge-in VAD, TV auto-mute, [REST] sleep tag, configured speech service voices.", testid: "hw-kiosk" },
     { icon: Radio, title: "900 MHz pendants", body: "Philips Lifeline-style buttons. Android bridge + RTL-SDR decodes presses, POSTs /api/pendants/event with zone + battery.", testid: "hw-pendants" },
-    { icon: Watch, title: "Wearables", body: "Smartwatches, earbuds, BLE beacons. Fall, heart-rate, inactivity events feed clinical thresholds per resident.", testid: "hw-wearables" },
-    { icon: Glasses, title: "AI-vision glasses (Vuzix M400)", body: "For visually impaired residents. Scene description, wayfinding, medication-label reading.", testid: "hw-vision" },
+    { icon: Watch, title: "Wearables", body: "Smartwatches, earbuds, BLE beacons. Fall, heart-rate, and inactivity signals can support staff-reviewed care thresholds per resident.", testid: "hw-wearables" },
+    { icon: Glasses, title: "AI-vision glasses (Vuzix M400)", body: "For visually impaired residents. Assistive scene description, wayfinding support, and human-confirmed medication-label assistance.", testid: "hw-vision" },
     { icon: Lightbulb, title: "Smart-room devices", body: "Lights, fans, heaters, AC, TVs, locks. Commands queue at /api/devices/queue/{room} — the bridge tablet executes locally.", testid: "hw-smartroom" },
   ];
   return (
@@ -484,25 +484,25 @@ function AILayers() {
     <Section
       icon={Sparkles}
       eyebrow="AI"
-      title="The AI stack."
-      subtitle="Claude drives the voice. OpenAI does ears and mouth. Haiku does bookkeeping."
+      title="The assistive AI stack."
+      subtitle="The CAOS Care conversation service, memory extractor, and configured speech service work together under human oversight."
       testid="blueprint-ai"
     >
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <Card className="p-4 border-caos-line bg-white" data-testid="ai-sonnet">
-          <p className="text-xs font-bold uppercase tracking-widest text-caos-mute">Claude Sonnet 4.5</p>
-          <p className="font-display text-lg text-caos-forest mt-1">Companion voice</p>
-          <p className="text-sm text-caos-ink/80 mt-2">Primary conversational model. Emits <code className="text-xs bg-caos-ambient px-1 rounded">[REST]</code> when the resident asks for quiet.</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-caos-mute">Conversation model</p>
+          <p className="font-display text-lg text-caos-forest mt-1">CAOS Care conversation service</p>
+          <p className="text-sm text-caos-ink/80 mt-2">Configured conversation model. Emits <code className="text-xs bg-caos-ambient px-1 rounded">[REST]</code> when the resident asks for quiet.</p>
         </Card>
         <Card className="p-4 border-caos-line bg-white" data-testid="ai-haiku">
-          <p className="text-xs font-bold uppercase tracking-widest text-caos-mute">Claude Haiku 4.5</p>
-          <p className="font-display text-lg text-caos-forest mt-1">Memory + classifier</p>
-          <p className="text-sm text-caos-ink/80 mt-2">Dehydrates turns into bin rows. Auto-classifies every resolved alert (category, summary, response time).</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-caos-mute">Memory extractor</p>
+          <p className="font-display text-lg text-caos-forest mt-1">Memory + staff-reviewed classifier</p>
+          <p className="text-sm text-caos-ink/80 mt-2">Dehydrates turns into bin rows. Proposes alert categories and summaries for staff review alongside response-time receipts.</p>
         </Card>
         <Card className="p-4 border-caos-line bg-white" data-testid="ai-openai">
-          <p className="text-xs font-bold uppercase tracking-widest text-caos-mute">OpenAI Whisper + TTS</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-caos-mute">Configured speech service</p>
           <p className="font-display text-lg text-caos-forest mt-1">Ears + mouth</p>
-          <p className="text-sm text-caos-ink/80 mt-2">Direct SDK, your personal key. 11 voices. Barge-in VAD interrupts TTS on resident speech.</p>
+          <p className="text-sm text-caos-ink/80 mt-2">Deployment-configured speech input and output. Barge-in VAD interrupts speech playback on resident speech.</p>
         </Card>
       </div>
     </Section>
@@ -513,9 +513,9 @@ function ClinicianRegistry() {
   return (
     <Section
       icon={Stethoscope}
-      eyebrow="Clinical"
+      eyebrow="Care events"
       title="Event registry."
-      subtitle="Every pendant press, button, wearable alarm enters the clinician registry. Auto-classified, timed, summarized."
+      subtitle="Every pendant press, button, and wearable alarm enters the care event registry. AI-assisted summaries remain subject to staff review."
       testid="blueprint-clinical"
     >
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -532,7 +532,7 @@ function ClinicianRegistry() {
         <Card className="p-5 border-caos-line bg-white">
           <p className="text-xs font-bold uppercase tracking-widest text-caos-mute">Endpoint</p>
           <p className="font-mono text-sm bg-caos-ambient rounded p-2 mt-2">GET /api/residents/{`{id}`}/stats</p>
-          <p className="text-sm text-caos-mute mt-3">Returns 30-day category breakdown, avg response time, alert counts. Admin nurses consume this. A dedicated dashboard UI is the next major build.</p>
+          <p className="text-sm text-caos-mute mt-3">Returns 30-day category breakdown, avg response time, and alert counts. Admin care staff consume this as an operational view. A dedicated dashboard UI is the next major build.</p>
         </Card>
       </div>
     </Section>
@@ -551,7 +551,7 @@ function FamilyCompliance() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <Card className="p-4 border-caos-line bg-white">
           <p className="text-xs font-bold uppercase tracking-widest text-caos-mute">Family portal</p>
-          <p className="text-sm text-caos-ink/80 mt-2">Magic-link view per contact. Last seen, active calls, resolved-this-week. One haiku per night — a 3-line emotional postcard generated by Claude from the bins.</p>
+          <p className="text-sm text-caos-ink/80 mt-2">Magic-link view per contact. Last seen, active calls, resolved-this-week. One short note per night — a 3-line emotional postcard generated by the approved summarization service from consented memory records.</p>
         </Card>
         <Card className="p-4 border-caos-line bg-white">
           <p className="text-xs font-bold uppercase tracking-widest text-caos-mute">Audit CSV</p>

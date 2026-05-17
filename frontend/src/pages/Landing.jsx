@@ -17,7 +17,7 @@ const features = [
   {
     icon: MessageSquare,
     title: "Voice companion",
-    body: "Claude Sonnet 4.5 + OpenAI voice — comforts, distracts, and triages while the caregiver is on the way.",
+    body: "CAOS Care assistive voice support helps comfort residents, gather context, and route staff-reviewed alerts while care teams respond.",
   },
   {
     icon: MapPin,
@@ -69,7 +69,7 @@ export default function Landing() {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-12 items-center max-w-7xl mx-auto">
           <div className="md:col-span-7 caos-fade-in">
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-caos-mute mb-6">
-              Senior living · Life-safety AI
+              Senior living · Assistive care workflows
             </p>
             <h1 className="font-display text-5xl md:text-6xl lg:text-7xl font-light tracking-tighter leading-[0.95] text-caos-forest">
               Create
@@ -86,7 +86,7 @@ export default function Landing() {
             </div>
             <p className="mt-8 text-lg text-caos-ink/70 max-w-xl leading-relaxed">
               CARE turns every room into a companion. Residents press one big button;
-              a warm AI voice keeps them calm while staff are paged and routed — using the mesh
+              a warm assistive voice helps gather context while staff are notified and routed — using the mesh
               network already humming inside your building.
             </p>
             <div className="mt-10 flex flex-wrap gap-4">
@@ -172,7 +172,7 @@ export default function Landing() {
 
       <footer className="border-t border-caos-line px-6 md:px-12 py-10 text-caos-mute text-sm">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between gap-4">
-          <p>© 2026 CAOS Care. Life-safety AI for senior living.</p>
+          <p>© 2026 CAOS Care. Assistive care workflows for senior living.</p>
           <p>Built for dignity, designed for the people who already paid for one system.</p>
         </div>
       </footer>
