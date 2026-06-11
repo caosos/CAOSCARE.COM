@@ -4,6 +4,7 @@ import { useAuth } from "../lib/auth";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
+import GoogleSignIn from "../components/GoogleSignIn";
 import { toast } from "sonner";
 import { ShieldCheck, ArrowRight } from "lucide-react";
 
@@ -24,7 +25,6 @@ export default function AdminLogin() {
       const status = err?.response?.status;
       const msg = err?.response?.data?.detail || "Sign-in failed";
       toast.error(msg);
-      // If the server says these are staff credentials, push them toward /login.
       if (status === 403) {
         setTimeout(() => nav("/login"), 1200);
       }
@@ -35,9 +35,7 @@ export default function AdminLogin() {
 
   return (
     <div className="min-h-screen grid grid-cols-1 md:grid-cols-5 bg-caos-forest">
-      {/* Left: brand + context (3/5 on desktop) */}
       <div className="relative md:col-span-3 hidden md:flex flex-col justify-between p-12 text-white overflow-hidden">
-        {/* Grain overlay */}
         <div
           className="absolute inset-0 opacity-[0.06] pointer-events-none"
           style={{
@@ -92,7 +90,6 @@ export default function AdminLogin() {
         </div>
       </div>
 
-      {/* Right: form (2/5 on desktop) */}
       <div className="md:col-span-2 flex items-center justify-center p-8 md:p-12 bg-caos-bone">
         <div className="w-full max-w-sm">
           <h1 className="font-display text-3xl font-medium text-caos-forest">
@@ -145,12 +142,23 @@ export default function AdminLogin() {
             </Button>
           </form>
 
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-caos-line" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-caos-bone px-2 text-caos-mute tracking-widest">or</span>
+            </div>
+          </div>
+
+          <GoogleSignIn portal="admin" />
+
           <div className="mt-6 text-xs text-caos-mute border-t border-caos-line pt-4 space-y-2">
             <p className="flex items-start gap-2">
               <ShieldCheck className="w-3.5 h-3.5 mt-0.5 text-caos-forest flex-shrink-0" />
               <span>
                 Admin attempts are throttled: 5 failures within 15 minutes locks the
-                account out of this path.
+                account out of this path. Google admin access is allowlisted server-side.
               </span>
             </p>
             <Link
