@@ -1,8 +1,9 @@
-"""Auth routes - JWT login/register + Emergent Google session exchange."""
+"""Auth routes - JWT login/register/admin + direct Google Identity token verification."""
 import os
 import time
+import secrets
 from datetime import datetime, timezone, timedelta
-from fastapi import APIRouter, HTTPException, Request, Response, Depends
+from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel
 import jwt
 import bcrypt
@@ -16,6 +17,13 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 JWT_SECRET = os.environ["JWT_SECRET"]
 JWT_ALGO = "HS256"
 JWT_EXPIRE_DAYS = 7
+GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo"
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
+GOOGLE_ADMIN_EMAILS = {
+    e.strip().lower()
+    for e in os.environ.get("GOOGLE_ADMIN_EMAILS", "").split(",")
+    if e.strip()
+}
 
 # Dummy bcrypt hash used to equalize timing when the email is unknown, so
 # /admin-login doesn't leak which admin emails exist via response latency.
@@ -64,6 +72,54 @@ def _issue_jwt(user_id: str) -> str:
         "iat": datetime.now(timezone.utc),
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGO)
+
+
+def _issue_session_token() -> str:
+    return secrets.token_urlsafe(48)
+
+
+async def _create_cookie_session(user_id: str, response: Response) -> str:
+    session_token = _issue_session_token()
+    expires_at = datetime.now(timezone.utc) + timedelta(days=JWT_EXPIRE_DAYS)
+    await db.user_sessions.insert_one({
+        "session_token": session_token,
+        "user_id": user_id,
+        "expires_at": expires_at,
+        "created_at": now_utc(),
+    })
+    response.set_cookie(
+        key="session_token",
+        value=session_token,
+        httponly=True,
+        secure=True,
+        samesite="none",
+        path="/",
+        max_age=JWT_EXPIRE_DAYS * 24 * 60 * 60,
+    )
+    return session_token
+
+
+async def _verify_google_credential(credential: str) -> dict:
+    if not GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=500, detail="Google sign-in is not configured")
+
+    async with httpx.AsyncClient(timeout=10) as client:
+        r = await client.get(GOOGLE_TOKENINFO_URL, params={"id_token": credential})
+
+    if r.status_code != 200:
+        raise HTTPException(status_code=401, detail="Invalid Google credential")
+
+    gdata = r.json()
+    if gdata.get("aud") != GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=401, detail="Invalid Google credential audience")
+    if gdata.get("iss") not in {"accounts.google.com", "https://accounts.google.com"}:
+        raise HTTPException(status_code=401, detail="Invalid Google credential issuer")
+    if str(gdata.get("email_verified", "")).lower() != "true":
+        raise HTTPException(status_code=401, detail="Google email is not verified")
+    if not gdata.get("email"):
+        raise HTTPException(status_code=401, detail="Google credential missing email")
+
+    return gdata
 
 
 @router.post("/register")
@@ -150,42 +206,44 @@ async def me(request: Request):
     return UserPublic(**user).model_dump()
 
 
-class GoogleSessionInput(BaseModel):
-    session_id: str
+class GoogleVerifyInput(BaseModel):
+    credential: str
+    portal: str = "staff"
 
 
-@router.post("/google/session")
-async def google_session(data: GoogleSessionInput, response: Response):
-    """Exchange Emergent Google Auth session_id for a server session."""
-    async with httpx.AsyncClient(timeout=10) as client:
-        r = await client.get(
-            "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
-            headers={"X-Session-ID": data.session_id},
-        )
-        if r.status_code != 200:
-            raise HTTPException(status_code=401, detail="Invalid Google session")
-        gdata = r.json()
+@router.post("/google/verify")
+async def google_verify(data: GoogleVerifyInput, response: Response):
+    """Verify a Google Identity Services ID token and issue CAOSCare auth.
+
+    Admin/owner access is controlled by GOOGLE_ADMIN_EMAILS. This intentionally
+    avoids the old first-Google-user-becomes-owner behavior from Emergent auth.
+    """
+    gdata = await _verify_google_credential(data.credential)
 
     email = gdata["email"].lower()
     name = gdata.get("name") or email.split("@")[0]
     picture = gdata.get("picture")
-    session_token = gdata["session_token"]
+    is_admin_email = email in GOOGLE_ADMIN_EMAILS
 
-    # Upsert user
+    if data.portal == "admin" and not is_admin_email:
+        raise HTTPException(status_code=403, detail="This Google account is not allowed for administrator sign-in")
+
     existing = await db.users.find_one({"email": email}, {"_id": 0})
     if existing:
         user_id = existing["user_id"]
+        role = existing.get("role", "staff")
+        # Promote allowlisted Google accounts to owner, never demote existing roles.
+        if is_admin_email and role not in ("owner", "admin"):
+            role = "owner"
         await db.users.update_one(
             {"user_id": user_id},
-            {"$set": {"name": name, "picture": picture, "auth_provider": "google"}},
+            {"$set": {"name": name, "picture": picture, "auth_provider": "google", "role": role}},
         )
-        role = existing.get("role", "staff")
+        user_doc = {**existing, "name": name, "picture": picture, "auth_provider": "google", "role": role}
     else:
         user_id = uid("user")
-        # First registered user becomes owner (system-owner), subsequent = staff
-        count = await db.users.count_documents({})
-        role = "owner" if count == 0 else "staff"
-        doc = {
+        role = "owner" if is_admin_email else "staff"
+        user_doc = {
             "user_id": user_id,
             "email": email,
             "name": name,
@@ -194,35 +252,13 @@ async def google_session(data: GoogleSessionInput, response: Response):
             "auth_provider": "google",
             "created_at": now_utc().isoformat(),
         }
-        await db.users.insert_one(doc)
+        await db.users.insert_one(user_doc)
 
-    expires_at = datetime.now(timezone.utc) + timedelta(days=7)
-    await db.user_sessions.insert_one({
-        "session_token": session_token,
-        "user_id": user_id,
-        "expires_at": expires_at,
-        "created_at": now_utc(),
-    })
+    jwt_token = _issue_jwt(user_id)
+    await _create_cookie_session(user_id, response)
 
-    response.set_cookie(
-        key="session_token",
-        value=session_token,
-        httponly=True,
-        secure=True,
-        samesite="none",
-        path="/",
-        max_age=7 * 24 * 60 * 60,
-    )
-    return {
-        "user": {
-            "user_id": user_id,
-            "email": email,
-            "name": name,
-            "role": role,
-            "picture": picture,
-            "auth_provider": "google",
-        }
-    }
+    public_user = UserPublic(**user_doc).model_dump()
+    return {"token": jwt_token, "user": public_user}
 
 
 @router.post("/logout")
