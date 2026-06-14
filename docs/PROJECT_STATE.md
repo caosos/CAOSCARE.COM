@@ -145,3 +145,38 @@ Claude #1 in main repo.
 
 ### Next safe step
 Open the frontend in a browser and verify the admin login / API flow end-to-end against the running backend.
+
+---
+
+## 2026-06-14 — Local admin/auth end-to-end verified (automated, voice/AI testing posture)
+
+### Agent / tool
+Claude #1 in main repo.
+
+### Branch / ref
+`main` clean at `4ad0c72` — `Record frontend boot dependencies and project state` (no commit made this session).
+
+### What changed
+- Created a temporary local-only **owner** account via the sanctioned `backend/scripts/bootstrap_owner.py` (using temporary env vars only). Password was generated in-session, never printed, never stored outside the bcrypt hash in Mongo, and is intentionally unrecoverable.
+- No application code edited. No commit, no push.
+
+### Finding (logged for future agents)
+- The login endpoints validate `email` as pydantic `EmailStr`, which **rejects reserved TLDs** (`.test`, `.localhost`, `.local`). The originally requested `owner@local.test` was accepted by the bootstrap (the `User` model stores `email` as a plain `str`) but could **never authenticate** — `/api/auth/admin-login` returned `422` before any password check.
+- Resolution (Michael-approved): deleted the unusable `owner@local.test` record and re-bootstrapped with `owner@local.dev` (a non-reserved TLD). Valid local choices confirmed: `*.dev`, `*.app`, `example.com`.
+
+### What is verified (automated, localhost only)
+- Owner account exists after bootstrap: `total_users=1`, `owners=1`, `email=owner@local.dev`, `role=owner`, `auth_provider=jwt`.
+- `POST /api/auth/admin-login` with correct credentials → **HTTP 200**, token captured in shell var (never printed).
+- `GET /api/auth/me` with that token → `email=owner@local.dev role=owner provider=jwt`.
+- `POST /api/auth/admin-login` with wrong password → **HTTP 401**.
+- Frontend `/admin-login` route renders: headless `google-chrome --dump-dom` returned the form (`admin-login-email-input`, `admin-login-password-input`, `admin-login-submit-btn`, "Admin sign-in" all present). No browser driver (Playwright/Puppeteer/Selenium) installed; none installed per instruction.
+- Backend healthy (`{"ok":true,"db":"up"}`); frontend HTTP 200 throughout.
+
+### Blocked / not yet done
+- The temporary owner's password is secret and unrecoverable; **Michael cannot manually log in** with it. If manual UI login is wanted, a new owner password must be set (stop-and-ask before exposing any password).
+- Full browser click-through (form submit → token → /admin) not automated — would require installing Playwright (declined this round). Render + API-level proof used instead.
+- nvm `~/.bashrc` change persists; Node 20 active in nvm shells only.
+- Backend/frontend still run as dev processes, not managed services.
+
+### Next safe step
+Decide whether to keep the secret temporary owner (API-only proof) or provision an owner with a known password for manual UI login. If full UI automation is desired later, approve installing Playwright for a real click-through test.
