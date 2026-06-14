@@ -180,3 +180,38 @@ Claude #1 in main repo.
 
 ### Next safe step
 Decide whether to keep the secret temporary owner (API-only proof) or provision an owner with a known password for manual UI login. If full UI automation is desired later, approve installing Playwright for a real click-through test.
+
+---
+
+## 2026-06-14 — Local Google OAuth configured + button render verified (sign-in NOT yet clicked through)
+
+### Agent / tool
+Claude #1 in main repo.
+
+### Branch / ref
+`main` clean at `5dad682` — `Record local admin auth verification in project state` (before this checkpoint).
+
+### What changed
+- Configured the local, git-ignored `backend/.env` and `frontend/.env` for Google OAuth.
+- Extracted the **Web** OAuth `client_id` from `~/Downloads/GOOGLEOAUTHSECRET` without printing it.
+- Ignored the installed/desktop OAuth JSON (`client_secret_*.apps.googleusercontent.com.json`, top-level `installed`) because it is the wrong client type for Google Identity Services browser sign-in.
+- Set backend `GOOGLE_CLIENT_ID` and `GOOGLE_ADMIN_EMAILS` (= `mytaxicloud@gmail.com`) locally.
+- Set frontend `REACT_APP_GOOGLE_CLIENT_ID` (same client_id) locally.
+- Restarted backend and frontend with the fresh env (frontend relaunched on Node 20 so CRA bakes in the new client id; both relaunched detached via `setsid` for stability).
+
+### What is verified
+- Backend health: `{"ok":true,"db":"up"}`.
+- Frontend: HTTP 200.
+- `/admin-login` renders the Google sign-in button (headless render shows the `google-signin-admin` container, the loaded `accounts.google.com/gsi` script, and a "Sign in with" Google button) alongside the password form.
+- `git status` was clean before this PROJECT_STATE edit.
+- `backend/.env` and `frontend/.env` remain git-ignored (confirmed via `git check-ignore`).
+
+### Blocked / not yet done
+- **Real browser Google sign-in has NOT been clicked through** — this checkpoint covers configuration and button render only; end-to-end Google login is unproven.
+- Google Cloud Console must list `http://localhost:3000` as an **Authorized JavaScript origin** for this client.
+- OAuth consent screen must allow `mytaxicloud@gmail.com` if the app is in testing mode (publish or add as a test user).
+- Local password fallback is still needed for offline / break-glass use (Google verify requires internet).
+
+### Next safe step
+- Michael opens `http://localhost:3000/admin-login` and signs in with Google using `mytaxicloud@gmail.com`.
+- Then verify he lands on `/admin` as `owner`.
