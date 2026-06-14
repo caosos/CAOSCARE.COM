@@ -85,3 +85,33 @@ Claude Code with Michael running local sudo install commands on the Lenovo Ubunt
 
 ### Next safe step
 Create `backend/.env` locally (set `MONGO_URL=mongodb://localhost:27017`, `DB_NAME`, and a strong local `JWT_SECRET`), create the Python virtual environment, install backend requirements, then start the FastAPI backend and verify `/api/health`.
+
+---
+
+## 2026-06-14 — Local backend booted on Lenovo prototype
+
+### Agent / tool
+Claude Code with Michael on the Lenovo Ubuntu 24.04 laptop.
+
+### Branch / ref
+`main` at `4cb4a18` — `Record local MongoDB install in project state`
+
+### What changed
+- Verified `backend/.env` already exists (git-ignored) with all required keys present and non-empty: `MONGO_URL`, `DB_NAME`, `JWT_SECRET`, `CAOSCARE_ENABLE_DEMO_SEED`, `CORS_ORIGINS`, `PUBLIC_API_URL`. No secrets printed; file not modified.
+- Created the Python virtual environment at `backend/.venv` (Python 3.12.3) and upgraded pip.
+- Installed `backend/requirements.txt` successfully (exit 0).
+- Started the FastAPI backend via `uvicorn server:app --host 127.0.0.1 --port 8000`.
+
+### What is verified
+- `git check-ignore` confirms `backend/.env` is ignored by `.gitignore` (`*.env`).
+- Backend startup completed cleanly; demo seed correctly skipped (`CAOSCARE_ENABLE_DEMO_SEED=false`).
+- `curl -fsS http://127.0.0.1:8000/api/health` returns `{"ok":true,"db":"up"}` — backend reaches local MongoDB.
+- `git status --short` is clean (`.env` and `.venv` are ignored).
+
+### Blocked / not yet done
+- Frontend dependencies not installed; frontend not started (intentionally deferred this session).
+- Wi-Fi A/C control and SDR/pendant hardware tests not addressed this session.
+- Backend is running as a foreground/`nohup` process, not yet a managed systemd service.
+
+### Next safe step
+Install frontend dependencies and start the frontend, pointing it at `PUBLIC_API_URL=http://localhost:8000`, then verify the admin login flow end-to-end against the running backend.
