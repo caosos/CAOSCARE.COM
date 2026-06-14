@@ -115,3 +115,28 @@ Claude Code with Michael on the Lenovo Ubuntu 24.04 laptop.
 
 ### Next safe step
 Install frontend dependencies and start the frontend, pointing it at `PUBLIC_API_URL=http://localhost:8000`, then verify the admin login flow end-to-end against the running backend.
+
+---
+
+## 2026-06-14 — Local-first room-node architecture contract drafted
+
+### Agent / tool
+Claude #2 in a separate git worktree (architecture documentation lane).
+
+### Branch / ref
+`local-ai-room-node`, rebased onto latest `origin/main` (`704a832` — `Record local backend health check in project state`). Rebase reported the branch already up to date.
+
+### What changed
+- Created `docs/CAOSCARE_LOCAL_FIRST_ROOM_NODE_CONTRACT.md`, a new architecture contract for the local-first CAOSCare room node: laptop-first node (with rationale for x86-first and Raspberry Pi as supported-but-secondary), battery-backed laptop/eMeet/sensors, local MongoDB as the room-node state store, optional local AI tier, internet-as-enhancement (cloud only for phone calls, family messaging, news/web, remote dashboard, advanced AI), local mesh / room-node network concept, fail-gracefully modes (power, internet, router/AP, cloud, controlled-device), first prototype hardware (Lenovo laptop, eMeet, Nooelec SDR/pendant receiver, Wi-Fi A/C), and implementation guardrails (platform-neutral, no vendor lock-in, local logs/queued events, no resident-care-critical dependency on cloud AI, privacy/mute/physical controls later).
+- Updated `docs/REPO_MAP.md` documentation map with one line pointing to the new contract.
+
+### What is verified
+- Documentation only. No app code, `backend/.env`, dependency installs, or backend/frontend runtime changes were made.
+- Branch is even with `origin/main`; the new contract stays the only added file plus the two doc edits.
+
+### Blocked / not yet done
+- Not committed, not pushed, and not merged to `main` yet.
+- Concrete mesh transport, local AI tier selection, physical privacy controls, and acceptance tests in the contract remain planned/concept, not implemented or runtime-verified.
+
+### Next safe step
+Review the diff, commit the branch, push `local-ai-room-node`, then decide whether to open a PR / merge to `main`.

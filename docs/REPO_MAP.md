@@ -285,6 +285,7 @@ docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md
 docs/REPO_MAP.md
 docs/BUILD_STATUS.md                         First runnable/deployment-prep status and blockers
 docs/DEPLOYMENT_RUNBOOK.md                   First non-Docker /opt/caoscare server path
+docs/CAOSCARE_LOCAL_FIRST_ROOM_NODE_CONTRACT.md   Local-first room-node architecture: laptop-first node, local MongoDB store, optional local AI tier, mesh concept, and power/internet/router/cloud/device fail-graceful modes
 ```
 
 Recommended companion contracts still worth adding or expanding when needed:
