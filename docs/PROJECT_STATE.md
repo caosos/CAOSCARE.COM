@@ -53,3 +53,35 @@ ChatGPT with Michael running local terminal commands on Lenovo Ubuntu laptop.
 
 ### Next safe step
 Review and commit the documentation operating-procedure update, then continue with local Lenovo prototype setup.
+
+---
+
+## 2026-06-14 — Local MongoDB installed for Lenovo prototype
+
+### Agent / tool
+Claude Code with Michael running local sudo install commands on the Lenovo Ubuntu 24.04 (noble) laptop. CAOSCare is local-first; the room node should keep working without internet, so a local MongoDB was chosen over MongoDB Atlas for the first prototype path.
+
+### Branch / ref
+`main` at `022d90e` — `Add project state operating procedure`
+
+### What changed
+- Attempted to add the official MongoDB 7.0 apt repository for Ubuntu 24.04 (noble); this failed because the 7.0 `noble` Release file was unavailable from the repository.
+- Added the official MongoDB 8.0 apt repository for `noble`, which succeeded.
+- Installed `mongodb-org` from the 8.0 repository successfully.
+- Enabled and started the `mongod` systemd service.
+
+### What is verified
+- MongoDB reports version `v8.0.26`.
+- The `mongod` service is active.
+- Port `27017` is listening on `127.0.0.1`.
+- The backend connection target should be `mongodb://localhost:27017`.
+
+### Blocked / not yet done
+- `backend/.env` has not been created yet (still only `backend/.env.example`).
+- Python virtual environment for the backend has not been created.
+- Backend requirements (`backend/requirements.txt`) are not installed.
+- FastAPI backend has not been started; `/api/health` has not been validated against the new local MongoDB.
+- Frontend install/build and Wi-Fi A/C control remain unaddressed (carried over from prior entries).
+
+### Next safe step
+Create `backend/.env` locally (set `MONGO_URL=mongodb://localhost:27017`, `DB_NAME`, and a strong local `JWT_SECRET`), create the Python virtual environment, install backend requirements, then start the FastAPI backend and verify `/api/health`.
