@@ -115,3 +115,33 @@ Claude Code with Michael on the Lenovo Ubuntu 24.04 laptop.
 
 ### Next safe step
 Install frontend dependencies and start the frontend, pointing it at `PUBLIC_API_URL=http://localhost:8000`, then verify the admin login flow end-to-end against the running backend.
+
+---
+
+## 2026-06-14 — Frontend booted on Lenovo prototype
+
+### Agent / tool
+Claude #1 in main repo.
+
+### Branch / ref
+`main` at `704a832` (before this commit) — `Record local backend health check in project state`.
+
+### What changed
+- Created `frontend/yarn.lock` for a reproducible frontend dependency install (committed).
+- Created `frontend/.env` locally (sets `REACT_APP_BACKEND_URL=http://localhost:8000`, the bare backend origin without `/api`); it is git-ignored and **not committed**.
+
+### What is verified
+- Node 20.20.2 installed via nvm (user-local) — required because `react-router-dom@7` needs Node ≥20 (Lenovo had only Node 18.19.1).
+- `yarn install` (via `npx yarn@1.22.22`, matching the `packageManager` field) succeeded.
+- Frontend compiled with warnings only (eslint react-hooks warnings; no errors).
+- Frontend served at `http://localhost:3000` (HTTP 200).
+- `frontend/src/lib/api.js` appends `/api` to the origin itself, so the env value is correctly the bare origin; effective API base is `http://localhost:8000/api`.
+- Backend health remained `{"ok":true,"db":"up"}` throughout; backend untouched.
+
+### Blocked / not yet done
+- Admin login flow not yet verified end-to-end (browser → backend API).
+- nvm appended source lines to `~/.bashrc`; Node 20 is active in nvm shells (default alias set). A fresh shell needs `nvm use 20` if not auto-loaded.
+- Backend and frontend both run as `nohup`/dev processes, not managed services.
+
+### Next safe step
+Open the frontend in a browser and verify the admin login / API flow end-to-end against the running backend.
