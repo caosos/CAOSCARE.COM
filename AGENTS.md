@@ -65,8 +65,10 @@ High-risk outputs require clear boundaries and human confirmation.
 Before making changes, read:
 
 1. `README.md`
-2. `docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md`
-3. `docs/REPO_MAP.md`
+2. `docs/PROJECT_STATE.md`
+3. `docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md`
+4. `docs/REPO_MAP.md`
+5. `docs/BUILD_STATUS.md`
 
 If the public website is reachable, also inspect the live site and record verified page findings in `docs/REPO_MAP.md` or a dedicated website audit doc.
 
@@ -141,3 +143,33 @@ Stop and report before acting if:
 CAOS Care must be built as a governed assistive care platform with human oversight, privacy controls, receipts, safety boundaries, and operational usefulness.
 
 No hallucinated clinical claims. No autonomous medical judgment. No silent privacy risk. No vague enterprise fluff.
+
+## Project state update rule
+
+`AGENTS.md` is the only file a human or AI agent should need to remember first.
+
+Before beginning meaningful work, read:
+
+1. `AGENTS.md`
+2. `docs/PROJECT_STATE.md`
+3. `docs/REPO_MAP.md`
+4. `docs/BUILD_STATUS.md`
+5. any task-specific docs (for example `docs/DEPLOYMENT_RUNBOOK.md`, contracts, or surface-specific maps)
+
+If `docs/PROJECT_STATE.md` does not exist yet, read and update `docs/BUILD_STATUS.md` until `docs/PROJECT_STATE.md` is created.
+
+Before finishing meaningful work, update `docs/PROJECT_STATE.md` with a dated entry.
+
+Each entry must include:
+
+- Date
+- Agent/tool used
+- Branch/ref
+- What changed
+- What was verified
+- What is blocked
+- Next safe step
+
+Do not replace or erase prior project history. Append dated entries unless correcting a factual error, and label corrections clearly.
+
+Update `docs/PROJECT_STATE.md` after any completed feature, bug fix, deployment attempt, hardware/device test, authentication change, dependency/environment change, major documentation update, every few commits during active work, or any stopping point where another agent may need to resume.
