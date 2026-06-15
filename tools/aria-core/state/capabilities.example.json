@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "aria": {
+    "runtime": "tools/aria-core",
+    "status": "scaffold",
+    "can_chat": true,
+    "can_record_receipts": true
+  },
+  "home_assistant": {
+    "status": "planned_not_configured",
+    "configured": false,
+    "server_url_configured": false,
+    "token_configured": false,
+    "adapter_enabled": false,
+    "devices": [],
+    "notes": "Home Assistant is the first planned actuator layer. No server, token, or controllable devices are registered yet."
+  },
+  "input_endpoints": {
+    "current": ["cli_text"],
+    "planned": ["browser_text", "laptop_microphone", "phone", "room_microphone", "wearable", "bee"]
+  },
+  "vehicles": {
+    "status": "planned_concept_only",
+    "configured": false,
+    "devices": [],
+    "guardrails": [
+      "owner_or_authorized_user_only",
+      "verified_safe_location_required",
+      "comfort_climate_only_initially",
+      "no_security_critical_actions_initially",
+      "runtime_and_rate_limits_required",
+      "explicit_consent_and_per_vehicle_allowlist_required",
+      "receipt_required_for_every_action",
+      "no_brand_api_assumed_until_verified"
+    ]
+  }
+}
