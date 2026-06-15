@@ -215,3 +215,34 @@ Claude #1 in main repo.
 ### Next safe step
 - Michael opens `http://localhost:3000/admin-login` and signs in with Google using `mytaxicloud@gmail.com`.
 - Then verify he lands on `/admin` as `owner`.
+
+---
+
+## 2026-06-14 — Google OAuth browser sign-in verified end-to-end
+
+### Agent / tool
+Claude #1 in main repo.
+
+### Branch / ref
+`main` at `047336d` — `Record local Google OAuth configuration in project state` (before this checkpoint).
+
+### What changed
+- Google OAuth originally failed in the browser with `Error 401: invalid_client` / "no registered origin" — a Google-Console-side client/origin issue, not a CAOSCare code issue (zero `/api/auth/google/verify` requests reached the backend during those attempts).
+- A new **Web** OAuth client JSON was used from `~/Downloads/CAOScare.com/dev2googleauthjson` (actual file on disk: `dev2googleoauth.json`; verified top-level `web` block, not `installed`).
+- `backend/.env` (`GOOGLE_CLIENT_ID`) and `frontend/.env` (`REACT_APP_GOOGLE_CLIENT_ID`) were updated locally to the new client_id and remain git-ignored; `GOOGLE_ADMIN_EMAILS=mytaxicloud@gmail.com` preserved. Backend and frontend were restarted so CRA re-baked the new client id.
+
+### What is verified
+- Michael signed in with Google using `mytaxicloud@gmail.com`.
+- `/api/auth/google/verify` reached the backend and returned **200** (preceded by a CORS preflight `OPTIONS` 200).
+- MongoDB shows `mytaxicloud@gmail.com` as `MICHAEL CHAMBERS`, `role: owner`, `auth_provider: google` (promoted via the `GOOGLE_ADMIN_EMAILS` allowlist).
+- Browser landed on `/admin` and showed "Welcome, MICHAEL CHAMBERS" / Role: Owner.
+- Backend health remained `{"ok":true,"db":"up"}`; frontend remained HTTP 200 throughout.
+- No client IDs, secrets, tokens, cookies, password hashes, or `.env` contents were printed or committed at any point.
+
+### Blocked / not yet done
+- Google sign-in requires internet (server-side token verification), so it is the **online** admin path only.
+- Local password fallback (`/api/auth/admin-login`, bcrypt) remains **recommended for offline / break-glass** mode; keep at least one known offline owner password before relying solely on Google.
+- Backend/frontend still run as detached dev processes (`setsid`), not managed services.
+
+### Next safe step
+Decide whether to provision/record a known offline break-glass owner password, and plan the production OAuth client (Authorized JavaScript origins for the deployed domain) when moving beyond localhost.
