@@ -156,6 +156,8 @@ Before beginning meaningful work, read:
 4. `docs/BUILD_STATUS.md`
 5. any task-specific docs (for example `docs/DEPLOYMENT_RUNBOOK.md`, contracts, or surface-specific maps)
 
+When the task involves ARIA logic, reusable tools, engines, adapters, or prior source material, also read `tools/README.md` after `docs/PROJECT_STATE.md` and `docs/REPO_MAP.md`. It is the discovery point for reusable tooling under `tools/` (for example the `tools/aria-core` plug-and-play ARIA scaffold and the archived `tools/aria-response-engine` source material).
+
 If `docs/PROJECT_STATE.md` does not exist yet, read and update `docs/BUILD_STATUS.md` until `docs/PROJECT_STATE.md` is created.
 
 Before finishing meaningful work, update `docs/PROJECT_STATE.md` with a dated entry.

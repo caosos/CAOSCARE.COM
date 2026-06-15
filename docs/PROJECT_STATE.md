@@ -275,3 +275,30 @@ ChatGPT started the `aria-core-scaffold` branch directly on GitHub; Claude Code 
 
 ### Next safe step
 Wire the ARIA core into the CAOSCare backend route or the frontend chat shell, behind the existing inference adapter boundary, after reviewing capability-truth wiring.
+
+---
+
+## 2026-06-14 — Tool discovery documentation added for ARIA core
+
+### Agent / tool
+Claude Code on the local `aria-core-scaffold` branch.
+
+### Branch / ref
+`aria-core-scaffold` (not merged to `main`).
+
+### What changed
+- Added `tools/README.md` as the discovery point for reusable project tools, engines, source material, and prototypes under `tools/`.
+- Updated `AGENTS.md` so future agents know `tools/` exists: when a task involves ARIA logic, reusable tools, engines, adapters, or prior source material, read `tools/README.md` after `docs/PROJECT_STATE.md` and `docs/REPO_MAP.md`.
+- Updated `docs/REPO_MAP.md`: added `tools/` to the top-level architecture map and a new "Reusable tools map" section with entries for `tools/README.md`, `tools/aria-core/`, and `tools/aria-response-engine/`.
+
+### What is verified
+- `tools/aria-core` remains the current plug-and-play ARIA scaffold.
+- `tools/aria-response-engine` remains archived prior source material (reference only, not wired into the app).
+- Docs-only change: no secrets, no app runtime changes, no `.env` changes, no installs, no service restarts.
+
+### Blocked / not yet done
+- ARIA core is still not wired into the CAOSCare app runtime.
+- Branch `aria-core-scaffold` is not merged to `main`.
+
+### Next safe step
+Open/review a PR for `aria-core-scaffold`, or wire the ARIA core into CAOSCare behind a backend route.

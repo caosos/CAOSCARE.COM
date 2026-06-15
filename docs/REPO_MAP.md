@@ -63,7 +63,18 @@ backend/                                       FastAPI backend and domain routes
 android-companion/                             Android companion / RF bridge companion surface
 android-bridge/                                Android RF bridge / protocol support surface
 android-vision/                                Android vision / voice assistance surface
+tools/                                         Reusable tools, engines, source material, prototypes
 .emergent/                                     Emergent-generated summary/metadata surface
+```
+
+## Reusable tools map (`tools/`)
+
+`tools/` holds reusable tools, engines, source material, and prototypes kept separate from the running app surfaces. See `tools/README.md` for the full discovery point and rules (no secrets; runtime/session/receipt output stays git-ignored).
+
+```text
+tools/README.md                                Discovery point for reusable project tools
+tools/aria-core/                               Plug-and-play ARIA runtime scaffold (current; swappable mock/openai providers, capability-aware, never claims unverified control)
+tools/aria-response-engine/                    Archived prior CAOS/ARIA source material (reference lineage only, not wired into the app)
 ```
 
 ## Frontend map
