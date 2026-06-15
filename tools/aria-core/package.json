@@ -1,0 +1,20 @@
+{
+  "name": "@caoscare/aria-core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Plug-and-play ARIA core scaffold for provider-agnostic capability-aware responses.",
+  "main": "src/generateResponse.js",
+  "type": "commonjs",
+  "bin": {
+    "aria-core": "cli/aria.js"
+  },
+  "scripts": {
+    "smoke": "node cli/aria.js \"Aria, cool the house down\""
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "optionalDependencies": {
+    "openai": "^4.104.0"
+  }
+}
