@@ -246,3 +246,32 @@ Claude #1 in main repo.
 
 ### Next safe step
 Decide whether to provision/record a known offline break-glass owner password, and plan the production OAuth client (Authorized JavaScript origins for the deployed domain) when moving beyond localhost.
+
+---
+
+## 2026-06-14 — ARIA ambient intent architecture contract drafted
+
+### Agent / tool
+Claude #2 in a separate worktree/branch.
+
+### Branch / ref
+`aria-ambient-intent` (current with `origin/main` at `ad6391c` — no rebase needed).
+
+### What changed
+- Created `docs/CAOSCARE_ARIA_AMBIENT_INTENT_CONTRACT.md`: defines ARIA as the ambient personal intent layer above CAOSCare, Home Assistant, wearable/phone/laptop endpoints, and future room nodes. ARIA maps natural language to permission-checked, receipt-logged actions and holds no authority of its own; CAOSCare remains the identity, permission, task, audit, and receipt layer.
+- Updated `docs/REPO_MAP.md` to list the new contract in the documentation map.
+
+### What is verified
+- Docs only. No app code, no `backend/.env` or `frontend/.env`, no installs, no backend/frontend start/stop, no runtime changes.
+
+### Scope
+- HA-only first proof-of-concept ("Aria, turn on the living-room AC" / "Aria, cool the house down"); Home Assistant is the first actuator adapter, reusing the room-node Wi-Fi A/C device.
+- Vehicles and Bee/wearables are documented as planned/concept future adapters/endpoints. Vehicle class carries full guardrails (owner-only, no enclosed-space start, climate/remote-start only, no security-critical actions initially, runtime/rate limits, consent + per-vehicle allowlist, receipt per action) and assumes no vehicle API until separately verified.
+
+### Blocked / not yet done
+- Not merged to `main`.
+- Home Assistant is not installed or configured.
+- No ARIA runtime / voice pipeline built yet.
+
+### Next safe step
+Review the diff, commit the branch, push the branch, then decide whether to open a PR / merge.

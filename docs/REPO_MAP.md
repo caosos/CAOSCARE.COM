@@ -285,6 +285,7 @@ docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md
 docs/REPO_MAP.md
 docs/BUILD_STATUS.md                         First runnable/deployment-prep status and blockers
 docs/DEPLOYMENT_RUNBOOK.md                   First non-Docker /opt/caoscare server path
+docs/CAOSCARE_ARIA_AMBIENT_INTENT_CONTRACT.md  ARIA ambient personal intent layer; HA-only first PoC; vehicles/Bee planned/concept
 ```
 
 Recommended companion contracts still worth adding or expanding when needed:
