@@ -246,3 +246,32 @@ Claude #1 in main repo.
 
 ### Next safe step
 Decide whether to provision/record a known offline break-glass owner password, and plan the production OAuth client (Authorized JavaScript origins for the deployed domain) when moving beyond localhost.
+
+---
+
+## 2026-06-14 — Plug-and-play ARIA core scaffold added under tools
+
+### Agent / tool
+ChatGPT started the `aria-core-scaffold` branch directly on GitHub; Claude Code finished and verified it on the local branch.
+
+### Branch / ref
+`aria-core-scaffold` (branched from `main` after `ad6391c`). Not merged to `main`.
+
+### What changed
+- Verified ChatGPT's existing `tools/aria-core/` scaffold (package.json, README, `src/generateResponse.js`, `src/inference/{index,mockProvider,openaiProvider}.js`, `src/capabilities/capabilityRegistry.js`, `src/memory/sessionMemory.js`, `src/authority/decisionLayer.js`, `src/receipts/receiptWriter.js`, `state/capabilities.example.json`, `identity/aria_identity.example.md`, `cli/aria.js`) — all present and complete.
+- Archived the prior ARIA response engine as source material: `tools/aria-response-engine/legacy/response_engine.js` (copied from `~/Desktop/CAOSCARE/response_engine.js`, 227 lines; key is env-only, no hardcoded secrets) plus a new `tools/aria-response-engine/README.md` explaining it is archival lineage superseded by `tools/aria-core`.
+
+### What is verified
+- Mock provider runs without any API keys (default path).
+- OpenAI provider is env-only: reads `OPENAI_API_KEY` / `OPENAI_MODEL` from the environment and throws if the key is missing; lazily requires the `openai` package.
+- Home Assistant is represented as planned/not configured; no controllable A/C device is registered.
+- Smoke test `node tools/aria-core/cli/aria.js "Aria, cool the house down"` exits 0 and ARIA explicitly does **not** claim control — it states Home Assistant is planned but not configured, no A/C device is registered, and asks for brand/model/app before any control attempt.
+- Runtime sessions/receipts write only under `tools/aria-core/runtime/`, which is git-ignored (`.gitignore` line `/tools/aria-core/runtime/`); confirmed nothing from a smoke run is tracked.
+- No secrets committed (archived engine and providers are env-only).
+
+### Blocked / not yet done
+- No app runtime integration yet — ARIA core is a standalone scaffold under `tools/`, not wired into the CAOSCare backend or frontend.
+- `tools/aria-response-engine/legacy/response_engine.js` references sibling modules (file-engine, identity/state paths) that are not included; it is archival reference, not runnable as-is.
+
+### Next safe step
+Wire the ARIA core into the CAOSCare backend route or the frontend chat shell, behind the existing inference adapter boundary, after reviewing capability-truth wiring.
