@@ -117,6 +117,9 @@ credentials.json
 *.key
 .credentials
 
+# ARIA core runtime output
+/tools/aria-core/runtime/
+
 # Keep committed environment templates while ignoring real env files
 !.env.example
 !**/.env.example
