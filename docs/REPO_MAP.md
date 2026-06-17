@@ -4,7 +4,7 @@
 
 This map makes the CAOS Care repository inspectable by future AI agents and human builders.
 
-It is the current source-orientation document for the repository. Future agents must update this file when major frontend, backend, Android, hardware, documentation, or memory architecture changes are added.
+It is the current source-orientation document for the repository. Future agents must update this file when major frontend, backend, Android, hardware, documentation, memory architecture, or CCE-lite trust-layer changes are added.
 
 ## Verified repository state
 
@@ -32,6 +32,7 @@ Android bridge / RF integration surfaces
 Android vision application surfaces
 memory / PRD documentation
 agent onboarding documentation
+CCE-lite trust-layer proposal
 ```
 
 Future agents must not treat this repository as blank or documentation-only.
@@ -43,10 +44,12 @@ Before modifying this repository, read:
 ```text
 README.md
 AGENTS.md
+docs/PROJECT_STATE.md
 docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md
+docs/CCE_LITE_TRUST_LAYER_PROPOSAL.md      CAOS Care CCE-lite trust-layer proposal
 docs/REPO_MAP.md
-docs/BUILD_STATUS.md                         First runnable/deployment-prep status and blockers
-docs/DEPLOYMENT_RUNBOOK.md                   First non-Docker /opt/caoscare server path
+docs/BUILD_STATUS.md                       First runnable/deployment-prep status and blockers
+docs/DEPLOYMENT_RUNBOOK.md                 First non-Docker /opt/caoscare server path
 ```
 
 Then inspect the specific files relevant to the requested task.
@@ -56,7 +59,7 @@ Then inspect the specific files relevant to the requested task.
 ```text
 README.md                                      Public repo entrypoint
 AGENTS.md                                      Mandatory AI/build-agent operating protocol
-docs/                                          Governance, onboarding, repo map, future contracts
+docs/                                          Governance, onboarding, repo map, CCE-lite proposal, future contracts
 memory/                                        Product requirement / memory doctrine artifacts
 frontend/                                      Web application frontend
 backend/                                       FastAPI backend and domain routes
@@ -65,6 +68,22 @@ android-bridge/                                Android RF bridge / protocol supp
 android-vision/                                Android vision / voice assistance surface
 .emergent/                                     Emergent-generated summary/metadata surface
 ```
+
+## CCE-lite trust-layer map
+
+Primary proposal:
+
+```text
+docs/CCE_LITE_TRUST_LAYER_PROPOSAL.md          Care-safe profile of the CAOS Council Engine direction
+```
+
+Search terms:
+
+```text
+CCE-lite, CAOS Council Engine, trust layer, intent classifier, risk gate, verifier, receipt, human escalation, Fast Care Mode, Verified Care Mode, Council Care Mode, Lockdown Mode
+```
+
+Implementation note: CAOS Care should not run a heavy multi-model council for every resident/staff interaction. First implementation should classify intent, gate risk, verify sensitive outputs, record receipts, and escalate to humans when required.
 
 ## Frontend map
 
@@ -111,6 +130,15 @@ PR #8: REACT_APP_BACKEND_URL guard added; value must be backend origin without t
 PR #9: Emergent visual-edit tooling removed from frontend package/config surface
 PR #11: public provider/care-domain copy no longer hardcodes Claude/Sonnet/Haiku claims
 yarn.lock: still missing; reproducible frontend install remains blocked until lockfile policy is approved
+```
+
+Potential future CCE-lite UI surfaces:
+
+```text
+admin mode policy: Fast / Verified / Council / Lockdown
+staff/admin verification status for family updates and handoffs
+receipt detail showing intent lane, risk level, verifier result, and escalation state
+human-confirmation banner for high-risk actions
 ```
 
 ## Backend map
@@ -187,6 +215,15 @@ owned OAuth / direct Google OAuth: not implemented
 First server validation: use bootstrapped owner admin/JWT login, not Google login, as the initial validation path
 ```
 
+Potential future CCE-lite backend modules, if runtime implementation begins:
+
+```text
+backend/services/cce_lite_policy.py             Intent lane + risk level selection
+backend/services/cce_lite_verifier.py           Sensitive-output verification
+backend/services/cce_lite_receipts.py           Audit-safe trust-layer receipt construction
+backend/routes/trust_layer.py                   Admin policy and receipt inspection surface if needed
+```
+
 ## Domain model map
 
 Verified model/domain concepts include:
@@ -217,6 +254,19 @@ HardwareDevice / capability probe concepts
 ```
 
 Safety note: model names and schemas may include medical-adjacent fields such as medications, clinical thresholds, alerts, vitals, and behavior-change signals. These must remain assistive/advisory unless explicit regulatory and clinical authority exists.
+
+CCE-lite model concepts to add only when implementation work begins:
+
+```text
+intent_lane
+risk_level
+mode_used
+verifier_result
+privacy_flags
+safety_flags
+human_confirmation_required
+final_status
+```
 
 ## Android / device map
 
@@ -282,6 +332,7 @@ Verified governance/onboarding docs include:
 README.md
 AGENTS.md
 docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md
+docs/CCE_LITE_TRUST_LAYER_PROPOSAL.md
 docs/REPO_MAP.md
 docs/BUILD_STATUS.md                         First runnable/deployment-prep status and blockers
 docs/DEPLOYMENT_RUNBOOK.md                   First non-Docker /opt/caoscare server path
@@ -299,7 +350,6 @@ docs/FEATURE_PARITY_MATRIX.md
 docs/API_SURFACE_MAP.md
 docs/ANDROID_DEVICE_MAP.md
 ```
-
 
 ## Deployment readiness docs
 
@@ -377,6 +427,7 @@ wearable event ingest
 family portal
 notifications
 AI chat / TTS / vision assistance
+CCE-lite trust-layer proposal and receipt direction
 hardware/device registry concepts
 facility / multi-tenant root concepts
 roadmap / blueprint / help surfaces
@@ -409,6 +460,8 @@ legal/compliance guarantees
 selling or exposing private resident/staff/family data
 ```
 
+CCE-lite must preserve these boundaries. Sensitive care outputs should route through verification or human confirmation rather than pretending the model is an authority.
+
 ## Current open work
 
 ```text
@@ -424,6 +477,7 @@ selling or exposing private resident/staff/family data
 10. Keep `CAOSCARE_ENABLE_DEMO_SEED=false` for production/server boot; use `backend/scripts/bootstrap_owner.py` for first owner creation.
 11. Add/approve a frontend lockfile such as `yarn.lock` for reproducible deployment builds.
 12. Complete first server deployment and validate MongoDB, backend health, owner bootstrap, admin/JWT login, frontend build, reverse proxy, and live website behavior.
+13. If implementation begins, add CCE-lite policy/verifier/receipt modules with acceptance criteria and runtime tests.
 ```
 
 ## Search terms for future agents
@@ -458,6 +512,12 @@ facility
 hardware
 escalation
 notification
+CCE-lite
+trust layer
+intent classifier
+risk gate
+verifier
+human confirmation
 ```
 
 ## Non-negotiable
