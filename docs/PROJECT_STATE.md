@@ -345,3 +345,36 @@ Claude Code with Michael on the `caoscare1-hp-elitedesk` host, following `comman
 
 ### Next safe step
 Michael opens a browser on any LAN device to `http://192.168.1.151:8123` (fallback `http://192.168.122.137:8123` from the EliteDesk itself) and completes Home Assistant's onboarding wizard (local account, home name/location; skip Nabu Casa/remote access — out of scope). Tell Claude once done so Phase 4 can proceed.
+
+---
+
+## 2026-08-02 — Aria voice-first (Terminal 5/5A): capability registry, operator memory, first Realtime session, one real bug fixed
+
+### Agent / tool
+Claude Code with Michael on `caoscare1-hp-elitedesk`, following `commands/TERMINAL_5_ARIA_VOICE_FIRST.md` and `commands/TERMINAL_5A_ARIA_CAPABILITY_PORTFOLIO.md`. Full detail in `docs/ARIA_VOICE_FIRST.md` and `docs/ARIA_CAPABILITY_PORTFOLIO.md`. Midea/Matter LAN work (Terminal 4) explicitly paused per Terminal 5A's priority order, tracked as a `blocked` capability, not erased.
+
+### Branch / ref
+`main`, continuing from `2bb9ddc`. Commits from this session follow.
+
+### What changed
+- Confirmed existing OpenAI Realtime WebRTC voice pipeline (`frontend/src/lib/useRealtimeVoice.js` + `backend/routes/realtime.py`) was already built, just missing `OPENAI_API_KEY` on this host. Michael provided it via a hidden local shell prompt — never pasted into chat, never printed.
+- Built the Terminal 5A capability portfolio: `AriaCapability` model + `backend/routes/capabilities.py` (`/api/capabilities`, owner-only, with a receipt-backed `/verify` endpoint), seeded with the 7 required initial entries.
+- Built Aria's operator memory scope (Michael's explicit choice, kept separate from resident memory/`docs/CAOSCARE_MEMORY_AUTOMATION_CONTRACT.md`): `AriaMemory`/`AriaVoiceSession` models + `backend/routes/aria_memory.py` (`/api/aria/memory`, `/api/aria/sessions`).
+- Added Aria's own Realtime session path (`POST /api/realtime/aria-session`) with her own persona/instructions, live capability-portfolio summary, and operator-memory context — kept fully separate from the resident-facing `/realtime/session`. No tools wired yet (by design — audio/conversation proof comes before tool routing).
+- **Found and fixed a real pre-existing bug**: `useRealtimeVoice.js` read the ephemeral session key from the wrong field (`client_secret.value` instead of the actual top-level `value` the `/realtime/client_secrets` endpoint returns). This would have silently broken every Realtime voice session, resident and Aria alike, at the very first step. Fixed with a tolerant fallback.
+- Added a minimal `/aria` page (`frontend/src/pages/AriaVoice.jsx`, owner-only route) — orb, status, start/stop, live transcript. No decorative UI.
+
+### What was verified
+- `POST /api/realtime/aria-session` mints a real ephemeral key and correctly-built instructions (persona + live portfolio + memory context, currently empty).
+- Backend/frontend both restarted and confirmed healthy multiple times this session; frontend hot-compiled the new page with no new errors.
+- Capability registry and operator-memory CRUD + the verify/receipt pattern all round-tripped correctly against the running backend.
+
+### Blocked / not yet done
+- **Nobody has spoken to Aria yet** — session minting is proven, the actual browser/WebRTC/microphone round-trip is not. That's the next real test.
+- Wake-word ("Aria" hands-free) is Phase D, not started.
+- Tool routing from Aria to the capability registry (Terminal 5A step 3) not started.
+- Midea/Matter LAN work remains paused (blocked capability, host's only NIC is Wi-Fi carrying this SSH session; eno1 has no cable).
+- `RealtimeChatScreen.jsx` (resident-facing) wasn't changed beyond the shared bugfix — worth a real end-to-end resident/kiosk session test at some point since it apparently was never exercised live before either.
+
+### Next safe step
+Michael opens `http://localhost:3000/aria` in a browser on the EliteDesk itself (so it uses the eMeet Luna Plus mic/speaker), logs in as owner, clicks "Start talking with Aria," allows microphone access, and talks. Reports back whether it connected, whether Aria's voice was audible/clear, and whether the conversation felt natural.
