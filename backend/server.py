@@ -42,6 +42,8 @@ from routes import escalation as escalation_routes  # noqa: E402
 from routes import research as research_routes  # noqa: E402
 from routes import weather as weather_routes  # noqa: E402
 from routes import timers as timer_routes  # noqa: E402
+from routes import capabilities as capability_routes  # noqa: E402
+from routes import aria_memory as aria_memory_routes  # noqa: E402
 from seed import demo_seed_enabled, seed  # noqa: E402
 
 
@@ -121,6 +123,8 @@ api.include_router(escalation_routes.router)
 api.include_router(research_routes.router)
 api.include_router(weather_routes.router)
 api.include_router(timer_routes.router)
+api.include_router(capability_routes.router)
+api.include_router(aria_memory_routes.router)
 
 app.include_router(api)
 

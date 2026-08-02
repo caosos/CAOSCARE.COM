@@ -856,3 +856,173 @@ class EscalationRule(BaseModel):
     notify_oncall_phone: Optional[str] = None
     enabled: bool = True
     updated_at: datetime = Field(default_factory=now_utc)
+
+
+# ---------- Aria capability portfolio (Terminal 5A) ----------
+# A durable registry of every device/service/workflow/tool Aria may ever
+# control, so capability is never lost between sessions and Aria never
+# claims control she doesn't actually have. See docs/ARIA_CAPABILITY_PORTFOLIO.md.
+
+CapabilityLifecycle = Literal[
+    "planned", "discovered", "configured", "verified_read",
+    "verified_control", "blocked", "offline", "retired",
+]
+
+CapabilityCategory = Literal[
+    "voice", "memory", "home_automation", "appliance", "messaging",
+    "infrastructure", "hardware", "future",
+]
+
+
+class AriaCapability(BaseModel):
+    """One entry in the capability portfolio. Aria may only claim to control
+    a capability when status == 'verified_control' AND the requested action
+    is in supported_actions."""
+    model_config = ConfigDict(extra="ignore")
+    capability_id: str = Field(default_factory=lambda: uid("cap"))
+    name: str
+    category: CapabilityCategory = "future"
+    target: str                                    # device/service/workflow/system this acts on
+    discovery_source: str                           # how we know this exists (doc, host scan, directive)
+    status: CapabilityLifecycle = "planned"
+    control_path: Optional[str] = None              # API route / MQTT topic / CLI, etc.
+    required_credentials: List[str] = Field(default_factory=list)   # env var NAMES only, never values
+    supported_actions: List[str] = Field(default_factory=list)
+    read_only_observations: List[str] = Field(default_factory=list)
+    verification_state: Optional[str] = None        # free-text: how/when last verified
+    last_verified_at: Optional[datetime] = None
+    current_blocker: Optional[str] = None
+    next_step: Optional[str] = None
+    human_confirmation_policy: Literal["always_confirm", "confirm_destructive", "autonomous"] = "always_confirm"
+    receipt_log_location: str = "db.aria_capability_receipts"
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class AriaCapabilityCreate(BaseModel):
+    name: str
+    category: CapabilityCategory = "future"
+    target: str
+    discovery_source: str
+    status: CapabilityLifecycle = "planned"
+    control_path: Optional[str] = None
+    required_credentials: List[str] = Field(default_factory=list)
+    supported_actions: List[str] = Field(default_factory=list)
+    read_only_observations: List[str] = Field(default_factory=list)
+    current_blocker: Optional[str] = None
+    next_step: Optional[str] = None
+    human_confirmation_policy: Literal["always_confirm", "confirm_destructive", "autonomous"] = "always_confirm"
+
+
+class AriaCapabilityUpdate(BaseModel):
+    name: Optional[str] = None
+    category: Optional[CapabilityCategory] = None
+    target: Optional[str] = None
+    status: Optional[CapabilityLifecycle] = None
+    control_path: Optional[str] = None
+    required_credentials: Optional[List[str]] = None
+    supported_actions: Optional[List[str]] = None
+    read_only_observations: Optional[List[str]] = None
+    current_blocker: Optional[str] = None
+    next_step: Optional[str] = None
+    human_confirmation_policy: Optional[Literal["always_confirm", "confirm_destructive", "autonomous"]] = None
+
+
+class AriaCapabilityVerify(BaseModel):
+    """Records a verification attempt against a capability — this IS the
+    receipt (persisted to db.aria_capability_receipts)."""
+    outcome: Literal["verified_read", "verified_control", "blocked", "offline"]
+    note: Optional[str] = None
+
+
+# ---------- Aria operator memory (NOT resident memory) ----------
+# Deliberately separate from ResidentMemory / docs/CAOSCARE_MEMORY_AUTOMATION_CONTRACT.md.
+# That system stores elder-care facts about a resident_id under a governed,
+# clinical-adjacent contract. Aria's operator memory stores Michael's own
+# identity/preferences/projects and is scoped to owner_user_id, never mixed
+# into resident bulletins, extraction, or facility-facing views.
+
+AriaMemoryCategory = Literal[
+    "identity", "preference", "project", "commitment", "decision",
+    "session_summary", "other",
+]
+AriaMemoryBin = Literal["standing", "episodic"]
+AriaMemoryConfidence = Literal["stated", "inferred", "uncertain"]
+
+_ARIA_STANDING_CATEGORIES = {"identity", "preference", "project"}
+
+
+def default_aria_bin_for_category(category: str) -> str:
+    return "standing" if category in _ARIA_STANDING_CATEGORIES else "episodic"
+
+
+class AriaMemory(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    memory_id: str = Field(default_factory=lambda: uid("amem"))
+    owner_user_id: str
+    text: str
+    category: AriaMemoryCategory = "other"
+    bin: AriaMemoryBin = "standing"
+    importance: int = 3
+    source: Literal["voice_session", "chat", "admin", "extraction"] = "extraction"
+    source_session_id: Optional[str] = None
+    confidence: AriaMemoryConfidence = "stated"
+    pinned: bool = False
+    archived: bool = False
+    last_referenced_at: Optional[datetime] = None
+    times_referenced: int = 0
+    created_at: datetime = Field(default_factory=now_utc)
+
+
+class AriaMemoryCreate(BaseModel):
+    owner_user_id: str
+    text: str
+    category: AriaMemoryCategory = "other"
+    bin: Optional[AriaMemoryBin] = None
+    importance: int = 3
+    source: Literal["voice_session", "chat", "admin", "extraction"] = "admin"
+    confidence: AriaMemoryConfidence = "stated"
+    pinned: bool = False
+
+
+class AriaMemoryUpdate(BaseModel):
+    text: Optional[str] = None
+    category: Optional[AriaMemoryCategory] = None
+    bin: Optional[AriaMemoryBin] = None
+    importance: Optional[int] = None
+    confidence: Optional[AriaMemoryConfidence] = None
+    pinned: Optional[bool] = None
+    archived: Optional[bool] = None
+
+
+class AriaVoiceSession(BaseModel):
+    """Session summary/receipt written at the end of every Aria voice
+    session. Never stores raw audio."""
+    model_config = ConfigDict(extra="ignore")
+    session_id: str = Field(default_factory=lambda: uid("avs"))
+    owner_user_id: str
+    wake_word: str = "Aria"
+    transport: Literal["openai_realtime", "local_fallback"] = "openai_realtime"
+    started_at: datetime = Field(default_factory=now_utc)
+    ended_at: Optional[datetime] = None
+    topics: List[str] = Field(default_factory=list)
+    decisions: List[str] = Field(default_factory=list)
+    tasks_created: List[str] = Field(default_factory=list)
+    tasks_completed: List[str] = Field(default_factory=list)
+    unresolved_next_step: Optional[str] = None
+    tool_actions: List[dict] = Field(default_factory=list)   # {capability_id, action, result, receipt_ref}
+
+
+class AriaVoiceSessionCreate(BaseModel):
+    owner_user_id: str
+    wake_word: str = "Aria"
+    transport: Literal["openai_realtime", "local_fallback"] = "openai_realtime"
+
+
+class AriaVoiceSessionEnd(BaseModel):
+    topics: List[str] = Field(default_factory=list)
+    decisions: List[str] = Field(default_factory=list)
+    tasks_created: List[str] = Field(default_factory=list)
+    tasks_completed: List[str] = Field(default_factory=list)
+    unresolved_next_step: Optional[str] = None
+    tool_actions: List[dict] = Field(default_factory=list)
