@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -18,6 +18,7 @@ const GSI_SRC = "https://accounts.google.com/gsi/client";
 
 export default function GoogleSignIn({ portal = "staff" }) {
   const nav = useNavigate();
+  const location = useLocation();
   const { setUser } = useAuth();
   const slotRef = useRef(null);
   const [ready, setReady] = useState(false);
@@ -56,7 +57,8 @@ export default function GoogleSignIn({ portal = "staff" }) {
           localStorage.setItem("caos_token", data.token);
           setUser(data.user);
           toast.success(`Welcome, ${data.user.name}`);
-          nav(["owner", "admin"].includes(data.user.role) ? "/admin" : "/staff");
+          const fallback = ["owner", "admin"].includes(data.user.role) ? "/admin" : "/staff";
+          nav(location.state?.from?.pathname || fallback);
         } catch (err) {
           toast.error(err?.response?.data?.detail || "Google sign-in failed");
         }
@@ -68,7 +70,7 @@ export default function GoogleSignIn({ portal = "staff" }) {
       width: 320,
       text: portal === "admin" ? "signin_with" : "continue_with",
     });
-  }, [ready, clientId, portal, nav, setUser]);
+  }, [ready, clientId, portal, nav, setUser, location.state]);
 
   if (!clientId) return null;
   return <div ref={slotRef} data-testid={`google-signin-${portal}`} className="flex justify-center" />;

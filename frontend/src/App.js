@@ -19,6 +19,7 @@ import AriaVoice from "./pages/AriaVoice";
 
 function Protected({ children, adminOnly = false, ownerOnly = false }) {
   const { user, loading } = useAuth();
+  const location = useLocation();
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-caos-bone">
@@ -26,7 +27,14 @@ function Protected({ children, adminOnly = false, ownerOnly = false }) {
       </div>
     );
   }
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) {
+    // Owner/admin-only pages send you to the admin-branded portal, not the
+    // staff one; either way we carry the originally-requested path so a
+    // successful sign-in lands you back where you meant to go instead of
+    // always dumping you at /admin.
+    const dest = ownerOnly || adminOnly ? "/admin-login" : "/login";
+    return <Navigate to={dest} state={{ from: location }} replace />;
+  }
   if (ownerOnly && user.role !== "owner") return <Navigate to="/admin" replace />;
   // "Admin" tier = owner OR admin (clinical admin nurse). Staff are rejected.
   if (adminOnly && !["owner", "admin"].includes(user.role)) return <Navigate to="/staff" replace />;

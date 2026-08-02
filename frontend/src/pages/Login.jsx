@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -13,6 +13,7 @@ const AUTH_IMG =
 
 export default function Login() {
   const nav = useNavigate();
+  const location = useLocation();
   const { loginJwt, registerJwt } = useAuth();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ email: "", password: "", name: "", role: "staff" });
@@ -23,7 +24,8 @@ export default function Login() {
     try {
       const u = await loginJwt(form.email, form.password);
       toast.success(`Welcome, ${u.name}`);
-      nav(["owner", "admin"].includes(u.role) ? "/admin" : "/staff");
+      const fallback = ["owner", "admin"].includes(u.role) ? "/admin" : "/staff";
+      nav(location.state?.from?.pathname || fallback);
     } catch (err) {
       toast.error(err?.response?.data?.detail || "Login failed");
     } finally {

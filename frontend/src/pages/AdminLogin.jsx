@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -10,6 +10,7 @@ import { ShieldCheck, ArrowRight } from "lucide-react";
 
 export default function AdminLogin() {
   const nav = useNavigate();
+  const location = useLocation();
   const { loginAdmin } = useAuth();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ email: "", password: "" });
@@ -20,7 +21,7 @@ export default function AdminLogin() {
     try {
       const u = await loginAdmin(form.email, form.password);
       toast.success(`Welcome, ${u.name}`);
-      nav("/admin");
+      nav(location.state?.from?.pathname || "/admin");
     } catch (err) {
       const status = err?.response?.status;
       const msg = err?.response?.data?.detail || "Sign-in failed";
