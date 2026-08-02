@@ -15,6 +15,7 @@ import InstallKioskWizard from "./pages/InstallKioskWizard";
 import HelpHub from "./pages/HelpHub";
 import AuthCallback from "./pages/AuthCallback";
 import FamilyPortal from "./pages/FamilyPortal";
+import AriaVoice from "./pages/AriaVoice";
 
 function Protected({ children, adminOnly = false, ownerOnly = false }) {
   const { user, loading } = useAuth();
@@ -51,6 +52,7 @@ function AppRouter() {
       <Route path="/admin/install" element={<Protected adminOnly><InstallKioskWizard /></Protected>} />
       <Route path="/admin/install/:kioskId" element={<Protected adminOnly><InstallKioskWizard /></Protected>} />
       <Route path="/admin/help" element={<Protected adminOnly><HelpHub /></Protected>} />
+      <Route path="/aria" element={<Protected ownerOnly><AriaVoice /></Protected>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

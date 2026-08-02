@@ -178,7 +178,10 @@ async function executeTool({ name, args, ctx }) {
   }
 }
 
-export function useRealtimeVoice({ voice = "shimmer", residentId, kioskId, room, onEndCall } = {}) {
+export function useRealtimeVoice({
+  voice = "shimmer", residentId, kioskId, room, onEndCall,
+  sessionEndpoint = "/realtime/session", sessionPayload,
+} = {}) {
   const pcRef = useRef(null);
   const dcRef = useRef(null);
   const audioElRef = useRef(null);
@@ -225,21 +228,26 @@ export function useRealtimeVoice({ voice = "shimmer", residentId, kioskId, room,
     let stream = null;
     try {
       // 1. Mint ephemeral session
-      const sessionRes = await fetch(`${API}/realtime/session`, {
+      const sessionRes = await fetch(`${API}${sessionEndpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          voice,
-          resident_id: residentId || null,
-          kiosk_id: kioskId || null,
-          room: room || null,
-        }),
+        body: JSON.stringify(
+          sessionPayload || {
+            voice,
+            resident_id: residentId || null,
+            kiosk_id: kioskId || null,
+            room: room || null,
+          }
+        ),
       });
       if (myGen !== startGenRef.current) return;   // canceled
       if (!sessionRes.ok) throw new Error(`session ${sessionRes.status}`);
       const session = await sessionRes.json();
       if (myGen !== startGenRef.current) return;
-      const ephemeral = session?.client_secret?.value;
+      // /realtime/client_secrets (the endpoint the backend calls) returns the
+      // ephemeral key as a top-level `value`, not nested under `client_secret`
+      // — that older shape belongs to the legacy /realtime/sessions endpoint.
+      const ephemeral = session?.value || session?.client_secret?.value;
       if (!ephemeral) throw new Error("no ephemeral key");
       const caos = session._caos || {};
       // Backend authority on context — overrides whatever the parent passed
@@ -408,7 +416,7 @@ export function useRealtimeVoice({ voice = "shimmer", residentId, kioskId, room,
         setStatus("error");
       }
     }
-  }, [voice, residentId, kioskId, room]);
+  }, [voice, residentId, kioskId, room, sessionEndpoint, sessionPayload]);
 
   return { status, error, transcript, resting, start, stop, audioElRef };
 }

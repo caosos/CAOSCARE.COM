@@ -23,6 +23,8 @@ from fastapi import APIRouter, HTTPException, Request, Body
 from fastapi.responses import JSONResponse
 
 from deps import db
+from routes.aria_memory import build_aria_context_block
+from routes.capabilities import get_capability_summary
 
 router = APIRouter(prefix="/realtime", tags=["realtime"])
 
@@ -737,6 +739,89 @@ async def _build_companion_instructions(resident_id: str | None) -> str:
     bin_block = "\n\n" + "\n".join(bins)
 
     return _system_self_knowledge() + time_anchor + persona + profile + bin_block
+
+
+async def _build_aria_instructions(owner_user_id: str) -> str:
+    """System prompt Aria speaks under — Michael's own personal CAOSCare
+    assistant, NOT the resident-facing CAOS companion above. Deliberately
+    separate: no resident truth-discipline/attribution rules (those exist to
+    protect a senior in care; Aria is a working assistant for Michael).
+
+    Per Terminal 5's product priority: direct, accurate, practical
+    personality; grounded in real project state (capability portfolio +
+    operator memory), never inventing what it doesn't know."""
+    rn = _facility_now()
+    capability_summary = await get_capability_summary()
+    memory_block = await build_aria_context_block(owner_user_id)
+    return (
+        "## Who you are\n"
+        "You are Aria, Michael's personal CAOSCare assistant running on the "
+        "EliteDesk node. You are direct, accurate, practical, and honest about "
+        "what you do and don't know — not a customer-service voice, not "
+        "falsely cheerful. Speak naturally and conversationally, like a "
+        "sharp colleague, not a script.\n\n"
+        "## Truth discipline\n"
+        "You only know what is in the capability portfolio and memory blocks "
+        "below, plus whatever Michael tells you this session. If you don't "
+        "have something on record, say so plainly ('I don't have that yet') "
+        "instead of guessing or inventing it. Never claim you controlled or "
+        "checked something you didn't actually call a tool for.\n\n"
+        "## What you can actually do right now\n"
+        "You currently have NO tools wired into this session — you are a "
+        "conversational proof-of-concept (Terminal 5 Phase C). If Michael "
+        "asks you to control a device or take an action, tell him plainly "
+        "that tool-routing to the capability registry isn't connected yet, "
+        "rather than pretending to do it.\n\n"
+        f"## Right now\n{rn['weekday']} {rn['part_of_day']}, {rn['date']}, "
+        f"{rn['time']} local time.\n\n"
+        f"## Capability portfolio\n{capability_summary}\n\n"
+        f"## What you remember about Michael\n{memory_block}"
+    )
+
+
+@router.post("/aria-session")
+async def create_aria_session(payload: dict = Body(default={})):
+    """Mint an ephemeral OpenAI Realtime session token for Aria — Michael's
+    own assistant session, distinct from the resident-facing /session above.
+    Accepts optional {voice, owner_user_id}."""
+    key = _require_openai_key()
+    voice = (payload.get("voice") or DEFAULT_VOICE).lower()
+    if voice not in ALLOWED_VOICES:
+        voice = DEFAULT_VOICE
+    owner_user_id = payload.get("owner_user_id") or ""
+    instructions = await _build_aria_instructions(owner_user_id)
+    session_config = {
+        "type": "realtime",
+        "model": OPENAI_REALTIME_MODEL,
+        "instructions": instructions,
+        "audio": {"output": {"voice": voice}},
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.post(
+                f"{OPENAI_API_BASE}/realtime/client_secrets",
+                headers={"Authorization": f"Bearer {key}"},
+                json={"session": session_config},
+            )
+        if resp.status_code >= 400:
+            raise HTTPException(status_code=502, detail=f"OpenAI Realtime session error: {resp.text[:300]}")
+        session = resp.json()
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"OpenAI Realtime session error: {e}")
+
+    session["_caos"] = {
+        "voice": voice,
+        "instructions": instructions,
+        "tools": [],
+        "tool_choice": "auto",
+        "turn_detection": DEFAULT_VAD,
+        "temperature": DEFAULT_TEMPERATURE,
+        "context": {"owner_user_id": owner_user_id},
+    }
+    return JSONResponse(content=session)
 
 
 @router.post("/session")
