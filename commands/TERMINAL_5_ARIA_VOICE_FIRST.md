@@ -6,7 +6,9 @@ The primary deliverable is not appliance control.
 
 The primary deliverable is a room-based conversational CAOSCare node that lets Michael walk into the room and say:
 
-> Hello, Aria, how's it going?
+> Aria, how's it going?
+
+The wake word is **Aria** — the assistant's name, spoken as three syllables: **Ar-i-a**.
 
 Aria must wake, answer naturally through the room speaker, continue an ongoing spoken conversation, preserve conversational context across turns, and retrieve durable CAOSCare memory about Michael, the current project, prior decisions, and unfinished work.
 
@@ -71,9 +73,9 @@ room microphone/speaker
 
 The first accepted prototype must support:
 
-1. Michael says **“Hello, Aria”** from the room.
+1. Michael says **“Aria”** from the room.
 2. Aria activates and responds aloud.
-3. Michael can continue naturally without repeating the wake phrase for every turn.
+3. Michael can continue naturally without repeating the wake word for every turn.
 4. Aria preserves context during the live conversation.
 5. Michael can interrupt Aria while she is speaking when the selected audio stack supports barge-in.
 6. The session remains open until an explicit ending phrase, a configurable inactivity timeout, or a manual stop.
@@ -81,7 +83,7 @@ The first accepted prototype must support:
 8. Aria distinguishes verified repo/system state from assumptions.
 9. The spoken personality remains direct, accurate, practical, and consistent with Michael's stored preferences.
 
-Do not silently substitute another permanent wake phrase. A temporary test phrase such as `okay nabu` is acceptable only to prove the audio pipeline before implementing the exact target **“Hello, Aria.”** Document that temporary substitution and replace it as part of this directive.
+Do not silently substitute another permanent wake word. A temporary test phrase such as `okay nabu` is acceptable only to prove the audio pipeline before implementing the exact target **“Aria.”** Document that temporary substitution and replace it as part of this directive.
 
 ## Preferred implementation path
 
@@ -89,7 +91,8 @@ Do not silently substitute another permanent wake phrase. A temporary test phras
 
 - Prefer a local wake-word engine.
 - On Home Assistant OS, use the currently supported openWakeWord/Wyoming path when appropriate.
-- Train or install a custom wake-word model for **“Hello, Aria.”**
+- Train or install a custom wake-word model for **“Aria”**, pronounced as three syllables: **Ar-i-a**.
+- Tune for realistic room-distance recognition of the name by itself, including normal phrases such as **“Aria, how's it going?”**
 - Record false-trigger and missed-trigger observations.
 - Do not continuously send room audio to a cloud provider before wake activation.
 
@@ -170,9 +173,9 @@ Implement the shortest push-to-talk or manual-start path that:
 
 Do not build a decorative UI before this loop works.
 
-### Phase D — Add “Hello, Aria” wake activation
+### Phase D — Add “Aria” wake activation
 
-Install/configure the local wake-word path, create the exact custom wake phrase, connect wake activation to the voice gateway, and verify multiple trials from realistic room positions.
+Install/configure the local wake-word path, create the exact custom wake word **“Aria”**, connect wake activation to the voice gateway, and verify multiple trials from realistic room positions.
 
 ### Phase E — Continuous conversation behavior
 
@@ -210,9 +213,9 @@ Append a dated entry to `docs/PROJECT_STATE.md` after meaningful milestones. Use
 
 The voice-first milestone is complete only when Michael can stand in the room and:
 
-1. say **“Hello, Aria, how's it going?”**;
+1. say **“Aria, how's it going?”** with **“Aria”** acting as the wake word;
 2. hear a spoken response from Aria;
-3. continue for at least five contextually coherent spoken turns without repeating the wake phrase;
+3. continue for at least five contextually coherent spoken turns without repeating the wake word;
 4. ask what CAOSCare work is currently underway and receive an answer grounded in stored project state;
 5. end the conversation and later start a new wake session that recalls the previous session's documented decision or next step;
 6. reboot the node and repeat the test without manually starting the full stack.
