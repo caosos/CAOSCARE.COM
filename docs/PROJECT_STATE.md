@@ -246,3 +246,102 @@ Claude #1 in main repo.
 
 ### Next safe step
 Decide whether to provision/record a known offline break-glass owner password, and plan the production OAuth client (Authorized JavaScript origins for the deployed domain) when moving beyond localhost.
+
+---
+
+## 2026-07-28 — First "caoscare node" local environment stood up (new caoscare-1 host)
+
+### Agent / tool
+Claude Code with Michael (mytaxicloud@gmail.com) on a fresh Ubuntu 22.04.5 LTS (jammy) host, user `caoscare-1`. This is a different machine from the prior Lenovo Ubuntu 24.04 prototype entries above.
+
+### Branch / ref
+`main` at `c971d32` — `Add CCE-lite documentation checkpoint` (repo freshly cloned this session, no commits made).
+
+### What changed
+- Fixed a pre-existing system-level npm permission issue (global npm prefix was `/usr`, unwritable) by installing nvm and Node v24.18.0 LTS as the user-local Node/npm.
+- Installed and authenticated GitHub CLI (`gh`, apt version 2.4.0) as user `caosos` via the web/device-code flow.
+- Cloned `caosos/caoscare.com` to `~/CAOSCARE.COM`.
+- Added the official MongoDB 7.0 apt repo for jammy and installed `mongodb-org` 7.0.39; enabled and started `mongod` via systemd.
+- Created `backend/.env` (git-ignored) with `MONGO_URL=mongodb://localhost:27017`, `DB_NAME=caoscare`, a freshly generated random `JWT_SECRET`, `CAOSCARE_ENABLE_DEMO_SEED=false`, local `CORS_ORIGINS`/`PUBLIC_API_URL`.
+- Installed `python3.10-venv` (missing on this host's base Python 3.10.12), created `backend/.venv`, installed `backend/requirements.txt` successfully.
+- Started the FastAPI backend via `uvicorn server:app --host 127.0.0.1 --port 8000` (detached).
+- Created `frontend/.env` (git-ignored) with `REACT_APP_BACKEND_URL=http://localhost:8000`.
+- Ran `corepack enable` + `yarn install` in `frontend/` using the already-committed `frontend/yarn.lock` (no lockfile changes needed — contradicts the "yarn.lock still missing" note in `docs/BUILD_STATUS.md`, which is stale as of this entry).
+- Started the frontend via `yarn start` (detached, craco/CRA dev server).
+
+### What is verified
+- `curl http://127.0.0.1:8000/api/health` → `{"ok":true,"db":"up"}`.
+- `curl http://localhost:3000` → HTTP 200. Compiled with only pre-existing eslint `react-hooks/exhaustive-deps` warnings (`useRealtimeVoice.js`, `Admin.jsx`, `AuditTab.jsx`, `MemoryDialog.jsx`), no errors.
+- `mongod` active, listening on `127.0.0.1:27017`, version `7.0.39`.
+- Node v24.18.0 / npm 11.16.0 active via nvm; no more npm permission errors.
+- `gh auth status` shows logged in as `caosos` over https.
+- `git check-ignore` confirms both `backend/.env` and `frontend/.env` are git-ignored; no secrets committed.
+- No application code was modified this session — environment/setup only.
+
+### Blocked / not yet done
+- No owner account exists yet on this host's fresh MongoDB — `backend/scripts/bootstrap_owner.py` has not been run here.
+- Admin login (password or Google OAuth) not yet exercised on this host.
+- Google OAuth env vars (`GOOGLE_CLIENT_ID`, `GOOGLE_ADMIN_EMAILS`, `REACT_APP_GOOGLE_CLIENT_ID`) not set on this host yet.
+- Backend and frontend are running as detached dev processes (`setsid`/`nohup`), not managed services.
+- `docs/BUILD_STATUS.md` frontend-lockfile note is now stale (lockfile is present and used successfully); not corrected in place this entry per append-only convention — future agent should reconcile.
+- Android surfaces, hardware, and production/Linode deployment untouched this session (explicitly out of scope — Michael is deferring the Linode server update).
+
+### Next safe step
+Run `backend/scripts/bootstrap_owner.py` on this host to create a local owner account, then verify admin login end-to-end (password path first; Google OAuth only if/when its env vars are configured here).
+
+---
+
+## 2026-07-28 — Owner bootstrapped on caoscare-1 node, password login verified end-to-end
+
+### Agent / tool
+Claude Code with Michael (mytaxicloud@gmail.com) on the `caoscare-1` host (same session as the entry above).
+
+### Branch / ref
+`main` at `c971d32` — no commits made this session; only `backend/.env`/`frontend/.env` (git-ignored) and Mongo data changed.
+
+### What changed
+- Ran `backend/scripts/bootstrap_owner.py` with temporary env vars `CAOSCARE_BOOTSTRAP_OWNER_EMAIL=mytaxicloud@gmail.com`, `CAOSCARE_BOOTSTRAP_OWNER_NAME="Michael Chambers"`, and a freshly generated one-time `CAOSCARE_BOOTSTRAP_OWNER_PASSWORD` (passed inline as env vars to a single command, never written to `backend/.env` or any file, never echoed to stdout by the script itself).
+- The generated password was surfaced to Michael once in the session response so he can log in via the UI; it was stashed only briefly in a session-scratchpad file that was securely deleted (`shred -u`) immediately after use.
+
+### What is verified
+- `python scripts/bootstrap_owner.py` exited 0: "Created owner account for mytaxicloud@gmail.com."
+- `POST /api/auth/admin-login` with the new credentials → token acquired successfully.
+- `GET /api/auth/me` with that token → `email=mytaxicloud@gmail.com role=owner auth_provider=jwt`.
+- Only one owner exists on this host's MongoDB (script refuses if an owner already exists, and none did).
+
+### Blocked / not yet done
+- Michael should treat the generated password as sensitive and may want to rotate it once logged in (no password-change endpoint confirmed/used this session).
+- Google OAuth still not configured on this host — password/JWT is the only working admin login path here so far.
+- Backend/frontend still running as detached dev processes, not managed services.
+
+### Next safe step
+Michael logs into `http://localhost:3000/admin-login` in a browser with the password given in-session, confirms the `/admin` dashboard loads as owner, then decide whether to configure Google OAuth on this host and/or set up managed services (systemd units) for backend/frontend instead of detached dev processes.
+
+---
+
+## 2026-08-02 — EliteDesk node build, Phases 1–3: Home Assistant OS VM installed alongside preserved CAOSCare app
+
+### Agent / tool
+Claude Code with Michael on the `caoscare1-hp-elitedesk` host, following `commands/TERMINAL_3_ELITEDESK_FULL_NODE_BUILD.md`. Full detail in `docs/ELITEDESK_NODE_BUILD.md`.
+
+### Branch / ref
+`main` at `fde20d8` — `Add EliteDesk full CAOSCare node build directive`. No commits made yet this session (pending — see Blocked).
+
+### What changed
+- Inspected host hardware/network/software state (Phase 1) and re-verified the existing CAOSCare backend/frontend/MongoDB stack still works after this host's last reboot (Phase 2) — no `.env`, owner account, or app data touched.
+- Installed KVM/libvirt/QEMU/OVMF, defined a libvirt storage pool, downloaded the official Home Assistant OS 18.2 KVM (OVA/qcow2) release directly from `home-assistant/operating-system` on GitHub, and created a persistent, autostarting VM `caoscare-homeassistant` (4GiB RAM, 2 vCPU, UEFI, virtio) on libvirt's NAT network (`virbr0`), with a static DHCP reservation (`192.168.122.137`) and a host-level `iptables` port-forward so the VM is reachable at `192.168.1.151:8123` from the LAN.
+
+### What is verified
+- CAOSCare backend health, frontend, and MongoDB all confirmed healthy both before and after the Home Assistant VM work (Phase 2 re-check).
+- Home Assistant onboarding page loads (`HTTP 200`, genuine HA frontend HTML) at `http://192.168.122.137:8123/` directly from the host, on first boot.
+- VM is persistent and autostart-enabled in libvirt; storage pool is autostart-enabled.
+
+### Blocked / not yet done
+- Home Assistant's own onboarding wizard has not been completed — requires Michael's browser (see exact instruction in `docs/ELITEDESK_NODE_BUILD.md`, Phase 3 section).
+- The LAN `iptables` port-forward could not be self-tested from the host itself (expected Linux hairpin-NAT limitation, not a defect) — needs a check from a second LAN device.
+- The new `iptables` rules are runtime-only (no `iptables-persistent` installed yet) and will not survive a reboot; persistence is deferred to Phase 6 alongside converting backend/frontend to systemd, so boot-reliability is solved once, tested together, via a real reboot test.
+- Phases 4 (Mosquitto/node services), 5 (MQTT integration contract), 6 (reboot reliability), and 7 (final repo records) of the directive are not started.
+- This documentation update, plus the still-uncommitted 2026-07-28 entries above, have not yet been committed.
+
+### Next safe step
+Michael opens a browser on any LAN device to `http://192.168.1.151:8123` (fallback `http://192.168.122.137:8123` from the EliteDesk itself) and completes Home Assistant's onboarding wizard (local account, home name/location; skip Nabu Casa/remote access — out of scope). Tell Claude once done so Phase 4 can proceed.
