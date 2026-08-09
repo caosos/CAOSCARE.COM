@@ -168,3 +168,99 @@ Claude Code with Michael on the `caoscare1-hp-elitedesk` host (same session as P
 1. On any device connected to the same LAN as the EliteDesk, open a browser to **`http://192.168.1.151:8123`** (or, if that doesn't load yet since the port-forward is unverified end-to-end, try **`http://192.168.122.137:8123`** from a browser running directly on the EliteDesk itself as a fallback — that address is confirmed working).
 2. Complete the Home Assistant onboarding wizard (create the local HA account, set home name/location/unit system). Do not enable remote access / Nabu Casa cloud unless Michael explicitly wants that — it is out of scope for this local-first build.
 3. Tell Claude once onboarding is complete so Phase 4 (Mosquitto MQTT broker and other node services) can proceed via the now-available Supervisor API/UI.
+
+---
+
+## 2026-08-02 — Phase 3 closeout: Michael completed HA onboarding
+
+### What changed
+Michael opened the VM's internal address (`http://192.168.122.137:8123`) directly from a browser on the EliteDesk itself (the LAN port-forward to `192.168.1.151:8123` hits the expected host-hairpin-NAT limitation described above when tested *from the EliteDesk's own browser* — confirmed working as intended, not a defect; a genuine test from a second LAN device is still pending) and completed the Home Assistant onboarding wizard: local HA admin account created, home name/location/unit system set, remote access/Nabu Casa skipped as instructed.
+
+### What was verified
+- `curl http://192.168.122.137:8123/api/` → HTTP `401` (not an onboarding redirect) — confirms onboarding is complete and the API layer is live and correctly requiring auth.
+- Michael confirms landing on the live HA dashboard with no "start here"/onboarding prompt remaining.
+
+### Next safe step
+Proceed to Phase 4 — install the Mosquitto MQTT broker and evaluate the other optional node services against currently-attached hardware.
+
+---
+
+## 2026-08-02 — Phase 4 (in progress): optional service evaluation against actual attached hardware
+
+### What changed
+Evaluated each optional Home Assistant Supervisor add-on listed in the directive against the Phase 1 hardware inventory, before installing anything. Per the directive ("install an evaluated service only when the required hardware and immediate CAOSCare use are present"), none of these are installed yet — the required Mosquitto broker (a required, not optional, service) is a separate, in-progress step that needs Michael's browser (Supervisor add-on store) and is not covered by this evaluation.
+
+### Evaluation
+
+```text
+Zigbee coordinator services  — PENDING HARDWARE. No Zigbee USB coordinator (ConBee/SkyConnect/etc.)
+                                attached; Phase 1 found no /dev/ttyUSB* or /dev/ttyACM* devices at all.
+Z-Wave JS                    — PENDING HARDWARE. Same — no Z-Wave USB stick attached.
+Matter Server                — PENDING HARDWARE. No Matter devices/border router present. Also: this is
+                                exactly the Terminal 4 (Midea/Matter LAN) scope, which is deliberately
+                                paused per Terminal 5A's priority order — do not resume without Michael's ask.
+OpenThread Border Router      — PENDING HARDWARE. Needs a Thread-capable radio (e.g. HA SkyConnect/Yellow);
+                                none attached.
+ESPHome                       — PENDING HARDWARE. No ESP32/ESP8266 devices to flash/manage yet. The add-on
+                                itself has no hardware dependency to *install*, but there is nothing for it
+                                to do yet — install on demand when Michael has an ESP-based device.
+Piper (local TTS) /
+Whisper (local STT) /
+openWakeWord                  — PENDING PRODUCT DECISION, not hardware. These power Home Assistant's own
+                                "Assist" voice pipeline, which is a *different* voice system from CAOSCare's
+                                own Aria/resident voice pipeline (OpenAI Realtime, already built — see
+                                docs/ARIA_VOICE_FIRST.md). Installing these would stand up a second,
+                                redundant voice assistant inside HA itself. Not installed until Michael
+                                decides HA's own Assist pipeline is wanted alongside Aria.
+Samba                         — NO HARDWARE DEPENDENCY, deferred to Michael's preference. Convenience LAN
+                                file share for editing HA's /config over the network. Overlaps with Studio
+                                Code Server below; only one is really needed.
+Studio Code Server             — NO HARDWARE DEPENDENCY, deferred. Browser-based VS Code for editing HA
+                                YAML config directly inside the Supervisor. Useful once the MQTT integration
+                                (Phase 5) needs manual config; not installed yet since nothing requires
+                                manual YAML editing so far (UI-driven config has covered everything to date).
+InfluxDB/Grafana               — NO HARDWARE DEPENDENCY, deferred. Long-term history/monitoring dashboards;
+                                adds real resource overhead (a second database) for a single-node build
+                                that doesn't have enough history yet to make dashboards meaningful. Revisit
+                                once the node has been running long enough to have real data.
+Node-RED                       — NO HARDWARE DEPENDENCY, deferred. General-purpose automation-flow editor.
+                                CAOSCare's own backend is the intended place for CAOSCare-specific logic
+                                (see Phase 5's MQTT contract) rather than duplicating that logic in Node-RED
+                                flows; only install if a specific HA-side automation need comes up that the
+                                CAOSCare backend shouldn't own.
+```
+
+### What is verified
+Every "pending hardware" item above was checked against the actual Phase 1 device inventory (`lsusb`, `/dev/ttyUSB*`/`/dev/ttyACM*`, `bluetoothctl list`), not assumed — none of the required coordinators/radios are attached to this host as of this entry.
+
+### Blocked / not yet done
+- Mosquitto broker install itself: needs Michael in the HA Supervisor add-on store (browser-only step, requested separately).
+- A Home Assistant Long-Lived Access Token has been requested from Michael so the rest of Phase 4/5 (verifying Mosquitto is actually listening, wiring the MQTT integration, building the CAOSCare↔HA contract) can proceed via HA's API instead of further browser round-trips.
+
+### Next safe step
+Once Michael confirms Mosquitto is installed/started and provides a Long-Lived Access Token: verify the broker is listening (port 1883 inside the VM), confirm the MQTT integration is configured in HA, then proceed to Phase 5 (the CAOSCare↔Home Assistant MQTT topic contract).
+
+---
+
+## 2026-08-09 — Phase 4 closeout: Mosquitto installed, MQTT integration wired up, HA API token secured
+
+### What changed
+- Michael installed the official **Mosquitto broker** add-on via the Supervisor add-on store (navigation in this HA version: Settings → **Apps** → Add-on Store, not "Add-ons" — the label has changed in recent HA releases), enabled Start on boot/Watchdog, and started it.
+- Getting a Long-Lived Access Token via copy/paste from the browser did not work for Michael (repeated, confirmed clipboard failures across this and prior sessions — noted here for future agents so this isn't re-attempted the same way). Michael instead **typed the token by hand into a new local file** using a desktop text editor and saved it to `/home/caoscare-1/TOKEN`. Claude located it, verified it, and moved it to `/home/caoscare-1/.config/caoscare/ha_long_lived_token` (`chmod 600`, outside any git-tracked directory, never printed to any log/chat).
+- Used that token to drive the rest of Phase 4 entirely through HA's REST API from the host (no further browser clicks needed):
+  - Confirmed the broker is reachable: raw TCP check to `192.168.122.137:1883` succeeds.
+  - `GET /api/config` confirmed the HA Core version (`2026.7.4`), location config, and (initially) that the `mqtt` integration was **not yet loaded** — the add-on running is necessary but not sufficient; HA Core needs its own MQTT config entry pointing at the broker.
+  - Started the `mqtt` config flow (`POST /api/config/config_entries/flow` with `{"handler": "mqtt"}`), which offered a menu (`addon` vs `broker`) — HA auto-detected the running Mosquitto add-on. Submitted `{"next_step_id": "addon"}` to the flow, which completed immediately with `"state": "loaded"` — no broker host/port/credentials needed manually since it used the add-on's own internal connection info.
+  - Re-checked `GET /api/config` → `mqtt` now present in `components`, confirming the integration is live.
+
+### What was verified
+- `curl -H "Authorization: Bearer <token>" http://192.168.122.137:8123/api/` → `{"message":"API running."}`.
+- Mosquitto broker: TCP port `1883` open on the VM.
+- HA's own `mqtt` integration: config entry `title: "Mosquitto Mqtt Broker"`, `state: "loaded"`, confirmed present in `/api/config` component list after setup.
+- Token is usable for all future Phase 5+ API-driven work without further browser interaction.
+
+### Note for future agents on this host
+If a Long-Lived Access Token or similar credential is needed again, **do not ask for copy/paste** — it does not work reliably in this environment. Ask Michael to type it by hand into a local text file instead (as done here), then read the file directly from disk.
+
+### Next safe step
+Proceed to Phase 5 — define the CAOSCare↔Home Assistant MQTT topic contract and prove one round-trip test.
