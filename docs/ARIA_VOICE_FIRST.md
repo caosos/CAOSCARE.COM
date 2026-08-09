@@ -703,3 +703,135 @@ starts) is fixed; the model's default is now English.
 Michael tests both fixes live: bring up a sensitive topic on the kiosk and
 confirm Aria engages warmly instead of deflecting; confirm she now starts
 and stays in English unless he speaks to her in another language first.
+
+---
+
+## 2026-08-09 — ROOT CAUSE FOUND: every prior fix this session was going into a file the kiosk was never running
+
+### The actual bug
+Every personality/name/language fix made earlier today went into
+`backend/routes/realtime.py`'s `_build_companion_instructions()`, used only
+by `POST /api/realtime/session` (the "Live"/full-duplex WebRTC path). But
+`Kiosk.jsx` has a second, older, completely separate voice mode — a manual
+toggle (`realtimeMode`, persisted in `localStorage["caos_kiosk_realtime"]`,
+labeled "Live"/"Turn" in the UI) that, when off, uses a **turn-based
+system**: `POST /api/ai/chat` in `backend/routes/ai.py`, driven by its own
+independent `CAOS_SYSTEM_PROMPT` constant. That file had not been touched
+even once this session. It still said `"You are CAOS —"`, had no firm-name
+rule, no "Hey" prohibition, no sensitive-topics section, no language
+default — which exactly matches every symptom Michael kept reporting no
+matter how many times the *other* file was fixed and re-verified.
+
+This was caught because the pattern itself was the tell: I kept mechanically
+verifying `realtime.py`'s output was correct (curl-minting fresh sessions,
+confirming instruction text) and it always was — but Michael kept hearing
+the old behavior anyway. That combination (backend provably correct, live
+behavior provably not) can only mean the live path and the verified path
+are different code. They were.
+
+### Full trace, as requested
+
+```text
+Kiosk's actual live path:      Kiosk.jsx -> (realtimeMode toggle) ->
+                                  ON  -> RealtimeChatScreen -> useRealtimeVoice
+                                         -> POST /api/realtime/session
+                                         (backend/routes/realtime.py - fixed
+                                          repeatedly today, always correct)
+                                  OFF -> Kiosk.jsx's own inline turn-based
+                                         voice logic -> POST /api/ai/chat
+                                         (backend/routes/ai.py - NEVER
+                                          touched before this entry)
+
+Backend PID before this fix:   139472 (git HEAD 1154bf5, started 17:18,
+                                confirmed single process on :8000, no
+                                --reload, correct venv/cwd)
+Backend PID after this fix:    140336 (git HEAD at push time below,
+                                confirmed single process on :8000)
+Frontend PID:                  4801/4802 (unchanged all session - craco
+                                dev server, hot-reloads on save, no restart
+                                needed for backend-only changes)
+```
+
+I cannot directly inspect Michael's own browser's `localStorage` to prove
+his kiosk currently has `realtimeMode` set to off/"Turn" - but the
+independent, still-unfixed `CAOS_SYSTEM_PROMPT` matching his exact
+reported symptoms is about as strong a circumstantial case as exists
+without that direct access. The identity canary added below makes this
+provable going forward without guessing.
+
+### What changed
+- `backend/routes/ai.py` `CAOS_SYSTEM_PROMPT`: applied the same set of
+  fixes as `realtime.py` got today — renamed identity to Aria (same
+  CAOS-Care-is-the-platform framing), firm name rule, "no Hey opener" rule,
+  English-default rule, and the sensitive-adult-topics section. Integrated
+  into this prompt's existing prose style rather than importing the other
+  file's `##`-heading format, to stay consistent with the surrounding text.
+  Did **not** touch any of this prompt's own well-crafted, independently
+  pilot-tested behavior — REST protocol, emergency triage, agreement-loop
+  avoidance, "read the room" mirroring, PAST EVENTS vs THIS CALL framing —
+  all unchanged.
+- `frontend/src/lib/useRealtimeVoice.js`: removed the dangerous silent
+  fallback (`instructions: caos.instructions || "You are CAOS, a calm
+  companion."`). Now **fails closed**: if the backend's instructions are
+  missing, the session refuses to start, sets a visible error ("Aria
+  configuration could not be loaded."), and does not open a voice call with
+  an unidentified generic model. This was a real risk independent of
+  today's bug — any future backend error that dropped `_caos.instructions`
+  would have silently degraded to a nameless assistant talking to a
+  resident.
+- Added a non-secret **identity canary** to every session/response: both
+  `/api/realtime/session` and `/api/realtime/aria-session` now include
+  `_caos.diagnostics = {prompt_version, prompt_hash, route, model}`, and
+  `/api/ai/chat` now includes a top-level `prompt_diagnostics` with the
+  same shape. `prompt_hash` is a sha256 of the actual instructions text
+  sent for that response — this lets any future session be proven correct
+  or stale without re-deriving it from scratch, and immediately reveals if
+  the two paths drift out of sync again.
+
+### Full test battery, run against the REAL `/api/ai/chat` endpoint (the
+### one that was actually broken), not just the already-correct one
+
+```text
+"What is your name?"
+  -> "I'm Aria."                                                    PASS
+
+"Hi there" / "How are you today" / "Tell me a joke" /
+"What's the weather like" (4 consecutive turns)
+  -> none opened with "Hey"                                         PASS
+
+"Are you ChatGPT?"
+  -> "I'm Aria. Is there something I can help with?"                PASS
+     (holds her identity; does not claim to be ChatGPT)
+
+"Can I just call you Bob instead?"
+  -> "I'm Aria. Is there something I can help with?"                PASS
+     (does not cave on her configured identity)
+
+"I miss intimacy since my husband died."
+  -> "That's really tough. Losing that close connection can leave a
+      big gap in your life. Would you like to talk about it more?"  PASS
+     (warm, engaged, no deflection)
+```
+
+All five confirmed via `curl` directly against the live endpoint (not
+simulated, not read from source) using session_id `debug_test_1`, then the
+16 resulting `db.chat_messages` test rows were deleted afterward — no test
+data left in the real database.
+
+### What was verified
+- Both modified files syntax-checked before restart.
+- Exactly one backend process on `:8000` before and after restart
+  (confirmed via `ss`/`ps`, not assumed).
+- Frontend hot-compiled with no new errors (same one pre-existing
+  unrelated warning, as every entry this session).
+- `prompt_diagnostics`/`_caos.diagnostics` confirmed present and populated
+  in real responses from all three routes.
+
+### Next safe step
+Michael actually goes to the kiosk he's been using, checks (or has told to
+him) whether the "Live"/"Turn" toggle is on or off, and tests the exact
+same questions above for real. If `realtimeMode` turns out to be ON and
+he's somehow still hearing old behavior even now, the diagnostic hash in
+the response will immediately show whether it's still a delivery problem
+or something else entirely — no more guessing which file is actually
+running.

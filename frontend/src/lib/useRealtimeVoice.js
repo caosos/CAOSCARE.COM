@@ -315,13 +315,23 @@ export function useRealtimeVoice({
 
       dc.onopen = () => {
         if (myGen !== startGenRef.current) return;
+        // FAIL CLOSED: the authoritative persona instructions come from the
+        // backend (_caos.instructions). If they're missing, do NOT fall back
+        // to a generic unidentified model talking to a resident - refuse to
+        // start instead. Wrong-but-talking is worse than unavailable here.
+        if (!caos.instructions) {
+          setError("Aria configuration could not be loaded.");
+          setStatus("error");
+          try { stop(); } catch {}
+          return;
+        }
         // Apply the full session config from the backend: instructions, tools,
         // VAD timing, temperature. session.update is the canonical way to
         // configure a Realtime session post-mint.
         const update = {
           type: "session.update",
           session: {
-            instructions: caos.instructions || "You are CAOS, a calm companion.",
+            instructions: caos.instructions,
             voice: caos.voice || voice,
             modalities: ["audio", "text"],
             input_audio_transcription: { model: "whisper-1", language: "en" },

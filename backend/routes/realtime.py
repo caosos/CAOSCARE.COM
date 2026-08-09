@@ -14,6 +14,7 @@ opens, so by the time the model speaks its first word it already knows
 who the resident is, which physical devices it can touch, and how long
 to wait before deciding the resident is finished talking.
 """
+import hashlib
 import os
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -31,6 +32,18 @@ router = APIRouter(prefix="/realtime", tags=["realtime"])
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
 OPENAI_REALTIME_MODEL = os.environ.get("OPENAI_REALTIME_MODEL", "gpt-realtime").strip() or "gpt-realtime"
 OPENAI_API_BASE = os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1").rstrip("/")
+
+
+def _prompt_diagnostics(instructions: str, route: str) -> dict:
+    """Non-secret identity canary (2026-08-09 debugging). Lets a live session
+    be proven to have received the current instructions without guessing -
+    reveals no resident data, just a hash of the prompt text actually sent."""
+    return {
+        "prompt_version": "2026-08-09-sensitive-topics-language-v1",
+        "prompt_hash": hashlib.sha256(instructions.encode()).hexdigest()[:16],
+        "route": route,
+        "model": OPENAI_REALTIME_MODEL,
+    }
 
 
 def _require_openai_key() -> str:
@@ -916,6 +929,7 @@ async def create_aria_session(payload: dict = Body(default={})):
         "turn_detection": DEFAULT_VAD,
         "temperature": DEFAULT_TEMPERATURE,
         "context": {"owner_user_id": owner_user_id},
+        "diagnostics": _prompt_diagnostics(instructions, "aria_operator"),
     }
     return JSONResponse(content=session)
 
@@ -972,6 +986,7 @@ async def create_session(payload: dict = Body(default={})):
             "facility_label": FACILITY_LABEL,
             "facility_tz": FACILITY_TZ,
         },
+        "diagnostics": _prompt_diagnostics(instructions, "resident_kiosk_realtime"),
     }
     return JSONResponse(content=session)
 
