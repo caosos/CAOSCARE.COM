@@ -309,3 +309,151 @@ flat). Separately, decide whether to start the environment-context-injection
 work next, since several other open items (senior pacing, room awareness)
 depend on that existing before they can be done properly rather than
 hard-coded.
+
+---
+
+## 2026-08-09 — Ground-truth inspection for the full continuity/self-control build
+
+A large combined directive arrived (memory continuity, barge-in, adjustable
+pacing, voice-controlled settings, environment awareness, tool-execution
+audit, wake word, plus a reported `session_type` error) with an explicit
+instruction to inspect and report ground truth *before* building anything.
+This entry is that inspection. No code was changed this entry except where
+noted.
+
+### The reported `session_type` error — not found, not reproducible
+Searched the entire backend and frontend source, this session's backend
+logs, and all docs for `session_type` — **zero matches anywhere.** Our own
+session-creation payload sends `"type": "realtime"` inside the `session`
+object (not `session_type`), which is the current correct field per
+OpenAI's `/realtime/client_secrets` schema. Freshly minted a real Aria
+session as part of this inspection and it succeeded (`HTTP 200`, valid
+ephemeral key). **This error could not be confirmed against the current,
+running code** — it may have been from an older OpenAI API shape (already
+non-reproducible today), a browser-console-only error from Michael's actual
+test session that wasn't captured anywhere I have access to, or a mix-up
+with the ephemeral-key field bug already found and fixed in Phase C. Not
+guessing at a fix for an error that doesn't reproduce; flagging this back
+rather than inventing a change. If it recurs, the exact browser console
+text and the request that triggered it will pin it down for real.
+
+### Ground truth, as requested
+
+```text
+Model:                gpt-realtime (OPENAI_REALTIME_MODEL unset -> default)
+Voice:                 shimmer (OPENAI_VOICE unset -> default), 8 voices allowed
+Speech speed:          not configurable anywhere in current code - no speed
+                       param exists on either session-creation path
+Turn detection:        server_vad, threshold 0.5, prefix_padding_ms 300,
+                       silence_duration_ms 1000, create_response true.
+                       Applied via session.update over the data channel
+                       after connect (frontend useRealtimeVoice.js), not in
+                       the initial ephemeral-mint call.
+Barge-in:              NOT explicitly implemented in CAOSCare code (no
+                       response.cancel / truncation logic found anywhere in
+                       backend or frontend). Relies entirely on OpenAI
+                       Realtime's own default server_vad interruption
+                       behavior. Never explicitly tested end-to-end here -
+                       this is real, open work (directive section 5).
+Temperature:           0.6 (the API floor - most factual, least
+                       improvisational), stored in the session response's
+                       _caos block but only actually pushed to OpenAI via
+                       the same session.update as above.
+Session config sent:   {type, model, instructions, audio:{output:{voice}}}
+                       at mint time; {instructions, voice, modalities,
+                       input_audio_transcription:whisper-1, tools,
+                       tool_choice, turn_detection, temperature} via
+                       session.update immediately after connect.
+Context/truncation:    no explicit conversation-truncation/summarization
+                       logic exists - each Realtime session starts fresh
+                       with only the instructions text as context; nothing
+                       trims a long-running conversation's context window
+                       today (not yet a problem since no session has run
+                       long, but there's no mechanism if one did).
+Tool definitions:      11 real tools defined in backend/routes/realtime.py
+                       _build_tools() for the RESIDENT-facing session only:
+                       adjust_room_temperature, toggle_light, toggle_tv,
+                       call_for_help, mark_resting, get_current_time,
+                       get_weather, research_topic, set_timer,
+                       update_preferred_name, end_call.
+Tools actually wired:  ALL 11 are genuinely wired, not schema-only -
+                       frontend/src/lib/useRealtimeVoice.js's executeTool()
+                       makes real fetch() calls to real CAOSCare backend
+                       endpoints (room commands, /alerts, /weather/current,
+                       etc.) and returns real results to the model. This
+                       path has real device-control code; it has NOT been
+                       proven with real hardware/a real resident session
+                       (per earlier build notes) - so "wired" here means
+                       "genuinely executes," not "hardware-verified."
+Aria's own tools:      ZERO. /aria-session sends tools:[] deliberately (by
+                       design, per Terminal 5A ordering - conversation
+                       proven before tool routing). None of the 11
+                       resident tools, and no capability-registry tool
+                       routing, exist for Aria yet.
+Operator memory:       AriaMemory/AriaVoiceSession models + /api/aria/memory
+                       exist and round-trip correctly (built Phase A), but
+                       hold 0 records - nobody has actually had memory
+                       written to them, and nothing currently reads memory
+                       back INTO a session automatically beyond
+                       build_aria_context_block() being called at session
+                       start (which returns empty context today).
+Resident memory:       separate, older, more mature system
+                       (db.memories/ResidentMemory, governed by
+                       docs/CAOSCARE_MEMORY_AUTOMATION_CONTRACT.md) -
+                       exists and is wired into the resident-facing
+                       companion prompt already; not part of this
+                       inspection's scope to re-verify.
+HA/MQTT state:         Home Assistant VM running, onboarded, reachable.
+                       Mosquitto broker running, HA's own mqtt integration
+                       loaded. A dedicated caoscare-mqtt HA service account
+                       exists and raw pub/sub was proven via CLI. NONE of
+                       this is wired into CAOSCare's backend/Aria yet - no
+                       Python MQTT client code exists in backend/ (a
+                       paho-mqtt dependency was added to requirements.txt
+                       in an uncommitted, in-progress change but no module
+                       using it has been written yet). Aria cannot reach
+                       Home Assistant in any way today.
+```
+
+### What is still blocked / not started (real scope, not attempted this pass)
+Sections 2 (lifelong memory continuity/reconciliation), 5 (barge-in
+tuning+real test), 6 (adjustable pacing as a real per-person runtime
+setting + tool), 7 (voice-controllable settings: speech speed, volume,
+text size), 9 (environment/room awareness context injection), 10 (wiring
+Aria's own tool-execution path to the capability registry + HA/MQTT), and
+11 (wake word) are all real, non-trivial engineering work — each involves
+new data models, new API routes, and/or new frontend wiring. Deliberately
+**not** attempted in this single pass: building all of it uninspected and
+unreviewed in one sweep would risk breaking the one thing that currently
+works (the proven voice round-trip), which section 14 of the directive
+itself explicitly warns against ("do not break the working system... make
+incremental changes").
+
+### Recommended build order (for Michael to confirm/reprioritize)
+1. **Environment/deployment-context injection** (section 9) — the
+   foundational piece several other items depend on (adjustable pacing
+   persistence, room awareness, eventually resident vs. operator context
+   switching). Small, contained: one context-loading function + a place to
+   store it.
+2. **MQTT bridge module** (Terminal 3 Phase 5, still open) — needed before
+   Aria can touch Home Assistant at all; the broker/credentials already
+   exist, just needs the actual backend client code.
+3. **Wire Aria's tool execution** to the capability registry (section 10)
+   once 1+2 exist, starting with read-only capabilities before any control
+   actions.
+4. **Barge-in real test + tuning** (section 5) — cheap to test now
+   (doesn't depend on anything above), worth doing early since it's core
+   to whether Aria feels natural to talk to.
+5. **Adjustable pacing + voice-controllable settings** (sections 6-7) —
+   depend on (1) for per-person persistence.
+6. **Memory continuity/reconciliation** (section 2) — the largest, most
+   architecturally significant piece; deserves its own focused pass rather
+   than being squeezed in alongside everything else.
+7. **Wake word** (section 11) — explicitly lowest priority per the
+   directive itself ("should not interfere with proving the current
+   conversation/tool/memory system first").
+
+### Next safe step
+Michael picks which of the above to actually build next (or reorders
+them) — each is sized to be its own bounded, reviewable, testable change
+rather than one enormous unreviewed rewrite.

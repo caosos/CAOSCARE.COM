@@ -48,17 +48,22 @@ LAN-facing address for this host: `192.168.1.151` (Wi-Fi only — `eno1` wired p
 
 ## WORKING BUT NOT FULLY VERIFIED
 
-- **Aria voice, end-to-end**: session minting is proven; the actual browser/WebRTC/microphone conversation has **never been tested**. This is the single most-repeated "next step" across the last two build sessions.
+- **Barge-in** (interrupting Aria mid-sentence): not explicitly implemented anywhere in CAOSCare code — relies entirely on OpenAI Realtime's own default `server_vad` interruption behavior, never explicitly tested end-to-end here. See `docs/ARIA_VOICE_FIRST.md` 2026-08-09 entry.
 - **eMeet audio quality**: capture/playback work mechanically, but nobody has confirmed it's audible/clear from normal room distance.
 - **HA LAN port-forward** (`192.168.1.151:8123` → VM): structurally correct (iptables rules verified) but only tested from the VM/host itself, which hits an expected hairpin-NAT limitation. Genuine confirmation from a second LAN device (e.g. a phone) is still pending.
-- **Resident-facing realtime voice** (`RealtimeChatScreen.jsx`/Kiosk): shares the same bugfix as Aria's path but has apparently never been exercised live either, per its own build notes.
+- **Resident-facing realtime voice** (`RealtimeChatScreen.jsx`/Kiosk): the 11 device-control tools genuinely execute against real backend endpoints (not schema-only), but this has never been exercised live with a real resident/kiosk session or real hardware.
+
+## DONE, update: Aria voice end-to-end is now proven
+
+Michael had a real spoken conversation with Aria on 2026-08-09 (mic/WebRTC/speaker round trip confirmed working) — this was the single most-repeated blocker across the last several sessions and is now resolved. Personality was subsequently tuned down (calmer, less "AI-assistant" sounding) per his feedback; see `docs/ARIA_VOICE_FIRST.md` for the full ground-truth inspection (model/voice/VAD/tools/memory/HA-MQTT state) done alongside that change. A reported `session_type` error could not be found or reproduced anywhere in current code/logs — flagged back rather than guessed at.
 
 ## BLOCKED
 
 - **Google Sign-In**: not configured on this host (`GOOGLE_CLIENT_ID` unset in both `backend/.env` and `frontend/.env`). Michael has an existing Client ID from a prior session but hadn't provided it as of the last handoff.
 - **Midea/Matter LAN integration (Terminal 4)**: deliberately paused. The HA VM only has a private NAT address (`192.168.122.137`); giving it a real LAN presence needs either a physical Ethernet cable into `eno1` (currently unplugged) or a router-level change — both need Michael, and voice-first (Terminal 5) has explicit priority over this.
-- **Wake word ("Aria")**: not implemented at all — no Wyoming/openWakeWord/Piper/Whisper stack installed anywhere. This is Phase D of the voice-first build, not started.
-- **Tool routing** from Aria to the capability registry: `get_capability_summary()` exists but isn't wired into `routes/realtime.py` yet — deliberately deferred until the voice round-trip itself is proven.
+- **Wake word ("Aria")**: not implemented at all — no Wyoming/openWakeWord/Piper/Whisper stack installed anywhere. Explicitly lowest priority per the latest directive itself.
+- **Aria's tool routing / capability execution**: `tools: []` on every Aria session, by design — no HA/MQTT bridge module exists in the backend yet either (broker + credentials are ready, no client code written). See `docs/ARIA_VOICE_FIRST.md` for the proposed build order (environment context → MQTT bridge → tool wiring → barge-in test → adjustable pacing → memory continuity → wake word).
+- **Lifelong memory continuity, adjustable pacing, voice-controllable settings**: all requested in a large combined directive on 2026-08-09; none started yet — each is real, multi-step engineering work, deliberately sequenced rather than built in one unreviewed sweep. Full detail in `docs/ARIA_VOICE_FIRST.md`.
 
 ## Boot / reliability persistence — none of this survives a reboot yet
 
@@ -90,4 +95,4 @@ Michael's clipboard/copy-paste does not work reliably in this environment (repea
 
 ## Single best next action
 
-**Michael opens `http://localhost:3000/aria` in a browser on this machine, logs in as owner, and actually talks to Aria** (mic + speaker via the eMeet Luna Plus). Every other capability (memory, tool routing, wake word, MQTT-to-HA control) is gated behind first proving this one real conversation works. Second priority, independent of that: confirm the HA LAN port-forward from a phone or other LAN device.
+**Michael picks one item off the build order in `docs/ARIA_VOICE_FIRST.md`'s 2026-08-09 entry** (environment context → MQTT bridge → tool wiring → barge-in test → adjustable pacing → memory continuity → wake word) rather than everything being attempted at once. Talking to Aria is proven now, so the gate has moved from "does the round trip work" to "what gets built next, in what order." Second priority, independent of that: confirm the HA LAN port-forward from a phone or other LAN device.
