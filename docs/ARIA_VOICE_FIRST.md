@@ -835,3 +835,100 @@ he's somehow still hearing old behavior even now, the diagnostic hash in
 the response will immediately show whether it's still a delivery problem
 or something else entirely — no more guessing which file is actually
 running.
+
+---
+
+## 2026-08-09 — Retired the legacy Turn-mode voice system entirely
+
+### Why
+Once the actual root cause (two independent, drifting prompts) was
+understood, Michael asked directly why two resident-facing voice systems
+existed at all. Checked git history: `ai.py`'s turn-based chat
+(2026-04-19) was the *original* resident voice system; `realtime.py`'s
+full-duplex WebRTC path (2026-04-24) was added five days later as an
+upgrade, with a toggle kept so the kiosk could fall back to the older,
+proven system if the newer one had problems. Both were always
+resident-facing (not a kiosk-vs-staff split — Aria's separate operator
+build at `/aria` is the actual staff-facing one). Michael chose to retire
+Turn mode entirely rather than keep maintaining two prompts that can drift
+out of sync, which is exactly what caused today's bug.
+
+### The gap found first, and closed before removing anything
+Medication reminders only ever spoke aloud through Turn mode's `speak()`
+helper — there was a `// TODO: realtime owns the voice surface; reminders
+need their own realtime path` comment marking this as a known, unbuilt
+gap. Removing Turn mode outright would have silently stopped medication
+reminders from being spoken. Fixed first: added `announceLine()`, a
+minimal, mode-independent single-line TTS helper (not a full conversation,
+doesn't touch the Realtime peer connection, only ever called while
+`callState` is idle so there's nothing to conflict with) and pointed the
+medication-reminder poller at it instead. Reminders are spoken exactly as
+before, just no longer coupled to the conversational Turn-mode code that's
+now gone.
+
+### What was removed from `frontend/src/pages/Kiosk.jsx` (1,346 → 589 lines)
+The entire legacy turn-based voice loop and everything only it needed:
+`runVoiceLoop`, `listenOnce`, `listenShort`, `computeRms`, `playBeep`,
+`startBargeInListener` + all `BARGE_*` tuning constants, `speak()`,
+`speakFallback()`, `sendMessage()` (the `/api/ai/chat` caller),
+`startRecord`/`stopRecord` (manual push-to-talk), `wakeFromSleep`,
+`startContinuousListen`, the `SLEEP_INTENT_PATTERNS`/`EXIT_INTENT_PATTERNS`
+phrase lists, the `OFFLINE_LINES` fallback, the `realtimeMode` toggle
+(state + localStorage persistence + the "Live"/"Turn" UI button), and the
+entire ~200-line Turn-mode-only chat render block (manual mic button,
+transcript list, "Aria is thinking/speaking" status text — this is where
+the earlier persona-name text lived; it's gone now, not fixed-in-place).
+Also removed now-dead state that only Turn mode used: `autoVoice`,
+`recording`, `thinking`, `speaking`, `sleeping`, `messages`, `sessionRef`,
+`voiceLoopRef`, `sleepingRef`, `mediaRef`, `audioRef`, `bargeInRef`,
+`pendingBargeBlobRef`.
+
+### What was kept, unchanged
+Everything mode-agnostic or safety-critical: emergency polling
+(`handleIncomingEmergency`), the alert-resolved watcher, `triggerEmergency`
+(the CALL FOR HELP / assist / just-want-to-talk buttons), `cancelCall`,
+TV/speaker auto-muting during a call, `sendDeviceCommand` (smart-room
+controls), the accessibility text-size/high-contrast controls, the voice
+picker dialog (still uses plain `/api/ai/tts` for a one-off preview clip -
+that's not a conversation either), the tap-to-answer overlay for
+pendant-triggered calls, and the `RealtimeChatScreen` handoff itself -
+which is now unconditional instead of gated behind the removed toggle.
+
+### What was verified
+- Line-by-line read of the entire original 1,346-line file before writing
+  the replacement, to make sure nothing safety-critical was miscategorized
+  as Turn-mode-only.
+- Confirmed `RealtimeChatScreen` manages its own transcript via
+  `useRealtimeVoice`'s internal state — the removed `messages` state in
+  `Kiosk.jsx` was genuinely unused dead state once the legacy render block
+  was gone, not something Realtime mode secretly depended on.
+- Grepped the rest of the frontend and backend for any reference to the
+  removed test IDs/functions (`kiosk-a11y-realtime`, `kiosk-mic-btn`,
+  `startContinuousListen`, etc.) - zero hits outside the file itself.
+- Caught and removed one now-unused icon import (`X`) via usage-count grep
+  across the rewritten file before considering it done.
+- Frontend hot-compiled with no new errors (same one pre-existing
+  unrelated warning as every entry this session).
+- `GET /api/kiosks` confirms a real kiosk exists (`kio_9d5247d7ff59`);
+  `curl` confirms the kiosk page itself still returns HTTP 200.
+- **Not verified**: an actual live browser session at a real kiosk URL —
+  that needs Michael. A clean webpack compile and a 200 response prove the
+  code is syntactically sound and the page loads; they don't prove the
+  emergency-call flow, device muting, or medication announcement actually
+  work end-to-end in a real browser.
+
+### Backend note
+`backend/routes/ai.py`'s `/chat`, `/stt`, and `/tts` endpoints were **not**
+deleted - `/tts` is still used by `announceLine()` and the voice-preview
+dialog. `/chat` and `/stt` are now unused by the frontend (nothing calls
+them anymore) but were left in place rather than deleted in the same pass
+as a large frontend rewrite - safe to remove in a later, separate cleanup
+once Michael has confirmed the new kiosk flow actually works live.
+
+### Next safe step
+Michael tests a real kiosk end-to-end: load `/kiosk/kio_9d5247d7ff59` (or
+whichever kiosk he actually uses), press the call-for-help button, confirm
+Aria answers via the Realtime path with no leftover "Live/Turn" toggle
+anywhere, and confirm the room's TV (if any) still auto-mutes. Separately,
+whenever there's a real medication reminder due, confirm it's still
+spoken aloud via the new `announceLine()` path.

@@ -4,13 +4,22 @@ import axios from "axios";
 import { API } from "../lib/api";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
-import { AlertCircle, Mic, MicOff, Volume2, Phone, X, Lightbulb, Fan, Thermometer, Tv, Power, Type, Contrast, Sparkles, Play } from "lucide-react";
+import { AlertCircle, Mic, Volume2, Phone, Lightbulb, Fan, Thermometer, Tv, Power, Type, Contrast, Play } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import RealtimeChatScreen from "./RealtimeChatScreen";
 
 // Kiosk is PUBLIC - no login. Selected/identified by kiosk_id in URL.
 // /kiosk/:kioskId  (use "demo" to pick an arbitrary kiosk automatically)
+//
+// 2026-08-09: retired the legacy turn-based (STT -> /api/ai/chat -> TTS)
+// voice loop and its "Live"/"Turn" toggle. Full-duplex Realtime (WebRTC)
+// via RealtimeChatScreen is now the only resident conversation path - see
+// docs/ARIA_VOICE_FIRST.md for why (the two paths had independently
+// drifted prompts, which was the actual root cause of a real user-facing
+// bug). Medication reminders, which used to piggyback on the legacy
+// speak() helper, now use the mode-independent announceLine() below so
+// that feature has no gap from this change.
 
 const DEVICE_ICON = { light: Lightbulb, fan: Fan, heater: Thermometer, ac: Thermometer, tv: Tv };
 
@@ -22,21 +31,12 @@ export default function Kiosk() {
   const [resident, setResident] = useState(null);
   const [callState, setCallState] = useState("idle"); // idle | calling | waiting | chatting
   const [alert, setAlert] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [recording, setRecording] = useState(false);
-  const [thinking, setThinking] = useState(false);
-  const [speaking, setSpeaking] = useState(false);
-  const [autoVoice, setAutoVoice] = useState(false);     // hands-free mode
   const [devices, setDevices] = useState([]);
   const [micReady, setMicReady] = useState(false);       // user gesture received + mic permission granted
   const [needsTap, setNeedsTap] = useState(false);       // remote pendant fired but we need a user tap first (autoplay/mic policy)
   const [pendingAlert, setPendingAlert] = useState(null);
-  const sessionRef = useRef(`sess_${Math.random().toString(36).slice(2)}`);
-  const mediaRef = useRef(null);
-  const audioRef = useRef(null);
   const audioCtxRef = useRef(null);
   const seenEmergencyRef = useRef(null);
-  const voiceLoopRef = useRef(false);      // is continuous listen loop active?
   const callStateRef = useRef("idle");     // sync callState for async callbacks
   useEffect(() => { callStateRef.current = callState; }, [callState]);
 
@@ -72,22 +72,6 @@ export default function Kiosk() {
   }, [voiceId]);
   const [voicePickerOpen, setVoicePickerOpen] = useState(false);
 
-  // Realtime full-duplex mode (OpenAI Realtime API). When ON, the chat
-  // surface uses RealtimeChatScreen (WebRTC peer connection, sub-second
-  // latency, native chime-in support). When OFF, the legacy turn-based
-  // VAD + Whisper + TTS loop is used (kept as fallback).
-  const [realtimeMode, setRealtimeMode] = useState(() => localStorage.getItem("caos_kiosk_realtime") !== "0");
-  const realtimeModeRef = useRef(realtimeMode);
-  useEffect(() => {
-    realtimeModeRef.current = realtimeMode;
-    localStorage.setItem("caos_kiosk_realtime", realtimeMode ? "1" : "0");
-  }, [realtimeMode]);
-
-  // Sleep-mode — resident said something like "I'll just sit and wait".
-  const [sleeping, setSleeping] = useState(false);
-  const sleepingRef = useRef(false);
-  useEffect(() => { sleepingRef.current = sleeping; }, [sleeping]);
-
   // TVs-were-muted tracking: when a voice call begins we auto-mute any TV
   // in the room so the mic doesn't pick up Wheel of Fortune dialogue as
   // resident speech. On call end, we restore the prior power state.
@@ -109,13 +93,14 @@ export default function Kiosk() {
   const primeMedia = async () => {
     if (micReady) return true;
     try {
-      // Unlock AudioContext for beep
+      // Unlock AudioContext for playback (announcements, RealtimeChatScreen audio)
       if (!audioCtxRef.current) {
         const Ctx = window.AudioContext || window.webkitAudioContext;
         audioCtxRef.current = new Ctx();
         if (audioCtxRef.current.state === "suspended") await audioCtxRef.current.resume();
       }
-      // Ask for mic access and immediately release the stream (we'll re-acquire per utterance)
+      // Ask for mic access and immediately release the stream (Realtime's own
+      // WebRTC setup re-acquires it when the call actually starts)
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       stream.getTracks().forEach((t) => t.stop());
       setMicReady(true);
@@ -191,23 +176,18 @@ export default function Kiosk() {
       try {
         const { data } = await axios.get(`${API}/alerts/public/${alert.alert_id}/status`);
         if (data.status === "resolved") {
-          voiceLoopRef.current = false;
-          // In realtime mode, the WebRTC loop owns the goodbye. Just close
-          // the call silently — speaking here would step on the live AI.
-          if (!realtimeMode) {
-            await speak("Staff marked this call resolved. I'll step back.");
-          }
+          // The WebRTC loop owns hearing/speaking during a call - it owns the
+          // goodbye too. Just close the call silently.
           setTimeout(() => cancelCall(), 500);
         }
       } catch { /* silent */ }
     }, 4000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [alert?.alert_id, realtimeMode]);
+  }, [alert?.alert_id]);
 
   const handleIncomingEmergency = async (a) => {
     setAlert(a);
-    setAutoVoice(true);
     // If the browser hasn't received a user gesture yet, we cannot play audio
     // or open the mic. Defer until the user taps anywhere.
     if (!micReady) {
@@ -233,266 +213,29 @@ export default function Kiosk() {
         } catch { /* ignore */ }
       }
     } catch { /* ignore */ }
-
-    const name = (a.resident_name || resident?.name || "there").split(" ")[0];
-    const line = a.press_count >= 2
-      ? `I'm right here, ${name}. Help is on the way. Can you tell me what happened?`
-      : `Hi, ${name}. Help's on the way. Is there anything I can do for you while we wait?`;
-    setMessages([{ role: "assistant", content: line }]);
-    if (realtimeMode) {
-      // Realtime WebRTC handles its own greeting + listening loop. Don't
-      // launch the legacy turn-based loop or it'll talk over the new one.
-      return;
-    }
-    await speak(line);
-    // Start the continuous loop (auto listen → transcribe → reply → repeat)
-    voiceLoopRef.current = true;
-    runVoiceLoop();
+    // RealtimeChatScreen owns its own greeting + listening loop from here.
   };
 
-  // ---------- Continuous voice loop (hands-free) ----------
-  // Plays a short beep so blind residents know it's listening. Suppressed
-  // when CAOS is sleeping (resident asked to sit in silence).
-  const playBeep = () => {
-    if (sleepingRef.current) return;
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.value = 880;
-      gain.gain.value = 0.15;
-      osc.connect(gain).connect(ctx.destination);
-      osc.start();
-      setTimeout(() => { osc.stop(); ctx.close(); }, 150);
-    } catch { /* noop */ }
-  };
-
-  // Post-hoc RMS analysis — any recording whose average audio energy is
-  // below this threshold is treated as "silence or background noise"
-  // (e.g. TV at low volume, hallway chatter). Prevents Whisper from
-  // dutifully transcribing TV dialogue and CAOS replying to it.
-  const ACTIVE_RMS = 0.018;   // clear resident speech sits around 0.03-0.1
-  const computeRms = async (blob) => {
-    try {
-      const buf = await blob.arrayBuffer();
-      const Ctx = window.AudioContext || window.webkitAudioContext;
-      const actx = new Ctx();
-      const audioBuf = await actx.decodeAudioData(buf);
-      const ch = audioBuf.getChannelData(0);
-      let sum = 0;
-      for (let i = 0; i < ch.length; i++) sum += ch[i] * ch[i];
-      try { actx.close(); } catch {}
-      return Math.sqrt(sum / Math.max(ch.length, 1));
-    } catch {
-      return 1; // on decode failure, assume speech — don't starve the loop
-    }
-  };
-
-  // Short follow-on recording used to extend a barge-in recording — gives
-  // the resident a couple more seconds to finish their sentence.
-  const listenShort = (ms = 3000) =>
-    new Promise(async (resolve) => {
-      let stream = null;
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      } catch { return resolve(null); }
-      try {
-        const rec = new MediaRecorder(stream, { mimeType: "audio/webm" });
-        const chunks = [];
-        let settled = false;
-        const done = (blob) => {
-          if (settled) return;
-          settled = true;
-          try { stream.getTracks().forEach((t) => t.stop()); } catch {}
-          resolve(blob);
-        };
-        rec.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
-        rec.onstop = () => done(new Blob(chunks, { type: "audio/webm" }));
-        rec.onerror = () => done(null);
-        rec.start(250);
-        setTimeout(() => { try { if (rec.state !== "inactive") rec.stop(); } catch {} }, ms);
-      } catch {
-        try { stream.getTracks().forEach((t) => t.stop()); } catch {}
-        resolve(null);
-      }
+  // Non-conversational, mode-independent single-line TTS announcement.
+  // Used for medication reminders - NOT part of any conversation, so it
+  // doesn't need (and shouldn't use) the full-duplex Realtime peer
+  // connection; a plain TTS clip is the right tool for "say this one thing."
+  // Only ever called while callState is idle (see checkMeds below), so there
+  // is no active RealtimeChatScreen session to conflict with.
+  const announceLine = (text) =>
+    new Promise((resolve) => {
+      (async () => {
+        try {
+          const { data } = await axios.post(`${API}/ai/tts`, { text, voice: voiceIdRef.current }, { timeout: 8000 });
+          const audio = new Audio(`data:audio/mp3;base64,${data.audio_base64}`);
+          audio.onended = () => resolve();
+          audio.onerror = () => resolve();
+          await audio.play();
+        } catch {
+          resolve();
+        }
+      })();
     });
-
-  // Listen for up to ~14s per turn. Elderly speech pace is slower — 8s
-  // was cutting residents off mid-sentence.
-  const LISTEN_MS = 14000;
-  const MIN_BLOB_BYTES = 800; // quieter voices still count as speech
-  const listenOnce = () =>
-    new Promise(async (resolve) => {
-      if (!voiceLoopRef.current) return resolve(null);
-      let stream = null;
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      } catch {
-        voiceLoopRef.current = false;
-        toast.error("Microphone permission needed.");
-        return resolve(null);
-      }
-      try {
-        const rec = new MediaRecorder(stream, { mimeType: "audio/webm" });
-        const chunks = [];
-        let settled = false;
-        const done = (blob) => {
-          if (settled) return;
-          settled = true;
-          try { stream.getTracks().forEach((t) => t.stop()); } catch {}
-          setRecording(false);
-          resolve(blob);
-        };
-        rec.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
-        rec.onstop = () => done(new Blob(chunks, { type: "audio/webm" }));
-        rec.onerror = () => done(null);
-        mediaRef.current = rec;
-        rec.start(250); // emit chunks every 250ms so we never end up with an empty blob
-        setRecording(true);
-        setTimeout(() => {
-          try { if (rec.state !== "inactive") rec.stop(); } catch {}
-        }, LISTEN_MS);
-      } catch {
-        try { stream.getTracks().forEach((t) => t.stop()); } catch {}
-        setRecording(false);
-        resolve(null);
-      }
-    });
-
-  // Intent phrases — unambiguous signals that the resident wants CAOS to
-  // stop talking for now but stay available. Hitting any of these makes
-  // CAOS say one short acknowledgment and fully enter sleep mode.
-  const SLEEP_INTENT_PATTERNS = [
-    "i'll just wait", "ill just wait", "i will just wait",
-    "i'll just sit", "ill just sit", "i will just sit",
-    "just sit here", "i'm going to sit", "im going to sit",
-    "just wait for", "wait for somebody", "wait for someone",
-    "wait for help", "wait for the nurse", "wait for the caregiver",
-    "sit quietly", "sit with me quietly", "be quiet for a bit",
-    "stop talking for now", "no more talking", "no more questions for now",
-    "i don't need to talk", "i dont need to talk", "i do not need to talk",
-    "i don't want to talk", "i dont want to talk",
-    "shh", "hush",
-  ];
-  // Hard exits — resident wants CAOS gone AND the alert ended on their end.
-  const EXIT_INTENT_PATTERNS = [
-    "goodbye caos", "bye caos", "stop listening",
-    "leave me alone", "that's all i need", "that is all i need",
-    "i'm done talking", "im done talking", "i am done talking",
-  ];
-
-  const runVoiceLoop = async () => {
-    // Realtime-mode kill-switch — same reason as speak(). The WebRTC peer
-    // owns hearing AND speaking; legacy STT/TTS turn loop must not run.
-    if (realtimeModeRef.current) return;
-    // Keep going until voiceLoopRef flipped off (cancel / alert resolved /
-    // entered sleep). Empty-round tolerance is deliberately generous.
-    let emptyRounds = 0;
-    // Circuit breaker: if we see two short/empty transcripts in a row that
-    // arrived via barge-in (or right after CAOS spoke), we assume CAOS's own
-    // voice is feeding back through the mic and silently drop the turn.
-    let echoSuspects = 0;
-    while (voiceLoopRef.current && callStateRef.current !== "idle") {
-      if (sleepingRef.current) break;
-
-      // If the resident interrupted CAOS during TTS (barge-in), we already
-      // have a recording. Use it. Also extend: open a short follow-on window
-      // so the full sentence lands even if barge-in fired on the first word.
-      let blob = pendingBargeBlobRef.current;
-      pendingBargeBlobRef.current = null;
-      const fromBargeIn = !!blob;
-
-      if (blob) {
-        // Give them another 2–3 seconds to finish their thought, merging
-        // the barge-in blob with a short follow-on recording.
-        const followOn = await listenShort(3000);
-        if (followOn && followOn.size > 500) {
-          blob = new Blob([blob, followOn], { type: "audio/webm" });
-        }
-      } else {
-        playBeep();
-        blob = await listenOnce();
-      }
-      if (!voiceLoopRef.current || sleepingRef.current) break;
-      // Energy gate — filters out TV, hallway noise, or very quiet ambient.
-      let rms = 0;
-      if (blob && blob.size >= MIN_BLOB_BYTES) {
-        rms = await computeRms(blob);
-      }
-      const speechDetected = blob && blob.size >= MIN_BLOB_BYTES && rms >= ACTIVE_RMS;
-      if (!speechDetected) {
-        emptyRounds++;
-        if (emptyRounds === 2) { await speak("I'm still here. Take your time."); continue; }
-        if (emptyRounds === 4) { await speak("No rush. I'll stay with you."); continue; }
-        if (emptyRounds >= 6) {
-          // Long silence → gently step into sleep mode, don't walk off.
-          await speak("Okay. I'll be right here if you need me.");
-          sleepingRef.current = true;
-          setSleeping(true);
-          break;
-        }
-        continue;
-      }
-      emptyRounds = 0;
-      const form = new FormData();
-      form.append("audio", blob, "speech.webm");
-      setThinking(true);
-      let text = "";
-      try {
-        const { data } = await axios.post(`${API}/ai/stt`, form, { headers: { "Content-Type": "multipart/form-data" } });
-        text = (data.text || "").trim();
-      } catch { /* ignore */ }
-      setThinking(false);
-      if (!voiceLoopRef.current) break;
-      if (!text) continue;
-
-      // Echo-loop circuit breaker. A very short transcript that arrived via
-      // barge-in is the classic "CAOS heard itself" symptom. Silently drop
-      // it and re-listen. Two in a row → force a sleep so the room quiets.
-      const wordCount = text.split(/\s+/).filter(Boolean).length;
-      if (fromBargeIn && wordCount <= 3) {
-        echoSuspects++;
-        if (echoSuspects >= 2) {
-          await speak("It sounds like I might be hearing myself. I'll rest a moment — press any button if you need me.");
-          sleepingRef.current = true;
-          setSleeping(true);
-          break;
-        }
-        continue;
-      }
-      echoSuspects = 0;
-
-      const lower = text.toLowerCase();
-
-      // Sleep-intent — resident wants silence but not to end the alert.
-      if (SLEEP_INTENT_PATTERNS.some((k) => lower.includes(k))) {
-        await speak("Okay. I'll be right here if you need me.");
-        sleepingRef.current = true;
-        setSleeping(true);
-        break;
-      }
-      // Hard exit — resident clearly done conversing.
-      if (EXIT_INTENT_PATTERNS.some((k) => lower.includes(k))) {
-        await sendMessage(text);
-        await speak("Alright. I'll let you rest. Staff have been notified.");
-        break;
-      }
-
-      // Normal path — the configured conversation service processes the message. sendMessage also
-      // auto-enters sleep mode if the service reply signals rest intent
-      // ("I'll be quiet", "I'll be right here", "just rest", etc).
-      await sendMessage(text);
-      if (sleepingRef.current) break;
-    }
-    voiceLoopRef.current = false;
-  };
-
-  const startContinuousListen = () => {
-    // Legacy shim for older callers — just kick off the loop
-    voiceLoopRef.current = true;
-    runVoiceLoop();
-  };
 
   // Medication reminder polling — only when idle
   useEffect(() => {
@@ -500,14 +243,13 @@ export default function Kiosk() {
     let stop = false;
     const checkMeds = async () => {
       if (callStateRef.current !== "idle") return;
-      if (realtimeMode) return; // realtime owns the voice surface; reminders need their own realtime path (TODO)
       try {
         const { data: due } = await axios.get(`${API}/medications/due/by-room/${kiosk.room}`);
         if (stop || !due || due.length === 0) return;
         const m = due[0];
         const name = (resident?.preferred_name || resident?.name || "there").split(" ")[0];
         const line = `Hi ${name}, it's time for your ${m.title}.${m.dose_notes ? " " + m.dose_notes + "." : ""} If you need help, press the red button.`;
-        await speak(line);
+        await announceLine(line);
         await axios.post(`${API}/medications/ack/${m.reminder_id}`).catch(() => {});
         toast.success(`Reminder spoken: ${m.title}`);
       } catch { /* silent */ }
@@ -518,172 +260,9 @@ export default function Kiosk() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kiosk, resident]);
 
-  // Barge-in: while CAOS is speaking, a parallel mic+analyzer listens for
-  // the resident's voice. If the resident starts speaking, we (1) stop TTS
-  // immediately, and (2) hand the recording over to the listen loop so
-  // their full statement is captured — not just what they say *after*
-  // CAOS stops. The bargedInSpeechRef holds the rolling MediaRecorder so
-  // runVoiceLoop can "adopt" what's already been recorded.
-  const bargeInRef = useRef(null);     // { stream, rec, chunks, stopAnalyser, analyserCtx }
-  // Tuned against a self-feedback loop ("CAOS turns on by itself after ~4 turns"):
-  // 0.035 + 3 frames was low enough that CAOS's own voice bleeding through
-  // echo cancellation would trigger barge-in, Whisper would transcribe the
-  // echo back to the conversation service, it would reply, and the cycle compounded.
-  const BARGE_RMS_THRESHOLD = 0.06;    // was 0.035 — clearly above room ambient + TTS leak
-  const BARGE_HOT_FRAMES = 10;         // was 3 — require ~200ms of sustained voice
-  const BARGE_GRACE_MS = 800;          // don't accept barge-in for the first 800ms of TTS
-  const BARGE_MIN_BLOB_RMS = 0.025;    // adopted blob must itself be above this to count
-
-  const startBargeInListener = async (onBargeIn) => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-      });
-      const rec = new MediaRecorder(stream, { mimeType: "audio/webm" });
-      const chunks = [];
-      rec.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
-      rec.start(150);
-      // Web Audio analyser — monitors live RMS
-      const actx = new (window.AudioContext || window.webkitAudioContext)();
-      const src = actx.createMediaStreamSource(stream);
-      const analyser = actx.createAnalyser();
-      analyser.fftSize = 512;
-      src.connect(analyser);
-      const data = new Uint8Array(analyser.fftSize);
-      let running = true;
-      let hotFrames = 0;
-      const startedAt = performance.now();
-      const tick = () => {
-        if (!running) return;
-        analyser.getByteTimeDomainData(data);
-        let sum = 0;
-        for (let i = 0; i < data.length; i++) {
-          const v = (data[i] - 128) / 128;
-          sum += v * v;
-        }
-        const rms = Math.sqrt(sum / data.length);
-        const inGrace = performance.now() - startedAt < BARGE_GRACE_MS;
-        if (!inGrace && rms >= BARGE_RMS_THRESHOLD) {
-          hotFrames++;
-          if (hotFrames >= BARGE_HOT_FRAMES) {
-            running = false;
-            onBargeIn?.();
-            return;
-          }
-        } else {
-          hotFrames = 0;
-        }
-        requestAnimationFrame(tick);
-      };
-      tick();
-      bargeInRef.current = {
-        stream, rec, chunks,
-        stop: async () => {
-          running = false;
-          try { if (rec.state !== "inactive") rec.stop(); } catch {}
-          try { actx.close(); } catch {}
-          try { stream.getTracks().forEach((t) => t.stop()); } catch {}
-          // Wait briefly for final chunks to flush into chunks[]
-          await new Promise((r) => setTimeout(r, 100));
-          return new Blob(chunks, { type: "audio/webm" });
-        },
-      };
-    } catch {
-      // Mic unavailable — fall back to non-barge-in behavior
-      bargeInRef.current = null;
-    }
-  };
-
-  const speakFallback = (text) =>
-    new Promise((resolve) => {
-      try {
-        if (!("speechSynthesis" in window)) return resolve();
-        const u = new SpeechSynthesisUtterance(text);
-        u.rate = 0.95;
-        u.pitch = 1.0;
-        u.onend = () => resolve();
-        u.onerror = () => resolve();
-        window.speechSynthesis.speak(u);
-      } catch { resolve(); }
-    });
-
-  // speak() now supports barge-in:
-  //   - While TTS plays, a parallel mic analyser watches for voice energy.
-  //   - On detected resident voice: TTS is PAUSED immediately and the
-  //     recording of what the resident said (from the moment CAOS started
-  //     speaking) is handed to runVoiceLoop via pendingBargeBlob.
-  //   - Result: the resident can interrupt at any time and everything they
-  //     say — even during CAOS's talk — is captured and processed.
-  const pendingBargeBlobRef = useRef(null);
-  const speak = (text, { allowBargeIn = true } = {}) =>
-    new Promise(async (resolve) => {
-      // Hard kill-switch: in realtime mode, the WebRTC peer owns the voice
-      // surface entirely. ANY legacy speak() call must be silently no-op'd
-      // or two AIs will talk over each other. This catches every entry
-      // point — explicit or accidental — without needing to gate them
-      // individually.
-      if (realtimeModeRef.current) { resolve(); return; }
-      let bargedIn = false;
-      const finish = async () => {
-        // Tear down barge-in listener if still running
-        if (bargeInRef.current) {
-          try {
-            const blob = await bargeInRef.current.stop();
-            if (bargedIn && blob && blob.size > 1000) {
-              // Second-pass sanity check: the adopted blob must itself carry
-              // real voice energy. If the mean RMS is low, it was almost
-              // certainly CAOS's own voice bleeding through — drop it so we
-              // don't feed the feedback loop.
-              try {
-                const blobRms = await computeRms(blob);
-                if (blobRms >= BARGE_MIN_BLOB_RMS) {
-                  pendingBargeBlobRef.current = blob;
-                } else {
-                  // Echo — ignore. The loop will passively listen next round.
-                  console.debug("[CAOS] dropped barge-in blob, rms=", blobRms);
-                }
-              } catch {
-                pendingBargeBlobRef.current = blob; // best-effort fallback
-              }
-            }
-          } catch {}
-          bargeInRef.current = null;
-        }
-        setSpeaking(false);
-        resolve();
-      };
-      try {
-        setSpeaking(true);
-        const { data } = await axios.post(`${API}/ai/tts`, { text, voice: voiceIdRef.current }, { timeout: 8000 });
-        const audio = new Audio(`data:audio/mp3;base64,${data.audio_base64}`);
-        audioRef.current = audio;
-
-        // Kick off the barge-in listener just before playback starts
-        if (allowBargeIn && !sleepingRef.current) {
-          await startBargeInListener(() => {
-            // Resident started speaking → cut TTS immediately
-            bargedIn = true;
-            try { audio.pause(); } catch {}
-            try { audio.currentTime = audio.duration || 0; } catch {}
-          });
-        }
-
-        audio.onended = () => { finish(); };
-        audio.onpause = () => { if (bargedIn) finish(); };
-        audio.onerror = async () => {
-          await speakFallback(text);
-          await finish();
-        };
-        await audio.play();
-      } catch {
-        await speakFallback(text);
-        await finish();
-      }
-    });
-
   const triggerEmergency = async (severity = "emergency") => {
     if (!kiosk) return;
-    // A real user tap — prime audio+mic so the loop actually works
+    // A real user tap — prime audio+mic so the call can actually connect
     const ok = await primeMedia();
     if (!ok) return;
     setCallState("calling");
@@ -695,21 +274,8 @@ export default function Kiosk() {
         triggered_by: "kiosk_button",
       });
       setAlert(data);
-      setAutoVoice(true);
       setCallState("chatting");
-      const name = resident?.preferred_name || resident?.name?.split(" ")[0] || "there";
-      const line = severity === "emergency"
-        ? `Hello ${name}. Staff have been notified. Stay where you are if it is safe. I am here with you. Tell me what's happening.`
-        : `Hello ${name}. I've notified staff. While we wait, what can I help with?`;
-      setMessages([{ role: "assistant", content: line }]);
-      if (realtimeMode) {
-        // Realtime WebRTC owns the conversation from here. Skip the legacy
-        // greeting + voice loop or two AIs talk over each other.
-        return;
-      }
-      await speak(line);
-      voiceLoopRef.current = true;
-      runVoiceLoop();
+      // RealtimeChatScreen owns the greeting + conversation from here.
     } catch {
       toast.error("Could not send the call. Please try again.");
       setCallState("idle");
@@ -717,13 +283,6 @@ export default function Kiosk() {
   };
 
   const cancelCall = async () => {
-    voiceLoopRef.current = false;
-    if (mediaRef.current && mediaRef.current.state !== "inactive") {
-      try { mediaRef.current.stop(); } catch {}
-    }
-    if (audioRef.current) {
-      try { audioRef.current.pause(); } catch {}
-    }
     // Restore any TVs/speakers we muted when the call began.
     if (mutedDevicesRef.current.length) {
       for (const m of mutedDevicesRef.current) {
@@ -736,23 +295,7 @@ export default function Kiosk() {
       mutedDevicesRef.current = [];
     }
     setAlert(null);
-    setMessages([]);
     setCallState("idle");
-    setSpeaking(false);
-    setAutoVoice(false);
-    setRecording(false);
-    setThinking(false);
-    setSleeping(false);
-  };
-
-  // Wake CAOS from sleep mode without creating a new alert. Resident taps
-  // the big "Tap to talk again" button on the chat screen.
-  const wakeFromSleep = async () => {
-    if (!sleepingRef.current) return;
-    setSleeping(false);
-    voiceLoopRef.current = true;
-    await speak("I'm here.");
-    runVoiceLoop();
   };
 
   const sendDeviceCommand = async (action, value) => {
@@ -770,123 +313,6 @@ export default function Kiosk() {
     }
   };
 
-  // Canned comfort lines used when the conversation service is unreachable. Rotates so the
-  // resident doesn't hear the same sentence every time.
-  const OFFLINE_LINES = [
-    "I'm here with you. Help is on the way. Just breathe — slow and easy.",
-    "Stay right where you are. Staff have been notified. I'm not going anywhere.",
-    "You're not alone. Staff have been notified. I'll wait with you.",
-    "Take your time. Help is on its way. I'm listening.",
-  ];
-  const offlineCursorRef = useRef(0);
-
-  const sendMessage = async (text) => {
-    const userMsg = { role: "user", content: text };
-    setMessages((m) => [...m, userMsg]);
-    setThinking(true);
-    let reply = "";
-    let sleepIntent = false;
-    try {
-      const { data } = await axios.post(`${API}/ai/chat`, {
-        session_id: sessionRef.current,
-        kiosk_id: kiosk?.kiosk_id,
-        resident_id: resident?.resident_id,
-        message: text,
-      }, { timeout: 15000 });
-      reply = data.reply || "";
-      sleepIntent = !!data.sleep_intent;
-      setMessages((m) => [...m, { role: "assistant", content: reply }]);
-      await speak(reply);
-      if (data.auto_emergency_detected && alert?.severity !== "emergency") {
-        // Escalate silently
-        try {
-          await axios.post(`${API}/alerts`, {
-            kiosk_id: kiosk.kiosk_id,
-            severity: "emergency",
-            message: "AI-assisted review flagged possible urgent language for staff review",
-            triggered_by: "ai_triage",
-          });
-        } catch {}
-      }
-    } catch {
-      // Offline fallback — never let the resident hear silence.
-      const fallback = OFFLINE_LINES[offlineCursorRef.current % OFFLINE_LINES.length];
-      offlineCursorRef.current += 1;
-      reply = fallback;
-      setMessages((m) => [...m, { role: "assistant", content: fallback }]);
-      await speak(fallback);
-    } finally {
-      setThinking(false);
-    }
-
-    // AUTHORITATIVE sleep signal: the conversation service appends [REST] when it detects
-    // the resident wants quiet. Backend strips it and returns sleep_intent:true.
-    // Belt-and-suspenders: also fall back to reply-phrase matching for any
-    // case where the tag is missing.
-    const replyLower = (reply || "").toLowerCase();
-    const SLEEP_REPLY_CUES = [
-      "i'll be quiet", "ill be quiet", "i will be quiet",
-      "i'll be right here", "ill be right here", "i will be right here",
-      "i'll be here if you need", "ill be here if you need",
-      "i'll wait quietly", "ill wait quietly",
-      "i'll let you rest", "ill let you rest",
-      "just rest", "rest now", "get some rest",
-      "i'll stop talking", "ill stop talking",
-    ];
-    if (sleepIntent || SLEEP_REPLY_CUES.some((c) => replyLower.includes(c))) {
-      sleepingRef.current = true;
-      setSleeping(true);
-    }
-  };
-
-  // Voice recording
-  const startRecord = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const rec = new MediaRecorder(stream, { mimeType: "audio/webm" });
-      const chunks = [];
-      rec.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
-      rec.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunks, { type: "audio/webm" });
-        if (blob.size < 1500) {
-          toast.info("I didn't catch that. Hold the button a bit longer and try again.");
-          setRecording(false);
-          return;
-        }
-        const form = new FormData();
-        form.append("audio", blob, "speech.webm");
-        setThinking(true);
-        try {
-          const { data } = await axios.post(`${API}/ai/stt`, form, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
-          if (data.text?.trim()) {
-            await sendMessage(data.text.trim());
-          } else {
-            toast.info("I didn't catch that. Try again.");
-            setThinking(false);
-          }
-        } catch {
-          toast.error("Couldn't transcribe.");
-          setThinking(false);
-        }
-      };
-      mediaRef.current = rec;
-      rec.start(250);
-      setRecording(true);
-    } catch {
-      toast.error("Microphone permission needed.");
-    }
-  };
-
-  const stopRecord = () => {
-    if (mediaRef.current && mediaRef.current.state !== "inactive") {
-      mediaRef.current.stop();
-    }
-    setRecording(false);
-  };
-
   // IDLE state layout
   // Voice picker dialog — rendered in BOTH the idle and chat return blocks
   // so the user can change voices from any state.
@@ -894,7 +320,7 @@ export default function Kiosk() {
     <Dialog open={voicePickerOpen} onOpenChange={setVoicePickerOpen}>
       <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-display text-2xl text-caos-forest">Choose CAOS's voice</DialogTitle>
+          <DialogTitle className="font-display text-2xl text-caos-forest">Choose Aria's voice</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-caos-mute mb-4">
           Tap ▶ to preview. Tap the name to select. The voice is remembered per kiosk.
@@ -985,26 +411,12 @@ export default function Kiosk() {
               onClick={() => setVoicePickerOpen(true)}
               data-testid="kiosk-a11y-voice"
               aria-label={`Voice: ${voiceId}. Tap to change voice.`}
-              title="Change CAOS's voice"
+              title="Change Aria's voice"
               className="px-4 py-2 rounded-full bg-caos-forest text-white hover:bg-caos-forest-hover flex items-center gap-2 text-sm font-bold uppercase tracking-wider shadow-sm"
             >
               <Volume2 className="w-4 h-4" />
               <span className="opacity-80">Voice:</span>
               <span>{voiceId}</span>
-            </button>
-            <button
-              onClick={() => setRealtimeMode((v) => !v)}
-              data-testid="kiosk-a11y-realtime"
-              aria-label={`Full-duplex mode ${realtimeMode ? "on" : "off"}. Tap to toggle.`}
-              title="Full-duplex realtime voice"
-              aria-pressed={realtimeMode}
-              className={`px-3 py-2 rounded-full border flex items-center gap-1 text-sm font-bold uppercase tracking-wider ${
-                realtimeMode
-                  ? "bg-caos-terracotta text-white border-caos-terracotta"
-                  : "bg-white text-caos-forest border-caos-line hover:bg-caos-forest hover:text-white"
-              }`}
-            >
-              <Sparkles className="w-4 h-4" /> {realtimeMode ? "Live" : "Turn"}
             </button>
             <button
               onClick={() => setHighContrast((v) => !v)}
@@ -1122,198 +534,23 @@ export default function Kiosk() {
   }
 
   // CALLING / WAITING / CHATTING
-  // Realtime mode hands the chat surface to RealtimeChatScreen as soon as
-  // an alert is open. Calling+waiting are skipped because the realtime
-  // peer connection establishes in under a second.
-  if (realtimeMode && callState !== "idle" && alert) {
-    return (
-      <>
-        <RealtimeChatScreen
-          resident={resident}
-          kiosk={kiosk}
-          voiceId={voiceId}
-          a11yRootClass={a11yRootClass}
-          onOpenVoicePicker={() => setVoicePickerOpen(true)}
-          onEnd={() => {
-            setCallState("idle");
-            setAlert(null);
-            setMessages([]);
-            voiceLoopRef.current = false;
-          }}
-        />
-        {voicePickerDialog}
-      </>
-    );
-  }
-
+  // Full-duplex Realtime (WebRTC) is the only resident conversation path.
+  // Calling+waiting are skipped because the realtime peer connection
+  // establishes in under a second.
   return (
-    <div className="min-h-screen bg-caos-ambient p-6 md:p-10 flex flex-col">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.3em] text-caos-mute">
-            {autoVoice ? "Panic-press detected — hands-free" : alert?.severity === "emergency" ? "Emergency paged" : "Staff paged"}
-          </p>
-          <h2 className="font-display text-3xl md:text-5xl font-light text-caos-forest mt-2">
-            Help is on the way.
-          </h2>
-          {resident && (
-            <p className="text-caos-mute mt-1 text-lg" data-testid="kiosk-resident-name">
-              Room {resident.room} · {resident.name}
-            </p>
-          )}
-          {autoVoice && (
-            <p className="mt-2 inline-flex items-center gap-2 bg-caos-terracotta/10 text-caos-terracotta-dark border border-caos-terracotta rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider" data-testid="kiosk-autovoice-banner">
-              <Mic className="w-3 h-3" /> Auto-listening · you don't have to touch anything
-            </p>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setVoicePickerOpen(true)}
-            data-testid="kiosk-chat-voice-btn"
-            title="Change CAOS's voice"
-            className="px-4 py-2 rounded-full bg-caos-forest text-white hover:bg-caos-forest-hover flex items-center gap-2 text-sm font-bold uppercase tracking-wider shadow-sm"
-          >
-            <Volume2 className="w-4 h-4" /> <span className="opacity-80">Voice:</span> {voiceId}
-          </button>
-          <Button
-            onClick={cancelCall}
-            variant="outline"
-            data-testid="kiosk-cancel-btn"
-            className="rounded-full border-2 border-caos-forest text-caos-forest h-14 px-6 text-lg"
-          >
-            <X className="w-5 h-5 mr-2" />
-            Never mind
-          </Button>
-        </div>
-      </div>
-
-      {/* AI Orb + transcript */}
-      <div className="flex-1 mt-8 grid grid-cols-1 md:grid-cols-12 gap-8">
-        {/* Orb */}
-        <div className="md:col-span-5 flex items-center justify-center">
-          <div className="relative">
-            <div
-              className={`w-64 h-64 md:w-80 md:h-80 rounded-full ${
-                speaking ? "caos-orb-fast" : "caos-orb"
-              }`}
-              style={{
-                background:
-                  "radial-gradient(circle at 30% 30%, #4A7C59 0%, #153428 60%, #0E1A14 100%)",
-                boxShadow: "0 20px 80px -20px rgba(21, 52, 40, 0.55)",
-              }}
-              aria-label="AI companion voice"
-              data-testid="kiosk-ai-orb"
-            />
-            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-white rounded-full px-5 py-2 border border-caos-line flex items-center gap-2" data-testid="kiosk-voice-status">
-              <Volume2 className={`w-4 h-4 ${speaking ? "text-caos-terracotta" : recording ? "text-caos-moss" : "text-caos-mute"}`} />
-              <span className="text-sm font-semibold text-caos-forest">
-                {speaking ? "Speaking..." : recording ? "Listening..." : thinking ? "Thinking..." : "Ready"}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Chat */}
-        <div className="md:col-span-7 flex flex-col">
-          <Card className="flex-1 bg-white border-caos-line p-6 overflow-y-auto max-h-[50vh]">
-            {messages.map((m, i) => (
-              <div
-                key={i}
-                data-testid={`kiosk-msg-${m.role}`}
-                className={`mb-5 text-2xl md:text-3xl leading-snug font-display ${
-                  m.role === "assistant" ? "text-caos-forest" : "text-caos-ink/70 text-right"
-                }`}
-              >
-                {m.role === "user" && (
-                  <span className="text-xs font-bold uppercase tracking-widest text-caos-mute block mb-1">
-                    You
-                  </span>
-                )}
-                {m.content}
-              </div>
-            ))}
-            {thinking && (
-              <div className="text-caos-mute italic text-xl">Aria is thinking…</div>
-            )}
-          </Card>
-
-          <div className="mt-5 flex items-center justify-center gap-4">
-            {autoVoice ? (
-              <div className="w-full rounded-[32px] bg-white border-2 border-caos-line p-6 text-center" data-testid="kiosk-autovoice-indicator">
-                {speaking && (
-                  <div className="flex flex-col items-center gap-2">
-                    <Volume2 className="w-16 h-16 text-caos-terracotta animate-pulse" />
-                    <p className="text-2xl font-display font-medium text-caos-forest">Aria is speaking...</p>
-                    <p className="text-sm text-caos-mute uppercase tracking-[0.2em]">please listen</p>
-                  </div>
-                )}
-                {!speaking && recording && (
-                  <div className="flex flex-col items-center gap-2">
-                    <Mic className="w-16 h-16 text-caos-moss animate-pulse" />
-                    <p className="text-2xl font-display font-medium text-caos-forest">Your turn — I'm listening</p>
-                    <p className="text-sm text-caos-mute uppercase tracking-[0.2em]">speak naturally</p>
-                  </div>
-                )}
-                {!speaking && !recording && thinking && (
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="w-16 h-16 rounded-full border-4 border-caos-forest border-t-transparent animate-spin" />
-                    <p className="text-2xl font-display font-medium text-caos-forest">Thinking...</p>
-                  </div>
-                )}
-                {!speaking && !recording && !thinking && !sleeping && (
-                  <div className="flex flex-col items-center gap-2">
-                    <Mic className="w-16 h-16 text-caos-mute" />
-                    <p className="text-xl font-display font-medium text-caos-mute">Ready</p>
-                  </div>
-                )}
-                {sleeping && (
-                  <div className="flex flex-col items-center gap-4 py-4">
-                    <div className="w-16 h-16 rounded-full bg-caos-ambient border-2 border-caos-line flex items-center justify-center">
-                      <Mic className="w-8 h-8 text-caos-mute" />
-                    </div>
-                    <p className="text-2xl font-display font-medium text-caos-forest">I'm right here.</p>
-                    <p className="text-base text-caos-mute leading-snug text-center max-w-md">
-                      Help is still on the way. Tap the button when you'd like me to listen again.
-                    </p>
-                    <button
-                      onClick={wakeFromSleep}
-                      data-testid="kiosk-wake-btn"
-                      className="mt-2 px-10 py-5 rounded-full bg-caos-forest hover:bg-caos-forest-hover text-white text-xl font-display font-medium shadow-lg transition-all"
-                    >
-                      <Mic className="w-6 h-6 mr-3 inline" /> Tap to talk again
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <Button
-                onMouseDown={startRecord}
-                onMouseUp={stopRecord}
-                onTouchStart={startRecord}
-                onTouchEnd={stopRecord}
-                data-testid="kiosk-mic-btn"
-                className={`caos-kiosk-btn !min-h-[100px] w-full rounded-[32px] ${
-                  recording
-                    ? "bg-caos-terracotta hover:bg-caos-terracotta text-white"
-                    : "bg-caos-forest hover:bg-caos-forest-hover text-white"
-                }`}
-              >
-                {recording ? (<><MicOff className="w-10 h-10 mr-4" /> Release to send</>) : (<><Mic className="w-10 h-10 mr-4" /> Hold to talk</>)}
-              </Button>
-            )}
-          </div>
-
-          {alert?.severity === "emergency" && (
-            <div className="mt-4 bg-caos-terracotta/10 border border-caos-terracotta rounded-2xl p-4 flex items-start gap-3">
-              <AlertCircle className="w-6 h-6 text-caos-terracotta mt-0.5" />
-              <p className="text-caos-terracotta-dark font-semibold">
-                Emergency paged. Stay where you are. Staff have been notified.
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
+    <>
+      <RealtimeChatScreen
+        resident={resident}
+        kiosk={kiosk}
+        voiceId={voiceId}
+        a11yRootClass={a11yRootClass}
+        onOpenVoicePicker={() => setVoicePickerOpen(true)}
+        onEnd={() => {
+          setCallState("idle");
+          setAlert(null);
+        }}
+      />
+      {voicePickerDialog}
 
       {/* Tap-to-answer overlay when remote pendant fired but we have no user gesture yet */}
       {needsTap && (
@@ -1339,8 +576,14 @@ export default function Kiosk() {
           <p className="text-xl uppercase tracking-[0.3em] text-caos-amber mt-4">TAP ANYWHERE TO ANSWER</p>
         </button>
       )}
-      {/* Voice picker shared with idle screen — available in chat state too */}
-      {voicePickerDialog}
-    </div>
+      {alert?.severity === "emergency" && callState === "chatting" && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 bg-caos-terracotta/10 border border-caos-terracotta rounded-2xl p-4 flex items-start gap-3 max-w-md">
+          <AlertCircle className="w-6 h-6 text-caos-terracotta mt-0.5" />
+          <p className="text-caos-terracotta-dark font-semibold">
+            Emergency paged. Stay where you are. Staff have been notified.
+          </p>
+        </div>
+      )}
+    </>
   );
 }
