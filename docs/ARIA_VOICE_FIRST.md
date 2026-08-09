@@ -932,3 +932,112 @@ Aria answers via the Realtime path with no leftover "Live/Turn" toggle
 anywhere, and confirm the room's TV (if any) still auto-mutes. Separately,
 whenever there's a real medication reminder due, confirm it's still
 spoken aloud via the new `announceLine()` path.
+
+---
+
+## 2026-08-09 — THE ACTUAL ROOT CAUSE: the live WebRTC call never used our instructions at all
+
+### Michael tested again after 51b23de and it still failed
+Still "Hey", still no name knowledge, still generic. This was the correct
+reaction — every previous fix had been re-verified correct at the prompt/
+API-response layer, so a live failure after all of that meant the bug was
+somewhere the verification methodology couldn't see: the actual WebRTC
+wiring, not the prompt text.
+
+### The bug, found by reading the code, not guessing
+`useRealtimeVoice.js`'s `start()` does two backend calls in sequence:
+1. `POST /realtime/session` (or `/aria-session`) — mints an ephemeral
+   OpenAI session **with the full Aria/companion instructions**, and
+   returns an ephemeral key (`session.value`).
+2. `POST /realtime/negotiate` — sends the browser's WebRTC SDP offer to
+   get back an SDP answer, completing the actual audio connection.
+
+Grepped every use of the `ephemeral` variable in the file: it's extracted
+at step 1, checked for existence, and **never referenced again**. Step 2's
+`fetch` call sends only the raw SDP body — no reference to the session
+from step 1 at all. Backend-side, `/negotiate` (`backend/routes/realtime.py`)
+confirmed the other half: it authenticated with the server's own
+`OPENAI_API_KEY` (not the ephemeral one) and built a **brand-new** generic
+`session_config` — `{type, model, audio.output.voice}` — **no
+`instructions` field**. So the actual live audio call was always a fresh,
+default OpenAI session that had never heard of Aria, regardless of what
+the (real, correct, repeatedly-verified) `/session` response said. The
+`session.update` sent afterward over the data channel was the only thing
+carrying real instructions to the live call — and evidently wasn't
+reliably taking effect either.
+
+### Fix, verified empirically before being trusted
+Rather than guess at OpenAI's current Realtime API contract, tested it
+directly against `https://api.openai.com/v1/realtime/calls`:
+- Generated a **real, valid** WebRTC SDP offer server-side using `aiortc`
+  (not hand-typed — a hand-typed offer's shell-mangled newlines produced a
+  misleading "failed to parse SDP" error that looked like an auth failure
+  but wasn't).
+- Real ephemeral key + real SDP, immediately after minting →
+  **`HTTP 201`, valid SDP answer.**
+- Same real SDP with a garbage key → `"Invalid realtime token"`.
+- Same real SDP with a real-but-several-minutes-old key → `"Ephemeral
+  token expired"` — a materially different error, proving OpenAI
+  recognizes and validates the specific ephemeral token, not just "some
+  bearer token present."
+- This confirms: the ephemeral key IS the correct authentication
+  mechanism for `/v1/realtime/calls`, and using it (instead of the raw
+  server key + a fresh generic config) ties the WebRTC call to the
+  already-configured session — the one with Aria's real instructions.
+
+Applied:
+- `backend/routes/realtime.py` `/negotiate`: now requires an
+  `X-CAOS-Ephemeral-Key` header, authenticates the OpenAI call with THAT
+  key instead of the server key, and sends **only** the SDP (no fresh
+  `session` config — the ephemeral session already carries voice/
+  instructions/tools from step 1).
+- `frontend/src/lib/useRealtimeVoice.js`: now forwards the ephemeral key
+  it already had (previously extracted and discarded) as that header.
+
+**Verified through our own backend, end to end**, not just against OpenAI
+directly: minted a real Aria session, took its ephemeral key, sent a real
+`aiortc`-generated SDP offer to our own `POST /api/realtime/negotiate`
+with that key → `HTTP 200`, valid SDP answer (`v=0...`). This is the
+actual code path the browser will use, exercised for real, not simulated.
+
+### What this means for every earlier "verified" fix this session
+Every prompt/personality/name/language/sensitive-topic change made earlier
+today was genuinely correct and genuinely delivered to the `/session` and
+`/aria-session` **responses** — that was never false. What was false was
+the assumption that a correct response from those endpoints meant the
+live call would use it. It didn't, because of this separate, independent
+bug in how the SDP negotiation authenticated. This is why the persona
+work looked repeatedly "fixed" by every available check except the one
+that actually mattered: talking to her for real.
+
+### What was NOT changed
+- Did not touch any prompt/instruction text in this entry.
+- Did not touch the `session.update` data-channel logic — left as
+  defense-in-depth (reinforces the same config the session already has;
+  harmless if redundant, useful if anything about the initial config
+  didn't fully apply for some other reason).
+- Did not touch `/session` or `/aria-session` (step 1) — they were never
+  the problem.
+
+### What was verified
+- Backend restarted cleanly after a syntax check.
+- Real end-to-end test through our own `/negotiate` endpoint (above),
+  `HTTP 200` with a genuine SDP answer.
+- Frontend hot-compiled with no new errors (same pre-existing unrelated
+  warning as every entry this session).
+- **Not yet verified**: an actual live browser conversation. This fix
+  addresses a real, proven, structural bug in the connection-setup code —
+  it is not a guess — but "the SDP handshake completes correctly" is a
+  necessary condition for Aria to sound right, not a full substitute for
+  Michael actually hearing her say "I'm Aria" without a "Hey" in a real
+  call.
+
+### Next safe step
+Michael opens a real kiosk or `/aria` and has an actual conversation. If
+this fix is complete, she should introduce herself correctly, not open
+with "Hey", and generally sound like the instructions that have been
+verified correct at the API-response layer all along. If it's still
+wrong, the identity canary (`_caos.diagnostics.prompt_hash`) plus this
+now-fixed negotiation path removes two entire categories of prior
+uncertainty — any remaining issue would be a third, different thing, not
+a repeat of either the persona-drift bug or this wiring bug.

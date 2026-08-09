@@ -419,12 +419,24 @@ export function useRealtimeVoice({
       };
 
       // 5. SDP exchange (offer → backend → OpenAI → answer)
+      // FIXED 2026-08-09 (real bug): this used to negotiate without the
+      // ephemeral key at all, so the backend authenticated with its own
+      // server key and built a brand-new, generic, instructions-less
+      // session - the actual live call never used the Aria/companion
+      // instructions minted in step 1. Now forwards the same ephemeral
+      // key so the call continues THAT already-configured session.
+      // Empirically verified against OpenAI directly (real SDP via
+      // aiortc + this exact key -> HTTP 201 with a valid answer) before
+      // wiring it in here.
       const offer = await pc.createOffer();
       if (myGen !== startGenRef.current) throw new Error("canceled");
       await pc.setLocalDescription(offer);
       const negRes = await fetch(`${API}/realtime/negotiate`, {
         method: "POST",
-        headers: { "Content-Type": "application/sdp" },
+        headers: {
+          "Content-Type": "application/sdp",
+          "X-CAOS-Ephemeral-Key": ephemeral,
+        },
         body: offer.sdp,
       });
       if (myGen !== startGenRef.current) throw new Error("canceled");

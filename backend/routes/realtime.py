@@ -994,23 +994,37 @@ async def create_session(payload: dict = Body(default={})):
 @router.post("/negotiate")
 async def negotiate(request: Request):
     """Forward the browser's WebRTC SDP offer to OpenAI and return the
-    SDP answer. After this exchange, audio streams browser ↔ OpenAI directly."""
-    key = _require_openai_key()
+    SDP answer. After this exchange, audio streams browser <-> OpenAI directly.
+
+    FIXED 2026-08-09 (real, confirmed bug, not a persona/prompt issue): this
+    endpoint was authenticating with the server's own OPENAI_API_KEY and
+    building a brand-new, generic `session_config` (model + default voice,
+    NO instructions) from scratch on every call - completely discarding the
+    ephemeral session /session or /aria-session had just minted with the
+    real Aria instructions. The ephemeral key was extracted client-side
+    (useRealtimeVoice.js) and then never used again. The actual live WebRTC
+    call was therefore always running on OpenAI's own default instructions,
+    not ours - explaining every symptom (generic "Hey" opener, no name
+    knowledge, sounds like the base model) regardless of how many times the
+    prompt text itself was fixed and re-verified.
+
+    Fix: the browser now forwards the SAME ephemeral key it already has
+    (via the `X-CAOS-Ephemeral-Key` header) and this endpoint authenticates
+    the SDP exchange with THAT key instead of the server key, sending no
+    session config at all - the call continues the already-configured
+    ephemeral session (with the real instructions/voice/tools) instead of
+    creating a new, generic one.
+    """
+    ephemeral_key = request.headers.get("x-caos-ephemeral-key")
+    if not ephemeral_key:
+        raise HTTPException(status_code=400, detail="Missing ephemeral session key")
     try:
         sdp_offer = (await request.body()).decode()
-        session_config = {
-            "type": "realtime",
-            "model": OPENAI_REALTIME_MODEL,
-            "audio": {"output": {"voice": DEFAULT_VOICE}},
-        }
-        files = {
-            "sdp": (None, sdp_offer),
-            "session": (None, json.dumps(session_config), "application/json"),
-        }
+        files = {"sdp": (None, sdp_offer)}
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(
                 f"{OPENAI_API_BASE}/realtime/calls",
-                headers={"Authorization": f"Bearer {key}"},
+                headers={"Authorization": f"Bearer {ephemeral_key}"},
                 files=files,
             )
         if resp.status_code >= 400:
