@@ -10,7 +10,7 @@ import bcrypt
 import httpx
 
 from models import RegisterInput, LoginInput, User, UserPublic, uid, now_utc
-from deps import db, get_current_user
+from deps import db, get_current_user, local_bypass_active
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -204,6 +204,14 @@ async def admin_login(data: LoginInput, request: Request):
 async def me(request: Request):
     user = await get_current_user(request)
     return UserPublic(**user).model_dump()
+
+
+@router.get("/local-bypass-status")
+async def local_bypass_status(request: Request):
+    """Public, unauthenticated: lets the frontend know whether the local-dev
+    owner bypass (Terminal 7) is active for this request, so it can show a
+    visible LOCAL OWNER MODE indicator. Reveals no user data."""
+    return {"active": local_bypass_active(request)}
 
 
 class GoogleVerifyInput(BaseModel):

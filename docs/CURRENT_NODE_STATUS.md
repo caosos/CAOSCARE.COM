@@ -32,6 +32,7 @@ LAN-facing address for this host: `192.168.1.151` (Wi-Fi only — `eno1` wired p
 ## DONE (verified working, right now)
 
 - **CAOSCare core app**: backend health `{"ok":true,"db":"up"}`, frontend HTTP 200, MongoDB active. One owner account exists: `mytaxicloud@gmail.com`, `role=owner`, `auth_provider=jwt`. Password login works end-to-end.
+- **Local owner auth bypass (Terminal 7)**: `CAOSCARE_LOCAL_OWNER_BYPASS=true` in this host's `backend/.env` only. `backend/deps.py` now checks, before requiring any token, whether the request's `Host` header is one of `localhost`/`127.0.0.1`/`192.168.1.151` **and** the actual client IP is loopback/private — only then does it transparently authenticate as the existing owner account. Verified both directions: a token-less request with `Host: localhost` gets Michael's owner identity back from `/api/auth/me`; the identical request with `Host: caoscare.com` gets `401`. A new public `GET /api/auth/local-bypass-status` endpoint lets the frontend show a `LOCAL OWNER MODE` banner (added to `Protected` in `App.js`) whenever it's active. Normal password/Google login paths are untouched.
 - **Home Assistant OS VM**: installed, onboarded (Michael completed the wizard), persistent + autostart in libvirt, reachable and responding.
 - **Mosquitto MQTT broker**: installed as an HA add-on, running, port 1883 open. HA Core's own `mqtt` integration is configured and `loaded` (confirmed via `/api/config` components list).
 - **Dedicated MQTT service account**: a non-owner HA user `caoscare-mqtt` was created via the HA WebSocket admin API specifically for CAOSCare's future backend MQTT client (not reusing Michael's owner login). Credentials stored outside git at `~/.config/caoscare/mqtt_service_password` (0600).
@@ -70,6 +71,18 @@ iptables 8123 port-forward — runtime-only, no iptables-persistent installed, d
 ```
 
 This is a known, deliberately-deferred gap (Terminal 3 Phase 6 — "reliability and boot behavior" — has not been started), not an oversight. The plan is to convert backend/frontend to systemd units and persist the firewall rules together, then prove it with one real controlled reboot, rather than fixing pieces separately and re-testing each time.
+
+## Why local and caoscare.com look different (resolved, Terminal 7)
+
+**Root cause: `https://caoscare.com` has simply not been redeployed since 2026-05-17 — it is a frozen snapshot from months before almost all of the recent work.** This is not a branch mismatch, a config difference, or a separate deployment source we need to reconcile — it is one static build that was uploaded once and never updated again. Evidence:
+
+- `curl -I https://caoscare.com/` returns `Last-Modified: Sun, 17 May 2026 06:22:12 GMT` on `index.html` — served by `nginx/1.24.0 (Ubuntu)`, consistent with the Nginx-in-front-of-the-React-build layout `docs/DEPLOYMENT_RUNBOOK.md` describes, on the Linode server referenced in earlier sessions (never the EliteDesk).
+- The live JS bundle (`/static/js/main.a3ad9e69.js`) contains **zero** references to Aria, the capability portfolio, or anything from the Terminal 5/5A work (all built in August) — expected, since none of that was ever pushed to this deployment.
+- More importantly, the live bundle's **staff login button still calls `https://auth.emergentagent.com/?redirect=...`** — the old Emergent-hosted OAuth relay. The current repo replaced this with direct Google OAuth (`POST /api/auth/google/verify`, `frontend/src/components/GoogleSignIn.jsx`) back in commit `3e47c14`. Production has never received that change, so it is still functionally dependent on Emergent's external auth service today, live, in production — not just leftover dead code, an actually-wired redirect.
+- Confirms the account given in the very first EliteDesk session: "it's on the Linode server... update the linode server later" — that update was deferred then and, per this evidence, still hasn't happened.
+- No CI/CD, deploy script, or hosting config exists anywhere in this repo (checked for GitHub Actions workflows, Netlify/Vercel config — none found), so there's no automated pipeline this project is silently drifting from; the gap is purely "nobody has pushed a new build since May."
+
+**Not done, per the directive's explicit instruction**: no change was made to the public site. Redeploying it needs Michael's decision on how (and whether to finally retire the Emergent auth relay in production at the same time) — the mechanics of *how* files got onto that Linode server in the first place aren't recorded anywhere in this repo, so that's something only Michael can direct.
 
 ## Note for future agents on this host
 

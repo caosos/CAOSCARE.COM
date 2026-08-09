@@ -6,6 +6,16 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [localBypassActive, setLocalBypassActive] = useState(false);
+
+  useEffect(() => {
+    // Cheap, unauthenticated, safe on every path - just tells the UI whether
+    // to show a LOCAL OWNER MODE indicator (Terminal 7).
+    api
+      .get("/auth/local-bypass-status")
+      .then(({ data }) => setLocalBypassActive(!!data.active))
+      .catch(() => setLocalBypassActive(false));
+  }, []);
 
   const fetchMe = useCallback(async () => {
     try {
@@ -68,7 +78,17 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider
-      value={{ user, setUser, loading, fetchMe, loginJwt, loginAdmin, registerJwt, logout }}
+      value={{
+        user,
+        setUser,
+        loading,
+        fetchMe,
+        loginJwt,
+        loginAdmin,
+        registerJwt,
+        logout,
+        localBypassActive,
+      }}
     >
       {children}
     </AuthContext.Provider>

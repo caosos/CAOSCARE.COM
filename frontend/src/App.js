@@ -17,6 +17,16 @@ import AuthCallback from "./pages/AuthCallback";
 import FamilyPortal from "./pages/FamilyPortal";
 import AriaVoice from "./pages/AriaVoice";
 
+function LocalBypassBanner() {
+  const { localBypassActive } = useAuth();
+  if (!localBypassActive) return null;
+  return (
+    <div className="w-full bg-amber-500 text-black text-xs font-semibold text-center py-1 tracking-wide">
+      LOCAL OWNER MODE — local-dev auth bypass active, not used in production
+    </div>
+  );
+}
+
 function Protected({ children, adminOnly = false, ownerOnly = false }) {
   const { user, loading } = useAuth();
   const location = useLocation();
@@ -38,7 +48,12 @@ function Protected({ children, adminOnly = false, ownerOnly = false }) {
   if (ownerOnly && user.role !== "owner") return <Navigate to="/admin" replace />;
   // "Admin" tier = owner OR admin (clinical admin nurse). Staff are rejected.
   if (adminOnly && !["owner", "admin"].includes(user.role)) return <Navigate to="/staff" replace />;
-  return children;
+  return (
+    <>
+      <LocalBypassBanner />
+      {children}
+    </>
+  );
 }
 
 function AppRouter() {

@@ -1,4 +1,5 @@
 """Shared dependencies: Mongo connection + current user auth."""
+import ipaddress
 import os
 from datetime import datetime, timezone
 from fastapi import Request, HTTPException, status
@@ -13,10 +14,48 @@ mongo_url = os.environ["MONGO_URL"]
 _client = AsyncIOMotorClient(mongo_url)
 db = _client[os.environ["DB_NAME"]]
 
+# Local-development-only owner bypass (Terminal 7). Disabled unless explicitly
+# enabled, and even then only ever activates for requests that look like
+# localhost/LAN dev traffic on this one host. Never active for public
+# hostnames such as caoscare.com, regardless of this flag's value there.
+_LOCAL_BYPASS_HOSTS = {"localhost", "127.0.0.1", "192.168.1.151"}
+
+
+def local_bypass_active(request: Request) -> bool:
+    if os.environ.get("CAOSCARE_LOCAL_OWNER_BYPASS", "").strip().lower() != "true":
+        return False
+    host = (request.headers.get("host") or "").split(":")[0].lower()
+    if host not in _LOCAL_BYPASS_HOSTS:
+        return False
+    client_ip = request.client.host if request.client else ""
+    try:
+        ip = ipaddress.ip_address(client_ip)
+    except ValueError:
+        return False
+    # Belt-and-suspenders: even with a matching Host header, only trust this
+    # for traffic that also actually originates from a loopback/private
+    # address, so a spoofed Host header alone can't trigger it.
+    return ip.is_loopback or ip.is_private
+
+
+async def _local_bypass_owner():
+    return await db.users.find_one({"role": "owner"}, {"_id": 0, "password_hash": 0})
+
 
 async def get_current_user(request: Request):
-    """Accepts either JWT Bearer token OR Emergent session_token cookie/header."""
+    """Accepts either JWT Bearer token OR Emergent session_token cookie/header.
+
+    In local-dev-only bypass mode (see local_bypass_active above), transparently
+    authenticates as the existing owner account instead of requiring a token.
+    """
     import jwt
+
+    if local_bypass_active(request):
+        owner = await _local_bypass_owner()
+        if owner:
+            return owner
+        # No owner exists yet on this host - fall through to normal auth
+        # instead of failing oddly, e.g. during initial bootstrap.
 
     token = None
     source = None
