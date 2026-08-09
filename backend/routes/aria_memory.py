@@ -13,6 +13,7 @@ Two stores, same shape as resident memory:
 """
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel
 
 from deps import db, require_owner
 from models import (
@@ -130,3 +131,58 @@ async def list_sessions(owner_user_id: str, user=Depends(require_owner)):
         {"owner_user_id": owner_user_id}, {"_id": 0},
     ).sort("started_at", -1).to_list(200)
     return [_iso(i) for i in items]
+
+
+# ---------------- Conversation threads (verbatim turns, text only) ----------------
+# db.aria_conversations mirrors the resident-facing db.conversations pattern
+# (routes/memory.py realtime_turn_ingest) but scoped to owner_user_id instead
+# of resident_id. Public/unauthenticated to match that same pattern - called
+# fire-and-forget from the browser during a live voice call, same trust model
+# already accepted there. Text only, never audio.
+
+class AriaConversationTurnIngest(BaseModel):
+    owner_user_id: str
+    session_id: str
+    role: str
+    content: str
+
+
+@router.post("/conversation-turn")
+async def ingest_conversation_turn(data: AriaConversationTurnIngest):
+    if not data.owner_user_id or not data.content.strip():
+        return {"ok": False, "saved": False}
+    await db.aria_conversations.insert_one({
+        "owner_user_id": data.owner_user_id,
+        "session_id": data.session_id or "unknown",
+        "role": data.role,
+        "content": data.content.strip(),
+        "created_at": now_utc().isoformat(),
+    })
+    return {"ok": True, "saved": True}
+
+
+@router.get("/conversation-threads/{owner_user_id}")
+async def list_conversation_threads(owner_user_id: str, user=Depends(require_owner)):
+    """One row per session_id: first/last turn time and a preview, newest
+    first - a thread list, like a chat app's conversation list."""
+    turns = await db.aria_conversations.find(
+        {"owner_user_id": owner_user_id}, {"_id": 0},
+    ).sort("created_at", 1).to_list(5000)
+    threads: dict[str, dict] = {}
+    for t in turns:
+        sid = t["session_id"]
+        th = threads.setdefault(sid, {"session_id": sid, "started_at": t["created_at"], "turn_count": 0, "preview": ""})
+        th["turn_count"] += 1
+        th["ended_at"] = t["created_at"]
+        if t["role"] == "user":
+            th["preview"] = t["content"][:120]
+    return sorted(threads.values(), key=lambda x: x["ended_at"], reverse=True)
+
+
+@router.get("/conversation-threads/{owner_user_id}/{session_id}")
+async def get_conversation_thread(owner_user_id: str, session_id: str, user=Depends(require_owner)):
+    """Full turn-by-turn thread for one session, in order - like opening a chat."""
+    turns = await db.aria_conversations.find(
+        {"owner_user_id": owner_user_id, "session_id": session_id}, {"_id": 0},
+    ).sort("created_at", 1).to_list(2000)
+    return turns

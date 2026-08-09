@@ -457,3 +457,96 @@ incremental changes").
 Michael picks which of the above to actually build next (or reorders
 them) — each is sized to be its own bounded, reviewable, testable change
 rather than one enormous unreviewed rewrite.
+
+---
+
+## 2026-08-09 — Real fabrication caught live; conversation records built
+
+### What happened
+During the live conversation that finally proved Phase C, Aria told Michael
+she could "see" him at a desk. She has no camera or vision integration at
+all — this was a real, live truth-discipline violation, not a hypothetical
+one, and there was no record of the conversation to review afterward
+because nothing was being persisted for Aria's sessions (the
+`AriaVoiceSession` summary model and its API existed but nothing ever
+called it — see the 2026-08-09 ground-truth entry above, "Operator memory:
+... holds 0 records").
+
+### What changed
+
+**1. Fixed the actual fabrication** — added a "## Your senses (CRITICAL —
+never violate)" section to `_build_aria_instructions()`
+(`backend/routes/realtime.py`): Aria is audio-only, has no camera/vision,
+and must say so plainly rather than invent a visual detail, generalized to
+"never claim to perceive anything you have no actual input for" (not just
+vision — the same class of problem could recur for any sense she doesn't
+have).
+
+**2. Built real conversation records** — Michael asked for records of every
+conversation, then clarified: every kiosk too, and "like a chat" (threads,
+not abstract summaries). Investigation found resident/kiosk conversations
+were **already** being persisted verbatim turn-by-turn to `db.conversations`
+via the existing `/api/memory/realtime-turn` endpoint (`routes/memory.py`) —
+that part already worked, nothing to build. The actual gap was Aria's own
+operator sessions, which had no equivalent path. Added, mirroring that
+exact existing pattern:
+- `backend/routes/aria_memory.py`: new `db.aria_conversations` collection,
+  `POST /api/aria/conversation-turn` (public/unauthenticated, matching the
+  resident endpoint's trust model — called fire-and-forget from the browser
+  during a live call), `GET /api/aria/conversation-threads/{owner_user_id}`
+  (thread list: session_id, start/end time, turn count, preview — like a
+  chat app's conversation list) and
+  `GET /api/aria/conversation-threads/{owner_user_id}/{session_id}` (full
+  turn-by-turn thread), both owner-only.
+- `frontend/src/lib/useRealtimeVoice.js`: the existing transcript-complete
+  handler (which already posted resident turns) now also posts Aria's
+  turns to the new endpoint when `ctxRef.current.owner_user_id` is present
+  instead of `resident_id`.
+- `frontend/src/pages/AriaVoice.jsx`: added a minimal `PastConversations`
+  component below the live transcript — a clickable list of past threads
+  that expands into the full chat-bubble-style turn history, auto-refreshing
+  when a session ends.
+
+### What was verified
+- Posted real turns to `POST /api/aria/conversation-turn`, confirmed they
+  appear correctly in both the thread-list and thread-detail endpoints via
+  a real owner JWT, then deleted the test data.
+- Backend restarted cleanly (syntax-checked first), frontend hot-compiled
+  with no new errors (only the pre-existing unrelated eslint warning).
+- Confirmed the resident/kiosk path was already working by reading
+  `realtime_turn_ingest()` directly — did not need to (and did not)
+  change any resident-facing code.
+
+### Known debt, flagged not fixed
+`backend/routes/realtime.py` is now 940 lines and
+`frontend/src/lib/useRealtimeVoice.js` is 442 — both already over the
+project's 400-line hard cap before this change (826 and 414 respectively,
+per the original repo audit), and both grew slightly further from this
+work. Not refactored in this pass — splitting a file that's this central
+to the one thing currently working deserves its own careful, isolated
+pass, not a rushed split bundled into a bug-fix/feature commit.
+
+### On "I want receipts for everything"
+Michael separately asked for receipts on any interaction with the system —
+directly in line with CAOS's own stated CCE-lite doctrine
+(`docs/CCE_LITE_TRUST_LAYER_PROPOSAL.md`: intent classifier + risk gate +
+verifier + **receipt** + human escalation) and `AGENTS.md`'s "receipts
+everywhere" principle. Checked what exists: `backend/routes/audit.py` is a
+CSV export layer over specific existing collections (alerts, staff tasks,
+pager events, medication reminders) — not a universal capture-everything
+mechanism. The capability portfolio's `/verify` endpoint
+(`db.aria_capability_receipts`) is the closest thing to a real generic
+receipt pattern that exists today, but it's scoped to capability
+verification, not general API traffic. A true "receipts for every system
+interaction" would mean either FastAPI middleware logging every request/
+response or a consistent event-log collection threaded through every
+route — a real, cross-cutting architectural piece, not something to bolt
+on inside this same pass alongside a bug fix and a new feature. Not
+started; flagged as its own future item, same reasoning as the phased
+build order above.
+
+### Next safe step
+Michael talks to Aria again and confirms she now says "I can't see you"
+instead of fabricating, and that the past-conversations list under `/aria`
+actually shows that conversation as a real thread. Separately: decide
+whether "receipts for everything" becomes its own dedicated next project.

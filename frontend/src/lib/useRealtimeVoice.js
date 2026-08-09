@@ -362,6 +362,7 @@ export function useRealtimeVoice({
           const userText = pendingUserRef.current;
           pendingUserRef.current = "";
           const rid = ctxRef.current?.resident_id;
+          const ownerId = ctxRef.current?.owner_user_id;
           if (rid && (userText || aiText)) {
             // Fire-and-forget; never block the voice loop on this.
             fetch(`${API}/memory/realtime-turn`, {
@@ -374,6 +375,25 @@ export function useRealtimeVoice({
                 assistant_text: aiText,
               }),
             }).catch(() => {});
+          } else if (ownerId && (userText || aiText)) {
+            // Aria's own (operator) sessions - same fire-and-forget pattern,
+            // verbatim turn record so every conversation has a real thread,
+            // not just a post-hoc summary.
+            const postTurn = (role, content) => {
+              if (!content) return;
+              fetch(`${API}/aria/conversation-turn`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  owner_user_id: ownerId,
+                  session_id: sessionIdRef.current,
+                  role,
+                  content,
+                }),
+              }).catch(() => {});
+            };
+            postTurn("user", userText);
+            postTurn("assistant", aiText);
           }
         }
         // Tool call dispatch — the OpenAI Realtime API streams arguments and

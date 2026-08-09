@@ -6,10 +6,65 @@
  * /realtime/aria-session (Aria's own persona/instructions) instead of the
  * resident-facing /realtime/session. No tools wired yet — pure conversation.
  */
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useAuth } from "../lib/auth";
 import { Button } from "../components/ui/button";
 import { useRealtimeVoice } from "../lib/useRealtimeVoice";
+import { api } from "../lib/api";
+
+function PastConversations({ ownerId, refreshKey }) {
+  const [threads, setThreads] = useState([]);
+  const [openThread, setOpenThread] = useState(null); // session_id
+  const [turns, setTurns] = useState([]);
+
+  const loadThreads = useCallback(() => {
+    if (!ownerId) return;
+    api.get(`/aria/conversation-threads/${ownerId}`).then(({ data }) => setThreads(data)).catch(() => {});
+  }, [ownerId]);
+
+  useEffect(() => { loadThreads(); }, [loadThreads, refreshKey]);
+
+  const openThreadFn = (sessionId) => {
+    if (openThread === sessionId) { setOpenThread(null); return; }
+    setOpenThread(sessionId);
+    api
+      .get(`/aria/conversation-threads/${ownerId}/${sessionId}`)
+      .then(({ data }) => setTurns(data))
+      .catch(() => setTurns([]));
+  };
+
+  if (!threads.length) return null;
+
+  return (
+    <div className="w-full max-w-xl mt-10 border-t border-caos-mute/20 pt-6">
+      <p className="text-xs font-bold uppercase tracking-[0.2em] text-caos-mute mb-3">
+        Past conversations
+      </p>
+      <div className="space-y-2 text-sm">
+        {threads.map((t) => (
+          <div key={t.session_id}>
+            <button
+              onClick={() => openThreadFn(t.session_id)}
+              className="w-full text-left text-caos-mute hover:text-caos-forest"
+            >
+              {new Date(t.started_at).toLocaleString()} — {t.turn_count} turns
+              {t.preview ? <span className="italic"> · "{t.preview}"</span> : null}
+            </button>
+            {openThread === t.session_id && (
+              <div className="mt-2 mb-3 ml-3 space-y-1 border-l-2 border-caos-mute/20 pl-3">
+                {turns.map((turn, i) => (
+                  <p key={i} className={turn.role === "assistant" ? "text-caos-forest" : "text-caos-mute"}>
+                    <strong>{turn.role === "assistant" ? "Aria: " : "You: "}</strong>{turn.content}
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function AriaVoice() {
   const { user } = useAuth();
@@ -19,10 +74,21 @@ export default function AriaVoice() {
     sessionPayload: { voice: "sage", owner_user_id: user?.user_id || null },
   });
   const localAudioElRef = useRef(null);
+  const [threadsRefreshKey, setThreadsRefreshKey] = useState(0);
+  const prevStatusRef = useRef(status);
 
   useEffect(() => {
     audioElRef.current = localAudioElRef.current;
   }, [audioElRef]);
+
+  useEffect(() => {
+    // Bump the refresh key whenever a session ends (any -> idle) so the
+    // thread list picks up the conversation that just happened.
+    if (prevStatusRef.current !== "idle" && status === "idle") {
+      setThreadsRefreshKey((k) => k + 1);
+    }
+    prevStatusRef.current = status;
+  }, [status]);
 
   const orbState =
     status === "speaking" ? "caos-orb-speak" :
@@ -55,6 +121,8 @@ export default function AriaVoice() {
       </div>
 
       <audio ref={localAudioElRef} autoPlay />
+
+      <PastConversations ownerId={user?.user_id} refreshKey={threadsRefreshKey} />
     </div>
   );
 }
