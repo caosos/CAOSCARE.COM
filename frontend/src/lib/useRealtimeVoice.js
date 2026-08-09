@@ -324,7 +324,7 @@ export function useRealtimeVoice({
             instructions: caos.instructions || "You are CAOS, a calm companion.",
             voice: caos.voice || voice,
             modalities: ["audio", "text"],
-            input_audio_transcription: { model: "whisper-1" },
+            input_audio_transcription: { model: "whisper-1", language: "en" },
           },
         };
         if (caos.tools) update.session.tools = caos.tools;
