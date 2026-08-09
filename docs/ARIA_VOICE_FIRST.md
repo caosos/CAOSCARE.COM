@@ -222,3 +222,90 @@ navigates to `http://localhost:3000/aria`. Click "Start talking with Aria,"
 allow microphone access, and just talk. Report back: did it connect, did you
 hear Aria's voice, was it clear, and did the conversation feel natural —
 that's the actual Phase C proof this whole phase has been building toward.
+
+---
+
+## 2026-08-09 — Phase C proof landed; personality tuning pass
+
+### Agent / tool
+Claude Code with Michael, same EliteDesk node.
+
+### What was found (Phase C finally proven)
+Michael had a real spoken conversation with Aria for the first time — the
+mic/WebRTC/speaker round trip works. Feedback: the conversational core is
+solid ("we proved the conversational core works"), but the default
+personality came across too enthusiastic/"AI-assistant"-sounding — stacked
+exclamation points, praise, repeating things back, unsolicited explanations.
+
+### Current Realtime config, inspected and reported (not changed, none of it
+### was misconfigured)
+```text
+Model:            gpt-realtime            (OPENAI_REALTIME_MODEL unset -> default)
+Voice:             shimmer                 (OPENAI_VOICE unset -> default)
+Temperature:       0.6                     (floor - most factual, least improvisational)
+Turn detection:    server_vad, threshold 0.5, prefix_padding_ms 300,
+                   silence_duration_ms 1000, create_response true
+                   (sent via a session.update over the data channel after
+                   connect, not in the initial ephemeral-mint call - this is
+                   existing, working, intentional architecture, not a bug)
+Tools:             [] (still none wired - unchanged, by design)
+```
+
+### What changed
+Rewrote `_build_aria_instructions()` in `backend/routes/realtime.py` (Aria's
+own operator-facing persona only — did **not** touch
+`_build_companion_instructions()`, the separate resident-facing "CAOS"
+persona, which already has its own hard-won pacing/warmth rules from the
+pilot and wasn't part of this request):
+
+- **Identity**: now framed as "the conversational intelligence for CAOSCare"
+  generally, explicitly not hard-coded to senior-care, with an explicit note
+  that she's a distinct persona from resident-facing CAOS. This is the
+  concrete instruction while environment/purpose injection (listed as
+  future work below) doesn't exist yet.
+- **Personality dialed back ~25-30%**: added a "How you sound" section —
+  calm, grounded, understated; no stacked exclamation points, no praising
+  the question, no repeating back what was just said, no unsolicited
+  explanations. Still explicitly permitted to be warm, witty, direct,
+  curious, personable — instructed not to go flat/robotic either.
+  Michael/operator conversations stay at normal conversational pace (the
+  senior-facing slow/clear-articulation pacing Michael also asked about
+  applies to resident-facing conversations, which Aria doesn't have yet —
+  see Next safe step).
+- Truth-discipline and "no tools wired yet" sections kept unchanged — those
+  are functionally load-bearing, not stylistic.
+- Backend restarted; minted a real `/api/realtime/aria-session` afterward
+  and confirmed the new instructions text is actually what's sent to
+  OpenAI (`_caos.instructions` in the response), not just written to a file.
+
+### What was verified
+- Backend healthy after restart (`{"ok":true,"db":"up"}`).
+- Live-minted Aria session's `_caos.instructions` contains the new "Who you
+  are"/"How you sound" text verbatim.
+- Model/voice/temperature/turn_detection all confirmed as listed above —
+  none altered, per Michael's explicit instruction not to touch them absent
+  a real misconfiguration (there wasn't one).
+
+### Not done yet (explicitly out of scope for this pass, tracked as real
+### future work per Michael's own priority list)
+- **Environment/deployment-context injection** — one Aria core with a
+  swappable context block (senior-living room / Michael's house / office /
+  etc.) instead of a single fixed operator persona. This is the actual
+  mechanism that would let the senior-pacing instructions apply
+  automatically only when Aria is resident-facing; doesn't exist yet.
+- Senior-facing pacing (slower, short sentences, natural pauses) was
+  **not** added to Aria's current (operator-only) instructions, since Aria
+  doesn't talk to residents today — it belongs on the future
+  resident-context injection, not hard-coded into the general core.
+- Home Assistant tool bridge (Aria calling registered capabilities, not
+  just knowing about them), wake word, turn-taking/barge-in tuning, durable
+  memory write-back, capability discovery framing, and boot persistence all
+  remain open per Michael's stated priority order — none started this pass.
+
+### Next safe step
+Michael talks to Aria again with the new personality and reports whether the
+tone lands right (still too enthusiastic / about right / overcorrected too
+flat). Separately, decide whether to start the environment-context-injection
+work next, since several other open items (senior pacing, room awareness)
+depend on that existing before they can be done properly rather than
+hard-coded.
