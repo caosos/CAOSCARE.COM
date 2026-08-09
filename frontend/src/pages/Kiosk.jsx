@@ -1234,7 +1234,7 @@ export default function Kiosk() {
               </div>
             ))}
             {thinking && (
-              <div className="text-caos-mute italic text-xl">CAOS is thinking…</div>
+              <div className="text-caos-mute italic text-xl">Aria is thinking…</div>
             )}
           </Card>
 
@@ -1244,7 +1244,7 @@ export default function Kiosk() {
                 {speaking && (
                   <div className="flex flex-col items-center gap-2">
                     <Volume2 className="w-16 h-16 text-caos-terracotta animate-pulse" />
-                    <p className="text-2xl font-display font-medium text-caos-forest">CAOS is speaking...</p>
+                    <p className="text-2xl font-display font-medium text-caos-forest">Aria is speaking...</p>
                     <p className="text-sm text-caos-mute uppercase tracking-[0.2em]">please listen</p>
                   </div>
                 )}

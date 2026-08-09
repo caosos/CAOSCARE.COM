@@ -61,7 +61,7 @@ export default function RealtimeChatScreen({
             Full-duplex · OpenAI Realtime
           </p>
           <h2 className="font-display text-3xl md:text-5xl font-light text-caos-forest mt-2">
-            CAOS is here with you.
+            Aria is here with you.
           </h2>
           {resident && (
             <p className="text-caos-mute mt-1 text-lg" data-testid="kiosk-realtime-resident">
@@ -130,7 +130,7 @@ export default function RealtimeChatScreen({
               className={m.role === "user" ? "text-caos-ink" : "text-caos-forest"}
             >
               <span className="font-bold uppercase text-[10px] tracking-widest mr-2">
-                {m.role === "user" ? "You" : "CAOS"}
+                {m.role === "user" ? "You" : "Aria"}
               </span>
               {m.text}
             </div>

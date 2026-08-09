@@ -550,3 +550,72 @@ Michael talks to Aria again and confirms she now says "I can't see you"
 instead of fabricating, and that the past-conversations list under `/aria`
 actually shows that conversation as a real thread. Separately: decide
 whether "receipts for everything" becomes its own dedicated next project.
+
+---
+
+## 2026-08-09 — Name/greeting fixes didn't reach the kiosk; unified personas
+
+### What happened
+After the name + "Hey" fix (previous entry), Michael reported it still
+wasn't working — turned out he was testing at `/kiosk/kio_9d5247ff59`, the
+**resident-facing companion**, not `/aria` at all. Those are two entirely
+separate system prompts (`_build_companion_instructions` vs
+`_build_aria_instructions`) — every fix so far only touched the Aria one.
+The resident-facing companion was, until this entry, literally named
+**"CAOS"** in its own prompt (`"You are CAOS — a calm, warm, deeply present
+companion"`), a name it never firmly claimed as fixed/known ("What never to
+say" didn't forbid disclaiming her name), which is exactly consistent with
+what Michael heard ("Hey", "I'm your friendly AI, call me anything").
+
+Asked Michael directly whether to unify both personas under the Aria name.
+He said yes.
+
+### What changed
+`backend/routes/realtime.py`, `_build_companion_instructions` (resident/
+kiosk) and its `_system_self_knowledge` helper:
+- Renamed her identity from "CAOS" to "Aria" throughout. Kept "CAOS Care"
+  as the platform/company name and the CAOS=Cognitive Adaptive Operating
+  System / CARE=Compassionate Adaptive Resident Engagement brand
+  explanations intact (residents can still ask "what does CAOS stand for"
+  and get the real answer) — reframed as "the platform Aria runs on," not
+  her personal name. Matches the "one Aria core, CAOSCare is the operating
+  environment" architecture Michael described earlier.
+- Added the same firm-identity language as the operator build: her name is
+  not a placeholder, "you can call me whatever you like" is now an
+  explicitly forbidden phrase, and if asked her name she says "I'm Aria"
+  plainly.
+- Added the same "do NOT open turns with 'Hey'" rule to "How you sound."
+- **Did not touch** any of the pilot-tested safety-critical sections:
+  truth discipline, visually-impaired handling, memory-is-reference-not-
+  filler, attribution discipline, mistake-correction, tool-calling rules,
+  safety/medical-claims boundary. Those are unchanged, word for word.
+
+User-visible UI text updated to match (things residents/staff actually
+see or read, not internal code comments, which were left alone as pure
+noise):
+- `frontend/src/pages/RealtimeChatScreen.jsx`: "CAOS is here with you" →
+  "Aria is here with you"; transcript speaker label "CAOS" → "Aria".
+- `frontend/src/pages/Kiosk.jsx`: "CAOS is thinking…" / "CAOS is
+  speaking..." → "Aria is thinking…" / "Aria is speaking...". Left the
+  actual "CAOS" + "Care" wordmark/logo alone — that's the platform brand
+  name, not her personal name, and stays correct as-is.
+
+### What was verified
+- Backend restarted cleanly (syntax-checked first).
+- Minted a real resident-facing `/api/realtime/session` (not the Aria one)
+  and confirmed the live instructions contain "Your name is Aria," the
+  "Hey" ban, and no longer contain the old "You are CAOS —" identity line.
+- Frontend hot-compiled with no new errors (same one pre-existing
+  unrelated warning as every other entry this session).
+- Did not re-verify the pilot-tested safety sections behaviorally (that
+  needs a real resident/kiosk conversation, which per earlier entries has
+  never happened even before this change) — only confirmed their text is
+  byte-for-byte unchanged in the diff.
+
+### Next safe step
+Michael tests at `/kiosk/<a real kiosk id>` (not `/aria`) this time and
+confirms: no "Hey" opener, firm "I'm Aria" if asked her name, and that
+nothing about the resident-safety behavior (memory honesty, tool-calling,
+emergency escalation) changed. Separately worth a real resident/kiosk
+session test at some point regardless — per earlier entries, that path has
+never actually been exercised live, unified name or not.
