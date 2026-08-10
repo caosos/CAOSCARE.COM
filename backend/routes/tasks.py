@@ -180,18 +180,28 @@ async def create_resident_request(data: ResidentRequestInput):
 
 
 @router.get("/resident-request/status")
-async def resident_request_status(resident_id: str, category: Optional[str] = None, room: Optional[str] = None):
-    """Public — lets Aria answer 'did the nurse see my message?' truthfully.
+async def resident_request_status(
+    resident_id: Optional[str] = None,
+    room: Optional[str] = None,
+    conversation_session_id: Optional[str] = None,
+    category: Optional[str] = None,
+):
+    """Public — lets Aria answer 'did anyone see my message?' truthfully.
     Returns the most recent matching request's real status, not a guess.
-    Scoped to resident_id (or room, if resident_id isn't known) so this
-    can't be used to browse other residents' requests."""
+    Scoped to resident_id, or room, or (for Aria's own operator session,
+    which has neither) conversation_session_id - so this can't be used to
+    browse other residents'/sessions' requests. resident_id was previously
+    a required param with no default, which would 422 before this logic
+    ever ran - fixed alongside adding the session-scoped fallback."""
     q: dict = {"source": {"$in": ["aria_voice", "kiosk_button"]}}
     if resident_id:
         q["resident_id"] = resident_id
     elif room:
         q["room"] = room
+    elif conversation_session_id:
+        q["conversation_session_id"] = conversation_session_id
     else:
-        raise HTTPException(status_code=400, detail="resident_id or room required")
+        raise HTTPException(status_code=400, detail="resident_id, room, or conversation_session_id required")
     if category:
         q["category"] = category
     task = await db.staff_tasks.find_one(q, {"_id": 0}, sort=[("created_at", -1)])

@@ -1094,3 +1094,30 @@ separately. Section 20 of that directive is explicit and consistent with
 this entry: preserve the working Aria conversation path, do not bring
 back Turn mode, do not reintroduce duplicate personality prompts, do not
 replace the working Realtime transport without a proven defect.
+
+---
+
+## 2026-08-09 — Three real bugs from Michael's live test of the new request tools
+
+### Bug 1: wrong facility timezone
+Michael: Aria greeted him with "good night," he said "good evening" (correct), she just said "you're right" instead of actually being right the first time. Root cause: this host is `America/Chicago` (confirmed via `timedatectl`), but `FACILITY_TZ` was never set in `backend/.env`, so `_facility_now()` defaulted to `America/New_York` - a full hour ahead. At 8:06 PM Chicago time that computes as 9:06 PM Eastern, which crosses the `_facility_now()` part-of-day boundary (`>=21` = "night") right at the edge. Fixed: added `FACILITY_TZ=America/Chicago` and `FACILITY_LABEL=the EliteDesk node` to `backend/.env`. Verified live: freshly-minted session now says "Sunday evening... 8:11 PM."
+
+### Bug 2: Aria's operator session had zero tools, so `request_staff_help` genuinely didn't exist for her
+Michael asked her to create a maintenance request (testing the tools built earlier today) and she said she couldn't. Root cause: `request_staff_help`/`check_request_status` were added only to the *resident* tool catalog (`realtime_tools.py`, used by `/session`), never to Aria's own session (`/aria-session`, `tools: []` since Terminal 5A by design). Michael is the one actually live-testing everything through Aria, not through a resident kiosk, so she needs a (smaller, curated) version of these tools too.
+
+Fixed: new `backend/routes/realtime_aria_tools.py` (80 lines) with three tools for Aria's own session: `request_staff_help`, `check_request_status` (same underlying endpoints as the resident ones, phrased for Michael instead of "the resident"), and `end_conversation` (new - see bug 3). Wired into `/aria-session`'s `_caos.tools`.
+
+This also exposed a second, real bug in the status-check path: `resident_request_status` (`backend/routes/tasks.py`) had `resident_id: str` with **no default**, making it a *required* query parameter despite the function's own fallback logic implying it was optional - would have 422'd before ever reaching that logic, for anyone (resident or Aria) checking status without a resident_id. Fixed alongside adding a third fallback: `conversation_session_id` (Aria's context has neither `resident_id` nor `room`, but does have a session ID already used elsewhere) - `resident_id` now `Optional[str] = None`, and the query tries resident_id, then room, then conversation_session_id, in order.
+
+### Bug 3 (really a missing feature): no way to end an Aria conversation via voice
+Michael wanted to say "that's all for now." The resident-facing tool set has `end_call`; Aria's had nothing (she had zero tools at all until this entry). Added `end_conversation` to her tool set - same teardown logic as `end_call` in `frontend/src/lib/useRealtimeVoice.js` (speak a short goodbye, close the connection ~2.5s later), just a second tool name so her instructions don't have to borrow resident-call phrasing ("hang up") for an operator conversation.
+
+### What was verified
+- Fresh Aria session confirmed to include exactly `request_staff_help`, `check_request_status`, `end_conversation`.
+- Fresh Aria session's "Right now" line confirmed correct after the timezone fix.
+- Full create -> status-check round trip tested via the `conversation_session_id` fallback path specifically (the one Aria's own session actually uses, since she has no resident_id/room) - not just the resident path tested earlier today. Test data cleaned up afterward.
+- Backend restarted cleanly (syntax-checked first, all touched files still under the 400-line cap: `realtime_aria_tools.py` 80, `realtime.py` 315, `tasks.py` 373).
+- Frontend hot-compiled with no new errors.
+
+### Next safe step
+Michael tests live again: ask Aria to create a maintenance/nursing request and confirm she now can, ask her to check its status, and say "that's all for now" and confirm she signs off and the session actually ends. Also worth a plain greeting check now that the timezone is fixed.

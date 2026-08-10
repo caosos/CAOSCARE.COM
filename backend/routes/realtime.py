@@ -25,6 +25,7 @@ from deps import db
 from routes.aria_memory import build_aria_context_block
 from routes.capabilities import get_capability_summary
 from routes.realtime_tools import _build_tools
+from routes.realtime_aria_tools import _build_aria_tools
 from routes.realtime_self_knowledge import _system_self_knowledge
 from routes.realtime_facility import _facility_now, FACILITY_LABEL, FACILITY_TZ
 from routes.realtime_companion_prompt import _build_companion_instructions
@@ -202,7 +203,7 @@ async def create_aria_session(payload: dict = Body(default={})):
     session["_caos"] = {
         "voice": voice,
         "instructions": instructions,
-        "tools": [],
+        "tools": _build_aria_tools(),
         "tool_choice": "auto",
         "turn_detection": DEFAULT_VAD,
         "temperature": DEFAULT_TEMPERATURE,

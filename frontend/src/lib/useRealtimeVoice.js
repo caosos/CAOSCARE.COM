@@ -110,7 +110,7 @@ async function executeTool({ name, args, ctx }) {
       const qs = new URLSearchParams();
       if (residentId) qs.set("resident_id", residentId);
       else if (room) qs.set("room", room);
-      else return { ok: false, message: "no room/resident context to check." };
+      else qs.set("conversation_session_id", sessionIdRef.current);
       if (args.category) qs.set("category", args.category);
       const r = await fetch(`${API}/tasks/resident-request/status?${qs.toString()}`);
       if (!r.ok) return { ok: false, message: `couldn't check that (${r.status}).` };
@@ -205,6 +205,12 @@ async function executeTool({ name, args, ctx }) {
       // because we need access to the peer connection. Returning here just
       // gives the model its short verbal goodbye to speak.
       return { ok: true, message: "goodbye for now. I'm right here when you call." };
+    }
+    if (name === "end_conversation") {
+      // Aria's own equivalent of end_call - same "actual teardown happens
+      // in handleFunctionCall" pattern, just a different name so her
+      // instructions don't have to reuse resident-call language.
+      return { ok: true, message: "sounds good, talk soon." };
     }
     return { ok: false, message: `tool ${name} is not wired yet.` };
   } catch (e) {
@@ -332,10 +338,12 @@ export function useRealtimeVoice({
           // Resident asked us to be quiet. Don't trigger a new spoken response;
           // the model will stay silent until VAD detects fresh speech.
           setResting(true);
-        } else if (fn.name === "end_call") {
-          // Resident asked us to hang up. Let the model speak its goodbye,
-          // then tear the connection down ~2.5s later (long enough for the
-          // farewell line to play out, short enough not to feel awkward).
+        } else if (fn.name === "end_call" || fn.name === "end_conversation") {
+          // Resident/Michael asked to wrap up. Let the model speak its
+          // goodbye, then tear the connection down ~2.5s later (long enough
+          // for the farewell line to play out, short enough not to feel
+          // awkward). Same teardown for both - just two tool names so each
+          // persona's instructions can use natural language for its context.
           send({ type: "response.create" });
           setTimeout(() => {
             try { stop(); } catch {}
