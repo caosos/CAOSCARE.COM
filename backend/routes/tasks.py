@@ -69,9 +69,12 @@ async def list_tasks(
     day: Optional[str] = None,  # YYYY-MM-DD filter
     category: Optional[str] = None,
     visibility_role: Optional[str] = None,
+    resident_id: Optional[str] = None,
     user=Depends(get_current_user),
 ):
     q: dict = {}
+    if resident_id:
+        q["resident_id"] = resident_id
     if mine_only:
         q["assigned_to"] = user["user_id"]
     elif user.get("role") == "staff":

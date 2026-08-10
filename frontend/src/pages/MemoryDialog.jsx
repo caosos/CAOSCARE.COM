@@ -27,6 +27,7 @@ function fmt(iso) {
 export default function MemoryDialog({ resident, open, onOpenChange }) {
   const [memories, setMemories] = useState([]);
   const [conv, setConv] = useState([]);
+  const [requests, setRequests] = useState([]);
   const [tab, setTab] = useState("memories");
   const [form, setForm] = useState({ text: "", category: "other", importance: 3, pinned: false });
   const [addOpen, setAddOpen] = useState(false);
@@ -34,12 +35,14 @@ export default function MemoryDialog({ resident, open, onOpenChange }) {
   const fetchAll = async () => {
     if (!resident?.resident_id) return;
     try {
-      const [mRes, cRes] = await Promise.all([
+      const [mRes, cRes, rRes] = await Promise.all([
         api.get(`/memory/${resident.resident_id}`),
         api.get(`/memory/conversation/${resident.resident_id}`, { params: { limit: 100 } }).catch(() => ({ data: [] })),
+        api.get(`/tasks`, { params: { resident_id: resident.resident_id } }).catch(() => ({ data: [] })),
       ]);
       setMemories(mRes.data);
       setConv(cRes.data);
+      setRequests(rRes.data);
     } catch { toast.error("Could not load memory"); }
   };
 
@@ -100,6 +103,9 @@ export default function MemoryDialog({ resident, open, onOpenChange }) {
             </TabsTrigger>
             <TabsTrigger value="conversation" data-testid="mem-tab-conversation">
               Conversation ({conv.length})
+            </TabsTrigger>
+            <TabsTrigger value="requests" data-testid="mem-tab-requests">
+              Requests ({requests.length})
             </TabsTrigger>
           </TabsList>
 
@@ -185,6 +191,30 @@ export default function MemoryDialog({ resident, open, onOpenChange }) {
             <p className="text-xs text-caos-mute mt-2 flex items-center gap-1">
               <MessageSquare className="w-3 h-3" /> Only selected recent context is used by the configured conversation service, but the full transcript is archived here.
             </p>
+          </TabsContent>
+
+          <TabsContent value="requests" className="mt-4 space-y-2">
+            {requests.map((r) => (
+              <div key={r.task_id} className="bg-white border border-caos-line rounded-2xl p-3" data-testid={`req-${r.task_id}`}>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <span className="font-medium text-caos-forest">{r.title}</span>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-[10px] uppercase tracking-wider">{r.category}</Badge>
+                    <Badge className="text-[10px] uppercase tracking-wider">{r.status}</Badge>
+                  </div>
+                </div>
+                {r.resident_words && (
+                  <p className="text-sm text-caos-ink/70 italic mt-1">"{r.resident_words}"</p>
+                )}
+                <p className="text-[10px] text-caos-mute uppercase tracking-wider mt-1">
+                  {r.source} · {fmt(r.created_at)}
+                  {r.assigned_name ? ` · assigned to ${r.assigned_name}` : ""}
+                </p>
+              </div>
+            ))}
+            {requests.length === 0 && (
+              <p className="text-caos-mute italic text-center py-6">No staff requests (nursing/maintenance/kitchen/etc.) on record for this resident.</p>
+            )}
           </TabsContent>
         </Tabs>
       </DialogContent>

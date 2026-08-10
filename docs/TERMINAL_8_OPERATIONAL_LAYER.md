@@ -59,3 +59,28 @@ Items 6-15 of the specified build order: conversation viewer/ledger admin UI (it
 
 ### Next safe step
 Either continue down the build order (item 6: wire a conversation-viewer admin UI reusing the already-built `aria_conversations`/`conversation-threads` endpoints from earlier today, extended to also list resident conversations) — or run Acceptance Tests A/B live first to prove items 3-5 actually work end-to-end for a real person before building further on top of them. Recommend the latter: a live test now is cheap and would catch any remaining issue before more is built on this foundation.
+
+### File-size correction (2026-08-09, follow-up)
+Michael caught that the earlier `realtime.py` split left it at 662 lines — still over the 400-line cap, not fully done. Corrected as a surgical continuation, not a broader refactor: extracted `_build_companion_instructions` (315 lines, the largest remaining chunk) into `realtime_companion_prompt.py`, and `_facility_now()`/`FACILITY_LABEL`/`FACILITY_TZ` into a small shared `realtime_facility.py` (needed by both `realtime.py` and the new companion-prompt file, to avoid a circular import). `realtime.py`: 662 → 314 lines. All five `realtime_*.py` files now under the cap (314/342/328/110/41). Re-ran the exact same regression checks as the first split (both session endpoints' tools/instructions, and a real `aiortc`-generated SDP through `/negotiate`) — nothing broke.
+
+## 2026-08-09 (continued) — Item 6: conversation viewer (mostly already existed)
+
+### Finding, not building from scratch
+Before building anything, checked whether a resident conversation viewer already existed. **It did** — `frontend/src/pages/MemoryDialog.jsx` (pre-existing, predates this session) already has a working "Conversation" tab, fetching `GET /api/memory/conversation/{resident_id}` (also pre-existing), reachable from Admin → Residents tab → "Memory" button on any resident row. This satisfies most of item 6's "Michael must be able to go into CAOSCare and read the conversations that occurred" requirement already — confirmed by inspection first, exactly the "do not assume documentation equals implementation, but also do not duplicate what's real" balance the directive itself asks for.
+
+### The actual gap: today's new request/receipt system wasn't reachable from this existing resident view
+Item 6 also asks for "Requests/Tasks" and "Events/Receipts" to be reachable from the resident admin experience. Closed that specific gap:
+- `GET /api/tasks` gained a `resident_id` filter (didn't exist before - the endpoint only supported `mine_only`/`status`/`day`/`category`/`visibility_role`).
+- `MemoryDialog.jsx` gained a third tab, "Requests," showing that resident's staff requests (category, status, verbatim resident words when available, source, assignee) - reuses the exact same `StaffTask` data the nursing/maintenance Aria tools write to, no new storage.
+
+### What was verified
+No real residents exist on this host (`GET /api/residents` returns `[]`) - a genuine environmental constraint on testing anything resident-scoped. Created one temporary test resident to actually prove this live rather than trust it un-tested:
+- Created a real nursing request for that resident via `POST /tasks/resident-request`.
+- Created a real conversation turn via `POST /memory/realtime-turn`.
+- Confirmed `GET /memory/conversation/{resident_id}` (the pre-existing endpoint the Conversation tab uses) returns it correctly.
+- Confirmed `GET /tasks?resident_id={id}` (the new filter) returns the nursing request correctly, with `resident_name` resolved.
+- Deleted the test resident, task, receipt, conversation turns, and auth token afterward - no test data left in the database.
+- Frontend hot-compiled with no new errors beyond one new instance of the same pre-existing `exhaustive-deps` lint pattern already tolerated elsewhere in this codebase (`fetchAll` not in a `useEffect` dependency array - unchanged behavior, not a new issue class).
+
+### Still not done for item 6
+No dedicated "thread" grouping (the Conversation tab shows one flat chronological list across all sessions, not grouped by `session_id` the way the Aria operator conversation viewer built earlier today does) - functional for reading what happened, not as structured. Aria's own operator conversations remain viewable only from `/aria` itself, not from any admin surface (arguably correct, per the directive's own "Operator Aria conversations remain separate from resident records"). "Clinical," "Family," "Devices" tabs in a unified resident profile view are not built - Family/Devices/Clinical data exists elsewhere in the admin UI (`FamilyTab`, `DevicesTab`, `ClinicianTab`) but aren't cross-linked from this same resident-detail dialog.
