@@ -370,19 +370,43 @@ export function useRealtimeVoice({
         // Apply the full session config from the backend: instructions, tools,
         // VAD timing, temperature. session.update is the canonical way to
         // configure a Realtime session post-mint.
+        // FIXED 2026-08-09 (real, confirmed live error, seen on screen:
+        // "Missing required parameter: 'session.type'"): the current
+        // Realtime API requires `type: "realtime"` INSIDE the session
+        // object on every session.update event, same as the mint-time
+        // session_config already has server-side. Without it, OpenAI
+        // rejected every update - which is where tools/turn_detection/
+        // temperature get applied, so the live call had correct
+        // instructions (from mint) but NONE of those, silently, until the
+        // resulting error surfaced in the UI.
+        // voice, input_audio_transcription, and turn_detection all live
+        // under nested audio.output/audio.input, NOT flat top-level session
+        // fields, in the current Realtime API - confirmed via a real
+        // end-to-end connection test (aiortc, full ICE/DTLS handshake, not
+        // just SDP exchange) that returned "Unknown parameter" errors one
+        // at a time for each flat field until corrected. session.type is
+        // also required (separately confirmed live, on-screen, as
+        // "Missing required parameter: 'session.type'").
         const update = {
           type: "session.update",
           session: {
+            type: "realtime",
             instructions: caos.instructions,
-            voice: caos.voice || voice,
-            modalities: ["audio", "text"],
-            input_audio_transcription: { model: "whisper-1", language: "en" },
+            audio: {
+              output: { voice: caos.voice || voice },
+              input: {
+                transcription: { model: "whisper-1", language: "en" },
+                ...(caos.turn_detection ? { turn_detection: caos.turn_detection } : {}),
+              },
+            },
           },
         };
         if (caos.tools) update.session.tools = caos.tools;
         if (caos.tool_choice) update.session.tool_choice = caos.tool_choice;
-        if (caos.turn_detection) update.session.turn_detection = caos.turn_detection;
-        if (typeof caos.temperature === "number") update.session.temperature = caos.temperature;
+        // temperature is NOT a valid session.update field in the current API
+        // ("Unknown parameter: 'session.temperature'", confirmed live) -
+        // dropped rather than guessing at a new location, since it's not
+        // audio-related like the other three fields that just moved.
         send(update);
         setStatus("live");
       };

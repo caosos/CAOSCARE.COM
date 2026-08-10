@@ -1121,3 +1121,42 @@ Michael wanted to say "that's all for now." The resident-facing tool set has `en
 
 ### Next safe step
 Michael tests live again: ask Aria to create a maintenance/nursing request and confirm she now can, ask her to check its status, and say "that's all for now" and confirm she signs off and the session actually ends. Also worth a plain greeting check now that the timezone is fixed.
+
+---
+
+## 2026-08-09 — THE session_type ERROR, FINALLY REPRODUCED AND FIXED (screenshot, not guesswork)
+
+### What happened
+Michael tried the maintenance-request fix from the previous entry. It still failed. This time he sent a screenshot instead of a description - `localhost:3000/kiosk/kio_9d5247d7ff59` (the resident kiosk, not `/aria` - he's been testing the resident-facing companion this whole time, not the operator build), with a visible red error banner: **"Missing required parameter: 'session.type'."**
+
+This is the exact error a much earlier debugging hypothesis predicted, which an earlier entry in this log said "could not be found or reproduced anywhere in current code or logs" - that earlier conclusion was correct at the time (grepping for the literal string found nothing, because the bug isn't in our source text, it's a live API rejection that only happens over an active data channel connection, which no static analysis or REST-only test could see) but incomplete: it needed a real live connection to surface, not a grep.
+
+### Root cause, this time proven with a full real connection, not just SDP exchange
+Every verification this session used either (a) direct backend response inspection, or (b) an SDP-only aiortc test against `/negotiate` (proving the *handshake* works). Neither actually opened the data channel and sent the `session.update` event that carries tools/turn_detection - the exact thing that had been silently failing. Built a proper test this time: `aiortc` doing a **complete** WebRTC connection (real ICE/DTLS, not just SDP exchange) through our actual `/negotiate` endpoint, then sending the real `session.update` payload and reading OpenAI's actual response events.
+
+Found, one field at a time, by reading OpenAI's own error messages rather than guessing:
+1. `session.update`'s `session` object needs `type: "realtime"` - without it: `"Missing required parameter: 'session.type'"` (the exact error Michael saw on screen).
+2. `voice` is not a flat `session.voice` field anymore - needs `session.audio.output.voice`. Error until fixed: `"Unknown parameter: 'session.voice'"`.
+3. `input_audio_transcription` is not a flat field either - needs `session.audio.input.transcription`. Error until fixed: `"Unknown parameter: 'session.input_audio_transcription'"`.
+4. `turn_detection` also moved - `session.audio.input.turn_detection`.
+5. `temperature` is gone entirely from `session.update` in the current API - no relocation, just removed. Error until dropped: `"Unknown parameter: 'session.temperature'"`.
+
+After all five corrections: a clean `session.updated` event, tools present, instructions present, turn_detection applied (and its response even shows `interrupt_response: true` in OpenAI's own default config - meaning barge-in, flagged as NOT DONE in the 13-part audit, may already work natively via the default `turn_detection` block once this update actually succeeds; still needs a real conversation to confirm, but this is a meaningfully different, more optimistic starting point than "nothing exists").
+
+### Why this matters for everything "verified" earlier today
+The `/negotiate` fix from earlier today (ephemeral key vs. server key) was real and necessary - it fixed which OpenAI session the WebRTC call actually uses. This is a **second, independent** bug in the same conversation-setup path: even with the right session connected, the follow-up `session.update` that carries tools/turn_detection was being silently rejected. Instructions worked (they're set at mint time, a separate code path) - which is exactly why personality/name/language fixes kept testing correct via REST calls but tools never worked live. Two real bugs, in two different parts of the same handshake, found and fixed in sequence, each requiring a different verification method to actually catch (protocol-level SDP test for the first, full-connection event-level test for the second).
+
+### What changed
+`frontend/src/lib/useRealtimeVoice.js`: `session.update`'s `session` object restructured to match all five findings above. Also fixed a stale line in `_build_aria_instructions` (`backend/routes/realtime.py`) that still said "You currently have NO tools wired into this session" - now correctly lists the three real tools and is explicit about what she still can't do (device control, weather, research, timers - those remain resident-only for now).
+
+### What was verified
+- Full real WebRTC connection (not SDP-only) through our actual `/negotiate` endpoint, for **both** the resident session (13 tools) and Aria's operator session (3 tools) - both produce a clean `session.updated` event with the correct tool list and instructions, zero errors, on the current, restarted backend.
+- Confirmed the stale "NO tools wired" text is gone and the new accurate text is present in a live-minted session.
+- Backend syntax-checked and restarted cleanly each time; frontend hot-compiled with no new errors.
+- Test artifacts (session JSON, throwaway venv scratch files) cleaned up.
+
+### Known debt, not addressed this entry
+`frontend/src/lib/useRealtimeVoice.js` is 530 lines (already over the 400-line cap before this session touched it, grew further from today's tool additions and this fix's added comments). Not split this entry - mid-fix on a live, actively-being-tested bug was the wrong moment to also take on a risky refactor of the connection-management code itself. Flagged honestly rather than either silently ignored or rushed.
+
+### Next safe step
+Michael tests live again - same request as the previous entry, but this time it should actually work: ask Aria (or the resident companion on the kiosk) for a maintenance/nursing request, check its status, and try ending the conversation. This is the fix that was actually missing every previous time this was "confirmed working" at the API level - the honest next signal is a real conversation, not another endpoint check.
