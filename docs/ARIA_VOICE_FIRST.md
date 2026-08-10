@@ -1041,3 +1041,56 @@ wrong, the identity canary (`_caos.diagnostics.prompt_hash`) plus this
 now-fixed negotiation path removes two entire categories of prior
 uncertainty — any remaining issue would be a third, different thing, not
 a repeat of either the persona-drift bug or this wiring bug.
+
+---
+
+## 2026-08-09 — LIVE ACCEPTANCE PASS: the negotiate fix works, sensitive-topic behavior confirmed as a regression baseline
+
+### The negotiate fix is confirmed, not just proven at the protocol level
+Michael had a real spoken conversation with resident-facing Aria after the
+`/negotiate` ephemeral-key fix above. It went well:
+- She knew who she was.
+- Conversation felt natural and useful; handled general questions well.
+- Working web/research access; answered weather/local-information
+  questions successfully.
+- **Did not fabricate actions she hadn't performed** — when Michael raised
+  needing to speak with a nurse, she correctly said she could *remember*
+  that need rather than falsely claiming she'd already contacted nursing.
+  This is exactly the truthfulness behavior the prompt work aimed for,
+  confirmed live, not just read back from the instructions text.
+
+This closes the loop opened by the protocol-level verification earlier
+today (real SDP + real ephemeral key + our own backend → valid answer,
+but no human conversation yet). Both halves are now confirmed: the wiring
+is correct AND a human heard the correct result.
+
+### Sensitive-topic behavior — CONFIRMED PASS, this is now a regression baseline
+Aria discussed body-image concerns and incontinence with Michael during
+this conversation — respectfully, calmly, maturely, without embarrassment,
+moralizing, forced positivity, or inappropriate refusal. **This is a pass
+for the "Sensitive adult-life topics" section added to both prompts
+earlier today.**
+
+**Explicit instruction for future work, recorded here so it isn't
+accidentally undone**: do not add further prohibition-heavy language to
+either prompt that could make Aria more timid or censorious again. The
+distinction to preserve is: legitimate adult health/body/intimacy/aging
+conversation (engage respectfully) vs. actual clinical decisions (remain
+under human clinical authority, unchanged) vs. requests that genuinely
+need a boundary (still declined, same as before). This live-tested
+behavior is the baseline going forward, not a starting point to be
+tightened by default.
+
+### What was NOT changed in this entry
+Nothing. This is a documentation-only record of a live test result, per
+explicit instruction not to alter working personality behavior while
+recording it.
+
+### Next
+Terminal 8 (full operational integration — nursing, maintenance, menu,
+family, capability registry, memory continuity, conversation ledger, plus
+a newly-added front-desk communication requirement) is now in progress
+separately. Section 20 of that directive is explicit and consistent with
+this entry: preserve the working Aria conversation path, do not bring
+back Turn mode, do not reintroduce duplicate personality prompts, do not
+replace the working Realtime transport without a proven defect.
