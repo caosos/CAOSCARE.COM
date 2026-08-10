@@ -1160,3 +1160,43 @@ The `/negotiate` fix from earlier today (ephemeral key vs. server key) was real 
 
 ### Next safe step
 Michael tests live again - same request as the previous entry, but this time it should actually work: ask Aria (or the resident companion on the kiosk) for a maintenance/nursing request, check its status, and try ending the conversation. This is the fix that was actually missing every previous time this was "confirmed working" at the API level - the honest next signal is a real conversation, not another endpoint check.
+
+---
+
+## 2026-08-09 — Focused bug: faucet-leak maintenance request, fully traced and proven fixed
+
+### Exact root cause
+Aria's tool selection and arguments were never the problem. `response.function_call_arguments.done` (the event our code listens for to detect a tool call) already had the correct name and fired correctly. The real bug was **one step earlier and unrelated to tool-calling**: the same event-name drift already found in `session.update` (see the previous entry) also affected the event carrying Aria's own spoken transcript. Our code listened for `response.audio_transcript.done`; the current API sends `response.output_audio_transcript.done`. Under the old name, Aria's own responses never landed in the UI's transcript state - only user turns did - which is exactly why a screenshot Michael sent showed **every** transcript line labeled "you," including what were clearly her own replies. This was cosmetic (didn't block the tool call itself) but real, and worth fixing since it's what let Michael see the conversation was broken in the first place.
+
+The earlier reports of the maintenance request itself failing ("she said she could not," "tried twice," "told me to follow up with staff") trace to session(s) that predated the `session.update` schema fix in the previous entry - without a successful `session.update`, `tools` never reaches the model at all, so those attempts were against a session with zero real capabilities, consistent with everything reported at the time.
+
+### Files changed
+- `frontend/src/lib/useRealtimeVoice.js`: `response.audio_transcript.done` -> `response.output_audio_transcript.done` (one line, plus a comment explaining why).
+
+### Exact test performed
+Built a complete, faithful reproduction - not an API-only test, not a guess - using a real WebRTC connection (`aiortc`, full ICE/DTLS) through our actual `/negotiate` endpoint, replaying the *exact* logic `useRealtimeVoice.js` uses:
+1. Minted a real resident session (`/api/realtime/session`, 13 tools).
+2. Connected for real, sent the corrected `session.update`, confirmed `session.updated`.
+3. Injected the literal acceptance-test phrase as a user turn: **"My faucet is leaking."**
+4. Captured Aria's real spoken response before any tool call: *"That sounds frustrating. Let's get someone from maintenance to take care of it. I'll send a request right now. Then we can chat while we wait."*
+5. Captured the real tool call: `request_staff_help({"category": "maintenance", "summary": "Faucet is leaking, needs repair"})`.
+6. Actually dispatched it - a real `POST /api/tasks/resident-request` against our running backend, not a mock.
+7. Fed the real result back into the conversation exactly as the frontend does (`function_call_output` + `response.create`).
+8. Captured Aria's real follow-up: *"I've sent the request to maintenance about the leaking faucet. They'll take it from here. In the meantime, want to tell me a bit about how your day was?"*
+
+### Result
+```text
+HTTP 200 from POST /api/tasks/resident-request
+task_id:    task_e1120a30e464
+receipt_id: rcpt_dea1e0af6edc
+status:     pending
+```
+Matches the requested acceptance shape exactly: resident says "my faucet is leaking," Aria says "I sent a maintenance request," and it's true - a real task and a real linked receipt exist. She did not claim maintenance was already coming, accepted, or fixed - only that the request was sent, which is all that was actually true at that point. Test task/receipt deleted afterward; no test data left in the database.
+
+### Not done / correctly out of scope for this focused fix
+- Did not touch nursing, front-desk, menu, memory, or any UI beyond the one-line event-name fix, per explicit instruction to keep this narrow.
+- Found but deliberately did not chase: `response.audio.delta` (used to set a "speaking" status indicator) uses the same un-prefixed naming pattern that was wrong elsewhere, and in WebRTC transport mode actual audio arrives via the media track, not the data channel - meaning this specific listener may never fire at all, correct name or not. Not confirmed, not requested, flagged here rather than fixed blind.
+- Still open: the actual resident-facing kiosk browser test (Michael, live, in the room) - this entry proves the mechanism is sound via a faithful replay of the exact same code path, which is strong evidence, but a real human conversation is still the only complete confirmation.
+
+### Next safe step (Terminal 8 Step 1 continues)
+Michael tests "My faucet is leaking" live at the actual kiosk. If it now works as this reproduction predicts, move to "I need to talk to my nurse" (same mechanism, nursing category) and "Did anyone see my request?" (the status-check tool), per Terminal 8's Step 1 acceptance sequence, before starting Step 2 (front desk).

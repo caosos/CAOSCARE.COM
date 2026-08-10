@@ -432,7 +432,16 @@ export function useRealtimeVoice({
           // sessions actually grow CAOS's memory of the resident over time.
           pendingUserRef.current = userText;
         }
-        if (msg.type === "response.audio_transcript.done") {
+        // FIXED 2026-08-09 (real, confirmed bug): the current Realtime API
+        // emits this as response.output_audio_transcript.done, not
+        // response.audio_transcript.done. Under the old name, Aria's own
+        // spoken responses never landed in transcript state at all - only
+        // user turns did, which is exactly why a real screenshot showed
+        // every transcript line labeled "you" (there simply were no
+        // "assistant" entries being added). Found via a full real WebRTC
+        // connection test that logged every actual event type/name OpenAI
+        // sent, not by guessing.
+        if (msg.type === "response.output_audio_transcript.done") {
           const aiText = msg.transcript || "";
           setTranscript((t) => [...t, { role: "assistant", text: aiText, ts: Date.now() }]);
           const userText = pendingUserRef.current;
