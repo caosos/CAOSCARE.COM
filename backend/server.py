@@ -44,6 +44,7 @@ from routes import weather as weather_routes  # noqa: E402
 from routes import timers as timer_routes  # noqa: E402
 from routes import capabilities as capability_routes  # noqa: E402
 from routes import aria_memory as aria_memory_routes  # noqa: E402
+from routes import receipts as receipt_routes  # noqa: E402
 from seed import demo_seed_enabled, seed  # noqa: E402
 
 
@@ -125,6 +126,7 @@ api.include_router(weather_routes.router)
 api.include_router(timer_routes.router)
 api.include_router(capability_routes.router)
 api.include_router(aria_memory_routes.router)
+api.include_router(receipt_routes.router)
 
 app.include_router(api)
 

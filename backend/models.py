@@ -52,12 +52,22 @@ class FacilityUpdate(BaseModel):
 
 
 # ---------- Users (staff / admin) ----------
+# Department is optional and separate from role (owner/admin/staff): role
+# is the auth tier, department is which request queues a "staff" user sees
+# (Terminal 8 item 4 - role-based visibility). None = general staff, sees
+# only "all_staff"-visibility requests, not department-specific ones.
+# Unverified against real multi-department accounts - only one user
+# (the owner) exists on this host as of this entry.
+StaffDepartment = Literal["nursing", "maintenance", "kitchen", "housekeeping", "administration"]
+
+
 class User(BaseModel):
     model_config = ConfigDict(extra="ignore")
     user_id: str = Field(default_factory=lambda: uid("user"))
     email: str
     name: str
     role: Literal["owner", "admin", "staff"] = "staff"
+    department: Optional[StaffDepartment] = None
     picture: Optional[str] = None
     auth_provider: Literal["jwt", "google"] = "jwt"
     password_hash: Optional[str] = None
@@ -69,6 +79,7 @@ class UserPublic(BaseModel):
     email: str
     name: str
     role: str
+    department: Optional[str] = None
     picture: Optional[str] = None
     auth_provider: str
 
@@ -545,12 +556,31 @@ class VisionSessionStart(BaseModel):
 
 
 # ---------- Staff tasks / daily work log ----------
+# 2026-08-09 (Terminal 8): extended to also serve as the general resident
+# request bus (nursing/maintenance/kitchen/front_desk/family/complaint),
+# per "one source of truth, reuse existing models" - this was already a
+# working, tested, role-assignable, status-tracked, timestamped domain
+# object, so non-emergency resident requests route through it rather than
+# a new parallel system. Safety/emergency stays on Alert, unchanged.
 TaskCategory = Literal[
     "laundry", "meds", "meal", "rounds", "bathing", "housekeeping",
     "activity", "transport", "check_in", "paperwork", "other",
+    # resident-request-bus categories (Terminal 8):
+    "nursing", "maintenance", "kitchen", "front_desk", "family", "complaint",
 ]
 TaskStatus = Literal["pending", "in_progress", "completed", "skipped"]
 TaskShift = Literal["day", "evening", "night", "any"]
+TaskPriority = Literal["low", "normal", "high", "urgent"]
+# Who/what originated this task/request - lets Aria-initiated and
+# resident-initiated items be distinguished from staff-scheduled work.
+TaskSource = Literal["staff", "aria_voice", "kiosk_button", "family", "system"]
+# Coarse role gate for who should see this in their queue/dashboard.
+# Enforced backend-side wherever tasks are listed for a given role - see
+# ENGINEERING_CONTRACT.md (once written) for the authorization pattern.
+TaskVisibilityRole = Literal[
+    "all_staff", "nursing", "maintenance", "kitchen", "housekeeping",
+    "administration", "family",
+]
 
 
 class StaffTask(BaseModel):
@@ -574,6 +604,14 @@ class StaffTask(BaseModel):
     notes: Optional[str] = ""
     due_at: Optional[datetime] = None
     template_id: Optional[str] = None        # if spawned from a recurring template
+    # ---- resident-request-bus fields (Terminal 8) ----
+    priority: TaskPriority = "normal"
+    source: TaskSource = "staff"
+    visibility_role: TaskVisibilityRole = "all_staff"
+    resident_words: Optional[str] = None     # verbatim quote, when resident-originated
+    conversation_session_id: Optional[str] = None  # links back to the Aria session, if any
+    acknowledged_by: Optional[str] = None
+    acknowledged_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=now_utc)
 
 
@@ -587,12 +625,18 @@ class StaffTaskCreate(BaseModel):
     room: Optional[str] = None
     due_at: Optional[datetime] = None
     notes: Optional[str] = ""
+    priority: TaskPriority = "normal"
+    source: TaskSource = "staff"
+    visibility_role: TaskVisibilityRole = "all_staff"
+    resident_words: Optional[str] = None
+    conversation_session_id: Optional[str] = None
 
 
 class StaffTaskUpdate(BaseModel):
     notes: Optional[str] = None
     assigned_to: Optional[str] = None
     status: Optional[TaskStatus] = None
+    acknowledged_by: Optional[str] = None
 
 
 class StaffTaskTemplate(BaseModel):
@@ -615,6 +659,39 @@ class StaffTaskTemplateCreate(BaseModel):
     description: Optional[str] = ""
     category: TaskCategory = "other"
     shift: TaskShift = "any"
+
+
+# ---------- Operational receipts (Terminal 8) ----------
+# One shared, generic receipt mechanism for meaningful actions across
+# domains (task/request lifecycle, device commands, alerts, etc.), so the
+# dashboard/staff/Aria/reporting/audit systems all read the same record
+# instead of each domain inventing its own event log. A receipt points AT
+# a domain object (related_object_type/id) rather than duplicating that
+# object's own data - see backend/routes/receipts.py.
+ReceiptStatus = Literal["created", "acknowledged", "in_progress", "completed", "failed", "cancelled"]
+
+
+class Receipt(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    receipt_id: str = Field(default_factory=lambda: uid("rcpt"))
+    action_type: str                          # e.g. "task_created", "task_completed", "device_command"
+    source: TaskSource = "system"
+    resident_id: Optional[str] = None
+    room: Optional[str] = None
+    zone: Optional[str] = None
+    conversation_session_id: Optional[str] = None  # Aria session, if Aria initiated this
+    requested_by: Optional[str] = None         # user_id, "resident", or "aria"
+    assigned_role: Optional[str] = None
+    assigned_user: Optional[str] = None
+    status: ReceiptStatus = "created"
+    acknowledged_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    result: Optional[str] = None
+    failure_reason: Optional[str] = None
+    follow_up_required: bool = False
+    related_object_type: Optional[str] = None  # "task", "alert", "device_command", ...
+    related_object_id: Optional[str] = None
+    created_at: datetime = Field(default_factory=now_utc)
 
 
 # ---------- Resident memory (long-term learned facts) ----------

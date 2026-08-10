@@ -87,6 +87,40 @@ async function executeTool({ name, args, ctx }) {
       if (!r.ok) return { ok: false, message: `I tried to call a nurse but the call didn't go through (${r.status}). Please press the red button.` };
       return { ok: true, message: "a nurse has been paged. I'm right here with you." };
     }
+    if (name === "request_staff_help") {
+      const r = await fetch(`${API}/tasks/resident-request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category: args.category,
+          resident_id: residentId || null,
+          room: room || null,
+          resident_words: args.summary || null,
+          summary: args.summary || "Resident request",
+          priority: args.priority || "normal",
+          source: "aria_voice",
+          conversation_session_id: sessionIdRef.current,
+        }),
+      });
+      if (!r.ok) return { ok: false, message: `couldn't send that request (${r.status}) - please try the call button instead.` };
+      const data = await r.json();
+      return { ok: true, message: `request created (${data.status}) and sent to ${args.category}.`, task_id: data.task_id };
+    }
+    if (name === "check_request_status") {
+      const qs = new URLSearchParams();
+      if (residentId) qs.set("resident_id", residentId);
+      else if (room) qs.set("room", room);
+      else return { ok: false, message: "no room/resident context to check." };
+      if (args.category) qs.set("category", args.category);
+      const r = await fetch(`${API}/tasks/resident-request/status?${qs.toString()}`);
+      if (!r.ok) return { ok: false, message: `couldn't check that (${r.status}).` };
+      const data = await r.json();
+      if (!data.found) return { ok: true, message: "no matching request found on record." };
+      return {
+        ok: true,
+        message: `status: ${data.status}${data.acknowledged ? " (acknowledged)" : " (not yet acknowledged)"}${data.assigned_to_name ? `, assigned to ${data.assigned_to_name}` : ""}.`,
+      };
+    }
     if (name === "mark_resting") {
       // No backend side-effect; the function existing tells the model to fall
       // silent. We surface a session-level flag so the UI can dim the orb.
