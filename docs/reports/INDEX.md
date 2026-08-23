@@ -4,7 +4,14 @@ Start here. Updated by Claude Code every time a report is added or an
 issue is resolved — this is the fastest way to find current state without
 reading the whole folder or asking Michael to paste anything.
 
-_Last updated: 2026-08-23 19:15 UTC_
+_Last updated: 2026-08-23 19:39 UTC_
+
+## Current working directive
+[CURRENT_DIRECTIVE.md](CURRENT_DIRECTIVE.md)
+— Shared standing instructions for Michael, ChatGPT-Aria, and Claude Code:
+EliteDesk + GitHub workflow, Voice-first product priority, ~30-minute
+milestone commit/push cadence, safe synchronization rules, and the standing
+~300-line handwritten production-code architecture rule.
 
 ## Latest forensic report
 [2026-08-23-1448-room304-morning-forensics.md](2026-08-23-1448-room304-morning-forensics.md)
@@ -17,8 +24,8 @@ cause unproven.
 — Read-only inspection of the real `caoscare.com` production server
 (found it was 56 commits behind, on a since-completed 2GB→4GB Linode
 resize) plus the full design for a real `git commit → push → deploy`
-mechanism. **Design only — no deploy script exists yet, nothing has been
-deployed.**
+mechanism. Deployment helper scripts were subsequently added and validated,
+but have not been run; public/Linode deployment is currently out of scope.
 
 ## Latest acceptance-test report
 None yet distinct from the forensic reports above — every real-conversation
@@ -27,6 +34,11 @@ test so far has surfaced a real defect, so "forensic report" and
 point to a clean pass once one happens.
 
 ## Current unresolved issues
+- Current local shared outage: Google sign-in failed while Requests/Pendants
+  failed to load and residents/rooms/kiosks appeared empty. Determine the
+  exact backend/API/environment/database cause before recreating or reseeding
+  anything; prove where the existing records are and restore the correct
+  runtime/data path.
 - `mark_resting` has no code-level gate — only prompt wording, which the
   model has overridden twice now (once on "maybe I need to turn it up",
   once on "You got it."). Needs the same kind of backend-enforced check
