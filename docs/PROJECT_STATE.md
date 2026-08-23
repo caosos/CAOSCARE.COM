@@ -1113,3 +1113,38 @@ One gap in that inspection: `backend/models.py`'s delta wasn't checked initially
 
 ### Next safe step
 Per Michael's explicit instruction: STOP feature work. The next dedicated engineering round should be the `models.py` domain split (tests before and after), not bundled with anything else. Separately, whenever Michael is ready: inspect the actual CAOSCare.com production/deployment architecture (server, DNS, reverse proxy, process management, env/secrets, TLS, health checks, rollback) and design the smallest repeatable deploy path - explicitly not to be executed until Michael says "DEPLOY".
+
+---
+
+## 2026-08-23 — Local EliteDesk connectivity outage: two distinct IPv6/IPv4 localhost mismatches, both fixed; frontend moved to systemd --user supervision
+
+### Agent / tool
+Claude Code with Michael. `docs/reports/CURRENT_DIRECTIVE.md` (pushed by Michael/ChatGPT-Aria, commits `a3fb31f`/`e7d66b5`) adopted this round as the shared standing working directive - reviewed for coherence/safety before being treated as authoritative, matches everything established this session.
+
+### Branch / ref
+`main`, pulled to `e7d66b5` (clean fast-forward) before this round's work.
+
+### What happened
+Michael reported the local Admin UI at `localhost:3000/admin` showing "Could not load requests", "Failed to load pendants", kiosks/residents empty - global-looking failure. Per the directive's explicit priority, this was diagnosed BEFORE any Voice work resumed. Full forensic pass (process state, DB query, direct endpoint hits, CORS, Google OAuth config/connectivity) proved the database was never touched and the backend was never down - see `docs/reports/2026-08-23-2008-local-dev-connectivity-outage.md` for the complete writeup. Two distinct root causes, both real IPv6-vs-IPv4 `localhost` resolution mismatches on this specific machine, not data loss, not a crash:
+
+1. **Backend (port 8000)**: `getent hosts localhost` resolves to `::1` on this machine; uvicorn was bound only to IPv4 `127.0.0.1:8000`. Browser fetches to `http://localhost:8000` hit a hard `ERR_CONNECTION_REFUSED`; `curl` to the same URL kept working because its resolver fell back to IPv4 cleanly. Backend process itself never crashed (same PID throughout).
+2. **Frontend (port 3000)**: identical bug, one layer up - `craco start` defaulted to binding `0.0.0.0:3000` (IPv4 only). Same browser-side refusal, same non-crash (same PIDs throughout, proven via `ps`/journald).
+
+### What changed
+- `frontend/.env`: `REACT_APP_BACKEND_URL` changed from `http://localhost:8000` to `http://127.0.0.1:8000` - removes the ambiguity at the source for the app's own API calls. Backend itself was not modified, per Michael's explicit instruction not to touch it again once Failure A was confirmed fixed.
+- New `~/.config/systemd/user/caoscare-frontend-dev.service` (local machine config, not in the git repo - contains this machine's absolute `nvm` paths) - runs `yarn start` (still dev mode, hot reload intact, not a production build) with `HOST=::` (dual-stack bind, fixes Failure B at the root rather than just working around it), `Restart=on-failure`, logs via `journalctl --user -u caoscare-frontend-dev.service`. Enabled + `loginctl enable-linger caoscare-1` set so it survives without an active login session. The old raw `nohup`'d frontend process was stopped and replaced by this service.
+- New report: `docs/reports/2026-08-23-2008-local-dev-connectivity-outage.md`. `docs/reports/INDEX.md` updated (new "Latest local-dev-outage report" section, the now-resolved item removed from unresolved issues).
+
+### What was verified
+- Data confirmed intact throughout via direct Mongo query (unchanged counts across every collection).
+- Both fixes proven directly, not assumed: `curl --resolve localhost:8000:127.0.0.1 ...` / `--resolve localhost:3000:::1 ...` reproduced the exact failure before each fix and the exact success after.
+- Post-fix: port 3000 listening dual-stack (`*:3000`), `localhost`/`127.0.0.1`/forced-`[::1]` all return 200 on both 3000 and 8000, backend health still `{"ok":true,"db":"up"}`, frontend bundle confirmed to contain `127.0.0.1:8000` not `localhost:8000`, `/login` and `/admin` both serve 200, `/api/kiosks` (public) returns real data, protected endpoints correctly 401 without a token.
+- `caoscare-frontend-dev.service` confirmed `enabled` and `active`, linger confirmed `yes`.
+
+### Blocked / not yet done
+- Backend was intentionally left as a raw process this round (not converted to a systemd service) per Michael's explicit "do not touch the backend again" instruction - the same supervision pattern would apply cleanly to it in a future round if wanted.
+- Per the shared directive: Voice work stays paused until the local dev stack has demonstrated it stays reliably up - this round is what proves that, pending Michael's confirmation after a normal work session.
+- `models.py` domain split and the `mark_resting`/VAD open items from prior rounds remain queued, untouched this round.
+
+### Next safe step
+Per the CURRENT_DIRECTIVE.md checkpoint cadence: this is a completed, verified milestone - commit and push now, confirm EliteDesk HEAD == origin/main, then resume Voice work per the directive's stated priority order once Michael confirms the local stack is holding up normally.

@@ -4,7 +4,7 @@ Start here. Updated by Claude Code every time a report is added or an
 issue is resolved — this is the fastest way to find current state without
 reading the whole folder or asking Michael to paste anything.
 
-_Last updated: 2026-08-23 19:39 UTC_
+_Last updated: 2026-08-23 20:10 UTC_
 
 ## Current working directive
 [CURRENT_DIRECTIVE.md](CURRENT_DIRECTIVE.md)
@@ -33,12 +33,14 @@ test so far has surfaced a real defect, so "forensic report" and
 "acceptance-test report" have been the same document. This entry will
 point to a clean pass once one happens.
 
+## Latest local-dev-outage report
+[2026-08-23-2008-local-dev-connectivity-outage.md](2026-08-23-2008-local-dev-connectivity-outage.md)
+— **RESOLVED.** Two distinct pure-connectivity failures (IPv6-vs-IPv4
+`localhost` resolution mismatch, first on backend port 8000, then frontend
+port 3000) — never data loss, never a crashed process. Frontend now runs
+under a supervised `systemd --user` service with dual-stack binding.
+
 ## Current unresolved issues
-- Current local shared outage: Google sign-in failed while Requests/Pendants
-  failed to load and residents/rooms/kiosks appeared empty. Determine the
-  exact backend/API/environment/database cause before recreating or reseeding
-  anything; prove where the existing records are and restore the correct
-  runtime/data path.
 - `mark_resting` has no code-level gate — only prompt wording, which the
   model has overridden twice now (once on "maybe I need to turn it up",
   once on "You got it."). Needs the same kind of backend-enforced check
