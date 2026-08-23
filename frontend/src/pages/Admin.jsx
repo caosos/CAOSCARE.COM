@@ -12,6 +12,7 @@ import RFPairingTab from "./RFPairingTab";
 import ClinicianTab from "./ClinicianTab";
 import HardwareReceiptsTab from "./HardwareReceiptsTab";
 import FacilitiesTab from "./FacilitiesTab";
+import FacilitySetupBanner from "./FacilitySetupBanner";
 import EscalationTab from "./EscalationTab";
 import Roadmap from "./Roadmap";
 import Insights from "./Insights";
@@ -44,6 +45,9 @@ export default function Admin() {
   const [staff, setStaff] = useState([]);
   const [kiosks, setKiosks] = useState([]);
   const [zones, setZones] = useState([]);
+  const [facilities, setFacilities] = useState([]);
+  const [facilitiesLoaded, setFacilitiesLoaded] = useState(false);
+  const [autoOpenFacilityDialog, setAutoOpenFacilityDialog] = useState(false);
   const [activeTab, setActiveTab] = useState("residents");
   const activeGroupId = tabGroups(residents, staff, kiosks, zones, user)
     .find((g) => g.tabs.some((t) => t.value === activeTab))?.id;
@@ -66,6 +70,30 @@ export default function Admin() {
         nav("/staff");
       }
     }
+    // Facilities read is separate: any admin/owner can see the setup
+    // banner, but a fetch failure here (e.g. non-owner edge case) must
+    // never block the rest of the dashboard from loading.
+    try {
+      const f = await api.get("/facilities");
+      setFacilities(f.data);
+    } catch { /* banner just won't render; rest of Admin still works */ }
+    finally { setFacilitiesLoaded(true); }
+  };
+
+  const goSetUpCommunity = () => {
+    setActiveTab("facilities");
+    setAutoOpenFacilityDialog(true);
+  };
+
+  // FacilitiesTab manages its own list for the tab itself; this keeps the
+  // top-level banner state (rendered outside that tab) in sync whenever a
+  // facility is created/edited there, so the banner disappears immediately
+  // after setup instead of waiting for a full page reload.
+  const refreshFacilities = async () => {
+    try {
+      const f = await api.get("/facilities");
+      setFacilities(f.data);
+    } catch { /* keep prior state */ }
   };
 
   useEffect(() => {
@@ -119,6 +147,13 @@ export default function Admin() {
 
       <div className="max-w-7xl mx-auto px-6 py-8">
         <h1 className="font-display text-4xl font-light text-caos-forest mb-6">Community administration</h1>
+
+        <FacilitySetupBanner
+          facilities={facilities}
+          loaded={facilitiesLoaded}
+          isOwner={user?.role === "owner"}
+          onSetup={goSetUpCommunity}
+        />
 
         <div className="flex flex-wrap gap-2 mb-4" data-testid="admin-group-nav">
           {tabGroups(residents, staff, kiosks, zones, user).map((g) => (
@@ -223,7 +258,11 @@ export default function Admin() {
           </TabsContent>
           {user?.role === "owner" && (
             <TabsContent value="facilities" className="mt-6">
-              <FacilitiesTab />
+              <FacilitiesTab
+                autoOpenAdd={autoOpenFacilityDialog}
+                onAutoOpenHandled={() => setAutoOpenFacilityDialog(false)}
+                onChange={refreshFacilities}
+              />
             </TabsContent>
           )}
           <TabsContent value="roadmap" className="mt-6">

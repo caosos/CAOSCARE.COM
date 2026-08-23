@@ -10,10 +10,12 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from ".
 import { Badge } from "../components/ui/badge";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import DepartmentWorkspaceDialog from "./DepartmentWorkspaceDialog";
 
 export default function DepartmentsTab() {
   const [items, setItems] = useState([]);
   const [open, setOpen] = useState(false);
+  const [workspaceDept, setWorkspaceDept] = useState(null);
   const empty = { label: "", description: "", contact_email: "" };
   const [form, setForm] = useState(empty);
 
@@ -97,7 +99,12 @@ export default function DepartmentsTab() {
         </TableHeader>
         <TableBody>
           {items.map((d) => (
-            <TableRow key={d.department_id} data-testid={`dept-row-${d.department_id}`}>
+            <TableRow
+              key={d.department_id}
+              className="cursor-pointer hover:bg-caos-bone/60"
+              onClick={() => setWorkspaceDept(d)}
+              data-testid={`dept-row-${d.department_id}`}
+            >
               <TableCell>
                 <div className="font-medium">{d.label}</div>
                 {d.description && <div className="text-caos-mute text-xs">{d.description}</div>}
@@ -107,14 +114,19 @@ export default function DepartmentsTab() {
                 <Badge
                   variant="outline"
                   className={`cursor-pointer ${d.active ? "" : "text-caos-mute"}`}
-                  onClick={() => toggleActive(d)}
+                  onClick={(e) => { e.stopPropagation(); toggleActive(d); }}
                   data-testid={`dept-toggle-${d.department_id}`}
                 >
                   {d.active ? "Active" : "Inactive"}
                 </Badge>
               </TableCell>
               <TableCell>
-                <Button variant="ghost" size="sm" onClick={() => remove(d.department_id)} data-testid={`del-dept-${d.department_id}`}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => { e.stopPropagation(); remove(d.department_id); }}
+                  data-testid={`del-dept-${d.department_id}`}
+                >
                   <Trash2 className="w-4 h-4 text-caos-terracotta" />
                 </Button>
               </TableCell>
@@ -125,6 +137,8 @@ export default function DepartmentsTab() {
           )}
         </TableBody>
       </Table>
+
+      <DepartmentWorkspaceDialog department={workspaceDept} onClose={() => setWorkspaceDept(null)} />
     </Card>
   );
 }

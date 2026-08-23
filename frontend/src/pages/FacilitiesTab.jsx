@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -10,20 +10,33 @@ import { useAuth } from "../lib/auth";
 
 // Multi-tenant facilities. Owner can create/edit; admins read-only.
 
-export default function FacilitiesTab() {
+// autoOpenAdd: set by Admin.jsx's onboarding banner ("Set up your community")
+// so the create dialog opens immediately instead of landing on a screen
+// that still requires finding the "New facility" button.
+export default function FacilitiesTab({ autoOpenAdd = false, onAutoOpenHandled, onChange }) {
   const { user } = useAuth();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
+  const autoOpenedRef = useRef(false);
 
   const refresh = async () => {
     try {
       const { data } = await api.get("/facilities");
       setItems(data);
     } catch (err) { toast.error(err?.response?.data?.detail || "Failed to load"); }
-    finally { setLoading(false); }
+    finally { setLoading(false); onChange && onChange(); }
   };
   useEffect(() => { refresh(); }, []);
+
+  useEffect(() => {
+    if (autoOpenAdd && !autoOpenedRef.current && user?.role === "owner") {
+      autoOpenedRef.current = true;
+      setAddOpen(true);
+      onAutoOpenHandled && onAutoOpenHandled();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoOpenAdd, user]);
 
   return (
     <div className="space-y-6" data-testid="facilities-tab">
@@ -86,6 +99,8 @@ function FacilityCard({ facility, onChange, canEdit }) {
       {editing ? (
         <div className="space-y-2">
           <Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="Name" />
+          <Input value={draft.address || ""} onChange={(e) => setDraft({ ...draft, address: e.target.value })} placeholder="Address" />
+          <Input value={draft.timezone || ""} onChange={(e) => setDraft({ ...draft, timezone: e.target.value })} placeholder="Timezone (e.g. America/New_York)" />
           <Input value={draft.contact_email || ""} onChange={(e) => setDraft({ ...draft, contact_email: e.target.value })} placeholder="Contact email" />
           <Input value={draft.phone || ""} onChange={(e) => setDraft({ ...draft, phone: e.target.value })} placeholder="Phone" />
           <Input value={draft.on_call_phone || ""} onChange={(e) => setDraft({ ...draft, on_call_phone: e.target.value })} placeholder="On-call phone (escalation)" />
@@ -99,6 +114,8 @@ function FacilityCard({ facility, onChange, canEdit }) {
           <h3 className="font-display text-2xl text-caos-forest">{facility.name}</h3>
           <p className="text-xs text-caos-mute font-mono mt-1">{facility.facility_id}</p>
           <div className="mt-3 space-y-1 text-sm text-caos-ink/80">
+            {facility.address && <p className="text-caos-ink/80">{facility.address}</p>}
+            <p className="text-caos-mute text-xs">{facility.timezone}</p>
             {facility.contact_email && <p className="flex items-center gap-2"><Mail className="w-3.5 h-3.5 text-caos-mute" /> {facility.contact_email}</p>}
             {facility.phone && <p className="flex items-center gap-2"><Phone className="w-3.5 h-3.5 text-caos-mute" /> {facility.phone}</p>}
             {facility.on_call_phone && <p className="flex items-center gap-2 text-caos-terracotta"><Phone className="w-3.5 h-3.5" /> on-call: {facility.on_call_phone}</p>}
@@ -113,7 +130,7 @@ function FacilityCard({ facility, onChange, canEdit }) {
 }
 
 function AddDialog({ open, onClose }) {
-  const [draft, setDraft] = useState({ name: "", contact_email: "", phone: "", on_call_phone: "", plan: "pilot", timezone: "America/New_York" });
+  const [draft, setDraft] = useState({ name: "", address: "", contact_email: "", phone: "", on_call_phone: "", plan: "pilot", timezone: "America/New_York" });
   if (!open) return null;
   const submit = async () => {
     if (!draft.name.trim()) { toast.error("Name required"); return; }
@@ -129,6 +146,8 @@ function AddDialog({ open, onClose }) {
         <h3 className="font-display text-2xl text-caos-forest mb-3">New facility</h3>
         <div className="space-y-2">
           <Input placeholder="Name (e.g. Sunrise Senior Living — Boston)" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} data-testid="fac-add-name" />
+          <Input placeholder="Address" value={draft.address} onChange={(e) => setDraft({ ...draft, address: e.target.value })} data-testid="fac-add-address" />
+          <Input placeholder="Timezone (e.g. America/New_York)" value={draft.timezone} onChange={(e) => setDraft({ ...draft, timezone: e.target.value })} data-testid="fac-add-timezone" />
           <Input placeholder="Contact email" value={draft.contact_email} onChange={(e) => setDraft({ ...draft, contact_email: e.target.value })} data-testid="fac-add-email" />
           <Input placeholder="Main phone" value={draft.phone} onChange={(e) => setDraft({ ...draft, phone: e.target.value })} />
           <Input placeholder="On-call phone (for escalation)" value={draft.on_call_phone} onChange={(e) => setDraft({ ...draft, on_call_phone: e.target.value })} />
