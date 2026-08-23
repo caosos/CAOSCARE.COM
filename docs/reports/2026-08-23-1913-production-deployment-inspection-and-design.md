@@ -34,7 +34,9 @@ with a dedicated key generated for this purpose. Read-only throughout.
   `caoscare.com`. Serves `frontend/build/` directly (no copy step in
   practice, despite the runbook describing one); proxies `/api/` to
   `127.0.0.1:8001`; SPA fallback to `index.html`.
-- **Environment**: `backend/app/.env` present, `600` permissions, not
+- **Environment**: `backend/.env` present (full path
+  `/opt/caoscare/app/backend/.env`, confirmed against the systemd unit's
+  own `EnvironmentFile=` line, not inferred), `600` permissions, not
   tracked by git - correct. Contents not read.
 - **Database**: local MongoDB, single instance, bound to `127.0.0.1` only.
   Database name in actual use is `caoscare_server` (not `caoscare`, which
