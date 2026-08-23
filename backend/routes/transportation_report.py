@@ -65,11 +65,13 @@ async def daily_report(date: Optional[str] = None, user=Depends(get_current_user
             "received_at": _iso(t.get("created_at")),
             # "status" on the task itself is staff-acknowledgment workflow
             # (pending/in_progress/completed), NOT whether a ride is
-            # actually booked - that truth lives only in transport_slot_id.
-            # A request can sit at status="pending" (unacknowledged) while
-            # already genuinely booked. Surface the real truth explicitly
-            # so the UI doesn't make callers infer it from "status".
-            "booked": bool(t.get("transport_slot_id")),
+            # actually booked - that truth lives in transport_run_id (the
+            # current resource engine) or, for pre-engine historical rows,
+            # transport_slot_id. A request can sit at status="pending"
+            # (unacknowledged) while already genuinely booked. Surface the
+            # real truth explicitly so the UI doesn't make callers infer it
+            # from "status".
+            "booked": bool(t.get("transport_run_id") or t.get("transport_slot_id")),
         }
         for t in inbound_docs
     ]
@@ -96,9 +98,10 @@ async def daily_report(date: Optional[str] = None, user=Depends(get_current_user
         {"category": "transportation", "status": {"$in": ["pending", "in_progress"]}}, {"_id": 0},
     ).to_list(500)
     upcoming_rides = [
-        t for t in all_open if t.get("transport_slot_id") and (t.get("requested_for_date") or "") >= today_facility_date()
+        t for t in all_open
+        if (t.get("transport_run_id") or t.get("transport_slot_id")) and (t.get("requested_for_date") or "") >= today_facility_date()
     ]
-    waiting_unbooked = [t for t in all_open if not t.get("transport_slot_id")]
+    waiting_unbooked = [t for t in all_open if not (t.get("transport_run_id") or t.get("transport_slot_id"))]
     follow_ups = [t for t in all_open if t.get("re_request_count", 0) > 0]
 
     # ---- SUMMARY ----
