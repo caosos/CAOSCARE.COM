@@ -112,6 +112,15 @@ async def require_admin(request: Request):
     return user
 
 
+async def require_front_desk_or_admin(request: Request):
+    """Front Desk tier: owner, admin, or front_desk. Staff are rejected.
+    Used for read access to the shared transportation calendar/state."""
+    user = await get_current_user(request)
+    if user.get("role") not in ("owner", "admin", "front_desk"):
+        raise HTTPException(status_code=403, detail="Front desk or admin access required")
+    return user
+
+
 async def require_owner(request: Request):
     """System-owner-only access. Used for Blueprint, memory bulletin internals,
     and any route that exposes architecture or all-resident override."""

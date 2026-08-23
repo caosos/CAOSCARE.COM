@@ -2,20 +2,22 @@
 
 Single current-state snapshot for `caoscare1-hp-elitedesk`. This is a point-in-time report, not a changelog — for full history read `docs/PROJECT_STATE.md` (bottom-up), `docs/ELITEDESK_NODE_BUILD.md`, and `docs/ARIA_VOICE_FIRST.md` (the most detailed log — several real bugs were found and fixed there, worth reading in full if picking up this work).
 
-Generated: 2026-08-09, by Claude Code, from a live inspection of the running host.
+Generated: 2026-08-09, by Claude Code, from a live inspection of the running host. Last reconciled: 2026-08-21 (Terminal 9 checkpoint) — sections below marked accordingly; unmarked sections are still the original 2026-08-09 snapshot and may be stale.
 
-## Repo / git
+## Repo / git (reconciled 2026-08-21)
 
 ```text
 Branch:        main
-HEAD:          c79be25 — Add Claude Code onboarding skeleton (CLAUDE.md + placeholder canon docs)
-Remote:        origin -> https://github.com/caosos/CAOSCARE.COM.git, up to date
-Working tree:  1 modified file — backend/requirements.txt (paho-mqtt added, still
-               completely unused — no MQTT client code exists anywhere. Left
-               uncommitted on purpose until that work actually happens.)
+HEAD:          3a4bd7f — Fix transcript-labeling bug; prove faucet-leak maintenance request works end-to-end
+Remote:        origin -> https://github.com/caosos/CAOSCARE.COM.git, 2 commits ahead
+               (077cf4a doc-only progress handoff, 48a84e0 the Terminal 9 directive) —
+               fetched only, not merged.
+Working tree:  18 modified + 15 untracked files (Departments/Schedule/Menu/Transportation
+               backend+frontend, realtime tool wiring, password dialogs, seed script).
+               Full file list and line-count detail: docs/PROJECT_STATE.md, 2026-08-21 entries.
 ```
 
-## Running services right now
+## Running services right now (reconfirmed 2026-08-21)
 
 ```text
 mongod                 active, systemd-enabled                        127.0.0.1:27017
@@ -24,9 +26,13 @@ CAOSCare frontend       running, craco dev server, setsid/nohup        0.0.0.0:3
 Home Assistant OS VM    running, libvirt, autostart=yes                192.168.122.137:8123
 Mosquitto MQTT broker   running (HA Supervisor add-on)                 192.168.122.137:1883
 sshd                    active, systemd-enabled                       0.0.0.0:22 (LAN only)
+                        + laptop relay confirmed 2026-08-21: laptop `ssh caoscare`
+                        (via ~/.ssh/config Host entry) -> caoscare-1@caoscare1-hp-elitedesk
 ```
 
-DB snapshot: 1 user (owner, `mytaxicloud@gmail.com`), 7 `aria_capabilities` (seeded 2026-08-02, several fields now stale — see below), 0 `aria_memories`, 0 `aria_conversations` (the new conversation-thread feature exists and works, just hasn't been used in a real conversation yet).
+DB snapshot (2026-08-09): 1 user (owner, `mytaxicloud@gmail.com`), 7 `aria_capabilities` (seeded 2026-08-02, several fields now stale — see below), 0 `aria_memories`, 0 `aria_conversations` (the new conversation-thread feature exists and works, just hasn't been used in a real conversation yet).
+
+DB snapshot (reconfirmed 2026-08-21, counts only — no PII/secrets): still 1 user, 7 `aria_capabilities`; new since 08-09: 8 `departments`, 126 `transport_slots` (14 distinct dates, `2026-08-09`→`2026-08-22`, source `internal_schedule`, 4 already booked — this covers today/tomorrow and is adequate for a pharmacy-tomorrow test without re-seeding), `schedule_items` 0, `menu_items` 0, 15 `receipts`, 9 `staff_tasks`, 5 `residents`, 1 `kiosk`, 31 `alerts`, 9 `notifications`.
 
 ## DONE this session (2026-08-09) — in order
 
@@ -44,13 +50,15 @@ DB snapshot: 1 user (owner, `mytaxicloud@gmail.com`), 7 `aria_capabilities` (see
 
 ## WORKING BUT NOT FULLY VERIFIED
 
-- **The negotiate fix (item 8 above) has not been confirmed by an actual human voice conversation.** It's proven correct at the protocol level (real SDP + real ephemeral key + our own backend → valid answer) — that's strong evidence, not a guess — but "the handshake completes" and "Michael hears her say 'I'm Aria' with no stray 'Hey'" are two different claims. **This is the single most important thing to test next.**
+- ~~The negotiate fix (item 8 above) has not been confirmed by an actual human voice conversation.~~ **Resolved by 2026-08-09→2026-08-21 sessions**: a real voice conversation and a real end-to-end maintenance request (faucet leak) have since been proven working (commit `3a4bd7f`). See `docs/PROJECT_STATE.md` for detail.
 - Kiosk emergency-call flow, TV auto-muting, and the new `announceLine()` medication-reminder path: code-reviewed and compile-verified after the Turn-mode removal, not yet exercised in a real browser.
 - HA LAN port-forward (`192.168.1.151:8123` → VM) from a second physical device — still not confirmed from any device other than this host.
+- **(2026-08-21)** Admin → Departments/Schedule/Transportation/Menu: wired and compiling, but Michael has not yet reviewed any of them live in the browser this session.
+- **(2026-08-21)** The full resident voice transportation path ("I need a ride to the pharmacy tomorrow" → tool call → DB record → receipt) has not yet been run as a real microphone test — see Terminal 9 checkpoint in `docs/PROJECT_STATE.md`.
 
 ## BLOCKED
 
-- Google Sign-In still not configured on this host.
+- ~~Google Sign-In still not configured on this host.~~ **Resolved 2026-08-21**: GSI owner login for `mytaxicloud@gmail.com` confirmed working in the browser (see 2026-08-21 reconciliation note above and `docs/PROJECT_STATE.md`'s Terminal 9 checkpoint entry).
 - Midea/Matter LAN integration still paused (no wired NIC).
 - Wake word ("Aria"): not implemented, confirmed lowest priority per Michael's own directive.
 - The 8 NOT DONE/PARTIAL items from the 13-part audit (memory continuity, barge-in, adjustable pacing, voice-controlled settings, environment awareness, HA/MQTT tool-wiring, acceptance test suite) — see `FROM_CLAUDE.txt` for the exact breakdown and recommended build order.
@@ -67,4 +75,6 @@ Backend/frontend are still manual `setsid`/`nohup` processes, not systemd. This 
 
 ## Single best next action
 
-**Michael has a real voice conversation** — either at `/aria` or a real kiosk — and reports plainly: did she introduce herself correctly, did she avoid opening with "Hey," did the conversation otherwise feel right. That single test now carries more weight than any further code change, because the actual wiring bug behind every earlier failed attempt has been found, fixed, and proven correct up to (but not including) a real human ear.
+~~Michael has a real voice conversation...~~ **Done (2026-08-09→2026-08-21)** — superseded below.
+
+**(2026-08-21, current)** Michael reviews Admin → Departments/Schedule/Transportation/Menu live in the browser, then performs the real microphone test ("I need a ride to the pharmacy tomorrow") at the kiosk while the backend/DB are observed in real time — per Terminal 9 Phases 4-5 in `docs/PROJECT_STATE.md`'s latest entry. A known 300-line production-code rule violation was also found this session in `backend/models.py`, `frontend/src/pages/Admin.jsx`, `backend/routes/auth.py`, and `backend/routes/transportation.py` — Michael's direction is needed on how/when to remediate before more work stacks on top.

@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { roleHomePath } from "../lib/roleHome";
 
 /**
  * Official Google Identity Services button (direct — no Emergent).
@@ -57,8 +58,7 @@ export default function GoogleSignIn({ portal = "staff" }) {
           localStorage.setItem("caos_token", data.token);
           setUser(data.user);
           toast.success(`Welcome, ${data.user.name}`);
-          const fallback = ["owner", "admin"].includes(data.user.role) ? "/admin" : "/staff";
-          nav(location.state?.from?.pathname || fallback);
+          nav(location.state?.from?.pathname || roleHomePath(data.user.role));
         } catch (err) {
           toast.error(err?.response?.data?.detail || "Google sign-in failed");
         }

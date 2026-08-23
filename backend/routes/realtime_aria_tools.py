@@ -8,25 +8,33 @@ all for now") since none exists yet.
 """
 
 
-def _build_aria_tools() -> list[dict]:
+from routes.resident_requests import get_request_categories
+
+
+async def _build_aria_tools() -> list[dict]:
+    categories = await get_request_categories()
     return [
         {
             "type": "function",
             "name": "request_staff_help",
             "description": (
                 "Create a real, NON-EMERGENCY request routed to a staff "
-                "department - nursing, maintenance (something broken), "
-                "kitchen, front_desk, housekeeping, or complaint. After "
-                "calling this, tell Michael the request was CREATED and "
-                "sent - do not say someone is already on it or already "
-                "responded unless check_request_status confirms that."
+                "department - pick whichever category in the enum best "
+                "matches what's needed. After calling this, tell Michael "
+                "the request was CREATED and sent - do not say someone is "
+                "already on it or already responded unless "
+                "check_request_status confirms that. If the result says "
+                "an open request already existed (duplicate/"
+                "re_request_count), tell him honestly it was already on "
+                "file and you've flagged it again - don't claim a "
+                "brand-new request was made."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "category": {
                         "type": "string",
-                        "enum": ["nursing", "maintenance", "kitchen", "front_desk", "housekeeping", "complaint"],
+                        "enum": categories,
                         "description": "Which department this should route to."
                     },
                     "summary": {
@@ -58,7 +66,7 @@ def _build_aria_tools() -> list[dict]:
                 "properties": {
                     "category": {
                         "type": "string",
-                        "enum": ["nursing", "maintenance", "kitchen", "front_desk", "housekeeping", "complaint"],
+                        "enum": categories,
                         "description": "Optional - narrow to one department's most recent request."
                     }
                 },

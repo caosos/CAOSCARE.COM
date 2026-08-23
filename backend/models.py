@@ -56,18 +56,22 @@ class FacilityUpdate(BaseModel):
 # is the auth tier, department is which request queues a "staff" user sees
 # (Terminal 8 item 4 - role-based visibility). None = general staff, sees
 # only "all_staff"-visibility requests, not department-specific ones.
-# Unverified against real multi-department accounts - only one user
-# (the owner) exists on this host as of this entry.
-StaffDepartment = Literal["nursing", "maintenance", "kitchen", "housekeeping", "administration"]
-
-
+#
+# Departments themselves are admin-managed data (see Department below), not
+# a fixed code list - was a Literal enum through "transportation" (item 5),
+# changed to a plain str once Michael asked for "every other dept" to be
+# addable without a code change. A department slug (User.department,
+# StaffTask.visibility_role) is just a string that happens to match a real
+# Department.slug; nothing at the type level enforces that anymore -
+# routes/departments.py and the resident-request category check are where
+# that's actually validated.
 class User(BaseModel):
     model_config = ConfigDict(extra="ignore")
     user_id: str = Field(default_factory=lambda: uid("user"))
     email: str
     name: str
-    role: Literal["owner", "admin", "staff"] = "staff"
-    department: Optional[StaffDepartment] = None
+    role: Literal["owner", "admin", "staff", "front_desk"] = "staff"
+    department: Optional[str] = None
     picture: Optional[str] = None
     auth_provider: Literal["jwt", "google"] = "jwt"
     password_hash: Optional[str] = None
@@ -88,7 +92,7 @@ class RegisterInput(BaseModel):
     email: EmailStr
     name: str
     password: str
-    role: Literal["owner", "admin", "staff"] = "staff"
+    role: Literal["owner", "admin", "staff", "front_desk"] = "staff"
 
 
 class LoginInput(BaseModel):
@@ -562,25 +566,27 @@ class VisionSessionStart(BaseModel):
 # working, tested, role-assignable, status-tracked, timestamped domain
 # object, so non-emergency resident requests route through it rather than
 # a new parallel system. Safety/emergency stays on Alert, unchanged.
-TaskCategory = Literal[
-    "laundry", "meds", "meal", "rounds", "bathing", "housekeeping",
-    "activity", "transport", "check_in", "paperwork", "other",
-    # resident-request-bus categories (Terminal 8):
-    "nursing", "maintenance", "kitchen", "front_desk", "family", "complaint",
-]
+# Plain str, not a fixed Literal - internal staff-task categories (laundry,
+# meds, meal, rounds, bathing, activity, transport, check_in, paperwork,
+# other, family, complaint) are still the only options the admin "New
+# task"/"New template" UI offers (see frontend/src/pages/TasksTab.jsx's
+# own CATEGORIES list), but resident-request-bus categories now match
+# whatever's in the admin-managed Department list (routes/departments.py),
+# which can't be enumerated at the type level anymore.
+TaskCategory = str
 TaskStatus = Literal["pending", "in_progress", "completed", "skipped"]
 TaskShift = Literal["day", "evening", "night", "any"]
 TaskPriority = Literal["low", "normal", "high", "urgent"]
 # Who/what originated this task/request - lets Aria-initiated and
 # resident-initiated items be distinguished from staff-scheduled work.
-TaskSource = Literal["staff", "aria_voice", "kiosk_button", "family", "system"]
+TaskSource = Literal["staff", "aria_voice", "kiosk_button", "family", "system", "front_desk"]
 # Coarse role gate for who should see this in their queue/dashboard.
 # Enforced backend-side wherever tasks are listed for a given role - see
 # ENGINEERING_CONTRACT.md (once written) for the authorization pattern.
-TaskVisibilityRole = Literal[
-    "all_staff", "nursing", "maintenance", "kitchen", "housekeeping",
-    "administration", "family",
-]
+# Plain str, not a fixed Literal - "all_staff"/"family" are the two
+# special non-department values every caller still understands; anything
+# else is expected to be a real Department.slug (routes/departments.py).
+TaskVisibilityRole = str
 
 
 class StaffTask(BaseModel):
@@ -611,7 +617,28 @@ class StaffTask(BaseModel):
     resident_words: Optional[str] = None     # verbatim quote, when resident-originated
     conversation_session_id: Optional[str] = None  # links back to the Aria session, if any
     acknowledged_by: Optional[str] = None
+    acknowledged_by_name: Optional[str] = None  # denormalized, same pattern as assigned_name
     acknowledged_at: Optional[datetime] = None
+    re_request_count: int = 0                # times a resident asked again before this closed
+    last_re_requested_at: Optional[datetime] = None
+    # Shared "when" field for any request type that needs a future time
+    # instead of "now" (transportation today; nursing's "talk to my nurse
+    # tomorrow" can reuse the same two fields later - build once, per the
+    # Terminal 8 handoff's explicit instruction not to invent separate
+    # incompatible time semantics per department).
+    requested_for_date: Optional[str] = None       # YYYY-MM-DD, facility-local
+    requested_for_time_label: Optional[str] = None  # staff/resident-friendly free text, e.g. "10:00 AM"
+    # Transportation-specific: set once a TransportSlot is actually reserved.
+    # verified_read/verified_control discipline: this field being set (plus
+    # a "transportation_booked" receipt) is the ONLY thing that means
+    # "booked" - an open slot existing is not a booking.
+    transport_slot_id: Optional[str] = None
+    # Resource-aware booking (driver+vehicle TransportRun) supersedes the
+    # legacy hourly-bucket TransportSlot above for new bookings - see
+    # transportation_engine.py. Both mean the same thing ("booked=true"
+    # requires one of these to be set); slot_id is kept only so historical
+    # pilot-seed data stays readable.
+    transport_run_id: Optional[str] = None
     created_at: datetime = Field(default_factory=now_utc)
 
 
@@ -692,6 +719,176 @@ class Receipt(BaseModel):
     related_object_type: Optional[str] = None  # "task", "alert", "device_command", ...
     related_object_id: Optional[str] = None
     created_at: datetime = Field(default_factory=now_utc)
+
+
+# ---------- Schedule / activities (Terminal 8, resident-facing read lane) ----------
+# Deliberately the lowest-stakes of the three planned inbound lanes (schedule,
+# menu, transportation) - no request, no receipt, no routing, just a
+# structured source Aria reads and answers from honestly. Staff-entered for
+# now; an email/calendar adapter can feed this same model later without
+# residents or Aria needing to know the difference.
+ScheduleCategory = Literal["activity", "facility_note", "staff_hours"]
+
+
+class ScheduleItem(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    schedule_id: str = Field(default_factory=lambda: uid("sched"))
+    date: str                                  # YYYY-MM-DD, facility-local
+    time_label: Optional[str] = None           # staff-friendly free text, e.g. "2:00 PM"
+    title: str
+    description: Optional[str] = ""
+    category: ScheduleCategory = "activity"
+    source: str = "staff_entry"
+    created_by: Optional[str] = None
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class ScheduleItemCreate(BaseModel):
+    date: str
+    time_label: Optional[str] = None
+    title: str
+    description: Optional[str] = ""
+    category: ScheduleCategory = "activity"
+
+
+class ScheduleItemUpdate(BaseModel):
+    date: Optional[str] = None
+    time_label: Optional[str] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    category: Optional[ScheduleCategory] = None
+
+
+# ---------- Departments (admin-managed, replaces the old fixed StaffDepartment list) ----------
+# One source of truth for "who can this route to" - staff pick their
+# department from this list, resident-request categories validate against
+# it, and Aria's tool schemas build their enum from it at session-mint
+# time. Adding "therapy" or "resident programs" (or anything else) is an
+# admin action now, not a code change + redeploy.
+class Department(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    department_id: str = Field(default_factory=lambda: uid("dept"))
+    slug: str                                   # stable machine key, set once at creation
+    label: str                                  # display name, editable
+    description: Optional[str] = ""
+    contact_email: Optional[str] = None          # direct override for notify_department() -
+    # prefer this over per-staff-user emails when a department is a shared
+    # inbox (e.g. kitchen@facility) rather than individual logins.
+    active: bool = True                          # soft-disable instead of hard delete
+    created_at: datetime = Field(default_factory=now_utc)
+
+
+class DepartmentCreate(BaseModel):
+    label: str
+    description: Optional[str] = ""
+    contact_email: Optional[str] = None
+
+
+class DepartmentUpdate(BaseModel):
+    label: Optional[str] = None
+    description: Optional[str] = None
+    contact_email: Optional[str] = None
+    active: Optional[bool] = None
+
+
+# ---------- Menu (Terminal 8, lane 2 - read pattern + a non-negotiable approval gate) ----------
+# A wrong/hallucinated menu is a health-adjacent failure for a resident with
+# a dietary restriction or diabetes, not just an annoyance - unlike the
+# schedule lane, new items default to "draft" and Aria must NEVER read a
+# draft item. Only "approved" items are ever exposed via the public
+# endpoint. This gate is exercised now with staff-typed entries so it's
+# already proven correct before an email-ingestion adapter (future work)
+# starts feeding this same model with less-trusted, AI-parsed content.
+MealPeriod = Literal["breakfast", "lunch", "dinner"]
+# "superseded" - a later upload replaced this item's whole (date, meal_period)
+# batch. Kept for history/provenance, permanently excluded from the public
+# read Aria uses - "Aria should always read the current approved version."
+MenuItemStatus = Literal["draft", "approved", "superseded"]
+
+
+class MenuItem(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    menu_id: str = Field(default_factory=lambda: uid("menu"))
+    date: str                                  # YYYY-MM-DD, facility-local (service_date)
+    meal_period: MealPeriod
+    item_name: str
+    description: Optional[str] = ""
+    availability: Optional[str] = None          # e.g. "always available", "while supplies last"
+    status: MenuItemStatus = "draft"
+    source: str = "staff_entry"                 # "staff_entry" | "email_dev_test" (future: "email")
+    upload_id: Optional[str] = None             # links back to the MenuUpload batch that created it, if any
+    created_by: Optional[str] = None
+    approved_by: Optional[str] = None
+    approved_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class MenuItemCreate(BaseModel):
+    date: str
+    meal_period: MealPeriod
+    item_name: str
+    description: Optional[str] = ""
+    availability: Optional[str] = None
+
+
+class MenuItemUpdate(BaseModel):
+    date: Optional[str] = None
+    meal_period: Optional[MealPeriod] = None
+    item_name: Optional[str] = None
+    description: Optional[str] = None
+    availability: Optional[str] = None
+
+
+# ---------- Menu ingestion (email adapter boundary) ----------
+# One upload = one ingestion event (today: a simulated dev-test email body;
+# future: a real inbound email). Preserves the raw source so staff can see
+# exactly what was parsed and why, and groups the MenuItem rows it produced
+# so approving "today's menu email" is one action, not N. The email/mailbox
+# itself is never the source of truth - this record + the MenuItems it
+# produced are; email is transport only, per the architecture decision.
+MenuUploadParseStatus = Literal["parsed", "needs_review"]
+MenuUploadStatus = Literal["draft", "approved"]
+
+
+class MenuUpload(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    upload_id: str = Field(default_factory=lambda: uid("mupload"))
+    source: str = "email_dev_test"              # future: "email"
+    source_ref: Optional[str] = None            # simulated message id / filename
+    raw_text: str = ""                          # preserved body, truncated at ingest time
+    service_date: str                           # YYYY-MM-DD this upload is for
+    parse_status: MenuUploadParseStatus = "parsed"
+    parse_notes: Optional[str] = None
+    status: MenuUploadStatus = "draft"
+    item_ids: List[str] = Field(default_factory=list)
+    created_by: Optional[str] = None            # None for automated ingestion
+    approved_by: Optional[str] = None
+    approved_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=now_utc)
+
+
+# ---------- Transportation availability (Terminal 8, lane 3 - separate from the request itself) ----------
+# Deliberately its own record, distinct from the request/receipt bus:
+# availability is a capacity ledger CAOSCare owns and can write to (this is
+# the Michael-controlled-calendar case from the handoff, simulated here as
+# an internal schedule until real calendar sync is built - see the living
+# build log for that boundary). A request (StaffTask) POINTS AT a slot via
+# transport_slot_id once reserved; the slot doesn't know about the
+# resident, keeping "availability / request / booking" as separate
+# concerns per the directive's own architecture rule.
+class TransportSlot(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    slot_id: str = Field(default_factory=lambda: uid("tslot"))
+    date: str                                  # YYYY-MM-DD, facility-local
+    start_time: str                            # "08:00" 24h, facility-local
+    end_time: str                              # "09:00"
+    capacity: int = 1
+    booked_count: int = 0
+    source: str = "internal_schedule"          # future: "outlook_calendar"
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
 
 
 # ---------- Resident memory (long-term learned facts) ----------

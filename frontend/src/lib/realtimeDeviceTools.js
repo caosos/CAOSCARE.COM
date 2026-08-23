@@ -1,0 +1,174 @@
+/**
+ * Device/environment/profile tool dispatch for the Realtime voice hook -
+ * split out of useRealtimeVoice.js (2026-08-22) to keep that file from
+ * growing further; same dispatch contract as realtimeOperationsTools.js's
+ * executeOperationsTool(): returns a result object for names it handles.
+ *
+ * update_preferred_name is the one "authoritative mutation" tool live here
+ * (durable resident-profile change) - it refuses to save when the calling
+ * turn was flagged `turn_suspect` (the resident's speech onset overlapped
+ * Aria's own audio, per useRealtimeVoice.js's echo/VAD-overlap tracking),
+ * asking the resident to repeat themselves instead of trusting a possibly
+ * phantom transcript. A false transcript must never silently become a
+ * durable profile fact.
+ */
+import { API } from "./api";
+
+// IMPORTANT: the backend `/devices/.../command` endpoint validates `action`
+// against a strict enum (power | brightness | temperature | fan_speed |
+// volume | channel | color | position). The AI tools speak in human terms
+// (state="on", target_f=72) so this layer translates between them. Mismatch
+// = HTTP 422 = silent failure where CAOS promises an action that never ran.
+async function postRoomCommand(room, action, value) {
+  const r = await fetch(`${API}/devices/public/room/${encodeURIComponent(room)}/command`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action, value }),
+  });
+  return r;
+}
+
+// Real, if reversible, room-state changes - gated the same way as staff
+// requests so a noise-hallucinated turn can't move them either.
+const CONSEQUENTIAL_DEVICE_TOOLS = new Set(["adjust_room_temperature", "toggle_light", "toggle_tv", "set_timer"]);
+
+// 2026-08-23: "echo_like" (short, resembles Aria's own speech) genuinely
+// suggests mishearing - ask to repeat. Other suspect reasons (a short but
+// non-echoing fragment) are less about mishearing and more about wanting
+// a quick check before acting - phrased as confirmation, not "did I mishear".
+function suspectMessage(ctx) {
+  return ctx?.turn_suspect_reason === "echo_like"
+    ? "I want to make sure I heard that right — could you say that again?"
+    : "Just to double-check — is that what you'd like me to do?";
+}
+
+export async function executeDeviceTool({ name, args, ctx }) {
+  const room = ctx?.room;
+  const residentId = ctx?.resident_id;
+  const kioskId = ctx?.kiosk_id;
+
+  if (CONSEQUENTIAL_DEVICE_TOOLS.has(name) && ctx?.turn_suspect) {
+    return { ok: false, message: suspectMessage(ctx) };
+  }
+
+  if (name === "adjust_room_temperature") {
+    if (!room) return { ok: false, message: "no room context — I can't reach the climate control here." };
+    const targetF = Math.max(60, Math.min(85, Number(args.target_f) || 72));
+    const r = await postRoomCommand(room, "temperature", targetF);
+    if (!r.ok) return { ok: false, message: `couldn't reach the AC (${r.status}). I'll let the nurse know.` };
+    return { ok: true, message: `set the room to ${targetF} degrees.` };
+  }
+  if (name === "toggle_light") {
+    if (!room) return { ok: false, message: "no room context — I can't reach the lights here." };
+    const r = await postRoomCommand(room, "power", args.state);
+    if (!r.ok) return { ok: false, message: `couldn't reach the light (${r.status}).` };
+    if (args.state === "on" && typeof args.brightness === "number") {
+      await postRoomCommand(room, "brightness", Math.max(0, Math.min(100, args.brightness)));
+    }
+    return { ok: true, message: `turned the light ${args.state}.` };
+  }
+  if (name === "toggle_tv") {
+    if (!room) return { ok: false, message: "no room context — I can't reach the TV here." };
+    const r = await postRoomCommand(room, "power", args.state);
+    if (!r.ok) return { ok: false, message: `couldn't reach the TV (${r.status}).` };
+    if (args.state === "on" && typeof args.volume === "number") {
+      await postRoomCommand(room, "volume", Math.max(0, Math.min(100, args.volume)));
+    }
+    return { ok: true, message: `turned the TV ${args.state}${args.state === "on" && typeof args.volume === "number" ? ` at volume ${args.volume}` : ""}.` };
+  }
+  if (name === "call_for_help") {
+    const r = await fetch(`${API}/alerts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        kiosk_id: kioskId || null,
+        resident_id: residentId || null,
+        severity: args.severity === "emergency" ? "emergency" : "assist",
+        message: args.reason || "AI-initiated call for help during conversation",
+        triggered_by: "ai_triage",
+      }),
+    });
+    if (!r.ok) return { ok: false, message: `I tried to call a nurse but the call didn't go through (${r.status}). Please press the red button.` };
+    return { ok: true, message: "a nurse has been paged. I'm right here with you." };
+  }
+  if (name === "mark_resting") {
+    // No backend side-effect; the function existing tells the model to fall
+    // silent. We surface a session-level flag so the UI can dim the orb.
+    return { ok: true, message: "going quiet now. I'll be right here when you need me." };
+  }
+  if (name === "get_current_time") {
+    const tz = ctx?.facility_tz || "America/New_York";
+    const label = ctx?.facility_label || "the facility";
+    try {
+      const d = new Date();
+      const fmt = new Intl.DateTimeFormat("en-US", {
+        timeZone: tz,
+        weekday: "long", month: "long", day: "numeric", year: "numeric",
+        hour: "numeric", minute: "2-digit",
+      });
+      return { ok: true, message: `it's ${fmt.format(d)} at ${label}.` };
+    } catch {
+      return { ok: true, message: `it's ${new Date().toLocaleString()}.` };
+    }
+  }
+  if (name === "get_weather") {
+    const qs = args.location ? `?label=${encodeURIComponent(args.location)}` : "";
+    const r = await fetch(`${API}/weather/current${qs}`);
+    if (!r.ok) return { ok: false, message: `couldn't reach the weather service (${r.status}).` };
+    const w = await r.json();
+    return { ok: true, message: w.narrative || `${w.temperature_f}° and ${w.condition}.` };
+  }
+  if (name === "research_topic") {
+    const r = await fetch(`${API}/research`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question: args.question || "" }),
+    });
+    if (!r.ok) return { ok: false, message: `couldn't reach the research service (${r.status}).` };
+    const j = await r.json();
+    return { ok: true, message: j.answer || "I didn't find anything useful on that.", source: j.source, citations: j.citations || [] };
+  }
+  if (name === "set_timer") {
+    const minutes = Math.max(0.1, Math.min(720, Number(args.minutes) || 5));
+    const label = (args.label || "your reminder").toString().slice(0, 200);
+    const r = await fetch(`${API}/timers/public`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ minutes, label, resident_id: residentId || null, room: room || null, kiosk_id: kioskId || null }),
+    });
+    if (!r.ok) return { ok: false, message: `couldn't set the timer (${r.status}).` };
+    return { ok: true, message: `okay, I'll remind you in ${minutes < 1 ? `${Math.round(minutes * 60)} seconds` : `${minutes} minutes`}.` };
+  }
+  if (name === "update_preferred_name") {
+    if (ctx?.turn_suspect) {
+      // Echo/VAD-overlap risk on the turn that triggered this - do not save.
+      return { ok: false, message: ctx.turn_suspect_reason === "echo_like" ? "I want to make sure I heard that right over the background noise — could you say your name again for me?" : "Just to double-check — is that the name you'd like me to use?" };
+    }
+    const newName = (args.preferred_name || "").toString().trim().slice(0, 60);
+    if (!newName) return { ok: false, message: "I didn't catch the name." };
+    if (!residentId) return { ok: true, message: `okay, I'll call you ${newName} from now on.` };
+    const r = await fetch(`${API}/residents/${residentId}/preferred-name`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ preferred_name: newName }),
+    });
+    if (!r.ok) return { ok: false, message: `I'll call you ${newName} from now on (didn't quite save it though).` };
+    return { ok: true, message: `okay, ${newName} it is. Saved.` };
+  }
+  if (name === "end_call" || name === "end_conversation") {
+    // 2026-08-22 (real bug, confirmed live): a phantom echo turn ("and")
+    // reached this tool and hung up on the resident mid-session. Ending
+    // the call is NOT an emergency action, so a suspect turn gets a
+    // natural confirmation instead of silent compliance -
+    // handleFunctionCall (realtimeMessageHandler.js) only tears down the
+    // connection when ok:true comes back from here.
+    if (ctx?.turn_suspect) {
+      return { ok: false, message: "Just to double-check — did you want me to end our conversation?" };
+    }
+    // The actual hang-up happens in the calling layer (handleFunctionCall)
+    // because it needs access to the peer connection. Returning here just
+    // gives the model its short verbal goodbye to speak.
+    return { ok: true, message: name === "end_call" ? "goodbye for now. I'm right here when you call." : "sounds good, talk soon." };
+  }
+  return undefined;
+}

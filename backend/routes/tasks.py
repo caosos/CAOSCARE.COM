@@ -12,30 +12,11 @@ Workflow
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
-from models import (
-    StaffTask, StaffTaskCreate, StaffTaskUpdate,
-    StaffTaskTemplate, StaffTaskTemplateCreate,
-    TaskCategory, TaskPriority, now_utc,
-)
+from models import StaffTask, StaffTaskCreate, StaffTaskUpdate, now_utc
 from deps import db, get_current_user
 from routes.receipts import create_receipt, update_receipt_status
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
-
-# Categories a resident/Aria may raise directly (item 3/4/5, Terminal 8).
-# Deliberately narrower than the full staff TaskCategory list - a resident
-# request should never be able to create e.g. a "paperwork" task, and the
-# visibility_role is derived from category, not caller-supplied, so a
-# resident-originated request can't be routed to see other roles' queues.
-RESIDENT_REQUEST_CATEGORIES: dict[str, str] = {
-    "nursing": "nursing",
-    "maintenance": "maintenance",
-    "kitchen": "kitchen",
-    "front_desk": "administration",
-    "complaint": "administration",
-    "housekeeping": "housekeeping",
-}
 
 
 def _iso(doc: dict) -> dict:
@@ -59,6 +40,27 @@ async def _resolve_denorms(data: dict) -> dict:
             if not data.get("room"):
                 data["room"] = r.get("room")
     return data
+
+
+async def _notify_department(visibility_role: str, subject: str, body: str) -> None:
+    """Email everyone in the target department. Reuses the existing staff
+    account directory (User.email) as the one source of truth for who's in
+    a department, instead of inventing a separate department-contacts list
+    Michael would have to type in by hand. If nobody has that department
+    set yet (true for a brand-new facility), falls back to admin/owner so
+    a request is never silently un-notified. send_email() itself already
+    degrades gracefully to a logged-only record when no provider key is
+    configured - this never blocks the caller."""
+    recipients = await db.users.find(
+        {"department": visibility_role}, {"_id": 0, "email": 1}
+    ).to_list(50)
+    if not recipients:
+        recipients = await db.users.find(
+            {"role": {"$in": ["admin", "owner"]}}, {"_id": 0, "email": 1}
+        ).to_list(50)
+    for u in recipients:
+        if u.get("email"):
+            await send_email(u["email"], subject, body)
 
 
 # ================= TASKS =================
@@ -124,99 +126,6 @@ async def create_task(data: StaffTaskCreate, user=Depends(get_current_user)):
     return doc
 
 
-class ResidentRequestInput(BaseModel):
-    """Public — the resident-request-bus entry point Aria/the kiosk call.
-    Deliberately narrow: no assigned_to, no arbitrary category, no title
-    beyond what maps from category+resident_words. Category determines
-    visibility_role server-side, never trusts a caller-supplied role."""
-    category: str
-    resident_id: Optional[str] = None
-    room: Optional[str] = None
-    resident_words: Optional[str] = None
-    summary: str
-    priority: TaskPriority = "normal"
-    source: str = "aria_voice"  # "aria_voice" | "kiosk_button"
-    conversation_session_id: Optional[str] = None
-
-
-@router.post("/resident-request")
-async def create_resident_request(data: ResidentRequestInput):
-    """No auth - same public trust model as /alerts and the other
-    resident-facing endpoints called from the kiosk during a live call.
-    Creates a real StaffTask (so it appears in the existing, working staff
-    task queue) plus a receipt, and returns enough for Aria to report
-    truthfully: created, not "someone is on the way"."""
-    visibility_role = RESIDENT_REQUEST_CATEGORIES.get(data.category)
-    if not visibility_role:
-        raise HTTPException(status_code=400, detail=f"Unsupported request category: {data.category}")
-    if data.source not in ("aria_voice", "kiosk_button"):
-        raise HTTPException(status_code=400, detail="Invalid source")
-
-    payload = {
-        "title": data.summary[:120],
-        "description": data.summary,
-        "category": data.category,
-        "priority": data.priority,
-        "source": data.source,
-        "visibility_role": visibility_role,
-        "resident_id": data.resident_id,
-        "room": data.room,
-        "resident_words": data.resident_words,
-        "conversation_session_id": data.conversation_session_id,
-    }
-    await _resolve_denorms(payload)
-    task = StaffTask(**payload)
-    doc = task.model_dump()
-    doc["created_at"] = doc["created_at"].isoformat()
-    await db.staff_tasks.insert_one(doc)
-    doc.pop("_id", None)
-    receipt = await create_receipt(
-        action_type="resident_request_created", related_object_type="task", related_object_id=doc["task_id"],
-        source=data.source, resident_id=data.resident_id, room=data.room,
-        conversation_session_id=data.conversation_session_id, requested_by="resident",
-        assigned_role=visibility_role,
-    )
-    return {"task_id": doc["task_id"], "receipt_id": receipt["receipt_id"], "status": doc["status"]}
-
-
-@router.get("/resident-request/status")
-async def resident_request_status(
-    resident_id: Optional[str] = None,
-    room: Optional[str] = None,
-    conversation_session_id: Optional[str] = None,
-    category: Optional[str] = None,
-):
-    """Public — lets Aria answer 'did anyone see my message?' truthfully.
-    Returns the most recent matching request's real status, not a guess.
-    Scoped to resident_id, or room, or (for Aria's own operator session,
-    which has neither) conversation_session_id - so this can't be used to
-    browse other residents'/sessions' requests. resident_id was previously
-    a required param with no default, which would 422 before this logic
-    ever ran - fixed alongside adding the session-scoped fallback."""
-    q: dict = {"source": {"$in": ["aria_voice", "kiosk_button"]}}
-    if resident_id:
-        q["resident_id"] = resident_id
-    elif room:
-        q["room"] = room
-    elif conversation_session_id:
-        q["conversation_session_id"] = conversation_session_id
-    else:
-        raise HTTPException(status_code=400, detail="resident_id, room, or conversation_session_id required")
-    if category:
-        q["category"] = category
-    task = await db.staff_tasks.find_one(q, {"_id": 0}, sort=[("created_at", -1)])
-    if not task:
-        return {"found": False}
-    return {
-        "found": True,
-        "category": task["category"],
-        "status": task["status"],
-        "acknowledged": bool(task.get("acknowledged_at") or task["status"] in ("in_progress", "completed")),
-        "assigned_to_name": task.get("assigned_name"),
-        "created_at": task["created_at"] if isinstance(task["created_at"], str) else task["created_at"].isoformat(),
-    }
-
-
 @router.patch("/{task_id}")
 async def update_task(task_id: str, data: StaffTaskUpdate, user=Depends(get_current_user)):
     existing = await db.staff_tasks.find_one({"task_id": task_id}, {"_id": 0})
@@ -231,6 +140,27 @@ async def update_task(task_id: str, data: StaffTaskUpdate, user=Depends(get_curr
     await db.staff_tasks.update_one({"task_id": task_id}, {"$set": patch})
     updated = await db.staff_tasks.find_one({"task_id": task_id}, {"_id": 0})
     return _iso(updated)
+
+
+@router.post("/{task_id}/acknowledge")
+async def acknowledge_task(task_id: str, user=Depends(get_current_user)):
+    """Distinct from /start - 'someone has seen this' vs 'work has begun'.
+    Real event Michael's Communication & Requests timeline needs (previously
+    unwired: acknowledged_by/acknowledged_at existed on StaffTask but nothing
+    ever set them)."""
+    existing = await db.staff_tasks.find_one({"task_id": task_id}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Task not found")
+    if not existing.get("acknowledged_at"):
+        await db.staff_tasks.update_one(
+            {"task_id": task_id},
+            {"$set": {
+                "acknowledged_by": user["user_id"], "acknowledged_by_name": user.get("name"),
+                "acknowledged_at": now_utc().isoformat(),
+            }},
+        )
+        await update_receipt_status("task", task_id, "acknowledged")
+    return _iso(await db.staff_tasks.find_one({"task_id": task_id}, {"_id": 0}))
 
 
 @router.post("/{task_id}/start")
@@ -306,68 +236,3 @@ async def delete_task(task_id: str, user=Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="Task not found")
     return {"ok": True}
 
-
-# ================= TEMPLATES =================
-@router.get("/templates/all")
-async def list_templates(user=Depends(get_current_user)):
-    items = await db.task_templates.find({}, {"_id": 0}).sort("title", 1).to_list(500)
-    for t in items:
-        _iso(t)
-    return items
-
-
-@router.post("/templates")
-async def create_template(data: StaffTaskTemplateCreate, user=Depends(get_current_user)):
-    if user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Admin required")
-    tpl = StaffTaskTemplate(**data.model_dump())
-    doc = tpl.model_dump()
-    doc["created_at"] = doc["created_at"].isoformat()
-    await db.task_templates.insert_one(doc)
-    doc.pop("_id", None)
-    return doc
-
-
-@router.delete("/templates/{template_id}")
-async def delete_template(template_id: str, user=Depends(get_current_user)):
-    if user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Admin required")
-    r = await db.task_templates.delete_one({"template_id": template_id})
-    if r.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Template not found")
-    return {"ok": True}
-
-
-@router.post("/spawn-today")
-async def spawn_today(user=Depends(get_current_user)):
-    """Idempotent — materializes one task per active template for today's date."""
-    if user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Admin required")
-    today = now_utc().date().isoformat()
-    start = f"{today}T00:00:00+00:00"
-    end = f"{today}T23:59:59+00:00"
-    created = 0
-    async for tpl in db.task_templates.find({"active": True}, {"_id": 0}):
-        # Skip if a task from this template already exists today
-        existing = await db.staff_tasks.find_one({
-            "template_id": tpl["template_id"],
-            "created_at": {"$gte": start, "$lte": end},
-        }, {"_id": 0})
-        if existing:
-            continue
-        payload = {
-            "title": tpl["title"],
-            "description": tpl.get("description", ""),
-            "category": tpl.get("category", "other"),
-            "shift": tpl.get("shift", "any"),
-            "resident_id": tpl.get("resident_id"),
-            "room": tpl.get("room"),
-            "template_id": tpl["template_id"],
-        }
-        await _resolve_denorms(payload)
-        task = StaffTask(**payload)
-        doc = task.model_dump()
-        doc["created_at"] = doc["created_at"].isoformat()
-        await db.staff_tasks.insert_one(doc)
-        created += 1
-    return {"ok": True, "created": created, "date": today}

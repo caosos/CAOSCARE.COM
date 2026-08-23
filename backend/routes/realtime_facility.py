@@ -39,3 +39,22 @@ def _facility_now() -> dict:
         "part_of_day": part,
         "tz": FACILITY_TZ,
     }
+
+
+def greeting_note(part_of_day: str) -> str:
+    """How to phrase the opening greeting for this time of day. Split out
+    2026-08-23: 'good night' as an OPENING greeting reads as a farewell -
+    a real resident's first words back were "Why would you say goodbye to
+    me?" 'night' stays valid for general time-of-day awareness elsewhere,
+    just not as how the call opens."""
+    if part_of_day == "night":
+        return "greet warmly WITHOUT 'good night' (it reads as a farewell) - try 'I'm here' instead"
+    return f"greet appropriately ('good {part_of_day}')"
+
+
+def today_facility_date() -> str:
+    """Facility-local YYYY-MM-DD - shared by any lane keyed on "today"
+    (schedule, menu, ...) so a UTC day-rollover can't make something
+    entered "for today" read as tomorrow's once the server's day changes
+    ahead of the facility's own."""
+    return datetime.fromisoformat(_facility_now()["iso"]).strftime("%Y-%m-%d")

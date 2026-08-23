@@ -16,6 +16,7 @@ import HelpHub from "./pages/HelpHub";
 import AuthCallback from "./pages/AuthCallback";
 import FamilyPortal from "./pages/FamilyPortal";
 import AriaVoice from "./pages/AriaVoice";
+import FrontDeskDashboard from "./pages/FrontDeskDashboard";
 
 function LocalBypassBanner() {
   const { localBypassActive } = useAuth();
@@ -27,7 +28,7 @@ function LocalBypassBanner() {
   );
 }
 
-function Protected({ children, adminOnly = false, ownerOnly = false }) {
+function Protected({ children, adminOnly = false, ownerOnly = false, frontDeskOnly = false }) {
   const { user, loading } = useAuth();
   const location = useLocation();
   if (loading) {
@@ -48,6 +49,8 @@ function Protected({ children, adminOnly = false, ownerOnly = false }) {
   if (ownerOnly && user.role !== "owner") return <Navigate to="/admin" replace />;
   // "Admin" tier = owner OR admin (clinical admin nurse). Staff are rejected.
   if (adminOnly && !["owner", "admin"].includes(user.role)) return <Navigate to="/staff" replace />;
+  // Front Desk tier = owner/admin (broader oversight) OR front_desk itself.
+  if (frontDeskOnly && !["owner", "admin", "front_desk"].includes(user.role)) return <Navigate to="/staff" replace />;
   return (
     <>
       <LocalBypassBanner />
@@ -70,6 +73,7 @@ function AppRouter() {
       <Route path="/kiosk/:kioskId" element={<Kiosk />} />
       <Route path="/family/:token" element={<FamilyPortal />} />
       <Route path="/staff" element={<Protected><StaffDashboard /></Protected>} />
+      <Route path="/front-desk" element={<Protected frontDeskOnly><FrontDeskDashboard /></Protected>} />
       <Route path="/admin" element={<Protected adminOnly><Admin /></Protected>} />
       <Route path="/admin/blueprint" element={<Protected ownerOnly><Blueprint /></Protected>} />
       <Route path="/admin/install" element={<Protected adminOnly><InstallKioskWizard /></Protected>} />

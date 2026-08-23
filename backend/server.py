@@ -13,6 +13,7 @@ load_dotenv(ROOT_DIR / ".env")
 
 from deps import db  # noqa: E402
 from routes import auth as auth_routes  # noqa: E402
+from routes import auth_password as auth_password_routes  # noqa: E402
 from routes import residents as resident_routes  # noqa: E402
 from routes import staff as staff_routes  # noqa: E402
 from routes import kiosks as kiosk_routes  # noqa: E402
@@ -29,10 +30,24 @@ from routes import family_portal as family_portal_routes  # noqa: E402
 from routes import devices as device_routes  # noqa: E402
 from routes import vision as vision_routes  # noqa: E402
 from routes import tasks as task_routes  # noqa: E402
+from routes import task_templates as task_templates_routes  # noqa: E402
+from routes import task_detail as task_detail_routes  # noqa: E402
+from routes import resident_requests as resident_request_routes  # noqa: E402
+from routes import schedule as schedule_routes  # noqa: E402
+from routes import menu as menu_routes  # noqa: E402
+from routes import menu_ingest as menu_ingest_routes  # noqa: E402
+from routes import transportation as transportation_routes  # noqa: E402
+from routes import transportation_report as transportation_report_routes  # noqa: E402
+from routes import transportation_resources as transportation_resources_routes  # noqa: E402
+from routes import transportation_calendar as transportation_calendar_routes  # noqa: E402
+from routes import transportation_legacy_slots as transportation_legacy_slots_routes  # noqa: E402
+from routes import transportation_voice_context as transportation_voice_context_routes  # noqa: E402
+from routes import departments as department_routes  # noqa: E402
 from routes import haiku as haiku_routes  # noqa: E402
 from routes import paging as paging_routes  # noqa: E402
 from routes import medications as medication_routes  # noqa: E402
 from routes import memory as memory_routes  # noqa: E402
+from routes import realtime_memory_ingest as realtime_memory_ingest_routes  # noqa: E402
 from routes import audit as audit_routes  # noqa: E402
 from routes import realtime as realtime_routes  # noqa: E402
 from routes import rf as rf_routes  # noqa: E402
@@ -45,6 +60,8 @@ from routes import timers as timer_routes  # noqa: E402
 from routes import capabilities as capability_routes  # noqa: E402
 from routes import aria_memory as aria_memory_routes  # noqa: E402
 from routes import receipts as receipt_routes  # noqa: E402
+from routes import realtime_diagnostics as realtime_diagnostics_routes  # noqa: E402
+from routes import resident_conversations as resident_conversations_routes  # noqa: E402
 from seed import demo_seed_enabled, seed  # noqa: E402
 
 
@@ -72,6 +89,11 @@ async def lifespan(app: FastAPI):
         logging.warning(
             "Demo seed skipped; set CAOSCARE_ENABLE_DEMO_SEED=true only for local/demo environments."
         )
+    # Always seeds (unlike demo data above) - the department list is real
+    # operational config, not demo content, and other routes assume at
+    # least the baseline departments exist. No-ops if any already do.
+    from routes.departments import seed_default_departments
+    await seed_default_departments()
     yield
 
 
@@ -95,6 +117,7 @@ async def health():
 
 
 api.include_router(auth_routes.router)
+api.include_router(auth_password_routes.router)
 api.include_router(resident_routes.router)
 api.include_router(staff_routes.router)
 api.include_router(kiosk_routes.router)
@@ -111,10 +134,24 @@ api.include_router(family_portal_routes.router)
 api.include_router(device_routes.router)
 api.include_router(vision_routes.router)
 api.include_router(task_routes.router)
+api.include_router(task_templates_routes.router)
+api.include_router(task_detail_routes.router)
+api.include_router(resident_request_routes.router)
+api.include_router(schedule_routes.router)
+api.include_router(menu_routes.router)
+api.include_router(menu_ingest_routes.router)
+api.include_router(transportation_routes.router)
+api.include_router(transportation_report_routes.router)
+api.include_router(transportation_resources_routes.router)
+api.include_router(transportation_calendar_routes.router)
+api.include_router(transportation_legacy_slots_routes.router)
+api.include_router(transportation_voice_context_routes.router)
+api.include_router(department_routes.router)
 api.include_router(haiku_routes.router)
 api.include_router(paging_routes.router)
 api.include_router(medication_routes.router)
 api.include_router(memory_routes.router)
+api.include_router(realtime_memory_ingest_routes.router)
 api.include_router(audit_routes.router)
 api.include_router(realtime_routes.router)
 api.include_router(rf_routes.router)
@@ -127,6 +164,8 @@ api.include_router(timer_routes.router)
 api.include_router(capability_routes.router)
 api.include_router(aria_memory_routes.router)
 api.include_router(receipt_routes.router)
+api.include_router(realtime_diagnostics_routes.router)
+api.include_router(resident_conversations_routes.router)
 
 app.include_router(api)
 

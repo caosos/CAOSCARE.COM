@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { Button } from "../components/ui/button";
@@ -7,6 +7,7 @@ import { Label } from "../components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import GoogleSignIn from "../components/GoogleSignIn";
 import { toast } from "sonner";
+import { roleHomePath } from "../lib/roleHome";
 
 const AUTH_IMG =
   "https://images.pexels.com/photos/6203473/pexels-photo-6203473.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940";
@@ -14,9 +15,17 @@ const AUTH_IMG =
 export default function Login() {
   const nav = useNavigate();
   const location = useLocation();
-  const { loginJwt, registerJwt } = useAuth();
+  const { user, loading: authLoading, loginJwt, registerJwt } = useAuth();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ email: "", password: "", name: "", role: "staff" });
+
+  // Auth must feel continuous — an already-signed-in user landing here
+  // (back button, stale tab, typed URL) goes straight through instead of
+  // being shown a sign-in form again.
+  useEffect(() => {
+    if (authLoading || !user) return;
+    nav(location.state?.from?.pathname || roleHomePath(user.role), { replace: true });
+  }, [user, authLoading, nav, location.state]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -24,8 +33,7 @@ export default function Login() {
     try {
       const u = await loginJwt(form.email, form.password);
       toast.success(`Welcome, ${u.name}`);
-      const fallback = ["owner", "admin"].includes(u.role) ? "/admin" : "/staff";
-      nav(location.state?.from?.pathname || fallback);
+      nav(location.state?.from?.pathname || roleHomePath(u.role));
     } catch (err) {
       toast.error(err?.response?.data?.detail || "Login failed");
     } finally {

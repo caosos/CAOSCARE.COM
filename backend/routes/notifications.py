@@ -87,6 +87,36 @@ async def send_email(to: str, subject: str, body: str, *, alert_id: str | None =
     return await _log_notification(doc)
 
 
+async def notify_department(visibility_role: str, subject: str, body: str) -> None:
+    """Email a department. Three-tier fallback, in order:
+    1. The department's own Department.contact_email, if set - for a
+       department that's a shared inbox (e.g. kitchen@facility) rather
+       than individual staff logins.
+    2. Every staff User whose .department matches this slug - the
+       original mechanism, still the default for departments with real
+       staff accounts.
+    3. admin/owner - so a request is never silently un-notified, even for
+       a brand-new department nobody's been assigned to yet.
+    send_email() already degrades gracefully to a logged-only record when
+    no provider key is configured - this never blocks the caller. Shared
+    by resident_requests.py, tasks.py, and transportation.py - one
+    notification path, not one per lane."""
+    dept = await db.departments.find_one({"slug": visibility_role}, {"_id": 0, "contact_email": 1})
+    if dept and dept.get("contact_email"):
+        await send_email(dept["contact_email"], subject, body)
+        return
+    recipients = await db.users.find(
+        {"department": visibility_role}, {"_id": 0, "email": 1}
+    ).to_list(50)
+    if not recipients:
+        recipients = await db.users.find(
+            {"role": {"$in": ["admin", "owner"]}}, {"_id": 0, "email": 1}
+        ).to_list(50)
+    for u in recipients:
+        if u.get("email"):
+            await send_email(u["email"], subject, body)
+
+
 async def notify_family_for_alert(alert: dict):
     """Fan out to family contacts based on their notify_on prefs."""
     rid = alert.get("resident_id")

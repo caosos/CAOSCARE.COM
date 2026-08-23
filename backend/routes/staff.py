@@ -1,5 +1,6 @@
 """Staff users CRUD (admin only)."""
 from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel, Field
 from models import RegisterInput, User, UserPublic
 from deps import db, require_admin
 import bcrypt
@@ -43,4 +44,26 @@ async def delete_staff(user_id: str, user=Depends(require_admin)):
     r = await db.users.delete_one({"user_id": user_id})
     if r.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Staff not found")
+    return {"ok": True}
+
+
+class SetPasswordInput(BaseModel):
+    new_password: str = Field(min_length=8)
+
+
+@router.post("/{user_id}/password")
+async def set_staff_password(user_id: str, data: SetPasswordInput, user=Depends(require_admin)):
+    """Admin override - sets a user's password directly, no current-password
+    check, unlike the self-service /auth/change-password. Lets an
+    owner/admin reset anyone's password (including their own, if they
+    forgot their current one) without needing it. auth_provider is forced
+    to "jwt" so a Google-only account gains a real password login too,
+    rather than silently failing to authenticate with it."""
+    target = await db.users.find_one({"user_id": user_id}, {"_id": 0, "user_id": 1})
+    if not target:
+        raise HTTPException(status_code=404, detail="Staff not found")
+    await db.users.update_one(
+        {"user_id": user_id},
+        {"$set": {"password_hash": _hash_pw(data.new_password), "auth_provider": "jwt"}},
+    )
     return {"ok": True}

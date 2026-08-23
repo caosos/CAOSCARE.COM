@@ -4,12 +4,11 @@
  * Browser ↔ OpenAI directly stream audio over WebRTC. Backend mints an
  * ephemeral session token and forwards SDP. Audio never touches our server.
  *
- * Tool calling is wired here: when the model emits a `function_call`, this
- * hook dispatches the matching CAOS public endpoint (room temperature,
- * lights, TV, nurse call, mark resting), sends the result back over the
- * data channel as a `function_call_output` item, and asks the model to
- * speak its confirmation. That's the difference between CAOS pretending
- * to turn down the AC and actually doing it.
+ * Connection setup (mint, mic, peer connection, session.update/greeting,
+ * SDP negotiation) lives here. Reacting to what OpenAI sends back - tool
+ * calls, transcripts, VAD events - lives in realtimeMessageHandler.js
+ * (dc.onmessage = onMessage below). Split 2026-08-22 to keep this file
+ * under the repo's 300-line cap as it grew.
  *
  * StrictMode-safe: every start() carries a generation token. If a teardown
  * happens mid-flight (StrictMode mount→unmount→remount, or user end-call
@@ -19,204 +18,10 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { API } from "../lib/api";
-
-// Map a model-emitted function name to the CAOS public endpoint that should
-// execute it. Returns a short string to read back to the model so it can
-// confirm the action verbally. Designed so a missing room or device fails
-// gracefully (the model says "I couldn't reach the AC, I'll let the nurse
-// know") instead of throwing the whole session.
-//
-// IMPORTANT: the backend `/devices/.../command` endpoint validates `action`
-// against a strict enum (power | brightness | temperature | fan_speed |
-// volume | channel | color | position). The AI tools speak in human terms
-// (state="on", target_f=72) so this layer translates between them. Mismatch
-// = HTTP 422 = silent failure where CAOS promises an action that never ran.
-async function postRoomCommand(room, action, value) {
-  const r = await fetch(`${API}/devices/public/room/${encodeURIComponent(room)}/command`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action, value }),
-  });
-  return r;
-}
-
-async function executeTool({ name, args, ctx }) {
-  const room = ctx?.room;
-  const residentId = ctx?.resident_id;
-  const kioskId = ctx?.kiosk_id;
-  try {
-    if (name === "adjust_room_temperature") {
-      if (!room) return { ok: false, message: "no room context — I can't reach the climate control here." };
-      const targetF = Math.max(60, Math.min(85, Number(args.target_f) || 72));
-      const r = await postRoomCommand(room, "temperature", targetF);
-      if (!r.ok) return { ok: false, message: `couldn't reach the AC (${r.status}). I'll let the nurse know.` };
-      return { ok: true, message: `set the room to ${targetF} degrees.` };
-    }
-    if (name === "toggle_light") {
-      if (!room) return { ok: false, message: "no room context — I can't reach the lights here." };
-      // Power first; if a specific brightness was requested AND state="on",
-      // follow with a brightness command so dimmable bulbs land at the right level.
-      const r = await postRoomCommand(room, "power", args.state);
-      if (!r.ok) return { ok: false, message: `couldn't reach the light (${r.status}).` };
-      if (args.state === "on" && typeof args.brightness === "number") {
-        await postRoomCommand(room, "brightness", Math.max(0, Math.min(100, args.brightness)));
-      }
-      return { ok: true, message: `turned the light ${args.state}.` };
-    }
-    if (name === "toggle_tv") {
-      if (!room) return { ok: false, message: "no room context — I can't reach the TV here." };
-      const r = await postRoomCommand(room, "power", args.state);
-      if (!r.ok) return { ok: false, message: `couldn't reach the TV (${r.status}).` };
-      if (args.state === "on" && typeof args.volume === "number") {
-        await postRoomCommand(room, "volume", Math.max(0, Math.min(100, args.volume)));
-      }
-      return { ok: true, message: `turned the TV ${args.state}${args.state === "on" && typeof args.volume === "number" ? ` at volume ${args.volume}` : ""}.` };
-    }
-    if (name === "call_for_help") {
-      const r = await fetch(`${API}/alerts`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          kiosk_id: kioskId || null,
-          resident_id: residentId || null,
-          severity: args.severity === "emergency" ? "emergency" : "assist",
-          message: args.reason || "AI-initiated call for help during conversation",
-          triggered_by: "ai_triage",
-        }),
-      });
-      if (!r.ok) return { ok: false, message: `I tried to call a nurse but the call didn't go through (${r.status}). Please press the red button.` };
-      return { ok: true, message: "a nurse has been paged. I'm right here with you." };
-    }
-    if (name === "request_staff_help") {
-      const r = await fetch(`${API}/tasks/resident-request`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          category: args.category,
-          resident_id: residentId || null,
-          room: room || null,
-          resident_words: args.summary || null,
-          summary: args.summary || "Resident request",
-          priority: args.priority || "normal",
-          source: "aria_voice",
-          conversation_session_id: sessionIdRef.current,
-        }),
-      });
-      if (!r.ok) return { ok: false, message: `couldn't send that request (${r.status}) - please try the call button instead.` };
-      const data = await r.json();
-      return { ok: true, message: `request created (${data.status}) and sent to ${args.category}.`, task_id: data.task_id };
-    }
-    if (name === "check_request_status") {
-      const qs = new URLSearchParams();
-      if (residentId) qs.set("resident_id", residentId);
-      else if (room) qs.set("room", room);
-      else qs.set("conversation_session_id", sessionIdRef.current);
-      if (args.category) qs.set("category", args.category);
-      const r = await fetch(`${API}/tasks/resident-request/status?${qs.toString()}`);
-      if (!r.ok) return { ok: false, message: `couldn't check that (${r.status}).` };
-      const data = await r.json();
-      if (!data.found) return { ok: true, message: "no matching request found on record." };
-      return {
-        ok: true,
-        message: `status: ${data.status}${data.acknowledged ? " (acknowledged)" : " (not yet acknowledged)"}${data.assigned_to_name ? `, assigned to ${data.assigned_to_name}` : ""}.`,
-      };
-    }
-    if (name === "mark_resting") {
-      // No backend side-effect; the function existing tells the model to fall
-      // silent. We surface a session-level flag so the UI can dim the orb.
-      return { ok: true, message: "going quiet now. I'll be right here when you need me." };
-    }
-    if (name === "get_current_time") {
-      // The backend already injected the facility's current time into the
-      // session prompt at session start, but for long calls (or just for a
-      // fresh value) we re-fetch via the weather endpoint's sibling — no
-      // separate route needed: include it in /research is overkill. Hit the
-      // same /weather/current call which carries the facility timezone, and
-      // return a clean spoken summary built client-side from Date.now() in
-      // the facility tz the backend told us about.
-      const tz = ctx?.facility_tz || "America/New_York";
-      const label = ctx?.facility_label || "the facility";
-      try {
-        const d = new Date();
-        const fmt = new Intl.DateTimeFormat("en-US", {
-          timeZone: tz,
-          weekday: "long", month: "long", day: "numeric", year: "numeric",
-          hour: "numeric", minute: "2-digit",
-        });
-        return { ok: true, message: `it's ${fmt.format(d)} at ${label}.` };
-      } catch {
-        return { ok: true, message: `it's ${new Date().toLocaleString()}.` };
-      }
-    }
-    if (name === "get_weather") {
-      const qs = args.location ? `?label=${encodeURIComponent(args.location)}` : "";
-      const r = await fetch(`${API}/weather/current${qs}`);
-      if (!r.ok) return { ok: false, message: `couldn't reach the weather service (${r.status}).` };
-      const w = await r.json();
-      // Re-tell rather than dump. The model is instructed to read this naturally.
-      return { ok: true, message: w.narrative || `${w.temperature_f}° and ${w.condition}.` };
-    }
-    if (name === "research_topic") {
-      const r = await fetch(`${API}/research`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: args.question || "" }),
-      });
-      if (!r.ok) return { ok: false, message: `couldn't reach the research service (${r.status}).` };
-      const j = await r.json();
-      return {
-        ok: true,
-        message: j.answer || "I didn't find anything useful on that.",
-        source: j.source,
-        citations: j.citations || [],
-      };
-    }
-    if (name === "set_timer") {
-      const minutes = Math.max(0.1, Math.min(720, Number(args.minutes) || 5));
-      const label = (args.label || "your reminder").toString().slice(0, 200);
-      const r = await fetch(`${API}/timers/public`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          minutes,
-          label,
-          resident_id: residentId || null,
-          room: room || null,
-          kiosk_id: kioskId || null,
-        }),
-      });
-      if (!r.ok) return { ok: false, message: `couldn't set the timer (${r.status}).` };
-      return { ok: true, message: `okay, I'll remind you in ${minutes < 1 ? `${Math.round(minutes * 60)} seconds` : `${minutes} minutes`}.` };
-    }
-    if (name === "update_preferred_name") {
-      const newName = (args.preferred_name || "").toString().trim().slice(0, 60);
-      if (!newName) return { ok: false, message: "I didn't catch the name." };
-      if (!residentId) return { ok: true, message: `okay, I'll call you ${newName} from now on.` };
-      const r = await fetch(`${API}/residents/${residentId}/preferred-name`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ preferred_name: newName }),
-      });
-      if (!r.ok) return { ok: false, message: `I'll call you ${newName} from now on (didn't quite save it though).` };
-      return { ok: true, message: `okay, ${newName} it is. Saved.` };
-    }
-    if (name === "end_call") {
-      // The actual hang-up happens in the calling layer (handleFunctionCall)
-      // because we need access to the peer connection. Returning here just
-      // gives the model its short verbal goodbye to speak.
-      return { ok: true, message: "goodbye for now. I'm right here when you call." };
-    }
-    if (name === "end_conversation") {
-      // Aria's own equivalent of end_call - same "actual teardown happens
-      // in handleFunctionCall" pattern, just a different name so her
-      // instructions don't have to reuse resident-call language.
-      return { ok: true, message: "sounds good, talk soon." };
-    }
-    return { ok: false, message: `tool ${name} is not wired yet.` };
-  } catch (e) {
-    return { ok: false, message: `tool error: ${e?.message || "unknown"}.` };
-  }
-}
+import { logRealtimeEvent } from "./realtimeDiagnostics";
+import { createRealtimeHandlers } from "./realtimeMessageHandler";
+import { attachLifecycleDiagnostics } from "./realtimeLifecycleDiagnostics";
+import { buildSessionUpdate } from "./realtimeSessionUpdate";
 
 export function useRealtimeVoice({
   voice = "shimmer", residentId, kioskId, room, onEndCall,
@@ -228,7 +33,17 @@ export function useRealtimeVoice({
   const localStreamRef = useRef(null);
   const startGenRef = useRef(0);            // bumps on every stop() — invalidates in-flight starts
   const ctxRef = useRef({ resident_id: residentId, kiosk_id: kioskId, room });
-  const pendingUserRef = useRef("");        // user transcript awaiting its assistant pair
+  // true while Aria's audio is actually playing - driven by output_audio_buffer
+  // events (real playback lifecycle), not response.done (generation-complete
+  // only) - see realtimeMessageHandler.js.
+  const assistantSpeakingRef = useRef(false);
+  // Raw overlap bool while a turn is in flight; realtimeMessageHandler.js's
+  // classifyUserTurn() replaces it with { suspect, reason } once the
+  // transcript resolves - overlap is one signal, not the verdict.
+  const turnSuspectRef = useRef(false);
+  const greetingCreateResponseOffRef = useRef(false); // true while the initial forced greeting is in flight
+  const lifecycleCleanupRef = useRef(null);   // detaches attachLifecycleDiagnostics' listeners
+  const endReasonLoggedRef = useRef(false);   // one termination reason per session, first cause wins
   const sessionIdRef = useRef(`rt_${Math.random().toString(36).slice(2, 10)}_${Date.now()}`);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState(null);
@@ -237,10 +52,24 @@ export function useRealtimeVoice({
 
   // Keep tool-call context fresh if the parent passes new props mid-call
   useEffect(() => {
-    ctxRef.current = { resident_id: residentId, kiosk_id: kioskId, room };
+    ctxRef.current = { ...ctxRef.current, resident_id: residentId, kiosk_id: kioskId, room };
   }, [residentId, kioskId, room]);
 
-  const stop = useCallback(() => {
+  // 2026-08-23: every session now ends with a known reason, logged once
+  // (first cause wins) - "unknown" only when the platform genuinely gives
+  // no evidence. Shared between stop() itself and the read-only lifecycle
+  // listeners below, so an unexpected drop gets a real cause even when
+  // nobody explicitly called stop().
+  const logSessionEnded = useCallback((reason) => {
+    if (endReasonLoggedRef.current) return;
+    endReasonLoggedRef.current = true;
+    logRealtimeEvent(sessionIdRef.current, "session_ended", { meta: { reason } });
+  }, []);
+
+  const stop = useCallback((reason = "unspecified") => {
+    if (pcRef.current || dcRef.current) logSessionEnded(reason);
+    try { lifecycleCleanupRef.current?.(); } catch {}
+    lifecycleCleanupRef.current = null;
     startGenRef.current += 1;               // cancel any pending start()
     try { dcRef.current?.close(); } catch {}
     try { pcRef.current?.getSenders().forEach((s) => s.track && s.track.stop()); } catch {}
@@ -252,15 +81,16 @@ export function useRealtimeVoice({
     localStreamRef.current = null;
     setStatus("idle");
     setResting(false);
-  }, []);
+  }, [logSessionEnded]);
 
-  useEffect(() => () => stop(), [stop]);
+  useEffect(() => () => stop("component_unmount"), [stop]);
 
   const start = useCallback(async () => {
     if (pcRef.current) return;              // already connected
     const myGen = ++startGenRef.current;
     sessionIdRef.current = `rt_${Math.random().toString(36).slice(2, 10)}_${Date.now()}`;
-    pendingUserRef.current = "";
+    ctxRef.current = { ...ctxRef.current, session_id: sessionIdRef.current };
+    endReasonLoggedRef.current = false;
 
     setError(null);
     setStatus("connecting");
@@ -301,6 +131,14 @@ export function useRealtimeVoice({
         stream.getTracks().forEach((t) => t.stop());
         return;
       }
+      // Record what the browser actually reports about the mic track (not
+      // the OS input-level slider - the Web platform does not expose that
+      // at all, so don't pretend to). Diagnostic only, read-only, doesn't
+      // touch the audio path.
+      try {
+        const trackSettings = stream.getAudioTracks()[0]?.getSettings?.();
+        if (trackSettings) logRealtimeEvent(sessionIdRef.current, "mic_track_settings", { meta: trackSettings });
+      } catch { /* diagnostic only - never let this affect the call */ }
 
       // 3. Peer connection. Only commit refs once we know we're not canceled.
       pc = new RTCPeerConnection();
@@ -318,42 +156,16 @@ export function useRealtimeVoice({
         try { dc.send(JSON.stringify(obj)); } catch {}
       };
 
-      // Helper: dispatch a tool call coming from the model
-      const handleFunctionCall = async (fn) => {
-        let parsed = {};
-        try { parsed = fn.arguments ? JSON.parse(fn.arguments) : {}; } catch {}
-        const result = await executeTool({ name: fn.name, args: parsed, ctx: ctxRef.current });
-        if (myGen !== startGenRef.current) return;
-        // Tell the model what happened. The output goes onto the conversation
-        // as a `function_call_output` item, then we ask the model to respond.
-        send({
-          type: "conversation.item.create",
-          item: {
-            type: "function_call_output",
-            call_id: fn.call_id,
-            output: JSON.stringify(result),
-          },
-        });
-        if (fn.name === "mark_resting") {
-          // Resident asked us to be quiet. Don't trigger a new spoken response;
-          // the model will stay silent until VAD detects fresh speech.
-          setResting(true);
-        } else if (fn.name === "end_call" || fn.name === "end_conversation") {
-          // Resident/Michael asked to wrap up. Let the model speak its
-          // goodbye, then tear the connection down ~2.5s later (long enough
-          // for the farewell line to play out, short enough not to feel
-          // awkward). Same teardown for both - just two tool names so each
-          // persona's instructions can use natural language for its context.
-          send({ type: "response.create" });
-          setTimeout(() => {
-            try { stop(); } catch {}
-            try { onEndCall?.(); } catch {}
-          }, 2500);
-        } else {
-          // Ask the model to speak its short confirmation, drawing on the tool result.
-          send({ type: "response.create" });
-        }
-      };
+      // Server-event reaction layer (tool dispatch + the full onmessage
+      // handler) lives in realtimeMessageHandler.js - same code, just
+      // parameterized over what it closes over, so this file stops
+      // growing. dc.onopen (below) stays here since it's connection setup.
+      const { onMessage } = createRealtimeHandlers({
+        myGen, startGenRef, sessionIdRef, ctxRef, caos, send, stop, onEndCall,
+        turnSuspectRef, assistantSpeakingRef,
+        greetingCreateResponseOffRef,
+        setStatus, setResting, setTranscript, setError,
+      });
 
       dc.onopen = () => {
         if (myGen !== startGenRef.current) return;
@@ -364,134 +176,34 @@ export function useRealtimeVoice({
         if (!caos.instructions) {
           setError("Aria configuration could not be loaded.");
           setStatus("error");
-          try { stop(); } catch {}
+          try { stop("config_missing"); } catch {}
           return;
         }
-        // Apply the full session config from the backend: instructions, tools,
-        // VAD timing, temperature. session.update is the canonical way to
-        // configure a Realtime session post-mint.
-        // FIXED 2026-08-09 (real, confirmed live error, seen on screen:
-        // "Missing required parameter: 'session.type'"): the current
-        // Realtime API requires `type: "realtime"` INSIDE the session
-        // object on every session.update event, same as the mint-time
-        // session_config already has server-side. Without it, OpenAI
-        // rejected every update - which is where tools/turn_detection/
-        // temperature get applied, so the live call had correct
-        // instructions (from mint) but NONE of those, silently, until the
-        // resulting error surfaced in the UI.
-        // voice, input_audio_transcription, and turn_detection all live
-        // under nested audio.output/audio.input, NOT flat top-level session
-        // fields, in the current Realtime API - confirmed via a real
-        // end-to-end connection test (aiortc, full ICE/DTLS handshake, not
-        // just SDP exchange) that returned "Unknown parameter" errors one
-        // at a time for each flat field until corrected. session.type is
-        // also required (separately confirmed live, on-screen, as
-        // "Missing required parameter: 'session.type'").
-        const update = {
-          type: "session.update",
-          session: {
-            type: "realtime",
-            instructions: caos.instructions,
-            audio: {
-              output: { voice: caos.voice || voice },
-              input: {
-                transcription: { model: "whisper-1", language: "en" },
-                ...(caos.turn_detection ? { turn_detection: caos.turn_detection } : {}),
-              },
-            },
-          },
-        };
-        if (caos.tools) update.session.tools = caos.tools;
-        if (caos.tool_choice) update.session.tool_choice = caos.tool_choice;
-        // temperature is NOT a valid session.update field in the current API
-        // ("Unknown parameter: 'session.temperature'", confirmed live) -
-        // dropped rather than guessing at a new location, since it's not
-        // audio-related like the other three fields that just moved.
-        send(update);
+        // Apply the full session config from the backend: instructions,
+        // tools, VAD timing. session.update is the canonical way to
+        // configure a Realtime session post-mint - see
+        // realtimeSessionUpdate.js for the exact shape and the hard-won
+        // "confirmed live, not guessed" history behind it.
+        // 2026-08-22: the greeting below is forced with an explicit
+        // response.create (the model never speaks first on its own). The
+        // server's own turn_detection has create_response:true, so if
+        // Aria's greeting audio leaks back into the mic (room speaker,
+        // imperfect echo cancellation) and VAD mistakes it for speech, the
+        // server would auto-fire a SECOND response the moment that leaked
+        // "speech" appears to stop - a real double-greeting seen live. Fix:
+        // disable create_response for just this one forced turn, then
+        // re-enable it (see response.done below) once the greeting's own
+        // audio has actually finished, closing the exact window where its
+        // own echo could trigger a bogus auto-response. Real interruption
+        // still works during this window - interrupt_response is separate
+        // from create_response - a genuine "wait, Aria" still cuts her off.
+        greetingCreateResponseOffRef.current = true;
+        send(buildSessionUpdate({ caos, voice }));
+        send({ type: "response.create" });
         setStatus("live");
       };
 
-      dc.onmessage = (ev) => {
-        if (myGen !== startGenRef.current) return;
-        let msg;
-        try { msg = JSON.parse(ev.data); } catch { return; }
-
-        if (msg.type === "input_audio_buffer.speech_started") {
-          setStatus("listening");
-          setResting(false);   // resident spoke again → wake from rest
-        }
-        if (msg.type === "input_audio_buffer.speech_stopped") setStatus("live");
-        if (msg.type === "response.audio.delta") setStatus("speaking");
-        if (msg.type === "response.done") setStatus("live");
-        if (msg.type === "conversation.item.input_audio_transcription.completed") {
-          const userText = msg.transcript || "";
-          setTranscript((t) => [...t, { role: "user", text: userText, ts: Date.now() }]);
-          // Stash the user side of the turn so we can pair it with the
-          // assistant reply once that arrives, then ship it to the memory
-          // extractor. This is the single change that lets Realtime voice
-          // sessions actually grow CAOS's memory of the resident over time.
-          pendingUserRef.current = userText;
-        }
-        // FIXED 2026-08-09 (real, confirmed bug): the current Realtime API
-        // emits this as response.output_audio_transcript.done, not
-        // response.audio_transcript.done. Under the old name, Aria's own
-        // spoken responses never landed in transcript state at all - only
-        // user turns did, which is exactly why a real screenshot showed
-        // every transcript line labeled "you" (there simply were no
-        // "assistant" entries being added). Found via a full real WebRTC
-        // connection test that logged every actual event type/name OpenAI
-        // sent, not by guessing.
-        if (msg.type === "response.output_audio_transcript.done") {
-          const aiText = msg.transcript || "";
-          setTranscript((t) => [...t, { role: "assistant", text: aiText, ts: Date.now() }]);
-          const userText = pendingUserRef.current;
-          pendingUserRef.current = "";
-          const rid = ctxRef.current?.resident_id;
-          const ownerId = ctxRef.current?.owner_user_id;
-          if (rid && (userText || aiText)) {
-            // Fire-and-forget; never block the voice loop on this.
-            fetch(`${API}/memory/realtime-turn`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                resident_id: rid,
-                session_id: sessionIdRef.current,
-                user_text: userText,
-                assistant_text: aiText,
-              }),
-            }).catch(() => {});
-          } else if (ownerId && (userText || aiText)) {
-            // Aria's own (operator) sessions - same fire-and-forget pattern,
-            // verbatim turn record so every conversation has a real thread,
-            // not just a post-hoc summary.
-            const postTurn = (role, content) => {
-              if (!content) return;
-              fetch(`${API}/aria/conversation-turn`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  owner_user_id: ownerId,
-                  session_id: sessionIdRef.current,
-                  role,
-                  content,
-                }),
-              }).catch(() => {});
-            };
-            postTurn("user", userText);
-            postTurn("assistant", aiText);
-          }
-        }
-        // Tool call dispatch — the OpenAI Realtime API streams arguments and
-        // emits a single `done` event when the call is fully assembled.
-        if (msg.type === "response.function_call_arguments.done") {
-          handleFunctionCall({
-            call_id: msg.call_id,
-            name: msg.name,
-            arguments: msg.arguments,
-          });
-        }
-        if (msg.type === "error") setError(msg.error?.message || "Realtime error");
-      };
+      dc.onmessage = onMessage;
 
       // 5. SDP exchange (offer → backend → OpenAI → answer)
       // FIXED 2026-08-09 (real bug): this used to negotiate without the
@@ -524,6 +236,12 @@ export function useRealtimeVoice({
       pcRef.current = pc;
       dcRef.current = dc;
       localStreamRef.current = stream;
+      // Read-only lifecycle observability (Room 304: the actual cause of a
+      // session ending was previously unknowable) - does not change what
+      // happens on a drop, only records why. See realtimeLifecycleDiagnostics.js.
+      lifecycleCleanupRef.current = attachLifecycleDiagnostics({
+        pc, dc, sessionId: sessionIdRef.current, onTerminal: logSessionEnded,
+      });
     } catch (e) {
       // Fully tear down anything we built before the failure
       try { pc?.close(); } catch {}
@@ -533,7 +251,7 @@ export function useRealtimeVoice({
         setStatus("error");
       }
     }
-  }, [voice, residentId, kioskId, room, sessionEndpoint, sessionPayload]);
+  }, [voice, residentId, kioskId, room, sessionEndpoint, sessionPayload, logSessionEnded]);
 
   return { status, error, transcript, resting, start, stop, audioElRef };
 }

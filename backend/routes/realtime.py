@@ -29,6 +29,7 @@ from routes.realtime_aria_tools import _build_aria_tools
 from routes.realtime_self_knowledge import _system_self_knowledge
 from routes.realtime_facility import _facility_now, FACILITY_LABEL, FACILITY_TZ
 from routes.realtime_companion_prompt import _build_companion_instructions
+from routes.realtime_audio_config import DEFAULT_VAD, DEFAULT_NOISE_REDUCTION
 
 router = APIRouter(prefix="/realtime", tags=["realtime"])
 
@@ -66,18 +67,6 @@ DEFAULT_VOICE = "shimmer"
 # the floor and gives us the most factual, least improvisational behaviour —
 # critical for a companion who must NEVER hallucinate medical history.
 DEFAULT_TEMPERATURE = 0.6
-
-# Server-side VAD timing. Older voices pause naturally between thoughts;
-# the default 500ms silence cutoff was clipping them mid-sentence. 1000ms
-# lets a senior gather their words without being interrupted, while still
-# feeling responsive.
-DEFAULT_VAD = {
-    "type": "server_vad",
-    "threshold": 0.5,
-    "prefix_padding_ms": 300,
-    "silence_duration_ms": 1000,
-    "create_response": True,
-}
 
 
 async def _build_aria_instructions(owner_user_id: str) -> str:
@@ -206,7 +195,7 @@ async def create_aria_session(payload: dict = Body(default={})):
     session["_caos"] = {
         "voice": voice,
         "instructions": instructions,
-        "tools": _build_aria_tools(),
+        "tools": await _build_aria_tools(),
         "tool_choice": "auto",
         "turn_detection": DEFAULT_VAD,
         "temperature": DEFAULT_TEMPERATURE,
@@ -257,9 +246,10 @@ async def create_session(payload: dict = Body(default={})):
     session["_caos"] = {
         "voice": voice,
         "instructions": instructions,
-        "tools": _build_tools(),
+        "tools": await _build_tools(),
         "tool_choice": "auto",
         "turn_detection": DEFAULT_VAD,
+        "noise_reduction": DEFAULT_NOISE_REDUCTION,
         "temperature": DEFAULT_TEMPERATURE,
         "context": {
             "resident_id": payload.get("resident_id"),

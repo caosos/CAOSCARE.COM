@@ -40,7 +40,7 @@ export default function RealtimeChatScreen({
     if (startedRef.current) return;        // StrictMode guard — only ever start once
     startedRef.current = true;
     start();
-    return () => stop();
+    return () => stop("component_unmount");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -84,7 +84,7 @@ export default function RealtimeChatScreen({
             VOICE: {(voiceId || "shimmer").toUpperCase()}
           </Button>
           <Button
-            onClick={onEnd}
+            onClick={() => { stop("ui_end_call_button"); onEnd?.(); }}
             data-testid="kiosk-realtime-end-btn"
             className="bg-caos-terracotta hover:bg-caos-terracotta-dark h-12 rounded-full"
           >

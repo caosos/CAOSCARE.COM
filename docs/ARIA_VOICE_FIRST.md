@@ -1200,3 +1200,73 @@ Matches the requested acceptance shape exactly: resident says "my faucet is leak
 
 ### Next safe step (Terminal 8 Step 1 continues)
 Michael tests "My faucet is leaking" live at the actual kiosk. If it now works as this reproduction predicts, move to "I need to talk to my nurse" (same mechanism, nursing category) and "Did anyone see my request?" (the status-check tool), per Terminal 8's Step 1 acceptance sequence, before starting Step 2 (front desk).
+
+---
+
+## 2026-08-09 (later same day) — Correction: the request STILL failed live. Real root cause was a client-side ReferenceError, not anything in the `aiortc` reproduction's path.
+
+The "proven fixed" claim above was wrong for the actual resident-facing browser. Michael sent a real transcript minutes after that entry was written showing the exact same failure on "My faucet's leaking": *"It looks like something went a bit off when trying to send that request... I'm having a technical issue sending the request."* A second live transcript (different session, "send a nurse request for tomorrow") showed the identical failure mode on `check_request_status`/`request_staff_help` as well.
+
+### Why the `aiortc` reproduction couldn't have caught this
+The reproduction is faithful at the *protocol* level (real WebRTC, real session, real tool-call event) but it replays the dispatch logic in **Python**, not the actual bundled `useRealtimeVoice.js` running in a browser JS engine. A bug that only exists in the real module's variable scoping is invisible to a Python reimplementation of the same steps, no matter how faithful the wire protocol is. Lesson: a "faithful reproduction" is only as faithful as the layer it reimplements — protocol-faithful is not the same as code-faithful. For frontend logic, the only complete verification is the actual frontend code path.
+
+### Exact root cause
+`executeTool()` in `frontend/src/lib/useRealtimeVoice.js` is a **module-level function**, defined outside the `useRealtimeVoice` hook. It has no access to hook-scoped refs. Two of its branches referenced `sessionIdRef.current` anyway:
+- `request_staff_help` (building the POST body's `conversation_session_id`)
+- `check_request_status` (building the GET query string's fallback `conversation_session_id`)
+
+`sessionIdRef` is a `useRef` declared inside the hook itself — completely out of scope for a module-level function. Evaluating `sessionIdRef.current` while building the request body throws `ReferenceError: sessionIdRef is not defined`. `executeTool`'s own `catch` block swallows this and returns `{ ok: false, message: "tool error: ..." }` — **before `fetch()` is ever called.**
+
+This explains every observed symptom exactly:
+- Zero trace in backend logs, not even a CORS preflight — the request never left the browser.
+- Aria's message had no HTTP status number in it (the generic catch-all phrasing, not the `!r.ok` branch which includes `(${r.status})`).
+- `call_for_help` (the nurse-page/emergency button path) worked fine in the same live session, because that branch never references `sessionIdRef` — same fetch mechanics, same headers, same backend, so CORS/network/backend were never the problem.
+
+### Files changed
+`frontend/src/lib/useRealtimeVoice.js`:
+- `executeTool({ name, args, ctx })` now reads `const sessionId = ctx?.session_id;` alongside the existing `room`/`residentId`/`kioskId` reads.
+- `request_staff_help` and `check_request_status` now use `sessionId` (from `ctx`) instead of the out-of-scope `sessionIdRef.current`.
+- `ctxRef.current` (inside the hook) now carries `session_id`: set on every `start()` call right after `sessionIdRef.current` is regenerated, and preserved (not clobbered) by the props-sync `useEffect` and the backend-authority `caos.context` merge, both of which now spread the existing `ctxRef.current` first.
+
+### Exact test performed
+- Read the full `executeTool`/`handleFunctionCall` dispatch code and confirmed `sessionIdRef` is never passed as a parameter or closed over — verified this is a real out-of-scope reference, not a false lead.
+- Applied the fix; the running CRA dev server (`frontend.log`) hot-recompiled with zero new errors (one pre-existing, unrelated `exhaustive-deps` warning only).
+- Grepped the whole file for every other reference to hook-scoped refs (`ctxRef`, `sessionIdRef`, `pcRef`, `dcRef`, `startGenRef`) and confirmed no other module-level function reaches for one out of scope.
+- Loaded the real kiosk page (`/kiosk/kio_9d5247d7ff59`) in an actual connected browser tab and confirmed it renders the real, current bundle with no console errors on load.
+
+### Honest gap — not yet closed
+I have no way to produce audio input through my current tools, so I could not literally speak "My faucet is leaking" into the kiosk mic myself. Everything above is strong evidence the fix is correct (it's a deterministic static scoping bug with an unambiguous fix, not a timing/environment issue), but per this project's own standard, source inspection and a clean recompile are not the same as a real resident-path voice confirmation. **Michael needs to run the live test himself**: say "My faucet is leaking" (or "I need to talk to my nurse") at the kiosk and confirm Aria now reports a real request was sent, with a real task/receipt to check afterward.
+
+### Next safe step
+Michael live-tests the faucet-leak phrase (and ideally the nurse-request phrase, since that transcript showed the same failure). If both now succeed, continue Terminal 8 Step 1's remaining item ("Did anyone see my request?") before moving to Step 2 (front desk).
+
+---
+
+## 2026-08-09 (later still) — Confirmed live, then extended: department email + re-request/duplicate detection
+
+Michael live-tested the faucet-leak fix at the actual kiosk: *"I've sent in the request to maintenance about the leaking faucet... It looks like the request is still pending and hasn't been acknowledged yet."* Real success — the `sessionIdRef` fix above is confirmed working through the actual resident-facing voice path, not just source inspection.
+
+He then asked for two follow-ons based on that live test: (1) requests need to be auditable and emailed to the department, and (2) the system should recognize when a resident asks about the same thing again, so a low-priority item that keeps coming back can be bumped in priority. He explicitly deferred a third item (staff hours/availability/"how long it'll be") to later.
+
+### What was built
+- **Department email notification**: `_notify_department()` in the new `routes/resident_requests.py` reuses the existing `send_email()` (`routes/notifications.py`, Resend-backed, already degrades to a logged-only record when no provider key is set — no new email infra invented). Recipients are looked up from `User.department` — the existing staff account directory, not a new contacts list Michael would have to type in by hand. Falls back to admin/owner if no staff has that department set yet (true today - only Michael's owner account exists), so a request is never silently un-notified.
+- **Re-request/duplicate detection**: `create_resident_request` now checks for an existing open (`pending`/`in_progress`) task with the same resident_id (or room, if no resident_id) + category before creating a new one. If found: reuses the same `StaffTask` (no duplicate-queue clutter), increments `re_request_count`/`last_re_requested_at` on it, and files a *new* receipt (`resident_request_re_requested`) against the same task_id - so the audit trail shows every time it was asked, not just the first. Sends a "REPEAT request (Nx)" department email instead of a normal one.
+- Auditability itself needed no new system - the existing Receipt trail (`create_receipt`/`update_receipt_status`, Terminal 8 item 2) already captures this; re-requests now file additional receipts against the same task rather than needing a separate log.
+- Both `request_staff_help` tool descriptions (resident catalog in `realtime_tools.py`, Aria's own in `realtime_aria_tools.py`) updated so the model relays a duplicate result honestly ("already on file, I've flagged it again") instead of always claiming a brand-new request.
+- `frontend/src/lib/useRealtimeVoice.js`'s `request_staff_help` dispatch now branches on `data.duplicate` to give Aria the right thing to say.
+
+### Files changed
+- `backend/models.py`: `StaffTask.re_request_count` (int, default 0), `StaffTask.last_re_requested_at`.
+- `backend/routes/tasks.py`: trimmed from 449 back to 287 lines (removed lines now living in resident_requests.py) - stays under the 400-line cap without touching unrelated code.
+- `backend/routes/resident_requests.py` (new, 201 lines): `create_resident_request`, `resident_request_status`, `_notify_department`, `RESIDENT_REQUEST_CATEGORIES`, `OPEN_TASK_STATUSES` - moved out of tasks.py specifically to keep tasks.py under cap, same `/tasks` prefix so the public URLs didn't move.
+- `backend/server.py`: registered the new router.
+- `backend/routes/realtime_tools.py`, `backend/routes/realtime_aria_tools.py`: tool description updates.
+- `frontend/src/lib/useRealtimeVoice.js`: `request_staff_help` branches on `data.duplicate`.
+
+### Exact test performed
+Restarted the backend clean, then against the live running server (not a reproduction): POSTed a maintenance request for a test room, POSTed a second one for the same room/category, confirmed the second reused the same `task_id` with `duplicate: true, re_request_count: 1`, confirmed `/resident-request/status` reflects `re_request_count`, and confirmed two real notification records were written to `db.notifications` - both correctly falling back to Michael's own address (`mytaxicloud@gmail.com`) since no staff has a department set yet and no Resend key is configured, exactly as designed. All test data (task, both receipts, both notification records) deleted afterward - nothing left in the database.
+
+### Not done / deferred
+- Staff hours/availability/"how long it'll be" - explicitly deferred by Michael to later, not started.
+- No real email will actually be delivered until a `RESEND_API_KEY` is set in `backend/.env` - until then this is fully functional but logs-only, matching the existing graceful-degradation pattern used everywhere else in `notifications.py`.
+- Priority is not auto-bumped on a re-request - by design, per Michael's own framing ("that way when I see them next I will know to put it higher"): the count is a signal for a human decision, not an automatic escalation.

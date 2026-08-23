@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { Button } from "../components/ui/button";
@@ -11,9 +11,16 @@ import { ShieldCheck, ArrowRight } from "lucide-react";
 export default function AdminLogin() {
   const nav = useNavigate();
   const location = useLocation();
-  const { loginAdmin } = useAuth();
+  const { user, loading: authLoading, loginAdmin } = useAuth();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ email: "", password: "" });
+
+  // Auth must feel continuous — an already-signed-in admin/owner landing
+  // here goes straight through instead of being shown a sign-in form again.
+  useEffect(() => {
+    if (authLoading || !user) return;
+    nav(location.state?.from?.pathname || "/admin", { replace: true });
+  }, [user, authLoading, nav, location.state]);
 
   const handleLogin = async (e) => {
     e.preventDefault();

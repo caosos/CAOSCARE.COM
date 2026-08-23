@@ -96,6 +96,15 @@ RULES
 - Skip small-talk, weather, greetings, reassurance.
 - Skip info already widely known (e.g. "she is a resident").
 - Prefer first-person factual claims: names, dates, relationships, likes, dislikes, routines, fears, keepsakes, past jobs, hobbies.
+- 2026-08-22 (real bug, confirmed live): NEVER extract a scheduled
+  appointment, errand, or transportation arrangement (e.g. "has a doctor's
+  appointment at 3 PM", "is going to the pharmacy Tuesday") as a durable
+  fact. Those already have their own authoritative record (the resident
+  request/transportation system) - re-deriving them into an undated
+  "durable identity" fact is what caused a real resident to be told about
+  a fabricated permanent 3 PM appointment in an unrelated later
+  conversation. A transportation request is proof a ride was arranged,
+  never proof an appointment exists or is confirmed.
 - 'importance': 5 = life-critical/emotionally central; 4 = core identity; 3 = useful context; 2 = minor; 1 = barely worth keeping.
 - Output [] if nothing is worth storing. Never output null."""
 
@@ -374,53 +383,6 @@ async def manual_extract(data: ExtractRequest, user=Depends(get_current_user)):
         data.resident_id, data.session_id or "manual", data.user_text, data.assistant_text,
     )
     return {"ok": True, "saved": saved}
-
-
-class RealtimeTurnIngest(BaseModel):
-    """One closed turn from a WebRTC voice session — captured client-side
-    in `useRealtimeVoice.js` and POSTed here so the same OpenAI memory extractor
-    that fed the legacy turn-based chat now also feeds Realtime calls.
-    Without this, anything Margaret tells CAOS over voice vanishes the
-    moment the call ends."""
-    resident_id: str
-    session_id: str
-    user_text: str
-    assistant_text: str
-
-
-@router.post("/realtime-turn")
-async def realtime_turn_ingest(data: RealtimeTurnIngest):
-    """Public — called from the kiosk during a voice call. Persists the
-    turn into db.conversations (so future sessions can replay context) and
-    fires the background memory extractor as a fire-and-forget task."""
-    if not data.resident_id or not (data.user_text or data.assistant_text):
-        return {"ok": False, "saved": 0, "skipped": "empty"}
-    now = now_utc().isoformat()
-    if data.user_text.strip():
-        await db.conversations.insert_one({
-            "resident_id": data.resident_id,
-            "session_id": data.session_id or "realtime",
-            "role": "user",
-            "content": data.user_text.strip(),
-            "source": "realtime",
-            "created_at": now,
-        })
-    if data.assistant_text.strip():
-        await db.conversations.insert_one({
-            "resident_id": data.resident_id,
-            "session_id": data.session_id or "realtime",
-            "role": "assistant",
-            "content": data.assistant_text.strip(),
-            "source": "realtime",
-            "created_at": now,
-        })
-    # Fire-and-forget extraction. Never block the kiosk.
-    import asyncio
-    asyncio.create_task(extract_and_store_memories(
-        data.resident_id, data.session_id or "realtime",
-        data.user_text or "", data.assistant_text or "",
-    ))
-    return {"ok": True}
 
 
 # ---------------- Conversation log ----------------

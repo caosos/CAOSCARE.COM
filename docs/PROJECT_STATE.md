@@ -378,3 +378,700 @@ Claude Code with Michael on `caoscare1-hp-elitedesk`, following `commands/TERMIN
 
 ### Next safe step
 Michael opens `http://localhost:3000/aria` in a browser on the EliteDesk itself (so it uses the eMeet Luna Plus mic/speaker), logs in as owner, clicks "Start talking with Aria," allows microphone access, and talks. Reports back whether it connected, whether Aria's voice was audible/clear, and whether the conversation felt natural.
+
+---
+
+## 2026-08-21 — Session resume: services restarted, DepartmentsTab gap fixed, 300-line rule adopted, transportation acceptance-test prep
+
+### Agent / tool
+Claude Code with Michael on `caoscare1-hp-elitedesk`, resuming after an idle period (last entry above was 2026-08-10; today is confirmed 2026-08-21 by the host's own `date`/`timedatectl`, `System clock synchronized: yes`).
+
+### Branch / ref
+`main` at `3a4bd7f` locally. `origin/main` is 1 commit ahead at `077cf4a` ("Add full CAOSCare recent-work progress handoff") — fetched, not merged, no divergence (clean fast-forward available, not taken). 15 files of uncommitted local work confirmed present and preserved (the 2026-08-10 Terminal 8 lanes: schedule, menu, transportation, plus a `departments.py` backend module not documented in any prior entry).
+
+### What changed
+- Restarted MongoDB (was already running via systemd), backend (`uvicorn`, was not running), and frontend (`yarn start`, was not running) as detached dev processes, matching prior sessions' pattern — still not systemd-managed.
+- Found and fixed a real gap: `frontend/src/pages/Admin.jsx` (uncommitted) imports and renders `DepartmentsTab` from `./DepartmentsTab`, but that file did not exist anywhere in the repo — frontend failed to compile (`Module not found`). The corresponding backend (`backend/routes/departments.py`) was already complete and wired into `server.py`. Created `frontend/src/pages/DepartmentsTab.jsx` (140 lines) matching the existing `ScheduleTab.jsx` pattern: list, add (dialog), toggle active/inactive, delete. Frontend now compiles clean.
+- Adopted Michael's new 300-line production-code rule (replacing the prior 200-line-soft/400-line-hard guidance): recorded in `AGENTS.md` (`## Change discipline` → code section) and `docs/ENGINEERING_CONTRACT.md` (new dated section, explicitly marked as Michael-directed content, not agent-invented, since the rest of that document remains an unwritten placeholder).
+
+### What was verified
+- `curl http://127.0.0.1:8000/api/health` → `{"ok":true,"db":"up"}`.
+- Frontend compiles with zero errors after the `DepartmentsTab.jsx` fix; serves HTTP 200 at `http://localhost:3000`.
+- `mongod` active, `127.0.0.1:27017`.
+- Home Assistant OS VM already running (`192.168.122.137:8123` → HTTP 200); Mosquitto reachable on the VM at `1883` (host-level `mosquitto` service is correctly inactive — it's a HA Supervisor add-on inside the VM, not a host service).
+- Owner authentication intact: `POST /api/auth/admin-login` with a deliberately wrong password returns a clean `401 Invalid credentials`, not a 500. 1 owner user present in Mongo.
+- `db.departments` already has 8 seeded departments (the 6 code defaults plus "Therapy" and "Resident Programs," added by hand previously) — the new `DepartmentsTab.jsx` has real data to render.
+
+### Transportation acceptance-test prep (Michael's 8-step directive, steps 1-3 done here; steps 4-5 require Michael at the browser — see Next safe step)
+1. **Admin → Transportation is available**: `TransportationTab.jsx` exists, is imported and wired into `Admin.jsx`'s tab list, and `backend/routes/transportation.py` is registered in `server.py` with all its routes present (`/slots/seed-two-weeks`, `/slots`, `/slots/public`, `/request`, `/request/{id}/change`, `/request/{id}/cancel`, `/request/{id}/complete`, `/request/status`).
+2. **Is the two-week schedule already seeded? Honest answer: only partially, and it's stale.** `db.transport_slots` has 126 records spanning `2026-08-09` through `2026-08-22` (14 days), `created_at: 2026-08-10T03:38:32Z` — this is the exact same synthetic pilot data from the 2026-08-10 entry above (`seed_transportation_pilot.py`, 5 fake `TEST-101..202` rooms/residents, 4 slots already fake-booked). Since today is 2026-08-21, **12 of those 14 days are now in the past**; only `2026-08-21` (today) and `2026-08-22` (tomorrow) still have real, usable, unexpired slots. There is no genuine "two weeks from today" availability window yet.
+3. **Prepared seeding method, not yet executed.** `POST /transportation/slots/seed-two-weeks` (admin/owner-authenticated) is idempotent by `(date, start_time)` — it will generate 9 hourly slots (8am-4pm) for each of the 14 days starting `today_facility_date()` (`2026-08-21` through `2026-09-03`), **skipping** any day/hour that already exists. Concretely: it will add slots for `2026-08-23` through `2026-09-03` (12 new days × 9 = up to 108 new slots) and silently no-op on `2026-08-21`/`2026-08-22` (already present). It will **not** touch, duplicate, or clean up the stale `2026-08-09`-`2026-08-20` pilot data or the 5 fake TEST residents — those simply age out of relevance as their dates pass. This is the same admin-only endpoint the existing "Seed 2-week schedule" button in `TransportationTab.jsx` calls. **Not run yet — waiting on Michael's go-ahead**, per his explicit "do not create duplicate schedules" instruction (it wouldn't duplicate, but confirming first per instruction).
+4. Resident-facing voice tool location, confirmed by reading code (not assumed): `request_transportation`/`check_transportation_availability`/`check_transportation_status`/`change_transportation_request`/`cancel_transportation_request` are only in `_build_tools()` (`backend/routes/realtime_tools.py`), which backs `POST /api/realtime/session` — the **resident/kiosk voice path** (`Kiosk.jsx`, public, no login, at `/kiosk/:kioskId`). They are **not** in `_build_aria_tools()` (`realtime_aria_tools.py`), which only has `request_staff_help` — Aria's separate operator page at `/aria` cannot run this test. Exactly one kiosk exists in the DB: `kiosk_id=kio_9d5247d7ff59`, `room="test"`, so the real test URL is `http://localhost:3000/kiosk/kio_9d5247d7ff59`. That kiosk's room ("test") does not match any of the 5 TEST-101..202 resident rooms, so the test will run with `resident_id=None`/`room="test"` — a legitimate anonymous/room-based request under this app's own public trust model, not a fabricated resident.
+
+### Not yet done
+- Michael has not yet logged in and reviewed Admin → Departments / Schedule / Transportation.
+- The two-week re-seed has not been executed (waiting on Michael's go-ahead, per above).
+- The live microphone test ("I need a ride to the pharmacy tomorrow") has not been run — this requires Michael's real voice on real hardware; per this project's own standing rule, no automated/synthetic substitute counts as verification of the voice lane.
+- Nothing has been committed, staged, or pushed this session; the 1-commit-behind `origin/main` has not been pulled.
+
+### Next safe step
+Michael logs in as owner at `http://localhost:3000/admin-login`, reviews Admin → Departments, Admin → Schedule, and Admin → Transportation (confirming the stale/partial seeding state above matches what he sees), approves or declines the two-week re-seed, then opens `http://localhost:3000/kiosk/kio_9d5247d7ff59` and says "I need a ride to the pharmacy tomorrow" while this session observes backend logs/DB state in real time to verify the full chain: UI → voice understood → tool invoked → backend record created → slot requested vs. confirmed → receipt created → status query works — and specifically that Aria never claims "you're booked" unless `transport_slot_id` is actually set and a `transportation_booked` receipt exists.
+
+---
+
+## 2026-08-21 — Terminal 9 checkpoint: Google owner login + SSH relay verified, 300-line rule violations found, transportation seed confirmed adequate
+
+### Agent / tool
+Claude Code with Michael, invoked via `git fetch origin main` + `git show origin/main:commands/TERMINAL_9_LAPTOP_RELAY_ACCEPTANCE_ONBOARDING.md` (Michael's "Fetch and execute Terminal 9"), continuing the same working session as the "Session resume" entry directly above.
+
+### Branch / ref
+`main` at `3a4bd7f`, unchanged. `origin/main` is now 2 commits ahead (`077cf4a` doc-only progress handoff, `48a84e0` the Terminal 9 directive itself) — fetched only, not merged; no divergence with local uncommitted work.
+
+### What changed
+- No product code changed in this phase — Terminal 9's Phase 1-2 are inspect/record-only. This entry and the `docs/CURRENT_NODE_STATUS.md` reconciliation are the only file changes, and both remain uncommitted pending Michael's review.
+
+### What was verified
+- **Google owner login (GSI) confirmed working in the browser** for `mytaxicloud@gmail.com`, via `frontend/src/components/GoogleSignIn.jsx` → ID token → `POST /api/auth/google/verify`, sharing the existing JWT/cookie session mechanism. Backend checks token audience, issuer, and `email_verified`; rejects a non-allowlisted email before it can create an owner; does not silently demote existing owners. Correct config names: backend `GOOGLE_CLIENT_ID` + `GOOGLE_ADMIN_EMAILS`, frontend `REACT_APP_GOOGLE_CLIENT_ID` — `OWNER_EMAILS` is not used. `frontend/src/pages/AuthCallback.jsx` looks like dead legacy-OAuth code but was left in place pending a references check, not removed.
+- **Laptop → EliteDesk SSH relay established**: `ssh.service` active and listening on EliteDesk port 22; laptop `~/.ssh/config` has a `Host caoscare` entry; `ssh caoscare` from the laptop lands at `caoscare-1@caoscare1-hp-elitedesk`. This is what lets Michael say "Fetch and execute Terminal 9" instead of retyping commands.
+- Backend/frontend/MongoDB/HA VM reconfirmed healthy (same processes as the prior entry, ~1.5h uptime): `/api/health` → `{"ok":true,"db":"up"}`; frontend serving on `:3000` (craco, correct cwd); `mongod` on `127.0.0.1:27017`; HA VM's qemu process running.
+- Re-confirmed the transportation seed data from the prior entry still stands: `transport_slots` has 126 docs across 14 distinct dates `2026-08-09` → `2026-08-22`, `source: internal_schedule`, 4 slots with `booked_count > 0`. Since today is still `2026-08-21`, this window covers today and tomorrow — **adequate for the pharmacy-tomorrow acceptance test without re-seeding**. `schedule_items` and `menu_items` are both still empty (Schedule/Menu tabs have UI but no backing data yet).
+- Confirmed all four new Admin tabs (`ScheduleTab`, `MenuTab`, `TransportationTab`, `DepartmentsTab`) are imported and rendered in `frontend/src/pages/Admin.jsx`.
+
+### New finding: 300-line rule violations in the current uncommitted diff
+The rule itself was already recorded in `AGENTS.md` and `docs/ENGINEERING_CONTRACT.md` by the prior session (not new). What's new here is checking today's actual working-tree diff against it:
+- `backend/models.py`: 1105 → **1295** lines — already over cap, and grew **+190** more this session (violates "do not make an already-over-cap file larger").
+- `frontend/src/pages/Admin.jsx`: 691 → **777** (+86, same violation).
+- `backend/routes/auth.py`: 278 → **309** (crossed the cap this session, +31).
+- `backend/routes/transportation.py`: new file, created at **389** lines — over cap from creation.
+- Improvements in the same diff: `backend/routes/tasks.py` 373→286 and `backend/routes/realtime_tools.py` 342→292 both moved from over-cap to under-cap; `frontend/src/lib/useRealtimeVoice.js` 539→510 shrank but is still over cap.
+- None of the violations above have been remediated yet — flagging for Michael's direction before further edits stack on top of these files.
+
+### Blocked / not yet done
+- Terminal 9 Phases 3-6 (transportation acceptance prep, Michael's live Admin walkthrough, the real microphone test, and the screenshot-based departmental walkthrough) have not started.
+- The 300-line violations above have not been remediated — no extraction attempted yet.
+- Nothing staged, committed, pushed, or pulled this session; `origin/main`'s 2 fetched commits remain unmerged.
+
+### Next safe step
+Michael reviews this checkpoint and the `docs/CURRENT_NODE_STATUS.md` reconciliation, then either (a) gives go-ahead to continue into Terminal 9 Phase 3 (transportation acceptance prep — no browser/mic/DB writes yet), or (b) directs how to handle the 300-line violations found in `models.py`, `Admin.jsx`, `auth.py`, and `transportation.py` before more work stacks on top of them.
+
+---
+
+## 2026-08-22 — Terminal 9 Phase 3: transportation seed window extended (approved), acceptance prep confirmed
+
+### Agent / tool
+Claude Code with Michael, same "Fetch and execute Terminal 9" invocation, resuming this working session same-day.
+
+### Branch / ref
+`main` at `3a4bd7f`, unchanged. `origin/main`'s `077cf4a`/`48a84e0` still fetched-only, unmerged. Working tree unchanged from the 2026-08-21 checkpoint (same modified/untracked file list) except for this doc edit.
+
+### What changed
+- **Called `POST /transportation/slots/seed-two-weeks` (Michael-approved)** — authenticated as the existing owner user via `backend/routes/auth._issue_jwt`, run through `backend/.venv`, hitting the live local API (not a direct DB write). Result: `{"ok": true, "created": 117}`.
+- `transport_slots` grew from 126 → **243** docs. Date coverage extended from `2026-08-09`→`2026-08-22` to `2026-08-09`→`2026-09-04`. Confirmed idempotent as designed: exactly 117 = 13 new days × 9 slots/day (2026-08-22 already had its 9 slots and was correctly skipped); `booked_count > 0` unchanged at 4; no resident, task, or receipt records touched.
+- No other product code or data changed this phase.
+
+### What was verified
+- **Re-inspection found the seed window had gone stale**: the 2026-08-21 checkpoint's "adequate for pharmacy-tomorrow without re-seeding" conclusion was time-relative — today advanced to 2026-08-22, pushing "tomorrow" (2026-08-23) outside the then-current window. This is exactly the kind of drift the directive's inspect-first discipline is meant to catch.
+- Full state re-verified unchanged from the prior checkpoint before acting: local HEAD, `origin/main`, working-tree diff, flagged 300-line file sizes (`models.py` 1295, `Admin.jsx` 777, `auth.py` 309, `transportation.py` 389 — all unchanged), and backend/frontend/MongoDB health (`/api/health` → `{"ok":true,"db":"up"}`).
+- Admin → Transportation confirmed present and wired (`frontend/src/pages/TransportationTab.jsx` in `Admin.jsx`).
+- `schedule_items` and `menu_items` still both empty (no backing data yet for those tabs).
+- Resident voice / mic-test entry point confirmed: `http://localhost:3000/kiosk/kio_9d5247d7ff59` (kiosk doc `room: "test"`). Five TEST residents (TEST-101…TEST-202) present from the Terminal 8 pilot seed.
+- Owner JWT issuance for this one-off call followed the same pattern as `backend/scripts/seed_transportation_pilot.py` (`_issue_jwt` against the existing owner user, real HTTP call to the real endpoint) — no new auth mechanism introduced, no secrets printed.
+
+### Blocked / not yet done
+- Phase 3 steps 1-4, 6-7 (inspection) and step 5 (this seed call) are now complete. Phases 4-6 (Michael's live Admin walkthrough, the real microphone test, the screenshot-based departmental walkthrough) have not started — all require Michael's browser/microphone interaction per the stop conditions.
+- The 300-line violations from the prior checkpoint remain unaddressed.
+- Nothing staged, committed, pushed, or pulled; `origin/main`'s 2 fetched commits remain unmerged.
+
+### Next safe step
+Michael signs in as owner with Google, then walks Admin → Departments → Schedule → Transportation → Menu one page at a time (Phase 4), followed by the real microphone test at `http://localhost:3000/kiosk/kio_9d5247d7ff59` saying "I need a ride to the pharmacy tomorrow" (Phase 5) while this session observes backend logs/DB state live to verify the full chain end to end.
+
+---
+
+## 2026-08-22 — CORE PRODUCT RULE adopted; "Enter room" shipped; Admin.jsx brought under the 300-line cap; two real gaps found (kiosk mapping, dedup)
+
+### Agent / tool
+Claude Code with Michael, same working session, continuing directly from the Phase 3 seed-window checkpoint above. Michael issued a new standing requirement ("CORE PRODUCT RULE: everything testable, everything customizable where appropriate, everything easy as fuck") layered on top of Terminal 9, plus an explicit reminder mid-session not to grow handwritten files past 300 lines.
+
+### Branch / ref
+`main` at `3a4bd7f`, unchanged. `origin/main`'s `077cf4a`/`48a84e0` still fetched-only, unmerged.
+
+### What changed
+- **Extracted the four still-inline tab components out of `frontend/src/pages/Admin.jsx`** into their own files, matching the pattern every other tab (Schedule/Menu/Transportation/Departments) already used: `ResidentsTab.jsx` (272 lines), `StaffTab.jsx` (99), `KiosksTab.jsx` (105), `ZonesTab.jsx` (94). `Admin.jsx` itself: **777 → 287 lines** — the file this session's diff touches is now under the cap, and no file created or modified this round exceeds it.
+- **Added "Enter room" to Admin → Residents** (`ResidentsTab.jsx`): resolves the kiosk mapped to a resident's room client-side from the `kiosks` list `Admin.jsx` already fetches (same `Kiosk.room == Resident.room` match `GET /residents/public/by-kiosk/{id}` uses server-side), then opens `/kiosk/:kioskId` in a new tab — the real resident-facing path, not a mock. A resident with no matching kiosk shows a disabled "No kiosk" button instead of guessing or silently opening an unrelated kiosk.
+- **Created 5 kiosks (Michael-approved)** — one per TEST resident room (`TEST-101`…`TEST-202`), via the existing `POST /kiosks` (owner-authenticated, same one-off pattern as the transportation seed call). Kiosk ids: `kio_a95788ce0e28`, `kio_9bdfb3a1db98`, `kio_d964ef5f2e33`, `kio_84f1b2c63e43`, `kio_7ce992d580e8`. Verified all 5 resolve correctly through the real `GET /residents/public/by-kiosk/{id}` endpoint.
+- Frontend recompiled clean (`/tmp/caoscare_frontend.log`) — no new errors, only the pre-existing `fetchAll` exhaustive-deps warning.
+
+### What was verified
+- Full architecture map of what exists for residents/kiosk-mapping/memory/conversations/family-portal/requests/receipts against the CORE PRODUCT RULE's Resident-360 requirement (Sections 1-9). Full findings:
+  - **Already satisfies**: `ResidentMemory` (backend/models.py:905) already carries source attribution (chat/admin/staff/family/extraction), category, bin, importance, pinned/archived — most of the "Aria Memory" requirement already exists. `db.conversations` + `GET /memory/conversation/{resident_id}` is the resident-scoped conversation history. `receipts.py` is a resident_id-filterable generic activity ledger. `resident_requests.py` already avoids duplicate-queue clutter by bumping `re_request_count` on an existing open request rather than always creating a new task.
+  - **Partially satisfies / real bug found**: duplicate detection in `routes/resident_requests.py:91-99` is **category + resident/room only, not content-aware** — "my sink is leaking" and "my A/C isn't working," both category `maintenance` from the same resident, would currently collide: the second would silently bump the first's `re_request_count` instead of creating a real second task. This is the exact failure mode Michael's directive warns against. **Not fixed this round** — it needs a real design decision (e.g., an LLM similarity check or a required short problem tag), not a small slice.
+  - **Missing**: family-contributed personalization (photos/music/preferences from family) — `family_portal.py` is read-only today. A dedicated resident-centric "Resident Record" UI — today it's `MemoryDialog.jsx` (memories + conversation + tasks, opened from Admin → Residents) plus several separate admin pages, not one unified view. `research.py` has no `resident_id`/session logging at all, so research/lookup activity isn't yet in any per-resident ledger.
+- Confirmed pre-change that **no kiosk mapped to any of the 5 TEST residents** (only kiosk in the DB was `kio_9d5247d7ff59`, room `"test"`) — "Enter room" would have correctly shown "No kiosk" for all 5 without the new kiosks above.
+
+### Blocked / not yet done
+- The content-aware duplicate-detection gap above is identified but not designed or built — needs Michael's direction on approach before implementation.
+- Family-contributed personalization (Section 5) and a unified Resident Record UI (Section 6) are both real architectural decisions Michael's directive explicitly says to stop for — not started.
+- `backend/models.py` (1295 lines) and `backend/routes/auth.py` (309 lines) 300-line violations from the 2026-08-21 checkpoint are untouched — neither was modified this round.
+- Terminal 9 Phases 4-6 (Michael's live Admin walkthrough, the real mic test, the screenshot walkthrough) still not started — still require Michael at the browser/microphone.
+- Nothing staged, committed, pushed, or pulled; `origin/main`'s 2 fetched commits remain unmerged.
+
+### Next safe step
+**Test instructions for what's done this round** (Section 10 format):
+- **Feature**: "Enter room" from Admin → Residents.
+- **Path**: sign in as owner → Admin → Residents tab (default tab).
+- **Click**: the "Enter room" button on the row for "TEST Room 101 (Node A)" (or any of the 5 TEST rows).
+- **Expected result**: a new browser tab opens at that resident's real kiosk (`/kiosk/kio_a95788ce0e28` for TEST-101), the same page the mic-test kiosk uses — mic permission prompt, Aria greeting, everything live.
+- **What's still unverified**: I have not opened it in a real browser myself (browser interaction is a stop condition) — Michael's click is the actual acceptance test.
+- **Where to see it failed correctly before the fix**: any resident *without* a matching kiosk still shows a disabled "No kiosk" button rather than opening anything.
+
+After that: Michael either (a) continues into Terminal 9 Phase 4 (the live Admin walkthrough) using the now-working "Enter room" links, or (b) gives direction on the content-aware-duplicate-detection gap or the Resident Record UI architecture before more work stacks on top.
+
+---
+
+## 2026-08-22 — "Auth must feel continuous" usability rule: fixed Landing/Login/AdminLogin ignoring an already-authenticated user
+
+### Agent / tool
+Claude Code with Michael, same working session, mid-Phase-4 (Michael hit this defect trying to do Phase 4 step 1: log in, then click the CAOS Care logo).
+
+### Branch / ref
+`main` at `3a4bd7f`, unchanged. `origin/main`'s `077cf4a`/`48a84e0` still fetched-only, unmerged.
+
+### What changed
+Inspected first, per the new rule's own instruction to determine whether this was (1) real session loss, (2) UI ignoring valid auth state, or (3) both. Traced the actual mechanism:
+- `get_current_user` (backend/deps.py:45) checks the `Authorization: Bearer` JWT first, `session_token` cookie second. `GoogleSignIn.jsx` stores the JWT in `localStorage.caos_token` on sign-in (same as password login) — this token is what every admin API call already uses successfully.
+- `AuthProvider` (frontend/src/lib/auth.jsx) is mounted once at the app root, outside the router — client-side navigation between routes (e.g. clicking the logo) never remounts it or clears `user` state. The token in `localStorage` is untouched by navigation.
+- **Root cause = category 2, UI-only**: `frontend/src/pages/Landing.jsx` never called `useAuth()` at all — it unconditionally rendered "Staff sign in" → `/login` regardless of auth state, for every visitor including an already-authenticated owner. `Login.jsx` and `AdminLogin.jsx` had the same gap in reverse: they didn't check for an existing `user` and would show the sign-in form again to someone already signed in (e.g. hitting the browser back button). No actual JWT/cookie/session loss found anywhere.
+- **Fix — reused the existing auth context, no new mechanism added:**
+  - `Landing.jsx`: added `useAuth()`; nav button and hero secondary CTA now read `user` and show "Continue to admin"/"Continue to dashboard" linking to `/admin` or `/staff` when signed in, "Staff sign in" → `/login` only for a real guest.
+  - `Login.jsx` / `AdminLogin.jsx`: added a `useEffect` that redirects an already-authenticated user straight to their destination (honoring `location.state.from`, same fallback logic the post-login handlers already use) instead of rendering the sign-in form.
+- Files touched (all under the 300-line cap, none newly over it): `frontend/src/pages/Landing.jsx` 181→**192**, `frontend/src/pages/Login.jsx` 194→**203**, `frontend/src/pages/AdminLogin.jsx` 177→**184**. `lib/auth.jsx` (98 lines) and `backend/deps.py`/`routes/auth.py` were read, not modified.
+- Frontend recompiled clean (`/tmp/caoscare_frontend.log`) — no new errors/warnings beyond the pre-existing `fetchAll`/`fetchSummary` exhaustive-deps ones.
+
+### What was verified
+- Verified via code trace, not yet via Michael's real browser click (browser interaction is a stop condition — this is exactly what he needs to confirm next).
+- Confirmed sign-out (`logout()` in auth.jsx) and session-cookie expiry (`JWT_EXPIRE_DAYS`, `backend/routes/auth.py`) were not touched and were not implicated in the defect — not part of this fix.
+
+### Blocked / not yet done
+- Michael's real-browser confirmation of the fix (see Next safe step).
+- All Terminal 9 / CORE PRODUCT RULE items from the prior checkpoint (content-aware duplicate detection, Resident Record UI, family personalization, Phases 4-6) remain exactly as they were — this was an interrupt to fix a defect Michael hit while starting Phase 4, not a continuation of that work.
+- Nothing staged, committed, pushed, or pulled; `origin/main`'s 2 fetched commits remain unmerged.
+
+### Next safe step
+**Test instructions (Section 10 format):**
+- **Feature**: authentication now feels continuous across Landing/Login/AdminLogin.
+- **Path/clicks**: sign in as owner at `/admin-login` → land on Admin → click the **"CAOS Care" logo** (top-left, any Admin page) → **expected**: lands on the home page showing **"Continue to admin"** in the nav (not "Staff sign in") → click it → **expected**: back in Admin, no sign-in form shown → **refresh the browser tab** while on the home page or Admin → **expected**: still authenticated, no sign-in prompt.
+- **Where to see it fail correctly**: sign out first, then visit `/`, `/login`, or `/admin-login` — those must still show the real sign-in form/CTA as a guest.
+- **What remains unverified**: real-browser confirmation from Michael.
+
+After Michael confirms this, resume Terminal 9 Phase 4 exactly where it was interrupted: Admin → Departments → Schedule → Transportation → Menu walkthrough.
+
+---
+
+## 2026-08-22 — Real-browser findings from Michael's Phase 4/5 test: silent Aria (fixed), false-sounding "booked" (root-caused as a display gap, fixed); resource-aware transportation scheduling proposed, not yet built
+
+### Agent / tool
+Claude Code with Michael, same working session. Michael did his own live mic/Admin test mid-Phase-4 and reported two defects plus a large "everything testable" resource-scheduling/Front-Desk/calendar requirement.
+
+### Branch / ref
+`main` at `3a4bd7f`, unchanged. `origin/main`'s `077cf4a`/`48a84e0` still fetched-only, unmerged.
+
+### What changed
+1. **Silent-Aria bug — real bug, fixed.** `frontend/src/lib/useRealtimeVoice.js`'s `dc.onopen` sent `session.update` but never `response.create` — the model has no built-in "speak first" behavior in this API, so Aria sat silently until the resident spoke, even though her prompt (`_build_companion_instructions`) already says to greet them. Added one `send({ type: "response.create" })` right after the session config, relying on the data channel's in-order delivery so the server applies config before generating the greeting. File: 510→**515** lines — already over the 300-line cap before this change (flagged in the 2026-08-21 checkpoint); this fix grows it further. Not extracted this round — see Blocked below.
+2. **"Booked vs pending" — root-caused as a UI display gap, not a truth violation.** Traced Michael's actual test record in Mongo (`task_399327f5aae3`, today 17:12 UTC): `transport_slot_id` was set and the receipt was `transportation_booked` — **the reservation genuinely succeeded; Aria's "booked" was accurate.** The `StaffTask.status` field Michael was reading ("pending") is a *separate* staff-acknowledgment workflow field that never changes to reflect booking — a task can be `status="pending"` (unacknowledged) while already truly booked (`transport_slot_id` set). `TransportationTab.jsx`'s "Inbound" list never showed the real booked/pending truth per row, and never rendered `received_at` (Requested At) at all despite the backend already returning it. Fixed: `backend/routes/transportation_report.py` now includes `"booked": bool(transport_slot_id)` per inbound item (135 lines, was 128); `frontend/src/pages/TransportationTab.jsx` now shows "Requested at ... · Appointment ... (time label) · via ..." plus a real Booked/Pending badge per row (129 lines, was 112).
+3. **Backend restarted (Michael-approved)** — no `--reload` flag on the running `uvicorn`, so the report-endpoint fix needed a restart to go live. Killed PID 10772, relaunched identically (same command, same log redirect to `/tmp/caoscare_backend.log`), verified `/api/health` and the new `booked` field both live within seconds.
+
+### What was verified
+- Confirmed via live DB query that Michael's real test request (TEST-101, "doctor appointment," today ~3 PM) has `transport_slot_id` set and a `transportation_booked` receipt — i.e., Aria did not lie.
+- Confirmed the backend booking logic itself (`_reserve_slot`'s atomic `find_one_and_update` with a capacity guard, `booked = bool(slot)` in `POST /transportation/request`) was already correct and didn't need changing — this was purely a display gap.
+- Frontend recompiled clean both times (`/tmp/caoscare_frontend.log`), no new warnings.
+
+### Blocked / not yet done — needs Michael's design confirmation before building
+The rest of this round's directive (resource-aware driver/vehicle scheduling, Aria checking real availability before confirming, appointment-planning assistance, a Front Desk role/dashboard, a calendar-style transportation view, one shared source of truth across Aria/Admin/Front Desk) is a real architecture decision spanning the data model and three different UIs — not implemented yet. A concrete smallest-design proposal is being given to Michael in-conversation for go-ahead before any of it is built. Also not yet remediated: `useRealtimeVoice.js` (515 lines) growing further past the cap — flagging for Michael's direction (extract the WebRTC/data-channel setup into its own module, vs. leave as-is for now since it's a single cohesive connection lifecycle).
+- Terminal 9 Phase 4 (the live Admin walkthrough) remains interrupted at the Departments tab.
+- Nothing staged, committed, pushed, or pulled; `origin/main`'s 2 fetched commits remain unmerged.
+
+### Next safe step
+**Test instructions:**
+- **Greeting fix** — Admin → Residents → any TEST room → "Enter room" → click "I just want to talk" → expect Aria to speak a greeting within ~1-2 seconds without Michael saying anything first.
+- **Transportation truth display** — Admin → Communication & requests → Transportation → Inbound section → find the "TEST-101 — doctor appointment" row → expect it now shows "Requested at [timestamp] · Appointment 2026-08-22 (around 3 PM)" and a green "Booked" badge, not just a bare description line.
+
+Then: Michael reviews the proposed resource-scheduling/calendar/Front-Desk design (given in-conversation) and either approves it, asks for changes, or picks a smaller first slice before Claude builds anything from Sections 4-9 of the incorporated directive.
+
+---
+
+## 2026-08-22 — Resource-aware transportation engine + calendar + Front Desk role built; Realtime voice diagnostics and a memory-trust boundary added after a real acceptance test found phantom transcripts and a double greeting
+
+### Agent / tool
+Claude Code with Michael, same working session. Michael approved the resource/calendar/Front-Desk design proposed in the prior checkpoint with 7 corrections (no invented vehicle capacity, no invented trip-duration default, tighter run-sharing compatibility, driver/vehicle as separate resources, Front Desk approved, calendar visual requirements, the useRealtimeVoice.js size flag). Mid-build, Michael's own real resident-voice acceptance test surfaced a second, higher-priority defect (phantom transcripts, a duplicated greeting, and a false name-correction) which is addressed in the same round.
+
+### Branch / ref
+`main` at `3a4bd7f`, unchanged. `origin/main`'s `077cf4a`/`48a84e0` still fetched-only, unmerged. 58 files now uncommitted total; nothing staged/committed/pushed.
+
+### What changed — transportation resource engine, calendar, Front Desk
+- **New domain model** (`backend/models_transportation.py`): `TransportDriver`, `TransportVehicle` (capacity `Optional[int] = None` - unset, never guessed), `TransportRun` (driver_id + vehicle_id independently - not permanently coupled), `TransportSchedulingConfig` (admin-editable `buffer_minutes`, explicitly a scheduling policy, not a claim about any trip's real duration).
+- **New booking engine** (`backend/transportation_engine.py`): `find_or_create_run()` - shares an existing run only on exact destination match + time-window overlap + configured (never assumed) vehicle capacity; otherwise books a new run only if a free (driver, vehicle) pair both exist; otherwise returns no run at all (request stays pending for Front Desk). Deterministic, defaults to pending under any uncertainty per Michael's correction.
+- **New endpoints**: `routes/transportation_resources.py` (admin CRUD for drivers/vehicles/buffer), `routes/transportation_calendar.py` (`GET /transportation/calendar?date=&days=`, day/week, read by Admin + Front Desk + eventually Aria - one source of truth), `routes/transportation_legacy_slots.py` (old hourly-bucket TransportSlot code moved here verbatim, kept only for historical pilot data), `routes/transportation_voice_context.py` (resident/room/session-scoped change/cancel/status, split out of transportation.py).
+- **`routes/transportation.py` rewritten to book through the engine** instead of the old TransportSlot bucket, added `/availability/public` (resource-aware, replaces `/slots/public` for Aria's real availability check) — **net 389 → 264 lines** despite the new functionality, by extracting the pieces above.
+- **Front Desk role**: `"front_desk"` added to `User.role` (models.py, 2 Literal defs), new `require_front_desk_or_admin` dep, `/front-desk` route + `Protected frontDeskOnly`, `FrontDeskDashboard.jsx` (calendar + front-desk/callback requests + resident directory), `TransportationCalendar.jsx` (shared day/week component used by both Admin and Front Desk), `TransportResourcesTab.jsx` (admin driver/vehicle/buffer config), all wired into `Admin.jsx`'s Communication group and `StaffTab.jsx`'s role dropdown.
+- **`lib/roleHome.js`** (new): single `roleHomePath()`/`roleHomeLabel()` used by Landing/Login/AdminLogin/GoogleSignIn instead of the same ternary duplicated four times.
+- **`transport_run_id`** added to `StaffTask` (models.py) alongside the legacy `transport_slot_id`; `booked = bool(transport_run_id or transport_slot_id)` everywhere that matters.
+
+### What changed — Realtime voice: diagnostics + double-greeting fix + memory-trust boundary
+Root-caused before touching anything, per Michael's "inspect before tuning": server-side `turn_detection` already has `create_response: true` (`routes/realtime.py`'s `DEFAULT_VAD`) - the server auto-generates a response whenever it decides speech stopped. This session's own new forced greeting (`response.create`, added earlier this session to fix "Aria never speaks first") + a room speaker/mic setup where Aria's own audio can leak back into the mic despite requested `echoCancellation` is the most likely mechanism for the observed double greeting and phantom "Thank you."/"Hi." turns - not a code loopback bug (verified `pc.addTrack` only sends the local mic stream; the remote/output stream only ever goes to the `<audio>` playback element, never back into the connection).
+- **Double-greeting fix**: `dc.onopen` now sends the initial `session.update` with `create_response: false` just for the forced greeting, then re-enables the real `turn_detection` (with `create_response: true` restored) once that greeting's own `response.done` fires. Closes exactly the window where the greeting's own echo could trigger a server auto-response, without touching VAD sensitivity/threshold at all. Real barge-in is untouched (`interrupt_response` is a separate mechanism from `create_response`).
+- **Diagnostics** (mandatory, added before the next test): new `backend/routes/realtime_diagnostics.py` (`POST /realtime-diagnostics/event`, public/fire-and-forget; `GET /realtime-diagnostics/session/{id}`, authenticated) + `frontend/src/lib/realtimeDiagnostics.js` (`logRealtimeEvent()`). `useRealtimeVoice.js` now logs, per session: `speech_started`/`speech_stopped` (each tagged with whether Aria's audio was playing at that instant), completed user/assistant transcripts, `response_created`/`response_done`, and every tool call. No raw audio or secrets logged.
+- **Memory-trust boundary** (mandatory): `turnSuspectRef` captures whether a user turn's speech onset overlapped Aria's own audio (the strongest available real signal, per Michael's own list). `routes/memory.py`'s `POST /memory/realtime-turn` gained a `trusted: bool` field - an untrusted turn is still saved to `db.conversations` (diagnostic value preserved) but **skipped from `extract_and_store_memories`**, so it can't become a durable `ResidentMemory` fact. The one live "authoritative mutation" tool, `update_preferred_name`, now refuses to save and instead asks the resident to repeat themselves when the triggering turn was flagged suspect - it does not silently accept a possibly-phantom correction.
+- **Preserved, unchanged, confirmed correct**: the intent-based routing behavior Michael specifically flagged as good (asking for maintenance on oranges correctly routed to Kitchen) lives entirely in `_build_companion_instructions`' prompt reasoning, which this round never touched.
+- **Extraction, not stuffed in further**: `executeTool`'s ~155-line device/timer/weather/research/name-update dispatch moved out of `useRealtimeVoice.js` into `frontend/src/lib/realtimeDeviceTools.js` (matching the existing `realtimeOperationsTools.js` pattern) *before* adding the diagnostics/trust-boundary code, per Michael's standing-rule reminder. Net effect: `useRealtimeVoice.js` **515 → 422 lines** - still over the 300-line cap (pre-existing, flagged previously) but smaller than where this session started despite the new functionality, not larger.
+
+### Line counts - every file created or materially modified this round
+New (all under 300): `models_transportation.py` 100, `transportation_engine.py` 140, `routes/transportation_resources.py` 96, `routes/transportation_calendar.py` 85, `routes/transportation_legacy_slots.py` 86, `routes/transportation_voice_context.py` 95, `routes/realtime_diagnostics.py` 52, `TransportationCalendar.jsx` 124, `TransportResourcesTab.jsx` 154, `FrontDeskDashboard.jsx` 115, `lib/roleHome.js` 15, `lib/realtimeDeviceTools.js` 150, `lib/realtimeDiagnostics.js` 25.
+Modified, now under 300: `routes/transportation.py` 264 (was 389), `Admin.jsx` 297, `StaffTab.jsx` 100, `Landing.jsx` 193, `Login.jsx` 202, `AdminLogin.jsx` 184, `GoogleSignIn.jsx` 77, `App.js` 99, `realtimeOperationsTools.js` 171.
+Modified, still over 300 (pre-existing violations; grew by small unavoidable amounts, all extraction-first where the responsibility being touched allowed it): `useRealtimeVoice.js` 422 (515 at this round's start), `models.py` 1301 (+6: `transport_run_id` field, `front_desk` role literal), `routes/memory.py` 489 (+12: the `trusted` field and its branch), `deps.py` 130 (+8: `require_front_desk_or_admin`), `server.py` 173 (+8: new router registrations - arguably configuration, flagged anyway).
+
+### What was verified
+- Backend restarted (Michael-approved) and healthy; smoke-tested live: `GET /transportation/drivers`/`vehicles` (empty - none configured yet), `GET /transportation/scheduling-config` (buffer_minutes=30 default), `GET /transportation/calendar?date=2026-08-23` (empty day, correct shape).
+- Frontend recompiled clean both rounds - no new errors, same pre-existing eslint warnings only.
+- **Not yet verified**: any of this in a real browser/microphone session - that's Michael's next step.
+
+### Blocked / not yet done
+- **No drivers/vehicles configured yet** - `GET /transportation/drivers` and `/vehicles` are both empty, so every transportation request will correctly land as "pending" (safe-by-default) until Michael adds at least one of each via Admin → Transport resources.
+- The `input_audio_noise_reduction` (far_field) Realtime API option Michael asked about was deliberately **not** added - couldn't confirm the current exact field syntax without live API testing, and this file's own history shows guessed API shapes fail loudly ("Unknown parameter" errors); flagged as a candidate next step if the diagnostics show continued false triggers after this fix, not added blind.
+- Terminal 9 Phase 4 (the live Admin walkthrough) remains interrupted at the Departments tab from earlier in this session.
+- Nothing staged, committed, pushed, or pulled.
+
+### Next safe step
+Two independent test rounds, either order:
+1. **Realtime voice fix (Tests A-E)** — Admin → Residents → TEST Room 101 → Enter Room, then the five specific silence/interruption/short-utterance tests Michael specified. After each, Claude reads `GET /realtime-diagnostics/session/{session_id}` (session_id shown in the browser dev console or reported by Michael) to report the exact observed event sequence.
+2. **Transportation/calendar/Front Desk** — Michael first adds one driver and one vehicle (with a real capacity) via Admin → Transport resources, then re-runs the transportation voice test from TEST Room 101, then checks Admin → Transport calendar and (once a front_desk user is created via Admin → Staff) the Front Desk dashboard.
+
+---
+
+## 2026-08-22 — Resident Record → Conversations shipped (session-grouped, first-class); one backend restart briefly interrupted Michael's live browsing
+
+### Agent / tool
+Claude Code with Michael, same working session. Added to the Resident 360 requirement: conversations must be first-class, session-grouped records reachable from the UI, never requiring transcript copy/paste.
+
+### Branch / ref
+`main` at `3a4bd7f`, unchanged. `origin/main` still 2 commits ahead, fetched-only.
+
+### What changed
+- **New endpoints** (`backend/routes/resident_conversations.py`, 81 lines): `GET /residents/{id}/conversation-sessions` groups the existing `db.conversations` turns (already keyed by `session_id` from the Realtime pipeline - no new storage) into session summaries (date, start/end, turn count, source, room, `is_test`, a cheap first-user-turn topic). `GET /residents/{id}/conversation-sessions/{session_id}` returns the full turn transcript plus everything already linkable by `conversation_session_id`: receipts, StaffTasks (requests/transportation actions), this session's `realtime_diagnostics` events (the voice-diagnostic metadata from the prior checkpoint, now attached to the conversation instead of requiring dev tools), and a best-effort room+time-window match against `db.device_commands` (labeled explicitly as best-effort - device commands aren't session-tagged at the source, a real gap noted rather than papered over).
+- **`room`/`kiosk_id` added to the realtime-turn ingest** (`routes/memory.py`'s `RealtimeTurnIngest`, both `db.conversations` inserts) so session grouping has an accurate historical room, not just the resident's current one.
+- **New UI**: `ResidentRecordDialog.jsx` (90 lines, session list) + `ConversationSessionDetail.jsx` (100 lines, full transcript + requests/receipts/device-actions/diagnostics), opened via a new "Resident Record" button in `ResidentsTab.jsx` (278 lines, was 272). Framed honestly as Conversations-only for now - the Profile/Family/Requests/Transportation sections from the broader Resident 360 design aren't part of this dialog yet.
+- **Claude/testing workflow**: Claude can now resolve "the conversation in Room 101" itself via resident/room/kiosk/session/time lookups (either through these new endpoints or directly against Mongo) - Michael should never need to paste a transcript or retrieve a session ID.
+- Verified live against Michael's real transportation test from earlier this session (TEST-101, session `rt_ub7kucbg_1787418707177`, 11 turns) before reporting done.
+
+### What was verified / incident note
+- Backend restart to load these endpoints did **not** take effect on the first attempt (the background relaunch command didn't actually start a new process - exit code 144, cause not fully diagnosed) while Michael was actively browsing Admin live, so the API was briefly down (~30-40s) mid-session. Caught immediately via a health check and relaunched successfully on the second attempt; confirmed healthy and serving real traffic afterward. Flagging transparently since Michael was mid-use when it happened, not just idle.
+- New endpoints smoke-tested against real data post-restart: session list and full detail both return correctly for TEST-101's real conversation.
+
+### Blocked / not yet done
+- Resident Record currently has only the Conversations section - Profile/Memory/Family/Requests/Transportation/Activity as one unified view (the fuller Section 6 design) is not built.
+- Device-action-per-session linkage is best-effort (room + time window) because `device_commands` isn't tagged with `conversation_session_id` at the source - a real traceability gap, not fixed this round.
+- All prior blocked items (voice Tests A-E, transportation driver/vehicle setup, Terminal 9 Phase 4) remain exactly as they were.
+- Nothing staged, committed, pushed, or pulled.
+
+### Next safe step
+Admin → Residents → any TEST resident → "Resident Record" → Conversations. Click a session to see the full transcript + requests/receipts/device actions/voice diagnostics together. Then Michael picks up wherever he'd like next: the voice Tests A-E, transportation driver/vehicle setup, or continuing Terminal 9 Phase 4.
+
+---
+
+## 2026-08-22 — Real Room 201 test analyzed via the new Resident Record tooling; a second, more serious voice defect found and fixed with a verified (not guessed) OpenAI Realtime API mechanism
+
+### Agent / tool
+Claude Code with Michael. Michael ran a real test (mistakenly reported as "Room 101" at first, corrected to Room 201/TESTY - independently confirmed via `preferred_name` matching "TESTY" in the DB, not just taken on faith). Claude used the just-built Resident Record/diagnostics tooling to read the exact event sequence itself, per the standing "locate the conversation yourself" workflow rule, rather than asking Michael to describe it.
+
+### Branch / ref
+`main` at `3a4bd7f`, unchanged. `origin/main` still 2 commits ahead, fetched-only.
+
+### What was found
+Reading `GET /realtime-diagnostics/session/{id}` + the session's full `db.conversations` transcript revealed three distinct problems in one call:
+1. The double-greeting fix from earlier this session held (exactly one greeting).
+2. **A second, different phantom-transcript mechanism**: short transcripts ("Thank you.", "Cheers, bye.", "Thank you.") appeared during genuine silence (`assistant_speaking: false` at speech_started) - not echo overlap, but Whisper hallucinating plausible short words from ambient room noise. The existing overlap-based trust signal cannot catch this - it's a different failure mode than the one already fixed.
+3. **Consequence**: fed those phantom turns, Aria improvised an unrequested thermostat conversation, called `adjust_room_temperature` + `request_staff_help`, and narrated "I've notified maintenance again" - false on two counts (the resident never mentioned the AC, and the real system action bumped an existing, unrelated leaking-faucet ticket). Only `update_preferred_name` was gated against suspect turns before this; other consequential tools were not.
+4. Separately, a real question Michael asked ("what's going on in the world") got a non-answer/deflection from Aria instead of an engaged response or a `research_topic` call - a prompt-behavior gap, not an audio bug, not yet addressed (Michael's next-priority call).
+Michael also mentioned switching the physical mic hardware to an eMeet speakerphone (real far-field/AEC hardware) - independent of, and likely complementary to, the software fix below.
+
+### What changed - verified against OpenAI's own current API docs first (WebSearch/WebFetch), not guessed
+- **`input_audio_noise_reduction`**: confirmed exact field path `session.audio.input.noise_reduction: { "type": "far_field" }` against the live Realtime API reference (far_field = room/conference-style mics, as opposed to near_field for headsets - directly matches this deployment). Added as `DEFAULT_NOISE_REDUCTION` in `backend/routes/realtime.py`, applied only to the resident-facing kiosk session (`create_session`) - not the operator build, since there's no evidence about Michael's own mic setup for that one.
+- **Transcription confidence, a real signal instead of a timing proxy**: confirmed `session.include: ["item.input_audio_transcription.logprobs"]` is the correct field (also verified against the live API reference) - each completed transcript now carries per-token logprobs. `frontend/src/lib/realtimeDiagnostics.js` gained `transcriptionConfidence()` (exp(mean logprob), the standard log-prob-to-probability conversion) and an exported `LOW_CONFIDENCE_THRESHOLD = 0.5`, explicitly flagged as a starting point, not yet calibrated against this deployment's real data.
+- **The suspect signal is now overlap-timing OR low-confidence**, combined in `useRealtimeVoice.js`'s transcription-completed handler. This also directly serves the "don't block real short utterances" requirement better than the old signal alone - a genuine short "Help." should score high-confidence and pass; a noise-hallucinated "Thank you." should score low.
+- **The consequential-action gate widened** from just `update_preferred_name` to also cover `request_staff_help`, `request_transportation` (`realtimeOperationsTools.js`), and `adjust_room_temperature`/`toggle_light`/`toggle_tv` (`realtimeDeviceTools.js`) - each now refuses and asks the resident to repeat themselves when the triggering turn was flagged suspect, instead of silently acting. Emergency/urgent tools (`call_for_help`, `mark_resting`, `end_call`) were deliberately left ungated - never suppress a possible real emergency on an uncertain signal.
+- Backend restarted (Michael-approved), verified stopped-then-started explicitly this time (separate kill/start/health-check steps) after the prior restart's silent failure.
+
+### Line counts - files modified this round
+`backend/routes/realtime.py` 318 → **327** (pre-existing over-cap; +9, the noise_reduction constant + wiring, unavoidable single-purpose addition). `frontend/src/lib/useRealtimeVoice.js` 422 → **444** (pre-existing over-cap; +22 for the include/confidence logic - flagging again; a further extraction may be warranted if this file needs to grow again). `frontend/src/lib/realtimeDiagnostics.js` 25 → 39 (under cap). `frontend/src/lib/realtimeOperationsTools.js` 171 → 182 (under cap). `frontend/src/lib/realtimeDeviceTools.js` 150 → 158 (under cap).
+
+### Blocked / not yet done
+- **`LOW_CONFIDENCE_THRESHOLD = 0.5` is uncalibrated** - a defensible default (exp(logprob) < 0.5 means the model itself assigns under 50% likelihood to its own transcription), not yet checked against real confidence values from an actual test. Michael's next test is what calibrates it.
+- The "Aria didn't engage with a real question" prompt-behavior gap (item 4 above) is identified but not investigated or fixed.
+- All earlier blocked items (transportation driver/vehicle setup, Terminal 9 Phase 4) remain as they were.
+- Nothing staged, committed, pushed, or pulled.
+
+### Next safe step
+Michael re-runs a similar test (ideally with the new eMeet mic in place) at Admin → Residents → any TEST room → Enter Room. Claude then reads the new session directly (Resident Record or `GET /realtime-diagnostics/session/{id}`) and reports: whether phantom turns still occur, their actual confidence scores (to calibrate `LOW_CONFIDENCE_THRESHOLD` with real data), and whether the widened gate correctly stopped any bad consequential action this time without blocking genuine short replies.
+
+---
+
+## 2026-08-22 — Communication & Requests rebuilt as the complete operational record (list + filters + detail/timeline), wired into Front Desk and Resident Record as the same underlying data
+
+### Agent / tool
+Claude Code with Michael. Acceptance testing found the existing Tasks board showed only resident/description/"Pending" - not enough for staff to understand a request without guessing.
+
+### Branch / ref
+`main` at `3a4bd7f`, unchanged. `origin/main` still 2 commits ahead, fetched-only.
+
+### What changed
+- **A real "Acknowledge" action, previously entirely unwired**: `StaffTask.acknowledged_by`/`acknowledged_at` existed on the model but nothing ever set them. Added `POST /tasks/{id}/acknowledge` (`routes/tasks.py`) plus a new `acknowledged_by_name` field (denormalized, same pattern as `assigned_name`). This is a real new event now, not backfilled onto old records - old requests without it will honestly show no acknowledgment, never a fabricated one.
+- **`GET /tasks/{id}/detail`** (new `routes/task_detail.py`): task + every receipt filed against it - the same records `create_receipt`/`update_receipt_status` already write, no new history system.
+- **`tasks.py` split for size, not rewritten**: recurring-template management (list/create/delete templates, spawn-today) - a genuinely separate responsibility from individual task lifecycle - moved to new `routes/task_templates.py`. `tasks.py` 286 → 307 (after adding acknowledge) → **242** (after the template split, net under its start).
+- **New Communication & Requests UI**: `RequestsBoard.jsx` (list, search, status/priority/department filters, action-needed-first sort) + `RequestDetailDialog.jsx` (full who/when/what/where/status metadata + a real chronological timeline built from the task's own timestamps and its receipts - Acknowledge/Start/Complete buttons call the real endpoints). `lib/requestDisplay.js` holds the shared `deriveStatus()` (a display-only derivation from existing fields - transportation with a run/slot reads "Confirmed", unassigned-but-acknowledged reads "Acknowledged", etc. - never a new stored state) and source labels, so the list and detail view can never disagree.
+- **One underlying record, three views**: Admin's new "Requests" tab, Front Desk's dashboard (its old bespoke narrow request list was removed and replaced with the same `RequestsBoard`), and Resident Record's "Requests & actions" section (in `ConversationSessionDetail.jsx`) now all render through the identical `RequestsBoard`/`RequestDetailDialog` components against the identical `/tasks` data - clicking a request from Resident Record opens the exact same detail dialog Communication & Requests uses.
+- Backend restarted (Michael-approved), verified stopped-then-started explicitly.
+
+### What was verified
+Smoke-tested live against the real leaking-faucet request from an earlier session test: `GET /tasks/task_b60788137dec/detail` returned the full real record (source `aria_voice`, `resident_words`, `conversation_session_id`, `re_request_count: 1`, 2 real receipts) and `POST /tasks/task_b60788137dec/acknowledge` correctly set `acknowledged_by_name: "MICHAEL CHAMBERS"` with a real timestamp. Frontend recompiled clean, no new errors.
+
+### Blocked / not yet done
+- Filtering by "assigned staff" specifically and a date-range filter aren't in the first cut (search/status/priority/department are) - flagging as the next-smallest addition if Michael wants them.
+- "Front Desk viewed this request" (a read-receipt/view-tracking event from Michael's example timeline) was deliberately not built - it doesn't exist anywhere in the system yet and would be a real new feature, not exposing existing data. Noted rather than fabricated.
+- `source` distinguishing "Front Desk" vs "Admin" vs generic "staff" for manually-created tasks is not fully wired - `POST /tasks` (the internal one-off/admin creation path) still always writes `source: "staff"` regardless of the creating user's role; `TaskSource` now has a `"front_desk"` value available for this but nothing sets it yet.
+- All earlier blocked items (voice test calibration, transportation driver/vehicle setup, Terminal 9 Phase 4) remain as they were.
+- Nothing staged, committed, pushed, or pulled.
+
+### Next safe step
+**Test path, per Michael's own spec:**
+1. Admin → Residents → TEST Room 101 → Enter Room → make a real request (e.g. ask for maintenance help).
+2. Admin → **Requests** (new tab, Communication & requests group) → find the row → verify at a glance: resident/room, request text, department, exact requested-at time, source ("Aria voice"), priority, derived status.
+3. Click the row → verify the full detail (all the above plus assigned-to, conversation session id) and the timeline showing "Request created" and the receipt event(s) with real timestamps.
+4. Click **Acknowledge**, then **Start**, then **Complete** → verify each appears as a new, real timeline entry with the real actor name and time.
+5. Admin → Residents → TEST Room 101 → Resident Record → Conversations → open that same session → confirm the same request appears under "Requests & actions" and clicking it opens the identical detail dialog.
+
+---
+
+## 2026-08-22 — Live regression repair: broken `include` param, missing user transcript, misleading "Live" status, and a real fabricated-appointment root cause found and fixed
+
+### Agent / tool
+Claude Code with Michael. A real TEST Room 101 acceptance test surfaced four acceptance failures at once; feature work paused to repair them in the order Michael specified (A-G).
+
+### Branch / ref
+`main` at `3a4bd7f`, unchanged. `origin/main` still 2 commits ahead, fetched-only.
+
+### What changed
+- **(A) Removed the broken `include` field.** The prior round's `include: ["item.input_audio_transcription.logprobs"]` on the `session.update` event was rejected live: "Unknown parameter: 'include'." Removed outright rather than relocated by guess, per Michael's explicit instruction - my own earlier research was ambiguous about whether it belonged there or nested under `session`, and guessing again under pressure was exactly what not to do. `transcriptionConfidence()` already no-ops safely with no logprobs present, so the trust boundary still runs on the audio-overlap signal alone until the correct mechanism is verified in a calmer pass.
+- **(B/C/D, root cause identified) The missing user transcript was very likely a direct consequence of (A)**, not a separate bug: if the whole `session.update` event was rejected for the unknown field, the `transcription: {...}` config in that same event never applied either - explaining zero user turns while Aria's turns (which don't depend on that config) kept appearing. No separate transcript-rendering fix was made, per Michael's explicit instruction not to build an unnecessary second workaround - this should self-resolve once (A) is verified live.
+- **(Section 3) Fixed the misleading "Live · idle" status.** `dc.onmessage`'s `error` handler only called `setError()`, never downgrading `status` - so `status` stayed `"live"` (rendering "Live · idle") even while a real OpenAI config error was showing. Now also calls `setStatus("error")`, which correctly renders "Error" / a red status dot / "Something went wrong."
+- **(E/F, root cause identified and fixed - not just prompt wording) Traced the fabricated 3 PM appointment to an exact record**: `ResidentMemory` `mem_8a16a677d63d`, text `"User has a doctor's appointment at 3 PM."`, `bin: "facts"`, `source: "extraction"`, `event_at: null` (no expiry). Confirmed the injection path: `realtime_companion_prompt.py` queries `db.memories` bin="facts" directly (a separate, parallel implementation from `memory.py`'s `build_memory_context` - only `routes/ai.py`, the retired legacy chat path, uses that one) and renders facts under the heading `"## What you know about {name} (durable facts)"` with **no date shown at all**. The record came from the transportation-booking test earlier the same day: the fire-and-forget extractor (`extract_and_store_memories`) had no rule against extracting a scheduled appointment/errand as a "durable fact," so `category: "health"` routed it to the timeless facts bin instead of being excluded or dated. Fixed at the source: `EXTRACTOR_SYSTEM` (`routes/memory.py`) now explicitly forbids extracting appointments/errands/transportation arrangements as durable facts - they already have their own authoritative record (the resident-request/transportation system), and re-deriving them into an undated "durable identity" fact was the actual bug (Section 5/6's "transportation request != appointment" and "historical chat != operational fact," now fixed at the data-semantics level, not just prompt tone). The one bad record (`mem_8a16a677d63d`) was deleted (Michael-approved) after confirming via direct query it was the only one of its kind across all TEST residents.
+- Backend restarted (Michael-approved), verified stopped-then-started explicitly.
+
+### What was verified
+- Backend imports clean, frontend recompiles clean (no new errors/warnings).
+- Confirmed via direct Mongo query that no other resident had a similarly-mislabeled fact before deleting the one that did.
+- **Not yet verified**: none of this against a real live call yet - that's the fresh acceptance test below, Michael's to run.
+
+### Blocked / not yet done
+- A secondary defense-in-depth instruction for the companion prompt itself (explicitly telling Aria "a transportation request is not proof an appointment exists," per Section 5's exact language) was deliberately **not** added this round - the primary fix (stopping the bad extraction at its source) addresses root cause, and both `memory.py` (504 lines) and `realtime_companion_prompt.py` (328 lines) are already over the 300-line cap; adding more without a clear need would cut against "do not keep growing" it further. Flagging as the natural next step if the fresh test still shows any appointment-conflation.
+- The real transcription-confidence mechanism (logprobs) is still unresolved - needs a calmer, verified-not-guessed pass before re-attempting.
+- All earlier blocked items unrelated to this regression are unaffected and remain as they were.
+- Nothing staged, committed, pushed, or pulled.
+
+### Next safe step
+**Fresh acceptance test, one step at a time, exactly as Michael specified:**
+Admin → Residents → TEST Room 101 → Enter Room.
+1. Let Aria greet. Say "Hello Aria." → verify "You: Hello Aria." appears, zero red API errors.
+2. Ask "Do I have any appointments today?" → expect no invented 3 PM appointment; if none confirmed, Aria should say so honestly.
+3. Then "Show me my schedule." → expect a query against the real schedule source, no unsupported claims.
+Report back after each step before moving to the next.
+
+---
+
+## 2026-08-22 — Room 102 inspected live; recognition-accuracy root cause classified (not VAD); whisper-1 → gpt-4o-transcribe swapped after verifying exact schema
+
+### Agent / tool
+Claude Code with Michael. The `include`-param regression and 3 PM hallucination from the prior checkpoint were both confirmed fixed by Michael's own live Room 102 test - this round narrowly targeted the one remaining defect: input speech-recognition accuracy.
+
+### Branch / ref
+`main` at `3a4bd7f`, unchanged. `origin/main` still 2 commits ahead, fetched-only.
+
+### What was found (inspection only, no changes) - Room 102 session `rt_y6k3tovh_1787432842587`
+Located directly (resident/room lookup, no session ID from Michael). Cross-checked every turn's VAD duration (speech_started→speech_stopped) against its transcribed word count and sentence completeness:
+- No truncated/fragmented sentences anywhere in the session - every VAD-bounded duration was proportionate to its word count. Rules out VAD/turn-detection (class A) as the dominant problem.
+- No out-of-context phantom interjections this time (unlike the earlier Room 201 session) - every short turn fit its real conversational context.
+- **Dominant defect = class C, transcription-model recognition accuracy**: two complete, correctly-bounded sentences had a wrong word each - "tell me what the **weather** was" → "...what was **better**", and "**Can** you turn..." → "**And** you turn...". Audio boundaries were right; specific words were misheard.
+
+### What changed
+- **`whisper-1` → `gpt-4o-transcribe`** in `useRealtimeVoice.js`'s `session.audio.input.transcription.model` (single field, single value changed - nothing else touched: VAD, `far_field` noise reduction, mic constraints, tool config all untouched, per Michael's explicit single-variable-change instruction).
+- **Verified before changing, not guessed**: fetched the actual `AudioTranscription`/`RealtimeSession` struct definitions (not just summarized doc pages) confirming `gpt-4o-transcribe` is a valid value for this exact field on this exact conversational (`session.type: "realtime"`) session structure - not a separate dedicated transcription-session type, matching Michael's explicit constraint.
+- Frontend-only change; hot-reloaded by the CRA dev server (confirmed via fresh compile timestamp), no backend touched, no restart performed or needed.
+
+### What was verified
+Frontend recompiled clean, no new errors/warnings.
+**Not yet verified**: the model swap against a real call - that's the next step, Michael's to run.
+
+### Blocked / not yet done
+- If OpenAI rejects this model/config live, the instruction is to immediately revert to `whisper-1` and report the exact API error rather than guess a variation - not yet needed, pending the test below.
+- All earlier blocked items (transportation driver/vehicle setup, Terminal 9 Phase 4, the secondary companion-prompt defense-in-depth wording) remain as they were.
+- Nothing staged, committed, pushed, or pulled.
+
+### Next safe step
+Fresh Room 102 test, same phrases that previously exposed the errors: "Can you tell me what the weather was?", "Can you turn the temperature down to like 72?", "I'd like you to tell me what's for dinner." Claude then locates the new session itself and reports expected-vs-transcribed for each phrase, plus confirms zero API errors, visible/complete USER turns, and unchanged VAD behavior.
+
+---
+
+## 2026-08-22 — Room 103 inspected (gpt-4o-transcribe held constant, mic gain lowered mid-session); useRealtimeVoice.js extraction completed, both files now under 300 lines
+
+### Agent / tool
+Claude Code with Michael. Room 103 evidence reviewed, then Michael corrected the timeline (gain change happened ~2/3 through the *same* session, not between sessions) - a materially more useful data point since it isolates the gain variable from the already-constant transcription model within one session. Then proceeded with the previously-approved `useRealtimeVoice.js` extraction, no behavior changes.
+
+### Branch / ref
+`main` at `3a4bd7f`, unchanged. `origin/main` still 2 commits ahead, fetched-only.
+
+### What was found - Room 103 (`rt_ltmbbxsp_1787434155508`), corrected interpretation
+Located directly (resident/room lookup). With the corrected timeline: gpt-4o-transcribe was already active for the *entire* session (constant), while OS mic gain was high for roughly the first two-thirds and lowered by Michael partway through. The one clear gibberish artifact (a stray Hindi/Sanskrit punctuation character transcribed from ~2s of non-speech audio) occurred in the early, high-gain portion; no similar artifact occurred afterward. **Because the transcription model didn't change within this session, this within-session before/after contrast isolates the gain variable specifically** - meaningful supporting evidence for excessive mic gain contributing to recognition problems, not just a confound. Preserved as a real finding, not walked back.
+
+### What changed - useRealtimeVoice.js extraction (previously approved, executed this round)
+- New `frontend/src/lib/realtimeMessageHandler.js`: `executeTool()` and a new `createRealtimeHandlers()` factory containing `handleFunctionCall` and the full `dc.onmessage` handler (VAD/transcript/tool-call/error reactions) - moved **verbatim**, parameterized over the refs/setters/values they closed over. No logic changed, no conditions changed, no values changed.
+- `useRealtimeVoice.js` now only owns connection setup (mint, mic capture + the mic-track-settings diagnostic, peer connection, `dc.onopen`'s session.update/greeting, SDP negotiation) and calls `dc.onmessage = onMessage`.
+- **`useRealtimeVoice.js`: 469 → 279 lines. `realtimeMessageHandler.js`: 225 lines.** Both now under the 300-line cap for the first time this whole investigation arc.
+- Verified the extraction is behavior-preserving: the hook's public API (`{ status, error, transcript, resting, start, stop, audioElRef }`) is unchanged, and grepped every consumer (`RealtimeChatScreen.jsx`, `AriaVoice.jsx`) to confirm none depended on the internal `executeTool`/`handleFunctionCall` (never exported). Frontend recompiled clean - no new errors, same pre-existing warning (just shifted line number).
+- No voice tuning changes made during this pass, as instructed - VAD, gain, model, noise reduction all untouched.
+
+### What was verified
+Frontend compiles clean. No backend involved in this round; no restart performed or needed.
+
+### Blocked / not yet done
+- The controlled A/B test to further isolate gain vs. model (holding gain now-lowered, re-testing short precise phrases) hasn't been run yet.
+- All earlier blocked items (transportation driver/vehicle setup, Terminal 9 Phase 4, companion-prompt defense-in-depth wording, Microphone Test admin page - still not justified, evidence still developing) remain as they were.
+- Nothing staged, committed, pushed, or pulled.
+
+### Next safe step
+Michael's call: run another controlled test now that mic gain is settled low and the file extraction is behind us, or move to something else. If a Room 10X test happens, Claude locates it directly and reports the same expected-vs-transcribed comparison as before.
+
+---
+
+## 2026-08-22 — Room 202 forensic analysis (3 confirmed defects found via raw event tracing); all three fixed in the specified order, verified before handoff
+
+### Agent / tool
+Claude Code with Michael. A Room 202 test surfaced the "previous fix didn't fully work" concern; full raw-event forensic analysis (not summary-of-a-summary) found three distinct, real defects, all fixed this round in Michael's specified order.
+
+### Branch / ref
+`main` at `3a4bd7f`, unchanged. `origin/main` still 2 commits ahead, fetched-only.
+
+### Correction issued and preserved
+The prior Room 103 checkpoint's duration claim ("~14 minutes") was wrong - actual span was 4m49s, a real arithmetic error, not a duration derived from event count. Corrected on the record, not defended. Three separate duration metrics (session connection / actual conversation / total user speech) are now used going forward, never mixed.
+
+### Room 202 forensic findings (`rt_8y12za2m_1787435236218`), full raw-event trace
+- 8 real user turns, 5 phantom turns, first phantom at ~3.5s into the conversation.
+- **Root cause #1, confirmed with timing evidence**: `assistantSpeakingRef` flipped false on `response.done` (generation-complete), not actual audio-playback-complete. Three of five phantom turns began 1-1.4s after a multi-second reply's `response.done` - almost certainly while that reply was still physically playing. This directly explains the "previous fix seemed to not work" - the fix targeted the right mechanism (echo) but read the wrong signal for when Aria's audio actually stops.
+- **A second, separate mechanism**: one phantom turn ("The government") occurred during genuine silence (19s after the prior reply), not echo - ambient noise hallucination, explicitly kept as a separate, not-yet-addressed category per Michael's instruction.
+- **Root cause #2, a new bug found while tracing turn-pairing**: a real ~15-second user correction was captured in diagnostics but never saved to `db.conversations` at all - a second, quicker user segment overwrote the single `pendingUserRef` scalar before the first turn's paired assistant reply arrived to trigger the save.
+- **Root cause #3**: a phantom "and" (itself an echo-timing case) triggered `end_call`, prematurely ending the session - `end_call`/`end_conversation` were never gated against the suspect signal at all.
+
+### What changed - all three fixes, in the specified order
+1. **Playback-state fix (primary)**: verified via direct confirmation from an OpenAI team member (community thread, not guessed) that `output_audio_buffer.started`/`.stopped`/`.cleared` are real server events sent specifically for WebRTC/SIP connections (never sent over plain WebSocket, which is why this was missed before) representing actual playback lifecycle. `realtimeMessageHandler.js`'s `assistantSpeakingRef` now driven by these events instead of `response.audio.delta`/`response.done`. The greeting create_response re-enable logic (previously also gated on `response.done`) moved to `output_audio_buffer.stopped` for the same reason - same underlying signal-accuracy fix, not scope creep.
+2. **No-loss turn persistence**: removed the `pendingUserRef`/`pendingUserSuspectRef` pairing scalars entirely. Every turn (user or assistant) is now saved independently via a new `postTurn()` helper the instant it's known - no waiting on the other side of an exchange. Backend `RealtimeTurnIngest` (routes/memory.py, now split into new `routes/realtime_memory_ingest.py` to stay under 300 lines) changed from `{user_text, assistant_text}` pairs to one `{role, text}` per call; memory-fact extraction now triggers on the assistant-turn save, looking up the most recent trusted USER turn from the durable `db.conversations` store (never a fragile client ref) for pairing context. Smoke-tested live: two rapid user segments in the same synthetic session both persisted independently, proving the overwrite bug is gone.
+3. **Suspect turns can't end the session**: `end_call`/`end_conversation` in `realtimeDeviceTools.js` now check `turn_suspect` and return a natural clarifying question ("I may have heard you over my voice — did you want me to end our conversation?") instead of the goodbye message when suspect; `handleFunctionCall` only actually tears down the connection when the tool call succeeded (`ok:true`). `call_for_help`/`mark_resting` remain deliberately ungated - never suppress a possible real emergency. `set_timer` added to the existing consequential-tools gate (creates a durable reminder) alongside the already-gated `adjust_room_temperature`/`toggle_light`/`toggle_tv`/`request_staff_help`/`request_transportation`/`update_preferred_name`.
+- Backend restarted (Michael-approved), verified stopped-then-started explicitly.
+
+### Line counts - every file created or materially modified this round
+`frontend/src/lib/useRealtimeVoice.js`: 279 (removed the now-unneeded pending refs). `frontend/src/lib/realtimeMessageHandler.js`: 249 (was 225 - the three fixes' logic, still under cap). `frontend/src/lib/realtimeDeviceTools.js`: 164. `backend/routes/memory.py`: 439 (pre-existing over-cap, but net *shrank* this round via the extraction below). `backend/routes/realtime_memory_ingest.py`: 90 (new). `backend/server.py`: 181 (router registration only).
+
+### What was verified
+- Backend imports clean, frontend recompiles clean (no new errors, same pre-existing warnings).
+- Live smoke test proved the no-loss fix: two rapid user segments in one synthetic session both persisted to `db.conversations` independently - the exact failure mode from Room 202 no longer reproduces. Test rows cleaned up afterward.
+- **Not yet verified**: none of the three fixes against a real live call - that's the next step, Michael's to run.
+
+### Blocked / not yet done
+- Ambient-silence phantom speech (the "The government" mechanism) is explicitly not addressed this round, per Michael's instruction not to change multiple variables at once - to be reassessed after this round's fixes are confirmed live.
+- All earlier blocked items (transportation driver/vehicle setup, Terminal 9 Phase 4, companion-prompt defense-in-depth wording) remain as they were.
+- Nothing staged, committed, pushed, or pulled.
+
+### Next safe step
+Fresh test on an unused test room (per Michael's instruction): Admin → Residents → an unused TEST room → Enter Room. Michael speaks naturally - lets Aria greet, interrupts her once, pauses mid-thought and continues, gives a longer correction spanning a natural pause, ends normally. Claude then locates the session directly and checks all of: exactly one greeting; no echo-driven phantom turns; genuine barge-in still works; every real user segment visible AND saved; a multi-segment thought not overwritten; suspect echo can't trigger end_call; emergency help still works during overlap; zero API errors; no regression in gpt-4o-transcribe/VAD/far_field. Any remaining ambient-silence phantom speech gets reported separately, not tuned yet.
+
+---
+
+## 2026-08-22 — Resident-provisioning/testability gap fixed: Add/Edit Resident now surfaces real kiosk status and can provision one inline
+
+### Agent / tool
+Claude Code with Michael.
+
+### Branch / ref
+`main` at `3a4bd7f`, unchanged this round (frontend-only change, nothing staged/committed).
+
+### What happened
+Michael created a new resident, Chauncey (room 304, pendant assigned), specifically to run the fresh-room Realtime acceptance test already queued from the prior Room 202 fix round. The Residents screen showed "No kiosk" with no way to create one, and Edit did not expose a way to assign a kiosk either — a real product gap, not a test-data problem. Michael's standing rule: "click the resident, I'm in the room" — creating/editing a resident must never dead-end into needing a kiosk ID, install URL, or DB access. Explicit instruction: fix the actual product workflow using the existing real kiosk/provisioning architecture, do not tell him to reuse an old TEST room, and do not touch anything in the just-completed Realtime voice fixes while doing it.
+
+### What changed
+- Inspected the existing kiosk↔resident mapping first: it's a plain room-string match (`Kiosk.room === Resident.room`, no foreign key), the same lookup `GET /residents/public/by-kiosk/{kiosk_id}` already does server-side, and kiosk creation already exists via `POST /kiosks` (used by `KiosksTab.jsx`'s "Add kiosk" dialog, no duplicate-room validation). No new backend work was needed or added — this fix reuses that exact endpoint, not a simulator.
+- `frontend/src/pages/ResidentsTab.jsx`: each resident row now shows a live "Enter room" button when its room has a matching kiosk, or an actionable terracotta "Set up room" button (calls `POST /kiosks` with `{name: room, room, zone: ""}`) when it doesn't — replacing the old dead-end "No kiosk" label.
+- New `frontend/src/pages/ResidentFormDialog.jsx`: the Add/Edit resident dialog, extracted out of `ResidentsTab.jsx` to keep both files under the 300-line cap (the added kiosk-status UI pushed the combined file to 328 lines). Owns its own form state (initialized from a `resident` prop, null for new), and shows the same room/kiosk status inline as the resident types a room — a green "mapped" state with the kiosk_id when one exists, or a terracotta "unmapped" state with an inline "Set up room" button when it doesn't. Behavior and every `data-testid` preserved exactly; no logic changed beyond the state now being owned by the child component.
+- `ResidentsTab.jsx` now renders `<ResidentFormDialog open={formOpen} onOpenChange={setFormOpen} resident={editingResident} kiosks={kiosks} onSaved={onChange} />` instead of the inline Dialog/form JSX.
+- Confirmed no voice-path files (`useRealtimeVoice.js`, `realtimeMessageHandler.js`, `realtimeDeviceTools.js`, `backend/routes/memory.py`, `backend/routes/realtime_memory_ingest.py`) were touched this round — verified by re-reading each unchanged.
+
+### Line counts — every file created or materially modified this round
+`frontend/src/pages/ResidentsTab.jsx`: 168 (was 328 before extraction). `frontend/src/pages/ResidentFormDialog.jsx`: 197 (new).
+
+### What was verified
+- Frontend dev server (already running, craco hot-reload) served `/` at HTTP 200 after the change with no compile-error overlay; confirmed the served bundle actually contains the new `ResidentFormDialog` component (not a stale cached bundle).
+- No backend restart performed or needed — this is a pure frontend change against the pre-existing `POST /kiosks` endpoint.
+- Not yet verified: the actual Chauncey click-through in a browser (Michael's to run next) or the fresh-room Realtime acceptance test this gap was blocking.
+
+### Blocked / not yet done
+- The fresh-room Realtime acceptance test (interrupt, mid-thought pause+continue, longer correction, normal end) queued from the Room 202 fix round is still pending, blocked only on Michael confirming the kiosk-setup flow works for Chauncey.
+- Ambient-silence phantom speech ("The government" mechanism) remains unaddressed, as previously logged.
+- Nothing staged, committed, pushed, or pulled.
+
+### Next safe step
+Michael: Admin → Residents → Chauncey → **Set up room** (creates the real kiosk record for room 304, same as Admin → Kiosks → Add kiosk would) → then Admin → Residents → Chauncey → **Enter room** (opens the real `/kiosk/{kiosk_id}` resident-facing experience in a new tab, the same path every deployed room uses). Once that's confirmed working, run the queued fresh-room Realtime acceptance test on Chauncey's room and report back; Claude will locate the resulting session directly via Mongo, no session ID needed from Michael.
+
+---
+
+## 2026-08-23 — Chauncey/Room 304 forensic report + repair round (tool-argument fabrication, intent inversion, overlap false-positives, lifecycle diagnostics, greeting UX)
+
+### Agent / tool
+Claude Code with Michael.
+
+### Branch / ref
+`main` at `3a4bd7f`, unchanged (nothing staged/committed). Backend restarted (Michael-directed repair round; required since multiple backend files changed) - old PID 63307 killed and confirmed stopped, new PID 66759 started and confirmed healthy (`/api/health` → `{"ok":true,"db":"up"}`) before any live verification.
+
+### What happened
+The fresh Room 304 acceptance test (queued from the prior Room 202 fix round) surfaced a real ~7-minute conversation Michael called "horrible." Forensic pass (raw event reconstruction from `db.realtime_diagnostics` + `db.conversations` + `db.staff_tasks`, no info requested from Michael) confirmed: the two prior fixes (playback-state tracking, no-loss persistence) held cleanly; three new/residual defects did not: (1) a real, staff-visible task was created with a fabricated appointment time ("10 o'clock") the resident never said, (2) "maybe I need to turn it up" (volume) mis-triggered `mark_resting` (go quiet) - backwards intent, (3) overlap-based suspect classification had a high false-positive rate on genuine barge-in (7 of ~11 flagged turns were real, coherent speech, not echo), and the session's actual termination cause was unrecoverable from any log. Full report delivered before any code change, per Michael's explicit "forensic pass first" instruction.
+
+### What changed, in Michael's priority order
+1. **Tool arguments cannot invent facts (backend-enforced, not prompt-only)**: new `backend/operational_provenance.py` - `reject_unconfirmed_time()` checks whether a clock-time claim in an operational-request free-text field actually appears in something the resident said this session (`db.conversations`, role=user); fails closed if there's no session/resident to check against. Wired into `POST /tasks/resident-request` (`resident_requests.py`) and `POST /transportation/request` (`transportation.py`) - both now return HTTP 422 `{needs_clarification, field, reason}` instead of creating the record. Frontend (`realtimeOperationsTools.js`) now parses a 422's `needs_clarification` body into a natural spoken clarifying question instead of the generic "couldn't send that request" failure. Tool descriptions (`realtime_tools_operations.py`) also now explicitly instruct against inventing details - defense in depth, not the enforcement boundary. **Verified against the real incident**: replaying the exact fabricated Room 304 summary through the live restarted endpoint now returns 422 with reason `"a specific time ('10 o'clock') was included but the resident never stated it this conversation"`; a summary with the time genuinely present in a synthetic resident turn passes through and creates the task normally (smoke-tested, then cleaned up). The original fabricated task **`task_705cbcd180f1` remains on file, untouched**, as required.
+2. **Intent inversion (mark_resting)**: tightened both the tool description (`realtime_tools.py`) and companion persona (`realtime_companion_prompt.py`) to require an explicit, unambiguous dismissal ('be quiet', 'let me rest', 'going to sleep') and to explicitly exclude ambiguous lines like 'turn it up' from triggering it; the tool description also now tells the model it has no control over its own voice volume and should say so plainly rather than reinterpreting a volume comment as a request to go quiet. Verified live via a fresh session mint - both instruction blocks confirmed present in what's actually served.
+3. **Natural pauses / turn splitting (VAD)**: researched, not applied. `semantic_vad` with `eagerness` is a real, current, documented OpenAI Realtime API mechanism (verified via the official API docs, not guessed) purpose-built for "let the user take their time" without a blunt silence-duration increase; `create_response`/`interrupt_response` remain valid alongside it, so existing greeting-suppression and barge-in logic would be unaffected. This is a material timing change, so per Michael's explicit instruction it is **proposed, not applied** - pending his approval before touching `DEFAULT_VAD` in `realtime.py`.
+4. **Overlap != phantom**: `realtimeMessageHandler.js` now runs a small, explicit, traceable `classifyUserTurn()` (segment length, textual resemblance to Aria's last spoken line, a short-term tiny-fragment streak - no fabricated confidence score) instead of treating all audio-overlap as suspect. A coherent multi-word statement during overlap is now trusted (fixes the concrete false-positive class the incident report found); short fragments that resemble Aria's own speech, or a run of them, remain suspect. The spoken clarifying message now varies by reason - "did I mishear" phrasing only for echo-like cases, a plain "just to double-check" for the rest. Ambient-silence phantoms (no overlap at all) deliberately left untouched, per Michael's explicit "do not tune simultaneously" instruction - still open, to be re-measured after this round.
+5. **Connection lifecycle diagnostics (read-only)**: new `frontend/src/lib/realtimeLifecycleDiagnostics.js` logs `pc.connectionstatechange`, `pc.iceconnectionstatechange`, data-channel `close`/`error`, and `pagehide` - purely observational, does not change teardown/reconnect behavior. `useRealtimeVoice.js`'s `stop()` now takes an explicit `reason` (first cause wins, guarded), and every real call site now passes one: component unmount, the kiosk's own End Call button (previously indistinguishable from unmount), `end_call`/`end_conversation` tool success, and missing-config fail-closed. An unexpected drop (connection failure, ICE failure, datachannel close/error, or the tab being hidden/closed) now also logs a `session_ended` reason on its own, so a future session should never again end with zero forensic trail.
+6. **Greeting UX**: `realtime_companion_prompt.py`'s time-anchor instruction no longer tells the model to open with "good night" (confirmed live to have caused the resident's very first, tone-setting words: "Why would you say goodbye to me?"). The phrasing logic was extracted into a new `greeting_note()` helper in `realtime_facility.py` specifically so this fix didn't grow `realtime_companion_prompt.py` past its pre-existing 328-line size, per the standing file-size rule. Verified live via a fresh session mint at an actual night-hour local time.
+
+### Line counts - every file created or materially modified this round
+`backend/operational_provenance.py`: 49 (new). `backend/routes/resident_requests.py`: 203. `backend/routes/transportation.py`: 274. `backend/routes/realtime_tools.py`: 298. `backend/routes/realtime_tools_operations.py`: 222. `backend/routes/realtime_companion_prompt.py`: 328 (unchanged net - was already over cap; extraction kept it from growing). `backend/routes/realtime_facility.py`: 60 (was 49; absorbed the extracted greeting-note responsibility). `frontend/src/lib/realtimeMessageHandler.js`: 281. `frontend/src/lib/realtimeDeviceTools.js`: 174. `frontend/src/lib/realtimeOperationsTools.js`: 213. `frontend/src/lib/useRealtimeVoice.js`: 257 (extracted the session.update builder to stay under cap after this round's additions). `frontend/src/lib/realtimeLifecycleDiagnostics.js`: 43 (new). `frontend/src/lib/realtimeSessionUpdate.js`: 59 (new). `frontend/src/pages/RealtimeChatScreen.jsx`: 165.
+
+### What was verified
+- Backend: dry-run `import server` succeeded (234 routes loaded); real restart performed and health-checked before any live test.
+- Provenance guard: verified twice against real data - rejects the exact Room 304 fabricated summary (unit-level against real conversation history, then live HTTP against the running restarted server), allows a summary whose time was actually said (synthetic smoke test, cleaned up after).
+- Greeting/mark_resting fixes: confirmed present in a live-minted session's actual served instructions/tool schema, not just in source.
+- Frontend: dev server served the updated bundle (HTTP 200) containing the new modules (`classifyUserTurn`, `realtimeLifecycleDiagnostics`, `realtimeSessionUpdate`) - no compile-error overlay.
+- Not yet verified: any of this against a real live conversation - that's Michael's next test.
+
+### Blocked / not yet done
+- The `semantic_vad`/`eagerness` VAD change is proposed but NOT applied - needs Michael's explicit go-ahead since it materially changes response timing.
+- Ambient-silence phantoms (no-overlap phantom transcripts) remain open by design, to be re-measured after this round.
+- Nothing staged, committed, pushed, or pulled.
+
+### Next safe step
+One fresh real test, Chauncey/Room 304 again: (1) interrupt Aria with a real multi-word correction, (2) pause naturally mid-thought and continue, (3) say "I need to go to the doctor Monday" WITHOUT giving a time - expect Aria to ask for the time, no invented time, no fabricated task, (4) say "Turn it up a little" - expect `mark_resting` does NOT fire, (5) end the session in a known way - expect the lifecycle diagnostics to show exactly how it ended. Claude will then locate and inspect the session directly via Mongo, no IDs/transcript needed from Michael.
+
+---
+
+## 2026-08-23 — FAILED EXPERIMENT: semantic_vad + eagerness "low" — tested live, caused a real dead zone, reverted
+
+### Agent / tool
+Claude Code with Michael.
+
+### Branch / ref
+`main` at `3a4bd7f`, unchanged (nothing staged/committed).
+
+### What was tried
+With Michael's explicit approval, `DEFAULT_VAD` (`backend/routes/realtime.py`) was changed from `server_vad` (threshold 0.5, prefix_padding_ms 300, silence_duration_ms 1000) to `semantic_vad` with `eagerness: "low"` - a real, current OpenAI Realtime API mechanism (verified via official docs, not guessed) intended to let a resident finish a thought without a fixed silence timer chopping it into separate turns. Backend restarted, confirmed live via a fresh session mint before testing.
+
+### Result: FAILED
+Live acceptance test on Chauncey/Room 304 (`rt_pc5lblon_1787453286910`) - Michael's own words: "it doesn't work at all... the recording times out or stops listening while appearing to be listening." Forensic reconstruction from `db.realtime_diagnostics` confirmed this precisely: after 3 real exchanges (~53 seconds), the system produced **zero `speech_started` events for a full 38 seconds** while the WebRTC connection remained healthy throughout (confirmed via the same-round lifecycle diagnostics - `pc_connection_state: connected`, no failure/error event) - a genuine turn-detection failure, not a network one. Michael manually ended the call (`session_ended` reason: `ui_end_call_button`, itself correctly captured by the new lifecycle diagnostics). The prior server_vad session ran ~7 continuous minutes with no gap anywhere near this. One turn ("I broke it.") also came from a 6.3-second speech segment that collapsed to just 3 transcribed words, consistent with the same dead-zone/detection problem, not a transcription-accuracy issue - transcription itself was accurate this test (no phantom garbage). Aria's response quality also showed real reasoning mismatches unrelated to VAD (e.g. "I broke it." → "I'm glad. It's good to have this connection.") - a separate, not-yet-investigated issue. The queued provenance/mark_resting test items were never reached - the dead zone ended the call first.
+
+### What changed (the revert)
+`DEFAULT_VAD` restored to `server_vad` (threshold 0.5, prefix_padding_ms 300, silence_duration_ms 1000, create_response true), with `interrupt_response: true` now added explicitly (Michael-directed, wasn't in the original config but is valid alongside server_vad too). Backend restarted, confirmed live via a fresh session mint that `server_vad` with the exact prior parameters is actually being served again.
+
+### What was verified
+- Backend: dry-run `import server` succeeded before each restart; both kill and start steps confirmed (process check + `/api/health`) before any live check.
+- `server_vad` config confirmed live via `POST /realtime/session` for Chauncey/Room 304 - matches the pre-experiment values exactly, plus the added `interrupt_response: true`.
+- All other fixes from the prior round (gpt-4o-transcribe, far_field noise reduction, browser mic constraints, playback-state tracking, no-loss persistence, provenance guard, mark_resting intent fix, overlap classifier, lifecycle diagnostics, greeting fix) were NOT touched this round - only `DEFAULT_VAD` changed and changed back.
+
+### Blocked / not yet done
+- The provenance guard, mark_resting fix, and overlap-classifier improvements from the prior round are still unverified against a real live conversation - the semantic_vad dead zone prevented the test from reaching those scenarios twice in a row now.
+- The "I broke it." → "I'm glad" response-mismatch pattern is a real, separately-flagged Aria reasoning issue, not investigated this round.
+- Ambient-silence phantoms remain open, as previously logged.
+- Nothing staged, committed, pushed, or pulled.
+
+### Next safe step
+Known-working `server_vad` configuration is restored and confirmed live. Per Michael's explicit instruction, no further tuning change until he directs one. Next real test should be Chauncey/Room 304 again, same test script as the prior round (interrupt, natural pause, "doctor Monday" with no time, "turn it up," normal end) - this will be the first time that script is actually completed end-to-end if the dead zone doesn't recur.
+
+---
+
+## 2026-08-23 — Morning Chauncey/Room 304 forensics (mark_resting still insufficient, "deaf period" unproven) + docs/reports/ channel with a real Aria tool
+
+### Agent / tool
+Claude Code with Michael.
+
+### Branch / ref
+`main` at `3a4bd7f`, unchanged (nothing staged/committed). Backend restarted once this round, to load the new `/reports` endpoints - confirmed stopped then healthy before any live check.
+
+### What happened, part 1: morning forensics
+Full forensic pass on `rt_o2jv93b8_1787495975387` (Chauncey/Room 304, 8m28s, morning acceptance test using the reverted `server_vad` config). Full report: `docs/reports/2026-08-23-1448-room304-morning-forensics.md`. Headline findings:
+- `mark_resting` fired incorrectly again, from "You got it." - correctly-transcribed, genuinely trusted speech, not a transcription/trust-boundary failure. Confirms Michael's prediction: the intent-inversion protection (prompt wording only) is still insufficient. `mark_resting` has no code-level gate at all, unlike the other consequential tools.
+- A 20-second period with zero `speech_started` events followed, ending in a manual End Call. Traced as far as the evidence allows: `resting` is purely cosmetic client-side state (confirmed from source, doesn't touch the mic track/connection), and the WebRTC connection reported no failure. But there is currently no instrumentation that distinguishes "resident was silent" from "resident spoke and wasn't detected" - this is an honest, open gap, not a diagnosed root cause.
+- Speaker echo, not ambient-silence phantom, was confirmed as the dominant bad-transcription mechanism this session: every short (<=2-word) fragment during audio overlap was wrong or unconfirmable (8/8); every 3+-word overlap statement was genuinely real (5/5).
+- Provenance guard held cleanly: all 3 real tool-created tasks (AC/maintenance, kitchen oranges, Wagon Wheel trip request) were fully grounded in stated facts, nothing fabricated.
+- Confirmed the Realtime API's real, documented architecture (not guessed): the conversational model reasons over raw audio directly; `gpt-4o-transcribe` is a separate, independent model on the same audio for the visible/saved transcript only - the two can genuinely diverge, and this session showed a concrete example.
+- Not-yet-applied candidates from the report: a code-level gate on `mark_resting` (same pattern as the Priority-1 provenance guard), and mic audio-level diagnostic logging so a future "went deaf" period can be proven rather than inferred. No code changed for this part - forensic report only, per Michael's explicit instruction.
+
+### What happened, part 2: docs/reports/ + a real Aria tool
+Michael asked for a simple file-based channel so he/his own Aria (operator build, not the resident-facing companion) and Claude Code can leave each other durable notes instead of everything living only in chat scrollback. Built:
+- `docs/reports/` - new folder, `README.md` explains the convention (`YYYY-MM-DD-HHMM-slug.md`, self-contained files) and how it relates to `docs/PROJECT_STATE.md` (that file stays the single running dated log; this folder is for standalone reports too long/detailed for one entry). Seeded with both of today's forensic reports.
+- `backend/routes/reports.py` (new, 65 lines) - `GET /reports/latest` (newest report's content) and `POST /reports/note` (writes a new note file) - no auth, matching this deployment's existing public trust model, but strictly sandboxed to `REPORTS_DIR` with a server-generated filename (never caller-supplied) and a body-length cap.
+- `backend/routes/realtime_aria_tools.py` - added `read_latest_report` and `leave_report_note` tool schemas to Aria's own tool set (NOT the resident-facing companion's - Michael was explicit this is his own Aria).
+- `frontend/src/lib/realtimeAriaReportTools.js` (new, 36 lines) - dispatch for the two new tools, gated on `ctx.owner_user_id` being present (Aria-only; resident sessions never receive these tool schemas at all, so this is defense-in-depth, not the only boundary) - calls the new backend endpoints.
+- Wired into the existing `executeTool` fallthrough chain in `realtimeMessageHandler.js` (one new line, alongside the existing ops/device dispatch).
+
+### Line counts - every file created or materially modified this round
+`backend/routes/reports.py`: 65 (new). `backend/routes/realtime_aria_tools.py`: 120. `backend/server.py`: 183. `frontend/src/lib/realtimeAriaReportTools.js`: 36 (new). `frontend/src/lib/realtimeMessageHandler.js`: 284.
+
+### What was verified
+- Backend: dry-run `import server` succeeded (236 routes, up from 234) before restart; kill/start/health-check all confirmed individually.
+- `GET /reports/latest` and `POST /reports/note` tested live directly (smoke-test note created then removed, not left in the folder).
+- A live Aria session mint (`POST /realtime/aria-session`) confirmed `read_latest_report` and `leave_report_note` are actually present in the tool list served - not just in source.
+- Frontend dev server served the updated bundle (HTTP 200) containing the new `realtimeAriaReportTools` module and both tool names - no compile-error overlay.
+- Not yet verified: an actual live voice conversation where Michael asks his Aria to read or leave a report.
+
+### Blocked / not yet done
+- `mark_resting`'s missing code-level gate and the unproven "deaf period" mechanism are both still open, per the morning forensics report.
+- Nothing staged, committed, pushed, or pulled.
+
+### Next safe step
+Michael: talk to your own Aria and ask her what's new / to check the latest report, and separately ask her to leave Claude a note about something - confirms the new tools work end-to-end in a real conversation, not just via curl. Separately, whenever ready: decide whether to pursue the `mark_resting` code-level gate and/or the mic audio-level diagnostic from the morning forensics report - both are proposed, neither applied.
+
+---
+
+## 2026-08-23 — CORRECTION: "my Aria" is Michael's ChatGPT conversation, not the CAOSCare operator-build Realtime session; wrong integration removed, correct docs/reports/ index built
+
+### Agent / tool
+Claude Code with Michael.
+
+### Branch / ref
+`main` at `3a4bd7f`, unchanged (nothing staged/committed). Backend restarted once, to unload the removed endpoints/tools - confirmed stopped then healthy before any live check.
+
+### Correction
+The immediately prior entry ("docs/reports/ channel with a real Aria tool") built `read_latest_report`/`leave_report_note` as voice tools on CAOSCare's own operator-build Realtime session (`/realtime/aria-session`, `_build_aria_tools()`), reading "Michael's Aria" as that in-app assistant. Michael corrected this directly: "my Aria" is the Aria he already works with in a separate ChatGPT conversation - an entirely different system outside this repo, not a CAOSCare voice build at all. He was explicit: do not build a second "owner Aria" persona. Separately, the backend API endpoints that integration depended on (`GET/POST /reports/...`) were bound to `127.0.0.1:8000` and were never reachable by ChatGPT regardless of which Aria - the whole API-endpoint shape was wrong for this handoff, not just the wrong consumer.
+
+### What changed (the fix)
+- Removed `read_latest_report`/`leave_report_note` tool schemas from `backend/routes/realtime_aria_tools.py` - Aria's operator-build tool set is back to exactly `request_staff_help`/`check_request_status`/`end_conversation`, confirmed via a live session mint.
+- Deleted `backend/routes/reports.py` and its router registration in `server.py` - dead code once the premise was wrong; nothing else depended on it.
+- Deleted `frontend/src/lib/realtimeAriaReportTools.js` and its wiring in `realtimeMessageHandler.js`.
+- `docs/reports/` itself is kept and is the right idea - added `docs/reports/INDEX.md`, a single always-current file pointing to the latest forensic report, latest acceptance-test report, current unresolved issues, and current system state (links to `PROJECT_STATE.md`), so Michael's actual ChatGPT-Aria (or Michael himself) can navigate straight to what matters without reading the whole folder. `README.md` rewritten to name the real audience correctly and note the open question of how his ChatGPT-Aria actually needs to reach these files (likely requires pushing to the existing `origin` GitHub remote - confirmed configured, `caosos/CAOSCARE.COM` - which has not happened, per the standing no-push-without-approval rule).
+
+### Line counts - every file created or materially modified this round
+`backend/routes/realtime_aria_tools.py`: 89 (back to its pre-detour size). `backend/server.py`: 181 (back to its pre-detour size). `docs/reports/INDEX.md`: new, informational (exempt). `docs/reports/README.md`: rewritten, informational (exempt).
+
+### What was verified
+- Backend: dry-run `import server` succeeded (234 routes - matches the count from before the wrong integration was ever added); restart confirmed stopped then healthy.
+- Live session mint of `/realtime/aria-session` confirmed the tool list is back to exactly the original three - not just source-reviewed.
+
+### Blocked / not yet done
+- Still unknown: how Michael's ChatGPT-Aria actually fetches external content (browsing a pushed public repo? a custom GPT connector? manual paste?) - needs his answer before assuming a `git push` alone makes this reachable.
+- `mark_resting`'s missing code-level gate and the unproven "deaf period" mechanism remain open, per the morning forensics report.
+- Nothing staged, committed, pushed, or pulled.
+
+### Next safe step
+Michael: confirm how your ChatGPT-Aria actually needs to reach `docs/reports/` (repo push required? already has some access? you'll paste `INDEX.md` in yourself for now?) so the next step is built for how you actually work, not assumed.

@@ -2,6 +2,8 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Shield, Activity, Heart, MapPin, MessageSquare, Zap } from "lucide-react";
+import { useAuth } from "../lib/auth";
+import { roleHomePath, roleHomeLabel } from "../lib/roleHome";
 
 const HERO_IMG =
   "https://images.unsplash.com/photo-1765896387387-0538bc9f997e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODh8MHwxfHNlYXJjaHwxfHxzZW5pb3IlMjByZXNpZGVudCUyMGNhcmVnaXZlciUyMHNtaWxlfGVufDB8fHx8MTc3NjU2NTU1NXww&ixlib=rb-4.1.0&q=85";
@@ -42,6 +44,16 @@ const features = [
 ];
 
 export default function Landing() {
+  // Auth must feel continuous — a signed-in user landing here (clicking the
+  // logo, refreshing, coming back later in the same session) sees a way
+  // back into the app, never a "sign in again" prompt. `user` stays null
+  // until the one-time /auth/me check on app boot resolves, so a first
+  // paint briefly shows the guest CTA even for a signed-in user; harmless
+  // since Protected routes still gate on the real check, not this button.
+  const { user } = useAuth();
+  const authedDest = user ? roleHomePath(user.role) : "/login";
+  const authedLabel = user ? roleHomeLabel(user.role) : "Staff sign in";
+
   return (
     <div className="min-h-screen bg-caos-bone">
       {/* Top nav */}
@@ -56,9 +68,9 @@ export default function Landing() {
               Try kiosk
             </Button>
           </Link>
-          <Link to="/login" data-testid="nav-login">
+          <Link to={authedDest} data-testid={user ? "nav-continue" : "nav-login"}>
             <Button className="bg-caos-forest hover:bg-caos-forest-hover text-white rounded-full px-6">
-              Staff sign in
+              {authedLabel}
             </Button>
           </Link>
         </div>
@@ -95,12 +107,12 @@ export default function Landing() {
                   Launch kiosk demo
                 </Button>
               </Link>
-              <Link to="/login" data-testid="hero-staff-login">
+              <Link to={authedDest} data-testid={user ? "hero-continue" : "hero-staff-login"}>
                 <Button
                   variant="outline"
                   className="rounded-full px-8 h-[60px] text-lg border-2 border-caos-forest text-caos-forest hover:bg-caos-forest hover:text-white"
                 >
-                  Staff dashboard
+                  {user ? authedLabel : "Staff dashboard"}
                 </Button>
               </Link>
             </div>

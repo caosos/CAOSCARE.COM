@@ -102,13 +102,17 @@ For code, when code exists:
 
 1. inspect relevant files first
 2. preserve accepted behavior
-3. keep code files near 200 lines where practical
-4. hard cap code files at 400 lines unless Michael explicitly approves an exception
-5. avoid God files
-6. prefer focused modules and contracts
-7. add receipts / logs / checks where appropriate
+3. aim below 300 lines for handwritten production code files
+4. hard cap handwritten production code files at 300 lines unless Michael explicitly approves an exception
+5. split by clear domain or responsibility, never arbitrary line chopping
+6. avoid God files
+7. do not launch a broad refactor solely to shorten an untouched legacy file that is already over the cap
+8. if modifying an existing code file already above 300 lines, do not make it larger — extract the responsibility being changed when practical
+9. prefer focused modules and contracts
+10. add receipts / logs / checks where appropriate
+11. before finishing any coding task, report the line counts of every created or materially modified production-code file
 
-Text, blueprint, vault, and contract documents are not bound by code-file line limits.
+Documentation, informational files, reports, generated files, static data, lockfiles, and necessary configuration files are exempt from the 300-line cap.
 
 ## Required care principles
 

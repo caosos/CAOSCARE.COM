@@ -3,17 +3,26 @@ the model can invoke during a live conversation).
 
 Split out of realtime.py 2026-08-09 (was pushing that file well past the
 400-line code-file cap). Pure data, no FastAPI routes or DB access. See
-the sibling realtime_self_knowledge.py for the "about yourself" block.
+the sibling realtime_self_knowledge.py for the "about yourself" block, and
+realtime_tools_operations.py (split out 2026-08-10, same reason) for the
+operational request-bus tools: staff requests, transportation, schedule,
+menu.
 """
+from routes.realtime_tools_operations import _build_operations_tools
+from routes.resident_requests import get_request_categories
 
 
-def _build_tools() -> list[dict]:
+async def _build_tools() -> list[dict]:
     """Tool surface CAOS can invoke during a live conversation.
 
     Each tool maps to a public backend endpoint the frontend will call when
     the model emits a `function_call`. Keeping descriptions tight and
     parameters strictly typed forces the model to choose deterministically
     instead of hallucinating arguments.
+
+    Async since 2026-08-10 - the request-category enum is now a live query
+    against the admin-managed Department list instead of a fixed tuple, so
+    a newly-added department is usable by Aria the moment it's created.
     """
     return [
         {
@@ -125,69 +134,16 @@ def _build_tools() -> list[dict]:
         },
         {
             "type": "function",
-            "name": "request_staff_help",
-            "description": (
-                "Create a real, NON-EMERGENCY request routed to the right staff "
-                "department - nursing (private/clinical concerns, wanting to talk "
-                "to a nurse), maintenance (something broken - light, AC, TV, "
-                "plumbing), kitchen (a food/meal issue), housekeeping, front_desk "
-                "(general front-desk needs), or complaint. Use call_for_help "
-                "instead for anything urgent/medical/emergency. After calling this, "
-                "tell the resident the request was CREATED and sent - do not say "
-                "someone is already coming or already spoke to them unless "
-                "check_request_status confirms it."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "category": {
-                        "type": "string",
-                        "enum": ["nursing", "maintenance", "kitchen", "front_desk", "housekeeping", "complaint"],
-                        "description": "Which department this should route to."
-                    },
-                    "summary": {
-                        "type": "string",
-                        "description": "Short, concrete summary of what's needed, in the resident's own terms where possible."
-                    },
-                    "priority": {
-                        "type": "string",
-                        "enum": ["low", "normal", "high", "urgent"],
-                        "description": "Default 'normal' unless the resident indicates real urgency (but not emergency-level - use call_for_help for that)."
-                    }
-                },
-                "required": ["category", "summary"],
-                "additionalProperties": False
-            }
-        },
-        {
-            "type": "function",
-            "name": "check_request_status",
-            "description": (
-                "Check the real status of the resident's most recent staff request "
-                "(from request_staff_help). Use this when they ask things like 'did "
-                "the nurse see my message' or 'is anyone coming for the light'. "
-                "Report only what this actually returns - never say someone is on "
-                "the way unless status is acknowledged/in_progress, and never say "
-                "it's done unless status is completed."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "category": {
-                        "type": "string",
-                        "enum": ["nursing", "maintenance", "kitchen", "front_desk", "housekeeping", "complaint"],
-                        "description": "Optional - narrow to one department's most recent request."
-                    }
-                },
-                "additionalProperties": False
-            }
-        },
-        {
-            "type": "function",
             "name": "mark_resting",
             "description": (
-                "Call this when the resident asks you to be quiet, says they want to rest, "
-                "are going to sleep, or otherwise dismisses the conversation. After this, "
+                "Call this ONLY for a CLEAR, explicit dismissal: 'be quiet', 'stop "
+                "talking', 'let me rest', 'I'm going to sleep', 'not now'. Do NOT call "
+                "this for ambiguous statements, frustration, or comments about volume/"
+                "hearing/technical trouble (e.g. 'turn it up', 'I can't hear you') - "
+                "those are NOT a request to go quiet. You have no control over your "
+                "own voice volume; if asked to speak up or turn yourself up, say so "
+                "plainly instead of going quiet. When unsure whether this is a real "
+                "dismissal, do not call it - keep talking normally. After calling, "
                 "stop talking. Do NOT begin a new turn until they speak again."
             ),
             "parameters": {
@@ -337,6 +293,6 @@ def _build_tools() -> list[dict]:
                 "additionalProperties": False
             }
         },
-    ]
+    ] + _build_operations_tools(await get_request_categories())
 
 
