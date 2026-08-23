@@ -1148,3 +1148,40 @@ Michael reported the local Admin UI at `localhost:3000/admin` showing "Could not
 
 ### Next safe step
 Per the CURRENT_DIRECTIVE.md checkpoint cadence: this is a completed, verified milestone - commit and push now, confirm EliteDesk HEAD == origin/main, then resume Voice work per the directive's stated priority order once Michael confirms the local stack is holding up normally.
+
+---
+
+## 2026-08-23 — Multi-agent execution model started: Lanes B and C integrated, Lane A (Voice) running
+
+### Agent / tool
+Claude Code acting as integration lead per `docs/reports/MULTI_AGENT_EXECUTION_PLAN.md`, coordinating parallel isolated-worktree agents on Lanes A (Voice), B (Admin), C (Scheduling/Transportation). Lane D (QA/review) absorbed into the lead role rather than a separate agent, since it's explicitly read-mostly and overlaps with lead duties.
+
+### Branch / ref
+`main` at `bfbec64` (two merge commits: `2a6e661` Lane B, `bfbec64` Lane C), on top of `f092ae5`.
+
+### What happened
+Each lane worked in its own isolated git worktree so nothing touched the live-running primary tree until reviewed. Every lane's actual diff was inspected line-by-line before merging - not just the lane's own summary - including verifying claimed backend endpoints/deps functions genuinely exist (e.g. `require_front_desk_or_admin`, `visibility_role` query filtering) rather than trusting the report.
+
+**Lane B (Admin)** - facility inventory finding: the backend (`facilities.py`, `Facility` model) and `FacilitiesTab.jsx` were already fully working, not missing - the actual gap was pure UX/IA: zero facilities existed and the only way to discover that was two clicks deep, with no onboarding signal anywhere else even though residents/departments/requests all render as if a community exists. Fixed: a `FacilitySetupBanner` on the main Community administration screen itself (not buried), owner-only CTA that jumps straight to a pre-opened create-facility dialog now also exposing address/timezone fields. Also made each Departments row clickable into a real (first-pass) workspace dialog showing open/completed/skipped counts and the live list of open requests routed there, reusing the existing `GET /tasks?visibility_role=<slug>` filter - no parallel data model.
+
+**Lane C (Scheduling/Transportation)** - full inventory against blueprint sections 10-11 (table in the lane's own report). Found and fixed a real bug along the way: `transportation_report.py`'s "booked" determination only checked the legacy `transport_slot_id` field, never the current engine's `transport_run_id` - any request booked through the modern resource-matching path was misreporting as still "Pending" in the daily-ops report. Also built the actual missing action: a staff-clickable "Assign" button (new `backend/routes/transportation_assign.py`, shared `TransportAssignAction.jsx` component used identically on both the Transportation report and the Transportation calendar) that reuses the exact same `find_or_create_run` engine call the resident-request path already uses, so a staff assignment and a resident-requested booking can never disagree about what counts as booked. Correctly refuses to fabricate anything: with 0 drivers/0 vehicles currently configured, clicking Assign returns an honest "not configured yet" message instead of a fake success.
+
+### What changed
+9 files across the two lanes (all under the 300-line cap): `Admin.jsx`, new `FacilitySetupBanner.jsx`, new `DepartmentWorkspaceDialog.jsx`, `DepartmentsTab.jsx`, `FacilitiesTab.jsx`, new `backend/routes/transportation_assign.py`, new `TransportAssignAction.jsx`, `TransportationCalendar.jsx`, `TransportationTab.jsx`, `transportation_report.py`, `server.py` (router registration). `.gitignore` also updated to exclude `.claude/` (local tooling/worktree state, machine-specific, was showing as perpetual untracked clutter).
+
+### What was verified
+- Every changed/new file's diff read in full before merging, not just each lane's self-report.
+- Backend: dry-run `import server` succeeded (237 routes) before restart; kill/start/health individually confirmed.
+- Frontend: picked up both merges via its own hot-reload (systemd-supervised `craco start` recompiled on its own, confirmed via `journalctl` - no restart needed since no `.env` change this round, only component code).
+- Facility banner: confirmed live via `GET /facilities` returning `[]` (banner will render).
+- Department workspace: confirmed live via `GET /tasks?visibility_role=kitchen` returning real data (7 items).
+- Transportation assign: confirmed live via `GET /transportation/request/<real-pending-task>/assign/context` correctly reporting `drivers_configured:0, vehicles_configured:0, resources_configured:false` for an actual pending mock request.
+- Merged worktrees/branches for Lanes B and C cleaned up (`git worktree remove`, `git branch -d`) once integrated.
+
+### Blocked / not yet done
+- Lane A (Voice fundamentals/regression hunt) still running in its own isolated worktree at time of this entry - not yet reviewed or integrated.
+- Top-level navigation restructure, Staff invite/role lifecycle, Zones, and ScheduleTab's missing calendar-grid/email-ingestion UI trigger all remain open, explicitly deferred by both lanes per the gap report's own priority ordering.
+- Nothing deployed; production untouched.
+
+### Next safe step
+Review and integrate Lane A once it completes (regression matrix + newest-session forensic reconstruction, no tuning). Then resume Voice work directly per the standing priority, informed by whatever Lane A's evidence shows - one controlled change at a time, real-room test, forensic report, keep or revert.

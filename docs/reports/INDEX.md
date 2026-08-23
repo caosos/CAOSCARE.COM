@@ -50,12 +50,10 @@ A newer live resident-room test reproduced a listening-but-deaf state while the 
 - Visible transcription and native Realtime audio understanding can diverge; operational truth/provenance must remain guarded.
 
 ### Admin / operating model
-- Admin information architecture is being consolidated under `ADMIN_PRODUCT_BLUEPRINT.md`.
-- Michael's live screenshots are now required visual acceptance evidence; backend counts alone are not a pass.
-- Company/community/facility onboarding and prerequisite hierarchy need to be audited; downstream objects should not pretend to be configured without a real community/facility.
-- Departments are currently registry rows rather than clickable operational workspaces.
-- Staff access/onboarding and a first-class Front Desk module need coherent end-to-end workflows.
-- Scheduling and transportation calendars need actual dated/day-clickable views and understandable status progression.
+- **Facility onboarding banner shipped** (`f092ae5`..`bfbec64`) - Community administration screen now shows a clear "Set up your community" action when zero facilities exist, instead of silently rendering as if one does. Backend facility CRUD was already working; the gap was pure UX/IA.
+- **Departments are now clickable workspaces** (first pass) - opens a dialog with open/completed/skipped counts and the live routed-request list, reusing existing `/tasks?visibility_role=` data.
+- **Transportation "Pending - no slot yet" now has a real Assign action** on both the report and calendar views, reusing the existing booking engine; honestly reports "not configured yet" rather than faking a booking (0 drivers/0 vehicles currently exist). A real pre-existing bug (booked-status only checking the legacy field) was found and fixed along the way.
+- Still open: top-level nav restructure, staff invite/role lifecycle, Zones, ScheduleTab's calendar-grid view and its missing email-ingestion UI trigger, and actually configuring real drivers/vehicles so Assign has something to book.
 
 ### Architecture debt
 - `backend/models.py` remains oversized temporary technical debt and must be split by coherent domain responsibility in a dedicated round. The prior exception is not permanent precedent.

@@ -4,6 +4,9 @@
 .idea/
 .vscode/
 
+# Claude Code local tooling state (settings, agent worktrees) - machine-local, never shared
+.claude/
+
 # Dependencies
 node_modules/
 /node_modules
