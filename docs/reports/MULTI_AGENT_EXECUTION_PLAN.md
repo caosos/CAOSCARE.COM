@@ -116,7 +116,7 @@ Use the existing partially built transportation/schedule systems where sound.
 
 ### Lane D — QA / architecture / integration review
 
-Prefer this as a read-mostly review lane while A/B/C implement.
+Prefer this as a read-mostly review lane while implementation lanes work.
 
 Responsibilities:
 - watch for cross-lane contradictions
@@ -127,7 +127,50 @@ Responsibilities:
 - maintain a dependency/conflict map
 - review whether each lane still matches the shared blueprint/directive
 
-Do not refactor broad shared foundations such as `backend/models.py` concurrently with A/B/C unless the lead explicitly schedules a dedicated integration window; that refactor touches too many imports and is conflict-prone.
+Do not refactor broad shared foundations such as `backend/models.py` concurrently with implementation lanes unless the lead explicitly schedules a dedicated integration window; that refactor touches too many imports and is conflict-prone.
+
+### Lane E — Clinical / Staff Care app
+
+Own the clinical operating workspace and role-appropriate staff tablet experience, without taking over shared Admin navigation files unless assigned by the integrator.
+
+Read `RUNNING_FACILITY_TESTBED.md` before implementation.
+
+Current facts to preserve:
+- the existing Clinician Dashboard is primarily analytics/trends/recent events
+- the existing Medications feature is medication **reminders**, not a full eMAR
+- current Staff supports basic accounts/roles but not a complete shift/tablet operating workflow
+
+Required direction:
+- clinician overview with resident search/count, relevant alerts/events, med-reminder status/history, quick resident drilldown
+- resident clinical view that combines CAOSCARE-owned clinical/relevant events, reminders/ack history, appointments/schedules, and legitimate integrated context
+- do not fabricate a replacement EHR/eMAR; future real medication orders/administration should integrate with the facility's authoritative clinical system
+- staff tablet sign-in with known community, role and department
+- role-specific home/work queue
+- acknowledge/start/complete work with accountable staff identity
+- resident lookup where authorized
+- Front Desk/clinical/transport views exposed by role, not by giving everyone the Owner console
+
+Synthetic/demo clinical content must remain unmistakably DEMO and must not make autonomous clinical decisions.
+
+### Lane F — Running Facility Testbed / Operational Simulation
+
+Own the simulation/event-engine/test-harness domain defined in `RUNNING_FACILITY_TESTBED.md`.
+
+Goal: make a DEMO community behave like an operating building so Michael can test workflows continuously in the browser.
+
+Required first milestone:
+- owner-only Launch / Pause / Resume / Reset-demo control
+- explicit RUNNING/PAUSED/STOPPED state
+- deterministic scenario packs
+- application-level simulation clock/scenario scheduler; never change OS time
+- synthetic activity flows through real domain services/endpoints wherever practical
+- provenance on every generated event/record
+- sandbox/disable external notifications by default
+- browser-visible event progression across Departments, Front Desk, schedules, transport, clinician/reminders and history
+
+Do not direct-write around business rules merely to make dashboards look busy. An API rejection is test evidence.
+
+Lane F must coordinate domain calls with lane owners but should keep the simulator engine/scenario definitions isolated from the implementation files owned by B/C/E.
 
 ## File ownership and collision rule
 
@@ -161,3 +204,5 @@ CAOSCARE is not a collection of tabs. It is the operating system for a community
 The hierarchy and workflows must make sense from first setup through daily operation.
 
 For Voice specifically: **simple reliable conversation is the foundation.** Preferences, memory, tools, and personalization are valuable only after the microphone -> Realtime -> turn detection -> understanding -> response loop is dependable.
+
+For operational testing: **a functioning database is not a functioning facility.** The Care app must let Michael observe and operate realistic workflows end-to-end from the browser.
