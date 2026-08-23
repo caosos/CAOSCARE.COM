@@ -4,13 +4,21 @@ Start here. Updated by Claude Code every time a report is added or an
 issue is resolved — this is the fastest way to find current state without
 reading the whole folder or asking Michael to paste anything.
 
-_Last updated: 2026-08-23 18:35 UTC_
+_Last updated: 2026-08-23 19:15 UTC_
 
 ## Latest forensic report
 [2026-08-23-1448-room304-morning-forensics.md](2026-08-23-1448-room304-morning-forensics.md)
 — Chauncey/Room 304 morning session. `mark_resting` misfired on a
 non-dismissal phrase; a 20s period with zero detected speech followed,
 cause unproven.
+
+## Latest deployment report
+[2026-08-23-1913-production-deployment-inspection-and-design.md](2026-08-23-1913-production-deployment-inspection-and-design.md)
+— Read-only inspection of the real `caoscare.com` production server
+(found it was 56 commits behind, on a since-completed 2GB→4GB Linode
+resize) plus the full design for a real `git commit → push → deploy`
+mechanism. **Design only — no deploy script exists yet, nothing has been
+deployed.**
 
 ## Latest acceptance-test report
 None yet distinct from the forensic reports above — every real-conversation
