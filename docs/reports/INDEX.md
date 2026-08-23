@@ -13,8 +13,9 @@ _Last updated: 2026-08-23_
 — Governing map for CAOSCARE as a building operating system: company → community/facility → departments/staff/front desk → residents/rooms/devices → requests/tasks/scheduling/transportation/activities/menus/reports. Includes target navigation, department workspaces, staff access, Front Desk, dated calendars, transportation process, and onboarding prerequisites.
 
 ## Admin visual acceptance evidence
-[2026-08-23-admin-visual-acceptance-intake.md](2026-08-23-admin-visual-acceptance-intake.md)
-— Michael uploaded live Admin UI screenshots to the repository root. These are authoritative visual acceptance evidence. Claude should move them into a dated screenshots folder, inspect every image, and produce one consolidated WORKING / PARTIAL / BROKEN / MISSING / WRONG-LOCATION gap report against the Admin blueprint before broad Admin changes.
+[2026-08-23-admin-visual-acceptance-intake.md](2026-08-23-admin-visual-acceptance-intake.md) (intake) →
+[2026-08-23-admin-visual-gap-report.md](2026-08-23-admin-visual-gap-report.md) (**consolidated gap report, done**)
+— Screenshots moved to `docs/reports/screenshots/2026-08-23-admin-review/` with git history preserved. Top finding: **no facility/community record exists at all** ("No facilities yet") even though residents/departments/requests/menu/schedule all render — the real structural gap, more severe than the residents-count complaint, which does not reproduce in the screenshots themselves (they show all 17 residents correctly, including the 10 mocks — most likely a stale-page moment when Michael first looked). Departments confirmed still a registry, not a workspace. Transportation stuck at "Pending — no slot yet" with zero drivers/vehicles configured. Full priority ranking in the report. No Admin code changed yet — inspection only, per instruction.
 
 ## Latest forensic report
 [2026-08-23-1448-room304-morning-forensics.md](2026-08-23-1448-room304-morning-forensics.md)
