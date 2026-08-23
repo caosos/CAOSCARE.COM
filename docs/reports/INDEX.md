@@ -12,6 +12,10 @@ _Last updated: 2026-08-23_
 [ADMIN_PRODUCT_BLUEPRINT.md](ADMIN_PRODUCT_BLUEPRINT.md)
 — Governing map for CAOSCARE as a building operating system: company → community/facility → departments/staff/front desk → residents/rooms/devices → requests/tasks/scheduling/transportation/activities/menus/reports. Includes target navigation, department workspaces, staff access, Front Desk, dated calendars, transportation process, and onboarding prerequisites.
 
+## Admin visual acceptance evidence
+[2026-08-23-admin-visual-acceptance-intake.md](2026-08-23-admin-visual-acceptance-intake.md)
+— Michael uploaded live Admin UI screenshots to the repository root. These are authoritative visual acceptance evidence. Claude should move them into a dated screenshots folder, inspect every image, and produce one consolidated WORKING / PARTIAL / BROKEN / MISSING / WRONG-LOCATION gap report against the Admin blueprint before broad Admin changes.
+
 ## Latest forensic report
 [2026-08-23-1448-room304-morning-forensics.md](2026-08-23-1448-room304-morning-forensics.md)
 — Chauncey/Room 304 morning session. `mark_resting` misfired on a non-dismissal phrase; a ~20s period with zero detected speech followed, cause unproven.
@@ -41,6 +45,7 @@ A newer live resident-room test reproduced a listening-but-deaf state while the 
 
 ### Admin / operating model
 - Admin information architecture is being consolidated under `ADMIN_PRODUCT_BLUEPRINT.md`.
+- Michael's live screenshots are now required visual acceptance evidence; backend counts alone are not a pass.
 - Company/community/facility onboarding and prerequisite hierarchy need to be audited; downstream objects should not pretend to be configured without a real community/facility.
 - Departments are currently registry rows rather than clickable operational workspaces.
 - Staff access/onboarding and a first-class Front Desk module need coherent end-to-end workflows.
