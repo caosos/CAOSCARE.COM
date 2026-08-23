@@ -1,71 +1,53 @@
 # Reports Index
 
-Start here. Updated by Claude Code every time a report is added or an
-issue is resolved — this is the fastest way to find current state without
-reading the whole folder or asking Michael to paste anything.
+Start here. Updated by Claude Code and ChatGPT-Aria as shared project state changes — this is the fastest way to reconstruct current CAOSCARE state without asking Michael to relay prior conversations.
 
-_Last updated: 2026-08-23 20:10 UTC_
+_Last updated: 2026-08-23_
 
 ## Current working directive
 [CURRENT_DIRECTIVE.md](CURRENT_DIRECTIVE.md)
-— Shared standing instructions for Michael, ChatGPT-Aria, and Claude Code:
-EliteDesk + GitHub workflow, Voice-first product priority, ~30-minute
-milestone commit/push cadence, safe synchronization rules, and the standing
-~300-line handwritten production-code architecture rule.
+— Shared standing instructions: EliteDesk + GitHub workflow, Voice-first priority, browser-visible acceptance, ~30-minute milestone commit/push cadence, safe synchronization, and ~300-line/no-God-file architecture rule.
+
+## Admin / community product blueprint
+[ADMIN_PRODUCT_BLUEPRINT.md](ADMIN_PRODUCT_BLUEPRINT.md)
+— Governing map for CAOSCARE as a building operating system: company → community/facility → departments/staff/front desk → residents/rooms/devices → requests/tasks/scheduling/transportation/activities/menus/reports. Includes target navigation, department workspaces, staff access, Front Desk, dated calendars, transportation process, and onboarding prerequisites.
 
 ## Latest forensic report
 [2026-08-23-1448-room304-morning-forensics.md](2026-08-23-1448-room304-morning-forensics.md)
-— Chauncey/Room 304 morning session. `mark_resting` misfired on a
-non-dismissal phrase; a 20s period with zero detected speech followed,
-cause unproven.
+— Chauncey/Room 304 morning session. `mark_resting` misfired on a non-dismissal phrase; a ~20s period with zero detected speech followed, cause unproven.
 
-## Latest deployment report
-[2026-08-23-1913-production-deployment-inspection-and-design.md](2026-08-23-1913-production-deployment-inspection-and-design.md)
-— Read-only inspection of the real `caoscare.com` production server
-(found it was 56 commits behind, on a since-completed 2GB→4GB Linode
-resize) plus the full design for a real `git commit → push → deploy`
-mechanism. Deployment helper scripts were subsequently added and validated,
-but have not been run; public/Linode deployment is currently out of scope.
+## Latest acceptance-test status
+No clean Voice acceptance pass yet.
 
-## Latest acceptance-test report
-None yet distinct from the forensic reports above — every real-conversation
-test so far has surfaced a real defect, so "forensic report" and
-"acceptance-test report" have been the same document. This entry will
-point to a clean pass once one happens.
+A newer live resident-room test reproduced a listening-but-deaf state while the UI continued showing `LIVE · IDLE` / "Speak any time — I'm listening." The visible user transcript also did not semantically match Aria's response. Claude needs to locate and forensically report that newest session before tuning more Voice variables.
 
 ## Latest local-dev-outage report
 [2026-08-23-2008-local-dev-connectivity-outage.md](2026-08-23-2008-local-dev-connectivity-outage.md)
-— **RESOLVED.** Two distinct pure-connectivity failures (IPv6-vs-IPv4
-`localhost` resolution mismatch, first on backend port 8000, then frontend
-port 3000) — never data loss, never a crashed process. Frontend now runs
-under a supervised `systemd --user` service with dual-stack binding.
+— **RESOLVED.** Two distinct IPv6/IPv4 `localhost` connectivity mismatches; never data loss. Frontend/backend connectivity was corrected and the frontend dev process is supervised persistently.
+
+## Latest deployment report
+[2026-08-23-1913-production-deployment-inspection-and-design.md](2026-08-23-1913-production-deployment-inspection-and-design.md)
+— Historical/read-only production inspection and deployment design. Public/Linode deployment is currently out of scope.
 
 ## Current unresolved issues
-- `mark_resting` has no code-level gate — only prompt wording, which the
-  model has overridden twice now (once on "maybe I need to turn it up",
-  once on "You got it."). Needs the same kind of backend-enforced check
-  Priority 1's provenance guard uses, not just tighter wording.
-- The ~20s "went deaf" period after the `mark_resting` misfire is
-  unexplained — no instrumentation exists yet to prove whether the
-  resident was actually speaking and not detected, or was silent.
-- Neither VAD configuration tested live so far (`server_vad` 1000ms, or
-  `semantic_vad` eagerness "low") has produced a session free of real
-  defects. `semantic_vad` caused a 38s total detection dead zone and was
-  reverted; `server_vad` (the restored baseline) still produces premature
-  cutoffs and one/two-word fragment turns.
-- **`backend/models.py` is over the 300-line production-code cap and
-  growing** — 1105 lines before the 2026-08-23 checkpoint commit
-  (`fa6b7ac`), 1302 lines after (+197 this session alone). Approved by
-  Michael as a **TEMPORARY, one-checkpoint-only exception** - not a
-  standing grandfather. Required follow-up: split by coherent domain
-  responsibility (the transportation domain already has its own
-  `backend/models_transportation.py` - same pattern applies to the rest).
-  This needs a dedicated engineering round, with tests before and after,
-  not folded into an unrelated change. **This exception expires after the
-  2026-08-23 checkpoint** - the next file-size review must not treat this
-  as pre-approved again.
+
+### Voice
+- Listening-but-deaf failure remains active; newest session needs forensic reconstruction.
+- Mic/audio-path instrumentation may still be insufficient to prove resident-silent vs resident-speaking-but-not-detected.
+- `mark_resting` still requires a code-level intent gate.
+- Short echo/phantom turns remain a known failure mode.
+- `server_vad` remains the baseline; prior `semantic_vad` eagerness `low` experiment caused a 38s detection dead zone and was reverted.
+- Visible transcription and native Realtime audio understanding can diverge; operational truth/provenance must remain guarded.
+
+### Admin / operating model
+- Admin information architecture is being consolidated under `ADMIN_PRODUCT_BLUEPRINT.md`.
+- Company/community/facility onboarding and prerequisite hierarchy need to be audited; downstream objects should not pretend to be configured without a real community/facility.
+- Departments are currently registry rows rather than clickable operational workspaces.
+- Staff access/onboarding and a first-class Front Desk module need coherent end-to-end workflows.
+- Scheduling and transportation calendars need actual dated/day-clickable views and understandable status progression.
+
+### Architecture debt
+- `backend/models.py` remains oversized temporary technical debt and must be split by coherent domain responsibility in a dedicated round. The prior exception is not permanent precedent.
 
 ## Current system state
-See [`docs/PROJECT_STATE.md`](../PROJECT_STATE.md) — the single running
-dated log of what changed, what was verified, and what's next. Most
-recent entry is at the bottom of the file.
+See [`docs/PROJECT_STATE.md`](../PROJECT_STATE.md) for the dated implementation log. For current marching orders, prefer `CURRENT_DIRECTIVE.md`; for Admin/product structure, prefer `ADMIN_PRODUCT_BLUEPRINT.md`.
