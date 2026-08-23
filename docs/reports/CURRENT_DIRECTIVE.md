@@ -55,13 +55,42 @@ Engineering method:
 
 Do not tune several audio variables at once. Michael performs the authoritative human acceptance test.
 
-## 4. What comes after Voice
+**Voice fundamentals rule:** the simple early resident-voice implementation appeared materially more reliable than the current complex stack. Do not respond by adding more tuning blindly. Identify the historical reliable baseline, compare it to current, build a regression matrix, and if useful A/B an isolated minimal baseline against current. Preferences, memory, tools, and personalization are secondary to a dependable microphone -> Realtime -> turn detection -> understanding -> response loop.
+
+## 4. Standing multi-agent execution model
+
+From now on, substantial CAOSCARE work should use multiple agents in parallel **on different lanes**, not multiple agents racing on the same subsystem.
+
+Read and follow:
+
+`docs/reports/MULTI_AGENT_EXECUTION_PLAN.md`
+
+Standing rules:
+- use isolated worktrees/branches or equivalent safe isolation for implementation lanes
+- primary `~/CAOSCARE.COM` is the integration/acceptance tree
+- one lead/integration agent coordinates file/domain ownership
+- no two agents edit the same central production file concurrently
+- background agents do not silently merge/reset/rebase/deploy/delete data
+- each lane reads current GitHub state before working
+- integration agent reviews and tests completed lane work before main is checkpointed
+
+Current lanes are:
+- **A: Voice fundamentals/regression hunt — highest priority**
+- **B: Community/Admin operating model + screenshot/visual acceptance**
+- **C: Scheduling/calendars/transportation**
+- **D: QA/architecture/integration review — preferably read-mostly while A/B/C implement**
+
+Do not run the broad `backend/models.py` split concurrently with these lanes unless the lead explicitly schedules a dedicated integration window; it is too cross-cutting and conflict-prone.
+
+## 5. What comes after Voice
 
 Once Voice reaches a meaningful reliability threshold:
 
 1. Scheduling / calendars / appointments / transportation coordination.
 2. Admin/community operating-system gaps according to `ADMIN_PRODUCT_BLUEPRINT.md`.
 3. Other partially built systems.
+
+Parallel Lane B/C may continue on clearly isolated, non-conflicting work while Voice Lane A is active; Voice remains the top acceptance priority.
 
 Do not rebuild existing systems blindly. First inventory each area as:
 - WORKING
@@ -72,7 +101,7 @@ Do not rebuild existing systems blindly. First inventory each area as:
 
 Then finish coherent workflows end-to-end.
 
-## 5. Browser-visible acceptance is required
+## 6. Browser-visible acceptance is required
 
 Database/API success is not sufficient.
 
@@ -85,7 +114,9 @@ For every meaningful feature reported complete, provide:
 
 If Mongo contains data but Michael cannot see/use it from the intended screen, it is not accepted.
 
-## 6. Approximately 30-minute checkpoint cadence
+Michael's screenshots are authoritative visual acceptance evidence and should be reconciled against the product blueprint.
+
+## 7. Approximately 30-minute checkpoint cadence
 
 Use approximately **30-minute development checkpoints**, or a meaningful milestone sooner.
 
@@ -113,7 +144,7 @@ Thirty minutes is a checkpoint target, not permission to push broken code. Finis
 
 Michael grants standing approval for normal milestone commits/pushes of completed, tested, non-destructive work under this cadence. This does not authorize destructive Git operations, deployment, database mutation, or knowingly broken commits.
 
-## 7. Safe EliteDesk / GitHub synchronization
+## 8. Safe EliteDesk / GitHub synchronization
 
 At session start:
 1. `git fetch origin`
@@ -134,7 +165,7 @@ ELITEDESK HEAD == GITHUB origin/main
 working tree clean
 ```
 
-## 8. Standing ~300-line architecture rule
+## 9. Standing ~300-line architecture rule
 
 Handwritten production code should normally remain at or below approximately **300 lines per file**.
 
@@ -152,7 +183,7 @@ At every checkpoint inspect materially changed handwritten production files and 
 
 **There should be no God files in CAOSCARE.**
 
-## 9. Local development stack status
+## 10. Local development stack status
 
 The prior local data/auth outage is **resolved** and documented. It was not data loss.
 
@@ -162,7 +193,7 @@ Two hostname-resolution mismatches were fixed:
 
 Do not reopen that incident unless current evidence shows a regression.
 
-## 10. State/evidence safety
+## 11. State/evidence safety
 
 - inspect before mutating
 - preserve uncommitted work
@@ -171,7 +202,7 @@ Do not reopen that incident unless current evidence shows a regression.
 - do not deploy merely to test local development
 - do not reset/reseed databases without explicit evidence and approval
 
-## 11. Working principle
+## 12. Working principle
 
 The repo is the shared state layer.
 

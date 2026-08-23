@@ -6,7 +6,11 @@ _Last updated: 2026-08-23_
 
 ## Current working directive
 [CURRENT_DIRECTIVE.md](CURRENT_DIRECTIVE.md)
-— Shared standing instructions: EliteDesk + GitHub workflow, Voice-first priority, browser-visible acceptance, ~30-minute milestone commit/push cadence, safe synchronization, and ~300-line/no-God-file architecture rule.
+— Shared standing instructions: EliteDesk + GitHub workflow, Voice-first fundamentals/regression priority, parallel non-overlapping agent lanes, browser-visible acceptance, ~30-minute milestone commit/push cadence, safe synchronization, and ~300-line/no-God-file architecture rule.
+
+## Multi-agent execution plan
+[MULTI_AGENT_EXECUTION_PLAN.md](MULTI_AGENT_EXECUTION_PLAN.md)
+— Standing parallel-work model. Multiple agents work simultaneously on different, explicitly owned domains using isolated worktrees/branches, with one lead/integration agent protecting the primary tree. Current lanes: Voice fundamentals/regression hunt; Community/Admin operating model + visual acceptance; Scheduling/calendars/transportation; QA/architecture/integration review. No two agents race on the same production files.
 
 ## Admin / community product blueprint
 [ADMIN_PRODUCT_BLUEPRINT.md](ADMIN_PRODUCT_BLUEPRINT.md)
@@ -24,7 +28,7 @@ _Last updated: 2026-08-23_
 ## Latest acceptance-test status
 No clean Voice acceptance pass yet.
 
-A newer live resident-room test reproduced a listening-but-deaf state while the UI continued showing `LIVE · IDLE` / "Speak any time — I'm listening." The visible user transcript also did not semantically match Aria's response. Claude needs to locate and forensically report that newest session before tuning more Voice variables.
+A newer live resident-room test reproduced a listening-but-deaf state while the UI continued showing `LIVE · IDLE` / "Speak any time — I'm listening." The visible user transcript also did not semantically match Aria's response. Voice work is now explicitly a **fundamentals/regression hunt**: identify the earlier reliable baseline, compare it with current, instrument missing boundaries, and A/B a minimal baseline if useful before more tuning.
 
 ## Latest local-dev-outage report
 [2026-08-23-2008-local-dev-connectivity-outage.md](2026-08-23-2008-local-dev-connectivity-outage.md)
@@ -38,6 +42,7 @@ A newer live resident-room test reproduced a listening-but-deaf state while the 
 
 ### Voice
 - Listening-but-deaf failure remains active; newest session needs forensic reconstruction.
+- Need historical regression comparison against the simpler early Voice implementation that behaved better.
 - Mic/audio-path instrumentation may still be insufficient to prove resident-silent vs resident-speaking-but-not-detected.
 - `mark_resting` still requires a code-level intent gate.
 - Short echo/phantom turns remain a known failure mode.
@@ -54,6 +59,7 @@ A newer live resident-room test reproduced a listening-but-deaf state while the 
 
 ### Architecture debt
 - `backend/models.py` remains oversized temporary technical debt and must be split by coherent domain responsibility in a dedicated round. The prior exception is not permanent precedent.
+- Do not run that broad split concurrently with active Voice/Admin/Scheduling implementation lanes unless the lead schedules a dedicated integration window.
 
 ## Current system state
-See [`docs/PROJECT_STATE.md`](../PROJECT_STATE.md) for the dated implementation log. For current marching orders, prefer `CURRENT_DIRECTIVE.md`; for Admin/product structure, prefer `ADMIN_PRODUCT_BLUEPRINT.md`.
+See [`docs/PROJECT_STATE.md`](../PROJECT_STATE.md) for the dated implementation log. For current marching orders, prefer `CURRENT_DIRECTIVE.md`; for parallel execution rules, `MULTI_AGENT_EXECUTION_PLAN.md`; for Admin/product structure, `ADMIN_PRODUCT_BLUEPRINT.md`.
