@@ -4,6 +4,7 @@ import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Badge } from "../components/ui/badge";
+import TransportAssignAction from "../components/TransportAssignAction";
 import { toast } from "sonner";
 
 function fmtDateTime(iso) {
@@ -92,9 +93,12 @@ export default function TransportationTab() {
                 Requested at {fmtDateTime(i.received_at)} · Appointment {i.requested_for_date} ({i.requested_for_time_label || "no time given"}) · via {i.source}
               </div>
             </div>
-            <Badge className={i.booked ? "bg-caos-forest text-white shrink-0" : "bg-caos-amber/20 text-caos-forest border border-caos-amber shrink-0"}>
-              {i.booked ? "Booked" : "Pending — no slot yet"}
-            </Badge>
+            <div className="flex items-center gap-2 shrink-0">
+              <Badge className={i.booked ? "bg-caos-forest text-white shrink-0" : "bg-caos-amber/20 text-caos-forest border border-caos-amber shrink-0"}>
+                {i.booked ? "Booked" : "Pending — no slot yet"}
+              </Badge>
+              {!i.booked && <TransportAssignAction taskId={i.task_id} onAssigned={fetchReport} />}
+            </div>
           </div>
         ))}
       </Section>

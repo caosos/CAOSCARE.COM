@@ -4,6 +4,7 @@ import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Badge } from "../components/ui/badge";
+import TransportAssignAction from "../components/TransportAssignAction";
 import { toast } from "sonner";
 
 // Day/week transportation timeline - the same TransportRun/StaffTask data
@@ -57,7 +58,7 @@ function RunCard({ run }) {
   );
 }
 
-function PendingCard({ p }) {
+function PendingCard({ p, onAssigned }) {
   return (
     <div className="rounded-xl border-2 border-caos-amber bg-caos-amber/10 p-3 mb-2" data-testid="calendar-pending-card">
       <div className="flex items-center justify-between gap-2">
@@ -67,18 +68,21 @@ function PendingCard({ p }) {
       <div className="text-sm mt-1">
         <strong>{p.resident_name || p.room || "unknown"}</strong>{p.room ? ` (${p.room})` : ""} — {p.purpose}
       </div>
+      <div className="mt-2">
+        <TransportAssignAction taskId={p.task_id} onAssigned={onAssigned} />
+      </div>
     </div>
   );
 }
 
-function DayColumn({ day }) {
+function DayColumn({ day, onAssigned }) {
   const hasAny = day.runs.length > 0 || day.pending.length > 0;
   return (
     <div className="min-w-[260px] flex-1">
       <div className="text-xs font-bold uppercase tracking-widest text-caos-mute mb-2">{fmtDay(day.date)}</div>
       {!hasAny && <div className="text-caos-mute text-sm">Nothing scheduled.</div>}
       {day.runs.map((r) => <RunCard key={r.run_id} run={r} />)}
-      {day.pending.map((p) => <PendingCard key={p.task_id} p={p} />)}
+      {day.pending.map((p) => <PendingCard key={p.task_id} p={p} onAssigned={onAssigned} />)}
     </div>
   );
 }
@@ -116,7 +120,7 @@ export default function TransportationCalendar() {
         <div className="text-caos-mute text-sm">Loading…</div>
       ) : (
         <div className="flex gap-4 overflow-x-auto pb-2">
-          {data.days.map((day) => <DayColumn key={day.date} day={day} />)}
+          {data.days.map((day) => <DayColumn key={day.date} day={day} onAssigned={fetchCalendar} />)}
         </div>
       )}
     </Card>

@@ -43,6 +43,7 @@ from routes import transportation_resources as transportation_resources_routes  
 from routes import transportation_calendar as transportation_calendar_routes  # noqa: E402
 from routes import transportation_legacy_slots as transportation_legacy_slots_routes  # noqa: E402
 from routes import transportation_voice_context as transportation_voice_context_routes  # noqa: E402
+from routes import transportation_assign as transportation_assign_routes  # noqa: E402
 from routes import departments as department_routes  # noqa: E402
 from routes import haiku as haiku_routes  # noqa: E402
 from routes import paging as paging_routes  # noqa: E402
@@ -148,6 +149,7 @@ api.include_router(transportation_resources_routes.router)
 api.include_router(transportation_calendar_routes.router)
 api.include_router(transportation_legacy_slots_routes.router)
 api.include_router(transportation_voice_context_routes.router)
+api.include_router(transportation_assign_routes.router)
 api.include_router(department_routes.router)
 api.include_router(haiku_routes.router)
 api.include_router(paging_routes.router)
