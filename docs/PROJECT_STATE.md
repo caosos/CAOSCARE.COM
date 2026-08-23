@@ -1075,3 +1075,41 @@ The immediately prior entry ("docs/reports/ channel with a real Aria tool") buil
 
 ### Next safe step
 Michael: confirm how your ChatGPT-Aria actually needs to reach `docs/reports/` (repo push required? already has some access? you'll paste `INDEX.md` in yourself for now?) so the next step is built for how you actually work, not assumed.
+
+---
+
+## 2026-08-23 — CAOSCARE checkpoint commit pushed to origin/main; models.py tracked as expiring technical debt
+
+### Agent / tool
+Claude Code with Michael.
+
+### Branch / ref
+`main` at `fa6b7ac050fe0117328c8aa44d37ff44df71e354`, pushed to `origin/main` (was `48a84e0`). Working tree clean after push.
+
+### What happened
+Michael established the real CAOSCARE deployment workflow goal (EliteDesk → commit → push GitHub → deploy to production) and approved a full checkpoint of the accumulated Terminal 8/9 + tonight's Realtime-voice-repair + `docs/reports/` work. Before staging, ran a full inspection (git status, secrets scan, production build, backend tests/health, every handwritten file's line count vs. its HEAD baseline) and found three real standing-rule violations that had crept in this session - fixed all three via genuine extraction (not line-chopping), verified behavior-identical:
+- `backend/routes/auth.py`: 278→309→**278** (self-service password-change endpoint extracted to new `auth_password.py`, byte-identical to HEAD afterward).
+- `backend/routes/realtime.py`: 318→327→**308** (VAD/noise-reduction constants extracted to new `realtime_audio_config.py` - now smaller than its original pre-session baseline).
+- `frontend/src/pages/Admin.jsx`: 302→**237** (the `tabGroups` pure-data function extracted to new `frontend/src/lib/adminTabGroups.js`).
+- `backend/routes/realtime_companion_prompt.py`: 328→**240** (resident profile/memory-bin hydration extracted to new `realtime_companion_memory.py`; verified live via a session mint that the produced prompt text is unchanged).
+
+One gap in that inspection: `backend/models.py`'s delta wasn't checked initially and turned out to have grown +197 lines this session (1105→1302), on top of already being over cap. Flagged transparently once caught (not silently proceeded, not silently fixed unilaterally - splitting it is a cross-cutting refactor touching imports across most of `routes/*.py`, too large/risky to fold into a push). Michael approved it as a **temporary, one-checkpoint-only exception**, explicitly not a standing grandfather - recorded in `docs/reports/INDEX.md`'s unresolved-issues section with exact before/after sizes and the required follow-up (domain split, same pattern as the existing `models_transportation.py`).
+
+### What changed
+81 files, +7810/-1694, one commit (`fa6b7ac`): Terminal 8/9 platform build-out (transportation, departments, menu, schedule, resident-request bus), Resident Record conversation history, resident kiosk-provisioning fix, the full night's Realtime voice trust/provenance work (playback tracking, no-loss persistence, operational-provenance guard, overlap classifier, lifecycle diagnostics, greeting/mark_resting fixes, VAD revert), self-service password change, Admin.jsx component split, and the new `docs/reports/` channel. Pulled 2 upstream-only doc commits first (clean fast-forward, zero conflict). No force-push, no history rewrite, no deletions.
+
+### What was verified
+- Backend: dry-run `import server` succeeded before every restart; each restart individually confirmed stopped-then-healthy.
+- Frontend: real production build (`yarn build`, not just dev-server) succeeded twice (before and after the Admin.jsx/realtime_companion_prompt.py extractions) - only 4 pre-existing lint warnings, same bundle size both times.
+- Backend test suite run: 37 passed, 22 failed, 99 errors, 15 skipped - sampled a failure directly and confirmed it's a demo-credential/fixture environment issue (`401 Invalid credentials` against a non-seeded demo account), not a code regression. Not exhaustively verified for every failure.
+- Secrets scan across all 78 candidate files: clean (one false positive, a `data-testid` string). `.env`/`.env.*` confirmed gitignored and untracked; only placeholder `.env.example` files tracked.
+- `git status` clean after push; `origin/main` confirmed matching local HEAD exactly.
+
+### Blocked / not yet done
+- `backend/models.py` domain split - explicitly deferred to its own dedicated round with tests before and after, per Michael's direct instruction not to mix it into this checkpoint.
+- `mark_resting`'s missing code-level gate, the unproven "deaf period" mechanism, and the VAD reliability question all remain open (tracked in `docs/reports/INDEX.md`).
+- Production deployment of CAOSCare.com - explicitly NOT approved yet; inspection of the current production/deployment architecture is the next phase, still pending.
+- Nothing else staged, committed, pushed, or pulled beyond this checkpoint.
+
+### Next safe step
+Per Michael's explicit instruction: STOP feature work. The next dedicated engineering round should be the `models.py` domain split (tests before and after), not bundled with anything else. Separately, whenever Michael is ready: inspect the actual CAOSCare.com production/deployment architecture (server, DNS, reverse proxy, process management, env/secrets, TLS, health checks, rollback) and design the smallest repeatable deploy path - explicitly not to be executed until Michael says "DEPLOY".

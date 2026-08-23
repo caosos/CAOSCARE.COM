@@ -4,7 +4,7 @@ Start here. Updated by Claude Code every time a report is added or an
 issue is resolved — this is the fastest way to find current state without
 reading the whole folder or asking Michael to paste anything.
 
-_Last updated: 2026-08-23 15:20 UTC_
+_Last updated: 2026-08-23 18:35 UTC_
 
 ## Latest forensic report
 [2026-08-23-1448-room304-morning-forensics.md](2026-08-23-1448-room304-morning-forensics.md)
@@ -31,6 +31,17 @@ point to a clean pass once one happens.
   defects. `semantic_vad` caused a 38s total detection dead zone and was
   reverted; `server_vad` (the restored baseline) still produces premature
   cutoffs and one/two-word fragment turns.
+- **`backend/models.py` is over the 300-line production-code cap and
+  growing** — 1105 lines before the 2026-08-23 checkpoint commit
+  (`fa6b7ac`), 1302 lines after (+197 this session alone). Approved by
+  Michael as a **TEMPORARY, one-checkpoint-only exception** - not a
+  standing grandfather. Required follow-up: split by coherent domain
+  responsibility (the transportation domain already has its own
+  `backend/models_transportation.py` - same pattern applies to the rest).
+  This needs a dedicated engineering round, with tests before and after,
+  not folded into an unrelated change. **This exception expires after the
+  2026-08-23 checkpoint** - the next file-size review must not treat this
+  as pre-approved again.
 
 ## Current system state
 See [`docs/PROJECT_STATE.md`](../PROJECT_STATE.md) — the single running
