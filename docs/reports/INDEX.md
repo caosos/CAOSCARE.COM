@@ -26,13 +26,17 @@ _Last updated: 2026-08-23_
 — Screenshots moved to `docs/reports/screenshots/2026-08-23-admin-review/` with git history preserved. Top finding: **no facility/community record exists at all** ("No facilities yet") even though residents/departments/requests/menu/schedule all render — the real structural gap, more severe than the residents-count complaint, which does not reproduce in the screenshots themselves (they show all 17 residents correctly, including the 10 mocks — most likely a stale-page moment when Michael first looked). Departments confirmed still a registry, not a workspace. Transportation stuck at "Pending — no slot yet" with zero drivers/vehicles configured. Full priority ranking in the report.
 
 ## Latest forensic report
-[2026-08-23-1448-room304-morning-forensics.md](2026-08-23-1448-room304-morning-forensics.md)
-— Chauncey/Room 304 morning session. `mark_resting` misfired on a non-dismissal phrase; a ~20s period with zero detected speech followed, cause unproven.
+[2026-08-23-2046-room121-deadzone-forensics.md](2026-08-23-2046-room121-deadzone-forensics.md)
+— **Lane A, evidence-only, no code changed.** New session (michael/Room 121), 83s terminal dead zone, zero tool calls — disproves `mark_resting` as a necessary trigger (widens the Room 304 finding below). Transport/WebRTC healthy throughout; UI state was accurate about itself, wrong about reality. Confirms the visible-transcript-vs-actual-response divergence Michael described: transcript "things everywhere." vs. Aria's correct time-of-day answer, from independent transcription vs. conversational models. Flags a new data-integrity gap: the wrong transcript was persisted as `trusted: true`. Also documents a sibling session where Aria's own delayed greeting echo (5.7s post-response, past the overlap window) was stored as trusted resident speech and answered as if resident-spoken. Prior: [2026-08-23-1448-room304-morning-forensics.md](2026-08-23-1448-room304-morning-forensics.md) (Chauncey/Room 304 — `mark_resting` misfire, ~20s dead zone).
+
+## Voice regression matrix
+[2026-08-23-2152-voice-regression-matrix.md](2026-08-23-2152-voice-regression-matrix.md)
+— **Lane A's fundamentals-hunt deliverable, evidence-only.** Full EARLY (`dba0499`, 2026-04-24) vs. NOW input-path comparison across 13 instrumented sessions. Prompt/memory/tool growth (30x, 0→20 tools) explicitly **exonerated** for the deafness regression — all downstream of VAD. Narrowed to 3 input-path deltas: `far_field` noise reduction (upstream of VAD), `silence_duration_ms` doubled to 1000ms, and `interrupt_response: true` (added 08-23, correlates 3/4 deaf sessions vs 1/9, but n=4 and time-confounded). VAD type (server vs semantic) ruled out as differentiator. **Recommended next step, not yet built:** passive `AnalyserNode` RMS mic-level instrumentation (~30 lines) to distinguish "resident silent" from "resident spoke, undetected" before further A/B — current negative results are unfalsifiable without it. If built, proposed single-variable ladder: revert `interrupt_response` first, then `noise_reduction`, then `silence_duration_ms`, testing >=3 real-room minutes between each.
 
 ## Latest acceptance-test status
 No clean Voice acceptance pass yet.
 
-A newer live resident-room test reproduced a listening-but-deaf state while the UI continued showing `LIVE · IDLE` / "Speak any time — I'm listening." The visible user transcript also did not semantically match Aria's response. Voice work is now explicitly a **fundamentals/regression hunt**: identify the earlier reliable baseline, compare it with current, instrument missing boundaries, and A/B a minimal baseline if useful before more tuning.
+A newer live resident-room test reproduced a listening-but-deaf state while the UI continued showing `LIVE · IDLE` / "Speak any time — I'm listening." The visible user transcript also did not semantically match Aria's response. Voice work is now explicitly a **fundamentals/regression hunt**: identify the earlier reliable baseline, compare it with current, instrument missing boundaries, and A/B a minimal baseline if useful before more tuning. **Lane A's fundamentals hunt is now complete as an evidence pass** — see regression matrix above; the recommended next action (mic-level instrumentation) has not been built yet.
 
 ## Latest local-dev-outage report
 [2026-08-23-2008-local-dev-connectivity-outage.md](2026-08-23-2008-local-dev-connectivity-outage.md)
@@ -45,12 +49,13 @@ A newer live resident-room test reproduced a listening-but-deaf state while the 
 ## Current unresolved issues
 
 ### Voice
-- Listening-but-deaf failure remains active; newest session needs forensic reconstruction.
-- Need historical regression comparison against the simpler early Voice implementation that behaved better.
-- Mic/audio-path instrumentation may still be insufficient to prove resident-silent vs resident-speaking-but-not-detected.
-- `mark_resting` still requires a code-level intent gate.
-- Short echo/phantom turns remain a known failure mode.
-- `server_vad` remains the baseline; prior `semantic_vad` eagerness `low` experiment caused a 38s detection dead zone and was reverted.
+- Listening-but-deaf failure remains active; newest session (Room 121) forensically reconstructed — 83s terminal dead zone, zero tool calls, transport healthy.
+- **Historical regression comparison done** (see Voice regression matrix above): input-path narrowed to 3 candidate deltas (`far_field` NR, `silence_duration_ms: 1000`, `interrupt_response: true`); prompt/memory/tool growth exonerated. `interrupt_response` is the leading hypothesis (H1) but n=4 and time-confounded — not proven.
+- Mic/audio-path instrumentation is still insufficient to prove resident-silent vs resident-speaking-but-not-detected — **this is now the explicit blocker before further A/B testing.** Proposed fix (not built): passive `AnalyserNode` RMS mic-level heartbeat, ~30 lines.
+- `mark_resting` still requires a code-level intent gate — **confirmed not necessary for the dead-zone failure** (Room 121 went deaf with zero tool calls); remains a real but separate UX defect.
+- Short echo/phantom turns remain a known failure mode. **New:** delayed acoustic echo (arriving after `output_audio_buffer.stopped`, past the overlap window) bypasses the trust boundary entirely — a resident session had Aria's own greeting echo back 5.7s later, stored `trusted: true`, and answered as if resident-spoken.
+- **New data-integrity gap:** a known-wrong transcript ("things everywhere.") was persisted as `trusted: true` resident memory because `classifyUserTurn()` only measures playback overlap and `transcriptionConfidence()` permanently no-ops (API returns no logprobs on this path). Needs a design decision, not yet a patch.
+- `server_vad` remains the baseline; prior `semantic_vad` eagerness `low` experiment caused a 38s detection dead zone and was reverted. VAD type itself is now ruled out as the deafness differentiator — dead zones occurred under both.
 - Visible transcription and native Realtime audio understanding can diverge; operational truth/provenance must remain guarded.
 
 ### Clinical / Staff Care app
