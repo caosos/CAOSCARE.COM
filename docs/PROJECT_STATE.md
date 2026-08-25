@@ -1185,3 +1185,35 @@ Each lane worked in its own isolated git worktree so nothing touched the live-ru
 
 ### Next safe step
 Review and integrate Lane A once it completes (regression matrix + newest-session forensic reconstruction, no tuning). Then resume Voice work directly per the standing priority, informed by whatever Lane A's evidence shows - one controlled change at a time, real-room test, forensic report, keep or revert.
+
+---
+
+## 2026-08-24 — Voice echo research pass + Room 404 forensics + Lane A integration
+
+### Agent / tool
+Claude Code, EliteDesk primary worktree (integration lead).
+
+### Branch / ref
+`main`, four commits this entry: `33c922b` (Lane A integration), `96662f1` (Room 404 forensics), `c046154` (telemetry), plus this doc's own commit. All pushed, `origin/main` matches.
+
+### What changed
+- Integrated Lane A's Voice regression matrix + Room 121 dead-zone forensic reports (evidence-only, no code) via cherry-pick after its worktree branch went stale relative to `main`; worktree/branch cleaned up.
+- Read-only forensic reconstruction of the most recent Room 404 Realtime session (`rt_b0kywhng_1787614161842`, found automatically via room→resident→kiosk lookup, no session ID given). Reproduced and resident-confirmed the echo/trust-boundary defect Lane A had only suspected: 3 fabricated "user" turns in 19 seconds, each a mishearing of Aria's own prior words, persisted `trusted:true`; the resident verbally denied two of them live. Pinpointed the exact cause in `classifyUserTurn()` (`realtimeMessageHandler.js`): the echo-resemblance check only runs when a turn is both overlapped AND ≤2 words - a 3-word real-time echo and any delayed (post-playback) echo both structurally skip it.
+- Per Michael's explicit research-first directive: researched WebRTC AEC3, Chromium's audio pipeline, `echoCancellationType`, OpenAI's Realtime docs, and prior art (LiveKit, Twilio, Pipecat) before touching code. Confirmed CAOSCARE's output routing (`<audio>`+`srcObject`, no AudioContext bypass) already matches the one architecture that matters most in the research; confirmed OpenAI provides zero server-side echo cancellation (100% client/hardware responsibility); identified the free zero-code `chrome://webrtc-internals` AEC-dump diagnostic as the strongest next step, not yet run.
+- **Tested a `classifyUserTurn()` widening fix against real Room 404 data before writing it**, found it would falsely flag genuine resident speech ("Bake chicken thighs?" scores the same resemblance ratio as the real echoes) - deliberately did not ship it. Shipped one small, purely additive telemetry change instead (`frontend/src/lib/realtimeMessageHandler.js`, 281→299 lines): independent `output_audio_buffer_started`/`stopped` events, per-turn `speech_segment_ms`, `ms_since_assistant_stopped` on every `user_transcript`, and persisted `realtime_error` events (previously UI-only).
+- New report files: `docs/reports/2026-08-24-2337-room404-forensics.md`, `docs/reports/2026-08-24-2100-voice-echo-research-and-audio-path-architecture.md`. `docs/reports/INDEX.md` updated. Posted full findings to GitHub Issue #22 for ChatGPT-Aria.
+
+### What was verified
+- Room 404 session data pulled directly from `db.conversations`/`db.realtime_diagnostics` (read-only), cross-checked against the resident's own live correction in the transcript.
+- Codebase greps confirmed (not assumed): no `AudioContext`/`AudioContext.destination` routing of the Realtime stream anywhere; the one `AudioContext` use (`Kiosk.jsx`) is inert; `getSettings()` sampled exactly once; no `error`/`response.cancelled` persistence existed before this pass.
+- `frontend/src/lib/realtimeMessageHandler.js` compiled cleanly 4 times in a row against the live supervised frontend dev service (hot-reload, `journalctl` confirmed) across the incremental edits, zero new errors/warnings.
+- All 7 SIM lane issues re-checked; SIM-7 (#21, ChatGPT-Aria's `aria/sim-7-inbound-email-bus`) not touched.
+
+### Blocked / not yet done
+- No production code fix for the echo defect shipped yet - deliberately deferred pending real telemetry from the next live test (this pass only adds instrumentation).
+- `chrome://webrtc-internals` AEC-dump capture not yet performed - requires Michael's live session, zero code needed.
+- Controlled A/B/C test plan (Aria-only / full-duplex / far-field) written and ready but not run.
+- Whether the eMeet's onboard hardware AEC can be toggled/coordinated is an open hardware/OS-level question, not resolvable from CAOSCARE's own code on Linux (`echoCancellationType:"system"` is Mac/Windows-only per Chrome's own docs).
+
+### Next safe step
+Michael runs a real-room test with `chrome://webrtc-internals` AEC-dump capture enabled. With that plus the new `speech_segment_ms`/`ms_since_assistant_stopped` telemetry, decide whether the next controlled change belongs in the audio path (mic/output constraints) or the trust-boundary classifier - do not guess ahead of that data.
