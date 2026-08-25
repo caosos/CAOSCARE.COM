@@ -14,10 +14,15 @@ import httpx
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
+from routes.realtime_facility import get_active_facility
 
 router = APIRouter(prefix="/weather", tags=["weather"])
 logger = logging.getLogger(__name__)
 
+# Env fallback only - preferred source is the live facility record's own
+# lat/lon/name (2026-08-25: no FACILITY_LAT/LON were ever set, so this
+# fallback silently served Pennsylvania-area coordinates for a facility
+# actually in Conway, Arkansas; see get_active_facility() below).
 DEFAULT_LAT = float(os.environ.get("FACILITY_LAT") or 40.0379)
 DEFAULT_LON = float(os.environ.get("FACILITY_LON") or -76.3055)
 DEFAULT_LABEL = os.environ.get("FACILITY_LABEL") or "the facility"
@@ -143,17 +148,25 @@ async def get_current_weather(
 ):
     """Public endpoint — used by the kiosk Realtime tool dispatcher.
     If both lat and lon are provided they take precedence. If only `label` is
-    given, we geocode it (free Open-Meteo geocoding API). Otherwise we fall
-    back to the facility's coordinates from .env."""
+    given, we geocode it (free Open-Meteo geocoding API). Otherwise we use
+    the live facility record's own coordinates/name when set, falling back
+    to .env, then the hardcoded default."""
     try:
         if lat is None and lon is None and label:
             geo = await _geocode(label)
             if geo:
                 lat, lon, label = geo
+        facility_lat, facility_lon, facility_label = DEFAULT_LAT, DEFAULT_LON, DEFAULT_LABEL
+        if lat is None and lon is None:
+            facility = await get_active_facility()
+            if facility and facility.get("lat") is not None and facility.get("lon") is not None:
+                facility_lat, facility_lon = facility["lat"], facility["lon"]
+                place = ", ".join(p for p in [facility.get("city"), facility.get("state")] if p)
+                facility_label = place or facility.get("name") or DEFAULT_LABEL
         return await current_weather(
-            lat=lat if lat is not None else DEFAULT_LAT,
-            lon=lon if lon is not None else DEFAULT_LON,
-            label=label or DEFAULT_LABEL,
+            lat=lat if lat is not None else facility_lat,
+            lon=lon if lon is not None else facility_lon,
+            label=label or facility_label,
         )
     except Exception as e:
         logger.error(f"weather error: {e}")

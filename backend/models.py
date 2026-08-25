@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from typing import List, Optional, Literal
-from pydantic import BaseModel, Field, EmailStr, ConfigDict
+from zoneinfo import ZoneInfo, available_timezones
+from pydantic import BaseModel, Field, EmailStr, ConfigDict, field_validator
 import uuid
 
 
@@ -12,16 +13,40 @@ def now_utc() -> datetime:
     return datetime.now(timezone.utc)
 
 
+# 2026-08-25: a real facility record was found with "conway ar 72034" saved
+# in its timezone field (city/state/zip text, not a zone) - the model had no
+# dedicated place for that text to go and no validation to catch it landing
+# in the wrong field. Shared by Facility/FacilityCreate/FacilityUpdate below.
+def _validate_timezone(v: Optional[str]) -> Optional[str]:
+    if v is None:
+        return v
+    if v not in available_timezones():
+        raise ValueError(f"{v!r} is not a valid IANA timezone (e.g. 'America/Chicago')")
+    ZoneInfo(v)  # confirms it actually loads, not just listed
+    return v
+
+
 # ---------- Facility (multi-tenant root) ----------
 class Facility(BaseModel):
     """A senior-living facility. Top-level tenant. Every other entity should
     eventually carry facility_id; for now we add it as Optional so existing
-    single-tenant data keeps working while new flows are scoped."""
+    single-tenant data keeps working while new flows are scoped.
+
+    city/state/country/lat/lon added 2026-08-25 - previously only a single
+    free-text `address` existed, with nowhere structured for the Realtime
+    voice system (or weather's coordinate lookup) to read facility location
+    from, which is why a resident could not be told what city they were in."""
     model_config = ConfigDict(extra="ignore")
     facility_id: str = Field(default_factory=lambda: uid("fac"))
     name: str
     timezone: str = "America/New_York"
     address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip_code: Optional[str] = None
+    country: str = "US"
+    lat: Optional[float] = None
+    lon: Optional[float] = None
     phone: Optional[str] = None
     contact_email: Optional[str] = None
     on_call_phone: Optional[str] = None    # default escalation number
@@ -29,26 +54,44 @@ class Facility(BaseModel):
     is_active: bool = True
     created_at: datetime = Field(default_factory=now_utc)
 
+    _check_tz = field_validator("timezone")(_validate_timezone)
+
 
 class FacilityCreate(BaseModel):
     name: str
     timezone: str = "America/New_York"
     address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip_code: Optional[str] = None
+    country: str = "US"
+    lat: Optional[float] = None
+    lon: Optional[float] = None
     phone: Optional[str] = None
     contact_email: Optional[str] = None
     on_call_phone: Optional[str] = None
     plan: Literal["pilot", "standard", "enterprise"] = "pilot"
+
+    _check_tz = field_validator("timezone")(_validate_timezone)
 
 
 class FacilityUpdate(BaseModel):
     name: Optional[str] = None
     timezone: Optional[str] = None
     address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip_code: Optional[str] = None
+    country: Optional[str] = None
+    lat: Optional[float] = None
+    lon: Optional[float] = None
     phone: Optional[str] = None
     contact_email: Optional[str] = None
     on_call_phone: Optional[str] = None
     plan: Optional[Literal["pilot", "standard", "enterprise"]] = None
     is_active: Optional[bool] = None
+
+    _check_tz = field_validator("timezone")(_validate_timezone)
 
 
 # ---------- Users (staff / admin) ----------

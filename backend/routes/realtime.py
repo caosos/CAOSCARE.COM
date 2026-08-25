@@ -27,7 +27,7 @@ from routes.capabilities import get_capability_summary
 from routes.realtime_tools import _build_tools
 from routes.realtime_aria_tools import _build_aria_tools
 from routes.realtime_self_knowledge import _system_self_knowledge
-from routes.realtime_facility import _facility_now, FACILITY_LABEL, FACILITY_TZ
+from routes.realtime_facility import _facility_now, get_active_facility, FACILITY_LABEL, FACILITY_TZ
 from routes.realtime_companion_prompt import _build_companion_instructions
 from routes.realtime_audio_config import DEFAULT_VAD, DEFAULT_NOISE_REDUCTION
 
@@ -89,7 +89,7 @@ async def _build_aria_instructions(owner_user_id: str) -> str:
     general-purpose (NOT hard-coded to senior-care) - environment/purpose
     is meant to be injected per deployment later; this is just the current
     operator-build identity."""
-    rn = _facility_now()
+    rn = await _facility_now()
     capability_summary = await get_capability_summary()
     memory_block = await build_aria_context_block(owner_user_id)
     return (
@@ -217,6 +217,9 @@ async def create_session(payload: dict = Body(default={})):
     if voice not in ALLOWED_VOICES:
         voice = DEFAULT_VOICE
     instructions = await _build_companion_instructions(payload.get("resident_id"))
+    facility = await get_active_facility()
+    facility_label = (facility or {}).get("name") or FACILITY_LABEL
+    facility_tz = (facility or {}).get("timezone") or FACILITY_TZ
     session_config = {
         "type": "realtime",
         "model": OPENAI_REALTIME_MODEL,
@@ -255,8 +258,8 @@ async def create_session(payload: dict = Body(default={})):
             "resident_id": payload.get("resident_id"),
             "kiosk_id": payload.get("kiosk_id"),
             "room": payload.get("room"),
-            "facility_label": FACILITY_LABEL,
-            "facility_tz": FACILITY_TZ,
+            "facility_label": facility_label,
+            "facility_tz": facility_tz,
         },
         "diagnostics": _prompt_diagnostics(instructions, "resident_kiosk_realtime"),
     }

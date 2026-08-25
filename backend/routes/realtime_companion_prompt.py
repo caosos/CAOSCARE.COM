@@ -3,12 +3,12 @@
 Split out of realtime.py 2026-08-09 to bring that file under the 400-line
 code-file cap (was 662 after the first split). No behavior changed - pure
 extraction. See realtime.py for _build_aria_instructions (the separate
-operator build's prompt), which stays there since it shares _facility_now/
-FACILITY_LABEL with the route handlers.
+operator build's prompt), which stays there since it shares _facility_now
+with the route handlers.
 """
 from deps import db
 from routes.realtime_self_knowledge import _system_self_knowledge
-from routes.realtime_facility import _facility_now, FACILITY_LABEL, greeting_note
+from routes.realtime_facility import _facility_now, greeting_note
 from routes.realtime_companion_memory import build_resident_profile_and_memory
 
 
@@ -26,14 +26,18 @@ async def _build_companion_instructions(resident_id: str | None) -> str:
     structured so that an empty memory bin produces an explicit "I don't know
     that yet" answer, never an improvised one.
     """
-    rn = _facility_now()
+    rn = await _facility_now()
+    where = f"{rn['label']}, in {rn['place']}" if rn.get("place") else rn["label"]
     time_anchor = (
         "## Right now\n"
         f"It is {rn['weekday']} {rn['part_of_day']}, {rn['date']}, {rn['time']} "
-        f"local time at {FACILITY_LABEL} ({rn['tz']}). When the call opens, "
+        f"local time at {where} ({rn['tz']}). When the call opens, "
         f"{greeting_note(rn['part_of_day'])}. When asked the time or date, you "
         f"may answer from this anchor directly, or call `get_current_time` for "
-        f"the freshest value.\n\n"
+        f"the freshest value. When asked what city/building/facility they are "
+        f"in, or 'where am I', answer directly from this line - "
+        f"{rn['label']}" + (f" in {rn['place']}" if rn.get("place") else "") +
+        f" - never say you don't know.\n\n"
     )
     persona = (
         "## Who you are\n"
