@@ -96,8 +96,7 @@ A newer live resident-room test reproduced a listening-but-deaf state while the 
 - Still open: top-level nav restructure, staff invite/role lifecycle, Zones, ScheduleTab's calendar-grid view and its missing email-ingestion UI trigger, and actually configuring real drivers/vehicles so Assign has something to book.
 
 ### Device control / memory / facility context
-- Realtime voice never reads `db.facilities` — reads disconnected env vars instead (`FACILITY_LABEL` still a dev placeholder). Real facility record exists (Conway, AR) but is wired to nothing voice-related.
-- `Facility` model has no structured city/state/zip/lat/lon fields; the one real facility record's `timezone` field contains city/state/zip text instead of a valid IANA zone.
+- **2026-08-25, SHIPPED (`371e698`): Step 1+2 done.** `Facility` model now has structured city/state/zip/country/lat/lon fields + IANA-timezone validation. `realtime_facility.py`/`realtime.py`/`realtime_companion_prompt.py`/`weather.py` now read the live `db.facilities` record instead of disconnected `.env` placeholders. Existing Conway facility record corrected in place (`timezone` was `"conway ar 72034"`, now `America/Chicago` + real city/state/zip/lat/lon). Verified live through the actual `/realtime/session` and `/weather/current` endpoints after a backend restart. Admin Facilities UI (`FacilitiesTab.jsx`) not yet updated to expose the new fields. **Awaiting Michael's live voice acceptance test before continuing to step 3.**
 - Operator/Aria (Michael's own assistant) memory has no automatic extraction pipeline — resident-facing memory does and is verified working end-to-end.
 - Device-control tool path writes optimistic state at command-queue time, not at bridge-ack time — a real, not-yet-triggered truthfulness gap (no bridge tablet exists yet for any tested room, so failures are currently honest "no device found" errors).
 - Smallest coherent implementation plan documented; not yet built.

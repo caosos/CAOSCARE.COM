@@ -1279,3 +1279,34 @@ New report: `docs/reports/2026-08-25-0330-device-memory-facility-audit.md`, incl
 
 ### Next safe step
 Implement the plan in the order listed in the report, starting with wiring `db.facilities` into the Realtime voice path (steps 1-2 together, since the model needs real fields before the facility record's bad `timezone` value can be corrected), each step independently tested against the existing mock residents/rooms before moving to the next.
+
+---
+
+## 2026-08-25 — Step 1+2 shipped: facility source of truth wired into Realtime voice
+
+### Agent / tool
+Claude Code, EliteDesk primary worktree.
+
+### Branch / ref
+`main` @ `371e698`, pushed, `origin/main` matches. Backend restarted (plain nohup uvicorn, PID replaced) to load the change; frontend untouched (no frontend change needed this slice).
+
+### What changed
+Implemented steps 1+2 of the accepted 5-step plan from the prior audit. `backend/models.py`: `Facility`/`FacilityCreate`/`FacilityUpdate` gained structured `city`/`state`/`zip_code`/`country`/`lat`/`lon` fields plus a real IANA-timezone validator (`_validate_timezone`, using `zoneinfo.available_timezones()`). `backend/routes/realtime_facility.py`: added `get_active_facility()` (single-active-facility lookup, matching current single-community scope); `_facility_now()` is now async and prefers the live facility's timezone/name/city/state over the `.env` placeholders, falling back to them only if no facility record exists; `today_facility_date()` deliberately left sync/unchanged (FACILITY_TZ was already correct, out of scope). `realtime.py` and `realtime_companion_prompt.py`: both `_facility_now()` call sites now `await` it; the resident prompt's "Right now" block and the `/session` context blob (`facility_label`/`facility_tz`, read by the frontend's `get_current_time` tool) now come from the live facility. `weather.py`: `/weather/current` now prefers the facility's own `lat`/`lon`/name when set, replacing the silent Pennsylvania-area default.
+
+**Corrected the existing facility record in place**, validated through the same Pydantic model (not a raw DB edit): `timezone` `"conway ar 72034"` -> `"America/Chicago"`, added `city: "Conway"`, `state: "AR"`, `zip_code: "72034"`, `country: "US"`, `lat: 35.0887`, `lon: -92.4421`. `name`/`address`/`phone`/`contact_email`/`on_call_phone`/`plan`/`is_active`/`created_at`/`facility_id` untouched.
+
+### What was verified
+- Dry-run `import server` succeeded (241 routes) before restart.
+- Backend killed and restarted cleanly (plain nohup uvicorn, same as the established pattern this session); `/api/health` confirmed.
+- **Live, through the actual endpoints the frontend calls, not just unit-level**: `POST /realtime/session` for a real mock resident now returns a prompt containing *"Brookdale Senior Living Communities, in Conway, AR (America/Chicago)"* with the correct local date/time, and a `_caos.context.facility_label`/`facility_tz` matching; `GET /weather/current` now returns `"label": "Conway, AR"` with real coordinates and a live-fetched forecast for that location (previously silently Pennsylvania-area).
+- `POST /realtime/aria-session` (operator build) re-verified minting cleanly after the same `_facility_now()` change.
+- `today_facility_date()` re-verified directly (still sync, still correct) and via `schedule`/`menu` routes still resolving (401 Not Authenticated, not a 500 - confirms no crash on the decoupled helper).
+- The new timezone validator empirically confirmed to reject the exact bad value that caused this bug (`"conway ar 72034"`).
+
+### Blocked / not yet done
+- Steps 3 (operator/Aria memory extraction), 4 (device truthfulness), 5 (memory failure visibility) not started.
+- The Admin Facilities UI (`FacilitiesTab.jsx`) was not updated to expose the new city/state/zip/lat/lon fields - not required for this slice's voice-acceptance criteria, but staff currently cannot edit them without a script.
+- Per Michael's instruction: stopping here for his live voice acceptance test ("Where are we?" / "What city am I in?" / "What time is it here?") before continuing to step 3.
+
+### Next safe step
+Await Michael's live acceptance test on this facility-context slice. If accepted, continue to step 3 (operator/Aria memory extraction pipeline), reusing the resident-memory pattern already verified working.
