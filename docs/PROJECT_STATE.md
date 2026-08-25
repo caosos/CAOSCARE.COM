@@ -1217,3 +1217,32 @@ Claude Code, EliteDesk primary worktree (integration lead).
 
 ### Next safe step
 Michael runs a real-room test with `chrome://webrtc-internals` AEC-dump capture enabled. With that plus the new `speech_segment_ms`/`ms_since_assistant_stopped` telemetry, decide whether the next controlled change belongs in the audio path (mic/output constraints) or the trust-boundary classifier - do not guess ahead of that data.
+
+---
+
+## 2026-08-25 — Rooms 401/403/408 forensic comparison, voice frozen, priority moves to room/device/memory/facility-context
+
+### Agent / tool
+Claude Code, EliteDesk primary worktree.
+
+### Branch / ref
+`main`, this entry's commit pending push alongside `docs/reports/2026-08-25-0245-rooms-401-403-408-forensics.md` and `INDEX.md`.
+
+### What changed
+- Read-only forensic comparison of the most recent Realtime sessions for Rooms 401, 403, 408 against the Room 404 echo defect. Room 401: confirmed via three independent zero-result queries that **no session was ever run** for that resident/kiosk/room - a resolved fact, not an inferred gap. Room 403 (`rt_dfevhypd_1787625188171`, 5m36s, 28 user turns) and Room 408 (`rt_9c6kq18r_1787624294811`, 7m41s, 39 user turns) both reviewed turn-by-turn against Aria's immediately preceding speech: **zero false-trusted echoes in either session**, versus Room 404's 3 confirmed phantom trusted echoes in one 19-second window. Room 408 additionally shows the strongest full-duplex evidence reviewed to date (~14 genuine, correctly-classified barge-ins). One minor, previously-undocumented `classifyUserTurn()` labeling detail found (empty-after-stripping text always self-matches JS `.includes("")`) - did not change any outcome, not fixed, noted for later.
+- **Recorded Michael's independent field finding** (eMeet used as one complete mic+speaker unit, vs. the earlier split eMeet-mic/separate-soundbar arrangement, produced materially cleaner live conversations on the same EliteDesk) as **strongly supported practical root cause / deployment requirement based on controlled configuration behavior** - explicitly not claimed as laboratory-proven eMeet DSP/AEC internals, since no CAOSCARE telemetry field records physical input/output device arrangement (checked and confirmed absent). **Production/test-room requirement going forward: one eMeet per room serving as both microphone and speaker.**
+- Per Michael's explicit direction, and since no new severe voice defect surfaced in this comparison: **voice configuration is now frozen.** No audio-path or classifier code change was made or is currently justified by evidence. Engineering priority returns to the main CAOSCARE operational system, specifically room/building context, device control (command + ACK + readback), and resident memory recall - per Michael's new directive, an audit of what already exists in each of those areas is the next deliverable, due before any new code in that area.
+- New report: `docs/reports/2026-08-25-0245-rooms-401-403-408-forensics.md`. `docs/reports/INDEX.md` updated. Posted to GitHub Issue #22.
+
+### What was verified
+- All three room→resident→kiosk→session lookups performed via direct read-only Mongo queries, not assumed from prior context.
+- Every user turn in both Room 403 and Room 408 individually checked against the immediately preceding assistant utterance for textual resemblance - none found in either session.
+- `mic_track_settings.deviceId` compared across sessions: Room 403's matches Room 404's exactly; Room 408's is the literal string `"default"`. No equivalent field exists anywhere for output/speaker device identity - confirmed absent by grep, not assumed.
+
+### Blocked / not yet done
+- The device-arrangement hypothesis remains **not directly provable** from CAOSCARE's own telemetry (no field records physical audio routing) - the freeze decision rests on Michael's field report plus the absence of any new code-level defect, not on instrumented proof.
+- `chrome://webrtc-internals` AEC-dump capture from the prior research report still not performed - now deprioritized given the freeze decision, but not formally closed out.
+- The room/device-control/memory/facility-context audit (Michael's next directive) has not yet started as of this entry.
+
+### Next safe step
+Begin the audit Michael requested before any new code: current device-control execution/readback path, current Realtime tools actually exposed, current resident-memory write/hydration path, current facility-context source, and why Conway/Arkansas context and cross-session memory recall are apparently unreliable. Report findings before implementing anything.
