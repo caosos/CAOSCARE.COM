@@ -1246,3 +1246,36 @@ Claude Code, EliteDesk primary worktree.
 
 ### Next safe step
 Begin the audit Michael requested before any new code: current device-control execution/readback path, current Realtime tools actually exposed, current resident-memory write/hydration path, current facility-context source, and why Conway/Arkansas context and cross-session memory recall are apparently unreliable. Report findings before implementing anything.
+
+---
+
+## 2026-08-25 — Device control / memory / facility-context audit (pre-implementation)
+
+### Agent / tool
+Claude Code, EliteDesk primary worktree.
+
+### Branch / ref
+`main`, this entry's commit pending push alongside `docs/reports/2026-08-25-0330-device-memory-facility-audit.md` and `INDEX.md`.
+
+### What changed
+Read-only audit (per Michael's explicit "audit before code" directive) of the device-control, memory, and facility-context systems, prompted by observed gaps: Aria not reliably knowing the facility is in Conway, Arkansas, and apparent failure to recall facts across sessions. Full findings in the linked report; three confirmed root causes, each traced to source/data, not inferred:
+
+1. **A real facility record exists** (`db.facilities`, one document: "Brookdale Senior Living Communities," Conway AR address, created 2026-08-23 via Admin) - but `realtime_facility.py` (which builds the Realtime voice prompt's facility/time context) never queries `db.facilities` at all. It reads two flat `.env` variables instead: `FACILITY_TZ=America/Chicago` (correct) and `FACILITY_LABEL=the EliteDesk node` (a leftover dev placeholder). The Admin-configured facility and the voice system were never wired together.
+2. That one real facility record's `timezone` field literally contains the string `"conway ar 72034"` - not a valid IANA zone. Root cause: the `Facility` model has no structured city/state/zip/lat/lon fields, only a free-text `address` and an unvalidated `timezone` string - the city/state/zip text landed in the wrong field with no validation to catch it.
+3. **Resident-facing memory (write -> extract -> hydrate) verified working end-to-end by direct empirical test**, not just read: posted a real user+assistant turn pair to `/api/memory/realtime-turn` for mock resident `res_d9129c7d1f46` (Harold) stating "My favorite ice cream is butter pecan," confirmed the background extractor correctly wrote it to `db.memories` (category: preferences, bin: facts) within ~6 seconds, then called `_build_companion_instructions()` directly to simulate a fresh "session 2" and confirmed the fact appears verbatim in the newly hydrated prompt. **Operator/Aria memory (Michael's own personal-assistant build) has no automatic extraction pipeline at all** - confirmed by grepping every write to `db.aria_memories` in the codebase: only the manual CRUD endpoints write it. `db.aria_conversations` (raw verbatim turns) and `db.aria_memories` both currently hold 0 documents.
+
+Also found, not yet acted on: the device-control tool path (`adjust_room_temperature`/`toggle_light`/`toggle_tv`) can tell Aria "done" the moment a command is *queued* (`devices.py` optimistically overwrites `smart_devices.state` at queue time, not at bridge-tablet-ack time) - a real truthfulness gap matching what Michael described, currently latent because no bridge tablet/real hardware exists for any tested room, so every command fails honestly at "no device found" instead.
+
+New report: `docs/reports/2026-08-25-0330-device-memory-facility-audit.md`, including a 5-step smallest-coherent-implementation-plan (wire `db.facilities` into voice; fix the facility model/timezone field; give operator/Aria memory the same extraction pipeline resident memory already has; close the device-truthfulness gap; add silent-failure visibility to memory extraction). `docs/reports/INDEX.md` updated.
+
+### What was verified
+- `db.facilities` queried directly and its one document read in full.
+- Grepped the entire backend for every `db.aria_memories` write site - confirmed only manual CRUD.
+- The deterministic memory test above is a real write/read through the actual production API paths, not a simulation or direct DB manipulation - clearly tagged (`source_session: "audit_test_1787626105"`) for easy identification/removal if needed.
+
+### Blocked / not yet done
+- None of the 5-step implementation plan has been built yet - this was audit-only, per explicit instruction.
+- No bridge-tablet/real-hardware device exists in this environment to test the ack/readback side of the device-truthfulness fix against real execution.
+
+### Next safe step
+Implement the plan in the order listed in the report, starting with wiring `db.facilities` into the Realtime voice path (steps 1-2 together, since the model needs real fields before the facility record's bad `timezone` value can be corrected), each step independently tested against the existing mock residents/rooms before moving to the next.
