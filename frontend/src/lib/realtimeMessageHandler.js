@@ -81,6 +81,12 @@ export function createRealtimeHandlers({
   // ref would, without threading more state through useRealtimeVoice.js.
   let lastAssistantText = "";
   let tinyFragmentStreak = 0;
+  // 2026-08-24 (Room 404 forensics, Issue #22): diagnostic-only timing -
+  // VAD segment duration and time since Aria's audio genuinely stopped.
+  // Logged only, no classification behavior change.
+  let lastSpeechStartedAt = null;
+  let lastSpeechSegmentMs = null;
+  let lastPlaybackStoppedAt = null;
 
   // Saves one turn immediately, independently - no pairing, no waiting on
   // the other side of the exchange. See RealtimeTurnIngest's docstring
@@ -165,10 +171,12 @@ export function createRealtimeHandlers({
       // still playing? One piece of evidence, not the verdict - see
       // classifyUserTurn() above, applied once the transcript resolves.
       turnSuspectRef.current = assistantSpeakingRef.current;
+      lastSpeechStartedAt = Date.now();
       logRealtimeEvent(sessionIdRef.current, "speech_started", { assistantSpeaking: assistantSpeakingRef.current });
     }
     if (msg.type === "input_audio_buffer.speech_stopped") {
       setStatus("live");
+      lastSpeechSegmentMs = lastSpeechStartedAt ? Date.now() - lastSpeechStartedAt : null;
       logRealtimeEvent(sessionIdRef.current, "speech_stopped", { assistantSpeaking: assistantSpeakingRef.current });
     }
     if (msg.type === "response.audio.delta") {
@@ -188,11 +196,15 @@ export function createRealtimeHandlers({
     // before) and track actual playback lifecycle, not generation.
     if (msg.type === "output_audio_buffer.started") {
       assistantSpeakingRef.current = true;
+      // Logged standalone (2026-08-24) - was only folded into other events.
+      logRealtimeEvent(sessionIdRef.current, "output_audio_buffer_started", {});
     }
     if (msg.type === "output_audio_buffer.stopped" || msg.type === "output_audio_buffer.cleared") {
       // .cleared covers a genuine interruption cutting playback short -
       // either way, Aria's audio is no longer physically playing.
       assistantSpeakingRef.current = false;
+      lastPlaybackStoppedAt = Date.now();
+      logRealtimeEvent(sessionIdRef.current, "output_audio_buffer_stopped", { meta: { cleared: msg.type === "output_audio_buffer.cleared" } });
       // Re-enable normal auto-response once the forced greeting's own
       // audio has ACTUALLY finished playing - previously gated on
       // response.done (generation-complete), which is exactly the signal
@@ -236,7 +248,11 @@ export function createRealtimeHandlers({
       postTurn("user", userText, msg.item_id, !cls.suspect);
       logRealtimeEvent(sessionIdRef.current, "user_transcript", {
         text: userText, assistantSpeaking: cls.suspect,
-        meta: { confidence, low_confidence: lowConfidence, turn_class_reason: cls.reason },
+        meta: {
+          confidence, low_confidence: lowConfidence, turn_class_reason: cls.reason,
+          speech_segment_ms: lastSpeechSegmentMs,
+          ms_since_assistant_stopped: lastPlaybackStoppedAt ? Date.now() - lastPlaybackStoppedAt : null,
+        },
       });
     }
     // FIXED 2026-08-09 (real, confirmed bug): the current Realtime API
@@ -274,6 +290,8 @@ export function createRealtimeHandlers({
       // be flowing); it just stops the UI claiming full health.
       setError(msg.error?.message || "Realtime error");
       setStatus("error");
+      // 2026-08-24: previously UI-only, invisible to any later DB query.
+      logRealtimeEvent(sessionIdRef.current, "realtime_error", { text: msg.error?.message || "unknown" });
     }
   };
 
