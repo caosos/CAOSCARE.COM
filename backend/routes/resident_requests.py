@@ -108,6 +108,18 @@ async def create_resident_request(data: ResidentRequestInput):
     existing = await db.staff_tasks.find_one(dup_q, {"_id": 0}, sort=[("created_at", -1)]) if dup_q else None
 
     if existing:
+        # 2026-08-27 (real, confirmed bug - Room 401/Ellie): the old response
+        # only said "duplicate" with no description of what the EXISTING open
+        # ticket is actually about. When a resident's second, unrelated issue
+        # in the same category (e.g. AC too warm) landed on top of an older
+        # open one (e.g. a flickering reading lamp) - same dedup key is
+        # category+resident, not the actual problem - Aria had no way to
+        # know the two were different and told the resident "there's already
+        # a maintenance request in progress for the AC", which was false: the
+        # open request was about the lamp. Returning the existing ticket's own
+        # summary lets the model describe it honestly instead of assuming it
+        # matches what was just asked.
+        same_issue = (existing.get("resident_words") or "").strip().lower() == (data.resident_words or data.summary or "").strip().lower()
         count = existing.get("re_request_count", 0) + 1
         now_iso = now_utc().isoformat()
         await db.staff_tasks.update_one(
@@ -132,6 +144,10 @@ async def create_resident_request(data: ResidentRequestInput):
         return {
             "task_id": existing["task_id"], "receipt_id": receipt["receipt_id"],
             "status": existing["status"], "duplicate": True, "re_request_count": count,
+            "existing_summary": existing.get("resident_words") or existing.get("description") or existing.get("title"),
+            "same_issue": same_issue,
+            "scheduled_date": existing.get("requested_for_date"),
+            "scheduled_time_label": existing.get("requested_for_time_label"),
         }
 
     payload = {
@@ -166,6 +182,39 @@ async def create_resident_request(data: ResidentRequestInput):
     return {"task_id": doc["task_id"], "receipt_id": receipt["receipt_id"], "status": doc["status"], "duplicate": False}
 
 
+def _resident_safe_view(task: dict) -> dict:
+    """The one place that decides what a resident/Aria is allowed to see of
+    a StaffTask - used by both the single-status lookup and the list-mine
+    endpoint below so a resident's screen and Aria's spoken answer can never
+    drift apart (same underlying request state, same projection of it).
+    Deliberately excludes internal-only fields (assigned_to user_id, source,
+    visibility_role, etc.) - only what a resident/Aria should say out loud.
+    """
+    created_at = task["created_at"]
+    return {
+        "task_id": task["task_id"],
+        "category": task["category"],
+        # What the request is actually FOR - resident's own words when we
+        # have them, falling back to the staff-facing title/description.
+        # Previously this was never returned at all, so Aria had no way to
+        # answer "what did I call maintenance about?"
+        "what_for": task.get("resident_words") or task.get("description") or task.get("title") or "",
+        "status": task["status"],
+        "acknowledged": bool(task.get("acknowledged_at") or task["status"] in ("in_progress", "completed")),
+        "assigned_to_name": task.get("assigned_name"),
+        # Real staff-entered planned service window, or both None - never
+        # invent an ETA when these are empty; the caller must say "no
+        # scheduled time yet" in that case.
+        "scheduled_date": task.get("requested_for_date"),
+        "scheduled_time_label": task.get("requested_for_time_label"),
+        # Latest staff-entered update (e.g. "waiting on a replacement part
+        # from the vendor") - empty string if none, never fabricated.
+        "latest_update": task.get("notes") or "",
+        "re_request_count": task.get("re_request_count", 0),
+        "created_at": created_at if isinstance(created_at, str) else created_at.isoformat(),
+    }
+
+
 @router.get("/resident-request/status")
 async def resident_request_status(
     resident_id: Optional[str] = None,
@@ -192,12 +241,22 @@ async def resident_request_status(
     task = await db.staff_tasks.find_one(q, {"_id": 0}, sort=[("created_at", -1)])
     if not task:
         return {"found": False}
-    return {
-        "found": True,
-        "category": task["category"],
-        "status": task["status"],
-        "acknowledged": bool(task.get("acknowledged_at") or task["status"] in ("in_progress", "completed")),
-        "assigned_to_name": task.get("assigned_name"),
-        "re_request_count": task.get("re_request_count", 0),
-        "created_at": task["created_at"] if isinstance(task["created_at"], str) else task["created_at"].isoformat(),
-    }
+    return {"found": True, **_resident_safe_view(task)}
+
+
+@router.get("/resident-request/mine")
+async def resident_request_mine(resident_id: Optional[str] = None, room: Optional[str] = None, limit: int = 8):
+    """Public — the resident Home screen's Requests panel. Same scoping
+    discipline as /status above (resident_id, else room - never a global
+    'latest requests' query) but returns several recent ones instead of
+    just the newest, so a resident with more than one open request sees all
+    of them as separate cards, each with its own real status/schedule."""
+    q: dict = {"source": {"$in": ["aria_voice", "kiosk_button"]}}
+    if resident_id:
+        q["resident_id"] = resident_id
+    elif room:
+        q["room"] = room
+    else:
+        raise HTTPException(status_code=400, detail="resident_id or room required")
+    tasks = await db.staff_tasks.find(q, {"_id": 0}).sort("created_at", -1).to_list(max(1, min(limit, 30)))
+    return [_resident_safe_view(t) for t in tasks]

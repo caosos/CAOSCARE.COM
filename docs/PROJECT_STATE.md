@@ -1310,3 +1310,78 @@ Implemented steps 1+2 of the accepted 5-step plan from the prior audit. `backend
 
 ### Next safe step
 Await Michael's live acceptance test on this facility-context slice. If accepted, continue to step 3 (operator/Aria memory extraction pipeline), reusing the resident-memory pattern already verified working.
+
+---
+
+## 2026-08-27 — Room 401 mock room-device layer + resident-request isolation forensics/fix
+
+### Agent / tool
+Claude Code, EliteDesk primary worktree.
+
+### Branch / ref
+`main`, this entry's commit pending push alongside `docs/reports/2026-08-27-0118-room401-devices-and-request-isolation.md` and `INDEX.md`. Backend restarted (plain nohup uvicorn, PID replaced) to load the changes; frontend untouched by the restart (no frontend build step needed for these changes to take effect in the already-running dev server).
+
+### What changed
+Continuing post-outage per Michael's directive: inspect Room 401's real conversation, build a real mock device layer, investigate a suspected cross-resident maintenance-request isolation bug, wire daily announcements. Full detail in the linked report; summary:
+
+1. **Room 401 forensics**: read real session `rt_f2lx9y4s_1787791872323` in full. Facility context worked correctly. `db.smart_devices` had zero documents in the whole database, so every device tool call 404'd. Aria's fallback (filing a maintenance ticket on device failure) collided with `resident_requests.py`'s category-only duplicate detection and silently merged a new AC complaint into an unrelated pre-existing "reading lamp" ticket, then told the resident "there's already a maintenance request in progress for the AC" - false. Confirmed the same pattern in every other room's conversation sampled.
+2. **Isolation bug investigation - direct empirical result, not assumption**: checked every room's conversation content, `resident_requests.py`, the companion prompt/memory hydration path, and the admin conversation-session viewer for any unscoped "latest request" query. **Found none** - every fabricated "already in progress" line traced back to that same resident's own record, never another resident's. The bug Michael actually heard was the same-resident cross-*issue* conflation in item 1, not a cross-resident leak. Stated this distinction directly rather than inventing a cross-resident fix for a defect that isn't present.
+3. **Built the mock device layer**: `DeviceProtocol` gained `"mock"` (models.py); `devices.py` executes mock-device commands synchronously with a real ack instead of leaving them "queued" for a bridge tablet that doesn't exist; new `get_room_status` read tool (`realtime_device_tools.py`, split out of `realtime_tools.py` to stay under the 300-line cap - Aria previously had no way to read room state at all); `scripts/seed_mock_devices.py` seeded one thermostat + one TV per resident room (17 rooms) via the real `POST /devices` endpoint, individualized starting temperatures.
+4. **Found and fixed a second real bug live**: `public_room_command` picked the first device matching the requested capability - a room with both thermostat and TV (both expose `"power"`) had "turn the TV on" silently hit the thermostat instead. Added an optional `kind` field to `DeviceCommandInput` to disambiguate; fixed the frontend dispatch (`realtimeDeviceTools.js`) and three pre-existing `Kiosk.jsx` call sites (auto-mute-on-call, restore-on-hangup, device button panel) that had the identical latent bug. An ambiguous command with no `kind` now 400s instead of silently misrouting.
+5. **Fixed the duplicate-request truthfulness gap** from item 1: `create_resident_request`'s duplicate response now returns `existing_summary`/`same_issue`; `realtimeOperationsTools.js` and the tool description were updated so Aria describes the real open ticket's subject instead of implying it matches whatever was just asked.
+6. **Daily announcements**: inspected `ScheduleItem`/`schedule.py` first - `facility_note` category and `get_todays_schedule` already exist and already work (confirmed live in the Room 401 transcript itself); only today's date had no `facility_note` entries. `scripts/seed_demo_announcements.py` fills that one gap through the existing `POST /schedule` endpoint - no new domain built, per "extend, don't duplicate."
+
+### What was verified
+- Ran the actual production `realtimeDeviceTools.js` `executeDeviceTool` dispatch (not a reimplementation) against the live backend for the exact Room 401 moments that failed in the real transcript: `get_room_status`, `adjust_room_temperature`, `toggle_tv` all now return real, correct, individualized results. Room 401 reset to baseline (TV off, 72°) afterward.
+- New `tests/test_room_device_isolation.py` (7 tests, real HTTP calls against the live backend, not direct Mongo writes): request isolation between Rooms 401/403/408, conversation-session task scoping, distinct per-room device state, thermostat/TV command scoping, and the kind-disambiguation fix. **7/7 pass.**
+- Duplicate-truthfulness fix verified live against a scratch TEST-101 resident: `same_issue: false`, `existing_summary` correctly names the actual open ticket, and the resulting spoken message names it instead of the new complaint.
+- Ran the full existing `tests/` suite: ~20 failures / 99 errors, all confirmed (by direct inspection of the actual assertion failures) to be pre-existing, unrelated test debt - stale hardcoded credentials (`admin@caoscare.com`/`nurse@caoscare.com` don't exist in this DB) and two stale hardcoded expectations (old `Lancaster, PA` weather default; devices expected for old numeric rooms "101"/"108" never part of this environment). None caused by today's changes.
+
+### Blocked / not yet done
+- No actual browser/microphone voice call was placed this session - everything was verified through the real HTTP/tool-dispatch boundary, not a live WebRTC session. Michael should still do one live acceptance pass.
+- `check_request_status` was not given the same `existing_summary`/`same_issue` treatment as `create_resident_request` - lower risk (it only echoes one record it already knows the category of) but not independently re-verified.
+- `backend/models.py` (1359 lines) and `frontend/src/pages/Kiosk.jsx` (589 lines) remain pre-existing, already-flagged 300-line-cap violations (see `docs/reports/INDEX.md`, Architecture debt, 2026-08-21/25 - "do not run that broad split concurrently with active implementation lanes"). Both received only small, additive, non-restructuring edits today.
+- Step 3 of the original device/memory/facility audit (operator/Aria memory extraction pipeline) remains unclaimed.
+
+### Next safe step
+Michael runs one real live voice call (any seeded room) confirming the temperature/TV asks and a fresh maintenance request sound right end-to-end through an actual microphone. After that, step 3: give operator/Aria memory the same automatic extraction pipeline resident memory already has and has verified working.
+
+---
+
+## 2026-08-27 — Resident home screen, maintenance closed loop, TV/magnification, hardware adapter boundary
+
+### Agent / tool
+Claude Code, EliteDesk primary worktree.
+
+### Branch / ref
+`main`, this entry's commit pending push alongside `docs/reports/2026-08-27-0230-resident-home-integration-and-hardware-adapter.md` and `INDEX.md`. Backend restarted multiple times (plain nohup uvicorn, PID replaced each time) to load changes; frontend dev server (craco) hot-reloaded throughout, confirmed no console errors via live browser check.
+
+### What changed
+Michael's directive: stop tuning voice (confirmed good enough), move to integration - resident screen/Aria/room devices/maintenance/eventual hardware as ONE system, demo-ready within ~2 weeks. Full detail in the linked report; summary:
+
+1. **Resident home screen**: new `frontend/src/components/kiosk/{ProfileHeader,TodayPanel,RequestsPanel,RoomDevicePanel}.jsx`, composed into `Kiosk.jsx`'s idle screen in place of the old call-kiosk-only layout. Shows name/room/time, human-readable request cards, today's activities/announcements/meal, and a capability-driven device panel - verified live in the browser with real Room 401 data.
+2. **Removed the "I need a little help" button.** CALL FOR HELP (emergency) and I JUST WANT TO TALK (comfort) remain; `assist` severity still reachable via Aria's own `call_for_help` judgment, just not a standalone button.
+3. **Closed the maintenance communication loop** - the literal bug Michael hit (Aria couldn't say what a request was for or when it was scheduled). `resident_requests.py` gained `_resident_safe_view()`, shared by `check_request_status` and a new `GET /tasks/resident-request/mine` (the Home screen's source), returning `what_for`/`scheduled_date`/`scheduled_time_label`/`latest_update`. Reused transportation's existing `requested_for_date`/`_time_label` fields (added to `StaffTaskUpdate`) rather than inventing a new schedule concept. `RequestDetailDialog.jsx` gained a staff-facing form to actually set these through the existing `PATCH /tasks/{id}`. Verified live end-to-end against Room 401's real "reading lamp" ticket.
+4. **TV input capability**: `DeviceCapability` gained `"input"`, `SmartDevice` gained `inputs: []` (device-declared valid values), new `set_tv_input` tool checks the device's own list before calling.
+5. **Device-selection/capability-collision class of bug re-confirmed clean** after adding input; screen and Aria confirmed to share one device-state contract (same endpoints), now kept current via polling (devices every 10s, requests every 20s, schedule every 60s - no new realtime infrastructure).
+6. **Magnification**: replaced the old 3-step text-size cycle (covered only a few hand-picked elements) with a continuous 50-200% root-font-size scale - genuinely reflows the whole screen (Tailwind is rem-based, confirmed no project override). New `set_magnification` Aria tool and an on-screen +/- control share one `localStorage` key + broadcast event. **Verified live in the browser**: toggling via the exact CustomEvent mechanism Aria's tool uses visibly reflowed the whole page at 150%, not a static zoom.
+7. **New `backend/device_adapters.py`** - a small registry (`mock`, `home_assistant`) `devices.py`'s dispatch now calls; every other (real, physical-transport) protocol keeps its existing, unchanged bridge-tablet queue/ack path. Home Assistant integrated via HA's own REST API (not raw MQTT - HA is the single hub). **Verified live against the EliteDesk's real running HA VM**: connectivity/auth confirmed (22 real entities enumerated); found and fixed a real bug in the process - HA's service-call endpoint returns HTTP 200 with an empty body for a nonexistent entity rather than erroring, which would have let the adapter silently report false success. No positive round-trip yet - zero controllable HA entities exist; creating one needs Michael's HA Helpers UI (confirmed not a config-entry-flow integration, same category of browser-only step as the original HA onboarding).
+8. Admin's Devices tab now visibly badges `mock` vs. real protocols (amber "MOCK — no hardware" vs. forest-green) - the provenance visibility the directive asked for, with nothing shown to residents.
+
+### What was verified
+- Every device/request/schedule change verified through the real running backend's actual HTTP endpoints, and through the exact production tool-dispatch JS (`executeDeviceTool`/`executeOperationsTool`) run against it - not reimplemented or mocked.
+- Full Room 401 replay of the demo acceptance script (temperature read/adjust, TV on, TV input switch, maintenance issue+schedule lookup, today's schedule) - all correct.
+- Magnification and the new resident home screen visually confirmed live in a real browser tab (screenshots), including a scroll-through of every new panel; zero console errors on load.
+- New `tests/test_room_device_isolation.py` still 5/7 pass (2 skip on data exhaustion, pre-existing benign pattern, unchanged from this morning) after the device-adapter refactor - confirms the refactor didn't change mock-device behavior.
+- Directly caused and fixed a real HA API-contract bug (silent-success-on-nonexistent-entity) through live testing against real infrastructure, not code review alone.
+- Cleaned up: two real live alerts and one live voice-created transportation request from Michael's own mid-session testing were found and resolved/left intact appropriately (alerts resolved so they wouldn't block the next real call; the transportation request left as genuine data); a stray test-isolation task from the prior session was removed from Room 401's real request list.
+
+### Blocked / not yet done
+- No live microphone/voice call was placed this session (no mic in this environment) - everything verified through the real HTTP/tool-dispatch boundary.
+- Home Assistant adapter's positive path (a real command actually changing a real/helper entity's state) not proven - needs one HA Helper or real hardware, which needs Michael's browser.
+- `online: false` device-offline detection exists as a field but nothing sets it yet.
+- `backend/models.py` (already a documented, deferred cap violation) grew by 13 lines this session - all minimal field/Literal extensions directly required by this work, not new architecture; flagged rather than hidden.
+- Step 3 from the original device/memory/facility audit (operator/Aria memory extraction pipeline) remains unclaimed.
+
+### Next safe step
+Michael: one live voice pass through the Room 401 script; create one HA Helper (or connect the first real bedroom device) to prove the Home Assistant adapter's positive path; decide on hardware purchases from the capability categories listed in the linked report. Engineering: operator/Aria memory extraction pipeline next.

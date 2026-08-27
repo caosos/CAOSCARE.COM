@@ -22,14 +22,14 @@
 import { API } from "./api";
 import { executeOperationsTool } from "./realtimeOperationsTools";
 import { executeDeviceTool } from "./realtimeDeviceTools";
+import { executeDisplayTool } from "./realtimeDisplayTools";
 import { logRealtimeEvent, transcriptionConfidence, LOW_CONFIDENCE_THRESHOLD } from "./realtimeDiagnostics";
 
-// Dispatches a model-emitted function call to whichever tool module handles
-// it (staff/transportation requests, then device/environment/profile
-// tools), falling back to "not wired yet" if neither claims the name.
-// Designed so a missing room or device fails gracefully (the model says "I
-// couldn't reach the AC, I'll let the nurse know") instead of throwing the
-// whole session.
+// Dispatches a model-emitted function call to whichever tool module claims
+// it (operations/device/display, in that order), falling back to "not
+// wired yet" if none do. Designed so a missing room or device fails
+// gracefully ("I couldn't reach the AC, I'll let the nurse know") instead
+// of throwing the whole session.
 // 2026-08-23 (Room 304 forensic report): overlap timing alone falsely
 // flagged genuine barge-in as suspect - 7 of ~11 overlap-flagged turns in
 // that session were coherent, on-topic resident statements, not echo. A
@@ -60,10 +60,11 @@ function classifyUserTurn({ overlapped, text, lastAssistantText, tinyStreak }) {
 
 async function executeTool({ name, args, ctx }) {
   try {
-    const opsResult = await executeOperationsTool({ name, args, ctx: { room: ctx?.room, residentId: ctx?.resident_id, sessionId: ctx?.session_id, turnSuspect: ctx?.turn_suspect, turnSuspectReason: ctx?.turn_suspect_reason } });
-    if (opsResult) return opsResult;
-    const deviceResult = await executeDeviceTool({ name, args, ctx });
-    if (deviceResult) return deviceResult;
+    const opsCtx = { room: ctx?.room, residentId: ctx?.resident_id, sessionId: ctx?.session_id, turnSuspect: ctx?.turn_suspect, turnSuspectReason: ctx?.turn_suspect_reason };
+    for (const dispatch of [() => executeOperationsTool({ name, args, ctx: opsCtx }), () => executeDeviceTool({ name, args, ctx }), () => executeDisplayTool({ name, args })]) {
+      const result = await dispatch();
+      if (result) return result;
+    }
     return { ok: false, message: `tool ${name} is not wired yet.` };
   } catch (e) {
     return { ok: false, message: `tool error: ${e?.message || "unknown"}.` };

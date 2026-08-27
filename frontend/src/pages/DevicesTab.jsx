@@ -18,8 +18,12 @@ const KIND_ICON = {
   humidifier: Thermometer, bed: Power, door_lock: Power, generic: Power,
 };
 
-const ALL_CAPS = ["power", "brightness", "temperature", "fan_speed", "volume", "channel", "color", "position"];
-const PROTOCOLS = ["bluetooth", "wifi", "rf_433", "rf_915", "ir", "zigbee", "matter"];
+const ALL_CAPS = ["power", "brightness", "temperature", "fan_speed", "volume", "channel", "input", "color", "position"];
+// "mock" first and separated visually below via the badge - no bridge/hardware
+// exists for it, so it's the only protocol that actually works end-to-end
+// today. The rest are real transports, wired for the bridge-tablet queue
+// path but pending physical hardware (see docs/reports for current status).
+const PROTOCOLS = ["mock", "home_assistant", "bluetooth", "wifi", "rf_433", "rf_915", "ir", "zigbee", "matter"];
 const KINDS = ["light", "fan", "heater", "ac", "thermostat", "tv", "speaker", "blinds", "outlet", "humidifier", "bed", "door_lock", "generic"];
 
 export default function DevicesTab({ residents }) {
@@ -153,7 +157,11 @@ export default function DevicesTab({ residents }) {
               <TableRow key={d.device_id} data-testid={`dev-row-${d.device_id}`}>
                 <TableCell><span className="inline-flex items-center gap-2 font-medium"><Icon className="w-4 h-4 text-caos-forest" /> {d.label}</span></TableCell>
                 <TableCell>{d.room || "—"}</TableCell>
-                <TableCell><Badge variant="outline" className="text-xs">{d.protocol}</Badge></TableCell>
+                <TableCell>
+                  <Badge variant="outline" className={`text-xs ${d.protocol === "mock" ? "border-caos-amber text-caos-amber" : "border-caos-forest text-caos-forest"}`}>
+                    {d.protocol === "mock" ? "MOCK — no hardware" : d.protocol}
+                  </Badge>
+                </TableCell>
                 <TableCell><div className="flex flex-wrap gap-1">{(d.capabilities || []).map((c) => <Badge key={c} variant="outline" className="text-xs">{c}</Badge>)}</div></TableCell>
                 <TableCell className="font-mono text-xs">{Object.entries(d.state || {}).map(([k, v]) => `${k}=${v}`).join(" · ") || "—"}</TableCell>
                 <TableCell>

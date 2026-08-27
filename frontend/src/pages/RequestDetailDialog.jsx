@@ -3,6 +3,8 @@ import { api } from "../lib/api";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
+import { Input } from "../components/ui/input";
+import { Textarea } from "../components/ui/textarea";
 import { toast } from "sonner";
 import { sourceLabel, deriveStatus, STATUS_BADGE_CLASS, fmtDateTime } from "../lib/requestDisplay";
 
@@ -27,10 +29,19 @@ function buildTimeline(task, receipts) {
 
 export default function RequestDetailDialog({ taskId, open, onOpenChange, onChange }) {
   const [data, setData] = useState(null);
+  const [schedDate, setSchedDate] = useState("");
+  const [schedLabel, setSchedLabel] = useState("");
+  const [updateNote, setUpdateNote] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const load = () => {
     if (!taskId) return;
-    api.get(`/tasks/${taskId}/detail`).then(({ data: d }) => setData(d)).catch(() => toast.error("Could not load request"));
+    api.get(`/tasks/${taskId}/detail`).then(({ data: d }) => {
+      setData(d);
+      setSchedDate(d.task.requested_for_date || "");
+      setSchedLabel(d.task.requested_for_time_label || "");
+      setUpdateNote(d.task.notes || "");
+    }).catch(() => toast.error("Could not load request"));
   };
   useEffect(() => { if (open) load(); }, [taskId, open]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -41,6 +52,26 @@ export default function RequestDetailDialog({ taskId, open, onOpenChange, onChan
       load();
       onChange?.();
     } catch (err) { toast.error(err?.response?.data?.detail || "Failed"); }
+  };
+
+  // Resident-visible schedule/update - the SAME fields Aria's
+  // check_request_status reads (routes/resident_requests.py's
+  // _resident_safe_view) and the resident Home screen's request cards show.
+  // Saving here is the ONLY way staff sets a real planned visit window -
+  // Aria is instructed to say "no scheduled time yet" until this is filled in.
+  const saveUpdate = async () => {
+    setSaving(true);
+    try {
+      await api.patch(`/tasks/${taskId}`, {
+        requested_for_date: schedDate || null,
+        requested_for_time_label: schedLabel || null,
+        notes: updateNote,
+      });
+      toast.success("Saved — resident and Aria will see this update");
+      load();
+      onChange?.();
+    } catch (err) { toast.error(err?.response?.data?.detail || "Failed to save"); }
+    setSaving(false);
   };
 
   if (!taskId) return null;
@@ -75,6 +106,26 @@ export default function RequestDetailDialog({ taskId, open, onOpenChange, onChan
               {t.status === "pending" && <Button size="sm" className="bg-caos-forest" onClick={() => act("start")} data-testid="request-start-btn">Start</Button>}
               {t.status !== "completed" && t.status !== "skipped" && <Button size="sm" variant="outline" className="border-2" onClick={() => act("complete")} data-testid="request-complete-btn">Complete</Button>}
             </div>
+
+            {t.status !== "completed" && t.status !== "skipped" && (
+              <div className="mb-6 rounded-xl border border-caos-line p-3">
+                <div className="text-caos-mute text-xs uppercase tracking-widest mb-2">Resident-visible schedule &amp; update</div>
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  <Input type="date" value={schedDate} onChange={(e) => setSchedDate(e.target.value)} data-testid="request-sched-date" />
+                  <Input placeholder="e.g. 2-4 PM" value={schedLabel} onChange={(e) => setSchedLabel(e.target.value)} data-testid="request-sched-label" />
+                </div>
+                <Textarea
+                  placeholder="Update the resident will see, e.g. 'Waiting on a replacement part from the vendor.'"
+                  value={updateNote}
+                  onChange={(e) => setUpdateNote(e.target.value)}
+                  className="mb-2"
+                  data-testid="request-update-note"
+                />
+                <Button size="sm" className="bg-caos-forest" disabled={saving} onClick={saveUpdate} data-testid="request-save-update-btn">
+                  {saving ? "Saving…" : "Save — resident & Aria will see this"}
+                </Button>
+              </div>
+            )}
 
             <div>
               <h3 className="font-display text-lg font-medium text-caos-forest mb-2">Timeline</h3>

@@ -19,18 +19,41 @@ import { API } from "./api";
 // volume | channel | color | position). The AI tools speak in human terms
 // (state="on", target_f=72) so this layer translates between them. Mismatch
 // = HTTP 422 = silent failure where CAOS promises an action that never ran.
-async function postRoomCommand(room, action, value) {
+async function postRoomCommand(room, action, value, kind) {
   const r = await fetch(`${API}/devices/public/room/${encodeURIComponent(room)}/command`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action, value }),
+    body: JSON.stringify({ action, value, kind }),
   });
   return r;
 }
 
 // Real, if reversible, room-state changes - gated the same way as staff
 // requests so a noise-hallucinated turn can't move them either.
-const CONSEQUENTIAL_DEVICE_TOOLS = new Set(["adjust_room_temperature", "toggle_light", "toggle_tv", "set_timer"]);
+const CONSEQUENTIAL_DEVICE_TOOLS = new Set(["adjust_room_temperature", "toggle_light", "toggle_tv", "set_timer", "set_tv_input"]);
+
+// One human-readable sentence per device, driven entirely by that device's
+// OWN declared capabilities/state - not a hardcoded thermostat/TV special
+// case - so a light, fan, or blinds device registered later is described
+// correctly without a code change here. Shared logic for get_room_status
+// (spoken) - the resident-facing device panel builds its own visual cards
+// from the same raw device list, not this sentence.
+export function describeDevice(d) {
+  const s = d.state || {};
+  const caps = d.capabilities || [];
+  const name = d.room ? d.label.replace(`Room ${d.room} `, "") : d.label;
+  if (d.online === false) return `the ${name} is offline`;
+  const bits = [];
+  if (caps.includes("power")) bits.push(s.power === "on" ? "on" : "off");
+  if (caps.includes("temperature") && typeof s.temperature === "number") bits.push(`set to ${s.temperature} degrees`);
+  if (caps.includes("input") && s.input) bits.push(`on ${s.input}`);
+  if (caps.includes("volume") && typeof s.volume === "number" && s.power === "on") bits.push(`volume ${s.volume}`);
+  if (caps.includes("brightness") && typeof s.brightness === "number" && s.power === "on") bits.push(`brightness ${s.brightness}`);
+  if (caps.includes("fan_speed") && s.fan_speed != null) bits.push(`fan speed ${s.fan_speed}`);
+  if (caps.includes("position") && s.position != null) bits.push(`position ${s.position}`);
+  if (!bits.length) return null;
+  return `the ${name} is ${bits.join(", ")}`;
+}
 
 // 2026-08-23: "echo_like" (short, resembles Aria's own speech) genuinely
 // suggests mishearing - ask to repeat. Other suspect reasons (a short but
@@ -51,30 +74,57 @@ export async function executeDeviceTool({ name, args, ctx }) {
     return { ok: false, message: suspectMessage(ctx) };
   }
 
+  if (name === "get_room_status") {
+    if (!room) return { ok: false, message: "no room context — I can't check the room devices here." };
+    const r = await fetch(`${API}/devices/public/by-room/${encodeURIComponent(room)}`);
+    if (!r.ok) return { ok: false, message: `couldn't reach the room devices (${r.status}).` };
+    const list = await r.json();
+    if (!list.length) return { ok: true, message: "there's nothing to read yet — no devices are set up in this room." };
+    const parts = list.map(describeDevice).filter(Boolean);
+    return { ok: true, message: parts.length ? parts.join("; ") + "." : "I don't have a reading for that yet." };
+  }
   if (name === "adjust_room_temperature") {
     if (!room) return { ok: false, message: "no room context — I can't reach the climate control here." };
     const targetF = Math.max(60, Math.min(85, Number(args.target_f) || 72));
-    const r = await postRoomCommand(room, "temperature", targetF);
+    const r = await postRoomCommand(room, "temperature", targetF, "thermostat");
     if (!r.ok) return { ok: false, message: `couldn't reach the AC (${r.status}). I'll let the nurse know.` };
     return { ok: true, message: `set the room to ${targetF} degrees.` };
   }
   if (name === "toggle_light") {
     if (!room) return { ok: false, message: "no room context — I can't reach the lights here." };
-    const r = await postRoomCommand(room, "power", args.state);
+    const r = await postRoomCommand(room, "power", args.state, "light");
     if (!r.ok) return { ok: false, message: `couldn't reach the light (${r.status}).` };
     if (args.state === "on" && typeof args.brightness === "number") {
-      await postRoomCommand(room, "brightness", Math.max(0, Math.min(100, args.brightness)));
+      await postRoomCommand(room, "brightness", Math.max(0, Math.min(100, args.brightness)), "light");
     }
     return { ok: true, message: `turned the light ${args.state}.` };
   }
   if (name === "toggle_tv") {
     if (!room) return { ok: false, message: "no room context — I can't reach the TV here." };
-    const r = await postRoomCommand(room, "power", args.state);
+    const r = await postRoomCommand(room, "power", args.state, "tv");
     if (!r.ok) return { ok: false, message: `couldn't reach the TV (${r.status}).` };
     if (args.state === "on" && typeof args.volume === "number") {
-      await postRoomCommand(room, "volume", Math.max(0, Math.min(100, args.volume)));
+      await postRoomCommand(room, "volume", Math.max(0, Math.min(100, args.volume)), "tv");
     }
     return { ok: true, message: `turned the TV ${args.state}${args.state === "on" && typeof args.volume === "number" ? ` at volume ${args.volume}` : ""}.` };
+  }
+  if (name === "set_tv_input") {
+    if (!room) return { ok: false, message: "no room context — I can't reach the TV here." };
+    // Verify the device actually declares this input before calling -
+    // per the tool's own instruction, a device that doesn't support it
+    // should get an honest "not available", not a failed/ignored command.
+    const listR = await fetch(`${API}/devices/public/by-room/${encodeURIComponent(room)}`);
+    const list = listR.ok ? await listR.json() : [];
+    const tv = list.find((d) => d.kind === "tv");
+    if (!tv || !(tv.capabilities || []).includes("input")) {
+      return { ok: false, message: "this TV doesn't support switching inputs." };
+    }
+    if (!(tv.inputs || []).some((i) => i.toLowerCase() === String(args.input).toLowerCase())) {
+      return { ok: false, message: `this TV doesn't have a "${args.input}" input — it has: ${(tv.inputs || []).join(", ") || "none listed"}.` };
+    }
+    const r = await postRoomCommand(room, "input", args.input, "tv");
+    if (!r.ok) return { ok: false, message: `couldn't switch the input (${r.status}).` };
+    return { ok: true, message: `switched the TV to ${args.input}.` };
   }
   if (name === "call_for_help") {
     const r = await fetch(`${API}/alerts`, {

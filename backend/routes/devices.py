@@ -1,17 +1,26 @@
 """Smart-room device control — CRUD + command dispatch.
 
-Protocols supported (MVP): bluetooth, wifi (HTTP/MQTT), rf_915 (via RFM69 TX
-on the Android bridge), rf_433, ir, zigbee, matter.
+Two execution paths, chosen by the device's own `protocol` (see
+device_adapters.py for the first, this file's docstring for the second):
 
-The backend does not directly talk to the hardware — commands are persisted and
-fetched by the tablet's bridge app, which executes them locally (BLE GATT / HTTP
-GET / RF transmit). This keeps the cloud side protocol-agnostic and lets any
-Android tablet act as the per-room execution hub.
+1. Adapters (mock, home_assistant): the backend executes the command
+   itself, synchronously, in this request - no bridge tablet involved.
+2. Physical-transport protocols (bluetooth, wifi, rf_915 via RFM69 TX on
+   the Android bridge, rf_433, ir, zigbee, matter): the backend does NOT
+   talk to the hardware directly - commands are persisted and fetched by
+   the room's bridge tablet app, which executes them locally (BLE GATT /
+   HTTP GET / RF transmit) and reports back via /queue/{id}/ack. This
+   keeps the cloud side protocol-agnostic and lets any Android tablet act
+   as the per-room execution hub.
+
+Either way, Aria's tools and the resident UI only ever see the same
+action/value/state contract - which path ran is invisible above this file.
 """
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends, Request
 from models import SmartDevice, SmartDeviceCreate, DeviceCommandInput, now_utc
 from deps import db, get_current_user
+from device_adapters import has_adapter, execute as execute_adapter
 
 router = APIRouter(prefix="/devices", tags=["devices"])
 
@@ -64,6 +73,60 @@ async def delete_device(device_id: str, user=Depends(get_current_user)):
     return {"ok": True}
 
 
+async def _dispatch_command(dev: dict, cmd: DeviceCommandInput, issued_by: str) -> dict:
+    """Persist + apply one command against an already-loaded device doc.
+
+    Protocols with a real adapter (device_adapters.py - currently "mock"
+    and "home_assistant"): execute synchronously through that adapter right
+    now, in this request - Aria gets a real, truthful ack (or a real
+    failure) in the same turn, never a command left "queued" forever.
+
+    Every other protocol (real physical-transport hardware: bluetooth,
+    wifi, ir, zigbee, matter, rf_433, rf_915): unchanged behavior - queue
+    the command for the room's bridge tablet and optimistically set state,
+    leaving truth of actual execution to the bridge's later /queue/{id}/ack.
+    """
+    protocol = dev.get("protocol")
+    command = {
+        "command_id": f"cmd_{datetime.now(timezone.utc).timestamp()}",
+        "device_id": dev["device_id"],
+        "action": cmd.action,
+        "value": cmd.value,
+        "issued_by": issued_by,
+        "issued_at": now_utc().isoformat(),
+        "protocol": protocol,
+        "endpoint": dev.get("endpoint"),
+    }
+    new_state = dev.get("state") or {}
+    if has_adapter(protocol):
+        try:
+            result = await execute_adapter(dev, cmd.action, cmd.value)
+            command["status"] = "executed"
+            command["acked_at"] = command["issued_at"]
+            command["ack_detail"] = result.get("detail", "")
+            new_state = {**new_state, cmd.action: cmd.value}
+        except Exception as e:
+            command["status"] = "failed"
+            command["acked_at"] = command["issued_at"]
+            command["ack_detail"] = str(e)
+            await db.device_commands.insert_one(command)
+            command.pop("_id", None)
+            command["state"] = new_state
+            raise HTTPException(status_code=502, detail=f"Device command failed: {e}") from e
+    else:
+        command["status"] = "queued"
+        new_state = {**new_state, cmd.action: cmd.value}
+
+    await db.device_commands.insert_one(command)
+    command.pop("_id", None)
+    await db.smart_devices.update_one(
+        {"device_id": dev["device_id"]},
+        {"$set": {"state": new_state, "last_command_at": now_utc().isoformat()}},
+    )
+    command["state"] = new_state
+    return command
+
+
 @router.post("/{device_id}/command")
 async def send_command(device_id: str, cmd: DeviceCommandInput, user=Depends(get_current_user)):
     dev = await db.smart_devices.find_one({"device_id": device_id}, {"_id": 0})
@@ -71,29 +134,7 @@ async def send_command(device_id: str, cmd: DeviceCommandInput, user=Depends(get
         raise HTTPException(status_code=404, detail="Device not found")
     if cmd.action not in (dev.get("capabilities") or []):
         raise HTTPException(status_code=400, detail=f"Device does not support {cmd.action}")
-
-    # Persist command in the queue for the room's bridge tablet to pick up
-    queued = {
-        "command_id": f"cmd_{datetime.now(timezone.utc).timestamp()}",
-        "device_id": device_id,
-        "action": cmd.action,
-        "value": cmd.value,
-        "issued_by": user.get("name"),
-        "issued_at": now_utc().isoformat(),
-        "status": "queued",
-        "protocol": dev.get("protocol"),
-        "endpoint": dev.get("endpoint"),
-    }
-    await db.device_commands.insert_one(queued)
-    queued.pop("_id", None)
-
-    # Optimistically update the device state
-    new_state = {**(dev.get("state") or {}), cmd.action: cmd.value}
-    await db.smart_devices.update_one(
-        {"device_id": device_id},
-        {"$set": {"state": new_state, "last_command_at": now_utc().isoformat()}},
-    )
-    return queued
+    return await _dispatch_command(dev, cmd, user.get("name"))
 
 
 @router.get("/public/by-room/{room}")
@@ -116,31 +157,23 @@ async def public_room_command(room: str, request: Request, cmd: DeviceCommandInp
     if not devices:
         raise HTTPException(status_code=404, detail=f"No devices in room {room}")
 
-    # Pick the best matching device by capability
-    target = next((d for d in devices if cmd.action in (d.get("capabilities") or [])), None)
+    # Pick the matching device by capability, disambiguated by kind when
+    # given (a room commonly has >1 device sharing a capability, e.g. both
+    # thermostat and TV expose "power" - matching on capability alone would
+    # pick whichever device happens to sort first, silently acting on the
+    # wrong one).
+    candidates = [d for d in devices if cmd.action in (d.get("capabilities") or [])]
+    if cmd.kind:
+        target = next((d for d in candidates if d.get("kind") == cmd.kind), None)
+    else:
+        target = candidates[0] if len(candidates) == 1 else None
     if not target:
-        raise HTTPException(status_code=400, detail=f"No device in room {room} supports {cmd.action}")
-
-    queued = {
-        "command_id": f"cmd_{datetime.now(timezone.utc).timestamp()}",
-        "device_id": target["device_id"],
-        "action": cmd.action,
-        "value": cmd.value,
-        "issued_by": f"kiosk:room:{room}",
-        "issued_at": now_utc().isoformat(),
-        "status": "queued",
-        "protocol": target.get("protocol"),
-        "endpoint": target.get("endpoint"),
-    }
-    await db.device_commands.insert_one(queued)
-    queued.pop("_id", None)
-
-    new_state = {**(target.get("state") or {}), cmd.action: cmd.value}
-    await db.smart_devices.update_one(
-        {"device_id": target["device_id"]},
-        {"$set": {"state": new_state, "last_command_at": now_utc().isoformat()}},
-    )
-    return queued
+        detail = (
+            f"No {cmd.kind} device in room {room} supports {cmd.action}" if cmd.kind
+            else f"{'No' if not candidates else 'More than one'} device in room {room} supports {cmd.action} - pass `kind` to disambiguate"
+        )
+        raise HTTPException(status_code=400, detail=detail)
+    return await _dispatch_command(target, cmd, f"kiosk:room:{room}")
 
 
 @router.get("/queue/{room}")

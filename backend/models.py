@@ -531,14 +531,20 @@ class DeviceTokenCreate(BaseModel):
 
 
 # ---------- Smart-room devices (IoT: AC, fan, heater, lights, TV, etc.) ----------
-DeviceProtocol = Literal["bluetooth", "wifi", "rf_433", "rf_915", "ir", "zigbee", "matter"]
+# "mock" = no physical bridge tablet exists for this room yet; the backend
+# executes the command synchronously and reports a real (simulated) result
+# instead of queuing for a bridge that will never pick it up. Same command/
+# state/capabilities contract as every other protocol, so swapping a room
+# from "mock" to a real protocol (wifi/zigbee/...) needs no conversational
+# or tool-schema change - only the execution path in devices.py branches on it.
+DeviceProtocol = Literal["mock", "home_assistant", "bluetooth", "wifi", "rf_433", "rf_915", "ir", "zigbee", "matter"]
 DeviceKind = Literal[
     "light", "fan", "heater", "ac", "thermostat", "tv", "speaker",
     "blinds", "outlet", "humidifier", "bed", "door_lock", "generic",
 ]
 DeviceCapability = Literal[
     "power", "brightness", "temperature", "fan_speed", "volume",
-    "channel", "color", "position",
+    "channel", "input", "color", "position",
 ]
 
 
@@ -552,6 +558,11 @@ class SmartDevice(BaseModel):
     resident_id: Optional[str] = None
     endpoint: Optional[str] = None          # MAC / IP / RF code / zigbee id
     capabilities: List[DeviceCapability] = Field(default_factory=list)
+    # Only meaningful when "input" is in capabilities (e.g. a TV) - the
+    # device's own declared list of valid values for that capability, so
+    # Aria/the UI offer only what this specific device actually supports
+    # instead of guessing a universal input list.
+    inputs: List[str] = Field(default_factory=list)
     state: dict = Field(default_factory=dict)   # e.g. {"power":"on","brightness":60,"temperature_c":22}
     vendor: Optional[str] = None
     model: Optional[str] = None
@@ -569,6 +580,7 @@ class SmartDeviceCreate(BaseModel):
     resident_id: Optional[str] = None
     endpoint: Optional[str] = None
     capabilities: List[DeviceCapability] = Field(default_factory=list)
+    inputs: List[str] = Field(default_factory=list)
     vendor: Optional[str] = None
     model: Optional[str] = None
     notes: Optional[str] = ""
@@ -582,9 +594,17 @@ class DeviceCommandInput(BaseModel):
       {"action": "temperature", "value": 22}
       {"action": "brightness",  "value": 60}
       {"action": "channel",     "value": "up"}
+
+    `kind` (optional) disambiguates the room-scoped command routes below,
+    which pick a device by capability match - a room with both a
+    thermostat and a TV both expose "power", so "turn the TV on" without
+    a kind hint could silently flip the thermostat instead (a real bug,
+    confirmed once mock devices existed). Omit only for a room with a
+    single device having that capability.
     """
     action: DeviceCapability
     value: Optional[str | int | float] = None
+    kind: Optional[DeviceKind] = None
 
 
 # ---------- AI vision ----------
@@ -707,6 +727,13 @@ class StaffTaskUpdate(BaseModel):
     assigned_to: Optional[str] = None
     status: Optional[TaskStatus] = None
     acknowledged_by: Optional[str] = None
+    # Reuses the same "when" pair transportation already uses (see StaffTask's
+    # comment above) rather than inventing a separate maintenance-only
+    # schedule field - lets staff record a planned service window (e.g.
+    # "Today, 2-4 PM") for ANY request type, resident-visible via
+    # resident_request_status()/check_request_status.
+    requested_for_date: Optional[str] = None
+    requested_for_time_label: Optional[str] = None
 
 
 class StaffTaskTemplate(BaseModel):

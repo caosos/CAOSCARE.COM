@@ -64,9 +64,15 @@ export async function executeOperationsTool({ name, args, ctx }) {
     }
     const data = await r.json();
     if (data.duplicate) {
+      // 2026-08-27: the existing open ticket may be about a DIFFERENT
+      // problem than what was just asked (same category, different issue) -
+      // say what it's actually about instead of implying it's the same one.
+      const aboutClause = data.same_issue || !data.existing_summary
+        ? "this"
+        : `something else already open in ${args.category} ("${data.existing_summary}")`;
       return {
         ok: true,
-        message: `there's already an open ${args.category} request on file for this - I've let them know again (this is ask #${data.re_request_count}), current status: ${data.status}.`,
+        message: `there's already an open ${args.category} request on file for ${aboutClause} - I've let them know again (this is ask #${data.re_request_count}), current status: ${data.status}.`,
         task_id: data.task_id,
       };
     }
@@ -83,10 +89,16 @@ export async function executeOperationsTool({ name, args, ctx }) {
     if (!r.ok) return { ok: false, message: `couldn't check that (${r.status}).` };
     const data = await r.json();
     if (!data.found) return { ok: true, message: "no matching request found on record." };
-    return {
-      ok: true,
-      message: `status: ${data.status}${data.acknowledged ? " (acknowledged)" : " (not yet acknowledged)"}${data.assigned_to_name ? `, assigned to ${data.assigned_to_name}` : ""}.`,
-    };
+    const scheduleClause = data.scheduled_date || data.scheduled_time_label
+      ? `planned for ${[data.scheduled_time_label, data.scheduled_date].filter(Boolean).join(" on ")}`
+      : "no scheduled time yet";
+    const parts = [
+      `it's for ${data.what_for || "something you asked about"}`,
+      `status: ${data.status}${data.acknowledged ? " (acknowledged)" : " (not yet acknowledged)"}${data.assigned_to_name ? `, assigned to ${data.assigned_to_name}` : ""}`,
+      scheduleClause,
+    ];
+    if (data.latest_update) parts.push(`latest update: ${data.latest_update.replace(/\.$/, "")}`);
+    return { ok: true, message: parts.join("; ") + "." };
   }
 
   if (name === "check_transportation_availability") {

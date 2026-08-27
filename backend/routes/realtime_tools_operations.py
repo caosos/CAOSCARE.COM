@@ -30,6 +30,10 @@ def _build_operations_tools(request_categories: list[str] | None = None) -> list
                 "request already existed (duplicate/re_request_count), tell the "
                 "resident honestly that it was already on file and you've let "
                 "staff know again - do not claim a brand-new request was made. "
+                "If that result's same_issue is false, the open ticket is about "
+                "something ELSE in the same department (see existing_summary) - "
+                "say what THAT is actually about, do not describe it as if it "
+                "matches what the resident just asked for. "
                 "`summary` must ONLY contain details the resident actually said "
                 "this call (or a tool result confirmed) - never add a time, date, "
                 "or other specific you inferred or guessed. If a detail like a "
@@ -64,10 +68,17 @@ def _build_operations_tools(request_categories: list[str] | None = None) -> list
             "description": (
                 "Check the real status of the resident's most recent staff request "
                 "(from request_staff_help). Use this when they ask things like 'did "
-                "the nurse see my message' or 'is anyone coming for the light'. "
-                "Report only what this actually returns - never say someone is on "
-                "the way unless status is acknowledged/in_progress, and never say "
-                "it's done unless status is completed."
+                "the nurse see my message', 'is anyone coming for the light', 'what "
+                "did I call maintenance about', or 'when are they coming'. The result "
+                "includes `what_for` (say plainly what the request is actually about - "
+                "never just say 'a maintenance request'), `scheduled_date`/"
+                "`scheduled_time_label` (a REAL staff-entered planned visit window - "
+                "report it if present; if BOTH are empty, say there is no scheduled "
+                "time yet - never invent an ETA), and `latest_update` (a staff note, "
+                "e.g. waiting on a part - read it aloud if present). Report only what "
+                "this actually returns - never say someone is on the way unless "
+                "status is acknowledged/in_progress, and never say it's done unless "
+                "status is completed."
             ),
             "parameters": {
                 "type": "object",

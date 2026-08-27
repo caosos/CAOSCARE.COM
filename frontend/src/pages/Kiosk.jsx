@@ -4,10 +4,15 @@ import axios from "axios";
 import { API } from "../lib/api";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
-import { AlertCircle, Mic, Volume2, Phone, Lightbulb, Fan, Thermometer, Tv, Power, Type, Contrast, Play } from "lucide-react";
+import { AlertCircle, Mic, Volume2, Phone, ZoomIn, ZoomOut, Contrast, Play } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import RealtimeChatScreen from "./RealtimeChatScreen";
+import { useMagnification } from "../lib/useMagnification";
+import ProfileHeader from "../components/kiosk/ProfileHeader";
+import TodayPanel from "../components/kiosk/TodayPanel";
+import RequestsPanel from "../components/kiosk/RequestsPanel";
+import RoomDevicePanel from "../components/kiosk/RoomDevicePanel";
 
 // Kiosk is PUBLIC - no login. Selected/identified by kiosk_id in URL.
 // /kiosk/:kioskId  (use "demo" to pick an arbitrary kiosk automatically)
@@ -20,8 +25,6 @@ import RealtimeChatScreen from "./RealtimeChatScreen";
 // bug). Medication reminders, which used to piggyback on the legacy
 // speak() helper, now use the mode-independent announceLine() below so
 // that feature has no gap from this change.
-
-const DEVICE_ICON = { light: Lightbulb, fan: Fan, heater: Thermometer, ac: Thermometer, tv: Tv };
 
 export default function Kiosk() {
   const { kioskId } = useParams();
@@ -40,14 +43,13 @@ export default function Kiosk() {
   const callStateRef = useRef("idle");     // sync callState for async callbacks
   useEffect(() => { callStateRef.current = callState; }, [callState]);
 
-  // Accessibility — text-size & high-contrast per kiosk, persisted so a room
+  // Accessibility — magnification (whole-screen, voice+touch-controlled,
+  // see useMagnification.js) & high-contrast per kiosk, persisted so a room
   // set for a low-vision resident stays that way across reboots.
-  const [textSize, setTextSize] = useState(() => localStorage.getItem("caos_kiosk_textsize") || "md"); // md | lg | xl
+  const { scale: magnification, setScale: setMagnification } = useMagnification();
   const [highContrast, setHighContrast] = useState(() => localStorage.getItem("caos_kiosk_hc") === "1");
-  useEffect(() => { localStorage.setItem("caos_kiosk_textsize", textSize); }, [textSize]);
   useEffect(() => { localStorage.setItem("caos_kiosk_hc", highContrast ? "1" : "0"); }, [highContrast]);
-  const cycleTextSize = () => setTextSize((s) => (s === "md" ? "lg" : s === "lg" ? "xl" : "md"));
-  const a11yRootClass = `${textSize === "lg" ? "kiosk-text-lg" : textSize === "xl" ? "kiosk-text-xl" : ""} ${highContrast ? "kiosk-hc" : ""}`.trim();
+  const a11yRootClass = highContrast ? "kiosk-hc" : "";
 
   // Voice preference (OpenAI TTS voice). Persisted per-kiosk so each room
   // can match its resident's preference.
@@ -148,6 +150,23 @@ export default function Kiosk() {
     })();
   }, [kioskId]);
 
+  // Keep the device panel current without a manual refresh - a voice-driven
+  // change (Aria's tools) or a staff-side change both write the same
+  // /devices state this reads, so a short poll is enough to reflect either
+  // (see 2026-08-27 report, "same device state for screen and Aria").
+  useEffect(() => {
+    if (!kiosk?.room || callState !== "idle") return;
+    let stop = false;
+    const poll = async () => {
+      try {
+        const { data } = await axios.get(`${API}/devices/public/by-room/${kiosk.room}`);
+        if (!stop) setDevices(data || []);
+      } catch { /* keep last known state on a transient network blip */ }
+    };
+    const t = setInterval(poll, 10000);
+    return () => { stop = true; clearInterval(t); };
+  }, [kiosk?.room, callState]);
+
   // Poll for incoming emergencies (panic-press / fall) → auto hands-free
   useEffect(() => {
     if (!kiosk?.kiosk_id) return;
@@ -208,8 +227,8 @@ export default function Kiosk() {
       const noisy = (devices || []).filter((d) => (d.kind === "tv" || d.kind === "speaker") && d.state?.power === "on");
       for (const d of noisy) {
         try {
-          await axios.post(`${API}/devices/public/room/${kiosk.room}/command`, { action: "power", value: "off" });
-          mutedDevicesRef.current.push({ device_id: d.device_id, prior_power: "on" });
+          await axios.post(`${API}/devices/public/room/${kiosk.room}/command`, { action: "power", value: "off", kind: d.kind });
+          mutedDevicesRef.current.push({ device_id: d.device_id, kind: d.kind, prior_power: "on" });
         } catch { /* ignore */ }
       }
     } catch { /* ignore */ }
@@ -288,7 +307,7 @@ export default function Kiosk() {
       for (const m of mutedDevicesRef.current) {
         if (m.prior_power === "on") {
           try {
-            await axios.post(`${API}/devices/public/room/${kiosk.room}/command`, { action: "power", value: "on" });
+            await axios.post(`${API}/devices/public/room/${kiosk.room}/command`, { action: "power", value: "on", kind: m.kind });
           } catch { /* ignore */ }
         }
       }
@@ -298,10 +317,10 @@ export default function Kiosk() {
     setCallState("idle");
   };
 
-  const sendDeviceCommand = async (action, value) => {
+  const sendDeviceCommand = async (action, value, kind) => {
     if (!kiosk?.room) return;
     try {
-      await axios.post(`${API}/devices/public/room/${kiosk.room}/command`, { action, value });
+      await axios.post(`${API}/devices/public/room/${kiosk.room}/command`, { action, value, kind });
       toast.success(`${action} → ${value}`);
       // Refresh device state
       try {
@@ -398,15 +417,25 @@ export default function Kiosk() {
             <span className="font-display font-light text-caos-forest text-2xl">Care</span>
           </div>
           <div className="flex items-center gap-2 kiosk-a11y-row">
-            <button
-              onClick={cycleTextSize}
-              data-testid="kiosk-a11y-text-size"
-              aria-label={`Text size: ${textSize}. Tap to cycle.`}
-              title="Text size"
-              className="px-3 py-2 rounded-full bg-white border border-caos-line text-caos-forest hover:bg-caos-forest hover:text-white flex items-center gap-1 text-sm font-bold uppercase tracking-wider"
-            >
-              <Type className="w-4 h-4" /> {textSize === "md" ? "A" : textSize === "lg" ? "A+" : "A++"}
-            </button>
+            <div className="flex items-center gap-1 px-1 py-1 rounded-full bg-white border border-caos-line" data-testid="kiosk-a11y-magnification">
+              <button
+                onClick={() => setMagnification(magnification - 20)}
+                aria-label="Make text smaller"
+                title="Make text smaller"
+                className="p-2 rounded-full text-caos-forest hover:bg-caos-forest hover:text-white"
+              >
+                <ZoomOut className="w-4 h-4" />
+              </button>
+              <span className="text-xs font-bold text-caos-forest w-10 text-center">{magnification}%</span>
+              <button
+                onClick={() => setMagnification(magnification + 20)}
+                aria-label="Make text bigger"
+                title="Make text bigger"
+                className="p-2 rounded-full text-caos-forest hover:bg-caos-forest hover:text-white"
+              >
+                <ZoomIn className="w-4 h-4" />
+              </button>
+            </div>
             <button
               onClick={() => setVoicePickerOpen(true)}
               data-testid="kiosk-a11y-voice"
@@ -441,83 +470,55 @@ export default function Kiosk() {
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col items-center justify-center text-center max-w-4xl mx-auto">
-          <p className="text-[10px] md:text-xs font-bold uppercase tracking-[0.32em] text-caos-mute">
-            CARE · powered by CAOS
-          </p>
-          <h1 className="kiosk-hello mt-5 font-display text-5xl md:text-7xl lg:text-[110px] font-light tracking-tighter leading-[0.95] text-caos-forest">
-            {resident ? `Hello, ${resident.name.split(" ")[0]}.` : "Hello."}
-          </h1>
-          <p className="kiosk-prompt mt-6 text-2xl md:text-3xl text-caos-ink/80 leading-snug">
-            If you need help, press the big red button.<br />
-            I'll stay with you while staff are notified.
-          </p>
+        <div className="flex-1 flex flex-col items-center max-w-5xl mx-auto w-full">
+          {kiosk && <ProfileHeader resident={resident} kiosk={kiosk} />}
 
-          <button
-            onClick={() => triggerEmergency("emergency")}
-            data-testid="kiosk-emergency-btn"
-            aria-label="Emergency call button - press for help"
-            className="caos-emergency-btn mt-14 w-full max-w-2xl rounded-[48px] py-16 font-display font-semibold text-5xl md:text-6xl tracking-tight flex items-center justify-center gap-6"
-          >
-            <Phone className="w-14 h-14 md:w-16 md:h-16" strokeWidth={2.5} />
-            CALL FOR HELP
-          </button>
-
-          <div className="mt-10 flex flex-wrap gap-6 justify-center">
-            <Button
-              onClick={() => triggerEmergency("assist")}
-              data-testid="kiosk-assist-btn"
-              className="caos-kiosk-btn bg-caos-forest hover:bg-caos-forest-hover text-white px-10 rounded-[32px]"
-            >
-              <Phone className="w-6 h-6 mr-3" /> I need a little help
-            </Button>
-            <Button
-              onClick={() => triggerEmergency("comfort")}
-              data-testid="kiosk-chat-btn"
-              variant="outline"
-              className="caos-kiosk-btn border-2 border-caos-forest text-caos-forest hover:bg-caos-forest hover:text-white bg-white px-10 rounded-[32px]"
-            >
-              <Mic className="w-6 h-6 mr-3" /> I just want to talk
-            </Button>
-          </div>
-          {!micReady && (
-            <p className="mt-4 text-sm text-caos-mute italic" data-testid="kiosk-mic-prime-hint">
-              Tap any button above — the tablet will ask for microphone permission once, then the voice is hands-free.
+          <div className="text-center max-w-4xl">
+            <p className="text-[10px] md:text-xs font-bold uppercase tracking-[0.32em] text-caos-mute">
+              CARE · powered by CAOS
             </p>
-          )}
+            <h1 className="kiosk-hello mt-5 font-display text-5xl md:text-7xl lg:text-[110px] font-light tracking-tighter leading-[0.95] text-caos-forest">
+              {resident ? `Hello, ${resident.preferred_name || resident.name.split(" ")[0]}.` : "Hello."}
+            </h1>
+            <p className="kiosk-prompt mt-6 text-2xl md:text-3xl text-caos-ink/80 leading-snug">
+              If you need help, press the big red button.<br />
+              I'll stay with you while staff are notified.
+            </p>
 
-          {/* Smart-room controls */}
-          {devices.length > 0 && (
-            <div className="mt-14 w-full max-w-3xl" data-testid="kiosk-device-panel">
-              <p className="text-xs font-bold uppercase tracking-[0.3em] text-caos-mute mb-4">Your room</p>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {devices.map((d) => {
-                  const Icon = DEVICE_ICON[d.kind] || Power;
-                  const isOn = d.state?.power === "on";
-                  return (
-                    <button
-                      key={d.device_id}
-                      data-testid={`kiosk-dev-${d.device_id}`}
-                      onClick={() => sendDeviceCommand("power", isOn ? "off" : "on")}
-                      className={`rounded-3xl border-2 p-5 flex flex-col items-start gap-2 transition-all ${
-                        isOn
-                          ? "bg-caos-forest text-white border-caos-forest shadow-lg"
-                          : "bg-white text-caos-forest border-caos-line hover:border-caos-forest"
-                      }`}
-                    >
-                      <Icon className="w-8 h-8" strokeWidth={2} />
-                      <span className="font-display text-lg font-semibold leading-tight text-left">
-                        {d.label.replace(`Room ${kiosk.room} `, "")}
-                      </span>
-                      <span className={`text-xs font-bold uppercase tracking-wider ${isOn ? "text-white/80" : "text-caos-mute"}`}>
-                        {isOn ? "On — tap to turn off" : "Off — tap to turn on"}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+            <button
+              onClick={() => triggerEmergency("emergency")}
+              data-testid="kiosk-emergency-btn"
+              aria-label="Emergency call button - press for help"
+              className="caos-emergency-btn mt-14 w-full max-w-2xl rounded-[48px] py-16 font-display font-semibold text-5xl md:text-6xl tracking-tight flex items-center justify-center gap-6"
+            >
+              <Phone className="w-14 h-14 md:w-16 md:h-16" strokeWidth={2.5} />
+              CALL FOR HELP
+            </button>
+
+            <div className="mt-10 flex flex-wrap gap-6 justify-center">
+              <Button
+                onClick={() => triggerEmergency("comfort")}
+                data-testid="kiosk-chat-btn"
+                variant="outline"
+                className="caos-kiosk-btn border-2 border-caos-forest text-caos-forest hover:bg-caos-forest hover:text-white bg-white px-10 rounded-[32px]"
+              >
+                <Mic className="w-6 h-6 mr-3" /> I just want to talk
+              </Button>
             </div>
-          )}
+            {!micReady && (
+              <p className="mt-4 text-sm text-caos-mute italic" data-testid="kiosk-mic-prime-hint">
+                Tap any button above — the tablet will ask for microphone permission once, then the voice is hands-free.
+              </p>
+            )}
+          </div>
+
+          {/* Resident information hierarchy - requests/schedule/devices,
+              same underlying state Aria's tools read (see 2026-08-27 report) */}
+          <div className="w-full text-left mt-14 space-y-0">
+            <RequestsPanel residentId={resident?.resident_id} room={kiosk?.room} />
+            <TodayPanel />
+            <RoomDevicePanel devices={devices} room={kiosk?.room} onToggle={(d) => sendDeviceCommand("power", d.state?.power === "on" ? "off" : "on", d.kind)} />
+          </div>
         </div>
 
         <div className="text-center text-caos-mute text-sm">

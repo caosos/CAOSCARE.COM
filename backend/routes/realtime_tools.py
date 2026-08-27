@@ -3,12 +3,16 @@ the model can invoke during a live conversation).
 
 Split out of realtime.py 2026-08-09 (was pushing that file well past the
 400-line code-file cap). Pure data, no FastAPI routes or DB access. See
-the sibling realtime_self_knowledge.py for the "about yourself" block, and
+the sibling realtime_self_knowledge.py for the "about yourself" block,
 realtime_tools_operations.py (split out 2026-08-10, same reason) for the
 operational request-bus tools: staff requests, transportation, schedule,
-menu.
+menu; realtime_device_tools.py (split out 2026-08-27, same reason) for
+room-device control: thermostat, TV, lights; and realtime_display_tools.py
+(added 2026-08-27) for the resident's own display/magnification setting.
 """
 from routes.realtime_tools_operations import _build_operations_tools
+from routes.realtime_device_tools import _build_device_tools
+from routes.realtime_display_tools import _build_display_tools
 from routes.resident_requests import get_request_categories
 
 
@@ -24,87 +28,7 @@ async def _build_tools() -> list[dict]:
     against the admin-managed Department list instead of a fixed tuple, so
     a newly-added department is usable by Aria the moment it's created.
     """
-    return [
-        {
-            "type": "function",
-            "name": "adjust_room_temperature",
-            "description": (
-                "Set the air conditioning or heater target temperature in the resident's "
-                "room. Use ONLY when the resident clearly asks to be warmer or cooler. "
-                "After calling, briefly confirm what you did in one short sentence."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "target_f": {
-                        "type": "number",
-                        "minimum": 60,
-                        "maximum": 85,
-                        "description": "Target temperature in Fahrenheit (60-85)."
-                    },
-                    "mode": {
-                        "type": "string",
-                        "enum": ["cool", "heat", "auto"],
-                        "description": "Whether to cool or heat. Default 'auto' if uncertain."
-                    }
-                },
-                "required": ["target_f"],
-                "additionalProperties": False
-            }
-        },
-        {
-            "type": "function",
-            "name": "toggle_light",
-            "description": (
-                "Turn the resident's room light on or off, or set its brightness. "
-                "Use when they ask for the light or for it to be brighter/dimmer."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "state": {
-                        "type": "string",
-                        "enum": ["on", "off"],
-                        "description": "Whether to turn the light on or off."
-                    },
-                    "brightness": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 100,
-                        "description": "Optional brightness 0-100. Omit for full on."
-                    }
-                },
-                "required": ["state"],
-                "additionalProperties": False
-            }
-        },
-        {
-            "type": "function",
-            "name": "toggle_tv",
-            "description": (
-                "Turn the resident's TV on or off, change channel, or adjust volume. "
-                "If the resident asks for quiet or to mute the TV, use action='off' "
-                "or set volume to 0."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "state": {
-                        "type": "string",
-                        "enum": ["on", "off"],
-                        "description": "Power state for the TV."
-                    },
-                    "volume": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 100,
-                        "description": "Optional volume 0-100."
-                    }
-                },
-                "required": ["state"],
-                "additionalProperties": False
-            }
-        },
+    return _build_device_tools() + [
         {
             "type": "function",
             "name": "call_for_help",
@@ -293,6 +217,6 @@ async def _build_tools() -> list[dict]:
                 "additionalProperties": False
             }
         },
-    ] + _build_operations_tools(await get_request_categories())
+    ] + _build_operations_tools(await get_request_categories()) + _build_display_tools()
 
 
