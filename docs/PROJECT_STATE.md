@@ -1385,3 +1385,35 @@ Michael's directive: stop tuning voice (confirmed good enough), move to integrat
 
 ### Next safe step
 Michael: one live voice pass through the Room 401 script; create one HA Helper (or connect the first real bedroom device) to prove the Home Assistant adapter's positive path; decide on hardware purchases from the capability categories listed in the linked report. Engineering: operator/Aria memory extraction pipeline next.
+
+---
+
+## 2026-08-27 — Room audio hardware architecture recorded (EliteDesk/eMeet/handset roles, TV-audio-in-path decision)
+
+### Agent / tool
+Claude Code, EliteDesk primary worktree.
+
+### Branch / ref
+`main`, documentation-only, no commit made this pass (explicitly instructed not to commit/push). Uncommitted Admin-Aria semantic-UI/telemetry work from the immediately prior session was inspected and left untouched.
+
+### What changed
+Per Michael's field session report and explicit directive, recorded the room-audio hardware topology decision as a new canonical doc, `docs/ROOM_AUDIO_ARCHITECTURE.md`: EliteDesk owns room compute + TV display/source routing (not room audio itself); the eMeet (or whichever conferencing-speakerphone-class device fills that role in a given room) is the single room audio capture/playback endpoint for Aria; TV audio should eventually be brought into the same electrical/digital path and played through that same eMeet so one AEC path owns both Aria and TV playback - explicitly **not** solved with a second, TV-side microphone; TV internal speakers must be muted once CAOSCare owns TV audio; the handset remains the guaranteed-duplex fallback surface, independent of room acoustics. Recorded Michael's field observation (an eMeet-class speakerphone worked at ~10-12ft with a fan running) explicitly as one observed field result under those conditions, not a universal hardware spec - consistent with, and cross-referenced against, the existing 2026-08-25 Rooms 401/403/408 forensic finding (single eMeet unit outperforming a split mic/soundbar arrangement), same "field-supported, not lab-proven" framing.
+
+Described (not built) the smallest future software boundary for distinguishing logical audio sources - Aria playback / TV-media playback / resident microphone capture / handset fallback - explicitly modeled on `device_adapters.py`'s existing logical-action/physical-transport separation, with hardware left to configuration rather than hardcoded (no eMeet model or TV hardcoded anywhere, including in this record itself).
+
+**Inspected the existing resident voice implementation specifically for conflicts** before writing anything: `realtime_audio_config.py`'s VAD/`far_field` noise-reduction settings are protocol-level, not device-tied; `useRealtimeVoice.js`'s `getUserMedia` call has no `deviceId` constraint (captures whatever the OS/browser default input is); no `setSinkId`/output-device-selection code exists anywhere in the resident voice path. **Found zero conflicts - no runtime code was modified.** The gap this record identifies (TV audio not yet in the same path as Aria's audio) is a room-wiring/hardware gap, not a software defect - there is currently no TV-audio-into-eMeet signal path for any software to route through yet.
+
+Indexed the new doc from `docs/REPO_MAP.md`'s documentation map and `docs/reports/INDEX.md` (new entry ahead of the existing "Voice echo research + audio-path architecture" section, which it is grounded in and cross-references rather than duplicates).
+
+### What was verified
+- Direct inspection (not assumption) of `realtime_audio_config.py`, `useRealtimeVoice.js` confirmed no device-specific hardcoding exists to conflict with the new architecture.
+- `git status` before and after: only this session's own doc edits present; the prior session's uncommitted Admin-Aria files (`admin_assistant*.py`, `events.py`, `frontend/src/components/admin/`, `adminAriaActions.js`, and modified `device_adapters.py`/`models.py`/`server.py`/`Admin.jsx`) confirmed untouched throughout.
+- `git diff --check`: clean. No secrets/tokens/credentials in any diff (documentation-only changes).
+- Existing backend test suite (`tests/test_room_device_isolation.py`) re-run as a smoke check that nothing was disturbed: 7/7 pass, unrelated to this doc-only change but confirms the working tree is still healthy.
+
+### Blocked / not yet done
+- Everything hardware-dependent remains explicitly unverified per the record itself: TV audio-out electrical/digital behavior (headphone/RCA/optical/HDMI-ARC), eMeet-model-specific AEC behavior once a second (TV) source is added, the actual TV-audio-to-eMeet signal path (does not exist yet), and TV auto-mute behavior. None of this can be verified or built further without physical hardware in Michael's bedroom test environment.
+- The described future audio-routing adapter boundary (Aria playback / TV playback / mic capture / handset as logical sources) is documented as a target shape only - not implemented, since nothing yet requires it (no TV-audio-in-path hardware exists to route).
+
+### Next safe step
+Michael's bedroom hardware test environment: bring TV audio out (via whichever output the specific TV actually supports) into the eMeet's input, confirm the TV's internal speakers can actually be muted, and observe real AEC behavior under that combined load. Only after that live result should the described logical audio-routing adapter boundary actually be built - building it before real hardware exists to route would be speculative.

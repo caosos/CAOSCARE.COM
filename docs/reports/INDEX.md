@@ -2,7 +2,7 @@
 
 Start here. Updated by Claude Code and ChatGPT-Aria as shared project state changes — this is the fastest way to reconstruct current CAOSCARE state without asking Michael to relay prior conversations.
 
-_Last updated: 2026-08-23_
+_Last updated: 2026-08-27_
 
 ## Current working directive
 [CURRENT_DIRECTIVE.md](CURRENT_DIRECTIVE.md)
@@ -32,6 +32,10 @@ _Last updated: 2026-08-23_
 ## Rooms 401/403/408 forensic comparison — voice configuration freeze
 [2026-08-25-0245-rooms-401-403-408-forensics.md](2026-08-25-0245-rooms-401-403-408-forensics.md)
 — Read-only cross-session comparison against Room 404. Room 401: no session ever ran (resolved, not inferred). Rooms 403 (5m36s/28 turns) and 408 (7m41s/39 turns): **zero false-trusted echoes** in either — Room 404's defect (3 phantom trusted echoes in 19s) did not reproduce. Room 408 shows the strongest full-duplex evidence yet (~14 genuine barge-ins, all correctly classified). Physical input/output device arrangement is confirmed NOT OBSERVABLE from any CAOSCARE telemetry — no field records it. Records Michael's independent field finding (eMeet as complete mic+speaker vs. split soundbar output) as **strongly supported practical root cause / deployment requirement**, not lab-proven DSP behavior. **Recommendation: freeze voice configuration, no code change indicated, return engineering priority to the main system** — accepted, see PROJECT_STATE.
+
+## Room audio hardware architecture — decision record
+[../ROOM_AUDIO_ARCHITECTURE.md](../ROOM_AUDIO_ARCHITECTURE.md)
+— **Decided**, 2026-08-27, from Michael's field session report. EliteDesk = compute/TV source routing; eMeet = single room audio capture/playback endpoint for Aria; TV audio to eventually share the same AEC path through the eMeet (never a second TV-side microphone); TV internal speakers muted once CAOSCare owns TV audio; handset = guaranteed-duplex fallback. Field observation recorded as evidence, not spec: an eMeet-class speakerphone worked at ~10-12ft with a fan running. Existing resident voice code inspected and found **already compatible** — no device-specific hardcoding anywhere in the capture/playback path, so no code changed. TV-audio-out electrical routing, eMeet AEC-under-load, and TV auto-mute remain explicitly unverified pending physical hardware.
 
 ## Voice echo research + audio-path architecture
 [2026-08-24-2100-voice-echo-research-and-audio-path-architecture.md](2026-08-24-2100-voice-echo-research-and-audio-path-architecture.md)

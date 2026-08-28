@@ -336,6 +336,7 @@ docs/CCE_LITE_TRUST_LAYER_PROPOSAL.md
 docs/REPO_MAP.md
 docs/BUILD_STATUS.md                         First runnable/deployment-prep status and blockers
 docs/DEPLOYMENT_RUNBOOK.md                   First non-Docker /opt/caoscare server path
+docs/ROOM_AUDIO_ARCHITECTURE.md              Room audio hardware topology decision (2026-08-27): EliteDesk=compute/TV routing, eMeet=single room audio endpoint, TV audio to eventually share one AEC path via the eMeet, handset=fallback. Explicitly marks TV-audio-routing/AEC-under-load as unverified pending hardware.
 ```
 
 Recommended companion contracts still worth adding or expanding when needed:
