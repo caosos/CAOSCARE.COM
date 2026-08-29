@@ -14,6 +14,14 @@ const PROFILES = {
   operator: { initial: 250, min: 150, max: 1200, resumeStep: 150, settleStep: 25 },
   resident: { initial: 450, min: 300, max: 1600, resumeStep: 150, settleStep: 20 },
 };
+const FALLBACK_ITEM = "__current_speech_turn__";
+
+export const CONVERSATION_RHYTHM_INSTRUCTIONS = `## Conversation rhythm
+Match the person's conversational tempo instead of imposing your own. Let them finish. A pause, filler word, restart, half-sentence, or quick change of direction is not automatically the end of their thought. If they speak quickly, keep your replies tighter and move with them. If they slow down or search for words, leave more room. If they interrupt you, yield immediately and follow the new thread. Do not answer an obviously unfinished fragment, and do not fill every silence.`;
+
+export function withConversationRhythm(instructions = "") {
+  return `${instructions}\n\n${CONVERSATION_RHYTHM_INSTRUCTIONS}`;
+}
 
 export function createConversationTempoController({ send, sessionIdRef, ctxRef }) {
   const profile = ctxRef.current?.owner_user_id ? PROFILES.operator : PROFILES.resident;
@@ -23,6 +31,7 @@ export function createConversationTempoController({ send, sessionIdRef, ctxRef }
   let pendingItemId = null;
   let latestItemId = null;
   const overlapItems = new Set();
+  const keyFor = (itemId) => itemId || FALLBACK_ITEM;
 
   const log = (event, meta = {}) => {
     logRealtimeEvent(sessionIdRef.current, event, {
@@ -39,9 +48,10 @@ export function createConversationTempoController({ send, sessionIdRef, ctxRef }
   };
 
   const scheduleResponse = (itemId) => {
-    if (itemId && latestItemId && itemId !== latestItemId) return;
+    const itemKey = keyFor(itemId);
+    if (latestItemId && itemKey !== latestItemId) return;
     clearPending();
-    pendingItemId = itemId || null;
+    pendingItemId = itemKey;
     timer = setTimeout(() => {
       timer = null;
       pendingItemId = null;
@@ -53,16 +63,17 @@ export function createConversationTempoController({ send, sessionIdRef, ctxRef }
   };
 
   const speechStarted = ({ itemId = null } = {}) => {
-    latestItemId = itemId || latestItemId;
+    latestItemId = keyFor(itemId);
     if (!clearPending()) return;
     graceMs = Math.min(profile.max, graceMs + profile.resumeStep);
     log("tempo_user_resumed", { item_id: itemId || null });
   };
 
   const speechStopped = ({ itemId = null, overlapped = false } = {}) => {
-    latestItemId = itemId || latestItemId;
+    const itemKey = keyFor(itemId);
+    latestItemId = itemKey;
     if (overlapped) {
-      if (itemId) overlapItems.add(itemId);
+      overlapItems.add(itemKey);
       log("tempo_waiting_for_overlap_classification", { item_id: itemId || null });
       return;
     }
@@ -70,14 +81,15 @@ export function createConversationTempoController({ send, sessionIdRef, ctxRef }
   };
 
   const classified = ({ itemId = null, suspect = false, reason = "unknown" } = {}) => {
+    const itemKey = keyFor(itemId);
     if (suspect) {
-      if (!itemId || pendingItemId === itemId) clearPending();
-      if (itemId) overlapItems.delete(itemId);
+      if (pendingItemId === itemKey) clearPending();
+      overlapItems.delete(itemKey);
       log("tempo_suspect_turn_suppressed", { item_id: itemId || null, reason });
       return;
     }
-    if (!itemId || !overlapItems.has(itemId)) return;
-    overlapItems.delete(itemId);
+    if (!overlapItems.has(itemKey)) return;
+    overlapItems.delete(itemKey);
     scheduleResponse(itemId);
   };
 
