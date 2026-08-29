@@ -36,6 +36,9 @@ async def _build_tools() -> list[dict]:
                 "Escalate to a caregiver IMMEDIATELY when the resident describes "
                 "chest pain, breathing trouble, a fall, severe dizziness, confusion, "
                 "or directly asks for a nurse. Do NOT use for casual conversation. "
+                "Do NOT use for a routine bathroom/toileting/mobility-assistance "
+                "need - that is request_staff_help (nursing, priority='high'), not "
+                "an emergency-tier escalation, even though it should still be fast. "
                 "After calling, reassure the resident that help is on the way and "
                 "stay with them."
             ),

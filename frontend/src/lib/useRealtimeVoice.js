@@ -52,6 +52,7 @@ export function useRealtimeVoice({
   const [error, setError] = useState(null);
   const [transcript, setTranscript] = useState([]);
   const [resting, setResting] = useState(false);
+  const [micLabel, setMicLabel] = useState(null);   // human-readable input device name, once known
 
   // Keep tool-call context fresh if the parent passes new props mid-call
   useEffect(() => {
@@ -99,6 +100,7 @@ export function useRealtimeVoice({
     }
     setStatus("idle");
     setResting(false);
+    setMicLabel(null);
   }, [logSessionEnded]);
 
   useEffect(() => () => stop("component_unmount"), [stop]);
@@ -167,9 +169,23 @@ export function useRealtimeVoice({
       // the OS input-level slider - the Web platform does not expose that
       // at all, so don't pretend to). Diagnostic only, read-only, doesn't
       // touch the audio path.
+      // 2026-08-29: getSettings() alone only gives an opaque per-origin
+      // deviceId hash - Michael: "the eMeet is great but you can't tell on
+      // CAOSCare" - there was no human-readable device name captured
+      // anywhere, server or UI. track.label + enumerateDevices() (both
+      // available now that permission is granted) close that gap.
       try {
-        const trackSettings = stream.getAudioTracks()[0]?.getSettings?.();
-        if (trackSettings) logRealtimeEvent(sessionIdRef.current, "mic_track_settings", { meta: trackSettings });
+        const track = stream.getAudioTracks()[0];
+        const trackSettings = track?.getSettings?.();
+        const allInputs = (await navigator.mediaDevices.enumerateDevices())
+          .filter((d) => d.kind === "audioinput")
+          .map((d) => ({ deviceId: d.deviceId, label: d.label }));
+        if (trackSettings) {
+          logRealtimeEvent(sessionIdRef.current, "mic_track_settings", {
+            meta: { ...trackSettings, label: track?.label || null, available_inputs: allInputs },
+          });
+        }
+        setMicLabel(track?.label || null);
       } catch { /* diagnostic only - never let this affect the call */ }
 
       // 3. Peer connection. Only commit refs once we know we're not canceled.
@@ -301,5 +317,5 @@ export function useRealtimeVoice({
     }
   }, [voice, residentId, kioskId, room, sessionEndpoint, sessionPayload, triggerSource, logSessionEnded]);
 
-  return { status, error, transcript, resting, start, stop, audioElRef };
+  return { status, error, transcript, resting, micLabel, start, stop, audioElRef };
 }

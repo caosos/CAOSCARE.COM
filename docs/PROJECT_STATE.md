@@ -1552,3 +1552,40 @@ Three sequential, evidence-driven passes in one continuous live session, each tr
 
 ### Next safe step
 Live re-test in this order: (1) confirm `mark_resting` genuinely suppresses responses now ("be quiet for a minute" then talk over her - she should stay silent), (2) confirm END CONVERSATION ("that's all for now") returns the room to idle and a fresh pendant press starts exactly one new session, (3) confirm Aria correctly uses whatever name is actually on file with no unprompted drift. Only after a clean live pass should any of tonight's TSB-001/session-lease work be marked resolved. Separately, scope the no-preopened-tab room-node launcher as its own pass per the original directive - it's real, acknowledged, and not yet started.
+
+---
+
+## 2026-08-29 — Mic-device observability, and a real safety-relevant tool-routing bug found and fixed live (bathroom request → wrong tool)
+
+### Agent / tool
+Claude Code, EliteDesk primary worktree.
+
+### Branch / ref
+`main`. This entry's changes committed AND pushed on explicit instruction ("push and commit everything") - see commit SHA in the entry below or `git log`.
+
+### What changed
+Two more live findings, same continuous session as the stabilization pass above (commit `6c65021`):
+
+**1. Mic device observability ("the eMeet is great but you can't tell on CAOSCare").** `useRealtimeVoice.js`'s mic capture only ever logged an opaque per-origin `deviceId` hash - no human-readable label anywhere, server or UI, so there was no way to visually confirm which physical device a call actually used. Now captures `track.label` and the full `enumerateDevices()` list (both real, human-readable) into the existing `mic_track_settings` diagnostic event, and surfaces the live label on the kiosk's `RealtimeChatScreen.jsx` ("· Mic: EMEET OfficeCore Luna Plus Mono" - confirmed live, this exact string, real hardware). Also added `CopyTranscriptButton` (already existed, reused, not duplicated) to the kiosk's own transcript panel - Michael's own request, so a live transcript can be pasted directly instead of a DB round-trip every time.
+
+**2. Real, safety-relevant tool-routing defect: a correctly-heard "I need to go to the bathroom" led the model to discuss the lunch menu instead of requesting help.** Live evidence (`db.realtime_diagnostics`, session `rt_2blf0hm5_1788029592404`): `user_transcript: "I need to go to the bathroom."`, `turn_class_reason: no_overlap`, no low-confidence flag - transcription was perfect. The very next event was `tool_call: get_menu(meal_period=lunch)`. This was NOT an audio/VAD/echo defect (ruled out - transcription was exact); it was a model tool-selection failure. Root cause found in the tool schemas themselves: `call_for_help`'s description explicitly scopes to "chest pain, breathing trouble, a fall, severe dizziness, confusion, or directly asks for a nurse" - bathroom/toileting need isn't in it - and `request_staff_help`'s description never named it either. The model had no explicit home for this extremely common, safety-relevant senior-care request category (fall risk during unassisted toileting) and guessed wrong.
+
+Fixed both tool descriptions (`backend/routes/realtime_tools_operations.py`'s `request_staff_help`, `backend/routes/realtime_tools.py`'s `call_for_help`): bathroom/toileting/mobility-assistance is now explicitly `request_staff_help(category=nursing, priority=high)` - deliberately NOT routed to `call_for_help`'s emergency-tier escalation, since treating every bathroom request as a medical emergency would cause real alert fatigue and erode that channel's credibility for actual emergencies. `call_for_help`'s description now explicitly excludes it too, closing the gap from both directions.
+
+**Live-verified the fix, same session, real retest** (`rt_4mr0fton_1788031023374`): "Go to the bathroom." → `tool_call: request_staff_help(category=nursing, priority=high, summary="needs to go to the bathroom")` fired on the FIRST turn, no menu detour, no emergency misfire. A separate, unrelated frustration in that same test ("you aren't even talking about what I need") was traced to the system correctly and honestly reporting a genuinely different pre-existing open nursing ticket ("knees have been stiff") per its own existing duplicate-request rule - working as designed, a UX/tone consideration for a future pass, not a bug, and not what broke tonight.
+
+### What was verified
+- Both tool-schema fixes confirmed present in the actual schemas served to the model (`request_staff_help` description contains "fall risk"/"priority='high'"; `call_for_help` description contains "routine bathroom" exclusion) - checked by directly calling the real schema-building functions, not just reading source.
+- Backend restarted clean, no import errors.
+- Live retest (above) confirms the fix works for the exact failure mode observed - one real session, immediate correct tool call.
+- `tests/test_room_device_isolation.py`: 5 passed / 2 skipped (same pre-existing skip). `preferredNameGuard.test.js`: 6/6.
+- `git diff --check` clean. Secrets-grep clean.
+- Mic label fix confirmed live in the browser (screenshot) and via diagnostic evidence showing the real device name round-tripping correctly.
+
+### Blocked / not yet done
+- The "you aren't talking about what I need" UX friction (mentioning an unrelated open ticket when a resident asks about something else) - real, evidenced, not fixed tonight, needs its own scoped pass.
+- Everything listed as open in the prior entry (no-preopened-tab room-node launcher, `mark_resting` still needs a dedicated live test with nothing else going on, general interruption pacing, TV/local-channel UX) remains open.
+- TSB-001 remains OPEN.
+
+### Next safe step
+Michael is starting a fresh session against the deployed server to continue this work "from anywhere" - this entry and the repo state are the handoff. Whoever picks this up next should read this entry plus the prior one (commit `6c65021`) before touching resident-voice code again, and should NOT assume tonight's fixes are the last of their kind - each one was found by testing the previous one, and that pattern should be expected to continue until a full, uninterrupted live acceptance pass (per the "Next safe step" in the prior entry) actually completes clean.

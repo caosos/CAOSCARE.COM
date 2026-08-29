@@ -11,6 +11,7 @@ import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Mic, X, Volume2, AlertCircle } from "lucide-react";
 import { useRealtimeVoice } from "../lib/useRealtimeVoice";
+import CopyTranscriptButton from "../components/CopyTranscriptButton";
 
 export default function RealtimeChatScreen({
   resident,
@@ -21,7 +22,7 @@ export default function RealtimeChatScreen({
   a11yRootClass,
   triggerSource,
 }) {
-  const { status, error, transcript, resting, start, stop, audioElRef } = useRealtimeVoice({
+  const { status, error, transcript, resting, micLabel, start, stop, audioElRef } = useRealtimeVoice({
     voice: voiceId,
     residentId: resident?.resident_id,
     kioskId: kiosk?.kiosk_id,
@@ -81,6 +82,11 @@ export default function RealtimeChatScreen({
           <div className="mt-3 flex items-center gap-2 text-xs uppercase tracking-widest text-caos-forest font-bold">
             <StatusDot status={status} />
             <span data-testid="kiosk-realtime-status">{labelFor(status)}</span>
+            {micLabel && (
+              <span data-testid="kiosk-realtime-mic-label" className="normal-case tracking-normal text-caos-mute font-normal">
+                · Mic: {micLabel}
+              </span>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -125,8 +131,11 @@ export default function RealtimeChatScreen({
       </div>
 
       <Card className="border-caos-line bg-white/70 backdrop-blur p-4 max-h-56 overflow-y-auto mt-4">
-        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-caos-mute mb-2">
-          <Mic className="w-3.5 h-3.5" /> Transcript
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-caos-mute">
+            <Mic className="w-3.5 h-3.5" /> Transcript
+          </div>
+          <CopyTranscriptButton turns={transcript} />
         </div>
         {transcript.length === 0 && (
           <p className="text-caos-mute italic text-sm">
