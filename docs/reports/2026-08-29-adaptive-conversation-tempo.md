@@ -57,7 +57,9 @@ New `frontend/src/lib/realtimeConversationTempo.test.js` covers:
 5. stale echo classification cannot cancel a newer real turn;
 6. rhythm instructions preserve the backend base prompt.
 
-These tests are committed but were **not executed in this connector-only environment** because the repository/runtime is not locally mounted and the repo has no GitHub Actions workflow. Live WebRTC acceptance is also still required.
+The committed Jest suite was **not executed in this connector-only environment** because the repository/runtime is not locally mounted and the repo has no GitHub Actions workflow. Live WebRTC acceptance is also still required.
+
+A separate isolated Node smoke harness was run against the controller logic and passed: normal response creation, resumed-thought cancellation/adaptation, suspect-overlap suppression, stale-echo isolation, and rhythm-prompt preservation. This is useful logic verification, but it is not a substitute for the repo's Jest suite or a real WebRTC call.
 
 ## Production-file line counts
 - `backend/routes/realtime_audio_config.py`: 29 lines.
