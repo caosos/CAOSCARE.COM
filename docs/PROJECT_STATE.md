@@ -1417,3 +1417,33 @@ Indexed the new doc from `docs/REPO_MAP.md`'s documentation map and `docs/report
 
 ### Next safe step
 Michael's bedroom hardware test environment: bring TV audio out (via whichever output the specific TV actually supports) into the eMeet's input, confirm the TV's internal speakers can actually be muted, and observe real AEC behavior under that combined load. Only after that live result should the described logical audio-routing adapter boundary actually be built - building it before real hardware exists to route would be speculative.
+
+---
+
+## 2026-08-29 — TSB-001 opened: Room 401 resident-voice name-attribution + unaudited profile mutation
+
+### Agent / tool
+Claude Code, EliteDesk primary worktree.
+
+### Branch / ref
+`main`, documentation-only, no commit made by this entry itself (see note on committed work below - the request was to record the TSB, not to fix runtime code).
+
+### What changed
+A live-session forensic request described a "Room 401 incident" from a resident-voice call. Direct evidence review found it was actually **two** back-to-back Realtime sessions (`rt_fukau61b_1787966931836`, `rt_g4kkodvu_1787966990776`, 2026-08-29 ~01:28:59-01:36:28 UTC) - richer and more severe than the initial framing. Established this repo's **first-ever Troubleshooting Bulletin log** (`docs/tsb/INDEX.md` + conventions, since none existed anywhere - checked exhaustively before creating it, not guessed) and recorded **TSB-001** (`docs/tsb/TSB-001-resident-voice-name-attribution.md`): Aria fabricated an explanation for how she knew the resident's real, correct stored `preferred_name` ("Ellie") when challenged - AND, found only by pulling `db.realtime_diagnostics`' `tool_call` events, actually invoked `update_preferred_name` twice, durably overwriting the resident's profile once to a wrong value ("Eleanor," inferred from dialogue timing) and once back to the correct one ("Ellie") - neither call triggered by an actual resident-issued name correction, neither call leaving a receipt or any old-value record (`PATCH /residents/{id}/preferred-name` has no `create_receipt()` call at all). The resident's profile is only correct right now because the second wrong self-correction happened to cancel out the first.
+
+Also confirmed and recorded, in the same TSB, what worked correctly in the same sessions: real thermostat read (`get_room_status`) and write (`adjust_room_temperature` → real `device_commands` row against Room 401's real thermostat, mock-adapter-executed and state-verified, explicitly marked as sent-not-physically-verified per the mock/real adapter distinction), and correct `mark_resting`/`end_call` dismissal behavior.
+
+Indexed the new TSB log from `docs/reports/INDEX.md` (top-level "start here" doc) and `docs/REPO_MAP.md`'s documentation map.
+
+### What was verified
+- Every claim in TSB-001 is sourced from a direct, reproducible query against `db.conversations`, `db.realtime_diagnostics`, `db.residents`, `db.receipts`, and `db.device_commands` - not recollection. Exact session IDs, timestamps, device/command IDs recorded in the TSB itself as re-runnable evidence references.
+- Confirmed directly: zero `db.receipts` exist for this resident in the incident window, and the `preferred_name` PATCH endpoint has no receipt call in its source - the "no audit trail" claim is code-verified, not inferred.
+- Confirmed directly: the resident's current `preferred_name` field is "Ellie" (correct) - checked before writing the TSB and unchanged since.
+- Confirmed directly (`grep` across docs, git history, and filenames) that no TSB numbering convention existed before this entry, so TSB-001 is genuinely the first, not assumed.
+
+### Blocked / not yet done
+- **No runtime code was changed.** Per explicit instruction, this pass is documentation/evidence preservation only. The proposed remediation (first-class provenance for profile-sourced facts; a guard so `update_preferred_name` only fires on an actual resident-stated correction, not a bare question; a receipt on the preferred-name PATCH endpoint) is recorded in TSB-001 but not implemented, not tested, and the TSB is explicitly not to be marked resolved until it is and a regression test reproduces the exact failure mode against the fix.
+- The exact string values passed to each `update_preferred_name` call are inferred from dialogue/timestamp correlation, not directly logged (the diagnostic event only records the tool name) - a real evidence gap noted in the TSB itself, not papered over.
+
+### Next safe step
+Implement TSB-001's proposed remediation as its own small, isolated change (structured provenance for `preferred_name` in the voice prompt/tool layer; a genuine-correction guard on `update_preferred_name`, mirroring the existing `turn_suspect` pattern; a receipt on the preferred-name PATCH endpoint reusing the existing receipt architecture) - then reproduce this exact challenge scenario against the fix and update TSB-001's status only once that passes.

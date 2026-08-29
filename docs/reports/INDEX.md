@@ -2,7 +2,11 @@
 
 Start here. Updated by Claude Code and ChatGPT-Aria as shared project state changes — this is the fastest way to reconstruct current CAOSCARE state without asking Michael to relay prior conversations.
 
-_Last updated: 2026-08-27_
+_Last updated: 2026-08-29_
+
+## Troubleshooting Bulletins (TSB) — permanent failure/fix/evidence log
+[../tsb/INDEX.md](../tsb/INDEX.md)
+— New governance log (established 2026-08-29, no prior TSB existed anywhere in the repo — checked before creating it). **TSB-001**: Room 401 resident-voice name-attribution hallucination — Aria fabricated *how* it knew the resident's correct stored preferred name ("Ellie") when challenged, AND, found on deeper evidence review, actually called `update_preferred_name` and durably overwrote the resident's profile twice (once wrong, once back to correct) with zero receipt/audit trail either time — a more severe defect than the spoken hallucination alone. Device-control (`get_room_status`/`adjust_room_temperature`, real command + state verified) and `mark_resting` dismissal both confirmed working correctly in the same sessions. Status: OPEN — documented only, no runtime code changed.
 
 ## Current working directive
 [CURRENT_DIRECTIVE.md](CURRENT_DIRECTIVE.md)
