@@ -88,3 +88,26 @@ async def execute(device: dict, action: str, value) -> dict:
     every other (real, physical-transport) protocol uses devices.py's
     existing bridge-tablet queue path instead."""
     return await ADAPTERS[device["protocol"]](device, action, value)
+
+
+async def ha_health() -> dict:
+    """Real connectivity check against the configured Home Assistant
+    instance - used by the admin assistant's get_home_assistant_status
+    tool (routes/admin_assistant_executor.py) so it never has to guess or
+    assume HA is reachable. Never raises - always returns a status the
+    caller can report honestly."""
+    if not HA_BASE_URL or not HA_TOKEN:
+        return {"status": "not_configured", "base_url": HA_BASE_URL or None}
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(
+                f"{HA_BASE_URL}/api/states",
+                headers={"Authorization": f"Bearer {HA_TOKEN}"},
+            )
+        if resp.status_code == 401:
+            return {"status": "unauthorized", "base_url": HA_BASE_URL}
+        resp.raise_for_status()
+        entities = resp.json()
+        return {"status": "connected", "base_url": HA_BASE_URL, "entity_count": len(entities)}
+    except Exception as e:
+        return {"status": "unreachable", "base_url": HA_BASE_URL, "detail": str(e)}

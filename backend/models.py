@@ -642,7 +642,7 @@ TaskShift = Literal["day", "evening", "night", "any"]
 TaskPriority = Literal["low", "normal", "high", "urgent"]
 # Who/what originated this task/request - lets Aria-initiated and
 # resident-initiated items be distinguished from staff-scheduled work.
-TaskSource = Literal["staff", "aria_voice", "kiosk_button", "family", "system", "front_desk"]
+TaskSource = Literal["staff", "aria_voice", "kiosk_button", "family", "system", "front_desk", "aria_admin"]
 # Coarse role gate for who should see this in their queue/dashboard.
 # Enforced backend-side wherever tasks are listed for a given role - see
 # ENGINEERING_CONTRACT.md (once written) for the authorization pattern.
@@ -789,6 +789,46 @@ class Receipt(BaseModel):
     related_object_type: Optional[str] = None  # "task", "alert", "device_command", ...
     related_object_id: Optional[str] = None
     created_at: datetime = Field(default_factory=now_utc)
+
+
+# ---------- Canonical event/telemetry log (2026-08-27) ----------
+# One durable, append-only record of "something observable happened" -
+# conversation turns, tool calls, UI navigation actions, device commands,
+# auth/session facts. Deliberately separate from Receipt: a Receipt is the
+# lifecycle record of ONE domain mutation (task/alert/device); an Event is
+# the broader trace a debugger/metrics query walks later, referencing a
+# Receipt by id where one exists rather than duplicating its fields.
+# Nothing here precomputes a metric - metrics are derived by querying
+# db.events later (see routes/events.py), never by adding new counters here.
+EventSource = Literal["admin_aria", "resident_aria", "ui", "staff", "system", "device", "api"]
+
+
+class CaosEvent(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    event_id: str = Field(default_factory=lambda: uid("evt"))
+    event_type: str                              # e.g. "admin_aria.message", "admin_aria.tool_call", "admin_aria.ui_action", "device.command", "auth.login"
+    created_at: datetime = Field(default_factory=now_utc)
+    facility_id: Optional[str] = None
+    actor_id: Optional[str] = None                # user_id, or "resident"/"system"
+    actor_role: Optional[str] = None
+    resident_id: Optional[str] = None
+    room: Optional[str] = None
+    conversation_id: Optional[str] = None         # thread identity - groups every event in one chat session
+    request_id: Optional[str] = None              # groups every event produced by ONE user turn/tool loop
+    source: EventSource = "system"
+    admin_section: Optional[str] = None           # which Admin tab was active when this happened
+    target_type: Optional[str] = None             # "resident" | "device" | "room" | "tool" | "session" | ...
+    target_id: Optional[str] = None
+    action: Optional[str] = None                  # tool/action name
+    status: Optional[str] = None                  # discovered/configured/command_sent/command_verified/failed/ok/error/navigated
+    duration_ms: Optional[float] = None
+    error_code: Optional[str] = None
+    error_message: Optional[str] = None
+    verification_status: Optional[str] = None     # verified/unverified/not_applicable/failed
+    receipt_id: Optional[str] = None
+    related_object_type: Optional[str] = None
+    related_object_id: Optional[str] = None
+    metadata: dict = Field(default_factory=dict)  # structured, event-shaped payload (message text, tool args, ui_actions list, device state, ...)
 
 
 # ---------- Schedule / activities (Terminal 8, resident-facing read lane) ----------

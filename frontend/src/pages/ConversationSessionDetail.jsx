@@ -4,6 +4,7 @@ import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { toast } from "sonner";
 import RequestDetailDialog from "./RequestDetailDialog";
+import CopyTranscriptButton from "../components/CopyTranscriptButton";
 
 // The "complete chronological exchange" view for one conversation session -
 // turns, requests/receipts created, device actions (best-effort, room+time
@@ -35,7 +36,10 @@ export default function ConversationSessionDetail({ residentId, sessionId, onBac
       <Button variant="ghost" size="sm" onClick={onBack} className="mb-3" data-testid="conversation-back-btn">← Back to conversations</Button>
 
       <div className="mb-4">
-        <h3 className="font-display text-lg font-medium text-caos-forest mb-2">Transcript</h3>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-display text-lg font-medium text-caos-forest">Transcript</h3>
+          <CopyTranscriptButton turns={data.turns} />
+        </div>
         <div className="space-y-2 max-h-80 overflow-y-auto border border-caos-line rounded-xl p-3">
           {data.turns.map((t, i) => (
             <div key={i} className={`text-sm ${t.role === "assistant" ? "text-caos-forest" : "text-caos-ink"}`}>

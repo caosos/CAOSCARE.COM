@@ -36,6 +36,8 @@ import StaffTab from "./StaffTab";
 import KiosksTab from "./KiosksTab";
 import ZonesTab from "./ZonesTab";
 import { tabGroups } from "../lib/adminTabGroups";
+import AdminAria from "../components/admin/AdminAria";
+import AriaSpotlight from "../components/admin/AriaSpotlight";
 
 export default function Admin() {
   const { user, logout } = useAuth();
@@ -270,6 +272,8 @@ export default function Admin() {
           </TabsContent>
         </Tabs>
       </div>
+      <AdminAria currentSection={activeTab} onNavigate={setActiveTab} />
+      <AriaSpotlight />
     </div>
   );
 }

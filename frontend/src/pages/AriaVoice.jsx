@@ -11,6 +11,7 @@ import { useAuth } from "../lib/auth";
 import { Button } from "../components/ui/button";
 import { useRealtimeVoice } from "../lib/useRealtimeVoice";
 import { api } from "../lib/api";
+import CopyTranscriptButton from "../components/CopyTranscriptButton";
 
 function PastConversations({ ownerId, refreshKey }) {
   const [threads, setThreads] = useState([]);
@@ -52,6 +53,7 @@ function PastConversations({ ownerId, refreshKey }) {
             </button>
             {openThread === t.session_id && (
               <div className="mt-2 mb-3 ml-3 space-y-1 border-l-2 border-caos-mute/20 pl-3">
+                <CopyTranscriptButton turns={turns} className="mb-1" />
                 {turns.map((turn, i) => (
                   <p key={i} className={turn.role === "assistant" ? "text-caos-forest" : "text-caos-mute"}>
                     <strong>{turn.role === "assistant" ? "Aria: " : "You: "}</strong>{turn.content}
@@ -113,6 +115,9 @@ export default function AriaVoice() {
       </div>
 
       <div className="w-full max-w-xl mt-6 space-y-2 text-sm">
+        {transcript.length > 0 && (
+          <div className="flex justify-end"><CopyTranscriptButton turns={transcript} /></div>
+        )}
         {transcript.map((t, i) => (
           <p key={i} className={t.role === "assistant" ? "text-caos-forest" : "text-caos-mute"}>
             <strong>{t.role === "assistant" ? "Aria: " : "You: "}</strong>{t.text}
