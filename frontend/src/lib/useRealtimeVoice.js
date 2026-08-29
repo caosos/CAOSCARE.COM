@@ -41,7 +41,7 @@ export function useRealtimeVoice({
   // classifyUserTurn() replaces it with { suspect, reason } once the
   // transcript resolves - overlap is one signal, not the verdict.
   const turnSuspectRef = useRef(false);
-  const greetingCreateResponseOffRef = useRef(false); // true while the initial forced greeting is in flight
+  const greetingCreateResponseOffRef = useRef(false); // tracks the initial forced greeting playback window
   const lifecycleCleanupRef = useRef(null);   // detaches attachLifecycleDiagnostics' listeners
   const endReasonLoggedRef = useRef(false);   // one termination reason per session, first cause wins
   const sessionIdRef = useRef(`rt_${Math.random().toString(36).slice(2, 10)}_${Date.now()}`);
@@ -184,19 +184,12 @@ export function useRealtimeVoice({
         // configure a Realtime session post-mint - see
         // realtimeSessionUpdate.js for the exact shape and the hard-won
         // "confirmed live, not guessed" history behind it.
-        // 2026-08-22: the greeting below is forced with an explicit
-        // response.create (the model never speaks first on its own). The
-        // server's own turn_detection has create_response:true, so if
-        // Aria's greeting audio leaks back into the mic (room speaker,
-        // imperfect echo cancellation) and VAD mistakes it for speech, the
-        // server would auto-fire a SECOND response the moment that leaked
-        // "speech" appears to stop - a real double-greeting seen live. Fix:
-        // disable create_response for just this one forced turn, then
-        // re-enable it (see response.done below) once the greeting's own
-        // audio has actually finished, closing the exact window where its
-        // own echo could trigger a bogus auto-response. Real interruption
-        // still works during this window - interrupt_response is separate
-        // from create_response - a genuine "wait, Aria" still cuts her off.
+        // 2026-08-29: the greeting is still forced with an explicit
+        // response.create, but create_response now stays false for the whole
+        // call. server_vad only detects/chunks speech; realtimeConversationTempo
+        // decides when the person has actually yielded the floor and sends the
+        // next response.create. interrupt_response remains true, so a genuine
+        // "wait, Aria" still cuts her off immediately.
         greetingCreateResponseOffRef.current = true;
         send(buildSessionUpdate({ caos, voice }));
         send({ type: "response.create" });
