@@ -40,6 +40,7 @@ export default function Kiosk() {
   const [pendingAlert, setPendingAlert] = useState(null);
   const audioCtxRef = useRef(null);
   const seenEmergencyRef = useRef(null);
+  const triggerSourceRef = useRef("manual_kiosk");  // what's about to start the next RealtimeChatScreen — pendant | manual_kiosk
   const callStateRef = useRef("idle");     // sync callState for async callbacks
   useEffect(() => { callStateRef.current = callState; }, [callState]);
 
@@ -206,6 +207,7 @@ export default function Kiosk() {
   }, [alert?.alert_id]);
 
   const handleIncomingEmergency = async (a) => {
+    triggerSourceRef.current = "pendant";
     setAlert(a);
     // If the browser hasn't received a user gesture yet, we cannot play audio
     // or open the mic. Defer until the user taps anywhere.
@@ -281,6 +283,7 @@ export default function Kiosk() {
 
   const triggerEmergency = async (severity = "emergency") => {
     if (!kiosk) return;
+    triggerSourceRef.current = "manual_kiosk";
     // A real user tap — prime audio+mic so the call can actually connect
     const ok = await primeMedia();
     if (!ok) return;
@@ -545,6 +548,7 @@ export default function Kiosk() {
         kiosk={kiosk}
         voiceId={voiceId}
         a11yRootClass={a11yRootClass}
+        triggerSource={triggerSourceRef.current}
         onOpenVoicePicker={() => setVoicePickerOpen(true)}
         onEnd={() => {
           setCallState("idle");

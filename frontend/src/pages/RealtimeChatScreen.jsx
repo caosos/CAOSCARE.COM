@@ -19,6 +19,7 @@ export default function RealtimeChatScreen({
   onEnd,
   onOpenVoicePicker,
   a11yRootClass,
+  triggerSource,
 }) {
   const { status, error, transcript, resting, start, stop, audioElRef } = useRealtimeVoice({
     voice: voiceId,
@@ -26,7 +27,16 @@ export default function RealtimeChatScreen({
     kioskId: kiosk?.kiosk_id,
     room: kiosk?.room || resident?.room,
     onEndCall: onEnd,
+    triggerSource,
   });
+  // Room already owned by another live session (server-side lease) — this
+  // instance never touched the mic. Show it briefly, then return the kiosk
+  // to idle so normal polling/triggers resume; there's nothing to tear down.
+  useEffect(() => {
+    if (status !== "unavailable") return;
+    const t = setTimeout(() => onEnd?.(), 2500);
+    return () => clearTimeout(t);
+  }, [status, onEnd]);
   const localAudioElRef = useRef(null);
   const startedRef = useRef(false);
 
@@ -105,6 +115,7 @@ export default function RealtimeChatScreen({
           {!resting && status === "listening" && "Listening…"}
           {!resting && status === "speaking" && "I'm speaking. You can chime in any time."}
           {!resting && status === "error" && "Something went wrong. Try again."}
+          {!resting && status === "unavailable" && "Aria is already here with someone right now."}
         </p>
         {error && (
           <p className="mt-3 inline-flex items-center gap-2 text-caos-terracotta text-sm">
@@ -149,7 +160,8 @@ function StatusDot({ status }) {
     status === "speaking" ? "bg-caos-terracotta" :
     status === "listening" ? "bg-caos-amber" :
     status === "live" ? "bg-caos-forest" :
-    status === "error" ? "bg-red-500" : "bg-caos-mute";
+    status === "error" ? "bg-red-500" :
+    status === "unavailable" ? "bg-caos-amber" : "bg-caos-mute";
   return <span className={`inline-block w-2 h-2 rounded-full ${color} ${status === "live" || status === "listening" ? "animate-pulse" : ""}`} />;
 }
 
@@ -160,6 +172,7 @@ function labelFor(status) {
     case "listening": return "Listening";
     case "speaking": return "Speaking";
     case "error": return "Error";
+    case "unavailable": return "Already active";
     default: return "—";
   }
 }

@@ -1447,3 +1447,108 @@ Indexed the new TSB log from `docs/reports/INDEX.md` (top-level "start here" doc
 
 ### Next safe step
 Implement TSB-001's proposed remediation as its own small, isolated change (structured provenance for `preferred_name` in the voice prompt/tool layer; a genuine-correction guard on `update_preferred_name`, mirroring the existing `turn_suspect` pattern; a receipt on the preferred-name PATCH endpoint reusing the existing receipt architecture) - then reproduce this exact challenge scenario against the fix and update TSB-001's status only once that passes.
+
+---
+
+## 2026-08-29 — TSB-001 evidence gap + audit trail closed ("we need to be able to have all the data")
+
+### Agent / tool
+Claude Code, EliteDesk primary worktree.
+
+### Branch / ref
+`main`, uncommitted (no commit instruction given for this batch).
+
+### What changed
+Direct follow-up to TSB-001's own flagged gaps, not an attempt to fully close the TSB. Two additive, non-behavioral changes:
+
+1. **Full tool args/result now logged for every resident-voice tool call**, not just the tool name. `frontend/src/lib/realtimeMessageHandler.js`'s `handleFunctionCall()` logs `args` on the existing `tool_call` diagnostic event and adds a new `tool_result` event carrying the outcome - both ride the existing free-form `meta` field, no schema change (`realtimeDiagnostics.js` / `backend/routes/realtime_diagnostics.py` already accepted arbitrary `meta`). `frontend/src/pages/ConversationSessionDetail.jsx`'s "Voice diagnostics" panel now renders `meta` (previously silently dropped), so the data is visible to an admin, not just stored.
+2. **`PATCH /residents/{id}/preferred-name` now writes a receipt** - TSB-001's remediation item 3. `backend/routes/residents.py` reads the prior `preferred_name`, performs the update, then calls `create_receipt()` with `action_type="preferred_name.update"`, `source="aria_voice"`, resident/room/`conversation_session_id` (now sent from `frontend/src/lib/realtimeDeviceTools.js`'s `update_preferred_name` dispatch), and `result="'<old>' -> '<new>'"`. `create_receipt()` (`backend/routes/receipts.py`) gained an optional `result` param so this completes in one call instead of a `create` + `update_receipt_status("completed")` round trip - the latter would have risked matching the wrong receipt, since Admin Aria's resident-edit tools also create `related_object_type: "resident"` receipts for the same resident.
+3. **`backend/routes/residents.py` split** to stay under the 300-line cap after the above (was 294 before, would have been 318 after): `resident_movement`, `resident_stats`, and `resident_briefing` (read-only aggregation/reporting, no relation to the CRUD+identity endpoints that remain) moved to a new `backend/routes/resident_analytics.py`, mounted under the same `/residents` prefix, registered in `backend/server.py`. Clean domain split, not arbitrary chopping.
+4. TSB-001 updated in place with a dated "Update — 2026-08-29" section (status line changed from "OPEN - documented, not remediated" to "OPEN - partially remediated"; original text preserved, nothing overwritten) recording exactly which remediation items are done (3, and the named evidence gap) versus still open (1, 2, 4 - provenance structure, correction-guard, and the underlying hallucination/false-fire failure modes are unchanged).
+
+### What was verified
+- Backend syntax (`ast.parse`) on `residents.py`, `resident_analytics.py`, `receipts.py`, `server.py`. Frontend syntax (`@babel/core` transform, `@babel/preset-react`) on all three touched JS/JSX files.
+- Backend restarted; startup log clean, no import errors from the new router split.
+- Live end-to-end test against the running backend: two real `PATCH /residents/res_0d3ef4252ae2/preferred-name` calls produced a receipt (`rcpt_db1f8a9f11a5` and a follow-up) with the correct `result: "'<old>' -> '<new>'"`, `room`, `conversation_session_id`, `source: "aria_voice"`, `status: "completed"` - queried directly from `db.receipts`. Confirmed old-value capture is genuine (differs between the two test calls), not a placeholder. Resident's `preferred_name` restored to its real value (`"Ellie"`) after the test.
+- `tests/test_room_device_isolation.py`: 7/7 pass. Full suite run against `REACT_APP_BACKEND_URL=http://127.0.0.1:8000`: the only resident/movement/receipt-adjacent failures are a pre-existing `admin_token` login-fixture credential mismatch (`ADMIN_EMAIL`/`ADMIN_PW` hardcoded in `tests/backend_test.py` / `tests/iter8_test.py` don't match this environment's seeded admin password) - reproduced identically on totally unrelated test classes (Alerts, Insights, Locations), confirming it predates and is unrelated to this change, not investigated further as out of scope.
+- `git status`: only the intended 6 modified files + 1 new file. `git diff --check`: clean. Secrets-grep over the full diff and the new file: no matches (one false-positive-free hit on an unrelated pre-existing `auth_password_routes` import name in `server.py`, not a secret literal).
+- Line counts (all under the 300-line cap): `residents.py` 114, `resident_analytics.py` (new) 215, `receipts.py` 138, `server.py` 193, `realtimeDeviceTools.js` 224, `realtimeMessageHandler.js` 300 (trimmed back down from 304 - two comment/formatting trims, no functional change), `ConversationSessionDetail.jsx` 114.
+
+### Blocked / not yet done
+- TSB-001 remediation items 1 (structured `preferred_name` provenance for the model), 2 (genuine-correction guard on `update_preferred_name`), and 4 (the underlying hallucination/false-fire failure modes) remain unimplemented. TSB-001 is explicitly still OPEN, not resolved.
+- This work was not committed - no commit instruction was given for this specific batch. Prior batches this session were committed only on explicit instruction; that pattern was followed here too.
+
+### Next safe step
+If Michael wants TSB-001's remaining items (1, 2, 4) built: the correction-guard (item 2) is the one with real behavior-change risk (could reject a legitimate correction) and should get its own regression test reproducing this exact challenge scenario before being called done, per the TSB's own verification-required section. Otherwise, get explicit instruction on whether to commit this batch.
+
+---
+
+## 2026-08-29 — TSB-001 items 1, 2, 4 implemented and unit-regression-verified ("the right way")
+
+### Agent / tool
+Claude Code, EliteDesk primary worktree.
+
+### Branch / ref
+`main`, uncommitted (no commit instruction given for this batch).
+
+### What changed
+Direct follow-up ("THE RIGHT WAY") after the prior entry's audit-trail-only pass — Michael wanted TSB-001 actually remediated, not just logged. Implemented all three remaining proposed-remediation items as structural changes, not prompt-wording alone (item 4's own requirement):
+
+1. **Item 1 (provenance).** `backend/routes/realtime_companion_memory.py`'s resident-name block now tells the model `preferred_name` is a known, on-file fact - not inferred, not something said this call - and gives it the true answer to "how do you know my name" ("it's on your file with us"), plus an explicit instruction not to call `update_preferred_name` just because it was asked how it knows the name.
+2. **Items 2 + 4 (structural correction guard).** The dispatch layer no longer trusts the model's self-reported `preferred_name` arg alone. `frontend/src/lib/realtimeMessageHandler.js` now carries the actual transcribed text of the triggering turn through to `ctx.last_user_text` (piggybacked onto the existing `turnSuspectRef` classification object, same reliability assumption already used for echo-guarding). `frontend/src/lib/realtimeDeviceTools.js`'s `update_preferred_name` handler now rejects the call unless the claimed new name actually appears in what the resident said AND that turn doesn't read as a question (regex against `why/who/what/when/where/how` openers) - both real TSB-001 failures were interrogative turns ("Why do you call me Ellie?", "Who told you to call me Ellie?"), which a plain substring check alone would have missed (the resident's own challenge literally contained the name).
+3. **New regression test** - this repo's first frontend test file, `frontend/src/lib/__tests__/preferredNameGuard.test.js`, run via the existing (previously unused) `craco test`/Jest harness. Reproduces both real TSB-001 incident turns verbatim (same utterances, same wrong/right values the model actually passed) and confirms they're now rejected; confirms two genuine-correction phrasings still save; confirms a missing/stale transcript blocks; confirms the pre-existing echo/`turn_suspect` guard still takes priority. All 6 cases pass.
+4. TSB-001 updated in place (second dated update section, original text preserved) with full detail and an explicit, precise limitation: this verifies the dispatch-layer guard logic against the real incident data, not a live end-to-end voice call (no way to place one in this environment) - status changed to "OPEN - remediated... but not yet closable" rather than RESOLVED, per the TSB's own rule that a code change alone doesn't close a bulletin.
+
+### What was verified
+- Backend syntax (`ast.parse`) on `realtime_companion_memory.py`. Live prompt-build check: `_build_companion_instructions('res_0d3ef4252ae2')` runs clean, 16,843 chars, provenance block confirmed present in the actual generated prompt text (not just the source).
+- Frontend syntax (`@babel/core`) on both touched JS files, both still under the 300-line cap after edits (`realtimeMessageHandler.js` 300 exactly, `realtimeDeviceTools.js` 236).
+- New Jest suite: `CI=true npx craco test --testPathPattern="preferredNameGuard" --watchAll=false` - 6/6 pass, including both exact incident reproductions (session 1: "Eleanor" claim against "Why do you call me Ellie?" rejected; session 2: "Ellie" claim against "Who told you to call me Ellie?" rejected) and both genuine-correction cases still saving.
+- Backend restarted clean (startup log has no import errors).
+- `tests/test_room_device_isolation.py`: 5 passed, 2 skipped - skip reason confirmed via `-rs` to be pre-existing live-data state ("no request category is clear of open tickets for all three test rooms"), unrelated to this change.
+- `git status`: only the intended files (5 modified backend/docs + 2 modified frontend + 1 new backend file from the prior entry + 1 new frontend test file). `git diff --check` clean. Secrets-grep clean (same benign `auth_password_routes` false positive as the prior entry).
+
+### Blocked / not yet done
+- **Live end-to-end verification is still outstanding.** The regression test proves the dispatch-layer guard correctly rejects/accepts given real transcript text and real args - it does not prove the full live pipeline (real audio -> real transcription -> the model's own tool-call decision) behaves this way in an actual resident-voice call, since this environment cannot place one. TSB-001 stays OPEN, not RESOLVED, until a live call reproduces the challenge scenario against the running system.
+- Not committed - no commit instruction given for this batch.
+
+### Next safe step
+Michael's live test environment: place a real resident-voice call, ask "why do you call me [name]" without stating a correction, and confirm (a) Aria answers from provenance without firing `update_preferred_name`, and (b) a genuine correction ("my name is X, not Y") still saves correctly. Only then update TSB-001's status to RESOLVED. If that live test surfaces a false negative (a real correction gets rejected), stop and revert the guard per the TSB's own stop-gate rather than loosening it ad hoc.
+
+---
+
+## 2026-08-29 — Live physical pendant test: real RF chain proven, then a real multi-Aria-session defect found and fixed, then a third TSB-001 root cause found and fixed
+
+### Agent / tool
+Claude Code, EliteDesk primary worktree.
+
+### Branch / ref
+`main`, uncommitted (no commit instruction given for this batch).
+
+### What changed
+Three sequential, evidence-driven passes in one continuous live session, each triggered by what the previous one's live testing actually surfaced:
+
+**1. Real physical pendant proven end-to-end.** A real Nooelec NESDR SMArt v5 + real 319.5MHz Interlogix-Security pendant were bench-tested against the EXISTING `rf.py`/`caos_rf_bridge.py` pipeline (not a new one - a second, less-developed `pendants.py` scaffold was identified and deliberately left untouched). Host bring-up: installed `rtl-sdr`/`rtl-433` (clean host, nothing present before), unbound the kernel's DVB-T driver auto-claiming the device (blacklisted for future boots), verified with `rtl_test -t` (real EEPROM readback: "Nooelec, NESDR SMArt v5, SN: 14054003"). Found and fixed two real bridge-script defects live: (a) `fingerprint_from_rtl433()` preferred a noisy `raw_message` field over the decoder's own stable `id`, and a synthesized fallback pattern could produce invalid odd-length hex, both of which broke cross-press matching (Hamming similarity ~0.83, below the 0.85 threshold) - fixed with a hash-based always-valid-hex synthesis, now proven stable across real presses; (b) `frequency_hz` stored as `0` when a single-band decoder omits a per-record frequency - now falls back to the one configured band. Paired the real pendant as `rfd_07d25dc68a6b`, assigned to `res_0d3ef4252ae2`/room 401 (Michael's own explicit choice). Added `PUT /rf/devices/{id}/assign` (reassignment - didn't exist, required by the enrollment model). Added `press_count`-based coalescing in `/rf/event` so ~8 real RF frames per physical press produce ONE alert, not eight - this was also the proximate trigger for defect #2 below. Set `auto_voice=True` on RF-triggered alerts (Michael's explicit instruction - a pendant press must always reach Aria hands-free).
+
+**2. Live multi-Aria-session defect found and fixed.** Turning on `auto_voice` immediately exposed a real, evidenced defect: two full OpenAI Realtime sessions ran concurrently for over a minute, both greeting the resident, both transcribing the same mic feed, Michael himself saying live "you only get one instance to talk to you, not two instances." Root cause (two independently-sufficient layers, confirmed via `db.conversations`/`db.realtime_diagnostics` overlap, not guessed): repeated RF frames each firing their own alert (fixed in pass 1), AND `POST /api/realtime/session` unconditionally minting a fresh session with zero concept of "one already active." Built a server-side singleton lease (`backend/routes/realtime_room_lease.py`, new `ResidentAriaLease` model) - atomic claim-or-reuse keyed by room, staleness self-heal (45s, no heartbeat = room reclaimable), wired into `/session` so a losing caller never spends a real OpenAI call or opens a mic. Frontend (`useRealtimeVoice.js`) claims before connecting, heartbeats every 20s while live, releases on stop/error; `RealtimeChatScreen.jsx` shows a distinct "already active elsewhere" state instead of an error. `Kiosk.jsx` now threads a real `trigger_source` (pendant vs manual) through. Also strengthened (defense in depth, not the primary fix) the "that'll be all for now" → `end_call` prompt wording, since it wasn't in the existing explicit example list. Live-verified: Michael confirmed "the doubling is fixed" after this pass.
+
+**3. A third, independent TSB-001 root cause found live.** Michael's own live retest still showed Aria greeting the resident as "Eleanor" (wrong) in fresh sessions with no challenge question at all - the dispatch-layer guard from the prior TSB-001 pass was confirmed still correctly blocking the tool-call path, so this was genuinely something else. Found via direct `db.memories` inspection: `realtime_memory_ingest.py`'s background `extract_and_store_memories()` (a completely separate pipeline, unaware of the tool-call guard) had stored "User prefers/wants to be called Eleanor" TWICE - once during the original incident, once again during this retest - both extracted from Aria's own hallucinated/rejected apology text, never from anything the resident said. Deleted both false memories immediately (live harm mitigation). Fixed `memory.py`'s `EXTRACTOR_SYSTEM` prompt (explicit rule: a fact from what CAOS said is not resident testimony) AND added a structural backstop (any name-shaped claim must have its capitalized name literally appear in the resident's own turn, or it's dropped) - unit-verified offline against both real incident texts (correctly rejected) and two genuine corrections plus an unrelated fact (correctly accepted), 5/5.
+
+**Also found and fixed in the same live retest:** `mark_resting` never actually stopped the OpenAI Realtime server from auto-generating a full spoken response to every VAD-detected utterance - confirmed via diagnostics showing Aria repeating "Understood, Eleanor, I'll stay quiet..." NINE times in a row while the system's own echo classifier had already tagged most of those inputs `echo_like`. `setResting(true)` was UI-only. Fixed by reusing the exact `create_response:false` session.update mechanism already proven for suppressing the forced-greeting auto-response window - now genuinely disables server auto-response while resting, re-enabled the instant real speech resumes.
+
+### What was verified
+- Every RF fix verified against real captured pendant data (offline replay + live re-presses). Live end-to-end: real PATCH calls, real receipts, real pairing/assignment via the actual admin API (a clearly-labeled local test admin account was created for this, since Michael's own real login credentials were never available to or requested by this session).
+- Lease mechanism fully verified via direct API calls: claim, duplicate-rejected-with-correct-owner-info, wrong-session heartbeat/release correctly no-op, correct-session release + reclaim, and staleness self-heal (backdated timestamp, confirmed reclaimable).
+- Backend restarted clean after every change (no import errors). Frontend syntax-checked (`@babel/core`) on every touched file. `tests/test_room_device_isolation.py`: 5 passed / 2 skipped throughout (skip reason confirmed pre-existing, unrelated to any of this work). `preferredNameGuard.test.js`: 6/6, unaffected by the new changes.
+- Memory-extraction guard unit-verified offline (5/5 cases, both real incident texts and legitimate corrections).
+- `git diff --check` clean throughout. Secrets-grep clean (only prose mentions of the words "password"/"token" in this very report, and pre-existing `client_secret`/`rf_secret`/device-token field names, no literal secrets).
+
+### Blocked / not yet done
+- **`mark_resting` fix has NOT been live-verified** - reasoned from evidence and reuses an already-proven mechanism, but no live call has confirmed resting genuinely goes quiet yet. Do this before considering it done.
+- **No-preopened-tab room-node launcher** - confirmed still missing (Michael: pendant does nothing unless a kiosk tab/admin "enter room" is already open). Explicitly deferred per the original directive's own priority order ("keep this pass focused on fixing the active-session defect first"). Real requirement, not addressed tonight.
+- **General interruption/echo complaint** - Michael's live complaint ("you keep cutting me off... same problem before") is partially explained by the mark_resting bug just fixed, but the underlying VAD/echo-cancellation sensitivity on whatever mic/speaker setup he tested with tonight was not separately investigated - likely a mix of software (now-fixed) and possibly hardware/environment factors. Needs a clean re-test.
+- **Smart TV / local-channel scanning UX** - Michael raised this as a resident-facing usability gap (TVs defaulting to streaming apps over local channels, hard even for him to navigate) - explicitly parked, not investigated or coded tonight, no clear scope yet.
+- TSB-001 remains OPEN - three independent root causes now individually fixed and evidenced, but no single live end-to-end call has confirmed all three together.
+- Nothing committed - no commit instruction given for any of tonight's batches.
+
+### Next safe step
+Live re-test in this order: (1) confirm `mark_resting` genuinely suppresses responses now ("be quiet for a minute" then talk over her - she should stay silent), (2) confirm END CONVERSATION ("that's all for now") returns the room to idle and a fresh pendant press starts exactly one new session, (3) confirm Aria correctly uses whatever name is actually on file with no unprompted drift. Only after a clean live pass should any of tonight's TSB-001/session-lease work be marked resolved. Separately, scope the no-preopened-tab room-node launcher as its own pass per the original directive - it's real, acknowledged, and not yet started.

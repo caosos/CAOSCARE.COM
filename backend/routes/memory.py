@@ -105,6 +105,17 @@ RULES
   a fabricated permanent 3 PM appointment in an unrelated later
   conversation. A transportation request is proof a ride was arranged,
   never proof an appointment exists or is confirmed.
+- 2026-08-29 (real bug, confirmed live, TSB-001): a fact is only real if
+  the RESIDENT actually said it. "CAOS replied" is the companion's OWN
+  speech, not resident testimony - it can be wrong, a misheard echo, or
+  (evidenced live) a hallucinated apology the companion never should have
+  made. NEVER extract a "fact" that appears only in what CAOS said - a
+  promise, an apology, a claimed correction, a name it started using -
+  unless the resident's own words in "User said" independently state the
+  same thing. This is exactly how a resident's name was durably corrupted
+  live: the companion mistakenly said "I'll remember you want to be called
+  Eleanor," the resident never said any such thing, and this extractor
+  stored it as a confirmed preference anyway.
 - 'importance': 5 = life-critical/emotionally central; 4 = core identity; 3 = useful context; 2 = minor; 1 = barely worth keeping.
 - Output [] if nothing is worth storing. Never output null."""
 
@@ -283,6 +294,17 @@ async def extract_and_store_memories(resident_id: str, session_id: str, user_tex
             text = (it.get("text") or "").strip()
             if not text or len(text) > 400:
                 continue
+            # Structural backstop for the exact TSB-001 failure (2026-08-29):
+            # a "wants/prefers to be called <Name>" claim must be grounded in
+            # what the RESIDENT actually said - prompt wording alone already
+            # failed once live (the extractor pulled this exact claim from
+            # the companion's own hallucinated apology). Any capitalized
+            # word in the claim must also appear in the resident's own turn.
+            if re.search(r"\b(call(ed)?|name)\b", text, re.IGNORECASE):
+                claimed_names = re.findall(r"\b[A-Z][a-z]+\b", text)
+                if claimed_names and not any(n.lower() in user_text.lower() for n in claimed_names):
+                    logging.warning(f"Memory extraction rejected ungrounded name claim for resident {resident_id}: {text!r} not found in resident's own words")
+                    continue
             # Dedupe by resident_id + near-identical text prefix (first 60 chars, regex-safe)
             prefix = re.escape(text[:60].strip())
             existing = await db.memories.find_one({

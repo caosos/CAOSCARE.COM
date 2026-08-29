@@ -45,10 +45,18 @@ async def create_receipt(
     assigned_role: Optional[str] = None,
     assigned_user: Optional[str] = None,
     status: ReceiptStatus = "created",
+    result: Optional[str] = None,
 ) -> dict:
     """Importable helper - call this directly from other route modules
     when a meaningful action happens. Never blocks the caller's own
-    response on anything beyond the insert itself."""
+    response on anything beyond the insert itself.
+
+    `result` is for actions that complete synchronously in the same call
+    (no separate pending phase) - e.g. an instant field update - so the
+    caller isn't forced through a created->update_receipt_status("completed")
+    round trip, and isn't tempted to reach for update_receipt_status's
+    "most recent receipt for this object" lookup when a more specific one
+    already exists."""
     r = Receipt(
         action_type=action_type,
         related_object_type=related_object_type,
@@ -62,6 +70,8 @@ async def create_receipt(
         assigned_role=assigned_role,
         assigned_user=assigned_user,
         status=status,
+        result=result,
+        completed_at=now_utc() if status == "completed" else None,
     )
     doc = r.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()

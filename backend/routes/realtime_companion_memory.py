@@ -17,7 +17,16 @@ async def build_resident_profile_and_memory(resident_id: str, r: dict, name: str
             f"Their name is {name}. ALWAYS call them {name} — never any other "
             f"variant, nickname, diminutive, or full name. If their full name is "
             f"'{full_name}', do not use it. Just '{name}'. Never ask them what to "
-            f"call them — you already know."
+            f"call them — you already know.\n"
+            f"Provenance (TSB-001): {name} is on file in their stored resident "
+            f"profile — it is a known, permanent fact, not something inferred, "
+            f"guessed, or told to you this call. If they ask 'how do you know my "
+            f"name' or challenge it, say plainly it's on your profile ('it's on "
+            f"your file with us' / 'that's what I have on record for you') — "
+            f"never invent a story about a specific moment they told you, and "
+            f"never call `update_preferred_name` just because you were asked how "
+            f"you know it. Only call that tool when they actually state a "
+            f"DIFFERENT name they want to be called."
         )
     if r.get("low_vision"):
         profile_lines.append(

@@ -1,6 +1,12 @@
 # TSB-001 — Room 401 resident-voice: name-attribution hallucination + unaudited durable name mutation
 
-**Status: OPEN — documented, not remediated.**
+**Status: OPEN — three independent root causes now found and fixed at the
+unit/data level (see all three 2026-08-29 updates below): attribution
+hallucination + ungrounded tool call (dispatch-layer guard) and, found on
+live re-test the same day, ungrounded memory extraction (a completely
+separate pipeline the first fix never touched). No live end-to-end
+resident-voice re-test has confirmed all three together yet. Do not mark
+RESOLVED until that happens.**
 **Date recorded:** 2026-08-29. **Incident occurred:** 2026-08-29,
 ~01:28:59–01:36:28 UTC.
 **Facility:** Brookdale Senior Living Communities (Conway, AR). **Room:**
@@ -227,6 +233,117 @@ alerts, transportation, admin-assistant mutations).
 documentation and evidence preservation only, per explicit instruction not
 to touch the stable resident-voice runtime to "complete" a bulletin.
 
+## Update — 2026-08-29 (item 3 done; the evidence gap this TSB itself flagged is closed)
+
+Prompted by a direct follow-up instruction ("we need to be able to have all
+the data") rather than an attempt to close this TSB outright, two small,
+additive, purely-observational/audit changes were made and live-verified
+against this environment:
+
+- **Remediation item 3 (receipt on the preferred-name mutation) — DONE.**
+  `PATCH /residents/{id}/preferred-name`
+  (`backend/routes/residents.py`) now reads the prior `preferred_name`
+  before writing, and calls `create_receipt()` with
+  `action_type="preferred_name.update"`, `source="aria_voice"`, the
+  resident/room/`conversation_session_id` when the caller supplies them,
+  and `result="'<old>' -> '<new>'"`. `create_receipt()`
+  (`backend/routes/receipts.py`) gained an optional `result` param so a
+  synchronously-completed action doesn't need a
+  `create → update_receipt_status("completed")` round trip (which would
+  also have risked mismatching against a *different* `related_object_type:
+  "resident"` receipt from Admin Aria's resident-edit tools — same
+  `related_object_id`, different action). Live-verified: two real PATCH
+  calls against `res_0d3ef4252ae2` produced a receipt with
+  `result: "'DataCheckName' -> 'Ellie'"`, correct room/session
+  correlation, `status: "completed"`. The resident's `preferred_name` was
+  restored to its real pre-test value (`"Ellie"`) after verification.
+- **The specific evidence gap this TSB named** ("the diagnostic event only
+  records the tool name") **— CLOSED, generically, for every resident-voice
+  tool call, not just `update_preferred_name`.**
+  `frontend/src/lib/realtimeMessageHandler.js`'s `handleFunctionCall()` now
+  logs the full parsed `args` on the `tool_call` diagnostic event and adds
+  a new `tool_result` event carrying the actual outcome — both already
+  supported by the existing free-form `meta` field
+  (`realtimeDiagnostics.js` / `backend/routes/realtime_diagnostics.py`),
+  no schema change. `frontend/src/pages/ConversationSessionDetail.jsx`'s
+  "Voice diagnostics" viewer now renders `meta` (it was silently dropped
+  before), so this is visible to an admin, not just stored.
+
+**Still NOT done — items 1, 2, and 4 above.** No provenance structure was
+added to the voice prompt/tool layer, no genuine-correction guard was added
+to `update_preferred_name`, and the attribution-hallucination failure mode
+itself is unchanged. Do not treat this update as closing TSB-001 — it
+closes the audit-trail and evidence-recording gaps only. A resident could
+still have `update_preferred_name` fire on a bare question, and the model
+can still fabricate an explanation of how it knows a stored fact; both
+require the tool-layer/prompt-layer changes in items 1, 2, and 4, which
+remain unimplemented and untested.
+
+Smoke-verified before/after: `tests/test_room_device_isolation.py` (7/7
+pass), backend syntax (`ast.parse`) and frontend syntax (`@babel/core`
+transform) on every touched file, `git diff --check` clean, secrets-grep
+clean, `git status` matches only the intended file set.
+
+## Update — 2026-08-29 (items 1, 2, 4 implemented and unit-regression-verified — "the right way")
+
+Structural remediation, not prompt-wording-only, per item 4's own
+requirement:
+
+- **Item 1 (provenance) — DONE.** `backend/routes/realtime_companion_memory.py`'s
+  name block now tells the model explicitly that `preferred_name` is a
+  known, on-file fact — not inferred, not something the resident told it
+  this call — and gives it the true answer to "how do you know my name"
+  ('it's on your file with us'), plus an explicit instruction not to call
+  `update_preferred_name` merely because it was asked how it knows the
+  name. Live-verified the prompt actually builds and contains this block
+  (`_build_companion_instructions('res_0d3ef4252ae2')`, 16,843 chars,
+  provenance text present).
+- **Items 2 + 4 (structural correction guard) — DONE.** The dispatch layer
+  no longer trusts the model's self-reported `preferred_name` arg alone.
+  `frontend/src/lib/realtimeMessageHandler.js` now carries the actual
+  transcribed text of the turn that triggered the tool call
+  (`turnSuspectRef.current.text`, set alongside the existing echo/overlap
+  classification) through to `ctx.last_user_text`.
+  `frontend/src/lib/realtimeDeviceTools.js`'s `update_preferred_name`
+  handler rejects the call unless (a) the claimed new name actually
+  appears in what the resident said this turn, AND (b) that turn does not
+  read as a question (`/^\s*(why|who|what|when|where|how)\b/i` — both real
+  TSB-001 failures were interrogative: "Why do you call me Ellie?", "Who
+  told you to call me Ellie?"). A rejected call asks the resident to
+  repeat themselves, reusing the existing echo-guard UX pattern rather
+  than introducing a new one.
+- **Regression test added** (this repo's first frontend test —
+  `frontend/src/lib/__tests__/preferredNameGuard.test.js`, run via the
+  existing `craco test` / Jest harness) reproducing exactly the two real
+  TSB-001 failures verbatim (same resident utterances, same wrong/right
+  values the model actually passed) plus confirming genuine corrections
+  ("My name is Margaret, not Maggie", "Call me Mags") still save, a
+  missing/stale transcript still blocks, and the pre-existing echo/
+  `turn_suspect` guard still takes priority. **All 6 cases pass**,
+  including both exact incident reproductions.
+
+**What this does NOT cover — be precise about the remaining gap.** The
+regression test verifies the dispatch-layer guard logic directly (given
+the real transcript text and the real bad args from the incident, does it
+correctly reject/accept) — it does not verify the full live pipeline
+(real audio → real transcription → the model's own tool-call decision)
+end-to-end, since that requires an actual Realtime voice call and this
+environment cannot place one. **Do not mark this TSB `RESOLVED`** until a
+live resident-voice session reproduces the same challenge ("why do you
+call me X") against the running system and confirms Aria answers from
+provenance without firing the tool, and a live genuine correction still
+persists correctly, per the TSB's own "Verification Required" section.
+
+Smoke-verified: backend syntax (`ast.parse`) and prompt-build
+(`_build_companion_instructions`) both clean; frontend syntax
+(`@babel/core`) and the new Jest suite (6/6) both clean;
+`tests/test_room_device_isolation.py` 5 passed / 2 skipped (skip reason:
+pre-existing live-data state — "no request category is clear of open
+tickets for all three test rooms" — unrelated to this change, confirmed
+via `-rs`); line counts all under the 300-line cap
+(`realtime_companion_memory.py` 111, `realtimeMessageHandler.js` 300,
+`realtimeDeviceTools.js` 236).
+
 ## Verification Required (before any future fix can close this TSB)
 
 - Reproduce the exact failure mode against a fix: a resident asking *why*
@@ -274,3 +391,62 @@ back yet. When remediation is attempted:
   description), `frontend/src/lib/realtimeDeviceTools.js`
   (`update_preferred_name` dispatch, including its existing `turn_suspect`/
   echo-safety guard — the precedent item 2 above proposes extending).
+
+## Update — 2026-08-29 (a THIRD, independent root cause found live — memory extraction, not the tool-call path)
+
+Live re-test (same day, same resident) reproduced the wrong-name symptom
+again — Aria greeted `res_0d3ef4252ae2` as "Eleanor" in multiple fresh
+sessions, unprompted, with no challenge question involved at all. The
+items-1/2/4 fix above (dispatch-layer guard on `update_preferred_name`)
+was confirmed still working correctly: it rejected both the ungrounded
+attempt and a repeat during this exact retest, per `tool_call`/`tool_result`
+diagnostic evidence. **The tool-call path was never the problem this time.**
+
+Root cause: `backend/routes/realtime_memory_ingest.py` fires
+`memory.py`'s `extract_and_store_memories()` as a background task after
+every real voice turn pair, completely independent of and unaware of
+`update_preferred_name`'s guard. It reads `user_text` AND `assistant_text`
+together and asks a separate OpenAI call to propose durable memories, with
+no requirement that a "fact" actually come from the resident's own words.
+Direct evidence from `db.memories`: two records existed —
+`mem_0b2c8cdfe6bc` ("User prefers to be called Eleanor.", extracted
+2026-08-29T01:31:43Z from `rt_g4kkodvu_1787966990776` — the ORIGINAL
+incident session) and `mem_f236e3811bba` ("User wants to be called
+Eleanor.", extracted 2026-08-29T17:14:28Z from `rt_rehqx2hh_1788023635018`
+— TODAY's retest). Both were pulled from Aria's own hallucinated/rejected
+apology text, not from anything the resident said (checked directly:
+neither session's `user_text` for the relevant turn contains "Eleanor").
+Once stored, these fed the "## What you know about Ellie (durable facts)"
+prompt bin in every subsequent session, so Aria greeted with the wrong
+name from the first line - no tool call, no challenge question, nothing
+for the dispatch-layer guard to see. **Both false memories deleted
+directly** (`db.memories` documents above) as immediate harm mitigation.
+
+**Fix, matching the "structural guard, not just prompt wording" principle
+already applied to items 2/4 above:**
+1. `memory.py`'s `EXTRACTOR_SYSTEM` prompt gained an explicit, dated rule
+   (matching this file's existing 2026-08-22 appointment-fabrication rule
+   in form): a fact from what CAOS said is not resident testimony: never
+   extract a claim that appears only in `assistant_text`.
+2. A structural backstop in `extract_and_store_memories()` (prompt-only
+   already failed once live, so this doesn't rely on the model following
+   the new rule under pressure): any extracted text matching `call(ed)?|
+   name` has its capitalized-word name claims checked against the
+   resident's own `user_text` (case-insensitive substring); if none match,
+   the item is dropped and logged, never stored.
+3. Verified offline against the exact real evidence: both real incident
+   texts ("User wants/prefers to be called Eleanor." against `user_text`
+   "long-term"/"Hello") are rejected; two genuine-correction phrasings
+   ("My name is Margaret, not Maggie" / "Call me Mags") and an unrelated
+   fact with no name claim all still pass. 5/5 cases correct.
+
+**Still not verified:** a live re-test with the actual extraction pipeline
+running against a real OpenAI call (only the structural backstop was unit-
+verified offline, to avoid spending a live API call mid-incident) - the
+prompt-level rule addition itself is unverified against live model
+behavior. TSB-001 remains OPEN. Given THREE independent mechanisms have
+now each independently caused a wrong-name failure (attribution
+hallucination, an ungrounded tool call, and now ungrounded memory
+extraction), a live end-to-end re-test covering all three paths together
+is required before this can be considered closed, not just individually
+patched pieces.

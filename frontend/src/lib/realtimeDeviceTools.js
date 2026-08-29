@@ -196,11 +196,23 @@ export async function executeDeviceTool({ name, args, ctx }) {
     }
     const newName = (args.preferred_name || "").toString().trim().slice(0, 60);
     if (!newName) return { ok: false, message: "I didn't catch the name." };
+    // TSB-001: ground the claimed correction in what the resident actually
+    // said, not just the model's self-reported args - a challenge question
+    // ("Why do you call me Ellie?", "Who told you to call me Ellie?") can
+    // mention the name too, so also reject turns that read as a question
+    // rather than a stated correction. Both real TSB-001 failures were
+    // interrogative turns; this rejects both without touching a genuine
+    // "my name is X, not Y" / "call me X" correction.
+    const heard = (ctx?.last_user_text || "").trim();
+    const looksLikeQuestion = /^\s*(why|who|what|when|where|how)\b/i.test(heard);
+    if (!heard || !heard.toLowerCase().includes(newName.toLowerCase()) || looksLikeQuestion) {
+      return { ok: false, message: "Sorry, I want to make sure I have that right — could you tell me again what you'd like me to call you?" };
+    }
     if (!residentId) return { ok: true, message: `okay, I'll call you ${newName} from now on.` };
     const r = await fetch(`${API}/residents/${residentId}/preferred-name`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ preferred_name: newName }),
+      body: JSON.stringify({ preferred_name: newName, room: ctx?.room || null, session_id: ctx?.session_id || null }),
     });
     if (!r.ok) return { ok: false, message: `I'll call you ${newName} from now on (didn't quite save it though).` };
     return { ok: true, message: `okay, ${newName} it is. Saved.` };

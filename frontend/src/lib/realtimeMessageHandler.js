@@ -73,8 +73,7 @@ async function executeTool({ name, args, ctx }) {
 
 export function createRealtimeHandlers({
   myGen, startGenRef, sessionIdRef, ctxRef, caos, send, stop, onEndCall,
-  turnSuspectRef, assistantSpeakingRef,
-  greetingCreateResponseOffRef,
+  turnSuspectRef, assistantSpeakingRef, restingRef, greetingCreateResponseOffRef,
   setStatus, setResting, setTranscript, setError,
 }) {
   // Closure-local, not refs - createRealtimeHandlers runs once per
@@ -103,8 +102,7 @@ export function createRealtimeHandlers({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          resident_id: rid, session_id: sessionIdRef.current, role, text,
-          trusted, item_id: itemId || null,
+          resident_id: rid, session_id: sessionIdRef.current, role, text, trusted, item_id: itemId || null,
           room: ctxRef.current?.room || null, kiosk_id: ctxRef.current?.kiosk_id || null,
         }),
       }).catch(() => {});
@@ -122,9 +120,10 @@ export function createRealtimeHandlers({
   const handleFunctionCall = async (fn) => {
     let parsed = {};
     try { parsed = fn.arguments ? JSON.parse(fn.arguments) : {}; } catch {}
-    logRealtimeEvent(sessionIdRef.current, "tool_call", { meta: { name: fn.name } });
-    const cls = turnSuspectRef.current || { suspect: false, reason: "no_overlap" };
-    const result = await executeTool({ name: fn.name, args: parsed, ctx: { ...ctxRef.current, turn_suspect: cls.suspect, turn_suspect_reason: cls.reason } });
+    logRealtimeEvent(sessionIdRef.current, "tool_call", { meta: { name: fn.name, args: parsed } });
+    const cls = turnSuspectRef.current || { suspect: false, reason: "no_overlap", text: "" };
+    const result = await executeTool({ name: fn.name, args: parsed, ctx: { ...ctxRef.current, turn_suspect: cls.suspect, turn_suspect_reason: cls.reason, last_user_text: cls.text || "" } });
+    logRealtimeEvent(sessionIdRef.current, "tool_result", { meta: { name: fn.name, result } });
     if (myGen !== startGenRef.current) return;
     // Tell the model what happened. The output goes onto the conversation
     // as a `function_call_output` item, then we ask the model to respond.
@@ -137,9 +136,19 @@ export function createRealtimeHandlers({
       },
     });
     if (fn.name === "mark_resting") {
-      // Resident asked us to be quiet. Don't trigger a new spoken response;
-      // the model will stay silent until VAD detects fresh speech.
+      // 2026-08-29 (real bug, confirmed live): setResting(true) alone never
+      // stopped the SERVER auto-responding to every VAD-detected utterance -
+      // resting was a UI dim only, so she kept replying in a tight loop.
+      // Same create_response:false mechanism already used for the greeting
+      // window actually stops her talking - re-enabled on real wake below.
       setResting(true);
+      restingRef.current = true;
+      if (caos.turn_detection) {
+        send({
+          type: "session.update",
+          session: { type: "realtime", audio: { input: { turn_detection: { ...caos.turn_detection, create_response: false } } } },
+        });
+      }
     } else if (fn.name === "end_call" || fn.name === "end_conversation") {
       // 2026-08-22 (real bug, confirmed live): a phantom echo turn ("and")
       // reached this branch and hung up on the resident mid-session.
@@ -167,6 +176,17 @@ export function createRealtimeHandlers({
 
     if (msg.type === "input_audio_buffer.speech_started") {
       setStatus("listening");
+      // Wake from rest: re-enable server auto-response (mirrors the
+      // greeting window's own re-enable below) - genuinely over, not just visual.
+      if (restingRef.current) {
+        restingRef.current = false;
+        if (caos.turn_detection) {
+          send({
+            type: "session.update",
+            session: { type: "realtime", audio: { input: { turn_detection: caos.turn_detection } } },
+          });
+        }
+      }
       setResting(false);   // resident spoke again → wake from rest
       // Raw overlap signal - did this segment start while Aria's audio was
       // still playing? One piece of evidence, not the verdict - see
@@ -239,7 +259,8 @@ export function createRealtimeHandlers({
       const overlapped = turnSuspectRef.current === true || lowConfidence;
       const cls = classifyUserTurn({ overlapped, text: userText, lastAssistantText, tinyStreak: tinyFragmentStreak });
       tinyFragmentStreak = (cls.reason === "echo_like" || cls.reason === "uncertain_fragment" || cls.reason === "repeated_tiny_fragments") ? tinyFragmentStreak + 1 : 0;
-      turnSuspectRef.current = cls;
+      // .text: lets a dispatched tool (TSB-001) ground its claim in what was actually said.
+      turnSuspectRef.current = { ...cls, text: userText };
       // 2026-08-22 (real bug, confirmed live): saved IMMEDIATELY now, not
       // stashed in a scalar "pending" ref to wait for the assistant reply.
       // A real ~15-second resident correction was silently lost when a

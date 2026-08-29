@@ -27,7 +27,7 @@ from fastapi import APIRouter, Depends, HTTPException, Header, Body, Request
 from deps import db, get_current_user, require_admin
 from models import (
     RFDevice, RFCapture, RFFingerprint, RFListenStart, RFPair, RFEventIn,
-    now_utc,
+    RFDeviceAssign, now_utc,
 )
 
 router = APIRouter(prefix="/rf", tags=["rf"])
@@ -35,6 +35,11 @@ router = APIRouter(prefix="/rf", tags=["rf"])
 DEFAULT_BANDS_HZ = [315_000_000, 319_000_000, 433_920_000, 868_000_000, 915_000_000]
 DEFAULT_LISTEN_SECONDS = 10
 DEFAULT_TEST_SECONDS = 5
+# One physical button press on a real Interlogix-Security pendant produces
+# ~8 RF frames within ~1-3s (live-evidenced 2026-08-29). Frames from the
+# same device within this window collapse into one alert's press_count
+# rather than each spawning its own hands-free Aria activation.
+PRESS_COALESCE_SECONDS = 8
 
 
 def _iso(doc: dict) -> dict:
@@ -174,6 +179,29 @@ async def pair(payload: RFPair, user=Depends(require_admin)):
     doc["created_at"] = doc["created_at"].isoformat()
     await db.rf_devices.insert_one(doc)
     doc.pop("_id", None)
+    return _iso(doc)
+
+
+@router.put("/devices/{rf_device_id}/assign")
+async def assign_device(rf_device_id: str, payload: RFDeviceAssign, user=Depends(require_admin)):
+    """Reassign a paired device to a different resident (or unassign with
+    resident_id=None) — the fingerprint/historical events stay exactly as
+    they were, only the assignment changes, so past evidence still
+    reflects who the device was actually assigned to at the time."""
+    dev = await db.rf_devices.find_one({"rf_device_id": rf_device_id}, {"_id": 0})
+    if not dev:
+        raise HTTPException(404, detail="RF device not found")
+    room = None
+    if payload.resident_id:
+        r = await db.residents.find_one({"resident_id": payload.resident_id}, {"_id": 0, "room": 1})
+        if not r:
+            raise HTTPException(404, detail="Resident not found")
+        room = r.get("room")
+    await db.rf_devices.update_one(
+        {"rf_device_id": rf_device_id},
+        {"$set": {"resident_id": payload.resident_id, "room": room}},
+    )
+    doc = await db.rf_devices.find_one({"rf_device_id": rf_device_id}, {"_id": 0})
     return _iso(doc)
 
 
@@ -368,8 +396,7 @@ async def rf_event(
     }
 
     if matched:
-        # Update device telemetry
-        await db.rf_devices.update_one(
+        await db.rf_devices.update_one(  # telemetry
             {"rf_device_id": best["rf_device_id"]},
             {
                 "$set": {
@@ -379,6 +406,26 @@ async def rf_event(
                 "$inc": {"press_count": 1},
             },
         )
+        # Press-level coalescing (2026-08-29, live defect): repeat frames
+        # from one physical press each firing their own auto_voice alert
+        # spawned multiple simultaneous Aria activations - evidenced live.
+        # Frames within the window bump press_count instead of a new alert;
+        # a genuinely later press still creates a fresh one.
+        coalesce_cutoff = (now_utc() - timedelta(seconds=PRESS_COALESCE_SECONDS)).isoformat()
+        recent_alert = await db.alerts.find_one(
+            {"source_metadata.rf_device_id": best["rf_device_id"], "created_at": {"$gte": coalesce_cutoff}},
+            {"_id": 0, "alert_id": 1},
+        )
+        if recent_alert:
+            await db.alerts.update_one({"alert_id": recent_alert["alert_id"]}, {"$inc": {"press_count": 1}})
+            raw_event["alert_id"] = recent_alert["alert_id"]
+            await db.rf_events.insert_one(raw_event)
+            raw_event.pop("_id", None)
+            return {
+                "ok": True, "matched": matched, "score": round(best_score, 4),
+                "device_id": best["rf_device_id"], "alert_id": recent_alert["alert_id"],
+                "press_coalesced": True,
+            }
         # Fire an alert mirroring the kiosk-button code path. Map our RF
         # severities ("help" / "assist" / "emergency" / "comfort") to the
         # tighter Alert.AlertSeverity Literal which has no "help" — we
@@ -394,6 +441,7 @@ async def rf_event(
                 severity=alert_severity,
                 message=f"RF pendant pressed: {best.get('label', 'unknown')}",
                 triggered_by="rf_pendant",
+                auto_voice=True,  # Michael, 2026-08-29: a pendant press must always reach Aria hands-free, matching pendants.py/wearables.py
                 source_metadata={
                     "rf_device_id": best["rf_device_id"],
                     "match_score": round(best_score, 4),

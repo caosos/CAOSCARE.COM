@@ -103,6 +103,7 @@ export default function ConversationSessionDetail({ residentId, sessionId, onBac
                 {fmtTime(e.created_at)} — {e.event_type}
                 {e.assistant_speaking != null && ` (aria_speaking=${e.assistant_speaking})`}
                 {e.text && ` "${e.text}"`}
+                {e.meta && ` ${JSON.stringify(e.meta)}`}
               </div>
             ))}
           </div>

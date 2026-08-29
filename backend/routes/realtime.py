@@ -23,6 +23,7 @@ from fastapi.responses import JSONResponse
 
 from deps import db
 from routes.aria_memory import build_aria_context_block
+from routes.realtime_room_lease import claim_or_reuse_room_lease
 from routes.capabilities import get_capability_summary
 from routes.realtime_tools import _build_tools
 from routes.realtime_aria_tools import _build_aria_tools
@@ -212,6 +213,23 @@ async def create_session(payload: dict = Body(default={})):
     Accepts optional {voice, resident_id, kiosk_id, room} so the kiosk can
     request its chosen voice, pre-load the resident's personalized prompt,
     and tag the session with the room context the tool calls will need."""
+    # Server-side singleton (2026-08-29, real live defect): a resident-kiosk
+    # session must never be minted if this room already owns an active one -
+    # repeated RF pendant frames / multiple kiosk tabs previously each got
+    # their own real OpenAI session and spoke over the same physical mic.
+    # Only applies when a room is actually supplied (Michael's own operator
+    # build uses /aria-session, a separate endpoint, never touched here).
+    room = payload.get("room")
+    lease = None
+    if room:
+        lease = await claim_or_reuse_room_lease(
+            room, payload.get("resident_id"), payload.get("kiosk_id"),
+            payload.get("trigger_source") or "manual_kiosk", payload.get("session_id"),
+        )
+        if not lease["claimed"]:
+            # Never spend a real OpenAI call on a room that's already owned.
+            return JSONResponse(content={"_caos": {"lease": lease}})
+
     key = _require_openai_key()
     voice = (payload.get("voice") or DEFAULT_VOICE).lower()
     if voice not in ALLOWED_VOICES:
@@ -254,6 +272,7 @@ async def create_session(payload: dict = Body(default={})):
         "turn_detection": DEFAULT_VAD,
         "noise_reduction": DEFAULT_NOISE_REDUCTION,
         "temperature": DEFAULT_TEMPERATURE,
+        "lease": lease,
         "context": {
             "resident_id": payload.get("resident_id"),
             "kiosk_id": payload.get("kiosk_id"),

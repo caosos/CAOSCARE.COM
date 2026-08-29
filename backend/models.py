@@ -1072,6 +1072,7 @@ class RFFingerprint(BaseModel):
     bit_pattern_hex: str                                  # decoded payload, hex
     bit_length: int                                       # length of bit_pattern in bits
     rssi: Optional[float] = None                          # received signal strength (dBm-ish)
+    decoded: Optional[dict] = None                        # extra semantic fields a known rtl_433 decoder exposed (e.g. battery_ok, switch1-5) - evidence only, never used for matching
 
 
 # A paired device — bound to a resident and assigned a severity. Future
@@ -1121,6 +1122,13 @@ class RFPair(BaseModel):
     resident_id: Optional[str] = None
     severity: Literal["help", "assist", "emergency", "comfort"] = "help"
     match_threshold: float = 0.85
+
+
+# Reassign an already-paired RFDevice to a different resident (or unassign
+# with resident_id=None) — inventory-before-assignment / replacement /
+# reassignment, without re-pairing the physical fingerprint.
+class RFDeviceAssign(BaseModel):
+    resident_id: Optional[str] = None
 
 
 # Bridge → backend. Fired every time the SDR sees a known-or-unknown press.
@@ -1410,3 +1418,20 @@ class AriaVoiceSessionEnd(BaseModel):
     tasks_completed: List[str] = Field(default_factory=list)
     unresolved_next_step: Optional[str] = None
     tool_actions: List[dict] = Field(default_factory=list)
+
+
+# Server-side singleton lease for RESIDENT-facing Realtime voice - at most
+# one active/activating lease may exist per `room` at a time. Fixes a real,
+# live-evidenced defect (2026-08-29): multiple pendant RF frames / kiosk
+# tabs each independently minted their own OpenAI Realtime session with
+# zero server-side concept of "one already active," and two sessions spoke
+# over the same physical mic. See docs/tsb for the incident record.
+class ResidentAriaLease(BaseModel):
+    room: str                                             # lease key - one lease per room
+    resident_id: Optional[str] = None
+    kiosk_id: Optional[str] = None
+    session_id: str                                       # the frontend's own rt_<rand>_<ts> id - same one used throughout diagnostics/conversations
+    status: Literal["activating", "active", "ending"] = "activating"
+    trigger_source: str = "unknown"                       # pendant | wake_word | handset | screen_talk | manual_kiosk
+    created_at: datetime = Field(default_factory=now_utc)
+    last_seen_at: datetime = Field(default_factory=now_utc)

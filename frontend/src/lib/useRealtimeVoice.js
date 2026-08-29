@@ -25,12 +25,14 @@ import { buildSessionUpdate } from "./realtimeSessionUpdate";
 
 export function useRealtimeVoice({
   voice = "shimmer", residentId, kioskId, room, onEndCall,
-  sessionEndpoint = "/realtime/session", sessionPayload,
+  sessionEndpoint = "/realtime/session", sessionPayload, triggerSource,
 } = {}) {
   const pcRef = useRef(null);
   const dcRef = useRef(null);
   const audioElRef = useRef(null);
   const localStreamRef = useRef(null);
+  const leaseHeartbeatRef = useRef(null);   // interval id for the room-lease heartbeat, when room-scoped
+  const leaseRoomRef = useRef(null);        // room this session actually claimed a lease for, if any
   const startGenRef = useRef(0);            // bumps on every stop() — invalidates in-flight starts
   const ctxRef = useRef({ resident_id: residentId, kiosk_id: kioskId, room });
   // true while Aria's audio is actually playing - driven by output_audio_buffer
@@ -42,6 +44,7 @@ export function useRealtimeVoice({
   // transcript resolves - overlap is one signal, not the verdict.
   const turnSuspectRef = useRef(false);
   const greetingCreateResponseOffRef = useRef(false); // true while the initial forced greeting is in flight
+  const restingRef = useRef(false);         // live mirror of `resting` state - onMessage's closure can't see live state
   const lifecycleCleanupRef = useRef(null);   // detaches attachLifecycleDiagnostics' listeners
   const endReasonLoggedRef = useRef(false);   // one termination reason per session, first cause wins
   const sessionIdRef = useRef(`rt_${Math.random().toString(36).slice(2, 10)}_${Date.now()}`);
@@ -66,6 +69,14 @@ export function useRealtimeVoice({
     logRealtimeEvent(sessionIdRef.current, "session_ended", { meta: { reason } });
   }, []);
 
+  // Shared by stop() and start()'s failure path — best-effort, never blocks.
+  const releaseLease = (targetRoom, targetSession) => {
+    fetch(`${API}/realtime/room/${encodeURIComponent(targetRoom)}/release`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: targetSession }),
+    }).catch(() => {});
+  };
+
   const stop = useCallback((reason = "unspecified") => {
     if (pcRef.current || dcRef.current) logSessionEnded(reason);
     try { lifecycleCleanupRef.current?.(); } catch {}
@@ -79,6 +90,13 @@ export function useRealtimeVoice({
     pcRef.current = null;
     dcRef.current = null;
     localStreamRef.current = null;
+    if (leaseHeartbeatRef.current) { clearInterval(leaseHeartbeatRef.current); leaseHeartbeatRef.current = null; }
+    // Free the room immediately rather than waiting out the stale grace
+    // period, so the next trigger (pendant/manual) can claim right away.
+    if (leaseRoomRef.current) {
+      releaseLease(leaseRoomRef.current, sessionIdRef.current);
+      leaseRoomRef.current = null;
+    }
     setStatus("idle");
     setResting(false);
   }, [logSessionEnded]);
@@ -97,7 +115,10 @@ export function useRealtimeVoice({
     let pc = null;
     let stream = null;
     try {
-      // 1. Mint ephemeral session
+      // 1. Mint ephemeral session — also claims this room's server-side
+      // singleton lease (see realtime_room_lease.py). session_id here is
+      // reused as the lease's own id, so heartbeat/release below can
+      // reference it without a second identifier.
       const sessionRes = await fetch(`${API}${sessionEndpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -107,6 +128,8 @@ export function useRealtimeVoice({
             resident_id: residentId || null,
             kiosk_id: kioskId || null,
             room: room || null,
+            session_id: sessionIdRef.current,
+            trigger_source: triggerSource || "manual_kiosk",
           }
         ),
       });
@@ -114,12 +137,21 @@ export function useRealtimeVoice({
       if (!sessionRes.ok) throw new Error(`session ${sessionRes.status}`);
       const session = await sessionRes.json();
       if (myGen !== startGenRef.current) return;
+      const caos = session._caos || {};
+      // Room already owned by another live session — never touch the mic.
+      // Not an error: reflect it as its own status so the UI can show
+      // "already talking with someone" instead of a red error banner.
+      if (caos.lease && caos.lease.claimed === false) {
+        logRealtimeEvent(sessionIdRef.current, "lease_not_claimed", { meta: caos.lease });
+        setStatus("unavailable");
+        return;
+      }
+      if (caos.lease && caos.lease.claimed === true && room) leaseRoomRef.current = room;
       // /realtime/client_secrets (the endpoint the backend calls) returns the
       // ephemeral key as a top-level `value`, not nested under `client_secret`
       // — that older shape belongs to the legacy /realtime/sessions endpoint.
       const ephemeral = session?.value || session?.client_secret?.value;
       if (!ephemeral) throw new Error("no ephemeral key");
-      const caos = session._caos || {};
       // Backend authority on context — overrides whatever the parent passed
       if (caos.context) ctxRef.current = { ...ctxRef.current, ...caos.context };
 
@@ -162,7 +194,7 @@ export function useRealtimeVoice({
       // growing. dc.onopen (below) stays here since it's connection setup.
       const { onMessage } = createRealtimeHandlers({
         myGen, startGenRef, sessionIdRef, ctxRef, caos, send, stop, onEndCall,
-        turnSuspectRef, assistantSpeakingRef,
+        turnSuspectRef, assistantSpeakingRef, restingRef,
         greetingCreateResponseOffRef,
         setStatus, setResting, setTranscript, setError,
       });
@@ -242,16 +274,32 @@ export function useRealtimeVoice({
       lifecycleCleanupRef.current = attachLifecycleDiagnostics({
         pc, dc, sessionId: sessionIdRef.current, onTerminal: logSessionEnded,
       });
+      // Keep the room lease alive while connected, so a crashed/network-lost
+      // tab's lease goes stale (STALE_SECONDS) and self-heals instead of
+      // permanently locking the room.
+      if (leaseRoomRef.current) {
+        const hbRoom = leaseRoomRef.current, hbSession = sessionIdRef.current;
+        const beat = () => fetch(`${API}/realtime/room/${encodeURIComponent(hbRoom)}/heartbeat`, {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ session_id: hbSession }),
+        }).catch(() => {});
+        leaseHeartbeatRef.current = setInterval(beat, 20000);
+      }
     } catch (e) {
       // Fully tear down anything we built before the failure
       try { pc?.close(); } catch {}
       try { stream?.getTracks().forEach((t) => t.stop()); } catch {}
+      // Failed after claiming the lease (e.g. mic/SDP error) — release it
+      // now rather than leaving the room falsely locked until it goes stale.
+      if (leaseRoomRef.current) {
+        releaseLease(leaseRoomRef.current, sessionIdRef.current);
+        leaseRoomRef.current = null;
+      }
       if (myGen === startGenRef.current && e?.message !== "canceled") {
         setError(e?.message || "Failed to start voice");
         setStatus("error");
       }
     }
-  }, [voice, residentId, kioskId, room, sessionEndpoint, sessionPayload, logSessionEnded]);
+  }, [voice, residentId, kioskId, room, sessionEndpoint, sessionPayload, triggerSource, logSessionEnded]);
 
   return { status, error, transcript, resting, start, stop, audioElRef };
 }

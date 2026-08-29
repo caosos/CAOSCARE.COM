@@ -174,56 +174,92 @@ def next_sequence() -> int:
 # ---------------------------------------------------------------------------
 
 
-def fingerprint_from_rtl433(record: dict) -> Optional[dict]:
+# rtl_433 record keys that carry per-transmission noise (rolling/whitening
+# bits, parity, a counter) rather than stable device identity, observed
+# directly against a real Interlogix-Security pendant on 2026-08-29: `id`
+# and the decoded semantic fields (e.g. battery_ok, switch1-5) were IDENTICAL
+# across 4 separate presses / 32 frames, while `raw_message` differed on
+# every single press (Hamming similarity ~0.83 between presses — below the
+# 0.85 default match_threshold, so two presses of the same real pendant
+# would NOT reliably match under the old priority). Evidence, not a guess —
+# see docs/tsb or PROJECT_STATE for the capture.
+_NOISY_FALLBACK_KEYS = ("code", "data", "raw_signal", "raw_message", "dipswitch", "button")
+# Extra decoded fields worth preserving as evidence when a known decoder
+# supplies them, even though they aren't used for matching.
+_DECODED_EVIDENCE_KEYS = ("subtype", "battery_ok", "switch1", "switch2", "switch3", "switch4", "switch5")
+
+
+def fingerprint_from_rtl433(record: dict, default_freq_mhz: Optional[float] = None) -> Optional[dict]:
     """Convert an rtl_433 JSON record into our blueprint fingerprint shape.
 
-    rtl_433 has thousands of brand-specific decoders, and they DO NOT use
-    a single field name for "the unique signal." Different brands publish
-    their identifying bits under different keys:
+    Priority: a known decoder's own `model`+`id` FIRST (evidenced stable
+    across repeat presses of a real pendant), then the noisy catch-all
+    fields below for genuinely unidentified/unknown-protocol captures,
+    where `model`+`id` aren't available at all.
 
+    rtl_433 has thousands of brand-specific decoders, and for UNKNOWN
+    protocols they publish raw bits under different keys depending on
+    brand:
       • Generic OOK remotes:    `code`
       • Honeywell, GE legacy:   `data`
       • Unknown OOK captures:   `raw_signal`
-      • Interlogix-Security:    `raw_message`     ← the user's pendant
       • DIP-switch remotes:     `dipswitch`
       • Some doorbells:         `button`
-
-    If NONE of those are present but the brand decoder did identify a
-    `model` + `id` pair, we synthesize a stable fingerprint from those
-    two — two presses of the same pendant produce the same model+id, so
-    matching still works. This makes the bridge brand-agnostic: any
-    pendant rtl_433 can decode, CAOS Care can pair.
     """
-    pattern = (
-        record.get("code")
-        or record.get("data")
-        or record.get("raw_signal")
-        or record.get("raw_message")
-        or record.get("dipswitch")
-        or record.get("button")
-    )
-    if not pattern and record.get("model") and record.get("id") is not None:
-        pattern = f"{record['model']}_{record['id']}"
-    if not pattern:
-        return None
-    pattern = str(pattern).strip().lower()
-    if pattern.startswith("0x"):
-        pattern = pattern[2:]
-    # Hex-only sanitize: replace anything that isn't 0-9a-f with empty.
-    # When we synthesized from "Interlogix-Security_3ef83c", the dash
-    # would otherwise leak through and confuse the matcher.
-    sanitized = "".join(ch for ch in pattern if ch in "0123456789abcdef")
+    sanitized = None
+    if record.get("model") and record.get("id") is not None:
+        # Deterministic, ALWAYS-valid-hex synthesis. A brand name like
+        # "Interlogix-Security" is English text, not hex data — naively
+        # stripping it down to whatever a-f letters happen to appear in
+        # the model name produces an unpredictable (sometimes odd) length,
+        # which silently broke matching entirely (bytes.fromhex() rejects
+        # odd-length input; the matcher's ValueError guard turned that
+        # into a hard 0.0 similarity for EVERY future press of a real
+        # pendant — found live, 2026-08-29, evidenced in db.rf_events).
+        # A short hash of the model name + the id's own hex digits is
+        # always even-length and never depends on what letters the brand
+        # name happens to contain.
+        model_hash = hashlib.sha1(str(record["model"]).encode()).hexdigest()[:8]
+        id_hex = "".join(ch for ch in str(record["id"]).strip().lower() if ch in "0123456789abcdef")
+        if not id_hex:
+            id_hex = hashlib.sha1(str(record["id"]).encode()).hexdigest()[:8]
+        sanitized = model_hash + id_hex
     if not sanitized:
-        # Pure-text fallback — keep something so the backend can still match
-        sanitized = "".join(ch.lower() for ch in pattern if ch.isalnum())[:32]
+        pattern = None
+        for k in _NOISY_FALLBACK_KEYS:
+            if record.get(k):
+                pattern = record[k]
+                break
+        if not pattern:
+            return None
+        pattern = str(pattern).strip().lower()
+        if pattern.startswith("0x"):
+            pattern = pattern[2:]
+        # Hex-only sanitize — legitimate here since these fields ARE raw
+        # hex/text encodings of real bits, unlike a synthesized model name.
+        sanitized = "".join(ch for ch in pattern if ch in "0123456789abcdef")
+        if not sanitized:
+            # Pure-text fallback — keep something so the backend can still match
+            sanitized = "".join(ch.lower() for ch in pattern if ch.isalnum())[:32]
+    # Defensive backstop: bytes.fromhex() (used for matching) rejects any
+    # odd-length hex string outright — never let one reach the backend.
+    if len(sanitized) % 2:
+        sanitized = "0" + sanitized
 
-    freq_mhz = record.get("freq") or record.get("frequency") or 0.0
+    # Some decoders (e.g. Interlogix-Security) don't echo a frequency per
+    # record at all. When we told rtl_433 to tune to exactly one band, that
+    # ambiguity doesn't exist — use it rather than store a false "0 Hz".
+    # With multiple bands configured and no per-record freq, frequency
+    # genuinely is unknown — leave it as 0 rather than guess which band.
+    freq_mhz = record.get("freq") or record.get("frequency") or default_freq_mhz or 0.0
+    decoded = {k: record[k] for k in _DECODED_EVIDENCE_KEYS if k in record} or None
     return {
         "frequency_hz": int(float(freq_mhz) * 1_000_000),
         "modulation": (record.get("modulation") or "OOK").split("_")[0].upper(),
         "bit_pattern_hex": sanitized,
         "bit_length": len(sanitized) * 4,  # 4 bits per hex char
         "rssi": record.get("rssi"),
+        "decoded": decoded,
     }
 
 
@@ -442,7 +478,8 @@ def on_record(rec: dict):
     freq = rec.get("freq", "?")
     print(f"[rf-bridge] decoded: model={model} id={rid} freq={freq}MHz", flush=True)
 
-    fp = fingerprint_from_rtl433(rec)
+    single_band = DEFAULT_BANDS_MHZ[0] if len(DEFAULT_BANDS_MHZ) == 1 else None
+    fp = fingerprint_from_rtl433(rec, default_freq_mhz=single_band)
     if not fp:
         print(f"[rf-bridge]   skipped — no fingerprint extracted (keys: {sorted(rec.keys())})", flush=True)
         return

@@ -15,6 +15,7 @@ from deps import db  # noqa: E402
 from routes import auth as auth_routes  # noqa: E402
 from routes import auth_password as auth_password_routes  # noqa: E402
 from routes import residents as resident_routes  # noqa: E402
+from routes import resident_analytics as resident_analytics_routes  # noqa: E402
 from routes import staff as staff_routes  # noqa: E402
 from routes import kiosks as kiosk_routes  # noqa: E402
 from routes import alerts as alert_routes  # noqa: E402
@@ -52,6 +53,7 @@ from routes import memory as memory_routes  # noqa: E402
 from routes import realtime_memory_ingest as realtime_memory_ingest_routes  # noqa: E402
 from routes import audit as audit_routes  # noqa: E402
 from routes import realtime as realtime_routes  # noqa: E402
+from routes import realtime_room_lease as realtime_room_lease_routes  # noqa: E402
 from routes import rf as rf_routes  # noqa: E402
 from routes import facilities as facilities_routes  # noqa: E402
 from routes import hardware as hardware_routes  # noqa: E402
@@ -123,6 +125,7 @@ async def health():
 api.include_router(auth_routes.router)
 api.include_router(auth_password_routes.router)
 api.include_router(resident_routes.router)
+api.include_router(resident_analytics_routes.router)
 api.include_router(staff_routes.router)
 api.include_router(kiosk_routes.router)
 api.include_router(alert_routes.router)
@@ -160,6 +163,7 @@ api.include_router(memory_routes.router)
 api.include_router(realtime_memory_ingest_routes.router)
 api.include_router(audit_routes.router)
 api.include_router(realtime_routes.router)
+api.include_router(realtime_room_lease_routes.router)
 api.include_router(rf_routes.router)
 api.include_router(facilities_routes.router)
 api.include_router(hardware_routes.router)
