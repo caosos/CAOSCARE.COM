@@ -229,10 +229,10 @@ export function createRealtimeHandlers({
       // a non-null value - so this safely no-ops until that changes).
       const confidence = transcriptionConfidence(msg.logprobs);
       const lowConfidence = confidence !== null && confidence < LOW_CONFIDENCE_THRESHOLD;
-      const overlapped = turnSuspectRef.current === true || lowConfidence;
+      const overlapped = turnTempo.wasOverlapped(msg.item_id) || lowConfidence;
       const cls = classifyUserTurn({ overlapped, text: userText, lastAssistantText, tinyStreak: tinyFragmentStreak });
       tinyFragmentStreak = (cls.reason === "echo_like" || cls.reason === "uncertain_fragment" || cls.reason === "repeated_tiny_fragments") ? tinyFragmentStreak + 1 : 0;
-      turnSuspectRef.current = cls;
+      if (turnTempo.isLatest(msg.item_id)) turnSuspectRef.current = cls;
       turnTempo.classified({ ...cls, itemId: msg.item_id });
       // 2026-08-22 (real bug, confirmed live): saved IMMEDIATELY now, not
       // stashed in a scalar "pending" ref to wait for the assistant reply.
