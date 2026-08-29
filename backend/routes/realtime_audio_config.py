@@ -5,12 +5,14 @@ routes or DB access.
 
 # REVERTED 2026-08-23: semantic_vad+low caused a real ~38s speech-detection
 # dead zone live (connection healthy throughout, per lifecycle diagnostics -
-# a turn-detection failure, not network). Back to the known-working config.
+# a turn-detection failure, not network). Keep the proven server_vad path.
+# 2026-08-29: 1000 -> 700ms because client-side adaptive floor timing now
+# adds its own short grace window and cancels a reply if the speaker resumes.
 DEFAULT_VAD = {
     "type": "server_vad",
     "threshold": 0.5,
     "prefix_padding_ms": 300,
-    "silence_duration_ms": 1000,
+    "silence_duration_ms": 700,
     "create_response": True,
     "interrupt_response": True,
 }
