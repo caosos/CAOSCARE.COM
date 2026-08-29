@@ -44,6 +44,9 @@ log "Deploy requested. Current: $PREV_SHA  Target: $TARGET_SHA"
 #    touching anything else (no backup, no checkout, nothing).
 git fetch origin --quiet
 git cat-file -e "${TARGET_SHA}^{commit}" 2>/dev/null || fail "$TARGET_SHA is not a known commit"
+# Normalize to the full 40-char SHA so a short SHA (or any commit-ish) still
+# matches the full-form `git rev-parse HEAD` in the post-checkout checks below.
+TARGET_SHA="$(git rev-parse --verify "${TARGET_SHA}^{commit}")" || fail "could not resolve $TARGET_SHA to a commit"
 git merge-base --is-ancestor "$TARGET_SHA" origin/main || fail "$TARGET_SHA is not part of origin/main's history - refusing to deploy an unmerged/unknown commit"
 log "Verified $TARGET_SHA exists on origin/main"
 
