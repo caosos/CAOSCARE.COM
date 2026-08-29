@@ -173,14 +173,14 @@ export function createRealtimeHandlers({
       // still playing? One piece of evidence, not the verdict - see
       // classifyUserTurn() above, applied once the transcript resolves.
       turnSuspectRef.current = assistantSpeakingRef.current;
-      turnTempo.speechStarted();
+      turnTempo.speechStarted({ itemId: msg.item_id });
       lastSpeechStartedAt = Date.now();
       logRealtimeEvent(sessionIdRef.current, "speech_started", { assistantSpeaking: assistantSpeakingRef.current });
     }
     if (msg.type === "input_audio_buffer.speech_stopped") {
       setStatus("live");
       lastSpeechSegmentMs = lastSpeechStartedAt ? Date.now() - lastSpeechStartedAt : null;
-      turnTempo.speechStopped({ overlapped: turnSuspectRef.current === true });
+      turnTempo.speechStopped({ itemId: msg.item_id, overlapped: turnSuspectRef.current === true });
       logRealtimeEvent(sessionIdRef.current, "speech_stopped", { assistantSpeaking: assistantSpeakingRef.current });
     }
     if (msg.type === "response.audio.delta") {
@@ -233,7 +233,7 @@ export function createRealtimeHandlers({
       const cls = classifyUserTurn({ overlapped, text: userText, lastAssistantText, tinyStreak: tinyFragmentStreak });
       tinyFragmentStreak = (cls.reason === "echo_like" || cls.reason === "uncertain_fragment" || cls.reason === "repeated_tiny_fragments") ? tinyFragmentStreak + 1 : 0;
       turnSuspectRef.current = cls;
-      turnTempo.classified(cls);
+      turnTempo.classified({ ...cls, itemId: msg.item_id });
       // 2026-08-22 (real bug, confirmed live): saved IMMEDIATELY now, not
       // stashed in a scalar "pending" ref to wait for the assistant reply.
       // A real ~15-second resident correction was silently lost when a
