@@ -32,12 +32,14 @@
  * rather than guessing at a new location, since it's not audio-related
  * like the other three fields that just moved.
  */
+import { withConversationRhythm } from "./realtimeConversationTempo";
+
 export function buildSessionUpdate({ caos, voice }) {
   const update = {
     type: "session.update",
     session: {
       type: "realtime",
-      instructions: caos.instructions,
+      instructions: withConversationRhythm(caos.instructions),
       audio: {
         output: { voice: caos.voice || voice },
         input: {
@@ -48,6 +50,8 @@ export function buildSessionUpdate({ caos, voice }) {
           // is documented to improve recognition accuracy over whisper-1.
           transcription: { model: "gpt-4o-transcribe", language: "en" },
           ...(caos.noise_reduction ? { noise_reduction: caos.noise_reduction } : {}),
+          // Keep VAD for chunking/barge-in, but manual response timing is now
+          // owned by realtimeConversationTempo.js for the entire call.
           ...(caos.turn_detection ? { turn_detection: { ...caos.turn_detection, create_response: false } } : {}),
         },
       },
