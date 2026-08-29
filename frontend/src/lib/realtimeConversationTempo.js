@@ -20,7 +20,9 @@ export function createConversationTempoController({ send, sessionIdRef, ctxRef }
   const mode = ctxRef.current?.owner_user_id ? "operator" : "resident";
   let graceMs = profile.initial;
   let timer = null;
-  let waitingForOverlapClassification = false;
+  let pendingItemId = null;
+  let latestItemId = null;
+  const overlapItems = new Set();
 
   const log = (event, meta = {}) => {
     logRealtimeEvent(sessionIdRef.current, event, {
@@ -32,43 +34,51 @@ export function createConversationTempoController({ send, sessionIdRef, ctxRef }
     if (!timer) return false;
     clearTimeout(timer);
     timer = null;
+    pendingItemId = null;
     return true;
   };
 
-  const scheduleResponse = () => {
+  const scheduleResponse = (itemId) => {
+    if (itemId && latestItemId && itemId !== latestItemId) return;
     clearPending();
+    pendingItemId = itemId || null;
     timer = setTimeout(() => {
       timer = null;
+      pendingItemId = null;
       send({ type: "response.create" });
-      log("tempo_response_create");
+      log("tempo_response_create", { item_id: itemId || null });
       graceMs = Math.max(profile.min, graceMs - profile.settleStep);
     }, graceMs);
-    log("tempo_response_scheduled");
+    log("tempo_response_scheduled", { item_id: itemId || null });
   };
 
-  const speechStarted = () => {
-    waitingForOverlapClassification = false;
+  const speechStarted = ({ itemId = null } = {}) => {
+    latestItemId = itemId || latestItemId;
     if (!clearPending()) return;
     graceMs = Math.min(profile.max, graceMs + profile.resumeStep);
-    log("tempo_user_resumed");
+    log("tempo_user_resumed", { item_id: itemId || null });
   };
 
-  const speechStopped = ({ overlapped = false } = {}) => {
-    waitingForOverlapClassification = overlapped;
-    if (!overlapped) scheduleResponse();
-    else log("tempo_waiting_for_overlap_classification");
-  };
-
-  const classified = ({ suspect = false, reason = "unknown" } = {}) => {
-    if (suspect) {
-      clearPending();
-      waitingForOverlapClassification = false;
-      log("tempo_suspect_turn_suppressed", { reason });
+  const speechStopped = ({ itemId = null, overlapped = false } = {}) => {
+    latestItemId = itemId || latestItemId;
+    if (overlapped) {
+      if (itemId) overlapItems.add(itemId);
+      log("tempo_waiting_for_overlap_classification", { item_id: itemId || null });
       return;
     }
-    if (!waitingForOverlapClassification) return;
-    waitingForOverlapClassification = false;
-    scheduleResponse();
+    scheduleResponse(itemId);
+  };
+
+  const classified = ({ itemId = null, suspect = false, reason = "unknown" } = {}) => {
+    if (suspect) {
+      if (!itemId || pendingItemId === itemId) clearPending();
+      if (itemId) overlapItems.delete(itemId);
+      log("tempo_suspect_turn_suppressed", { item_id: itemId || null, reason });
+      return;
+    }
+    if (!itemId || !overlapItems.has(itemId)) return;
+    overlapItems.delete(itemId);
+    scheduleResponse(itemId);
   };
 
   const responseCreated = () => {
