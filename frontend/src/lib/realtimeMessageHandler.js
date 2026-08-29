@@ -23,6 +23,7 @@ import { API } from "./api";
 import { executeOperationsTool } from "./realtimeOperationsTools";
 import { executeDeviceTool } from "./realtimeDeviceTools";
 import { logRealtimeEvent, transcriptionConfidence, LOW_CONFIDENCE_THRESHOLD } from "./realtimeDiagnostics";
+import { createConversationTempoController } from "./realtimeConversationTempo";
 
 // Dispatches a model-emitted function call to whichever tool module handles
 // it (staff/transportation requests, then device/environment/profile
@@ -71,7 +72,7 @@ async function executeTool({ name, args, ctx }) {
 }
 
 export function createRealtimeHandlers({
-  myGen, startGenRef, sessionIdRef, ctxRef, caos, send, stop, onEndCall,
+  myGen, startGenRef, sessionIdRef, ctxRef, send, stop, onEndCall,
   turnSuspectRef, assistantSpeakingRef,
   greetingCreateResponseOffRef,
   setStatus, setResting, setTranscript, setError,
@@ -87,6 +88,7 @@ export function createRealtimeHandlers({
   let lastSpeechStartedAt = null;
   let lastSpeechSegmentMs = null;
   let lastPlaybackStoppedAt = null;
+  const turnTempo = createConversationTempoController({ send, sessionIdRef, ctxRef });
 
   // Saves one turn immediately, independently - no pairing, no waiting on
   // the other side of the exchange. See RealtimeTurnIngest's docstring
@@ -171,12 +173,14 @@ export function createRealtimeHandlers({
       // still playing? One piece of evidence, not the verdict - see
       // classifyUserTurn() above, applied once the transcript resolves.
       turnSuspectRef.current = assistantSpeakingRef.current;
+      turnTempo.speechStarted();
       lastSpeechStartedAt = Date.now();
       logRealtimeEvent(sessionIdRef.current, "speech_started", { assistantSpeaking: assistantSpeakingRef.current });
     }
     if (msg.type === "input_audio_buffer.speech_stopped") {
       setStatus("live");
       lastSpeechSegmentMs = lastSpeechStartedAt ? Date.now() - lastSpeechStartedAt : null;
+      turnTempo.speechStopped({ overlapped: turnSuspectRef.current === true });
       logRealtimeEvent(sessionIdRef.current, "speech_stopped", { assistantSpeaking: assistantSpeakingRef.current });
     }
     if (msg.type === "response.audio.delta") {
@@ -205,26 +209,16 @@ export function createRealtimeHandlers({
       assistantSpeakingRef.current = false;
       lastPlaybackStoppedAt = Date.now();
       logRealtimeEvent(sessionIdRef.current, "output_audio_buffer_stopped", { meta: { cleared: msg.type === "output_audio_buffer.cleared" } });
-      // Re-enable normal auto-response once the forced greeting's own
-      // audio has ACTUALLY finished playing - previously gated on
-      // response.done (generation-complete), which is exactly the signal
-      // this whole fix replaces. See the create_response:false comment in
-      // dc.onopen above for why this window exists at all.
-      if (greetingCreateResponseOffRef.current) {
-        greetingCreateResponseOffRef.current = false;
-        if (caos.turn_detection) {
-          send({
-            type: "session.update",
-            session: { type: "realtime", audio: { input: { turn_detection: caos.turn_detection } } },
-          });
-        }
-      }
+      // create_response stays false for the whole call now; the tempo
+      // controller decides when the user has actually yielded the floor.
+      if (greetingCreateResponseOffRef.current) greetingCreateResponseOffRef.current = false;
     }
     if (msg.type === "response.done") {
       setStatus("live");
       logRealtimeEvent(sessionIdRef.current, "response_done", { responseId: msg.response?.id });
     }
     if (msg.type === "response.created") {
+      turnTempo.responseCreated();
       logRealtimeEvent(sessionIdRef.current, "response_created", { responseId: msg.response?.id });
     }
     if (msg.type === "conversation.item.input_audio_transcription.completed") {
@@ -239,6 +233,7 @@ export function createRealtimeHandlers({
       const cls = classifyUserTurn({ overlapped, text: userText, lastAssistantText, tinyStreak: tinyFragmentStreak });
       tinyFragmentStreak = (cls.reason === "echo_like" || cls.reason === "uncertain_fragment" || cls.reason === "repeated_tiny_fragments") ? tinyFragmentStreak + 1 : 0;
       turnSuspectRef.current = cls;
+      turnTempo.classified(cls);
       // 2026-08-22 (real bug, confirmed live): saved IMMEDIATELY now, not
       // stashed in a scalar "pending" ref to wait for the assistant reply.
       // A real ~15-second resident correction was silently lost when a
