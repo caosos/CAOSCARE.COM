@@ -8,12 +8,14 @@ routes or DB access.
 # a turn-detection failure, not network). Keep the proven server_vad path.
 # 2026-08-29: 1000 -> 700ms because client-side adaptive floor timing now
 # adds its own short grace window and cancels a reply if the speaker resumes.
+# create_response stays false from mint onward; the browser explicitly sends
+# response.create when its adaptive floor controller decides the user yielded.
 DEFAULT_VAD = {
     "type": "server_vad",
     "threshold": 0.5,
     "prefix_padding_ms": 300,
     "silence_duration_ms": 700,
-    "create_response": True,
+    "create_response": False,
     "interrupt_response": True,
 }
 
