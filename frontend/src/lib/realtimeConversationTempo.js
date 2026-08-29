@@ -104,6 +104,8 @@ export function createConversationTempoController({ send, sessionIdRef, ctxRef }
     speechStopped,
     classified,
     responseCreated,
+    wasOverlapped: (itemId) => overlapItems.has(keyFor(itemId)),
+    isLatest: (itemId) => keyFor(itemId) === latestItemId,
     cancel: clearPending,
   };
 }
