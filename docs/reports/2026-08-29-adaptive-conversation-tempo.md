@@ -26,6 +26,7 @@ The controller keeps server VAD as the speech detector/chunker but owns **when A
 - If the person consistently yields the floor, the grace window tightens gradually.
 - Operator profile starts tighter/faster; resident profile starts with more room.
 - Exact Realtime `item_id` values bind delayed/suspect decisions to the correct speech turn so an older echo classification cannot cancel a newer real turn.
+- The existing trust result is now only written into the shared current-turn state when that transcript belongs to the newest speech item, preventing a late transcript from an older fragment from clobbering a newer real turn.
 - A turn that started during Aria playback waits for the existing trust classifier before any reply: suspect echo is suppressed; a coherent real barge-in is allowed through.
 - A separately-created greeting/tool response cancels any stale delayed response.
 - New diagnostics: `tempo_response_scheduled`, `tempo_response_create`, `tempo_user_resumed`, `tempo_waiting_for_overlap_classification`, `tempo_suspect_turn_suppressed`.
@@ -36,7 +37,7 @@ The Realtime session now appends a small explicit rhythm rule: match the person'
 This is applied in `realtimeSessionUpdate.js` while preserving the backend-provided authoritative prompt.
 
 ### 3. VAD remains server_vad, but its silence boundary is quicker
-`backend/routes/realtime_audio_config.py` changes `silence_duration_ms` from `1000` to `700` ms.
+`backend/routes/realtime_audio_config.py` changes `silence_duration_ms` from `1000` to `700` ms and makes `create_response: false` authoritative from session mint onward.
 
 Reason: the new client grace period now handles conversational hesitation after VAD has chunked a segment. Keeping 1000 ms *plus* an adaptive grace would make every clean turn slower. The 700 ms VAD boundary plus the initial adaptive grace produces an effective initial floor wait of roughly:
 - operator: 700 + 250 = 950 ms
@@ -59,8 +60,8 @@ New `frontend/src/lib/realtimeConversationTempo.test.js` covers:
 These tests are committed but were **not executed in this connector-only environment** because the repository/runtime is not locally mounted and the repo has no GitHub Actions workflow. Live WebRTC acceptance is also still required.
 
 ## Production-file line counts
-- `backend/routes/realtime_audio_config.py`: 27 lines.
-- `frontend/src/lib/realtimeConversationTempo.js`: 109 lines.
+- `backend/routes/realtime_audio_config.py`: 29 lines.
+- `frontend/src/lib/realtimeConversationTempo.js`: 111 lines.
 - `frontend/src/lib/realtimeMessageHandler.js`: 294 lines.
 - `frontend/src/lib/realtimeSessionUpdate.js`: 63 lines.
 - `frontend/src/lib/useRealtimeVoice.js`: 250 lines.
