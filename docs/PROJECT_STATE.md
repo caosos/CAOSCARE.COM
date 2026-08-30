@@ -1620,3 +1620,33 @@ Every claim above is sourced directly from `db.conversations`, `db.realtime_diag
 
 ### Next safe step
 Run the controlled A/B RF test (deliberate presses vs. deliberate non-presses, raw fields captured for each) to actually prove the periodic-vs-press distinction before building the classification fix. Get explicit direction from Michael on which TSB-002 remediation item to build first otherwise. Do not implement, commit, or push any code fix without that explicit go-ahead - the standing instruction for this specific incident was reconstruct-first, and that instruction has not yet been superseded for the code-fix phase (it *was* superseded for documentation, which is what this entry and TSB-002 are).
+
+---
+
+## 2026-08-30 — Production deployment: caoscare.com synchronized to e6c4f47
+
+### Agent / tool
+Claude Code, EliteDesk primary worktree, deploying to Linode production (`caoscare-prod` / `172.234.25.199`) via SSH.
+
+### Branch / ref
+`main` @ `e6c4f476fc0da7928dc0b35146d9d2e0e6c2e1dd` (pushed, and now the deployed production commit).
+
+### What changed
+Michael explicitly approved and directed a controlled production deployment (not a dev pass). Sequence, per his own gated procedure:
+1. Found EliteDesk HEAD (`9246fc3`) behind `origin/main` (`d7a1db0` - PR #24, a real deploy-script fix from Michael's separate Claude Opus 4.8 session: `deploy_caoscare.sh`'s post-checkout guard rejected short SHAs even on successful checkouts, now normalizes to full SHA first) and uncommitted documentation work in the tree (TSB-002 rewrite + node-status handoff, from the prior incident-reconstruction pass). Stopped and reported both per explicit instruction rather than deploying an ambiguous tree.
+2. Committed the approved documentation (`2c98a4e`), rebased cleanly onto `origin/main` (no conflicts), pushed - final `e6c4f476fc0da7928dc0b35146d9d2e0e6c2e1dd`.
+3. Confirmed EliteDesk HEAD == `origin/main` before proceeding.
+4. Production pre-flight (read-only): repo clean but on branch `fix-deploy-short-sha` @ `698a8f4` (Michael had tested the deploy-script fix there directly, pre-merge - not a blocker, the deploy script targets an exact SHA regardless of current branch), `caoscare-backend.service` active and healthy, sibling `caos-backend.service`/nginx confirmed active and NOT touched, `CAOSCARE_ENABLE_DEMO_SEED=false`, local-owner-bypass confirmed absent, `DB_NAME=caoscare_server` as expected, public site already healthy pre-deploy.
+5. Ran the repo's own `scripts/deploy_caoscare.sh e6c4f47...` on production - it verified the target SHA against `origin/main`, took a full `mongodump` backup before any code change, checked out the exact commit, skipped dependency installs (neither `requirements.txt` nor `frontend/yarn.lock`/`package.json` changed since the last deploy), built the frontend, restarted only `caoscare-backend.service`, and verified both local and public HTTPS health before reporting success.
+6. Independently re-verified rather than trusting the script's own success message: deployed `git rev-parse HEAD` on disk matches `DEPLOY_SHA` exactly; sibling services still active; local-owner-bypass still absent; backup directory contains real collection dumps; **public bundle hash (`main.70caaadc.js`) fetched fresh from `https://caoscare.com/` matches exactly the filename the build step just produced** - proves the public site is serving the new build, not a cached stale one; `/login` returns HTTP 200 post-deploy.
+
+### What was verified
+EliteDesk HEAD == `origin/main` == Linode deployed SHA, all three independently re-checked after deployment, not assumed. `https://caoscare.com/api/health` → `{"ok":true,"db":"up"}` from an external client (this EliteDesk, not production-local). Frontend bundle hash match proves cache-freshness. Mongo backup at `/opt/caoscare/backups/mongo/20260830-170659-pre-deploy-698a8f4d188b` contains real data (spot-checked `departments.bson` present and non-trivial size). `caos-backend.service` (a sibling, unrelated service on the same host) and nginx confirmed untouched throughout.
+
+### Blocked / not yet done
+- No database migration was needed or performed - this was a code-only deploy.
+- TSB-001 and TSB-002 remain OPEN in production exactly as they are in this repo - deploying documentation does not remediate either incident's underlying code; the RF event-semantics conflation (TSB-002) and any of its proposed fixes remain entirely unbuilt, in production as much as anywhere else.
+- Rollback path recorded, not exercised: `./scripts/deploy_caoscare.sh 698a8f4d188b41e6bfb12fd28185510ca6ff3617` (code-only) or add `&& scripts/rollback_caoscare_db.sh /opt/caoscare/backups/mongo/20260830-170659-pre-deploy-698a8f4d188b` (code+db) if ever needed.
+
+### Next safe step
+None required from this deployment itself - it succeeded and was independently verified. The next safe step remains what it was before this deployment interrupted it: the controlled A/B RF test for TSB-002.
