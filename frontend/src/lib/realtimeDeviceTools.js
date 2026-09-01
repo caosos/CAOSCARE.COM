@@ -32,6 +32,28 @@ async function postRoomCommand(room, action, value, kind) {
 // requests so a noise-hallucinated turn can't move them either.
 const CONSEQUENTIAL_DEVICE_TOOLS = new Set(["adjust_room_temperature", "toggle_light", "toggle_tv", "set_timer", "set_tv_input"]);
 
+// 2026-08-30 (real live incident): mark_resting fired on "No, I can't." -
+// a resident PROTESTING being left alone - and end_call fired on "It's
+// gonna find me.", ending the whole session. Neither tool had any
+// grounding requirement; the model verbally said one thing ("I'll give
+// you some space to rest") with no tool call, then invoked the real tool
+// one turn later against an utterance that doesn't support it. Same
+// class of gap as update_preferred_name's guard above - the tool must be
+// traceable to the resident's own words matching a real dismissal/ending
+// phrase, not fire on an ambiguous or negatively-phrased turn.
+const RESTING_PHRASES = /\b(be quiet|quiet down|let me rest|resting|give me\s*(some\s*)?space|don'?t talk|going to sleep|i'?m\s*(going to |gonna\s*)?sleep|take a nap|napping|i'?m tired|leave me alone|need\s*(some\s*)?(space|quiet))\b/i;
+const ENDING_PHRASES = /\b(end the call|end (this |our )?conversation|hang up|good\s*bye|that'?s all( for now)?|that'?ll be all( for now)?|i'?m done|don'?t need you|go away)\b/i;
+
+// 2026-08-30 (real live incident): "Hello Lab" (a garbled, nonsense
+// transcript) led the model to call toggle_tv(volume=11) - the 11 wasn't
+// grounded in the saved transcript text at all, most likely the model
+// reacting to raw audio it heard as "channel 11" and substituting the
+// only numeric TV control it actually has. Unlike RESTING_PHRASES/
+// ENDING_PHRASES this isn't a fixed vocabulary - a resident can request
+// any volume level in many ways - so this only requires the word "volume"
+// (or an unambiguous loud/quiet/mute cue) to appear, not a specific phrase.
+const VOLUME_PHRASES = /\b(volume|loud(er|ness)?|quiet(er)?|turn\s*(it|the\s*(tv|sound))?\s*(up|down)|mute|unmute)\b/i;
+
 // One human-readable sentence per device, driven entirely by that device's
 // OWN declared capabilities/state - not a hardcoded thermostat/TV special
 // case - so a light, fan, or blinds device registered later is described
@@ -103,10 +125,16 @@ export async function executeDeviceTool({ name, args, ctx }) {
     if (!room) return { ok: false, message: "no room context — I can't reach the TV here." };
     const r = await postRoomCommand(room, "power", args.state, "tv");
     if (!r.ok) return { ok: false, message: `couldn't reach the TV (${r.status}).` };
-    if (args.state === "on" && typeof args.volume === "number") {
+    // Structural grounding (2026-08-30) - see VOLUME_PHRASES above. A
+    // volume change is a real, audible, potentially uncomfortable action -
+    // don't apply one the resident's own words don't actually support,
+    // even if the model supplied a number.
+    const heard = (ctx?.last_user_text || "").trim();
+    const volumeGrounded = args.state === "on" && typeof args.volume === "number" && VOLUME_PHRASES.test(heard);
+    if (volumeGrounded) {
       await postRoomCommand(room, "volume", Math.max(0, Math.min(100, args.volume)), "tv");
     }
-    return { ok: true, message: `turned the TV ${args.state}${args.state === "on" && typeof args.volume === "number" ? ` at volume ${args.volume}` : ""}.` };
+    return { ok: true, message: `turned the TV ${args.state}${volumeGrounded ? ` at volume ${args.volume}` : ""}.` };
   }
   if (name === "set_tv_input") {
     if (!room) return { ok: false, message: "no room context — I can't reach the TV here." };
@@ -142,8 +170,14 @@ export async function executeDeviceTool({ name, args, ctx }) {
     return { ok: true, message: "a nurse has been paged. I'm right here with you." };
   }
   if (name === "mark_resting") {
-    // No backend side-effect; the function existing tells the model to fall
-    // silent. We surface a session-level flag so the UI can dim the orb.
+    // Structural grounding (2026-08-30) - see RESTING_PHRASES above. No
+    // backend side-effect otherwise; the function existing (once granted)
+    // tells the model to fall silent, and useRealtimeVoice.js disables
+    // server auto-response for real.
+    const heard = (ctx?.last_user_text || "").trim();
+    if (!heard || !RESTING_PHRASES.test(heard)) {
+      return { ok: false, message: "Just to make sure — would you like me to go quiet for a bit?" };
+    }
     return { ok: true, message: "going quiet now. I'll be right here when you need me." };
   }
   if (name === "get_current_time") {
@@ -226,6 +260,13 @@ export async function executeDeviceTool({ name, args, ctx }) {
     // connection when ok:true comes back from here.
     if (ctx?.turn_suspect) {
       return { ok: false, message: "Just to double-check — did you want me to end our conversation?" };
+    }
+    // Structural grounding (2026-08-30) - see ENDING_PHRASES above. A real
+    // live session ended on the transcript "It's gonna find me." - nothing
+    // about that utterance supports ending the call.
+    const heard = (ctx?.last_user_text || "").trim();
+    if (!heard || !ENDING_PHRASES.test(heard)) {
+      return { ok: false, message: "Sorry, I want to make sure — did you want to end our conversation?" };
     }
     // The actual hang-up happens in the calling layer (handleFunctionCall)
     // because it needs access to the peer connection. Returning here just

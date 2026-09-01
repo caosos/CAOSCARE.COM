@@ -29,6 +29,7 @@ from models import (
     RFDevice, RFCapture, RFFingerprint, RFListenStart, RFPair, RFEventIn,
     RFDeviceAssign, now_utc,
 )
+from routes.rf_activation import try_coalesce_press
 
 router = APIRouter(prefix="/rf", tags=["rf"])
 
@@ -36,10 +37,11 @@ DEFAULT_BANDS_HZ = [315_000_000, 319_000_000, 433_920_000, 868_000_000, 915_000_
 DEFAULT_LISTEN_SECONDS = 10
 DEFAULT_TEST_SECONDS = 5
 # One physical button press on a real Interlogix-Security pendant produces
-# ~8 RF frames within ~1-3s (live-evidenced 2026-08-29). Frames from the
-# same device within this window collapse into one alert's press_count
-# rather than each spawning its own hands-free Aria activation.
-PRESS_COALESCE_SECONDS = 8
+# ~8 RF frames within ~1-3s (live-evidenced 2026-08-29). Frame-level
+# coalescing (same press's own repeat frames) plus the deeper
+# incident-level activation gating (repeat presses during an ALREADY
+# ACTIVE session - real live defect, 2026-08-30, room 401) both live in
+# rf_activation.py now - see that module's docstring for the full history.
 
 
 def _iso(doc: dict) -> dict:
@@ -406,26 +408,13 @@ async def rf_event(
                 "$inc": {"press_count": 1},
             },
         )
-        # Press-level coalescing (2026-08-29, live defect): repeat frames
-        # from one physical press each firing their own auto_voice alert
-        # spawned multiple simultaneous Aria activations - evidenced live.
-        # Frames within the window bump press_count instead of a new alert;
-        # a genuinely later press still creates a fresh one.
-        coalesce_cutoff = (now_utc() - timedelta(seconds=PRESS_COALESCE_SECONDS)).isoformat()
-        recent_alert = await db.alerts.find_one(
-            {"source_metadata.rf_device_id": best["rf_device_id"], "created_at": {"$gte": coalesce_cutoff}},
-            {"_id": 0, "alert_id": 1},
-        )
-        if recent_alert:
-            await db.alerts.update_one({"alert_id": recent_alert["alert_id"]}, {"$inc": {"press_count": 1}})
-            raw_event["alert_id"] = recent_alert["alert_id"]
-            await db.rf_events.insert_one(raw_event)
-            raw_event.pop("_id", None)
-            return {
-                "ok": True, "matched": matched, "score": round(best_score, 4),
-                "device_id": best["rf_device_id"], "alert_id": recent_alert["alert_id"],
-                "press_coalesced": True,
-            }
+        # Every RF press is persisted to db.rf_events unconditionally
+        # (below, after this block) regardless of which branch runs -
+        # evidence is never dropped, only ACTIVATION is deduped. See
+        # rf_activation.py for the open-incident decision itself.
+        coalesced = await try_coalesce_press(best["rf_device_id"], best_score, raw_event)
+        if coalesced is not None:
+            return coalesced
         # Fire an alert mirroring the kiosk-button code path. Map our RF
         # severities ("help" / "assist" / "emergency" / "comfort") to the
         # tighter Alert.AlertSeverity Literal which has no "help" — we

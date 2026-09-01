@@ -33,6 +33,14 @@ async def active_emergency_for_kiosk(kiosk_id: str):
     q = {
         "auto_voice": True,
         "status": "active",
+        # 2026-08-30 (real live defect, room 401): without this, the most
+        # recent status=active alert keeps surfacing here even after its
+        # own session already ran and closed - staff-facing `status` is
+        # deliberately untouched by session lifecycle (see
+        # Alert.activation_consumed_at in models.py), so this endpoint has
+        # to check activation state itself rather than assume "active"
+        # means "not yet given its one Aria session."
+        "activation_consumed_at": None,
         "created_at": {"$gte": cutoff},
     }
     if not kiosk.get("is_central"):

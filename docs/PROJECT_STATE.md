@@ -1650,3 +1650,135 @@ EliteDesk HEAD == `origin/main` == Linode deployed SHA, all three independently 
 
 ### Next safe step
 None required from this deployment itself - it succeeded and was independently verified. The next safe step remains what it was before this deployment interrupted it: the controlled A/B RF test for TSB-002.
+
+---
+
+## 2026-08-30 — Two more real live findings: mark_resting/end_call grounding guard, and a permanent-silence bug in the forced-greeting create_response window
+
+### Agent / tool
+Claude Code, EliteDesk primary worktree.
+
+### Branch / ref
+`main` @ `bf187c6` (deployed SHA at session start), all changes below uncommitted (no commit instruction given for this batch).
+
+### What changed
+**1. mark_resting/end_call structural grounding guard** (`frontend/src/lib/realtimeDeviceTools.js`, new `frontend/src/lib/__tests__/restingEndCallGuard.test.js`) - found already implemented, uncommitted, in the working tree at the start of this entry's investigation (same class of gap as the existing `update_preferred_name` guard from TSB-001): a real live session had `mark_resting` fire on "No, I can't." - a resident PROTESTING being left alone - and `end_call` fire on "It's gonna find me." - a transcript with no semantic connection to ending the call. Neither tool previously had any requirement that the resident's own last words actually support the action. Fixed with `RESTING_PHRASES`/`ENDING_PHRASES` regexes gating both tools: no match on the resident's actual last utterance → the tool returns `ok:false` with a spoken double-check instead of silently acting. Verified in this entry: 19/19 in `restingEndCallGuard.test.js`, both real incident repros correctly rejected, all listed genuine dismissal/ending phrases still fire, `git diff --check` clean, `realtimeDeviceTools.js` at 261 lines (under the 300-line cap).
+
+**2. Permanent-silence bug in the forced-greeting `create_response:false` window** - new finding, this entry, triggered by Michael's own live report ("why aren't you talking?", also comparing laptop-vs-EliteDesk mic pickup). Reconstructed from `db.conversations`/`db.realtime_diagnostics` for session `rt_p03xjbi2_1788110255978` (resident `res_0d3ef4252ae2`, 2026-08-30 17:17-17:19 UTC) per this repo's own evidence-first rule (`docs/CURRENT_NODE_STATUS.md` #4) - Aria produced **zero** spoken responses across the entire session despite 15 correctly-transcribed user turns (including direct questions: "Are you mute?", "Also, why aren't you talking?") and VAD (`speech_started`/`speech_stopped`) firing correctly every time. Root cause: exactly one `response_created`/`response_done` pair exists for the whole session (the forced greeting, completed in 156ms) and **zero** `output_audio_buffer.started`/`.stopped`/`.cleared` events were ever recorded - the greeting response was cut short (real `speech_started` landed 141ms after `response_created`, essentially at connect) before it ever produced playable audio. `realtimeMessageHandler.js`'s re-enable of `create_response` was gated ONLY on `output_audio_buffer.stopped`/`.cleared` (2026-08-22 fix, itself correct for the case it addressed), which never arrived, so `create_response` stayed permanently `false` for the rest of the session - a structural silencing, not a transient echo/VAD issue.
+
+Fixed by extracting the re-enable logic into a new `frontend/src/lib/realtimeAutoResponseGate.js` (`reenableAutoResponse` - dedupes what was previously two copies of the same `session.update` call; `createGreetingResponseGate` - owns the greeting window's state) and adding a fallback: `response.done` now also re-enables `create_response` if audio never started for that response (`onResponseDone()`), while leaving the existing `output_audio_buffer.stopped/.cleared` path (`onAudioStopped()`) as the primary signal when audio genuinely did play. `realtimeMessageHandler.js` net **shrank** (321 → 311 lines) despite the fix, due to the dedup; new file is 50 lines.
+
+**Not investigated in this entry**: the resident's separate complaint that laptop/eMeet mic pickup is worse than the EliteDesk's. This is the same open gap already recorded in the 2026-08-29 CROSS-MACHINE HANDOFF entry ("Michael's laptop eMeet behavior... has not been inspected... CAOSCare should explicitly bind/persist its intended audio endpoint rather than relying on OS/browser input-output defaults") - still real, still unscoped, not touched tonight.
+
+### What was verified
+- New `greetingResponseGate.test.js`: 4/4, including the exact real-incident repro (response.done with no audio ever started → re-enables) and both the normal-path and audio-started-before-response.done orderings, so the fallback can't fire early and steal the primary path's job.
+- `restingEndCallGuard.test.js` (pre-existing, uncommitted at entry start): 19/19, re-run and confirmed clean in this entry.
+- `preferredNameGuard.test.js` (TSB-001 regression, unrelated to tonight's changes): 6/6, unaffected.
+- `tests/test_room_device_isolation.py`: 5 passed / 2 skipped - same pre-existing skip reason as every prior entry (open tickets in live test-room data), unrelated.
+- Babel syntax check (`@babel/core`, `NODE_ENV=development`) on all three touched/new frontend files: clean.
+- `git diff --check` clean. Secrets-grep on the frontend diff: no matches (checked for password/secret/token/api-key patterns).
+- Line counts: `realtimeMessageHandler.js` 311 (was 321, net shrink), `realtimeAutoResponseGate.js` 50 (new), `realtimeDeviceTools.js` 261 (pre-existing uncommitted work, unchanged by this entry) - all under the 300-line cap.
+
+### Blocked / not yet done
+- **Neither fix has been live-verified against a real OpenAI Realtime session yet.** Both are reasoned from real DB/diagnostic evidence and unit-tested against exact incident repros, but this environment cannot place a live call. Michael should retest: (a) the exact "why aren't you talking" scenario (start a session, let the greeting play, keep talking) and confirm Aria now responds throughout instead of only at connect; (b) "No, I can't." should no longer trigger resting, and a real dismissal like "let me rest" still should; (c) confirm no double re-enable / no regression to the 2026-08-22 double-greeting fix that the primary `output_audio_buffer.stopped` path exists to prevent.
+- Laptop/eMeet mic-pickup-quality complaint remains open and unscoped (see above) - needs its own investigation pass, ideally with `chrome://webrtc-internals` on the laptop itself, which this session has no access to.
+- Nothing committed - no commit instruction given for either piece of work in this entry.
+
+### Next safe step
+Michael live-retest all three points under "Blocked / not yet done" above on both the EliteDesk and the laptop. Only after a clean pass should this entry's fixes be considered resolved. If the laptop mic issue is to be tackled next, scope it explicitly (device-binding vs. AEC/gain tuning vs. something else) rather than assuming which one it is.
+
+---
+
+## 2026-08-30 — Live confirmation the end_call grounding guard works for real, plus a new evidenced bug: toggle_tv volume applied on a nonsense transcript
+
+### Agent / tool
+Claude Code, EliteDesk primary worktree.
+
+### Branch / ref
+`main` @ `bf187c6`, all changes below uncommitted (no commit instruction given for this batch).
+
+### What changed
+Michael pasted a live resident-Aria transcript (session `rt_rbt5x5pm_1788110743600`, resident `res_0d3ef4252ae2`, 17:25-17:32 UTC) for review. Reconstructed against real `db.conversations`/`db.realtime_diagnostics` per the standing evidence-first rule - two findings, one confirming prior work, one new:
+
+**1. The mark_resting/end_call grounding guard (previous entry) is now live-verified, closing that entry's open blocker.** The resident's real utterance "It's hurt you bad" (garbled ASR, actually "it's not too hot" per the resident's own immediate correction) fired `end_call({reason:"goodbye"})`. The `ENDING_PHRASES` guard correctly rejected it (`tool_result: {ok:false, message:"Sorry, I want to make sure — did you want to end our conversation?"}`) instead of hanging up - confirmed directly in `db.realtime_diagnostics`, not inferred from the spoken transcript alone (the model paraphrased the rejection message differently on-air: "I just want to be sure—are you saying goodbye for now...").
+
+**2. New evidenced bug: `toggle_tv`'s volume parameter had no grounding at all.** The garbled transcript "Hello Lab" (11 minutes into a session about wanting local channel 11 - almost certainly the model reacting to raw audio it heard as "channel 11" and substituting the only numeric TV control it actually has) fired `toggle_tv({state:"on", volume:11})` and it executed - a real, audible volume change to a resident's TV with zero connection to anything the saved transcript says. Unlike `mark_resting`/`end_call`, `toggle_tv`'s volume (and `toggle_light`'s brightness, same shape, NOT touched tonight - no live incident evidence for it yet, flagged for Michael below) had no check against `ctx.last_user_text` at all. Fixed in `frontend/src/lib/realtimeDeviceTools.js`: added `VOLUME_PHRASES` (word-based, not phrase-list, since a volume request has many valid forms - "volume", "loud(er)", "quiet(er)", "turn up/down", "mute/unmute") gating the volume sub-command specifically. Power (`state`) still applies unconditionally, since it's already covered by the existing `turn_suspect`/`CONSEQUENTIAL_DEVICE_TOOLS` overlap guard and the resident's "turn the TV on" request that same session was genuine - only the ungrounded volume number is withheld, with an honest "turned the TV on" (no volume claim) instead of silently pretending an unrequested action succeeded.
+
+**Also flagged, not fixed:** the resident's turn "35" produced a fully hallucinated assistant reply ("You're welcome, Eleanor. Take care out there.") - confirmed via diagnostics that NO tool call fired for it at all, so this is pure conversational hallucination in response to a nonsense ASR fragment, not a tool/action safety issue. No device state changed and no durable fact was saved, so lower severity than the two above, but real, and likely the same underlying transcription-quality/mic-channel problem as the still-open laptop/eMeet complaint from the prior entry. A prompt-level fix (teaching the model to ask for clarification on very short/nonsensical input rather than confidently replying) would touch `_build_companion_instructions()` in `backend/routes/realtime.py`, which `docs/ARIA_CONTRACT.md` explicitly flags as duplicated/fragile and not yet a single source of truth - deliberately not touched without Michael's sign-off.
+
+### What was verified
+- New `toggleTvVolumeGuard.test.js`: 7/7, including the exact real-incident repro (volume withheld, only the power command sent - confirmed via the mocked fetch call count and body) and five genuine volume-request phrasings still applying correctly.
+- Combined regression run (`restingEndCallGuard`, `preferredNameGuard`, `greetingResponseGate`, `toggleTvVolumeGuard`): 36/36 pass, no cross-fix regressions.
+- Babel syntax check (`@babel/core`, `NODE_ENV=development`) on `realtimeDeviceTools.js`: clean.
+- `git diff --check` clean.
+- Line count: `realtimeDeviceTools.js` 277 lines (was 261), still under the 300-line cap.
+- The end_call guard's live-fire was confirmed directly against `db.realtime_diagnostics` tool_call/tool_result records for this real session, not inferred from the spoken transcript.
+
+### Blocked / not yet done
+- **toggle_light's brightness parameter has the exact same ungrounded shape as toggle_tv's volume did** - not fixed tonight since there's no live-incident evidence for it yet (per this repo's evidence-first rule, not guessed-and-preemptively-patched). Same fix pattern would apply if/when it's evidenced or Michael wants it done preemptively.
+- The "35" → hallucinated-reply finding is unaddressed - real, but conversational-only (no action taken), and any fix touches the still-duplicated Aria instruction-building code per `docs/ARIA_CONTRACT.md`. Needs Michael's direction before touching that surface.
+- toggle_tv's volume fix has NOT been live-verified against a real call yet, same caveat as every fix in this repo until Michael retests it live.
+- Laptop/eMeet mic-quality complaint (prior entry) remains open and unscoped - this entry's findings (garbled "35", "Hello Lab", "It's hurt you bad") are all consistent with that same root transcription-quality problem, adding more evidence but not new diagnosis.
+- Nothing committed - no commit instruction given for this batch.
+
+### Next safe step
+Michael live-retest the toggle_tv volume fix (ask for TV on with no volume mention near garbled speech, then a genuine "turn it up") on a real session. Decide whether to preemptively apply the same guard to toggle_light's brightness, and whether/when to scope a fix for the "35"-class hallucinated-reply behavior (would need to go through the not-yet-written `docs/ARIA_CONTRACT.md` work with Michael, per that doc's own instruction not to invent its contents).
+
+---
+
+## 2026-08-30 — Room 401 pendant repeat-activation defect: root-caused, fixed, and live-verified during Michael's own acceptance test; plus a real end_call race found live in the middle of that same test
+
+### Agent / tool
+Claude Code, EliteDesk primary worktree.
+
+### Branch / ref
+`main` @ `bf187c6` at session start, all changes below uncommitted (no commit instruction given for this batch). Local dev backend was **restarted mid-session** (see below) - production (caoscare.com) was NOT touched.
+
+### What changed
+Michael ran a real two-browser acceptance test against Room 401: press the pendant once (session starts correctly, room lease proven good across clients), press it 5+ more times while the session was active, end the call, and observed a NEW Resident Aria session auto-launching with no new physical press.
+
+**Root cause (inspected first, per explicit instruction - not patched blind):**
+- `/rf/event` (`routes/rf.py`) coalesced repeat frames into one alert's `press_count` only within a fixed **8-second window** of the alert's own `created_at` (`PRESS_COALESCE_SECONDS`). A repeat press ~30s+ into an active session falls outside that window and mints a **second, independent alert**.
+- Nothing in the codebase ever marked an alert as "already given its one Aria session." `Alert.status` (active/acknowledged/resolved) is the STAFF-facing workflow field, set only by explicit staff action (`routes/alerts.py`) - untouched by a session naturally starting or ending.
+- `GET /kiosks/{kiosk_id}/active-emergency` (`routes/kiosks.py`) returns the most-recent `status="active"` alert in the last 5 minutes, with no concept of "has this one already been activated." Once the first session ends and the client returns to idle, this endpoint hands the client the newer, still-`active`, never-consumed second alert - a fresh `alert_id` the client's local `seenEmergencyRef` has never seen - and `Kiosk.jsx` correctly (per its own existing logic) launches a new session for it.
+- **Direct evidence, before any fix was live**: `db.alerts` for room 401 showed **9 (later confirmed 170 across the full history) separate `auto_voice` alerts, all `status:"active"`, all with no way to distinguish "already handled"** - exactly the backlog this produces.
+- Confirmed `seenEmergencyRef` (client-local) is correctly scoped to "don't re-show an alert THIS client already reacted to" - it was never the actual defect. Michael's instinct was right: the durable fix has to be server-side at the activation layer, not another React guard - nothing in `Kiosk.jsx`, `useRealtimeVoice.js`, or `active-emergency`'s dedupe-by-`alert_id` logic needed to change.
+
+**Fix - new field, not a new status:** Added `Alert.activation_consumed_at: Optional[datetime] = None` (`models.py`) - deliberately separate from `status`, so staff-facing acknowledge/resolve workflows are untouched. An incident is "open" (repeat presses attach, no new alert) from alert creation until this is set; it's set when the triggering session's room lease is released.
+- `routes/rf.py`'s fixed-window coalescing replaced with an **open-incident check**: any press for a device with an unconsumed alert attaches to it (`press_count` += 1) regardless of elapsed time; a press after consumption creates a fresh alert. This logic was extracted into a new `routes/rf_activation.py` (`try_coalesce_press()`) rather than grown in-place, since `rf.py` was already over the repo's 300-line cap before this session touched it - net effect: `rf.py` **shrank** (500 → 489 lines) despite the fix.
+  - `OPEN_INCIDENT_MAX_AGE_SECONDS` (90 min) is a last-resort safety net only, for an incident that never got a session at all (mic denied, kiosk never tapped) - deliberately far longer than OpenAI's own 60-minute Realtime hard cap (TSB-002) so it never fires during a real, long session.
+- `routes/realtime_room_lease.py`'s `release()` now marks every still-open `auto_voice` alert for that room consumed (`activation_consumed_at`) the moment the lease is actually released - the same fire-and-forget call `useRealtimeVoice.js`'s `stop()` already made on every real end-of-conversation, so no frontend change was needed for this half either.
+- `routes/kiosks.py`'s `active-emergency` query now also requires `activation_consumed_at: None` - without this, the single most-recent `status="active"` alert kept resurfacing after its own session had already run, since `status` is deliberately untouched by session lifecycle. Found this gap live (see below), not in the original design pass.
+
+**Live production-adjacent incident found mid-fix (not caused by the fix, but discovered live while root-causing it):** the local dev backend (`uvicorn`, no `--reload`) was still running the OLD code while Michael continued testing, and **170 pre-existing unconsumed alerts had already piled up for room 401** from before this session started. Backend was restarted (old process killed, relaunched via the harness's tracked background-task mechanism after a plain `nohup &` was correctly blocked by the sandbox) and all 170 stale alerts were retroactively marked consumed via a direct one-time DB update, so the backlog stopped immediately rather than waiting for it to age out. Backend restart verified clean (`{"ok":true,"db":"up"}`, no import errors) and confirmed real kiosk/RF-bridge traffic reconnected on its own.
+
+**Second real defect found live, in the middle of the same test session:** Michael reported "verbal requests to end the call isn't working, asking multiple times." Pulled `db.realtime_diagnostics` for the live session (`rt_2p0zhj1l_1788116179150`) and found `end_call` tool calls for both "I need you to go away." and "End the call." - both plainly matching the existing `ENDING_PHRASES` guard - were REJECTED (`ok:false`). Root cause: `response.function_call_arguments.done` (the tool call) landed **137-184ms BEFORE** `conversation.item.input_audio_transcription.completed` for the very same utterance - a real, apparently-common race between the model's own audio-driven reaction and the separate transcription pipeline. `realtimeMessageHandler.js`'s `handleFunctionCall` read `turnSuspectRef.current` for grounding text, but that ref briefly holds a plain **boolean** (set on `speech_started`, for unrelated overlap detection) until transcription-completed overwrites it with the `{suspect,reason,text}` object - reading it mid-race meant `.text` was `undefined`, and the ENDING_PHRASES/RESTING_PHRASES backend guards correctly-but-wrongly rejected genuine requests as "ungrounded," on the exact same turn, repeatedly. Fixed by extracting a dedicated `realtimeTurnGrounding.js` (`createTurnGroundingTracker`) that tracks the last COMPLETED turn separately from the overlap boolean, plus a bounded (900ms ceiling, observed real lag 137-184ms) wait in `handleFunctionCall` for a same-turn race to resolve before reading it. `realtimeMessageHandler.js` net change: 311 → 314 lines (3 lines over its pre-session-start baseline of 311, still under the original 321 this file had before any work tonight - flagged rather than hidden).
+
+### Exact collections/records touched by each press (as designed)
+- Every press → `db.rf_events` (unconditional, evidence never dropped) + `db.rf_devices` telemetry (`last_seen_at`, `last_rssi`, `press_count` +1).
+- First press for an open incident → new `db.alerts` document (`activation_consumed_at: null`).
+- Repeat press while open → same alert's `press_count` +1 only, no new document.
+- Session's room lease released → that alert's `activation_consumed_at` set (staff-facing `status` untouched).
+- Press after consumption → new `db.alerts` document, cycle repeats.
+
+### What was verified
+- **New backend test** `backend/tests/test_rf_activation_gating.py::test_acceptance_sequence` - hits the real running backend over HTTP (`/rf/event`, `/kiosks/{id}/active-emergency`, `/realtime/room/{room}/activate`+`/release`), synthetic isolated kiosk/room/RF-device fixture (never touches real resident data), reproduces Michael's exact 7-step acceptance sequence end-to-end including the "press after close creates a genuinely new activation, old one can't reactivate" check. Passed 3/3 consecutive runs, clean teardown confirmed each time (`rf_devices` count returns to exactly 1 - Michael's real pendant - after every run).
+  - Note: this test conflicts with `test_room_device_isolation.py` when run in the SAME pytest invocation (`RuntimeError: Event loop is closed`) - a pre-existing Motor/`asyncio.run()` test-infrastructure limitation (a global Motor client bound to the first event loop it touches breaks on a second, separate `asyncio.run()` in the same process), not a regression in either file. Each passes reliably in isolation; not fixed tonight (out of scope, infra not application logic).
+- **New frontend test** `frontend/src/lib/__tests__/turnGroundingRace.test.js` - 4/4, reproduces the exact real race (transcript landing 150ms after the tool call) and confirms sequential turns each wait for their OWN transcript, not a prior one's.
+- Combined frontend regression run (`restingEndCallGuard`, `preferredNameGuard`, `greetingResponseGate`, `toggleTvVolumeGuard`, `turnGroundingRace`): **40/40 pass**, no cross-fix regressions.
+- `backend/tests/test_room_device_isolation.py` (run standalone): 5 passed / 2 skipped, same pre-existing skip reason as every prior entry.
+- Backend syntax (`ast.parse`) clean on all 5 touched/new backend files. Backend imports clean (`import server` succeeds). Frontend syntax (`@babel/core`) clean on all touched/new files.
+- `git diff --check` clean. Secrets-grep clean.
+- Line counts: `rf.py` 489 (was 500, shrank), `rf_activation.py` 61 (new), `realtime_room_lease.py` 136 (was 124), `kiosks.py` 102 (was 90), `models.py` 1447 (was ~1438 - **exception noted below**), `realtimeMessageHandler.js` 314 (was 311 pre-session, 321 before any of today's work), `realtimeTurnGrounding.js` 38 (new).
+  - **`models.py` exception**: this file was already ~1438 lines (far over the 300-line cap) before tonight and grew by ~9 lines for one new field + its docstring on an existing model. Extracting a single-field addition out of a shared, central, 1400+-line models file is not a practical "responsibility to extract" the way `rf.py`'s coalescing logic was - flagged per the repo's own "before finishing any coding task, report the line counts" rule rather than silently skipped, not fixed by a broader models.py refactor tonight (that would itself violate "do not launch a broad refactor solely to shorten an untouched legacy file").
+- **Live acceptance evidence**: Michael's own real two-browser Room 401 test was the trigger for this whole investigation; the 170-alert backlog and the end_call race were both found via direct evidence from that same live session, not reproduced synthetically first. The synthetic test above proves the FIX's logic; Michael's own continued live use of the now-restarted, now-patched backend is the actual acceptance evidence for the deployed fix, not yet a full clean re-run of his own 7-step script end to end.
+
+### Blocked / not yet done
+- **Michael has not yet run his own full 7-step acceptance script end-to-end against the fixed backend.** The synthetic test proves the logic; his own real two-browser retest is the real acceptance bar per his own instructions.
+- The end_call race fix (`realtimeTurnGrounding.js`) has NOT been separately live-retested in isolation - it was verified live in the sense that the SAME session that exposed it is now running fixed code, but no dedicated clean retest ("say a clear end-call phrase immediately, confirm first-try success") has been done yet.
+- The same turn-grounding race could in principle affect `update_preferred_name`'s and `mark_resting`'s grounding checks too (they read the same `ctx.last_user_text` path) - not separately incident-evidenced tonight, but the fix is general (applies to all `handleFunctionCall` dispatches, not just `end_call`), so they benefit automatically; flagged for awareness, not a remaining gap.
+- Nothing committed - no commit instruction given for this batch.
+- Production (caoscare.com) still runs the pre-fix code - this was all against the local EliteDesk dev backend. Deploying this fix is a separate, explicit decision for Michael to make.
+
+### Next safe step
+Michael run his full 7-step acceptance script live against this now-restarted local backend (both browsers idle → single press → 5 repeat presses while active → end call → confirm both idle with no backlog → wait 10s → single new press → confirm exactly one fresh session). Separately, do one clean isolated retest of a clear "end the call" verbal request to confirm the race fix holds outside the noise of tonight's combined test. Only after both pass clean should this be considered ready to deploy to production - that decision and the deploy itself both require Michael's explicit go-ahead per the existing deployment discipline.

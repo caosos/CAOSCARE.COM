@@ -109,9 +109,22 @@ async def release(room: str, payload: dict = Body(default={})):
     """End of conversation - free the room immediately rather than waiting
     out the stale-lease grace period. Only releases if this session_id
     actually holds the lease, so a stale/duplicate caller can't release
-    someone else's active session."""
+    someone else's active session.
+
+    2026-08-30 (real live defect): also closes out the room's attention
+    incident(s) - see Alert.activation_consumed_at in models.py and the
+    coalescing logic in routes/rf.py. Without this, a repeat pendant press
+    during the call that had minted its own alert (or any future auto_voice
+    alert for this room) stayed "open" after the call ended and the
+    kiosk's active-emergency poll would auto-launch a second session from
+    it with no new physical press - evidenced live, room 401."""
     session_id = payload.get("session_id")
     r = await db.resident_aria_leases.delete_one({"room": room, "session_id": session_id})
+    if r.deleted_count > 0:
+        await db.alerts.update_many(
+            {"room": room, "auto_voice": True, "activation_consumed_at": None},
+            {"$set": {"activation_consumed_at": now_utc().isoformat()}},
+        )
     return {"ok": r.deleted_count > 0}
 
 

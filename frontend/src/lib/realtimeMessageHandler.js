@@ -24,6 +24,8 @@ import { executeOperationsTool } from "./realtimeOperationsTools";
 import { executeDeviceTool } from "./realtimeDeviceTools";
 import { executeDisplayTool } from "./realtimeDisplayTools";
 import { logRealtimeEvent, transcriptionConfidence, LOW_CONFIDENCE_THRESHOLD } from "./realtimeDiagnostics";
+import { reenableAutoResponse, createGreetingResponseGate } from "./realtimeAutoResponseGate";
+import { createTurnGroundingTracker } from "./realtimeTurnGrounding";
 
 // Dispatches a model-emitted function call to whichever tool module claims
 // it (operations/device/display, in that order), falling back to "not
@@ -87,6 +89,8 @@ export function createRealtimeHandlers({
   let lastSpeechStartedAt = null;
   let lastSpeechSegmentMs = null;
   let lastPlaybackStoppedAt = null;
+  const greetingGate = createGreetingResponseGate({ send, caos, greetingCreateResponseOffRef });
+  const turnGrounding = createTurnGroundingTracker(); // see realtimeTurnGrounding.js
 
   // Saves one turn immediately, independently - no pairing, no waiting on
   // the other side of the exchange. See RealtimeTurnIngest's docstring
@@ -121,7 +125,7 @@ export function createRealtimeHandlers({
     let parsed = {};
     try { parsed = fn.arguments ? JSON.parse(fn.arguments) : {}; } catch {}
     logRealtimeEvent(sessionIdRef.current, "tool_call", { meta: { name: fn.name, args: parsed } });
-    const cls = turnSuspectRef.current || { suspect: false, reason: "no_overlap", text: "" };
+    const cls = await turnGrounding.waitForGroundedTurn();
     const result = await executeTool({ name: fn.name, args: parsed, ctx: { ...ctxRef.current, turn_suspect: cls.suspect, turn_suspect_reason: cls.reason, last_user_text: cls.text || "" } });
     logRealtimeEvent(sessionIdRef.current, "tool_result", { meta: { name: fn.name, result } });
     if (myGen !== startGenRef.current) return;
@@ -180,12 +184,7 @@ export function createRealtimeHandlers({
       // greeting window's own re-enable below) - genuinely over, not just visual.
       if (restingRef.current) {
         restingRef.current = false;
-        if (caos.turn_detection) {
-          send({
-            type: "session.update",
-            session: { type: "realtime", audio: { input: { turn_detection: caos.turn_detection } } },
-          });
-        }
+        reenableAutoResponse({ send, caos });
       }
       setResting(false);   // resident spoke again → wake from rest
       // Raw overlap signal - did this segment start while Aria's audio was
@@ -198,6 +197,7 @@ export function createRealtimeHandlers({
     if (msg.type === "input_audio_buffer.speech_stopped") {
       setStatus("live");
       lastSpeechSegmentMs = lastSpeechStartedAt ? Date.now() - lastSpeechStartedAt : null;
+      turnGrounding.onSpeechStopped();
       logRealtimeEvent(sessionIdRef.current, "speech_stopped", { assistantSpeaking: assistantSpeakingRef.current });
     }
     if (msg.type === "response.audio.delta") {
@@ -217,6 +217,7 @@ export function createRealtimeHandlers({
     // before) and track actual playback lifecycle, not generation.
     if (msg.type === "output_audio_buffer.started") {
       assistantSpeakingRef.current = true;
+      greetingGate.onAudioStarted();
       // Logged standalone (2026-08-24) - was only folded into other events.
       logRealtimeEvent(sessionIdRef.current, "output_audio_buffer_started", {});
     }
@@ -226,24 +227,16 @@ export function createRealtimeHandlers({
       assistantSpeakingRef.current = false;
       lastPlaybackStoppedAt = Date.now();
       logRealtimeEvent(sessionIdRef.current, "output_audio_buffer_stopped", { meta: { cleared: msg.type === "output_audio_buffer.cleared" } });
-      // Re-enable normal auto-response once the forced greeting's own
-      // audio has ACTUALLY finished playing - previously gated on
-      // response.done (generation-complete), which is exactly the signal
-      // this whole fix replaces. See the create_response:false comment in
-      // dc.onopen above for why this window exists at all.
-      if (greetingCreateResponseOffRef.current) {
-        greetingCreateResponseOffRef.current = false;
-        if (caos.turn_detection) {
-          send({
-            type: "session.update",
-            session: { type: "realtime", audio: { input: { turn_detection: caos.turn_detection } } },
-          });
-        }
-      }
+      // Re-enable normal auto-response once the forced greeting's own audio
+      // has ACTUALLY finished playing - see realtimeAutoResponseGate.js.
+      greetingGate.onAudioStopped();
     }
     if (msg.type === "response.done") {
       setStatus("live");
       logRealtimeEvent(sessionIdRef.current, "response_done", { responseId: msg.response?.id });
+      // Fallback for a greeting that completed with no audio at all - see
+      // createGreetingResponseGate's docstring in realtimeAutoResponseGate.js.
+      greetingGate.onResponseDone();
     }
     if (msg.type === "response.created") {
       logRealtimeEvent(sessionIdRef.current, "response_created", { responseId: msg.response?.id });
@@ -259,8 +252,8 @@ export function createRealtimeHandlers({
       const overlapped = turnSuspectRef.current === true || lowConfidence;
       const cls = classifyUserTurn({ overlapped, text: userText, lastAssistantText, tinyStreak: tinyFragmentStreak });
       tinyFragmentStreak = (cls.reason === "echo_like" || cls.reason === "uncertain_fragment" || cls.reason === "repeated_tiny_fragments") ? tinyFragmentStreak + 1 : 0;
-      // .text: lets a dispatched tool (TSB-001) ground its claim in what was actually said.
-      turnSuspectRef.current = { ...cls, text: userText };
+      // Ground for tool grounding (TSB-001) - NOT turnSuspectRef, see realtimeTurnGrounding.js.
+      turnGrounding.onTranscriptionCompleted(cls, userText);
       // 2026-08-22 (real bug, confirmed live): saved IMMEDIATELY now, not
       // stashed in a scalar "pending" ref to wait for the assistant reply.
       // A real ~15-second resident correction was silently lost when a

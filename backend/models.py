@@ -268,6 +268,16 @@ class Alert(BaseModel):
     close_notes: Optional[str] = None
     auto_voice: bool = False             # hands-free mic activation on kiosk (panic-press / fall)
     press_count: int = 1                 # how many rapid presses triggered this
+    # 2026-08-30 (real live defect): separate from `status` on purpose -
+    # `status` is the STAFF-facing workflow (active/acknowledged/resolved)
+    # and must stay untouched by this. `activation_consumed_at` tracks the
+    # KIOSK-facing question "has this incident already produced its one
+    # Resident Aria activation" - null while the room's attention incident
+    # is still open (repeat presses attach here, no new alert), set once
+    # the triggering session's room lease is released (see
+    # realtime_room_lease.py) so a later poll can't re-launch a session
+    # from a stale, already-handled alert.
+    activation_consumed_at: Optional[datetime] = None
     source_metadata: Optional[dict] = None  # arbitrary trigger-specific payload (rf_device_id, rssi, etc.)
     # ---- Event registry enrichment (auto-populated by AI classifier) ----
     category: Optional[AlertCategory] = None     # what kind of call (bathroom, fall, ...)
