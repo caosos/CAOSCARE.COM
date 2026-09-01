@@ -44,8 +44,15 @@ export function tabGroups(residents, staff, kiosks, zones, user) {
       id: "devices",
       label: "Devices & hardware",
       tabs: [
-        { value: "pendants", label: "Pendants" },
-        { value: "rf", label: "RF Pendants" },
+        // 2026-09-01: "pendants" (PendantsTab.jsx) was a separate, older
+        // scaffold - its own /pendants collection, zero real data, never
+        // wired to real hardware - retired from nav in favor of the real,
+        // hardware-proven surface below (rf_devices/rf_events, the actual
+        // path tonight's live SDR/pendant bring-up used). Promoted to the
+        // primary "Pendants" name rather than kept as "RF Pendants" -
+        // there's only one real pendant system now, it shouldn't sound
+        // like a variant.
+        { value: "rf", label: "Pendants" },
         { value: "wearables", label: "Wearables" },
         { value: "devices", label: "Smart devices" },
         { value: "kiosks", label: `Kiosks (${kiosks.length})` },

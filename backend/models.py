@@ -204,6 +204,13 @@ class Kiosk(BaseModel):
     mac_address: Optional[str] = None
     status: Literal["online", "offline"] = "online"
     is_central: bool = False  # central station listens for ANY resident's emergency, not just its zone
+    # 2026-09-01: the ONLY thing /kiosk/demo (the public, logged-out demo
+    # entry point) is allowed to resolve to. Previously that route fetched
+    # GET /kiosks and took kiosks[0] - database insertion/sort order, not a
+    # deliberate choice, which is how a real test kiosk ("michael"/Room 121)
+    # ended up as the public face of the product. At most one kiosk may have
+    # this true at a time - enforced in routes/kiosks.py's update handler.
+    public_demo: bool = False
     created_at: datetime = Field(default_factory=now_utc)
 
 
@@ -213,6 +220,17 @@ class KioskCreate(BaseModel):
     zone: str
     mac_address: Optional[str] = None
     is_central: bool = False
+    public_demo: bool = False
+
+
+class KioskUpdate(BaseModel):
+    name: Optional[str] = None
+    room: Optional[str] = None
+    zone: Optional[str] = None
+    mac_address: Optional[str] = None
+    status: Optional[Literal["online", "offline"]] = None
+    is_central: Optional[bool] = None
+    public_demo: Optional[bool] = None
 
 
 class Zone(BaseModel):

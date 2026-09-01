@@ -1,7 +1,7 @@
 """Kiosks + Zones CRUD."""
 from datetime import timedelta
 from fastapi import APIRouter, HTTPException, Depends
-from models import Kiosk, KioskCreate, Zone, ZoneCreate, now_utc
+from models import Kiosk, KioskCreate, KioskUpdate, Zone, ZoneCreate, now_utc
 from deps import db, get_current_user
 
 router = APIRouter(tags=["kiosks"])
@@ -13,6 +13,21 @@ async def list_kiosks():
     """Public list - kiosks need to self-identify without auth."""
     items = await db.kiosks.find({}, {"_id": 0}).sort("room", 1).to_list(1000)
     return items
+
+
+@router.get("/kiosks/public-demo")
+async def public_demo_kiosk():
+    """Public — the ONLY thing the logged-out /kiosk/demo route may resolve
+    to (see frontend/src/pages/Kiosk.jsx). Previously that route fetched
+    every kiosk and took whatever GET /kiosks happened to sort first -
+    database order, not a deliberate choice, which is how a real test
+    kiosk ended up as the public face of the product. Returns 404 with a
+    specific, checkable detail when nothing is configured - never a silent
+    fallback to an arbitrary kiosk."""
+    kiosk = await db.kiosks.find_one({"public_demo": True}, {"_id": 0})
+    if not kiosk:
+        raise HTTPException(status_code=404, detail="No public demo kiosk is configured. An admin must designate one in Kiosks.")
+    return kiosk
 
 
 @router.get("/kiosks/{kiosk_id}/active-emergency")
@@ -68,6 +83,25 @@ async def update_kiosk(kiosk_id: str, data: KioskCreate, user=Depends(get_curren
         raise HTTPException(status_code=404, detail="Kiosk not found")
     doc = await db.kiosks.find_one({"kiosk_id": kiosk_id}, {"_id": 0})
     return doc
+
+
+@router.patch("/kiosks/{kiosk_id}")
+async def patch_kiosk(kiosk_id: str, data: KioskUpdate, user=Depends(get_current_user)):
+    """Partial update - added for the public-demo toggle (a per-row admin
+    action, not a full re-submit of every field). Enforces at most one
+    public_demo kiosk: setting it true on this kiosk clears it on every
+    other one in the same operation, so there is never a moment with two
+    (or, after a failed partial update, zero-then-two) demo kiosks."""
+    updates = data.model_dump(exclude_unset=True)
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    existing = await db.kiosks.find_one({"kiosk_id": kiosk_id}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Kiosk not found")
+    if updates.get("public_demo") is True:
+        await db.kiosks.update_many({"kiosk_id": {"$ne": kiosk_id}}, {"$set": {"public_demo": False}})
+    await db.kiosks.update_one({"kiosk_id": kiosk_id}, {"$set": updates})
+    return await db.kiosks.find_one({"kiosk_id": kiosk_id}, {"_id": 0})
 
 
 @router.delete("/kiosks/{kiosk_id}")

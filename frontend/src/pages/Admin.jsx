@@ -7,7 +7,6 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs"
 import { LogOut, Activity, Sparkles } from "lucide-react";
 import { MyPasswordDialog } from "../components/PasswordDialogs";
 import { toast } from "sonner";
-import PendantsTab from "./PendantsTab";
 import RFPairingTab from "./RFPairingTab";
 import ClinicianTab from "./ClinicianTab";
 import HardwareReceiptsTab from "./HardwareReceiptsTab";
@@ -189,9 +188,8 @@ export default function Admin() {
           <TabsContent value="clinician" className="mt-6">
             <ClinicianTab residents={residents} />
           </TabsContent>
-          <TabsContent value="pendants" className="mt-6">
-            <PendantsTab residents={residents} />
-          </TabsContent>
+          {/* "pendants" (PendantsTab.jsx) retired from nav 2026-09-01 - see
+              adminTabGroups.js. Real pendant surface is "rf" below. */}
           <TabsContent value="rf" className="mt-6">
             <RFPairingTab />
           </TabsContent>

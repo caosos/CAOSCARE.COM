@@ -40,6 +40,20 @@ export default function KiosksTab({ kiosks, zones, onChange }) {
     onChange();
   };
 
+  // 2026-09-01: exactly one kiosk may be the public, logged-out /kiosk/demo
+  // target - see backend/routes/kiosks.py's PATCH handler for the
+  // exclusivity enforcement (setting this true on one clears it on every
+  // other kiosk in the same operation).
+  const setPublicDemo = async (id) => {
+    try {
+      await api.patch(`/kiosks/${id}`, { public_demo: true });
+      toast.success("Set as the public demo kiosk");
+      onChange();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Failed");
+    }
+  };
+
   return (
     <Card className="border-caos-line p-6">
       <div className="flex justify-between items-center mb-4">
@@ -77,7 +91,7 @@ export default function KiosksTab({ kiosks, zones, onChange }) {
         </Dialog>
       </div>
       <Table>
-        <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Room</TableHead><TableHead>Zone</TableHead><TableHead>MAC</TableHead><TableHead>Kiosk link</TableHead><TableHead></TableHead></TableRow></TableHeader>
+        <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Room</TableHead><TableHead>Zone</TableHead><TableHead>MAC</TableHead><TableHead>Public demo</TableHead><TableHead>Kiosk link</TableHead><TableHead></TableHead></TableRow></TableHeader>
         <TableBody>
           {kiosks.map((k) => (
             <TableRow key={k.kiosk_id} data-testid={`kiosk-row-${k.kiosk_id}`}>
@@ -88,6 +102,15 @@ export default function KiosksTab({ kiosks, zones, onChange }) {
               <TableCell>{k.room}</TableCell>
               <TableCell>{k.zone}</TableCell>
               <TableCell className="font-mono text-xs">{k.mac_address || "—"}</TableCell>
+              <TableCell>
+                {k.public_demo ? (
+                  <Badge className="bg-caos-forest text-white uppercase text-[10px] tracking-wider">Public demo</Badge>
+                ) : (
+                  <Button variant="outline" size="sm" className="text-xs" onClick={() => setPublicDemo(k.kiosk_id)} data-testid={`kiosk-set-demo-${k.kiosk_id}`}>
+                    Set as public demo
+                  </Button>
+                )}
+              </TableCell>
               <TableCell>
                 <Link to={`/kiosk/${k.kiosk_id}`} className="text-caos-forest underline text-sm" data-testid={`kiosk-open-${k.kiosk_id}`}>Open →</Link>
               </TableCell>

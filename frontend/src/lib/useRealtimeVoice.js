@@ -136,7 +136,15 @@ export function useRealtimeVoice({
         ),
       });
       if (myGen !== startGenRef.current) return;   // canceled
-      if (!sessionRes.ok) throw new Error(`session ${sessionRes.status}`);
+      if (!sessionRes.ok) {
+        // 2026-09-01: a public demo visitor was shown the raw "session 503"
+        // Error.message straight in the UI. Real status/detail still goes
+        // to diagnostics, just not as the resident-facing text.
+        let detail = null;
+        try { detail = (await sessionRes.json())?.detail || null; } catch {}
+        logRealtimeEvent(sessionIdRef.current, "session_mint_failed", { meta: { status: sessionRes.status, detail } });
+        throw new Error("Voice is temporarily unavailable. Try again.");
+      }
       const session = await sessionRes.json();
       if (myGen !== startGenRef.current) return;
       const caos = session._caos || {};

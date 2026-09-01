@@ -60,9 +60,15 @@ export default function RFPairingTab() {
     <div className="space-y-6" data-testid="rf-tab">
       <div className="flex items-end justify-between">
         <div>
-          <h2 className="font-display text-3xl text-caos-forest">RF Pendants</h2>
+          <h2 className="font-display text-3xl text-caos-forest">Pendants</h2>
           <p className="text-caos-mute text-sm mt-1">
             Sub-GHz buttons paired to residents. Vendor-agnostic — any 315/319/433/868/915 MHz pendant works.
+          </p>
+          <p className="text-caos-mute text-xs mt-1">
+            Frequency-flexible by design: the RF bridge isn't hardcoded to one band or vendor — it
+            tunes to whatever the attached receiver supports (verified up to ~1.7 GHz with the
+            Nooelec NESDR SMArt v5 / RTL2832U + R820T hardware in use here). A different receiver
+            changes the reachable range, not the software.
           </p>
         </div>
         <div className="flex items-center gap-2">

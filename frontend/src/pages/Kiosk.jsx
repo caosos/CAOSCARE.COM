@@ -32,6 +32,7 @@ export default function Kiosk() {
 
   const [kiosk, setKiosk] = useState(null);
   const [resident, setResident] = useState(null);
+  const [demoSetupError, setDemoSetupError] = useState(false); // /kiosk/demo with no public_demo kiosk configured
   const [callState, setCallState] = useState("idle"); // idle | calling | waiting | chatting
   const [alert, setAlert] = useState(null);
   const [devices, setDevices] = useState([]);
@@ -128,12 +129,22 @@ export default function Kiosk() {
       try {
         let id = kioskId;
         if (id === "demo") {
-          const { data: kiosks } = await axios.get(`${API}/kiosks`);
-          if (kiosks.length === 0) {
-            toast.error("No kiosks provisioned yet.");
+          // 2026-09-01 (real live defect): this used to fetch every kiosk
+          // and take kiosks[0] - database sort order, not a deliberate
+          // choice, which is how a real test kiosk ("michael"/Room 121)
+          // became the public face of the product. The ONLY thing the
+          // public demo route may resolve to now is whichever kiosk an
+          // admin has explicitly designated (Kiosks tab, "Public demo").
+          try {
+            const { data: demoKiosk } = await axios.get(`${API}/kiosks/public-demo`);
+            id = demoKiosk.kiosk_id;
+          } catch (e) {
+            toast.error(e?.response?.status === 404
+              ? "No public demo kiosk is configured yet."
+              : "Could not load the public demo.");
+            setDemoSetupError(true);
             return;
           }
-          id = kiosks[0].kiosk_id;
         }
         const { data } = await axios.get(`${API}/residents/public/by-kiosk/${id}`);
         setKiosk(data.kiosk);
@@ -395,6 +406,15 @@ export default function Kiosk() {
       </DialogContent>
     </Dialog>
   );
+
+  if (demoSetupError) {
+    return (
+      <div className="min-h-screen bg-caos-ambient text-caos-ink p-8 flex flex-col items-center justify-center text-center gap-3" data-testid="kiosk-demo-setup-error">
+        <span className="font-display font-bold tracking-tighter text-caos-forest text-2xl">CAOSCare</span>
+        <p className="text-caos-mute max-w-md">No public demo kiosk is configured yet. An admin needs to mark one as the public demo in Kiosks.</p>
+      </div>
+    );
+  }
 
   if (callState === "idle") {
     return (

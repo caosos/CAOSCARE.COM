@@ -38,8 +38,8 @@ const features = [
   },
   {
     icon: Shield,
-    title: "Drops into your existing 900 MHz",
-    body: "No rip-and-replace. CAOS Care adapts to your Life Alert style pendants and paging infrastructure.",
+    title: "Frequency-flexible RF integration",
+    body: "Not locked to a single pendant vendor or frequency. The RF bridge covers common PERS and sub-GHz bands, up to ~1.7 GHz with the receiver hardware we've tested — no rip-and-replace of pendants residents already know.",
   },
 ];
 
@@ -169,7 +169,7 @@ export default function Landing() {
               Built on what you already have.
             </h2>
             <p className="text-lg text-caos-ink/75 mt-6 leading-relaxed max-w-xl">
-              Your 900 MHz pendants still work. Your pagers still page. CAOS Care sits on top —
+              Your existing pendants still work. Your pagers still page. CAOS Care sits on top —
               replacing the "we lost her again" room-only tracker with a building-wide location mesh and
               a kiosk that can talk back to the resident.
             </p>
