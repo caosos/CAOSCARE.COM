@@ -1782,3 +1782,34 @@ Michael ran a real two-browser acceptance test against Room 401: press the penda
 
 ### Next safe step
 Michael run his full 7-step acceptance script live against this now-restarted local backend (both browsers idle → single press → 5 repeat presses while active → end call → confirm both idle with no backlog → wait 10s → single new press → confirm exactly one fresh session). Separately, do one clean isolated retest of a clear "end the call" verbal request to confirm the race fix holds outside the noise of tonight's combined test. Only after both pass clean should this be considered ready to deploy to production - that decision and the deploy itself both require Michael's explicit go-ahead per the existing deployment discipline.
+
+---
+
+## 2026-09-01 — Production deployment: caoscare.com synchronized to afbb1e0
+
+### Agent / tool
+Claude Code, EliteDesk primary worktree. Recording deployment facts verified on `caoscare-linode` by the Linode-side Claude instance that performed the deploy - documentation only, no runtime code touched from this worktree.
+
+### Branch / ref
+`main` @ `afbb1e0f72707931f4aef5b7c00b892e222ddd6b` ("Harden Resident Aria turn grounding and activation lifecycle" - the four-fix batch committed and pushed from this worktree in the prior entry).
+
+### What changed
+Production (`caoscare-linode`, `/opt/caoscare/app`) deployed `afbb1e0f72707931f4aef5b7c00b892e222ddd6b` at `2026-09-01T00:06:04Z`, previous production SHA `e6c4f476fc0da7928dc0b35146d9d2e0e6c2e1dd`. At deployment time EliteDesk source, GitHub `origin/main`, and Linode production HEAD all matched `afbb1e0f...`.
+
+Verified via the existing `scripts/deploy_caoscare.sh` (SHA-verified against `origin/main`, mongodump backup before code change, exact-commit checkout, restart of only `caoscare-backend.service`):
+- Public: `https://caoscare.com/` → HTTP 200, `/login` → HTTP 200, `/api/health` → `{"ok":true,"db":"up"}`.
+- Served frontend bundle `main.5d9fff18.js` (was `main.70caaadc.js`) - live-served filename matches the freshly built on-disk bundle, proving production was not still serving the stale prior build.
+- Mongo backup at `/opt/caoscare/backups/mongo/20260901-000532-pre-deploy-e6c4f476fc0d` - real BSON independently confirmed present (`departments.bson`, `user_sessions.bson`, `users.bson`, associated metadata).
+- `caoscare-backend.service` active, restarted by the deploy. Sibling `caos-backend.service` confirmed untouched - same `MainPID` (39674) and `ActiveEnterTimestamp` (2026-08-27 06:48:16 UTC) before and after. nginx active, untouched.
+- `CAOSCARE_LOCAL_OWNER_BYPASS` confirmed absent from production `backend/.env`; live `/api/auth/local-bypass-status` returned `{"active":false}`.
+
+### What was verified
+Every fact above was independently checked on the production host itself (not inferred from the deploy script's own success message alone) - service PIDs/timestamps for the sibling service, the live bundle filename against the on-disk build output, the backup directory's actual BSON contents, and the local-owner-bypass status via its own dedicated endpoint.
+
+### Blocked / not yet done
+- Nothing new blocked by this deployment - it succeeded and was independently verified end-to-end.
+- Rollback path recorded, not exercised: code-only `./scripts/deploy_caoscare.sh e6c4f476fc0da7928dc0b35146d9d2e0e6c2e1dd`; code+db additionally `scripts/rollback_caoscare_db.sh /opt/caoscare/backups/mongo/20260901-000532-pre-deploy-e6c4f476fc0d`.
+- **Expected, intentional state**: this documentation-only commit puts GitHub `main`/EliteDesk HEAD one commit ahead of Linode production's deployed runtime SHA. Production remains correctly deployed at `afbb1e0f...` - do not redeploy merely to re-equalize the SHAs; the extra commit is documentation only, no runtime files.
+
+### Next safe step
+None required from this deployment itself. Continue with whatever live acceptance testing is next per Michael's direction - the underlying fixes (greeting-audio re-enable fallback, turn-grounding race, RF activation-state coalescing, TV-volume grounding) are now live in production as well as on this EliteDesk.

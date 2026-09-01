@@ -6,24 +6,26 @@ Generated: 2026-08-09. Last reconciled: **2026-08-29 (live physical-pendant test
 
 **If you are a fresh Claude Code or Codex instance on ANY machine, read this file in full before touching resident-voice, RF/pendant, or Realtime-session code.**
 
-## Repo / git (reconciled 2026-08-29)
+## Repo / git (reconciled 2026-09-01)
 
 ```text
 Branch:        main
-HEAD:          9246fc3 — Fix bathroom-request tool misrouting; add mic device observability
-Remote:        origin -> https://github.com/caosos/CAOSCARE.COM.git
-               main is EXACTLY at origin/main right now — 0 commits ahead, 0 behind.
-               (This EliteDesk pushed twice tonight: 6c65021 then 9246fc3. Both are live
-               on the remote — a checkout on any other machine gets the full current state.)
-Working tree:  clean except this reconciliation pass itself (docs/PROJECT_STATE.md,
-               docs/reports/INDEX.md, docs/tsb/INDEX.md, docs/tsb/TSB-002-*.md,
-               this file) — documentation only, no runtime code uncommitted.
-Separate branch NOT on this machine: `feature/adaptive-conversation-tempo` (PR #23,
-               built by a Codex instance elsewhere, draft, NOT merged). It touches the
-               same turn_detection/VAD config surface (backend/routes/realtime_audio_
-               config.py) this repo's main also touches tonight — real merge-conflict
-               risk when it comes back, not yet reconciled. Do not assume it exists on
-               this checkout.
+HEAD:          afbb1e0 — Harden Resident Aria turn grounding and activation lifecycle
+Remote:        origin -> https://github.com/caosos/CAOSCARE.COM.git, main == origin/main.
+Production:    caoscare.com (caoscare-linode, /opt/caoscare/app) deployed afbb1e0 at
+               2026-09-01T00:06:04Z (previous: e6c4f47). Verified live: HTTP 200 on /
+               and /login, /api/health ok, served bundle main.5d9fff18.js matches the
+               fresh on-disk build (not the prior main.70caaadc.js), sibling
+               caos-backend.service confirmed untouched (same PID/ActiveEnterTimestamp
+               before and after), local-owner-bypass confirmed absent. Full detail:
+               docs/PROJECT_STATE.md's 2026-09-01 entry.
+Working tree:  see docs/PROJECT_STATE.md for the latest status - this file is a
+               point-in-time snapshot, not kept in lockstep with every commit.
+Other branches on origin (not this checkout, not reconciled here): a large set of
+               `agent/*` branches, `feature/adaptive-conversation-tempo` (draft PR,
+               NOT merged - touches the same turn_detection/VAD config surface main
+               also touches, real merge-conflict risk when it returns),
+               `feature/runtime-agent-lanes-20260830`, `fix-deploy-short-sha`.
 ```
 
 ## Running services right now (reconfirmed 2026-08-29)
