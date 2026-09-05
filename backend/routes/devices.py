@@ -16,11 +16,14 @@ device_adapters.py for the first, this file's docstring for the second):
 Either way, Aria's tools and the resident UI only ever see the same
 action/value/state contract - which path ran is invisible above this file.
 """
+import time
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends, Request
 from models import SmartDevice, SmartDeviceCreate, DeviceCommandInput, now_utc
 from deps import db, get_current_user
 from device_adapters import has_adapter, execute as execute_adapter
+from routes.receipts import create_receipt
+from routes.events import log_event
 
 router = APIRouter(prefix="/devices", tags=["devices"])
 
@@ -87,6 +90,7 @@ async def _dispatch_command(dev: dict, cmd: DeviceCommandInput, issued_by: str) 
     leaving truth of actual execution to the bridge's later /queue/{id}/ack.
     """
     protocol = dev.get("protocol")
+    state_before = dev.get("state") or {}
     command = {
         "command_id": f"cmd_{datetime.now(timezone.utc).timestamp()}",
         "device_id": dev["device_id"],
@@ -96,19 +100,32 @@ async def _dispatch_command(dev: dict, cmd: DeviceCommandInput, issued_by: str) 
         "issued_at": now_utc().isoformat(),
         "protocol": protocol,
         "endpoint": dev.get("endpoint"),
+        "state_before": state_before,
+        "session_id": cmd.session_id,
     }
-    new_state = dev.get("state") or {}
+    new_state = state_before
     if has_adapter(protocol):
         try:
             result = await execute_adapter(dev, cmd.action, cmd.value)
             command["status"] = "executed"
             command["acked_at"] = command["issued_at"]
             command["ack_detail"] = result.get("detail", "")
-            new_state = {**new_state, cmd.action: cmd.value}
+            if "state" in result:
+                # Adapter did its own real read-back (home_assistant) - this
+                # IS verified truth, so it fully replaces state rather than
+                # merging with the (possibly stale) prior optimistic value,
+                # and a mode-switch (color -> color_temp) correctly drops
+                # the now-irrelevant field instead of leaving it stale.
+                new_state = result["state"]
+                command["verified"] = True
+            else:
+                new_state = {**new_state, cmd.action: cmd.value}
+                command["verified"] = False
         except Exception as e:
             command["status"] = "failed"
             command["acked_at"] = command["issued_at"]
             command["ack_detail"] = str(e)
+            command["verified"] = False
             await db.device_commands.insert_one(command)
             command.pop("_id", None)
             command["state"] = new_state
@@ -173,7 +190,50 @@ async def public_room_command(room: str, request: Request, cmd: DeviceCommandInp
             else f"{'No' if not candidates else 'More than one'} device in room {room} supports {cmd.action} - pass `kind` to disambiguate"
         )
         raise HTTPException(status_code=400, detail=detail)
-    return await _dispatch_command(target, cmd, f"kiosk:room:{room}")
+
+    # Same receipt/event telemetry admin_assistant_device_executor.py
+    # already writes for staff-issued device commands - this is the
+    # resident-voice equivalent, so a device Aria touched during a live
+    # conversation shows up in that resident's own audit trail, not just
+    # the lower-level device_commands log (2026-09-05, real Matter light
+    # work - "preserve the existing device receipt/audit path").
+    resident_id = target.get("resident_id")
+    started = time.monotonic()
+    try:
+        result = await _dispatch_command(target, cmd, f"kiosk:room:{room}")
+    except HTTPException as e:
+        duration_ms = (time.monotonic() - started) * 1000
+        receipt = await create_receipt(
+            action_type="resident_aria_device_command", related_object_type="device",
+            related_object_id=target["device_id"], source="aria_voice",
+            resident_id=resident_id, room=room, conversation_session_id=cmd.session_id,
+            status="failed", result=str(e.detail),
+        )
+        await log_event(
+            event_type="device.command", source="resident_aria", resident_id=resident_id, room=room,
+            conversation_id=cmd.session_id, target_type="device", target_id=target["device_id"],
+            action=cmd.action, status="failed", duration_ms=duration_ms, error_message=str(e.detail),
+            verification_status="failed", receipt_id=receipt["receipt_id"],
+            metadata={"protocol": target.get("protocol"), "requested_value": cmd.value},
+        )
+        raise
+    duration_ms = (time.monotonic() - started) * 1000
+    verified = bool(result.get("verified"))
+    receipt = await create_receipt(
+        action_type="resident_aria_device_command", related_object_type="device",
+        related_object_id=target["device_id"], source="aria_voice",
+        resident_id=resident_id, room=room, conversation_session_id=cmd.session_id,
+        status="completed", result=result.get("ack_detail"),
+    )
+    await log_event(
+        event_type="device.command", source="resident_aria", resident_id=resident_id, room=room,
+        conversation_id=cmd.session_id, target_type="device", target_id=target["device_id"],
+        action=cmd.action, status=result.get("status"), duration_ms=duration_ms,
+        verification_status="verified" if verified else "unverified", receipt_id=receipt["receipt_id"],
+        metadata={"protocol": target.get("protocol"), "requested_value": cmd.value,
+                  "state_before": result.get("state_before"), "state_after": result.get("state")},
+    )
+    return result
 
 
 @router.get("/queue/{room}")

@@ -572,7 +572,7 @@ DeviceKind = Literal[
 ]
 DeviceCapability = Literal[
     "power", "brightness", "temperature", "fan_speed", "volume",
-    "channel", "input", "color", "position",
+    "channel", "input", "color", "color_temp", "position",
 ]
 
 
@@ -629,10 +629,20 @@ class DeviceCommandInput(BaseModel):
     a kind hint could silently flip the thermostat instead (a real bug,
     confirmed once mock devices existed). Omit only for a room with a
     single device having that capability.
+
+    `value` accepts a 3-int list for action="color" (an RGB triplet, e.g.
+    [0, 200, 0]) - a real color is a point in RGB space, not a vendor-
+    specific concept, so this widens the existing scalar contract rather
+    than inventing a parallel one (2026-09-05, real Matter bulb work).
+
+    `session_id` (optional) ties this command to the resident's active
+    Realtime voice session, purely for the receipt/audit trail - never
+    read by any adapter or execution logic.
     """
     action: DeviceCapability
-    value: Optional[str | int | float] = None
+    value: Optional[str | int | float | List[int]] = None
     kind: Optional[DeviceKind] = None
+    session_id: Optional[str] = None
 
 
 # ---------- AI vision ----------

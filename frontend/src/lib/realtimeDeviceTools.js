@@ -13,17 +13,19 @@
  * durable profile fact.
  */
 import { API } from "./api";
+import { nearestColorName, colorTempLabel, handleToggleLight } from "./realtimeLightControl";
 
 // IMPORTANT: the backend `/devices/.../command` endpoint validates `action`
 // against a strict enum (power | brightness | temperature | fan_speed |
-// volume | channel | color | position). The AI tools speak in human terms
-// (state="on", target_f=72) so this layer translates between them. Mismatch
-// = HTTP 422 = silent failure where CAOS promises an action that never ran.
-async function postRoomCommand(room, action, value, kind) {
+// volume | channel | color | color_temp | position). The AI tools speak in
+// human terms (state="on", target_f=72) so this layer translates between
+// them. Mismatch = HTTP 422 = silent failure where CAOS promises an action
+// that never ran.
+async function postRoomCommand(room, action, value, kind, sessionId) {
   const r = await fetch(`${API}/devices/public/room/${encodeURIComponent(room)}/command`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action, value, kind }),
+    body: JSON.stringify({ action, value, kind, session_id: sessionId || null }),
   });
   return r;
 }
@@ -71,6 +73,14 @@ export function describeDevice(d) {
   if (caps.includes("input") && s.input) bits.push(`on ${s.input}`);
   if (caps.includes("volume") && typeof s.volume === "number" && s.power === "on") bits.push(`volume ${s.volume}`);
   if (caps.includes("brightness") && typeof s.brightness === "number" && s.power === "on") bits.push(`brightness ${s.brightness}`);
+  if (caps.includes("color") && s.color && s.power === "on") {
+    const name = nearestColorName(s.color);
+    if (name) bits.push(name);
+  }
+  if (caps.includes("color_temp") && s.color_temp && s.power === "on") {
+    const label = colorTempLabel(s.color_temp);
+    if (label) bits.push(label);
+  }
   if (caps.includes("fan_speed") && s.fan_speed != null) bits.push(`fan speed ${s.fan_speed}`);
   if (caps.includes("position") && s.position != null) bits.push(`position ${s.position}`);
   if (!bits.length) return null;
@@ -114,12 +124,7 @@ export async function executeDeviceTool({ name, args, ctx }) {
   }
   if (name === "toggle_light") {
     if (!room) return { ok: false, message: "no room context — I can't reach the lights here." };
-    const r = await postRoomCommand(room, "power", args.state, "light");
-    if (!r.ok) return { ok: false, message: `couldn't reach the light (${r.status}).` };
-    if (args.state === "on" && typeof args.brightness === "number") {
-      await postRoomCommand(room, "brightness", Math.max(0, Math.min(100, args.brightness)), "light");
-    }
-    return { ok: true, message: `turned the light ${args.state}.` };
+    return handleToggleLight(room, args, ctx, postRoomCommand);
   }
   if (name === "toggle_tv") {
     if (!room) return { ok: false, message: "no room context — I can't reach the TV here." };

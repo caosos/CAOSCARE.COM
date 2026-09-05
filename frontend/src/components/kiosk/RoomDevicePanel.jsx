@@ -1,5 +1,6 @@
 import React from "react";
 import { Lightbulb, Fan, Thermometer, Tv, Volume2, Power, WifiOff } from "lucide-react";
+import { nearestColorName, colorTempLabel } from "../../lib/realtimeLightControl";
 
 const DEVICE_ICON = {
   light: Lightbulb, fan: Fan, heater: Thermometer, ac: Thermometer, thermostat: Thermometer,
@@ -21,6 +22,14 @@ function stateLines(d) {
   if (caps.includes("input") && s.input) lines.push(`Input: ${s.input}`);
   if (caps.includes("volume") && typeof s.volume === "number" && s.power === "on") lines.push(`Volume ${s.volume}`);
   if (caps.includes("brightness") && typeof s.brightness === "number" && s.power === "on") lines.push(`Brightness ${s.brightness}%`);
+  if (caps.includes("color") && s.color && s.power === "on") {
+    const name = nearestColorName(s.color);
+    if (name) lines.push(name[0].toUpperCase() + name.slice(1));
+  }
+  if (caps.includes("color_temp") && s.color_temp && s.power === "on") {
+    const label = colorTempLabel(s.color_temp);
+    if (label) lines.push(label[0].toUpperCase() + label.slice(1));
+  }
   if (caps.includes("fan_speed") && s.fan_speed != null) lines.push(`Fan ${s.fan_speed}`);
   if (caps.includes("position") && s.position != null) lines.push(`Position ${s.position}`);
   return lines;

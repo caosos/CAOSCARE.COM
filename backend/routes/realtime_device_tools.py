@@ -57,8 +57,13 @@ def _build_device_tools() -> list[dict]:
             "type": "function",
             "name": "toggle_light",
             "description": (
-                "Turn the resident's room light on or off, or set its brightness. "
-                "Use when they ask for the light or for it to be brighter/dimmer."
+                "Control the resident's room light: power, brightness, color, or "
+                "white color temperature. Only set the fields the resident actually "
+                "asked about - e.g. 'make it green' should set color WITHOUT state "
+                "or brightness; 'turn it off' should set only state. Setting color, "
+                "color_temp, or brightness without state implies turning it on. Not "
+                "every light supports every field - if the result says a field "
+                "isn't supported, tell the resident plainly rather than pretending."
             ),
             "parameters": {
                 "type": "object",
@@ -66,16 +71,31 @@ def _build_device_tools() -> list[dict]:
                     "state": {
                         "type": "string",
                         "enum": ["on", "off"],
-                        "description": "Whether to turn the light on or off."
+                        "description": "Optional power state. Omit if only changing color/brightness on an already-on light."
                     },
                     "brightness": {
                         "type": "integer",
-                        "minimum": 0,
+                        "minimum": 1,
                         "maximum": 100,
-                        "description": "Optional brightness 0-100. Omit for full on."
+                        "description": "Optional absolute brightness 1-100, e.g. 'set it to 50 percent'."
+                    },
+                    "brightness_delta": {
+                        "type": "integer",
+                        "minimum": -100,
+                        "maximum": 100,
+                        "description": "Optional relative brightness change when no exact percentage was given, e.g. -20 for 'dim it'/'make it dimmer', +20 for 'make it brighter'."
+                    },
+                    "color": {
+                        "type": "string",
+                        "enum": ["red", "orange", "yellow", "green", "blue", "purple", "pink", "white"],
+                        "description": "Optional named color, e.g. 'make it green' or 'make it blue'."
+                    },
+                    "color_temp": {
+                        "type": "string",
+                        "enum": ["warm", "neutral", "cool"],
+                        "description": "Optional white tone for 'warm white', 'cool white', or 'daylight' requests. Mutually exclusive with color."
                     }
                 },
-                "required": ["state"],
                 "additionalProperties": False
             }
         },

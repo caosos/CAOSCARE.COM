@@ -1813,3 +1813,112 @@ Every fact above was independently checked on the production host itself (not in
 
 ### Next safe step
 None required from this deployment itself. Continue with whatever live acceptance testing is next per Michael's direction - the underlying fixes (greeting-audio re-enable fallback, turn-grounding race, RF activation-state coalescing, TV-volume grounding) are now live in production as well as on this EliteDesk.
+
+---
+
+## 2026-09-05 — EliteDesk host networking: Matter commissioning (TP-Link Tapo L535E) fixed end-to-end
+
+### Agent / tool
+Claude Code, EliteDesk primary worktree. **Host/infrastructure work only - no CAOSCare application code touched.** No commit; nothing in this repo's tracked files changed as part of this work (`git status` clean throughout).
+
+### Branch / ref
+`main` @ `3f96d543586be6934021a9bf7ebb0491479043d2` (unchanged before/after - this entry documents host-level libvirt/avahi/iptables changes on the EliteDesk itself, not repo changes).
+
+### What changed
+Michael was commissioning a real, factory-reset TP-Link Tapo L535E (Matter-over-Wi-Fi bulb) through the Home Assistant iOS/Android Companion app against the HAOS VM (`caoscare-homeassistant`, libvirt NAT network, `192.168.122.137`) that runs on this EliteDesk. Commissioning repeatedly timed out/failed. Root-caused and fixed live, in three layers, each proven with direct evidence before moving to the next - not guessed:
+
+**1. HA VM had no functional IPv6.** `ha network info` (via HAOS serial console, scripted with `pexpect` since no SSH addon is installed) showed the VM's `enp0s2` interface `ipv6.ready: false` - link-local only (`fe80::.../64`), no gateway, no route. Root cause: the libvirt `default` network (`virbr0`) had no IPv6 configuration at all, only IPv4 NAT. Matter is IPv6-first by spec.
+- Fix: redefined the libvirt `default` network (`virsh net-define` + `net-destroy`/`net-start`, since live-adding a new `<ip>` family isn't supported by `net-update`) to add `fd00:ca05:beef:1::1/64` (ULA, RA/SLAAC-only). Enabled host `net.ipv6.conf.all.forwarding` (libvirt did this automatically on network start) and added the one IPv6 NAT rule libvirt doesn't auto-create for a `forward mode='nat'` network: `ip6tables -t nat -A POSTROUTING -s fd00:ca05:beef:1::/64 -o wlp6s0 -j MASQUERADE`.
+- The network restart briefly detached the VM's `vnet0` tap from the recreated bridge (self-healed within seconds; explicitly verified reattachment via `bridge link show` rather than assumed). Verified after: VM's `enp0s2` got a real global IPv6 address via RA, `ready: true`, default route present.
+
+**2. HA VM is isolated from the physical Wi-Fi LAN's multicast domain, and Matter Server binds to the isolated side.** The `core_matter_server` add-on's own startup log stated `"Using 'enp0s2' as primary network interface"` (the VM's NAT'd segment) and `"BLE is disabled"` (no local BLE fallback - HAOS-in-a-VM has no Bluetooth passthrough). mDNS discovery (`_matterc._udp`) is multicast and does not cross a NAT boundary; confirmed no reflector, relay, or nftables/multicast rule existed between `wlp6s0` (physical LAN) and `virbr0` (VM's isolated NAT segment) - only the pre-existing unicast 8123 port-forward.
+- **Deliberately ruled out**: bridging the VM directly onto the Wi-Fi radio (macvtap/4addr client-bridge mode), the only way to fully satisfy Matter's link-local-IPv6 requirement at L2. This host's Wi-Fi chipset (Intel `iwlwifi`, Wireless-AC 9260) has known-unreliable 4addr/WDS client-bridge support, and it's the host's only network path - attempting it risked destabilizing the host itself for an unguaranteed outcome. Not attempted.
+- Fix instead: enabled Avahi's built-in mDNS reflector (`/etc/avahi/avahi-daemon.conf`, backed up first) - `allow-interfaces=wlp6s0,virbr0`, `enable-reflector=yes`. This worked because the installed Matter Server (`matter-server 1.4.0` / `matter.js 0.17.9`) supports commissioning over IPv4 mDNS records (unlike Apple's strict IPv6-only stack), so relaying mDNS discovery between the two segments was sufficient without needing L2 adjacency.
+
+**3. A masquerade rule from the 2026-08-31 LAN-port-forward session was too broad and broke the Companion app's login flow.** Once (1) and (2) were fixed, commissioning still failed - Companion app said "couldn't connect" right after "Add to Home Assistant," with **zero** corresponding log lines in HA Core or Matter Server, on both iOS and Android. Traced via `ha core logs`: real `http.ban` "invalid authentication" rejections showed the connecting client as `192.168.122.1` (the VM's own gateway address) instead of the phone's real LAN IP, with an iPhone Companion-app user-agent. Root cause: `iptables -t nat -A POSTROUTING -p tcp -d 192.168.122.137 --dport 8123 -j MASQUERADE`, added during the prior session purely to hairpin-test the LAN port-forward from the host's own loopback, had **no source restriction** - it was masquerading every real external LAN client's connection to HA (156+ packet hits, not just the host's own test), collapsing every device's identity to `192.168.122.1`. HA's login-flow anti-hijack protection ties a flow to its originating IP; losing per-client identity broke the commissioning hand-off from both platforms.
+- Fix: removed the rule, re-added scoped to host-local-originated traffic only: `iptables -t nat -A POSTROUTING -m addrtype --src-type LOCAL -p tcp -d 192.168.122.137 --dport 8123 -j MASQUERADE`. Verified both the host's own loopback test and real external LAN access to `192.168.1.151:8123` still worked immediately after.
+- **Secondary issue found and fixed in the same layer**: narrowing the Avahi reflector was itself necessary a second time - HA's own `_home-assistant._tcp` self-advertisement (`internal_url=http://192.168.122.137:8123`, unreachable from the real LAN) was being relayed onto `wlp6s0` by the reflector, risking the Companion app discovering and preferring that unreachable address over the working port-forward. Scoped the reflector with `reflect-filters=_matterc._udp,_matter._tcp` so only Matter's own service types cross the NAT boundary, not HA's general self-advertisement.
+
+### What was verified
+- Real, live end-to-end commissioning, watched in real time via scripted HAOS serial-console log tails (`ha core logs` / `ha addons logs core_matter_server`) during Michael's actual retry on his Android device:
+  - Matter Server log: `"Commissioned peer1 as @1:1"`, operational address `udp://192.168.1.153:5540` (the bulb's real physical-LAN IP, reached directly - proving the mDNS-discovery + routing fix worked), endpoint came up as `ExtendedColorLight`, subscription established.
+  - HA Core log: `[homeassistant.components.matter] Detected a device... Tapo Smart Multicolor Bulb (vendor_id: 5010, product_id: 769, hw: 3.0, sw: 1.0.0)`.
+  - `GET /api/states` (via the existing `HA_TOKEN`/`HA_BASE_URL` already in `backend/.env` for the CAOSCare device-adapter integration): `light.smart_multicolor_bulb -> on` - entity state independently read back, not assumed from the log alone.
+- Confirmed no unrelated services were touched: `caos-backend.service` and nginx status/PIDs unchanged throughout; `git status` in this repo clean before and after.
+- Persistence caveat carried over from the prior networking session and still true: the manually-added `ip6tables`/`iptables` NAT rules (both the new IPv6 MASQUERADE and the corrected IPv4 one) are **not persistent** - no `iptables-persistent`/`netfilter-persistent` on this host. They will be lost on reboot. The libvirt network definition (IPv6 block) and the Avahi config changes ARE persistent (written to their own config files, reapplied automatically on service/libvirt restart).
+
+### Blocked / not yet done
+- iptables/ip6tables rule persistence across reboot - not set up (would be a standing-configuration change; flagged, not done unprompted, consistent with the same caveat raised in the 2026-08-31 LAN-forward session).
+- No other Matter devices tested - only the one L535E. Whether the fix generalizes to Thread-based Matter devices (this fix addressed Wi-Fi/mDNS-IPv4 discovery specifically; Thread has its own border-router requirements, untouched here) is unverified and out of scope for tonight.
+
+### Next safe step
+If Michael adds more Matter/Wi-Fi devices, no further host changes should be needed - the fix is general (IPv6 + scoped mDNS reflector + correctly-scoped NAT), not per-device. If the host reboots, re-verify the IPv6 block and NAT rules survived (the libvirt/Avahi config will; the manual iptables/ip6tables rules will not) before assuming Matter still works.
+
+---
+
+## 2026-09-05 — Resident Aria voice control of the real Matter bulb (power, brightness, color, color_temp)
+
+### Agent / tool
+Claude Code, EliteDesk primary worktree. Local dev backend/frontend only (`127.0.0.1:8000` / `localhost:3000`) - production untouched.
+
+### Branch / ref
+`main`, based on `3f96d543...` at session start.
+
+### What was already working (inspected first, not assumed)
+- `/kiosk/{kiosk_id}` → `POST /devices/public/room/{room}/command` was already the real, generic, room-aware device-command path Aria's tools use - no separate "voice" execution path exists.
+- `device_adapters.py`'s `home_assistant` adapter already existed and already handled `action="power"` against a real HA entity, confirmed working since 2026-08-27.
+- The resident screen (`RoomDevicePanel.jsx`) already polls the same `smart_devices` state Aria's tools write to (`GET /devices/public/by-room/{room}`, 10s interval) - one shared state, not a second copy, exactly as requirement 9 asked for. No polling architecture changes were needed.
+- `toggle_light`'s tool schema and frontend handler already existed for power+brightness, gated by the same `turn_suspect`/consequential-tool pattern as every other device tool.
+
+### Exact gaps found (proven via direct inspection before any code change)
+1. Every one of the 42 existing `smart_devices` records was `protocol: "mock"` - **no real SmartDevice record existed for the commissioned bulb at all**, despite commissioning being complete per the prior entry above.
+2. `device_adapters.py`'s `home_assistant` adapter only mapped `action="power"` to an HA service call - brightness/color/color_temp had no mapping.
+3. The adapter's only "proof" of success was checking HA's service-call response body for the target entity in its `changed` list - it never independently read the entity back. Real capability against real hardware (`min/max_color_temp_kelvin: 2500/6535`, `supported_color_modes: [color_temp, hs, xy]`, confirmed via `GET /api/states/light.smart_multicolor_bulb`) meant this was buildable, but was never checked for truthfulness after the fact.
+4. The resident-facing (`aria_voice`) device-command path (`public_room_command`) had **no receipt/event telemetry at all** - only the lower-level `device_commands` log. The admin-Aria path (`admin_assistant_device_executor.py`) already had this exact `create_receipt`+`log_event` pattern; the resident path had never been given the equivalent.
+5. `toggle_light`'s tool schema had no color/color_temp/relative-brightness parameters, and required `state`, which would have rejected a pure "make it dimmer" or "make it green" call.
+
+### Files changed
+- `backend/models.py` - added `"color_temp"` to `DeviceCapability`; widened `DeviceCommandInput.value` to accept an `[r,g,b]` int triplet; added optional `session_id` for receipt correlation.
+- `backend/device_adapters.py` (191→240 lines) - full brightness/color/color_temp service-call mapping; independent post-command `GET /api/states/{entity_id}` read-back with bounded retry (real Matter devices can lag a beat); hue-based color verification (see below); removed the old `changed`-list check after proving it wrong against real hardware (see below).
+- `backend/routes/devices.py` (215→275 lines) - `_dispatch_command` now uses the adapter's verified state as a full replacement (not a merge) so a mode switch (color→color_temp) doesn't leave a stale field; records `state_before`; `public_room_command` now writes the same `create_receipt`+`log_event` telemetry the admin path already had, sourced `aria_voice`/`resident_aria`, tied to the resident's real `conversation_session_id`.
+- `backend/routes/realtime_device_tools.py` - `toggle_light` schema: `state` now optional, added `brightness_delta`, `color` (named enum), `color_temp` (warm/neutral/cool enum).
+- `backend/routes/realtime_companion_prompt.py` - one clause telling Aria to only set the fields the resident actually asked about, and to report a capability the tool says isn't supported rather than pretending.
+- `frontend/src/lib/realtimeLightControl.js` (new, 93 lines) - named-color↔RGB and Kelvin↔label tables (shared both directions: commands and spoken/visual descriptions, one vocabulary not two); `handleToggleLight()` - implicit "on" only when the light is actually off (not on every tweak), per-field capability checks with honest "doesn't support X" messaging, relative brightness math against the light's own last-known state.
+- `frontend/src/lib/realtimeDeviceTools.js` (277→282 lines) - delegates to the new module; `describeDevice()` now speaks color/color_temp; `postRoomCommand` threads `session_id`.
+- `frontend/src/components/kiosk/RoomDevicePanel.jsx` (67→76 lines) - visual state lines for color/color_temp, same capability-driven pattern as every other line.
+- `backend/tests/test_light_control.py` (new), `frontend/src/lib/__tests__/toggleLightControl.test.js` (new).
+
+### A real bug found and fixed mid-implementation (not guessed, proven against real hardware)
+While wiring the real adapter, the very first live `power=on` call against the bulb failed with `"Home Assistant has no entity 'light.smart_multicolor_bulb'"` - the 2026-08-27 `changed`-list check firing. Manually replaying the exact same HA service call showed HA returns `[]` for this real Matter entity **even on genuine, physically-confirmed success** (the bulb visibly turned on; Michael confirmed live). The `changed`-list check was validated in 2026-08-27 against a different, simpler test entity and was never re-proven against real Matter hardware - removed it; the independent read-back (added for this task anyway) is strictly more correct and became the only verification.
+
+A second real bug surfaced the same way: the first "color" command (`[0,200,0]`, green) reported `verified:false` even though the bulb visibly turned green. The real HA read-back showed `hs_color: [119.055, 100.0]` - the device renormalizes any requested RGB to its own full-saturation rendering of that **hue**, discarding the requested saturation/value. Verifying by raw RGB distance was the wrong method for how this real hardware behaves; switched to comparing hue (`colorsys.rgb_to_hsv`) against HA's own `hs_color` attribute, ±30°, with a low-saturation special case for "white". Re-tested green/blue/color_temp against the real bulb after the fix - all `verified:true`.
+
+### What was verified
+- **8/8 backend tests** (`test_light_control.py`), including four that hit the **real bulb** and assert on the **real HA read-back** (not HTTP 200 alone): power on/off, brightness, color, color_temp - each `verified:true`. Plus: a command against a real-but-nonexistent HA entity correctly fails (502), never a silent success; room isolation (a Room 318 mock-light command leaves Room 214's real bulb state untouched); unsupported capability (`color` against a device with no color capability) rejected with a clear 400, not silently ignored; correct light selected over the room's other device kinds.
+- **9/9 new frontend tests** (`toggleLightControl.test.js`): implicit-on only when actually off, no redundant power command when already on, relative brightness math, absolute brightness, named color→RGB, color_temp label mapping, honest unsupported-capability messaging, and the two "reject before any network call" guards (no room context, no fields given).
+- **Full existing frontend regression suite**: 49/49 pass (`restingEndCallGuard`, `preferredNameGuard`, `greetingResponseGate`, `toggleTvVolumeGuard`, `turnGroundingRace`, `toggleLightControl`) - no cross-fix regressions.
+- Existing `test_room_device_isolation.py` / `test_public_demo_kiosk.py`: pass standalone (same pre-existing Motor/`asyncio.run()` cross-file limitation as every prior entry when run in the same invocation as `test_light_control.py` - not a regression).
+- `git diff --check` clean. Secrets-grep of the full diff clean.
+- Line counts (all under the 300-line cap): `device_adapters.py` 240, `devices.py` 275, `realtime_device_tools.py` 152, `realtime_companion_prompt.py` 255, `realtimeLightControl.js` 93, `realtimeDeviceTools.js` 282, `RoomDevicePanel.jsx` 76.
+
+### Real entity/device used
+Room 214 (Helen Torres, `res_81b72be1e8b5`) - `dev_f8be14de18e3`, converted from the room's pre-existing mock lamp record (same device_id, now `protocol: "home_assistant"`, `endpoint: "light.smart_multicolor_bulb"`, `capabilities: [power, brightness, color, color_temp]`, `vendor: "TP-Link"`, `model: "Tapo L535E (Matter)"`) via the existing authenticated `PUT /devices/{id}` route - not a raw DB write, not a new orphan device.
+
+### Live physical acceptance test (real microphone/speaker, real bulb, real voice)
+Michael opened `http://localhost:3000/kiosk/kio_dc8c06a19608` (Room 214), started a real Realtime session ("I just want to talk"), and spoke the full required sequence. Every command produced a real, `verified:true` command against the actual bulb, correctly tied to the real session:
+- Session `rt_qetdh39b_1788632545041`, resident `res_81b72be1e8b5`, room `214` - confirmed threaded through every `device_commands` row AND every `receipts` row (`conversation_session_id` populated, `source: "aria_voice"`, `action_type: "resident_aria_device_command"`).
+- "Aria, turn the light off." → `power off`, verified.
+- "Turn it back on." → `power on`, verified.
+- "Make it green." → `color [0,200,0]`, verified (hue match).
+- "Set it to 50 percent." → `brightness 50`, verified.
+- "Make it blue." → `color [0,80,255]`, verified.
+- "Make it warm white." → `color_temp 2700`, verified.
+- "Turn it off." → `power off`, verified. Final stored `smart_devices.state` = `{"power":"off"}` - correctly dropped the now-irrelevant color/brightness fields once off, matching real HA's own minimal off-state attributes.
+- `state_before`/`state_after` chain across all seven commands is internally consistent (each command's `state_before` matches the prior command's real resulting state) - proof this is genuine sequential real-hardware tracking, not fabricated.
+- Michael's own live reaction watching the bulb: "perrrrrrrrrrfect." Combined with the independent read-back verification on every single step, this is real, not assumed, evidence.
+
+### Remaining blocker / not done
+None for this task's scope. Not built (correctly out of scope, per explicit instruction not to redesign the device architecture): the RF bridge, AC, or TV-shutoff outlet Michael mentioned as "next" - Room 214 already has mock `ac`/`tv`/`thermostat` scaffold records ready to receive real `protocol: "home_assistant"` endpoints the same way the lamp just did, whenever those devices are actually acquired/commissioned.
+
+### Next safe step
+When the air conditioner and/or a smart outlet (for TV shutoff, ahead of the RF bridge) are physically acquired and commissioned into Home Assistant, convert Room 214's existing mock `dev_e76b930036e6` (AC) the same way this entry converted the lamp: real `endpoint`, real HA-reported `capabilities`, no new architecture needed - `device_adapters.py`'s `home_assistant` adapter already handles `power`/`brightness`/`temperature` generically for any domain HA exposes those actions on (the `domain == "light"` guards on brightness/color/color_temp would need a quick check against the AC's actual HA domain - likely `climate`, which uses different service/attribute names than `light` - before assuming today's mapping covers it as-is).
