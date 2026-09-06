@@ -14,6 +14,7 @@ import TodayPanel from "../components/kiosk/TodayPanel";
 import RequestsPanel from "../components/kiosk/RequestsPanel";
 import RoomDevicePanel from "../components/kiosk/RoomDevicePanel";
 import { sendRoomDeviceCommand } from "../lib/kioskDeviceControl";
+import { evaluateEmergencyWake } from "../lib/kioskEmergencyWake";
 
 // Kiosk is PUBLIC - no login. Selected/identified by kiosk_id in URL.
 // /kiosk/:kioskId  (use "demo" to pick an arbitrary kiosk automatically)
@@ -41,6 +42,10 @@ export default function Kiosk() {
   const [needsTap, setNeedsTap] = useState(false);       // remote pendant fired but we need a user tap first (autoplay/mic policy)
   const [pendingAlert, setPendingAlert] = useState(null);
   const audioCtxRef = useRef(null);
+  // { id, pressCount } of the last open event this kiosk auto-woke for.
+  // Versioned by press_count so a LATER pendant press that reactivates the
+  // SAME open event (same alert_id, press_count bumped) still re-wakes Aria
+  // - see kioskEmergencyWake.js / docs/LEVEL1_BREAKTEST.md (invariant 6).
   const seenEmergencyRef = useRef(null);
   const triggerSourceRef = useRef("manual_kiosk");  // what's about to start the next RealtimeChatScreen — pendant | manual_kiosk
   const callStateRef = useRef("idle");     // sync callState for async callbacks
@@ -189,10 +194,9 @@ export default function Kiosk() {
         const { data } = await axios.get(`${API}/kiosks/${kiosk.kiosk_id}/active-emergency`);
         if (stop) return;
         const a = data.alert;
-        if (a && a.alert_id !== seenEmergencyRef.current && callStateRef.current === "idle") {
-          seenEmergencyRef.current = a.alert_id;
-          handleIncomingEmergency(a);
-        }
+        const { wake, seen } = evaluateEmergencyWake(a, seenEmergencyRef.current, callStateRef.current);
+        seenEmergencyRef.current = seen;
+        if (wake) handleIncomingEmergency(a);
       } catch { /* silent */ }
     };
     poll();

@@ -25,12 +25,72 @@ a real event can legitimately stay open far longer than 5 minutes.
 """
 import logging
 import os
+from datetime import datetime
 from typing import Optional
 
 from deps import db
 from models import Alert, PressRecord, now_utc
 
 log = logging.getLogger(__name__)
+
+# One physical press of a real Interlogix-Security / Lifeline pendant emits
+# ~3-8 RF frames at a ~0.5s cadence, spanning up to ~3.2s (live-evidenced,
+# Room 214 pendant rfd_6e8f06632b41, 2026-09-06: see docs/LEVEL1_BREAKTEST.md).
+# The android bridge POSTs every frame to /rf/event with its own monotonic
+# sequence, and nothing between there and here collapses them - so without
+# this window every echo frame was a separate press_count increment and a
+# separate presses[] record (invariants 2 and 3).
+#
+# The window is measured from the PREVIOUS frame of the same device on the
+# same open event (tracked as Alert.last_rf_frame_at), not from the first
+# frame - so the whole repeat train collapses no matter how long it runs,
+# while a genuinely new press this many seconds after the last frame still
+# counts (invariant 4). ~0.5s is the observed frame cadence; the default
+# leaves generous slack for missed/re-sent frames without bridging two real
+# presses. Env-overridable for other pendant hardware / to let tests shrink
+# it. A help pendant cannot physically distinguish "button held/re-fired"
+# from "pressed twice fast" anyway, so collapsing a sub-window re-press is
+# the safe call - every raw frame is still in db.rf_events regardless.
+try:
+    RF_PRESS_DEBOUNCE_SECONDS = float(os.environ.get("RF_PRESS_DEBOUNCE_SECONDS", "3"))
+except ValueError:
+    RF_PRESS_DEBOUNCE_SECONDS = 3.0
+
+
+def _is_echo_frame(open_alert: dict, source: str, device_id: Optional[str]) -> bool:
+    """True when this frame is a repeat frame of a physical press already
+    recorded on `open_alert` - i.e. it lands within RF_PRESS_DEBOUNCE_SECONDS
+    of the previous frame from the SAME device. Only RF-pendant frames echo;
+    kiosk-button presses are discrete deliberate taps and are never
+    debounced."""
+    if source != "rf_pendant" or not device_id:
+        return False
+    if open_alert.get("last_rf_frame_device") != device_id:
+        return False
+    last_at = open_alert.get("last_rf_frame_at")
+    if not last_at:
+        # Older event opened before this field existed - fall back to the
+        # last recorded same-device press timestamp.
+        for p in reversed(open_alert.get("presses") or []):
+            if p.get("source") == "rf_pendant" and p.get("device_id") == device_id:
+                last_at = p.get("at")
+                break
+    if not last_at:
+        return False
+    try:
+        prev = datetime.fromisoformat(last_at) if isinstance(last_at, str) else last_at
+        delta = (now_utc() - prev).total_seconds()
+    except (ValueError, TypeError):
+        return False
+    return 0 <= delta < RF_PRESS_DEBOUNCE_SECONDS
+
+
+def _rf_frame_stamp(source: str, device_id: Optional[str]) -> dict:
+    """The last-frame marker to write on every RF frame (echo or counted) so
+    the next frame is measured from this one."""
+    if source == "rf_pendant" and device_id:
+        return {"last_rf_frame_at": now_utc().isoformat(), "last_rf_frame_device": device_id}
+    return {}
 
 
 async def record_resident_activation(
@@ -67,12 +127,24 @@ async def record_resident_activation(
             sort=[("created_at", -1)],
         )
         if open_alert:
+            frame_stamp = _rf_frame_stamp(source, device_id)
+            if _is_echo_frame(open_alert, source, device_id):
+                # Repeat frame of a press already counted. rf.py still writes
+                # this frame to db.rf_events unconditionally - evidence is
+                # kept, only the human-press count is protected. Do not touch
+                # press_count / presses[] / activation_consumed_at; only
+                # advance the last-frame marker so the train keeps collapsing.
+                if frame_stamp:
+                    await db.alerts.update_one(
+                        {"alert_id": open_alert["alert_id"]}, {"$set": frame_stamp},
+                    )
+                return {**open_alert, "coalesced": True, "echo_frame": True}
             await db.alerts.update_one(
                 {"alert_id": open_alert["alert_id"]},
                 {
                     "$inc": {"press_count": 1},
                     "$push": {"presses": press_dict},
-                    "$set": {"activation_consumed_at": None},
+                    "$set": {"activation_consumed_at": None, **frame_stamp},
                 },
             )
             doc = await db.alerts.find_one({"alert_id": open_alert["alert_id"]}, {"_id": 0})
@@ -106,6 +178,7 @@ async def record_resident_activation(
     doc["acknowledged_at"] = None
     doc["resolved_at"] = None
     doc["presses"] = [press_dict]
+    doc.update(_rf_frame_stamp(source, device_id))
 
     # Receipt is created here (not at close) so its `created_at` reflects
     # the real open time; it's marked "completed" when the event closes

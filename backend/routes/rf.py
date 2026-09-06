@@ -42,14 +42,15 @@ DEFAULT_TEST_SECONDS = 5
 # devices "on the same frequency" - real rtl_433 measurements drift by a
 # few kHz per packet, so an exact match is too fragile (see rf_event()).
 FREQ_TOLERANCE_HZ = 50_000
-# One physical button press on a real Interlogix-Security pendant produces
-# ~8 RF frames within ~1-3s (live-evidenced 2026-08-29). Frame-level
-# coalescing (same press's own repeat frames) plus the deeper
-# incident-level activation gating (repeat presses during an ALREADY
-# ACTIVE session - real live defect, 2026-08-30, room 401) both live in
-# routes/resident_activation.py now (generalized 2026-09-06 from device-
-# scoped to resident-scoped, per the Level 1 directive - see that
-# module's docstring for the full history).
+# One physical pendant press = ~3-8 RF frames, ~0.5s cadence, up to ~3.2s
+# span (live-evidenced 2026-08-29, again 2026-09-06 Room 214); each frame is
+# POSTed here with its own monotonic sequence. Two collapsing layers live in
+# routes/resident_activation.py: the RF echo window (RF_PRESS_DEBOUNCE_SECONDS)
+# drops repeat frames of one press from press_count/presses[], and resident-
+# scoped incident coalescing attaches repeat presses during an already-open
+# event to the SAME alert (live defect 2026-08-30 room 401; 2026-09-06
+# device-scoped -> resident-scoped per the Level 1 directive). Every frame is
+# still written to db.rf_events below regardless - evidence is never dropped.
 
 
 def _iso(doc: dict) -> dict:
@@ -481,11 +482,13 @@ async def rf_event(
             )
             raw_event["alert_id"] = result["alert_id"]
             press_coalesced = result["coalesced"]
+            press_echo_frame = bool(result.get("echo_frame"))
         except Exception as e:
             # Best-effort. Log the cause so we know if activation recording breaks.
             import logging
             logging.getLogger(__name__).warning(f"RF activation recording failed: {e}")
             press_coalesced = False
+            press_echo_frame = False
 
     await db.rf_events.insert_one(raw_event)
     raw_event.pop("_id", None)
@@ -496,6 +499,7 @@ async def rf_event(
         "device_id": best["rf_device_id"] if matched else None,
         "alert_id": raw_event.get("alert_id"),
         "press_coalesced": press_coalesced if matched else False,
+        "echo_frame": press_echo_frame if matched else False,
     }
 
 
