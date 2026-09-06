@@ -2114,6 +2114,8 @@ If Michael wants to proceed: try HA's own device-page "Reconfigure" action first
 
 ## 2026-09-06 — CAOSCare Level 1: resident-assistance event model (ResidentEvent → extended Alert), Aria lifecycle, staff-presence mute hook, optional live staff line, simple pattern notation, receipts wiring.
 
+Committed as `d6cb486c07e8f67f08175254808c8ca6f4c4ec89`, pushed to `origin/main`.
+
 ### Agent / tool
 Claude Code, EliteDesk primary worktree. Plan-mode used given the scope (touches alert creation, RF ingest, Aria's realtime session lifecycle, staff UI, and receipts simultaneously) - plan approved by Michael before implementation, including two explicit product decisions (below). Branch `main`, on top of `790f192`.
 
