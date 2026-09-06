@@ -17,8 +17,22 @@ function ctx(lastUserText, overrides = {}) {
   };
 }
 
+// A single real TV in the room - toggle_tv now looks the device up first
+// (2026-09-06 kiosk multi-light bug fix, applied generically to TVs too)
+// so every test needs a device-list response, not just the command's.
+const TV = { device_id: "dev_tv_test", kind: "tv", capabilities: ["power", "volume"], state: {} };
+
+function commandCalls() {
+  return global.fetch.mock.calls.filter(([url]) => String(url).includes("/command"));
+}
+
 beforeEach(() => {
-  global.fetch = jest.fn(async () => ({ ok: true, json: async () => ({ ok: true }) }));
+  global.fetch = jest.fn(async (url) => {
+    if (String(url).includes("/devices/public/by-room/")) {
+      return { ok: true, json: async () => [TV] };
+    }
+    return { ok: true, json: async () => ({ ok: true }) };
+  });
 });
 
 test("real incident: toggle_tv volume must NOT apply on 'Hello Lab.'", async () => {
@@ -28,9 +42,9 @@ test("real incident: toggle_tv volume must NOT apply on 'Hello Lab.'", async () 
   expect(r.ok).toBe(true);
   expect(r.message).toBe("turned the TV on.");
   // power command sent, volume command must not have been
-  expect(global.fetch).toHaveBeenCalledTimes(1);
-  const [[, powerOpts]] = global.fetch.mock.calls;
-  expect(JSON.parse(powerOpts.body).action).toBe("power");
+  const calls = commandCalls();
+  expect(calls).toHaveLength(1);
+  expect(JSON.parse(calls[0][1].body)).toMatchObject({ action: "power", device_id: "dev_tv_test" });
 });
 
 test.each([
@@ -45,7 +59,9 @@ test.each([
   });
   expect(r.ok).toBe(true);
   expect(r.message).toBe("turned the TV on at volume 20.");
-  expect(global.fetch).toHaveBeenCalledTimes(2);
+  const calls = commandCalls();
+  expect(calls).toHaveLength(2);
+  expect(calls.every(([, opts]) => JSON.parse(opts.body).device_id === "dev_tv_test")).toBe(true);
 });
 
 test("power-only request (no volume arg) is unaffected", async () => {
@@ -54,5 +70,18 @@ test("power-only request (no volume arg) is unaffected", async () => {
   });
   expect(r.ok).toBe(true);
   expect(r.message).toBe("turned the TV on.");
-  expect(global.fetch).toHaveBeenCalledTimes(1);
+  expect(commandCalls()).toHaveLength(1);
+});
+
+test("two TVs in the room: toggle_tv fails closed instead of guessing", async () => {
+  global.fetch = jest.fn(async (url) => {
+    if (String(url).includes("/devices/public/by-room/")) {
+      return { ok: true, json: async () => [TV, { ...TV, device_id: "dev_tv_test_2" }] };
+    }
+    return { ok: true, json: async () => ({ ok: true }) };
+  });
+  const r = await executeDeviceTool({ name: "toggle_tv", args: { state: "on" }, ctx: ctx("Turn the TV on.") });
+  expect(r.ok).toBe(false);
+  expect(r.message.toLowerCase()).toContain("more than one tv");
+  expect(commandCalls()).toHaveLength(0);
 });

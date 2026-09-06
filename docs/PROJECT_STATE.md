@@ -2035,3 +2035,47 @@ Nothing code-side. Admin Aria RF diagnostic + register/reassign tools (explicitl
 
 ### Next safe step
 Build the Admin Aria RF tools (wrap `GET /rf/events`, `GET /rf/devices`, `POST /rf/pair`, `PUT /rf/devices/{id}/assign`) following the existing `admin_assistant_tools.py`/`admin_assistant_executor.py`/`admin_assistant_device_executor.py` pattern. Decide with Michael whether/when to commit the RF arc (fully proven and working, unlike the still-blocked AC work above) - no explicit commit instruction has been given yet.
+
+---
+
+## 2026-09-06 — Kiosk multi-light bug: device_id was dropped by every direct kiosk/UI device-control call site, found by Michael, fixed and extended generically to TVs. Committed and pushed.
+
+### Agent / tool
+Claude Code, EliteDesk primary worktree. Branch `main`, on top of `7debebb` (the RF pendant commit above).
+
+### What Michael found
+Right after the RF/light disambiguation commit (`d22b3d2`) landed, Michael identified the real remaining half of the same bug class from first principles, without me finding it first: `RoomDevicePanel` correctly passes the exact clicked `SmartDevice` object to `onToggle`, but `Kiosk.jsx`'s own `onToggle={(d) => sendDeviceCommand("power", ..., d.kind)}` callback and its `sendDeviceCommand` function only ever forwarded `kind`, discarding `d.device_id` entirely. With two real lights in Room 214, every kiosk-card tap hit the backend's (correct) ambiguity guard: `"More than one light device in room 214 supports power - pass device_id to disambiguate."` The voice path had already been fixed in `d22b3d2` (`realtimeLightControl.js`/`realtimeDeviceTools.js`'s `postRoomCommand`) - this was the kiosk-card UI path, never touched by that commit.
+
+### What was checked (Michael's item 5: find every other dropped-device-id call site)
+`grep` for every direct `/devices/public/room/.../command` POST in the frontend found five call sites total:
+1. `Kiosk.jsx`'s `beginConversation()` auto-mute (TV/speaker mute on call start) - dropped `device_id` despite already having it in hand (`d.device_id`).
+2. `Kiosk.jsx`'s call-end restore-muted-devices loop - same: `mutedDevicesRef.current` entries already store `device_id`, the restore POST just never sent it.
+3. `Kiosk.jsx`'s `sendDeviceCommand` (the one `RoomDevicePanel` card click goes through) - the reported bug.
+4. `realtimeDeviceTools.js`'s `toggle_tv` (voice) - never looked up the device at all, blindly posted `kind: "tv"` with no id.
+5. `realtimeDeviceTools.js`'s `set_tv_input` (voice) - did fetch the room's device list, but used `.find()` (the exact same silent-first-match bug the light `next()` bug was, before the earlier fix) and still never passed `device_id` to the command itself.
+`DevicesTab.jsx` (admin panel) was checked and is NOT affected - it posts to `/devices/{device_id}/command`, already exact-device-targeted by construction.
+
+### Fix
+- `frontend/src/lib/kioskDeviceControl.js` (new, 17 lines) - `sendRoomDeviceCommand(room, action, value, kind, deviceId)`, the one place that now builds this POST body. Extracted out of `Kiosk.jsx` (614→615 lines, already over cap, effectively unchanged since the actual command logic moved out) specifically so it's unit-testable without mounting the whole stateful kiosk page (no `@testing-library/react` in this project - the existing test suite is function-level, mocked-network style, so this follows that same convention).
+- `Kiosk.jsx` - all three call sites (`beginConversation` mute, restore-on-hangup, `sendDeviceCommand`/card click) now route through `sendRoomDeviceCommand` and pass their device's `device_id`.
+- `realtimeDeviceTools.js` - added a small shared `_findOneDeviceOfKind(room, kind)` helper (fetches the room's device list, returns the single online match or `{ambiguous: true}` if more than one) - generalizes the exact same lookup-before-command shape `realtimeLightControl.js` already uses for lights, per Michael's explicit requirement ("must work for multiple TVs, lights, outlets, fans, etc., not just these two bulbs"). `toggle_tv` and `set_tv_input` both now use it and pass `device_id` through; `set_tv_input`'s old `.find()` was replaced with the same fail-closed ambiguity check. Currently inert in practice (every room today has exactly one TV) but closes the identical latent defect before a second TV ever gets added, rather than after.
+- Backend `routes/devices.py`'s ambiguity guard (already committed in `d22b3d2`) was NOT touched or weakened - it's what caught this in the first place, and still fails closed for any kind/room combination with more than one online match and no `device_id`.
+
+### What was verified
+- New test `frontend/src/lib/__tests__/kioskDeviceControl.test.js` (4 tests): clicking the Desk Lamp sends its own `device_id`, clicking the Overhead Light sends its own (never the Desk Lamp's), two sequential clicks on two devices each carry only their own id, and the command body always includes a `device_id` key.
+- `toggleTvVolumeGuard.test.js` updated (its mock never modeled a device-list fetch before, since `toggle_tv` never made one) plus one new test: two TVs in a room now makes `toggle_tv` fail closed with an honest ambiguity message instead of guessing.
+- Full frontend suite: 57/57 passing (was 56 before this arc; +1 net after accounting for the 4 new kiosk tests and 1 new TV-ambiguity test, since none were removed).
+- **Live, real-hardware re-test exactly as Michael requested (item 8):** with the dev servers running the fixed code, opened the actual Room 214 kiosk (`kio_dc8c06a19608`) in a real browser session, scrolled to "Your room," and clicked each light card in turn. Clicking Overhead Light (previously OFF) turned it on; clicking Desk Lamp (previously ON) turned it off. Cross-checked directly against Home Assistant's own state after each click (`GET /api/states/light.smart_multicolor_bulb` / `..._bulb_2`) rather than trusting the kiosk UI alone: each click changed only its own real physical bulb's `state`/`brightness`/`rgb_color` - the other bulb's HA state was byte-identical before and after. This is genuine live-hardware confirmation, not a mocked test.
+- Voice path (item 8B) was NOT live-tested this session - it shares the identical `device_id` plumbing now proven correct at the transport layer via the kiosk-card test above, and its own disambiguation logic (`pickLight` in `realtimeLightControl.js`) was already unit-tested in `d22b3d2`, but an actual spoken command against the real two bulbs requires Michael's own voice at the kiosk; browser automation has no microphone/STT capability to trigger the real Realtime session end-to-end.
+
+### Files changed / line counts
+`frontend/src/lib/kioskDeviceControl.js` (new, 17 lines), `frontend/src/pages/Kiosk.jsx` (615 lines, already over cap - net +1 line, extracted the changed responsibility rather than growing it further), `frontend/src/lib/realtimeDeviceTools.js` (304 lines, crossed the 300 line over the course of this arc - real generic-safety code, not deferred per Michael's "300 is goal not hard rule if it's good code"), `frontend/src/lib/__tests__/kioskDeviceControl.test.js` (new, 66 lines), `frontend/src/lib/__tests__/toggleTvVolumeGuard.test.js` (updated, 74 lines).
+
+### Committed as
+`_(recorded after commit below)_`
+
+### What is blocked
+The still-uncommitted Midea AC/climate work remains untouched and uncommitted, same as every entry above - `realtimeDeviceTools.js`'s climate hunks were isolated out of this commit the same hunk-splitting way as the RF/light commit before it.
+
+### Next safe step
+A live voice re-test of `toggle_light`/`toggle_tv` against the real two-bulb Room 214 (Michael speaking to the kiosk) would close out item 8B above. After that: Admin Aria RF tools (still not started) remain the next open task from the entry above.

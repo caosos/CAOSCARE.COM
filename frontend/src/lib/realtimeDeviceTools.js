@@ -87,6 +87,19 @@ export function describeDevice(d) {
   return `the ${name} is ${bits.join(", ")}`;
 }
 
+// Generic lookup-before-command helper for tools (TV, etc.) that don't
+// have their own per-kind disambiguation module the way lights and
+// climate do. Fails closed on ambiguity rather than guessing, matching
+// the backend's own "more than one <kind> device... pass device_id"
+// behavior (2026-09-06 kiosk multi-light bug and its generic fix).
+async function _findOneDeviceOfKind(room, kind) {
+  const listR = await fetch(`${API}/devices/public/by-room/${encodeURIComponent(room)}`);
+  const list = listR.ok ? await listR.json() : [];
+  const matches = list.filter((d) => d.kind === kind && d.online !== false);
+  if (matches.length > 1) return { device: null, ambiguous: true };
+  return { device: matches[0] || null, ambiguous: false };
+}
+
 // 2026-08-23: "echo_like" (short, resembles Aria's own speech) genuinely
 // suggests mishearing - ask to repeat. Other suspect reasons (a short but
 // non-echoing fragment) are less about mishearing and more about wanting
@@ -128,7 +141,13 @@ export async function executeDeviceTool({ name, args, ctx }) {
   }
   if (name === "toggle_tv") {
     if (!room) return { ok: false, message: "no room context — I can't reach the TV here." };
-    const r = await postRoomCommand(room, "power", args.state, "tv");
+    // Same lookup-before-command shape as toggle_light (2026-09-06 kiosk
+    // multi-light bug) - a room with more than one TV must fail closed on
+    // an honest ambiguity message, not guess by posting `kind` alone.
+    const tv = await _findOneDeviceOfKind(room, "tv");
+    if (tv.ambiguous) return { ok: false, message: "this room has more than one TV — which one do you mean?" };
+    if (!tv.device) return { ok: false, message: "there's no TV set up in this room yet." };
+    const r = await postRoomCommand(room, "power", args.state, "tv", undefined, tv.device.device_id);
     if (!r.ok) return { ok: false, message: `couldn't reach the TV (${r.status}).` };
     // Structural grounding (2026-08-30) - see VOLUME_PHRASES above. A
     // volume change is a real, audible, potentially uncomfortable action -
@@ -137,25 +156,25 @@ export async function executeDeviceTool({ name, args, ctx }) {
     const heard = (ctx?.last_user_text || "").trim();
     const volumeGrounded = args.state === "on" && typeof args.volume === "number" && VOLUME_PHRASES.test(heard);
     if (volumeGrounded) {
-      await postRoomCommand(room, "volume", Math.max(0, Math.min(100, args.volume)), "tv");
+      await postRoomCommand(room, "volume", Math.max(0, Math.min(100, args.volume)), "tv", undefined, tv.device.device_id);
     }
     return { ok: true, message: `turned the TV ${args.state}${volumeGrounded ? ` at volume ${args.volume}` : ""}.` };
   }
   if (name === "set_tv_input") {
     if (!room) return { ok: false, message: "no room context — I can't reach the TV here." };
+    const tvLookup = await _findOneDeviceOfKind(room, "tv");
+    if (tvLookup.ambiguous) return { ok: false, message: "this room has more than one TV — which one do you mean?" };
+    const tv = tvLookup.device;
     // Verify the device actually declares this input before calling -
     // per the tool's own instruction, a device that doesn't support it
     // should get an honest "not available", not a failed/ignored command.
-    const listR = await fetch(`${API}/devices/public/by-room/${encodeURIComponent(room)}`);
-    const list = listR.ok ? await listR.json() : [];
-    const tv = list.find((d) => d.kind === "tv");
     if (!tv || !(tv.capabilities || []).includes("input")) {
       return { ok: false, message: "this TV doesn't support switching inputs." };
     }
     if (!(tv.inputs || []).some((i) => i.toLowerCase() === String(args.input).toLowerCase())) {
       return { ok: false, message: `this TV doesn't have a "${args.input}" input — it has: ${(tv.inputs || []).join(", ") || "none listed"}.` };
     }
-    const r = await postRoomCommand(room, "input", args.input, "tv");
+    const r = await postRoomCommand(room, "input", args.input, "tv", undefined, tv.device_id);
     if (!r.ok) return { ok: false, message: `couldn't switch the input (${r.status}).` };
     return { ok: true, message: `switched the TV to ${args.input}.` };
   }

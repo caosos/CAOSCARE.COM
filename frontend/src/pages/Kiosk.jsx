@@ -13,6 +13,7 @@ import ProfileHeader from "../components/kiosk/ProfileHeader";
 import TodayPanel from "../components/kiosk/TodayPanel";
 import RequestsPanel from "../components/kiosk/RequestsPanel";
 import RoomDevicePanel from "../components/kiosk/RoomDevicePanel";
+import { sendRoomDeviceCommand } from "../lib/kioskDeviceControl";
 
 // Kiosk is PUBLIC - no login. Selected/identified by kiosk_id in URL.
 // /kiosk/:kioskId  (use "demo" to pick an arbitrary kiosk automatically)
@@ -240,7 +241,7 @@ export default function Kiosk() {
       const noisy = (devices || []).filter((d) => (d.kind === "tv" || d.kind === "speaker") && d.state?.power === "on");
       for (const d of noisy) {
         try {
-          await axios.post(`${API}/devices/public/room/${kiosk.room}/command`, { action: "power", value: "off", kind: d.kind });
+          await sendRoomDeviceCommand(kiosk.room, "power", "off", d.kind, d.device_id);
           mutedDevicesRef.current.push({ device_id: d.device_id, kind: d.kind, prior_power: "on" });
         } catch { /* ignore */ }
       }
@@ -321,7 +322,7 @@ export default function Kiosk() {
       for (const m of mutedDevicesRef.current) {
         if (m.prior_power === "on") {
           try {
-            await axios.post(`${API}/devices/public/room/${kiosk.room}/command`, { action: "power", value: "on", kind: m.kind });
+            await sendRoomDeviceCommand(kiosk.room, "power", "on", m.kind, m.device_id);
           } catch { /* ignore */ }
         }
       }
@@ -331,10 +332,10 @@ export default function Kiosk() {
     setCallState("idle");
   };
 
-  const sendDeviceCommand = async (action, value, kind) => {
+  const sendDeviceCommand = async (action, value, kind, deviceId) => {
     if (!kiosk?.room) return;
     try {
-      await axios.post(`${API}/devices/public/room/${kiosk.room}/command`, { action, value, kind });
+      await sendRoomDeviceCommand(kiosk.room, action, value, kind, deviceId);
       toast.success(`${action} → ${value}`);
       // Refresh device state
       try {
@@ -540,7 +541,7 @@ export default function Kiosk() {
           <div className="w-full text-left mt-14 space-y-0">
             <RequestsPanel residentId={resident?.resident_id} room={kiosk?.room} />
             <TodayPanel />
-            <RoomDevicePanel devices={devices} room={kiosk?.room} onToggle={(d) => sendDeviceCommand("power", d.state?.power === "on" ? "off" : "on", d.kind)} />
+            <RoomDevicePanel devices={devices} room={kiosk?.room} onToggle={(d) => sendDeviceCommand("power", d.state?.power === "on" ? "off" : "on", d.kind, d.device_id)} />
           </div>
         </div>
 
