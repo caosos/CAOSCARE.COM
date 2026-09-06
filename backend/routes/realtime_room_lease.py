@@ -106,25 +106,35 @@ async def heartbeat(room: str, payload: dict = Body(default={})):
 
 @router.post("/{room}/release")
 async def release(room: str, payload: dict = Body(default={})):
-    """End of conversation - free the room immediately rather than waiting
-    out the stale-lease grace period. Only releases if this session_id
-    actually holds the lease, so a stale/duplicate caller can't release
-    someone else's active session.
+    """End of THIS session's hold on the room - free it immediately rather
+    than waiting out the stale-lease grace period. Only releases if this
+    session_id actually holds the lease, so a stale/duplicate caller can't
+    release someone else's active session.
 
-    2026-08-30 (real live defect): also closes out the room's attention
-    incident(s) - see Alert.activation_consumed_at in models.py and the
-    coalescing logic in routes/rf.py. Without this, a repeat pendant press
-    during the call that had minted its own alert (or any future auto_voice
-    alert for this room) stayed "open" after the call ended and the
-    kiosk's active-emergency poll would auto-launch a second session from
-    it with no new physical press - evidenced live, room 401."""
+    2026-09-06 (Level 1 directive, "decouple ResidentEvent lifetime from
+    Realtime session lifetime"): this used to ALSO mark the room's open
+    Alert(s) activation_consumed_at - i.e. treat every session end as "this
+    resident's help request has been serviced, don't relaunch." That's
+    wrong: release() fires for a connection that DIED (network drop, ICE
+    failure, a moved/failed-over audio endpoint, an in-flight auto-
+    reconnect) exactly as often as for one the resident genuinely ended -
+    useRealtimeVoice.js calls this same endpoint from both stop() and its
+    own connect-failure cleanup path, with no way for this endpoint to
+    know which happened. Consuming the activation here meant a resident
+    could get cut off by a dropped connection and then sit with an open,
+    unconsumed-looking event that nonetheless wouldn't auto-relaunch until
+    a brand new physical press arrived.
+
+    Consumption now happens ONLY where the reason is actually known: see
+    routes/alert_lifecycle_events.py::aria_event()'s "dismissed"/"timeout"
+    handling (a resident-caused conversational conclusion) and
+    routes/realtime_room_lease.py::staff_present() (staff physically
+    arrived). Every other session end - including this one, on its own -
+    leaves activation_consumed_at exactly as it was, so the SAME event
+    stays immediately relaunchable by a fresh connection, wherever/however
+    it reconnects, with no fresh physical press required."""
     session_id = payload.get("session_id")
     r = await db.resident_aria_leases.delete_one({"room": room, "session_id": session_id})
-    if r.deleted_count > 0:
-        await db.alerts.update_many(
-            {"room": room, "auto_voice": True, "activation_consumed_at": None},
-            {"$set": {"activation_consumed_at": now_utc().isoformat()}},
-        )
     return {"ok": r.deleted_count > 0}
 
 

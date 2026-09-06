@@ -33,9 +33,21 @@ class AriaEventInput(BaseModel):
 @router.post("/{alert_id}/aria-event")
 async def aria_event(alert_id: str, data: AriaEventInput):
     """Single code path for every Aria lifecycle transition on an open
-    event, instead of one endpoint per transition - see
-    routes/resident_activation.py's docstring for why activation_consumed_at
-    is untouched here (that's the kiosk-poll signal, not this)."""
+    event, instead of one endpoint per transition.
+
+    2026-09-06 (decouple ResidentEvent lifetime from Realtime session
+    lifetime): this is now the ONLY place a session end can mark
+    activation_consumed_at (besides staff_present()) - and only for
+    "dismissed"/"timeout", the two reasons that actually mean "this
+    resident-caused conversational cycle concluded, don't immediately
+    relaunch." routes/realtime_room_lease.py::release() no longer touches
+    it at all, because release() fires identically whether the resident
+    said goodbye or the connection just died - it has no way to tell
+    those apart, so it must not guess. Every other way a session can end
+    (network drop, ICE failure, a moved/failed-over endpoint, an
+    in-flight auto-reconnect, a plain component unmount) leaves
+    activation_consumed_at untouched, so the SAME event stays
+    immediately relaunchable without a fresh physical press."""
     existing = await db.alerts.find_one({"alert_id": alert_id}, {"_id": 0})
     if not existing:
         raise HTTPException(status_code=404, detail="Alert not found")
@@ -43,6 +55,8 @@ async def aria_event(alert_id: str, data: AriaEventInput):
     update: dict = {}
     if data.event in _ARIA_STATE_FOR_EVENT:
         update["aria_state"] = _ARIA_STATE_FOR_EVENT[data.event]
+        if data.event in ("dismissed", "timeout"):
+            update["activation_consumed_at"] = now_utc().isoformat()
     elif data.event == "silence_after_invite":
         update["silence_after_invite"] = True
     elif data.event == "requested_staff":

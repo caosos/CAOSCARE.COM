@@ -109,13 +109,41 @@ async def _run_reactivation_sequence():
             "resident_id": resident_id, "kiosk_id": kiosk_id, "trigger_source": "pendant", "session_id": session_id,
         }, timeout=5).json()
         assert activate["claimed"] is True
+
+        # 2026-09-06 (decouple ResidentEvent lifetime from Realtime session
+        # lifetime): a PLAIN lease release - no explicit dismissal/timeout
+        # posted first - simulates a connection that just DIED (network
+        # drop, ICE failure, a moved endpoint, an in-flight auto-reconnect).
+        # release() must NOT consume the activation on its own, since it
+        # has no way to tell "resident said goodbye" apart from "the
+        # connection died" - the event must stay immediately relaunchable.
         rel = requests.post(f"{API}/realtime/room/{room}/release", json={"session_id": session_id}, timeout=5).json()
         assert rel["ok"] is True
-        assert _active_emergency(kiosk_id)["alert"] is None, "consumed activation must not resurface on its own"
+        still_hot = _active_emergency(kiosk_id)["alert"]
+        assert still_hot and still_hot["alert_id"] == alert_a, "a session that just DIED must not suppress relaunch - no fresh press required"
 
-        # 7: CORRECTED behavior - a press AFTER the session ended, while the
-        # event is still open (status active, not resolved by staff),
-        # reactivates the SAME event rather than minting a new one.
+        # A different endpoint/session_id can immediately claim the same
+        # room and continue serving the same event - auto-recovery /
+        # moved-endpoint invariant, not gated on the prior session at all.
+        recovery_session = f"rt_recovered_{uuid.uuid4().hex[:8]}"
+        recover = requests.post(f"{API}/realtime/room/{room}/activate", json={
+            "resident_id": resident_id, "kiosk_id": kiosk_id, "trigger_source": "pendant", "session_id": recovery_session,
+        }, timeout=5).json()
+        assert recover["claimed"] is True, "a new endpoint must be able to take ownership after the old session died"
+
+        # NOW the resident actually says goodbye (or the 300s companion
+        # timeout fires) - this is the one thing that's allowed to
+        # consume the activation, via the explicit aria-event, not via
+        # releasing the lease.
+        aria_event_r = requests.post(f"{API}/alerts/{alert_a}/aria-event", json={"event": "dismissed"}, timeout=5)
+        aria_event_r.raise_for_status()
+        assert aria_event_r.json()["aria_state"] == "dismissed"
+        requests.post(f"{API}/realtime/room/{room}/release", json={"session_id": recovery_session}, timeout=5)
+        assert _active_emergency(kiosk_id)["alert"] is None, "an EXPLICIT dismissal must suppress relaunch until a new press"
+
+        # 7: a press AFTER a genuine dismissal, while the event is still
+        # open (status active, not resolved by staff), reactivates the
+        # SAME event rather than minting a new one.
         r6 = _press(kiosk_id, 6)
         assert r6["press_coalesced"] is True
         assert r6["alert_id"] == alert_a, "a repeat press on a still-open event must reuse the same alert_id"

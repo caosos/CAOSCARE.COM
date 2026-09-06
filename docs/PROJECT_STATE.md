@@ -2188,3 +2188,32 @@ Nothing code-side. The still-uncommitted Midea AC/climate work remains untouched
 
 ### Next safe step
 A real live voice session at the Room 214 kiosk (Michael speaking) would close the "not yet tested" gap above: verify the companion timeout doesn't fire early/late, the invite-silence flag sets correctly on a genuine pause, and `request_live_staff`'s routing question sounds natural and resolves correctly on a real spoken answer. Separately: deciding whether to bulk-resolve the stale test alert debris noted above is Michael's call, not something to do unprompted.
+
+---
+
+## 2026-09-06 — Decouple ResidentEvent lifetime from Realtime session lifetime (Michael's explicit follow-up directive). Real bug fixed: a dropped/dead connection used to silently suppress relaunch exactly like a genuine dismissal.
+
+### Agent / tool
+Claude Code, EliteDesk primary worktree. Branch `main`, on top of `9b73ffe`.
+
+### The bug this closes
+`routes/realtime_room_lease.py::release()` used to mark `Alert.activation_consumed_at` on EVERY session end for the room, unconditionally - treating "the lease was released" as synonymous with "this resident's help request has been serviced, don't relaunch." But `release()` fires identically whether the resident said goodbye OR the connection just died (network drop, ICE failure, a moved/failed-over audio endpoint, an in-flight auto-reconnect, `useRealtimeVoice.js`'s own connect-failure cleanup path) - it has no way to tell those apart, so it was guessing, and guessing wrong: a resident cut off by a dropped connection would sit with an open event that nonetheless wouldn't auto-relaunch until a brand new physical press arrived. Michael's directive: "A conversation may die, dismiss, move endpoints, or auto-recover without closing or consuming the resident's help event."
+
+### Fix
+- `routes/realtime_room_lease.py::release()` no longer touches `activation_consumed_at` at all - it now does exactly one thing, free the room's session slot.
+- `routes/alert_lifecycle_events.py::aria_event()` is now the ONLY place a session end can consume the activation (besides `staff_present()`, unchanged) - and only for the two events that actually mean "a resident-caused conversational cycle concluded": `dismissed` and `timeout`. Every other way a session ends (network drop, unmount, canceled connect, a moved endpoint, an auto-reconnect in progress) leaves `activation_consumed_at` exactly as it was, so the same event stays immediately relaunchable by a fresh connection from anywhere, with no fresh physical press required.
+- No frontend change was needed - `useRealtimeVoice.js`'s `stop(reason)` already only posts `dismissed`/`timeout` for the specific resident-caused reasons (`resident_end_call`/`resident_end_conversation`/`companion_timeout`); it was the backend conflating "any release" with "consumed" that was wrong.
+
+### What was verified
+`backend/tests/test_resident_events.py` extended and passing against the real running backend:
+- A plain lease release with no prior dismissal (simulating a dead connection) does NOT suppress the kiosk's active-emergency relaunch - `still_hot` assertion.
+- A different `session_id` can immediately claim the same room and continue serving the SAME event right after the prior one died - the auto-recovery/moved-endpoint invariant.
+- An EXPLICIT `dismissed` aria-event still correctly suppresses relaunch until a new press (the original 2026-08-30 defect this mechanism was built to prevent remains fixed).
+- A press after a genuine dismissal still reactivates the same event (unchanged, re-verified).
+Full backend (`test_resident_events.py`) and frontend (70/70) suites re-run clean.
+
+### What is blocked
+Nothing. This fix is complete and verified. Live-hardware/voice break-testing of the whole Level 1 surface (Michael's own follow-up ask, same message as this directive) is the next work in this session.
+
+### Next safe step
+Proceed to the live break-test pass against real Room 214 hardware and the real voice path.
