@@ -1986,10 +1986,12 @@ Do not restart Matter Server or send further commands to `climate.bedroom_midea_
 
 ---
 
-## 2026-09-06 — Real RF pendant pairing (Room 214, Helen Torres): bridge-liveness fix, RSSI/battery telemetry, frequency-tolerance matching, and a real cross-device match-threshold defect found + fixed via adversarial audit. NOT committed.
+## 2026-09-06 — Real RF pendant pairing (Room 214, Helen Torres): bridge-liveness fix, RSSI/battery telemetry, frequency-tolerance matching, and a real cross-device match-threshold defect found + fixed via adversarial audit. Committed and pushed.
 
 ### Agent / tool
-Claude Code, EliteDesk primary worktree. Local dev backend/frontend only (`.venv/bin/python -m uvicorn server:app --host 127.0.0.1 --port 8000`, `yarn start` on 3000). Branch `main`, on top of `4ef11d2` (uncommitted, same as the AC entry above - no commit made this session; nothing here has been asked to be committed yet).
+Claude Code, EliteDesk primary worktree. Local dev backend/frontend only (`.venv/bin/python -m uvicorn server:app --host 127.0.0.1 --port 8000`, `yarn start` on 3000). Branch `main`, on top of `4ef11d2`.
+
+**Committed as `d22b3d23ca8bb26f76e5a1a878f0e4fbf20617b9`, pushed to `origin/main` (verified local HEAD == origin/main).** The still-blocked AC/climate work (`backend/device_adapters.py`, `backend/routes/realtime_companion_prompt.py`, `backend/routes/realtime_device_tools.py`, `frontend/src/components/kiosk/RoomDevicePanel.jsx`, `frontend/src/lib/realtimeClimateControl.js`, `backend/tests/test_climate_control.py`, and the `hvac_mode`/`DeviceCapability` hunk of `backend/models.py`) was deliberately excluded hunk-by-hunk from this commit and remains uncommitted in the working tree, per the explicit "commit only after live AC acceptance succeeds" instruction on the entry above - two files (`backend/models.py`, `frontend/src/lib/realtimeDeviceTools.js`) genuinely mixed RF/light and climate changes in the same file, so the safe hunks were isolated and staged individually rather than committing either file whole.
 
 ### What was asked
 Pair a real Lifeline-brand PERS pendant into Room 214 for Helen Torres via the existing RF/`rtl_433` pipeline (`android-bridge/caos_rf_bridge.py` → `POST /rf/event` → `rf.py` fingerprint matching), separate from the Matter/AC work above. Once paired, Michael asked for Aria-equivalent RF diagnostics/control inside the admin panel, for RSSI + battery to be surfaced as real pairing data, and finally: **"yes lets finish. but i expect you to break it until we cant"** - explicit instruction to adversarially test everything built, not just confirm happy paths.
