@@ -2072,7 +2072,7 @@ Right after the RF/light disambiguation commit (`d22b3d2`) landed, Michael ident
 `frontend/src/lib/kioskDeviceControl.js` (new, 17 lines), `frontend/src/pages/Kiosk.jsx` (615 lines, already over cap - net +1 line, extracted the changed responsibility rather than growing it further), `frontend/src/lib/realtimeDeviceTools.js` (304 lines, crossed the 300 line over the course of this arc - real generic-safety code, not deferred per Michael's "300 is goal not hard rule if it's good code"), `frontend/src/lib/__tests__/kioskDeviceControl.test.js` (new, 66 lines), `frontend/src/lib/__tests__/toggleTvVolumeGuard.test.js` (updated, 74 lines).
 
 ### Committed as
-`_(recorded after commit below)_`
+`b0e3c3ee69cd9eddda1bb3071d56d2e68dfedbe4`, pushed to `origin/main`.
 
 ### What is blocked
 The still-uncommitted Midea AC/climate work remains untouched and uncommitted, same as every entry above - `realtimeDeviceTools.js`'s climate hunks were isolated out of this commit the same hunk-splitting way as the RF/light commit before it.
