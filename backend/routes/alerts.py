@@ -2,8 +2,9 @@
 from datetime import datetime, timezone
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, Query
-from models import Alert, AlertCreate, AlertClose, now_utc
+from models import AlertCreate, AlertClose, now_utc
 from deps import db, get_current_user
+from routes.resident_activation import record_resident_activation
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
 
@@ -50,22 +51,29 @@ async def create_alert(data: AlertCreate):
         if latest and latest.get("zone"):
             zone = latest["zone"]
 
-    alert = Alert(
-        kiosk_id=data.kiosk_id,
+    # Resident-scoped activation coalescing (2026-09-06 Level 1 directive):
+    # if this resident already has an open event from a DIFFERENT mapped
+    # source (e.g. an RF pendant), this kiosk-button press attaches to that
+    # SAME event rather than minting a second one - "at most one open
+    # event per resident," not per source. zone isn't part of the shared
+    # Alert schema's activation path, so it's patched in below when a
+    # fresh alert is actually created.
+    result = await record_resident_activation(
         resident_id=rid,
-        resident_name=resident_name,
         room=room,
-        zone=zone,
+        source="kiosk_button",
+        device_id=data.kiosk_id,
         severity=data.severity,
         message=data.message,
         triggered_by=data.triggered_by,
+        auto_voice=False,  # unchanged from prior behavior - the kiosk button starts its own session client-side immediately
+        kiosk_id=data.kiosk_id,
     )
-    doc = alert.model_dump()
-    doc["created_at"] = doc["created_at"].isoformat()
-    doc["acknowledged_at"] = None
-    doc["resolved_at"] = None
-    await db.alerts.insert_one(doc)
-    doc.pop("_id", None)
+    doc = result
+    if not result["coalesced"] and zone:
+        await db.alerts.update_one({"alert_id": doc["alert_id"]}, {"$set": {"zone": zone}})
+        doc["zone"] = zone
+    doc.pop("coalesced", None)
 
     # Fan out family notifications (best-effort — log failures instead of silently swallowing)
     try:
@@ -168,6 +176,31 @@ async def acknowledge(alert_id: str, user=Depends(get_current_user)):
     return doc
 
 
+async def _close_out(doc: dict) -> None:
+    """Pattern stats + receipt completion, shared by resolve()/close_alert()
+    - both are real "this event is over" endpoints (see routes/alerts.py's
+    module docstring history: resolve() has no visible UI button today,
+    but is still a valid completion path). Best-effort; never blocks the
+    staff-facing response on either of these."""
+    if doc.get("resident_id"):
+        try:
+            from routes.resident_patterns import update_pattern_stats
+            await update_pattern_stats(doc["resident_id"], doc)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"pattern stats update failed for {doc.get('alert_id')}: {e}")
+    if doc.get("receipt_id"):
+        try:
+            from routes.receipts import update_receipt_status
+            await update_receipt_status(
+                "alert", doc["alert_id"], "completed",
+                result=doc.get("outcome") or f"resolved, {doc.get('press_count', 1)} press(es)",
+            )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"receipt completion failed for {doc.get('alert_id')}: {e}")
+
+
 @router.post("/{alert_id}/resolve")
 async def resolve(alert_id: str, user=Depends(get_current_user)):
     now_dt = now_utc()
@@ -191,6 +224,7 @@ async def resolve(alert_id: str, user=Depends(get_current_user)):
     if r.matched_count == 0:
         raise HTTPException(status_code=404, detail="Alert not found")
     doc = await db.alerts.find_one({"alert_id": alert_id}, {"_id": 0})
+    await _close_out(doc)
     return doc
 
 
@@ -229,6 +263,7 @@ async def close_alert(alert_id: str, data: AlertClose, user=Depends(get_current_
     for k in ("created_at", "acknowledged_at", "resolved_at"):
         if doc.get(k) and not isinstance(doc[k], str):
             doc[k] = doc[k].isoformat()
+    await _close_out(doc)
 
     # Auto-classify the category + AI summary if not set by staff
     try:

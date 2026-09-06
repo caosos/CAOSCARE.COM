@@ -263,6 +263,23 @@ AlertCategory = Literal[
 ]
 
 
+# A single physical activation attached to a resident's open Alert/event -
+# see the "Level 1 resident-assistance event" work (2026-09-06). Kept as a
+# plain embedded list on Alert (not a separate collection) so the whole
+# event's press history reads/writes atomically with everything else about
+# it - one source of truth, matching how `presses[]` is described in the
+# original directive.
+class PressRecord(BaseModel):
+    at: datetime = Field(default_factory=now_utc)
+    device_id: Optional[str] = None
+    source: Optional[str] = None          # "rf_pendant" | "kiosk_button" | etc - mirrors Alert.triggered_by
+    rssi: Optional[float] = None
+
+
+AriaState = Literal["dormant", "active", "muted_staff", "dismissed"]
+LiveLineState = Literal["none", "offered", "ringing", "connected", "declined", "no_answer"]
+
+
 class Alert(BaseModel):
     model_config = ConfigDict(extra="ignore")
     alert_id: str = Field(default_factory=lambda: uid("alert"))
@@ -297,6 +314,19 @@ class Alert(BaseModel):
     # from a stale, already-handled alert.
     activation_consumed_at: Optional[datetime] = None
     source_metadata: Optional[dict] = None  # arbitrary trigger-specific payload (rf_device_id, rssi, etc.)
+    # ---- Level 1 resident-assistance event fields (2026-09-06) ----
+    # `activation_consumed_at` above still governs "does the kiosk need to
+    # launch/relaunch a session right now" (unchanged mechanism). These are
+    # the richer, resident/staff-facing lifecycle fields layered on top -
+    # see routes/resident_activation.py for the state transitions.
+    presses: List[PressRecord] = Field(default_factory=list)
+    aria_state: AriaState = "dormant"
+    live_line_state: LiveLineState = "none"
+    pattern_footnote: Optional[str] = None       # set once at event-open time, see resident_patterns.py
+    requested_staff: bool = False
+    silence_after_invite: bool = False
+    receipt_id: Optional[str] = None
+    event_log: List[dict] = Field(default_factory=list)  # {at, field, from, to} - aria/live-line transition history
     # ---- Event registry enrichment (auto-populated by AI classifier) ----
     category: Optional[AlertCategory] = None     # what kind of call (bathroom, fall, ...)
     ai_summary: Optional[str] = None             # 1-line Claude summary of the call
@@ -321,6 +351,26 @@ class AlertClose(BaseModel):
     outcome: str
     close_notes: Optional[str] = ""
     category: Optional[AlertCategory] = None
+
+
+# Simple, resident-specific historical notation (2026-09-06 directive) -
+# deliberately NOT a black-box risk score. `bucket` is a coarse hour-of-day
+# label ("00".."23") computed the same way insights.py already computes
+# time-of-day windows (filtered in Python, not Mongo, since dates are
+# stored as ISO strings). Updated only after an event closes
+# (routes/resident_patterns.py); a footnote is only ever generated once
+# `n_events >= ResidentAssistanceConfig.pattern_min_events` for that bucket.
+class ResidentButtonPattern(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    resident_id: str
+    bucket: str                                    # hour-of-day, "0".."23"
+    n_events: int = 0
+    typical_press_count_p50: Optional[float] = None
+    typical_press_count_p90: Optional[float] = None
+    typical_open_minutes_p50: Optional[float] = None
+    common_reason_tags: List[str] = Field(default_factory=list)
+    burst_user: bool = False                        # true if this resident/bucket often exceeds burst_press_threshold
+    last_updated: datetime = Field(default_factory=now_utc)
 
 
 # ---------- Location updates ----------
@@ -1296,6 +1346,24 @@ class EscalationRule(BaseModel):
     notify_supervisor_phone: Optional[str] = None
     notify_oncall_phone: Optional[str] = None
     enabled: bool = True
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+# Per-facility config for the Level 1 resident-assistance event model
+# (2026-09-06 directive). Same shape/precedent as EscalationRule above -
+# keyed by facility_id, GET falls back to defaults rather than 404ing (see
+# routes/resident_assistance_config.py) so the UI always has something to
+# render even before a facility has customized anything.
+class ResidentAssistanceConfig(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    facility_id: Optional[str] = None
+    aria_companion_timeout_sec: int = 300
+    invite_silence_sec: int = 8
+    burst_press_threshold: int = 3
+    pattern_min_events: int = 5
+    live_line_enabled: bool = True
+    live_line_ring_timeout_sec: int = 30
+    house_news_menu_stale_hours: int = 36
     updated_at: datetime = Field(default_factory=now_utc)
 
 

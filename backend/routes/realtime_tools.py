@@ -87,6 +87,21 @@ async def _build_tools() -> list[dict]:
         },
         {
             "type": "function",
+            "name": "request_live_staff",
+            "description": (
+                "Use ONLY when a help-button press already brought you into this "
+                "conversation (there is an open event) AND the resident now asks for "
+                "a nurse/staff/someone by name. Do NOT use this for a brand-new "
+                "symptom with no prior button press - use call_for_help for that "
+                "instead. Calling this may ask the resident one routing question "
+                "('someone in the room right now, or talk to me until they get "
+                "here?') - if so, wait for their next reply and call this again with "
+                "what they said. Never ask that question twice for the same request."
+            ),
+            "parameters": {"type": "object", "properties": {}, "additionalProperties": False}
+        },
+        {
+            "type": "function",
             "name": "get_current_time",
             "description": (
                 "Get the current local date, weekday, time, and part of day at the "

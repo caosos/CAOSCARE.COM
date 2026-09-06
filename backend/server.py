@@ -69,6 +69,9 @@ from routes import realtime_diagnostics as realtime_diagnostics_routes  # noqa: 
 from routes import resident_conversations as resident_conversations_routes  # noqa: E402
 from routes import admin_assistant as admin_assistant_routes  # noqa: E402
 from routes import events as event_routes  # noqa: E402
+from routes import alert_lifecycle_events as alert_lifecycle_routes  # noqa: E402
+from routes import resident_patterns as resident_patterns_routes  # noqa: E402
+from routes import resident_assistance_config as resident_assistance_config_routes  # noqa: E402
 from seed import demo_seed_enabled, seed  # noqa: E402
 
 
@@ -180,6 +183,9 @@ api.include_router(realtime_diagnostics_routes.router)
 api.include_router(resident_conversations_routes.router)
 api.include_router(admin_assistant_routes.router)
 api.include_router(event_routes.router)
+api.include_router(alert_lifecycle_routes.router)
+api.include_router(resident_patterns_routes.router)
+api.include_router(resident_assistance_config_routes.router)
 
 app.include_router(api)
 

@@ -21,6 +21,7 @@ export default function RealtimeChatScreen({
   onOpenVoicePicker,
   a11yRootClass,
   triggerSource,
+  alertId,
 }) {
   const { status, error, transcript, resting, micLabel, start, stop, audioElRef } = useRealtimeVoice({
     voice: voiceId,
@@ -29,6 +30,7 @@ export default function RealtimeChatScreen({
     room: kiosk?.room || resident?.room,
     onEndCall: onEnd,
     triggerSource,
+    alertId,
   });
   // Room already owned by another live session (server-side lease) — this
   // instance never touched the mic. Show it briefly, then return the kiosk

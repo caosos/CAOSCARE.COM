@@ -1,7 +1,6 @@
 """Kiosks + Zones CRUD."""
-from datetime import timedelta
 from fastapi import APIRouter, HTTPException, Depends
-from models import Kiosk, KioskCreate, KioskUpdate, Zone, ZoneCreate, now_utc
+from models import Kiosk, KioskCreate, KioskUpdate, Zone, ZoneCreate
 from deps import db, get_current_user
 
 router = APIRouter(tags=["kiosks"])
@@ -37,26 +36,26 @@ async def active_emergency_for_kiosk(kiosk_id: str):
     Returns the most-recent unresolved emergency alert with auto_voice=True that
     belongs to this kiosk's zone / room. If the kiosk is flagged is_central it
     listens for ANY facility-wide emergency.
-    Only alerts from the last 5 minutes are considered so the kiosk doesn't
-    re-trigger on stale records.
     """
     kiosk = await db.kiosks.find_one({"kiosk_id": kiosk_id}, {"_id": 0})
     if not kiosk:
         raise HTTPException(status_code=404, detail="Kiosk not found")
 
-    cutoff = (now_utc() - timedelta(minutes=5)).isoformat()
     q = {
         "auto_voice": True,
-        "status": "active",
-        # 2026-08-30 (real live defect, room 401): without this, the most
-        # recent status=active alert keeps surfacing here even after its
-        # own session already ran and closed - staff-facing `status` is
-        # deliberately untouched by session lifecycle (see
-        # Alert.activation_consumed_at in models.py), so this endpoint has
-        # to check activation state itself rather than assume "active"
-        # means "not yet given its one Aria session."
+        # `status` is deliberately untouched by session lifecycle (see
+        # Alert.activation_consumed_at in models.py) - "active" alone
+        # would keep resurfacing an alert whose own session already ran
+        # and ended (2026-08-30 defect, room 401), so activation state is
+        # checked separately. A 2026-09-06 fixed 5-minute created_at
+        # cutoff used to also gate this - removed, because a real Level 1
+        # resident event can legitimately stay open far longer than 5
+        # minutes and a later repeat press must still be able to
+        # reactivate Aria (routes/resident_activation.py resets
+        # activation_consumed_at to None on every coalesced press,
+        # regardless of the event's age).
+        "status": {"$in": ["active", "acknowledged"]},
         "activation_consumed_at": None,
-        "created_at": {"$gte": cutoff},
     }
     if not kiosk.get("is_central"):
         # Same zone OR same room

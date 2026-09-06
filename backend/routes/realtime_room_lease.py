@@ -134,3 +134,28 @@ async def lease_status(room: str):
     currently occupied by a live Resident Aria session."""
     doc = await db.resident_aria_leases.find_one({"room": room}, {"_id": 0})
     return {"lease": doc}
+
+
+@router.post("/{room}/staff-present")
+async def staff_present(room: str):
+    """Level 1 directive (2026-09-06): staff physically in the room
+    immediately mutes Aria and drops any live line - no hardware exists
+    yet to call this automatically (no RFID/badge/tablet-presence in this
+    deployment), so this is a real, callable hook with no UI trigger wired
+    to it yet, built ahead of that hardware decision rather than waiting
+    on it. Mirrors release()'s own alert-consumption + lease-drop shape."""
+    lease = await db.resident_aria_leases.find_one({"room": room}, {"_id": 0})
+    if lease:
+        await db.resident_aria_leases.delete_one({"room": room, "session_id": lease["session_id"]})
+    r = await db.alerts.update_many(
+        {"room": room, "status": {"$in": ["active", "acknowledged"]}},
+        {
+            "$set": {
+                "aria_state": "muted_staff",
+                "live_line_state": "none",
+                "activation_consumed_at": now_utc().isoformat(),
+            },
+            "$push": {"event_log": {"at": now_utc().isoformat(), "field": "aria_state", "to": "muted_staff"}},
+        },
+    )
+    return {"ok": True, "lease_dropped": bool(lease), "events_muted": r.modified_count}

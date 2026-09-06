@@ -29,7 +29,7 @@ from models import (
     RFDevice, RFCapture, RFFingerprint, RFListenStart, RFPair, RFEventIn,
     RFDeviceAssign, now_utc,
 )
-from routes.rf_activation import try_coalesce_press
+from routes.resident_activation import record_resident_activation
 from routes.rf_bridge_health import mark_bridge_polled
 from routes.rf_pairing_guard import hamming_similarity, find_pairing_conflict
 
@@ -47,7 +47,9 @@ FREQ_TOLERANCE_HZ = 50_000
 # coalescing (same press's own repeat frames) plus the deeper
 # incident-level activation gating (repeat presses during an ALREADY
 # ACTIVE session - real live defect, 2026-08-30, room 401) both live in
-# rf_activation.py now - see that module's docstring for the full history.
+# routes/resident_activation.py now (generalized 2026-09-06 from device-
+# scoped to resident-scoped, per the Level 1 directive - see that
+# module's docstring for the full history).
 
 
 def _iso(doc: dict) -> dict:
@@ -449,29 +451,27 @@ async def rf_event(
             {"rf_device_id": best["rf_device_id"]},
             {"$set": telemetry, "$inc": {"press_count": 1}},
         )
-        # Every RF press is persisted to db.rf_events unconditionally
-        # (below, after this block) regardless of which branch runs -
-        # evidence is never dropped, only ACTIVATION is deduped. See
-        # rf_activation.py for the open-incident decision itself.
-        coalesced = await try_coalesce_press(best["rf_device_id"], best_score, raw_event)
-        if coalesced is not None:
-            return coalesced
-        # Fire an alert mirroring the kiosk-button code path. Map our RF
-        # severities ("help" / "assist" / "emergency" / "comfort") to the
-        # tighter Alert.AlertSeverity Literal which has no "help" — we
-        # collapse "help" → "assist" so the alert is valid.
+        # Every RF press is persisted to db.rf_events unconditionally,
+        # below, regardless of whether it coalesces into an already-open
+        # resident event or opens a fresh one - evidence is never dropped,
+        # only ACTIVATION is deduped. Map our RF severities ("help" /
+        # "assist" / "emergency" / "comfort") to the tighter
+        # Alert.AlertSeverity Literal which has no "help" - collapse
+        # "help" -> "assist" so the alert is valid.
         sev_map = {"help": "assist", "assist": "assist", "emergency": "emergency", "comfort": "comfort"}
         alert_severity = sev_map.get(best.get("severity", "help"), "assist")
         try:
-            from models import Alert
-            alert = Alert(
-                kiosk_id=payload.kiosk_id,
+            result = await record_resident_activation(
                 resident_id=best.get("resident_id"),
                 room=best.get("room") or kiosk.get("room"),
+                source="rf_pendant",
+                device_id=best["rf_device_id"],
+                rssi=payload.fingerprint.rssi,
                 severity=alert_severity,
+                auto_voice=True,  # Michael, 2026-08-29: a pendant press must always reach Aria hands-free, matching pendants.py/wearables.py
                 message=f"RF pendant pressed: {best.get('label', 'unknown')}",
                 triggered_by="rf_pendant",
-                auto_voice=True,  # Michael, 2026-08-29: a pendant press must always reach Aria hands-free, matching pendants.py/wearables.py
+                kiosk_id=payload.kiosk_id,
                 source_metadata={
                     "rf_device_id": best["rf_device_id"],
                     "match_score": round(best_score, 4),
@@ -479,15 +479,13 @@ async def rf_event(
                     "rf_severity": best.get("severity", "help"),
                 },
             )
-            adoc = alert.model_dump()
-            adoc["created_at"] = adoc["created_at"].isoformat()
-            await db.alerts.insert_one(adoc)
-            adoc.pop("_id", None)
-            raw_event["alert_id"] = adoc["alert_id"]
+            raw_event["alert_id"] = result["alert_id"]
+            press_coalesced = result["coalesced"]
         except Exception as e:
-            # Best-effort. Log the cause so we know if alert creation breaks.
+            # Best-effort. Log the cause so we know if activation recording breaks.
             import logging
-            logging.getLogger(__name__).warning(f"RF alert creation failed: {e}")
+            logging.getLogger(__name__).warning(f"RF activation recording failed: {e}")
+            press_coalesced = False
 
     await db.rf_events.insert_one(raw_event)
     raw_event.pop("_id", None)
@@ -497,6 +495,7 @@ async def rf_event(
         "score": round(best_score, 4),
         "device_id": best["rf_device_id"] if matched else None,
         "alert_id": raw_event.get("alert_id"),
+        "press_coalesced": press_coalesced if matched else False,
     }
 
 

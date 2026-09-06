@@ -25,7 +25,7 @@ import { buildSessionUpdate } from "./realtimeSessionUpdate";
 
 export function useRealtimeVoice({
   voice = "shimmer", residentId, kioskId, room, onEndCall,
-  sessionEndpoint = "/realtime/session", sessionPayload, triggerSource,
+  sessionEndpoint = "/realtime/session", sessionPayload, triggerSource, alertId,
 } = {}) {
   const pcRef = useRef(null);
   const dcRef = useRef(null);
@@ -34,7 +34,7 @@ export function useRealtimeVoice({
   const leaseHeartbeatRef = useRef(null);   // interval id for the room-lease heartbeat, when room-scoped
   const leaseRoomRef = useRef(null);        // room this session actually claimed a lease for, if any
   const startGenRef = useRef(0);            // bumps on every stop() — invalidates in-flight starts
-  const ctxRef = useRef({ resident_id: residentId, kiosk_id: kioskId, room });
+  const ctxRef = useRef({ resident_id: residentId, kiosk_id: kioskId, room, alert_id: alertId });
   // true while Aria's audio is actually playing - driven by output_audio_buffer
   // events (real playback lifecycle), not response.done (generation-complete
   // only) - see realtimeMessageHandler.js.
@@ -48,6 +48,19 @@ export function useRealtimeVoice({
   const lifecycleCleanupRef = useRef(null);   // detaches attachLifecycleDiagnostics' listeners
   const endReasonLoggedRef = useRef(false);   // one termination reason per session, first cause wins
   const sessionIdRef = useRef(`rt_${Math.random().toString(36).slice(2, 10)}_${Date.now()}`);
+  // Level 1 resident-assistance event (2026-09-06): the open Alert this
+  // session belongs to, if any (kiosk passes it from its active-emergency
+  // poll's a.alert_id). Lets Aria's lifecycle transitions - activated,
+  // dismissed, timeout, silence-after-invite - be recorded on the SAME
+  // event repeat presses attach to (routes/resident_activation.py).
+  const companionTimeoutTimerRef = useRef(null);
+  const inviteSilenceTimerRef = useRef(null);
+  const firstSpeechHeardRef = useRef(false);
+  // Generic "ring if the resident says nothing before this fires" watch -
+  // used for the live-line routing question's own silence timeout
+  // (realtimeCareControl.js), separate from the once-per-session invite
+  // timer above since it can be (re)armed mid-conversation.
+  const awaitingAnswerTimerRef = useRef(null);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState(null);
   const [transcript, setTranscript] = useState([]);
@@ -56,8 +69,37 @@ export function useRealtimeVoice({
 
   // Keep tool-call context fresh if the parent passes new props mid-call
   useEffect(() => {
-    ctxRef.current = { ...ctxRef.current, resident_id: residentId, kiosk_id: kioskId, room };
-  }, [residentId, kioskId, room]);
+    ctxRef.current = { ...ctxRef.current, resident_id: residentId, kiosk_id: kioskId, room, alert_id: alertId };
+  }, [residentId, kioskId, room, alertId]);
+
+  // Best-effort - never blocks the session on a failed POST. `alert_id` is
+  // absent for non-alert-linked sessions (e.g. Michael's own operator
+  // Aria build via /aria-session), in which case this silently no-ops.
+  const postAriaEvent = useCallback((event, utterance) => {
+    const id = ctxRef.current?.alert_id;
+    if (!id) return;
+    fetch(`${API}/alerts/${encodeURIComponent(id)}/aria-event`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event, utterance: utterance || null }),
+    }).catch(() => {});
+  }, []);
+
+  const clearLifecycleTimers = () => {
+    if (companionTimeoutTimerRef.current) { clearTimeout(companionTimeoutTimerRef.current); companionTimeoutTimerRef.current = null; }
+    if (inviteSilenceTimerRef.current) { clearTimeout(inviteSilenceTimerRef.current); inviteSilenceTimerRef.current = null; }
+    if (awaitingAnswerTimerRef.current) { clearTimeout(awaitingAnswerTimerRef.current); awaitingAnswerTimerRef.current = null; }
+  };
+
+  // Passed down to realtimeMessageHandler.js so the live-line routing
+  // question (realtimeCareControl.js) can arm "ring if they don't answer."
+  // Cleared by ANY subsequent speech, not just the session's first.
+  const startAwaitingAnswerTimer = useCallback((seconds, onTimeout) => {
+    if (awaitingAnswerTimerRef.current) clearTimeout(awaitingAnswerTimerRef.current);
+    awaitingAnswerTimerRef.current = setTimeout(() => {
+      awaitingAnswerTimerRef.current = null;
+      onTimeout();
+    }, (seconds ?? 30) * 1000);
+  }, []);
 
   // 2026-08-23: every session now ends with a known reason, logged once
   // (first cause wins) - "unknown" only when the platform genuinely gives
@@ -78,8 +120,18 @@ export function useRealtimeVoice({
     }).catch(() => {});
   };
 
+  const REASON_TO_ARIA_EVENT = {
+    resident_end_call: "dismissed", resident_end_conversation: "dismissed",
+    companion_timeout: "timeout",
+  };
+
   const stop = useCallback((reason = "unspecified") => {
     if (pcRef.current || dcRef.current) logSessionEnded(reason);
+    // Level 1 (2026-09-06): only meaningful, resident-caused endings get
+    // recorded on the event - a component unmount, config error, or
+    // canceled in-flight start isn't a real "Aria dismissed herself" fact.
+    if (REASON_TO_ARIA_EVENT[reason]) postAriaEvent(REASON_TO_ARIA_EVENT[reason]);
+    clearLifecycleTimers();
     try { lifecycleCleanupRef.current?.(); } catch {}
     lifecycleCleanupRef.current = null;
     startGenRef.current += 1;               // cancel any pending start()
@@ -130,6 +182,7 @@ export function useRealtimeVoice({
             resident_id: residentId || null,
             kiosk_id: kioskId || null,
             room: room || null,
+            alert_id: alertId || null,
             session_id: sessionIdRef.current,
             trigger_source: triggerSource || "manual_kiosk",
           }
@@ -216,11 +269,19 @@ export function useRealtimeVoice({
       // handler) lives in realtimeMessageHandler.js - same code, just
       // parameterized over what it closes over, so this file stops
       // growing. dc.onopen (below) stays here since it's connection setup.
+      firstSpeechHeardRef.current = false;
       const { onMessage } = createRealtimeHandlers({
         myGen, startGenRef, sessionIdRef, ctxRef, caos, send, stop, onEndCall,
         turnSuspectRef, assistantSpeakingRef, restingRef,
         greetingCreateResponseOffRef,
         setStatus, setResting, setTranscript, setError,
+        startAwaitingAnswerTimer,
+        onFirstSpeechStarted: () => {
+          if (awaitingAnswerTimerRef.current) { clearTimeout(awaitingAnswerTimerRef.current); awaitingAnswerTimerRef.current = null; }
+          if (firstSpeechHeardRef.current) return;
+          firstSpeechHeardRef.current = true;
+          if (inviteSilenceTimerRef.current) { clearTimeout(inviteSilenceTimerRef.current); inviteSilenceTimerRef.current = null; }
+        },
       });
 
       dc.onopen = () => {
@@ -257,6 +318,26 @@ export function useRealtimeVoice({
         send(buildSessionUpdate({ caos, voice }));
         send({ type: "response.create" });
         setStatus("live");
+
+        // Level 1 resident-assistance event (2026-09-06): companion
+        // timeout (default 300s, community-configurable via
+        // ResidentAssistanceConfig, threaded through _caos.context by
+        // routes/realtime.py) forcibly ends a session that's run long
+        // without staff having resolved the underlying event - the event
+        // itself stays open, only Aria goes quiet. Invite-silence (default
+        // 8s) does NOT end the session - it just records that the resident
+        // didn't respond to the opening invite, per the directive ("do not
+        // interrogate, stay quietly companionable").
+        postAriaEvent("activated");
+        const timeoutMs = (ctxRef.current?.aria_companion_timeout_sec ?? 300) * 1000;
+        const inviteMs = (ctxRef.current?.invite_silence_sec ?? 8) * 1000;
+        companionTimeoutTimerRef.current = setTimeout(() => {
+          try { stop("companion_timeout"); } catch {}
+        }, timeoutMs);
+        inviteSilenceTimerRef.current = setTimeout(() => {
+          if (firstSpeechHeardRef.current) return;
+          postAriaEvent("silence_after_invite");
+        }, inviteMs);
       };
 
       dc.onmessage = onMessage;
@@ -323,7 +404,7 @@ export function useRealtimeVoice({
         setStatus("error");
       }
     }
-  }, [voice, residentId, kioskId, room, sessionEndpoint, sessionPayload, triggerSource, logSessionEnded]);
+  }, [voice, residentId, kioskId, room, alertId, sessionEndpoint, sessionPayload, triggerSource, logSessionEnded, postAriaEvent, startAwaitingAnswerTimer]);
 
   return { status, error, transcript, resting, micLabel, start, stop, audioElRef };
 }

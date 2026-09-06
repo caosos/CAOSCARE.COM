@@ -93,6 +93,16 @@ export default function StaffDashboard() {
     }
   };
 
+  const answerLiveLine = async (id) => {
+    try {
+      await api.post(`/alerts/${id}/live-line/answer`, { state: "connected" });
+      toast.success("Connected — live transcript below the resident's card");
+      fetchAll();
+    } catch {
+      toast.error("Could not connect");
+    }
+  };
+
   const generateMockLocations = async () => {
     try {
       const { data } = await api.post("/locations/mock/generate");
@@ -222,18 +232,50 @@ export default function StaffDashboard() {
                             </Badge>
                           )}
                           <span className="text-caos-mute text-sm">{timeAgo(a.created_at)}</span>
+                          {a.aria_state && a.aria_state !== "dormant" && (
+                            <Badge variant="outline" className="text-xs uppercase tracking-wider" data-testid={`aria-state-${a.alert_id}`}>
+                              Aria {a.aria_state.replace("_", " ")}
+                            </Badge>
+                          )}
                         </div>
                         <h3 className="font-display text-xl font-medium text-caos-forest mt-2">
                           {a.resident_name || "Unknown resident"}
                         </h3>
                         <p className="text-caos-mute text-sm mt-1">
                           Room {a.room || "?"} · {a.zone || "Location unknown"} · via {a.triggered_by.replace("_", " ")}
+                          {a.press_count > 1 && <span className="font-semibold text-caos-ink"> · {a.press_count} presses</span>}
                         </p>
+                        {a.presses?.length > 1 && (
+                          <p className="text-caos-mute text-xs mt-1" data-testid={`press-history-${a.alert_id}`}>
+                            {a.presses.map((p) => timeAgo(p.at)).join(" · ")}
+                          </p>
+                        )}
+                        {a.pattern_footnote && (
+                          <p className="text-caos-mute text-xs mt-1 italic">{a.pattern_footnote}</p>
+                        )}
+                        {a.silence_after_invite && (
+                          <p className="text-caos-amber text-xs mt-1 font-semibold uppercase tracking-wider">Still waiting — no response yet</p>
+                        )}
                         {a.message && (
                           <p className="text-caos-ink/70 mt-2 italic">"{a.message}"</p>
                         )}
                         {a.acknowledged_by && (
                           <p className="text-caos-mute text-xs mt-2">Acknowledged by {a.acknowledged_by}</p>
+                        )}
+                        {a.live_line_state === "ringing" && (
+                          <div className="mt-3 p-3 rounded-lg bg-caos-terracotta/10 border-2 border-caos-terracotta flex items-center justify-between gap-3" data-testid={`live-line-ringing-${a.alert_id}`}>
+                            <span className="text-caos-terracotta font-bold text-sm uppercase tracking-wider">Live line ringing</span>
+                            <Button
+                              onClick={(e) => { e.stopPropagation(); answerLiveLine(a.alert_id); }}
+                              data-testid={`answer-btn-${a.alert_id}`}
+                              className="bg-caos-terracotta hover:bg-caos-terracotta/90 text-white h-9"
+                            >
+                              Answer
+                            </Button>
+                          </div>
+                        )}
+                        {a.live_line_state === "connected" && (
+                          <p className="text-caos-moss text-xs mt-2 font-semibold uppercase tracking-wider">Live line connected</p>
                         )}
                       </div>
                       <div className="flex flex-col gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>

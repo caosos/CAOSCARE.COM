@@ -2079,3 +2079,110 @@ The still-uncommitted Midea AC/climate work remains untouched and uncommitted, s
 
 ### Next safe step
 A live voice re-test of `toggle_light`/`toggle_tv` against the real two-bulb Room 214 (Michael speaking to the kiosk) would close out item 8B above. After that: Admin Aria RF tools (still not started) remain the next open task from the entry above.
+
+---
+
+## 2026-09-06 — Midea AC diagnostic (read-only): first proven failure boundary is Matter Server's own CASE/session establishment, not network/mDNS/IP. No code or config changed.
+
+### Agent / tool
+Claude Code, EliteDesk primary worktree. Diagnose-only per Michael's explicit instruction ("STOP making broad VM, IPv6, NDP, libvirt, or Home Assistant network changes... DIAGNOSE ONLY"). No files modified; no VM/network/HA config touched.
+
+### Method
+Live, read-only evidence gathered via `virsh console` + `docker exec` into `app_core_matter_server`/`homeassistant`, plus host-side `avahi-browse`/`ping`, all performed while the AC was simultaneously confirmed reachable - not inferred from stale logs.
+
+### Findings (PASS/FAIL as specified)
+- **IP connectivity: PASS** - live ping to the AC's real IPv6 GUA (`2600:100b:a111:dfbb:56b8:74ff:fe9a:61f4`, MAC `54:b8:74:9a:61:f4`, identified by elimination against the two known TP-Link Tapo bulb hostnames) returned 0% loss, 5-19ms RTT, at the moment of testing.
+- **mDNS discovery: PASS** - `avahi-browse` showed the AC actively advertising both `_matter._tcp` (operational, under HA's own fabric `788de3b285084465`, node `7`) and `_matterc._udp`, live, right now. Root cause of *why* this crosses the VM's NAT boundary at all: the EliteDesk host itself already runs `avahi-daemon` with `enable-reflector=yes` across `wlp6s0,virbr0` - pre-existing infrastructure, not something set up this session, and identical for the AC and both working bulbs.
+- **Matter operational discovery: PASS** - the operational record is current and resolves to the live address above.
+- **Matter CASE/session: this is the failure boundary.** Matter Server's own logs showed zero attempts against this node in 15+ minutes (it *did* successfully resume a session with a working bulb in that same window). Triggering `homeassistant.update_entity` produced no matter-server log activity at all - the controller has stopped retrying this specific node entirely, despite it being demonstrably alive and mDNS-visible at that exact moment.
+- **Matter endpoint control:** not reached - session never establishes.
+- **Native Midea LAN discovery: NOT TESTED** - confirmed HA Core 2026.7.4 has no built-in Midea integration; only the already-paused HACS `midea_ac_lan` custom component exists, uninstalled.
+
+### Conclusion
+matter.js's own reconnection logic has given up on this node, not the network, mDNS, or IP layer - all three are proven fine, live, on the identical path the two working bulbs use. Likely safe next step (not performed, diagnose-only): HA's own "Reconfigure device" / re-interview action on the Matter integration's device page for this AC - a supported HA UI action, distinct from a full Matter Server restart (which was already tried twice in the 2026-09-05 entry above without success, and briefly interrupts the working bulbs' own sessions each time).
+
+### What was verified
+Live, real-time evidence (ping + avahi-browse + matter-server logs, all captured while the AC was confirmed on the network) - not stale-log inference.
+
+### What is blocked
+Nothing code-side. This entry is diagnostic record only.
+
+### Next safe step
+If Michael wants to proceed: try HA's own device-page "Reconfigure" action first (lower blast radius than a full Matter Server restart) the next time the AC is confirmed physically powered and connected to Wi-Fi.
+
+---
+
+## 2026-09-06 — CAOSCare Level 1: resident-assistance event model (ResidentEvent → extended Alert), Aria lifecycle, staff-presence mute hook, optional live staff line, simple pattern notation, receipts wiring.
+
+### Agent / tool
+Claude Code, EliteDesk primary worktree. Plan-mode used given the scope (touches alert creation, RF ingest, Aria's realtime session lifecycle, staff UI, and receipts simultaneously) - plan approved by Michael before implementation, including two explicit product decisions (below). Branch `main`, on top of `790f192`.
+
+### Core architecture decision - documented per the directive's own requirement
+**No new `resident_events` collection was created.** Inspection found `Alert` already implements most of `ResidentEvent` in substance - `press_count` + `activation_consumed_at` already encoded "one incident, repeat presses attach, don't spawn a new one," just scoped to one RF device (`routes/rf_activation.py::try_coalesce_press`) instead of the resident, which is exactly the directive's "IMPORTANT CORRECTION." `ResidentEvent` was implemented as new fields added to the existing `Alert` model/collection/routes:
+
+| Directive concept | Implementation |
+|---|---|
+| `id`, `resident_id`, `opened_at`, `closed_at`, `press_count` | existing `alert_id`, `resident_id`, `created_at`, `resolved_at`, `press_count` - reused as-is |
+| `close_reason` | reuses existing `category` + `outcome` - no new field |
+| `resident_utterance` | reuses existing `resident_stated_reason` - no new field |
+| `presses[]`, `aria_state`, `live_line_state`, `pattern_footnote`, `requested_staff`, `silence_after_invite`, `receipt_id`, `event_log[]` | new fields on `Alert` (`models.py`) |
+
+`routes/pendants.py` (a second, older, frequency-keyed pendant scaffold, already documented in the 2026-08-29 entry as "deliberately left untouched") remains untouched - out of scope, a pre-existing decision, not a new one made today.
+
+### The one real safety-relevant behavior change
+`try_coalesce_press`'s lookup required `activation_consumed_at: None` to find an "open incident" - meaning once one Aria session ended (dismissal or timeout sets that field), a LATER re-press on the still-unresolved event couldn't find it anymore and minted a wrong duplicate. Generalized into `routes/resident_activation.py::record_resident_activation()`: the "is there an open event" lookup is now `resident_id` match (falling back to `room` for a device not yet assigned to a resident) + `status in (active, acknowledged)` - i.e. "not yet resolved by staff," full stop. `activation_consumed_at` is reset to `None` on every coalesced press regardless of its prior value, which is what lets a repeat press reactivate Aria on an event that already had one full session. `routes/kiosks.py::active_emergency_for_kiosk`'s hard 5-minute `created_at` cutoff was removed to match - a real event can legitimately stay open far longer than 5 minutes, and the age filter would have silently dropped a genuine reactivation.
+
+### Two product decisions confirmed with Michael before implementation
+- **Live staff line = "Both"**: an urgent card on the already-open `StaffDashboard.jsx` (reusing its existing `alerts_feed` poll, no new fetch loop) fires immediately, *and* a best-effort Twilio voice call to `facility.on_call_phone` is attempted if `TWILIO_*` env vars are set - confirmed this deployment has none (`twilio` package isn't even installed), so this mirrors `routes/escalation.py::_try_sms`'s existing no-op-without-credentials shape exactly and is real but inert here, same tier as the existing SMS feature.
+- **Staff presence = hook only, no UI trigger yet**: no RFID/badge/tablet-presence hardware exists anywhere in this deployment. Built `POST /realtime/room/{room}/staff-present` as a real, callable, curl-tested endpoint (mutes Aria, force-drops the live line, force-releases the room's Aria lease) with no staff-facing button wired to it yet, per Michael's explicit call not to build a placeholder UI ahead of a real hardware decision.
+
+### Files
+- `backend/models.py` (1554 lines) - `PressRecord`, `AriaState`/`LiveLineState` literals, the new `Alert` fields above, `ResidentButtonPattern`, `ResidentAssistanceConfig`.
+- `backend/routes/resident_activation.py` (new, 162 lines) - `record_resident_activation()` (the generalized coalescing described above) and `try_call_on_call_phone()` (the Twilio best-effort helper). Supersedes and replaces `routes/rf_activation.py` (deleted - its one caller, `rf.py::rf_event()`, now calls this instead).
+- `backend/routes/rf.py` (530 lines) - `rf_event()` wired to the new module; unrelated fingerprint-matching logic untouched.
+- `backend/routes/alerts.py` (358 lines) - `create_alert()` (kiosk `CALL FOR HELP`) now calls the same coalescing function before minting a fresh `Alert` - this is the acceptance-test-16 fix, so a kiosk-button press and an RF-pendant press for the same resident attach to one event. `resolve()`/`close_alert()` both now call a shared `_close_out()` that updates pattern stats and completes the event's receipt.
+- `backend/routes/alert_lifecycle_events.py` (new, 120 lines) - split out of `alerts.py` (already at the line cap) rather than growing it further: `POST /alerts/{id}/aria-event` (single code path for activated/dismissed/timeout/silence_after_invite/requested_staff, instead of one endpoint per transition), `POST /alerts/{id}/live-line/ring`, `/answer` (staff-only), `/no-answer` (public - the resident's own kiosk session self-reports a ring timeout, since there's no staff login on that side).
+- `backend/routes/kiosks.py` (135 lines) - 5-minute cutoff removed as described above.
+- `backend/routes/realtime_room_lease.py` (161 lines) - new `POST /{room}/staff-present`.
+- `backend/routes/realtime.py` (339 lines) - `/session` now accepts + returns `alert_id` in `context`, and hands the resident-facing session its community-configured `aria_companion_timeout_sec`/`invite_silence_sec`/`live_line_ring_timeout_sec` (via a new `get_effective_config()` in `resident_assistance_config.py` - the real config route is admin-gated, so this threads the values through server-side rather than exposing a second public config endpoint).
+- `backend/routes/resident_assistance_config.py` (new, 43 lines) - `GET`/`PUT`, exact same facility-scoped, never-404-falls-back-to-defaults pattern as the existing `EscalationRule`/`routes/escalation.py`.
+- `backend/routes/resident_patterns.py` (new, 111 lines) - `update_pattern_stats()` (called after close), `footnote_for_resident_now()` (called at event-open time inside `record_resident_activation`), bucketed by hour-of-day using the same "pull + filter in Python, Mongo can't extract hour from a string date" precedent as `routes/insights.py`. Never produces a footnote below `pattern_min_events` (default 5) - "Not enough history" instead, and patterns are read-only decoration that cannot gate/suppress/delay an activation (verified by `test_pattern_minimum_history`, and by construction - nothing in the coalescing path reads pattern data).
+- `backend/server.py` (203 lines) - registers the three new routers.
+- `frontend/src/lib/useRealtimeVoice.js` (410 lines) - accepts `alertId`; posts `aria-event activated` on connect; two timers from community-configured defaults (300s companion timeout - forcibly ends the session, event stays open; 8s invite-silence - posts `silence_after_invite`, does NOT end the session); `stop(reason)` posts `dismissed`/`timeout` only for the specific resident-caused reasons (`resident_end_call`/`resident_end_conversation`/`companion_timeout`), never for a component unmount or config error; generic `startAwaitingAnswerTimer()` for the live-line routing question's own silence timeout.
+- `frontend/src/lib/realtimeMessageHandler.js` (331 lines) - `onFirstSpeechStarted` hook (clears both the invite timer and any live-line awaiting-answer timer on real speech); dispatches to the new `executeCareTool`; arms the awaiting-answer timer when `request_live_staff` asks its routing question.
+- `frontend/src/lib/realtimeCareControl.js` (new, 75 lines) - `request_live_staff` tool: same structural-grounding technique as `RESTING_PHRASES`/`ENDING_PHRASES` (the resident's own transcript, not the model's interpretation) decides immediate-ring vs. stay-companion vs. ask-once-then-default-to-ring-on-repeat-ambiguity.
+- `backend/routes/realtime_tools.py` / `realtime_companion_prompt.py` - `request_live_staff` tool schema + prompt disambiguation against the pre-existing `call_for_help` tool (which already had an overlapping "or directly asks for a nurse" clause - narrowed to genuinely new symptoms only, deferring an in-conversation nurse request to the new tool when an event is already open).
+- `frontend/src/pages/RealtimeChatScreen.jsx`, `Kiosk.jsx` - thread `alertId` (from the kiosk's own `alert` state, already set by both the active-emergency poll and the manual button path) down to the voice hook.
+- `frontend/src/pages/StaffDashboard.jsx` (389 lines) - press_count, per-press timestamp history, `pattern_footnote`, `aria_state` badge, `silence_after_invite` indicator, and a live-line "ringing" banner with an Answer action, all added to the existing alert `Card` (no new component/page).
+- `backend/tests/test_resident_events.py` (new, 298 lines) - supersedes and deletes `test_rf_activation_gating.py`, whose own assertions encoded the PRIOR (now intentionally reversed) behavior.
+- `frontend/src/lib/__tests__/liveLineRouting.test.js` (new, 86 lines); `toggleTvVolumeGuard.test.js` updated for `toggle_tv`'s new device-lookup step (unrelated to Level 1 - a byproduct of the earlier kiosk multi-light fix's TV generalization needing its list-fetch mocked).
+
+### What was verified - tiers, per the directive's own requirement
+**Automated, against the real running backend (not mocks) - `pytest tests/test_resident_events.py`, all passing in one process (Motor's single-event-loop constraint, same as the file it replaces):**
+- Acceptance 1, 4, 5: one press opens exactly one event; four more in the same window bring `press_count` to 5; every press is a real preserved record (`len(presses) == 5`), not just a counter.
+- Acceptance 7: a press AFTER the session ends (lease released) reactivates the SAME `alert_id` (not a new one) and correctly relaunches the kiosk's active-emergency poll; only an actual staff resolve() genuinely opens a new event on the next press.
+- Acceptance 16: a kiosk-button press and an RF-pendant press for the same resident attach to ONE event, with both sources visible in `presses[]`.
+- Acceptance 9: `POST /realtime/room/{room}/staff-present` immediately sets `aria_state=muted_staff`, drops the live line, and force-releases the room's lease.
+- Pattern minimum-history gate: zero history produces no footnote (not a fabricated one).
+- Full existing backend suite re-run: failures traced individually to pre-existing causes unrelated to this work (hardcoded demo credentials this environment doesn't have, the still-blocked Midea AC, and a pre-existing shared-event-loop fragility when 100+ legacy test files run together in one pytest process - each affected file passes 100% in isolation, confirmed for `test_light_control.py`, `test_climate_control.py`, `test_room_device_isolation.py`, `test_public_demo_kiosk.py`).
+
+**Automated, pure-function (frontend):**
+- Acceptance 11, 12, 13 (`liveLineRouting.test.js`, 13 tests): immediate phrases ring; companionable phrases don't; a second unclear turn for the same event rings rather than asking twice.
+- Full frontend suite (70/70) re-run clean - no regression to the RF/light/TV work committed earlier this session.
+
+**Live software (manual, real backend + real browser):**
+- Curl-verified `aria-event`/`live-line/ring`/`live-line/answer`/`live-line/no-answer` against a seeded real alert doc.
+- `StaffDashboard.jsx` visually confirmed rendering press_count/press-history/pattern_footnote/aria_state correctly against real, live alert data (Helen Torres's Room 214 pendant shows a real 43-press event, itself live proof the new coalescing has been holding one event together rather than fragmenting across this session's extensive RF testing) - no console errors.
+
+**Not yet tested (honest gap):**
+- A live voice session actually exercising the 300s/8s timers, the `request_live_staff` routing question end-to-end through real OpenAI Realtime audio, or a real Twilio call - none of these are reachable without Michael's own voice at the kiosk (timers/routing question) or real Twilio credentials (call). Acceptance 6, 8, 10 (dismissal/timeout/silence-after-invite) and the live-line acceptance tests are code-reviewed and unit-tested at the phrase-grounding/endpoint level but not exercised through a live spoken conversation this session.
+- Acceptance 17/18 (device_id preserved for lights) were NOT newly built here - already fully implemented and live-verified earlier this session (commit `b0e3c3e`); re-running the frontend suite as part of this regression pass is the only re-verification performed.
+
+### Observation (not caused by this work, flagging rather than acting on it)
+The staff dashboard currently shows 333 "active" alerts, mostly stale test/dev debris accumulated from this session's extensive real RF hardware testing under the OLD device-scoped coalescing (separate alert records for the same resident/pendant that never got resolved). Left untouched - bulk-modifying real alert records wasn't part of this task and wasn't asked for.
+
+### What is blocked
+Nothing code-side. The still-uncommitted Midea AC/climate work remains untouched, same as every entry above.
+
+### Next safe step
+A real live voice session at the Room 214 kiosk (Michael speaking) would close the "not yet tested" gap above: verify the companion timeout doesn't fire early/late, the invite-silence flag sets correctly on a genuine pause, and `request_live_staff`'s routing question sounds natural and resolves correctly on a real spoken answer. Separately: deciding whether to bulk-resolve the stale test alert debris noted above is Michael's call, not something to do unprompted.

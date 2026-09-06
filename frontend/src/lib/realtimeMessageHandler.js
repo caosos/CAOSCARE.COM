@@ -23,6 +23,7 @@ import { API } from "./api";
 import { executeOperationsTool } from "./realtimeOperationsTools";
 import { executeDeviceTool } from "./realtimeDeviceTools";
 import { executeDisplayTool } from "./realtimeDisplayTools";
+import { executeCareTool, ringLiveLineOnSilence } from "./realtimeCareControl";
 import { logRealtimeEvent, transcriptionConfidence, LOW_CONFIDENCE_THRESHOLD } from "./realtimeDiagnostics";
 import { reenableAutoResponse, createGreetingResponseGate } from "./realtimeAutoResponseGate";
 import { createTurnGroundingTracker } from "./realtimeTurnGrounding";
@@ -63,7 +64,7 @@ function classifyUserTurn({ overlapped, text, lastAssistantText, tinyStreak }) {
 async function executeTool({ name, args, ctx }) {
   try {
     const opsCtx = { room: ctx?.room, residentId: ctx?.resident_id, sessionId: ctx?.session_id, turnSuspect: ctx?.turn_suspect, turnSuspectReason: ctx?.turn_suspect_reason };
-    for (const dispatch of [() => executeOperationsTool({ name, args, ctx: opsCtx }), () => executeDeviceTool({ name, args, ctx }), () => executeDisplayTool({ name, args })]) {
+    for (const dispatch of [() => executeOperationsTool({ name, args, ctx: opsCtx }), () => executeDeviceTool({ name, args, ctx }), () => executeDisplayTool({ name, args }), () => executeCareTool({ name, args, ctx })]) {
       const result = await dispatch();
       if (result) return result;
     }
@@ -76,7 +77,8 @@ async function executeTool({ name, args, ctx }) {
 export function createRealtimeHandlers({
   myGen, startGenRef, sessionIdRef, ctxRef, caos, send, stop, onEndCall,
   turnSuspectRef, assistantSpeakingRef, restingRef, greetingCreateResponseOffRef,
-  setStatus, setResting, setTranscript, setError,
+  setStatus, setResting, setTranscript, setError, onFirstSpeechStarted,
+  startAwaitingAnswerTimer,
 }) {
   // Closure-local, not refs - createRealtimeHandlers runs once per
   // connection and these handlers persist for its lifetime, same as any
@@ -170,6 +172,16 @@ export function createRealtimeHandlers({
     } else {
       // Ask the model to speak its short confirmation, drawing on the tool result.
       send({ type: "response.create" });
+      // Level 1 live-line routing question (2026-09-06): the resident was
+      // just asked "someone in the room now, or talk to me?" - the
+      // directive treats silence/no answer as "now." Armed here rather
+      // than in realtimeCareControl.js since only this file has the
+      // speech-detection hook to clear it if they DO answer.
+      if (fn.name === "request_live_staff" && result.awaiting_answer && startAwaitingAnswerTimer) {
+        startAwaitingAnswerTimer(result.ring_timeout_sec, () => {
+          ringLiveLineOnSilence(ctxRef.current?.alert_id);
+        });
+      }
     }
   };
 
@@ -193,6 +205,11 @@ export function createRealtimeHandlers({
       turnSuspectRef.current = assistantSpeakingRef.current;
       lastSpeechStartedAt = Date.now();
       logRealtimeEvent(sessionIdRef.current, "speech_started", { assistantSpeaking: assistantSpeakingRef.current });
+      // Level 1 invite-silence timer (useRealtimeVoice.js) needs to know
+      // the FIRST time the resident actually speaks this session, to clear
+      // its "did they respond to the invite" window. Guarded by the
+      // caller (fires once, then no-ops) rather than here.
+      try { onFirstSpeechStarted?.(); } catch {}
     }
     if (msg.type === "input_audio_buffer.speech_stopped") {
       setStatus("live");

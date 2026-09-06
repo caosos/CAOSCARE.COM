@@ -570,6 +570,7 @@ export default function Kiosk() {
         voiceId={voiceId}
         a11yRootClass={a11yRootClass}
         triggerSource={triggerSourceRef.current}
+        alertId={alert?.alert_id}
         onOpenVoicePicker={() => setVoicePickerOpen(true)}
         onEnd={() => {
           setCallState("idle");

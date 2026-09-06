@@ -238,6 +238,11 @@ async def create_session(payload: dict = Body(default={})):
     facility = await get_active_facility()
     facility_label = (facility or {}).get("name") or FACILITY_LABEL
     facility_tz = (facility or {}).get("timezone") or FACILITY_TZ
+    # Level 1 resident-assistance event (2026-09-06): community-configured
+    # timeouts, handed to the resident-facing session here rather than via
+    # a public config endpoint (the real one is admin-gated).
+    from routes.resident_assistance_config import get_effective_config
+    assist_cfg = await get_effective_config((facility or {}).get("facility_id"))
     session_config = {
         "type": "realtime",
         "model": OPENAI_REALTIME_MODEL,
@@ -277,8 +282,12 @@ async def create_session(payload: dict = Body(default={})):
             "resident_id": payload.get("resident_id"),
             "kiosk_id": payload.get("kiosk_id"),
             "room": payload.get("room"),
+            "alert_id": payload.get("alert_id"),
             "facility_label": facility_label,
             "facility_tz": facility_tz,
+            "aria_companion_timeout_sec": assist_cfg.get("aria_companion_timeout_sec", 300),
+            "invite_silence_sec": assist_cfg.get("invite_silence_sec", 8),
+            "live_line_ring_timeout_sec": assist_cfg.get("live_line_ring_timeout_sec", 30),
         },
         "diagnostics": _prompt_diagnostics(instructions, "resident_kiosk_realtime"),
     }
