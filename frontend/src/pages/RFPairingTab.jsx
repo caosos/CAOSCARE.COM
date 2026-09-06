@@ -6,6 +6,7 @@ import { Input } from "../components/ui/input";
 import { Badge } from "../components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import ActiveBridgeKioskSelect from "../components/rf/ActiveBridgeKioskSelect";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Radio, Trash2, Activity, CheckCircle2, XCircle, Loader2, Plus, Download } from "lucide-react";
 import { toast } from "sonner";
@@ -94,6 +95,8 @@ export default function RFPairingTab() {
               <TableHead>Label</TableHead>
               <TableHead>Resident</TableHead>
               <TableHead>Frequency</TableHead>
+              <TableHead>Signal</TableHead>
+              <TableHead>Battery</TableHead>
               <TableHead>Severity</TableHead>
               <TableHead>Last seen</TableHead>
               <TableHead>Presses</TableHead>
@@ -102,10 +105,10 @@ export default function RFPairingTab() {
           </TableHeader>
           <TableBody>
             {loading && (
-              <TableRow><TableCell colSpan={7} className="text-center py-6 text-caos-mute">Loading…</TableCell></TableRow>
+              <TableRow><TableCell colSpan={9} className="text-center py-6 text-caos-mute">Loading…</TableCell></TableRow>
             )}
             {!loading && devices.length === 0 && (
-              <TableRow><TableCell colSpan={7} className="text-center py-8 text-caos-mute italic">No paired pendants yet. Tap "Add new pendant" to begin.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={9} className="text-center py-8 text-caos-mute italic">No paired pendants yet. Tap "Add new pendant" to begin.</TableCell></TableRow>
             )}
             {devices.map((d) => {
               const r = residents.find((x) => x.resident_id === d.resident_id);
@@ -114,6 +117,12 @@ export default function RFPairingTab() {
                   <TableCell className="font-semibold">{d.label}</TableCell>
                   <TableCell>{r ? `${r.name} · Rm ${r.room}` : <span className="text-caos-mute italic">Unassigned</span>}</TableCell>
                   <TableCell className="font-mono text-xs">{(d.fingerprint?.frequency_hz / 1_000_000).toFixed(3)} MHz</TableCell>
+                  <TableCell className="font-mono text-xs">{typeof d.last_rssi === "number" ? `${d.last_rssi.toFixed(1)} dB` : "—"}</TableCell>
+                  <TableCell>
+                    {d.low_battery
+                      ? <Badge className="bg-caos-terracotta text-white">Low</Badge>
+                      : <span className="text-caos-mute text-xs">OK</span>}
+                  </TableCell>
                   <TableCell><SeverityBadge sev={d.severity} /></TableCell>
                   <TableCell className="text-xs text-caos-mute">{d.last_seen_at ? new Date(d.last_seen_at).toLocaleString() : "—"}</TableCell>
                   <TableCell className="font-mono">{d.press_count || 0}</TableCell>
@@ -159,6 +168,12 @@ export default function RFPairingTab() {
               >
                 {e.matched_device_id ? <CheckCircle2 className="w-3.5 h-3.5 text-caos-forest" /> : <XCircle className="w-3.5 h-3.5 text-caos-amber" />}
                 <span className="font-mono text-xs">{(e.fingerprint?.frequency_hz / 1_000_000).toFixed(3)} MHz</span>
+                {typeof e.fingerprint?.rssi === "number" && (
+                  <>
+                    <span className="text-caos-mute text-xs">·</span>
+                    <span className="font-mono text-xs text-caos-mute">{e.fingerprint.rssi.toFixed(1)} dB</span>
+                  </>
+                )}
                 <span className="text-caos-mute text-xs">·</span>
                 <span className="text-xs">{e.matched_device_id ? `matched (score ${e.match_score})` : "unmatched"}</span>
                 <span className="text-caos-mute text-xs">·</span>
@@ -260,13 +275,7 @@ function AddPendantDialog({ open, onClose, residents, kiosks }) {
         </DialogHeader>
         {step === "idle" && (
           <div className="space-y-4 py-2">
-            <p className="text-caos-mute text-sm">Pick the kiosk that's nearest the pendant, then we'll listen for the button press.</p>
-            <Select value={kioskId} onValueChange={setKioskId}>
-              <SelectTrigger data-testid="rf-add-kiosk-select"><SelectValue placeholder="Choose a kiosk" /></SelectTrigger>
-              <SelectContent>
-                {kiosks.map((k) => <SelectItem key={k.kiosk_id} value={k.kiosk_id}>{k.name} · Rm {k.room}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <ActiveBridgeKioskSelect kiosks={kiosks} value={kioskId} onChange={setKioskId} resetKey={open} />
             <DialogFooter>
               <Button onClick={startListening} data-testid="rf-add-listen-btn" className="bg-caos-forest rounded-full">
                 <Radio className="w-4 h-4 mr-2" /> Start listening
@@ -288,6 +297,11 @@ function AddPendantDialog({ open, onClose, residents, kiosks }) {
               <p className="font-mono text-lg text-caos-forest mt-1">{(capture.captured.frequency_hz / 1_000_000).toFixed(3)} MHz</p>
               <p className="font-mono text-xs text-caos-mute mt-1">Pattern: {capture.captured.bit_pattern_hex.slice(0, 64)}{capture.captured.bit_pattern_hex.length > 64 ? "…" : ""}</p>
               <p className="font-mono text-xs text-caos-mute">RSSI: {capture.captured.rssi ?? "—"} · {capture.captured.bit_length} bits · {capture.captured.modulation}</p>
+              {capture.captured.decoded?.battery_ok != null && (
+                <p className="font-mono text-xs mt-1">
+                  Battery: {capture.captured.decoded.battery_ok ? <span className="text-caos-forest">OK</span> : <span className="text-caos-terracotta font-semibold">LOW</span>}
+                </p>
+              )}
             </Card>
             <Input
               placeholder="Label this pendant — e.g. Margaret's bedside"

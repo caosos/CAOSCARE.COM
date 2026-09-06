@@ -21,11 +21,11 @@ import { nearestColorName, colorTempLabel, handleToggleLight } from "./realtimeL
 // human terms (state="on", target_f=72) so this layer translates between
 // them. Mismatch = HTTP 422 = silent failure where CAOS promises an action
 // that never ran.
-async function postRoomCommand(room, action, value, kind, sessionId) {
+async function postRoomCommand(room, action, value, kind, sessionId, deviceId) {
   const r = await fetch(`${API}/devices/public/room/${encodeURIComponent(room)}/command`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action, value, kind, session_id: sessionId || null }),
+    body: JSON.stringify({ action, value, kind, session_id: sessionId || null, device_id: deviceId || null }),
   });
   return r;
 }

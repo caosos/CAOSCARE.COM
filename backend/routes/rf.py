@@ -30,12 +30,18 @@ from models import (
     RFDeviceAssign, now_utc,
 )
 from routes.rf_activation import try_coalesce_press
+from routes.rf_bridge_health import mark_bridge_polled
+from routes.rf_pairing_guard import hamming_similarity, find_pairing_conflict
 
 router = APIRouter(prefix="/rf", tags=["rf"])
 
 DEFAULT_BANDS_HZ = [315_000_000, 319_000_000, 433_920_000, 868_000_000, 915_000_000]
 DEFAULT_LISTEN_SECONDS = 10
 DEFAULT_TEST_SECONDS = 5
+# Live events and pairing-time conflict checks both need to consider two
+# devices "on the same frequency" - real rtl_433 measurements drift by a
+# few kHz per packet, so an exact match is too fragile (see rf_event()).
+FREQ_TOLERANCE_HZ = 50_000
 # One physical button press on a real Interlogix-Security pendant produces
 # ~8 RF frames within ~1-3s (live-evidenced 2026-08-29). Frame-level
 # coalescing (same press's own repeat frames) plus the deeper
@@ -51,27 +57,6 @@ def _iso(doc: dict) -> dict:
         if v and not isinstance(v, str):
             doc[k] = v.isoformat()
     return doc
-
-
-def _hamming_similarity(a_hex: str, b_hex: str) -> float:
-    """Fingerprint similarity. Both inputs are hex of the decoded bit
-    pattern. Returns 0..1 where 1.0 = identical. Mismatched length is
-    handled by aligning to the shorter of the two."""
-    if not a_hex or not b_hex:
-        return 0.0
-    try:
-        a = bytes.fromhex(a_hex.replace(" ", ""))
-        b = bytes.fromhex(b_hex.replace(" ", ""))
-    except ValueError:
-        return 0.0
-    n = min(len(a), len(b))
-    if n == 0:
-        return 0.0
-    bits = n * 8
-    diff = 0
-    for i in range(n):
-        diff += bin(a[i] ^ b[i]).count("1")
-    return 1.0 - (diff / bits)
 
 
 # ---------------- Pairing flow (admin) ----------------
@@ -168,14 +153,45 @@ async def pair(payload: RFPair, user=Depends(require_admin)):
         if r:
             room = r.get("room")
 
+    fingerprint = RFFingerprint(**cap["captured"])
+    battery_ok = (fingerprint.decoded or {}).get("battery_ok")
+
+    conflict = await find_pairing_conflict(fingerprint, payload.match_threshold, FREQ_TOLERANCE_HZ)
+    pairing_warning = None
+    if conflict and not payload.override:
+        raise HTTPException(
+            409,
+            detail={
+                "error": "similar_device_conflict",
+                "message": (
+                    f"This pendant reads {conflict['score']:.0%} similar to already-paired device "
+                    f"'{conflict['device'].get('label')}' ({conflict['device'].get('room') or 'no room'}) "
+                    f"on a nearby frequency - too close to the {payload.match_threshold:.2f} match "
+                    "threshold for real-world signal noise to safely tell them apart. Retry with "
+                    "override=true if you're certain these are different physical pendants."
+                ),
+                "conflicting_device_id": conflict["device"].get("rf_device_id"),
+                "score": conflict["score"],
+            },
+        )
+    if conflict:
+        pairing_warning = (
+            f"Paired despite {conflict['score']:.0%} similarity to "
+            f"{conflict['device'].get('rf_device_id')} (admin override)"
+        )
+
     device = RFDevice(
         label=payload.label,
         resident_id=payload.resident_id,
         room=room,
-        fingerprint=RFFingerprint(**cap["captured"]),
+        fingerprint=fingerprint,
         severity=payload.severity,
         match_threshold=payload.match_threshold,
         created_by=user.get("user_id") if isinstance(user, dict) else None,
+        last_seen_at=now_utc(),
+        last_rssi=fingerprint.rssi,
+        low_battery=(not bool(battery_ok)) if battery_ok is not None else False,
+        pairing_warning=pairing_warning,
     )
     doc = device.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
@@ -369,15 +385,32 @@ async def rf_event(
         {"kiosk_id": payload.kiosk_id}, {"$set": {"rf_seq": payload.sequence}},
     )
 
-    # Match
+    # Match. Frequency is a RANGE, not an exact value - real transmitters
+    # drift a few kHz between presses (temperature, battery voltage), and
+    # since enabling "-M level" on the bridge (2026-09-06, for real RSSI
+    # data) rtl_433 now reports that per-packet measured frequency instead
+    # of always falling back to the nominal tuned band. An exact match here
+    # would silently stop matching ANY real device the moment its measured
+    # frequency drifted even 1 Hz off its stored calibration value - proven
+    # live the same day this was added (a real press measured 319.509MHz
+    # against a device calibrated at 319.500MHz). Tolerance is generous
+    # enough for real OOK transmitter drift, tight enough that it can never
+    # bridge actual different bands (315/319.5/433.92/868/915MHz are each
+    # megahertz apart).
     candidates = await db.rf_devices.find(
-        {"enabled": True, "fingerprint.frequency_hz": payload.fingerprint.frequency_hz},
+        {
+            "enabled": True,
+            "fingerprint.frequency_hz": {
+                "$gte": payload.fingerprint.frequency_hz - FREQ_TOLERANCE_HZ,
+                "$lte": payload.fingerprint.frequency_hz + FREQ_TOLERANCE_HZ,
+            },
+        },
         {"_id": 0},
     ).to_list(500)
     best = None
     best_score = 0.0
     for c in candidates:
-        score = _hamming_similarity(
+        score = hamming_similarity(
             c["fingerprint"]["bit_pattern_hex"],
             payload.fingerprint.bit_pattern_hex,
         )
@@ -398,15 +431,23 @@ async def rf_event(
     }
 
     if matched:
+        telemetry = {
+            "last_seen_at": now_utc().isoformat(),
+            "last_rssi": payload.fingerprint.rssi,
+        }
+        # battery_ok is real decoder-provided evidence (Interlogix-Security
+        # and similar PERS protocols report it on every transmission) - was
+        # captured in every event's fingerprint.decoded already but never
+        # actually propagated onto the paired device record, so the admin
+        # pendant list could never show a real low-battery warning even
+        # though the data was right there (2026-09-06, real ask: "battery
+        # life and whatever else can be derived" as pairing/device data).
+        battery_ok = (payload.fingerprint.decoded or {}).get("battery_ok")
+        if battery_ok is not None:
+            telemetry["low_battery"] = not bool(battery_ok)
         await db.rf_devices.update_one(  # telemetry
             {"rf_device_id": best["rf_device_id"]},
-            {
-                "$set": {
-                    "last_seen_at": now_utc().isoformat(),
-                    "last_rssi": payload.fingerprint.rssi,
-                },
-                "$inc": {"press_count": 1},
-            },
+            {"$set": telemetry, "$inc": {"press_count": 1}},
         )
         # Every RF press is persisted to db.rf_events unconditionally
         # (below, after this block) regardless of which branch runs -
@@ -473,6 +514,7 @@ async def bridge_pending(kiosk_id: str):
     window it should run the SDR for. No auth required — but the bridge is
     expected to sign its responses (POST /listen/.../captured) with the
     kiosk's HMAC secret."""
+    await mark_bridge_polled(kiosk_id)
     cap = await db.rf_captures.find_one(
         {"kiosk_id": kiosk_id, "status": {"$in": ["pending", "listening"]}},
         {"_id": 0},

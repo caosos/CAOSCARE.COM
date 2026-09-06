@@ -327,7 +327,12 @@ def run_rtl433(bands_mhz: list[float], on_record):
     WATCHDOG_STALL_SECONDS, the SDR has hung — kill the process so the
     outer main() loop respawns it. This recovers from USB autosuspend
     automatically (the respawn re-opens the device, waking it up)."""
-    cmd = [RTL_433_BIN, "-F", "json", "-M", "utc"]
+    # "-M level" is what actually makes rtl_433 report per-record signal
+    # strength (rssi/snr/noise, dB) - without it every record's "rssi" key
+    # is simply absent, which is why pairing/events always showed rssi as
+    # null despite the fingerprint schema having a field for it
+    # (2026-09-06, real "I want signal strength as pairing data" request).
+    cmd = [RTL_433_BIN, "-F", "json", "-M", "utc", "-M", "level"]
     for b in bands_mhz:
         cmd += ["-f", f"{b:.3f}M"]
     print(f"[rf-bridge] spawning: {shlex.join(cmd)}", flush=True)

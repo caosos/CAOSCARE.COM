@@ -99,3 +99,52 @@ test("empty args (nothing to change) is rejected before any network call", async
   expect(r.ok).toBe(false);
   expect(global.fetch).not.toHaveBeenCalled();
 });
+
+// Two real lights in one room (Room 214's desk + overhead bulbs, both
+// kind="light") - proves disambiguation-by-name and exact device_id
+// targeting, not just "there happens to be one light" (2026-09-05, real
+// second-bulb work).
+const DESK = { device_id: "dev_desk", kind: "light", label: "Room 214 desk lamp", capabilities: ["power", "brightness", "color", "color_temp"], state: { power: "on" } };
+const OVERHEAD = { device_id: "dev_overhead", kind: "light", label: "Room 214 overhead light", capabilities: ["power", "brightness", "color", "color_temp"], state: { power: "on" } };
+
+function mockFetchMulti(lights) {
+  global.fetch = jest.fn(async (url) => {
+    if (String(url).includes("/devices/public/by-room/")) {
+      return { ok: true, json: async () => lights };
+    }
+    return { ok: true, json: async () => ({ ok: true }) };
+  });
+}
+
+test("'turn off the desk light' with two lights present targets the desk lamp by device_id", async () => {
+  mockFetchMulti([DESK, OVERHEAD]);
+  const r = await executeDeviceTool({
+    name: "toggle_light", args: { state: "off" }, ctx: ctx({ last_user_text: "turn off the desk light" }),
+  });
+  expect(r.ok).toBe(true);
+  expect(r.message).toContain("desk");
+  const posts = global.fetch.mock.calls.filter(([u]) => String(u).includes("/command"));
+  expect(posts).toHaveLength(1);
+  expect(JSON.parse(posts[0][1].body)).toMatchObject({ action: "power", device_id: "dev_desk" });
+});
+
+test("'make the overhead light green' targets the overhead bulb by device_id", async () => {
+  mockFetchMulti([DESK, OVERHEAD]);
+  const r = await executeDeviceTool({
+    name: "toggle_light", args: { color: "green" }, ctx: ctx({ last_user_text: "make the overhead light green" }),
+  });
+  expect(r.ok).toBe(true);
+  const posts = global.fetch.mock.calls.filter(([u]) => String(u).includes("/command"));
+  expect(posts.every(([, opts]) => JSON.parse(opts.body).device_id === "dev_overhead")).toBe(true);
+});
+
+test("'turn the light off' with two lights and no distinguishing word asks for clarification, sends nothing", async () => {
+  mockFetchMulti([DESK, OVERHEAD]);
+  const r = await executeDeviceTool({
+    name: "toggle_light", args: { state: "off" }, ctx: ctx({ last_user_text: "turn the light off" }),
+  });
+  expect(r.ok).toBe(false);
+  expect(r.message.toLowerCase()).toContain("more than one light");
+  const posts = global.fetch.mock.calls.filter(([u]) => String(u).includes("/command"));
+  expect(posts).toHaveLength(0);
+});

@@ -174,22 +174,38 @@ async def public_room_command(room: str, request: Request, cmd: DeviceCommandInp
     if not devices:
         raise HTTPException(status_code=404, detail=f"No devices in room {room}")
 
-    # Pick the matching device by capability, disambiguated by kind when
-    # given (a room commonly has >1 device sharing a capability, e.g. both
-    # thermostat and TV expose "power" - matching on capability alone would
-    # pick whichever device happens to sort first, silently acting on the
-    # wrong one).
-    candidates = [d for d in devices if cmd.action in (d.get("capabilities") or [])]
-    if cmd.kind:
-        target = next((d for d in candidates if d.get("kind") == cmd.kind), None)
+    if cmd.device_id:
+        # Exact target, already disambiguated by the calling tool (e.g.
+        # which of Room 214's two same-kind lights the resident named) -
+        # the room-scope check above already proves this id belongs here,
+        # so no further capability/kind guessing is needed or wanted.
+        target = next((d for d in devices if d["device_id"] == cmd.device_id), None)
+        if not target:
+            raise HTTPException(status_code=404, detail=f"Device {cmd.device_id} not found in room {room}")
     else:
+        # Pick the matching device by capability, disambiguated by kind when
+        # given (a room commonly has >1 device sharing a capability, e.g. both
+        # thermostat and TV expose "power" - matching on capability alone would
+        # pick whichever device happens to sort first, silently acting on the
+        # wrong one). Offline devices are excluded - a retired mock scaffold
+        # (see 2026-09-05 real Midea AC work) must not keep intercepting voice
+        # commands meant for its real replacement.
+        candidates = [d for d in devices if cmd.action in (d.get("capabilities") or []) and d.get("online", True)]
+        if cmd.kind:
+            candidates = [d for d in candidates if d.get("kind") == cmd.kind]
         target = candidates[0] if len(candidates) == 1 else None
-    if not target:
-        detail = (
-            f"No {cmd.kind} device in room {room} supports {cmd.action}" if cmd.kind
-            else f"{'No' if not candidates else 'More than one'} device in room {room} supports {cmd.action} - pass `kind` to disambiguate"
-        )
-        raise HTTPException(status_code=400, detail=detail)
+        if not target:
+            # `kind` narrows but does NOT guarantee uniqueness - a room can
+            # hold more than one device of the same kind (e.g. Room 214's
+            # desk + overhead lights, both kind="light") - `next()` used to
+            # silently pick whichever sorted first here instead of actually
+            # detecting this case (2026-09-05, real second-bulb work).
+            detail = (
+                f"More than one {cmd.kind} device in room {room} supports {cmd.action} - pass `device_id` to disambiguate" if cmd.kind and candidates
+                else f"No {cmd.kind} device in room {room} supports {cmd.action}" if cmd.kind
+                else f"{'No' if not candidates else 'More than one'} device in room {room} supports {cmd.action} - pass `kind` to disambiguate"
+            )
+            raise HTTPException(status_code=400, detail=detail)
 
     # Same receipt/event telemetry admin_assistant_device_executor.py
     # already writes for staff-issued device commands - this is the

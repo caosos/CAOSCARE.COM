@@ -638,10 +638,19 @@ class DeviceCommandInput(BaseModel):
     `session_id` (optional) ties this command to the resident's active
     Realtime voice session, purely for the receipt/audit trail - never
     read by any adapter or execution logic.
+
+    `device_id` (optional) targets one exact device directly, bypassing
+    capability/kind matching entirely - needed once a room can hold more
+    than one device of the SAME kind (e.g. Room 214's desk + overhead
+    lights, both kind="light") where `kind` alone can no longer
+    disambiguate. The room-scoped route still verifies this device
+    actually belongs to the room in the URL, so a client can never reach
+    into another room by guessing an id.
     """
     action: DeviceCapability
     value: Optional[str | int | float | List[int]] = None
     kind: Optional[DeviceKind] = None
+    device_id: Optional[str] = None
     session_id: Optional[str] = None
 
 
@@ -1123,12 +1132,13 @@ class RFDevice(BaseModel):
     room: Optional[str] = None
     fingerprint: RFFingerprint
     severity: Literal["help", "assist", "emergency", "comfort"] = "help"
-    match_threshold: float = 0.85                         # min similarity 0..1
+    match_threshold: float = 0.90                         # min similarity 0..1
     enabled: bool = True
     last_seen_at: Optional[datetime] = None
     last_rssi: Optional[float] = None
     press_count: int = 0
     low_battery: bool = False
+    pairing_warning: Optional[str] = None                 # set if paired despite a similarity conflict override
     created_at: datetime = Field(default_factory=now_utc)
     created_by: Optional[str] = None
 
@@ -1159,7 +1169,8 @@ class RFPair(BaseModel):
     label: str
     resident_id: Optional[str] = None
     severity: Literal["help", "assist", "emergency", "comfort"] = "help"
-    match_threshold: float = 0.85
+    match_threshold: float = 0.90
+    override: bool = False                                # force-pair despite a similarity conflict with an existing enabled device
 
 
 # Reassign an already-paired RFDevice to a different resident (or unassign

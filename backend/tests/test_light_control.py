@@ -30,6 +30,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 REAL_ROOM = "214"
 REAL_LIGHT_ID = "dev_f8be14de18e3"
+REAL_OVERHEAD_LIGHT_ID = "dev_facc6dbc7e13"
 MOCK_ROOM = "318"
 
 
@@ -50,9 +51,11 @@ def _skip_if_real_light_not_configured():
     return light
 
 
-def _command(room, action, value, kind="light"):
-    return requests.post(f"{API}/devices/public/room/{room}/command",
-                          json={"action": action, "value": value, "kind": kind}, timeout=15)
+def _command(room, action, value, kind="light", device_id=None):
+    body = {"action": action, "value": value, "kind": kind}
+    if device_id:
+        body["device_id"] = device_id
+    return requests.post(f"{API}/devices/public/room/{room}/command", json=body, timeout=15)
 
 
 class TestRealBulbCapabilities:
@@ -62,21 +65,21 @@ class TestRealBulbCapabilities:
     def test_power_on_then_off_verified_against_real_hardware(self):
         _skip_if_unreachable()
         _skip_if_real_light_not_configured()
-        r_on = _command(REAL_ROOM, "power", "on")
+        r_on = _command(REAL_ROOM, "power", "on", device_id=REAL_LIGHT_ID)
         assert r_on.status_code == 200, r_on.text
         body = r_on.json()
         assert body["verified"] is True
         assert body["state"]["power"] == "on"
 
-        r_off = _command(REAL_ROOM, "power", "off")
+        r_off = _command(REAL_ROOM, "power", "off", device_id=REAL_LIGHT_ID)
         assert r_off.status_code == 200, r_off.text
         assert r_off.json()["state"]["power"] == "off"
 
     def test_brightness_verified_against_real_hardware(self):
         _skip_if_unreachable()
         _skip_if_real_light_not_configured()
-        _command(REAL_ROOM, "power", "on")
-        r = _command(REAL_ROOM, "brightness", 50)
+        _command(REAL_ROOM, "power", "on", device_id=REAL_LIGHT_ID)
+        r = _command(REAL_ROOM, "brightness", 50, device_id=REAL_LIGHT_ID)
         assert r.status_code == 200, r.text
         body = r.json()
         assert body["verified"] is True
@@ -85,8 +88,8 @@ class TestRealBulbCapabilities:
     def test_color_verified_against_real_hardware(self):
         _skip_if_unreachable()
         _skip_if_real_light_not_configured()
-        _command(REAL_ROOM, "power", "on")
-        r = _command(REAL_ROOM, "color", [0, 80, 255])  # blue
+        _command(REAL_ROOM, "power", "on", device_id=REAL_LIGHT_ID)
+        r = _command(REAL_ROOM, "color", [0, 80, 255], device_id=REAL_LIGHT_ID)  # blue
         assert r.status_code == 200, r.text
         body = r.json()
         assert body["verified"] is True
@@ -97,8 +100,8 @@ class TestRealBulbCapabilities:
     def test_color_temp_verified_against_real_hardware(self):
         _skip_if_unreachable()
         _skip_if_real_light_not_configured()
-        _command(REAL_ROOM, "power", "on")
-        r = _command(REAL_ROOM, "color_temp", 2700)  # warm
+        _command(REAL_ROOM, "power", "on", device_id=REAL_LIGHT_ID)
+        r = _command(REAL_ROOM, "color_temp", 2700, device_id=REAL_LIGHT_ID)  # warm
         assert r.status_code == 200, r.text
         body = r.json()
         assert body["verified"] is True
@@ -183,6 +186,34 @@ class TestRoomIsolationAndSelection:
         kinds = {d["kind"] for d in devices.json()}
         if "thermostat" not in kinds:
             pytest.skip("Room 214 doesn't have a thermostat to disambiguate against")
-        r = _command(REAL_ROOM, "power", "on", kind="light")
+        # Room 214 now has TWO lights (desk + overhead) - device_id targets
+        # the desk lamp exactly, bypassing kind-based ambiguity entirely.
+        r = _command(REAL_ROOM, "power", "on", device_id=REAL_LIGHT_ID)
         assert r.status_code == 200, r.text
         assert r.json()["device_id"] == REAL_LIGHT_ID
+
+    def test_two_same_kind_lights_require_device_id_not_guessed(self):
+        """Room 214 has two real lights sharing kind='light' - a plain
+        kind='light' command must now be rejected as ambiguous rather than
+        silently picking whichever sorts first (2026-09-05, second bulb)."""
+        _skip_if_unreachable()
+        devices = requests.get(f"{API}/devices/public/by-room/{REAL_ROOM}", timeout=10)
+        if devices.status_code != 200:
+            pytest.skip("Room 214 not seeded")
+        lights = [d for d in devices.json() if d["kind"] == "light" and d.get("online", True)]
+        if len(lights) < 2:
+            pytest.skip("Room 214 doesn't have two active lights yet")
+        r = _command(REAL_ROOM, "power", "on", kind="light")
+        assert r.status_code == 400, "an ambiguous same-kind command across two lights must be rejected, not guessed"
+
+    def test_device_id_targets_the_correct_light_among_two(self):
+        _skip_if_unreachable()
+        devices = requests.get(f"{API}/devices/public/by-room/{REAL_ROOM}", timeout=10)
+        if devices.status_code != 200:
+            pytest.skip("Room 214 not seeded")
+        overhead = next((d for d in devices.json() if d["device_id"] == REAL_OVERHEAD_LIGHT_ID), None)
+        if not overhead:
+            pytest.skip("Room 214's overhead light not seeded")
+        r = _command(REAL_ROOM, "power", "on", device_id=REAL_OVERHEAD_LIGHT_ID)
+        assert r.status_code == 200, r.text
+        assert r.json()["device_id"] == REAL_OVERHEAD_LIGHT_ID

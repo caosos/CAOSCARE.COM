@@ -55,6 +55,7 @@ from routes import audit as audit_routes  # noqa: E402
 from routes import realtime as realtime_routes  # noqa: E402
 from routes import realtime_room_lease as realtime_room_lease_routes  # noqa: E402
 from routes import rf as rf_routes  # noqa: E402
+from routes import rf_bridge_health as rf_bridge_health_routes  # noqa: E402
 from routes import facilities as facilities_routes  # noqa: E402
 from routes import hardware as hardware_routes  # noqa: E402
 from routes import escalation as escalation_routes  # noqa: E402
@@ -165,6 +166,7 @@ api.include_router(audit_routes.router)
 api.include_router(realtime_routes.router)
 api.include_router(realtime_room_lease_routes.router)
 api.include_router(rf_routes.router)
+api.include_router(rf_bridge_health_routes.router)
 api.include_router(facilities_routes.router)
 api.include_router(hardware_routes.router)
 api.include_router(escalation_routes.router)
