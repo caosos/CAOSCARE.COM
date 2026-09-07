@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { roleHomePath } from "../lib/roleHome";
 
 export default function AuthCallback() {
   const nav = useNavigate();
@@ -28,7 +29,7 @@ export default function AuthCallback() {
         const user = await fetchMe();
         // clear hash
         window.history.replaceState({}, document.title, window.location.pathname);
-        nav(["owner", "admin"].includes(user?.role) ? "/admin" : "/staff", { state: { user } });
+        nav(roleHomePath(user), { state: { user } });
       } catch (e) {
         setErr("Authentication failed. Please try again.");
         setTimeout(() => nav("/login"), 1500);

@@ -17,6 +17,7 @@ import AuthCallback from "./pages/AuthCallback";
 import FamilyPortal from "./pages/FamilyPortal";
 import AriaVoice from "./pages/AriaVoice";
 import FrontDeskDashboard from "./pages/FrontDeskDashboard";
+import DepartmentWorkspace from "./pages/DepartmentWorkspace";
 
 function LocalBypassBanner() {
   const { localBypassActive } = useAuth();
@@ -73,6 +74,7 @@ function AppRouter() {
       <Route path="/kiosk/:kioskId" element={<Kiosk />} />
       <Route path="/family/:token" element={<FamilyPortal />} />
       <Route path="/staff" element={<Protected><StaffDashboard /></Protected>} />
+      <Route path="/workspace" element={<Protected><DepartmentWorkspace /></Protected>} />
       <Route path="/front-desk" element={<Protected frontDeskOnly><FrontDeskDashboard /></Protected>} />
       <Route path="/admin" element={<Protected adminOnly><Admin /></Protected>} />
       <Route path="/admin/blueprint" element={<Protected ownerOnly><Blueprint /></Protected>} />

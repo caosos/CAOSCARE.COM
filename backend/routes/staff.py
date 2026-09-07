@@ -1,16 +1,50 @@
 """Staff users CRUD (admin only)."""
+from typing import Optional, Literal
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel, Field
-from models import RegisterInput, User, UserPublic
+from pydantic import BaseModel, Field, EmailStr
+from models import User, UserPublic
 from deps import db, require_admin
+from routes.departments import department_slug_exists
 import bcrypt
 
 
 router = APIRouter(prefix="/staff", tags=["staff"])
 
+Role = Literal["owner", "admin", "staff", "front_desk"]
+
 
 def _hash_pw(pw: str) -> str:
     return bcrypt.hashpw(pw.encode(), bcrypt.gensalt()).decode()
+
+
+async def _normalize_department(value: Optional[str]) -> Optional[str]:
+    """Empty / whitespace clears the department (returns None); anything
+    else must match a real Department.slug (routes/departments.py) so
+    User.department can never hold a routing target that doesn't exist."""
+    if value is None:
+        return None
+    slug = value.strip()
+    if not slug:
+        return None
+    if not await department_slug_exists(slug):
+        raise HTTPException(status_code=400, detail=f"Unknown department: {slug}")
+    return slug
+
+
+class StaffCreateInput(BaseModel):
+    email: EmailStr
+    name: str
+    password: str = Field(min_length=6)
+    role: Role = "staff"
+    department: Optional[str] = None   # Department.slug, or omitted/blank for none
+
+
+class StaffUpdateInput(BaseModel):
+    """Every field optional - a partial edit. `department=""` explicitly
+    clears it; omitting the key leaves it untouched."""
+    name: Optional[str] = None
+    role: Optional[Role] = None
+    department: Optional[str] = None
 
 
 @router.get("")
@@ -20,14 +54,16 @@ async def list_staff(user=Depends(require_admin)):
 
 
 @router.post("")
-async def create_staff(data: RegisterInput, user=Depends(require_admin)):
+async def create_staff(data: StaffCreateInput, user=Depends(require_admin)):
     existing = await db.users.find_one({"email": data.email.lower()}, {"_id": 0})
     if existing:
         raise HTTPException(status_code=400, detail="Email already exists")
+    department = await _normalize_department(data.department)
     staff = User(
         email=data.email.lower(),
         name=data.name,
         role=data.role,
+        department=department,
         auth_provider="jwt",
         password_hash=_hash_pw(data.password),
     )
@@ -35,6 +71,34 @@ async def create_staff(data: RegisterInput, user=Depends(require_admin)):
     doc["created_at"] = doc["created_at"].isoformat()
     await db.users.insert_one(doc)
     return UserPublic(**staff.model_dump()).model_dump()
+
+
+@router.patch("/{user_id}")
+async def update_staff(user_id: str, data: StaffUpdateInput, user=Depends(require_admin)):
+    """Edit a staff member - name, role, and department assignment. Used by
+    the Admin staff list's Edit action. `department` is validated against
+    the real Department list; `""` clears it."""
+    target = await db.users.find_one({"user_id": user_id}, {"_id": 0})
+    if not target:
+        raise HTTPException(status_code=404, detail="Staff not found")
+
+    patch: dict = {}
+    if data.name is not None:
+        name = data.name.strip()
+        if not name:
+            raise HTTPException(status_code=400, detail="Name cannot be blank")
+        patch["name"] = name
+    if data.role is not None:
+        if user.get("user_id") == user_id and data.role not in ("owner", "admin"):
+            raise HTTPException(status_code=400, detail="You cannot remove your own admin access")
+        patch["role"] = data.role
+    if data.department is not None:
+        patch["department"] = await _normalize_department(data.department)
+
+    if patch:
+        await db.users.update_one({"user_id": user_id}, {"$set": patch})
+    updated = await db.users.find_one({"user_id": user_id}, {"_id": 0, "password_hash": 0})
+    return updated
 
 
 @router.delete("/{user_id}")

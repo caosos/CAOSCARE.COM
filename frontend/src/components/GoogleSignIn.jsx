@@ -58,7 +58,7 @@ export default function GoogleSignIn({ portal = "staff" }) {
           localStorage.setItem("caos_token", data.token);
           setUser(data.user);
           toast.success(`Welcome, ${data.user.name}`);
-          nav(location.state?.from?.pathname || roleHomePath(data.user.role));
+          nav(location.state?.from?.pathname || roleHomePath(data.user));
         } catch (err) {
           toast.error(err?.response?.data?.detail || "Google sign-in failed");
         }

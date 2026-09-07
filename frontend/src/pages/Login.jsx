@@ -24,7 +24,7 @@ export default function Login() {
   // being shown a sign-in form again.
   useEffect(() => {
     if (authLoading || !user) return;
-    nav(location.state?.from?.pathname || roleHomePath(user.role), { replace: true });
+    nav(location.state?.from?.pathname || roleHomePath(user), { replace: true });
   }, [user, authLoading, nav, location.state]);
 
   const handleLogin = async (e) => {
@@ -33,7 +33,7 @@ export default function Login() {
     try {
       const u = await loginJwt(form.email, form.password);
       toast.success(`Welcome, ${u.name}`);
-      nav(location.state?.from?.pathname || roleHomePath(u.role));
+      nav(location.state?.from?.pathname || roleHomePath(u));
     } catch (err) {
       toast.error(err?.response?.data?.detail || "Login failed");
     } finally {
@@ -47,7 +47,7 @@ export default function Login() {
     try {
       const u = await registerJwt(form);
       toast.success("Account created");
-      nav(["owner", "admin"].includes(u.role) ? "/admin" : "/staff");
+      nav(roleHomePath(u));
     } catch (err) {
       toast.error(err?.response?.data?.detail || "Registration failed");
     } finally {

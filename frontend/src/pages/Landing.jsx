@@ -51,8 +51,8 @@ export default function Landing() {
   // paint briefly shows the guest CTA even for a signed-in user; harmless
   // since Protected routes still gate on the real check, not this button.
   const { user } = useAuth();
-  const authedDest = user ? roleHomePath(user.role) : "/login";
-  const authedLabel = user ? roleHomeLabel(user.role) : "Staff sign in";
+  const authedDest = user ? roleHomePath(user) : "/login";
+  const authedLabel = user ? roleHomeLabel(user) : "Staff sign in";
 
   return (
     <div className="min-h-screen bg-caos-bone">
