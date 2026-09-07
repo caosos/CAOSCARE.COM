@@ -2453,3 +2453,71 @@ The **first** demo-seed run used rooms `301–310`. Room `304` is a pre-existing
 
 ### Next safe step
 STOP for Michael's visual break-test of the new Owner/Admin experience (per the directive). After that: Admin Aria phrase→destination wiring, or the Users & Access model gaps (enable/disable, last-login, reset-link) as a scoped auth change.
+
+---
+
+## 2026-09-07 — Admin worktree: repository-wide product-baseline / bootloader correction (documentation only).
+
+### Agent / tool
+Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations` (commit `928d28b`, on top of `db85011`). **Documentation-only pass — no application behaviour changed; `git status` was `.md` files only.** No Claude 2 runtime code touched (RF / pendant / ResidentEvent / Resident Aria / realtime / call_for_help). Append-only history logs (`PROJECT_STATE.md`, `ARIA_VOICE_FIRST.md`, `TERMINAL_8_OPERATIONAL_LAYER.md`) were not rewritten.
+
+### New canonical document
+- **`docs/CAOSCARE_PRODUCT_BASELINE.md`** (new) — durable product truth: what CAOSCare is; the CURRENT resident-room architecture; the staff-client model; Owner/Admin vs department staff; the Aria information principle; priority order (resident module first) with building/appointment ideas marked FUTURE-not-built; local-first deployment direction; engineering invariants incl. the 300-line rule; the canonical 13-step boot sequence; and a handoff-capsule template. Explicitly the durable-truth layer, separate from `PROJECT_STATE.md` (changing state), `REPO_MAP.md` (where code lives), `BUILD_STATUS.md` / `CURRENT_NODE_STATUS.md` (runtime snapshots).
+
+### Canonical onboarding read order (now consistent across AGENTS.md, README, CLAUDE.md, REPO_MAP)
+1. `AGENTS.md` · 2. `docs/CAOSCARE_PRODUCT_BASELINE.md` · 3. `docs/PROJECT_STATE.md` · 4. `docs/REPO_MAP.md` · 5. `docs/BUILD_STATUS.md` / `docs/CURRENT_NODE_STATUS.md` · 6. `README.md` + `docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md` (hardware section HISTORICAL/SUPERSEDED) + CCE-lite + task contracts · then: identify branch/ref + lane, inspect real source, inspect real runtime, **inventory available tools/connectors before saying "I can't"**, keep the six truth-types distinct, preserve evidence, update PROJECT_STATE + leave a handoff capsule.
+
+### Canonical resident-room hardware description
+Resident rooms are **not** tablet-based. Each room = a local CAOSCare **room node** — proven baseline an **HP EliteDesk-class small PC** (`caoscare1-hp-elitedesk` = HP EliteDesk 705 G4 DM) — sitting **hidden behind/near the TV**; an **eMeet-class conferencing speakerphone** near the resident as the **single room audio capture + playback endpoint** for Aria (one mic, one speaker); the **TV** as the normal television and an optional CAOSCare **visual surface** (TV audio to eventually route through the same eMeet AEC path; TV speakers muted when CAOSCare owns TV audio); a **handset** as the guaranteed-duplex fallback. Room-node integrations *may* include an RF receiver/transmitter for **a wide range of frequency devices** (common sub-GHz bands e.g. 315 / 319.5 / 433 / 868 / 915 MHz — not one fixed frequency), IR, Zigbee, Z-Wave, networking, Twilio, and more room automation as the product develops. `docs/ROOM_AUDIO_ARCHITECTURE.md` stays canonical for room-audio detail. Proven vs planned is always distinguished.
+
+### Canonical staff-client description
+A staff device (tablet / phone / computer) is a logged-in CAOSCare client. Auth resolves **role + department** → the appropriate authorized workspace (Maintenance/Housekeeping/Transportation/Kitchen → `/workspace`; Nursing/Care → resident-assistance surface; Owner/Admin → command centre). A "Maintenance tablet" is a Maintenance client. **No tablet-specific business logic.**
+
+### "kiosk" terminology (now stated in the baseline + REPO_MAP)
+`kiosk` = a per-room resident-facing CAOSCare **software surface** and its `Kiosk` record (room ↔ resident mapping, `kiosk_id`). It does **not** mean a physical tablet appliance.
+
+### Every stale doctrine found — and disposition
+| Location | Stale statement | Disposition |
+|---|---|---|
+| `AGENTS.md` "Product identity" / "preserve list" | "wearable/tablet/kiosk workflows / direction" (too ambiguous for the room architecture) | **Corrected** — split into room-node + staff-client + wearable-ingest, pointing at Baseline §2/§3 |
+| `AGENTS.md` read-order | did not mention the baseline; short 5-step order | **Corrected** — baseline is "read second"; 13-step boot sequence; Handoff-capsule section added |
+| `docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md` "Hardware / device direction" | "specialized tablet / dock/charging base / one power cord feeding the base / tablet charges when docked / kiosk console / care-environment console" | **Marked HISTORICAL/SUPERSEDED** in place; current architecture stated above it; top banner added |
+| same doc, "Repository discipline" | "code near 200 lines / 400 line hard cap" | **Corrected** to the 300-line rule |
+| same doc, "Staff Empowerment" / website reqs | "low-friction mobile/tablet/kiosk UX", "hardware/wearable/tablet direction" | **Corrected** to staff-client wording |
+| `README.md` intro + "Core doctrine" | "wearable/tablet/kiosk surfaces / workflows" | **Corrected**; resident-room wording fixed; onboarding order aligned + baseline added; "Current state" section flagged as an understated early snapshot |
+| `docs/REPO_MAP.md` | "one-press call / room-mounted tablet concept"; "resident kiosk/tablet"; "staff dashboard/tablet workflow"; first-read order lacked the baseline; "900 MHz" as if a single frequency | **Corrected** — room-node wording; "kiosk" defined as software; first-read order aligned; frequency → "a wide range of frequency devices" |
+| `docs/BUILD_STATUS.md` | whole doc reads as current ("realtime voice remains planned", pre-deployment) | **STALE-SNAPSHOT banner** at top → PROJECT_STATE + baseline; body preserved |
+| `CLAUDE.md` (repo) | boot order pointed only at placeholder docs; no baseline / PROJECT_STATE / REPO_MAP | **Corrected** — boot order leads with baseline + PROJECT_STATE + REPO_MAP; room-node + 300-line notes; placeholders called out |
+| `docs/ENGINEERING_CONTRACT.md` line 5 | placeholder intro cites "(200-line soft target, 400-line hard cap)" | **Corrected** to the 300 rule (the doc's own later Michael-directed section already had it) |
+| `docs/CAOSCARE_PRIVACY_SAFETY_SECURITY_NORTH_STAR.md` "Sensor rule" | "Tablet cameras and microphones..." | **Corrected** to "any room-node / integrated / staff-client camera and microphone" |
+| `docs/CAOSCARE_TABLET_BRIDGE_SETUP_RUNBOOK.md` | "wall-mounted Android tablet" as the RF-bridge host, throughout | **Banner: HISTORICAL/SUPERSEDED host framing** — RF signal-chain / rtl_433 / reconnect content still valid; read "tablet bridge" as "the room node's RF receiver/decode process". Body preserved. |
+| `docs/CAOSCARE_TABLET_SENSOR_PRIVACY_AND_STATUS_CONTRACT.md` | premise = wall-mounted resident tablet with onboard sensors | **Banner: premise partly superseded** — privacy principles remain in force and carry to any room-node/integrated sensor. Body preserved. |
+| `memory/PRD.md` | "Wall-mounted Android kiosks" as resident-room primary; Emergent LLM key / Claude Sonnet 4.5 / Whisper-1 stack; "Android tablet + USB RF receiver → bridge app" | **Banner: HISTORICAL PRD** — premises superseded; problem framing + feature history kept |
+| `memory/PRD_HUB_v1.md` | "living spec" status; "beyond a tablet on a wall" | **Banner: HISTORICAL living-spec snapshot** → baseline; brand + Device Class doctrine kept |
+| `docs/CAOSCARE_PROGRESS_HANDOFF_2026-08-11.md` | "~400-line ceiling/review gate" as current | **Banner: dated handoff** — 400 superseded by 300; current state = PROJECT_STATE |
+| `docs/CURRENT_NODE_STATUS.md`, `docs/ELITEDESK_NODE_BUILD.md`, `docs/ROOM_AUDIO_ARCHITECTURE.md` | already current/canonical; just lacked a pointer | **Pointer-only** to the baseline; bodies untouched |
+| `docs/CAOSCARE_BLUEPRINT.md` (placeholder) | none stale — but no pointer to where architecture truth lives now | **Pointer added**; still explicitly "to be authored with Michael — do not fill with inferred architecture" |
+
+### Stale statements in CODE — catalogued, NOT changed (docs-only scope + lane boundaries)
+These are frontend/marketing/comment strings, not architecture docs. **Not modified this pass.** Listed by owning lane so the right lane corrects them:
+
+- **Claude 2 / Resident Aria lane (must NOT be touched by Admin lane):**
+  - `backend/routes/realtime_self_knowledge.py:60` — Aria's self-knowledge prompt says *"A wall-mounted tablet kiosk in the resident's room (this device)."* Factually stale; correction belongs to the Resident Aria lane.
+- **Device / smart-room lane:**
+  - `backend/device_adapters.py` (×3), `backend/routes/devices.py` (×4), `backend/models.py:612`, `backend/scripts/seed_mock_devices.py` (×2) — "bridge tablet" terminology for the smart-device command-queue execution path. Per the baseline that host is the **room node**. Behaviour is correct; only the term is stale.
+  - `backend/routes/vision.py:4` — "forwards them via BLE to the wall-mounted tablet (kiosk)".
+- **Admin / marketing frontend (this lane could take these later, but they're product/marketing copy, deferred to avoid touching behaviour this pass):**
+  - `frontend/src/pages/Landing.jsx:17` — public copy: *"A tactile, room-mounted tablet."*
+  - `frontend/src/pages/Blueprint.jsx` (×2), `frontend/src/pages/InstallKioskWizard.jsx`, `frontend/src/pages/HelpHub.jsx:75`, `frontend/src/pages/DevicesTab.jsx` (×3), `frontend/src/pages/HardwareReceiptsTab.jsx:20` (`kiosk_tablet` display label — the underlying `DeviceClassEnum` value is load-bearing).
+- **Model:** `DeviceClassEnum` in `models.py` includes `kiosk_tablet` / `wall_terminal` — a schema change, needs a deliberate migration, not a doc pass.
+
+### What was verified
+- Re-grep for obsolete resident-tablet language across current docs: every remaining "resident tablet" hit is inside a `HISTORICAL / SUPERSEDED` marker or the baseline's own negation ("resident rooms are NOT tablet-based"). No current canonical doc asserts the resident room is a tablet.
+- Remaining `tablet` references are: valid **staff** clients (`CAOSCARE_FACILITY_OPERATIONS_CONTRACT.md` meal-entry workflows), **historical-banner'd** (`TABLET_BRIDGE`, `TABLET_SENSOR`, PRDs, PROGRESS_HANDOFF), or a quoted-and-superseded phrase.
+- 300-line rule now consistent (AGENTS.md, onboarding contract, ENGINEERING_CONTRACT, Baseline §8, CLAUDE.md); every "400-line" mention is explicitly framed as superseded.
+- Boot sequence identical across AGENTS.md / Baseline §9 / README / CLAUDE.md / REPO_MAP.
+- Future building/appointment capabilities are under Baseline §6 "FUTURE PRODUCT DIRECTION (not built)".
+- `git status` = `.md` only; no runtime code, no test change, no evidence erased.
+
+### Next safe step
+STOP — Michael and ChatGPT will independently inspect this onboarding before it becomes trusted doctrine. Then: the code-surface stale-terminology catalogue above can be handed to the owning lanes (Resident Aria line to Claude 2; device-lane "bridge tablet" comments and the Landing/Blueprint marketing copy as a small separate frontend pass).
