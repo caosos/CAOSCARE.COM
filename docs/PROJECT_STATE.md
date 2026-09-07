@@ -2360,3 +2360,41 @@ Frontend: `activityLog.test.js` (new, 7 groups). Full FE suite **101/101**. Prod
 
 ### Next safe step
 The reporting framework proper (daily exceptions / weekly workload / open-vs-closed, date-ranged + CSV, audit P1 #6) can now be built cleanly on top of the same `/receipts` + `/events` + `staff_tasks` reads. Escalation automation (P1 #4) still needs a coordinated pass (touches `alerts.py`).
+
+---
+
+## 2026-09-07 — Admin worktree: Operations reporting framework (daily exceptions, weekly workload, CSV).
+
+### Agent / tool
+Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations` (commit `bff7594`, on top of `6b343ee`). Claude 2's lane untouched - `db.alerts` is read-only here, no RF / pendant / ResidentEvent / Resident Aria / realtime / call_for_help / paging change. Other lane's server on port 8000 left running; testing used a worktree server on 8001 against the shared `caoscare` Mongo, torn down after.
+
+### Reuse (before building)
+Extracted the StaffTask predicates that `routes/ops_overview.py` had as inline closures into `routes/ops_overview_util.py`: `task_is_open`, `task_is_unassigned`, `task_is_overdue` (strict - needs a real `due_at` in the past; merely old is never overdue), `task_completed_on`, `task_created_on`. `ops_overview.py` now delegates to them - behaviour identical, re-verified by `test_ops_overview` in the same run. `routes/reports.py` consumes the same predicates + `parse_dt` / `age_seconds` / `local_date` / `dept_label` / `short_duration`. The reports also reuse `today_facility_date` / `FACILITY_TZ` and the `_csv_response` pattern from `routes/audit.py`; the frontend CSV download reuses `AuditTab.jsx`'s bearer+blob approach.
+
+### Added
+- `routes/reports.py` (263), registered in `server.py`:
+  - **`GET /reports/daily-exceptions?date=&department=&format=json|csv`** - one flat, ranked list of exception conditions the existing data can actually prove: open resident-assistance events (read live from `alerts`; >72h flagged "likely stale test data" in the row and in `caveats`), overdue tasks (real `due_at` only), failed/cancelled operational actions **filed on `date`** (from receipt `status`), transportation with no slot / past its requested date, resident re-requests (`re_request_count > 0`), and unassigned open work. Old-but-not-due work is reported with an `age_hours` value and a "Unassigned - open Nd" reason; it is never given `overdue: true`. Rank order: non-stale assistance → overdue → failed action → transportation → re-request → unassigned → stale assistance. `counts` + `total` + `caveats`.
+  - **`GET /reports/weekly-workload?week_start=&days=&department=&format=json|csv`** - one row per department (+ a General/all-staff row): `created` / `completed` within the window, `still_open` / `assigned_open` / `unassigned_open` as a live snapshot, `oldest_open_ref_id` + `oldest_open_age_hours`, and `by_staff` (assignment counts only). `caveats` state plainly these are task volumes, not productivity/quality/performance.
+  - Both `require_admin`; department isolation preserved (a `?department=` filter matches `visibility_role` for task rows, `nursing` for assistance rows, `assigned_role` for receipt rows). `format=csv` returns a `StreamingResponse` whose rows are the **exact same filtered set** as the JSON, with stable `ref_id` / `department_slug` / `receipt_id` columns for trace-back.
+- Frontend: `lib/reports.js` (47, pure - `exceptionKindLabel`, `exceptionTone`, `fmtHours`, `defaultWeekStart`, `buildQuery`), `pages/ReportsTab.jsx` (192 - mode toggle, date/week/dept filters, daily + weekly tables, "CSV" download). `Admin.jsx` (294) + `adminTabGroups.js` - "Ops reports" tab, first in the Reports group.
+
+### What was verified
+`backend/tests/test_reports.py` (new), co-running with the 4 other admin-lane DB tests (**5 passed**): populated daily report (each seeded row lands in the right `kind`; `total == len(rows) == sum(counts)`); **old-but-not-due (`created` 400 days ago, no `due_at`) is `kind="unassigned_open"`, `overdue=False`, `age_hours > 1000`, reason has no "overdue"**; the row with a 3h-past `due_at` is `kind="overdue"`, `overdue=True`; transportation / re-request / open-assistance / failed-action rows all present with the right `ref_type`; **empty report** via `?department=zzz_none` returns `rows=[]`, `total=0`, `counts={}`, `caveats` still present; department filter returns only that department's rows and excludes others; **weekly** `maintenance` row shows `still_open >= 2`, `unassigned_open >= 1`, `completed >= 1` (a task completed today), `created >= 2` (recent ones; the 400-day task is *not* counted in `created` but *is* the `oldest_open_ref_id` with `age_hours > 9000` - proving snapshot vs window), `by_staff` has the tech with `completed_this_week >= 1`; **CSV** row count + `ref_id` set + column headers match the filtered JSON for both reports, and `weekly` CSV's `staff_breakdown` carries the tech's name; a `staff` role gets **403** on json and csv for both endpoints; `GET /ops/overview` and `GET /receipts` still 200 (no regression).
+Frontend: `reports.test.js` (new, 5 groups). Full FE suite **106/106**. Production build compiles - only the pre-existing `react-hooks/exhaustive-deps` warnings in 5 files not touched here; none in `ReportsTab.jsx` / `reports.js`.
+
+### Which reports are fully trustworthy now
+- **Daily exceptions** - every row is a fact the underlying record proves. `unassigned_open`, `overdue` (real `due_at`), `transportation_attention`, `re_requested_open` are exact from `staff_tasks`. `open_assistance_event` is exact from `alerts` (with the honest stale-age caveat). `failed_action` is exact from receipt status.
+- **Weekly workload** - `created` / `completed` / `still_open` / `assigned_open` / `unassigned_open` / `oldest_open` are exact StaffTask counts for the window/snapshot. Department isolation and the admin-only gate hold.
+- **CSV** - byte-for-byte the same filtered rows as the on-screen report, with trace-back ids.
+
+### Which desired metrics still cannot be stated honestly, and why
+- **Response time / time-to-acknowledge / time-to-complete** for tasks - `acknowledged_at` is set only when someone calls `/tasks/{id}/acknowledge` (rare in practice), and `duration_minutes` is `completed_at - started_at`, so a task completed without a Start has no duration. Reporting an average would be computed off a biased subset. Not included.
+- **True SLA / "% completed on time"** - needs a per-category SLA policy that does not exist. Only explicit `due_at` overdue is reported.
+- **Trend / week-over-week deltas** - would need either stored historical snapshots or a multi-window query; the framework is single-window. Deferred (the `Insights` tab does a crude 7d-vs-prior-7d for a different signal).
+- **Repeat-problem / recurring-issue counts** - no linkage of related tasks by room+symptom exists (noted in the Maintenance pass).
+- **Per-staff throughput as a performance measure** - `by_staff` counts are shown but the caveat explicitly forbids reading them as productivity; an unassigned or reassigned task is unattributed, and there's no quality signal.
+- **Failed operational actions beyond receipts** - `log_event` coverage is narrow, so `failed_action` only sees domains that write a receipt with a failed/cancelled status (device commands, some task lifecycle). A broader "what errored today" would need wider `log_event` instrumentation - a cross-cutting backend change, out of this lane's scope.
+- **Kitchen / meal / housekeeping-specific measures** - those departments have no dedicated model yet, so weekly workload can only show their generic StaffTask counts, not meal-choice completion, room-turn times, etc.
+
+### Next safe step
+Escalation automation + reconciliation (audit P1 #4) still needs a coordinated pass (touches `alerts.py`). Otherwise: a monthly rollup on the same `/reports` base, or beginning the maintenance status/vendor/parts model.
