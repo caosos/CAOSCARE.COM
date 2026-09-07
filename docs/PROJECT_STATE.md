@@ -2279,3 +2279,51 @@ Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operat
 
 ### Next safe step
 Operational receipts + events browser (audit P1 #5, new files only), or the maintenance work-order model (audit P0 #2). Escalation automation (P1 #4) still needs a coordinated pass since it touches `alerts.py`.
+
+---
+
+## 2026-09-07 — Admin worktree: Maintenance work-order workspace (on the existing StaffTask spine).
+
+### Agent / tool
+Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations` (commit `20b9220`, on top of `9802f5b`). Claude 2's lane (RF / pendant / ResidentEvent / realtime / call_for_help / escalation) untouched. Other lane's server on port 8000 left running; testing used a worktree server on 8001 against the shared `caoscare` Mongo, torn down after.
+
+### Architecture decision (per the directive's "prove what can be reused")
+Inspected `StaffTask` first. A maintenance **work order == a `StaffTask` with `visibility_role == "maintenance"`**. No second model, no new collection. The requested NEW → ASSIGNED → IN PROGRESS → COMPLETED workflow maps directly:
+
+| Directive state | Existing representation |
+|---|---|
+| NEW / OPEN | `status="pending"`, `assigned_to=None` |
+| ASSIGNED | `status="pending"`, `assigned_to` set (assignment is a field, not a status) |
+| IN PROGRESS | `status="in_progress"` (existing `POST /tasks/{id}/start`) |
+| COMPLETED | `status="completed"` + notes/duration (existing `POST /tasks/{id}/complete`) |
+
+Fields (id, title, description, room, resident, source, priority, status, assignee, created_at, due_at, started_at, completed_at, completion notes, department) all already exist on `StaffTask`. Age is derived. Department isolation is already enforced by `routes/tasks.py::list_tasks` (a `staff` role sees only `visibility_role in [own department, "all_staff"]`). The Operations Overview already reads `staff_tasks` - it picked the new WOs up with zero change.
+
+### What had to be ADDED (small, generic, department-safe)
+- `routes/tasks.py::create_task` - now also allows a `staff` user **with a department** to create work; `visibility_role` **and** `category` are pinned to that user's own department slug so a department workspace can never create cross-department work. Owner is now allowed alongside admin (was `!= "admin"`, an existing over-restriction). Admin path unchanged. (+15 lines → 254)
+- `routes/task_assignment.py` (new, 81 lines) - `POST /tasks/{id}/assign` on its own router at the `/tasks` prefix (the `task_detail.py` pattern, keeps `tasks.py` under the cap). Claim / re-assign / unassign. Admin/owner assign anyone; a department member claims within their department or hands off to a **same-department** co-worker only. Files a `task_assigned` / `task_unassigned` receipt.
+- `routes/staff.py::GET /staff/assignable?department=` (+18 lines → 151) - names-only roster for the assign picker, reachable by any admin or a staff member querying **their own** department. The full `GET /staff` stays admin-only.
+- `server.py` - register `task_assignment` router.
+- Frontend: `lib/maintenance.js` (69, pure `workOrderBuckets`/`isOverdue`/`canClaim`/`canAssign`), `pages/MaintenanceWorkspace.jsx` (249, sections + claim/start/complete+notes/assign/history), `pages/MaintenanceWorkOrderForm.jsx` (146, create dialog - due date is **optional**, the form says so). `DepartmentWorkspace.jsx` renders `MaintenanceWorkspace` for a maintenance staffer, generic queue for everyone else. `Admin.jsx` + `adminTabGroups.js` - new "Operations departments" group with a Maintenance tab (`<MaintenanceWorkspace adminMode />`).
+
+`start` / `complete` / `acknowledge` needed no change - already open to any authenticated user.
+
+### What was verified
+`backend/tests/test_maintenance_workorders.py` (new) against a worktree backend, co-running with `test_ops_overview.py` + `test_staff_department.py` (3 passed): housekeeping staff cannot see maintenance WOs; a maintenance staffer can; a maintenance lead can create one (forced to `maintenance` even when the payload aims at `housekeeping`); a housekeeping staffer's create is forced to `housekeeping` and stays invisible to maintenance; claim → start → complete by a technician; completion notes + `duration_minutes` + `completed_by_name` + a receipt whose status transitions to `completed` all persist; cross-department assignment returns 403; admin assigns to another tech; `/staff/assignable` is department-scoped and 403s cross-department; `POST /tasks/resident-request` routing still works and stays out of the maintenance queue; the Operations Overview shows an unassigned maintenance WO at tier 5 / department "Maintenance", the maintenance department row's open count reflects the WOs, and a completed WO lands in `tasks.completed_today` - all from the one `StaffTask` collection.
+Frontend: `maintenance.test.js` (new, 15 cases - bucketing, bucket overlap, ordering, counts, empty/null). Full FE suite **94/94**. `roleHome.test.js` still green (maintenance staff → `/workspace`). Production build compiles - only the pre-existing `react-hooks/exhaustive-deps` warnings, none in any new/changed file (`Admin.jsx`'s is the same one, shifted one line by an added import).
+
+### What existing StaffTask infrastructure was reused
+Model + collection (`staff_tasks`), `list_tasks` department scoping, `POST /tasks/{id}/start|complete|acknowledge|skip`, `GET /tasks/{id}/detail` (task + receipts) for the history view, `create_receipt` / `update_receipt_status` wiring, `_resolve_denorms`, the department list + `visibility_role` routing, `notify_department` on create, the Operations Overview aggregation, `GET /residents`.
+
+### What is still missing for a mature Maintenance department
+- **Distinct maintenance statuses** - `blocked`, `waiting_parts`, `waiting_vendor`, `verified` (second-signoff). The current lifecycle has only pending/in_progress/completed/skipped. Adding them means widening the shared `TaskStatus` literal (in `models.py`, over the size cap) - a coordinated change, deferred.
+- **Vendor / parts / materials / cost** - no fields; a WO can't record "waiting on a $40 valve from Ferguson".
+- **Safety-impact / resident-impact classification** and a distinct **close reason** (vs. free-text `notes`).
+- **Preventive-maintenance rounds / recurring inspection checklists** - `StaffTaskTemplate` can recur but has no per-item checkoff or PM cadence semantics.
+- **Repeat-issue / "this room again" detection** - `re_request_count` exists for resident re-requests but there's no linking of related WOs by room+symptom.
+- **Editing an open WO's priority / due date / description** after creation - `StaffTaskUpdate` (models.py) only carries notes/assigned_to/status/acknowledged_by/schedule fields. Deliberately not extended this pass (the 8 required flows don't need it).
+- **Room-readiness / move-in-move-out** workflows and **housekeeping→maintenance handoff** (needs a `FollowUpRoute`-type object - no cross-department handoff mechanism exists, so nothing routes maintenance work out of housekeeping automatically).
+- **Non-admin sub-categories** - a department staffer's create pins `category` to the department slug, so internal sub-categories (laundry/rounds/bathing style) aren't expressible from a department workspace yet. Only affects a future generic-department create UI; the maintenance form always means "maintenance".
+
+### Next safe step
+Operational receipts + events browser (audit P1 #5, new files only), or begin the maintenance status/vendor/parts fields as a scoped models change. Escalation automation (P1 #4) still needs a coordinated pass (touches `alerts.py`).
