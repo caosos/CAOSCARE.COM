@@ -35,6 +35,7 @@ import StaffTab from "./StaffTab";
 import KiosksTab from "./KiosksTab";
 import ZonesTab from "./ZonesTab";
 import { tabGroups } from "../lib/adminTabGroups";
+import OperationsOverview from "./OperationsOverview";
 import AdminAria from "../components/admin/AdminAria";
 import AriaSpotlight from "../components/admin/AriaSpotlight";
 
@@ -49,7 +50,7 @@ export default function Admin() {
   const [facilities, setFacilities] = useState([]);
   const [facilitiesLoaded, setFacilitiesLoaded] = useState(false);
   const [autoOpenFacilityDialog, setAutoOpenFacilityDialog] = useState(false);
-  const [activeTab, setActiveTab] = useState("residents");
+  const [activeTab, setActiveTab] = useState("overview");
   const activeGroupId = tabGroups(residents, staff, kiosks, zones, user)
     .find((g) => g.tabs.some((t) => t.value === activeTab))?.id;
 
@@ -182,6 +183,9 @@ export default function Admin() {
               ))}
           </TabsList>
 
+          <TabsContent value="overview" className="mt-6">
+            <OperationsOverview onNavigate={setActiveTab} />
+          </TabsContent>
           <TabsContent value="residents" className="mt-6">
             <ResidentsTab residents={residents} kiosks={kiosks} onChange={fetchAll} />
           </TabsContent>

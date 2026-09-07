@@ -39,8 +39,13 @@ def _backend_up() -> bool:
 
 
 async def _run():
-    from deps import db
+    # Own Motor client bound to THIS asyncio.run() loop, so this file stays
+    # co-runnable with the other DB-touching test files in one pytest
+    # process (deps.db is a module global that would bind to whichever
+    # loop ran first and then be "Event loop is closed" for the rest).
+    from motor.motor_asyncio import AsyncIOMotorClient
     from models import uid, now_utc
+    db = AsyncIOMotorClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]
 
     pw = "test-admin-pw-123"
     admin_id = uid("user")
