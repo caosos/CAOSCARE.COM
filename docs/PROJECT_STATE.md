@@ -2398,3 +2398,58 @@ Frontend: `reports.test.js` (new, 5 groups). Full FE suite **106/106**. Producti
 
 ### Next safe step
 Escalation automation + reconciliation (audit P1 #4) still needs a coordinated pass (touches `alerts.py`). Otherwise: a monthly rollup on the same `/reports` base, or beginning the maintenance status/vendor/parts model.
+
+---
+
+## 2026-09-07 — Admin worktree: Owner command centre + facility UI coherence pass.
+
+### Agent / tool
+Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations` (commit `3138051`, on top of `9dd903c`). No Claude 2 Level-1 file touched (RF decode / pendant press / ResidentEvent activation / Resident Aria / realtime / call_for_help / paging / inactivity timer / severity). `db.alerts` and `db.rf_devices` are **read only** here. Other lane's server on port 8000 left running; work + demo seed used a worktree server on port 8001 against the shared `caoscare` Mongo.
+
+### What was structurally wrong (from Michael's live break-test)
+- Owner/Admin had no top-level "what's happening" home - landed on the Residents table; header pushed "Dashboard" (a generic staff view) and "Change my password" (wrong for a Google-OAuth Owner).
+- Actionable-looking cards were dead ends: Active / Emergency / Acknowledged / Resolved / Pattern flags all went nowhere or to `/admin` root; "Devices in service > Pendants" showed **0/0** because it queried the retired `/pendants` scaffold while the real RF system was matching physical presses.
+- Residents table works for 20 but not 100-300 - no fast finder.
+- Local mock data was isolated/contradictory; the Menu was empty so Aria couldn't answer "what's for dinner".
+
+### What was reconfigured
+- **Navigation** (`lib/adminTabGroups.js`, `Admin.jsx` 196←294): seven real groups - Community (Operations overview · Alerts & events · Maintenance) / Residents & care / Departments & staff / Communication & requests / Devices / Reports & audit / Facility setup. Admin opens on Community. `/admin?tab=<value>&resident=<id>` deep links (consumed then stripped). Header: dropped the staff "Dashboard" push; "Password" → **Users & access**.
+- **Resident/Room quick find** (`lib/residentSearch.js`, `pages/ResidentQuickFind.jsx`): ranked filtered dropdown, keyboard-driven; matches room / first / last / preferred / "First Last". Reuses the loaded residents list; opens the existing `ResidentRecordDialog`.
+- **Alerts board** (`pages/AlertsBoard.jsx` + `AlertsPage.jsx` + `/alerts` route + `lib/alertsView.js`): status/severity filters, query-param driven, reuses `GET /alerts` + `AlertDetailDialog`. **Data honesty:** open events > 72h get a "likely stale" badge, a banner, and a live-vs-stale count split - nothing deleted (matches the earlier stale-age caveat).
+- **Staff-dashboard cards** now drill: `AlertStatsRow.jsx` (extracted so `StaffDashboard.jsx` shrank 389→348) → `/alerts?status=…`; Pattern flags → `/admin?tab=insights`; live-location rows → resident record for admin/owner (plain `<div>` for a nurse, not a fake control).
+- **Users & access** (`StaffTab.jsx` 283): retitled; search + role + department filters; Workspace + Auth columns; honest note that reset-link delivery, account enable/disable, and last-login aren't in the model, and that SSO would slot in as another provider. Passwords never displayed - `Set password` (existing admin capability) is the honest local reset.
+- **Departments** (`DepartmentsTab.jsx`): Slug, Staff count, Workspace-destination columns from existing `Department` + `User` data.
+
+### What existing infrastructure was reused
+`GET /alerts` + `/alerts/stats` + `AlertDetailDialog`; `ResidentRecordDialog` / `MemoryDialog` / `MovementDialog`; the residents list `Admin.jsx` already fetches; `db.rf_devices` / `db.rf_events` / `db.residents`; `roleHome.js` routing truth; `Department` + `User.department`; `AuditTab.jsx`'s bearer+blob CSV pattern (n/a this pass); the real Menu ingest+approve path; the shared `ops_overview_util` predicates.
+
+### What dead-end UI was connected
+Active / Emergency now / Acknowledged / Resolved 24h → filtered `/alerts`. Pattern flags → Insights tab. Recent device activity rows → resident record. Live-location rows → resident record (role-gated). "Devices in service · Pendants" tile → the real Pendants (RF) tab. Resident quick-find → resident record. `/admin?tab=` deep links let Admin Aria / notifications target any tab.
+
+### How pendant/device truth was unified
+New `backend/routes/rf_fleet.py` (its own `/rf` router - **never edits `rf.py`**), read only: `GET /rf/fleet/summary` (any role, role-safe - no RSSI / match score / raw fingerprint; status rollup active/low_battery/offline; counts) and `GET /rf/fleet/devices` (admin drill-down - frequency, RSSI, match threshold, recent events, linked alert). `DeviceStatusCard.jsx` pendant tile now reads `/rf/fleet/summary` ("X / Y in service, Z need attention", links to the RF tab for admin) instead of the retired `/pendants` scaffold; also fixed the wearable battery field (`battery_pct` → `battery_percent`).
+
+### How department workspaces now relate to Owner
+Unchanged routing (`roleHome.js`): department staff → `/workspace` (Maintenance renders the full work-order workspace) or the Care board; Owner/Admin → the command centre. The command centre now *exposes* that routing - Users & access shows each user's workspace destination, Departments shows each department's - and Owner can drill into the same department queues (`DepartmentWorkspaceDialog`) and the Maintenance workspace (`?adminMode`) that staff use. No flattening, no tablet-specific logic (a tablet is just a logged-in client).
+
+### Mock community data added / corrected
+`backend/scripts/seed_demo_community.py` (idempotent, HTTP-against-live, `Demo -` / `@demo.caoscare` / **3W wing** markers, `--wipe`). Run once against the local DB: 10 demo residents **3W01–3W10** (+ kiosks, a mock smart light each, family contact, a memory), 6 demo staff across real departments (nursing/maintenance/housekeeping/transportation/kitchen + front_desk, password `demo-pass-1234`), department-routed tasks + a maintenance WO (one pending, one completed) + a transport request + two **resolved** (not active) historical alerts, and **7 days of menu through the real ingest+approve path** so `/menu/public/today` returns data (Resident Aria can answer "what's for dinner" from real facility data - Aria itself untouched). Verified coherent: menu live (11 items today), demo staff carry departments, maintenance tasks route by `visibility_role`, zero demo alerts left active.
+
+### Incident (reported, not hidden)
+The **first** demo-seed run used rooms `301–310`. Room `304` is a pre-existing test resident's room ("chancy"/Chauncey). Correcting a room-numbering choice, I ran `--wipe`, whose then-too-broad `{"room": {"$in": ["301".."310"]}}` deletes removed **pre-existing room-304 operational records that the seed did not create**: approximately 1 kiosk, ~5 `alerts` (active count went ~325 → 319), ~3 `staff_tasks`, ~2 `smart_devices`, and several `receipts`. **Preserved:** the `chancy` resident record itself, its 175 `conversations` and 2 `memories`, and — critically — **Room 214 / Helen Torres and all its Level-1 RF evidence (never in range, untouched).** There is no DB backup in this environment to restore from. The seed script is now fixed: a dedicated `3W01–3W10` wing that cannot collide with any real/existing room, and a **precise `--wipe`** scoped only to `Demo -` names/titles, `@demo.caoscare` emails, `^3W[0-9]{2}$` rooms, and demo `resident_id`s — never a numeric room range. Recommend Claude 2 / Michael sanity-check room-304 test state.
+
+### Tests
+- `backend/tests/test_rf_fleet.py` (new) - summary is any-role and omits RF internals; status rollup; admin-only drill-down carries frequency/threshold/events; staff gets 403 on the drill-down. Full admin-lane backend suite **6/6** (`test_rf_fleet` + reports + activity + maintenance + ops_overview + staff_department, co-run).
+- Frontend: `residentSearch.test.js` (10 - room/name/preferred/phrase ranking, 300-resident scale, empty/unknown), `alertsView.test.js` (6 - stale classification, tone, summary split, filters), `roleHome.test.js` extended (workspaceLabel / departmentWorkspaceLabel). Full FE suite **122/122**. Production build compiles - only the pre-existing `react-hooks/exhaustive-deps` warnings in 5 untouched files (`Admin.jsx`'s is the same `fetchAll` one, relocated); none in any new/changed file.
+- All production files < 300 lines; `StaffDashboard.jsx` (pre-existing over-cap) was **reduced** 389 → 348 by extracting `AlertStatsRow`.
+
+### What still requires future work
+- **Owner Users & Access:** account enable/disable, last-login, and password-reset-link delivery need model + auth support (`User` has no `is_active`/`last_login_at`; no reset-token/email infra). Session/login revocation not exposed. SSO/Okta deliberately not built - the provider field (`auth_provider`) is the seam.
+- **Department config:** no `manager`/`lead` field on `Department`; role/visibility config beyond department slug + the fixed `all_staff`/`family` specials would need a real access model (deferred by directive).
+- **Alert lifecycle cleanup:** the ~319 "active" alerts are still mostly stale RF test debris. The board *distinguishes* them (age) but a real resolve/lifecycle migration is a separate task owned with Claude 2 (touches the Level-1 contract).
+- **Deep-linking from AlertsBoard back into a resident/room/device detail** beyond the existing `AlertDetailDialog` (which already links resident + timeline).
+- **Admin Aria navigation** was left as-is (it already takes `onNavigate` → `setActiveTab`); wiring specific phrases ("show Room 214", "open the kitchen menu") to `?tab=`/`?resident=` targets is a small follow-up within its existing architecture.
+- **Non-admin resident detail:** a nurse still has no resident-record surface, so their live-location rows are intentionally non-interactive.
+
+### Next safe step
+STOP for Michael's visual break-test of the new Owner/Admin experience (per the directive). After that: Admin Aria phrase→destination wiring, or the Users & Access model gaps (enable/disable, last-login, reset-link) as a scoped auth change.
