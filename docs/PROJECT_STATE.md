@@ -2217,3 +2217,30 @@ Nothing. This fix is complete and verified. Live-hardware/voice break-testing of
 
 ### Next safe step
 Proceed to the live break-test pass against real Room 214 hardware and the real voice path.
+
+---
+
+## 2026-09-06 — Admin worktree: (1) Admin/Operations forensic audit, (2) staff department UI + department-aware home routing.
+
+### Agent / tool
+Claude Code (Sonnet 5), dedicated `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations` (off `d994331`). Separate lane from the RF/pendant/ResidentEvent/kiosk/realtime work — those files were not touched.
+
+### What changed
+- **`e125716`** — `docs/ADMIN_OPERATIONS_AUDIT.md` (new, report only). Forensic UI→API→DB audit of the staff/Admin operational surface: executive dashboard, maintenance, housekeeping, transportation, resident-assistance ops, device/system health, reporting, role-based experience. Findings ranked P0–P3. §21 maps shared-surface conflict points with the other lane.
+- **`9a96c2e`** — staff department assignment (audit P0 #1). `User.department` previously could not be set anywhere, so department-scoped task visibility / notification / department workspaces were all inert.
+  - `backend/routes/staff.py` (133 lines): `PATCH /staff/{id}` (edit name/role/department); `POST /staff` gained an optional `department`. Both validate the slug against the real `Department` list; `""` clears it; an admin cannot demote their own account out of the admin tier.
+  - `backend/routes/departments.py` (120 lines): default departments pinned as explicit `(slug,label)` pairs so the label can change without the slug drifting; one idempotent normalization `"Nursing"` → `"Nursing / Care"` (slug stays `nursing`).
+  - `frontend/src/pages/StaffTab.jsx` (248): Department column + Edit dialog + department picker in Add-staff, fed by `GET /departments` (seeded + custom).
+  - `frontend/src/lib/roleHome.js` (38): `roleHomePath`/`roleHomeLabel` now take the whole user. Plain `staff` routes by department — `maintenance`/`housekeeping`/`transportation`/`kitchen` → `/workspace`; `nursing`/care/unassigned → `/staff`; owner/admin → `/admin`; front_desk → `/front-desk`. Call sites updated: `Login.jsx`, `Landing.jsx`, `GoogleSignIn.jsx`, `AuthCallback.jsx`.
+  - `frontend/src/pages/DepartmentWorkspace.jsx` (new, 244) at `/workspace` (`App.js` route added): one shared workspace rendered per the signed-in staff member's department — that department's open queue (`GET /tasks` is already department-scoped server-side for a `staff` role by `User.department`) with Ack/Start/Done actions + `MyTasksCard`; transportation also gets today's ride summary. Reuses the existing StaffTask / resident-request bus — no new data model.
+
+### What was verified
+- **Backend, real running server (from this worktree, port 8001, shared `caoscare` Mongo):** new `backend/tests/test_staff_department.py` passes — create/list/patch department, unknown-slug rejection (create + patch), clear with `""`, combined name+role edit, self-demote guard, `"Nursing / Care"` label present with slug `nursing`. Separately verified end-to-end that a `staff` user with `department="maintenance"` sees a maintenance-routed resident-request via `GET /tasks` and does **not** see a housekeeping-routed one.
+- **Frontend:** new `roleHome.test.js` (routing matrix) + full suite **76/76** green (`REACT_APP_BACKEND_URL` set). Production `craco build` compiles — only pre-existing `react-hooks/exhaustive-deps` lint warnings in files not touched here; no new warnings from the changed/added files.
+- The `nursing` → `Nursing / Care` label normalization has already been applied to the live `caoscare` DB (ran as part of the port-8001 test-server startup). Slug unchanged, so `realtime_tools_operations.py` / `resident_requests.py` literal `"nursing"` references are unaffected. Custom departments (`therapy`, `resident_programs`) are untouched and appear in the picker.
+
+### What is blocked
+Nothing. The other lane's server on port 8000 was left running and untouched throughout.
+
+### Next safe step
+Continue the audit's ranked plan on this branch: automate the escalation tick + reconcile the two escalation implementations (P1 #4 — coordinate, touches `alerts.py`), then the operations overview dashboard (P0 #3) and the operational receipts/events browser (P1 #5). Maintenance/housekeeping data models (P0 #2 / P1 #7) remain unbuilt — the `/workspace` queues are department-scoped `StaffTask` lists until then.
