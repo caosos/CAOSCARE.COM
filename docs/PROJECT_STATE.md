@@ -2540,3 +2540,66 @@ page/dispatch; inactivity state machine; end-call grounding; transportation
 ### Not done / next
 No deploy - `:8000`/`:3000` still `ab3243b`. Awaiting Michael + ChatGPT
 review before deploy.
+
+---
+
+## 2026-09-07 — check_request_status wording correction (acknowledged ≠ arrival)
+
+### Agent / tool
+Claude Sonnet 5 (Claude Code), Michael directing.
+
+### Branch / ref
+`claude/level1-integration` — `3951ef6` → `6608db0`
+(`Correct check_request_status wording: acknowledged/in_progress never
+authorise an arrival claim`). Pushed. **Not deployed** — `:8000`/`:3000`
+still `ab3243b`.
+
+### What changed
+Michael reviewed `3951ef6` (current-vs-history + lifecycle timestamps —
+**accepted**) and flagged one semantic contradiction in the tool wording.
+`backend/routes/realtime_tools_operations.py` `check_request_status`
+previously ended: *"Never say someone is on the way unless status is
+in_progress (or acknowledged_at is set)."* Per the established StaffTask
+lifecycle contract `acknowledged_at` = staff have SEEN/accepted awareness
+only; `in_progress` = work has STARTED only. **Neither authorises Aria to
+say anyone is coming / on the way / headed there.** Replaced with the
+explicit per-state contract:
+- pending, no `acknowledged_at` → request exists, unacknowledged.
+- pending WITH `acknowledged_at` → "staff acknowledged your request at
+  <label>" — not a coming/on-the-way claim.
+- `in_progress` → "staff have started working on it" (+ `started_at`
+  label) — still not an arrival claim.
+- "someone is coming / on the way / headed there" permitted ONLY when
+  `scheduled_date`/`scheduled_time_label` gives a real staff-entered
+  window, or another tool result explicitly proves a dispatch/arrival.
+
+Parallel clause added to the operator-build `check_request_status` in
+`backend/routes/realtime_aria_tools.py`.
+
+Wording-only change to the tool schema descriptions served to the model.
+**No change** to the current-vs-history architecture or lifecycle-timestamp
+plumbing from `3951ef6`.
+
+### Verified
+- Both tool schemas still build (`_build_tools()` / `_build_aria_tools()`);
+  old contradiction string absent, new per-state text present.
+- `backend/tests/test_request_status_lifecycle.py` — **1 passed** against a
+  staging backend on `:8002` from this worktree (`CAOSCARE_TEST_HOOKS=1`).
+- `frontend/src/lib/__tests__/requestStatusHistory.test.js` — **5 passed**.
+- No other test references the edited modules
+  (`grep` of `tests/` for `check_request_status` / `_build_*_tools` /
+  the module names → only `test_request_status_lifecycle.py`).
+
+### Line counts (materially modified production files)
+- `backend/routes/realtime_tools_operations.py` — 302 lines (was ~285;
+  +17 wording, still a data-only schema module, no code paths added).
+- `backend/routes/realtime_aria_tools.py` — 99 lines (was ~96; +3).
+
+### Blocked / not done
+Deploy still blocked pending Michael + ChatGPT review of `3951ef6` +
+`6608db0`. `:8000`/`:3000`/RF bridge/watcher untouched.
+
+### Next safe step
+Await review; on approval, deploy `6608db0` to `:8000`/`:3000` for live
+Room 214 acceptance (backend restart from this worktree + frontend file
+sync into the served tree, per the `ab3243b` deploy entry).
