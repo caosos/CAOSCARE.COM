@@ -37,6 +37,7 @@ import ZonesTab from "./ZonesTab";
 import { tabGroups } from "../lib/adminTabGroups";
 import OperationsOverview from "./OperationsOverview";
 import MaintenanceWorkspace from "./MaintenanceWorkspace";
+import ActivityLog from "./ActivityLog";
 import AdminAria from "../components/admin/AdminAria";
 import AriaSpotlight from "../components/admin/AriaSpotlight";
 
@@ -273,6 +274,9 @@ export default function Admin() {
               />
             </TabsContent>
           )}
+          <TabsContent value="activity" className="mt-6">
+            <ActivityLog onNavigate={setActiveTab} />
+          </TabsContent>
           <TabsContent value="roadmap" className="mt-6">
             <Roadmap />
           </TabsContent>
