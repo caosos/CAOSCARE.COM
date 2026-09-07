@@ -1,10 +1,13 @@
 /**
- * Companion timeout = INACTIVITY timer, not a session-age timer.
- * Level 1 directive 2026-09-07 (Room 214 forensics): session rt_mkqn5z8x
- * was terminated at ~302s mid-song by a one-shot 300s timer armed at
- * dc.onopen. An active conversation must have NO time limit.
+ * Companion timeout = INACTIVITY timer with the EXACT invariant
+ * (Level 1 directive 2026-09-07, Room 214 forensics):
  *
- * Directive tests 1-6 (7 is end-call grounding, see restingEndCallGuard).
+ *   ACTIVE SPEECH => NO inactivity timer exists.
+ *   The window runs only during a CONTINUOUS period where
+ *     residentSpeaking === false  AND  ariaSpeaking === false.
+ *   Only a full continuous window of that mutual silence fires onTimeout.
+ *
+ * Directive tests 1-7.
  */
 import { createInactivityTimer } from "../realtimeInactivityTimer";
 
@@ -13,88 +16,141 @@ const FIVE_MIN = 300_000;
 beforeEach(() => jest.useFakeTimers());
 afterEach(() => jest.useRealTimers());
 
-// 1. An active conversation can continue well beyond 5 minutes.
-test("1. active conversation continues past 5 minutes without termination", () => {
+function mk(seconds = 300) {
   const onTimeout = jest.fn();
-  const t = createInactivityTimer({ seconds: 300, onTimeout });
-  t.bump(); // dc.onopen initial arm
-  // a speech event roughly every 20s for 20 minutes
-  for (let i = 0; i < 60; i++) {
-    jest.advanceTimersByTime(20_000);
-    t.bump(); // speech_started / output_audio_buffer.started / ...
+  return { onTimeout, t: createInactivityTimer({ seconds, onTimeout }) };
+}
+
+// 1. Resident speaks continuously for MORE THAN 5 minutes.
+test("1. resident speaking >5 min: no timeout, and NO timer pending during speech", () => {
+  const { onTimeout, t } = mk();
+  t.open();
+  t.residentSpeechStarted();
+  expect(t.pending).toBe(false);            // no timer while resident speaks
+  for (let i = 0; i < 20; i++) {            // 10 minutes of continuous speech
+    jest.advanceTimersByTime(30_000);
+    expect(t.pending).toBe(false);
   }
   expect(onTimeout).not.toHaveBeenCalled();
-  expect(t.pending).toBe(true);
 });
 
-// 2 & 3. Speech (Aria or resident) across the 5-min-from-session-start
-// boundary does not trigger companion_timeout.
-test("2/3. speech across the 5-min-from-start boundary does not fire the timeout", () => {
-  const onTimeout = jest.fn();
-  const t = createInactivityTimer({ seconds: 300, onTimeout });
-  t.bump();
-  jest.advanceTimersByTime(290_000);
-  t.bump();                       // Aria singing / resident speaking at 4:50
-  jest.advanceTimersByTime(20_000);  // now 5:10 - past the OLD absolute boundary
+// 2. Aria output plays continuously for MORE THAN 5 minutes.
+test("2. Aria output >5 min: no timeout, and NO timer pending during output", () => {
+  const { onTimeout, t } = mk();
+  t.open();
+  t.ariaSpeechStarted();
+  expect(t.pending).toBe(false);
+  for (let i = 0; i < 20; i++) {
+    jest.advanceTimersByTime(30_000);
+    expect(t.pending).toBe(false);
+  }
   expect(onTimeout).not.toHaveBeenCalled();
-  jest.advanceTimersByTime(FIVE_MIN - 20_000 + 5);  // full fresh window from the 4:50 bump
-  expect(onTimeout).toHaveBeenCalledTimes(1);
 });
 
-// 4. Five continuous minutes of genuine inactivity DOES fire.
-test("4. five continuous minutes of real inactivity fires the timeout", () => {
-  const onTimeout = jest.fn();
-  const t = createInactivityTimer({ seconds: 300, onTimeout });
-  t.bump();
+// 3. Overlap: the timer does not arm until BOTH stop.
+test("3. overlapping speech: timer does not arm until BOTH sides stop", () => {
+  const { onTimeout, t } = mk();
+  t.open();
+  t.residentSpeechStarted();
+  t.ariaSpeechStarted();                    // both speaking
+  expect(t.pending).toBe(false);
+  t.residentSpeechStopped();                // resident done, Aria still speaking
+  expect(t.pending).toBe(false);            // MUST NOT arm - Aria still active
+  jest.advanceTimersByTime(60_000);
+  expect(t.pending).toBe(false);
+  t.ariaSpeechStopped();                    // now BOTH silent
+  expect(t.pending).toBe(true);             // window begins here
   jest.advanceTimersByTime(FIVE_MIN - 1);
   expect(onTimeout).not.toHaveBeenCalled();
   jest.advanceTimersByTime(2);
   expect(onTimeout).toHaveBeenCalledTimes(1);
 });
 
-// 5. Speech after inactivity has begun cancels the pending timeout.
-test("5. speech after silence begins cancels the pending inactivity timeout", () => {
-  const onTimeout = jest.fn();
-  const t = createInactivityTimer({ seconds: 300, onTimeout });
-  t.bump();
-  jest.advanceTimersByTime(250_000);   // 4:10 of silence
-  t.bump();                            // resident speaks -> cancel + restart
-  jest.advanceTimersByTime(FIVE_MIN - 1);   // would have fired at 300s under the old window
-  expect(onTimeout).not.toHaveBeenCalled();
-  jest.advanceTimersByTime(2);         // 300s after the NEW bump
-  expect(onTimeout).toHaveBeenCalledTimes(1);
-});
-
-// 6. A later period of inactivity gets its own full 5-minute window.
-test("6. a later inactivity period gets its own full 5-minute window", () => {
-  const onTimeout = jest.fn();
-  const t = createInactivityTimer({ seconds: 300, onTimeout });
-  t.bump();
-  for (let i = 0; i < 12; i++) { jest.advanceTimersByTime(30_000); t.bump(); } // ~6 min of activity
-  expect(onTimeout).not.toHaveBeenCalled();
-  jest.advanceTimersByTime(FIVE_MIN - 1);   // now genuinely quiet
+// 4. Both silent from the start: the full 5-minute timer runs.
+test("4. both silent: a full 5-minute window runs and fires", () => {
+  const { onTimeout, t } = mk();
+  t.open();
+  expect(t.pending).toBe(true);
+  jest.advanceTimersByTime(FIVE_MIN - 1);
   expect(onTimeout).not.toHaveBeenCalled();
   jest.advanceTimersByTime(2);
   expect(onTimeout).toHaveBeenCalledTimes(1);
 });
 
-test("cancel() stops a pending timeout (teardown / stop())", () => {
-  const onTimeout = jest.fn();
-  const t = createInactivityTimer({ seconds: 300, onTimeout });
-  t.bump();
-  jest.advanceTimersByTime(200_000);
+// 5. At 4:59 of silence the resident begins speaking -> timer cancels now.
+test("5. speech at 4:59 of silence cancels the pending window immediately", () => {
+  const { onTimeout, t } = mk();
+  t.open();
+  jest.advanceTimersByTime(299_000);        // 4:59 of mutual silence
+  expect(t.pending).toBe(true);
+  t.residentSpeechStarted();
+  expect(t.pending).toBe(false);            // cancelled the instant speech starts
+  jest.advanceTimersByTime(10_000);         // sail past the old 5:00 mark
+  expect(onTimeout).not.toHaveBeenCalled();
+});
+
+// 6. Resident later stops and Aria is silent -> a NEW full 5-minute window.
+test("6. after speech ends with both silent, a brand-new full window begins", () => {
+  const { onTimeout, t } = mk();
+  t.open();
+  jest.advanceTimersByTime(299_000);
+  t.residentSpeechStarted();                // cancels at 4:59
+  jest.advanceTimersByTime(120_000);        // talks for 2 minutes
+  t.residentSpeechStopped();                // Aria silent -> new window from HERE
+  expect(t.pending).toBe(true);
+  jest.advanceTimersByTime(FIVE_MIN - 1);   // the OLD window would have fired long ago
+  expect(onTimeout).not.toHaveBeenCalled();
+  jest.advanceTimersByTime(2);              // 5:00 after the stop
+  expect(onTimeout).toHaveBeenCalledTimes(1);
+});
+
+// 7. Room 214 regression: an active conversation passes the old
+//    5-min-from-session-start boundary indefinitely.
+test("7. active conversation passes the old 5-min-from-start boundary indefinitely", () => {
+  const { onTimeout, t } = mk();
+  t.open();
+  // 25 minutes of alternating turns, each side speaking for ~8s with ~4s gaps
+  let elapsed = 0;
+  while (elapsed < 25 * 60_000) {
+    t.residentSpeechStarted(); jest.advanceTimersByTime(8_000);
+    t.residentSpeechStopped(); jest.advanceTimersByTime(2_000);
+    t.ariaSpeechStarted();     jest.advanceTimersByTime(8_000);
+    t.ariaSpeechStopped();     jest.advanceTimersByTime(2_000);
+    elapsed += 20_000;
+  }
+  expect(onTimeout).not.toHaveBeenCalled();     // 25 min in, still alive
+  // and it still ends correctly once the room actually goes quiet
+  jest.advanceTimersByTime(FIVE_MIN + 5);
+  expect(onTimeout).toHaveBeenCalledTimes(1);
+});
+
+test("a duplicate speech_stopped does not restart an already-running window", () => {
+  const { t } = mk();
+  t.open();                                 // window armed
+  jest.advanceTimersByTime(120_000);        // 2 min in
+  t.residentSpeechStopped();                // flap: stop with no prior start
+  jest.advanceTimersByTime(FIVE_MIN - 120_000 - 1);
+  expect(t.pending).toBe(true);
+  jest.advanceTimersByTime(2);
+  // fires at 5:00 from open, not restarted by the stray stop
+  expect(t.state.pending).toBe(false);
+});
+
+test("cancel() tears the window down (stop() / unmount)", () => {
+  const { onTimeout, t } = mk();
+  t.open();
+  jest.advanceTimersByTime(100_000);
   t.cancel();
-  jest.advanceTimersByTime(FIVE_MIN * 2);
+  jest.advanceTimersByTime(FIVE_MIN * 3);
   expect(onTimeout).not.toHaveBeenCalled();
   expect(t.pending).toBe(false);
 });
 
-test("community-configured window is honoured", () => {
-  const onTimeout = jest.fn();
-  const t = createInactivityTimer({ seconds: 600, onTimeout });
-  t.bump();
+test("community-configured window (e.g. 600s) is honoured", () => {
+  const { onTimeout, t } = mk(600);
+  t.open();
   jest.advanceTimersByTime(FIVE_MIN + 1);
-  expect(onTimeout).not.toHaveBeenCalled();   // 10-min window, not 5
+  expect(onTimeout).not.toHaveBeenCalled();
   jest.advanceTimersByTime(FIVE_MIN);
   expect(onTimeout).toHaveBeenCalledTimes(1);
 });

@@ -2369,3 +2369,67 @@ suite **14 suites / 102 tests** pass. Backend regression re-run at HEAD
 Both need a restart from this worktree for the fix to be live (Michael's
 call). The fabricated-bleeding memory contamination needs Michael's decision
 on deleting the roleplay memories and a separate scoped pass.
+
+---
+
+## 2026-09-07 — Correction: inactivity timer is a two-flag silence state machine, not a rolling activity timer
+
+### Agent / ref
+Claude Code (Claude 2), `~/CAOSCARE-LEVEL1-INTEGRATION`,
+`claude/level1-integration` on top of `d8b4dbd`. Frontend only. Not
+deployed, not merged.
+
+### Why
+`d8b4dbd` fixed the absolute session-age defect but implemented it as a
+rolling `bump()` (cancel + restart a 5-min timer on every speech event),
+which leaves a timer *pending while someone is actively speaking*. The
+product contract is stricter: **active speech ⇒ no inactivity timer exists
+at all**; the window measures only a continuous period in which BOTH
+`residentSpeaking` and `ariaSpeaking` are false.
+
+### Exact state machine now implemented (realtimeInactivityTimer.js)
+Two booleans `residentSpeaking`, `ariaSpeaking`; one timer `handle`.
+- `open()` (dc.onopen) — both false ⇒ arm a fresh window.
+- `residentSpeechStarted()` — `residentSpeaking = true`; **cancel** (no timer
+  while the resident speaks).
+- `residentSpeechStopped()` — `residentSpeaking = false`; **arm only if**
+  `!ariaSpeaking` **and** no window is already running.
+- `ariaSpeechStarted()` — `ariaSpeaking = true`; **cancel**.
+- `ariaSpeechStopped()` — `ariaSpeaking = false`; **arm only if**
+  `!residentSpeaking` and none running.
+- Overlap: the window is not armed until the *last* of the two stops.
+- `response.done` is NOT consulted — the output-audio lifecycle
+  (`output_audio_buffer.started` / `.stopped` / `.cleared`) is authoritative.
+- Fire only after `seconds` continuous with both flags false. Any
+  `*Started` cancels a pending window; when both go silent again a brand-new
+  full window begins. A flapping duplicate `*Stopped` does not restart an
+  already-running window.
+
+`realtimeMessageHandler.js` calls `onSpeechEvent("resident_start"|
+"resident_stop"|"aria_start"|"aria_stop")` from the four existing
+`input_audio_buffer.speech_started/stopped` and
+`output_audio_buffer.started/stopped/cleared` handlers (no new telemetry).
+`realtimeConnection.js` maps those to the state-machine methods and calls
+`inactivity.open()` in `dc.onopen`.
+
+### Verified
+`realtimeInactivityTimer.test.js` rewritten to the exact invariant -
+directive tests 1-7: resident speaking >5 min (no timeout, `pending`
+false throughout); Aria output >5 min (same); overlap does not arm until
+both stop; both-silent runs the full window and fires; speech at 4:59
+cancels immediately; a later both-silent period gets a brand-new full
+window; a 25-minute active conversation sails past the old 5-min-from-start
+boundary and still ends correctly once genuinely quiet. Plus flap-guard,
+`cancel()` teardown, and configurable-window cases.
+Frontend suite **14 suites / 105 tests** pass. Level-1 backend regression
+(staging :8002): `test_ai_escalation`, `test_resident_events`,
+`test_rf_semantics`, `test_activation_observability`,
+`test_level1_session_fencing`, `test_level1_concurrency_isolation`,
+`test_room_device_isolation`, `test_public_demo_kiosk` all pass.
+Preserved: invite_silence (8s, untouched), one-open ResidentEvent,
+paging/dispatch, human press_count, end-call grounding, activation
+observability.
+
+### Blocked / next
+No deploy/restart this pass (per directive). `:8000` still `d466367`;
+`:3000` still the pre-fix frontend.
