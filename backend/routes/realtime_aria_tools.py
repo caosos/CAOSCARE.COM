@@ -55,11 +55,15 @@ async def _build_aria_tools() -> list[dict]:
             "type": "function",
             "name": "check_request_status",
             "description": (
-                "Check the real status of the most recent request YOU created "
-                "with request_staff_help this way. Use when Michael asks "
-                "things like 'did maintenance see that' or 'any update'. "
-                "Report only what this actually returns - never claim "
-                "acknowledgment or completion it doesn't report."
+                "The CURRENT (still-open) status of a request YOU created with "
+                "request_staff_help. Use when Michael asks 'did maintenance see "
+                "that' or 'any update'. Returns ONLY an open request - if "
+                "`found` is false there is nothing pending; say so, don't bring "
+                "up a finished one as current. It gives lifecycle times "
+                "(`created`, `acknowledged_at`, `started_at`) each with a plain "
+                "`label` - use those for 'when' answers; null means unknown, "
+                "never guess. Never claim acknowledgment/completion it doesn't "
+                "report."
             ),
             "parameters": {
                 "type": "object",
@@ -67,7 +71,7 @@ async def _build_aria_tools() -> list[dict]:
                     "category": {
                         "type": "string",
                         "enum": categories,
-                        "description": "Optional - narrow to one department's most recent request."
+                        "description": "Optional - narrow to one department's current request."
                     }
                 },
                 "additionalProperties": False

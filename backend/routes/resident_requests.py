@@ -8,6 +8,7 @@ creating a parallel data model, and is mounted at the same /tasks prefix
 so the public URLs (/api/tasks/resident-request, .../status) don't move.
 """
 from typing import Optional
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -16,10 +17,15 @@ from deps import db
 from routes.receipts import create_receipt
 from routes.notifications import notify_department
 from routes.departments import get_active_departments
+from routes.facility_local_time import facility_tz as _facility_tz, facility_local as _facility_local
 from routes.tasks import _resolve_denorms
 from operational_provenance import reject_unconfirmed_time
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
+
+# Closed = no longer an operational concern. Queryable only via the
+# explicit /history path, never surfaced as "current".
+CLOSED_TASK_STATUSES = ["completed", "skipped"]
 
 # Category names that predate the admin-managed Department list and don't
 # match a department slug 1:1 - kept as fixed aliases so requests already
@@ -182,37 +188,69 @@ async def create_resident_request(data: ResidentRequestInput):
     return {"task_id": doc["task_id"], "receipt_id": receipt["receipt_id"], "status": doc["status"], "duplicate": False}
 
 
-def _resident_safe_view(task: dict) -> dict:
+def _iso(v) -> Optional[str]:
+    if v is None:
+        return None
+    return v if isinstance(v, str) else v.isoformat()
+
+
+def _resident_safe_view(task: dict, tz: str) -> dict:
     """The one place that decides what a resident/Aria is allowed to see of
-    a StaffTask - used by both the single-status lookup and the list-mine
-    endpoint below so a resident's screen and Aria's spoken answer can never
-    drift apart (same underlying request state, same projection of it).
-    Deliberately excludes internal-only fields (assigned_to user_id, source,
-    visibility_role, etc.) - only what a resident/Aria should say out loud.
+    a StaffTask - used by the current-status lookup, the history lookup and
+    the list-mine endpoint so a resident's screen and Aria's spoken answer
+    can never drift apart. Excludes internal-only fields (assigned_to
+    user_id, source, visibility_role, completed_by user_id, ...).
+
+    Every lifecycle timestamp that ACTUALLY EXISTS on StaffTask is exposed
+    here as {iso, local, label}; one that does not exist / was never set is
+    null (Aria says "I don't have that", never invents one). `latest_update`
+    is the free-text staff note - StaffTask has no per-note timestamp, so
+    `latest_update_at` is null by design, not omission.
     """
-    created_at = task["created_at"]
+    status = task["status"]
+    is_open = status in OPEN_TASK_STATUSES
+    created = _iso(task.get("created_at"))
+    ack = _iso(task.get("acknowledged_at"))
+    started = _iso(task.get("started_at"))
+    completed = _iso(task.get("completed_at"))
+    last_re = _iso(task.get("last_re_requested_at"))
     return {
         "task_id": task["task_id"],
         "category": task["category"],
-        # What the request is actually FOR - resident's own words when we
-        # have them, falling back to the staff-facing title/description.
-        # Previously this was never returned at all, so Aria had no way to
-        # answer "what did I call maintenance about?"
         "what_for": task.get("resident_words") or task.get("description") or task.get("title") or "",
-        "status": task["status"],
-        "acknowledged": bool(task.get("acknowledged_at") or task["status"] in ("in_progress", "completed")),
+        "status": status,
+        "is_open": is_open,               # the operational current-vs-closed answer
+        "acknowledged": bool(ack or status in ("in_progress", "completed")),
         "assigned_to_name": task.get("assigned_name"),
-        # Real staff-entered planned service window, or both None - never
-        # invent an ETA when these are empty; the caller must say "no
-        # scheduled time yet" in that case.
-        "scheduled_date": task.get("requested_for_date"),
-        "scheduled_time_label": task.get("requested_for_time_label"),
-        # Latest staff-entered update (e.g. "waiting on a replacement part
-        # from the vendor") - empty string if none, never fabricated.
+        "scheduled_date": task.get("requested_for_date"),        # planned service window,
+        "scheduled_time_label": task.get("requested_for_time_label"),  # separate from lifecycle
         "latest_update": task.get("notes") or "",
+        "latest_update_at": None,         # StaffTask.notes has no timestamp - honest null
         "re_request_count": task.get("re_request_count", 0),
-        "created_at": created_at if isinstance(created_at, str) else created_at.isoformat(),
+        # ---- authoritative lifecycle timestamps (UTC iso + facility-local) ----
+        "created_at": created,            # raw UTC kept for back-compat / audit
+        "created": _facility_local(created, tz),
+        "acknowledged_at": _facility_local(ack, tz),
+        "started_at": _facility_local(started, tz),
+        "completed_at": _facility_local(completed, tz),
+        "last_re_requested_at": _facility_local(last_re, tz),
     }
+
+
+def _scope_query(resident_id, room, conversation_session_id, allow_session: bool = True) -> dict:
+    q: dict = {"source": {"$in": ["aria_voice", "kiosk_button"]}}
+    if resident_id:
+        q["resident_id"] = resident_id
+    elif room:
+        q["room"] = room
+    elif allow_session and conversation_session_id:
+        q["conversation_session_id"] = conversation_session_id
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="resident_id, room" + (", or conversation_session_id" if allow_session else "") + " required",
+        )
+    return q
 
 
 @router.get("/resident-request/status")
@@ -222,41 +260,62 @@ async def resident_request_status(
     conversation_session_id: Optional[str] = None,
     category: Optional[str] = None,
 ):
-    """Public — lets Aria answer 'did anyone see my message?' truthfully.
-    Returns the most recent matching request's real status, not a guess.
-    Scoped to resident_id, or room, or (for Aria's own operator session,
-    which has neither) conversation_session_id - so this can't be used to
-    browse other residents'/sessions' requests."""
-    q: dict = {"source": {"$in": ["aria_voice", "kiosk_button"]}}
-    if resident_id:
-        q["resident_id"] = resident_id
-    elif room:
-        q["room"] = room
-    elif conversation_session_id:
-        q["conversation_session_id"] = conversation_session_id
-    else:
-        raise HTTPException(status_code=400, detail="resident_id, room, or conversation_session_id required")
+    """Public — the resident's CURRENT (open) request status. CURRENT STATE
+    and HISTORY are different things: this endpoint returns ONLY a
+    genuinely open request (status pending / in_progress). A completed,
+    resolved, or skipped request is NOT current and is never returned here
+    - it stays queryable via /resident-request/history when the resident
+    explicitly asks about the past. `found: false` here means "nothing open
+    right now", not "no such request ever existed".
+
+    Scoped to resident_id, or room, or (Aria's own operator session, which
+    has neither) conversation_session_id - never a cross-resident browse."""
+    q = _scope_query(resident_id, room, conversation_session_id)
+    q["status"] = {"$in": OPEN_TASK_STATUSES}
     if category:
         q["category"] = category
     task = await db.staff_tasks.find_one(q, {"_id": 0}, sort=[("created_at", -1)])
     if not task:
-        return {"found": False}
-    return {"found": True, **_resident_safe_view(task)}
+        return {"found": False, "scope": "current"}
+    return {"found": True, "scope": "current", **_resident_safe_view(task, await _facility_tz())}
+
+
+@router.get("/resident-request/history")
+async def resident_request_history(
+    resident_id: Optional[str] = None,
+    room: Optional[str] = None,
+    conversation_session_id: Optional[str] = None,
+    category: Optional[str] = None,
+    limit: int = 5,
+):
+    """Public — CLOSED request history, retrieved ONLY on an explicit
+    historical question ("what did I ask maintenance yesterday?", "when did
+    they fix my light?"). Returns recently completed/skipped requests with
+    their real lifecycle timestamps (completed_at etc). Never preloaded
+    into a session; never unsolicited conversation material. History is
+    preserved - records are never deleted."""
+    q = _scope_query(resident_id, room, conversation_session_id)
+    q["status"] = {"$in": CLOSED_TASK_STATUSES}
+    if category:
+        q["category"] = category
+    tz = await _facility_tz()
+    tasks = await db.staff_tasks.find(q, {"_id": 0}).sort(
+        [("completed_at", -1), ("created_at", -1)],
+    ).to_list(max(1, min(limit, 20)))
+    return {"found": bool(tasks), "scope": "history",
+            "requests": [_resident_safe_view(t, tz) for t in tasks]}
 
 
 @router.get("/resident-request/mine")
 async def resident_request_mine(resident_id: Optional[str] = None, room: Optional[str] = None, limit: int = 8):
     """Public — the resident Home screen's Requests panel. Same scoping
-    discipline as /status above (resident_id, else room - never a global
-    'latest requests' query) but returns several recent ones instead of
-    just the newest, so a resident with more than one open request sees all
-    of them as separate cards, each with its own real status/schedule."""
-    q: dict = {"source": {"$in": ["aria_voice", "kiosk_button"]}}
-    if resident_id:
-        q["resident_id"] = resident_id
-    elif room:
-        q["room"] = room
-    else:
-        raise HTTPException(status_code=400, detail="resident_id or room required")
+    discipline as /status (resident_id, else room - never a global 'latest
+    requests' query) but returns several recent ones instead of just the
+    newest, so a resident with more than one open request sees all of them
+    as separate cards. Unlike /status this is not conversational context -
+    it is the resident's own screen - so it still shows every recent
+    request regardless of status, each with its real state/schedule."""
+    q = _scope_query(resident_id, room, None, allow_session=False)
+    tz = await _facility_tz()
     tasks = await db.staff_tasks.find(q, {"_id": 0}).sort("created_at", -1).to_list(max(1, min(limit, 30)))
-    return [_resident_safe_view(t) for t in tasks]
+    return [_resident_safe_view(t, tz) for t in tasks]

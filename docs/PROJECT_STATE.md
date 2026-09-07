@@ -2433,3 +2433,110 @@ observability.
 ### Blocked / next
 No deploy/restart this pass (per directive). `:8000` still `d466367`;
 `:3000` still the pre-fix frontend.
+
+---
+
+## 2026-09-07 — Stale request resurrection fixed: CURRENT (open) vs HISTORY, + authoritative lifecycle timestamps
+
+### Agent / ref
+Claude Code (Claude 2), `~/CAOSCARE-LEVEL1-INTEGRATION`,
+`claude/level1-integration` on top of `ab3243b`. Not deployed (`:8000` /
+`:3000` still `ab3243b` / pre-fix). Not merged.
+
+### Root cause(s) — proven by inspection
+1. **`routes/resident_requests.py::resident_request_status()`**:
+   `db.staff_tasks.find_one(q, sort=[("created_at",-1)])` with **NO status
+   filter**. It returned the newest matching request of ANY status, so a
+   `completed`/`skipped` request from days ago was handed to Aria (via the
+   `check_request_status` tool) as the resident's *current* request. This
+   is the whole "completed work masquerading as current context" defect.
+2. **`_resident_safe_view()`** exposed only `created_at`, a boolean
+   `acknowledged`, `latest_update` (= the free-text `notes`),
+   `re_request_count`, `scheduled_*`. It did NOT expose `acknowledged_at`,
+   `started_at`, `completed_at`, or `last_re_requested_at`, and gave no
+   facility-local rendering - so Aria literally could not answer "when was
+   it acknowledged / started / finished / re-asked" and had no way to say
+   a natural local time.
+3. **Tool contract**: `check_request_status`'s description said "most
+   recent staff request" with no open/current-only semantics.
+4. **NOT a cause (verified)**: the companion prompt / profile-memory
+   (`realtime_companion_memory.build_resident_profile_and_memory`) does
+   **not** inject `staff_tasks`/requests at all - there is no "recent
+   requests" context block and no request preload. `db.memories` held no
+   request-shaped fact for Helen. `resident-request/mine` is the Home
+   screen panel, not session context. So the spontaneous mentions came
+   from Aria calling `check_request_status` herself and getting a
+   stale/closed task back - fixed at (1)+(3), with a regression test
+   locking (4) down.
+
+### Current-vs-history contract implemented
+- `GET /tasks/resident-request/status` — **CURRENT only**: filters
+  `status ∈ {pending, in_progress}`. `{found:false, scope:"current"}` when
+  nothing is open (≠ "never existed"). This is what the
+  `check_request_status` tool calls.
+- `GET /tasks/resident-request/history` — **NEW**, explicit-only: recent
+  `status ∈ {completed, skipped}`, same scoping, ordered by
+  `completed_at desc`, small limit. Backs a **NEW `check_request_history`
+  tool** whose description says use ONLY on an explicit past-tense
+  question and NEVER volunteer old requests.
+- `GET /tasks/resident-request/mine` — unchanged behavior (the resident's
+  OWN Home screen, all statuses) but now returns the richer view.
+- Nothing preloads history into a session; nothing dumps requests into the
+  companion prompt.
+
+### Lifecycle timestamps now available to Aria (real StaffTask fields only)
+`created` · `acknowledged_at` · `started_at` · `completed_at` ·
+`last_re_requested_at` — each returned as `{iso (UTC), local (tz-aware
+iso), label ("today at 2:17 PM" / "yesterday at 4:06 PM" / "Monday at 2:17
+PM" / "September 3 at 2:17 PM")}`, or **null** when the field was never set
+(never invented). Plus `re_request_count`, `is_open`, `scheduled_date` /
+`scheduled_time_label` (planned window, kept separate from lifecycle).
+
+### Facility-local time
+`routes/facility_local_time.py` (new, 45 lines): `facility_tz()` reads
+`db.facilities.timezone` then falls back to `FACILITY_TZ`
+(America/Chicago - already correct for Conway); `facility_local(iso, tz)`
+formats via `zoneinfo`. No hardcoded timezone, no manufactured times, UTC
+retained for audit.
+
+### Timestamps that still do NOT exist in the model
+- **latest-update timestamp**: `StaffTask.notes` is a single free-text
+  string with no per-edit timestamp -> `latest_update_at` is returned as
+  an honest `null` (the note text is still returned as `latest_update`).
+- No `resolved_at` distinct from `completed_at` (they are the same
+  concept in this model). No generic `updated_at`. No per-status-transition
+  audit trail on StaffTask itself (receipts exist per action but are not
+  resident-safe-projected here).
+
+### Tests
+`backend/tests/test_request_status_lifecycle.py` (new) — directive 1-11:
+completed-only -> current not found; older-completed + newer-open ->
+current returns the open one; multiple-completed -> current not found;
+history still retrieves completed; companion context contains no completed
+request; authoritative `created` present; `acknowledged_at`/`started_at`
+surfaced when set; `completed_at` reaches history; missing times stay
+null; re-request keeps original `created` + separate `last_re_requested_at`
++ correct `re_request_count`; facility-local "yesterday at H:MM AM/PM"
+from the real tz. `frontend/.../requestStatusHistory.test.js` (new, 5) —
+`/status` vs `/history` routing, "no open request" wording, lifecycle
+labels rendered verbatim, null times omitted not fabricated.
+**All pass in isolation.** Regression: `test_ai_escalation`,
+`test_resident_events`, `test_rf_semantics`, `test_activation_observability`,
+`test_level1_session_fencing`, `test_level1_concurrency_isolation`,
+`test_room_device_isolation`, `test_public_demo_kiosk` each pass 100% in a
+separate process (Motor single-event-loop constraint, same as every prior
+entry). Frontend suite **15 suites / 110 tests**. `iter5-8` errors are the
+pre-existing missing-demo-credentials fixture failures, unrelated (none
+touch the request-status paths).
+
+### Preserved
+one StaffTask = one operational request; re-request dedup +
+`re_request_count` + `last_re_requested_at`; `resident_words` provenance;
+`reject_unconfirmed_time`; department routing + notification; receipts;
+Room 214 ResidentEvent semantics; pendant `press_count`; nursing
+page/dispatch; inactivity state machine; end-call grounding; transportation
+/ menu / schedule paths (their own status endpoints untouched).
+
+### Not done / next
+No deploy - `:8000`/`:3000` still `ab3243b`. Awaiting Michael + ChatGPT
+review before deploy.
