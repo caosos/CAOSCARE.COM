@@ -91,7 +91,14 @@ export function useRealtimeVoice({
   }, []);
 
   const clearLifecycleTimers = () => {
-    if (companionTimeoutTimerRef.current) { clearTimeout(companionTimeoutTimerRef.current); companionTimeoutTimerRef.current = null; }
+    // companionTimeoutTimerRef holds an inactivity-timer handle
+    // ({ close } from realtimeInactivityTimer.js) since 2026-09-07; older
+    // path stored a raw setTimeout id. Handle both.
+    if (companionTimeoutTimerRef.current) {
+      const t = companionTimeoutTimerRef.current;
+      if (t && typeof t.close === "function") t.close(); else clearTimeout(t);
+      companionTimeoutTimerRef.current = null;
+    }
     if (inviteSilenceTimerRef.current) { clearTimeout(inviteSilenceTimerRef.current); inviteSilenceTimerRef.current = null; }
     if (awaitingAnswerTimerRef.current) { clearTimeout(awaitingAnswerTimerRef.current); awaitingAnswerTimerRef.current = null; }
   };

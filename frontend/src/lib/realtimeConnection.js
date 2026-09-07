@@ -8,6 +8,7 @@ import { createRealtimeHandlers } from "./realtimeMessageHandler";
 import { attachLifecycleDiagnostics } from "./realtimeLifecycleDiagnostics";
 import { buildSessionUpdate } from "./realtimeSessionUpdate";
 import { createLeaseWatchdog } from "./realtimeLeaseWatchdog";
+import { createInactivityTimer } from "./realtimeInactivityTimer";
 
 export async function connectRealtimeVoice({
   attemptRef, voice, residentId, kioskId, room, alertId, activationId, sessionEndpoint,
@@ -139,12 +140,25 @@ export async function connectRealtimeVoice({
       };
 
       firstSpeechHeardRef.current = false;
+
+      // Companion timeout is an INACTIVITY timer, NOT a session-age timer
+      // (Level 1 directive 2026-09-07 - Room 214 session rt_mkqn5z8x was
+      // cut off at ~302s mid-song by the old one-shot arm). Every speech
+      // event (resident or Aria) bumps it; it only fires after a full
+      // window of genuine silence. See realtimeInactivityTimer.js.
+      const inactivity = createInactivityTimer({
+        seconds: ctxRef.current?.aria_companion_timeout_sec ?? 300,
+        onTimeout: () => { try { stop("companion_timeout"); onEndCall?.(); } catch {} },
+      });
+      companionTimeoutTimerRef.current = { close: () => inactivity.cancel() };
+
       const { onMessage } = createRealtimeHandlers({
         myGen, startGenRef, sessionIdRef, ctxRef, caos, send, stop, onEndCall,
         turnSuspectRef, assistantSpeakingRef, restingRef,
         greetingCreateResponseOffRef,
         setStatus, setResting, setTranscript, setError,
         startAwaitingAnswerTimer,
+        onConversationActivity: () => { if (myGen === startGenRef.current) inactivity.bump(); },
         onFirstSpeechStarted: () => {
           if (awaitingAnswerTimerRef.current) { clearTimeout(awaitingAnswerTimerRef.current); awaitingAnswerTimerRef.current = null; }
           if (firstSpeechHeardRef.current) return;
@@ -169,11 +183,12 @@ export async function connectRealtimeVoice({
         setStatus("live");
 
         postAriaEvent("activated");
-        const timeoutMs = (ctxRef.current?.aria_companion_timeout_sec ?? 300) * 1000;
+        // Initial arm: the room is silent until the greeting plays. Every
+        // subsequent speech event (realtimeMessageHandler.js -> activity())
+        // bumps this to a fresh full window - an active conversation is
+        // never terminated by it. Only a full window of real silence fires.
+        inactivity.bump();
         const inviteMs = (ctxRef.current?.invite_silence_sec ?? 8) * 1000;
-        companionTimeoutTimerRef.current = setTimeout(() => {
-          try { stop("companion_timeout"); onEndCall?.(); } catch {}
-        }, timeoutMs);
         inviteSilenceTimerRef.current = setTimeout(() => {
           if (firstSpeechHeardRef.current) return;
           postAriaEvent("silence_after_invite");

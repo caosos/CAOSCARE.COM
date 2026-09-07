@@ -2272,3 +2272,100 @@ Obtain the physical baseline observation; continue isolated regressions and
 minimal fixes for the documented remaining boundaries, then coordinate the
 local live acceptance sequence. Preserve real Room 214 events and device
 mappings; do not clean historical data or touch production/HA/network.
+
+---
+
+## 2026-09-07 — Room 214 conversation forensics: absolute companion timer proven, fixed to an inactivity timer
+
+### Agent / tool / ref
+Claude Code (Claude 2, Level 1 lane), worktree `~/CAOSCARE-LEVEL1-INTEGRATION`,
+branch `claude/level1-integration` (on top of `234d8ff`). Frontend only.
+Not merged to main.
+
+### Running-state check first (not assumed)
+`:8000` = uvicorn pid 579632, started 2026-09-07 10:03:22, cwd
+`~/CAOSCARE-LEVEL1-INTEGRATION/backend`. The worktree files are at
+`234d8ff` but the process predates that commit and has no `--reload`:
+`/api/alerts/ai-escalate` and `/api/staff-dispatch` return **absent** in the
+live OpenAPI, `/api/activation-events` present -> **`:8000` is running
+`d466367`**, NOT the "a nurse has been paged" fix (`234d8ff`). The `:3000`
+craco dev server serves `~/CAOSCARE.COM/frontend`, whose realtime lib files
+are byte-identical to this worktree's, so this frontend fix is what `:3000`
+will serve after a restart.
+
+### What ended Michael's conversation — PROVEN
+Session **`rt_mkqn5z8x_1788800249832`**, 2026-09-07T16:57:30.601Z ->
+17:02:32.661Z, **302.06 s**, tied to `alert_21577791fd3a`. Final events:
+`273.4s` resident "But you didn't sing it though, you just said the words.";
+`277.7s` Aria "...Let me go ahead and sing the tune for you now... Amazing
+grace, how sweet the sound..." (singing); **`302.1s` `session_ended`
+`reason: "companion_timeout"`**. The conversation was maximally active at
+the cutoff. `realtimeConnection.js` armed `companionTimeoutTimerRef` **once**
+in `dc.onopen` with `setTimeout(aria_companion_timeout_sec*1000)` (default
+300 s) and nothing ever reset it -> an absolute **session-age** timer.
+300 s after `dc.onopen` (~+2 s) == the observed 302 s. **The five-minute
+bug was the sole cause of this cutoff.** "That's beautiful." was NOT
+involved (no `end_call`/`end_conversation` attempt in the session; reason
+was `companion_timeout`, not `resident_end_*`).
+
+### Fix
+`frontend/src/lib/realtimeInactivityTimer.js` (new, 52 lines) -
+`createInactivityTimer({seconds, onTimeout})`: a rolling idle timeout.
+`bump()` cancels any pending timer and starts a fresh full window;
+`cancel()` for teardown. `realtimeConnection.js`: `dc.onopen` calls
+`inactivity.bump()` once (silence until the greeting), and
+`onConversationActivity` (new handler param) calls `inactivity.bump()` on
+every speech-lifecycle event. `realtimeMessageHandler.js`: fires
+`onConversationActivity()` on `input_audio_buffer.speech_started`,
+`.speech_stopped`, `output_audio_buffer.started`, and `.stopped/.cleared` -
+resident speech OR Aria speech. `useRealtimeVoice.js`
+`clearLifecycleTimers()` handles both the new `{close}` handle and the
+legacy raw id. `invite_silence_sec` (8 s) is untouched; companion_timeout
+still maps to the existing `aria-event {event:"timeout"}` lifecycle policy.
+Net: an active conversation is never terminated by this timer; five
+continuous minutes of real silence still ends it; each new silence gets its
+own full window.
+
+### Other findings in that conversation (not fixed here - shared contracts)
+- **PROVEN DEFECT (reported, not fixed - cross-contract): fabricated
+  bleeding emergency.** Aria's forced greeting opened with "Helen, I can see
+  that you're bleeding" + `call_for_help(severity=emergency)`, then spent
+  ~70 s claiming and retracting camera/vision capability. Root cause:
+  `db.memories` for `res_81b72be1e8b5` contains "User is bleeding." and
+  "User is 84 years old." (extracted 2026-09-07T15:30 by
+  `realtime_memory_ingest` from Michael's 15:26 ROLEPLAY session), fed into
+  the next session's companion instructions by
+  `build_resident_profile_and_memory`. Same class as TSB-001. Fixing it
+  touches memory ingestion + the companion prompt + the persona/senses
+  contract - out of this directive's scope ("do not redesign Resident Aria
+  broadly"). Recommended: delete the two roleplay-contaminated memories;
+  scope a memory-provenance / present-tense-emergency guard separately.
+- **QUALITY: fabricated request timestamp.** `check_request_status` returned
+  a stale bathroom request; Aria then invented "the request for bleeding was
+  placed around 11:57 AM" and retracted it.
+- **QUALITY: song sequence.** Offered "Amazing Grace", resident said no,
+  Aria offered "Amazing Grace" again; agreed "You Are My Sunshine" then sang
+  "Somewhere over the rainbow"; recited lyrics instead of singing.
+- **NOT PROVEN: barge-in / truncated Aria turns / echo fragments.** Several
+  Aria responses cut mid-word and 1-char `echo_like` user transcripts -
+  consistent with the non-eMeet laptop-mic + speaker setup Michael flagged;
+  eMeet/audio is explicitly out of scope.
+
+### Verified
+`frontend/src/lib/__tests__/realtimeInactivityTimer.test.js` (new) -
+directive tests 1-6 (active conversation past 5 min; speech across the
+5-min-from-start boundary; 5 min real inactivity fires; speech after
+silence cancels; later inactivity gets its own window; configurable
+window). `restingEndCallGuard.test.js` extended - directive test 7 ("That's
+beautiful." never triggers `end_call`/`end_conversation`). Full frontend
+suite **14 suites / 102 tests** pass. Backend regression re-run at HEAD
+(staging :8002, CAOSCARE_TEST_HOOKS=1): `test_ai_escalation`,
+`test_resident_events`, `test_rf_semantics`, `test_activation_observability`,
+`test_level1_session_fencing` all pass - the one-open-ResidentEvent / paging
+/ press-count work is intact.
+
+### Blocked / next
+`:8000` still runs `d466367`; `:3000` still serves the pre-fix frontend.
+Both need a restart from this worktree for the fix to be live (Michael's
+call). The fabricated-bleeding memory contamination needs Michael's decision
+on deleting the roleplay memories and a separate scoped pass.

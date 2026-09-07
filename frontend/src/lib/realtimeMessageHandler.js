@@ -78,8 +78,13 @@ export function createRealtimeHandlers({
   myGen, startGenRef, sessionIdRef, ctxRef, caos, send, stop, onEndCall,
   turnSuspectRef, assistantSpeakingRef, restingRef, greetingCreateResponseOffRef,
   setStatus, setResting, setTranscript, setError, onFirstSpeechStarted,
-  startAwaitingAnswerTimer,
+  startAwaitingAnswerTimer, onConversationActivity,
 }) {
+  // Any speech-lifecycle event = "words are being exchanged". Resets the
+  // companion INACTIVITY timer (realtimeConnection.js). The conversation
+  // itself has no time limit - only genuine silence does. See
+  // realtimeInactivityTimer.js for the contract.
+  const activity = () => { try { onConversationActivity?.(); } catch { /* ignore */ } };
   // Closure-local, not refs - createRealtimeHandlers runs once per
   // connection and these handlers persist for its lifetime, same as any
   // ref would, without threading more state through useRealtimeVoice.js.
@@ -204,6 +209,7 @@ export function createRealtimeHandlers({
       // classifyUserTurn() above, applied once the transcript resolves.
       turnSuspectRef.current = assistantSpeakingRef.current;
       lastSpeechStartedAt = Date.now();
+      activity();   // resident speaking - cancel/restart the inactivity window
       logRealtimeEvent(sessionIdRef.current, "speech_started", { assistantSpeaking: assistantSpeakingRef.current });
       // Level 1 invite-silence timer (useRealtimeVoice.js) needs to know
       // the FIRST time the resident actually speaks this session, to clear
@@ -215,6 +221,7 @@ export function createRealtimeHandlers({
       setStatus("live");
       lastSpeechSegmentMs = lastSpeechStartedAt ? Date.now() - lastSpeechStartedAt : null;
       turnGrounding.onSpeechStopped();
+      activity();   // a speech segment just ended - restart a fresh window from this new silence
       logRealtimeEvent(sessionIdRef.current, "speech_stopped", { assistantSpeaking: assistantSpeakingRef.current });
     }
     if (msg.type === "response.audio.delta") {
@@ -235,6 +242,7 @@ export function createRealtimeHandlers({
     if (msg.type === "output_audio_buffer.started") {
       assistantSpeakingRef.current = true;
       greetingGate.onAudioStarted();
+      activity();   // Aria speaking - cancel/restart the inactivity window
       // Logged standalone (2026-08-24) - was only folded into other events.
       logRealtimeEvent(sessionIdRef.current, "output_audio_buffer_started", {});
     }
@@ -243,6 +251,7 @@ export function createRealtimeHandlers({
       // either way, Aria's audio is no longer physically playing.
       assistantSpeakingRef.current = false;
       lastPlaybackStoppedAt = Date.now();
+      activity();   // Aria just stopped - restart a fresh window from this new silence
       logRealtimeEvent(sessionIdRef.current, "output_audio_buffer_stopped", { meta: { cleared: msg.type === "output_audio_buffer.cleared" } });
       // Re-enable normal auto-response once the forced greeting's own audio
       // has ACTUALLY finished playing - see realtimeAutoResponseGate.js.
