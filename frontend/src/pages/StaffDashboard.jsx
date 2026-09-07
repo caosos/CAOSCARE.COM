@@ -259,6 +259,31 @@ export default function StaffDashboard() {
                         {a.message && (
                           <p className="text-caos-ink/70 mt-2 italic">"{a.message}"</p>
                         )}
+                        {a.latest_escalation_reason && (
+                          <div
+                            className="mt-2 p-2.5 rounded-lg bg-caos-terracotta/10 border border-caos-terracotta"
+                            data-testid={`escalation-${a.alert_id}`}
+                          >
+                            <p className="text-caos-terracotta-dark font-semibold text-sm">
+                              Reports: "{a.latest_escalation_reason}"
+                            </p>
+                            <p className="text-caos-mute text-xs mt-0.5">
+                              {(a.escalation_source || "AI").replace("_", " ")} escalated
+                              {a.original_severity && a.original_severity !== a.severity
+                                ? ` ${a.original_severity} → ${a.severity}` : ` to ${a.severity}`}
+                              {" · Care/Nursing "}
+                              {a.dispatch_status === "delivered"
+                                ? "page delivered"
+                                : a.dispatch_status === "accepted"
+                                ? "paged"
+                                : a.dispatch_status === "failed"
+                                ? "PAGE FAILED"
+                                : a.dispatch_status === "requested"
+                                ? "page pending"
+                                : "requested"}
+                            </p>
+                          </div>
+                        )}
                         {a.acknowledged_by && (
                           <p className="text-caos-mute text-xs mt-2">Acknowledged by {a.acknowledged_by}</p>
                         )}

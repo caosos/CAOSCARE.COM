@@ -327,6 +327,17 @@ class Alert(BaseModel):
     silence_after_invite: bool = False
     receipt_id: Optional[str] = None
     event_log: List[dict] = Field(default_factory=list)  # {at, field, from, to} - aria/live-line transition history
+    # ---- AI-triage escalation (2026-09-07 directive): enrich, don't
+    # duplicate. AI escalation NEVER touches press_count/presses[]; it
+    # appends here and may raise severity upward only. `original_severity`
+    # preserves what the event opened as so staff can see WHY it escalated.
+    escalations: List[dict] = Field(default_factory=list)
+    original_severity: Optional[str] = None
+    latest_escalation_reason: Optional[str] = None
+    escalated_at: Optional[datetime] = None
+    escalation_source: Optional[str] = None
+    dispatch_id: Optional[str] = None            # current staff page/dispatch (routes/staff_dispatch.py)
+    dispatch_status: Optional[str] = None        # requested | accepted | delivered | failed
     # ---- Event registry enrichment (auto-populated by AI classifier) ----
     category: Optional[AlertCategory] = None     # what kind of call (bathroom, fall, ...)
     ai_summary: Optional[str] = None             # 1-line Claude summary of the call
