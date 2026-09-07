@@ -28,6 +28,8 @@ _ARIA_STATE_FOR_EVENT = {
 class AriaEventInput(BaseModel):
     event: str  # "activated" | "dismissed" | "timeout" | "silence_after_invite" | "requested_staff"
     utterance: Optional[str] = None
+    session_id: Optional[str] = None
+    activation_id: Optional[str] = None
 
 
 @router.post("/{alert_id}/aria-event")
@@ -52,6 +54,19 @@ async def aria_event(alert_id: str, data: AriaEventInput):
     if not existing:
         raise HTTPException(status_code=404, detail="Alert not found")
 
+    # Once a session is bound, old/unidentified callbacks cannot modify
+    # its activation. Legacy unbound events retain their endpoint shape.
+    fence = {"alert_id": alert_id, "status": {"$in": ["active", "acknowledged"]}}
+    if existing.get("activation_id") and not existing.get("aria_session_id"):
+        raise HTTPException(409, "No Aria session is bound to this activation")
+    if existing.get("aria_session_id"):
+        fence.update(aria_session_id=data.session_id, activation_id=data.activation_id)
+        if (data.session_id != existing["aria_session_id"] or
+                data.activation_id != existing.get("activation_id")):
+            raise HTTPException(409, "Stale Aria session event")
+
+    if data.event not in ("dismissed", "timeout"):
+        fence["activation_consumed_at"] = None
     update: dict = {}
     if data.event in _ARIA_STATE_FOR_EVENT:
         update["aria_state"] = _ARIA_STATE_FOR_EVENT[data.event]
@@ -66,10 +81,13 @@ async def aria_event(alert_id: str, data: AriaEventInput):
     else:
         raise HTTPException(status_code=400, detail=f"Unknown aria-event: {data.event}")
 
-    log_entry = {"at": now_utc().isoformat(), "field": data.event, "utterance": data.utterance}
-    await db.alerts.update_one(
-        {"alert_id": alert_id}, {"$set": update, "$push": {"event_log": log_entry}},
+    log_entry = {"at": now_utc().isoformat(), "field": data.event, "utterance": data.utterance,
+                 "session_id": data.session_id, "activation_id": data.activation_id}
+    result = await db.alerts.update_one(
+        fence, {"$set": update, "$push": {"event_log": log_entry}},
     )
+    if not result.matched_count:
+        raise HTTPException(409, "Resident event or session changed")
     doc = await db.alerts.find_one({"alert_id": alert_id}, {"_id": 0})
     return doc
 

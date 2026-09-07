@@ -2217,3 +2217,58 @@ Nothing. This fix is complete and verified. Live-hardware/voice break-testing of
 
 ### Next safe step
 Proceed to the live break-test pass against real Room 214 hardware and the real voice path.
+
+## 2026-09-06 — Codex temporary takeover: Level 1 adversarial checkpoint; two source fixes, live recovery NOT passed
+
+### Agent / tool
+Codex on EliteDesk, shell, read-only local Mongo snapshots, isolated
+ASGI/Mongo reproductions and pytest. No subagents.
+
+### Branch / ref
+`main` at `d994331`, matching the local `origin/main` ref; no fetch, commit,
+staging, push, or deployment. Seven pre-existing climate files were
+fingerprinted and verified unchanged.
+
+### What changed
+Prepared bounded fixes in `resident_activation.py` (209 lines) and
+`kiosks.py` (142 lines): enforce uniqueness for new/adopted open-event keys,
+retry concurrent creators, avoid appending to a just-closed event, and
+limit room kiosk activation polling to its own room. Existing historical
+duplicates are preserved. Added isolated concurrency/isolation regression
+test and `docs/LEVEL1_BREAK_TEST_2026-09-06.md`; updated REPO_MAP.
+The running backend has no reload flag and was not restarted, so these
+source fixes are NOT live yet. No frontend or device-control changes.
+
+### What was verified
+Local health is healthy. Isolated baseline produced 12 open events for
+12 concurrent requests, frame-count inflation, foreign-room routing with
+null zones, and an old dismissal consuming a newer activation. Lease
+concurrency already yielded one winner and stale release was rejected.
+The new regression passed: 24 concurrent presses, one event/receipt,
+correct preserved press records, post-resolve concurrency, retained legacy
+history, and correct room/zone/central polling boundaries. Test evidence
+is retained in `caos_level1_test_4588857959bc`; baseline reproduction in
+`caos_level1_break_a8b656740a`. See audit for the additional ASGI rerun.
+
+Room 214 read-only snapshot found nine historical open events and no lease.
+Eight real RF frames at 22:04:50–22:04:53 UTC attached to one event but
+increased press_count 49 → 57; no new voice diagnostic entries appeared
+in the checked interval. This is frame evidence, not yet Michael-confirmed
+human-press/audio evidence. No raw transcripts/secrets were exposed.
+`git diff --check` passed; climate file hashes unchanged.
+
+### What is blocked / incomplete
+Live break test + automatic recovery are NOT complete. Michael confirmed
+availability but has not yet described the kiosk result of the requested
+single press. RF grouping, same-event frontend reactivation, terminal
+connection recovery, heartbeat rejection/audio fencing, delayed lifecycle
+fencing, UI end-call consumption, and durable lease transition history
+remain unresolved. Physical audio ownership cannot be inferred from one
+Mongo lease. Prior live-backend tests do not cover these boundaries.
+Public-site web-tool open failed; website content pending source review.
+
+### Next safe step
+Obtain the physical baseline observation; continue isolated regressions and
+minimal fixes for the documented remaining boundaries, then coordinate the
+local live acceptance sequence. Preserve real Room 214 events and device
+mappings; do not clean historical data or touch production/HA/network.

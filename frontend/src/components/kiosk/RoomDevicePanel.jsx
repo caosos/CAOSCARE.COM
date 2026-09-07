@@ -18,7 +18,9 @@ function stateLines(d) {
   const caps = d.capabilities || [];
   const lines = [];
   if (caps.includes("power")) lines.push(s.power === "on" ? "On" : "Off");
+  if (caps.includes("hvac_mode") && s.hvac_mode && s.hvac_mode !== "off") lines.push(s.hvac_mode[0].toUpperCase() + s.hvac_mode.slice(1));
   if (caps.includes("temperature") && typeof s.temperature === "number") lines.push(`Set: ${s.temperature}°F`);
+  if (typeof s.current_temperature === "number") lines.push(`Room: ${s.current_temperature}°F`);
   if (caps.includes("input") && s.input) lines.push(`Input: ${s.input}`);
   if (caps.includes("volume") && typeof s.volume === "number" && s.power === "on") lines.push(`Volume ${s.volume}`);
   if (caps.includes("brightness") && typeof s.brightness === "number" && s.power === "on") lines.push(`Brightness ${s.brightness}%`);

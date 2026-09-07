@@ -531,3 +531,14 @@ Do not infer live deployment state from repository existence.
 Do not treat this repo as blank.
 
 This repository is an active CAOS Care multi-surface codebase. Keep the map current, inspect before writing, preserve human oversight, and maintain strict care-domain safety boundaries.
+
+## 2026-09-06 — Level 1 adversarial checkpoint
+
+- `docs/LEVEL1_BREAK_TEST_2026-09-06.md`: traced RF/event/lease/voice path,
+  live metadata observations, isolated reproduced failures, two prepared
+  backend fixes, and the exact remaining physical acceptance sequence.
+- `backend/tests/test_level1_concurrency_isolation.py`: subprocess-isolated
+  real-Mongo concurrency, legacy-history, and room-poll regression checks;
+  synthetic evidence is retained outside the care database.
+- Public website read-only web-tool open failed with a non-retryable
+  safe-open error; site content remains pending source review by this tool.

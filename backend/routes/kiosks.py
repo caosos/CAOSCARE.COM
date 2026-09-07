@@ -58,8 +58,15 @@ async def active_emergency_for_kiosk(kiosk_id: str):
         "activation_consumed_at": None,
     }
     if not kiosk.get("is_central"):
-        # Same zone OR same room
-        q["$or"] = [{"zone": kiosk.get("zone")}, {"room": kiosk.get("room")}]
+        # A room endpoint must never activate another room's resident.
+        # Null/empty zones are not routing identities. Zone-only kiosks
+        # retain their explicitly configured zone scope.
+        if kiosk.get("room"):
+            q["room"] = kiosk["room"]
+        elif kiosk.get("zone"):
+            q["zone"] = kiosk["zone"]
+        else:
+            return {"kiosk_is_central": False, "alert": None}
 
     alert = await db.alerts.find_one(q, {"_id": 0}, sort=[("created_at", -1)])
     return {"kiosk_is_central": bool(kiosk.get("is_central")), "alert": alert}

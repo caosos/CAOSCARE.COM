@@ -30,26 +30,40 @@ def _build_device_tools() -> list[dict]:
             "type": "function",
             "name": "adjust_room_temperature",
             "description": (
-                "Set the air conditioning or heater target temperature in the resident's "
-                "room. Use ONLY when the resident clearly asks to be warmer or cooler. "
-                "After calling, briefly confirm what you did in one short sentence."
+                "Control the resident's room air conditioner or thermostat: power, HVAC "
+                "mode, or target temperature (absolute or relative). Only set the fields "
+                "they actually asked about - e.g. 'turn the AC on' should set only state; "
+                "'make it two degrees cooler' should set only delta_f. Setting mode or a "
+                "temperature without state implies turning it on. Real devices vary in "
+                "which modes they support - if the result says a mode or field isn't "
+                "supported, tell the resident plainly rather than pretending it worked."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
+                    "state": {
+                        "type": "string",
+                        "enum": ["on", "off"],
+                        "description": "Optional power state, e.g. 'turn the AC on/off'."
+                    },
+                    "mode": {
+                        "type": "string",
+                        "enum": ["cool", "heat", "auto", "fan_only"],
+                        "description": "Optional HVAC mode, e.g. 'set it to cool'."
+                    },
                     "target_f": {
                         "type": "number",
                         "minimum": 60,
                         "maximum": 85,
-                        "description": "Target temperature in Fahrenheit (60-85)."
+                        "description": "Optional absolute target temperature in Fahrenheit, e.g. 'set it to 72'."
                     },
-                    "mode": {
-                        "type": "string",
-                        "enum": ["cool", "heat", "auto"],
-                        "description": "Whether to cool or heat. Default 'auto' if uncertain."
+                    "delta_f": {
+                        "type": "number",
+                        "minimum": -20,
+                        "maximum": 20,
+                        "description": "Optional relative temperature change when no exact number was given, e.g. -2 for 'make it two degrees cooler' or 'lower it a couple degrees', +2 for 'raise it two degrees'."
                     }
                 },
-                "required": ["target_f"],
                 "additionalProperties": False
             }
         },
