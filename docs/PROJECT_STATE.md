@@ -2521,3 +2521,42 @@ These are frontend/marketing/comment strings, not architecture docs. **Not modif
 
 ### Next safe step
 STOP — Michael and ChatGPT will independently inspect this onboarding before it becomes trusted doctrine. Then: the code-surface stale-terminology catalogue above can be handed to the owning lanes (Resident Aria line to Claude 2; device-lane "bridge tablet" comments and the Landing/Blueprint marketing copy as a small separate frontend pass).
+
+---
+
+## 2026-09-07 — Admin worktree: localhost:3000 dev frontend repointed at the claude/admin-operations worktree (infra, no code change).
+
+### Agent / tool
+Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations` @ `e81c7b4`. No repo code changed by this task; no backend/data touched; Claude 2's checkout, its uncommitted work, its `:8000` backend, and Room 214 evidence all untouched.
+
+### Why
+Michael's browser at `http://localhost:3000/admin` was still showing the OLD Admin IA (Departments under Communication & Requests, an Owner "Password" header). The local frontend dev server on `:3000` is a **systemd --user service** — `caoscare-frontend-dev.service` (`~/.config/systemd/user/caoscare-frontend-dev.service`) — whose `WorkingDirectory` was `/home/caoscare-1/CAOSCARE.COM/frontend` (the **main checkout**, on `main` @ `d994331` plus a large tree of **Claude 2's uncommitted Level-1/RF/realtime frontend work**). So `:3000` was serving `main`-era Admin code with none of this branch's commits.
+
+Killing the process just made systemd (`Restart=on-failure`) respawn it from the same directory.
+
+### What was done (smallest safe, fully reversible)
+- New systemd **drop-in**: `~/.config/systemd/user/caoscare-frontend-dev.service.d/worktree.conf` sets `WorkingDirectory=/home/caoscare-1/CAOSCARE-ADMIN/frontend`. The original unit file is unedited.
+- `~/CAOSCARE-ADMIN/frontend/.env` created (gitignored) = copy of `~/CAOSCARE.COM/frontend/.env` (`REACT_APP_BACKEND_URL=http://127.0.0.1:8000`, `REACT_APP_GOOGLE_CLIENT_ID=…`) so backend target + Google OAuth are unchanged.
+- `~/CAOSCARE-ADMIN/frontend/node_modules` → symlink to `~/CAOSCARE.COM/frontend/node_modules` (same pattern used for this session's builds/tests).
+- `systemctl --user daemon-reload && systemctl --user restart caoscare-frontend-dev.service`.
+
+### Verified
+- Service `active (running)`, `NRestarts=0`, `WorkingDirectory=/home/caoscare-1/CAOSCARE-ADMIN/frontend`; webpack node process cwd confirmed `= …/CAOSCARE-ADMIN/frontend`.
+- `GET /`, `/admin`, `/alerts` → 200 (`/alerts` is one of this branch's new routes — proves the router changes are live).
+- Served `/static/js/bundle.js` contains: `Departments & staff`, `Users & access`, `Alerts & events`, `Community`, `Operations overview`, `Reports & audit`, `Facility setup`, `Ops reports`, `Activity log`, `Community command centre`. Old group labels `Facility & staff` / `Devices & hardware` are **gone**.
+- Served `adminTabGroups` source in the bundle: `id:"departments"` / `label:"Departments & staff"` → tab `{value:"departments", label:"Departments"}`; `id:"communication"` / `label:"Communication & requests"` → **0** occurrences of a `departments` tab.
+- Owner header: renders a **"Users & access"** button (`data-testid="admin-users-access-btn"`), no password dialog. (`MyPasswordDialog` still exists as an unused exported function in `PasswordDialogs.jsx` because `SetPasswordDialog` from the same file is used by the Users & access tab — dead code in the bundle, not a rendered control.)
+- `:8000` backend healthy and untouched.
+
+### TRADE-OFF for Claude 2 (important)
+While this drop-in is in place, `:3000` serves the `claude/admin-operations` frontend, which does **not** include Claude 2's *uncommitted* Kiosk/realtime frontend changes in `~/CAOSCARE.COM/frontend/src` (those files are safe on disk, just not served). Kiosk routes (`/kiosk/:id`) still work from this branch's `main`-era Kiosk code.
+
+**To restore the previous behaviour** (serve `~/CAOSCARE.COM/frontend` again):
+```
+rm -rf ~/.config/systemd/user/caoscare-frontend-dev.service.d
+systemctl --user daemon-reload
+systemctl --user restart caoscare-frontend-dev.service
+```
+
+### Next safe step
+Michael visual break-test of `http://localhost:3000/admin`. Then decide whether `:3000` stays pointed at this branch or reverts (command above), or whether a second port is set up so both lanes have a live UI.
