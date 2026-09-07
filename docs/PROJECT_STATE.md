@@ -2603,3 +2603,95 @@ Deploy still blocked pending Michael + ChatGPT review of `3951ef6` +
 Await review; on approval, deploy `6608db0` to `:8000`/`:3000` for live
 Room 214 acceptance (backend restart from this worktree + frontend file
 sync into the served tree, per the `ab3243b` deploy entry).
+
+---
+
+## 2026-09-07 — Aria self-knowledge: resident room is NOT a wall-mounted tablet
+
+### Agent / tool
+Claude Sonnet 5 (Claude Code), Michael directing.
+
+### Branch / ref
+`claude/level1-integration` — `a2db2bc` → `<this commit>`. Pushed.
+**Not deployed** — `:8000`/`:3000` still `ab3243b`.
+
+### Canonical Product Baseline (Michael, this directive)
+Resident rooms are **not** tablet-based. The resident-room system is: a
+local CAOSCare room node (EliteDesk-class computer, hidden near the TV) +
+an eMeet-class speakerphone near the resident for Aria audio + the TV as
+normal television and optional CAOSCare visual surface + room-node
+radios/integrations. **"Kiosk" is a software/UI concept, not a physical
+tablet.**
+
+### Stale lines found (Resident Aria runtime / self-knowledge, my lane)
+1. `backend/routes/realtime_self_knowledge.py:60` (injected into every
+   resident Realtime session via `_build_companion_instructions`):
+   `"  • A wall-mounted tablet kiosk in the resident's room (this device).\n"`
+2. `backend/routes/ai.py:64` `CAOS_SYSTEM_PROMPT` (legacy text/TTS
+   companion, still mounted at `/api/ai`):
+   `"You are the AI companion built into a wall-mounted kiosk in this
+   resident's room at a senior living community, running on the CAOS Care
+   platform"`
+
+### Replacement wording
+1. `realtime_self_knowledge.py` — the single stale bullet becomes:
+   `"  • You are the resident-facing CAOSCare voice presence in this room —
+   software, not a handheld or wall-mounted device. You run on the room's
+   own local CAOSCare node, and you listen and speak through the room's
+   resident audio endpoint (a speakerphone near the resident). Where the
+   room's TV / display is set up for it, you can also show things on that
+   screen. Only get into any of this if a resident actually asks how you
+   work.\n"` — no model names, no future-hardware-as-working implication.
+2. `ai.py` `CAOS_SYSTEM_PROMPT` opening becomes:
+   `"You are the resident-facing AI companion present in this resident's
+   room at a senior living community, running on the CAOS Care platform"`
+   (removed "built into a wall-mounted kiosk"; no new hardware claims).
+
+### Found but intentionally NOT changed (outside "Aria runtime/self-knowledge" scope)
+- `backend/routes/vision.py:4` — module docstring "forwards them via BLE to
+  the wall-mounted tablet (kiosk)" (AI-vision-glasses feature doc, not Aria
+  self-knowledge).
+- `backend/routes/devices.py:168` — code comment "big-button presses on the
+  resident tablet" (kiosk device endpoint, device lane).
+- `backend/routes/hardware.py` — `touchscreen` in `room_companion` /
+  `lobby_kiosk` hardware capability profiles (hardware spec registry;
+  directive says do not change other hardware).
+- `backend/routes/ai.py:64` also still says "grandchild who stops by" etc.
+  and `realtime_self_knowledge.py` still has a "## What's on the kiosk
+  screen" section — left as-is: "kiosk" there is the software/UI surface,
+  which the baseline explicitly preserves.
+
+### Not changed
+No Realtime behavior, tool logic, ResidentEvent behavior, RF behavior,
+paging, inactivity logic, or memory. `ai.py:279` hashes
+`CAOS_SYSTEM_PROMPT` into a receipt `prompt_hash` — that hash changes by
+design when the prompt text changes (provenance marker).
+
+### Verified
+- `python -c` AST + import of both modules; `_system_self_knowledge()`
+  rebuilds (4,520 chars) with the stale line absent and the new wording
+  present; `routes.ai.CAOS_SYSTEM_PROMPT` no longer contains "wall-mounted
+  kiosk".
+- `_build_companion_instructions(None)` builds full resident instructions
+  (16,523 chars) — stale device line absent, new wording present.
+- Regression, each in its own pytest process against staging `:8002`
+  (`CAOSCARE_TEST_HOOKS=1`): `test_request_status_lifecycle` 1 passed,
+  `test_resident_events` 1 passed, `test_ai_escalation` 1 passed.
+- No test asserts self-knowledge / system-prompt text (grep of `tests/`).
+- No frontend file changed → frontend suite not affected.
+
+### Line counts (materially modified production files)
+- `backend/routes/realtime_self_knowledge.py` — **116 lines** (was 110;
+  +6, the one bullet expanded to a wrapped multi-line string literal).
+- `backend/routes/ai.py` — **438 lines** (unchanged; in-place word swap on
+  the existing `CAOS_SYSTEM_PROMPT` line). Already above the 300 cap
+  pre-existing; not enlarged — compliant with the "do not make it larger"
+  rule; a 3-word swap inside a prompt constant is not practically
+  extractable.
+
+### Blocked / not done
+Deploy still blocked pending Michael + ChatGPT review. `:8000` (pid
+598629, `ab3243b`), `:3000` (pid 598685), RF bridge, watcher untouched.
+
+### Next safe step
+Await review; on approval this rides the same deploy as `6608db0`.
