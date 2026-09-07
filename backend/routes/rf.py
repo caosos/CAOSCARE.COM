@@ -425,15 +425,31 @@ async def rf_event(
         "alert_id": None,
     }
 
-    press_coalesced = False
+    # WHO is known (fingerprint match). handle_matched_frame answers WHAT
+    # (routes/rf_semantics) and gates the activation path - only a proven
+    # `help_press` is passed on to the concurrency-safe burst intake
+    # (routes/rf_activation_intake). Health telemetry, raw evidence, and
+    # classification logging happen for EVERY matched class.
+    intake = {"semantic_class": None, "allowed_activation": False,
+              "press_coalesced": False, "echo_frame": False}
     if matched:
+        from routes.rf_matched_intake import handle_matched_frame
         try:
-            from routes.rf_activation_intake import record_matched_frame
-            press_coalesced = await record_matched_frame(best, kiosk, payload, raw_event)
+            intake = await handle_matched_frame(best, kiosk, payload, raw_event)
         except Exception as e:
             import logging
-            logging.getLogger(__name__).warning(f"RF activation recording failed: {e}")
-            raw_event["activation_error"] = type(e).__name__
+            logging.getLogger(__name__).warning(f"RF matched-frame intake failed: {e}")
+            raw_event["intake_error"] = type(e).__name__
+    else:
+        raw_event["semantic_class"] = "unknown"
+        raw_event["allowed_activation"] = False
+        intake["semantic_class"] = "unknown"
+        from routes.activation_log import alog as _alog
+        await _alog("rf", "frame_unmatched", kiosk_id=payload.kiosk_id,
+                    data={"match_score": round(best_score, 4),
+                          "bit_pattern_hex": payload.fingerprint.bit_pattern_hex,
+                          "frequency_hz": payload.fingerprint.frequency_hz,
+                          "decoded": payload.fingerprint.decoded})
 
     await db.rf_events.insert_one(raw_event)
     raw_event.pop("_id", None)
@@ -443,7 +459,10 @@ async def rf_event(
         "score": round(best_score, 4),
         "device_id": best["rf_device_id"] if matched else None,
         "alert_id": raw_event.get("alert_id"),
-        "press_coalesced": press_coalesced if matched else False,
+        "semantic_class": intake.get("semantic_class"),
+        "allowed_activation": intake.get("allowed_activation"),
+        "press_coalesced": intake.get("press_coalesced") if matched else False,
+        "echo_frame": intake.get("echo_frame") if matched else False,
         "press_counted": raw_event.get("press_counted", False),
     }
 

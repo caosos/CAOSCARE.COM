@@ -33,13 +33,18 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 FREQ = 319_500_000
 FP_HEX = "aabbccdd11"
+# A real DELIBERATE press carries the proven Interlogix/Lifeline press
+# signature (switch5 CLOSED). Frames without decoded semantics classify
+# `unknown` and are NOT admitted to the activation path (rf_semantics.py).
+_PRESS_DECODED = {"subtype": "unknown", "battery_ok": 1, "switch1": "OPEN",
+                  "switch2": "OPEN", "switch3": "OPEN", "switch4": "OPEN", "switch5": "CLOSED"}
 
 
 def _press(kiosk_id, seq, fp_hex=FP_HEX):
     r = requests.post(f"{API}/rf/event", json={
         "kiosk_id": kiosk_id,
         "fingerprint": {"frequency_hz": FREQ, "modulation": "OOK", "bit_pattern_hex": fp_hex,
-                         "bit_length": 40, "rssi": -50},
+                         "bit_length": 40, "rssi": -50, "decoded": _PRESS_DECODED},
         "sequence": seq,
         # These represent distinct human presses, not eight frames from
         # one RF burst. Capture time is explicit and >2s apart.

@@ -20,20 +20,42 @@ from routes.resident_session_binding import validate_activation, bind_activation
 
 
 async def create_resident_session(payload):
+    from routes.activation_log import alog
     await validate_activation(payload)
     room = payload.get("room")
+    activation_id = payload.get("activation_id")
     lease = None
     if room:
+        await alog("realtime", "session_mint_started", activation_id=activation_id, room=room,
+                   resident_id=payload.get("resident_id"), alert_id=payload.get("alert_id"),
+                   kiosk_id=payload.get("kiosk_id"), session_id=payload.get("session_id"),
+                   client_instance_id=payload.get("client_instance_id"),
+                   ts_client=payload.get("ts_client"),
+                   data={"trigger_source": payload.get("trigger_source")})
         lease = await claim_or_reuse_room_lease(
             room, payload.get("resident_id"), payload.get("kiosk_id"),
             payload.get("trigger_source") or "manual_kiosk", payload.get("session_id"),
+            activation_id,
         )
         if not lease["claimed"]:
+            await alog("realtime", "session_mint_aborted_lease_lost", activation_id=activation_id,
+                       room=room, alert_id=payload.get("alert_id"),
+                       session_id=payload.get("session_id"), data={"lease": lease})
             return JSONResponse(content={"_caos": {"lease": lease}})
     try:
         await bind_activation(payload, lease["session_id"] if lease else payload.get("session_id"))
-        return await _mint(payload, lease)
-    except BaseException:
+        resp = await _mint(payload, lease)
+        if room:
+            await alog("realtime", "session_mint_completed", activation_id=activation_id, room=room,
+                       alert_id=payload.get("alert_id"), session_id=payload.get("session_id"),
+                       kiosk_id=payload.get("kiosk_id"),
+                       client_instance_id=payload.get("client_instance_id"))
+        return resp
+    except BaseException as e:
+        if room:
+            await alog("realtime", "session_mint_failed", activation_id=activation_id, room=room,
+                       alert_id=payload.get("alert_id"), session_id=payload.get("session_id"),
+                       data={"error": type(e).__name__})
         if lease and lease["claimed"]:
             await release(room, {"session_id": lease["session_id"], "reason": "setup_failed"})
         raise

@@ -47,6 +47,7 @@ async def claim_or_reuse_room_lease(
     kiosk_id: Optional[str],
     trigger_source: str,
     session_id: Optional[str] = None,
+    activation_id: Optional[str] = None,
 ) -> dict:
     """Atomically claim `room`'s lease, or report the existing live one.
 
@@ -61,6 +62,7 @@ async def claim_or_reuse_room_lease(
         "room": room, "resident_id": resident_id, "kiosk_id": kiosk_id,
         "session_id": sid, "status": "activating", "trigger_source": trigger_source,
         "created_at": now.isoformat(), "last_seen_at": now.isoformat(),
+        "activation_id": activation_id,
     }
 
     # Try to atomically steal a claimable lease (missing status, or stale).
@@ -103,6 +105,7 @@ async def activate(room: str, payload: dict = Body(default={})):
     lease = await claim_or_reuse_room_lease(
         room, payload.get("resident_id"), payload.get("kiosk_id"),
         payload.get("trigger_source") or "unknown", payload.get("session_id"),
+        payload.get("activation_id"),
     )
     if lease["claimed"]:
         try:

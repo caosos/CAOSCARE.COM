@@ -42,7 +42,12 @@ async def run():
             r = await c.post('/rf/event', json={"kiosk_id": "kiosk", "sequence": seq,
                 "captured_at": (start + timedelta(seconds=seconds)).isoformat(),
                 "fingerprint": {"frequency_hz": 319500000, "modulation": "OOK",
-                                "bit_pattern_hex": "aabbccdd11", "bit_length": 40, "rssi": -50}})
+                                "bit_pattern_hex": "aabbccdd11", "bit_length": 40, "rssi": -50,
+                                # proven deliberate-press signature so rf_semantics
+                                # admits the frame (switch5 CLOSED); undecoded frames
+                                # are `unknown` and no longer activate.
+                                "decoded": {"battery_ok": 1, "switch1": "OPEN", "switch2": "OPEN",
+                                            "switch3": "OPEN", "switch4": "OPEN", "switch5": "CLOSED"}}})
             r.raise_for_status()
             return r.json()
         frames = [await frame(i + 1, i * .524) for i in range(8)]

@@ -123,3 +123,4 @@ credentials.json
 # Keep committed environment templates while ignoring real env files
 !.env.example
 !**/.env.example
+backend/.env

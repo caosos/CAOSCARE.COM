@@ -26,6 +26,7 @@ a real event can legitimately stay open far longer than 5 minutes.
 import logging
 import os
 import uuid
+from datetime import datetime
 from typing import Optional
 
 from pymongo import ReturnDocument
@@ -33,8 +34,15 @@ from pymongo.errors import DuplicateKeyError
 
 from deps import db
 from models import Alert, PressRecord, now_utc
+from routes.activation_log import alog
 
 log = logging.getLogger(__name__)
+
+# Only this transmission-semantics class may enter the activation path. The
+# real gate is upstream in routes/rf_matched_intake.py (a supervisory /
+# tamper / battery / unknown RF frame is never passed here); this is a
+# defence-in-depth backstop so no future caller can bypass it silently.
+ACTIVATION_SEMANTIC_CLASS = "help_press"
 
 
 class _RetryActivation(Exception):
@@ -78,10 +86,29 @@ async def _record_resident_activation(
     source_metadata: Optional[dict] = None,
     kiosk_id: Optional[str] = None,
     press_id: Optional[str] = None,
+    semantic_class: str = "help_press",
+    activation_id_hint: Optional[str] = None,
 ) -> dict:
     """Attach this press to the resident's open event, or open a new one.
     Returns the resulting alert dict (already persisted) plus a
-    `coalesced` bool the caller can use to decide what response to send."""
+    `coalesced` bool the caller can use to decide what response to send.
+
+    `semantic_class` MUST be "help_press" - anything else is refused here
+    (the real gate is upstream, this only backstops a bypass)."""
+    if semantic_class != ACTIVATION_SEMANTIC_CLASS:
+        await alog("resident_event", "activation_refused_non_help",
+                   room=room, resident_id=resident_id, kiosk_id=kiosk_id,
+                   data={"semantic_class": semantic_class, "source": source})
+        log.warning(f"record_resident_activation refused: semantic_class={semantic_class!r}")
+        return {"coalesced": False, "refused": True, "semantic_class": semantic_class, "alert_id": None}
+
+    def _age(created_at) -> float:
+        try:
+            c = datetime.fromisoformat(created_at) if isinstance(created_at, str) else created_at
+            return round((now_utc() - c).total_seconds(), 1)
+        except Exception:
+            return -1.0
+
     press = PressRecord(device_id=device_id, source=source, rssi=rssi)
     press_dict = press.model_dump()
     press_dict["at"] = press_dict["at"].isoformat()
@@ -107,10 +134,13 @@ async def _record_resident_activation(
             sort=[("created_at", -1)],
         )
         if open_alert:
+            pc_before = open_alert.get("press_count", 0)
+            consumed_before = open_alert.get("activation_consumed_at")
+            age = _age(open_alert.get("created_at"))
             # Repeated presses during a conversation share its activation
             # cycle. Only a new press AFTER consumption starts a new cycle.
             new_cycle = bool(open_alert.get("activation_consumed_at")) or not open_alert.get("activation_id")
-            activation_id = uuid.uuid4().hex if new_cycle else open_alert["activation_id"]
+            activation_id = (activation_id_hint or uuid.uuid4().hex) if new_cycle else open_alert["activation_id"]
             doc = await db.alerts.find_one_and_update(
                 {"alert_id": open_alert["alert_id"],
                  "status": {"$in": ["active", "acknowledged"]},
@@ -130,6 +160,14 @@ async def _record_resident_activation(
                 projection={"_id": 0},
             )
             if doc:
+                await alog("resident_event", "event_rearmed" if new_cycle else "press_coalesced",
+                           activation_id=activation_id, room=doc.get("room"), resident_id=resident_id,
+                           alert_id=doc["alert_id"], kiosk_id=kiosk_id,
+                           data={"cause": "rearm_from_consumed" if new_cycle else "repeat_press_same_cycle",
+                                 "press_count_before": pc_before, "press_count_after": doc.get("press_count"),
+                                 "activation_consumed_before": consumed_before, "activation_consumed_after": None,
+                                 "event_age_sec": age, "semantic_class": semantic_class, "source": source,
+                                 "press_id": press_id})
                 return {**doc, "coalesced": True}
             # Staff closed this event after the lookup. Retry against the
             # current open event instead of adding a press to a closed one.
@@ -163,7 +201,7 @@ async def _record_resident_activation(
     doc["acknowledged_at"] = None
     doc["resolved_at"] = None
     doc["presses"] = [press_dict]
-    doc["activation_id"] = uuid.uuid4().hex
+    doc["activation_id"] = activation_id_hint or uuid.uuid4().hex
 
     scope = _scope(resident_id, room)
     if scope:
@@ -195,6 +233,13 @@ async def _record_resident_activation(
         log.warning(f"receipt creation failed for alert {doc['alert_id']}: {e}")
 
     doc.pop("_id", None)
+    await alog("resident_event", "event_opened",
+               activation_id=doc["activation_id"], room=doc.get("room"), resident_id=resident_id,
+               alert_id=doc["alert_id"], kiosk_id=kiosk_id,
+               data={"cause": "new_event", "press_count_before": 0, "press_count_after": 1,
+                     "activation_consumed_before": None, "activation_consumed_after": None,
+                     "event_age_sec": 0.0, "semantic_class": semantic_class, "source": source,
+                     "triggered_by": triggered_by, "press_id": press_id})
     return {**doc, "coalesced": False}
 
 
