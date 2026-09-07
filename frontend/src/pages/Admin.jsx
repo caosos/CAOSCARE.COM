@@ -36,6 +36,7 @@ import KiosksTab from "./KiosksTab";
 import ZonesTab from "./ZonesTab";
 import { tabGroups } from "../lib/adminTabGroups";
 import OperationsOverview from "./OperationsOverview";
+import MaintenanceWorkspace from "./MaintenanceWorkspace";
 import AdminAria from "../components/admin/AdminAria";
 import AriaSpotlight from "../components/admin/AriaSpotlight";
 
@@ -185,6 +186,9 @@ export default function Admin() {
 
           <TabsContent value="overview" className="mt-6">
             <OperationsOverview onNavigate={setActiveTab} />
+          </TabsContent>
+          <TabsContent value="maintenance" className="mt-6">
+            <MaintenanceWorkspace adminMode />
           </TabsContent>
           <TabsContent value="residents" className="mt-6">
             <ResidentsTab residents={residents} kiosks={kiosks} onChange={fetchAll} />

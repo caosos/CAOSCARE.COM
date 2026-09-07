@@ -106,8 +106,23 @@ async def list_tasks(
 
 @router.post("")
 async def create_task(data: StaffTaskCreate, user=Depends(get_current_user)):
-    if user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Admin required")
+    role = user.get("role")
+    if role not in ("owner", "admin"):
+        # A department member (staff WITH a department) may open work only
+        # for their OWN department - visibility_role and category are forced
+        # to their department slug so a department workspace can never
+        # create cross-department work. Everyone else is rejected. This is
+        # what lets a Maintenance lead raise a work order without an admin.
+        dept = user.get("department")
+        if role == "staff" and dept:
+            # A department workspace only ever raises work FOR its own
+            # department - both fields are pinned to the creator's slug so
+            # nothing cross-department can be minted here regardless of what
+            # the client sent.
+            data.visibility_role = dept
+            data.category = dept
+        else:
+            raise HTTPException(status_code=403, detail="Not allowed to create work here")
     payload = data.model_dump()
     await _resolve_denorms(payload)
     task = StaffTask(**payload)

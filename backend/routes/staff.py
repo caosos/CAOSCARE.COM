@@ -3,7 +3,7 @@ from typing import Optional, Literal
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field, EmailStr
 from models import User, UserPublic
-from deps import db, require_admin
+from deps import db, require_admin, get_current_user
 from routes.departments import department_slug_exists
 import bcrypt
 
@@ -51,6 +51,24 @@ class StaffUpdateInput(BaseModel):
 async def list_staff(user=Depends(require_admin)):
     items = await db.users.find({}, {"_id": 0, "password_hash": 0}).sort("name", 1).to_list(1000)
     return items
+
+
+@router.get("/assignable")
+async def list_assignable(department: Optional[str] = None, user=Depends(get_current_user)):
+    """Names-only roster for an assignment picker: {user_id, name,
+    department} for members of `department` (defaults to the caller's own).
+    Any admin/owner, or a staff member querying their OWN department - so a
+    Maintenance lead can populate an assign dropdown without the full
+    admin-only staff list."""
+    role = user.get("role")
+    dept = (department or user.get("department") or "").strip()
+    if not dept:
+        raise HTTPException(status_code=400, detail="department is required")
+    if role not in ("owner", "admin") and user.get("department") != dept:
+        raise HTTPException(status_code=403, detail="You can only list your own department")
+    return await db.users.find(
+        {"department": dept}, {"_id": 0, "user_id": 1, "name": 1, "department": 1},
+    ).sort("name", 1).to_list(200)
 
 
 @router.post("")

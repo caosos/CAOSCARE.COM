@@ -8,6 +8,7 @@ import { Badge } from "../components/ui/badge";
 import { LogOut, RefreshCw, Play, Check, Eye, Bus } from "lucide-react";
 import { toast } from "sonner";
 import { MyTasksCard } from "./TasksTab";
+import MaintenanceWorkspace from "./MaintenanceWorkspace";
 
 // One shared operational workspace, rendered per the signed-in staff
 // member's Department (User.department -> Department.slug). It reuses the
@@ -160,7 +161,12 @@ export default function DepartmentWorkspace() {
           </Card>
         )}
 
-        {dept && (
+        {/* Maintenance gets the full work-order workspace; every other
+            department gets the generic department queue below. Same
+            StaffTask data either way. */}
+        {dept === "maintenance" && <MaintenanceWorkspace />}
+
+        {dept && dept !== "maintenance" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <section className="lg:col-span-2">
               <div className="flex items-center justify-between mb-3">

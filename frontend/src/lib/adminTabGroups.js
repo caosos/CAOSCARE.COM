@@ -14,6 +14,13 @@ export function tabGroups(residents, staff, kiosks, zones, user) {
       ],
     },
     {
+      id: "operations",
+      label: "Operations departments",
+      tabs: [
+        { value: "maintenance", label: "Maintenance" },
+      ],
+    },
+    {
       id: "residents",
       label: "Residents & care",
       tabs: [
