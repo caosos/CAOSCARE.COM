@@ -62,8 +62,11 @@ async def _build_aria_tools() -> list[dict]:
                 "up a finished one as current. It gives lifecycle times "
                 "(`created`, `acknowledged_at`, `started_at`) each with a plain "
                 "`label` - use those for 'when' answers; null means unknown, "
-                "never guess. Never claim acknowledgment/completion it doesn't "
-                "report."
+                "never guess. `acknowledged_at` means staff have SEEN it; "
+                "`in_progress` means work has STARTED - neither means anyone "
+                "is on the way. Only claim someone is coming if a real "
+                "scheduled window or a dispatch tool result says so. Never "
+                "claim acknowledgment/completion it doesn't report."
             ),
             "parameters": {
                 "type": "object",
