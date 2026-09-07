@@ -1,5 +1,10 @@
 # CAOSCare EliteDesk Node — Current Status
 
+> Canonical resident-room **architecture** (room node behind the TV + eMeet
+> audio + TV visual surface, proven vs planned) lives in
+> `docs/CAOSCARE_PRODUCT_BASELINE.md` §2. This file is the point-in-time
+> **runtime** snapshot of the bring-up host, not the architecture doc.
+
 Single current-state snapshot for `caoscare1-hp-elitedesk`. This is a point-in-time report, not a changelog — for full history read `docs/PROJECT_STATE.md` (bottom-up, especially every 2026-08-29 entry), `docs/ELITEDESK_NODE_BUILD.md`, and `docs/ARIA_VOICE_FIRST.md`.
 
 Generated: 2026-08-09. Last reconciled: **2026-08-29 (live physical-pendant test night + two incident TSBs)** — sections below marked accordingly; unmarked sections are the original 2026-08-09/2026-08-21 snapshot and may be stale for anything not resident-voice/RF-related.

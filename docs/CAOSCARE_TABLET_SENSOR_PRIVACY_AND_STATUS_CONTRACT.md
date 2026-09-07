@@ -1,10 +1,20 @@
 # CAOSCare Tablet Sensor Privacy and Resident Status Contract v1
 
+> **PREMISE PARTLY SUPERSEDED.** This contract assumes a wall-mounted
+> resident **tablet** with onboard camera/mic/sensors. Per
+> `docs/CAOSCARE_PRODUCT_BASELINE.md` §2 the resident room is **not**
+> tablet-based — it is a hidden room node + eMeet audio + TV. The
+> **privacy principles** in this document (camera/mic are sensitive,
+> consent, no raw sensitive data in public bins, role-based access, no
+> behavioral profiling) **remain fully in force** and carry over unchanged
+> to **any sensor on the room node or its integrations**. Only the
+> "wall tablet" framing is historical.
+
 ## Status
 
-Active product-scope contract.
+Active product-scope **privacy** contract (sensor framing partly historical — see banner).
 
-This document defines how CAOSCare may use tablet cameras, microphones, and other onboard sensors for resident status confirmation, staff support, and operational safety.
+This document defines how CAOSCare may use room-node / integrated cameras, microphones, and other onboard sensors for resident status confirmation, staff support, and operational safety.
 
 ## Core capability
 

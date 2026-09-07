@@ -2,6 +2,20 @@
 
 This file is the mandatory entry point for AI agents inspecting or modifying the CAOS Care repository.
 
+## Canonical product baseline — read second
+
+Immediately after this file, read **`docs/CAOSCARE_PRODUCT_BASELINE.md`**.
+It is the canonical durable product truth: current architecture and product
+invariants. When an older document conflicts with it on architecture or
+product direction, the baseline wins and the older statement is stale.
+
+Keep the layers separate:
+
+- **`docs/CAOSCARE_PRODUCT_BASELINE.md`** = durable truth · architecture · invariants
+- **`docs/PROJECT_STATE.md`** = changing build state (append-only dated entries)
+- **`docs/REPO_MAP.md`** = where the implementation lives
+- **`docs/BUILD_STATUS.md` / `docs/CURRENT_NODE_STATUS.md`** = runtime snapshots (point-in-time, may be stale)
+
 ## Operating mode
 
 Default mode is inspect-first.
@@ -26,7 +40,8 @@ It is intended to support senior-care and assisted-living environments through:
 - staff support
 - documentation and receipts
 - family/staff communication assistance
-- wearable/tablet/kiosk workflows
+- a resident room node (local CAOSCare computer behind the TV) with voice/audio (eMeet), the TV as a visual surface, and RF/IR/other room hardware — see the Product Baseline §2. Resident rooms are NOT tablet-based.
+- staff clients (tablet / phone / computer) running the role- and department-scoped workspace — see the Product Baseline §3
 - behavior-change awareness
 - escalation support under human oversight
 
@@ -43,7 +58,7 @@ Do not remove or silently degrade:
 - privacy/consent boundaries
 - audit receipts
 - escalation/handoff paths
-- wearable/tablet/kiosk direction
+- the resident-room-node architecture and the staff-client model as defined in `docs/CAOSCARE_PRODUCT_BASELINE.md` (§2, §3); wearable-ingest direction
 - human-in-the-loop care decisions
 - low-intimidation senior-care UX
 - CAOS ecosystem alignment
@@ -60,17 +75,50 @@ assistive, advisory, human-supervised, receipt-backed
 
 High-risk outputs require clear boundaries and human confirmation.
 
-## Required first read order
+## Required boot sequence
 
-Before making changes, read:
+Before meaningful CAOSCare work, in order:
 
-1. `README.md`
-2. `docs/PROJECT_STATE.md`
-3. `docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md`
-4. `docs/REPO_MAP.md`
-5. `docs/BUILD_STATUS.md`
+1. `AGENTS.md` (this file)
+2. `docs/CAOSCARE_PRODUCT_BASELINE.md` — canonical durable product truth
+3. `docs/PROJECT_STATE.md` — recent dated entries (changing state)
+4. `docs/REPO_MAP.md` — where implementation lives
+5. `docs/BUILD_STATUS.md` / `docs/CURRENT_NODE_STATUS.md` — runtime snapshot, where runtime matters
+6. `README.md` and `docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md` — product/onboarding context (note: the onboarding contract's hardware section is `HISTORICAL / SUPERSEDED` by the Product Baseline)
+7. task-specific contracts / TSBs
+8. identify the exact **branch/ref** and the **assigned lane** (what you own, what you must not touch)
+9. inspect the **actual relevant source** before claiming what exists
+10. inspect **actual runtime / telemetry** when runtime behaviour matters
+11. **inventory the tools / connectors / capabilities in this environment** before telling Michael "I can't access / look up / do that" — check whether an available tool or connector can do it
+12. keep distinct at all times: repository truth · runtime truth · physical test evidence · Michael-provided product direction · inference · planned future capability
+13. preserve raw evidence before any destructive cleanup; update `docs/PROJECT_STATE.md` and leave a handoff capsule (below) at handoff points
+
+The full boot sequence and the layer split live in `docs/CAOSCARE_PRODUCT_BASELINE.md` §9.
 
 If the public website is reachable, also inspect the live site and record verified page findings in `docs/REPO_MAP.md` or a dedicated website audit doc.
+
+## Handoff capsule
+
+At an agent/session handoff, leave a short capsule in `docs/PROJECT_STATE.md`
+(this replaces the manual "transfer token" text). Record **only** what the
+next agent needs to continue correctly, not the whole history:
+
+```text
+HANDOFF CAPSULE
+- Objective:        <what is being built right now>
+- Branch:           <exact branch/ref>
+- Lane / ownership: <what you own; what you must NOT change>
+- Last proven state:<what is actually verified working, and how>
+- Commits:          <SHAs pushed this session>
+- Runtime state:    <servers/services/ports live and relevant>
+- Unresolved proven defects: <bug + evidence, or "none">
+- Product invariants that matter here: <the 2-4 that constrain this work>
+- Do NOT change:    <files/behaviours off-limits, especially another lane>
+- Next safe action: <the single concrete next step>
+```
+
+Durable product truth → the Product Baseline / contracts. Current temporary
+state → `PROJECT_STATE.md` + this capsule. Keep them separate.
 
 ## Public website verification rule
 
@@ -152,13 +200,14 @@ No hallucinated clinical claims. No autonomous medical judgment. No silent priva
 
 `AGENTS.md` is the only file a human or AI agent should need to remember first.
 
-Before beginning meaningful work, read:
+Before beginning meaningful work, read (see the full boot sequence above):
 
 1. `AGENTS.md`
-2. `docs/PROJECT_STATE.md`
-3. `docs/REPO_MAP.md`
-4. `docs/BUILD_STATUS.md`
-5. any task-specific docs (for example `docs/DEPLOYMENT_RUNBOOK.md`, contracts, or surface-specific maps)
+2. `docs/CAOSCARE_PRODUCT_BASELINE.md`
+3. `docs/PROJECT_STATE.md`
+4. `docs/REPO_MAP.md`
+5. `docs/BUILD_STATUS.md` / `docs/CURRENT_NODE_STATUS.md`
+6. any task-specific docs (for example `docs/DEPLOYMENT_RUNBOOK.md`, contracts, or surface-specific maps)
 
 If `docs/PROJECT_STATE.md` does not exist yet, read and update `docs/BUILD_STATUS.md` until `docs/PROJECT_STATE.md` is created.
 

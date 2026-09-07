@@ -1,5 +1,10 @@
 # EliteDesk Full CAOSCare Node Build
 
+> The **canonical** resident-room architecture (room node behind the TV +
+> eMeet audio + TV visual surface; room-node integrations; proven vs
+> planned) is `docs/CAOSCARE_PRODUCT_BASELINE.md` §2. This file is the
+> append-only build log for the first such node on `caoscare1-hp-elitedesk`.
+
 Living build/architecture record for turning `caoscare1-hp-elitedesk` into the first practical, local-first CAOSCare node, per `commands/TERMINAL_3_ELITEDESK_FULL_NODE_BUILD.md`.
 
 Do not replace or erase prior entries in this file. Append dated sections as the build progresses.

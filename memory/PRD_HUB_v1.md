@@ -1,7 +1,16 @@
 # CAOS Care — PRD Hub v1
-**Status: living spec · Last updated: Apr 25, 2026**
+**Status: HISTORICAL living-spec snapshot · dated Apr 25, 2026**
 
-This is the canonical product brief that supersedes ad-hoc notes and snippets across past chats. It documents the brand, the architecture, and the Device Class doctrine that lets CAOS Care expand beyond "a tablet on a wall."
+> The canonical durable product truth is now
+> `docs/CAOSCARE_PRODUCT_BASELINE.md`. This document is preserved as
+> history. It already points "beyond a tablet on a wall"; the current
+> resident-room architecture is a hidden room node (EliteDesk-class PC
+> behind the TV) + eMeet audio + TV visual surface (Baseline §2), and staff
+> use tablet/phone/computer clients of the role/department workspaces
+> (Baseline §3). Brand stack and the Device Class doctrine below remain
+> useful; treat specific hardware/provider claims as dated.
+
+This is a product brief that supersedes ad-hoc notes and snippets across past chats. It documents the brand, the architecture, and the Device Class doctrine that lets CAOS Care expand beyond "a tablet on a wall."
 
 ---
 

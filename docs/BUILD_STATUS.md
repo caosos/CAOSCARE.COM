@@ -1,5 +1,17 @@
 # CAOS Care Build Status
 
+> **STALE SNAPSHOT (early deployment-prep, PR #7–#11 era).** Later work has
+> moved well past this: the backend/frontend are deployed (`caoscare.com`),
+> the resident-voice / RF pendant path is live on a real room-node host, and
+> the operational layer (departments, workspaces, reports, activity log) is
+> built. For **current runtime state** read `docs/PROJECT_STATE.md` (recent
+> dated entries) and `docs/CURRENT_NODE_STATUS.md`. For **canonical
+> architecture** read `docs/CAOSCARE_PRODUCT_BASELINE.md` — in particular,
+> resident rooms are a **room node + eMeet audio + TV**, not a tablet, and
+> the handwritten-code size rule is **300 lines**, not 400. This file is
+> retained as history of the first runnable path; do not treat its "planned"
+> statements as current.
+
 ## Status
 
 This document records the first runnable/deployment-prep status for `caosos/CAOSCARE.COM`.

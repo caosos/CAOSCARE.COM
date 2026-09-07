@@ -1,5 +1,19 @@
 # CAOS Care — Product Requirements Document
 
+> **HISTORICAL PRD (early 2026).** Preserved as history. Several premises
+> here are `SUPERSEDED` by `docs/CAOSCARE_PRODUCT_BASELINE.md`:
+> - "Wall-mounted Android kiosks" as the resident-room primary → the
+>   resident room is now a hidden **room node** (EliteDesk-class PC behind
+>   the TV) + **eMeet** audio + the **TV** as a visual surface (Baseline §2);
+> - the AI/provider stack lines (Emergent Universal LLM key, Claude Sonnet
+>   4.5, Whisper-1) are dated — current voice is OpenAI Realtime; check
+>   `docs/PROJECT_STATE.md` for the live stack;
+> - "Android tablet + USB RF receiver → bridge app" → the RF decode path
+>   (`android-bridge/`) is being consolidated into the room node.
+>
+> The problem framing, resident-safety intent, and feature history below
+> remain useful context.
+
 ## Original Problem Statement
 CAOS Care is an AI-powered adjunct to existing 900 MHz Life-Alert-style pendant systems in senior living communities. Wall-mounted Android kiosks with plug-in USB RF receivers listen to each pendant's unique frequency → identifies that resident → pages staff → personalized AI companion speaks to the resident while help arrives. Staff dashboard + admin + family portal + geofencing + predictive insights + wearable ingest — all on top of the infrastructure the facility already owns.
 

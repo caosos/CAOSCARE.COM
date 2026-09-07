@@ -1,5 +1,10 @@
 # CAOSCare Progress Handoff — August 11, 2026
 
+> **DATED HANDOFF (2026-08-11).** Preserved as history. For current state
+> read `docs/PROJECT_STATE.md`; for canonical architecture read
+> `docs/CAOSCARE_PRODUCT_BASELINE.md`. Note: this doc's "~400-line ceiling"
+> guidance is `SUPERSEDED` by the 300-line hard cap.
+
 ## Purpose
 
 This document is a full handoff of the most recent CAOSCare work session and the product decisions that followed it. It is intended to let Claude Code, Claude Online, ChatGPT, developers, operators, and other collaborators re-enter the project without reconstructing the session from conversation history.

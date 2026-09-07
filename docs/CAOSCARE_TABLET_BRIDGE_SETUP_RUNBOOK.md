@@ -1,10 +1,23 @@
 # CAOSCare Tablet Bridge Setup Runbook v1
 
+> **`HISTORICAL / SUPERSEDED` host framing — RF pipeline content still
+> valid.** Throughout this document, "wall-mounted Android tablet" is the
+> **obsolete** host for the RF bridge. Per
+> `docs/CAOSCARE_PRODUCT_BASELINE.md` §2 the resident room is a hidden
+> **room node** (EliteDesk-class PC behind the TV) + **eMeet** audio + the
+> **TV** — **not** a tablet — and the RF receiver/decode function
+> (`android-bridge/`, rtl_433) is being **consolidated into that room
+> node**. Everywhere below, read "tablet" / "tablet bridge" as "the room
+> node's RF receiver/decode process". The RF signal chain, rtl_433
+> handling, device matching, reconnect behaviour, and field checklists
+> below remain an accurate operational reference; only the "Android tablet
+> as the box" framing is historical.
+
 ## Status
 
-Active field-setup runbook.
+Active field-setup runbook (RF receiver / decode / reconnect pipeline).
 
-This document defines the practical first setup path for CAOSCare tablet connectivity, RF bridge reliability, and registered-device reconnect behavior.
+This document defines the practical first setup path for RF-bridge connectivity, RF bridge reliability, and registered-device reconnect behavior.
 
 ## Immediate objective
 

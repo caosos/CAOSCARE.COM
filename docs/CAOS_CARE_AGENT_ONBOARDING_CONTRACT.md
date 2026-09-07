@@ -1,5 +1,23 @@
 # CAOS Care Agent Onboarding Contract
 
+> **SUPERSEDED IN PART.** The canonical durable product truth is now
+> `docs/CAOSCARE_PRODUCT_BASELINE.md` (read it right after `AGENTS.md`).
+> Where this contract conflicts with the Product Baseline on architecture or
+> product direction, the Baseline wins. Specifically:
+> - the **Hardware / device direction** section below is `HISTORICAL /
+>   SUPERSEDED` — resident rooms are **not** tablet/dock-based; the current
+>   resident-room architecture is a room node (EliteDesk-class PC behind the
+>   TV) + eMeet audio + TV as a visual surface (Baseline §2), and staff use
+>   tablet/phone/computer clients of the role/department workspaces
+>   (Baseline §3);
+> - the code-size rule here ("200 lines / 400-line hard cap") is
+>   `SUPERSEDED` by "aim below 300, 300-line hard cap" (Baseline §8,
+>   `AGENTS.md`).
+>
+> Everything else in this contract (care doctrine, safety boundaries,
+> privacy, UX doctrine, memory principles, acceptance criteria) remains
+> valid.
+
 ## Purpose
 
 This contract orients future AI agents, builders, reviewers, and maintainers entering the CAOS Care repository.
@@ -63,6 +81,14 @@ The platform should help answer:
 
 CAOS Care must include or preserve the following build scope unless Michael explicitly removes or replaces it.
 
+**Current active priority (Product Baseline §6):** make the **resident
+module** reliable first — resident context, room, assistance, communication,
+information retrieval, staff routing, appropriate reminders, resident-facing
+Aria behaviour, and the linked operational truth. Department workflows are
+partially built; cross-department coordination, building/environmental
+awareness, and higher-level automation are **direction, not built** — do not
+present later layers as implemented.
+
 ### 1. Care Plan Optimization
 
 Track what care was provided, by whom, and when.
@@ -108,7 +134,7 @@ Required concepts:
 - fewer duplicate entries
 - staff-facing reminders
 - plain-language AI assistance
-- low-friction mobile/tablet/kiosk UX
+- low-friction staff-client UX (the same role/department workspace on tablet, phone, or computer)
 
 ### 4. Predictive Health Analytics
 
@@ -126,24 +152,35 @@ Required concepts:
 
 ## Hardware / device direction
 
-CAOS Care may use dedicated devices and surfaces, including:
+> `HISTORICAL / SUPERSEDED` — the block below described an obsolete
+> specialized-resident-tablet / dock / charging-base concept. It is kept
+> for history, not as current architecture. **Current architecture:
+> `docs/CAOSCARE_PRODUCT_BASELINE.md` §2 (resident room node) and §3 (staff
+> clients).**
 
-- wearable device
-- tablet
-- dock/base station
-- kiosk console
-- staff mobile/tablet surface
-- resident-safe simple interface
+**Current (per the Product Baseline):**
 
-Hardware concept direction includes:
+- **Resident room:** a local CAOSCare room node — proven baseline an HP
+  EliteDesk-class small PC — sitting hidden behind/near the TV; an eMeet-class
+  speakerphone near the resident as the single room audio endpoint for Aria;
+  the TV as the resident's normal television and an optional CAOSCare visual
+  surface; a handset as the guaranteed-duplex fallback. The room node may
+  integrate RF receiver/transmitter, IR, Zigbee, Z-Wave, networking, and
+  communications integrations such as Twilio as the product develops.
+  Proven vs planned must be distinguished.
+- **Staff:** tablet / phone / computer clients running the appropriate
+  role- and department-authorized workspace. No tablet-specific business
+  logic.
+- **Wearable ingest** direction is preserved (`POST /api/wearables/event`).
 
-- specialized tablet
+**Historical / superseded concept (do not treat as current):**
+
+- specialized resident tablet
 - dock/charging base
 - one power cord feeding the base
 - tablet charges when docked
 - base may include receiver/connectivity hardware
-- kiosk-capable form factor
-- care-environment console
+- kiosk-capable form factor / care-environment console
 
 Hardware and manufacturing specifics should coordinate with CAOS Connect where appropriate.
 
@@ -281,10 +318,9 @@ All build work must follow CAOS discipline:
 - no main production deploy without approval
 - no secrets committed
 - no runtime data committed
-- code near 200 lines where practical
-- 400 line hard cap for code unless explicitly approved
+- handwritten production-code files: aim below 300 lines, **hard cap 300 lines** unless Michael explicitly approves an exception (this replaces the older "200 soft / 400 hard" wording — see `AGENTS.md` and Product Baseline §8)
 - docs may be long-form when needed
-- receipts/commit SHAs in handoff
+- receipts/commit SHAs in handoff; leave a handoff capsule (`AGENTS.md`)
 
 ## Website/page requirements
 
@@ -295,7 +331,7 @@ When CAOSCARE.COM is deployed and accessible, public pages should clearly explai
 - what it does
 - what it does not do
 - privacy/safety boundaries
-- hardware/wearable/tablet direction
+- hardware direction (resident room node + staff clients — Product Baseline §2/§3)
 - care-plan optimization
 - resident safety
 - staff empowerment

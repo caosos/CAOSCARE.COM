@@ -2,18 +2,20 @@
 
 CAOS Care is the care-focused vertical of the CAOS ecosystem.
 
-It is intended to support senior-care and assisted-living workflows through resident-centered memory, staff support, care-plan visibility, safety escalation, documentation, wearable/tablet/kiosk surfaces, predictive behavior-change awareness, and a practical CCE-lite trust layer.
+It is intended to support senior-care and assisted-living workflows through resident-centered memory, staff support, care-plan visibility, safety escalation, documentation, a resident **room node** (local CAOSCare computer behind the TV) with voice/audio and room hardware, staff **clients** (tablet / phone / computer) running the appropriate workspace, predictive behavior-change awareness, and a practical CCE-lite trust layer. Resident rooms are **not** tablet-based — see `docs/CAOSCARE_PRODUCT_BASELINE.md`.
 
 ## Start here for agents
 
-Before making claims or changes, read:
+Before making claims or changes, read in order:
 
 1. `AGENTS.md`
-2. `docs/PROJECT_STATE.md`
-3. `docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md`
-4. `docs/CCE_LITE_TRUST_LAYER_PROPOSAL.md`
-5. `docs/REPO_MAP.md`
-6. `docs/BUILD_STATUS.md`
+2. `docs/CAOSCARE_PRODUCT_BASELINE.md` — canonical durable product truth
+3. `docs/PROJECT_STATE.md`
+4. `docs/REPO_MAP.md`
+5. `docs/BUILD_STATUS.md` / `docs/CURRENT_NODE_STATUS.md`
+6. `docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md` (hardware section is `HISTORICAL / SUPERSEDED`), `docs/CCE_LITE_TRUST_LAYER_PROPOSAL.md`, and task-specific contracts
+
+The full boot sequence is in `AGENTS.md` and `docs/CAOSCARE_PRODUCT_BASELINE.md` §9.
 
 ## CCE-lite trust layer
 
@@ -50,7 +52,7 @@ CAOS Care is a governed assistive platform for:
 - family/staff communication support
 - documentation and receipts
 - behavior-change detection as advisory signal
-- wearable/tablet/kiosk workflows
+- the resident room node + staff-client model (`docs/CAOSCARE_PRODUCT_BASELINE.md` §2/§3); wearable ingest
 - escalation support under human oversight
 - CCE-lite routing, verification, and receipt-backed trust workflows
 
@@ -64,6 +66,10 @@ CAOS Care is a governed assistive platform for:
 
 ## Current state
 
-This repository has been initialized as the CAOS Care build surface and agent onboarding entrypoint.
+> This section is a snapshot from early onboarding and understates where the
+> project is. For real current state read **`docs/PROJECT_STATE.md`** (recent
+> dated entries) and **`docs/CURRENT_NODE_STATUS.md`**. The repository is an
+> active multi-surface CAOSCare codebase with a deployed backend/frontend and
+> a live resident-room bring-up host — not a blank build surface.
 
-Public website crawl was attempted from ChatGPT tooling, but no crawlable CAOS Care site content was available at the time this README was updated. Future agents must inspect the deployed website directly when accessible and update this repo map/onboarding contract with verified page content.
+Public website crawl was attempted from ChatGPT tooling, but no crawlable CAOS Care site content was available at the time this README was updated. Future agents must inspect the deployed website directly when accessible and update the repo map/onboarding contract with verified page content.
