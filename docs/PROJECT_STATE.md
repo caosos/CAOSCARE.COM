@@ -2327,3 +2327,36 @@ Model + collection (`staff_tasks`), `list_tasks` department scoping, `POST /task
 
 ### Next safe step
 Operational receipts + events browser (audit P1 #5, new files only), or begin the maintenance status/vendor/parts fields as a scoped models change. Escalation automation (P1 #4) still needs a coordinated pass (touches `alerts.py`).
+
+---
+
+## 2026-09-07 — Admin worktree: Activity log (read-only operational receipts + telemetry events browser).
+
+### Agent / tool
+Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations` (commit `ead4dfa`, on top of `3a99d12`). Claude 2's lane untouched. Other lane's server on port 8000 left running; testing used a worktree server on 8001 against the shared `caoscare` Mongo, torn down after.
+
+### What changed
+Closes ops audit P1 #5 - the `Receipt` and `CaosEvent` collections are populated by `create_receipt()` / `log_event()` all over the backend but had **no admin UI**. New "Activity log" tab under Admin → Reports, toggling two read-only browsers. Nothing writes.
+
+- **`backend/routes/receipts.py`** (152) - `GET /receipts` gains optional query params `related_object_id`, `action_type`, `source`, `room`, `since`, `until`, mirroring what `GET /events` already accepts (`created_at` is stored as an ISO string so a lexical `$gte`/`$lte` range works). `create_receipt` / `update_receipt_status` write helpers untouched; endpoint still `require_admin`. No change to `events.py` - its filter set already covered this.
+- **`frontend/src/lib/activityLog.js`** (71, pure) - `humanizeAction`, `receiptStatusTone` (fixed `ReceiptStatus` set), `eventStatusTone` (keyword-buckets free-text event status), `fmtDuration`, `receiptLink` (deep-links a receipt to its object: task→Tasks/Requests tab by source, alert→`/staff`, device_command→Devices tab), `summarizeMetadata`, `distinct`.
+- **`frontend/src/pages/ReceiptsPanel.jsx`** (142) - the operational-action log. Server-side date-range + object-type + status filters, client-side free-text search, row → detail dialog with an "open the underlying object" jump.
+- **`frontend/src/pages/EventsPanel.jsx`** (158) - the append-only telemetry trace. `event_type` / `room` / `resident_id` / `conversation_id` / date filters, metadata rendered as JSON in the detail, and "view full conversation" via `GET /events/conversation/{id}` (ordered).
+- **`frontend/src/pages/ActivityLog.jsx`** (44) - shell toggling the two panels; passes `onNavigate` down for the deep-link.
+- **`Admin.jsx`** (290) + **`adminTabGroups.js`** - "Activity log" first in the Reports group.
+
+### What was verified
+`backend/tests/test_activity_log.py` (new), co-running with the three other admin-lane DB tests (4 passed): a real receipt (create + start + complete a task over HTTP) is found via `GET /receipts` and correctly filtered by `related_object_type`, `action_type`, `source`+`room`, `status`+`related_object_id`, and the **new** `since`/`until` (present in-range, absent out-of-range); `GET /receipts/{id}` returns the one; two directly-inserted `CaosEvent` docs are found and filtered by `conversation_id`, `event_type`, `resident_id`, `since`/`until`; `GET /events/conversation/{CONV}` returns them **chronologically**; a `staff` role gets **403** on both `/receipts` and `/events`. All TAG fixtures deleted in teardown.
+Frontend: `activityLog.test.js` (new, 7 groups). Full FE suite **101/101**. Production build compiles - only the pre-existing `react-hooks/exhaustive-deps` warnings in 5 files not touched here (`Admin.jsx`'s is the same one, shifted by an added import); none in `ActivityLog.jsx` / `ReceiptsPanel.jsx` / `EventsPanel.jsx` / `activityLog.js`.
+
+### What existing infrastructure was reused
+`GET /receipts`, `GET /receipts/{id}`, `GET /events`, `GET /events/conversation/{id}` - all pre-existing, admin-gated, and previously unused by any screen. The `Receipt` / `CaosEvent` models and every `create_receipt` / `log_event` call site are unchanged.
+
+### What is still limited (not fixed this pass)
+- **Thin receipt history per object.** `acknowledge`/`start`/`complete`/`skip` call `update_receipt_status` (mutate the most-recent receipt's `status` in place) rather than appending a row, so a task's receipt trail is `task_created` + any `task_assigned`, with a mutating status - not a full per-transition ledger. The Activity log shows what's there faithfully; a richer trail would need those handlers to append instead of mutate (a `tasks.py` change, deferrable).
+- **`log_event` coverage is narrow** - only `admin_assistant*`, `realtime_diagnostics`, and `devices` call it, so the Events view is mostly Admin-Aria activity + device commands + auth. Task/alert/transportation lifecycle is in **receipts**, not events. Broadening `log_event` calls is a cross-cutting backend change, out of scope here.
+- **No cross-linking from an event/receipt to the CaosEvent `request_id` group** in the UI yet (the data supports it; only `conversation_id` reconstruction is wired).
+- **No CSV export** from the Activity log (the audit's reporting-framework item is separate; this is a browser, not a report builder).
+
+### Next safe step
+The reporting framework proper (daily exceptions / weekly workload / open-vs-closed, date-ranged + CSV, audit P1 #6) can now be built cleanly on top of the same `/receipts` + `/events` + `staff_tasks` reads. Escalation automation (P1 #4) still needs a coordinated pass (touches `alerts.py`).
