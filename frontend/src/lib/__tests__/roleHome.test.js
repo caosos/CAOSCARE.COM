@@ -1,4 +1,4 @@
-import { roleHomePath, roleHomeLabel } from "../roleHome";
+import { roleHomePath, roleHomeLabel, workspaceLabel, departmentWorkspaceLabel } from "../roleHome";
 
 describe("roleHomePath", () => {
   test("owner and admin go to /admin regardless of department", () => {
@@ -28,6 +28,23 @@ describe("roleHomePath", () => {
   test("handles a null/undefined user without throwing", () => {
     expect(roleHomePath(null)).toBe("/staff");
     expect(roleHomePath(undefined)).toBe("/staff");
+  });
+});
+
+describe("workspaceLabel / departmentWorkspaceLabel", () => {
+  test("per-user: where sign-in lands them", () => {
+    expect(workspaceLabel({ role: "owner" })).toBe("Admin command centre");
+    expect(workspaceLabel({ role: "front_desk" })).toBe("Front desk");
+    expect(workspaceLabel({ role: "staff", department: "maintenance" })).toBe("Maintenance workspace");
+    expect(workspaceLabel({ role: "staff", department: "kitchen" })).toBe("Kitchen workspace");
+    expect(workspaceLabel({ role: "staff", department: "nursing" })).toBe("Care / assistance board");
+    expect(workspaceLabel({ role: "staff" })).toBe("Care / assistance board");
+  });
+  test("per-slug: for the Departments table", () => {
+    expect(departmentWorkspaceLabel("housekeeping")).toBe("Housekeeping workspace");
+    expect(departmentWorkspaceLabel("nursing")).toBe("Care / assistance board");
+    expect(departmentWorkspaceLabel("administration")).toBe("Admin command centre");
+    expect(departmentWorkspaceLabel("therapy")).toBe("General staff board");
   });
 });
 

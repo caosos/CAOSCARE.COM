@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
+import { workspaceLabel } from "../lib/roleHome";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -45,6 +46,18 @@ export default function StaffTab({ staff, onChange }) {
   const [departments, setDepartments] = useState([]);
   const [editing, setEditing] = useState(null); // staff row being edited
   const [form, setForm] = useState({ name: "", email: "", password: "", role: "staff", department: "" });
+  const [q, setQ] = useState("");
+  const [roleF, setRoleF] = useState("all");
+  const [deptF, setDeptF] = useState("all");
+
+  const filtered = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    return (staff || []).filter((u) =>
+      (roleF === "all" || u.role === roleF) &&
+      (deptF === "all" || (deptF === "__none" ? !u.department : u.department === deptF)) &&
+      (!s || [u.name, u.email, u.department, u.role].some((v) => String(v || "").toLowerCase().includes(s)))
+    );
+  }, [staff, q, roleF, deptF]);
 
   const fetchDepartments = async () => {
     try {
@@ -92,7 +105,7 @@ export default function StaffTab({ staff, onChange }) {
   return (
     <Card className="border-caos-line p-6">
       <div className="flex justify-between items-center mb-2">
-        <h2 className="font-display text-xl font-medium text-caos-forest">Staff accounts</h2>
+        <h2 className="font-display text-xl font-medium text-caos-forest">Users &amp; access</h2>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button className="bg-caos-forest hover:bg-caos-forest-hover rounded-full" data-testid="add-staff-btn">
@@ -130,20 +143,41 @@ export default function StaffTab({ staff, onChange }) {
           </DialogContent>
         </Dialog>
       </div>
-      <p className="text-caos-mute text-sm mb-4">
-        Department decides which requests a staff member sees and where they land after signing in —
-        Maintenance, Housekeeping, Transportation and Kitchen each get their own workspace; Nursing / Care
-        and unassigned staff get the resident-assistance board.
+      <p className="text-caos-mute text-sm mb-3">
+        Role + department decide where a user lands after signing in. Password-reset-link delivery isn’t built
+        yet — use <em>Set password</em> for an honest local reset. Account enable/disable and last-login
+        aren’t tracked in the current model. Google (OAuth) accounts show “google”; corporate SSO would slot
+        in here as another provider without changing this screen.
       </p>
+      <div className="flex flex-wrap gap-2 mb-4">
+        <Input placeholder="Search name, email, department…" value={q} onChange={(e) => setQ(e.target.value)} className="w-64" data-testid="users-search" />
+        <Select value={roleF} onValueChange={setRoleF}>
+          <SelectTrigger className="w-36" data-testid="users-filter-role"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Any role</SelectItem>
+            <SelectItem value="owner">Owner</SelectItem>
+            {ROLES.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={deptF} onValueChange={setDeptF}>
+          <SelectTrigger className="w-44" data-testid="users-filter-dept"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Any department</SelectItem>
+            <SelectItem value="__none">No department</SelectItem>
+            {departments.map((d) => <SelectItem key={d.slug} value={d.slug}>{d.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <span className="text-xs text-caos-mute self-center">{filtered.length} of {staff.length}</span>
+      </div>
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Role</TableHead>
-            <TableHead>Department</TableHead><TableHead>Provider</TableHead><TableHead></TableHead>
+            <TableHead>Department</TableHead><TableHead>Workspace</TableHead><TableHead>Auth</TableHead><TableHead></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {staff.map((s) => (
+          {filtered.map((s) => (
             <TableRow key={s.user_id} data-testid={`staff-row-${s.user_id}`}>
               <TableCell className="font-medium">{s.name}</TableCell>
               <TableCell>{s.email}</TableCell>
@@ -153,7 +187,8 @@ export default function StaffTab({ staff, onChange }) {
                   ? <Badge variant="outline">{deptLabel(s.department)}</Badge>
                   : <span className="text-caos-mute text-xs italic">—</span>}
               </TableCell>
-              <TableCell className="text-caos-mute">{s.auth_provider}</TableCell>
+              <TableCell className="text-caos-mute text-xs">{workspaceLabel(s)}</TableCell>
+              <TableCell className="text-caos-mute text-xs">{s.auth_provider}</TableCell>
               <TableCell className="flex gap-1 justify-end">
                 <Button variant="ghost" size="sm" onClick={() => setEditing(s)} data-testid={`edit-staff-${s.user_id}`}>
                   <Pencil className="w-4 h-4 text-caos-forest" />

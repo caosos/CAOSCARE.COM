@@ -1,22 +1,17 @@
-// Split out of Admin.jsx to keep that file under the repo's 300-line cap -
-// pure data, no JSX/hooks. Grouped so the tab bar reads as categories
-// instead of one flat row of 20+ items - "Communication & requests" is the
-// priority group (Michael: "pendants and devices will be last, we will get
-// the communication... seamless first"), "Devices & hardware" is
-// deliberately last.
+// Split out of Admin.jsx to keep that file under the 300-line cap - pure
+// data, no JSX/hooks. Grouped as the Owner/Admin COMMUNITY COMMAND CENTRE:
+// the top-level groups are real responsibilities, not a flat row of 25 tabs.
+// Owner lands on "Community" (Operations overview), then moves down into
+// residents, departments/staff, requests, devices, reports, users/access,
+// facility setup.
 export function tabGroups(residents, staff, kiosks, zones, user) {
   return [
     {
-      id: "overview",
-      label: "Overview",
+      id: "community",
+      label: "Community",
       tabs: [
-        { value: "overview", label: "Operations" },
-      ],
-    },
-    {
-      id: "operations",
-      label: "Operations departments",
-      tabs: [
+        { value: "overview", label: "Operations overview" },
+        { value: "alerts", label: "Alerts & events" },
         { value: "maintenance", label: "Maintenance" },
       ],
     },
@@ -31,6 +26,16 @@ export function tabGroups(residents, staff, kiosks, zones, user) {
       ],
     },
     {
+      id: "departments",
+      label: "Departments & staff",
+      tabs: [
+        { value: "departments", label: "Departments" },
+        { value: "staff", label: "Users & access" },
+        { value: "zones", label: `Zones (${zones.length})` },
+        { value: "map", label: "Map" },
+      ],
+    },
+    {
       id: "communication",
       label: "Communication & requests",
       tabs: [
@@ -41,31 +46,12 @@ export function tabGroups(residents, staff, kiosks, zones, user) {
         { value: "transportation", label: "Transportation" },
         { value: "transport-calendar", label: "Transport calendar" },
         { value: "transport-resources", label: "Transport resources" },
-        { value: "departments", label: "Departments" },
-      ],
-    },
-    {
-      id: "facility",
-      label: "Facility & staff",
-      tabs: [
-        { value: "staff", label: `Staff (${staff.length})` },
-        { value: "zones", label: `Zones (${zones.length})` },
-        { value: "map", label: "Map" },
-        ...(user?.role === "owner" ? [{ value: "facilities", label: "Facilities" }] : []),
       ],
     },
     {
       id: "devices",
-      label: "Devices & hardware",
+      label: "Devices",
       tabs: [
-        // 2026-09-01: "pendants" (PendantsTab.jsx) was a separate, older
-        // scaffold - its own /pendants collection, zero real data, never
-        // wired to real hardware - retired from nav in favor of the real,
-        // hardware-proven surface below (rf_devices/rf_events, the actual
-        // path tonight's live SDR/pendant bring-up used). Promoted to the
-        // primary "Pendants" name rather than kept as "RF Pendants" -
-        // there's only one real pendant system now, it shouldn't sound
-        // like a variant.
         { value: "rf", label: "Pendants" },
         { value: "wearables", label: "Wearables" },
         { value: "devices", label: "Smart devices" },
@@ -76,7 +62,7 @@ export function tabGroups(residents, staff, kiosks, zones, user) {
     },
     {
       id: "reports",
-      label: "Reports",
+      label: "Reports & audit",
       tabs: [
         { value: "reports", label: "Ops reports" },
         { value: "activity", label: "Activity log" },
@@ -86,5 +72,26 @@ export function tabGroups(residents, staff, kiosks, zones, user) {
         { value: "roadmap", label: "Roadmap" },
       ],
     },
+    ...(user?.role === "owner"
+      ? [{
+          id: "facility",
+          label: "Facility setup",
+          tabs: [{ value: "facilities", label: "Facilities" }],
+        }]
+      : []),
   ];
+}
+
+// External deep-links (staff dashboard cards, Admin Aria, notifications)
+// use /admin?tab=<value>. A couple of friendly aliases so a link can say
+// ?tab=users or ?tab=pendants.
+export const TAB_ALIASES = {
+  users: "staff",
+  pendants: "rf",
+  "resident-search": "residents",
+};
+
+export function resolveTab(value, groups) {
+  const v = TAB_ALIASES[value] || value;
+  return groups.some((g) => g.tabs.some((t) => t.value === v)) ? v : null;
 }

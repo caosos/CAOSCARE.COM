@@ -11,9 +11,11 @@ import { Badge } from "../components/ui/badge";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import DepartmentWorkspaceDialog from "./DepartmentWorkspaceDialog";
+import { departmentWorkspaceLabel } from "../lib/roleHome";
 
 export default function DepartmentsTab() {
   const [items, setItems] = useState([]);
+  const [staff, setStaff] = useState([]);
   const [open, setOpen] = useState(false);
   const [workspaceDept, setWorkspaceDept] = useState(null);
   const empty = { label: "", description: "", contact_email: "" };
@@ -21,13 +23,15 @@ export default function DepartmentsTab() {
 
   const fetchAll = async () => {
     try {
-      const { data } = await api.get("/departments");
-      setItems(data);
+      const [d, s] = await Promise.all([api.get("/departments"), api.get("/staff").catch(() => ({ data: [] }))]);
+      setItems(d.data);
+      setStaff(s.data || []);
     } catch {
       toast.error("Could not load departments");
     }
   };
   useEffect(() => { fetchAll(); }, []);
+  const staffCount = (slug) => staff.filter((u) => u.department === slug).length;
 
   const create = async (e) => {
     e.preventDefault();
@@ -94,7 +98,8 @@ export default function DepartmentsTab() {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Name</TableHead><TableHead>Contact</TableHead><TableHead>Status</TableHead><TableHead></TableHead>
+            <TableHead>Name</TableHead><TableHead>Slug</TableHead><TableHead>Staff</TableHead>
+            <TableHead>Workspace</TableHead><TableHead>Contact</TableHead><TableHead>Status</TableHead><TableHead></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -109,6 +114,9 @@ export default function DepartmentsTab() {
                 <div className="font-medium">{d.label}</div>
                 {d.description && <div className="text-caos-mute text-xs">{d.description}</div>}
               </TableCell>
+              <TableCell className="font-mono text-xs text-caos-mute">{d.slug}</TableCell>
+              <TableCell className="text-sm" data-testid={`dept-staff-${d.department_id}`}>{staffCount(d.slug)}</TableCell>
+              <TableCell className="text-xs text-caos-mute">{departmentWorkspaceLabel(d.slug)}</TableCell>
               <TableCell className="text-sm">{d.contact_email || "—"}</TableCell>
               <TableCell>
                 <Badge
@@ -133,7 +141,7 @@ export default function DepartmentsTab() {
             </TableRow>
           ))}
           {items.length === 0 && (
-            <TableRow><TableCell colSpan={4} className="text-center text-caos-mute py-6">No departments yet.</TableCell></TableRow>
+            <TableRow><TableCell colSpan={7} className="text-center text-caos-mute py-6">No departments yet.</TableCell></TableRow>
           )}
         </TableBody>
       </Table>

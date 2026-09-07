@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
@@ -9,14 +9,24 @@ import MovementDialog from "./MovementDialog";
 import MemoryDialog from "./MemoryDialog";
 import ResidentRecordDialog from "./ResidentRecordDialog";
 import ResidentFormDialog from "./ResidentFormDialog";
+import ResidentQuickFind from "./ResidentQuickFind";
 
 /* -------------- Residents -------------- */
-export default function ResidentsTab({ residents, kiosks, onChange }) {
+export default function ResidentsTab({ residents, kiosks, onChange, focusResidentId, onFocusHandled }) {
   const [formOpen, setFormOpen] = useState(false);
   const [editingResident, setEditingResident] = useState(null);
   const [movementFor, setMovementFor] = useState(null);
   const [memoryFor, setMemoryFor] = useState(null);
   const [recordFor, setRecordFor] = useState(null);
+
+  // Deep-linked resident (/admin?resident=<id>, from a dashboard card or
+  // Admin Aria) - open its record once the residents list is loaded.
+  useEffect(() => {
+    if (!focusResidentId || !residents?.length) return;
+    const r = residents.find((x) => x.resident_id === focusResidentId);
+    if (r) setRecordFor(r);
+    onFocusHandled?.();
+  }, [focusResidentId, residents]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const open_new = () => { setEditingResident(null); setFormOpen(true); };
   const open_edit = (r) => { setEditingResident(r); setFormOpen(true); };
@@ -91,8 +101,9 @@ export default function ResidentsTab({ residents, kiosks, onChange }) {
 
   return (
     <Card className="border-caos-line p-6">
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex justify-between items-center gap-4 mb-4 flex-wrap">
         <h2 className="font-display text-xl font-medium text-caos-forest">Residents</h2>
+        <ResidentQuickFind residents={residents} onPick={(r) => setRecordFor(r)} />
         <Button onClick={open_new} className="bg-caos-forest hover:bg-caos-forest-hover rounded-full" data-testid="add-resident-btn">
           <Plus className="w-4 h-4 mr-2" /> Add resident
         </Button>

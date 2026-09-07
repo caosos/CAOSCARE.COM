@@ -6,12 +6,10 @@ import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import {
-  AlertCircle,
   CheckCircle2,
   MapPin,
   LogOut,
   Shield,
-  Activity,
   RefreshCw,
   Users,
   ChevronRight,
@@ -23,6 +21,7 @@ import AlertDetailDialog from "./AlertDetailDialog";
 import { MyTasksCard } from "./TasksTab";
 import PagerFeedCard from "./PagerFeedCard";
 import DeviceStatusCard from "./DeviceStatusCard";
+import AlertStatsRow from "./AlertStatsRow";
 
 function severityColor(s) {
   if (s === "emergency") return { border: "#B6463A", bg: "#FDECE9", text: "#98392F" };
@@ -150,31 +149,7 @@ export default function StaffDashboard() {
       </header>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-          <StatCard label="Active" value={stats.active} icon={AlertCircle} tone="emergency" testid="stat-active" />
-          <StatCard label="Emergency now" value={stats.emergency_active} icon={AlertCircle} tone="emergency" testid="stat-emergency" />
-          <StatCard label="Acknowledged" value={stats.acknowledged} icon={Activity} tone="amber" testid="stat-ack" />
-          <StatCard label="Resolved 24h" value={stats.resolved_24h} icon={CheckCircle2} tone="moss" testid="stat-resolved" />
-          <Link to="/admin" className="block" data-testid="stat-insights-link">
-            <Card className="p-5 border-caos-line bg-white hover:border-caos-forest transition-colors cursor-pointer">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-widest text-caos-mute">Pattern flags</p>
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-[#FDF3E3]">
-                  <TrendingUp className="w-4 h-4 text-caos-amber" />
-                </div>
-              </div>
-              <div className="flex items-baseline gap-2 mt-2">
-                <p className="font-display text-4xl font-semibold tracking-tight text-caos-forest">{insightSummary.total}</p>
-                {insightSummary.concern > 0 && (
-                  <span className="text-xs font-bold text-caos-terracotta uppercase tracking-wider">
-                    {insightSummary.concern} concern
-                  </span>
-                )}
-              </div>
-            </Card>
-          </Link>
-        </div>
+        <AlertStatsRow stats={stats} insightSummary={insightSummary} />
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* Alerts */}
@@ -322,29 +297,33 @@ export default function StaffDashboard() {
 
             <Card className="border-caos-line bg-white overflow-hidden">
               <div className="divide-y divide-caos-line" data-testid="location-list">
-                {locations.map((l) => (
-                  <div
-                    key={l.resident_id}
-                    data-testid={`loc-row-${l.resident_id}`}
-                    className="p-4 flex items-center justify-between hover:bg-caos-ambient/50 transition-colors"
-                  >
-                    <div>
-                      <p className="font-semibold text-caos-forest">{l.resident_name}</p>
-                      <p className="text-caos-mute text-sm">Room {l.room}</p>
-                    </div>
-                    <div className="text-right">
-                      <div className="flex items-center gap-2 justify-end">
-                        <MapPin className="w-4 h-4 text-caos-forest" />
-                        <span className="font-semibold text-caos-forest">
-                          {l.zone || "Not seen yet"}
-                        </span>
+                {locations.map((l) => {
+                  // Admin/owner drills into the resident record; a plain nurse
+                  // has no resident-detail surface, so their row stays a plain
+                  // <div> (not styled like a control).
+                  const drill = ["owner", "admin"].includes(user?.role) && l.resident_id;
+                  const inner = (
+                    <>
+                      <div>
+                        <p className="font-semibold text-caos-forest">{l.resident_name}</p>
+                        <p className="text-caos-mute text-sm">Room {l.room}</p>
                       </div>
-                      <p className="text-xs text-caos-mute">
-                        {l.last_seen ? timeAgo(l.last_seen) : "—"}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                      <div className="text-right">
+                        <div className="flex items-center gap-2 justify-end">
+                          <MapPin className="w-4 h-4 text-caos-forest" />
+                          <span className="font-semibold text-caos-forest">{l.zone || "Not seen yet"}</span>
+                        </div>
+                        <p className="text-xs text-caos-mute">{l.last_seen ? timeAgo(l.last_seen) : "—"}</p>
+                      </div>
+                    </>
+                  );
+                  const cls = `p-4 flex items-center justify-between ${drill ? "hover:bg-caos-ambient/50 cursor-pointer transition-colors" : ""}`;
+                  return drill ? (
+                    <Link key={l.resident_id} to={`/admin?tab=residents&resident=${l.resident_id}`} data-testid={`loc-row-${l.resident_id}`} className={cls}>{inner}</Link>
+                  ) : (
+                    <div key={l.resident_id} data-testid={`loc-row-${l.resident_id}`} className={cls}>{inner}</div>
+                  );
+                })}
                 {locations.length === 0 && (
                   <div className="p-6 text-center text-caos-mute">No residents yet.</div>
                 )}
@@ -367,23 +346,3 @@ export default function StaffDashboard() {
   );
 }
 
-function StatCard({ label, value, icon: Icon, tone, testid }) {
-  const toneMap = {
-    emergency: { bg: "#FDECE9", text: "#B6463A" },
-    amber: { bg: "#FDF3E3", text: "#D28D38" },
-    moss: { bg: "#EAF3EC", text: "#4A7C59" },
-    forest: { bg: "#E4EBE7", text: "#153428" },
-  };
-  const t = toneMap[tone] || toneMap.forest;
-  return (
-    <Card className="p-5 border-caos-line bg-white" data-testid={testid}>
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-bold uppercase tracking-widest text-caos-mute">{label}</p>
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: t.bg }}>
-          <Icon className="w-4 h-4" style={{ color: t.text }} />
-        </div>
-      </div>
-      <p className="font-display text-4xl font-semibold tracking-tight text-caos-forest mt-2">{value}</p>
-    </Card>
-  );
-}

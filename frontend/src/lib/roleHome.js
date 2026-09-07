@@ -36,3 +36,28 @@ export function roleHomeLabel(user) {
   if (WORKSPACE_DEPARTMENTS.has(user?.department)) return "Continue to workspace";
   return "Continue to dashboard";
 }
+
+// Human label for where a user's sign-in lands them - shown in the
+// Users & Access list and the Departments table so the routing truth that
+// already exists (role + User.department) is visible, not hidden.
+export function workspaceLabel(user) {
+  const role = user?.role;
+  if (role === "owner" || role === "admin") return "Admin command centre";
+  if (role === "front_desk") return "Front desk";
+  if (WORKSPACE_DEPARTMENTS.has(user?.department)) {
+    const d = user.department;
+    return `${d.charAt(0).toUpperCase()}${d.slice(1)} workspace`;
+  }
+  return "Care / assistance board";
+}
+
+// Same, keyed by a bare department slug (for the Departments table, where
+// there is no per-user role).
+export function departmentWorkspaceLabel(slug) {
+  if (WORKSPACE_DEPARTMENTS.has(slug)) {
+    return `${slug.charAt(0).toUpperCase()}${slug.slice(1)} workspace`;
+  }
+  if (slug === "nursing") return "Care / assistance board";
+  if (slug === "administration") return "Admin command centre";
+  return "General staff board";
+}
