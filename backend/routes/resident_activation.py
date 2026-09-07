@@ -30,8 +30,15 @@ from typing import Optional
 
 from deps import db
 from models import Alert, PressRecord, now_utc
+from routes.activation_log import alog, new_activation_id
 
 log = logging.getLogger(__name__)
+
+# Only this transmission-semantics class may enter the activation path. The
+# gate is enforced upstream in routes/rf_matched_intake.py (a supervisory /
+# tamper / battery / unknown frame is never passed here at all); this is a
+# defence-in-depth backstop so a future caller can't bypass it silently.
+ACTIVATION_SEMANTIC_CLASS = "help_press"
 
 # One physical press of a real Interlogix-Security / Lifeline pendant emits
 # ~3-8 RF frames at a ~0.5s cadence, spanning up to ~3.2s (live-evidenced,
@@ -105,13 +112,33 @@ async def record_resident_activation(
     triggered_by: str = "manual",
     source_metadata: Optional[dict] = None,
     kiosk_id: Optional[str] = None,
+    semantic_class: str = "help_press",
+    activation_id_hint: Optional[str] = None,
 ) -> dict:
     """Attach this press to the resident's open event, or open a new one.
     Returns the resulting alert dict (already persisted) plus a
-    `coalesced` bool the caller can use to decide what response to send."""
+    `coalesced` bool the caller can use to decide what response to send,
+    and the `activation_id` correlation id for the cycle it landed in.
+
+    `semantic_class` MUST be "help_press" - anything else is refused here
+    (the real gate is upstream, this only backstops a bypass)."""
+    if semantic_class != ACTIVATION_SEMANTIC_CLASS:
+        await alog("resident_event", "activation_refused_non_help",
+                   room=room, resident_id=resident_id, kiosk_id=kiosk_id,
+                   data={"semantic_class": semantic_class, "source": source})
+        log.warning(f"record_resident_activation refused: semantic_class={semantic_class!r} (not help_press)")
+        return {"coalesced": False, "refused": True, "semantic_class": semantic_class, "alert_id": None}
+
     press = PressRecord(device_id=device_id, source=source, rssi=rssi)
     press_dict = press.model_dump()
     press_dict["at"] = press_dict["at"].isoformat()
+
+    def _age(created_at) -> float:
+        try:
+            c = datetime.fromisoformat(created_at) if isinstance(created_at, str) else created_at
+            return round((now_utc() - c).total_seconds(), 1)
+        except Exception:
+            return -1.0
 
     # Primary key is resident_id (the directive's own scoping rule). A
     # device not yet assigned to a resident (resident_id is None) falls
@@ -128,6 +155,9 @@ async def record_resident_activation(
         )
         if open_alert:
             frame_stamp = _rf_frame_stamp(source, device_id)
+            pc_before = open_alert.get("press_count", 0)
+            consumed_before = open_alert.get("activation_consumed_at")
+            age = _age(open_alert.get("created_at"))
             if _is_echo_frame(open_alert, source, device_id):
                 # Repeat frame of a press already counted. rf.py still writes
                 # this frame to db.rf_events unconditionally - evidence is
@@ -138,17 +168,35 @@ async def record_resident_activation(
                     await db.alerts.update_one(
                         {"alert_id": open_alert["alert_id"]}, {"$set": frame_stamp},
                     )
-                return {**open_alert, "coalesced": True, "echo_frame": True}
+                await alog("resident_event", "press_echo_suppressed",
+                           activation_id=open_alert.get("activation_id"), room=open_alert.get("room"),
+                           resident_id=resident_id, alert_id=open_alert["alert_id"],
+                           data={"press_count": pc_before, "reason": "rf_echo_window",
+                                 "semantic_class": semantic_class, "source": source})
+                return {**open_alert, "coalesced": True, "echo_frame": True,
+                        "activation_id": open_alert.get("activation_id")}
+
+            # A press onto an already-consumed cycle (or one that never had
+            # an activation_id) RE-ARMS the event: a new activation cycle.
+            rearm = bool(consumed_before) or not open_alert.get("activation_id")
+            activation_id = (activation_id_hint or new_activation_id()) if rearm else open_alert["activation_id"]
             await db.alerts.update_one(
                 {"alert_id": open_alert["alert_id"]},
                 {
                     "$inc": {"press_count": 1},
                     "$push": {"presses": press_dict},
-                    "$set": {"activation_consumed_at": None, **frame_stamp},
+                    "$set": {"activation_consumed_at": None, "activation_id": activation_id, **frame_stamp},
                 },
             )
             doc = await db.alerts.find_one({"alert_id": open_alert["alert_id"]}, {"_id": 0})
-            return {**doc, "coalesced": True}
+            await alog("resident_event", "event_rearmed" if rearm else "press_coalesced",
+                       activation_id=activation_id, room=doc.get("room"), resident_id=resident_id,
+                       alert_id=doc["alert_id"], kiosk_id=kiosk_id,
+                       data={"cause": "rearm_from_consumed" if rearm else "repeat_press_same_cycle",
+                             "press_count_before": pc_before, "press_count_after": doc.get("press_count"),
+                             "activation_consumed_before": consumed_before, "activation_consumed_after": None,
+                             "event_age_sec": age, "semantic_class": semantic_class, "source": source})
+            return {**doc, "coalesced": True, "activation_id": activation_id}
 
     # No open event for this resident - open a fresh one.
     resident_name = None
@@ -178,6 +226,7 @@ async def record_resident_activation(
     doc["acknowledged_at"] = None
     doc["resolved_at"] = None
     doc["presses"] = [press_dict]
+    doc["activation_id"] = activation_id_hint or new_activation_id()
     doc.update(_rf_frame_stamp(source, device_id))
 
     # Receipt is created here (not at close) so its `created_at` reflects
@@ -201,7 +250,14 @@ async def record_resident_activation(
 
     await db.alerts.insert_one(doc)
     doc.pop("_id", None)
-    return {**doc, "coalesced": False}
+    await alog("resident_event", "event_opened",
+               activation_id=doc["activation_id"], room=doc.get("room"), resident_id=resident_id,
+               alert_id=doc["alert_id"], kiosk_id=kiosk_id,
+               data={"cause": "new_event", "press_count_before": 0, "press_count_after": 1,
+                     "activation_consumed_before": None, "activation_consumed_after": None,
+                     "event_age_sec": 0.0, "semantic_class": semantic_class, "source": source,
+                     "triggered_by": triggered_by})
+    return {**doc, "coalesced": False, "activation_id": doc["activation_id"]}
 
 
 async def _pattern_footnote(resident_id: str) -> Optional[str]:

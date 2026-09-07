@@ -13,6 +13,15 @@ test("first ever open event wakes the kiosk", () => {
   const r = evaluateEmergencyWake(alert("a1", 1), null, "idle");
   expect(r.wake).toBe(true);
   expect(r.seen).toEqual({ id: "a1", pressCount: 1 });
+  expect(r.reason).toBe("first_sight");
+});
+
+test("every decision carries a reason for the observability log", () => {
+  expect(evaluateEmergencyWake(null, null, "idle").reason).toBe("rejected_no_alert");
+  expect(evaluateEmergencyWake(alert("a1", 1), { id: "a1", pressCount: 1 }, "idle").reason).toBe("rejected_same_state");
+  expect(evaluateEmergencyWake(alert("a1", 2), { id: "a1", pressCount: 1 }, "idle").reason).toBe("press_count_advanced");
+  expect(evaluateEmergencyWake(alert("a2", 1), { id: "a1", pressCount: 9 }, "idle").reason).toBe("new_alert_id");
+  expect(evaluateEmergencyWake(alert("a1", 1), { id: "a1", pressCount: 1 }, "chatting").reason).toBe("rejected_in_call");
 });
 
 test("no alert -> no wake, marker untouched", () => {

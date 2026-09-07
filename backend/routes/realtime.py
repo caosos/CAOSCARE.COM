@@ -220,14 +220,26 @@ async def create_session(payload: dict = Body(default={})):
     # Only applies when a room is actually supplied (Michael's own operator
     # build uses /aria-session, a separate endpoint, never touched here).
     room = payload.get("room")
+    activation_id = payload.get("activation_id")
     lease = None
     if room:
+        from routes.activation_log import alog
+        await alog("realtime", "session_mint_started", activation_id=activation_id, room=room,
+                   resident_id=payload.get("resident_id"), alert_id=payload.get("alert_id"),
+                   kiosk_id=payload.get("kiosk_id"), session_id=payload.get("session_id"),
+                   client_instance_id=payload.get("client_instance_id"),
+                   ts_client=payload.get("ts_client"),
+                   data={"trigger_source": payload.get("trigger_source")})
         lease = await claim_or_reuse_room_lease(
             room, payload.get("resident_id"), payload.get("kiosk_id"),
             payload.get("trigger_source") or "manual_kiosk", payload.get("session_id"),
+            activation_id,
         )
         if not lease["claimed"]:
             # Never spend a real OpenAI call on a room that's already owned.
+            await alog("realtime", "session_mint_aborted_lease_lost", activation_id=activation_id,
+                       room=room, alert_id=payload.get("alert_id"), session_id=payload.get("session_id"),
+                       data={"lease": lease})
             return JSONResponse(content={"_caos": {"lease": lease}})
 
     key = _require_openai_key()
@@ -261,9 +273,20 @@ async def create_session(payload: dict = Body(default={})):
             raise HTTPException(status_code=502, detail=f"OpenAI Realtime session error: {resp.text[:300]}")
         session = resp.json()
     except HTTPException:
+        if room:
+            from routes.activation_log import alog
+            await alog("realtime", "session_mint_failed", activation_id=activation_id, room=room,
+                       alert_id=payload.get("alert_id"), session_id=payload.get("session_id"),
+                       data={"stage": "openai_client_secrets"})
         raise
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"OpenAI Realtime session error: {e}")
+
+    if room:
+        from routes.activation_log import alog
+        await alog("realtime", "session_mint_completed", activation_id=activation_id, room=room,
+                   alert_id=payload.get("alert_id"), session_id=payload.get("session_id"),
+                   kiosk_id=payload.get("kiosk_id"), client_instance_id=payload.get("client_instance_id"))
 
     # Everything under `_caos` travels back to the browser so it can apply a
     # `session.update` over the data channel the moment it opens. The OpenAI
@@ -283,6 +306,8 @@ async def create_session(payload: dict = Body(default={})):
             "kiosk_id": payload.get("kiosk_id"),
             "room": payload.get("room"),
             "alert_id": payload.get("alert_id"),
+            "activation_id": activation_id,
+            "client_instance_id": payload.get("client_instance_id"),
             "facility_label": facility_label,
             "facility_tz": facility_tz,
             "aria_companion_timeout_sec": assist_cfg.get("aria_companion_timeout_sec", 300),

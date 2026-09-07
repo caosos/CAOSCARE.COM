@@ -29,7 +29,6 @@ from models import (
     RFDevice, RFCapture, RFFingerprint, RFListenStart, RFPair, RFEventIn,
     RFDeviceAssign, now_utc,
 )
-from routes.resident_activation import record_resident_activation
 from routes.rf_bridge_health import mark_bridge_polled
 from routes.rf_pairing_guard import hamming_similarity, find_pairing_conflict
 
@@ -433,62 +432,32 @@ async def rf_event(
         "alert_id": None,
     }
 
+    intake = {"semantic_class": None, "allowed_activation": False,
+              "press_coalesced": False, "echo_frame": False}
     if matched:
-        telemetry = {
-            "last_seen_at": now_utc().isoformat(),
-            "last_rssi": payload.fingerprint.rssi,
-        }
-        # battery_ok is real decoder-provided evidence (Interlogix-Security
-        # and similar PERS protocols report it on every transmission) - was
-        # captured in every event's fingerprint.decoded already but never
-        # actually propagated onto the paired device record, so the admin
-        # pendant list could never show a real low-battery warning even
-        # though the data was right there (2026-09-06, real ask: "battery
-        # life and whatever else can be derived" as pairing/device data).
-        battery_ok = (payload.fingerprint.decoded or {}).get("battery_ok")
-        if battery_ok is not None:
-            telemetry["low_battery"] = not bool(battery_ok)
-        await db.rf_devices.update_one(  # telemetry
-            {"rf_device_id": best["rf_device_id"]},
-            {"$set": telemetry, "$inc": {"press_count": 1}},
-        )
-        # Every RF press is persisted to db.rf_events unconditionally,
-        # below, regardless of whether it coalesces into an already-open
-        # resident event or opens a fresh one - evidence is never dropped,
-        # only ACTIVATION is deduped. Map our RF severities ("help" /
-        # "assist" / "emergency" / "comfort") to the tighter
-        # Alert.AlertSeverity Literal which has no "help" - collapse
-        # "help" -> "assist" so the alert is valid.
-        sev_map = {"help": "assist", "assist": "assist", "emergency": "emergency", "comfort": "comfort"}
-        alert_severity = sev_map.get(best.get("severity", "help"), "assist")
+        # WHO is known (fingerprint match). handle_matched_frame answers
+        # WHAT and gates the activation path - only a proven `help_press`
+        # is allowed to create/re-arm a ResidentEvent. Health telemetry,
+        # raw evidence, and classification logging happen for EVERY class.
+        from routes.rf_matched_intake import handle_matched_frame
         try:
-            result = await record_resident_activation(
-                resident_id=best.get("resident_id"),
-                room=best.get("room") or kiosk.get("room"),
-                source="rf_pendant",
-                device_id=best["rf_device_id"],
-                rssi=payload.fingerprint.rssi,
-                severity=alert_severity,
-                auto_voice=True,  # Michael, 2026-08-29: a pendant press must always reach Aria hands-free, matching pendants.py/wearables.py
-                message=f"RF pendant pressed: {best.get('label', 'unknown')}",
-                triggered_by="rf_pendant",
-                kiosk_id=payload.kiosk_id,
-                source_metadata={
-                    "rf_device_id": best["rf_device_id"],
-                    "match_score": round(best_score, 4),
-                    "rssi": payload.fingerprint.rssi,
-                    "rf_severity": best.get("severity", "help"),
-                },
-            )
-            raw_event["alert_id"] = result["alert_id"]
-            press_coalesced = result["coalesced"]
-            press_echo_frame = bool(result.get("echo_frame"))
+            intake = await handle_matched_frame(best, kiosk, payload, raw_event)
         except Exception as e:
-            # Best-effort. Log the cause so we know if activation recording breaks.
             import logging
-            logging.getLogger(__name__).warning(f"RF activation recording failed: {e}")
-            press_coalesced = False
-            press_echo_frame = False
+            logging.getLogger(__name__).warning(f"RF matched-frame intake failed: {e}")
+            raw_event["intake_error"] = type(e).__name__
+    else:
+        # Matched no paired device - preserved for diagnostics so a future
+        # protocol mapping can be added; never promoted to anything.
+        raw_event["semantic_class"] = "unknown"
+        raw_event["allowed_activation"] = False
+        intake["semantic_class"] = "unknown"
+        from routes.activation_log import alog as _alog
+        await _alog("rf", "frame_unmatched", kiosk_id=payload.kiosk_id,
+                    data={"match_score": round(best_score, 4),
+                          "bit_pattern_hex": payload.fingerprint.bit_pattern_hex,
+                          "frequency_hz": payload.fingerprint.frequency_hz,
+                          "decoded": payload.fingerprint.decoded})
 
     await db.rf_events.insert_one(raw_event)
     raw_event.pop("_id", None)
@@ -498,8 +467,10 @@ async def rf_event(
         "score": round(best_score, 4),
         "device_id": best["rf_device_id"] if matched else None,
         "alert_id": raw_event.get("alert_id"),
-        "press_coalesced": press_coalesced if matched else False,
-        "echo_frame": press_echo_frame if matched else False,
+        "semantic_class": intake.get("semantic_class"),
+        "allowed_activation": intake.get("allowed_activation"),
+        "press_coalesced": intake.get("press_coalesced") if matched else False,
+        "echo_frame": intake.get("echo_frame") if matched else False,
     }
 
 

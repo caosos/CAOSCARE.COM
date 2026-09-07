@@ -15,6 +15,7 @@ import RequestsPanel from "../components/kiosk/RequestsPanel";
 import RoomDevicePanel from "../components/kiosk/RoomDevicePanel";
 import { sendRoomDeviceCommand } from "../lib/kioskDeviceControl";
 import { evaluateEmergencyWake } from "../lib/kioskEmergencyWake";
+import { logActivationClientEvent } from "../lib/activationClient";
 
 // Kiosk is PUBLIC - no login. Selected/identified by kiosk_id in URL.
 // /kiosk/:kioskId  (use "demo" to pick an arbitrary kiosk automatically)
@@ -47,6 +48,7 @@ export default function Kiosk() {
   // SAME open event (same alert_id, press_count bumped) still re-wakes Aria
   // - see kioskEmergencyWake.js / docs/LEVEL1_BREAKTEST.md (invariant 6).
   const seenEmergencyRef = useRef(null);
+  const lastWakeDecisionRef = useRef(null);  // dedupe wake-decision breadcrumbs to transitions only
   const triggerSourceRef = useRef("manual_kiosk");  // what's about to start the next RealtimeChatScreen — pendant | manual_kiosk
   const callStateRef = useRef("idle");     // sync callState for async callbacks
   useEffect(() => { callStateRef.current = callState; }, [callState]);
@@ -185,23 +187,57 @@ export default function Kiosk() {
     return () => { stop = true; clearInterval(t); };
   }, [kiosk?.room, callState]);
 
+  // Kiosk presence breadcrumbs — so "when was the kiosk actually here" is
+  // answerable from evidence (activation observability, 2026-09-07).
+  useEffect(() => {
+    if (!kiosk?.kiosk_id) return;
+    const base = { kiosk_id: kiosk.kiosk_id, room: kiosk.room, resident_id: resident?.resident_id };
+    logActivationClientEvent("kiosk_mounted", { ...base, data: { path: window.location.pathname } });
+    const onVis = () => logActivationClientEvent(
+      document.visibilityState === "hidden" ? "page_hidden" : "page_visible", base);
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      logActivationClientEvent("kiosk_unmounted", base);
+    };
+  }, [kiosk?.kiosk_id, kiosk?.room, resident?.resident_id]);
+
   // Poll for incoming emergencies (panic-press / fall) → auto hands-free
   useEffect(() => {
     if (!kiosk?.kiosk_id) return;
     let stop = false;
+    const base = { kiosk_id: kiosk.kiosk_id, room: kiosk.room, resident_id: resident?.resident_id };
+    logActivationClientEvent("poll_started", { ...base, data: { interval_ms: 3000 } });
     const poll = async () => {
       try {
         const { data } = await axios.get(`${API}/kiosks/${kiosk.kiosk_id}/active-emergency`);
         if (stop) return;
         const a = data.alert;
-        const { wake, seen } = evaluateEmergencyWake(a, seenEmergencyRef.current, callStateRef.current);
+        const prevId = seenEmergencyRef.current?.id || null;
+        const crumb = a
+          ? { ...base, alert_id: a.alert_id, activation_id: a.activation_id, data: { press_count: a.press_count } }
+          : base;
+        if (a && a.alert_id !== prevId) logActivationClientEvent("alert_first_seen", crumb);
+        if (!a && prevId) logActivationClientEvent("alert_cleared", { ...base, alert_id: prevId });
+        const { wake, seen, reason } = evaluateEmergencyWake(a, seenEmergencyRef.current, callStateRef.current);
         seenEmergencyRef.current = seen;
+        // Log the wake decision only on a transition (accepted, or the
+        // rejection reason / alert changed) - never every idle 3s poll.
+        const decisionKey = a ? `${a.alert_id}:${a.press_count}:${wake ? "wake" : reason}` : null;
+        if (wake || (decisionKey && decisionKey !== lastWakeDecisionRef.current)) {
+          logActivationClientEvent(wake ? "wake_accepted" : "wake_rejected",
+            { ...crumb, data: { ...(crumb.data || {}), reason, call_state: callStateRef.current } });
+        }
+        lastWakeDecisionRef.current = decisionKey;
         if (wake) handleIncomingEmergency(a);
       } catch { /* silent */ }
     };
     poll();
     const t = setInterval(poll, 3000);
-    return () => { stop = true; clearInterval(t); };
+    return () => {
+      stop = true; clearInterval(t);
+      logActivationClientEvent("poll_stopped", base);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kiosk]);
 
@@ -575,6 +611,7 @@ export default function Kiosk() {
         a11yRootClass={a11yRootClass}
         triggerSource={triggerSourceRef.current}
         alertId={alert?.alert_id}
+        activationId={alert?.activation_id}
         onOpenVoicePicker={() => setVoicePickerOpen(true)}
         onEnd={() => {
           setCallState("idle");

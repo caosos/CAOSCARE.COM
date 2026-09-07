@@ -180,6 +180,7 @@ pendant and observe):
 
 ## Change log (this branch)
 
+### Pass 1 — RF echo + kiosk deaf-to-reactivation (commit 69c2f56)
 - `backend/routes/resident_activation.py` — RF echo-frame window in
   `record_resident_activation()`.
 - `frontend/src/lib/kioskEmergencyWake.js` — new, pure wake decision.
@@ -188,3 +189,169 @@ pendant and observe):
 - `backend/tests/test_resident_events.py` — reactivation sequence updated for
   the echo window; new `_run_rf_echo_debounce` scenario.
 - `frontend/src/lib/__tests__/kioskEmergencyWake.test.js` — new.
+
+---
+
+## 2026-09-07 — Spontaneous Room 214 wake: forensic + RF semantics gate + activation observability
+
+### Forensic (no code change): the 03:21:43Z wake
+A fresh RF frame from Helen's own paired pendant `rfd_6e8f06632b41`, matched
+at score **1.0**, was a **periodic supervisory / check-in beacon**, not a
+press:
+- `db.rf_events` seq 1788024006-8: 3 frames / 0.52 s, hex `28864fa13e043c`,
+  decoded `switch1-5 = OPEN`, `battery_ok 1`, rssi -0.13.
+- The `e043c` supervisory beacon cadence over 6 h: 20:54:58 → 21:59:22 →
+  23:03:48 → 00:08:30 → 01:12:53 → 03:21:43 (Δ ≈ **64.4 min**, one missed).
+- Real presses in the same window (Michael's tests): 8-40 frames, 2.6-36 s,
+  **`switch5 = CLOSED`**.
+- Session `rt_ymo5rm22_1788751303707`: Aria greeted "Helen, I'm here…",
+  resident's first words were **"I didn't call you."**, ended
+  `ui_end_call_button`. Full chain in the timeline reconstruction below.
+
+Root cause: `rf.py::rf_event()` matched on identity only (frequency +
+Hamming similarity of `bit_pattern_hex`) and treated every matched frame as
+a help activation. **WHO transmitted ≠ WHAT they transmitted.**
+
+### RF transmission-semantics gate (directive: "supervisory RF must not become help")
+- `backend/routes/rf_semantics.py` — new. `classify_transmission()` returns
+  an extensible `RfClass` (`help_press | supervisory | tamper |
+  battery_status | unknown`). Decoded protocol semantics are the gate:
+  `help_press` ⇔ `switch5 CLOSED` (switch1-4 OPEN, the proven Room 214
+  deliberate-press signature); `supervisory` ⇔ all switches OPEN + short
+  burst (≤4 frames, ≤1.6 s), cadence as supporting evidence only;
+  `battery_status` ⇔ `battery_ok` falsey + supervisory shape; `unknown` ⇔
+  matched identity but no proven semantic (never promoted). `burst_context()`
+  reads `db.rf_events` for the contiguous burst (frame count / span / prior
+  gap) — supporting evidence, never the sole basis.
+- `backend/routes/rf_matched_intake.py` — new. `handle_matched_frame()`:
+  for EVERY matched frame, updates device health telemetry (`last_seen_at`,
+  `last_rssi`, `low_battery`, `last_transmission_at`, `last_transmission_class`,
+  per-class counters `supervisory_count`/`unknown_count`/…), stamps the
+  `rf_events` row with `semantic_class`/`class_reasons`/`class_evidence`/
+  `allowed_activation` (WHAT, alongside `matched_device_id`/`match_score` =
+  WHO), and logs to the observability stream. **Only `help_press`** is
+  passed to `record_resident_activation()`; supervisory/unknown/tamper/
+  battery update health + are logged but never create/re-arm a
+  ResidentEvent, reset `activation_consumed_at`, claim a lease, or wake Aria.
+  `rf_devices.press_count` now counts human help presses only (was every
+  matched frame).
+- `backend/routes/rf.py` — the `if matched:` block delegates to
+  `handle_matched_frame` (net **shrank** 534 → 505); unmatched frames get an
+  `unknown` classification + a `frame_unmatched` observability row.
+- `backend/routes/resident_activation.py` — `record_resident_activation()`
+  takes `semantic_class` (refuses anything but `help_press`, defence in
+  depth) and `activation_id_hint`; sets `activation_id` on the alert
+  (opened, or a new cycle on re-arm-from-consumed — same field name and
+  semantics as the parallel main-checkout work, so they converge); emits
+  `event_opened` / `event_rearmed` / `press_coalesced` / `press_echo_suppressed`
+  with `press_count` and `activation_consumed_at` **before→after** +
+  `event_age_sec`.
+
+### Activation observability (directive: "reconstruct EVERY activation from evidence")
+- `backend/routes/activation_log.py` — new. `alog()` fire-and-forget writer
+  → append-only `db.activation_events`, common envelope correlatable by
+  `room / resident_id / alert_id / activation_id / kiosk_id /
+  client_instance_id / session_id / ts` (authoritative **server** time;
+  `ts_client` for diagnostics only). Never raises, never mutates raw
+  evidence.
+- `backend/routes/activation_timeline.py` — new. `GET
+  /activation-events/{activation_id}` and `GET
+  /activation-events/room/{room}/at?at=&window_min=` merge
+  `activation_events` + `rf_events` + `resident_aria_lease_events` +
+  `realtime_diagnostics` + alert `event_log`/`presses` into ONE
+  server-ts-ordered chain — the "why did Room 214 Aria wake at T" answer.
+  `GET /activation-events/rf-device/{id}/recent` = every classified
+  transmission from one device (WHO fixed, WHAT is the story).
+- `backend/routes/activation_client_events.py` — new. Public `POST
+  /activation-events/client` for allow-listed kiosk breadcrumbs (mount,
+  unmount, visibility, poll start/stop, alert first-seen, alert cleared,
+  wake accepted/rejected + **reason**, mic requested/acquired/failed,
+  session mint/end). Same trust tier as `/rf/event`.
+- `backend/routes/realtime_room_lease.py` — `alog` for `claim_accepted` /
+  `claim_rejected` (+ existing owner) / `heartbeat_started` / `released`
+  (+ reason, held-for). `claim_or_reuse_room_lease()` takes `activation_id`.
+- `backend/routes/realtime.py` — `/session` threads `activation_id` +
+  `client_instance_id` into the lease claim and `_caos.context`; `alog`
+  `session_mint_started` / `_completed` / `_failed` / `_aborted_lease_lost`.
+- `backend/routes/realtime_diagnostics.py` — `DiagnosticEvent` gains
+  `activation_id` / `alert_id` / `room` / `client_instance_id` so a realtime
+  row joins the stream directly.
+- `frontend/src/lib/activationClient.js` — new. `clientInstanceId()` (fixed
+  per full page load — a new value ⇒ a reload) + batched
+  `logActivationClientEvent()` (flushes on pagehide/visibility via beacon).
+- `frontend/src/lib/kioskEmergencyWake.js` — `evaluateEmergencyWake()` now
+  also returns `reason` (`first_sight | new_alert_id | press_count_advanced |
+  rejected_*`).
+- `frontend/src/pages/Kiosk.jsx` — kiosk-presence + poll-transition + wake-
+  decision breadcrumbs (transitions only, never idle polls); threads
+  `activationId` to `RealtimeChatScreen`.
+- `frontend/src/pages/RealtimeChatScreen.jsx`, `useRealtimeVoice.js` —
+  thread `activationId` / `client_instance_id`; `mic_requested` /
+  `mic_acquired` / `mic_failed` / `session_mint_started` /
+  `session_ended_client` breadcrumbs; lease `release` now carries `reason` +
+  `activation_id`.
+
+### Tests
+- `backend/tests/test_rf_semantics.py` — new, the 6 required cases, real
+  Room 214 decoded signatures as fixtures (unique synthetic identity hash so
+  the real pendant is never touched): supervisory → health updated, class
+  `supervisory`, zero ResidentEvent mutation / zero press / zero Aria;
+  deliberate press → `help_press`, one press, normal activation; unknown →
+  `unknown`, evidence kept, no activation; 8 frames of one press → exactly
+  one human press; supervisory while an old dismissed event is open → NOT
+  re-armed, `activation_consumed_at` untouched, `activation_id` unchanged,
+  no lease, `active-emergency` stays null; supervisory keeps health current
+  (last_seen / rssi / battery). **6/6 pass.**
+- `backend/tests/test_activation_observability.py` — new, drives RF
+  help-press → client breadcrumbs → lease → realtime end, then asserts the
+  merged timeline is server-ts-ordered, spans every layer, correlates by
+  `activation_id`, and carries WHO (`matched_device_id`) + WHAT
+  (`semantic_class` + reasons) + WHY-allowed on the RF row. **Pass.**
+- `backend/tests/test_resident_events.py` — `_press()` now sends the real
+  `switch5=CLOSED` press signature (a decoded-less frame is `unknown` by
+  directive and must not activate). Full file re-run **pass**.
+- `frontend/src/lib/__tests__/activationClient.test.js` — new (batch shape,
+  stable id, reload = new id, never throws). `kioskEmergencyWake.test.js` —
+  extended for `reason`. Full frontend suite **82/82 pass**.
+- `test_room_device_isolation.py` 5 pass / 2 skip, `test_public_demo_kiosk.py`
+  2 pass. `iter5/iter7` errors identical to before (pre-existing missing
+  demo credentials).
+
+### Environment note
+The live backend (`/home/caoscare-1/CAOSCARE.COM`) runs **uncommitted**
+in-flight work on top of `d994331` (its own `press_id` / `activation_id` /
+burst-grouping via `rf_activation_intake.py`, `resident_session_binding.py`,
+`realtime_resident_session.py`). This branch's work is additive and uses the
+**same `activation_id` field name + semantics** so the two converge on
+merge; it is NOT deployed. RF matching thresholds were **not** touched.
+
+### Reconstructed evidence chain — 2026-09-07 03:21:43Z Room 214 wake
+(produced by `activation_timeline._merge_for_alert`, server timestamps)
+```
+03:21:43.490  rf              frame_received        (supervisory-shape: 3 frames/0.52s, switch5 OPEN)
+03:21:43.494  resident_event  press_recorded        alert.presses  (pre-classifier data — no semantic_class)
+03:21:43.647  lease           claimed               session rt_ymo5rm22_1788751303707  trigger=pendant
+03:21:43.653  resident_event  session_bound
+03:21:45.719  realtime        mic_track_settings    (mic acquired)
+03:21:46.385  realtime        pc_connection_state   connecting → connected @ .772
+03:21:46.792  resident_event  activated
+03:21:47.290  realtime        response_created
+03:21:48.395  realtime        assistant_transcript  "Helen, I'm here. What do you need tonight?"
+03:21:55.069  resident_event  silence_after_invite
+03:22:03.438  realtime        user_transcript       "I didn't call you."
+03:22:04.498  realtime        assistant_transcript  "Oh, I understand. No problem at all…"
+03:22:09.099  realtime        session_ended         reason ui_end_call_button
+03:22:09.259  resident_event  dismissed             → activation_consumed_at set
+03:22:09.266  lease           released              reason ui_end_call_button
+```
+Under the new gate this frame classifies `supervisory` / `allowed_activation
+false` and none of the rows below `frame_received` would occur.
+
+### Physical Room 214 test still owed by Michael
+- Real pendant left untouched for > ~70 min → confirm the ~hourly `e043c`
+  supervisory beacon lands in `db.rf_events` with `semantic_class:
+  "supervisory"`, `allowed_activation: false`, device `last_seen_at` /
+  `last_rssi` refreshed, `supervisory_count` incremented, and **no** Aria
+  wake / no `alert` mutation.
+- Real deliberate press → `semantic_class: "help_press"`, one `press_count`
+  increment, Aria wakes normally.

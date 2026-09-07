@@ -45,11 +45,20 @@ except ValueError:
 PAST_ECHO_WINDOW = _DEBOUNCE + 0.6
 
 
+# A real DELIBERATE press carries the proven Interlogix/Lifeline press
+# signature (switch5 CLOSED, switch1-4 OPEN) so it classifies as help_press
+# and is allowed into the activation path - see routes/rf_semantics.py and
+# tests/test_rf_semantics.py. Frames without this are `unknown` and never
+# activate, by directive.
+_PRESS_DECODED = {"subtype": "unknown", "battery_ok": 1, "switch1": "OPEN",
+                  "switch2": "OPEN", "switch3": "OPEN", "switch4": "OPEN", "switch5": "CLOSED"}
+
+
 def _press(kiosk_id, seq, fp_hex=FP_HEX):
     r = requests.post(f"{API}/rf/event", json={
         "kiosk_id": kiosk_id,
         "fingerprint": {"frequency_hz": FREQ, "modulation": "OOK", "bit_pattern_hex": fp_hex,
-                         "bit_length": 40, "rssi": -50},
+                         "bit_length": 40, "rssi": -50, "decoded": _PRESS_DECODED},
         "sequence": seq,
     }, timeout=5)
     r.raise_for_status()

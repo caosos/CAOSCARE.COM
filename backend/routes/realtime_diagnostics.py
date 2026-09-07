@@ -21,6 +21,12 @@ class DiagnosticEvent(BaseModel):
     text: Optional[str] = None            # transcript text, when applicable - never raw audio
     response_id: Optional[str] = None
     meta: Optional[dict[str, Any]] = None
+    # Correlation keys (2026-09-07) so a realtime row joins the activation
+    # observability stream directly instead of only via session_id.
+    activation_id: Optional[str] = None
+    alert_id: Optional[str] = None
+    room: Optional[str] = None
+    client_instance_id: Optional[str] = None
 
 
 @router.post("/event")
@@ -35,6 +41,10 @@ async def log_event(data: DiagnosticEvent):
         "text": data.text,
         "response_id": data.response_id,
         "meta": data.meta,
+        "activation_id": data.activation_id,
+        "alert_id": data.alert_id,
+        "room": data.room,
+        "client_instance_id": data.client_instance_id,
         "created_at": now_utc().isoformat(),
     })
     return {"ok": True}
