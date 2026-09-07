@@ -2244,3 +2244,38 @@ Nothing. The other lane's server on port 8000 was left running and untouched thr
 
 ### Next safe step
 Continue the audit's ranked plan on this branch: automate the escalation tick + reconcile the two escalation implementations (P1 #4 — coordinate, touches `alerts.py`), then the operations overview dashboard (P0 #3) and the operational receipts/events browser (P1 #5). Maintenance/housekeeping data models (P0 #2 / P1 #7) remain unbuilt — the `/workspace` queues are department-scoped `StaffTask` lists until then.
+
+---
+
+## 2026-09-07 — Admin worktree: Admin/ED operations overview (read-only attention surface).
+
+### Agent / tool
+Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations` (commit `0e34465`, on top of `ea5f2ff`). Separate lane; RF/pendant/ResidentEvent/kiosk/realtime files untouched. The other lane's server on port 8000 was left running throughout; all testing used a second worktree server on port 8001 against the shared `caoscare` Mongo, torn down after.
+
+### What changed
+`GET /ops/overview` (admin only, read-only) + a new default **Overview** tab in `Admin.jsx` (opens here now, not Residents). Every value is derived live from the existing `staff_tasks` / `alerts` / `departments` / `transport_run` records - no new task or department model, no writes, `db.alerts` is queried only.
+
+- `backend/routes/ops_overview.py` (241) + `ops_overview_util.py` (63, parse/format helpers - split to stay under the 300-line cap). Sections: (1) one ranked **attention** list across assistance events + tasks - unacked emergency → unacked assist → overdue task → transport-no-slot/past-date → acknowledged-not-resolved → unassigned task → resident re-asked → open>72h (demoted). Ordered by fixed open-time within a tier so two polls match. `?attention_limit` default 50, max 400. (2) **departments** - per `Department` (+ a General/all-staff row): open/overdue/unassigned/in_progress/completed_today, via the existing `visibility_role` routing. (3) **assistance** - read-only event summary + separate "open >72h" likely-stale count with a `counts_caveat` string (the 333 stale RF-test activations from prior sessions are surfaced as suspect, not passed off as a live queue). (4) **tasks** - no-owner / overdue counts + "sitting longest" and "no owner" lists, oldest-first. (5) **transportation** - compact today from the same StaffTask+run truth the transport module uses.
+- `backend/server.py` (205) - router registered.
+- `frontend/src/pages/OperationsOverview.jsx` (267) + `frontend/src/lib/opsOverview.js` (52, pure helpers). Rows deep-link into the matching Admin tab (`onNavigate`) or `/staff` for assistance events.
+- `frontend/src/pages/Admin.jsx` (282) - new first "Overview" tab group, default `activeTab="overview"`. `frontend/src/lib/adminTabGroups.js` - the group entry.
+
+### What was verified
+- `backend/tests/test_ops_overview.py` (new) passes against a worktree backend: section structure always present; each seeded row lands in the right attention tier (emergency=0, overdue task=2, transport-no-slot=3, unassigned=5, stale alert≥7); ordering identical across two consecutive calls and monotonic by tier; department counts reflect fixtures; a brand-new empty department shows all-zero (the "renders with empty datasets" case); `possibly_stale_open_gt_72h ≥ 1`; oldest-open task lists correct; transport summary counts correct. All fixtures (admin, tasks, one department, three alert docs inserted directly - never through `alerts.py`) are deleted in teardown.
+- `test_staff_department.py` switched to its own per-run Motor client so it and `test_ops_overview.py` run together in one pytest process (the `deps.db` global otherwise binds to the first `asyncio.run` loop and errors for the rest - the same documented constraint the older `deps.db` test files hit; those still pass individually and were not regressed).
+- Frontend: new `opsOverview.test.js` (5 cases); full suite **81/81**; production `craco build` compiles - only pre-existing `react-hooks/exhaustive-deps` warnings in files not touched here (`Admin.jsx`'s is the same one, shifted one line by an added import).
+
+### What existing data was sufficient
+- Task attention (overdue via `due_at`, unassigned, re-requested), all department status counts, transportation "today", and the resident-assistance read-only summary all came straight from `staff_tasks` + `alerts` + `departments` + `transport_run` with no schema change.
+- The stale/test-data problem was addressable: alert **age** is the available signal, so "open >72h" is reported separately with an explicit caveat rather than pretending the 333-count is trustworthy.
+
+### What is still impossible without future lifecycle/escalation work
+- **Real overdue / SLA** - only `due_at` exists and it's set on almost nothing (one-off tasks only; templates and resident-requests never set it). "Overdue" today means "has a `due_at` in the past"; the far more common case (a request with no target time that has simply aged) can only be shown as "sitting longest", not "overdue". Needs a per-category SLA policy.
+- **Escalation state in the attention ranking** - `escalation_level` is bumped inconsistently (inline in `alerts_feed` vs the manual `escalation/tick`) and nothing runs the tick automatically, so it isn't a dependable sort input yet. Deliberately not used here.
+- **Assistance-event lifecycle depth** - minutes-open, press-count, Aria-state, silence/no-response, live-line outcome per event are on the `Alert` doc but summarising or ranking by them belongs to the RF/ResidentEvent lane; this pass only counts and ages events.
+- **Stale vs genuine open events** cannot be told apart precisely - only by age. A real "close/resolve stale events" pass (not done here, and not to be done unprompted) would let the assistance counts become production-trustworthy.
+- **"What changed since I last looked"** - there's no per-admin last-seen marker or event feed to diff against; the overview shows current state, not a delta. Needs the `CaosEvent` log surfaced (audit P1 #5).
+- **Cross-department follow-up / handoff** items (housekeeping→maintenance) have no model, so they can't appear as attention rows.
+
+### Next safe step
+Operational receipts + events browser (audit P1 #5, new files only), or the maintenance work-order model (audit P0 #2). Escalation automation (P1 #4) still needs a coordinated pass since it touches `alerts.py`.
