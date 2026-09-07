@@ -23,6 +23,7 @@ from deps import db, require_admin
 from routes.realtime_facility import today_facility_date
 from routes.ops_overview_util import (
     EPOCH, parse_dt, age_seconds, local_date, dept_label, task_link_hint, short_duration,
+    task_is_open, task_is_unassigned, task_is_overdue, task_completed_on,
 )
 
 router = APIRouter(prefix="/ops", tags=["ops-overview"])
@@ -62,19 +63,19 @@ async def operations_overview(
         if local_date(a.get("resolved_at")) == facility_date
     )
 
-    # ---------- shared task classification ----------
+    # ---------- shared task classification (one source of truth in
+    # ops_overview_util, also used by routes/reports.py) ----------
     def is_open(t):
-        return t.get("status") in OPEN_TASK
+        return task_is_open(t)
 
     def is_overdue(t):
-        due = parse_dt(t.get("due_at"))
-        return is_open(t) and due is not None and due < now
+        return task_is_overdue(t, now)
 
     def is_unassigned(t):
-        return is_open(t) and not t.get("assigned_to")
+        return task_is_unassigned(t)
 
     def done_today(t):
-        return t.get("status") == "completed" and local_date(t.get("completed_at")) == facility_date
+        return task_completed_on(t, facility_date)
 
     def dept_row(label, slug, dt_tasks, *, active=True, is_general=False):
         return {

@@ -78,6 +78,7 @@ export function tabGroups(residents, staff, kiosks, zones, user) {
       id: "reports",
       label: "Reports",
       tabs: [
+        { value: "reports", label: "Ops reports" },
         { value: "activity", label: "Activity log" },
         { value: "insights", label: "Insights" },
         { value: "audit", label: "Audit" },

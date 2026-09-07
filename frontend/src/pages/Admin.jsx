@@ -38,6 +38,7 @@ import { tabGroups } from "../lib/adminTabGroups";
 import OperationsOverview from "./OperationsOverview";
 import MaintenanceWorkspace from "./MaintenanceWorkspace";
 import ActivityLog from "./ActivityLog";
+import ReportsTab from "./ReportsTab";
 import AdminAria from "../components/admin/AdminAria";
 import AriaSpotlight from "../components/admin/AriaSpotlight";
 
@@ -274,6 +275,9 @@ export default function Admin() {
               />
             </TabsContent>
           )}
+          <TabsContent value="reports" className="mt-6">
+            <ReportsTab />
+          </TabsContent>
           <TabsContent value="activity" className="mt-6">
             <ActivityLog onNavigate={setActiveTab} />
           </TabsContent>

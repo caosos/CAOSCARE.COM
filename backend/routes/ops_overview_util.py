@@ -61,3 +61,31 @@ def short_duration(seconds: float) -> str:
     if s < 86400:
         return f"{s // 3600}h"
     return f"{s // 86400}d"
+
+
+# ---- shared StaffTask predicates (used by ops_overview.py and reports.py) ----
+# One source of truth for "open", "overdue", "unassigned", "created / closed
+# on a given facility-local day". `overdue` is deliberately strict: it needs a
+# real due_at in the past - being merely old is NOT overdue.
+OPEN_TASK_STATUSES = ("pending", "in_progress")
+
+
+def task_is_open(t: dict) -> bool:
+    return t.get("status") in OPEN_TASK_STATUSES
+
+
+def task_is_unassigned(t: dict) -> bool:
+    return task_is_open(t) and not t.get("assigned_to")
+
+
+def task_is_overdue(t: dict, now: datetime) -> bool:
+    due = parse_dt(t.get("due_at"))
+    return task_is_open(t) and due is not None and due < now
+
+
+def task_completed_on(t: dict, day: str) -> bool:
+    return t.get("status") == "completed" and local_date(t.get("completed_at")) == day
+
+
+def task_created_on(t: dict, day: str) -> bool:
+    return local_date(t.get("created_at")) == day
