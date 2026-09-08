@@ -146,7 +146,7 @@ async def update_task(task_id: str, data: StaffTaskUpdate, user=Depends(get_curr
     existing = await db.staff_tasks.find_one({"task_id": task_id}, {"_id": 0})
     if not existing:
         raise HTTPException(status_code=404, detail="Task not found")
-    if user.get("role") != "admin" and existing.get("assigned_to") != user["user_id"]:
+    if user.get("role") not in ("owner", "admin") and existing.get("assigned_to") != user["user_id"]:
         raise HTTPException(status_code=403, detail="Not your task")
 
     patch = {k: v for k, v in data.model_dump(exclude_none=True).items()}
@@ -244,7 +244,7 @@ async def skip_task(task_id: str, body: dict = None, user=Depends(get_current_us
 
 @router.delete("/{task_id}")
 async def delete_task(task_id: str, user=Depends(get_current_user)):
-    if user.get("role") != "admin":
+    if user.get("role") not in ("owner", "admin"):
         raise HTTPException(status_code=403, detail="Admin required")
     r = await db.staff_tasks.delete_one({"task_id": task_id})
     if r.deleted_count == 0:
