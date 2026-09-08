@@ -2740,7 +2740,7 @@ Filenames `MemoryDialog.jsx` / `MovementDialog.jsx` are retained (they now expor
 - Line counts: every touched file well under the 300-line cap (`MemoryDialog.jsx` 183, `MovementDialog.jsx` 89, `ResidentRecordDialog.jsx` 76, `ResidentsTab.jsx` 176, `ResidentHubPanels.jsx` 262 unchanged).
 
 ### Commit
-`<filled on commit>` — pushed to `claude/admin-operations`.
+`95662b403b56eba4a93b53828be3d36e7a0b2f99` — pushed to `claude/admin-operations`.
 
 ### Next safe step
 Michael break-tests the tightened Residents row + the Memory/Movement hub sections. Open question from the prior entry still stands: whether the hub should become a routed full page rather than a dialog.
