@@ -7,6 +7,8 @@ import {
   RequestsPanel,
   DevicePanel,
 } from "./ResidentHubPanels";
+import MemoryPanel from "./MemoryDialog";
+import MovementPanel from "./MovementDialog";
 
 // Resident hub - one place to follow a resident's truth without remembering
 // which internal module owns each record. Every section is a resident-filtered
@@ -14,12 +16,16 @@ import {
 // assistance event, a request) opens the SAME dialog the rest of Admin uses.
 // Nothing new is stored; the underlying REQUESTS and ASSISTANCE EVENTS models
 // stay separate - this only makes the distinction legible and links them.
+// Memory + Movement were folded in from the two standalone dialogs the
+// Residents row used to open.
 
 const SECTIONS = [
   { key: "overview", label: "Overview" },
   { key: "conversations", label: "Conversations" },
   { key: "assistance", label: "Assistance events" },
   { key: "requests", label: "Resident requests" },
+  { key: "memory", label: "Memory" },
+  { key: "movement", label: "Movement" },
   { key: "device", label: "Device" },
 ];
 
@@ -32,7 +38,7 @@ export default function ResidentRecordDialog({ resident, open, onOpenChange, ini
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto" data-testid="resident-record-dialog">
+      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto" data-testid="resident-record-dialog">
         <DialogHeader>
           <DialogTitle className="font-display">
             {resident.name}
@@ -61,6 +67,8 @@ export default function ResidentRecordDialog({ resident, open, onOpenChange, ini
         {section === "conversations" && <ConversationsPanel resident={resident} />}
         {section === "assistance" && <AssistancePanel resident={resident} />}
         {section === "requests" && <RequestsPanel resident={resident} />}
+        {section === "memory" && <MemoryPanel resident={resident} />}
+        {section === "movement" && <MovementPanel resident={resident} />}
         {section === "device" && <DevicePanel resident={resident} />}
       </DialogContent>
     </Dialog>

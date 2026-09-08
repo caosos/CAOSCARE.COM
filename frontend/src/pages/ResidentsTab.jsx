@@ -5,8 +5,6 @@ import { Card } from "../components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "../components/ui/table";
 import { Trash2, Plus, Volume2, DoorOpen, BookOpen } from "lucide-react";
 import { toast } from "sonner";
-import MovementDialog from "./MovementDialog";
-import MemoryDialog from "./MemoryDialog";
 import ResidentRecordDialog from "./ResidentRecordDialog";
 import ResidentFormDialog from "./ResidentFormDialog";
 import ResidentQuickFind from "./ResidentQuickFind";
@@ -15,8 +13,6 @@ import ResidentQuickFind from "./ResidentQuickFind";
 export default function ResidentsTab({ residents, kiosks, onChange, focusResidentId, onFocusHandled }) {
   const [formOpen, setFormOpen] = useState(false);
   const [editingResident, setEditingResident] = useState(null);
-  const [movementFor, setMovementFor] = useState(null);
-  const [memoryFor, setMemoryFor] = useState(null);
   const [recordFor, setRecordFor] = useState(null);
 
   // Deep-linked resident (/admin?resident=<id>, from a dashboard card or
@@ -157,13 +153,11 @@ export default function ResidentsTab({ residents, kiosks, onChange, focusResiden
                     <Button
                       variant="ghost" size="sm" onClick={() => setRecordFor(r)}
                       data-testid={`record-res-${r.resident_id}`}
-                      title="Resident hub — overview, conversations/transcripts, assistance events, requests, device"
+                      title="Resident hub — overview, conversations/transcripts, assistance events, requests, memory, movement, device"
                       className="text-caos-forest font-semibold"
                     >
                       <BookOpen className="w-4 h-4 mr-1" /> Resident hub
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => setMemoryFor(r)} data-testid={`mem-res-${r.resident_id}`}>Memory</Button>
-                    <Button variant="ghost" size="sm" onClick={() => setMovementFor(r)} data-testid={`move-res-${r.resident_id}`}>Movement</Button>
                     <Button variant="ghost" size="sm" onClick={() => open_edit(r)} data-testid={`edit-res-${r.resident_id}`}>Edit</Button>
                     <Button variant="ghost" size="sm" onClick={() => remove(r.resident_id)} data-testid={`del-res-${r.resident_id}`}>
                       <Trash2 className="w-4 h-4 text-caos-terracotta" />
@@ -176,8 +170,6 @@ export default function ResidentsTab({ residents, kiosks, onChange, focusResiden
         </TableBody>
       </Table>
       <ResidentFormDialog open={formOpen} onOpenChange={setFormOpen} resident={editingResident} kiosks={kiosks} onSaved={onChange} />
-      <MovementDialog resident={movementFor} open={!!movementFor} onOpenChange={(o) => { if (!o) setMovementFor(null); }} />
-      <MemoryDialog resident={memoryFor} open={!!memoryFor} onOpenChange={(o) => { if (!o) setMemoryFor(null); }} />
       <ResidentRecordDialog resident={recordFor} open={!!recordFor} onOpenChange={(o) => { if (!o) setRecordFor(null); }} />
     </Card>
   );

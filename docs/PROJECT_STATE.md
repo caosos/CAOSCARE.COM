@@ -2717,3 +2717,30 @@ No file under RF decode / press semantics / `resident_activation` / ResidentEven
 
 ### Next safe step
 Michael break-tests the Owner workflow: Community → attention row → close-out; Live board button; Residents → Helen → each hub section; confirm Requests vs Assistance reads clearly; click the Staff Dashboard "1 need attention" and confirm it now names the device + reason. Then direct whether Memory/Movement should fold into the resident hub and whether the hub should become a routed page.
+
+---
+
+## 2026-09-07 — Admin worktree: Memory + Movement folded into the Resident hub (Michael: "fold it into the hub, yeah?")
+
+### Agent / tool
+Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations`. Frontend-only, navigation/IA. No Claude 2 lane touched; no backend change.
+
+### What changed
+Follow-up to the workflow-coherence pass — the Residents row had 7 action controls. `MemoryDialog` and `MovementDialog` were each opened only from that row (confirmed: `ResidentsTab.jsx` was their sole caller).
+- **`MemoryDialog.jsx`** (267 → **183**) — the standalone `<Dialog>` wrapper and its duplicative Conversation/Requests tabs removed; default export is now `MemoryPanel({ resident })` — the memory list + add form + pin/importance/delete (the `MemoryCard` helper kept verbatim). The hub already owns Conversations (session-grouped transcripts) and the requests-vs-assistance split, so those tabs were redundant.
+- **`MovementDialog.jsx`** (95 → **89**) — same: default export is now `MovementPanel({ resident })`, the 24h/3d/7d zone-visit timeline body, no `<Dialog>` wrapper.
+- **`ResidentRecordDialog.jsx`** (68 → **76**) — two new sections, **Memory** and **Movement**, between Resident requests and Device; `max-w-3xl` → `max-w-4xl` now that it hosts the richer memory UI. Hub sections are now Overview · Conversations · Assistance events · Resident requests · Memory · Movement · Device.
+- **`ResidentsTab.jsx`** (184 → **176**) — removed the standalone "Memory" and "Movement" buttons, their `memoryFor`/`movementFor` state, their dialog renders, and the two imports. Row is now Enter room · Brief · **Resident hub** · Edit · delete (5 controls, down from 7). Hub button tooltip updated.
+
+Filenames `MemoryDialog.jsx` / `MovementDialog.jsx` are retained (they now export panels, not dialogs) to avoid rename churn across a bounded change; each carries a header comment explaining the fold-in. No dead code left — the old default `MemoryDialog`/`MovementDialog` dialog components are gone, not orphaned.
+
+### What was verified
+- Live in a browser as Owner: opened the hub for Helen Torres / Room 214, confirmed all 7 section tabs render; **Memory** shows the real memory list + "Teach CAOS something" add form + pin/importance/delete; **Movement** shows the window toggle + honest "No location data in this window." empty state (Helen has no pings). Residents rows visibly less crowded (Memory/Movement buttons gone).
+- Frontend suite **122 / 122 pass** (no test referenced the removed `mem-res-*` / `move-res-*` testids). Babel parse clean on all 5 touched files. `git diff --check` + secrets scan clean.
+- Line counts: every touched file well under the 300-line cap (`MemoryDialog.jsx` 183, `MovementDialog.jsx` 89, `ResidentRecordDialog.jsx` 76, `ResidentsTab.jsx` 176, `ResidentHubPanels.jsx` 262 unchanged).
+
+### Commit
+`<filled on commit>` — pushed to `claude/admin-operations`.
+
+### Next safe step
+Michael break-tests the tightened Residents row + the Memory/Movement hub sections. Open question from the prior entry still stands: whether the hub should become a routed full page rather than a dialog.
