@@ -2560,3 +2560,34 @@ systemctl --user restart caoscare-frontend-dev.service
 
 ### Next safe step
 Michael visual break-test of `http://localhost:3000/admin`. Then decide whether `:3000` stays pointed at this branch or reverts (command above), or whether a second port is set up so both lanes have a live UI.
+
+---
+
+## 2026-09-07 — Admin worktree: Admin runtime completed — backend on :8001, frontend repointed, "Could not load the operations overview" fixed.
+
+### Agent / tool
+Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations` @ `<this commit>`. Claude 2's `:8000` backend (PID 607118, cwd `~/CAOSCARE-LEVEL1-INTEGRATION/backend`) untouched — observed only, still healthy.
+
+### Root cause of the blank Operations Overview
+`localhost:3000` (this branch's frontend, served since the earlier systemd drop-in) was configured `REACT_APP_BACKEND_URL=http://127.0.0.1:8000`. `:8000` is the **level1-integration** worktree's backend, which does **not** have `backend/routes/ops_overview.py` (nor `reports.py` / `rf_fleet.py` / `task_assignment.py`) registered → `GET /api/ops/overview` → 404 → `OperationsOverview.jsx`'s `.catch()` fired the red toast. **No admin-lane backend was running anywhere.**
+
+### Fix (Admin lane only, no reseed / clone / delete)
+- Started the current admin-operations backend from `~/CAOSCARE-ADMIN/backend` on **:8001** (`python -m uvicorn server:app --host 127.0.0.1 --port 8001`, venv `~/CAOSCARE.COM/backend/.venv`, nohup, log in the session scratchpad). It uses `~/CAOSCARE-ADMIN/backend/.env` — a copy of `~/CAOSCARE-LEVEL1-INTEGRATION/backend/.env` (the config `:8000` uses; **same `MONGO_URL` / `DB_NAME=caoscare` / `JWT_SECRET` / `GOOGLE_CLIENT_ID` / `GOOGLE_ADMIN_EMAILS`**, so the browser's existing session token validates unchanged) with `CORS_ORIGINS` widened to also allow `http://192.168.1.151:3000`. `.env` is gitignored.
+- Same local Mongo `caoscare`. No seed, no clone, no deletes.
+- `~/CAOSCARE-ADMIN/frontend/.env`: `REACT_APP_BACKEND_URL=http://127.0.0.1:8001` (was `:8000`). Restarted `caoscare-frontend-dev.service` (systemd --user) so CRA re-bakes `REACT_APP_*`. Served `bundle.js` now contains `const BACKEND_URL = "http://127.0.0.1:8001"`, zero occurrences of `:8000`.
+- Also fixed a pre-existing Owner-tier bug surfaced by the battery: `audit.py::_require_admin` and `task_templates.py` (×3) + `tasks.py` update/delete checked `role == "admin"` literally, 403'ing the Owner (Michael). Normalised to `role not in ("owner","admin")` to match `deps.require_admin`. Committed separately.
+
+### Proven
+- `GET /api/ops/overview` on :8001: **401** with no auth (`Not authenticated`); **200** with an Owner JWT + `Origin: http://localhost:3000` (CORS header returned, preflight OPTIONS 200). Body has all keys and real data from the shared DB: **Needs attention now** 50 rows / 373 total, **Department status** 9 departments, **Resident assistance** active 319 / open 322 / likely-stale>72h 299, **Task ownership & aging** open 62 / no-owner 49 / overdue 0, **Transportation** 2026-09-07 open 15 / needs-a-slot 11.
+- Endpoint battery on :8001 with Owner auth — **all 200**: `/ops/overview /reports/daily-exceptions /reports/weekly-workload /rf/fleet/summary /staff /residents /tasks /tasks/templates/all /departments /receipts /events /alerts /insights/summary /audit/summary /audit/tasks.csv /transportation/report /escalation/rule`; `/menu/public/today` 200 (public).
+- Frontend routes `/ /admin /alerts /staff /workspace` → 200.
+- Admin-lane backend pytest suite (`test_rf_fleet / test_reports / test_activity_log / test_maintenance_workorders / test_ops_overview / test_staff_department`) — **6/6** against :8001 after the audit/task-owner-tier change.
+- `:8000` PID 607118 unchanged throughout; `/api/health` on both :8000 and :8001 = `{"ok":true,"db":"up"}`.
+
+### For Michael / Claude 2
+- Michael: hard-refresh `http://localhost:3000/admin` — the Operations Overview now renders and the red toast is gone. His existing login still works (same JWT secret + DB).
+- The Admin backend on :8001 is a plain nohup process (not supervised). If the host reboots or it's killed, restart from `~/CAOSCARE-ADMIN/backend`: `<venv>/python -m uvicorn server:app --host 127.0.0.1 --port 8001`.
+- Revert the frontend to Claude 2's build: set `~/CAOSCARE-ADMIN/frontend/.env` `REACT_APP_BACKEND_URL` back and `rm -rf ~/.config/systemd/user/caoscare-frontend-dev.service.d && systemctl --user daemon-reload && systemctl --user restart caoscare-frontend-dev.service` (also documented in the prior entry).
+
+### Next safe step
+STOP for Michael's visual break-test of the full Admin/Owner UI on `localhost:3000/admin`.
