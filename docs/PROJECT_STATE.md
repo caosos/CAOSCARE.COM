@@ -2695,3 +2695,26 @@ Deploy still blocked pending Michael + ChatGPT review. `:8000` (pid
 
 ### Next safe step
 Await review; on approval this rides the same deploy as `6608db0`.
+
+---
+
+## 2026-09-07 — Level-1 integration deployed to live Room 214 path (backend :8000 + parallel frontend :3001)
+
+### Agent / tool
+Claude Sonnet 5 (Claude Code), Michael directing.
+
+### Branch / ref
+`claude/level1-integration` @ `081ae13` (deployed as-is; no new code commits — runtime/topology + this doc entry only).
+
+### What is now running
+- **Backend `:8000`** — restarted from `~/CAOSCARE-LEVEL1-INTEGRATION/backend`, pid `607118` (PPID 1, `nohup`, no supervisor). Loads `backend/.env` from cwd → `mongodb://localhost:27017` / DB `caoscare` (existing local DB; `CAOSCARE_ENABLE_DEMO_SEED=false`, no reseed). `/api/health` → `{"ok":true,"db":"up"}`. Verified live: `/api/tasks/resident-request/status` (`scope:"current"`) + `/history` (`scope:"history"`), `/api/alerts/ai-escalate`, `/api/staff-dispatch/*`, `/api/rf/event`, `/api/activation-events/*`, `/api/realtime/session` (mints an `ek_...` ephemeral key — OpenAI wired).
+- **Frontend `:3001`** — the Level-1 acceptance frontend, **served directly from `~/CAOSCARE-LEVEL1-INTEGRATION/frontend`** via the existing craco dev-server mechanism. pid `610968` (parent `610960` = `node_modules/.bin/craco start`), cwd = integration worktree frontend. Started with env only (nothing hardcoded): `PORT=3001 HOST=0.0.0.0 REACT_APP_BACKEND_URL=http://127.0.0.1:8000 DANGEROUSLY_DISABLE_HOST_CHECK=true BROWSER=none`. `node_modules` is a **symlink** → `~/CAOSCARE.COM/frontend/node_modules` (identical `package.json` + `yarn.lock`; symlink lives in a git-ignored path, no repo effect). Bundle verified: `REACT_APP_BACKEND_URL` baked as `http://127.0.0.1:8000` (no `:3000`/other), and contains `check_request_history`, current-vs-history wording, `createInactivityTimer` / `armIfBothSilent` / `residentSpeechStarted` / `aria_companion_timeout_sec`, `connectRealtimeVoice` / `/realtime/negotiate` / `X-CAOS-Ephemeral-Key`. Room 214 kiosk URL: `http://127.0.0.1:3001/kiosk/kio_dc8c06a19608` → HTTP 200; backend resolves that kiosk → room 214 → Helen Torres `res_81b72be1e8b5`.
+- This `:3001` server is **local parallel-dev/test topology only — NOT production architecture.**
+
+### Left untouched (verified)
+- **`:3000` Admin frontend** — still serving (HTTP 200), cwd still `~/CAOSCARE-ADMIN/frontend`, Claude 1's systemd drop-in `caoscare-frontend-dev.service.d/worktree.conf` unchanged (mtime 2026-09-07 18:40:43). Its pid churns on its own (606518 → 606758 → 610866 across the session); I issued no `systemctl` and did not touch `~/CAOSCARE-ADMIN`.
+- **RF bridge** pid `522046`, alive, `CAOS_API_URL=http://127.0.0.1:8000` (unchanged), polling (`last_bridge_poll_at` advancing).
+- **Helen's open event** `alerts/_id=6a9ed7b64ee1702fe3989c5e` — `status=acknowledged`, `resolved_at=null`, not mutated. `resident_aria_leases` active = 0. To be resolved via the Staff UI (not Mongo) before the clean one-press acceptance test.
+
+### Blocked / next
+Physical Room 214 acceptance test is Michael's step: resolve the old Helen event in the Staff UI, then open `http://127.0.0.1:3001/kiosk/kio_dc8c06a19608` and do one pendant press. No deploy to `:3000` / production; `claude/level1-integration` not merged to main.
