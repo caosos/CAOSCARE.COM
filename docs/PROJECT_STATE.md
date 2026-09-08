@@ -2591,3 +2591,53 @@ Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operat
 
 ### Next safe step
 STOP for Michael's visual break-test of the full Admin/Owner UI on `localhost:3000/admin`.
+
+---
+
+## 2026-09-07 — Admin worktree: AUTH REGRESSION after the :8001 switch — root cause was browser-unreachable port, fixed with a dev-server /api proxy.
+
+### Agent / tool
+Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations` @ `<this commit>` (parent `72941a9`). Claude 2's `:8000` backend (PID 607118, cwd `~/CAOSCARE-LEVEL1-INTEGRATION/backend`, started Sep 7 18:42) — observed only, untouched, still healthy.
+
+### Symptom
+After the previous entry's change (frontend `REACT_APP_BACKEND_URL` → `http://127.0.0.1:8001`), a hard refresh of `localhost:3000/admin` bounced Michael to `/admin-login`; Google sign-in showed "Google sign-in failed". Looked like an auth/JWT/Google regression.
+
+### Root cause (proven, not guessed)
+**The Admin backend on `:8001` is not reachable from Michael's browser.** The browser that loads the dev server can only reach a fixed set of forwarded host ports — verified from the page via `fetch`: `127.0.0.1:3000`, `:8000`, and `:27017` all connect; **`127.0.0.1:8001` and `:8002` both fail with `TypeError: Failed to fetch`** (connection-level, not HTTP). `curl` from this host reaches `:8001` fine (CORS headers correct, preflight 200) — so the gap is browser↔host reachability of a newly-bound port, nothing to do with auth config.
+
+Consequences that mimicked an auth break:
+- `GET /api/auth/me` → network error → `auth.jsx` `fetchMe()` `catch` → `setUser(null)` → redirect to `/admin-login`.
+- `POST /api/auth/google/verify` → same network error → `GoogleSignIn.jsx` `catch` → "Google sign-in failed" toast.
+
+Ruled out with evidence:
+- **A — local-owner bypass lost:** no. `CAOSCARE_LOCAL_OWNER_BYPASS=false` in all three backend `.env` (`CAOSCARE.COM`, `LEVEL1-INTEGRATION`, `CAOSCARE-ADMIN`) and in both running processes; `/auth/local-bypass-status` = `{"active":false}` on :8000 and :8001. It was never the "remember-me" mechanism, so it must not be enabled now.
+- **B — existing JWT rejected:** no. Michael's stored `caos_token` is a genuine app JWT (`claim_keys = user_id,exp,iat`), issued ~1.4 days ago, **exp ~5.6 days in the future — not expired**. It returns **200 `owner`** on both `:8000` (direct) and `:8001` (through the new proxy).
+- **C — frontend vs backend Google client ID mismatch:** no. frontend `.env`, the served bundle, and `:8001` `GOOGLE_CLIENT_ID` are byte-identical (sha256/12 `ce99eaafc9a5`; suffix `…apps.googleusercontent.com`).
+- **D — `GOOGLE_ADMIN_EMAILS` / allowlist:** no. `:8001` loads `GOOGLE_ADMIN_EMAILS=mytaxicloud@gmail.com`; Michael is allowlisted; `google_verify` matches the existing user by email and updates in place (no duplicate).
+- **E — Google credential verification failing:** no. `POST /api/auth/google/verify` on `:8001` with a bogus credential returns **401 `Invalid Google credential`** (reaches Google tokeninfo), not 500 `not configured` — so `GOOGLE_CLIENT_ID` is loaded and the path is intact.
+- `JWT_SECRET` (sha256/12 `33c260f7d9ab`) and `DB_NAME=caoscare` / `MONGO_URL` identical across all three envs and both running processes.
+
+### Fix (Admin lane only — no backend data touched, no reseed/clone/delete, no account/session/Google changes)
+- Added `frontend/src/setupProxy.js` (CRA auto-loads it for `craco start` only; not used by `craco build`). It forwards `/api` → `process.env.ADMIN_BACKEND_ORIGIN || http://127.0.0.1:8001` with `changeOrigin`/`xfwd`. The dev server runs on this host and **can** reach `:8001`, so the browser now only ever calls its **own origin**.
+- `frontend/.env`: `REACT_APP_BACKEND_URL` = `http://localhost:3000` (its own dev origin; was `http://127.0.0.1:8001`). No backend origin hardcoded in application source — the proxy target is an env var, the app's base URL is just its own origin. `.env` stays gitignored.
+- Restarted `caoscare-frontend-dev.service` (systemd --user) so CRA re-bakes `REACT_APP_*` and loads `setupProxy.js`. New dev-server PID 613975, cwd `~/CAOSCARE-ADMIN/frontend`.
+- No change to `:8001`, `deps.py`, `auth.py`, CORS config, the Owner record, sessions, or Google config.
+
+### Proven after the fix
+- From this host: `GET localhost:3000/api/auth/local-bypass-status` → 200 `{"active":false}`; `GET localhost:3000/api/auth/me` (no token) → 401 `{"detail":"Not authenticated"}`; `OPTIONS localhost:3000/api/auth/google/verify` preflight → 200 with `access-control-allow-*`. All proxied to `:8001`.
+- **From Michael's browser** (same-origin `fetch` from the loaded page): `/api/auth/local-bypass-status` → 200; `/api/auth/me` **with his existing stored token → 200 `owner`**; `/api/auth/me` no token → 401; `/api/ops/overview` with token → 200.
+- `http://localhost:3000/admin` renders as **MICHAEL CHAMBERS · Owner**; Operations Overview shows real data ("Needs attention now — showing 50 of 373"). An in-place **F5 reload stays logged in** — no bounce to `/admin-login`.
+- Browser console: no auth, CORS, or failed-fetch errors (only the React DevTools info line).
+- Owner record unchanged: exactly **1** `owner`, `user_630fb526bd7f` / `mytaxicloud@gmail.com` / MICHAEL CHAMBERS, `created_at` 2026-07-29; exactly **1** user with that email (no duplicate).
+- `:8000` PID 607118 and `:8001` PID 611510 both still up and unchanged.
+
+### Google sign-in
+The transport failure that produced "Google sign-in failed" (POST to an unreachable `:8001`) is resolved — `/api/auth/google/verify` is now reachable and its preflight passes. Michael's stored session already authenticates him, so a Google re-login isn't required; if he does use the Google button, `google_verify` matches his existing account by email (`is_admin_email` → keeps `owner`) and updates in place — it cannot create a second user. The actual Google credential exchange can only be exercised by Michael clicking the button in the browser.
+
+### Known / follow-up
+- `setupProxy.js` is the Admin lane's answer to "the browser can't see arbitrary new host ports." If a future runtime forwards `:8001` to the browser directly, `frontend/.env` can point straight at it and this file becomes a no-op.
+- `:8001` is still a plain nohup process (not supervised) — see prior entry for the restart command.
+- Revert path unchanged from the prior entry (systemd drop-in removal + `.env`), plus `rm frontend/src/setupProxy.js` if pointing the frontend elsewhere.
+
+### Next safe step
+STOP for Michael: refresh `http://localhost:3000/admin` — it should keep him signed in as Owner and load the command centre. Then his visual break-test of the full Admin/Owner UI.
