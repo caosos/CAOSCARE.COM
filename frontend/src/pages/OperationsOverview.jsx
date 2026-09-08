@@ -41,6 +41,14 @@ export default function OperationsOverview({ onNavigate }) {
     else onNavigate?.(t.value);
   };
 
+  // An attention row carries its own ref_id. Assistance events deep-link
+  // straight to that event's detail + close-out on the live board, not just
+  // the board; everything else falls back to the tab/route mapping.
+  const openRow = (it) => {
+    if (it.kind === "assistance" && it.ref_id) return navigate(`/staff?alert=${it.ref_id}`);
+    go(it.link_hint);
+  };
+
   if (loading && !data) return <Card className="border-caos-line p-8 text-caos-mute">Loading operations overview…</Card>;
   if (!data) return null;
 
@@ -78,7 +86,7 @@ export default function OperationsOverview({ onNavigate }) {
                 data-testid={`ops-attention-row-${it.ref_id}`}
                 className="p-4 border-2 cursor-pointer hover:shadow-sm transition-shadow"
                 style={{ borderLeftColor: c.border, borderLeftWidth: 6 }}
-                onClick={() => go(it.link_hint)}
+                onClick={() => openRow(it)}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">

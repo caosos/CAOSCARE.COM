@@ -1,47 +1,32 @@
 import React, { useEffect, useState } from "react";
-import { api } from "../lib/api";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
-import { Badge } from "../components/ui/badge";
-import { toast } from "sonner";
-import ConversationSessionDetail from "./ConversationSessionDetail";
+import {
+  OverviewPanel,
+  ConversationsPanel,
+  AssistancePanel,
+  RequestsPanel,
+  DevicePanel,
+} from "./ResidentHubPanels";
 
-// Resident Record - Conversations (Terminal 9 "conversations must be
-// first-class records"). Session-grouped view over the existing
-// db.conversations turns; no copy/paste out of CAOSCARE required to
-// inspect what happened in a resident's room. Profile/Family/Requests/
-// Transportation sections described in the broader Resident 360 design are
-// not part of this dialog yet - this ships Conversations only, the piece
-// Michael asked for now.
+// Resident hub - one place to follow a resident's truth without remembering
+// which internal module owns each record. Every section is a resident-filtered
+// read over an EXISTING endpoint, and anything with its own workflow (an
+// assistance event, a request) opens the SAME dialog the rest of Admin uses.
+// Nothing new is stored; the underlying REQUESTS and ASSISTANCE EVENTS models
+// stay separate - this only makes the distinction legible and links them.
 
-function fmtDateTime(iso) {
-  if (!iso) return "—";
-  try { return new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }); }
-  catch { return iso; }
-}
+const SECTIONS = [
+  { key: "overview", label: "Overview" },
+  { key: "conversations", label: "Conversations" },
+  { key: "assistance", label: "Assistance events" },
+  { key: "requests", label: "Resident requests" },
+  { key: "device", label: "Device" },
+];
 
-function durationLabel(startIso, endIso) {
-  try {
-    const ms = new Date(endIso) - new Date(startIso);
-    if (ms < 1000) return "< 1 min";
-    const mins = Math.round(ms / 60000);
-    return mins < 1 ? "< 1 min" : `${mins} min`;
-  } catch { return "—"; }
-}
+export default function ResidentRecordDialog({ resident, open, onOpenChange, initialSection = "overview" }) {
+  const [section, setSection] = useState(initialSection);
 
-export default function ResidentRecordDialog({ resident, open, onOpenChange }) {
-  const [sessions, setSessions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState(null);
-
-  useEffect(() => {
-    if (!resident || !open) return;
-    setSelected(null);
-    setLoading(true);
-    api.get(`/residents/${resident.resident_id}/conversation-sessions`)
-      .then(({ data }) => setSessions(data))
-      .catch(() => toast.error("Could not load conversations"))
-      .finally(() => setLoading(false));
-  }, [resident, open]);
+  useEffect(() => { if (open) setSection(initialSection); }, [open, initialSection, resident]);
 
   if (!resident) return null;
 
@@ -50,40 +35,33 @@ export default function ResidentRecordDialog({ resident, open, onOpenChange }) {
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto" data-testid="resident-record-dialog">
         <DialogHeader>
           <DialogTitle className="font-display">
-            {resident.name} — Resident Record
+            {resident.name}
+            {resident.room ? ` — Room ${resident.room}` : ""}
           </DialogTitle>
         </DialogHeader>
 
-        <h2 className="font-display text-xl font-medium text-caos-forest mb-3">Conversations</h2>
+        <div className="flex flex-wrap gap-1.5 mb-4" data-testid="resident-hub-nav">
+          {SECTIONS.map((s) => (
+            <button
+              key={s.key}
+              onClick={() => setSection(s.key)}
+              data-testid={`resident-hub-tab-${s.key}`}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-colors ${
+                section === s.key
+                  ? "bg-caos-forest text-white"
+                  : "bg-white border border-caos-line text-caos-mute hover:border-caos-forest"
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
 
-        {selected ? (
-          <ConversationSessionDetail residentId={resident.resident_id} sessionId={selected} onBack={() => setSelected(null)} />
-        ) : (
-          <>
-            {loading && <div className="text-caos-mute text-sm">Loading…</div>}
-            {!loading && sessions.length === 0 && <div className="text-caos-mute text-sm">No conversations recorded yet for this resident.</div>}
-            <div className="space-y-2">
-              {sessions.map((s) => (
-                <button
-                  key={s.session_id}
-                  onClick={() => setSelected(s.session_id)}
-                  data-testid={`conversation-session-${s.session_id}`}
-                  className="w-full text-left rounded-xl border border-caos-line p-3 hover:border-caos-forest transition-colors"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-semibold text-caos-forest">{fmtDateTime(s.start_at)}</span>
-                    <div className="flex items-center gap-2">
-                      {s.is_test && <Badge variant="outline" className="text-[10px] uppercase">Test</Badge>}
-                      <span className="text-xs text-caos-mute">{durationLabel(s.start_at, s.end_at)} · {s.turn_count} turns</span>
-                    </div>
-                  </div>
-                  <div className="text-sm text-caos-ink mt-1">{s.topic || "(no topic captured)"}</div>
-                  <div className="text-xs text-caos-mute mt-1">{s.room ? `Room ${s.room}` : "room unknown"} · {s.source || "unknown source"}</div>
-                </button>
-              ))}
-            </div>
-          </>
-        )}
+        {section === "overview" && <OverviewPanel resident={resident} />}
+        {section === "conversations" && <ConversationsPanel resident={resident} />}
+        {section === "assistance" && <AssistancePanel resident={resident} />}
+        {section === "requests" && <RequestsPanel resident={resident} />}
+        {section === "device" && <DevicePanel resident={resident} />}
       </DialogContent>
     </Dialog>
   );

@@ -51,6 +51,34 @@ def _status(d: dict, now: datetime) -> str:
     return "active"
 
 
+def _human_ago(seen: Optional[datetime], now: datetime) -> str:
+    if seen is None:
+        return "never"
+    s = int((now - seen).total_seconds())
+    if s < 3600:
+        return f"{max(1, s // 60)}m ago"
+    if s < 86400:
+        return f"{s // 3600}h ago"
+    return f"{s // 86400}d ago"
+
+
+def _reason(d: dict, status: str, now: datetime) -> Optional[str]:
+    """Plain-English 'why does this need attention', derived only from existing
+    RFDevice truth - no invented health states. None when the device is fine."""
+    if not d.get("resident_id"):
+        return "Not assigned to a resident"
+    if not d.get("enabled", True):
+        return "Disabled in RF settings"
+    seen = _parse(d.get("last_seen_at"))
+    if seen is None:
+        return "No signal ever received since pairing"
+    if status == "offline":
+        return f"No signal in over {STALE_SEEN_HOURS}h - last heard {_human_ago(seen, now)}"
+    if status == "low_battery":
+        return f"Battery low - last heard {_human_ago(seen, now)}"
+    return None
+
+
 async def _resident_names() -> dict:
     return {
         r["resident_id"]: r.get("name")
@@ -83,6 +111,7 @@ async def fleet_summary(user=Depends(get_current_user)):
             "last_seen_at": _iso(d.get("last_seen_at")),
             "low_battery": bool(d.get("low_battery")),
             "press_count": d.get("press_count", 0),
+            "reason": _reason(d, st, now),
         })
     return {
         "total": len(devices), "in_service": in_service, "need_attention": need_attention,

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { api } from "../lib/api";
 import { Button } from "../components/ui/button";
@@ -41,6 +41,7 @@ function timeAgo(iso) {
 export default function StaffDashboard() {
   const { user, logout } = useAuth();
   const nav = useNavigate();
+  const [sp] = useSearchParams();
   const [alerts, setAlerts] = useState([]);
   const [locations, setLocations] = useState([]);
   const [stats, setStats] = useState({ active: 0, acknowledged: 0, resolved_24h: 0, emergency_active: 0 });
@@ -72,6 +73,10 @@ export default function StaffDashboard() {
     const t = setInterval(fetchAll, 3000);
     return () => clearInterval(t);
   }, []);
+
+  // /staff?alert=<id> (from Operations Overview / Admin) opens that event's
+  // detail + close-out directly, not just the board.
+  useEffect(() => { const a = sp.get("alert"); if (a) setDetailId(a); }, [sp]);
 
   const acknowledge = async (id) => {
     try {

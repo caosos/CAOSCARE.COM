@@ -39,7 +39,7 @@ export function tabGroups(residents, staff, kiosks, zones, user) {
       id: "communication",
       label: "Communication & requests",
       tabs: [
-        { value: "requests", label: "Requests" },
+        { value: "requests", label: "Resident requests" },
         { value: "tasks", label: "Tasks" },
         { value: "schedule", label: "Schedule" },
         { value: "menu", label: "Menu" },

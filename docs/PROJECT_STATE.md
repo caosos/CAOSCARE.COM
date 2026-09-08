@@ -2641,3 +2641,79 @@ The transport failure that produced "Google sign-in failed" (POST to an unreacha
 
 ### Next safe step
 STOP for Michael: refresh `http://localhost:3000/admin` — it should keep him signed in as Owner and load the command centre. Then his visual break-test of the full Admin/Owner UI.
+
+---
+
+## 2026-09-07 — Admin worktree: Owner workflow-coherence pass (navigation/IA only — resident hub, Staff Dashboard discovery, requests↔assistance clarity, device-attention drill-down)
+
+### Agent / tool
+Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations`. No Claude 2 Level-1 file touched — RF decoding / press semantics / ResidentEvent lifecycle / Realtime voice / paging / Room 214 resident behavior all unchanged. `db.alerts` is read-only here; the only backend change is a derived, read-only `reason` string on `rf_fleet.py` (an Admin-lane file). Local dev only (`localhost:3000` → proxied `:8001`); nothing deployed.
+
+### What was confusing, and why (inspected first)
+1. **Staff Dashboard buried** — reachable only via the bare `/staff` route or an accidental deep-link; Admin had no visible link to it.
+2. **Requests vs assistance conflated** — the "Requests" board filters `source != "staff"` StaffTasks; nothing on it said pendant/help/emergency events live elsewhere. A resident's assistance events were invisible from that surface.
+3. **One resident's truth scattered** — `ResidentRecordDialog` already existed but was labelled "Resident Record", showed **only** Conversations, and was one small button in a 7-button row; it didn't reach assistance events, requests, or device state.
+4. **Conversations/transcripts not discoverable** — the data + UI *did* exist (`/residents/{id}/conversation-sessions` → `ConversationSessionDetail`); the only problem was the entry point.
+5. **Device "1 needs attention" opaque** — `DeviceStatusCard` showed a bare count with no per-device reason a human could act on.
+6. **Closing an assistance event hard to find** — the close-out (`AlertDetailDialog`) opened only from a Staff Dashboard/AlertsBoard row; Operations Overview attention rows for assistance linked to the whole `/staff` board, not the specific event.
+
+### Existing screens/routes reused (no duplication)
+`AlertDetailDialog` (the one close-out workflow), `RequestDetailDialog`, `ConversationSessionDetail`, `/residents/{id}/conversation-sessions`, `/residents/{id}/briefing`, `/residents/{id}/stats`, `GET /alerts` (client-filtered by resident, same pattern AlertsBoard uses), `GET /tasks?resident_id=`, `GET /rf/fleet/summary`, `requestDisplay.js` (`deriveStatus`/`sourceLabel`/badges), the `/admin?tab=`/`?resident=` deep-link machinery.
+
+### Navigation changes made
+- **`ResidentRecordDialog.jsx`** rewritten as a **resident hub** shell (68 lines) with a section switcher — **Overview · Conversations · Assistance events · Resident requests · Device**. New **`ResidentHubPanels.jsx`** (262) holds the five panels; each is a resident-filtered read over an existing endpoint, and anything with its own workflow opens the *same* dialog the rest of Admin uses (`AlertDetailDialog` for an assistance event's close-out, `RequestDetailDialog` for a request). No new model, no second workflow. `ResidentsTab.jsx` button renamed "Resident Record" → **"Resident hub"** (now the primary, forest/bold) with an honest tooltip.
+- **`Admin.jsx`** header gains a **"Live board"** link → `/staff` (owner/admin), so the live Staff Dashboard is an intentional destination, not an accident.
+- **`OperationsOverview.jsx`** — assistance attention rows now deep-link to `/staff?alert=<alert_id>` (the specific event), not the whole board. `StaffDashboard.jsx` reads `?alert=` and auto-opens that event's `AlertDetailDialog` + close-out. One event, one lifecycle, three coherent entry points (Ops Overview, resident hub, AlertsBoard). Ops Overview otherwise unchanged and un-weakened.
+- **`AlertsBoard.jsx`** — header now states these are pendant/help/emergency **assistance events** (with a link to Communication & requests) and carries a **"Live Staff Dashboard"** button.
+- **`RequestsBoard.jsx`** — subtitle clarified to "things a resident/family/Front Desk asked staff to *do*", with a line pointing pendant/help/emergency events to **Alerts & events**.
+- **`adminTabGroups.js`** — the "Requests" tab label → **"Resident requests"** (value unchanged, so `?tab=requests` and `TAB_ALIASES` still resolve; tutorial/route stability preserved).
+
+### Device-attention drill-down
+`rf_fleet.py::GET /rf/fleet/summary` now returns a plain-English **`reason`** per device, derived only from existing `RFDevice` truth — "Not assigned to a resident" / "Disabled in RF settings" / "No signal ever received since pairing" / "No signal in over 24h — last heard 3d ago" / "Battery low — last heard …" — `None` when healthy. No invented health states. `DeviceStatusCard.jsx` renders the reason under each pendant row (attention-first sort) and the tile now says "N need attention — see below". Verified live: the Staff Dashboard's mystery "1 need attention" now reads **"MOCK Eleanor Whitfield · Rm 401 · OFFLINE — Disabled in RF settings"**.
+
+### Helen Torres / Room 214 resident-truth flow now available (acceptance walkthrough, all passed live in a browser)
+Admin → Community (opens on Operations overview) → click a "Needs attention now" assistance row → lands on `/staff?alert=…` with that event's timeline + **Close out with outcome** open. "Live board" header button → Staff Dashboard. Residents & care → Residents → Helen Torres → **Resident hub**:
+- **Overview** — briefing narrative, open-alerts-24h / 30-day calls / falls / avg-response strip, pinned staff notes, last zone, pointer to the Clinician tab for full patterns.
+- **Conversations** — real session list (48/41/17-turn Aria sessions); clicking one shows the full transcript + requests/receipts/voice-diagnostics (existing `ConversationSessionDetail`).
+- **Assistance events** — Helen's 11 alerts, header explicitly "not staff task requests", 1 open; clicking the ACTIVE one opens the same `AlertDetailDialog` close-out.
+- **Resident requests** — the 1 completed "needs help using the bathroom" (nursing · Aria voice), clearly a *request*, distinct from the 11 assistance events.
+- **Device** — "Helen Torres pendant (Lifeline) · ACTIVE · last heard 2m ago · 135 presses · Reporting normally."
+Closing the hub returns to the Residents list with nothing lost; Operations Overview is one click away (Community group).
+
+### Transcript/conversation finding
+**Real data exists and is now exposed.** `db.conversations` turns are session-grouped by `/residents/{resident_id}/conversation-sessions`; the per-session detail (`/…/{session_id}`) returns turns + linked receipts/tasks + `realtime_diagnostics` + best-effort device actions. Previously only reachable via a single buried "Resident Record" button; now a first-class **Conversations** section of the resident hub. No fabrication. Remaining honest limitation: device actions in the session detail are room+time-window matched (not session-tagged at the source), already labelled as such in `ConversationSessionDetail`.
+
+### Files changed + line counts
+- `backend/routes/rf_fleet.py` — 130 → **159** (Admin-lane file; +`_human_ago`/`_reason` helpers + one field).
+- `backend/tests/test_rf_fleet.py` — 123 → **127** (asserts the new `reason`).
+- `frontend/src/pages/ResidentHubPanels.jsx` — **262** (new).
+- `frontend/src/pages/ResidentRecordDialog.jsx` — 90 → **68** (now a shell).
+- `frontend/src/pages/ResidentsTab.jsx` — 179 → **184**.
+- `frontend/src/pages/Admin.jsx` — 196 → **201**.
+- `frontend/src/pages/OperationsOverview.jsx` — 267 → **275**.
+- `frontend/src/pages/AlertsBoard.jsx` — 123 → **132**.
+- `frontend/src/pages/RequestsBoard.jsx` — 112 → **119**.
+- `frontend/src/pages/DeviceStatusCard.jsx` — 204 → **213**.
+- `frontend/src/lib/adminTabGroups.js` — 97 → **97** (label only).
+- `frontend/src/pages/StaffDashboard.jsx` — 348 → **353** (pre-existing over-cap file; +5 lines for the `?alert=` deep-link handler, not materially enlarged — no extraction practical for a 5-line effect).
+
+### Tests
+- Frontend suite: **122 / 122 pass** (unchanged — the new panels are thin reads over existing endpoints with no new pure-logic module).
+- Backend: `test_rf_fleet.py` (with new `reason` assertions), `test_ops_overview.py`, `test_resident_events.py` (Claude 2's lane) — **3 / 3 pass** against `:8001`.
+- Babel parse clean on all 10 touched/new JS/JSX files; `ast.parse` clean on `rf_fleet.py`.
+- Live browser walkthrough (above) completed as Owner; browser console shows only the pre-existing Radix `aria-describedby` dialog warnings — no errors, no 401/403/CORS, no React crashes.
+
+### Confirmation no Claude 2 resident behavior/runtime changed
+No file under RF decode / press semantics / `resident_activation` / ResidentEvent lifecycle / `realtime*` / paging / escalation was opened for edit. `:8000` (Claude 2's backend) untouched. `db.alerts` read-only; the `reason` field is a pure derivation in `rf_fleet.py`. `test_resident_events.py` still green.
+
+### Remaining UX ambiguity for Michael to break-test
+- The Residents row now has 7 action controls (Enter room · Brief · **Resident hub** · Memory · Movement · Edit · delete). Resident hub is bold/primary but the row is dense — worth deciding whether Memory/Movement should fold into the hub.
+- Resident hub **Overview** shows "avg response 388m" for Helen — that number comes straight from `/residents/{id}/stats` and is inflated by the known stale test alerts (unclosed pendant-test events). Honest existing data, but a reader may misread it; the stale-alert cleanup is still the separate forensic task.
+- The resident hub is a dialog (fast, keeps the residents list behind it). If Michael would rather it be a full page with its own URL, that's a follow-up.
+- `?alert=` on `/staff` opens the dialog but doesn't scroll the matching card into view in the (long) live-alerts list — the dialog is the point, but the card highlight could be added.
+
+### Commit
+`<filled on commit>` — pushed to `claude/admin-operations`.
+
+### Next safe step
+Michael break-tests the Owner workflow: Community → attention row → close-out; Live board button; Residents → Helen → each hub section; confirm Requests vs Assistance reads clearly; click the Staff Dashboard "1 need attention" and confirm it now names the device + reason. Then direct whether Memory/Movement should fold into the resident hub and whether the hub should become a routed page.

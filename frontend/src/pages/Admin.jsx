@@ -4,7 +4,7 @@ import { useAuth } from "../lib/auth";
 import { api } from "../lib/api";
 import { Button } from "../components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs";
-import { LogOut, Sparkles, Users } from "lucide-react";
+import { LogOut, Sparkles, Users, Radio } from "lucide-react";
 import { toast } from "sonner";
 import RFPairingTab from "./RFPairingTab";
 import ClinicianTab from "./ClinicianTab";
@@ -115,6 +115,11 @@ export default function Admin() {
             )}
             <Link to="/admin/help" data-testid="admin-help-link">
               <Button variant="outline" className="border-2 h-10 rounded-full">Tutorials</Button>
+            </Link>
+            <Link to="/staff" data-testid="admin-live-board-link">
+              <Button variant="outline" className="border-2 h-10 rounded-full">
+                <Radio className="w-4 h-4 mr-2" /> Live board
+              </Button>
             </Link>
             <Button variant="outline" className="border-2 h-10 rounded-full" onClick={() => setActiveTab("staff")} data-testid="admin-users-access-btn">
               <Users className="w-4 h-4 mr-2" /> Users &amp; access

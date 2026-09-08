@@ -154,8 +154,13 @@ export default function ResidentsTab({ residents, kiosks, onChange, focusResiden
                     <Button variant="ghost" size="sm" onClick={() => speakBriefing(r)} data-testid={`brief-res-${r.resident_id}`} title="Speak a clinical briefing for this resident">
                       {briefingId === r.resident_id ? <span className="inline-flex items-center gap-1 text-caos-forest"><Volume2 className="w-4 h-4 animate-pulse" /> Speaking</span> : <span className="inline-flex items-center gap-1"><Volume2 className="w-4 h-4" /> Brief</span>}
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => setRecordFor(r)} data-testid={`record-res-${r.resident_id}`} title="Resident Record — conversations">
-                      <BookOpen className="w-4 h-4 mr-1" /> Resident Record
+                    <Button
+                      variant="ghost" size="sm" onClick={() => setRecordFor(r)}
+                      data-testid={`record-res-${r.resident_id}`}
+                      title="Resident hub — overview, conversations/transcripts, assistance events, requests, device"
+                      className="text-caos-forest font-semibold"
+                    >
+                      <BookOpen className="w-4 h-4 mr-1" /> Resident hub
                     </Button>
                     <Button variant="ghost" size="sm" onClick={() => setMemoryFor(r)} data-testid={`mem-res-${r.resident_id}`}>Memory</Button>
                     <Button variant="ghost" size="sm" onClick={() => setMovementFor(r)} data-testid={`move-res-${r.resident_id}`}>Movement</Button>

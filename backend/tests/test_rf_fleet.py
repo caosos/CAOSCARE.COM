@@ -70,8 +70,8 @@ async def _run():
          "fingerprint": fp, "severity": "help", "match_threshold": 0.9, "enabled": True,
          "last_seen_at": (now - timedelta(hours=1)).isoformat(), "press_count": 2, "low_battery": True,
          "created_at": now.isoformat()},
-        # need attention: not seen in > 24h
-        {"rf_device_id": f"{TAG}_d_old", "label": f"{TAG} spare", "resident_id": None, "room": None,
+        # need attention: assigned but not seen in > 24h
+        {"rf_device_id": f"{TAG}_d_old", "label": f"{TAG} spare", "resident_id": res_id, "room": f"{TAG}-1",
          "fingerprint": fp, "severity": "help", "match_threshold": 0.9, "enabled": True,
          "last_seen_at": (now - timedelta(days=3)).isoformat(), "press_count": 0, "low_battery": False,
          "created_at": now.isoformat()},
@@ -94,6 +94,11 @@ async def _run():
             assert by_id[f"{TAG}_d_old"]["status"] == "offline"
             assert by_id[f"{TAG}_d_ok"]["resident_name"] == f"{TAG} Rez"
             assert by_id[f"{TAG}_d_ok"]["press_count"] == 7
+            # a plain-English "why does this need attention" reason accompanies
+            # every non-active device; a healthy one has none
+            assert by_id[f"{TAG}_d_ok"]["reason"] is None
+            assert by_id[f"{TAG}_d_bat"]["reason"] == "Not assigned to a resident"
+            assert "No signal in over" in by_id[f"{TAG}_d_old"]["reason"]
             # engineering detail must NOT leak into the role-safe summary
             for d in mine:
                 assert "last_rssi" not in d and "match_threshold" not in d and "fingerprint" not in d

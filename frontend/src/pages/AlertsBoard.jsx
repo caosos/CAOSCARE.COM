@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
-import { RefreshCw, AlertCircle } from "lucide-react";
+import { RefreshCw, AlertCircle, Radio } from "lucide-react";
 import { toast } from "sonner";
 import AlertDetailDialog from "./AlertDetailDialog";
 import { filterAlerts, staleSummary, isLikelyStale, alertTone, STALE_HOURS } from "../lib/alertsView";
@@ -60,8 +60,17 @@ export default function AlertsBoard() {
         <div>
           <h2 className="font-display text-2xl font-medium text-caos-forest">Alerts &amp; assistance events</h2>
           <p className="text-caos-mute text-sm mt-1">{rows.length} shown · {summary.open_total} open ({summary.live} live, {summary.likely_stale} likely stale)</p>
+          <p className="text-caos-mute text-xs mt-1">
+            Pendant / help-button / emergency <strong>assistance events</strong> — not staff task requests
+            (those are under <Link to="/admin?tab=requests" className="underline">Communication &amp; requests</Link>).
+          </p>
         </div>
-        <Button variant="ghost" onClick={load} data-testid="alerts-refresh"><RefreshCw className="w-4 h-4 mr-2" /> Refresh</Button>
+        <div className="flex items-center gap-2">
+          <Link to="/staff" data-testid="alerts-open-live-board">
+            <Button variant="outline" className="border-2"><Radio className="w-4 h-4 mr-2" /> Live Staff Dashboard</Button>
+          </Link>
+          <Button variant="ghost" onClick={load} data-testid="alerts-refresh"><RefreshCw className="w-4 h-4 mr-2" /> Refresh</Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2 items-center">

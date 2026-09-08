@@ -78,7 +78,7 @@ export default function DeviceStatusCard() {
         <InventoryTile
           icon={<Radio className="w-5 h-5" />} label="Pendants"
           online={rf.in_service} total={rf.total}
-          warn={rf.need_attention > 0 ? `${rf.need_attention} need attention` : null}
+          warn={rf.need_attention > 0 ? `${rf.need_attention} need attention — see below` : null}
           to={isAdmin ? "/admin?tab=rf" : null} testid="inv-pendants"
         />
         <InventoryTile
@@ -97,20 +97,29 @@ export default function DeviceStatusCard() {
       {rf.devices.length > 0 && (
         <div className="mb-5">
           <p className="text-xs font-bold uppercase tracking-widest text-caos-mute mb-2">Pendant status per resident</p>
-          <div className="space-y-1 max-h-40 overflow-y-auto pr-1" data-testid="pendant-status-list">
-            {rf.devices.map((p) => (
-              <div key={p.rf_device_id} data-testid={`pendant-status-${p.rf_device_id}`} className="flex items-center justify-between text-sm bg-caos-ambient/40 rounded-lg px-3 py-2">
-                <div className="min-w-0">
-                  <span className="font-semibold text-caos-forest">{p.resident_name || p.label || <span className="italic text-caos-mute">Unassigned</span>}</span>
-                  {p.room && <span className="text-caos-mute text-xs ml-2">Rm {p.room}</span>}
+          <div className="space-y-1 max-h-56 overflow-y-auto pr-1" data-testid="pendant-status-list">
+            {[...rf.devices]
+              .sort((a, b) => (a.status === "active" ? 1 : 0) - (b.status === "active" ? 1 : 0))
+              .map((p) => (
+              <div key={p.rf_device_id} data-testid={`pendant-status-${p.rf_device_id}`} className="text-sm bg-caos-ambient/40 rounded-lg px-3 py-2">
+                <div className="flex items-center justify-between">
+                  <div className="min-w-0">
+                    <span className="font-semibold text-caos-forest">{p.resident_name || p.label || <span className="italic text-caos-mute">Unassigned</span>}</span>
+                    {p.room && <span className="text-caos-mute text-xs ml-2">Rm {p.room}</span>}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {p.low_battery && <BatteryLow className="w-3 h-3 text-caos-terracotta" />}
+                    <span className="text-[10px] text-caos-mute uppercase tracking-wider">seen {timeAgo(p.last_seen_at)}</span>
+                    <Badge className={`uppercase tracking-wider text-[10px] font-bold border ${STATUS_STYLE[p.status] || STATUS_STYLE.inactive}`}>
+                      {String(p.status).replace("_", " ")}
+                    </Badge>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {p.low_battery && <BatteryLow className="w-3 h-3 text-caos-terracotta" />}
-                  <span className="text-[10px] text-caos-mute uppercase tracking-wider">seen {timeAgo(p.last_seen_at)}</span>
-                  <Badge className={`uppercase tracking-wider text-[10px] font-bold border ${STATUS_STYLE[p.status] || STATUS_STYLE.inactive}`}>
-                    {String(p.status).replace("_", " ")}
-                  </Badge>
-                </div>
+                {p.reason && (
+                  <div className="text-[11px] text-caos-terracotta mt-1 font-medium" data-testid={`pendant-reason-${p.rf_device_id}`}>
+                    {p.reason}
+                  </div>
+                )}
               </div>
             ))}
           </div>
