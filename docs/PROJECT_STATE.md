@@ -2713,7 +2713,7 @@ No file under RF decode / press semantics / `resident_activation` / ResidentEven
 - `?alert=` on `/staff` opens the dialog but doesn't scroll the matching card into view in the (long) live-alerts list — the dialog is the point, but the card highlight could be added.
 
 ### Commit
-`<filled on commit>` — pushed to `claude/admin-operations`.
+`348aa1b3845be79dbf411593d4185cc4cc927e53` — pushed to `claude/admin-operations`.
 
 ### Next safe step
 Michael break-tests the Owner workflow: Community → attention row → close-out; Live board button; Residents → Helen → each hub section; confirm Requests vs Assistance reads clearly; click the Staff Dashboard "1 need attention" and confirm it now names the device + reason. Then direct whether Memory/Movement should fold into the resident hub and whether the hub should become a routed page.
