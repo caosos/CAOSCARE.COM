@@ -2483,7 +2483,7 @@ extraction, NOT in this commit):**
    block (including the current session's own turns) is not built (waits on the
    frontend refactor); "genuinely unresolved thread" detection is coarse
    (clean-close vs dropped only — no semantic open-question extraction).
-10. **Commit SHA:** (recorded on commit below.)
+10. **Commit SHA:** `6f0f876` (Layer B); `7050710` (Layer E, prior).
 
 ### Next safe step
 Reload the dev backend; un-skip the HTTP endpoint test. Then STOP for
