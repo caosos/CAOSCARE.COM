@@ -15,6 +15,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from models import StaffTask, StaffTaskCreate, StaffTaskUpdate, now_utc
 from deps import db, get_current_user
 from routes.receipts import create_receipt, update_receipt_status
+from routes.notifications import send_email
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
