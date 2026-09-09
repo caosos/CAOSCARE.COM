@@ -114,6 +114,16 @@ For code, when code exists:
 
 Documentation, informational files, reports, generated files, static data, lockfiles, and necessary configuration files are exempt from the 300-line cap.
 
+## Branch hygiene
+
+- Use one branch per bounded work lane; do not create a second branch when the current task already has an appropriate branch.
+- Before creating a branch, inspect existing local/remote branches for the same lane or objective.
+- Prefer descriptive prefixes such as `feature/`, `fix/`, `chore/`, `agent/`, `claude/`, or `aria/` and a short purpose-driven name.
+- `main` is the integration branch, not a long-running agent workspace.
+- Active-agent branches must never be deleted by a cleanup pass without confirming that the agent/session is finished.
+- After a branch is merged, abandoned, or superseded, retire the remote branch once it is verified to contain no unique work that still matters.
+- Cleanup work must classify branches before deletion; branch age or an old-looking name alone is not sufficient evidence.
+
 ## Required care principles
 
 CAOS Care must prioritize:
