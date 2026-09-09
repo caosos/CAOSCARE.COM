@@ -2393,3 +2393,98 @@ Reload the dev backend and un-skip the endpoint test. Then Layer B
 (cross-session continuity block on mint + reconnect, keyed by resident +
 recency, regression against the s8→s9→s10 sequence), per the implementation
 plan's ordered next steps.
+
+---
+
+## 2026-09-08 — Aria substrate Layer B: cross-session continuity ("I thought I just told you")
+
+### Agent / tool
+Claude Code (Sonnet 5), EliteDesk primary worktree. Branch
+`aria/conversation-substrate`, on top of the Layer E commit `7050710`. No
+subagents. No merge, no deploy, no backend restart. Did not touch the
+in-flight Level 1 session-fencing / RF-intake / frontend-refactor work.
+
+### What changed (Layer B commit)
+**Code (new, all < 300 lines):**
+- `backend/routes/aria_time.py` (36) — shared conversational time phrasing
+  (`age_phrase`, `parse_dt`), extracted from `aria_operational_state.py` so
+  Layer B and Layer E describe "how long ago" identically (one source of truth).
+- `backend/routes/aria_continuity.py` (197) — `resolve_continuity(resident_id,
+  current_session_id, room)`: reads `db.conversations` (the existing turn store),
+  groups by `session_id`, keeps ≤3 prior sessions whose last turn is within 18 h,
+  reads each session's `session_ended` reason from `db.realtime_diagnostics` to
+  flag `unfinished`. `render_continuity_block` compacts to plain text: resident
+  lines verbatim (the referent for "that"/"the other one"), assistant lines
+  trimmed + de-greeted, tail-biased, hard-capped at 2200 chars. Header: this is
+  context not a task, not an opener, and Layer E is authoritative on live status.
+  Public `GET /api/aria/continuity` (resident/room-scoped, inspection).
+
+**Code (modified, in the Layer B commit):**
+- `backend/routes/aria_operational_state.py` — use `routes.aria_time` instead of
+  local `_age_label`/`_parse` (net −30 lines; behavior identical).
+- `backend/routes/realtime_companion_prompt.py` — `_build_companion_instructions`
+  takes `continuity=`; block order is baseline → continuity → operational
+  ("right now" kept last/freshest). (add -p; the unrelated prior `get_room_status`
+  climate hunk stays in the working tree, not this commit.)
+- `backend/server.py` (+2) — register the continuity router.
+
+**Wiring left in the working tree (rides with the in-flight Level 1 `_mint`
+extraction, NOT in this commit):**
+- `backend/routes/realtime_resident_session.py::_mint` — resolves continuity
+  best-effort and threads it into instructions + `_caos.context.continuity`.
+
+**Tests (new):**
+- `backend/tests/test_aria_continuity.py` — acceptance cases 1–8 + an economics
+  cap test (120-turn prior session still renders ≤ cap, keeps the tail).
+- `backend/tests/test_substrate_layers_integration.py` — Layer B + Layer E
+  assembled: history preserved for meaning, Layer E status ("resolved", by
+  "N. Osei") is the authority, continuity defers to it, block order asserted.
+
+### Report (as requested)
+1. **Continuity source(s):** `db.conversations` (turn store, keyed by
+   `session_id`) for the turns; `db.realtime_diagnostics` `session_ended.meta.reason`
+   for how each prior session ended. No parallel history system; no LLM call.
+2. **Survives a session boundary (BASELINE + CONTINUITY):** resident identity,
+   preferred name, accessibility, intake notes, durable two-bin memory (Layer A,
+   unchanged); plus a compact recap of ≤3 prior sessions within 18 h — the
+   resident's substantive lines verbatim + trimmed assistant grounding + whether
+   each ended cleanly or dropped.
+3. **Deliberately dies at the boundary (TRANSIENT):** the prior session's tool
+   state, intermediate tool-call args, `aria_state`, live-line state, any
+   "task in progress" feel. `resolve_continuity` returns none of it — it reads
+   only role/content/timestamps. An old request only appears as *words that were
+   said*, never as active work.
+4. **"I thought I just told you" is now supported:** the resident's actual prior
+   utterance (e.g. "the reading light over my chair keeps flickering") is carried
+   verbatim into the new session's prompt, so the model can resolve what "that"
+   / "the other one" / "like I was saying" refers to instead of answering "I must
+   have missed that."
+5. **Stale operational history can't win:** the continuity header explicitly
+   points at the Layer E "What's actually happening right now" section as the
+   authority on any call/request/nurse status; the integration test proves that
+   when history says "nobody has come" and Layer E says `resolved` by a named
+   nurse, the assembled prompt carries both and frames the item as handled.
+6. **Context size/cost:** one indexed `db.conversations` query
+   (`resident_id + created_at` index created best-effort) + in-memory trim.
+   Typical block ≈ 1 000 chars (~250 tokens); worst case bounded ≈ 2 800 chars
+   (~700 tokens) by `_TOTAL_CHAR_CAP`. No model call, no per-turn cost.
+7. **Modified production-file line counts:** `aria_continuity.py` 197 (new),
+   `aria_time.py` 36 (new), `aria_operational_state.py` 228→198,
+   `realtime_companion_prompt.py` 280, `realtime_resident_session.py` 139
+   (working-tree wiring), `server.py` +2. All ≤ 300.
+8. **Tests:** `test_aria_continuity.py` 3/3, `test_substrate_layers_integration.py`
+   1/1, `test_aria_operational_state.py` 2 pass /1 skip (HTTP endpoint, pending
+   reload), `test_companion_prompt_substrate.py` 3/3,
+   `test_level1_session_fencing.py` + `test_level1_concurrency_isolation.py`
+   2/2 (unchanged). Pre-existing unrelated failure `test_resident_events.py::
+   test_resident_event_model` (RF-intake lane) still present, not mine.
+9. **Remaining evidence gaps:** no live voice run exercised Layer B end-to-end
+   (needs backend reload + a real kiosk session); reconnect-time refresh of the
+   block (including the current session's own turns) is not built (waits on the
+   frontend refactor); "genuinely unresolved thread" detection is coarse
+   (clean-close vs dropped only — no semantic open-question extraction).
+10. **Commit SHA:** (recorded on commit below.)
+
+### Next safe step
+Reload the dev backend; un-skip the HTTP endpoint test. Then STOP for
+Michael's review before Layer C / D / F (per directive).

@@ -27,6 +27,7 @@ from fastapi import APIRouter, HTTPException
 
 from deps import db
 from models import now_utc
+from routes.aria_time import age_phrase as _age_label, parse_dt as _parse
 
 router = APIRouter(prefix="/aria", tags=["realtime"])
 
@@ -35,37 +36,6 @@ router = APIRouter(prefix="/aria", tags=["realtime"])
 RECENT_RESOLVED_HOURS = 12
 OPEN_ALERT_STATUSES = ["active", "acknowledged"]
 OPEN_TASK_STATUSES = ["pending", "in_progress"]
-
-
-def _age_label(opened_iso: Optional[str]) -> str:
-    """Human, conversational age — never a raw timestamp read aloud."""
-    if not opened_iso:
-        return "at an unknown time"
-    try:
-        opened = _parse(opened_iso)
-    except Exception:
-        return "at an unknown time"
-    secs = (now_utc() - opened).total_seconds()
-    if secs < 90:
-        return "just now"
-    if secs < 3600:
-        return f"about {max(1, round(secs / 60))} minutes ago"
-    if secs < 6 * 3600:
-        return f"about {round(secs / 3600)} hours ago"
-    if secs < 24 * 3600:
-        return "earlier today"
-    if secs < 48 * 3600:
-        return "yesterday"
-    return f"{round(secs / 86400)} days ago"
-
-
-def _parse(v):
-    from datetime import datetime, timezone
-    if hasattr(v, "isoformat"):
-        dt = v
-    else:
-        dt = datetime.fromisoformat(str(v).replace("Z", "+00:00"))
-    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
 def _iso(v) -> Optional[str]:

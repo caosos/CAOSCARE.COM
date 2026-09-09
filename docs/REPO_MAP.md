@@ -563,3 +563,18 @@ This repository is an active CAOS Care multi-surface codebase. Keep the map curr
   (reconstructed evidence + mechanism→code map).
 - Tests: `backend/tests/test_aria_operational_state.py`,
   `backend/tests/test_companion_prompt_substrate.py`.
+
+## 2026-09-08 — Aria substrate Layer B (cross-session continuity)
+
+- `backend/routes/aria_time.py`: shared `age_phrase` / `parse_dt` for the Aria
+  context layers (one source of truth for "how long ago").
+- `backend/routes/aria_continuity.py`: `resolve_continuity()` builds a compact
+  recap of a resident's recent prior sessions from `db.conversations` +
+  `db.realtime_diagnostics` end reasons; `render_continuity_block()` renders it
+  (baseline, not workflow; hard char cap). Public `GET /api/aria/continuity`.
+- `backend/routes/realtime_companion_prompt.py`: `_build_companion_instructions`
+  takes `continuity=`; order is baseline → continuity → operational.
+- `backend/routes/aria_operational_state.py`: now imports time phrasing from
+  `aria_time` (was local).
+- Tests: `backend/tests/test_aria_continuity.py`,
+  `backend/tests/test_substrate_layers_integration.py`.
