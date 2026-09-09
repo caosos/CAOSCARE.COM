@@ -603,3 +603,15 @@ This repository is an active CAOS Care multi-surface codebase. Keep the map curr
   working tree with the in-flight Level 1 `_mint` extraction — not part of
   this commit, same as the Layer B continuity wiring before it.
 - Tests: `backend/tests/test_aria_conversation_state.py`.
+
+### 2026-09-09 — Layer C review integration
+- `aria_conversation_state.py`: `awaiting_required_detail` now needs positive
+  evidence (`_tool_awaiting_answer` — a `realtime_diagnostics.tool_call` for
+  this session with no resident turn since); an empathetic question is
+  `conversation_active`. `resolve_conversation_state` returns `ref` (task_id).
+  `render_conversation_state_block(cs, operational_state=None)` downgrades
+  `action_in_progress` → `action_completed` when Layer E's snapshot no longer
+  lists that `ref` as open (`_e_still_open`). `realtime_companion_prompt.py`
+  passes `operational_state` into that render.
+- Tests: `test_substrate_layers_integration.py::test_layers_bce_assemble_in_order`
+  (B+C+E section-header order).

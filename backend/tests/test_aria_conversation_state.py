@@ -147,18 +147,39 @@ async def _run():
         block = render_conversation_state_block(cs)
         assert "that is done" in block.lower()
 
-        # ---- CASE 6: last turn is an unanswered assistant question
+        # ---- CASE 6: a tool routing question is genuinely awaiting an answer.
+        # Positive evidence required: a tool_call fired and no resident turn
+        # since — not merely a trailing "?".
         await _seed_turns(db, rid, question_sid, [
             ("user", "I need to talk to a nurse"),
             ("assistant", "Is this about medication or something else?"),
         ], now - timedelta(seconds=30))
+        await db.realtime_diagnostics.insert_one({
+            "session_id": question_sid, "event_type": "tool_call",
+            "meta": {"name": "request_live_staff"},
+            "created_at": (now - timedelta(seconds=20)).isoformat(),
+        })
         cs = await resolve_conversation_state(rid, question_sid)
         assert cs["state"] == "awaiting_required_detail"
         block = render_conversation_state_block(cs)
         assert "do not ask it again" in block.lower()
 
-        # ---- CASE 7: provider-portable - plain dict, no vendor keys
+        # ---- CASE 6b (regression): an empathetic question with NO tool in
+        # play is ordinary conversation, never awaiting_required_detail.
+        empathy_sid = f"rt_empathy_{uuid.uuid4().hex[:6]}"
+        await _seed_turns(db, rid, empathy_sid, [
+            ("user", "I've just been feeling a bit low today"),
+            ("assistant", "I'm sorry to hear that. How are you feeling right now?"),
+        ], now - timedelta(seconds=30))
+        cs_e = await resolve_conversation_state(rid, empathy_sid)
+        assert cs_e["state"] == "conversation_active", cs_e
+        assert render_conversation_state_block(cs_e) == ""
+
+        # ---- CASE 7: provider-portable - plain dict, JSON-serializable, no
+        # vendor keys.
+        import json
         assert isinstance(cs, dict)
+        json.dumps(cs)  # must not raise
         blob = repr(cs).lower()
         for vendor in ("openai", "gpt", "claude", "anthropic", "assistant_id", "thread_id"):
             assert vendor not in blob
@@ -166,6 +187,7 @@ async def _run():
     finally:
         await db.conversations.delete_many({"resident_id": rid})
         await db.staff_tasks.delete_many({"task_id": {"$in": task_ids}})
+        await db.realtime_diagnostics.delete_many({"session_id": question_sid})
 
 
 async def _prompt_integration():
@@ -207,6 +229,79 @@ async def _prompt_integration():
         await db.staff_tasks.delete_many({"task_id": task_id})
 
 
+async def _fresh_session_no_block():
+    """conversation_state=None -> no '## This call so far' block at all."""
+    from routes.realtime_companion_prompt import _build_companion_instructions
+    text = await _build_companion_instructions(None, conversation_state=None)
+    assert "This call so far" not in text
+
+
+async def _reconnect_idempotent():
+    """A task filed this session; a reconnect reusing the SAME session_id
+    resolves action_in_progress, files no second task, and Layer E shows
+    exactly one current operational item for that resident/room."""
+    from deps import db
+    from models import now_utc
+    from routes.aria_conversation_state import resolve_conversation_state, render_conversation_state_block
+    from routes.aria_operational_state import resolve_operational_state
+
+    rid = f"res_test_{uuid.uuid4().hex[:8]}"
+    room = f"csr_{uuid.uuid4().hex[:6]}"
+    sid = f"rt_recon_{uuid.uuid4().hex[:6]}"
+    now = now_utc()
+    task_id = f"task_{uuid.uuid4().hex[:8]}"
+    try:
+        await _seed_turns(db, rid, sid, [
+            ("user", "It's freezing, can someone check the heat"),
+            ("assistant", "I've let the staff know."),
+        ], now - timedelta(minutes=2))
+        await db.staff_tasks.insert_one({
+            "task_id": task_id, "title": "Check room heat", "status": "pending",
+            "category": "maintenance", "source": "aria_voice",
+            "resident_id": rid, "room": room, "resident_words": "it's freezing",
+            "conversation_session_id": sid,
+            "created_at": (now - timedelta(minutes=2)).isoformat(),
+        })
+        before = await db.staff_tasks.count_documents({"conversation_session_id": sid})
+
+        # reconnect: same session_id
+        cs = await resolve_conversation_state(rid, sid)
+        assert cs["state"] == "action_in_progress"
+        assert cs["ref"] == task_id
+
+        after = await db.staff_tasks.count_documents({"conversation_session_id": sid})
+        assert after == before == 1, "resolving conversation state must not file a task"
+
+        op = await resolve_operational_state(rid, room)
+        items = op["current"] + op["background"]
+        assert len(items) == 1 and items[0]["ref"] == task_id
+
+        # E still shows it open -> C keeps the 'in motion' guidance
+        block = render_conversation_state_block(cs, op)
+        assert "in motion" in block
+    finally:
+        await db.conversations.delete_many({"resident_id": rid})
+        await db.staff_tasks.delete_many({"task_id": task_id})
+
+
+async def _defers_to_layer_e():
+    """C has a task it saw as open, but Layer E's snapshot (other open work,
+    this ref absent) says it is done -> C must NOT render 'in motion'."""
+    from routes.aria_conversation_state import render_conversation_state_block
+    cs = {"state": "action_in_progress", "ref": "task_gone",
+          "about": "checking the heat", "opened_age": "about 5 minutes ago",
+          "turn_count": 4}
+    op = {"current": [{"ref": "task_other", "lifecycle": "open", "about": "a light"}],
+          "background": [], "recently_resolved": []}
+    block = render_conversation_state_block(cs, op)
+    assert "in motion" not in block
+    assert "already handled this in the same call" in block
+
+    # E has no opinion (empty snapshot) -> defer to C, keep 'in motion'
+    assert "in motion" in render_conversation_state_block(cs, {"current": [], "background": []})
+    assert "in motion" in render_conversation_state_block(cs, None)
+
+
 def test_conversation_state_cases():
     _skip_if_down()
     asyncio.get_event_loop().run_until_complete(_run())
@@ -215,3 +310,18 @@ def test_conversation_state_cases():
 def test_conversation_state_renders_in_full_prompt():
     _skip_if_down()
     asyncio.get_event_loop().run_until_complete(_prompt_integration())
+
+
+def test_conversation_state_fresh_session_no_block():
+    _skip_if_down()
+    asyncio.get_event_loop().run_until_complete(_fresh_session_no_block())
+
+
+def test_conversation_state_reconnect_idempotent():
+    _skip_if_down()
+    asyncio.get_event_loop().run_until_complete(_reconnect_idempotent())
+
+
+def test_conversation_state_defers_to_layer_e():
+    _skip_if_down()
+    asyncio.get_event_loop().run_until_complete(_defers_to_layer_e())

@@ -268,7 +268,9 @@ async def _build_companion_instructions(
 
     profile_and_memory = await build_resident_profile_and_memory(resident_id, r, name, full_name)
     continuity_block = render_continuity_block(continuity, name or "them")
-    cs_block = render_conversation_state_block(conversation_state)
+    # Layer C renders with Layer E's snapshot in hand so it never claims a
+    # task is "in motion" that Layer E already shows resolved.
+    cs_block = render_conversation_state_block(conversation_state, operational_state)
     # Order: durable baseline (persona + who they are) → recent continuity
     # (cross-session, what was said) → this call's own state (has THIS call
     # already filed/finished something) → operational reality (what is true

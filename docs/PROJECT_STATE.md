@@ -2712,3 +2712,82 @@ Physically confirm the Room 214 AC's actual state. Separately, decide how
 `db.smart_devices.state` should represent a failed/unverified command
 (currently: silently stale) and consider adding before/after state capture +
 restoration to the two real-hardware test files for intentional runs.
+
+---
+
+## 2026-09-09 — Layer C review integration (independent-review acceptance constraints)
+
+### Agent / tool
+Claude Code (Sonnet 5), EliteDesk primary worktree, branch
+`aria/conversation-substrate`, on top of `a03d5b5` (Layer C, committed by a
+parallel session). No merge, no deploy, no backend restart. Did not touch the
+in-flight Level 1 `_mint` extraction or `useRealtimeVoice.js`.
+
+### Why
+An independent architecture review produced acceptance constraints for Layer C.
+Layer C (`a03d5b5`) was already committed; this integrates the constraints as
+bounded corrective changes rather than restarting it.
+
+### What changed
+- `backend/routes/aria_conversation_state.py` (159→207):
+  - `awaiting_required_detail` now requires **positive evidence** — a
+    `realtime_diagnostics` `tool_call` for this session with no resident turn
+    since (`_tool_awaiting_answer`). A trailing "?" alone no longer qualifies,
+    so an empathetic "How are you feeling?" resolves `conversation_active`
+    (emits nothing). Was: any assistant turn ending in "?".
+  - `resolve_conversation_state` now returns `ref` (the `task_id`) on the
+    `action_in_progress` / `action_completed` / `conversation_resumed` states.
+  - `render_conversation_state_block(cs, operational_state=None)` — new optional
+    arg. `_e_still_open()`: if Layer E's snapshot shows other open work but
+    **not** this call's `ref`, the block downgrades `action_in_progress` →
+    `action_completed` (never claims "in motion" against E's truth). Empty/None
+    E snapshot ⇒ defer to Layer C.
+  - Still session-scoped only: `conversations.session_id`,
+    `staff_tasks.conversation_session_id`, `realtime_diagnostics.session_id`.
+    No facility-wide `resident_id`/`room` query. No new collection.
+- `backend/routes/realtime_companion_prompt.py` (283→285): passes
+  `operational_state` into `render_conversation_state_block`.
+- `backend/tests/test_aria_conversation_state.py` (217→303): CASE 6 seed now
+  carries a realistic `request_live_staff` `tool_call` diagnostic; new
+  CASE 6b (empathetic question ⇒ `conversation_active`, empty block);
+  CASE 7 also asserts `json.dumps(cs)`; new tests —
+  `test_conversation_state_fresh_session_no_block`,
+  `test_conversation_state_reconnect_idempotent` (task filed this session →
+  reconnect same `session_id` → `action_in_progress`, no second task filed,
+  Layer E shows exactly one current item),
+  `test_conversation_state_defers_to_layer_e`.
+- `backend/tests/test_substrate_layers_integration.py` (107→180): new
+  `test_layers_bce_assemble_in_order` — B + C + E assembled, section-header
+  order `## Who you are` < `## Where you and X were` < `## This call so far` <
+  `## What's actually happening right now`. Existing order assertion tightened
+  to match `##` headers (the phrase "What's actually happening right now" also
+  appears inside the continuity block's prose).
+
+### Acceptance constraints — status
+1. existing Layer C cases pass — ✅ (CASE 6 seed made realistic)
+2. empathetic question ≠ `awaiting_required_detail` — ✅ CASE 6b
+3. `conversation_state=None` ⇒ no `## This call so far` — ✅
+4. reconnect idempotency — ✅
+5. B+C+E assemble in order — ✅
+6. C active but E resolved ⇒ not "in motion" — ✅
+7. `test_level1_session_fencing.py` + `test_level1_concurrency_isolation.py` — ✅ 2/2
+8. `python -c "import server"` — ✅
+9. `_caos.context.conversation_state` JSON-serializable — ✅ (plain dict/None; `_mint` wiring already sets it)
+10. documented alongside continuity/operational_state — ✅ (plan row C, this entry)
+11. line counts ≤ 300 — ✅ `aria_conversation_state.py` 207, `realtime_companion_prompt.py` 285,
+    `aria_operational_state.py` 198, `aria_continuity.py` 197, `aria_time.py` 36
+
+### Verified
+`pytest` (substrate + level1): **17 passed, 1 skipped** (the operational-state
+HTTP endpoint — dev backend not reloaded). `import server` OK.
+
+### Mint wiring
+`realtime_resident_session.py::_mint` (still untracked — rides with the Level 1
+extraction) already calls `resolve_conversation_state` and threads `conv_state`
+into instructions + `_caos.context.conversation_state`. Not committed here.
+
+### Next safe step
+Backend Step 1: make `check_request_status` / `request_staff_help` result
+formatting speak from `resolve_operational_state` (close the last "current
+state wins" gap — tool results still emit stale "already on file / ask #N"
+text). Then Layer B corrections (B-1 index in hot path, B-2 `None` end-reason).

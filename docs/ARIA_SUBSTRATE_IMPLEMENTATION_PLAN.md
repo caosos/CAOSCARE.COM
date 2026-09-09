@@ -19,7 +19,7 @@ action layer → response`.
 |---|---|---|---|
 | **A — Session baseline** | Aria identity, persona, tempo, truth discipline, time/place anchor, resident identity, durable prefs, accessibility, durable memory (reference-not-filler) | `realtime_companion_prompt.py::_build_companion_instructions` + `realtime_companion_memory.build_resident_profile_and_memory` + `realtime_facility._facility_now` | **exists** (pre-substrate). Opener softened 2026-09-08: greeting is presence-first, not "ask what they need". |
 | **B — Live conversation** | recent turns, unresolved threads, cross-session continuity | `routes/aria_continuity.py::resolve_continuity` → `render_continuity_block` → appended by `_build_companion_instructions` between baseline and operational state; also `_caos.context.continuity` and `GET /api/aria/continuity` | **DONE 2026-09-08** (Layer B commit). Compact recap of ≤3 prior sessions within an 18 h window from `db.conversations` + `session_ended` reasons. Baseline-not-workflow: recaps what was *said*, never marks a task active, points at Layer E for live status. Room 214 s8→s9→s10 "I thought I just told you" regression covered. |
-| **C — Active threads** | what THIS conversation has developed into; `conversation_active` vs `actionable_intent_detected` vs `action_in_progress` vs `awaiting_required_detail` | partial: `aria_state` on the event (`dormant/active/muted_staff/dismissed`); no per-conversation thread/intent state | **TODO** — needs a runtime conversation-state object distinct from event lifecycle. |
+| **C — Active threads** | what THIS call has developed into; `conversation_active` / `action_in_progress` / `awaiting_required_detail` / `action_completed` / `conversation_resumed` (`actionable_intent_detected` stays a live, unpersisted model classification) | `routes/aria_conversation_state.py::resolve_conversation_state` (keyed by `session_id`) → `render_conversation_state_block(cs, operational_state)` → appended by `_build_companion_instructions` between continuity and operational; also `_caos.context.conversation_state` and `GET /api/aria/conversation-state` | **DONE 2026-09-08** (`a03d5b5`), **review-integrated 2026-09-09**. Session-scoped only — reads `conversations.session_id` + `staff_tasks.conversation_session_id` + `realtime_diagnostics.session_id`, never a facility-wide `resident_id`/`room` query (that is Layer E). Defers to Layer E: the render suppresses "in motion" language when E's snapshot shows the same `task_id` is no longer open. `awaiting_required_detail` needs positive evidence (a `tool_call` this call with no resident turn since) — an empathetic "How are you feeling?" is `conversation_active`, emits nothing. |
 | **D — Retrieved durable memory** | older memory relevant to the *current subject*, retrieved on demand | `build_resident_profile_and_memory` loads a fixed block at mint; no subject-triggered retrieval | **partial / TODO** — progressive retrieval when a topic emerges. |
 | **E — Current operational reality** | open event + staff requests + calls/alerts, real lifecycle (`open/acknowledged/answered/in_progress/resolved/…`) + who + timestamps + `current` vs `background` | `routes/aria_operational_state.py::resolve_operational_state` → rendered by `routes/realtime_operational_context.py::render_operational_block` → appended to instructions by `_build_companion_instructions`; also on `_caos.context.operational_state` and `GET /api/aria/operational-state` | **DONE 2026-09-08** (this change). Kills Room 214 mechanism #1 (stale state announced as current) and #7 (stale context injected once). |
 | **F — Tools / capability truth** | only the relevant tool capability for the emerging work; capability portfolio so Aria claims only `verified_control`/`verified_read` | `realtime_tools.py` / `realtime_tools_operations.py` build the full schema at mint; `docs/ARIA_CAPABILITY_PORTFOLIO.md` / `db.aria_capabilities` exist but `get_capability_summary()` is **not wired into the session** | **TODO** — wire capability truth into context (Room 214 s16 "I can see you through the camera"). |
@@ -86,14 +86,13 @@ Typical rendered block ≈ 1 000 chars (~250 tokens); worst case bounded at
    Add a refresh path so a mid-call reconnect re-assembles the block (including
    the *current* session's own recent turns) via `session.update` — needs a
    frontend consumer, so it waits on the `useRealtimeVoice.js` refactor landing.
-3. **Layer C — runtime conversation state.** A per-conversation object holding
-   `conversation_active | actionable_intent_detected | action_in_progress |
-   awaiting_required_detail | action_completed | conversation_resumed`, set from
-   the transcript, separate from `aria_state`. Drives: no task created merely
-   because a session exists; tool use returns *into* the conversation, no reset.
+3. ~~**Layer C — runtime conversation state.**~~ **DONE** (`a03d5b5` +
+   review-integration commit). `routes/aria_conversation_state.py`, session-scoped,
+   defers to Layer E, positive-evidence `awaiting_required_detail`.
 4. **`check_request_status` / `request_staff_help` → speak from Layer E.** Their
    result formatters should defer to `resolve_operational_state` (real lifecycle
    + age) instead of the current timestamp-less "already on file / ask #N" text.
+   Backend-only. **NEXT.**
 5. **`end_call` — honor a clear closing on the first call** (Room 214 mechanism
    #6); keep the confirm only for genuinely ambiguous input. Frontend
    `restingEndCallGuard` + `end_call` handler.

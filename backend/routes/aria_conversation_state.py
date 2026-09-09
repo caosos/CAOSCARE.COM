@@ -77,6 +77,7 @@ async def resolve_conversation_state(resident_id: Optional[str], session_id: Opt
         t = open_tasks[-1]
         return {
             "state": "action_in_progress",
+            "ref": t.get("task_id"),
             "about": t.get("resident_words") or t.get("title") or "a request",
             "opened_age": _age_label(t.get("created_at")),
             "turn_count": len(turns),
@@ -94,16 +95,45 @@ async def resolve_conversation_state(resident_id: Optional[str], session_id: Opt
         state = "conversation_resumed" if turns_after > RESUMED_AFTER_TURNS else "action_completed"
         return {
             "state": state,
+            "ref": t.get("task_id"),
             "about": t.get("resident_words") or t.get("title") or "a request",
             "handled_by": t.get("completed_by_name"),
             "turn_count": len(turns),
         }
 
+    # `awaiting_required_detail` needs POSITIVE evidence that a request/routing
+    # flow is mid-question — a trailing "?" alone is not it. An empathetic
+    # "How are you feeling?" is ordinary conversation. The real signal: a
+    # tool was engaged this call and the resident has not answered since.
     last_turn = turns[-1] if turns else None
-    if last_turn and last_turn.get("role") == "assistant" and (last_turn.get("content") or "").rstrip().endswith("?"):
+    if (last_turn and last_turn.get("role") == "assistant"
+            and (last_turn.get("content") or "").rstrip().endswith("?")
+            and await _tool_awaiting_answer(session_id, turns)):
         return {"state": "awaiting_required_detail", "turn_count": len(turns)}
 
     return {"state": "conversation_active", "turn_count": len(turns)}
+
+
+async def _tool_awaiting_answer(session_id: str, turns: list) -> bool:
+    """True when a tool_call fired for this session and no resident turn has
+    come since — i.e. Aria asked something a tool actually needs answered,
+    not just a conversational question."""
+    last_user_at = None
+    for x in turns:
+        if x.get("role") == "user" and x.get("created_at"):
+            last_user_at = x["created_at"]
+    try:
+        tc = await db.realtime_diagnostics.find_one(
+            {"session_id": session_id, "event_type": "tool_call"},
+            {"_id": 0, "created_at": 1}, sort=[("created_at", -1)],
+        )
+    except Exception:
+        return False
+    if not tc or not tc.get("created_at"):
+        return False
+    if last_user_at is None:
+        return True
+    return _after(tc["created_at"], _parse(last_user_at))
 
 
 _GUIDANCE = {
@@ -130,14 +160,32 @@ _GUIDANCE = {
 }
 
 
-def render_conversation_state_block(cs: Optional[dict]) -> str:
+def _e_still_open(ref: Optional[str], operational_state: Optional[dict]) -> Optional[bool]:
+    """Does Layer E's already-resolved snapshot still show `ref` as open work?
+    None = E has no opinion (empty/absent snapshot) — defer to Layer C."""
+    if not ref or not operational_state:
+        return None
+    items = (operational_state.get("current") or []) + (operational_state.get("background") or [])
+    open_refs = {i.get("ref") for i in items if i.get("lifecycle") not in ("resolved", "answered")}
+    if not open_refs:
+        return None
+    return ref in open_refs
+
+
+def render_conversation_state_block(cs: Optional[dict], operational_state: Optional[dict] = None) -> str:
     """Empty string for a fresh call or ordinary back-and-forth — this block
     exists only to stop the model from re-asking or re-filing something this
     same call already settled, so it says nothing when there is nothing to
-    guard against."""
+    guard against.
+
+    Layer E is authoritative on truth: if the operational snapshot says this
+    call's task is no longer open, do not tell the model it is still "in
+    motion" — fall back to the already-handled framing."""
     if not cs:
         return ""
     state = cs.get("state")
+    if state == "action_in_progress" and _e_still_open(cs.get("ref"), operational_state) is False:
+        state = "action_completed"
     template = _GUIDANCE.get(state)
     if not template:
         return ""
