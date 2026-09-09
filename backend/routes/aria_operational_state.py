@@ -57,7 +57,7 @@ def _alert_lifecycle(a: dict) -> str:
     return "open"
 
 
-def _task_lifecycle(t: dict) -> str:
+def task_lifecycle(t: dict) -> str:
     if t.get("status") == "completed":
         return "resolved"
     if t.get("status") == "in_progress":
@@ -91,7 +91,7 @@ def _alert_view(a: dict, current: bool) -> dict:
 
 def _task_view(t: dict, current: bool) -> dict:
     opened = _iso(t.get("created_at"))
-    lifecycle = _task_lifecycle(t)
+    lifecycle = task_lifecycle(t)
     return {
         "kind": "staff_request",
         "ref": t.get("task_id"),

@@ -12,11 +12,12 @@ from routes.realtime_facility import _facility_now, greeting_note
 from routes.realtime_companion_memory import build_resident_profile_and_memory
 from routes.realtime_operational_context import render_operational_block
 from routes.aria_continuity import render_continuity_block
+from routes.aria_conversation_state import render_conversation_state_block
 
 
 async def _build_companion_instructions(
     resident_id: str | None, operational_state: dict | None = None,
-    continuity: dict | None = None,
+    continuity: dict | None = None, conversation_state: dict | None = None,
 ) -> str:
     """System prompt the resident-facing companion (Aria) speaks under.
 
@@ -267,10 +268,12 @@ async def _build_companion_instructions(
 
     profile_and_memory = await build_resident_profile_and_memory(resident_id, r, name, full_name)
     continuity_block = render_continuity_block(continuity, name or "them")
+    cs_block = render_conversation_state_block(conversation_state)
     # Order: durable baseline (persona + who they are) → recent continuity
-    # (what was said) → operational reality (what is true NOW, kept last so
-    # it is the freshest, most salient context).
+    # (cross-session, what was said) → this call's own state (has THIS call
+    # already filed/finished something) → operational reality (what is true
+    # NOW, kept last so it is the freshest, most salient context).
     return (_system_self_knowledge() + time_anchor + persona
-            + profile_and_memory + continuity_block + op_block)
+            + profile_and_memory + continuity_block + cs_block + op_block)
 
 

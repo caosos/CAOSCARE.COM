@@ -2488,3 +2488,128 @@ extraction, NOT in this commit):**
 ### Next safe step
 Reload the dev backend; un-skip the HTTP endpoint test. Then STOP for
 Michael's review before Layer C / D / F (per directive).
+
+---
+
+## 2026-09-08 — Aria substrate Layer C: runtime conversation-vs-intent state
+
+### Agent / tool
+Claude Code (Sonnet 5). Branch `aria/conversation-substrate`, on top of the
+Layer B commit `6f0f876`. No subagents. No merge, no deploy, no backend
+restart, no new branch. Did not touch the in-flight Level 1 session-fencing /
+RF-intake / `useRealtimeVoice.js` frontend-refactor work.
+
+Note on the prior stop directive: the 2026-09-08 Layer B entry above recorded
+"STOP for Michael's review before Layer C / D / F" as a standing directive.
+This session's task was given directly by Michael, instructing the next
+unimplemented layer in `docs/ARIA_SUBSTRATE_IMPLEMENTATION_PLAN.md` be
+identified and built — i.e. the review gate this note describes. Recorded
+here so a future reader does not see the directive un-acted-on and assume it
+was silently ignored.
+
+### What changed
+**Code (new):**
+- `backend/routes/aria_conversation_state.py` (159) — Layer C.
+  `resolve_conversation_state(resident_id, session_id)` answers "has THIS
+  call already filed or finished a request, or asked a routing question
+  awaiting an answer" — keyed by `session_id`, not `resident_id`, so a
+  reconnect/`session.update` that reuses the same session_id sees what this
+  call already did. Reads `db.conversations` turns for the session and
+  `db.staff_tasks` rows linked via the existing `conversation_session_id`
+  field (see `resident_conversations.py`) — no new task-tracking table.
+  Returns `None` for a brand-new session (nothing persisted yet — must not
+  be told it's mid-conversation). States: `conversation_active` (ordinary
+  talk, nothing to guard), `action_in_progress` (an open task tied to this
+  session), `action_completed` (a task tied to this session resolved, few
+  turns since), `conversation_resumed` (resolved, but the conversation has
+  clearly moved on — more than `RESUMED_AFTER_TURNS` turns since), and
+  `awaiting_required_detail` (last turn was an unanswered assistant
+  question — the `request_live_staff` routing-question case in the
+  companion prompt, which previously had no state to track "already
+  asked"). `render_conversation_state_block()` renders guidance only for
+  the four non-default states — empty for `conversation_active` / a fresh
+  session, matching the Layer E "empty state ⇒ empty block" invariant.
+  Public `GET /api/aria/conversation-state` (read-only, resident/session-
+  scoped, same trust model as the other Aria inspection endpoints).
+  `actionable_intent_detected` (the sixth state in the contract's enum) is
+  documented as a live, in-the-moment classification with no persisted
+  trace to reconstruct after the fact, rather than faked with a heuristic.
+
+**Code (modified):**
+- `backend/routes/aria_operational_state.py` — `_task_lifecycle` renamed to
+  public `task_lifecycle` (net 0 lines) so Layer C reuses the one lifecycle
+  mapping instead of duplicating it; matches the `aria_time.py` extraction
+  precedent from Layer B.
+- `backend/routes/realtime_companion_prompt.py` — `_build_companion_instructions`
+  takes `conversation_state=`; block order is baseline → continuity →
+  **this call's own state** → operational ("right now" stays last/freshest).
+  (Committed via `git add -p`; the unrelated pre-existing `get_room_status`
+  climate-context hunk already sitting in this file's working tree stays
+  there, not in this commit — same discipline as the Layer B commit.)
+- `backend/server.py` (+1 import, +1 include_router) — registers the new
+  router.
+
+**Wiring left in the working tree (rides with the in-flight Level 1 `_mint`
+extraction, NOT in this commit — same as Layer B's wiring before it):**
+- `backend/routes/realtime_resident_session.py::_mint` — resolves
+  `conversation_state` best-effort and threads it into instructions +
+  `_caos.context.conversation_state`.
+
+**Tests (new):**
+- `backend/tests/test_aria_conversation_state.py` — cases 1–7 (fresh session
+  → `None`; ordinary conversation → `conversation_active` + empty block; an
+  open session-scoped task → `action_in_progress`; a resolved task with the
+  call closing out → `action_completed`; a resolved task with the
+  conversation clearly having moved on → `conversation_resumed`; an
+  unanswered assistant question → `awaiting_required_detail`; provider
+  portability — plain dict, no vendor keys) plus a full-prompt integration
+  case asserting the `## This call so far` block renders after `Who you are`.
+
+### What was verified
+- `python -c "import server"` OK (via `backend/.venv`). All new/changed
+  files import clean.
+- `pytest tests/test_aria_conversation_state.py tests/test_aria_operational_state.py
+  tests/test_aria_continuity.py tests/test_companion_prompt_substrate.py
+  tests/test_substrate_layers_integration.py` → 11 passed, 1 skipped (the
+  pre-existing operational-state HTTP endpoint skip, unrelated to this
+  change — still pending the dev-backend reload noted in the Layer E entry).
+- `pytest tests/test_level1_session_fencing.py tests/test_level1_concurrency_isolation.py`
+  → 2 passed (unchanged by this work).
+- Full `pytest tests/` (excluding `iter6/7/9_test.py`, which fail to collect
+  in this shell from a missing `REACT_APP_BACKEND_URL` env var, pre-existing
+  and unrelated) shows a large pre-existing block of HTTP-integration test
+  failures (`backend_test.py`, `iter5/8_test.py`, `test_room_device_isolation.py`,
+  etc.) — spot-checked one (`TestAlerts::test_alert_stats`): its `admin_token`
+  fixture gets a 404 logging into a live server this shell has no route to,
+  the same "shared dev backend not reloaded" condition the Layer E entry
+  already documented, not a regression from this change. None of the failing
+  test names touch a file this change modified.
+- Line counts of every created/modified production-code file: all ≤ 300
+  (`aria_conversation_state.py` 159; `aria_operational_state.py` 198;
+  `realtime_companion_prompt.py` 283; `server.py` 209; the uncommitted
+  working-tree `realtime_resident_session.py` 153).
+
+### What is blocked / not done
+- Same dev-backend-reload blocker as Layers B/E: `GET /api/aria/conversation-state`
+  is not live until the shared dev backend is restarted; not done unprompted
+  while other lanes may be mid-test.
+- No live voice run has exercised Layer C end-to-end.
+- `RESUMED_AFTER_TURNS` (currently 2) is a coarse heuristic for "the
+  conversation has moved on" — no semantic topic-change detection.
+- Substrate Layers D (subject-triggered memory retrieval) and F (capability
+  truth in context) remain designed but not built, per
+  `docs/ARIA_SUBSTRATE_IMPLEMENTATION_PLAN.md`.
+- `check_request_status` / `request_staff_help` result formatters still do
+  not defer to Layer E (plan item 4); `end_call` first-call honoring (item
+  5) and device-tool discipline (item 6) are also still open. Layer C
+  supplies the state those items would consume but does not itself change
+  any tool-result formatter.
+
+### Next safe step
+Per the implementation plan's ordered list: `check_request_status` /
+`request_staff_help` result formatters should defer to Layer E
+(`resolve_operational_state`) instead of their current timestamp-less text,
+and the `end_call` first-call-honoring fix (Room 214 mechanism #6). Reload
+the dev backend when coordinated with other lanes so the three new
+inspection endpoints (`operational-state`, `continuity`, `conversation-state`)
+go live and their HTTP tests can un-skip.

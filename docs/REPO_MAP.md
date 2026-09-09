@@ -578,3 +578,28 @@ This repository is an active CAOS Care multi-surface codebase. Keep the map curr
   `aria_time` (was local).
 - Tests: `backend/tests/test_aria_continuity.py`,
   `backend/tests/test_substrate_layers_integration.py`.
+
+## 2026-09-08 — Aria substrate Layer C (runtime conversation-vs-intent state)
+
+- `backend/routes/aria_conversation_state.py`: `resolve_conversation_state()`
+  answers "has THIS call (this `session_id`) already filed or finished a
+  request, or asked a routing question awaiting an answer" from
+  `db.conversations` turns + `db.staff_tasks` rows tied to the session via
+  `conversation_session_id` — no new task-tracking table. Returns one of
+  `conversation_active | action_in_progress | awaiting_required_detail |
+  action_completed | conversation_resumed` (the sixth enum value,
+  `actionable_intent_detected`, is a live in-the-moment classification with
+  no persisted trace — documented, not faked). `render_conversation_state_block()`
+  renders guidance only for the non-default states (empty for
+  `conversation_active` / brand-new sessions). Public
+  `GET /api/aria/conversation-state`. Read-only.
+- `backend/routes/aria_operational_state.py`: `_task_lifecycle` renamed to
+  public `task_lifecycle` — shared with Layer C rather than duplicated.
+- `backend/routes/realtime_companion_prompt.py`: `_build_companion_instructions`
+  takes `conversation_state=`; order is baseline → continuity → this call's
+  own state → operational ("right now" stays last/freshest).
+- Wiring into `backend/routes/realtime_resident_session.py::_mint` (threads
+  `conversation_state` into instructions + `_caos.context`) rides in the
+  working tree with the in-flight Level 1 `_mint` extraction — not part of
+  this commit, same as the Layer B continuity wiring before it.
+- Tests: `backend/tests/test_aria_conversation_state.py`.
