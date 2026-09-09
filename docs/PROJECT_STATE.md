@@ -2888,3 +2888,43 @@ untracked, carries the B/C/E resolvers + `_caos.context` keys) with the
 in-flight Level 1 `_mint` extraction: land them together through the canonical
 mint path, do not independently rewrite `_mint`. If Level 1 is still actively
 conflicting, stop only that step and report the dependency.
+
+---
+
+## 2026-09-09 — Substrate Step 3: _mint wiring — BLOCKED on Level 1 extraction
+
+### Status
+STOPPED at Step 3 per directive ("if that work is still actively conflicting,
+stop ONLY this step and report the exact dependency").
+
+### The dependency
+The canonical resident session-mint path is mid-extraction by the Level 1 lane
+and is **uncommitted** in the worktree:
+- `backend/routes/realtime_resident_session.py` (untracked) — holds `_mint`
+- `backend/routes/resident_session_binding.py` (untracked)
+- `backend/routes/realtime.py` (modified, uncommitted) — `create_session` gutted
+  to `return await create_resident_session(payload)`
+
+The B/C/E substrate wiring is **already present and correct inside that
+untracked `_mint`**: it calls `resolve_operational_state`, `resolve_continuity`,
+`resolve_conversation_state`, passes all three to
+`_build_companion_instructions(...)`, and puts `operational_state` /
+`continuity` / `conversation_state` on `_caos.context`. Verified by import +
+source inspection; `/api/realtime/session` routes to it; `import server` OK.
+
+Not committed here because doing so would either (a) pull an entire in-flight
+Level 1 refactor into a substrate commit and misattribute it, or (b) require
+independently rewriting `_mint` in `realtime.py` — both explicitly disallowed.
+
+### Unblock condition
+When the Level 1 lane commits its `_mint` extraction, the substrate wiring
+lands with it. A follow-up commit should then add a mint-path integration test
+(`create_resident_session` / `_mint` assembles B+C+E into `instructions` and
+`_caos.context`).
+
+### Independent substrate work in this run — all done and committed
+- `2f25487` Layer C review integration
+- `b864bfa` Step 1 (request tools speak from Layer E, backend)
+- `0c95352` Step 2 (Layer B corrections B-1, B-2)
+
+Layer D / F not started (deferred by directive).
