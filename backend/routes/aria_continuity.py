@@ -43,11 +43,26 @@ _TRIVIAL = {
     "hey", "yeah", "yes", "no", "ok", "okay", "sure", "thanks", "thank you",
     "bye", "goodbye", "what", "huh", "aria", "arya",
 }
-# Diagnostic end reasons that mean the resident did NOT close the call.
-_UNFINISHED_ENDS = {
+# POSITIVE evidence the call was cut off rather than closed by the resident.
+# A missing / unknown end reason is NOT evidence of either — do not treat
+# absence as "unfinished" (that reintroduces a baseline→workflow leak).
+_DROPPED_ENDS = {
     "companion_timeout", "datachannel_closed", "datachannel_error",
-    "realtime_error", "pc_disconnected", "setup_failed", None,
+    "realtime_error", "pc_disconnected", "setup_failed",
 }
+# POSITIVE evidence the resident ended it deliberately.
+_CLEAN_ENDS = {"resident_end_call", "ui_end_call_button", "resident_end_conversation"}
+
+
+async def ensure_indexes() -> None:
+    """Called once from app startup (server.py lifespan), never from the
+    request/session-assembly path — index DDL does not belong in a mint."""
+    try:
+        await db.conversations.create_index(
+            [("resident_id", 1), ("created_at", -1)], name="continuity_lookup",
+        )
+    except Exception:
+        pass
 
 
 def _norm(s: str) -> str:
@@ -102,12 +117,6 @@ async def resolve_continuity(
     alone, inside no workflow."""
     if not resident_id:
         return {"has_continuity": False, "sessions": []}
-    try:
-        await db.conversations.create_index(
-            [("resident_id", 1), ("created_at", -1)], name="continuity_lookup",
-        )
-    except Exception:
-        pass
 
     rows = await db.conversations.find(
         {"resident_id": resident_id}, {"_id": 0, "session_id": 1, "role": 1,
@@ -144,7 +153,9 @@ async def resolve_continuity(
             "age_phrase": age_phrase(last_at),
             "ended_at": last_at,
             "end_reason": end_reason,
-            "unfinished": end_reason in _UNFINISHED_ENDS,
+            # positive evidence only — unknown end reason is neither
+            "unfinished": end_reason in _DROPPED_ENDS,
+            "clean_close": end_reason in _CLEAN_ENDS,
             "turn_count": len(s_rows),
             "_rows": s_rows,
         })
@@ -169,8 +180,12 @@ def render_continuity_block(state: Optional[dict], name: str = "them") -> str:
     parts = ["\n\n" + _HEADER.format(name=name)]
     budget = _TOTAL_CHAR_CAP
     for s in state["sessions"]:
-        tail = " — the call dropped before a goodbye; {n} may pick this back up".format(n=name) \
-            if s["unfinished"] else " — ended when {n} was done".format(n=name)
+        if s.get("unfinished"):
+            tail = f" — the call dropped before a goodbye; {name} may pick this back up"
+        elif s.get("clean_close"):
+            tail = f" — ended when {name} was done"
+        else:
+            tail = ""  # end reason unknown — do not claim either way
         head = f"\n### {s['age_phrase'].capitalize()}{tail}\n"
         body_lines = _compact_turns(s["_rows"], name)
         chunk = head + "\n".join(body_lines) + "\n"

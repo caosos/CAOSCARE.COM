@@ -628,3 +628,12 @@ This repository is an active CAOS Care multi-surface codebase. Keep the map curr
   lifecycle cannot contradict `resolve_operational_state`).
 - Frontend follow-up (not done): `realtimeOperationsTools.js` should forward
   `data.spoken` for `check_request_status` + the dedupe branch.
+
+## 2026-09-09 — Substrate Step 2 (Layer B corrections)
+
+- `backend/routes/aria_continuity.py`: `unfinished` now needs positive evidence
+  (`_DROPPED_ENDS`); `_CLEAN_ENDS` marks resident-initiated close; unknown end
+  reason claims neither. `ensure_indexes()` (called from `server.py` lifespan)
+  owns the `db.conversations` continuity index — `resolve_continuity` no longer
+  does DDL in the request path.
+- `backend/server.py`: lifespan calls `aria_continuity.ensure_indexes()`.

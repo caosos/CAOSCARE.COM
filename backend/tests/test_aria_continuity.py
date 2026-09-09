@@ -118,10 +118,27 @@ async def _run():
 
         # ---- CASE 4: the dropped session is flagged as possibly unfinished
         drop = next(s for s in st["sessions"] if s["session_id"] == dropped_sid)
-        assert drop["unfinished"] is True
+        assert drop["unfinished"] is True and drop["clean_close"] is False
         clean = next(s for s in st["sessions"] if s["session_id"] == recent_sid)
-        assert clean["unfinished"] is False
+        assert clean["unfinished"] is False and clean["clean_close"] is True
         assert "pick this back up" in block  # only for the dropped one
+
+        # ---- CASE 4b (B-2 regression): a session with NO session_ended row is
+        # NOT "unfinished" — absence of a reason is not positive evidence.
+        noreason_sid = f"rt_noreason_{uuid.uuid4().hex[:6]}"
+        await _seed_turns(db, rid, noreason_sid, [
+            ("user", "I was thinking about the garden again"),
+            ("assistant", "Tell me more, Helen."),
+        ], now - timedelta(minutes=25))
+        st_nr = await resolve_continuity(rid, current_session_id=current_sid)
+        nr = next(s for s in st_nr["sessions"] if s["session_id"] == noreason_sid)
+        assert nr["end_reason"] is None
+        assert nr["unfinished"] is False and nr["clean_close"] is False
+        # render just this session — its header carries no drop/clean tail
+        one = render_continuity_block({"has_continuity": True, "sessions": [nr]}, "Helen")
+        header_line = next(ln for ln in one.splitlines() if ln.startswith("### "))
+        assert "pick this back up" not in header_line
+        assert "was done" not in header_line
 
         # ---- CASE 3 / 8: it is context, not a workflow, and not an opener
         low = block.lower()
@@ -203,3 +220,15 @@ def test_continuity_economics_capped():
 def test_continuity_empty_is_pure_baseline():
     _skip_if_down()
     asyncio.get_event_loop().run_until_complete(_empty())
+
+
+def test_continuity_index_creation_not_in_request_path():
+    """B-1: index DDL belongs in app startup, not resolve_continuity."""
+    import inspect
+    import routes.aria_continuity as m
+    assert "create_index" not in inspect.getsource(m.resolve_continuity)
+    assert asyncio.iscoroutinefunction(m.ensure_indexes)
+    # idempotent + callable outside a request
+    _skip_if_down()
+    asyncio.get_event_loop().run_until_complete(m.ensure_indexes())
+    asyncio.get_event_loop().run_until_complete(m.ensure_indexes())

@@ -2844,3 +2844,47 @@ mean "unfinished"; require positive evidence) and B-1 (move the
 `db.conversations` continuity-index creation out of `resolve_continuity` into
 app startup/lifespan). Then Step 3 — coordinate the `_mint` wiring with the
 in-flight Level 1 extraction.
+
+---
+
+## 2026-09-09 — Substrate Step 2: Layer B corrections (B-1, B-2)
+
+### Agent / tool
+Claude Code (Sonnet 5), branch `aria/conversation-substrate`, on top of Step 1
+(`b864bfa`). Backend-only. No merge/deploy/restart. Did not touch frontend or
+the in-flight Level 1 work.
+
+### What changed
+- **B-2** — `backend/routes/aria_continuity.py`: `_UNFINISHED_ENDS` (which
+  included `None`) replaced by `_DROPPED_ENDS` (positive drop/timeout reasons
+  only) + `_CLEAN_ENDS` (resident-initiated close). A prior session is
+  `unfinished` only on positive evidence; a missing/unknown `session_ended`
+  reason is `unfinished=False, clean_close=False`. `render_continuity_block`
+  now emits a 3-way header tail: dropped → "may pick this back up",
+  clean → "ended when X was done", unknown → no tail (no claim either way).
+  Closes the reviewer's baseline→workflow leak: a clean session with no
+  diagnostic row is no longer recapped as an open thread.
+- **B-1** — index DDL out of the request path: new
+  `aria_continuity.ensure_indexes()` (builds the `resident_id + created_at`
+  index on `db.conversations`), called once from `server.py` lifespan after
+  `seed_default_departments()`. `resolve_continuity` no longer calls
+  `create_index`.
+
+### Tests
+- `test_aria_continuity.py`: CASE 4 also asserts `clean_close`; new CASE 4b
+  (B-2) — a session with no `session_ended` row is `unfinished=False,
+  clean_close=False` and its rendered header has no drop/goodbye tail; new
+  `test_continuity_index_creation_not_in_request_path` (B-1) — `resolve_continuity`
+  source has no `create_index`; `ensure_indexes` is an idempotent coroutine.
+
+### Verified
+`pytest` substrate + level1: **20 passed, 1 skipped** (operational-state HTTP
+endpoint, pending dev backend reload). `import server` OK. Line counts ≤ 300:
+`aria_continuity.py` 212.
+
+### Next safe step
+Step 3 — coordinate the `_mint` wiring (`realtime_resident_session.py`, still
+untracked, carries the B/C/E resolvers + `_caos.context` keys) with the
+in-flight Level 1 `_mint` extraction: land them together through the canonical
+mint path, do not independently rewrite `_mint`. If Level 1 is still actively
+conflicting, stop only that step and report the dependency.

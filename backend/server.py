@@ -107,6 +107,13 @@ async def lifespan(app: FastAPI):
     # least the baseline departments exist. No-ops if any already do.
     from routes.departments import seed_default_departments
     await seed_default_departments()
+    # Substrate lookup indexes — built once here, never in the session-mint
+    # / context-assembly path.
+    from routes.aria_continuity import ensure_indexes as _ensure_continuity_indexes
+    try:
+        await _ensure_continuity_indexes()
+    except Exception as e:
+        logging.warning(f"continuity index setup skipped: {e}")
     yield
 
 

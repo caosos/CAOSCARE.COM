@@ -82,10 +82,16 @@ Typical rendered block ≈ 1 000 chars (~250 tokens); worst case bounded at
    `GET /api/aria/continuity` are live, then un-skip
    `test_operational_state_http_endpoint`. (No reload flag on the running
    process — coordinate, don't do it unprompted mid-other-lane-work.)
-2. **Layer B on reconnect.** `resolve_continuity` currently runs at mint only.
-   Add a refresh path so a mid-call reconnect re-assembles the block (including
-   the *current* session's own recent turns) via `session.update` — needs a
-   frontend consumer, so it waits on the `useRealtimeVoice.js` refactor landing.
+2. **Layer B corrections — DONE 2026-09-09.**
+   - B-2: `unfinished` now needs positive evidence — `end_reason ∈ _DROPPED_ENDS`.
+     A missing / `None` / unknown reason is neither `unfinished` nor
+     `clean_close`; the recap header then carries no drop/goodbye tail.
+   - B-1: the `db.conversations` continuity index moved to
+     `aria_continuity.ensure_indexes()`, called once from `server.py` lifespan;
+     `resolve_continuity` no longer does DDL in the request path.
+2b. **Layer B on reconnect** (still pending). `resolve_continuity` runs at mint
+   only; a mid-call reconnect refresh (incl. the current session's own turns)
+   via `session.update` needs a frontend consumer — waits on `useRealtimeVoice.js`.
 3. ~~**Layer C — runtime conversation state.**~~ **DONE** (`a03d5b5` +
    review-integration commit). `routes/aria_conversation_state.py`, session-scoped,
    defers to Layer E, positive-evidence `awaiting_required_detail`.
