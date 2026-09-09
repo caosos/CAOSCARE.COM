@@ -140,3 +140,9 @@ The system succeeds when Aria can simply be present, converse naturally, recogni
 ## Implementation principle
 
 **We define Aria. Models generate turns for Aria.**
+
+## Working in this lane
+
+- Onboarding reading list (canonical, single source): `docs/ARIA_LANE_ONBOARDING.md`.
+- Current implementation status of this contract: `docs/ARIA_SUBSTRATE_IMPLEMENTATION_PLAN.md`.
+- Evidence that motivates it: `docs/ROOM_214_CONVERSATION_EVIDENCE_2026-09-08.md`.

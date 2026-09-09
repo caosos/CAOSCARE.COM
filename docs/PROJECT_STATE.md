@@ -2217,3 +2217,179 @@ Nothing. This fix is complete and verified. Live-hardware/voice break-testing of
 
 ### Next safe step
 Proceed to the live break-test pass against real Room 214 hardware and the real voice path.
+
+## 2026-09-06 — Codex temporary takeover: Level 1 adversarial checkpoint; two source fixes, live recovery NOT passed
+
+### Agent / tool
+Codex on EliteDesk, shell, read-only local Mongo snapshots, isolated
+ASGI/Mongo reproductions and pytest. No subagents.
+
+### Branch / ref
+`main` at `d994331`, matching the local `origin/main` ref; no fetch, commit,
+staging, push, or deployment. Seven pre-existing climate files were
+fingerprinted and verified unchanged.
+
+### What changed
+Prepared bounded fixes in `resident_activation.py` (209 lines) and
+`kiosks.py` (142 lines): enforce uniqueness for new/adopted open-event keys,
+retry concurrent creators, avoid appending to a just-closed event, and
+limit room kiosk activation polling to its own room. Existing historical
+duplicates are preserved. Added isolated concurrency/isolation regression
+test and `docs/LEVEL1_BREAK_TEST_2026-09-06.md`; updated REPO_MAP.
+The running backend has no reload flag and was not restarted, so these
+source fixes are NOT live yet. No frontend or device-control changes.
+
+### What was verified
+Local health is healthy. Isolated baseline produced 12 open events for
+12 concurrent requests, frame-count inflation, foreign-room routing with
+null zones, and an old dismissal consuming a newer activation. Lease
+concurrency already yielded one winner and stale release was rejected.
+The new regression passed: 24 concurrent presses, one event/receipt,
+correct preserved press records, post-resolve concurrency, retained legacy
+history, and correct room/zone/central polling boundaries. Test evidence
+is retained in `caos_level1_test_4588857959bc`; baseline reproduction in
+`caos_level1_break_a8b656740a`. See audit for the additional ASGI rerun.
+
+Room 214 read-only snapshot found nine historical open events and no lease.
+Eight real RF frames at 22:04:50–22:04:53 UTC attached to one event but
+increased press_count 49 → 57; no new voice diagnostic entries appeared
+in the checked interval. This is frame evidence, not yet Michael-confirmed
+human-press/audio evidence. No raw transcripts/secrets were exposed.
+`git diff --check` passed; climate file hashes unchanged.
+
+### What is blocked / incomplete
+Live break test + automatic recovery are NOT complete. Michael confirmed
+availability but has not yet described the kiosk result of the requested
+single press. RF grouping, same-event frontend reactivation, terminal
+connection recovery, heartbeat rejection/audio fencing, delayed lifecycle
+fencing, UI end-call consumption, and durable lease transition history
+remain unresolved. Physical audio ownership cannot be inferred from one
+Mongo lease. Prior live-backend tests do not cover these boundaries.
+Public-site web-tool open failed; website content pending source review.
+
+### Next safe step
+Obtain the physical baseline observation; continue isolated regressions and
+minimal fixes for the documented remaining boundaries, then coordinate the
+local live acceptance sequence. Preserve real Room 214 events and device
+mappings; do not clean historical data or touch production/HA/network.
+
+---
+
+## 2026-09-08 — Aria conversation-substrate lane: Room 214 evidence reconstruction, Layer E operational-state authority, future-agent onboarding SoT
+
+### Agent / tool
+Claude Code (Sonnet 5), EliteDesk primary worktree. Branch
+`aria/conversation-substrate`, on top of `90b153e`. No subagents. Read-only
+Mongo inspection of `caoscare` DB for evidence; source changes local only.
+
+### Branch / ref
+`aria/conversation-substrate`. No branch/worktree created, no `main` merge, no
+deploy, no production/HA/network changes. Did NOT touch the Claude Code 1 / 2
+lanes or the in-flight Level 1 session-fencing / RF-intake uncommitted work
+(reused it as the compatible plumbing beneath the substrate).
+
+### What changed
+**Documentation (new):**
+- `docs/ROOM_214_CONVERSATION_EVIDENCE_2026-09-08.md` — reconstruction of all
+  19 Helen Torres / Room 214 realtime sessions (2026-09-05 → 09-09) from raw
+  evidence (`conversations` 277 turns, `realtime_diagnostics` tool rows,
+  `alerts`, `staff_tasks`, `resident_aria_lease_events`, `activation_events`).
+  Per-session: what Aria knew, operational state, tools executed, what she said
+  next, where it broke. Evidence-class tagged (OBS / CODE / INF+ / INF- / GAP).
+  Sessions kept separate, not merged. Part 4 maps 9 transactional /
+  vending-machine mechanisms to exact current source. Part 5 scope-guards what
+  is NOT a substrate problem.
+- `docs/ARIA_LANE_ONBOARDING.md` — the single canonical reading list for any
+  future agent entering the Aria/voice/realtime/substrate lane (pointer list,
+  not a doctrine copy). Referenced from `AGENTS.md` and
+  `docs/ARIA_CONVERSATION_SUBSTRATE.md`. This is the durable mechanism for
+  "every new coding agent gets its baseline before it works" (mission §9).
+- `docs/ARIA_SUBSTRATE_IMPLEMENTATION_PLAN.md` — Layers A–F → modules, what is
+  done, ordered next steps, invariants.
+
+**Code (new, all < 300 lines):**
+- `backend/routes/aria_operational_state.py` (228) — Layer E authority:
+  `resolve_operational_state(resident_id, room, alert_id)` unifies open
+  `db.alerts` events + open `db.staff_tasks` requests into one snapshot with
+  normalized `lifecycle` (open/acknowledged/answered/in_progress/resolved/
+  escalated), `handled_by`, `opened_at` + conversational `opened_age`,
+  `relevance` (`current` iff it is the activation Aria was brought in on, or the
+  sole open event — never "newest wins"), `recently_resolved` (≤12 h),
+  `speak_guidance`. Read-only; no lifecycle transitions here. Public
+  `GET /api/aria/operational-state` (resident/room-scoped).
+- `backend/routes/realtime_operational_context.py` (49) — renders the snapshot
+  into a terse `## What's actually happening right now` prompt block; **empty
+  string when nothing is open** (no forced workflow at session start).
+
+**Code (modified, in the Layer E commit):**
+- `backend/routes/realtime_companion_prompt.py` (256→273) —
+  `_build_companion_instructions` now takes `operational_state` and appends the
+  block; opener changed from "say their name softly and ask what they need" to
+  presence-first ("a greeting is not a transaction… a task will surface on its
+  own if there is one"). (Staged with `git add -p` — an unrelated prior
+  uncommitted `get_room_status` climate-note hunk in the same file was left in
+  the working tree, not this commit.)
+- `backend/server.py` (+2) — register the new router.
+
+**Wiring left in the working tree (rides with the in-flight Level 1
+session-mint extraction, NOT in the Layer E commit):**
+- `backend/routes/realtime_resident_session.py` — `_mint` resolves operational
+  state (best-effort, never blocks the mint) and passes it to
+  `_build_companion_instructions` + `_caos.context.operational_state`. This file
+  is an uncommitted prior-session extraction of `_mint` out of `realtime.py`;
+  the Layer E wiring is additive on top and is committed when that extraction
+  is. Until then, the live consumer surface is the HTTP endpoint
+  `GET /api/aria/operational-state` (committed) plus the tested
+  `operational_state=` parameter on `_build_companion_instructions`.
+
+Note: `docs/PROJECT_STATE.md` and `docs/REPO_MAP.md` in this same commit also
+persist a previously-uncommitted **Codex Level 1 adversarial checkpoint** log
+entry (2026-09-06) that was already sitting in the working tree — append-only
+log files cannot be partially staged. Not authored by this work.
+
+**Tests (new):**
+- `backend/tests/test_aria_operational_state.py` (183) — lifecycle + relevance:
+  stale unacknowledged event reports `open` WITH an age (not timeless "already
+  on file"); a new live emergency event is `current` while an older bathroom
+  request drops to `background` (the Room 214 s16 regression); acknowledged /
+  resolved no longer read as waiting; empty state ⇒ empty block.
+- `backend/tests/test_companion_prompt_substrate.py` (78) — fresh session has no
+  "ask what they need" and no operational block; a populated state renders
+  lifecycle + age + guidance and is appended after the persona.
+
+### What was verified
+- `python -c "import server"` OK. All new/changed files import clean.
+- `pytest tests/test_aria_operational_state.py tests/test_companion_prompt_substrate.py`
+  → 5 passed, 1 skipped (the HTTP endpoint test — the shared dev backend on
+  :8000 has no reload flag and was not restarted, so `/api/aria/operational-state`
+  still 404s live; the wrapped function is fully tested).
+- `pytest tests/test_level1_session_fencing.py tests/test_level1_concurrency_isolation.py`
+  → 2 passed (my changes did not disturb the in-flight fencing work).
+- Line counts of every created/modified production-code file are in "What
+  changed" above; all handwritten code files ≤ 300.
+
+### What is blocked / not done
+- `GET /api/aria/operational-state` is not live until the dev backend is
+  reloaded/restarted (no reload flag; not done unprompted while other lanes may
+  be mid-test). `test_operational_state_http_endpoint` skips until then.
+- Pre-existing, NOT mine: `tests/test_resident_events.py::test_resident_event_model`
+  fails at `HEAD` `90b153e` too — its synthetic `_press` fingerprint is now
+  suppressed as supervisory by the newer `rf_activation_intake.py` classifier
+  (all switches open). Level 1 RF-intake lane concern, tracked in
+  `docs/LEVEL1_BREAK_TEST_2026-09-06.md`.
+- Substrate Layers B (cross-session continuity — the "I thought I just told
+  you" gap), C (runtime conversation-vs-intent state), D (subject-triggered
+  memory retrieval), F (capability truth in context) are designed in
+  `docs/ARIA_SUBSTRATE_IMPLEMENTATION_PLAN.md` "Next steps" but not built.
+- No frontend changes: `_caos.context.operational_state` is sent but not yet
+  consumed by `useRealtimeVoice.js` (e.g. refresh-on-reconnect via
+  `session.update`). Left for the frontend-refactor-aware follow-up.
+- Room 214 evidence gaps (Part 6): the carrier that injected stale "you're
+  bleeding" into s16/s17/s18 openers; whether any `call_for_help` page was
+  human-received at the time; audio-quality/latency analysis.
+
+### Next safe step
+Reload the dev backend and un-skip the endpoint test. Then Layer B
+(cross-session continuity block on mint + reconnect, keyed by resident +
+recency, regression against the s8→s9→s10 sequence), per the implementation
+plan's ordered next steps.

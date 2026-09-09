@@ -531,3 +531,35 @@ Do not infer live deployment state from repository existence.
 Do not treat this repo as blank.
 
 This repository is an active CAOS Care multi-surface codebase. Keep the map current, inspect before writing, preserve human oversight, and maintain strict care-domain safety boundaries.
+
+## 2026-09-06 — Level 1 adversarial checkpoint
+
+- `docs/LEVEL1_BREAK_TEST_2026-09-06.md`: traced RF/event/lease/voice path,
+  live metadata observations, isolated reproduced failures, two prepared
+  backend fixes, and the exact remaining physical acceptance sequence.
+- `backend/tests/test_level1_concurrency_isolation.py`: subprocess-isolated
+  real-Mongo concurrency, legacy-history, and room-poll regression checks;
+  synthetic evidence is retained outside the care database.
+- Public website read-only web-tool open failed with a non-retryable
+  safe-open error; site content remains pending source review by this tool.
+
+## 2026-09-08 — Aria conversation-substrate lane
+
+- `backend/routes/aria_operational_state.py`: Layer E operational-state
+  authority — `resolve_operational_state()` unifies open `db.alerts` events and
+  open `db.staff_tasks` requests into one authoritative snapshot (real
+  lifecycle + age + `current`/`background`); public `GET /api/aria/operational-state`.
+  Read-only; no lifecycle transitions here.
+- `backend/routes/realtime_operational_context.py`: renders that snapshot into
+  the `## What's actually happening right now` prompt block (empty when nothing
+  is open).
+- `backend/routes/realtime_companion_prompt.py`: `_build_companion_instructions`
+  now takes `operational_state`; presence-first opener.
+- `backend/routes/realtime_resident_session.py`: `_mint` threads operational
+  state into instructions + `_caos.context`.
+- Docs: `docs/ARIA_LANE_ONBOARDING.md` (canonical lane reading list, pointed to
+  from `AGENTS.md`), `docs/ARIA_SUBSTRATE_IMPLEMENTATION_PLAN.md` (Layers A–F →
+  modules, status, next steps), `docs/ROOM_214_CONVERSATION_EVIDENCE_2026-09-08.md`
+  (reconstructed evidence + mechanism→code map).
+- Tests: `backend/tests/test_aria_operational_state.py`,
+  `backend/tests/test_companion_prompt_substrate.py`.

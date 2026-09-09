@@ -10,9 +10,12 @@ from deps import db
 from routes.realtime_self_knowledge import _system_self_knowledge
 from routes.realtime_facility import _facility_now, greeting_note
 from routes.realtime_companion_memory import build_resident_profile_and_memory
+from routes.realtime_operational_context import render_operational_block
 
 
-async def _build_companion_instructions(resident_id: str | None) -> str:
+async def _build_companion_instructions(
+    resident_id: str | None, operational_state: dict | None = None,
+) -> str:
     """System prompt the resident-facing companion (Aria) speaks under.
 
     Was named "CAOS" until 2026-08-09 (unified to Aria - same voice identity
@@ -75,8 +78,13 @@ async def _build_companion_instructions(resident_id: str | None) -> str:
         "what you're about to do.\n"
         "\n"
         "## What to do\n"
-        "When the call opens, just say their name softly and ask what they need, "
-        "the way a friend would. If they need help, reassure them help is already "
+        "When the call opens, greet them by name, warm and brief, and leave room "
+        "for them to speak. Do NOT demand a request, ask 'what do you need', or "
+        "list what you can do — a greeting is not a transaction. If a help-button "
+        "press brought you in, a quiet 'I'm here' is enough; if they just start "
+        "talking, follow them. If they say nothing, wait — silence is fine. "
+        "A task will surface on its own if there is one. "
+        "If they need help, reassure them help is already "
         "on the way and stay with them — keep talking, ask about their day, "
         "their family, their pets, anything that brings calm. If they go quiet, "
         "let the silence breathe. It's okay to say nothing for ten seconds.\n"
@@ -240,21 +248,22 @@ async def _build_companion_instructions(resident_id: str | None) -> str:
         "confusion, gently confirm a caregiver is on the way and stay with them. "
         "If they ask you to rest or be quiet, stop talking immediately and wait."
     )
+    op_block = render_operational_block(operational_state)
     if not resident_id:
-        return _system_self_knowledge() + time_anchor + persona
+        return _system_self_knowledge() + time_anchor + persona + op_block
 
     r = await db.residents.find_one(
         {"resident_id": resident_id},
         {"_id": 0, "name": 1, "preferred_name": 1, "preferences": 1, "memory": 1, "low_vision": 1},
     )
     if not r:
-        return _system_self_knowledge() + time_anchor + persona
+        return _system_self_knowledge() + time_anchor + persona + op_block
 
     full_name = (r.get("name") or "").strip()
     preferred = (r.get("preferred_name") or "").strip()
     name = preferred or (full_name.split(" ")[0] if full_name else "")
 
     profile_and_memory = await build_resident_profile_and_memory(resident_id, r, name, full_name)
-    return _system_self_knowledge() + time_anchor + persona + profile_and_memory
+    return _system_self_knowledge() + time_anchor + persona + profile_and_memory + op_block
 
 
