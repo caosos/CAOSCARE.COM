@@ -33,10 +33,20 @@ next-env.d.ts
 dist/
 dist
 
-# Environment files (comprehensive coverage)
-
+# Environment and credential files
+.env
+.env.*
+*.env
 *token.json*
 *credentials.json*
+credentials.json
+*.pem
+*.key
+.credentials
+
+# Keep committed environment templates while ignoring real env files
+!.env.example
+!**/.env.example
 
 # Logs and debug files
 npm-debug.log*
@@ -47,7 +57,6 @@ dump.rdb
 
 # System files
 .DS_Store
-*.pem
 
 # Python
 __pycache__/
@@ -83,43 +92,3 @@ memory/test_credentials.md
 
 # Mobile development
 android-sdk/frontend/node_modules/.cache/default-development/0.pack
--e 
-# Environment and credential files
-.env
-.env.*
-*.env
-credentials.json
-*.pem
-*.key
-.credentials
--e 
-# Environment and credential files
-.env
-.env.*
-*.env
-credentials.json
-*.pem
-*.key
-.credentials
--e 
-# Environment and credential files
-.env
-.env.*
-*.env
-credentials.json
-*.pem
-*.key
-.credentials
--e 
-# Environment and credential files
-.env
-.env.*
-*.env
-credentials.json
-*.pem
-*.key
-.credentials
-
-# Keep committed environment templates while ignoring real env files
-!.env.example
-!**/.env.example
