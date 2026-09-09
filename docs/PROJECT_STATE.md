@@ -2613,3 +2613,102 @@ and the `end_call` first-call-honoring fix (Room 214 mechanism #6). Reload
 the dev backend when coordinated with other lanes so the three new
 inspection endpoints (`operational-state`, `continuity`, `conversation-state`)
 go live and their HTTP tests can un-skip.
+
+---
+
+## 2026-09-09 — Incident: full test-suite run left real Room 214 hardware on
+
+### What happened
+After the Layer C work above, a routine `pytest tests/` (run to check for
+collateral breakage from that change) executed `backend/tests/test_light_control.py`
+and `backend/tests/test_climate_control.py` — pre-existing, deliberately-written
+integration tests that send REAL commands to Room 214's REAL Home
+Assistant-backed hardware (Michael's own commissioned Matter devices: two
+TP-Link Tapo bulbs and a Midea AC) and assert against the real HA read-back.
+Neither file restores original state or is excluded from a plain test run.
+The result: both real bulbs (`Room 214 desk lamp` / `dev_f8be14de18e3` and
+`Room 214 overhead light` / `dev_facc6dbc7e13`) and the real AC
+(`dev_fa83aeda0cd4`) were left in whatever state the last test method
+happened to set them to — the desk lamp was on when Michael noticed it.
+
+Compounding error: when first asked, this agent checked a nonexistent
+`db.devices` collection, got `None`, and told Michael "I don't have a name
+mapping" — false. The real mapping was in `db.smart_devices` all along
+(`label: "Room 214 desk lamp"` / `"Room 214 overhead light"`), one query
+away. Corrected per Michael's direct instruction: never report an unknown
+without first verifying it's actually unknown.
+
+### Remediation
+- Both real bulbs confirmed OFF via live Home Assistant read-back
+  (`_dispatch_command` power=off, `verified: true` for both), issued with
+  honest attribution (`issued_by: "claude_code:incident_2026-09-09_test_side_effect_remediation"`,
+  not a fake `kiosk:room:214` tag) so the device_commands log tells the
+  truth about what actually issued each command.
+- Real AC (`dev_fa83aeda0cd4`, Midea): a power=off attempt was made with the
+  same honest attribution but Home Assistant's live read-back reported the
+  entity as `hvac_mode: unavailable` / `actual_state: 'unavailable'` — not
+  confirmed on or off. Per this codebase's own "never report success if
+  state can't be verified" rule (the reason `_dispatch_command` raises a 502
+  here instead of guessing), no success is claimed. This same entity's
+  `hvac_mode` was already reporting `unavailable` intermittently during the
+  original 04:48 test burst, including inside an ack marked "verified" —
+  possibly this specific Matter/Midea integration's known flakiness
+  (`test_climate_control.py`'s own docstring notes this AC's limited
+  Matter feature set), not something newly broken. Needs a physical check;
+  not re-attempted repeatedly against real hardware without one.
+
+### Structural fix (so a routine test run can never do this again)
+- `backend/pytest.ini` (new) — registers a `real_hardware` marker and sets
+  `addopts = -m "not real_hardware"`, so a plain `pytest` (or `pytest tests/`)
+  excludes any test carrying that marker by default. Opt in explicitly with
+  `-m real_hardware` when actually intending to exercise the physical bulbs/AC.
+- `backend/tests/test_light_control.py` — `TestRealBulbCapabilities` marked
+  `real_hardware` at the class level; the two tests in
+  `TestRoomIsolationAndSelection` that issue a real, non-ambiguous command
+  against the real bulbs (`test_selects_the_light_not_another_device_kind_in_the_same_room`,
+  `test_device_id_targets_the_correct_light_among_two`) marked individually.
+  The isolation/rejection tests that never reach the real adapter (ambiguous-command
+  400s, mock-room-only commands) were left unmarked — verified by reading
+  `routes/devices.py::public_room_command`'s dispatch order that they cannot
+  mutate real hardware.
+- `backend/tests/test_climate_control.py` — `TestRealAcCapabilities` marked
+  `real_hardware` at the class level; `test_retired_mock_ac_excluded_from_selection`
+  (issues a real command) marked individually. Same reasoning for what was
+  left unmarked.
+- Verified: `pytest tests/test_light_control.py tests/test_climate_control.py`
+  now runs 5 hardware-safe tests and deselects the 13 real-hardware ones;
+  `pytest ... -m real_hardware --collect-only` still finds all 13 (the
+  escape hatch works); a full `pytest tests/` run afterward touched zero
+  Room 214 real-hardware device_commands (confirmed by timestamp — the only
+  new commands were against the room 318 mock devices).
+
+### What was verified
+- Both real bulbs' current DB state: `power: off`, matching a fresh live
+  Home Assistant read-back at the time of remediation.
+- Real AC current DB state still shows the stale pre-incident `power: on` —
+  `_dispatch_command`'s failure path does not overwrite `smart_devices.state`
+  on a verification-mismatch failure, so this field is not authoritative
+  for this device right now. Flagged as a real gap, not fixed tonight
+  (`db.smart_devices.state` should probably reflect "unknown"/"unavailable"
+  after a failed verification rather than silently keeping the last-known
+  value — needs a decision on the right failure-state representation,
+  not a rushed change at this hour).
+
+### What is blocked / not done
+- Real AC power state is physically unconfirmed. Needs a human to check
+  the actual unit, or a retry once Home Assistant reports the entity as
+  available again.
+- The "failed command leaves stale state in `db.smart_devices`" gap noted
+  above is unresolved — worth a real look, not a late-night patch.
+- No teardown/state-restoration was added to `test_light_control.py` /
+  `test_climate_control.py` for when someone deliberately runs them with
+  `-m real_hardware` — the marker gate stops accidental runs, but an
+  intentional `-m real_hardware` run will still leave the real devices in
+  their final test-state, same as before. Worth adding if these are run
+  again.
+
+### Next safe step
+Physically confirm the Room 214 AC's actual state. Separately, decide how
+`db.smart_devices.state` should represent a failed/unverified command
+(currently: silently stale) and consider adding before/after state capture +
+restoration to the two real-hardware test files for intentional runs.
