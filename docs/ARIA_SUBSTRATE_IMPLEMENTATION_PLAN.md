@@ -89,10 +89,17 @@ Typical rendered block ≈ 1 000 chars (~250 tokens); worst case bounded at
 3. ~~**Layer C — runtime conversation state.**~~ **DONE** (`a03d5b5` +
    review-integration commit). `routes/aria_conversation_state.py`, session-scoped,
    defers to Layer E, positive-evidence `awaiting_required_detail`.
-4. **`check_request_status` / `request_staff_help` → speak from Layer E.** Their
-   result formatters should defer to `resolve_operational_state` (real lifecycle
-   + age) instead of the current timestamp-less "already on file / ask #N" text.
-   Backend-only. **NEXT.**
+4. ~~**`check_request_status` / `request_staff_help` → speak from Layer E.**~~
+   **DONE (backend)** — `routes/aria_request_status.py::request_status_view`
+   turns a `staff_tasks` row into `{lifecycle, opened_age, spoken}` using Layer
+   E's `task_lifecycle` + shared `age_phrase`; `_resident_safe_view` and the
+   `create_resident_request` dedupe branch now return those fields.
+   `test_request_tools_speak_from_layer_e.py` proves the tool-facing view and
+   `resolve_operational_state` cannot disagree on a task's lifecycle, and that
+   no "waiting/unanswered" language survives once resolved. **Remaining:** the
+   frontend `realtimeOperationsTools.js` must forward `data.spoken` verbatim
+   for `check_request_status` + the dedupe branch (one line each) — frontend
+   lane, blocked on the `useRealtimeVoice.js` refactor landing.
 5. **`end_call` — honor a clear closing on the first call** (Room 214 mechanism
    #6); keep the confirm only for genuinely ambiguous input. Frontend
    `restingEndCallGuard` + `end_call` handler.

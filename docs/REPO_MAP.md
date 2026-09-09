@@ -615,3 +615,16 @@ This repository is an active CAOS Care multi-surface codebase. Keep the map curr
   passes `operational_state` into that render.
 - Tests: `test_substrate_layers_integration.py::test_layers_bce_assemble_in_order`
   (B+C+E section-header order).
+
+## 2026-09-09 — Substrate Step 1 (request tools speak from Layer E)
+
+- `backend/routes/aria_request_status.py`: `request_status_view(task)` →
+  `{lifecycle, opened_age, spoken}`, reusing Layer E's `task_lifecycle` and
+  shared `age_phrase`. One source of truth for how a staff request is spoken.
+- `backend/routes/resident_requests.py`: `_resident_safe_view` and the
+  `create_resident_request` dedupe response now carry `lifecycle`/`opened_age`/
+  `spoken` (raw `status` kept for back-compat).
+- Test: `backend/tests/test_request_tools_speak_from_layer_e.py` (tool view
+  lifecycle cannot contradict `resolve_operational_state`).
+- Frontend follow-up (not done): `realtimeOperationsTools.js` should forward
+  `data.spoken` for `check_request_status` + the dedupe branch.

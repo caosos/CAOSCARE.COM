@@ -2791,3 +2791,56 @@ Backend Step 1: make `check_request_status` / `request_staff_help` result
 formatting speak from `resolve_operational_state` (close the last "current
 state wins" gap — tool results still emit stale "already on file / ask #N"
 text). Then Layer B corrections (B-1 index in hot path, B-2 `None` end-reason).
+
+---
+
+## 2026-09-09 — Substrate Step 1: resident-request tools speak from Layer E (backend)
+
+### Agent / tool
+Claude Code (Sonnet 5), branch `aria/conversation-substrate`, on top of the
+Layer C review-integration commit. Backend-only. No merge/deploy/restart. Did
+not touch `realtimeOperationsTools.js` or any frontend.
+
+### The gap this closes
+`check_request_status` and the `request_staff_help` duplicate branch built
+their spoken result (in `frontend/src/lib/realtimeOperationsTools.js`) from
+`_resident_safe_view` / the dedupe response — raw `status`, "ask #N", no age.
+That could contradict Layer E's `## What's actually happening right now` block
+(Room 214 Part 4 #1). The backend contract is now authoritative and
+Layer-E-consistent; the frontend just needs to forward it.
+
+### What changed
+- `backend/routes/aria_request_status.py` (53, new) — `request_status_view(task)`
+  → `{lifecycle, opened_age, spoken}`. Reuses `aria_operational_state.task_lifecycle`
+  (Layer E) and `aria_time.age_phrase` — no independent lifecycle logic, no
+  re-query. `spoken` is one authoritative sentence; when `lifecycle == resolved`
+  it carries no "waiting/unanswered/still open" language, when open it carries
+  no "taken care of".
+- `backend/routes/resident_requests.py` (262→272) — `_resident_safe_view` now
+  spreads `request_status_view(task)` (adds `lifecycle`/`opened_age`/`spoken`;
+  raw `status` kept for back-compat); the `create_resident_request` dedupe
+  response adds the same three fields.
+- `backend/tests/test_request_tools_speak_from_layer_e.py` (new) —
+  open/acknowledged/resolved: `_resident_safe_view` lifecycle == `task_lifecycle`
+  == the lifecycle `resolve_operational_state` assigns the same task; a resolved
+  request's `spoken` has no stale waiting language and Layer E has dropped it
+  from open work; the dedupe branch never calls an open duplicate "resolved".
+
+### Verified
+`pytest` substrate + level1: **19 passed, 1 skipped** (operational-state HTTP
+endpoint, pending dev-backend reload). `import server` OK. Line counts ≤ 300
+(`aria_request_status.py` 53, `resident_requests.py` 272).
+
+### Remaining (frontend lane, not this commit)
+`realtimeOperationsTools.js` `check_request_status` (line ~95-101) and
+`request_staff_help` dedupe (line ~73-77) should return `data.spoken` verbatim
+instead of re-assembling from `data.status`/`data.re_request_count`. One line
+each. Blocked on the `useRealtimeVoice.js` refactor landing so the frontend
+isn't touched mid-refactor.
+
+### Next safe step
+Step 2 — Layer B corrections: B-2 (a missing/`None` session-end reason must not
+mean "unfinished"; require positive evidence) and B-1 (move the
+`db.conversations` continuity-index creation out of `resolve_continuity` into
+app startup/lifespan). Then Step 3 — coordinate the `_mint` wiring with the
+in-flight Level 1 extraction.
