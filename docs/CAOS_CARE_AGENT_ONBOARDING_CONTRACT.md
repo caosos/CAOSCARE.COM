@@ -228,6 +228,68 @@ Important memory behavior:
 - distinguish durable facts from temporary observations
 - prevent memory poisoning from untrusted external input
 
+## Person-specific interpretation continuity — NON-NEGOTIABLE
+
+CAOS Care must reproduce the kind of interpretation continuity that makes a long-running human/AI relationship materially better than a stateless chatbot session.
+
+The system must not interpret each utterance only as isolated raw text. When appropriate and permitted, Resident Aria must combine:
+
+- the current utterance
+- immediately preceding conversational context
+- durable person-specific language patterns
+- known phonetic approximations and recurring word substitutions
+- likely intent
+- semantic sequence across turns
+- established preferences about wording, correction, explanation, and interaction style
+- relevant scoped memory and anchors
+
+The goal is not to guess recklessly. The goal is to use accumulated, person-specific evidence to understand what the person is most likely trying to communicate while preserving uncertainty when more than one interpretation remains plausible.
+
+This capability is core architecture, not personality decoration and not an optional prompt tweak.
+
+### Canonical acceptance example
+
+If Michael says:
+
+```text
+dos savor
+```
+
+and the surrounding context is Spanish learning, the system should be capable of resolving the intended phrase as:
+
+```text
+dos sabores
+```
+
+with the English meaning:
+
+```text
+two flavors
+```
+
+It must not treat the raw phrase as meaningless merely because it is grammatically or lexically imperfect.
+
+### Correction and teaching behavior
+
+When correction is useful, the system should preserve the user's original attempt rather than replacing it invisibly. A comparison surface may use:
+
+```text
+what the person said
+→ what Aria understood
+→ corrected / natural form
+→ meaning in the person's primary language
+```
+
+The same principle applies outside language learning. A resident or staff member may use incomplete phrases, personal shorthand, phonetic spellings, recurring substitutions, ambiguous references, or nonstandard grammar. Aria should learn stable person-specific patterns over time within the permitted memory scope so the person does not have to retrain the system every session.
+
+### Architecture requirement
+
+Conversation history alone is insufficient. The system needs a persistent, scoped relationship/context model that can retrieve the right person-specific interpretation signals at the right turn.
+
+Any work touching AriaCon, conversation substrate, Resident Aria, voice, memory, personalization, prompt assembly, retrieval, intent resolution, or language understanding must preserve or improve this requirement.
+
+Regression tests should include short, imperfect, phonetic, context-dependent, and partially incorrect utterances whose correct interpretation depends on prior context or learned user patterns.
+
 ## Agent model
 
 Future CAOS Care may use specialized agents, such as:
