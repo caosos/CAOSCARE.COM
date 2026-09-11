@@ -47,6 +47,11 @@ Do not remove or silently degrade:
 - human-in-the-loop care decisions
 - low-intimidation senior-care UX
 - CAOS ecosystem alignment
+- person-specific interpretation continuity: Aria must use scoped prior context, learned language patterns, likely intent, semantic sequence, and relevant memory to understand imperfect or context-dependent speech instead of treating each utterance as isolated raw text
+
+The person-specific interpretation-continuity requirement is core architecture, not cosmetic personality behavior. Any work touching AriaCon, conversation substrate, Resident Aria, voice, memory, personalization, prompt assembly, retrieval, intent resolution, or language understanding must read and preserve the full requirement in `docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md`.
+
+Canonical acceptance example: in Spanish-learning context, `dos savor` should be resolvable from context and learned speech patterns as `dos sabores` (`two flavors`) while preserving the user's original wording when correction/comparison is useful.
 
 ## Care-domain safety rule
 
