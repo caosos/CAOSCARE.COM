@@ -637,3 +637,31 @@ This repository is an active CAOS Care multi-surface codebase. Keep the map curr
   owns the `db.conversations` continuity index — `resolve_continuity` no longer
   does DDL in the request path.
 - `backend/server.py`: lifespan calls `aria_continuity.ensure_indexes()`.
+
+## 2026-09-10 — Terminal 10 (conversation parity)
+
+- `frontend/src/lib/realtimeSessionUpdate.js`: no longer hard-codes
+  `input_audio_transcription.language: "en"` (verified API constraint:
+  the multilingual `languages` array only exists for a dedicated
+  transcription-session model, not this conversational session's
+  gpt-4o-transcribe).
+- `backend/routes/aria_interpretation_patterns.py`: person-specific
+  interpretation continuity (NON-NEGOTIABLE) — `db.interpretation_patterns`,
+  resident-scoped heard→understood pairs with confirmation/correction
+  history and fuzzy matching. `GET/POST /api/aria/interpretation-patterns[...]`.
+- `backend/routes/realtime_interpretation_tools.py`: the
+  `confirm_interpretation_pattern` Realtime tool schema.
+- `frontend/src/lib/realtimeOperationsTools.js`: dispatches that tool to the
+  confirm endpoint.
+- `backend/routes/aria_turn_taking.py`: derives silence-gap/response-duration/
+  barge-in/premature-interrupt/long-gap metrics from existing
+  `realtime_diagnostics` events — no new capture. `GET /api/aria/turn-taking/{session_id}`.
+- `backend/routes/realtime_context_tail.py`: assembles the Aria context tail
+  (interpretation patterns → continuity → conversation state → operational
+  state) for `_build_companion_instructions`; extracted so that file didn't
+  grow past the line cap when the interpretation-patterns block was added.
+- `docs/ARIA_WAKE_WORD_ARCHITECTURE.md`: wake-word architecture/dependency
+  plan (documented, not yet prototyped) — confirms no Level 1 change needed.
+- Tests: `backend/tests/test_aria_interpretation_patterns.py`,
+  `backend/tests/test_aria_turn_taking.py`,
+  `frontend/src/lib/__tests__/realtimeSessionUpdateLanguage.test.js`.

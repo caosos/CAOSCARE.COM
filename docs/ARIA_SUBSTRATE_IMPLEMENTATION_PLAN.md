@@ -23,6 +23,47 @@ action layer → response`.
 | **D — Retrieved durable memory** | older memory relevant to the *current subject*, retrieved on demand | `build_resident_profile_and_memory` loads a fixed block at mint; no subject-triggered retrieval | **partial / TODO** — progressive retrieval when a topic emerges. |
 | **E — Current operational reality** | open event + staff requests + calls/alerts, real lifecycle (`open/acknowledged/answered/in_progress/resolved/…`) + who + timestamps + `current` vs `background` | `routes/aria_operational_state.py::resolve_operational_state` → rendered by `routes/realtime_operational_context.py::render_operational_block` → appended to instructions by `_build_companion_instructions`; also on `_caos.context.operational_state` and `GET /api/aria/operational-state` | **DONE 2026-09-08** (this change). Kills Room 214 mechanism #1 (stale state announced as current) and #7 (stale context injected once). |
 | **F — Tools / capability truth** | only the relevant tool capability for the emerging work; capability portfolio so Aria claims only `verified_control`/`verified_read` | `realtime_tools.py` / `realtime_tools_operations.py` build the full schema at mint; `docs/ARIA_CAPABILITY_PORTFOLIO.md` / `db.aria_capabilities` exist but `get_capability_summary()` is **not wired into the session** | **TODO** — wire capability truth into context (Room 214 s16 "I can see you through the camera"). |
+| **G — Person-specific interpretation continuity** (Terminal 10; NON-NEGOTIABLE per AGENTS.md + `docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md`) | durable heard→understood patterns (phonetic approximations, shorthand, recurring substitutions, confirmed meanings), resident-scoped, retrieved before/during prompt construction, corrections applied without cross-pattern leakage, original wording preserved | `routes/aria_interpretation_patterns.py::resolve/record/find/list/render` → `render_context_tail` → appended by `_build_companion_instructions`; `confirm_interpretation_pattern` Realtime tool (`realtime_interpretation_tools.py` + `realtimeOperationsTools.js`); `_caos.context.interpretation_patterns`, `GET/POST /api/aria/interpretation-patterns[/confirm|/match]` | **DONE 2026-09-10.** Acceptance case "dos savor" → "dos sabores" → "two flavors" proven end-to-end (store, fuzzy match, mint-time render, full-prompt assembly). Own collection (`db.interpretation_patterns`), not a second `db.memories` architecture. |
+
+## Terminal 10 — conversation parity, done 2026-09-10
+
+`commands/TERMINAL_10_CONVERSATION_PARITY.md` (main, `5b48c17`). Executed as
+part of this lane per Michael's explicit authorization to pick it up on
+`aria/conversation-substrate` rather than a new branch.
+
+1. **Multilingual transcription** — `frontend/src/lib/realtimeSessionUpdate.js`
+   hard-coded `input_audio_transcription.language: "en"`, forcing English
+   recognition even on Spanish/mixed-language speech. Verified against current
+   OpenAI docs before changing anything: a full conversational session
+   (`session.type: "realtime"`, ours) only accepts `gpt-4o-transcribe` /
+   `gpt-4o-mini-transcribe` / `whisper-1` for input transcription, and those
+   use the singular, OPTIONAL `language` hint - the newer multi-language
+   `languages` array (`gpt-transcribe`/`gpt-live-transcribe`) is only valid in
+   a dedicated `session.type: "transcription"` session, not this one, so the
+   model was NOT swapped. Fix: removed the hard-coded hint so the model
+   auto-detects the spoken language per turn. `realtimeSessionUpdateLanguage.test.js`.
+2. **Person-specific interpretation continuity** — Layer G above.
+3. **Turn-taking instrumentation** — `routes/aria_turn_taking.py::resolve_turn_taking`
+   derives silence-before-response gaps, response durations, barge-in and
+   premature-interrupt counts, and long-gap counts from the
+   `realtime_diagnostics` events `useRealtimeVoice.js` **already writes**
+   (`speech_started/stopped`, `response_created/done`; `assistant_speaking` is
+   already populated per event - confirmed against real session history: 250
+   of 857 real `speech_started` rows already carry `assistant_speaking=true`,
+   i.e. real recorded barge-ins) - no new frontend capture needed. Read-only,
+   no transcript text returned. `GET /api/aria/turn-taking/{session_id}`.
+4. **Wake word** — documented, not prototyped: `docs/ARIA_WAKE_WORD_ARCHITECTURE.md`.
+   Verified NO Level 1 change is needed (`Alert.trigger_source` is already a
+   free-form string with `"wake_word"` already named as an anticipated value,
+   and `POST /realtime/room/{room}/activate` already accepts any
+   `trigger_source`) - a wake-word listener is purely additive. Engine choice
+   (openWakeWord custom-trained vs Picovoice Porcupine) and the physical
+   in-room listening test are the next steps, not skipped work.
+
+`realtime_companion_prompt.py` grew a 5th context source, so the block-
+assembly tail was extracted into `routes/realtime_context_tail.py`
+(`render_context_tail`) - net effect was fewer lines in the companion-prompt
+file despite adding a capability (285 → 278).
 
 ## Layer B — done 2026-09-08
 

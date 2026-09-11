@@ -2928,3 +2928,155 @@ lands with it. A follow-up commit should then add a mint-path integration test
 - `0c95352` Step 2 (Layer B corrections B-1, B-2)
 
 Layer D / F not started (deferred by directive).
+
+---
+
+## 2026-09-10 — Terminal 10: conversation parity (multilingual, person-specific interpretation, turn-taking, wake-word plan)
+
+### Agent / tool
+Claude Code (Sonnet 5), branch `aria/conversation-substrate` (Michael's
+explicit authorization to execute Terminal 10 in this existing lane/branch
+rather than a new one). No merge, no deploy, no backend restart, no Linode
+deployment. Did not touch `useRealtimeVoice.js`, `realtimeMessageHandler.js`,
+`realtimeDeviceTools.js`, `realtimeConnection.js`, or any other file in the
+in-flight Level 1/frontend-refactor set.
+
+### First reads (per `commands/TERMINAL_10_CONVERSATION_PARITY.md` + `git fetch origin`)
+Read from `origin/main` (ahead of this branch's merge-base by 4 commits):
+`AGENTS.md`, `docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md` (new "Person-specific
+interpretation continuity — NON-NEGOTIABLE" section), `commands/TERMINAL_10_CONVERSATION_PARITY.md`.
+Read from this branch: `docs/ARIA_VOICE_FIRST.md`,
+`docs/reports/2026-08-23-2152-voice-regression-matrix.md`,
+`docs/reports/2026-08-23-1345-semantic-vad-failed-experiment.md`,
+`docs/ROOM_AUDIO_ARCHITECTURE.md`, `docs/CURRENT_NODE_STATUS.md`,
+`backend/routes/realtime_audio_config.py`, `frontend/src/lib/realtimeSessionUpdate.js`.
+Verified OpenAI Realtime API transcription-model/language behavior against
+current docs (WebSearch/WebFetch) before changing any field.
+
+### What changed
+
+**1. Multilingual transcription (`frontend/src/lib/realtimeSessionUpdate.js`):**
+removed the hard-coded `input_audio_transcription.language: "en"`. Verified: a
+full conversational session (`session.type: "realtime"`) only accepts
+gpt-4o-transcribe/gpt-4o-mini-transcribe/whisper-1, which use a singular,
+OPTIONAL language hint; the multi-language `languages` array
+(gpt-transcribe/gpt-live-transcribe) only works in a dedicated
+`session.type: "transcription"` session — not ours — so the model was not
+swapped (would have been unverified/guessed). Omitting the hint lets the
+model auto-detect per turn instead of forcing English.
+Test: `frontend/src/lib/__tests__/realtimeSessionUpdateLanguage.test.js` (4 tests).
+
+**2. Person-specific interpretation continuity (NON-NEGOTIABLE):**
+- `backend/routes/aria_interpretation_patterns.py` (197, new) — resident-scoped
+  `db.interpretation_patterns` collection (deliberately not a second
+  `db.memories` architecture — structured heard/understood pairs need a
+  lookup key prose memory can't give efficiently). `record_pattern()` upserts
+  by (resident_id, normalized heard_as): repeats strengthen `confirmed_count`;
+  a different `understood_as` is a correction applied to THAT pattern only,
+  with the prior value kept in `correction_history` (never silent, never
+  cross-pattern). `find_matching_patterns()` does exact-normalized-substring +
+  bounded stdlib `difflib` fuzzy matching (threshold 0.82) for phonetic
+  approximations. `list_patterns()` returns a bounded (≤15), ranked set for
+  mint-time context — never a full dump. `render_interpretation_block()`
+  instructs the model to use only listed patterns, never fabricate one, and
+  to preserve the resident's original wording when teaching/correcting.
+- `backend/routes/realtime_interpretation_tools.py` (57, new) — the
+  `confirm_interpretation_pattern` Realtime tool schema; wired into
+  `realtime_tools.py::_build_tools()`.
+- `frontend/src/lib/realtimeOperationsTools.js` — dispatch branch that POSTs
+  a confirmed pattern to `/api/aria/interpretation-patterns/confirm`.
+- `GET /api/aria/interpretation-patterns`, `GET .../match`,
+  `POST .../confirm` (public, resident-scoped, same trust model as the other
+  Aria context endpoints).
+- Acceptance case proven end-to-end (unit + full-prompt-assembly tests):
+  "dos savor" → confirmed as "dos sabores" / "two flavors" → a later close
+  phonetic variant ("dos sabor") matches the confirmed pattern → the
+  assembled companion prompt carries both the original wording and the
+  learned meaning, with no-fabrication guidance, and a fresh resident with no
+  confirmed patterns gets no block at all.
+- Tests: `backend/tests/test_aria_interpretation_patterns.py` (3 tests: store/
+  correction/matching/rendering; full prompt integration; tool registration).
+
+**3. Turn-taking instrumentation:**
+- `backend/routes/aria_turn_taking.py` (107, new) —
+  `resolve_turn_taking(session_id)` derives silence-before-response gaps,
+  response durations, barge-in count, "premature interrupt" count (barge-in
+  within 600 ms of `response_created`), and long-gap count (≥4000 ms) purely
+  from `realtime_diagnostics` events the frontend already writes — no new
+  capture added. Sanity-checked against three real historical Room 214
+  sessions (read-only, not part of the automated suite): `rt_mkqn5z8x`
+  (the "I know you're bleeding" session) shows 15 barge-ins across 24
+  resident turns and `rt_tz7t11g7` (the light-control retry storm) shows 84
+  assistant turns for 18 resident turns — both numerically confirm the
+  Room 214 evidence doc's qualitative findings.
+  `GET /api/aria/turn-taking/{session_id}` (no transcript text returned).
+- Test: `backend/tests/test_aria_turn_taking.py` (ordinary turn, barge-in,
+  premature interrupt, long gap, empty/unknown session).
+
+**4. Wake word — documented, not prototyped:**
+`docs/ARIA_WAKE_WORD_ARCHITECTURE.md`. Verified **no Level 1 change is
+needed**: `models.py:1552` already documents `Alert.trigger_source` as a
+free-form string with `"wake_word"` named as an anticipated value, and
+`POST /realtime/room/{room}/activate` already accepts any `trigger_source` —
+a wake-word listener is purely additive (a 4th caller of an existing
+endpoint). Engine choice (openWakeWord custom-trained vs Picovoice Porcupine)
+and a physical in-room listening test with Michael are documented as the
+next steps, per Terminal 10's own "prototype OR documented, verified
+blocker" acceptance.
+
+**Refactor (net negative line count):** `realtime_companion_prompt.py` was
+about to gain a 5th context-block append; extracted the assembly into
+`backend/routes/realtime_context_tail.py::render_context_tail()` (32, new).
+Net: `realtime_companion_prompt.py` 285 → 278 lines despite adding the
+interpretation-patterns capability.
+
+**Mint wiring** (rides with the in-flight Level 1 `_mint` extraction, same as
+Layers B/C/E before it — `backend/routes/realtime_resident_session.py`,
+untracked): resolves `list_patterns()` best-effort and threads it into
+`_build_companion_instructions(..., interpretation_patterns=...)` and
+`_caos.context.interpretation_patterns`.
+
+### What was verified
+- `python -c "import server"` OK.
+- Backend: `pytest` substrate + level1 + Terminal 10 — **24 passed, 1 skipped**
+  (operational-state HTTP endpoint, pending dev-backend reload; unrelated to
+  this work).
+- Frontend: full suite — **15 suites / 109 tests passed**, including the
+  in-flight refactor's own untracked test files (`activationClient`,
+  `realtimeConnectionRecovery`, `realtimeInactivityTimer`, `residentRecovery`)
+  — confirms the `realtimeOperationsTools.js`/`realtimeSessionUpdate.js`
+  edits did not disturb that lane's work.
+- Production file line counts (all ≤ 300): `aria_interpretation_patterns.py`
+  197, `realtime_interpretation_tools.py` 57, `aria_turn_taking.py` 107,
+  `realtime_context_tail.py` 32, `realtime_companion_prompt.py` 278,
+  `realtime_tools.py` 241, `server.py` 220, `realtimeSessionUpdate.js` 73,
+  `realtimeOperationsTools.js` 243, `realtime_resident_session.py` 163
+  (uncommitted, rides with Level 1).
+
+### Level 1 dependency (explicit, per directive)
+None required for what was built. Confirmed by inspection: the wake-word
+activation contract (`trigger_source` as a free-form string, `"wake_word"`
+already anticipated) already exists in Level 1's own model/endpoint. No
+Level 1 file was modified. If Level 1 later tightens `trigger_source` to a
+strict enum, `"wake_word"` must be included — flagged for the coordinator,
+not worked around independently.
+
+### What is blocked / not done
+- Wake-word engine selection and a physical in-room prototype (needs a
+  hands-on engine comparison + Michael present for a real listening test —
+  not forced blind this session, per Terminal 10's own guidance and the
+  semantic-VAD live-regression precedent).
+- `confirm_interpretation_pattern` has no teaching-surface UI yet (the
+  "what you said → what I understood → corrected form → meaning" comparison
+  display) — backend data/tool exist; UI is a separate, frontend-lane task.
+- The `_mint` wiring for `interpretation_patterns` is uncommitted, riding
+  with the Level 1 extraction (see the earlier Layer B/C/E entries for why).
+- `test_operational_state_http_endpoint` still skipped pending a dev-backend
+  reload (pre-existing, unrelated to this work).
+
+### Next safe step
+Coordinate the Level 1 `_mint` extraction commit (unblocks all substrate +
+Terminal 10 mint wiring at once). Separately: a short hands-on wake-word
+engine comparison per `docs/ARIA_WAKE_WORD_ARCHITECTURE.md`, and a teaching-
+surface UI for interpretation-pattern corrections, are the next Terminal 10
+increments — neither started here.

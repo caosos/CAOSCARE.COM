@@ -10,14 +10,13 @@ from deps import db
 from routes.realtime_self_knowledge import _system_self_knowledge
 from routes.realtime_facility import _facility_now, greeting_note
 from routes.realtime_companion_memory import build_resident_profile_and_memory
-from routes.realtime_operational_context import render_operational_block
-from routes.aria_continuity import render_continuity_block
-from routes.aria_conversation_state import render_conversation_state_block
+from routes.realtime_context_tail import render_context_tail
 
 
 async def _build_companion_instructions(
     resident_id: str | None, operational_state: dict | None = None,
     continuity: dict | None = None, conversation_state: dict | None = None,
+    interpretation_patterns: list | None = None,
 ) -> str:
     """System prompt the resident-facing companion (Aria) speaks under.
 
@@ -251,31 +250,25 @@ async def _build_companion_instructions(
         "confusion, gently confirm a caregiver is on the way and stay with them. "
         "If they ask you to rest or be quiet, stop talking immediately and wait."
     )
-    op_block = render_operational_block(operational_state)
     if not resident_id:
-        return _system_self_knowledge() + time_anchor + persona + op_block
+        return (_system_self_knowledge() + time_anchor + persona
+                + render_context_tail("them", operational_state))
 
     r = await db.residents.find_one(
         {"resident_id": resident_id},
         {"_id": 0, "name": 1, "preferred_name": 1, "preferences": 1, "memory": 1, "low_vision": 1},
     )
     if not r:
-        return _system_self_knowledge() + time_anchor + persona + op_block
+        return (_system_self_knowledge() + time_anchor + persona
+                + render_context_tail("them", operational_state))
 
     full_name = (r.get("name") or "").strip()
     preferred = (r.get("preferred_name") or "").strip()
     name = preferred or (full_name.split(" ")[0] if full_name else "")
 
     profile_and_memory = await build_resident_profile_and_memory(resident_id, r, name, full_name)
-    continuity_block = render_continuity_block(continuity, name or "them")
-    # Layer C renders with Layer E's snapshot in hand so it never claims a
-    # task is "in motion" that Layer E already shows resolved.
-    cs_block = render_conversation_state_block(conversation_state, operational_state)
-    # Order: durable baseline (persona + who they are) → recent continuity
-    # (cross-session, what was said) → this call's own state (has THIS call
-    # already filed/finished something) → operational reality (what is true
-    # NOW, kept last so it is the freshest, most salient context).
-    return (_system_self_knowledge() + time_anchor + persona
-            + profile_and_memory + continuity_block + cs_block + op_block)
+    tail = render_context_tail(name or "them", operational_state, continuity,
+                               conversation_state, interpretation_patterns)
+    return _system_self_knowledge() + time_anchor + persona + profile_and_memory + tail
 
 

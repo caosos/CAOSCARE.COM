@@ -221,5 +221,23 @@ export async function executeOperationsTool({ name, args, ctx }) {
     return { ok: true, message: lines.join("; ") + "." };
   }
 
+  if (name === "confirm_interpretation_pattern") {
+    // Terminal 10 (person-specific interpretation continuity) - resident-
+    // scoped only; silently no-ops without a resident_id rather than
+    // filing a pattern nobody can be scoped to later.
+    if (!residentId) return { ok: true, message: "noted for this call." };
+    const r = await fetch(`${API}/aria/interpretation-patterns/confirm`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        resident_id: residentId, heard_as: args.heard_as, understood_as: args.understood_as,
+        meaning: args.meaning || null, language: args.language || null,
+        category: args.category || null, source: "resident_confirmed",
+      }),
+    });
+    if (!r.ok) return { ok: true, message: "noted for this call." };
+    return { ok: true, message: "got it — I'll remember that." };
+  }
+
   return undefined;
 }

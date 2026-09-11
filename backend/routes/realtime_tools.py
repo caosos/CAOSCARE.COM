@@ -13,6 +13,7 @@ room-device control: thermostat, TV, lights; and realtime_display_tools.py
 from routes.realtime_tools_operations import _build_operations_tools
 from routes.realtime_device_tools import _build_device_tools
 from routes.realtime_display_tools import _build_display_tools
+from routes.realtime_interpretation_tools import _build_interpretation_tools
 from routes.resident_requests import get_request_categories
 
 
@@ -235,6 +236,6 @@ async def _build_tools() -> list[dict]:
                 "additionalProperties": False
             }
         },
-    ] + _build_operations_tools(await get_request_categories()) + _build_display_tools()
+    ] + _build_operations_tools(await get_request_categories()) + _build_display_tools() + _build_interpretation_tools()
 
 
