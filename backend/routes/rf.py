@@ -41,15 +41,8 @@ DEFAULT_TEST_SECONDS = 5
 # devices "on the same frequency" - real rtl_433 measurements drift by a
 # few kHz per packet, so an exact match is too fragile (see rf_event()).
 FREQ_TOLERANCE_HZ = 50_000
-# One physical pendant press = ~3-8 RF frames, ~0.5s cadence, up to ~3.2s
-# span (live-evidenced 2026-08-29, again 2026-09-06 Room 214); each frame is
-# POSTed here with its own monotonic sequence. Two collapsing layers live in
-# routes/resident_activation.py: the RF echo window (RF_PRESS_DEBOUNCE_SECONDS)
-# drops repeat frames of one press from press_count/presses[], and resident-
-# scoped incident coalescing attaches repeat presses during an already-open
-# event to the SAME alert (live defect 2026-08-30 room 401; 2026-09-06
-# device-scoped -> resident-scoped per the Level 1 directive). Every frame is
-# still written to db.rf_events below regardless - evidence is never dropped.
+# Matched-frame grouping lives in rf_activation_intake.py; raw frames
+# remain in rf_events, separately from resident-event activation/counting.
 
 
 def _iso(doc: dict) -> dict:
@@ -432,13 +425,14 @@ async def rf_event(
         "alert_id": None,
     }
 
+    # WHO is known (fingerprint match). handle_matched_frame answers WHAT
+    # (routes/rf_semantics) and gates the activation path - only a proven
+    # `help_press` is passed on to the concurrency-safe burst intake
+    # (routes/rf_activation_intake). Health telemetry, raw evidence, and
+    # classification logging happen for EVERY matched class.
     intake = {"semantic_class": None, "allowed_activation": False,
               "press_coalesced": False, "echo_frame": False}
     if matched:
-        # WHO is known (fingerprint match). handle_matched_frame answers
-        # WHAT and gates the activation path - only a proven `help_press`
-        # is allowed to create/re-arm a ResidentEvent. Health telemetry,
-        # raw evidence, and classification logging happen for EVERY class.
         from routes.rf_matched_intake import handle_matched_frame
         try:
             intake = await handle_matched_frame(best, kiosk, payload, raw_event)
@@ -447,8 +441,6 @@ async def rf_event(
             logging.getLogger(__name__).warning(f"RF matched-frame intake failed: {e}")
             raw_event["intake_error"] = type(e).__name__
     else:
-        # Matched no paired device - preserved for diagnostics so a future
-        # protocol mapping can be added; never promoted to anything.
         raw_event["semantic_class"] = "unknown"
         raw_event["allowed_activation"] = False
         intake["semantic_class"] = "unknown"
@@ -471,6 +463,7 @@ async def rf_event(
         "allowed_activation": intake.get("allowed_activation"),
         "press_coalesced": intake.get("press_coalesced") if matched else False,
         "echo_frame": intake.get("echo_frame") if matched else False,
+        "press_counted": raw_event.get("press_counted", False),
     }
 
 

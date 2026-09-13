@@ -42,6 +42,7 @@ _HA_POWER_SERVICE = {"on": "turn_on", "off": "turn_off"}
 _BRIGHTNESS_TOLERANCE_PCT = 6
 _HUE_TOLERANCE_DEG = 30
 _KELVIN_TOLERANCE = 150
+_TEMPERATURE_TOLERANCE_F = 2
 _VERIFY_RETRIES = 3
 _VERIFY_DELAY_S = 0.4
 
@@ -73,6 +74,24 @@ def _read_light_state(attrs: dict, ha_state: str) -> dict:
     return state
 
 
+def _read_climate_state(attrs: dict, ha_state: str) -> dict:
+    """Normalize one HA climate entity's attributes into the generic
+    contract. `ha_state` for a climate domain entity IS the HVAC mode
+    (e.g. "off"/"cool"/"fan_only") - not a plain on/off flag like every
+    other domain - so `power` is derived (off means off, anything else
+    means on) rather than copied directly. `temperature` is the TARGET
+    setpoint; `current_temperature` is the room's real, currently-measured
+    temperature - kept as two distinct fields so nothing ever conflates
+    "I changed the setpoint" with "the room reached that temperature"
+    (2026-09-05, real Midea AC work - explicit requirement)."""
+    state: dict = {"power": "off" if ha_state == "off" else "on", "hvac_mode": ha_state}
+    if isinstance(attrs.get("temperature"), (int, float)):
+        state["temperature"] = attrs["temperature"]
+    if isinstance(attrs.get("current_temperature"), (int, float)):
+        state["current_temperature"] = attrs["current_temperature"]
+    return state
+
+
 async def _ha_get_state(client: httpx.AsyncClient, entity_id: str) -> dict:
     resp = await client.get(
         f"{HA_BASE_URL}/api/states/{entity_id}",
@@ -87,11 +106,24 @@ def _hue_degrees(rgb: list) -> Optional[float]:
     return None if s < 0.08 else h * 360  # near-white/gray has no meaningful hue
 
 
-def _verifies(action: str, requested, after: dict) -> bool:
+def _verifies(action: str, requested, after: dict, domain: str = "") -> bool:
     attrs = after.get("attributes", {})
     ha_state = after.get("state")
     if action == "power":
+        if domain == "climate":
+            # Climate has no literal "on" state - "off" is off, any other
+            # HVAC mode (cool/heat/fan_only/auto) counts as on. A real
+            # climate.turn_on resumes whatever mode the device picks, which
+            # this device's own Matter integration does not let us dictate.
+            return (ha_state == "off") if requested == "off" else (ha_state != "off")
         return ha_state == requested
+    if action == "hvac_mode":
+        return ha_state == requested
+    if action == "temperature":
+        # Climate's own state IS the HVAC mode (e.g. "cool"), never the
+        # literal string "on" - the light-only guard below doesn't apply.
+        temp = attrs.get("temperature")
+        return isinstance(temp, (int, float)) and abs(temp - float(requested)) <= _TEMPERATURE_TOLERANCE_F
     if ha_state != "on":
         return False  # brightness/color/color_temp are meaningless on an off light
     if action == "brightness":
@@ -153,6 +185,18 @@ async def execute_home_assistant(device: dict, action: str, value):
             hi = before.get("attributes", {}).get("max_color_temp_kelvin", 6500)
             kelvin = max(lo, min(hi, int(value)))
             service, payload = "turn_on", {"entity_id": entity_id, "color_temp_kelvin": kelvin}
+        elif action == "temperature" and domain == "climate":
+            lo = before.get("attributes", {}).get("min_temp", 60)
+            hi = before.get("attributes", {}).get("max_temp", 85)
+            target = max(lo, min(hi, float(value)))
+            service, payload = "set_temperature", {"entity_id": entity_id, "temperature": target}
+        elif action == "hvac_mode" and domain == "climate":
+            supported = before.get("attributes", {}).get("hvac_modes") or []
+            if value not in supported:
+                raise RuntimeError(
+                    f"This climate device does not support hvac_mode={value!r} - it only supports {supported}"
+                )
+            service, payload = "set_hvac_mode", {"entity_id": entity_id, "hvac_mode": value}
         else:
             raise RuntimeError(f"Home Assistant adapter does not support action={action!r} on domain={domain!r}")
 
@@ -181,21 +225,23 @@ async def execute_home_assistant(device: dict, action: str, value):
         after = None
         for attempt in range(_VERIFY_RETRIES):
             after = await _ha_get_state(client, entity_id)
-            if _verifies(action, value, after):
+            if _verifies(action, value, after, domain):
                 break
             if attempt < _VERIFY_RETRIES - 1:
                 await asyncio.sleep(_VERIFY_DELAY_S)
-        if not _verifies(action, value, after):
+        if not _verifies(action, value, after, domain):
             raise RuntimeError(
                 f"Home Assistant accepted the command but the read-back state does not "
                 f"confirm it: entity={entity_id} action={action} requested={value!r} "
                 f"actual_state={after.get('state')!r} actual_attrs={after.get('attributes')!r}"
             )
 
-    verified_state = (
-        _read_light_state(after.get("attributes", {}), after.get("state", ""))
-        if domain == "light" else {"power": after.get("state")}
-    )
+    if domain == "light":
+        verified_state = _read_light_state(after.get("attributes", {}), after.get("state", ""))
+    elif domain == "climate":
+        verified_state = _read_climate_state(after.get("attributes", {}), after.get("state", ""))
+    else:
+        verified_state = {"power": after.get("state")}
     return {
         "detail": f"home_assistant: called {domain}.{service} on {entity_id}, verified by read-back",
         "state": verified_state,

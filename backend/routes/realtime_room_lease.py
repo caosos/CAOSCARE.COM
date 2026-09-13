@@ -19,7 +19,7 @@ older than STALE_SECONDS, the room is treated as available again, so a
 crashed tab or lost network can never permanently lock a room.
 """
 import uuid
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Body
@@ -32,6 +32,13 @@ from models import now_utc
 router = APIRouter(prefix="/realtime/room", tags=["realtime"])
 
 STALE_SECONDS = 45
+
+
+async def _lease_evidence(event, lease, **details):
+    await db.resident_aria_lease_events.insert_one({
+        "at": now_utc().isoformat(), "event": event,
+        "lease": {k: v for k, v in lease.items() if k != "_id"}, **details,
+    })
 
 
 async def claim_or_reuse_room_lease(
@@ -47,7 +54,6 @@ async def claim_or_reuse_room_lease(
     `session_id`, when supplied, is reused as-is (the caller already has a
     stable id it wants to keep, e.g. the frontend's own rt_<rand>_<ts>).
     Otherwise one is minted here."""
-    from routes.activation_log import alog
     await db.resident_aria_leases.create_index("room", unique=True)
     now = now_utc()
     stale_cutoff = (now - timedelta(seconds=STALE_SECONDS)).isoformat()
@@ -56,9 +62,8 @@ async def claim_or_reuse_room_lease(
         "room": room, "resident_id": resident_id, "kiosk_id": kiosk_id,
         "session_id": sid, "status": "activating", "trigger_source": trigger_source,
         "created_at": now.isoformat(), "last_seen_at": now.isoformat(),
+        "activation_id": activation_id,
     }
-    _c = dict(activation_id=activation_id, room=room, resident_id=resident_id,
-              kiosk_id=kiosk_id, session_id=sid)
 
     # Try to atomically steal a claimable lease (missing status, or stale).
     result = await db.resident_aria_leases.find_one_and_update(
@@ -67,11 +72,11 @@ async def claim_or_reuse_room_lease(
             {"last_seen_at": {"$lt": stale_cutoff}},
         ]},
         {"$set": new_doc},
-        return_document=ReturnDocument.AFTER,
+        return_document=ReturnDocument.BEFORE,
     )
-    if result and result.get("session_id") == sid:
-        await alog("lease", "claim_accepted", **_c, data={
-            "trigger_source": trigger_source, "via": "reclaimed_slot"})
+    if result:
+        await _lease_evidence("replaced", result, replacement_session_id=sid)
+        await _lease_evidence("claimed", new_doc)
         return {"claimed": True, "session_id": sid, "status": "activating"}
 
     # No existing doc matched the "claimable" filter at all - try a fresh
@@ -80,16 +85,12 @@ async def claim_or_reuse_room_lease(
     # unique index on `room` rejects ours - that's the correct outcome.
     try:
         await db.resident_aria_leases.insert_one(dict(new_doc))
-        await alog("lease", "claim_accepted", **_c, data={
-            "trigger_source": trigger_source, "via": "fresh_insert"})
+        await _lease_evidence("claimed", new_doc)
         return {"claimed": True, "session_id": sid, "status": "activating"}
     except DuplicateKeyError:
         existing = await db.resident_aria_leases.find_one({"room": room}, {"_id": 0})
-        await alog("lease", "claim_rejected", **_c, data={
-            "trigger_source": trigger_source, "reason": "already_active",
-            "existing_owner_session": (existing or {}).get("session_id"),
-            "existing_owner_kiosk": (existing or {}).get("kiosk_id"),
-            "existing_status": (existing or {}).get("status")})
+        if not existing:  # A release won the insert-conflict/read race.
+            return await claim_or_reuse_room_lease(room, resident_id, kiosk_id, trigger_source, sid)
         return {"claimed": False, "session_id": existing["session_id"], "status": existing.get("status"), "reason": "already_active"}
 
 
@@ -98,11 +99,21 @@ async def activate(room: str, payload: dict = Body(default={})):
     """HTTP entry point for non-/session triggers (pendant, future wake
     word/handset) that want to claim the room before starting a
     conversation through their own path."""
-    return await claim_or_reuse_room_lease(
+    from routes.resident_session_binding import validate_activation, bind_activation
+    context = {**payload, "room": room}
+    await validate_activation(context)
+    lease = await claim_or_reuse_room_lease(
         room, payload.get("resident_id"), payload.get("kiosk_id"),
         payload.get("trigger_source") or "unknown", payload.get("session_id"),
         payload.get("activation_id"),
     )
+    if lease["claimed"]:
+        try:
+            await bind_activation(context, lease["session_id"])
+        except BaseException:
+            await release(room, {"session_id": lease["session_id"], "reason": "activation_changed"})
+            raise
+    return lease
 
 
 @router.post("/{room}/heartbeat")
@@ -111,16 +122,11 @@ async def heartbeat(room: str, payload: dict = Body(default={})):
     session_id doesn't hold the current lease - e.g. it was already
     reclaimed as stale, so the caller should stop and re-negotiate."""
     session_id = payload.get("session_id")
-    before = await db.resident_aria_leases.find_one_and_update(
+    r = await db.resident_aria_leases.update_one(
         {"room": room, "session_id": session_id, "status": {"$in": ["activating", "active"]}},
         {"$set": {"status": "active", "last_seen_at": now_utc().isoformat()}},
     )
-    if before and before.get("status") == "activating":
-        from routes.activation_log import alog
-        await alog("lease", "heartbeat_started", room=room, session_id=session_id,
-                   kiosk_id=before.get("kiosk_id"), resident_id=before.get("resident_id"),
-                   activation_id=payload.get("activation_id"))
-    return {"ok": before is not None}
+    return {"ok": r.matched_count > 0}
 
 
 @router.post("/{room}/release")
@@ -153,25 +159,26 @@ async def release(room: str, payload: dict = Body(default={})):
     stays immediately relaunchable by a fresh connection, wherever/however
     it reconnects, with no fresh physical press required."""
     session_id = payload.get("session_id")
-    held = await db.resident_aria_leases.find_one({"room": room, "session_id": session_id}, {"_id": 0})
-    r = await db.resident_aria_leases.delete_one({"room": room, "session_id": session_id})
-    if r.deleted_count:
-        from routes.activation_log import alog
-        await alog("lease", "released", room=room, session_id=session_id,
-                   kiosk_id=(held or {}).get("kiosk_id"), resident_id=(held or {}).get("resident_id"),
-                   activation_id=payload.get("activation_id"),
-                   data={"reason": payload.get("reason") or "unspecified",
-                         "held_for_sec": _held_for(held), "last_seen_at": (held or {}).get("last_seen_at")})
-    return {"ok": r.deleted_count > 0}
-
-
-def _held_for(lease: Optional[dict]) -> Optional[float]:
-    if not lease or not lease.get("created_at"):
-        return None
-    try:
-        return round((now_utc() - datetime.fromisoformat(lease["created_at"])).total_seconds(), 1)
-    except Exception:
-        return None
+    # An explicit end during an in-flight mint may arrive before the event
+    # binding. Its later claim cleanup carries the reason too, so release
+    # cannot open a retry window before that dismissal has been recorded.
+    reason = payload.get("reason")
+    event = {"ui_end_call_button": "dismissed", "resident_end_call": "dismissed",
+             "resident_end_conversation": "dismissed", "companion_timeout": "timeout"}.get(reason)
+    if event and payload.get("alert_id"):
+        from routes.alert_lifecycle_events import aria_event, AriaEventInput
+        from fastapi import HTTPException
+        try:
+            await aria_event(payload["alert_id"], AriaEventInput(
+                event=event, session_id=session_id, activation_id=payload.get("activation_id"),
+            ))
+        except HTTPException as exc:
+            if exc.status_code not in (404, 409):
+                raise
+    prior = await db.resident_aria_leases.find_one_and_delete({"room": room, "session_id": session_id})
+    if prior:
+        await _lease_evidence("released", prior, reason=payload.get("reason"))
+    return {"ok": bool(prior)}
 
 
 @router.get("/{room}/status")
@@ -192,7 +199,7 @@ async def staff_present(room: str):
     on it. Mirrors release()'s own alert-consumption + lease-drop shape."""
     lease = await db.resident_aria_leases.find_one({"room": room}, {"_id": 0})
     if lease:
-        await db.resident_aria_leases.delete_one({"room": room, "session_id": lease["session_id"]})
+        await release(room, {"session_id": lease["session_id"], "reason": "staff_present"})
     r = await db.alerts.update_many(
         {"room": room, "status": {"$in": ["active", "acknowledged"]}},
         {

@@ -2744,3 +2744,506 @@ Filenames `MemoryDialog.jsx` / `MovementDialog.jsx` are retained (they now expor
 
 ### Next safe step
 Michael break-tests the tightened Residents row + the Memory/Movement hub sections. Open question from the prior entry still stands: whether the hub should become a routed full page rather than a dialog.
+
+---
+
+## 2026-09-06 — Codex temporary takeover: Level 1 adversarial checkpoint; two source fixes, live recovery NOT passed
+
+### Agent / tool
+Codex on EliteDesk, shell, read-only local Mongo snapshots, isolated
+ASGI/Mongo reproductions and pytest. No subagents.
+
+### Branch / ref
+`main` at `d994331`, matching the local `origin/main` ref; no fetch, commit,
+staging, push, or deployment. Seven pre-existing climate files were
+fingerprinted and verified unchanged.
+
+### What changed
+Prepared bounded fixes in `resident_activation.py` (209 lines) and
+`kiosks.py` (142 lines): enforce uniqueness for new/adopted open-event keys,
+retry concurrent creators, avoid appending to a just-closed event, and
+limit room kiosk activation polling to its own room. Existing historical
+duplicates are preserved. Added isolated concurrency/isolation regression
+test and `docs/LEVEL1_BREAK_TEST_2026-09-06.md`; updated REPO_MAP.
+The running backend has no reload flag and was not restarted, so these
+source fixes are NOT live yet. No frontend or device-control changes.
+
+### What was verified
+Local health is healthy. Isolated baseline produced 12 open events for
+12 concurrent requests, frame-count inflation, foreign-room routing with
+null zones, and an old dismissal consuming a newer activation. Lease
+concurrency already yielded one winner and stale release was rejected.
+The new regression passed: 24 concurrent presses, one event/receipt,
+correct preserved press records, post-resolve concurrency, retained legacy
+history, and correct room/zone/central polling boundaries. Test evidence
+is retained in `caos_level1_test_4588857959bc`; baseline reproduction in
+`caos_level1_break_a8b656740a`. See audit for the additional ASGI rerun.
+
+Room 214 read-only snapshot found nine historical open events and no lease.
+Eight real RF frames at 22:04:50–22:04:53 UTC attached to one event but
+increased press_count 49 → 57; no new voice diagnostic entries appeared
+in the checked interval. This is frame evidence, not yet Michael-confirmed
+human-press/audio evidence. No raw transcripts/secrets were exposed.
+`git diff --check` passed; climate file hashes unchanged.
+
+### What is blocked / incomplete
+Live break test + automatic recovery are NOT complete. Michael confirmed
+availability but has not yet described the kiosk result of the requested
+single press. RF grouping, same-event frontend reactivation, terminal
+connection recovery, heartbeat rejection/audio fencing, delayed lifecycle
+fencing, UI end-call consumption, and durable lease transition history
+remain unresolved. Physical audio ownership cannot be inferred from one
+Mongo lease. Prior live-backend tests do not cover these boundaries.
+Public-site web-tool open failed; website content pending source review.
+
+### Next safe step
+Obtain the physical baseline observation; continue isolated regressions and
+minimal fixes for the documented remaining boundaries, then coordinate the
+local live acceptance sequence. Preserve real Room 214 events and device
+mappings; do not clean historical data or touch production/HA/network.
+
+---
+
+## 2026-09-07 — Room 214 conversation forensics: absolute companion timer proven, fixed to an inactivity timer
+
+### Agent / tool / ref
+Claude Code (Claude 2, Level 1 lane), worktree `~/CAOSCARE-LEVEL1-INTEGRATION`,
+branch `claude/level1-integration` (on top of `234d8ff`). Frontend only.
+Not merged to main.
+
+### Running-state check first (not assumed)
+`:8000` = uvicorn pid 579632, started 2026-09-07 10:03:22, cwd
+`~/CAOSCARE-LEVEL1-INTEGRATION/backend`. The worktree files are at
+`234d8ff` but the process predates that commit and has no `--reload`:
+`/api/alerts/ai-escalate` and `/api/staff-dispatch` return **absent** in the
+live OpenAPI, `/api/activation-events` present -> **`:8000` is running
+`d466367`**, NOT the "a nurse has been paged" fix (`234d8ff`). The `:3000`
+craco dev server serves `~/CAOSCARE.COM/frontend`, whose realtime lib files
+are byte-identical to this worktree's, so this frontend fix is what `:3000`
+will serve after a restart.
+
+### What ended Michael's conversation — PROVEN
+Session **`rt_mkqn5z8x_1788800249832`**, 2026-09-07T16:57:30.601Z ->
+17:02:32.661Z, **302.06 s**, tied to `alert_21577791fd3a`. Final events:
+`273.4s` resident "But you didn't sing it though, you just said the words.";
+`277.7s` Aria "...Let me go ahead and sing the tune for you now... Amazing
+grace, how sweet the sound..." (singing); **`302.1s` `session_ended`
+`reason: "companion_timeout"`**. The conversation was maximally active at
+the cutoff. `realtimeConnection.js` armed `companionTimeoutTimerRef` **once**
+in `dc.onopen` with `setTimeout(aria_companion_timeout_sec*1000)` (default
+300 s) and nothing ever reset it -> an absolute **session-age** timer.
+300 s after `dc.onopen` (~+2 s) == the observed 302 s. **The five-minute
+bug was the sole cause of this cutoff.** "That's beautiful." was NOT
+involved (no `end_call`/`end_conversation` attempt in the session; reason
+was `companion_timeout`, not `resident_end_*`).
+
+### Fix
+`frontend/src/lib/realtimeInactivityTimer.js` (new, 52 lines) -
+`createInactivityTimer({seconds, onTimeout})`: a rolling idle timeout.
+`bump()` cancels any pending timer and starts a fresh full window;
+`cancel()` for teardown. `realtimeConnection.js`: `dc.onopen` calls
+`inactivity.bump()` once (silence until the greeting), and
+`onConversationActivity` (new handler param) calls `inactivity.bump()` on
+every speech-lifecycle event. `realtimeMessageHandler.js`: fires
+`onConversationActivity()` on `input_audio_buffer.speech_started`,
+`.speech_stopped`, `output_audio_buffer.started`, and `.stopped/.cleared` -
+resident speech OR Aria speech. `useRealtimeVoice.js`
+`clearLifecycleTimers()` handles both the new `{close}` handle and the
+legacy raw id. `invite_silence_sec` (8 s) is untouched; companion_timeout
+still maps to the existing `aria-event {event:"timeout"}` lifecycle policy.
+Net: an active conversation is never terminated by this timer; five
+continuous minutes of real silence still ends it; each new silence gets its
+own full window.
+
+### Other findings in that conversation (not fixed here - shared contracts)
+- **PROVEN DEFECT (reported, not fixed - cross-contract): fabricated
+  bleeding emergency.** Aria's forced greeting opened with "Helen, I can see
+  that you're bleeding" + `call_for_help(severity=emergency)`, then spent
+  ~70 s claiming and retracting camera/vision capability. Root cause:
+  `db.memories` for `res_81b72be1e8b5` contains "User is bleeding." and
+  "User is 84 years old." (extracted 2026-09-07T15:30 by
+  `realtime_memory_ingest` from Michael's 15:26 ROLEPLAY session), fed into
+  the next session's companion instructions by
+  `build_resident_profile_and_memory`. Same class as TSB-001. Fixing it
+  touches memory ingestion + the companion prompt + the persona/senses
+  contract - out of this directive's scope ("do not redesign Resident Aria
+  broadly"). Recommended: delete the two roleplay-contaminated memories;
+  scope a memory-provenance / present-tense-emergency guard separately.
+- **QUALITY: fabricated request timestamp.** `check_request_status` returned
+  a stale bathroom request; Aria then invented "the request for bleeding was
+  placed around 11:57 AM" and retracted it.
+- **QUALITY: song sequence.** Offered "Amazing Grace", resident said no,
+  Aria offered "Amazing Grace" again; agreed "You Are My Sunshine" then sang
+  "Somewhere over the rainbow"; recited lyrics instead of singing.
+- **NOT PROVEN: barge-in / truncated Aria turns / echo fragments.** Several
+  Aria responses cut mid-word and 1-char `echo_like` user transcripts -
+  consistent with the non-eMeet laptop-mic + speaker setup Michael flagged;
+  eMeet/audio is explicitly out of scope.
+
+### Verified
+`frontend/src/lib/__tests__/realtimeInactivityTimer.test.js` (new) -
+directive tests 1-6 (active conversation past 5 min; speech across the
+5-min-from-start boundary; 5 min real inactivity fires; speech after
+silence cancels; later inactivity gets its own window; configurable
+window). `restingEndCallGuard.test.js` extended - directive test 7 ("That's
+beautiful." never triggers `end_call`/`end_conversation`). Full frontend
+suite **14 suites / 102 tests** pass. Backend regression re-run at HEAD
+(staging :8002, CAOSCARE_TEST_HOOKS=1): `test_ai_escalation`,
+`test_resident_events`, `test_rf_semantics`, `test_activation_observability`,
+`test_level1_session_fencing` all pass - the one-open-ResidentEvent / paging
+/ press-count work is intact.
+
+### Blocked / next
+`:8000` still runs `d466367`; `:3000` still serves the pre-fix frontend.
+Both need a restart from this worktree for the fix to be live (Michael's
+call). The fabricated-bleeding memory contamination needs Michael's decision
+on deleting the roleplay memories and a separate scoped pass.
+
+---
+
+## 2026-09-07 — Correction: inactivity timer is a two-flag silence state machine, not a rolling activity timer
+
+### Agent / ref
+Claude Code (Claude 2), `~/CAOSCARE-LEVEL1-INTEGRATION`,
+`claude/level1-integration` on top of `d8b4dbd`. Frontend only. Not
+deployed, not merged.
+
+### Why
+`d8b4dbd` fixed the absolute session-age defect but implemented it as a
+rolling `bump()` (cancel + restart a 5-min timer on every speech event),
+which leaves a timer *pending while someone is actively speaking*. The
+product contract is stricter: **active speech ⇒ no inactivity timer exists
+at all**; the window measures only a continuous period in which BOTH
+`residentSpeaking` and `ariaSpeaking` are false.
+
+### Exact state machine now implemented (realtimeInactivityTimer.js)
+Two booleans `residentSpeaking`, `ariaSpeaking`; one timer `handle`.
+- `open()` (dc.onopen) — both false ⇒ arm a fresh window.
+- `residentSpeechStarted()` — `residentSpeaking = true`; **cancel** (no timer
+  while the resident speaks).
+- `residentSpeechStopped()` — `residentSpeaking = false`; **arm only if**
+  `!ariaSpeaking` **and** no window is already running.
+- `ariaSpeechStarted()` — `ariaSpeaking = true`; **cancel**.
+- `ariaSpeechStopped()` — `ariaSpeaking = false`; **arm only if**
+  `!residentSpeaking` and none running.
+- Overlap: the window is not armed until the *last* of the two stops.
+- `response.done` is NOT consulted — the output-audio lifecycle
+  (`output_audio_buffer.started` / `.stopped` / `.cleared`) is authoritative.
+- Fire only after `seconds` continuous with both flags false. Any
+  `*Started` cancels a pending window; when both go silent again a brand-new
+  full window begins. A flapping duplicate `*Stopped` does not restart an
+  already-running window.
+
+`realtimeMessageHandler.js` calls `onSpeechEvent("resident_start"|
+"resident_stop"|"aria_start"|"aria_stop")` from the four existing
+`input_audio_buffer.speech_started/stopped` and
+`output_audio_buffer.started/stopped/cleared` handlers (no new telemetry).
+`realtimeConnection.js` maps those to the state-machine methods and calls
+`inactivity.open()` in `dc.onopen`.
+
+### Verified
+`realtimeInactivityTimer.test.js` rewritten to the exact invariant -
+directive tests 1-7: resident speaking >5 min (no timeout, `pending`
+false throughout); Aria output >5 min (same); overlap does not arm until
+both stop; both-silent runs the full window and fires; speech at 4:59
+cancels immediately; a later both-silent period gets a brand-new full
+window; a 25-minute active conversation sails past the old 5-min-from-start
+boundary and still ends correctly once genuinely quiet. Plus flap-guard,
+`cancel()` teardown, and configurable-window cases.
+Frontend suite **14 suites / 105 tests** pass. Level-1 backend regression
+(staging :8002): `test_ai_escalation`, `test_resident_events`,
+`test_rf_semantics`, `test_activation_observability`,
+`test_level1_session_fencing`, `test_level1_concurrency_isolation`,
+`test_room_device_isolation`, `test_public_demo_kiosk` all pass.
+Preserved: invite_silence (8s, untouched), one-open ResidentEvent,
+paging/dispatch, human press_count, end-call grounding, activation
+observability.
+
+### Blocked / next
+No deploy/restart this pass (per directive). `:8000` still `d466367`;
+`:3000` still the pre-fix frontend.
+
+---
+
+## 2026-09-07 — Stale request resurrection fixed: CURRENT (open) vs HISTORY, + authoritative lifecycle timestamps
+
+### Agent / ref
+Claude Code (Claude 2), `~/CAOSCARE-LEVEL1-INTEGRATION`,
+`claude/level1-integration` on top of `ab3243b`. Not deployed (`:8000` /
+`:3000` still `ab3243b` / pre-fix). Not merged.
+
+### Root cause(s) — proven by inspection
+1. **`routes/resident_requests.py::resident_request_status()`**:
+   `db.staff_tasks.find_one(q, sort=[("created_at",-1)])` with **NO status
+   filter**. It returned the newest matching request of ANY status, so a
+   `completed`/`skipped` request from days ago was handed to Aria (via the
+   `check_request_status` tool) as the resident's *current* request. This
+   is the whole "completed work masquerading as current context" defect.
+2. **`_resident_safe_view()`** exposed only `created_at`, a boolean
+   `acknowledged`, `latest_update` (= the free-text `notes`),
+   `re_request_count`, `scheduled_*`. It did NOT expose `acknowledged_at`,
+   `started_at`, `completed_at`, or `last_re_requested_at`, and gave no
+   facility-local rendering - so Aria literally could not answer "when was
+   it acknowledged / started / finished / re-asked" and had no way to say
+   a natural local time.
+3. **Tool contract**: `check_request_status`'s description said "most
+   recent staff request" with no open/current-only semantics.
+4. **NOT a cause (verified)**: the companion prompt / profile-memory
+   (`realtime_companion_memory.build_resident_profile_and_memory`) does
+   **not** inject `staff_tasks`/requests at all - there is no "recent
+   requests" context block and no request preload. `db.memories` held no
+   request-shaped fact for Helen. `resident-request/mine` is the Home
+   screen panel, not session context. So the spontaneous mentions came
+   from Aria calling `check_request_status` herself and getting a
+   stale/closed task back - fixed at (1)+(3), with a regression test
+   locking (4) down.
+
+### Current-vs-history contract implemented
+- `GET /tasks/resident-request/status` — **CURRENT only**: filters
+  `status ∈ {pending, in_progress}`. `{found:false, scope:"current"}` when
+  nothing is open (≠ "never existed"). This is what the
+  `check_request_status` tool calls.
+- `GET /tasks/resident-request/history` — **NEW**, explicit-only: recent
+  `status ∈ {completed, skipped}`, same scoping, ordered by
+  `completed_at desc`, small limit. Backs a **NEW `check_request_history`
+  tool** whose description says use ONLY on an explicit past-tense
+  question and NEVER volunteer old requests.
+- `GET /tasks/resident-request/mine` — unchanged behavior (the resident's
+  OWN Home screen, all statuses) but now returns the richer view.
+- Nothing preloads history into a session; nothing dumps requests into the
+  companion prompt.
+
+### Lifecycle timestamps now available to Aria (real StaffTask fields only)
+`created` · `acknowledged_at` · `started_at` · `completed_at` ·
+`last_re_requested_at` — each returned as `{iso (UTC), local (tz-aware
+iso), label ("today at 2:17 PM" / "yesterday at 4:06 PM" / "Monday at 2:17
+PM" / "September 3 at 2:17 PM")}`, or **null** when the field was never set
+(never invented). Plus `re_request_count`, `is_open`, `scheduled_date` /
+`scheduled_time_label` (planned window, kept separate from lifecycle).
+
+### Facility-local time
+`routes/facility_local_time.py` (new, 45 lines): `facility_tz()` reads
+`db.facilities.timezone` then falls back to `FACILITY_TZ`
+(America/Chicago - already correct for Conway); `facility_local(iso, tz)`
+formats via `zoneinfo`. No hardcoded timezone, no manufactured times, UTC
+retained for audit.
+
+### Timestamps that still do NOT exist in the model
+- **latest-update timestamp**: `StaffTask.notes` is a single free-text
+  string with no per-edit timestamp -> `latest_update_at` is returned as
+  an honest `null` (the note text is still returned as `latest_update`).
+- No `resolved_at` distinct from `completed_at` (they are the same
+  concept in this model). No generic `updated_at`. No per-status-transition
+  audit trail on StaffTask itself (receipts exist per action but are not
+  resident-safe-projected here).
+
+### Tests
+`backend/tests/test_request_status_lifecycle.py` (new) — directive 1-11:
+completed-only -> current not found; older-completed + newer-open ->
+current returns the open one; multiple-completed -> current not found;
+history still retrieves completed; companion context contains no completed
+request; authoritative `created` present; `acknowledged_at`/`started_at`
+surfaced when set; `completed_at` reaches history; missing times stay
+null; re-request keeps original `created` + separate `last_re_requested_at`
++ correct `re_request_count`; facility-local "yesterday at H:MM AM/PM"
+from the real tz. `frontend/.../requestStatusHistory.test.js` (new, 5) —
+`/status` vs `/history` routing, "no open request" wording, lifecycle
+labels rendered verbatim, null times omitted not fabricated.
+**All pass in isolation.** Regression: `test_ai_escalation`,
+`test_resident_events`, `test_rf_semantics`, `test_activation_observability`,
+`test_level1_session_fencing`, `test_level1_concurrency_isolation`,
+`test_room_device_isolation`, `test_public_demo_kiosk` each pass 100% in a
+separate process (Motor single-event-loop constraint, same as every prior
+entry). Frontend suite **15 suites / 110 tests**. `iter5-8` errors are the
+pre-existing missing-demo-credentials fixture failures, unrelated (none
+touch the request-status paths).
+
+### Preserved
+one StaffTask = one operational request; re-request dedup +
+`re_request_count` + `last_re_requested_at`; `resident_words` provenance;
+`reject_unconfirmed_time`; department routing + notification; receipts;
+Room 214 ResidentEvent semantics; pendant `press_count`; nursing
+page/dispatch; inactivity state machine; end-call grounding; transportation
+/ menu / schedule paths (their own status endpoints untouched).
+
+### Not done / next
+No deploy - `:8000`/`:3000` still `ab3243b`. Awaiting Michael + ChatGPT
+review before deploy.
+
+---
+
+## 2026-09-07 — check_request_status wording correction (acknowledged ≠ arrival)
+
+### Agent / tool
+Claude Sonnet 5 (Claude Code), Michael directing.
+
+### Branch / ref
+`claude/level1-integration` — `3951ef6` → `6608db0`
+(`Correct check_request_status wording: acknowledged/in_progress never
+authorise an arrival claim`). Pushed. **Not deployed** — `:8000`/`:3000`
+still `ab3243b`.
+
+### What changed
+Michael reviewed `3951ef6` (current-vs-history + lifecycle timestamps —
+**accepted**) and flagged one semantic contradiction in the tool wording.
+`backend/routes/realtime_tools_operations.py` `check_request_status`
+previously ended: *"Never say someone is on the way unless status is
+in_progress (or acknowledged_at is set)."* Per the established StaffTask
+lifecycle contract `acknowledged_at` = staff have SEEN/accepted awareness
+only; `in_progress` = work has STARTED only. **Neither authorises Aria to
+say anyone is coming / on the way / headed there.** Replaced with the
+explicit per-state contract:
+- pending, no `acknowledged_at` → request exists, unacknowledged.
+- pending WITH `acknowledged_at` → "staff acknowledged your request at
+  <label>" — not a coming/on-the-way claim.
+- `in_progress` → "staff have started working on it" (+ `started_at`
+  label) — still not an arrival claim.
+- "someone is coming / on the way / headed there" permitted ONLY when
+  `scheduled_date`/`scheduled_time_label` gives a real staff-entered
+  window, or another tool result explicitly proves a dispatch/arrival.
+
+Parallel clause added to the operator-build `check_request_status` in
+`backend/routes/realtime_aria_tools.py`.
+
+Wording-only change to the tool schema descriptions served to the model.
+**No change** to the current-vs-history architecture or lifecycle-timestamp
+plumbing from `3951ef6`.
+
+### Verified
+- Both tool schemas still build (`_build_tools()` / `_build_aria_tools()`);
+  old contradiction string absent, new per-state text present.
+- `backend/tests/test_request_status_lifecycle.py` — **1 passed** against a
+  staging backend on `:8002` from this worktree (`CAOSCARE_TEST_HOOKS=1`).
+- `frontend/src/lib/__tests__/requestStatusHistory.test.js` — **5 passed**.
+- No other test references the edited modules
+  (`grep` of `tests/` for `check_request_status` / `_build_*_tools` /
+  the module names → only `test_request_status_lifecycle.py`).
+
+### Line counts (materially modified production files)
+- `backend/routes/realtime_tools_operations.py` — 302 lines (was ~285;
+  +17 wording, still a data-only schema module, no code paths added).
+- `backend/routes/realtime_aria_tools.py` — 99 lines (was ~96; +3).
+
+### Blocked / not done
+Deploy still blocked pending Michael + ChatGPT review of `3951ef6` +
+`6608db0`. `:8000`/`:3000`/RF bridge/watcher untouched.
+
+### Next safe step
+Await review; on approval, deploy `6608db0` to `:8000`/`:3000` for live
+Room 214 acceptance (backend restart from this worktree + frontend file
+sync into the served tree, per the `ab3243b` deploy entry).
+
+---
+
+## 2026-09-07 — Aria self-knowledge: resident room is NOT a wall-mounted tablet
+
+### Agent / tool
+Claude Sonnet 5 (Claude Code), Michael directing.
+
+### Branch / ref
+`claude/level1-integration` — `a2db2bc` → `<this commit>`. Pushed.
+**Not deployed** — `:8000`/`:3000` still `ab3243b`.
+
+### Canonical Product Baseline (Michael, this directive)
+Resident rooms are **not** tablet-based. The resident-room system is: a
+local CAOSCare room node (EliteDesk-class computer, hidden near the TV) +
+an eMeet-class speakerphone near the resident for Aria audio + the TV as
+normal television and optional CAOSCare visual surface + room-node
+radios/integrations. **"Kiosk" is a software/UI concept, not a physical
+tablet.**
+
+### Stale lines found (Resident Aria runtime / self-knowledge, my lane)
+1. `backend/routes/realtime_self_knowledge.py:60` (injected into every
+   resident Realtime session via `_build_companion_instructions`):
+   `"  • A wall-mounted tablet kiosk in the resident's room (this device).\n"`
+2. `backend/routes/ai.py:64` `CAOS_SYSTEM_PROMPT` (legacy text/TTS
+   companion, still mounted at `/api/ai`):
+   `"You are the AI companion built into a wall-mounted kiosk in this
+   resident's room at a senior living community, running on the CAOS Care
+   platform"`
+
+### Replacement wording
+1. `realtime_self_knowledge.py` — the single stale bullet becomes:
+   `"  • You are the resident-facing CAOSCare voice presence in this room —
+   software, not a handheld or wall-mounted device. You run on the room's
+   own local CAOSCare node, and you listen and speak through the room's
+   resident audio endpoint (a speakerphone near the resident). Where the
+   room's TV / display is set up for it, you can also show things on that
+   screen. Only get into any of this if a resident actually asks how you
+   work.\n"` — no model names, no future-hardware-as-working implication.
+2. `ai.py` `CAOS_SYSTEM_PROMPT` opening becomes:
+   `"You are the resident-facing AI companion present in this resident's
+   room at a senior living community, running on the CAOS Care platform"`
+   (removed "built into a wall-mounted kiosk"; no new hardware claims).
+
+### Found but intentionally NOT changed (outside "Aria runtime/self-knowledge" scope)
+- `backend/routes/vision.py:4` — module docstring "forwards them via BLE to
+  the wall-mounted tablet (kiosk)" (AI-vision-glasses feature doc, not Aria
+  self-knowledge).
+- `backend/routes/devices.py:168` — code comment "big-button presses on the
+  resident tablet" (kiosk device endpoint, device lane).
+- `backend/routes/hardware.py` — `touchscreen` in `room_companion` /
+  `lobby_kiosk` hardware capability profiles (hardware spec registry;
+  directive says do not change other hardware).
+- `backend/routes/ai.py:64` also still says "grandchild who stops by" etc.
+  and `realtime_self_knowledge.py` still has a "## What's on the kiosk
+  screen" section — left as-is: "kiosk" there is the software/UI surface,
+  which the baseline explicitly preserves.
+
+### Not changed
+No Realtime behavior, tool logic, ResidentEvent behavior, RF behavior,
+paging, inactivity logic, or memory. `ai.py:279` hashes
+`CAOS_SYSTEM_PROMPT` into a receipt `prompt_hash` — that hash changes by
+design when the prompt text changes (provenance marker).
+
+### Verified
+- `python -c` AST + import of both modules; `_system_self_knowledge()`
+  rebuilds (4,520 chars) with the stale line absent and the new wording
+  present; `routes.ai.CAOS_SYSTEM_PROMPT` no longer contains "wall-mounted
+  kiosk".
+- `_build_companion_instructions(None)` builds full resident instructions
+  (16,523 chars) — stale device line absent, new wording present.
+- Regression, each in its own pytest process against staging `:8002`
+  (`CAOSCARE_TEST_HOOKS=1`): `test_request_status_lifecycle` 1 passed,
+  `test_resident_events` 1 passed, `test_ai_escalation` 1 passed.
+- No test asserts self-knowledge / system-prompt text (grep of `tests/`).
+- No frontend file changed → frontend suite not affected.
+
+### Line counts (materially modified production files)
+- `backend/routes/realtime_self_knowledge.py` — **116 lines** (was 110;
+  +6, the one bullet expanded to a wrapped multi-line string literal).
+- `backend/routes/ai.py` — **438 lines** (unchanged; in-place word swap on
+  the existing `CAOS_SYSTEM_PROMPT` line). Already above the 300 cap
+  pre-existing; not enlarged — compliant with the "do not make it larger"
+  rule; a 3-word swap inside a prompt constant is not practically
+  extractable.
+
+### Blocked / not done
+Deploy still blocked pending Michael + ChatGPT review. `:8000` (pid
+598629, `ab3243b`), `:3000` (pid 598685), RF bridge, watcher untouched.
+
+### Next safe step
+Await review; on approval this rides the same deploy as `6608db0`.
+
+---
+
+## 2026-09-07 — Level-1 integration deployed to live Room 214 path (backend :8000 + parallel frontend :3001)
+
+### Agent / tool
+Claude Sonnet 5 (Claude Code), Michael directing.
+
+### Branch / ref
+`claude/level1-integration` @ `081ae13` (deployed as-is; no new code commits — runtime/topology + this doc entry only).
+
+### What is now running
+- **Backend `:8000`** — restarted from `~/CAOSCARE-LEVEL1-INTEGRATION/backend`, pid `607118` (PPID 1, `nohup`, no supervisor). Loads `backend/.env` from cwd → `mongodb://localhost:27017` / DB `caoscare` (existing local DB; `CAOSCARE_ENABLE_DEMO_SEED=false`, no reseed). `/api/health` → `{"ok":true,"db":"up"}`. Verified live: `/api/tasks/resident-request/status` (`scope:"current"`) + `/history` (`scope:"history"`), `/api/alerts/ai-escalate`, `/api/staff-dispatch/*`, `/api/rf/event`, `/api/activation-events/*`, `/api/realtime/session` (mints an `ek_...` ephemeral key — OpenAI wired).
+- **Frontend `:3001`** — the Level-1 acceptance frontend, **served directly from `~/CAOSCARE-LEVEL1-INTEGRATION/frontend`** via the existing craco dev-server mechanism. pid `610968` (parent `610960` = `node_modules/.bin/craco start`), cwd = integration worktree frontend. Started with env only (nothing hardcoded): `PORT=3001 HOST=0.0.0.0 REACT_APP_BACKEND_URL=http://127.0.0.1:8000 DANGEROUSLY_DISABLE_HOST_CHECK=true BROWSER=none`. `node_modules` is a **symlink** → `~/CAOSCARE.COM/frontend/node_modules` (identical `package.json` + `yarn.lock`; symlink lives in a git-ignored path, no repo effect). Bundle verified: `REACT_APP_BACKEND_URL` baked as `http://127.0.0.1:8000` (no `:3000`/other), and contains `check_request_history`, current-vs-history wording, `createInactivityTimer` / `armIfBothSilent` / `residentSpeechStarted` / `aria_companion_timeout_sec`, `connectRealtimeVoice` / `/realtime/negotiate` / `X-CAOS-Ephemeral-Key`. Room 214 kiosk URL: `http://127.0.0.1:3001/kiosk/kio_dc8c06a19608` → HTTP 200; backend resolves that kiosk → room 214 → Helen Torres `res_81b72be1e8b5`.
+- This `:3001` server is **local parallel-dev/test topology only — NOT production architecture.**
+
+### Left untouched (verified)
+- **`:3000` Admin frontend** — still serving (HTTP 200), cwd still `~/CAOSCARE-ADMIN/frontend`, Claude 1's systemd drop-in `caoscare-frontend-dev.service.d/worktree.conf` unchanged (mtime 2026-09-07 18:40:43). Its pid churns on its own (606518 → 606758 → 610866 across the session); I issued no `systemctl` and did not touch `~/CAOSCARE-ADMIN`.
+- **RF bridge** pid `522046`, alive, `CAOS_API_URL=http://127.0.0.1:8000` (unchanged), polling (`last_bridge_poll_at` advancing).
+- **Helen's open event** `alerts/_id=6a9ed7b64ee1702fe3989c5e` — `status=acknowledged`, `resolved_at=null`, not mutated. `resident_aria_leases` active = 0. To be resolved via the Staff UI (not Mongo) before the clean one-press acceptance test.
+
+### Blocked / next
+Physical Room 214 acceptance test is Michael's step: resolve the old Helen event in the Staff UI, then open `http://127.0.0.1:3001/kiosk/kio_dc8c06a19608` and do one pendant press. No deploy to `:3000` / production; `claude/level1-integration` not merged to main.

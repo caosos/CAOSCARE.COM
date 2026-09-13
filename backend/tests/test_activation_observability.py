@@ -128,7 +128,10 @@ async def _run():
         assert ("rf", "frame_received") in events
         assert ("resident_event", "event_opened") in events
         assert ("kiosk", "wake_accepted") in events
-        assert ("lease", "claim_accepted") in events
+        # lease evidence is written by realtime_room_lease._lease_evidence
+        # into resident_aria_lease_events (session-fencing work); the
+        # timeline surfaces those rows under layer "lease".
+        assert ("lease", "claimed") in events
         assert ("lease", "released") in events
         assert ("realtime", "session_mint_started") in events or ("realtime", "session_ended") in events
 

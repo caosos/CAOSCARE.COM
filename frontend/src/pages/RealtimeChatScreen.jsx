@@ -38,8 +38,8 @@ export default function RealtimeChatScreen({
   // instance never touched the mic. Show it briefly, then return the kiosk
   // to idle so normal polling/triggers resume; there's nothing to tear down.
   useEffect(() => {
-    if (status !== "unavailable") return;
-    const t = setTimeout(() => onEnd?.(), 2500);
+    if (!["unavailable", "error"].includes(status)) return;
+    const t = setTimeout(() => onEnd?.({ retry: true, reason: status }), 2500);
     return () => clearTimeout(t);
   }, [status, onEnd]);
   const localAudioElRef = useRef(null);
@@ -55,7 +55,7 @@ export default function RealtimeChatScreen({
     if (startedRef.current) return;        // StrictMode guard — only ever start once
     startedRef.current = true;
     start();
-    return () => stop("component_unmount");
+    return () => { startedRef.current = false; stop("component_unmount"); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

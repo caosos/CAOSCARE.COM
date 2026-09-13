@@ -227,8 +227,14 @@ async def _t5_supervisory_while_event_open(db, now_utc):
     try:
         press = _frame(kiosk_id, HELP_PRESS_DECODED)
         alert_id = press["alert_id"]
-        # simulate a session that ran and was dismissed (consumes activation)
-        requests.post(f"{API}/alerts/{alert_id}/aria-event", json={"event": "dismissed"}, timeout=5).raise_for_status()
+        # simulate a session that ran and was dismissed (consumes the
+        # activation). The aria-event endpoint is session-fenced in the
+        # integrated build, so set the consumed marker directly - the
+        # invariant under test is "a supervisory frame must not un-consume
+        # or re-arm an already-consumed open event".
+        await db.alerts.update_one({"alert_id": alert_id},
+                                   {"$set": {"activation_consumed_at": now_utc().isoformat(),
+                                             "aria_state": "dismissed"}})
         pre = await db.alerts.find_one({"alert_id": alert_id}, {"_id": 0})
         assert pre["activation_consumed_at"] is not None
         pc_before, consumed_before, aid_before = pre["press_count"], pre["activation_consumed_at"], pre["activation_id"]

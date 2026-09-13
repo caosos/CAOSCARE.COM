@@ -61,6 +61,21 @@ test.each([
   expect(r.ok).toBe(true);
 });
 
+// Directive test 7 (Room 214 forensics 2026-09-07): after Aria sang,
+// Michael said "That's beautiful." and did NOT end the conversation - the
+// session was cut off by the (now-fixed) inactivity timer, not by an end
+// intent. Appreciation must never tear down the session.
+test.each([
+  "That's beautiful.",
+  "That's beautiful",
+  "That was beautiful, thank you.",
+])("appreciation must NOT end the call/conversation: %s", async (text) => {
+  const ec = await executeDeviceTool({ name: "end_call", args: { reason: "goodbye" }, ctx: ctx(text) });
+  const eco = await executeDeviceTool({ name: "end_conversation", args: {}, ctx: ctx(text) });
+  expect(ec.ok).toBe(false);
+  expect(eco.ok).toBe(false);
+});
+
 test("existing turn_suspect guard still takes priority over the new check", async () => {
   const r = await executeDeviceTool({
     name: "end_call", args: { reason: "goodbye" },

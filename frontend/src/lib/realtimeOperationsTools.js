@@ -79,16 +79,43 @@ export async function executeOperationsTool({ name, args, ctx }) {
     return { ok: true, message: `request created (${data.status}) and sent to ${args.category}.`, task_id: data.task_id };
   }
 
-  if (name === "check_request_status") {
+  if (name === "check_request_status" || name === "check_request_history") {
+    const history = name === "check_request_history";
     const qs = new URLSearchParams();
     if (residentId) qs.set("resident_id", residentId);
     else if (room) qs.set("room", room);
     else qs.set("conversation_session_id", sessionId || "");
     if (args.category) qs.set("category", args.category);
-    const r = await fetch(`${API}/tasks/resident-request/status?${qs.toString()}`);
+    const path = history ? "history" : "status";
+    const r = await fetch(`${API}/tasks/resident-request/${path}?${qs.toString()}`);
     if (!r.ok) return { ok: false, message: `couldn't check that (${r.status}).` };
     const data = await r.json();
-    if (!data.found) return { ok: true, message: "no matching request found on record." };
+
+    const lifecycle = (d) => {
+      const seg = [];
+      if (d.created?.label) seg.push(`asked ${d.created.label}`);
+      if (d.last_re_requested_at?.label) seg.push(`asked again ${d.last_re_requested_at.label}`);
+      if (d.acknowledged_at?.label) seg.push(`acknowledged ${d.acknowledged_at.label}`);
+      if (d.started_at?.label) seg.push(`started ${d.started_at.label}`);
+      if (d.completed_at?.label) seg.push(`completed ${d.completed_at.label}`);
+      return seg;
+    };
+
+    if (history) {
+      if (!data.found || !data.requests?.length) {
+        return { ok: true, message: "nothing finished on record for that." };
+      }
+      const items = data.requests.slice(0, 3).map((d) => {
+        const t = lifecycle(d);
+        return `${d.what_for || "a request"} (${d.category})${t.length ? " — " + t.join(", ") : ""}`;
+      });
+      return { ok: true, message: "past requests: " + items.join("; ") + "." };
+    }
+
+    // current
+    if (!data.found) {
+      return { ok: true, message: "you have no open request on record right now." };
+    }
     const scheduleClause = data.scheduled_date || data.scheduled_time_label
       ? `planned for ${[data.scheduled_time_label, data.scheduled_date].filter(Boolean).join(" on ")}`
       : "no scheduled time yet";
@@ -97,7 +124,9 @@ export async function executeOperationsTool({ name, args, ctx }) {
       `status: ${data.status}${data.acknowledged ? " (acknowledged)" : " (not yet acknowledged)"}${data.assigned_to_name ? `, assigned to ${data.assigned_to_name}` : ""}`,
       scheduleClause,
     ];
-    if (data.latest_update) parts.push(`latest update: ${data.latest_update.replace(/\.$/, "")}`);
+    const t = lifecycle(data);
+    if (t.length) parts.push(t.join(", "));
+    if (data.latest_update) parts.push(`latest staff update: ${data.latest_update.replace(/\.$/, "")} (no timestamp on record)`);
     return { ok: true, message: parts.join("; ") + "." };
   }
 

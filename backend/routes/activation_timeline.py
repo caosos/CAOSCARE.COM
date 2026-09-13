@@ -91,6 +91,25 @@ async def _merge_for_alert(alert_id: str, activation_id: Optional[str]) -> list[
                          data={"source": p.get("source"), "rssi": p.get("rssi"),
                                "press_id": p.get("press_id")},
                          rf_device_id=p.get("device_id")))
+    for esc in alert.get("escalations", []):
+        rows.append(_row(esc.get("at"), "resident_event", "ai_escalation", "alert.escalations",
+                         data={"source": esc.get("source"), "reason": esc.get("reason"),
+                               "requested_department": esc.get("requested_department"),
+                               "requested_severity": esc.get("requested_severity"),
+                               "effective_severity": esc.get("effective_severity")},
+                         session_id=esc.get("session_id"), activation_id=activation_id))
+
+    # Staff page / dispatch - the durable proof behind "a nurse has been paged"
+    async for sd in db.staff_dispatches.find({"alert_id": alert_id}, {"_id": 0}):
+        for ev in sd.get("events", []):
+            rows.append(_row(ev.get("at"), "dispatch", f"page_{ev.get('status')}", "staff_dispatches",
+                             data={"dispatch_id": sd.get("dispatch_id"), "department": sd.get("department"),
+                                   "severity": sd.get("severity"), "reason": sd.get("reason"),
+                                   "delivery_mechanism": sd.get("delivery_mechanism"),
+                                   "failure_reason": sd.get("failure_reason"),
+                                   "receipt_id": sd.get("receipt_id"), "detail": ev.get("detail")},
+                             alert_id=alert_id, activation_id=sd.get("activation_id"),
+                             session_id=sd.get("session_id")))
 
     # Realtime diagnostics for every session_id referenced so far
     sids = {r.get("session_id") for r in rows if r.get("session_id")}

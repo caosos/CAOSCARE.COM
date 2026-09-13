@@ -20,6 +20,17 @@ def _iso(dt):
 @router.post("")
 async def create_alert(data: AlertCreate):
     """Public endpoint - kiosks trigger this when resident presses the emergency button."""
+    # AI triage is NOT a human button press. Route it to the enrich-don't-
+    # duplicate path (severity escalates, reason retained, real dispatch,
+    # human press_count untouched) instead of record_resident_activation.
+    if data.triggered_by == "ai_triage":
+        from routes.ai_escalation import ai_escalate, AiEscalateInput
+        return await ai_escalate(AiEscalateInput(
+            reason=data.message or "AI-initiated call for help during conversation",
+            severity=data.severity, department="Care/Nursing",
+            resident_id=data.resident_id, kiosk_id=data.kiosk_id,
+        ))
+
     kiosk = None
     resident = None
     room = None
@@ -173,6 +184,17 @@ async def acknowledge(alert_id: str, user=Depends(get_current_user)):
     if r.matched_count == 0:
         raise HTTPException(status_code=404, detail="Alert not active or not found")
     doc = await db.alerts.find_one({"alert_id": alert_id}, {"_id": 0})
+    # A staff ack IS the "delivered / acknowledged" signal for any open
+    # nursing dispatch on this event (routes/staff_dispatch.py).
+    if doc.get("dispatch_id") and doc.get("dispatch_status") in ("accepted", "requested"):
+        try:
+            from routes.staff_dispatch import _transition
+            await _transition(doc["dispatch_id"], "delivered",
+                              acknowledged_by=user.get("name"),
+                              detail="staff acknowledged the linked ResidentEvent")
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"dispatch delivered-mark failed for {alert_id}: {e}")
     return doc
 
 

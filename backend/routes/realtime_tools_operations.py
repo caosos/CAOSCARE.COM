@@ -74,19 +74,38 @@ def _build_operations_tools(request_categories: list[str] | None = None) -> list
             "type": "function",
             "name": "check_request_status",
             "description": (
-                "Check the real status of the resident's most recent staff request "
-                "(from request_staff_help). Use this when they ask things like 'did "
-                "the nurse see my message', 'is anyone coming for the light', 'what "
-                "did I call maintenance about', or 'when are they coming'. The result "
-                "includes `what_for` (say plainly what the request is actually about - "
-                "never just say 'a maintenance request'), `scheduled_date`/"
-                "`scheduled_time_label` (a REAL staff-entered planned visit window - "
-                "report it if present; if BOTH are empty, say there is no scheduled "
-                "time yet - never invent an ETA), and `latest_update` (a staff note, "
-                "e.g. waiting on a part - read it aloud if present). Report only what "
-                "this actually returns - never say someone is on the way unless "
-                "status is acknowledged/in_progress, and never say it's done unless "
-                "status is completed."
+                "The resident's CURRENT (still-open) staff request. Use when they "
+                "ask 'did the nurse see my message', 'is anyone coming for the "
+                "light', 'what did I call maintenance about', 'when are they "
+                "coming'. This returns ONLY a request that is genuinely still "
+                "open - if `found` is false there is nothing pending right now; "
+                "say exactly that, and do NOT bring up a past finished request "
+                "as if it were current. It never resurrects completed work. "
+                "The result gives `what_for` (say plainly what it's about - "
+                "never just 'a maintenance request'); `is_open`; `scheduled_date`/"
+                "`scheduled_time_label` (a REAL staff-entered planned window - "
+                "if both empty say there's no scheduled time yet, never invent "
+                "an ETA); `latest_update` (a staff note - read it if present); "
+                "and lifecycle times `created`, `acknowledged_at`, `started_at`, "
+                "`last_re_requested_at`, each an object with a `label` like "
+                "'today at 2:17 PM' - use those to answer 'when' questions "
+                "verbatim. If a time field is null, say you don't have that "
+                "time - never guess. "
+                "What each state actually means - do NOT overstate it: "
+                "pending with no `acknowledged_at` = the request exists, no "
+                "one has acknowledged it yet. pending WITH `acknowledged_at` "
+                "= staff have SEEN/acknowledged it (say 'staff acknowledged "
+                "your request at <label>') - this does NOT mean anyone is "
+                "coming or on the way, so do not say that. status "
+                "'in_progress' = work has STARTED (say 'staff have started "
+                "working on it' plus the `started_at` label if present) - "
+                "still NOT a claim that someone is physically on the way or "
+                "about to arrive. You may ONLY say someone is coming / on "
+                "the way / headed there if `scheduled_date`/"
+                "`scheduled_time_label` gives a real window (state that "
+                "window) or some other tool result explicitly proves a "
+                "dispatch/arrival - acknowledgement and in_progress alone "
+                "never authorise an arrival claim."
             ),
             "parameters": {
                 "type": "object",
@@ -94,7 +113,34 @@ def _build_operations_tools(request_categories: list[str] | None = None) -> list
                     "category": {
                         "type": "string",
                         "enum": categories,
-                        "description": "Optional - narrow to one department's most recent request."
+                        "description": "Optional - narrow to one department's current request."
+                    }
+                },
+                "additionalProperties": False
+            }
+        },
+        {
+            "type": "function",
+            "name": "check_request_history",
+            "description": (
+                "The resident's PAST, already-finished requests. Use ONLY when "
+                "the resident EXPLICITLY asks about history: 'what did I ask "
+                "maintenance yesterday', 'when did they fix my light', 'what "
+                "happened with that old request'. Do NOT call it otherwise, and "
+                "NEVER volunteer old requests they didn't ask about. Returns "
+                "recently completed requests with real `completed_at` / "
+                "`created` times (each with a `label` like 'yesterday at 4:06 "
+                "PM'). If `found` is false, say there's nothing finished on "
+                "record for that. Report only what it returns; if a time is "
+                "null, say you don't have it."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "category": {
+                        "type": "string",
+                        "enum": categories,
+                        "description": "Optional - narrow the history to one department."
                     }
                 },
                 "additionalProperties": False

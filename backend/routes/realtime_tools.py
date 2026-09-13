@@ -34,13 +34,19 @@ async def _build_tools() -> list[dict]:
             "name": "call_for_help",
             "description": (
                 "Escalate to a caregiver IMMEDIATELY when the resident describes "
-                "chest pain, breathing trouble, a fall, severe dizziness, confusion, "
-                "or directly asks for a nurse. Do NOT use for casual conversation. "
-                "Do NOT use for a routine bathroom/toileting/mobility-assistance "
-                "need - that is request_staff_help (nursing, priority='high'), not "
-                "an emergency-tier escalation, even though it should still be fast. "
-                "After calling, reassure the resident that help is on the way and "
-                "stay with them."
+                "chest pain, breathing trouble, a fall, bleeding, severe dizziness, "
+                "confusion, or directly asks for a nurse. Do NOT use for casual "
+                "conversation. Do NOT use for a routine bathroom/toileting/mobility-"
+                "assistance need - that is request_staff_help (nursing, "
+                "priority='high'), not an emergency-tier escalation, even though it "
+                "should still be fast. This enriches the resident's existing help "
+                "event (it never creates a second event and never counts as another "
+                "button press) and places a real nursing dispatch. AFTER calling, "
+                "tell the resident ONLY what the tool result confirms: if it says a "
+                "nurse was paged, you may say a nurse has been paged; if it says the "
+                "request was sent, say you've sent it to the care team; if it "
+                "failed, do NOT say anyone was paged - tell them to press the red "
+                "button. Then stay with them."
             ),
             "parameters": {
                 "type": "object",

@@ -22,8 +22,7 @@ import logging
 
 from deps import db
 from models import now_utc
-from routes.activation_log import alog, new_activation_id
-from routes.resident_activation import record_resident_activation
+from routes.activation_log import alog
 from routes.rf_semantics import classify_transmission, burst_context, ACTIVATION_CLASS
 
 log = logging.getLogger(__name__)
@@ -105,29 +104,30 @@ async def handle_matched_frame(device: dict, kiosk: dict, payload, raw_event: di
         )
         return out
 
-    # ---- help_press: the ONLY path into the activation pipeline -------
-    activation_id = new_activation_id()
+    # ---- help_press: the ONLY path into the activation pipeline. Hand
+    # off to routes/rf_activation_intake.record_matched_frame - the
+    # concurrency-safe 2s-idle burst grouping + record_resident_activation
+    # already running in ~/CAOSCARE.COM. This gate does not re-implement
+    # frame collapsing (that would duplicate the burst-id mechanism);
+    # it only decides WHETHER the frame is allowed in.
     try:
-        result = await record_resident_activation(
-            resident_id=resident_id, room=room, source="rf_pendant",
-            device_id=rf_device_id, rssi=fp.get("rssi"),
-            severity=_SEV_MAP.get(device.get("severity", "help"), "assist"),
-            auto_voice=True,
-            message=f"RF pendant pressed: {device.get('label', 'unknown')}",
-            triggered_by="rf_pendant", kiosk_id=payload.kiosk_id,
-            semantic_class=rfclass.semantic, activation_id_hint=activation_id,
-            source_metadata={
-                "rf_device_id": rf_device_id, "match_score": raw_event.get("match_score"),
-                "rssi": fp.get("rssi"), "rf_severity": device.get("severity", "help"),
-                "semantic_class": rfclass.semantic, "class_reasons": rfclass.reasons,
-            },
-        )
-        out["alert_id"] = raw_event["alert_id"] = result["alert_id"]
-        out["activation_id"] = raw_event["activation_id"] = result.get("activation_id", activation_id)
-        out["press_coalesced"] = result["coalesced"]
-        out["echo_frame"] = bool(result.get("echo_frame"))
-        if not out["echo_frame"]:
-            await db.rf_devices.update_one({"rf_device_id": rf_device_id}, {"$inc": {"press_count": 1}})
+        from routes.rf_activation_intake import record_matched_frame
+        coalesced = await record_matched_frame(device, kiosk, payload, raw_event)
+        out["alert_id"] = raw_event.get("alert_id")
+        out["press_coalesced"] = coalesced
+        # record_matched_frame sets raw_event["press_counted"]: False means
+        # this frame was a repeat within the burst window (our "echo").
+        out["echo_frame"] = raw_event.get("press_counted") is False
+        if out["alert_id"]:
+            a = await db.alerts.find_one({"alert_id": out["alert_id"]},
+                                        {"_id": 0, "activation_id": 1})
+            out["activation_id"] = raw_event["activation_id"] = (a or {}).get("activation_id")
+        await alog("rf", "activation_admitted", room=room, resident_id=resident_id,
+                   rf_device_id=rf_device_id, alert_id=out["alert_id"],
+                   activation_id=out["activation_id"],
+                   data={"semantic_class": rfclass.semantic, "reasons": rfclass.reasons,
+                         "press_counted": raw_event.get("press_counted"),
+                         "rf_burst_id": raw_event.get("rf_burst_id")})
     except Exception as e:
         log.warning(f"RF help-press activation failed for {rf_device_id}: {e}")
         raw_event["activation_error"] = type(e).__name__
