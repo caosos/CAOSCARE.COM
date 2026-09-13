@@ -622,7 +622,7 @@ DeviceKind = Literal[
 ]
 DeviceCapability = Literal[
     "power", "brightness", "temperature", "fan_speed", "volume",
-    "channel", "input", "color", "color_temp", "position",
+    "channel", "input", "color", "color_temp", "position", "hvac_mode",
 ]
 
 

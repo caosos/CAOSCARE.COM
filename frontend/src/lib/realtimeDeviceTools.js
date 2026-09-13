@@ -179,19 +179,37 @@ export async function executeDeviceTool({ name, args, ctx }) {
     return { ok: true, message: `switched the TV to ${args.input}.` };
   }
   if (name === "call_for_help") {
-    const r = await fetch(`${API}/alerts`, {
+    // Enriches the resident's OPEN help event (never mints a duplicate,
+    // never counts as a human press) and triggers a real, durable nursing
+    // dispatch. Aria's wording below is derived from the dispatch's actual
+    // delivery state - not from having "tried". (Level 1 directive 2026-09-07.)
+    const r = await fetch(`${API}/alerts/ai-escalate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        kiosk_id: kioskId || null,
-        resident_id: residentId || null,
+        reason: args.reason || "AI-initiated call for help during conversation",
         severity: args.severity === "emergency" ? "emergency" : "assist",
-        message: args.reason || "AI-initiated call for help during conversation",
-        triggered_by: "ai_triage",
+        department: "Care/Nursing",
+        resident_id: residentId || null,
+        kiosk_id: kioskId || null,
+        room: room || null,
+        alert_id: ctx?.alert_id || null,
+        activation_id: ctx?.activation_id || null,
+        session_id: ctx?.session_id || null,
       }),
     });
-    if (!r.ok) return { ok: false, message: `I tried to call a nurse but the call didn't go through (${r.status}). Please press the red button.` };
-    return { ok: true, message: "a nurse has been paged. I'm right here with you." };
+    if (!r.ok) {
+      return { ok: false, message: `I wasn't able to reach the care team just now — please press the red button. I'm staying right here with you.` };
+    }
+    const d = await r.json().catch(() => ({}));
+    if (d.wording_state === "paged") {
+      return { ok: true, message: "A nurse has been paged. I'm right here with you." };
+    }
+    if (d.wording_state === "sent") {
+      return { ok: true, message: "I've sent your request to the care team, and I'm staying right here with you." };
+    }
+    // failed (or unknown) - do NOT claim anyone was paged
+    return { ok: false, message: "I wasn't able to reach the care team just now — please press the red button. I'm staying right here with you." };
   }
   if (name === "mark_resting") {
     // Structural grounding (2026-08-30) - see RESTING_PHRASES above. No

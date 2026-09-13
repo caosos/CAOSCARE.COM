@@ -1,3 +1,4 @@
+import { createActivationPollGate } from "../lib/residentActivationPoll";
 import React, { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -41,7 +42,7 @@ export default function Kiosk() {
   const [needsTap, setNeedsTap] = useState(false);       // remote pendant fired but we need a user tap first (autoplay/mic policy)
   const [pendingAlert, setPendingAlert] = useState(null);
   const audioCtxRef = useRef(null);
-  const seenEmergencyRef = useRef(null);
+  const activationGateRef = useRef(createActivationPollGate());
   const triggerSourceRef = useRef("manual_kiosk");  // what's about to start the next RealtimeChatScreen — pendant | manual_kiosk
   const callStateRef = useRef("idle");     // sync callState for async callbacks
   useEffect(() => { callStateRef.current = callState; }, [callState]);
@@ -180,7 +181,6 @@ export default function Kiosk() {
     return () => { stop = true; clearInterval(t); };
   }, [kiosk?.room, callState]);
 
-  // Poll for incoming emergencies (panic-press / fall) → auto hands-free
   useEffect(() => {
     if (!kiosk?.kiosk_id) return;
     let stop = false;
@@ -189,8 +189,7 @@ export default function Kiosk() {
         const { data } = await axios.get(`${API}/kiosks/${kiosk.kiosk_id}/active-emergency`);
         if (stop) return;
         const a = data.alert;
-        if (a && a.alert_id !== seenEmergencyRef.current && callStateRef.current === "idle") {
-          seenEmergencyRef.current = a.alert_id;
+        if (activationGateRef.current.accept(a, callStateRef.current === "idle")) {
           handleIncomingEmergency(a);
         }
       } catch { /* silent */ }
@@ -307,9 +306,9 @@ export default function Kiosk() {
         message: severity === "emergency" ? "Emergency button pressed" : "Assistance requested",
         triggered_by: "kiosk_button",
       });
+      activationGateRef.current.accept(data, true);
       setAlert(data);
       setCallState("chatting");
-      // RealtimeChatScreen owns the greeting + conversation from here.
     } catch {
       toast.error("Could not send the call. Please try again.");
       setCallState("idle");
@@ -317,7 +316,6 @@ export default function Kiosk() {
   };
 
   const cancelCall = async () => {
-    // Restore any TVs/speakers we muted when the call began.
     if (mutedDevicesRef.current.length) {
       for (const m of mutedDevicesRef.current) {
         if (m.prior_power === "on") {
@@ -571,8 +569,10 @@ export default function Kiosk() {
         a11yRootClass={a11yRootClass}
         triggerSource={triggerSourceRef.current}
         alertId={alert?.alert_id}
+        activationId={alert?.activation_id}
         onOpenVoicePicker={() => setVoicePickerOpen(true)}
-        onEnd={() => {
+        onEnd={(result) => {
+          activationGateRef.current.finish(result);
           setCallState("idle");
           setAlert(null);
         }}

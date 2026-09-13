@@ -29,7 +29,6 @@ from models import (
     RFDevice, RFCapture, RFFingerprint, RFListenStart, RFPair, RFEventIn,
     RFDeviceAssign, now_utc,
 )
-from routes.resident_activation import record_resident_activation
 from routes.rf_bridge_health import mark_bridge_polled
 from routes.rf_pairing_guard import hamming_similarity, find_pairing_conflict
 
@@ -42,14 +41,8 @@ DEFAULT_TEST_SECONDS = 5
 # devices "on the same frequency" - real rtl_433 measurements drift by a
 # few kHz per packet, so an exact match is too fragile (see rf_event()).
 FREQ_TOLERANCE_HZ = 50_000
-# One physical button press on a real Interlogix-Security pendant produces
-# ~8 RF frames within ~1-3s (live-evidenced 2026-08-29). Frame-level
-# coalescing (same press's own repeat frames) plus the deeper
-# incident-level activation gating (repeat presses during an ALREADY
-# ACTIVE session - real live defect, 2026-08-30, room 401) both live in
-# routes/resident_activation.py now (generalized 2026-09-06 from device-
-# scoped to resident-scoped, per the Level 1 directive - see that
-# module's docstring for the full history).
+# Matched-frame grouping lives in rf_activation_intake.py; raw frames
+# remain in rf_events, separately from resident-event activation/counting.
 
 
 def _iso(doc: dict) -> dict:
@@ -432,60 +425,15 @@ async def rf_event(
         "alert_id": None,
     }
 
+    press_coalesced = False
     if matched:
-        telemetry = {
-            "last_seen_at": now_utc().isoformat(),
-            "last_rssi": payload.fingerprint.rssi,
-        }
-        # battery_ok is real decoder-provided evidence (Interlogix-Security
-        # and similar PERS protocols report it on every transmission) - was
-        # captured in every event's fingerprint.decoded already but never
-        # actually propagated onto the paired device record, so the admin
-        # pendant list could never show a real low-battery warning even
-        # though the data was right there (2026-09-06, real ask: "battery
-        # life and whatever else can be derived" as pairing/device data).
-        battery_ok = (payload.fingerprint.decoded or {}).get("battery_ok")
-        if battery_ok is not None:
-            telemetry["low_battery"] = not bool(battery_ok)
-        await db.rf_devices.update_one(  # telemetry
-            {"rf_device_id": best["rf_device_id"]},
-            {"$set": telemetry, "$inc": {"press_count": 1}},
-        )
-        # Every RF press is persisted to db.rf_events unconditionally,
-        # below, regardless of whether it coalesces into an already-open
-        # resident event or opens a fresh one - evidence is never dropped,
-        # only ACTIVATION is deduped. Map our RF severities ("help" /
-        # "assist" / "emergency" / "comfort") to the tighter
-        # Alert.AlertSeverity Literal which has no "help" - collapse
-        # "help" -> "assist" so the alert is valid.
-        sev_map = {"help": "assist", "assist": "assist", "emergency": "emergency", "comfort": "comfort"}
-        alert_severity = sev_map.get(best.get("severity", "help"), "assist")
         try:
-            result = await record_resident_activation(
-                resident_id=best.get("resident_id"),
-                room=best.get("room") or kiosk.get("room"),
-                source="rf_pendant",
-                device_id=best["rf_device_id"],
-                rssi=payload.fingerprint.rssi,
-                severity=alert_severity,
-                auto_voice=True,  # Michael, 2026-08-29: a pendant press must always reach Aria hands-free, matching pendants.py/wearables.py
-                message=f"RF pendant pressed: {best.get('label', 'unknown')}",
-                triggered_by="rf_pendant",
-                kiosk_id=payload.kiosk_id,
-                source_metadata={
-                    "rf_device_id": best["rf_device_id"],
-                    "match_score": round(best_score, 4),
-                    "rssi": payload.fingerprint.rssi,
-                    "rf_severity": best.get("severity", "help"),
-                },
-            )
-            raw_event["alert_id"] = result["alert_id"]
-            press_coalesced = result["coalesced"]
+            from routes.rf_activation_intake import record_matched_frame
+            press_coalesced = await record_matched_frame(best, kiosk, payload, raw_event)
         except Exception as e:
-            # Best-effort. Log the cause so we know if activation recording breaks.
             import logging
             logging.getLogger(__name__).warning(f"RF activation recording failed: {e}")
-            press_coalesced = False
+            raw_event["activation_error"] = type(e).__name__
 
     await db.rf_events.insert_one(raw_event)
     raw_event.pop("_id", None)
@@ -496,6 +444,7 @@ async def rf_event(
         "device_id": best["rf_device_id"] if matched else None,
         "alert_id": raw_event.get("alert_id"),
         "press_coalesced": press_coalesced if matched else False,
+        "press_counted": raw_event.get("press_counted", False),
     }
 
 
