@@ -224,6 +224,14 @@ Before beginning meaningful work, read (see the full boot sequence above):
 5. `docs/BUILD_STATUS.md` / `docs/CURRENT_NODE_STATUS.md`
 6. any task-specific docs (for example `docs/DEPLOYMENT_RUNBOOK.md`, contracts, or surface-specific maps)
 
+### Lane onboarding packages
+
+For work on **Aria / resident voice / realtime sessions / conversation
+substrate / memory / context / tools / operational state**, the single
+canonical reading list is `docs/ARIA_LANE_ONBOARDING.md`. Read it before
+implementing in that lane. It is a pointer list, not a doctrine copy — do not
+duplicate prompt/personality text into new files.
+
 If `docs/PROJECT_STATE.md` does not exist yet, read and update `docs/BUILD_STATUS.md` until `docs/PROJECT_STATE.md` is created.
 
 Before finishing meaningful work, update `docs/PROJECT_STATE.md` with a dated entry.

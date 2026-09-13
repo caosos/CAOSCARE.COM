@@ -60,7 +60,15 @@ def _command(room, action, value, kind="light", device_id=None):
 
 class TestRealBulbCapabilities:
     """Requirement: power, brightness, color, color_temp, each independently
-    verified against the real Home Assistant read-back - never HTTP 200 alone."""
+    verified against the real Home Assistant read-back - never HTTP 200 alone.
+
+    2026-09-09 incident: a plain `pytest tests/` run left both real Room 214
+    bulbs powered on (see docs/PROJECT_STATE.md) because these tests send
+    real commands to real hardware and nothing excluded them from a routine
+    full-suite run. Marked `real_hardware` - see backend/pytest.ini, which
+    excludes this marker by default. Run explicitly with
+    `pytest tests/test_light_control.py -m real_hardware`."""
+    pytestmark = pytest.mark.real_hardware
 
     def test_power_on_then_off_verified_against_real_hardware(self):
         _skip_if_unreachable()
@@ -178,6 +186,7 @@ class TestRoomIsolationAndSelection:
         assert r.status_code == 400, r.text
         assert "color" in r.json()["detail"].lower()
 
+    @pytest.mark.real_hardware
     def test_selects_the_light_not_another_device_kind_in_the_same_room(self):
         _skip_if_unreachable()
         devices = requests.get(f"{API}/devices/public/by-room/{REAL_ROOM}", timeout=10)
@@ -206,6 +215,7 @@ class TestRoomIsolationAndSelection:
         r = _command(REAL_ROOM, "power", "on", kind="light")
         assert r.status_code == 400, "an ambiguous same-kind command across two lights must be rejected, not guessed"
 
+    @pytest.mark.real_hardware
     def test_device_id_targets_the_correct_light_among_two(self):
         _skip_if_unreachable()
         devices = requests.get(f"{API}/devices/public/by-room/{REAL_ROOM}", timeout=10)

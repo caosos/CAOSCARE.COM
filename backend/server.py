@@ -80,6 +80,11 @@ from routes import activation_client_events as activation_client_events_routes  
 from routes import activation_timeline as activation_timeline_routes  # noqa: E402
 from routes import staff_dispatch as staff_dispatch_routes  # noqa: E402
 from routes import ai_escalation as ai_escalation_routes  # noqa: E402
+from routes import aria_operational_state as aria_operational_state_routes  # noqa: E402
+from routes import aria_continuity as aria_continuity_routes  # noqa: E402
+from routes import aria_conversation_state as aria_conversation_state_routes  # noqa: E402
+from routes import aria_interpretation_patterns as aria_interpretation_patterns_routes  # noqa: E402
+from routes import aria_turn_taking as aria_turn_taking_routes  # noqa: E402
 from seed import demo_seed_enabled, seed  # noqa: E402
 
 
@@ -112,6 +117,13 @@ async def lifespan(app: FastAPI):
     # least the baseline departments exist. No-ops if any already do.
     from routes.departments import seed_default_departments
     await seed_default_departments()
+    # Substrate lookup indexes — built once here, never in the session-mint
+    # / context-assembly path.
+    from routes.aria_continuity import ensure_indexes as _ensure_continuity_indexes
+    try:
+        await _ensure_continuity_indexes()
+    except Exception as e:
+        logging.warning(f"continuity index setup skipped: {e}")
     yield
 
 
@@ -202,6 +214,11 @@ api.include_router(activation_client_events_routes.router)
 api.include_router(activation_timeline_routes.router)
 api.include_router(staff_dispatch_routes.router)
 api.include_router(ai_escalation_routes.router)
+api.include_router(aria_operational_state_routes.router)
+api.include_router(aria_continuity_routes.router)
+api.include_router(aria_conversation_state_routes.router)
+api.include_router(aria_interpretation_patterns_routes.router)
+api.include_router(aria_turn_taking_routes.router)
 
 app.include_router(api)
 

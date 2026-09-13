@@ -56,7 +56,15 @@ def _command(room, action, value, kind=None):
 
 class TestRealAcCapabilities:
     """Requirement: power, target temperature, HVAC mode, each
-    independently verified against the real Home Assistant read-back."""
+    independently verified against the real Home Assistant read-back.
+
+    2026-09-09 incident: a plain `pytest tests/` run left the real Room 214
+    AC on (see docs/PROJECT_STATE.md) because these tests send real commands
+    to real hardware and nothing excluded them from a routine full-suite
+    run. Marked `real_hardware` - see backend/pytest.ini, which excludes
+    this marker by default. Run explicitly with
+    `pytest tests/test_climate_control.py -m real_hardware`."""
+    pytestmark = pytest.mark.real_hardware
 
     def test_power_on_then_off_verified_against_real_hardware(self):
         _skip_if_unreachable()
@@ -136,6 +144,7 @@ class TestRoomIsolationAndSelection:
         ac_after = next(d for d in after if d["device_id"] == REAL_AC_ID)
         assert ac_after["state"] == state_before, "a command to Room 318 changed Room 214's real AC"
 
+    @pytest.mark.real_hardware
     def test_retired_mock_ac_excluded_from_selection(self):
         """The retired mock AC (online=False) must never intercept a
         kind='ac' command meant for the real one - proves the offline

@@ -553,3 +553,126 @@ This repository is an active CAOS Care multi-surface codebase. Keep the map curr
   synthetic evidence is retained outside the care database.
 - Public website read-only web-tool open failed with a non-retryable
   safe-open error; site content remains pending source review by this tool.
+
+## 2026-09-08 — Aria conversation-substrate lane
+
+- `backend/routes/aria_operational_state.py`: Layer E operational-state
+  authority — `resolve_operational_state()` unifies open `db.alerts` events and
+  open `db.staff_tasks` requests into one authoritative snapshot (real
+  lifecycle + age + `current`/`background`); public `GET /api/aria/operational-state`.
+  Read-only; no lifecycle transitions here.
+- `backend/routes/realtime_operational_context.py`: renders that snapshot into
+  the `## What's actually happening right now` prompt block (empty when nothing
+  is open).
+- `backend/routes/realtime_companion_prompt.py`: `_build_companion_instructions`
+  now takes `operational_state`; presence-first opener.
+- `backend/routes/realtime_resident_session.py`: `_mint` threads operational
+  state into instructions + `_caos.context`.
+- Docs: `docs/ARIA_LANE_ONBOARDING.md` (canonical lane reading list, pointed to
+  from `AGENTS.md`), `docs/ARIA_SUBSTRATE_IMPLEMENTATION_PLAN.md` (Layers A–F →
+  modules, status, next steps), `docs/ROOM_214_CONVERSATION_EVIDENCE_2026-09-08.md`
+  (reconstructed evidence + mechanism→code map).
+- Tests: `backend/tests/test_aria_operational_state.py`,
+  `backend/tests/test_companion_prompt_substrate.py`.
+
+## 2026-09-08 — Aria substrate Layer B (cross-session continuity)
+
+- `backend/routes/aria_time.py`: shared `age_phrase` / `parse_dt` for the Aria
+  context layers (one source of truth for "how long ago").
+- `backend/routes/aria_continuity.py`: `resolve_continuity()` builds a compact
+  recap of a resident's recent prior sessions from `db.conversations` +
+  `db.realtime_diagnostics` end reasons; `render_continuity_block()` renders it
+  (baseline, not workflow; hard char cap). Public `GET /api/aria/continuity`.
+- `backend/routes/realtime_companion_prompt.py`: `_build_companion_instructions`
+  takes `continuity=`; order is baseline → continuity → operational.
+- `backend/routes/aria_operational_state.py`: now imports time phrasing from
+  `aria_time` (was local).
+- Tests: `backend/tests/test_aria_continuity.py`,
+  `backend/tests/test_substrate_layers_integration.py`.
+
+## 2026-09-08 — Aria substrate Layer C (runtime conversation-vs-intent state)
+
+- `backend/routes/aria_conversation_state.py`: `resolve_conversation_state()`
+  answers "has THIS call (this `session_id`) already filed or finished a
+  request, or asked a routing question awaiting an answer" from
+  `db.conversations` turns + `db.staff_tasks` rows tied to the session via
+  `conversation_session_id` — no new task-tracking table. Returns one of
+  `conversation_active | action_in_progress | awaiting_required_detail |
+  action_completed | conversation_resumed` (the sixth enum value,
+  `actionable_intent_detected`, is a live in-the-moment classification with
+  no persisted trace — documented, not faked). `render_conversation_state_block()`
+  renders guidance only for the non-default states (empty for
+  `conversation_active` / brand-new sessions). Public
+  `GET /api/aria/conversation-state`. Read-only.
+- `backend/routes/aria_operational_state.py`: `_task_lifecycle` renamed to
+  public `task_lifecycle` — shared with Layer C rather than duplicated.
+- `backend/routes/realtime_companion_prompt.py`: `_build_companion_instructions`
+  takes `conversation_state=`; order is baseline → continuity → this call's
+  own state → operational ("right now" stays last/freshest).
+- Wiring into `backend/routes/realtime_resident_session.py::_mint` (threads
+  `conversation_state` into instructions + `_caos.context`) rides in the
+  working tree with the in-flight Level 1 `_mint` extraction — not part of
+  this commit, same as the Layer B continuity wiring before it.
+- Tests: `backend/tests/test_aria_conversation_state.py`.
+
+### 2026-09-09 — Layer C review integration
+- `aria_conversation_state.py`: `awaiting_required_detail` now needs positive
+  evidence (`_tool_awaiting_answer` — a `realtime_diagnostics.tool_call` for
+  this session with no resident turn since); an empathetic question is
+  `conversation_active`. `resolve_conversation_state` returns `ref` (task_id).
+  `render_conversation_state_block(cs, operational_state=None)` downgrades
+  `action_in_progress` → `action_completed` when Layer E's snapshot no longer
+  lists that `ref` as open (`_e_still_open`). `realtime_companion_prompt.py`
+  passes `operational_state` into that render.
+- Tests: `test_substrate_layers_integration.py::test_layers_bce_assemble_in_order`
+  (B+C+E section-header order).
+
+## 2026-09-09 — Substrate Step 1 (request tools speak from Layer E)
+
+- `backend/routes/aria_request_status.py`: `request_status_view(task)` →
+  `{lifecycle, opened_age, spoken}`, reusing Layer E's `task_lifecycle` and
+  shared `age_phrase`. One source of truth for how a staff request is spoken.
+- `backend/routes/resident_requests.py`: `_resident_safe_view` and the
+  `create_resident_request` dedupe response now carry `lifecycle`/`opened_age`/
+  `spoken` (raw `status` kept for back-compat).
+- Test: `backend/tests/test_request_tools_speak_from_layer_e.py` (tool view
+  lifecycle cannot contradict `resolve_operational_state`).
+- Frontend follow-up (not done): `realtimeOperationsTools.js` should forward
+  `data.spoken` for `check_request_status` + the dedupe branch.
+
+## 2026-09-09 — Substrate Step 2 (Layer B corrections)
+
+- `backend/routes/aria_continuity.py`: `unfinished` now needs positive evidence
+  (`_DROPPED_ENDS`); `_CLEAN_ENDS` marks resident-initiated close; unknown end
+  reason claims neither. `ensure_indexes()` (called from `server.py` lifespan)
+  owns the `db.conversations` continuity index — `resolve_continuity` no longer
+  does DDL in the request path.
+- `backend/server.py`: lifespan calls `aria_continuity.ensure_indexes()`.
+
+## 2026-09-10 — Terminal 10 (conversation parity)
+
+- `frontend/src/lib/realtimeSessionUpdate.js`: no longer hard-codes
+  `input_audio_transcription.language: "en"` (verified API constraint:
+  the multilingual `languages` array only exists for a dedicated
+  transcription-session model, not this conversational session's
+  gpt-4o-transcribe).
+- `backend/routes/aria_interpretation_patterns.py`: person-specific
+  interpretation continuity (NON-NEGOTIABLE) — `db.interpretation_patterns`,
+  resident-scoped heard→understood pairs with confirmation/correction
+  history and fuzzy matching. `GET/POST /api/aria/interpretation-patterns[...]`.
+- `backend/routes/realtime_interpretation_tools.py`: the
+  `confirm_interpretation_pattern` Realtime tool schema.
+- `frontend/src/lib/realtimeOperationsTools.js`: dispatches that tool to the
+  confirm endpoint.
+- `backend/routes/aria_turn_taking.py`: derives silence-gap/response-duration/
+  barge-in/premature-interrupt/long-gap metrics from existing
+  `realtime_diagnostics` events — no new capture. `GET /api/aria/turn-taking/{session_id}`.
+- `backend/routes/realtime_context_tail.py`: assembles the Aria context tail
+  (interpretation patterns → continuity → conversation state → operational
+  state) for `_build_companion_instructions`; extracted so that file didn't
+  grow past the line cap when the interpretation-patterns block was added.
+- `docs/ARIA_WAKE_WORD_ARCHITECTURE.md`: wake-word architecture/dependency
+  plan (documented, not yet prototyped) — confirms no Level 1 change needed.
+- Tests: `backend/tests/test_aria_interpretation_patterns.py`,
+  `backend/tests/test_aria_turn_taking.py`,
+  `frontend/src/lib/__tests__/realtimeSessionUpdateLanguage.test.js`.

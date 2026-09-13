@@ -19,6 +19,7 @@ from routes.notifications import notify_department
 from routes.departments import get_active_departments
 from routes.facility_local_time import facility_tz as _facility_tz, facility_local as _facility_local
 from routes.tasks import _resolve_denorms
+from routes.aria_request_status import request_status_view
 from operational_provenance import reject_unconfirmed_time
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -147,6 +148,9 @@ async def create_resident_request(data: ResidentRequestInput):
             f"Original request: {existing['created_at']}\n"
             f"This still hasn't been closed out.",
         )
+        # Speak the duplicate from Layer E's lifecycle vocabulary + real age,
+        # so it cannot contradict "What's actually happening right now".
+        auth = request_status_view(existing)
         return {
             "task_id": existing["task_id"], "receipt_id": receipt["receipt_id"],
             "status": existing["status"], "duplicate": True, "re_request_count": count,
@@ -154,6 +158,8 @@ async def create_resident_request(data: ResidentRequestInput):
             "same_issue": same_issue,
             "scheduled_date": existing.get("requested_for_date"),
             "scheduled_time_label": existing.get("requested_for_time_label"),
+            "lifecycle": auth["lifecycle"], "opened_age": auth["opened_age"],
+            "spoken": auth["spoken"],
         }
 
     payload = {
@@ -234,6 +240,10 @@ def _resident_safe_view(task: dict, tz: str) -> dict:
         "started_at": _facility_local(started, tz),
         "completed_at": _facility_local(completed, tz),
         "last_re_requested_at": _facility_local(last_re, tz),
+        # Layer-E-consistent lifecycle + a ready-to-speak sentence. `status`
+        # (raw) is kept above for back-compat; `lifecycle`/`spoken` are what
+        # a truthful tool result should use.
+        **request_status_view(task),
     }
 
 

@@ -3247,3 +3247,811 @@ Claude Sonnet 5 (Claude Code), Michael directing.
 
 ### Blocked / next
 Physical Room 214 acceptance test is Michael's step: resolve the old Helen event in the Staff UI, then open `http://127.0.0.1:3001/kiosk/kio_dc8c06a19608` and do one pendant press. No deploy to `:3000` / production; `claude/level1-integration` not merged to main.
+
+---
+
+## 2026-09-08 — Aria conversation-substrate lane: Room 214 evidence reconstruction, Layer E operational-state authority, future-agent onboarding SoT
+
+### Agent / tool
+Claude Code (Sonnet 5), EliteDesk primary worktree. Branch
+`aria/conversation-substrate`, on top of `90b153e`. No subagents. Read-only
+Mongo inspection of `caoscare` DB for evidence; source changes local only.
+
+### Branch / ref
+`aria/conversation-substrate`. No branch/worktree created, no `main` merge, no
+deploy, no production/HA/network changes. Did NOT touch the Claude Code 1 / 2
+lanes or the in-flight Level 1 session-fencing / RF-intake uncommitted work
+(reused it as the compatible plumbing beneath the substrate).
+
+### What changed
+**Documentation (new):**
+- `docs/ROOM_214_CONVERSATION_EVIDENCE_2026-09-08.md` — reconstruction of all
+  19 Helen Torres / Room 214 realtime sessions (2026-09-05 → 09-09) from raw
+  evidence (`conversations` 277 turns, `realtime_diagnostics` tool rows,
+  `alerts`, `staff_tasks`, `resident_aria_lease_events`, `activation_events`).
+  Per-session: what Aria knew, operational state, tools executed, what she said
+  next, where it broke. Evidence-class tagged (OBS / CODE / INF+ / INF- / GAP).
+  Sessions kept separate, not merged. Part 4 maps 9 transactional /
+  vending-machine mechanisms to exact current source. Part 5 scope-guards what
+  is NOT a substrate problem.
+- `docs/ARIA_LANE_ONBOARDING.md` — the single canonical reading list for any
+  future agent entering the Aria/voice/realtime/substrate lane (pointer list,
+  not a doctrine copy). Referenced from `AGENTS.md` and
+  `docs/ARIA_CONVERSATION_SUBSTRATE.md`. This is the durable mechanism for
+  "every new coding agent gets its baseline before it works" (mission §9).
+- `docs/ARIA_SUBSTRATE_IMPLEMENTATION_PLAN.md` — Layers A–F → modules, what is
+  done, ordered next steps, invariants.
+
+**Code (new, all < 300 lines):**
+- `backend/routes/aria_operational_state.py` (228) — Layer E authority:
+  `resolve_operational_state(resident_id, room, alert_id)` unifies open
+  `db.alerts` events + open `db.staff_tasks` requests into one snapshot with
+  normalized `lifecycle` (open/acknowledged/answered/in_progress/resolved/
+  escalated), `handled_by`, `opened_at` + conversational `opened_age`,
+  `relevance` (`current` iff it is the activation Aria was brought in on, or the
+  sole open event — never "newest wins"), `recently_resolved` (≤12 h),
+  `speak_guidance`. Read-only; no lifecycle transitions here. Public
+  `GET /api/aria/operational-state` (resident/room-scoped).
+- `backend/routes/realtime_operational_context.py` (49) — renders the snapshot
+  into a terse `## What's actually happening right now` prompt block; **empty
+  string when nothing is open** (no forced workflow at session start).
+
+**Code (modified, in the Layer E commit):**
+- `backend/routes/realtime_companion_prompt.py` (256→273) —
+  `_build_companion_instructions` now takes `operational_state` and appends the
+  block; opener changed from "say their name softly and ask what they need" to
+  presence-first ("a greeting is not a transaction… a task will surface on its
+  own if there is one"). (Staged with `git add -p` — an unrelated prior
+  uncommitted `get_room_status` climate-note hunk in the same file was left in
+  the working tree, not this commit.)
+- `backend/server.py` (+2) — register the new router.
+
+**Wiring left in the working tree (rides with the in-flight Level 1
+session-mint extraction, NOT in the Layer E commit):**
+- `backend/routes/realtime_resident_session.py` — `_mint` resolves operational
+  state (best-effort, never blocks the mint) and passes it to
+  `_build_companion_instructions` + `_caos.context.operational_state`. This file
+  is an uncommitted prior-session extraction of `_mint` out of `realtime.py`;
+  the Layer E wiring is additive on top and is committed when that extraction
+  is. Until then, the live consumer surface is the HTTP endpoint
+  `GET /api/aria/operational-state` (committed) plus the tested
+  `operational_state=` parameter on `_build_companion_instructions`.
+
+Note: `docs/PROJECT_STATE.md` and `docs/REPO_MAP.md` in this same commit also
+persist a previously-uncommitted **Codex Level 1 adversarial checkpoint** log
+entry (2026-09-06) that was already sitting in the working tree — append-only
+log files cannot be partially staged. Not authored by this work.
+
+**Tests (new):**
+- `backend/tests/test_aria_operational_state.py` (183) — lifecycle + relevance:
+  stale unacknowledged event reports `open` WITH an age (not timeless "already
+  on file"); a new live emergency event is `current` while an older bathroom
+  request drops to `background` (the Room 214 s16 regression); acknowledged /
+  resolved no longer read as waiting; empty state ⇒ empty block.
+- `backend/tests/test_companion_prompt_substrate.py` (78) — fresh session has no
+  "ask what they need" and no operational block; a populated state renders
+  lifecycle + age + guidance and is appended after the persona.
+
+### What was verified
+- `python -c "import server"` OK. All new/changed files import clean.
+- `pytest tests/test_aria_operational_state.py tests/test_companion_prompt_substrate.py`
+  → 5 passed, 1 skipped (the HTTP endpoint test — the shared dev backend on
+  :8000 has no reload flag and was not restarted, so `/api/aria/operational-state`
+  still 404s live; the wrapped function is fully tested).
+- `pytest tests/test_level1_session_fencing.py tests/test_level1_concurrency_isolation.py`
+  → 2 passed (my changes did not disturb the in-flight fencing work).
+- Line counts of every created/modified production-code file are in "What
+  changed" above; all handwritten code files ≤ 300.
+
+### What is blocked / not done
+- `GET /api/aria/operational-state` is not live until the dev backend is
+  reloaded/restarted (no reload flag; not done unprompted while other lanes may
+  be mid-test). `test_operational_state_http_endpoint` skips until then.
+- Pre-existing, NOT mine: `tests/test_resident_events.py::test_resident_event_model`
+  fails at `HEAD` `90b153e` too — its synthetic `_press` fingerprint is now
+  suppressed as supervisory by the newer `rf_activation_intake.py` classifier
+  (all switches open). Level 1 RF-intake lane concern, tracked in
+  `docs/LEVEL1_BREAK_TEST_2026-09-06.md`.
+- Substrate Layers B (cross-session continuity — the "I thought I just told
+  you" gap), C (runtime conversation-vs-intent state), D (subject-triggered
+  memory retrieval), F (capability truth in context) are designed in
+  `docs/ARIA_SUBSTRATE_IMPLEMENTATION_PLAN.md` "Next steps" but not built.
+- No frontend changes: `_caos.context.operational_state` is sent but not yet
+  consumed by `useRealtimeVoice.js` (e.g. refresh-on-reconnect via
+  `session.update`). Left for the frontend-refactor-aware follow-up.
+- Room 214 evidence gaps (Part 6): the carrier that injected stale "you're
+  bleeding" into s16/s17/s18 openers; whether any `call_for_help` page was
+  human-received at the time; audio-quality/latency analysis.
+
+### Next safe step
+Reload the dev backend and un-skip the endpoint test. Then Layer B
+(cross-session continuity block on mint + reconnect, keyed by resident +
+recency, regression against the s8→s9→s10 sequence), per the implementation
+plan's ordered next steps.
+
+---
+
+## 2026-09-08 — Aria substrate Layer B: cross-session continuity ("I thought I just told you")
+
+### Agent / tool
+Claude Code (Sonnet 5), EliteDesk primary worktree. Branch
+`aria/conversation-substrate`, on top of the Layer E commit `7050710`. No
+subagents. No merge, no deploy, no backend restart. Did not touch the
+in-flight Level 1 session-fencing / RF-intake / frontend-refactor work.
+
+### What changed (Layer B commit)
+**Code (new, all < 300 lines):**
+- `backend/routes/aria_time.py` (36) — shared conversational time phrasing
+  (`age_phrase`, `parse_dt`), extracted from `aria_operational_state.py` so
+  Layer B and Layer E describe "how long ago" identically (one source of truth).
+- `backend/routes/aria_continuity.py` (197) — `resolve_continuity(resident_id,
+  current_session_id, room)`: reads `db.conversations` (the existing turn store),
+  groups by `session_id`, keeps ≤3 prior sessions whose last turn is within 18 h,
+  reads each session's `session_ended` reason from `db.realtime_diagnostics` to
+  flag `unfinished`. `render_continuity_block` compacts to plain text: resident
+  lines verbatim (the referent for "that"/"the other one"), assistant lines
+  trimmed + de-greeted, tail-biased, hard-capped at 2200 chars. Header: this is
+  context not a task, not an opener, and Layer E is authoritative on live status.
+  Public `GET /api/aria/continuity` (resident/room-scoped, inspection).
+
+**Code (modified, in the Layer B commit):**
+- `backend/routes/aria_operational_state.py` — use `routes.aria_time` instead of
+  local `_age_label`/`_parse` (net −30 lines; behavior identical).
+- `backend/routes/realtime_companion_prompt.py` — `_build_companion_instructions`
+  takes `continuity=`; block order is baseline → continuity → operational
+  ("right now" kept last/freshest). (add -p; the unrelated prior `get_room_status`
+  climate hunk stays in the working tree, not this commit.)
+- `backend/server.py` (+2) — register the continuity router.
+
+**Wiring left in the working tree (rides with the in-flight Level 1 `_mint`
+extraction, NOT in this commit):**
+- `backend/routes/realtime_resident_session.py::_mint` — resolves continuity
+  best-effort and threads it into instructions + `_caos.context.continuity`.
+
+**Tests (new):**
+- `backend/tests/test_aria_continuity.py` — acceptance cases 1–8 + an economics
+  cap test (120-turn prior session still renders ≤ cap, keeps the tail).
+- `backend/tests/test_substrate_layers_integration.py` — Layer B + Layer E
+  assembled: history preserved for meaning, Layer E status ("resolved", by
+  "N. Osei") is the authority, continuity defers to it, block order asserted.
+
+### Report (as requested)
+1. **Continuity source(s):** `db.conversations` (turn store, keyed by
+   `session_id`) for the turns; `db.realtime_diagnostics` `session_ended.meta.reason`
+   for how each prior session ended. No parallel history system; no LLM call.
+2. **Survives a session boundary (BASELINE + CONTINUITY):** resident identity,
+   preferred name, accessibility, intake notes, durable two-bin memory (Layer A,
+   unchanged); plus a compact recap of ≤3 prior sessions within 18 h — the
+   resident's substantive lines verbatim + trimmed assistant grounding + whether
+   each ended cleanly or dropped.
+3. **Deliberately dies at the boundary (TRANSIENT):** the prior session's tool
+   state, intermediate tool-call args, `aria_state`, live-line state, any
+   "task in progress" feel. `resolve_continuity` returns none of it — it reads
+   only role/content/timestamps. An old request only appears as *words that were
+   said*, never as active work.
+4. **"I thought I just told you" is now supported:** the resident's actual prior
+   utterance (e.g. "the reading light over my chair keeps flickering") is carried
+   verbatim into the new session's prompt, so the model can resolve what "that"
+   / "the other one" / "like I was saying" refers to instead of answering "I must
+   have missed that."
+5. **Stale operational history can't win:** the continuity header explicitly
+   points at the Layer E "What's actually happening right now" section as the
+   authority on any call/request/nurse status; the integration test proves that
+   when history says "nobody has come" and Layer E says `resolved` by a named
+   nurse, the assembled prompt carries both and frames the item as handled.
+6. **Context size/cost:** one indexed `db.conversations` query
+   (`resident_id + created_at` index created best-effort) + in-memory trim.
+   Typical block ≈ 1 000 chars (~250 tokens); worst case bounded ≈ 2 800 chars
+   (~700 tokens) by `_TOTAL_CHAR_CAP`. No model call, no per-turn cost.
+7. **Modified production-file line counts:** `aria_continuity.py` 197 (new),
+   `aria_time.py` 36 (new), `aria_operational_state.py` 228→198,
+   `realtime_companion_prompt.py` 280, `realtime_resident_session.py` 139
+   (working-tree wiring), `server.py` +2. All ≤ 300.
+8. **Tests:** `test_aria_continuity.py` 3/3, `test_substrate_layers_integration.py`
+   1/1, `test_aria_operational_state.py` 2 pass /1 skip (HTTP endpoint, pending
+   reload), `test_companion_prompt_substrate.py` 3/3,
+   `test_level1_session_fencing.py` + `test_level1_concurrency_isolation.py`
+   2/2 (unchanged). Pre-existing unrelated failure `test_resident_events.py::
+   test_resident_event_model` (RF-intake lane) still present, not mine.
+9. **Remaining evidence gaps:** no live voice run exercised Layer B end-to-end
+   (needs backend reload + a real kiosk session); reconnect-time refresh of the
+   block (including the current session's own turns) is not built (waits on the
+   frontend refactor); "genuinely unresolved thread" detection is coarse
+   (clean-close vs dropped only — no semantic open-question extraction).
+10. **Commit SHA:** `6f0f876` (Layer B); `7050710` (Layer E, prior).
+
+### Next safe step
+Reload the dev backend; un-skip the HTTP endpoint test. Then STOP for
+Michael's review before Layer C / D / F (per directive).
+
+---
+
+## 2026-09-08 — Aria substrate Layer C: runtime conversation-vs-intent state
+
+### Agent / tool
+Claude Code (Sonnet 5). Branch `aria/conversation-substrate`, on top of the
+Layer B commit `6f0f876`. No subagents. No merge, no deploy, no backend
+restart, no new branch. Did not touch the in-flight Level 1 session-fencing /
+RF-intake / `useRealtimeVoice.js` frontend-refactor work.
+
+Note on the prior stop directive: the 2026-09-08 Layer B entry above recorded
+"STOP for Michael's review before Layer C / D / F" as a standing directive.
+This session's task was given directly by Michael, instructing the next
+unimplemented layer in `docs/ARIA_SUBSTRATE_IMPLEMENTATION_PLAN.md` be
+identified and built — i.e. the review gate this note describes. Recorded
+here so a future reader does not see the directive un-acted-on and assume it
+was silently ignored.
+
+### What changed
+**Code (new):**
+- `backend/routes/aria_conversation_state.py` (159) — Layer C.
+  `resolve_conversation_state(resident_id, session_id)` answers "has THIS
+  call already filed or finished a request, or asked a routing question
+  awaiting an answer" — keyed by `session_id`, not `resident_id`, so a
+  reconnect/`session.update` that reuses the same session_id sees what this
+  call already did. Reads `db.conversations` turns for the session and
+  `db.staff_tasks` rows linked via the existing `conversation_session_id`
+  field (see `resident_conversations.py`) — no new task-tracking table.
+  Returns `None` for a brand-new session (nothing persisted yet — must not
+  be told it's mid-conversation). States: `conversation_active` (ordinary
+  talk, nothing to guard), `action_in_progress` (an open task tied to this
+  session), `action_completed` (a task tied to this session resolved, few
+  turns since), `conversation_resumed` (resolved, but the conversation has
+  clearly moved on — more than `RESUMED_AFTER_TURNS` turns since), and
+  `awaiting_required_detail` (last turn was an unanswered assistant
+  question — the `request_live_staff` routing-question case in the
+  companion prompt, which previously had no state to track "already
+  asked"). `render_conversation_state_block()` renders guidance only for
+  the four non-default states — empty for `conversation_active` / a fresh
+  session, matching the Layer E "empty state ⇒ empty block" invariant.
+  Public `GET /api/aria/conversation-state` (read-only, resident/session-
+  scoped, same trust model as the other Aria inspection endpoints).
+  `actionable_intent_detected` (the sixth state in the contract's enum) is
+  documented as a live, in-the-moment classification with no persisted
+  trace to reconstruct after the fact, rather than faked with a heuristic.
+
+**Code (modified):**
+- `backend/routes/aria_operational_state.py` — `_task_lifecycle` renamed to
+  public `task_lifecycle` (net 0 lines) so Layer C reuses the one lifecycle
+  mapping instead of duplicating it; matches the `aria_time.py` extraction
+  precedent from Layer B.
+- `backend/routes/realtime_companion_prompt.py` — `_build_companion_instructions`
+  takes `conversation_state=`; block order is baseline → continuity →
+  **this call's own state** → operational ("right now" stays last/freshest).
+  (Committed via `git add -p`; the unrelated pre-existing `get_room_status`
+  climate-context hunk already sitting in this file's working tree stays
+  there, not in this commit — same discipline as the Layer B commit.)
+- `backend/server.py` (+1 import, +1 include_router) — registers the new
+  router.
+
+**Wiring left in the working tree (rides with the in-flight Level 1 `_mint`
+extraction, NOT in this commit — same as Layer B's wiring before it):**
+- `backend/routes/realtime_resident_session.py::_mint` — resolves
+  `conversation_state` best-effort and threads it into instructions +
+  `_caos.context.conversation_state`.
+
+**Tests (new):**
+- `backend/tests/test_aria_conversation_state.py` — cases 1–7 (fresh session
+  → `None`; ordinary conversation → `conversation_active` + empty block; an
+  open session-scoped task → `action_in_progress`; a resolved task with the
+  call closing out → `action_completed`; a resolved task with the
+  conversation clearly having moved on → `conversation_resumed`; an
+  unanswered assistant question → `awaiting_required_detail`; provider
+  portability — plain dict, no vendor keys) plus a full-prompt integration
+  case asserting the `## This call so far` block renders after `Who you are`.
+
+### What was verified
+- `python -c "import server"` OK (via `backend/.venv`). All new/changed
+  files import clean.
+- `pytest tests/test_aria_conversation_state.py tests/test_aria_operational_state.py
+  tests/test_aria_continuity.py tests/test_companion_prompt_substrate.py
+  tests/test_substrate_layers_integration.py` → 11 passed, 1 skipped (the
+  pre-existing operational-state HTTP endpoint skip, unrelated to this
+  change — still pending the dev-backend reload noted in the Layer E entry).
+- `pytest tests/test_level1_session_fencing.py tests/test_level1_concurrency_isolation.py`
+  → 2 passed (unchanged by this work).
+- Full `pytest tests/` (excluding `iter6/7/9_test.py`, which fail to collect
+  in this shell from a missing `REACT_APP_BACKEND_URL` env var, pre-existing
+  and unrelated) shows a large pre-existing block of HTTP-integration test
+  failures (`backend_test.py`, `iter5/8_test.py`, `test_room_device_isolation.py`,
+  etc.) — spot-checked one (`TestAlerts::test_alert_stats`): its `admin_token`
+  fixture gets a 404 logging into a live server this shell has no route to,
+  the same "shared dev backend not reloaded" condition the Layer E entry
+  already documented, not a regression from this change. None of the failing
+  test names touch a file this change modified.
+- Line counts of every created/modified production-code file: all ≤ 300
+  (`aria_conversation_state.py` 159; `aria_operational_state.py` 198;
+  `realtime_companion_prompt.py` 283; `server.py` 209; the uncommitted
+  working-tree `realtime_resident_session.py` 153).
+
+### What is blocked / not done
+- Same dev-backend-reload blocker as Layers B/E: `GET /api/aria/conversation-state`
+  is not live until the shared dev backend is restarted; not done unprompted
+  while other lanes may be mid-test.
+- No live voice run has exercised Layer C end-to-end.
+- `RESUMED_AFTER_TURNS` (currently 2) is a coarse heuristic for "the
+  conversation has moved on" — no semantic topic-change detection.
+- Substrate Layers D (subject-triggered memory retrieval) and F (capability
+  truth in context) remain designed but not built, per
+  `docs/ARIA_SUBSTRATE_IMPLEMENTATION_PLAN.md`.
+- `check_request_status` / `request_staff_help` result formatters still do
+  not defer to Layer E (plan item 4); `end_call` first-call honoring (item
+  5) and device-tool discipline (item 6) are also still open. Layer C
+  supplies the state those items would consume but does not itself change
+  any tool-result formatter.
+
+### Next safe step
+Per the implementation plan's ordered list: `check_request_status` /
+`request_staff_help` result formatters should defer to Layer E
+(`resolve_operational_state`) instead of their current timestamp-less text,
+and the `end_call` first-call-honoring fix (Room 214 mechanism #6). Reload
+the dev backend when coordinated with other lanes so the three new
+inspection endpoints (`operational-state`, `continuity`, `conversation-state`)
+go live and their HTTP tests can un-skip.
+
+---
+
+## 2026-09-09 — Incident: full test-suite run left real Room 214 hardware on
+
+### What happened
+After the Layer C work above, a routine `pytest tests/` (run to check for
+collateral breakage from that change) executed `backend/tests/test_light_control.py`
+and `backend/tests/test_climate_control.py` — pre-existing, deliberately-written
+integration tests that send REAL commands to Room 214's REAL Home
+Assistant-backed hardware (Michael's own commissioned Matter devices: two
+TP-Link Tapo bulbs and a Midea AC) and assert against the real HA read-back.
+Neither file restores original state or is excluded from a plain test run.
+The result: both real bulbs (`Room 214 desk lamp` / `dev_f8be14de18e3` and
+`Room 214 overhead light` / `dev_facc6dbc7e13`) and the real AC
+(`dev_fa83aeda0cd4`) were left in whatever state the last test method
+happened to set them to — the desk lamp was on when Michael noticed it.
+
+Compounding error: when first asked, this agent checked a nonexistent
+`db.devices` collection, got `None`, and told Michael "I don't have a name
+mapping" — false. The real mapping was in `db.smart_devices` all along
+(`label: "Room 214 desk lamp"` / `"Room 214 overhead light"`), one query
+away. Corrected per Michael's direct instruction: never report an unknown
+without first verifying it's actually unknown.
+
+### Remediation
+- Both real bulbs confirmed OFF via live Home Assistant read-back
+  (`_dispatch_command` power=off, `verified: true` for both), issued with
+  honest attribution (`issued_by: "claude_code:incident_2026-09-09_test_side_effect_remediation"`,
+  not a fake `kiosk:room:214` tag) so the device_commands log tells the
+  truth about what actually issued each command.
+- Real AC (`dev_fa83aeda0cd4`, Midea): a power=off attempt was made with the
+  same honest attribution but Home Assistant's live read-back reported the
+  entity as `hvac_mode: unavailable` / `actual_state: 'unavailable'` — not
+  confirmed on or off. Per this codebase's own "never report success if
+  state can't be verified" rule (the reason `_dispatch_command` raises a 502
+  here instead of guessing), no success is claimed. This same entity's
+  `hvac_mode` was already reporting `unavailable` intermittently during the
+  original 04:48 test burst, including inside an ack marked "verified" —
+  possibly this specific Matter/Midea integration's known flakiness
+  (`test_climate_control.py`'s own docstring notes this AC's limited
+  Matter feature set), not something newly broken. Needs a physical check;
+  not re-attempted repeatedly against real hardware without one.
+
+### Structural fix (so a routine test run can never do this again)
+- `backend/pytest.ini` (new) — registers a `real_hardware` marker and sets
+  `addopts = -m "not real_hardware"`, so a plain `pytest` (or `pytest tests/`)
+  excludes any test carrying that marker by default. Opt in explicitly with
+  `-m real_hardware` when actually intending to exercise the physical bulbs/AC.
+- `backend/tests/test_light_control.py` — `TestRealBulbCapabilities` marked
+  `real_hardware` at the class level; the two tests in
+  `TestRoomIsolationAndSelection` that issue a real, non-ambiguous command
+  against the real bulbs (`test_selects_the_light_not_another_device_kind_in_the_same_room`,
+  `test_device_id_targets_the_correct_light_among_two`) marked individually.
+  The isolation/rejection tests that never reach the real adapter (ambiguous-command
+  400s, mock-room-only commands) were left unmarked — verified by reading
+  `routes/devices.py::public_room_command`'s dispatch order that they cannot
+  mutate real hardware.
+- `backend/tests/test_climate_control.py` — `TestRealAcCapabilities` marked
+  `real_hardware` at the class level; `test_retired_mock_ac_excluded_from_selection`
+  (issues a real command) marked individually. Same reasoning for what was
+  left unmarked.
+- Verified: `pytest tests/test_light_control.py tests/test_climate_control.py`
+  now runs 5 hardware-safe tests and deselects the 13 real-hardware ones;
+  `pytest ... -m real_hardware --collect-only` still finds all 13 (the
+  escape hatch works); a full `pytest tests/` run afterward touched zero
+  Room 214 real-hardware device_commands (confirmed by timestamp — the only
+  new commands were against the room 318 mock devices).
+
+### What was verified
+- Both real bulbs' current DB state: `power: off`, matching a fresh live
+  Home Assistant read-back at the time of remediation.
+- Real AC current DB state still shows the stale pre-incident `power: on` —
+  `_dispatch_command`'s failure path does not overwrite `smart_devices.state`
+  on a verification-mismatch failure, so this field is not authoritative
+  for this device right now. Flagged as a real gap, not fixed tonight
+  (`db.smart_devices.state` should probably reflect "unknown"/"unavailable"
+  after a failed verification rather than silently keeping the last-known
+  value — needs a decision on the right failure-state representation,
+  not a rushed change at this hour).
+
+### What is blocked / not done
+- Real AC power state is physically unconfirmed. Needs a human to check
+  the actual unit, or a retry once Home Assistant reports the entity as
+  available again.
+- The "failed command leaves stale state in `db.smart_devices`" gap noted
+  above is unresolved — worth a real look, not a late-night patch.
+- No teardown/state-restoration was added to `test_light_control.py` /
+  `test_climate_control.py` for when someone deliberately runs them with
+  `-m real_hardware` — the marker gate stops accidental runs, but an
+  intentional `-m real_hardware` run will still leave the real devices in
+  their final test-state, same as before. Worth adding if these are run
+  again.
+
+### Next safe step
+Physically confirm the Room 214 AC's actual state. Separately, decide how
+`db.smart_devices.state` should represent a failed/unverified command
+(currently: silently stale) and consider adding before/after state capture +
+restoration to the two real-hardware test files for intentional runs.
+
+---
+
+## 2026-09-09 — Layer C review integration (independent-review acceptance constraints)
+
+### Agent / tool
+Claude Code (Sonnet 5), EliteDesk primary worktree, branch
+`aria/conversation-substrate`, on top of `a03d5b5` (Layer C, committed by a
+parallel session). No merge, no deploy, no backend restart. Did not touch the
+in-flight Level 1 `_mint` extraction or `useRealtimeVoice.js`.
+
+### Why
+An independent architecture review produced acceptance constraints for Layer C.
+Layer C (`a03d5b5`) was already committed; this integrates the constraints as
+bounded corrective changes rather than restarting it.
+
+### What changed
+- `backend/routes/aria_conversation_state.py` (159→207):
+  - `awaiting_required_detail` now requires **positive evidence** — a
+    `realtime_diagnostics` `tool_call` for this session with no resident turn
+    since (`_tool_awaiting_answer`). A trailing "?" alone no longer qualifies,
+    so an empathetic "How are you feeling?" resolves `conversation_active`
+    (emits nothing). Was: any assistant turn ending in "?".
+  - `resolve_conversation_state` now returns `ref` (the `task_id`) on the
+    `action_in_progress` / `action_completed` / `conversation_resumed` states.
+  - `render_conversation_state_block(cs, operational_state=None)` — new optional
+    arg. `_e_still_open()`: if Layer E's snapshot shows other open work but
+    **not** this call's `ref`, the block downgrades `action_in_progress` →
+    `action_completed` (never claims "in motion" against E's truth). Empty/None
+    E snapshot ⇒ defer to Layer C.
+  - Still session-scoped only: `conversations.session_id`,
+    `staff_tasks.conversation_session_id`, `realtime_diagnostics.session_id`.
+    No facility-wide `resident_id`/`room` query. No new collection.
+- `backend/routes/realtime_companion_prompt.py` (283→285): passes
+  `operational_state` into `render_conversation_state_block`.
+- `backend/tests/test_aria_conversation_state.py` (217→303): CASE 6 seed now
+  carries a realistic `request_live_staff` `tool_call` diagnostic; new
+  CASE 6b (empathetic question ⇒ `conversation_active`, empty block);
+  CASE 7 also asserts `json.dumps(cs)`; new tests —
+  `test_conversation_state_fresh_session_no_block`,
+  `test_conversation_state_reconnect_idempotent` (task filed this session →
+  reconnect same `session_id` → `action_in_progress`, no second task filed,
+  Layer E shows exactly one current item),
+  `test_conversation_state_defers_to_layer_e`.
+- `backend/tests/test_substrate_layers_integration.py` (107→180): new
+  `test_layers_bce_assemble_in_order` — B + C + E assembled, section-header
+  order `## Who you are` < `## Where you and X were` < `## This call so far` <
+  `## What's actually happening right now`. Existing order assertion tightened
+  to match `##` headers (the phrase "What's actually happening right now" also
+  appears inside the continuity block's prose).
+
+### Acceptance constraints — status
+1. existing Layer C cases pass — ✅ (CASE 6 seed made realistic)
+2. empathetic question ≠ `awaiting_required_detail` — ✅ CASE 6b
+3. `conversation_state=None` ⇒ no `## This call so far` — ✅
+4. reconnect idempotency — ✅
+5. B+C+E assemble in order — ✅
+6. C active but E resolved ⇒ not "in motion" — ✅
+7. `test_level1_session_fencing.py` + `test_level1_concurrency_isolation.py` — ✅ 2/2
+8. `python -c "import server"` — ✅
+9. `_caos.context.conversation_state` JSON-serializable — ✅ (plain dict/None; `_mint` wiring already sets it)
+10. documented alongside continuity/operational_state — ✅ (plan row C, this entry)
+11. line counts ≤ 300 — ✅ `aria_conversation_state.py` 207, `realtime_companion_prompt.py` 285,
+    `aria_operational_state.py` 198, `aria_continuity.py` 197, `aria_time.py` 36
+
+### Verified
+`pytest` (substrate + level1): **17 passed, 1 skipped** (the operational-state
+HTTP endpoint — dev backend not reloaded). `import server` OK.
+
+### Mint wiring
+`realtime_resident_session.py::_mint` (still untracked — rides with the Level 1
+extraction) already calls `resolve_conversation_state` and threads `conv_state`
+into instructions + `_caos.context.conversation_state`. Not committed here.
+
+### Next safe step
+Backend Step 1: make `check_request_status` / `request_staff_help` result
+formatting speak from `resolve_operational_state` (close the last "current
+state wins" gap — tool results still emit stale "already on file / ask #N"
+text). Then Layer B corrections (B-1 index in hot path, B-2 `None` end-reason).
+
+---
+
+## 2026-09-09 — Substrate Step 1: resident-request tools speak from Layer E (backend)
+
+### Agent / tool
+Claude Code (Sonnet 5), branch `aria/conversation-substrate`, on top of the
+Layer C review-integration commit. Backend-only. No merge/deploy/restart. Did
+not touch `realtimeOperationsTools.js` or any frontend.
+
+### The gap this closes
+`check_request_status` and the `request_staff_help` duplicate branch built
+their spoken result (in `frontend/src/lib/realtimeOperationsTools.js`) from
+`_resident_safe_view` / the dedupe response — raw `status`, "ask #N", no age.
+That could contradict Layer E's `## What's actually happening right now` block
+(Room 214 Part 4 #1). The backend contract is now authoritative and
+Layer-E-consistent; the frontend just needs to forward it.
+
+### What changed
+- `backend/routes/aria_request_status.py` (53, new) — `request_status_view(task)`
+  → `{lifecycle, opened_age, spoken}`. Reuses `aria_operational_state.task_lifecycle`
+  (Layer E) and `aria_time.age_phrase` — no independent lifecycle logic, no
+  re-query. `spoken` is one authoritative sentence; when `lifecycle == resolved`
+  it carries no "waiting/unanswered/still open" language, when open it carries
+  no "taken care of".
+- `backend/routes/resident_requests.py` (262→272) — `_resident_safe_view` now
+  spreads `request_status_view(task)` (adds `lifecycle`/`opened_age`/`spoken`;
+  raw `status` kept for back-compat); the `create_resident_request` dedupe
+  response adds the same three fields.
+- `backend/tests/test_request_tools_speak_from_layer_e.py` (new) —
+  open/acknowledged/resolved: `_resident_safe_view` lifecycle == `task_lifecycle`
+  == the lifecycle `resolve_operational_state` assigns the same task; a resolved
+  request's `spoken` has no stale waiting language and Layer E has dropped it
+  from open work; the dedupe branch never calls an open duplicate "resolved".
+
+### Verified
+`pytest` substrate + level1: **19 passed, 1 skipped** (operational-state HTTP
+endpoint, pending dev-backend reload). `import server` OK. Line counts ≤ 300
+(`aria_request_status.py` 53, `resident_requests.py` 272).
+
+### Remaining (frontend lane, not this commit)
+`realtimeOperationsTools.js` `check_request_status` (line ~95-101) and
+`request_staff_help` dedupe (line ~73-77) should return `data.spoken` verbatim
+instead of re-assembling from `data.status`/`data.re_request_count`. One line
+each. Blocked on the `useRealtimeVoice.js` refactor landing so the frontend
+isn't touched mid-refactor.
+
+### Next safe step
+Step 2 — Layer B corrections: B-2 (a missing/`None` session-end reason must not
+mean "unfinished"; require positive evidence) and B-1 (move the
+`db.conversations` continuity-index creation out of `resolve_continuity` into
+app startup/lifespan). Then Step 3 — coordinate the `_mint` wiring with the
+in-flight Level 1 extraction.
+
+---
+
+## 2026-09-09 — Substrate Step 2: Layer B corrections (B-1, B-2)
+
+### Agent / tool
+Claude Code (Sonnet 5), branch `aria/conversation-substrate`, on top of Step 1
+(`b864bfa`). Backend-only. No merge/deploy/restart. Did not touch frontend or
+the in-flight Level 1 work.
+
+### What changed
+- **B-2** — `backend/routes/aria_continuity.py`: `_UNFINISHED_ENDS` (which
+  included `None`) replaced by `_DROPPED_ENDS` (positive drop/timeout reasons
+  only) + `_CLEAN_ENDS` (resident-initiated close). A prior session is
+  `unfinished` only on positive evidence; a missing/unknown `session_ended`
+  reason is `unfinished=False, clean_close=False`. `render_continuity_block`
+  now emits a 3-way header tail: dropped → "may pick this back up",
+  clean → "ended when X was done", unknown → no tail (no claim either way).
+  Closes the reviewer's baseline→workflow leak: a clean session with no
+  diagnostic row is no longer recapped as an open thread.
+- **B-1** — index DDL out of the request path: new
+  `aria_continuity.ensure_indexes()` (builds the `resident_id + created_at`
+  index on `db.conversations`), called once from `server.py` lifespan after
+  `seed_default_departments()`. `resolve_continuity` no longer calls
+  `create_index`.
+
+### Tests
+- `test_aria_continuity.py`: CASE 4 also asserts `clean_close`; new CASE 4b
+  (B-2) — a session with no `session_ended` row is `unfinished=False,
+  clean_close=False` and its rendered header has no drop/goodbye tail; new
+  `test_continuity_index_creation_not_in_request_path` (B-1) — `resolve_continuity`
+  source has no `create_index`; `ensure_indexes` is an idempotent coroutine.
+
+### Verified
+`pytest` substrate + level1: **20 passed, 1 skipped** (operational-state HTTP
+endpoint, pending dev backend reload). `import server` OK. Line counts ≤ 300:
+`aria_continuity.py` 212.
+
+### Next safe step
+Step 3 — coordinate the `_mint` wiring (`realtime_resident_session.py`, still
+untracked, carries the B/C/E resolvers + `_caos.context` keys) with the
+in-flight Level 1 `_mint` extraction: land them together through the canonical
+mint path, do not independently rewrite `_mint`. If Level 1 is still actively
+conflicting, stop only that step and report the dependency.
+
+---
+
+## 2026-09-09 — Substrate Step 3: _mint wiring — BLOCKED on Level 1 extraction
+
+### Status
+STOPPED at Step 3 per directive ("if that work is still actively conflicting,
+stop ONLY this step and report the exact dependency").
+
+### The dependency
+The canonical resident session-mint path is mid-extraction by the Level 1 lane
+and is **uncommitted** in the worktree:
+- `backend/routes/realtime_resident_session.py` (untracked) — holds `_mint`
+- `backend/routes/resident_session_binding.py` (untracked)
+- `backend/routes/realtime.py` (modified, uncommitted) — `create_session` gutted
+  to `return await create_resident_session(payload)`
+
+The B/C/E substrate wiring is **already present and correct inside that
+untracked `_mint`**: it calls `resolve_operational_state`, `resolve_continuity`,
+`resolve_conversation_state`, passes all three to
+`_build_companion_instructions(...)`, and puts `operational_state` /
+`continuity` / `conversation_state` on `_caos.context`. Verified by import +
+source inspection; `/api/realtime/session` routes to it; `import server` OK.
+
+Not committed here because doing so would either (a) pull an entire in-flight
+Level 1 refactor into a substrate commit and misattribute it, or (b) require
+independently rewriting `_mint` in `realtime.py` — both explicitly disallowed.
+
+### Unblock condition
+When the Level 1 lane commits its `_mint` extraction, the substrate wiring
+lands with it. A follow-up commit should then add a mint-path integration test
+(`create_resident_session` / `_mint` assembles B+C+E into `instructions` and
+`_caos.context`).
+
+### Independent substrate work in this run — all done and committed
+- `2f25487` Layer C review integration
+- `b864bfa` Step 1 (request tools speak from Layer E, backend)
+- `0c95352` Step 2 (Layer B corrections B-1, B-2)
+
+Layer D / F not started (deferred by directive).
+
+---
+
+## 2026-09-10 — Terminal 10: conversation parity (multilingual, person-specific interpretation, turn-taking, wake-word plan)
+
+### Agent / tool
+Claude Code (Sonnet 5), branch `aria/conversation-substrate` (Michael's
+explicit authorization to execute Terminal 10 in this existing lane/branch
+rather than a new one). No merge, no deploy, no backend restart, no Linode
+deployment. Did not touch `useRealtimeVoice.js`, `realtimeMessageHandler.js`,
+`realtimeDeviceTools.js`, `realtimeConnection.js`, or any other file in the
+in-flight Level 1/frontend-refactor set.
+
+### First reads (per `commands/TERMINAL_10_CONVERSATION_PARITY.md` + `git fetch origin`)
+Read from `origin/main` (ahead of this branch's merge-base by 4 commits):
+`AGENTS.md`, `docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md` (new "Person-specific
+interpretation continuity — NON-NEGOTIABLE" section), `commands/TERMINAL_10_CONVERSATION_PARITY.md`.
+Read from this branch: `docs/ARIA_VOICE_FIRST.md`,
+`docs/reports/2026-08-23-2152-voice-regression-matrix.md`,
+`docs/reports/2026-08-23-1345-semantic-vad-failed-experiment.md`,
+`docs/ROOM_AUDIO_ARCHITECTURE.md`, `docs/CURRENT_NODE_STATUS.md`,
+`backend/routes/realtime_audio_config.py`, `frontend/src/lib/realtimeSessionUpdate.js`.
+Verified OpenAI Realtime API transcription-model/language behavior against
+current docs (WebSearch/WebFetch) before changing any field.
+
+### What changed
+
+**1. Multilingual transcription (`frontend/src/lib/realtimeSessionUpdate.js`):**
+removed the hard-coded `input_audio_transcription.language: "en"`. Verified: a
+full conversational session (`session.type: "realtime"`) only accepts
+gpt-4o-transcribe/gpt-4o-mini-transcribe/whisper-1, which use a singular,
+OPTIONAL language hint; the multi-language `languages` array
+(gpt-transcribe/gpt-live-transcribe) only works in a dedicated
+`session.type: "transcription"` session — not ours — so the model was not
+swapped (would have been unverified/guessed). Omitting the hint lets the
+model auto-detect per turn instead of forcing English.
+Test: `frontend/src/lib/__tests__/realtimeSessionUpdateLanguage.test.js` (4 tests).
+
+**2. Person-specific interpretation continuity (NON-NEGOTIABLE):**
+- `backend/routes/aria_interpretation_patterns.py` (197, new) — resident-scoped
+  `db.interpretation_patterns` collection (deliberately not a second
+  `db.memories` architecture — structured heard/understood pairs need a
+  lookup key prose memory can't give efficiently). `record_pattern()` upserts
+  by (resident_id, normalized heard_as): repeats strengthen `confirmed_count`;
+  a different `understood_as` is a correction applied to THAT pattern only,
+  with the prior value kept in `correction_history` (never silent, never
+  cross-pattern). `find_matching_patterns()` does exact-normalized-substring +
+  bounded stdlib `difflib` fuzzy matching (threshold 0.82) for phonetic
+  approximations. `list_patterns()` returns a bounded (≤15), ranked set for
+  mint-time context — never a full dump. `render_interpretation_block()`
+  instructs the model to use only listed patterns, never fabricate one, and
+  to preserve the resident's original wording when teaching/correcting.
+- `backend/routes/realtime_interpretation_tools.py` (57, new) — the
+  `confirm_interpretation_pattern` Realtime tool schema; wired into
+  `realtime_tools.py::_build_tools()`.
+- `frontend/src/lib/realtimeOperationsTools.js` — dispatch branch that POSTs
+  a confirmed pattern to `/api/aria/interpretation-patterns/confirm`.
+- `GET /api/aria/interpretation-patterns`, `GET .../match`,
+  `POST .../confirm` (public, resident-scoped, same trust model as the other
+  Aria context endpoints).
+- Acceptance case proven end-to-end (unit + full-prompt-assembly tests):
+  "dos savor" → confirmed as "dos sabores" / "two flavors" → a later close
+  phonetic variant ("dos sabor") matches the confirmed pattern → the
+  assembled companion prompt carries both the original wording and the
+  learned meaning, with no-fabrication guidance, and a fresh resident with no
+  confirmed patterns gets no block at all.
+- Tests: `backend/tests/test_aria_interpretation_patterns.py` (3 tests: store/
+  correction/matching/rendering; full prompt integration; tool registration).
+
+**3. Turn-taking instrumentation:**
+- `backend/routes/aria_turn_taking.py` (107, new) —
+  `resolve_turn_taking(session_id)` derives silence-before-response gaps,
+  response durations, barge-in count, "premature interrupt" count (barge-in
+  within 600 ms of `response_created`), and long-gap count (≥4000 ms) purely
+  from `realtime_diagnostics` events the frontend already writes — no new
+  capture added. Sanity-checked against three real historical Room 214
+  sessions (read-only, not part of the automated suite): `rt_mkqn5z8x`
+  (the "I know you're bleeding" session) shows 15 barge-ins across 24
+  resident turns and `rt_tz7t11g7` (the light-control retry storm) shows 84
+  assistant turns for 18 resident turns — both numerically confirm the
+  Room 214 evidence doc's qualitative findings.
+  `GET /api/aria/turn-taking/{session_id}` (no transcript text returned).
+- Test: `backend/tests/test_aria_turn_taking.py` (ordinary turn, barge-in,
+  premature interrupt, long gap, empty/unknown session).
+
+**4. Wake word — documented, not prototyped:**
+`docs/ARIA_WAKE_WORD_ARCHITECTURE.md`. Verified **no Level 1 change is
+needed**: `models.py:1552` already documents `Alert.trigger_source` as a
+free-form string with `"wake_word"` named as an anticipated value, and
+`POST /realtime/room/{room}/activate` already accepts any `trigger_source` —
+a wake-word listener is purely additive (a 4th caller of an existing
+endpoint). Engine choice (openWakeWord custom-trained vs Picovoice Porcupine)
+and a physical in-room listening test with Michael are documented as the
+next steps, per Terminal 10's own "prototype OR documented, verified
+blocker" acceptance.
+
+**Refactor (net negative line count):** `realtime_companion_prompt.py` was
+about to gain a 5th context-block append; extracted the assembly into
+`backend/routes/realtime_context_tail.py::render_context_tail()` (32, new).
+Net: `realtime_companion_prompt.py` 285 → 278 lines despite adding the
+interpretation-patterns capability.
+
+**Mint wiring** (rides with the in-flight Level 1 `_mint` extraction, same as
+Layers B/C/E before it — `backend/routes/realtime_resident_session.py`,
+untracked): resolves `list_patterns()` best-effort and threads it into
+`_build_companion_instructions(..., interpretation_patterns=...)` and
+`_caos.context.interpretation_patterns`.
+
+### What was verified
+- `python -c "import server"` OK.
+- Backend: `pytest` substrate + level1 + Terminal 10 — **24 passed, 1 skipped**
+  (operational-state HTTP endpoint, pending dev-backend reload; unrelated to
+  this work).
+- Frontend: full suite — **15 suites / 109 tests passed**, including the
+  in-flight refactor's own untracked test files (`activationClient`,
+  `realtimeConnectionRecovery`, `realtimeInactivityTimer`, `residentRecovery`)
+  — confirms the `realtimeOperationsTools.js`/`realtimeSessionUpdate.js`
+  edits did not disturb that lane's work.
+- Production file line counts (all ≤ 300): `aria_interpretation_patterns.py`
+  197, `realtime_interpretation_tools.py` 57, `aria_turn_taking.py` 107,
+  `realtime_context_tail.py` 32, `realtime_companion_prompt.py` 278,
+  `realtime_tools.py` 241, `server.py` 220, `realtimeSessionUpdate.js` 73,
+  `realtimeOperationsTools.js` 243, `realtime_resident_session.py` 163
+  (uncommitted, rides with Level 1).
+
+### Level 1 dependency (explicit, per directive)
+None required for what was built. Confirmed by inspection: the wake-word
+activation contract (`trigger_source` as a free-form string, `"wake_word"`
+already anticipated) already exists in Level 1's own model/endpoint. No
+Level 1 file was modified. If Level 1 later tightens `trigger_source` to a
+strict enum, `"wake_word"` must be included — flagged for the coordinator,
+not worked around independently.
+
+### What is blocked / not done
+- Wake-word engine selection and a physical in-room prototype (needs a
+  hands-on engine comparison + Michael present for a real listening test —
+  not forced blind this session, per Terminal 10's own guidance and the
+  semantic-VAD live-regression precedent).
+- `confirm_interpretation_pattern` has no teaching-surface UI yet (the
+  "what you said → what I understood → corrected form → meaning" comparison
+  display) — backend data/tool exist; UI is a separate, frontend-lane task.
+- The `_mint` wiring for `interpretation_patterns` is uncommitted, riding
+  with the Level 1 extraction (see the earlier Layer B/C/E entries for why).
+- `test_operational_state_http_endpoint` still skipped pending a dev-backend
+  reload (pre-existing, unrelated to this work).
+
+### Next safe step
+Coordinate the Level 1 `_mint` extraction commit (unblocks all substrate +
+Terminal 10 mint wiring at once). Separately: a short hands-on wake-word
+engine comparison per `docs/ARIA_WAKE_WORD_ARCHITECTURE.md`, and a teaching-
+surface UI for interpretation-pattern corrections, are the next Terminal 10
+increments — neither started here.

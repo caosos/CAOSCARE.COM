@@ -66,7 +66,6 @@ async def _mint(payload, lease):
     voice = (payload.get("voice") or DEFAULT_VOICE).lower()
     if voice not in ALLOWED_VOICES:
         voice = DEFAULT_VOICE
-    instructions = await _build_companion_instructions(payload.get("resident_id"))
     facility = await get_active_facility()
     facility_label = (facility or {}).get("name") or FACILITY_LABEL
     facility_tz = (facility or {}).get("timezone") or FACILITY_TZ
@@ -75,6 +74,54 @@ async def _mint(payload, lease):
     # a public config endpoint (the real one is admin-gated).
     from routes.resident_assistance_config import get_effective_config
     assist_cfg = await get_effective_config((facility or {}).get("facility_id"))
+    # Conversation substrate Layer E: authoritative "what is actually
+    # happening for this resident right now" (open event + open staff
+    # requests, real lifecycle + age, current vs background). Aria speaks
+    # from this instead of re-reading a stale queue. Best-effort - a
+    # lookup failure must never block minting the session.
+    from routes.aria_operational_state import resolve_operational_state
+    try:
+        op_state = await resolve_operational_state(
+            payload.get("resident_id"), payload.get("room"), payload.get("alert_id"),
+        )
+    except Exception:
+        op_state = None
+    # Conversation substrate Layer B: compact cross-session continuity so a
+    # new session is not amnesiac about the one three minutes ago
+    # ("I thought I just told you"). Baseline, not workflow - recaps what
+    # was said, never marks an old task active. Best-effort.
+    from routes.aria_continuity import resolve_continuity
+    try:
+        continuity = await resolve_continuity(
+            payload.get("resident_id"), payload.get("session_id"), payload.get("room"),
+        )
+    except Exception:
+        continuity = None
+    # Conversation substrate Layer C: has THIS call (this session_id) already
+    # filed or finished a request, or asked a routing question awaiting an
+    # answer. Reconnects/`session.update` reuse the same session_id, so this
+    # is what stops a mid-call reconnect from re-filing or re-asking. Best-
+    # effort - a lookup failure must never block minting the session.
+    from routes.aria_conversation_state import resolve_conversation_state
+    try:
+        conv_state = await resolve_conversation_state(
+            payload.get("resident_id"), payload.get("session_id"),
+        )
+    except Exception:
+        conv_state = None
+    # Terminal 10 / person-specific interpretation continuity (NON-NEGOTIABLE
+    # per AGENTS.md + docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md): bounded,
+    # resident-scoped, confirmed heard->understood patterns (e.g. "dos savor"
+    # -> "dos sabores" / two flavors). Best-effort.
+    from routes.aria_interpretation_patterns import list_patterns
+    try:
+        interpretation_patterns = await list_patterns(payload.get("resident_id"))
+    except Exception:
+        interpretation_patterns = None
+    instructions = await _build_companion_instructions(
+        payload.get("resident_id"), operational_state=op_state, continuity=continuity,
+        conversation_state=conv_state, interpretation_patterns=interpretation_patterns,
+    )
     session_config = {
         "type": "realtime",
         "model": OPENAI_REALTIME_MODEL,
@@ -121,6 +168,14 @@ async def _mint(payload, lease):
             "aria_companion_timeout_sec": assist_cfg.get("aria_companion_timeout_sec", 300),
             "invite_silence_sec": assist_cfg.get("invite_silence_sec", 8),
             "live_line_ring_timeout_sec": assist_cfg.get("live_line_ring_timeout_sec", 30),
+            "operational_state": op_state,
+            "conversation_state": conv_state,
+            "interpretation_patterns": interpretation_patterns,
+            "continuity": {
+                "has_continuity": bool(continuity and continuity.get("has_continuity")),
+                "sessions": [{k: v for k, v in s.items() if k != "_rows"}
+                             for s in (continuity or {}).get("sessions", [])],
+            },
         },
         "diagnostics": _prompt_diagnostics(instructions, "resident_kiosk_realtime"),
     }
