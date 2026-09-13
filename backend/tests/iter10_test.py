@@ -74,8 +74,9 @@ class TestAuthRegressions:
 class TestRealtimeSession:
     REQ_TOOLS = {"adjust_room_temperature", "toggle_light", "toggle_tv", "call_for_help", "mark_resting"}
 
-    def test_session_default(self, s):
+    def test_session_default(self, s, skip_if_openai_unavailable):
         r = s.post(f"{API}/realtime/session", json={}, timeout=30)
+        skip_if_openai_unavailable(r)
         assert r.status_code == 200, r.text
         body = r.json()
         assert "_caos" in body, "missing _caos blob"
@@ -148,7 +149,7 @@ class TestRealtimeSession:
         assert ctx["resident_id"] == chosen["resident_id"]
         assert ctx["kiosk_id"] == "k_test"
 
-    def test_session_with_resident_no_memories(self, s, admin_client):
+    def test_session_with_resident_no_memories(self, s, admin_client, skip_if_openai_unavailable):
         # Find resident with NO memories (or use any seeded one's name and verify fallback text)
         residents_r = admin_client.get(f"{API}/residents", timeout=15)
         residents = residents_r.json()
@@ -168,6 +169,7 @@ class TestRealtimeSession:
             pytest.skip("no resident without memories available")
 
         r = s.post(f"{API}/realtime/session", json={"resident_id": chosen["resident_id"]}, timeout=30)
+        skip_if_openai_unavailable(r)
         assert r.status_code == 200, r.text
         instr = r.json()["_caos"]["instructions"]
         # Fallback text must appear

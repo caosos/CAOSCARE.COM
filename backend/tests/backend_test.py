@@ -299,27 +299,30 @@ class TestLocations:
 
 # ---------- AI ----------
 class TestAI:
-    def test_chat_openai(self, session):
+    def test_chat_openai(self, session, skip_if_openai_unavailable):
         sid = f"test-{uuid.uuid4().hex[:8]}"
         r = session.post(f"{API}/ai/chat", json={
             "session_id": sid, "message": "Hello, just saying hi.",
         }, timeout=60)
+        skip_if_openai_unavailable(r)
         assert r.status_code == 200, r.text
         body = r.json()
         assert "reply" in body and isinstance(body["reply"], str) and len(body["reply"]) > 0
         assert "auto_emergency_detected" in body
 
-    def test_chat_history(self, session):
+    def test_chat_history(self, session, skip_if_openai_unavailable):
         sid = f"test-{uuid.uuid4().hex[:8]}"
-        session.post(f"{API}/ai/chat", json={"session_id": sid, "message": "hi"}, timeout=60)
+        r0 = session.post(f"{API}/ai/chat", json={"session_id": sid, "message": "hi"}, timeout=60)
+        skip_if_openai_unavailable(r0)
         r = session.get(f"{API}/ai/chat/history/{sid}")
         assert r.status_code == 200
         msgs = r.json()
         # at least user + assistant messages
         assert len(msgs) >= 2
 
-    def test_tts(self, session):
+    def test_tts(self, session, skip_if_openai_unavailable):
         r = session.post(f"{API}/ai/tts", json={"text": "Hello there.", "voice": "sage"}, timeout=60)
+        skip_if_openai_unavailable(r)
         assert r.status_code == 200, r.text
         body = r.json()
         assert "audio_base64" in body and len(body["audio_base64"]) > 100
@@ -578,7 +581,7 @@ class TestResidentPersonalization:
         finally:
             session.delete(f"{API}/residents/{rid}", headers=admin_headers)
 
-    def test_ai_chat_with_resident_id(self, session, admin_headers):
+    def test_ai_chat_with_resident_id(self, session, admin_headers, skip_if_openai_unavailable):
         residents = session.get(f"{API}/residents", headers=admin_headers).json()
         rid = residents[0]["resident_id"]
         sid = f"test-{uuid.uuid4().hex[:8]}"
@@ -587,6 +590,7 @@ class TestResidentPersonalization:
             "message": "Hello friend",
             "resident_id": rid,
         }, timeout=60)
+        skip_if_openai_unavailable(r)
         assert r.status_code == 200, r.text
         assert "reply" in r.json() and len(r.json()["reply"]) > 0
 

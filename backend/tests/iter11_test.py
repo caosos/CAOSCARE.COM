@@ -177,8 +177,9 @@ class TestRealtimeSession:
         "mark_resting", "get_current_time", "get_weather", "research_topic", "set_timer",
     }
 
-    def test_session_has_nine_tools_and_anchors(self, s):
+    def test_session_has_nine_tools_and_anchors(self, s, skip_if_openai_unavailable):
         r = s.post(f"{API}/realtime/session", json={}, timeout=30)
+        skip_if_openai_unavailable(r)
         assert r.status_code == 200, r.text
         body = r.json()
         assert "_caos" in body
@@ -208,8 +209,9 @@ class TestRealtimeSession:
         assert ctx.get("facility_label") == "Lancaster, PA"
         assert ctx.get("facility_tz") == "America/New_York"
 
-    def test_set_timer_tool_schema(self, s):
+    def test_set_timer_tool_schema(self, s, skip_if_openai_unavailable):
         r = s.post(f"{API}/realtime/session", json={}, timeout=30)
+        skip_if_openai_unavailable(r)
         assert r.status_code == 200
         tools = {t["name"]: t for t in r.json()["_caos"]["tools"]}
         st = tools["set_timer"]

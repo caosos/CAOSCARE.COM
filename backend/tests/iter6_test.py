@@ -34,8 +34,9 @@ def _h(tok):
 # ---------------- HAIKU ----------------
 
 class TestHaiku:
-    def test_generate_today_and_idempotent(self, admin_token):
+    def test_generate_today_and_idempotent(self, admin_token, skip_if_openai_unavailable):
         r1 = requests.post(f"{API}/haiku/generate-today", headers=_h(admin_token), timeout=180)
+        skip_if_openai_unavailable(r1)
         assert r1.status_code == 200, r1.text
         d1 = r1.json()
         assert "created" in d1 and "skipped" in d1 and "failed" in d1 and "day" in d1
@@ -51,7 +52,13 @@ class TestHaiku:
         r = requests.post(f"{API}/haiku/generate-today", headers=_h(nurse_token), timeout=30)
         assert r.status_code == 403
 
-    def test_latest_returns_per_resident(self, admin_token):
+    def test_latest_returns_per_resident(self, admin_token, skip_if_openai_unavailable):
+        # Idempotent - only creates haikus that don't already exist for today
+        # (see test_generate_today_and_idempotent) - not relying on that
+        # test's own execution order, and this is what actually determines
+        # whether /haiku/latest can have anything to return.
+        gen = requests.post(f"{API}/haiku/generate-today", headers=_h(admin_token), timeout=180)
+        skip_if_openai_unavailable(gen)
         r = requests.get(f"{API}/haiku/latest", headers=_h(admin_token), timeout=30)
         assert r.status_code == 200
         items = r.json()
