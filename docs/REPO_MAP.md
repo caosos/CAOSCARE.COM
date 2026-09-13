@@ -39,16 +39,18 @@ Future agents must not treat this repository as blank or documentation-only.
 
 ## Mandatory first-read order
 
-Before modifying this repository, read:
+Before modifying this repository, read (canonical order in `AGENTS.md`):
 
 ```text
-README.md
 AGENTS.md
-docs/PROJECT_STATE.md
-docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md
+docs/CAOSCARE_PRODUCT_BASELINE.md          Canonical durable product truth (architecture + invariants)
+docs/PROJECT_STATE.md                      Changing build state (append-only dated entries)
+docs/REPO_MAP.md                           This file — where implementation lives
+docs/BUILD_STATUS.md                       Deployment-prep snapshot (point-in-time; may be stale)
+docs/CURRENT_NODE_STATUS.md               Resident-room bring-up host snapshot
+README.md
+docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md  Product/onboarding context (hardware section HISTORICAL/SUPERSEDED)
 docs/CCE_LITE_TRUST_LAYER_PROPOSAL.md      CAOS Care CCE-lite trust-layer proposal
-docs/REPO_MAP.md
-docs/BUILD_STATUS.md                       First runnable/deployment-prep status and blockers
 docs/DEPLOYMENT_RUNBOOK.md                 First non-Docker /opt/caoscare server path
 ```
 
@@ -111,13 +113,21 @@ Observed frontend product claims and UX direction include:
 
 ```text
 senior living / life-safety AI framing
-one-press call / room-mounted tablet concept
-voice companion concept
-staff dashboard concept
+one-press call + voice companion in the resident room
+  (current architecture: room node behind the TV + eMeet audio + TV as a
+   visual surface — see docs/CAOSCARE_PRODUCT_BASELINE.md §2. Some existing
+   frontend/marketing copy still says "room-mounted tablet"; that wording
+   is HISTORICAL / SUPERSEDED — catalogued in PROJECT_STATE's 2026-09-07
+   product-baseline entry.)
+staff dashboard / department workspaces
 building-wide location / mesh concept
 low-vision / large touch target emphasis
-900 MHz / existing pendant infrastructure direction
-kiosk demo and staff sign-in paths
+a wide range of frequency devices — existing pendant / call-button / sensor
+  infrastructure across the common sub-GHz bands (e.g. 315 / 319.5 / 433 /
+  868 / 915 MHz), not a single fixed frequency
+"kiosk" = the per-room resident-facing software surface + its Kiosk record
+  (room <-> resident mapping), NOT a physical tablet appliance
+staff sign-in paths
 ```
 
 Important: public marketing copy and regulated/safety-sensitive claims must stay bounded by the CAOS Care safety doctrine. Do not add medical-device, clinical-authority, autonomous emergency-dispatch, or guaranteed-compliance claims unless Michael explicitly authorizes and the required legal/regulatory basis exists.
@@ -302,13 +312,14 @@ android-vision/app/src/main/java/care/caos/vision/VisionUploader.kt
 android-vision/app/src/main/java/care/caos/vision/AudioPlayback.kt
 ```
 
-Device direction currently spans:
+Device direction currently spans (see `docs/CAOSCARE_PRODUCT_BASELINE.md` §2/§3):
 
 ```text
-resident kiosk/tablet
-staff dashboard/tablet workflow
-pendant/RF bridge
-wearable gateway concepts
+resident room node (EliteDesk-class PC behind the TV) + eMeet audio + TV visual surface
+  — NOT a resident tablet; that concept is HISTORICAL / SUPERSEDED
+staff clients (tablet / phone / computer) running the role/department workspace
+pendant / RF decode (android-bridge/, being consolidated into the room node)
+wearable ingest
 vision/audio assistance
 hardware capability probing
 ```

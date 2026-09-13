@@ -115,17 +115,31 @@ async def update_receipt_status(
 async def list_receipts(
     resident_id: Optional[str] = None,
     related_object_type: Optional[str] = None,
+    related_object_id: Optional[str] = None,
     status: Optional[str] = None,
+    action_type: Optional[str] = None,
+    source: Optional[str] = None,
+    room: Optional[str] = None,
+    since: Optional[str] = None,   # ISO; created_at is stored as an ISO string, so a lexical range works (same as routes/events.py)
+    until: Optional[str] = None,
     limit: int = Query(200, le=1000),
     user=Depends(require_admin),
 ):
     q: dict = {}
-    if resident_id:
-        q["resident_id"] = resident_id
-    if related_object_type:
-        q["related_object_type"] = related_object_type
-    if status:
-        q["status"] = status
+    for field, val in (
+        ("resident_id", resident_id), ("related_object_type", related_object_type),
+        ("related_object_id", related_object_id), ("status", status),
+        ("action_type", action_type), ("source", source), ("room", room),
+    ):
+        if val:
+            q[field] = val
+    if since or until:
+        rng: dict = {}
+        if since:
+            rng["$gte"] = since
+        if until:
+            rng["$lte"] = until
+        q["created_at"] = rng
     items = await db.receipts.find(q, {"_id": 0}).sort("created_at", -1).to_list(limit)
     return [_iso(i) for i in items]
 

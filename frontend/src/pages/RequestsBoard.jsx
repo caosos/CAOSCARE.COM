@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { Card } from "../components/ui/card";
 import { Input } from "../components/ui/input";
@@ -57,7 +58,13 @@ export default function RequestsBoard() {
     <Card className="border-caos-line p-6" data-testid="requests-board-root">
       <div className="mb-4">
         <h2 className="font-display text-xl font-medium text-caos-forest">Communication & requests</h2>
-        <p className="text-caos-mute text-sm mt-1">Everything a resident, family member, or Front Desk has asked for — who asked, when, and where it stands.</p>
+        <p className="text-caos-mute text-sm mt-1">
+          Things a resident, family member, or Front Desk asked staff to <em>do</em> — who asked, when, and where it stands.
+        </p>
+        <p className="text-caos-mute text-xs mt-1">
+          Pendant / help-button / emergency events are <strong>assistance events</strong>, tracked on{" "}
+          <Link to="/admin?tab=alerts" className="underline">Alerts &amp; events</Link>, not here.
+        </p>
       </div>
 
       <div className="flex flex-wrap gap-2 mb-4">

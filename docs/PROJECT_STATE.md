@@ -2217,3 +2217,530 @@ Nothing. This fix is complete and verified. Live-hardware/voice break-testing of
 
 ### Next safe step
 Proceed to the live break-test pass against real Room 214 hardware and the real voice path.
+
+---
+
+## 2026-09-06 — Admin worktree: (1) Admin/Operations forensic audit, (2) staff department UI + department-aware home routing.
+
+### Agent / tool
+Claude Code (Sonnet 5), dedicated `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations` (off `d994331`). Separate lane from the RF/pendant/ResidentEvent/kiosk/realtime work — those files were not touched.
+
+### What changed
+- **`e125716`** — `docs/ADMIN_OPERATIONS_AUDIT.md` (new, report only). Forensic UI→API→DB audit of the staff/Admin operational surface: executive dashboard, maintenance, housekeeping, transportation, resident-assistance ops, device/system health, reporting, role-based experience. Findings ranked P0–P3. §21 maps shared-surface conflict points with the other lane.
+- **`9a96c2e`** — staff department assignment (audit P0 #1). `User.department` previously could not be set anywhere, so department-scoped task visibility / notification / department workspaces were all inert.
+  - `backend/routes/staff.py` (133 lines): `PATCH /staff/{id}` (edit name/role/department); `POST /staff` gained an optional `department`. Both validate the slug against the real `Department` list; `""` clears it; an admin cannot demote their own account out of the admin tier.
+  - `backend/routes/departments.py` (120 lines): default departments pinned as explicit `(slug,label)` pairs so the label can change without the slug drifting; one idempotent normalization `"Nursing"` → `"Nursing / Care"` (slug stays `nursing`).
+  - `frontend/src/pages/StaffTab.jsx` (248): Department column + Edit dialog + department picker in Add-staff, fed by `GET /departments` (seeded + custom).
+  - `frontend/src/lib/roleHome.js` (38): `roleHomePath`/`roleHomeLabel` now take the whole user. Plain `staff` routes by department — `maintenance`/`housekeeping`/`transportation`/`kitchen` → `/workspace`; `nursing`/care/unassigned → `/staff`; owner/admin → `/admin`; front_desk → `/front-desk`. Call sites updated: `Login.jsx`, `Landing.jsx`, `GoogleSignIn.jsx`, `AuthCallback.jsx`.
+  - `frontend/src/pages/DepartmentWorkspace.jsx` (new, 244) at `/workspace` (`App.js` route added): one shared workspace rendered per the signed-in staff member's department — that department's open queue (`GET /tasks` is already department-scoped server-side for a `staff` role by `User.department`) with Ack/Start/Done actions + `MyTasksCard`; transportation also gets today's ride summary. Reuses the existing StaffTask / resident-request bus — no new data model.
+
+### What was verified
+- **Backend, real running server (from this worktree, port 8001, shared `caoscare` Mongo):** new `backend/tests/test_staff_department.py` passes — create/list/patch department, unknown-slug rejection (create + patch), clear with `""`, combined name+role edit, self-demote guard, `"Nursing / Care"` label present with slug `nursing`. Separately verified end-to-end that a `staff` user with `department="maintenance"` sees a maintenance-routed resident-request via `GET /tasks` and does **not** see a housekeeping-routed one.
+- **Frontend:** new `roleHome.test.js` (routing matrix) + full suite **76/76** green (`REACT_APP_BACKEND_URL` set). Production `craco build` compiles — only pre-existing `react-hooks/exhaustive-deps` lint warnings in files not touched here; no new warnings from the changed/added files.
+- The `nursing` → `Nursing / Care` label normalization has already been applied to the live `caoscare` DB (ran as part of the port-8001 test-server startup). Slug unchanged, so `realtime_tools_operations.py` / `resident_requests.py` literal `"nursing"` references are unaffected. Custom departments (`therapy`, `resident_programs`) are untouched and appear in the picker.
+
+### What is blocked
+Nothing. The other lane's server on port 8000 was left running and untouched throughout.
+
+### Next safe step
+Continue the audit's ranked plan on this branch: automate the escalation tick + reconcile the two escalation implementations (P1 #4 — coordinate, touches `alerts.py`), then the operations overview dashboard (P0 #3) and the operational receipts/events browser (P1 #5). Maintenance/housekeeping data models (P0 #2 / P1 #7) remain unbuilt — the `/workspace` queues are department-scoped `StaffTask` lists until then.
+
+---
+
+## 2026-09-07 — Admin worktree: Admin/ED operations overview (read-only attention surface).
+
+### Agent / tool
+Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations` (commit `0e34465`, on top of `ea5f2ff`). Separate lane; RF/pendant/ResidentEvent/kiosk/realtime files untouched. The other lane's server on port 8000 was left running throughout; all testing used a second worktree server on port 8001 against the shared `caoscare` Mongo, torn down after.
+
+### What changed
+`GET /ops/overview` (admin only, read-only) + a new default **Overview** tab in `Admin.jsx` (opens here now, not Residents). Every value is derived live from the existing `staff_tasks` / `alerts` / `departments` / `transport_run` records - no new task or department model, no writes, `db.alerts` is queried only.
+
+- `backend/routes/ops_overview.py` (241) + `ops_overview_util.py` (63, parse/format helpers - split to stay under the 300-line cap). Sections: (1) one ranked **attention** list across assistance events + tasks - unacked emergency → unacked assist → overdue task → transport-no-slot/past-date → acknowledged-not-resolved → unassigned task → resident re-asked → open>72h (demoted). Ordered by fixed open-time within a tier so two polls match. `?attention_limit` default 50, max 400. (2) **departments** - per `Department` (+ a General/all-staff row): open/overdue/unassigned/in_progress/completed_today, via the existing `visibility_role` routing. (3) **assistance** - read-only event summary + separate "open >72h" likely-stale count with a `counts_caveat` string (the 333 stale RF-test activations from prior sessions are surfaced as suspect, not passed off as a live queue). (4) **tasks** - no-owner / overdue counts + "sitting longest" and "no owner" lists, oldest-first. (5) **transportation** - compact today from the same StaffTask+run truth the transport module uses.
+- `backend/server.py` (205) - router registered.
+- `frontend/src/pages/OperationsOverview.jsx` (267) + `frontend/src/lib/opsOverview.js` (52, pure helpers). Rows deep-link into the matching Admin tab (`onNavigate`) or `/staff` for assistance events.
+- `frontend/src/pages/Admin.jsx` (282) - new first "Overview" tab group, default `activeTab="overview"`. `frontend/src/lib/adminTabGroups.js` - the group entry.
+
+### What was verified
+- `backend/tests/test_ops_overview.py` (new) passes against a worktree backend: section structure always present; each seeded row lands in the right attention tier (emergency=0, overdue task=2, transport-no-slot=3, unassigned=5, stale alert≥7); ordering identical across two consecutive calls and monotonic by tier; department counts reflect fixtures; a brand-new empty department shows all-zero (the "renders with empty datasets" case); `possibly_stale_open_gt_72h ≥ 1`; oldest-open task lists correct; transport summary counts correct. All fixtures (admin, tasks, one department, three alert docs inserted directly - never through `alerts.py`) are deleted in teardown.
+- `test_staff_department.py` switched to its own per-run Motor client so it and `test_ops_overview.py` run together in one pytest process (the `deps.db` global otherwise binds to the first `asyncio.run` loop and errors for the rest - the same documented constraint the older `deps.db` test files hit; those still pass individually and were not regressed).
+- Frontend: new `opsOverview.test.js` (5 cases); full suite **81/81**; production `craco build` compiles - only pre-existing `react-hooks/exhaustive-deps` warnings in files not touched here (`Admin.jsx`'s is the same one, shifted one line by an added import).
+
+### What existing data was sufficient
+- Task attention (overdue via `due_at`, unassigned, re-requested), all department status counts, transportation "today", and the resident-assistance read-only summary all came straight from `staff_tasks` + `alerts` + `departments` + `transport_run` with no schema change.
+- The stale/test-data problem was addressable: alert **age** is the available signal, so "open >72h" is reported separately with an explicit caveat rather than pretending the 333-count is trustworthy.
+
+### What is still impossible without future lifecycle/escalation work
+- **Real overdue / SLA** - only `due_at` exists and it's set on almost nothing (one-off tasks only; templates and resident-requests never set it). "Overdue" today means "has a `due_at` in the past"; the far more common case (a request with no target time that has simply aged) can only be shown as "sitting longest", not "overdue". Needs a per-category SLA policy.
+- **Escalation state in the attention ranking** - `escalation_level` is bumped inconsistently (inline in `alerts_feed` vs the manual `escalation/tick`) and nothing runs the tick automatically, so it isn't a dependable sort input yet. Deliberately not used here.
+- **Assistance-event lifecycle depth** - minutes-open, press-count, Aria-state, silence/no-response, live-line outcome per event are on the `Alert` doc but summarising or ranking by them belongs to the RF/ResidentEvent lane; this pass only counts and ages events.
+- **Stale vs genuine open events** cannot be told apart precisely - only by age. A real "close/resolve stale events" pass (not done here, and not to be done unprompted) would let the assistance counts become production-trustworthy.
+- **"What changed since I last looked"** - there's no per-admin last-seen marker or event feed to diff against; the overview shows current state, not a delta. Needs the `CaosEvent` log surfaced (audit P1 #5).
+- **Cross-department follow-up / handoff** items (housekeeping→maintenance) have no model, so they can't appear as attention rows.
+
+### Next safe step
+Operational receipts + events browser (audit P1 #5, new files only), or the maintenance work-order model (audit P0 #2). Escalation automation (P1 #4) still needs a coordinated pass since it touches `alerts.py`.
+
+---
+
+## 2026-09-07 — Admin worktree: Maintenance work-order workspace (on the existing StaffTask spine).
+
+### Agent / tool
+Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations` (commit `20b9220`, on top of `9802f5b`). Claude 2's lane (RF / pendant / ResidentEvent / realtime / call_for_help / escalation) untouched. Other lane's server on port 8000 left running; testing used a worktree server on 8001 against the shared `caoscare` Mongo, torn down after.
+
+### Architecture decision (per the directive's "prove what can be reused")
+Inspected `StaffTask` first. A maintenance **work order == a `StaffTask` with `visibility_role == "maintenance"`**. No second model, no new collection. The requested NEW → ASSIGNED → IN PROGRESS → COMPLETED workflow maps directly:
+
+| Directive state | Existing representation |
+|---|---|
+| NEW / OPEN | `status="pending"`, `assigned_to=None` |
+| ASSIGNED | `status="pending"`, `assigned_to` set (assignment is a field, not a status) |
+| IN PROGRESS | `status="in_progress"` (existing `POST /tasks/{id}/start`) |
+| COMPLETED | `status="completed"` + notes/duration (existing `POST /tasks/{id}/complete`) |
+
+Fields (id, title, description, room, resident, source, priority, status, assignee, created_at, due_at, started_at, completed_at, completion notes, department) all already exist on `StaffTask`. Age is derived. Department isolation is already enforced by `routes/tasks.py::list_tasks` (a `staff` role sees only `visibility_role in [own department, "all_staff"]`). The Operations Overview already reads `staff_tasks` - it picked the new WOs up with zero change.
+
+### What had to be ADDED (small, generic, department-safe)
+- `routes/tasks.py::create_task` - now also allows a `staff` user **with a department** to create work; `visibility_role` **and** `category` are pinned to that user's own department slug so a department workspace can never create cross-department work. Owner is now allowed alongside admin (was `!= "admin"`, an existing over-restriction). Admin path unchanged. (+15 lines → 254)
+- `routes/task_assignment.py` (new, 81 lines) - `POST /tasks/{id}/assign` on its own router at the `/tasks` prefix (the `task_detail.py` pattern, keeps `tasks.py` under the cap). Claim / re-assign / unassign. Admin/owner assign anyone; a department member claims within their department or hands off to a **same-department** co-worker only. Files a `task_assigned` / `task_unassigned` receipt.
+- `routes/staff.py::GET /staff/assignable?department=` (+18 lines → 151) - names-only roster for the assign picker, reachable by any admin or a staff member querying **their own** department. The full `GET /staff` stays admin-only.
+- `server.py` - register `task_assignment` router.
+- Frontend: `lib/maintenance.js` (69, pure `workOrderBuckets`/`isOverdue`/`canClaim`/`canAssign`), `pages/MaintenanceWorkspace.jsx` (249, sections + claim/start/complete+notes/assign/history), `pages/MaintenanceWorkOrderForm.jsx` (146, create dialog - due date is **optional**, the form says so). `DepartmentWorkspace.jsx` renders `MaintenanceWorkspace` for a maintenance staffer, generic queue for everyone else. `Admin.jsx` + `adminTabGroups.js` - new "Operations departments" group with a Maintenance tab (`<MaintenanceWorkspace adminMode />`).
+
+`start` / `complete` / `acknowledge` needed no change - already open to any authenticated user.
+
+### What was verified
+`backend/tests/test_maintenance_workorders.py` (new) against a worktree backend, co-running with `test_ops_overview.py` + `test_staff_department.py` (3 passed): housekeeping staff cannot see maintenance WOs; a maintenance staffer can; a maintenance lead can create one (forced to `maintenance` even when the payload aims at `housekeeping`); a housekeeping staffer's create is forced to `housekeeping` and stays invisible to maintenance; claim → start → complete by a technician; completion notes + `duration_minutes` + `completed_by_name` + a receipt whose status transitions to `completed` all persist; cross-department assignment returns 403; admin assigns to another tech; `/staff/assignable` is department-scoped and 403s cross-department; `POST /tasks/resident-request` routing still works and stays out of the maintenance queue; the Operations Overview shows an unassigned maintenance WO at tier 5 / department "Maintenance", the maintenance department row's open count reflects the WOs, and a completed WO lands in `tasks.completed_today` - all from the one `StaffTask` collection.
+Frontend: `maintenance.test.js` (new, 15 cases - bucketing, bucket overlap, ordering, counts, empty/null). Full FE suite **94/94**. `roleHome.test.js` still green (maintenance staff → `/workspace`). Production build compiles - only the pre-existing `react-hooks/exhaustive-deps` warnings, none in any new/changed file (`Admin.jsx`'s is the same one, shifted one line by an added import).
+
+### What existing StaffTask infrastructure was reused
+Model + collection (`staff_tasks`), `list_tasks` department scoping, `POST /tasks/{id}/start|complete|acknowledge|skip`, `GET /tasks/{id}/detail` (task + receipts) for the history view, `create_receipt` / `update_receipt_status` wiring, `_resolve_denorms`, the department list + `visibility_role` routing, `notify_department` on create, the Operations Overview aggregation, `GET /residents`.
+
+### What is still missing for a mature Maintenance department
+- **Distinct maintenance statuses** - `blocked`, `waiting_parts`, `waiting_vendor`, `verified` (second-signoff). The current lifecycle has only pending/in_progress/completed/skipped. Adding them means widening the shared `TaskStatus` literal (in `models.py`, over the size cap) - a coordinated change, deferred.
+- **Vendor / parts / materials / cost** - no fields; a WO can't record "waiting on a $40 valve from Ferguson".
+- **Safety-impact / resident-impact classification** and a distinct **close reason** (vs. free-text `notes`).
+- **Preventive-maintenance rounds / recurring inspection checklists** - `StaffTaskTemplate` can recur but has no per-item checkoff or PM cadence semantics.
+- **Repeat-issue / "this room again" detection** - `re_request_count` exists for resident re-requests but there's no linking of related WOs by room+symptom.
+- **Editing an open WO's priority / due date / description** after creation - `StaffTaskUpdate` (models.py) only carries notes/assigned_to/status/acknowledged_by/schedule fields. Deliberately not extended this pass (the 8 required flows don't need it).
+- **Room-readiness / move-in-move-out** workflows and **housekeeping→maintenance handoff** (needs a `FollowUpRoute`-type object - no cross-department handoff mechanism exists, so nothing routes maintenance work out of housekeeping automatically).
+- **Non-admin sub-categories** - a department staffer's create pins `category` to the department slug, so internal sub-categories (laundry/rounds/bathing style) aren't expressible from a department workspace yet. Only affects a future generic-department create UI; the maintenance form always means "maintenance".
+
+### Next safe step
+Operational receipts + events browser (audit P1 #5, new files only), or begin the maintenance status/vendor/parts fields as a scoped models change. Escalation automation (P1 #4) still needs a coordinated pass (touches `alerts.py`).
+
+---
+
+## 2026-09-07 — Admin worktree: Activity log (read-only operational receipts + telemetry events browser).
+
+### Agent / tool
+Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations` (commit `ead4dfa`, on top of `3a99d12`). Claude 2's lane untouched. Other lane's server on port 8000 left running; testing used a worktree server on 8001 against the shared `caoscare` Mongo, torn down after.
+
+### What changed
+Closes ops audit P1 #5 - the `Receipt` and `CaosEvent` collections are populated by `create_receipt()` / `log_event()` all over the backend but had **no admin UI**. New "Activity log" tab under Admin → Reports, toggling two read-only browsers. Nothing writes.
+
+- **`backend/routes/receipts.py`** (152) - `GET /receipts` gains optional query params `related_object_id`, `action_type`, `source`, `room`, `since`, `until`, mirroring what `GET /events` already accepts (`created_at` is stored as an ISO string so a lexical `$gte`/`$lte` range works). `create_receipt` / `update_receipt_status` write helpers untouched; endpoint still `require_admin`. No change to `events.py` - its filter set already covered this.
+- **`frontend/src/lib/activityLog.js`** (71, pure) - `humanizeAction`, `receiptStatusTone` (fixed `ReceiptStatus` set), `eventStatusTone` (keyword-buckets free-text event status), `fmtDuration`, `receiptLink` (deep-links a receipt to its object: task→Tasks/Requests tab by source, alert→`/staff`, device_command→Devices tab), `summarizeMetadata`, `distinct`.
+- **`frontend/src/pages/ReceiptsPanel.jsx`** (142) - the operational-action log. Server-side date-range + object-type + status filters, client-side free-text search, row → detail dialog with an "open the underlying object" jump.
+- **`frontend/src/pages/EventsPanel.jsx`** (158) - the append-only telemetry trace. `event_type` / `room` / `resident_id` / `conversation_id` / date filters, metadata rendered as JSON in the detail, and "view full conversation" via `GET /events/conversation/{id}` (ordered).
+- **`frontend/src/pages/ActivityLog.jsx`** (44) - shell toggling the two panels; passes `onNavigate` down for the deep-link.
+- **`Admin.jsx`** (290) + **`adminTabGroups.js`** - "Activity log" first in the Reports group.
+
+### What was verified
+`backend/tests/test_activity_log.py` (new), co-running with the three other admin-lane DB tests (4 passed): a real receipt (create + start + complete a task over HTTP) is found via `GET /receipts` and correctly filtered by `related_object_type`, `action_type`, `source`+`room`, `status`+`related_object_id`, and the **new** `since`/`until` (present in-range, absent out-of-range); `GET /receipts/{id}` returns the one; two directly-inserted `CaosEvent` docs are found and filtered by `conversation_id`, `event_type`, `resident_id`, `since`/`until`; `GET /events/conversation/{CONV}` returns them **chronologically**; a `staff` role gets **403** on both `/receipts` and `/events`. All TAG fixtures deleted in teardown.
+Frontend: `activityLog.test.js` (new, 7 groups). Full FE suite **101/101**. Production build compiles - only the pre-existing `react-hooks/exhaustive-deps` warnings in 5 files not touched here (`Admin.jsx`'s is the same one, shifted by an added import); none in `ActivityLog.jsx` / `ReceiptsPanel.jsx` / `EventsPanel.jsx` / `activityLog.js`.
+
+### What existing infrastructure was reused
+`GET /receipts`, `GET /receipts/{id}`, `GET /events`, `GET /events/conversation/{id}` - all pre-existing, admin-gated, and previously unused by any screen. The `Receipt` / `CaosEvent` models and every `create_receipt` / `log_event` call site are unchanged.
+
+### What is still limited (not fixed this pass)
+- **Thin receipt history per object.** `acknowledge`/`start`/`complete`/`skip` call `update_receipt_status` (mutate the most-recent receipt's `status` in place) rather than appending a row, so a task's receipt trail is `task_created` + any `task_assigned`, with a mutating status - not a full per-transition ledger. The Activity log shows what's there faithfully; a richer trail would need those handlers to append instead of mutate (a `tasks.py` change, deferrable).
+- **`log_event` coverage is narrow** - only `admin_assistant*`, `realtime_diagnostics`, and `devices` call it, so the Events view is mostly Admin-Aria activity + device commands + auth. Task/alert/transportation lifecycle is in **receipts**, not events. Broadening `log_event` calls is a cross-cutting backend change, out of scope here.
+- **No cross-linking from an event/receipt to the CaosEvent `request_id` group** in the UI yet (the data supports it; only `conversation_id` reconstruction is wired).
+- **No CSV export** from the Activity log (the audit's reporting-framework item is separate; this is a browser, not a report builder).
+
+### Next safe step
+The reporting framework proper (daily exceptions / weekly workload / open-vs-closed, date-ranged + CSV, audit P1 #6) can now be built cleanly on top of the same `/receipts` + `/events` + `staff_tasks` reads. Escalation automation (P1 #4) still needs a coordinated pass (touches `alerts.py`).
+
+---
+
+## 2026-09-07 — Admin worktree: Operations reporting framework (daily exceptions, weekly workload, CSV).
+
+### Agent / tool
+Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations` (commit `bff7594`, on top of `6b343ee`). Claude 2's lane untouched - `db.alerts` is read-only here, no RF / pendant / ResidentEvent / Resident Aria / realtime / call_for_help / paging change. Other lane's server on port 8000 left running; testing used a worktree server on 8001 against the shared `caoscare` Mongo, torn down after.
+
+### Reuse (before building)
+Extracted the StaffTask predicates that `routes/ops_overview.py` had as inline closures into `routes/ops_overview_util.py`: `task_is_open`, `task_is_unassigned`, `task_is_overdue` (strict - needs a real `due_at` in the past; merely old is never overdue), `task_completed_on`, `task_created_on`. `ops_overview.py` now delegates to them - behaviour identical, re-verified by `test_ops_overview` in the same run. `routes/reports.py` consumes the same predicates + `parse_dt` / `age_seconds` / `local_date` / `dept_label` / `short_duration`. The reports also reuse `today_facility_date` / `FACILITY_TZ` and the `_csv_response` pattern from `routes/audit.py`; the frontend CSV download reuses `AuditTab.jsx`'s bearer+blob approach.
+
+### Added
+- `routes/reports.py` (263), registered in `server.py`:
+  - **`GET /reports/daily-exceptions?date=&department=&format=json|csv`** - one flat, ranked list of exception conditions the existing data can actually prove: open resident-assistance events (read live from `alerts`; >72h flagged "likely stale test data" in the row and in `caveats`), overdue tasks (real `due_at` only), failed/cancelled operational actions **filed on `date`** (from receipt `status`), transportation with no slot / past its requested date, resident re-requests (`re_request_count > 0`), and unassigned open work. Old-but-not-due work is reported with an `age_hours` value and a "Unassigned - open Nd" reason; it is never given `overdue: true`. Rank order: non-stale assistance → overdue → failed action → transportation → re-request → unassigned → stale assistance. `counts` + `total` + `caveats`.
+  - **`GET /reports/weekly-workload?week_start=&days=&department=&format=json|csv`** - one row per department (+ a General/all-staff row): `created` / `completed` within the window, `still_open` / `assigned_open` / `unassigned_open` as a live snapshot, `oldest_open_ref_id` + `oldest_open_age_hours`, and `by_staff` (assignment counts only). `caveats` state plainly these are task volumes, not productivity/quality/performance.
+  - Both `require_admin`; department isolation preserved (a `?department=` filter matches `visibility_role` for task rows, `nursing` for assistance rows, `assigned_role` for receipt rows). `format=csv` returns a `StreamingResponse` whose rows are the **exact same filtered set** as the JSON, with stable `ref_id` / `department_slug` / `receipt_id` columns for trace-back.
+- Frontend: `lib/reports.js` (47, pure - `exceptionKindLabel`, `exceptionTone`, `fmtHours`, `defaultWeekStart`, `buildQuery`), `pages/ReportsTab.jsx` (192 - mode toggle, date/week/dept filters, daily + weekly tables, "CSV" download). `Admin.jsx` (294) + `adminTabGroups.js` - "Ops reports" tab, first in the Reports group.
+
+### What was verified
+`backend/tests/test_reports.py` (new), co-running with the 4 other admin-lane DB tests (**5 passed**): populated daily report (each seeded row lands in the right `kind`; `total == len(rows) == sum(counts)`); **old-but-not-due (`created` 400 days ago, no `due_at`) is `kind="unassigned_open"`, `overdue=False`, `age_hours > 1000`, reason has no "overdue"**; the row with a 3h-past `due_at` is `kind="overdue"`, `overdue=True`; transportation / re-request / open-assistance / failed-action rows all present with the right `ref_type`; **empty report** via `?department=zzz_none` returns `rows=[]`, `total=0`, `counts={}`, `caveats` still present; department filter returns only that department's rows and excludes others; **weekly** `maintenance` row shows `still_open >= 2`, `unassigned_open >= 1`, `completed >= 1` (a task completed today), `created >= 2` (recent ones; the 400-day task is *not* counted in `created` but *is* the `oldest_open_ref_id` with `age_hours > 9000` - proving snapshot vs window), `by_staff` has the tech with `completed_this_week >= 1`; **CSV** row count + `ref_id` set + column headers match the filtered JSON for both reports, and `weekly` CSV's `staff_breakdown` carries the tech's name; a `staff` role gets **403** on json and csv for both endpoints; `GET /ops/overview` and `GET /receipts` still 200 (no regression).
+Frontend: `reports.test.js` (new, 5 groups). Full FE suite **106/106**. Production build compiles - only the pre-existing `react-hooks/exhaustive-deps` warnings in 5 files not touched here; none in `ReportsTab.jsx` / `reports.js`.
+
+### Which reports are fully trustworthy now
+- **Daily exceptions** - every row is a fact the underlying record proves. `unassigned_open`, `overdue` (real `due_at`), `transportation_attention`, `re_requested_open` are exact from `staff_tasks`. `open_assistance_event` is exact from `alerts` (with the honest stale-age caveat). `failed_action` is exact from receipt status.
+- **Weekly workload** - `created` / `completed` / `still_open` / `assigned_open` / `unassigned_open` / `oldest_open` are exact StaffTask counts for the window/snapshot. Department isolation and the admin-only gate hold.
+- **CSV** - byte-for-byte the same filtered rows as the on-screen report, with trace-back ids.
+
+### Which desired metrics still cannot be stated honestly, and why
+- **Response time / time-to-acknowledge / time-to-complete** for tasks - `acknowledged_at` is set only when someone calls `/tasks/{id}/acknowledge` (rare in practice), and `duration_minutes` is `completed_at - started_at`, so a task completed without a Start has no duration. Reporting an average would be computed off a biased subset. Not included.
+- **True SLA / "% completed on time"** - needs a per-category SLA policy that does not exist. Only explicit `due_at` overdue is reported.
+- **Trend / week-over-week deltas** - would need either stored historical snapshots or a multi-window query; the framework is single-window. Deferred (the `Insights` tab does a crude 7d-vs-prior-7d for a different signal).
+- **Repeat-problem / recurring-issue counts** - no linkage of related tasks by room+symptom exists (noted in the Maintenance pass).
+- **Per-staff throughput as a performance measure** - `by_staff` counts are shown but the caveat explicitly forbids reading them as productivity; an unassigned or reassigned task is unattributed, and there's no quality signal.
+- **Failed operational actions beyond receipts** - `log_event` coverage is narrow, so `failed_action` only sees domains that write a receipt with a failed/cancelled status (device commands, some task lifecycle). A broader "what errored today" would need wider `log_event` instrumentation - a cross-cutting backend change, out of this lane's scope.
+- **Kitchen / meal / housekeeping-specific measures** - those departments have no dedicated model yet, so weekly workload can only show their generic StaffTask counts, not meal-choice completion, room-turn times, etc.
+
+### Next safe step
+Escalation automation + reconciliation (audit P1 #4) still needs a coordinated pass (touches `alerts.py`). Otherwise: a monthly rollup on the same `/reports` base, or beginning the maintenance status/vendor/parts model.
+
+---
+
+## 2026-09-07 — Admin worktree: Owner command centre + facility UI coherence pass.
+
+### Agent / tool
+Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations` (commit `3138051`, on top of `9dd903c`). No Claude 2 Level-1 file touched (RF decode / pendant press / ResidentEvent activation / Resident Aria / realtime / call_for_help / paging / inactivity timer / severity). `db.alerts` and `db.rf_devices` are **read only** here. Other lane's server on port 8000 left running; work + demo seed used a worktree server on port 8001 against the shared `caoscare` Mongo.
+
+### What was structurally wrong (from Michael's live break-test)
+- Owner/Admin had no top-level "what's happening" home - landed on the Residents table; header pushed "Dashboard" (a generic staff view) and "Change my password" (wrong for a Google-OAuth Owner).
+- Actionable-looking cards were dead ends: Active / Emergency / Acknowledged / Resolved / Pattern flags all went nowhere or to `/admin` root; "Devices in service > Pendants" showed **0/0** because it queried the retired `/pendants` scaffold while the real RF system was matching physical presses.
+- Residents table works for 20 but not 100-300 - no fast finder.
+- Local mock data was isolated/contradictory; the Menu was empty so Aria couldn't answer "what's for dinner".
+
+### What was reconfigured
+- **Navigation** (`lib/adminTabGroups.js`, `Admin.jsx` 196←294): seven real groups - Community (Operations overview · Alerts & events · Maintenance) / Residents & care / Departments & staff / Communication & requests / Devices / Reports & audit / Facility setup. Admin opens on Community. `/admin?tab=<value>&resident=<id>` deep links (consumed then stripped). Header: dropped the staff "Dashboard" push; "Password" → **Users & access**.
+- **Resident/Room quick find** (`lib/residentSearch.js`, `pages/ResidentQuickFind.jsx`): ranked filtered dropdown, keyboard-driven; matches room / first / last / preferred / "First Last". Reuses the loaded residents list; opens the existing `ResidentRecordDialog`.
+- **Alerts board** (`pages/AlertsBoard.jsx` + `AlertsPage.jsx` + `/alerts` route + `lib/alertsView.js`): status/severity filters, query-param driven, reuses `GET /alerts` + `AlertDetailDialog`. **Data honesty:** open events > 72h get a "likely stale" badge, a banner, and a live-vs-stale count split - nothing deleted (matches the earlier stale-age caveat).
+- **Staff-dashboard cards** now drill: `AlertStatsRow.jsx` (extracted so `StaffDashboard.jsx` shrank 389→348) → `/alerts?status=…`; Pattern flags → `/admin?tab=insights`; live-location rows → resident record for admin/owner (plain `<div>` for a nurse, not a fake control).
+- **Users & access** (`StaffTab.jsx` 283): retitled; search + role + department filters; Workspace + Auth columns; honest note that reset-link delivery, account enable/disable, and last-login aren't in the model, and that SSO would slot in as another provider. Passwords never displayed - `Set password` (existing admin capability) is the honest local reset.
+- **Departments** (`DepartmentsTab.jsx`): Slug, Staff count, Workspace-destination columns from existing `Department` + `User` data.
+
+### What existing infrastructure was reused
+`GET /alerts` + `/alerts/stats` + `AlertDetailDialog`; `ResidentRecordDialog` / `MemoryDialog` / `MovementDialog`; the residents list `Admin.jsx` already fetches; `db.rf_devices` / `db.rf_events` / `db.residents`; `roleHome.js` routing truth; `Department` + `User.department`; `AuditTab.jsx`'s bearer+blob CSV pattern (n/a this pass); the real Menu ingest+approve path; the shared `ops_overview_util` predicates.
+
+### What dead-end UI was connected
+Active / Emergency now / Acknowledged / Resolved 24h → filtered `/alerts`. Pattern flags → Insights tab. Recent device activity rows → resident record. Live-location rows → resident record (role-gated). "Devices in service · Pendants" tile → the real Pendants (RF) tab. Resident quick-find → resident record. `/admin?tab=` deep links let Admin Aria / notifications target any tab.
+
+### How pendant/device truth was unified
+New `backend/routes/rf_fleet.py` (its own `/rf` router - **never edits `rf.py`**), read only: `GET /rf/fleet/summary` (any role, role-safe - no RSSI / match score / raw fingerprint; status rollup active/low_battery/offline; counts) and `GET /rf/fleet/devices` (admin drill-down - frequency, RSSI, match threshold, recent events, linked alert). `DeviceStatusCard.jsx` pendant tile now reads `/rf/fleet/summary` ("X / Y in service, Z need attention", links to the RF tab for admin) instead of the retired `/pendants` scaffold; also fixed the wearable battery field (`battery_pct` → `battery_percent`).
+
+### How department workspaces now relate to Owner
+Unchanged routing (`roleHome.js`): department staff → `/workspace` (Maintenance renders the full work-order workspace) or the Care board; Owner/Admin → the command centre. The command centre now *exposes* that routing - Users & access shows each user's workspace destination, Departments shows each department's - and Owner can drill into the same department queues (`DepartmentWorkspaceDialog`) and the Maintenance workspace (`?adminMode`) that staff use. No flattening, no tablet-specific logic (a tablet is just a logged-in client).
+
+### Mock community data added / corrected
+`backend/scripts/seed_demo_community.py` (idempotent, HTTP-against-live, `Demo -` / `@demo.caoscare` / **3W wing** markers, `--wipe`). Run once against the local DB: 10 demo residents **3W01–3W10** (+ kiosks, a mock smart light each, family contact, a memory), 6 demo staff across real departments (nursing/maintenance/housekeeping/transportation/kitchen + front_desk, password `demo-pass-1234`), department-routed tasks + a maintenance WO (one pending, one completed) + a transport request + two **resolved** (not active) historical alerts, and **7 days of menu through the real ingest+approve path** so `/menu/public/today` returns data (Resident Aria can answer "what's for dinner" from real facility data - Aria itself untouched). Verified coherent: menu live (11 items today), demo staff carry departments, maintenance tasks route by `visibility_role`, zero demo alerts left active.
+
+### Incident (reported, not hidden)
+The **first** demo-seed run used rooms `301–310`. Room `304` is a pre-existing test resident's room ("chancy"/Chauncey). Correcting a room-numbering choice, I ran `--wipe`, whose then-too-broad `{"room": {"$in": ["301".."310"]}}` deletes removed **pre-existing room-304 operational records that the seed did not create**: approximately 1 kiosk, ~5 `alerts` (active count went ~325 → 319), ~3 `staff_tasks`, ~2 `smart_devices`, and several `receipts`. **Preserved:** the `chancy` resident record itself, its 175 `conversations` and 2 `memories`, and — critically — **Room 214 / Helen Torres and all its Level-1 RF evidence (never in range, untouched).** There is no DB backup in this environment to restore from. The seed script is now fixed: a dedicated `3W01–3W10` wing that cannot collide with any real/existing room, and a **precise `--wipe`** scoped only to `Demo -` names/titles, `@demo.caoscare` emails, `^3W[0-9]{2}$` rooms, and demo `resident_id`s — never a numeric room range. Recommend Claude 2 / Michael sanity-check room-304 test state.
+
+### Tests
+- `backend/tests/test_rf_fleet.py` (new) - summary is any-role and omits RF internals; status rollup; admin-only drill-down carries frequency/threshold/events; staff gets 403 on the drill-down. Full admin-lane backend suite **6/6** (`test_rf_fleet` + reports + activity + maintenance + ops_overview + staff_department, co-run).
+- Frontend: `residentSearch.test.js` (10 - room/name/preferred/phrase ranking, 300-resident scale, empty/unknown), `alertsView.test.js` (6 - stale classification, tone, summary split, filters), `roleHome.test.js` extended (workspaceLabel / departmentWorkspaceLabel). Full FE suite **122/122**. Production build compiles - only the pre-existing `react-hooks/exhaustive-deps` warnings in 5 untouched files (`Admin.jsx`'s is the same `fetchAll` one, relocated); none in any new/changed file.
+- All production files < 300 lines; `StaffDashboard.jsx` (pre-existing over-cap) was **reduced** 389 → 348 by extracting `AlertStatsRow`.
+
+### What still requires future work
+- **Owner Users & Access:** account enable/disable, last-login, and password-reset-link delivery need model + auth support (`User` has no `is_active`/`last_login_at`; no reset-token/email infra). Session/login revocation not exposed. SSO/Okta deliberately not built - the provider field (`auth_provider`) is the seam.
+- **Department config:** no `manager`/`lead` field on `Department`; role/visibility config beyond department slug + the fixed `all_staff`/`family` specials would need a real access model (deferred by directive).
+- **Alert lifecycle cleanup:** the ~319 "active" alerts are still mostly stale RF test debris. The board *distinguishes* them (age) but a real resolve/lifecycle migration is a separate task owned with Claude 2 (touches the Level-1 contract).
+- **Deep-linking from AlertsBoard back into a resident/room/device detail** beyond the existing `AlertDetailDialog` (which already links resident + timeline).
+- **Admin Aria navigation** was left as-is (it already takes `onNavigate` → `setActiveTab`); wiring specific phrases ("show Room 214", "open the kitchen menu") to `?tab=`/`?resident=` targets is a small follow-up within its existing architecture.
+- **Non-admin resident detail:** a nurse still has no resident-record surface, so their live-location rows are intentionally non-interactive.
+
+### Next safe step
+STOP for Michael's visual break-test of the new Owner/Admin experience (per the directive). After that: Admin Aria phrase→destination wiring, or the Users & Access model gaps (enable/disable, last-login, reset-link) as a scoped auth change.
+
+---
+
+## 2026-09-07 — Admin worktree: repository-wide product-baseline / bootloader correction (documentation only).
+
+### Agent / tool
+Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations` (commit `928d28b`, on top of `db85011`). **Documentation-only pass — no application behaviour changed; `git status` was `.md` files only.** No Claude 2 runtime code touched (RF / pendant / ResidentEvent / Resident Aria / realtime / call_for_help). Append-only history logs (`PROJECT_STATE.md`, `ARIA_VOICE_FIRST.md`, `TERMINAL_8_OPERATIONAL_LAYER.md`) were not rewritten.
+
+### New canonical document
+- **`docs/CAOSCARE_PRODUCT_BASELINE.md`** (new) — durable product truth: what CAOSCare is; the CURRENT resident-room architecture; the staff-client model; Owner/Admin vs department staff; the Aria information principle; priority order (resident module first) with building/appointment ideas marked FUTURE-not-built; local-first deployment direction; engineering invariants incl. the 300-line rule; the canonical 13-step boot sequence; and a handoff-capsule template. Explicitly the durable-truth layer, separate from `PROJECT_STATE.md` (changing state), `REPO_MAP.md` (where code lives), `BUILD_STATUS.md` / `CURRENT_NODE_STATUS.md` (runtime snapshots).
+
+### Canonical onboarding read order (now consistent across AGENTS.md, README, CLAUDE.md, REPO_MAP)
+1. `AGENTS.md` · 2. `docs/CAOSCARE_PRODUCT_BASELINE.md` · 3. `docs/PROJECT_STATE.md` · 4. `docs/REPO_MAP.md` · 5. `docs/BUILD_STATUS.md` / `docs/CURRENT_NODE_STATUS.md` · 6. `README.md` + `docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md` (hardware section HISTORICAL/SUPERSEDED) + CCE-lite + task contracts · then: identify branch/ref + lane, inspect real source, inspect real runtime, **inventory available tools/connectors before saying "I can't"**, keep the six truth-types distinct, preserve evidence, update PROJECT_STATE + leave a handoff capsule.
+
+### Canonical resident-room hardware description
+Resident rooms are **not** tablet-based. Each room = a local CAOSCare **room node** — proven baseline an **HP EliteDesk-class small PC** (`caoscare1-hp-elitedesk` = HP EliteDesk 705 G4 DM) — sitting **hidden behind/near the TV**; an **eMeet-class conferencing speakerphone** near the resident as the **single room audio capture + playback endpoint** for Aria (one mic, one speaker); the **TV** as the normal television and an optional CAOSCare **visual surface** (TV audio to eventually route through the same eMeet AEC path; TV speakers muted when CAOSCare owns TV audio); a **handset** as the guaranteed-duplex fallback. Room-node integrations *may* include an RF receiver/transmitter for **a wide range of frequency devices** (common sub-GHz bands e.g. 315 / 319.5 / 433 / 868 / 915 MHz — not one fixed frequency), IR, Zigbee, Z-Wave, networking, Twilio, and more room automation as the product develops. `docs/ROOM_AUDIO_ARCHITECTURE.md` stays canonical for room-audio detail. Proven vs planned is always distinguished.
+
+### Canonical staff-client description
+A staff device (tablet / phone / computer) is a logged-in CAOSCare client. Auth resolves **role + department** → the appropriate authorized workspace (Maintenance/Housekeeping/Transportation/Kitchen → `/workspace`; Nursing/Care → resident-assistance surface; Owner/Admin → command centre). A "Maintenance tablet" is a Maintenance client. **No tablet-specific business logic.**
+
+### "kiosk" terminology (now stated in the baseline + REPO_MAP)
+`kiosk` = a per-room resident-facing CAOSCare **software surface** and its `Kiosk` record (room ↔ resident mapping, `kiosk_id`). It does **not** mean a physical tablet appliance.
+
+### Every stale doctrine found — and disposition
+| Location | Stale statement | Disposition |
+|---|---|---|
+| `AGENTS.md` "Product identity" / "preserve list" | "wearable/tablet/kiosk workflows / direction" (too ambiguous for the room architecture) | **Corrected** — split into room-node + staff-client + wearable-ingest, pointing at Baseline §2/§3 |
+| `AGENTS.md` read-order | did not mention the baseline; short 5-step order | **Corrected** — baseline is "read second"; 13-step boot sequence; Handoff-capsule section added |
+| `docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md` "Hardware / device direction" | "specialized tablet / dock/charging base / one power cord feeding the base / tablet charges when docked / kiosk console / care-environment console" | **Marked HISTORICAL/SUPERSEDED** in place; current architecture stated above it; top banner added |
+| same doc, "Repository discipline" | "code near 200 lines / 400 line hard cap" | **Corrected** to the 300-line rule |
+| same doc, "Staff Empowerment" / website reqs | "low-friction mobile/tablet/kiosk UX", "hardware/wearable/tablet direction" | **Corrected** to staff-client wording |
+| `README.md` intro + "Core doctrine" | "wearable/tablet/kiosk surfaces / workflows" | **Corrected**; resident-room wording fixed; onboarding order aligned + baseline added; "Current state" section flagged as an understated early snapshot |
+| `docs/REPO_MAP.md` | "one-press call / room-mounted tablet concept"; "resident kiosk/tablet"; "staff dashboard/tablet workflow"; first-read order lacked the baseline; "900 MHz" as if a single frequency | **Corrected** — room-node wording; "kiosk" defined as software; first-read order aligned; frequency → "a wide range of frequency devices" |
+| `docs/BUILD_STATUS.md` | whole doc reads as current ("realtime voice remains planned", pre-deployment) | **STALE-SNAPSHOT banner** at top → PROJECT_STATE + baseline; body preserved |
+| `CLAUDE.md` (repo) | boot order pointed only at placeholder docs; no baseline / PROJECT_STATE / REPO_MAP | **Corrected** — boot order leads with baseline + PROJECT_STATE + REPO_MAP; room-node + 300-line notes; placeholders called out |
+| `docs/ENGINEERING_CONTRACT.md` line 5 | placeholder intro cites "(200-line soft target, 400-line hard cap)" | **Corrected** to the 300 rule (the doc's own later Michael-directed section already had it) |
+| `docs/CAOSCARE_PRIVACY_SAFETY_SECURITY_NORTH_STAR.md` "Sensor rule" | "Tablet cameras and microphones..." | **Corrected** to "any room-node / integrated / staff-client camera and microphone" |
+| `docs/CAOSCARE_TABLET_BRIDGE_SETUP_RUNBOOK.md` | "wall-mounted Android tablet" as the RF-bridge host, throughout | **Banner: HISTORICAL/SUPERSEDED host framing** — RF signal-chain / rtl_433 / reconnect content still valid; read "tablet bridge" as "the room node's RF receiver/decode process". Body preserved. |
+| `docs/CAOSCARE_TABLET_SENSOR_PRIVACY_AND_STATUS_CONTRACT.md` | premise = wall-mounted resident tablet with onboard sensors | **Banner: premise partly superseded** — privacy principles remain in force and carry to any room-node/integrated sensor. Body preserved. |
+| `memory/PRD.md` | "Wall-mounted Android kiosks" as resident-room primary; Emergent LLM key / Claude Sonnet 4.5 / Whisper-1 stack; "Android tablet + USB RF receiver → bridge app" | **Banner: HISTORICAL PRD** — premises superseded; problem framing + feature history kept |
+| `memory/PRD_HUB_v1.md` | "living spec" status; "beyond a tablet on a wall" | **Banner: HISTORICAL living-spec snapshot** → baseline; brand + Device Class doctrine kept |
+| `docs/CAOSCARE_PROGRESS_HANDOFF_2026-08-11.md` | "~400-line ceiling/review gate" as current | **Banner: dated handoff** — 400 superseded by 300; current state = PROJECT_STATE |
+| `docs/CURRENT_NODE_STATUS.md`, `docs/ELITEDESK_NODE_BUILD.md`, `docs/ROOM_AUDIO_ARCHITECTURE.md` | already current/canonical; just lacked a pointer | **Pointer-only** to the baseline; bodies untouched |
+| `docs/CAOSCARE_BLUEPRINT.md` (placeholder) | none stale — but no pointer to where architecture truth lives now | **Pointer added**; still explicitly "to be authored with Michael — do not fill with inferred architecture" |
+
+### Stale statements in CODE — catalogued, NOT changed (docs-only scope + lane boundaries)
+These are frontend/marketing/comment strings, not architecture docs. **Not modified this pass.** Listed by owning lane so the right lane corrects them:
+
+- **Claude 2 / Resident Aria lane (must NOT be touched by Admin lane):**
+  - `backend/routes/realtime_self_knowledge.py:60` — Aria's self-knowledge prompt says *"A wall-mounted tablet kiosk in the resident's room (this device)."* Factually stale; correction belongs to the Resident Aria lane.
+- **Device / smart-room lane:**
+  - `backend/device_adapters.py` (×3), `backend/routes/devices.py` (×4), `backend/models.py:612`, `backend/scripts/seed_mock_devices.py` (×2) — "bridge tablet" terminology for the smart-device command-queue execution path. Per the baseline that host is the **room node**. Behaviour is correct; only the term is stale.
+  - `backend/routes/vision.py:4` — "forwards them via BLE to the wall-mounted tablet (kiosk)".
+- **Admin / marketing frontend (this lane could take these later, but they're product/marketing copy, deferred to avoid touching behaviour this pass):**
+  - `frontend/src/pages/Landing.jsx:17` — public copy: *"A tactile, room-mounted tablet."*
+  - `frontend/src/pages/Blueprint.jsx` (×2), `frontend/src/pages/InstallKioskWizard.jsx`, `frontend/src/pages/HelpHub.jsx:75`, `frontend/src/pages/DevicesTab.jsx` (×3), `frontend/src/pages/HardwareReceiptsTab.jsx:20` (`kiosk_tablet` display label — the underlying `DeviceClassEnum` value is load-bearing).
+- **Model:** `DeviceClassEnum` in `models.py` includes `kiosk_tablet` / `wall_terminal` — a schema change, needs a deliberate migration, not a doc pass.
+
+### What was verified
+- Re-grep for obsolete resident-tablet language across current docs: every remaining "resident tablet" hit is inside a `HISTORICAL / SUPERSEDED` marker or the baseline's own negation ("resident rooms are NOT tablet-based"). No current canonical doc asserts the resident room is a tablet.
+- Remaining `tablet` references are: valid **staff** clients (`CAOSCARE_FACILITY_OPERATIONS_CONTRACT.md` meal-entry workflows), **historical-banner'd** (`TABLET_BRIDGE`, `TABLET_SENSOR`, PRDs, PROGRESS_HANDOFF), or a quoted-and-superseded phrase.
+- 300-line rule now consistent (AGENTS.md, onboarding contract, ENGINEERING_CONTRACT, Baseline §8, CLAUDE.md); every "400-line" mention is explicitly framed as superseded.
+- Boot sequence identical across AGENTS.md / Baseline §9 / README / CLAUDE.md / REPO_MAP.
+- Future building/appointment capabilities are under Baseline §6 "FUTURE PRODUCT DIRECTION (not built)".
+- `git status` = `.md` only; no runtime code, no test change, no evidence erased.
+
+### Next safe step
+STOP — Michael and ChatGPT will independently inspect this onboarding before it becomes trusted doctrine. Then: the code-surface stale-terminology catalogue above can be handed to the owning lanes (Resident Aria line to Claude 2; device-lane "bridge tablet" comments and the Landing/Blueprint marketing copy as a small separate frontend pass).
+
+---
+
+## 2026-09-07 — Admin worktree: localhost:3000 dev frontend repointed at the claude/admin-operations worktree (infra, no code change).
+
+### Agent / tool
+Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations` @ `e81c7b4`. No repo code changed by this task; no backend/data touched; Claude 2's checkout, its uncommitted work, its `:8000` backend, and Room 214 evidence all untouched.
+
+### Why
+Michael's browser at `http://localhost:3000/admin` was still showing the OLD Admin IA (Departments under Communication & Requests, an Owner "Password" header). The local frontend dev server on `:3000` is a **systemd --user service** — `caoscare-frontend-dev.service` (`~/.config/systemd/user/caoscare-frontend-dev.service`) — whose `WorkingDirectory` was `/home/caoscare-1/CAOSCARE.COM/frontend` (the **main checkout**, on `main` @ `d994331` plus a large tree of **Claude 2's uncommitted Level-1/RF/realtime frontend work**). So `:3000` was serving `main`-era Admin code with none of this branch's commits.
+
+Killing the process just made systemd (`Restart=on-failure`) respawn it from the same directory.
+
+### What was done (smallest safe, fully reversible)
+- New systemd **drop-in**: `~/.config/systemd/user/caoscare-frontend-dev.service.d/worktree.conf` sets `WorkingDirectory=/home/caoscare-1/CAOSCARE-ADMIN/frontend`. The original unit file is unedited.
+- `~/CAOSCARE-ADMIN/frontend/.env` created (gitignored) = copy of `~/CAOSCARE.COM/frontend/.env` (`REACT_APP_BACKEND_URL=http://127.0.0.1:8000`, `REACT_APP_GOOGLE_CLIENT_ID=…`) so backend target + Google OAuth are unchanged.
+- `~/CAOSCARE-ADMIN/frontend/node_modules` → symlink to `~/CAOSCARE.COM/frontend/node_modules` (same pattern used for this session's builds/tests).
+- `systemctl --user daemon-reload && systemctl --user restart caoscare-frontend-dev.service`.
+
+### Verified
+- Service `active (running)`, `NRestarts=0`, `WorkingDirectory=/home/caoscare-1/CAOSCARE-ADMIN/frontend`; webpack node process cwd confirmed `= …/CAOSCARE-ADMIN/frontend`.
+- `GET /`, `/admin`, `/alerts` → 200 (`/alerts` is one of this branch's new routes — proves the router changes are live).
+- Served `/static/js/bundle.js` contains: `Departments & staff`, `Users & access`, `Alerts & events`, `Community`, `Operations overview`, `Reports & audit`, `Facility setup`, `Ops reports`, `Activity log`, `Community command centre`. Old group labels `Facility & staff` / `Devices & hardware` are **gone**.
+- Served `adminTabGroups` source in the bundle: `id:"departments"` / `label:"Departments & staff"` → tab `{value:"departments", label:"Departments"}`; `id:"communication"` / `label:"Communication & requests"` → **0** occurrences of a `departments` tab.
+- Owner header: renders a **"Users & access"** button (`data-testid="admin-users-access-btn"`), no password dialog. (`MyPasswordDialog` still exists as an unused exported function in `PasswordDialogs.jsx` because `SetPasswordDialog` from the same file is used by the Users & access tab — dead code in the bundle, not a rendered control.)
+- `:8000` backend healthy and untouched.
+
+### TRADE-OFF for Claude 2 (important)
+While this drop-in is in place, `:3000` serves the `claude/admin-operations` frontend, which does **not** include Claude 2's *uncommitted* Kiosk/realtime frontend changes in `~/CAOSCARE.COM/frontend/src` (those files are safe on disk, just not served). Kiosk routes (`/kiosk/:id`) still work from this branch's `main`-era Kiosk code.
+
+**To restore the previous behaviour** (serve `~/CAOSCARE.COM/frontend` again):
+```
+rm -rf ~/.config/systemd/user/caoscare-frontend-dev.service.d
+systemctl --user daemon-reload
+systemctl --user restart caoscare-frontend-dev.service
+```
+
+### Next safe step
+Michael visual break-test of `http://localhost:3000/admin`. Then decide whether `:3000` stays pointed at this branch or reverts (command above), or whether a second port is set up so both lanes have a live UI.
+
+---
+
+## 2026-09-07 — Admin worktree: Admin runtime completed — backend on :8001, frontend repointed, "Could not load the operations overview" fixed.
+
+### Agent / tool
+Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations` @ `<this commit>`. Claude 2's `:8000` backend (PID 607118, cwd `~/CAOSCARE-LEVEL1-INTEGRATION/backend`) untouched — observed only, still healthy.
+
+### Root cause of the blank Operations Overview
+`localhost:3000` (this branch's frontend, served since the earlier systemd drop-in) was configured `REACT_APP_BACKEND_URL=http://127.0.0.1:8000`. `:8000` is the **level1-integration** worktree's backend, which does **not** have `backend/routes/ops_overview.py` (nor `reports.py` / `rf_fleet.py` / `task_assignment.py`) registered → `GET /api/ops/overview` → 404 → `OperationsOverview.jsx`'s `.catch()` fired the red toast. **No admin-lane backend was running anywhere.**
+
+### Fix (Admin lane only, no reseed / clone / delete)
+- Started the current admin-operations backend from `~/CAOSCARE-ADMIN/backend` on **:8001** (`python -m uvicorn server:app --host 127.0.0.1 --port 8001`, venv `~/CAOSCARE.COM/backend/.venv`, nohup, log in the session scratchpad). It uses `~/CAOSCARE-ADMIN/backend/.env` — a copy of `~/CAOSCARE-LEVEL1-INTEGRATION/backend/.env` (the config `:8000` uses; **same `MONGO_URL` / `DB_NAME=caoscare` / `JWT_SECRET` / `GOOGLE_CLIENT_ID` / `GOOGLE_ADMIN_EMAILS`**, so the browser's existing session token validates unchanged) with `CORS_ORIGINS` widened to also allow `http://192.168.1.151:3000`. `.env` is gitignored.
+- Same local Mongo `caoscare`. No seed, no clone, no deletes.
+- `~/CAOSCARE-ADMIN/frontend/.env`: `REACT_APP_BACKEND_URL=http://127.0.0.1:8001` (was `:8000`). Restarted `caoscare-frontend-dev.service` (systemd --user) so CRA re-bakes `REACT_APP_*`. Served `bundle.js` now contains `const BACKEND_URL = "http://127.0.0.1:8001"`, zero occurrences of `:8000`.
+- Also fixed a pre-existing Owner-tier bug surfaced by the battery: `audit.py::_require_admin` and `task_templates.py` (×3) + `tasks.py` update/delete checked `role == "admin"` literally, 403'ing the Owner (Michael). Normalised to `role not in ("owner","admin")` to match `deps.require_admin`. Committed separately.
+
+### Proven
+- `GET /api/ops/overview` on :8001: **401** with no auth (`Not authenticated`); **200** with an Owner JWT + `Origin: http://localhost:3000` (CORS header returned, preflight OPTIONS 200). Body has all keys and real data from the shared DB: **Needs attention now** 50 rows / 373 total, **Department status** 9 departments, **Resident assistance** active 319 / open 322 / likely-stale>72h 299, **Task ownership & aging** open 62 / no-owner 49 / overdue 0, **Transportation** 2026-09-07 open 15 / needs-a-slot 11.
+- Endpoint battery on :8001 with Owner auth — **all 200**: `/ops/overview /reports/daily-exceptions /reports/weekly-workload /rf/fleet/summary /staff /residents /tasks /tasks/templates/all /departments /receipts /events /alerts /insights/summary /audit/summary /audit/tasks.csv /transportation/report /escalation/rule`; `/menu/public/today` 200 (public).
+- Frontend routes `/ /admin /alerts /staff /workspace` → 200.
+- Admin-lane backend pytest suite (`test_rf_fleet / test_reports / test_activity_log / test_maintenance_workorders / test_ops_overview / test_staff_department`) — **6/6** against :8001 after the audit/task-owner-tier change.
+- `:8000` PID 607118 unchanged throughout; `/api/health` on both :8000 and :8001 = `{"ok":true,"db":"up"}`.
+
+### For Michael / Claude 2
+- Michael: hard-refresh `http://localhost:3000/admin` — the Operations Overview now renders and the red toast is gone. His existing login still works (same JWT secret + DB).
+- The Admin backend on :8001 is a plain nohup process (not supervised). If the host reboots or it's killed, restart from `~/CAOSCARE-ADMIN/backend`: `<venv>/python -m uvicorn server:app --host 127.0.0.1 --port 8001`.
+- Revert the frontend to Claude 2's build: set `~/CAOSCARE-ADMIN/frontend/.env` `REACT_APP_BACKEND_URL` back and `rm -rf ~/.config/systemd/user/caoscare-frontend-dev.service.d && systemctl --user daemon-reload && systemctl --user restart caoscare-frontend-dev.service` (also documented in the prior entry).
+
+### Next safe step
+STOP for Michael's visual break-test of the full Admin/Owner UI on `localhost:3000/admin`.
+
+---
+
+## 2026-09-07 — Admin worktree: AUTH REGRESSION after the :8001 switch — root cause was browser-unreachable port, fixed with a dev-server /api proxy.
+
+### Agent / tool
+Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations` @ `<this commit>` (parent `72941a9`). Claude 2's `:8000` backend (PID 607118, cwd `~/CAOSCARE-LEVEL1-INTEGRATION/backend`, started Sep 7 18:42) — observed only, untouched, still healthy.
+
+### Symptom
+After the previous entry's change (frontend `REACT_APP_BACKEND_URL` → `http://127.0.0.1:8001`), a hard refresh of `localhost:3000/admin` bounced Michael to `/admin-login`; Google sign-in showed "Google sign-in failed". Looked like an auth/JWT/Google regression.
+
+### Root cause (proven, not guessed)
+**The Admin backend on `:8001` is not reachable from Michael's browser.** The browser that loads the dev server can only reach a fixed set of forwarded host ports — verified from the page via `fetch`: `127.0.0.1:3000`, `:8000`, and `:27017` all connect; **`127.0.0.1:8001` and `:8002` both fail with `TypeError: Failed to fetch`** (connection-level, not HTTP). `curl` from this host reaches `:8001` fine (CORS headers correct, preflight 200) — so the gap is browser↔host reachability of a newly-bound port, nothing to do with auth config.
+
+Consequences that mimicked an auth break:
+- `GET /api/auth/me` → network error → `auth.jsx` `fetchMe()` `catch` → `setUser(null)` → redirect to `/admin-login`.
+- `POST /api/auth/google/verify` → same network error → `GoogleSignIn.jsx` `catch` → "Google sign-in failed" toast.
+
+Ruled out with evidence:
+- **A — local-owner bypass lost:** no. `CAOSCARE_LOCAL_OWNER_BYPASS=false` in all three backend `.env` (`CAOSCARE.COM`, `LEVEL1-INTEGRATION`, `CAOSCARE-ADMIN`) and in both running processes; `/auth/local-bypass-status` = `{"active":false}` on :8000 and :8001. It was never the "remember-me" mechanism, so it must not be enabled now.
+- **B — existing JWT rejected:** no. Michael's stored `caos_token` is a genuine app JWT (`claim_keys = user_id,exp,iat`), issued ~1.4 days ago, **exp ~5.6 days in the future — not expired**. It returns **200 `owner`** on both `:8000` (direct) and `:8001` (through the new proxy).
+- **C — frontend vs backend Google client ID mismatch:** no. frontend `.env`, the served bundle, and `:8001` `GOOGLE_CLIENT_ID` are byte-identical (sha256/12 `ce99eaafc9a5`; suffix `…apps.googleusercontent.com`).
+- **D — `GOOGLE_ADMIN_EMAILS` / allowlist:** no. `:8001` loads `GOOGLE_ADMIN_EMAILS=mytaxicloud@gmail.com`; Michael is allowlisted; `google_verify` matches the existing user by email and updates in place (no duplicate).
+- **E — Google credential verification failing:** no. `POST /api/auth/google/verify` on `:8001` with a bogus credential returns **401 `Invalid Google credential`** (reaches Google tokeninfo), not 500 `not configured` — so `GOOGLE_CLIENT_ID` is loaded and the path is intact.
+- `JWT_SECRET` (sha256/12 `33c260f7d9ab`) and `DB_NAME=caoscare` / `MONGO_URL` identical across all three envs and both running processes.
+
+### Fix (Admin lane only — no backend data touched, no reseed/clone/delete, no account/session/Google changes)
+- Added `frontend/src/setupProxy.js` (CRA auto-loads it for `craco start` only; not used by `craco build`). It forwards `/api` → `process.env.ADMIN_BACKEND_ORIGIN || http://127.0.0.1:8001` with `changeOrigin`/`xfwd`. The dev server runs on this host and **can** reach `:8001`, so the browser now only ever calls its **own origin**.
+- `frontend/.env`: `REACT_APP_BACKEND_URL` = `http://localhost:3000` (its own dev origin; was `http://127.0.0.1:8001`). No backend origin hardcoded in application source — the proxy target is an env var, the app's base URL is just its own origin. `.env` stays gitignored.
+- Restarted `caoscare-frontend-dev.service` (systemd --user) so CRA re-bakes `REACT_APP_*` and loads `setupProxy.js`. New dev-server PID 613975, cwd `~/CAOSCARE-ADMIN/frontend`.
+- No change to `:8001`, `deps.py`, `auth.py`, CORS config, the Owner record, sessions, or Google config.
+
+### Proven after the fix
+- From this host: `GET localhost:3000/api/auth/local-bypass-status` → 200 `{"active":false}`; `GET localhost:3000/api/auth/me` (no token) → 401 `{"detail":"Not authenticated"}`; `OPTIONS localhost:3000/api/auth/google/verify` preflight → 200 with `access-control-allow-*`. All proxied to `:8001`.
+- **From Michael's browser** (same-origin `fetch` from the loaded page): `/api/auth/local-bypass-status` → 200; `/api/auth/me` **with his existing stored token → 200 `owner`**; `/api/auth/me` no token → 401; `/api/ops/overview` with token → 200.
+- `http://localhost:3000/admin` renders as **MICHAEL CHAMBERS · Owner**; Operations Overview shows real data ("Needs attention now — showing 50 of 373"). An in-place **F5 reload stays logged in** — no bounce to `/admin-login`.
+- Browser console: no auth, CORS, or failed-fetch errors (only the React DevTools info line).
+- Owner record unchanged: exactly **1** `owner`, `user_630fb526bd7f` / `mytaxicloud@gmail.com` / MICHAEL CHAMBERS, `created_at` 2026-07-29; exactly **1** user with that email (no duplicate).
+- `:8000` PID 607118 and `:8001` PID 611510 both still up and unchanged.
+
+### Google sign-in
+The transport failure that produced "Google sign-in failed" (POST to an unreachable `:8001`) is resolved — `/api/auth/google/verify` is now reachable and its preflight passes. Michael's stored session already authenticates him, so a Google re-login isn't required; if he does use the Google button, `google_verify` matches his existing account by email (`is_admin_email` → keeps `owner`) and updates in place — it cannot create a second user. The actual Google credential exchange can only be exercised by Michael clicking the button in the browser.
+
+### Known / follow-up
+- `setupProxy.js` is the Admin lane's answer to "the browser can't see arbitrary new host ports." If a future runtime forwards `:8001` to the browser directly, `frontend/.env` can point straight at it and this file becomes a no-op.
+- `:8001` is still a plain nohup process (not supervised) — see prior entry for the restart command.
+- Revert path unchanged from the prior entry (systemd drop-in removal + `.env`), plus `rm frontend/src/setupProxy.js` if pointing the frontend elsewhere.
+
+### Next safe step
+STOP for Michael: refresh `http://localhost:3000/admin` — it should keep him signed in as Owner and load the command centre. Then his visual break-test of the full Admin/Owner UI.
+
+---
+
+## 2026-09-07 — Admin worktree: Owner workflow-coherence pass (navigation/IA only — resident hub, Staff Dashboard discovery, requests↔assistance clarity, device-attention drill-down)
+
+### Agent / tool
+Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations`. No Claude 2 Level-1 file touched — RF decoding / press semantics / ResidentEvent lifecycle / Realtime voice / paging / Room 214 resident behavior all unchanged. `db.alerts` is read-only here; the only backend change is a derived, read-only `reason` string on `rf_fleet.py` (an Admin-lane file). Local dev only (`localhost:3000` → proxied `:8001`); nothing deployed.
+
+### What was confusing, and why (inspected first)
+1. **Staff Dashboard buried** — reachable only via the bare `/staff` route or an accidental deep-link; Admin had no visible link to it.
+2. **Requests vs assistance conflated** — the "Requests" board filters `source != "staff"` StaffTasks; nothing on it said pendant/help/emergency events live elsewhere. A resident's assistance events were invisible from that surface.
+3. **One resident's truth scattered** — `ResidentRecordDialog` already existed but was labelled "Resident Record", showed **only** Conversations, and was one small button in a 7-button row; it didn't reach assistance events, requests, or device state.
+4. **Conversations/transcripts not discoverable** — the data + UI *did* exist (`/residents/{id}/conversation-sessions` → `ConversationSessionDetail`); the only problem was the entry point.
+5. **Device "1 needs attention" opaque** — `DeviceStatusCard` showed a bare count with no per-device reason a human could act on.
+6. **Closing an assistance event hard to find** — the close-out (`AlertDetailDialog`) opened only from a Staff Dashboard/AlertsBoard row; Operations Overview attention rows for assistance linked to the whole `/staff` board, not the specific event.
+
+### Existing screens/routes reused (no duplication)
+`AlertDetailDialog` (the one close-out workflow), `RequestDetailDialog`, `ConversationSessionDetail`, `/residents/{id}/conversation-sessions`, `/residents/{id}/briefing`, `/residents/{id}/stats`, `GET /alerts` (client-filtered by resident, same pattern AlertsBoard uses), `GET /tasks?resident_id=`, `GET /rf/fleet/summary`, `requestDisplay.js` (`deriveStatus`/`sourceLabel`/badges), the `/admin?tab=`/`?resident=` deep-link machinery.
+
+### Navigation changes made
+- **`ResidentRecordDialog.jsx`** rewritten as a **resident hub** shell (68 lines) with a section switcher — **Overview · Conversations · Assistance events · Resident requests · Device**. New **`ResidentHubPanels.jsx`** (262) holds the five panels; each is a resident-filtered read over an existing endpoint, and anything with its own workflow opens the *same* dialog the rest of Admin uses (`AlertDetailDialog` for an assistance event's close-out, `RequestDetailDialog` for a request). No new model, no second workflow. `ResidentsTab.jsx` button renamed "Resident Record" → **"Resident hub"** (now the primary, forest/bold) with an honest tooltip.
+- **`Admin.jsx`** header gains a **"Live board"** link → `/staff` (owner/admin), so the live Staff Dashboard is an intentional destination, not an accident.
+- **`OperationsOverview.jsx`** — assistance attention rows now deep-link to `/staff?alert=<alert_id>` (the specific event), not the whole board. `StaffDashboard.jsx` reads `?alert=` and auto-opens that event's `AlertDetailDialog` + close-out. One event, one lifecycle, three coherent entry points (Ops Overview, resident hub, AlertsBoard). Ops Overview otherwise unchanged and un-weakened.
+- **`AlertsBoard.jsx`** — header now states these are pendant/help/emergency **assistance events** (with a link to Communication & requests) and carries a **"Live Staff Dashboard"** button.
+- **`RequestsBoard.jsx`** — subtitle clarified to "things a resident/family/Front Desk asked staff to *do*", with a line pointing pendant/help/emergency events to **Alerts & events**.
+- **`adminTabGroups.js`** — the "Requests" tab label → **"Resident requests"** (value unchanged, so `?tab=requests` and `TAB_ALIASES` still resolve; tutorial/route stability preserved).
+
+### Device-attention drill-down
+`rf_fleet.py::GET /rf/fleet/summary` now returns a plain-English **`reason`** per device, derived only from existing `RFDevice` truth — "Not assigned to a resident" / "Disabled in RF settings" / "No signal ever received since pairing" / "No signal in over 24h — last heard 3d ago" / "Battery low — last heard …" — `None` when healthy. No invented health states. `DeviceStatusCard.jsx` renders the reason under each pendant row (attention-first sort) and the tile now says "N need attention — see below". Verified live: the Staff Dashboard's mystery "1 need attention" now reads **"MOCK Eleanor Whitfield · Rm 401 · OFFLINE — Disabled in RF settings"**.
+
+### Helen Torres / Room 214 resident-truth flow now available (acceptance walkthrough, all passed live in a browser)
+Admin → Community (opens on Operations overview) → click a "Needs attention now" assistance row → lands on `/staff?alert=…` with that event's timeline + **Close out with outcome** open. "Live board" header button → Staff Dashboard. Residents & care → Residents → Helen Torres → **Resident hub**:
+- **Overview** — briefing narrative, open-alerts-24h / 30-day calls / falls / avg-response strip, pinned staff notes, last zone, pointer to the Clinician tab for full patterns.
+- **Conversations** — real session list (48/41/17-turn Aria sessions); clicking one shows the full transcript + requests/receipts/voice-diagnostics (existing `ConversationSessionDetail`).
+- **Assistance events** — Helen's 11 alerts, header explicitly "not staff task requests", 1 open; clicking the ACTIVE one opens the same `AlertDetailDialog` close-out.
+- **Resident requests** — the 1 completed "needs help using the bathroom" (nursing · Aria voice), clearly a *request*, distinct from the 11 assistance events.
+- **Device** — "Helen Torres pendant (Lifeline) · ACTIVE · last heard 2m ago · 135 presses · Reporting normally."
+Closing the hub returns to the Residents list with nothing lost; Operations Overview is one click away (Community group).
+
+### Transcript/conversation finding
+**Real data exists and is now exposed.** `db.conversations` turns are session-grouped by `/residents/{resident_id}/conversation-sessions`; the per-session detail (`/…/{session_id}`) returns turns + linked receipts/tasks + `realtime_diagnostics` + best-effort device actions. Previously only reachable via a single buried "Resident Record" button; now a first-class **Conversations** section of the resident hub. No fabrication. Remaining honest limitation: device actions in the session detail are room+time-window matched (not session-tagged at the source), already labelled as such in `ConversationSessionDetail`.
+
+### Files changed + line counts
+- `backend/routes/rf_fleet.py` — 130 → **159** (Admin-lane file; +`_human_ago`/`_reason` helpers + one field).
+- `backend/tests/test_rf_fleet.py` — 123 → **127** (asserts the new `reason`).
+- `frontend/src/pages/ResidentHubPanels.jsx` — **262** (new).
+- `frontend/src/pages/ResidentRecordDialog.jsx` — 90 → **68** (now a shell).
+- `frontend/src/pages/ResidentsTab.jsx` — 179 → **184**.
+- `frontend/src/pages/Admin.jsx` — 196 → **201**.
+- `frontend/src/pages/OperationsOverview.jsx` — 267 → **275**.
+- `frontend/src/pages/AlertsBoard.jsx` — 123 → **132**.
+- `frontend/src/pages/RequestsBoard.jsx` — 112 → **119**.
+- `frontend/src/pages/DeviceStatusCard.jsx` — 204 → **213**.
+- `frontend/src/lib/adminTabGroups.js` — 97 → **97** (label only).
+- `frontend/src/pages/StaffDashboard.jsx` — 348 → **353** (pre-existing over-cap file; +5 lines for the `?alert=` deep-link handler, not materially enlarged — no extraction practical for a 5-line effect).
+
+### Tests
+- Frontend suite: **122 / 122 pass** (unchanged — the new panels are thin reads over existing endpoints with no new pure-logic module).
+- Backend: `test_rf_fleet.py` (with new `reason` assertions), `test_ops_overview.py`, `test_resident_events.py` (Claude 2's lane) — **3 / 3 pass** against `:8001`.
+- Babel parse clean on all 10 touched/new JS/JSX files; `ast.parse` clean on `rf_fleet.py`.
+- Live browser walkthrough (above) completed as Owner; browser console shows only the pre-existing Radix `aria-describedby` dialog warnings — no errors, no 401/403/CORS, no React crashes.
+
+### Confirmation no Claude 2 resident behavior/runtime changed
+No file under RF decode / press semantics / `resident_activation` / ResidentEvent lifecycle / `realtime*` / paging / escalation was opened for edit. `:8000` (Claude 2's backend) untouched. `db.alerts` read-only; the `reason` field is a pure derivation in `rf_fleet.py`. `test_resident_events.py` still green.
+
+### Remaining UX ambiguity for Michael to break-test
+- The Residents row now has 7 action controls (Enter room · Brief · **Resident hub** · Memory · Movement · Edit · delete). Resident hub is bold/primary but the row is dense — worth deciding whether Memory/Movement should fold into the hub.
+- Resident hub **Overview** shows "avg response 388m" for Helen — that number comes straight from `/residents/{id}/stats` and is inflated by the known stale test alerts (unclosed pendant-test events). Honest existing data, but a reader may misread it; the stale-alert cleanup is still the separate forensic task.
+- The resident hub is a dialog (fast, keeps the residents list behind it). If Michael would rather it be a full page with its own URL, that's a follow-up.
+- `?alert=` on `/staff` opens the dialog but doesn't scroll the matching card into view in the (long) live-alerts list — the dialog is the point, but the card highlight could be added.
+
+### Commit
+`348aa1b3845be79dbf411593d4185cc4cc927e53` — pushed to `claude/admin-operations`.
+
+### Next safe step
+Michael break-tests the Owner workflow: Community → attention row → close-out; Live board button; Residents → Helen → each hub section; confirm Requests vs Assistance reads clearly; click the Staff Dashboard "1 need attention" and confirm it now names the device + reason. Then direct whether Memory/Movement should fold into the resident hub and whether the hub should become a routed page.
+
+---
+
+## 2026-09-07 — Admin worktree: Memory + Movement folded into the Resident hub (Michael: "fold it into the hub, yeah?")
+
+### Agent / tool
+Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations`. Frontend-only, navigation/IA. No Claude 2 lane touched; no backend change.
+
+### What changed
+Follow-up to the workflow-coherence pass — the Residents row had 7 action controls. `MemoryDialog` and `MovementDialog` were each opened only from that row (confirmed: `ResidentsTab.jsx` was their sole caller).
+- **`MemoryDialog.jsx`** (267 → **183**) — the standalone `<Dialog>` wrapper and its duplicative Conversation/Requests tabs removed; default export is now `MemoryPanel({ resident })` — the memory list + add form + pin/importance/delete (the `MemoryCard` helper kept verbatim). The hub already owns Conversations (session-grouped transcripts) and the requests-vs-assistance split, so those tabs were redundant.
+- **`MovementDialog.jsx`** (95 → **89**) — same: default export is now `MovementPanel({ resident })`, the 24h/3d/7d zone-visit timeline body, no `<Dialog>` wrapper.
+- **`ResidentRecordDialog.jsx`** (68 → **76**) — two new sections, **Memory** and **Movement**, between Resident requests and Device; `max-w-3xl` → `max-w-4xl` now that it hosts the richer memory UI. Hub sections are now Overview · Conversations · Assistance events · Resident requests · Memory · Movement · Device.
+- **`ResidentsTab.jsx`** (184 → **176**) — removed the standalone "Memory" and "Movement" buttons, their `memoryFor`/`movementFor` state, their dialog renders, and the two imports. Row is now Enter room · Brief · **Resident hub** · Edit · delete (5 controls, down from 7). Hub button tooltip updated.
+
+Filenames `MemoryDialog.jsx` / `MovementDialog.jsx` are retained (they now export panels, not dialogs) to avoid rename churn across a bounded change; each carries a header comment explaining the fold-in. No dead code left — the old default `MemoryDialog`/`MovementDialog` dialog components are gone, not orphaned.
+
+### What was verified
+- Live in a browser as Owner: opened the hub for Helen Torres / Room 214, confirmed all 7 section tabs render; **Memory** shows the real memory list + "Teach CAOS something" add form + pin/importance/delete; **Movement** shows the window toggle + honest "No location data in this window." empty state (Helen has no pings). Residents rows visibly less crowded (Memory/Movement buttons gone).
+- Frontend suite **122 / 122 pass** (no test referenced the removed `mem-res-*` / `move-res-*` testids). Babel parse clean on all 5 touched files. `git diff --check` + secrets scan clean.
+- Line counts: every touched file well under the 300-line cap (`MemoryDialog.jsx` 183, `MovementDialog.jsx` 89, `ResidentRecordDialog.jsx` 76, `ResidentsTab.jsx` 176, `ResidentHubPanels.jsx` 262 unchanged).
+
+### Commit
+`95662b403b56eba4a93b53828be3d36e7a0b2f99` — pushed to `claude/admin-operations`.
+
+### Next safe step
+Michael break-tests the tightened Residents row + the Memory/Movement hub sections. Open question from the prior entry still stands: whether the hub should become a routed full page rather than a dialog.

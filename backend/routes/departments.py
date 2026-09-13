@@ -20,7 +20,21 @@ from deps import db, require_admin
 
 router = APIRouter(prefix="/departments", tags=["departments"])
 
-DEFAULT_DEPARTMENTS = ["Nursing", "Maintenance", "Kitchen", "Housekeeping", "Administration", "Transportation"]
+# (slug, label) pairs. Slug is the stable machine key every existing
+# User.department / StaffTask.visibility_role / Aria request-category
+# reference is built against - it must NOT drift, so slugs are pinned here
+# explicitly rather than derived from the (editable) label. "nursing" in
+# particular is referenced as a literal in realtime_tools_operations.py and
+# resident_requests.py; its display label is "Nursing / Care" but the slug
+# stays "nursing".
+DEFAULT_DEPARTMENTS = [
+    ("nursing", "Nursing / Care"),
+    ("maintenance", "Maintenance"),
+    ("housekeeping", "Housekeeping"),
+    ("transportation", "Transportation"),
+    ("kitchen", "Kitchen"),
+    ("administration", "Administration"),
+]
 
 
 def _slugify(label: str) -> str:
@@ -29,16 +43,28 @@ def _slugify(label: str) -> str:
 
 
 async def seed_default_departments() -> None:
-    """Idempotent - called once at server startup. Only inserts if the
-    collection is empty, so it never overwrites anything Michael has
-    already edited (renamed, deactivated, etc.)."""
-    if await db.departments.count_documents({}) > 0:
-        return
-    for label in DEFAULT_DEPARTMENTS:
-        dept = Department(slug=_slugify(label), label=label)
-        doc = dept.model_dump()
-        doc["created_at"] = doc["created_at"].isoformat()
-        await db.departments.insert_one(doc)
+    """Idempotent - called once at server startup. Inserts the default set
+    only if the collection is empty, so it never overwrites anything Michael
+    has already edited (renamed, deactivated, etc.). Also runs one cheap
+    label-normalization for the historical "Nursing" -> "Nursing / Care"
+    rename, which touches only a row still carrying the exact old default
+    label (a hand-renamed one is left alone)."""
+    if await db.departments.count_documents({}) == 0:
+        for slug, label in DEFAULT_DEPARTMENTS:
+            dept = Department(slug=slug, label=label)
+            doc = dept.model_dump()
+            doc["created_at"] = doc["created_at"].isoformat()
+            await db.departments.insert_one(doc)
+    await db.departments.update_one(
+        {"slug": "nursing", "label": "Nursing"}, {"$set": {"label": "Nursing / Care"}}
+    )
+
+
+async def department_slug_exists(slug: str) -> bool:
+    """True if `slug` names a real Department (active or not) - the check
+    staff-department assignment validates against so User.department can
+    only ever hold a slug that resolves."""
+    return await db.departments.find_one({"slug": slug}, {"_id": 1}) is not None
 
 
 async def get_active_departments() -> list[dict]:

@@ -1,9 +1,10 @@
 # Room Audio Architecture — decision record
 
 **Status: decided.** Recorded 2026-08-27 from Michael's field session report and
-directive. This is the canonical architecture record for how audio capture,
-Aria playback, and TV/media playback are meant to relate to each other in a
-resident room. It supersedes informal discussion on the topic; prior research
+directive. This is the **canonical** architecture record for how audio capture,
+Aria playback, and TV/media playback relate in a resident room; the summary in
+`docs/CAOSCARE_PRODUCT_BASELINE.md` §2 defers to this document for room-audio
+detail. It supersedes informal discussion on the topic; prior research
 reports (linked below) remain valid as the forensic history that led here,
 not as competing sources of truth.
 

@@ -107,8 +107,23 @@ async def list_tasks(
 
 @router.post("")
 async def create_task(data: StaffTaskCreate, user=Depends(get_current_user)):
-    if user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Admin required")
+    role = user.get("role")
+    if role not in ("owner", "admin"):
+        # A department member (staff WITH a department) may open work only
+        # for their OWN department - visibility_role and category are forced
+        # to their department slug so a department workspace can never
+        # create cross-department work. Everyone else is rejected. This is
+        # what lets a Maintenance lead raise a work order without an admin.
+        dept = user.get("department")
+        if role == "staff" and dept:
+            # A department workspace only ever raises work FOR its own
+            # department - both fields are pinned to the creator's slug so
+            # nothing cross-department can be minted here regardless of what
+            # the client sent.
+            data.visibility_role = dept
+            data.category = dept
+        else:
+            raise HTTPException(status_code=403, detail="Not allowed to create work here")
     payload = data.model_dump()
     await _resolve_denorms(payload)
     task = StaffTask(**payload)
@@ -132,7 +147,7 @@ async def update_task(task_id: str, data: StaffTaskUpdate, user=Depends(get_curr
     existing = await db.staff_tasks.find_one({"task_id": task_id}, {"_id": 0})
     if not existing:
         raise HTTPException(status_code=404, detail="Task not found")
-    if user.get("role") != "admin" and existing.get("assigned_to") != user["user_id"]:
+    if user.get("role") not in ("owner", "admin") and existing.get("assigned_to") != user["user_id"]:
         raise HTTPException(status_code=403, detail="Not your task")
 
     patch = {k: v for k, v in data.model_dump(exclude_none=True).items()}
@@ -230,7 +245,7 @@ async def skip_task(task_id: str, body: dict = None, user=Depends(get_current_us
 
 @router.delete("/{task_id}")
 async def delete_task(task_id: str, user=Depends(get_current_user)):
-    if user.get("role") != "admin":
+    if user.get("role") not in ("owner", "admin"):
         raise HTTPException(status_code=403, detail="Admin required")
     r = await db.staff_tasks.delete_one({"task_id": task_id})
     if r.deleted_count == 0:

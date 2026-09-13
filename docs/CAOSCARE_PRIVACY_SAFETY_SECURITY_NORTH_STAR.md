@@ -169,7 +169,7 @@ It must not claim unsupported certainty, clinical authority, human emotional exp
 
 ## Sensor rule
 
-Tablet cameras and microphones are safety tools, not surveillance toys.
+Any room-node, room-integrated, or staff-client camera and microphone are safety tools, not surveillance toys. (Older wording said "tablet cameras and microphones"; the resident room is a room node + eMeet audio + TV, not a tablet — see `docs/CAOSCARE_PRODUCT_BASELINE.md` §2 — and this rule applies to every such sensor regardless of the device it sits on.)
 
 Allowed posture:
 

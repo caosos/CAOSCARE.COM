@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
+import { workspaceLabel } from "../lib/roleHome";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -9,22 +10,81 @@ import {
 } from "../components/ui/dialog";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "../components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
-import { Trash2, Plus } from "lucide-react";
+import { Badge } from "../components/ui/badge";
+import { Trash2, Plus, Pencil } from "lucide-react";
 import { SetPasswordDialog } from "../components/PasswordDialogs";
 import { toast } from "sonner";
+
+const NONE = "__none";
+const ROLES = [
+  { value: "staff", label: "Staff" },
+  { value: "front_desk", label: "Front desk" },
+  { value: "admin", label: "Admin" },
+];
+
+// Shared department picker fed by the real Department list (routes/
+// departments.py). Value is a Department.slug, or NONE for "no department".
+function DepartmentSelect({ value, onChange, departments, testid }) {
+  return (
+    <Select value={value || NONE} onValueChange={(v) => onChange(v === NONE ? "" : v)}>
+      <SelectTrigger data-testid={testid}><SelectValue placeholder="No department" /></SelectTrigger>
+      <SelectContent>
+        <SelectItem value={NONE}>No department</SelectItem>
+        {departments.map((d) => (
+          <SelectItem key={d.slug} value={d.slug}>
+            {d.label}{d.active === false ? " (inactive)" : ""}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
 
 /* -------------- Staff -------------- */
 export default function StaffTab({ staff, onChange }) {
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", password: "", role: "staff" });
+  const [departments, setDepartments] = useState([]);
+  const [editing, setEditing] = useState(null); // staff row being edited
+  const [form, setForm] = useState({ name: "", email: "", password: "", role: "staff", department: "" });
+  const [q, setQ] = useState("");
+  const [roleF, setRoleF] = useState("all");
+  const [deptF, setDeptF] = useState("all");
+
+  const filtered = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    return (staff || []).filter((u) =>
+      (roleF === "all" || u.role === roleF) &&
+      (deptF === "all" || (deptF === "__none" ? !u.department : u.department === deptF)) &&
+      (!s || [u.name, u.email, u.department, u.role].some((v) => String(v || "").toLowerCase().includes(s)))
+    );
+  }, [staff, q, roleF, deptF]);
+
+  const fetchDepartments = async () => {
+    try {
+      const { data } = await api.get("/departments");
+      setDepartments(data);
+    } catch {
+      // Non-fatal - the picker just shows "No department" only.
+      setDepartments([]);
+    }
+  };
+  useEffect(() => { fetchDepartments(); }, []);
+
+  const deptLabel = (slug) => {
+    if (!slug) return null;
+    const d = departments.find((x) => x.slug === slug);
+    return d ? d.label : slug;
+  };
 
   const create = async (e) => {
     e.preventDefault();
     try {
-      await api.post("/staff", form);
+      const payload = { ...form };
+      if (!payload.department) delete payload.department;
+      await api.post("/staff", payload);
       toast.success("Staff added");
       setOpen(false);
-      setForm({ name: "", email: "", password: "", role: "staff" });
+      setForm({ name: "", email: "", password: "", role: "staff", department: "" });
       onChange();
     } catch (err) {
       toast.error(err?.response?.data?.detail || "Failed");
@@ -44,8 +104,8 @@ export default function StaffTab({ staff, onChange }) {
 
   return (
     <Card className="border-caos-line p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="font-display text-xl font-medium text-caos-forest">Staff accounts</h2>
+      <div className="flex justify-between items-center mb-2">
+        <h2 className="font-display text-xl font-medium text-caos-forest">Users &amp; access</h2>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button className="bg-caos-forest hover:bg-caos-forest-hover rounded-full" data-testid="add-staff-btn">
@@ -58,34 +118,81 @@ export default function StaffTab({ staff, onChange }) {
               <div><Label>Name</Label><Input required data-testid="staff-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
               <div><Label>Email</Label><Input required type="email" data-testid="staff-email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
               <div><Label>Password</Label><Input required type="password" minLength={6} data-testid="staff-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></div>
-              <div>
-                <Label>Role</Label>
-                <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
-                  <SelectTrigger data-testid="staff-role"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="staff">Staff</SelectItem>
-                    <SelectItem value="front_desk">Front desk</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Role</Label>
+                  <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
+                    <SelectTrigger data-testid="staff-role"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {ROLES.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Department</Label>
+                  <DepartmentSelect
+                    value={form.department}
+                    onChange={(v) => setForm({ ...form, department: v })}
+                    departments={departments}
+                    testid="staff-department"
+                  />
+                </div>
               </div>
               <DialogFooter><Button type="submit" className="bg-caos-forest" data-testid="staff-save">Save</Button></DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
       </div>
+      <p className="text-caos-mute text-sm mb-3">
+        Role + department decide where a user lands after signing in. Password-reset-link delivery isn’t built
+        yet — use <em>Set password</em> for an honest local reset. Account enable/disable and last-login
+        aren’t tracked in the current model. Google (OAuth) accounts show “google”; corporate SSO would slot
+        in here as another provider without changing this screen.
+      </p>
+      <div className="flex flex-wrap gap-2 mb-4">
+        <Input placeholder="Search name, email, department…" value={q} onChange={(e) => setQ(e.target.value)} className="w-64" data-testid="users-search" />
+        <Select value={roleF} onValueChange={setRoleF}>
+          <SelectTrigger className="w-36" data-testid="users-filter-role"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Any role</SelectItem>
+            <SelectItem value="owner">Owner</SelectItem>
+            {ROLES.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={deptF} onValueChange={setDeptF}>
+          <SelectTrigger className="w-44" data-testid="users-filter-dept"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Any department</SelectItem>
+            <SelectItem value="__none">No department</SelectItem>
+            {departments.map((d) => <SelectItem key={d.slug} value={d.slug}>{d.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <span className="text-xs text-caos-mute self-center">{filtered.length} of {staff.length}</span>
+      </div>
       <Table>
         <TableHeader>
-          <TableRow><TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Role</TableHead><TableHead>Provider</TableHead><TableHead></TableHead></TableRow>
+          <TableRow>
+            <TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Role</TableHead>
+            <TableHead>Department</TableHead><TableHead>Workspace</TableHead><TableHead>Auth</TableHead><TableHead></TableHead>
+          </TableRow>
         </TableHeader>
         <TableBody>
-          {staff.map((s) => (
+          {filtered.map((s) => (
             <TableRow key={s.user_id} data-testid={`staff-row-${s.user_id}`}>
               <TableCell className="font-medium">{s.name}</TableCell>
               <TableCell>{s.email}</TableCell>
               <TableCell><span className="uppercase text-xs font-bold tracking-wider">{s.role}</span></TableCell>
-              <TableCell className="text-caos-mute">{s.auth_provider}</TableCell>
+              <TableCell data-testid={`staff-dept-${s.user_id}`}>
+                {s.department
+                  ? <Badge variant="outline">{deptLabel(s.department)}</Badge>
+                  : <span className="text-caos-mute text-xs italic">—</span>}
+              </TableCell>
+              <TableCell className="text-caos-mute text-xs">{workspaceLabel(s)}</TableCell>
+              <TableCell className="text-caos-mute text-xs">{s.auth_provider}</TableCell>
               <TableCell className="flex gap-1 justify-end">
+                <Button variant="ghost" size="sm" onClick={() => setEditing(s)} data-testid={`edit-staff-${s.user_id}`}>
+                  <Pencil className="w-4 h-4 text-caos-forest" />
+                </Button>
                 <SetPasswordDialog userId={s.user_id} name={s.name} />
                 <Button variant="ghost" size="sm" onClick={() => remove(s.user_id)} data-testid={`del-staff-${s.user_id}`}>
                   <Trash2 className="w-4 h-4 text-caos-terracotta" />
@@ -95,6 +202,82 @@ export default function StaffTab({ staff, onChange }) {
           ))}
         </TableBody>
       </Table>
+
+      <EditStaffDialog
+        staff={editing}
+        departments={departments}
+        onClose={() => setEditing(null)}
+        onSaved={() => { setEditing(null); onChange(); }}
+      />
     </Card>
+  );
+}
+
+function EditStaffDialog({ staff, departments, onClose, onSaved }) {
+  const [form, setForm] = useState({ name: "", role: "staff", department: "" });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (staff) setForm({ name: staff.name || "", role: staff.role || "staff", department: staff.department || "" });
+  }, [staff]);
+
+  if (!staff) return null;
+
+  const save = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      // Send only what changed; "" for department is a real value (clear it).
+      const patch = {};
+      if (form.name !== staff.name) patch.name = form.name;
+      if (form.role !== staff.role) patch.role = form.role;
+      if ((form.department || "") !== (staff.department || "")) patch.department = form.department || "";
+      if (Object.keys(patch).length === 0) { onClose(); return; }
+      await api.patch(`/staff/${staff.user_id}`, patch);
+      toast.success("Staff updated");
+      onSaved();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Failed to update");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={!!staff} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent data-testid="edit-staff-dialog">
+        <DialogHeader><DialogTitle className="font-display">Edit {staff.name}</DialogTitle></DialogHeader>
+        <form onSubmit={save} className="space-y-4">
+          <div><Label>Name</Label><Input required data-testid="edit-staff-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+          <div className="text-sm text-caos-mute">{staff.email}</div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Role</Label>
+              <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
+                <SelectTrigger data-testid="edit-staff-role"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {ROLES.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Department</Label>
+              <DepartmentSelect
+                value={form.department}
+                onChange={(v) => setForm({ ...form, department: v })}
+                departments={departments}
+                testid="edit-staff-department"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+            <Button type="submit" className="bg-caos-forest" disabled={saving} data-testid="edit-staff-save">
+              {saving ? "Saving…" : "Save changes"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
