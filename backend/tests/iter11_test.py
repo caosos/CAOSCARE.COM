@@ -82,8 +82,16 @@ class TestWeather:
         # Schema completeness
         missing = self.REQUIRED_KEYS - set(body.keys())
         assert not missing, f"missing keys: {missing}"
-        # Default label from .env
-        assert body["label"] == "Lancaster, PA", body["label"]
+        # Current contract (routes/weather.py, 2026-08-25 fix): the live
+        # db.facilities record's own city/state is preferred over any
+        # hardcoded default - "Lancaster, PA" was never a real fact, it was
+        # the specific wrong hardcoded fallback that fix replaced (it
+        # silently served Pennsylvania-area weather for a facility actually
+        # in Conway, Arkansas). This test environment has no facility
+        # record configured at all, so the honest, documented generic
+        # fallback (DEFAULT_LABEL) is the CORRECT current result, not a
+        # regression.
+        assert body["label"] == "the facility", body["label"]
         # Narrative is a single human sentence ending with a period
         narrative = body["narrative"]
         assert isinstance(narrative, str) and narrative.strip().endswith("."), narrative

@@ -184,9 +184,35 @@ class TestPublicAlertStatus:
         assert r.status_code == 404
 
     def test_full_lifecycle(self, s, admin_client, seeded_resident):
-        # CREATE via public endpoint with ai_triage
+        # CREATE via public endpoint with ai_triage.
+        #
+        # Current contract (routes/alerts.py::create_alert, "AI triage is
+        # NOT a human button press"): triggered_by="ai_triage" is
+        # deliberately redirected to routes/ai_escalation.py::ai_escalate -
+        # a distinct enrich-don't-duplicate path with its own response
+        # shape (no "triggered_by" field - it never claims to BE the
+        # original AlertCreate echoed back). This superseded the older,
+        # simpler direct-create path this test originally exercised; the
+        # response is asserted against the current shape instead - human
+        # press_count staying at 0 is exactly the invariant that redirect
+        # exists to guarantee.
         rid = seeded_resident["resident_id"]
         room = seeded_resident.get("room")
+
+        # seeded_resident is module-scoped (residents[0]) and shared with
+        # whatever else in this canonical run has touched that same
+        # resident by the time this test executes - it may already have an
+        # open event with a real human press_count from earlier in the
+        # suite. The invariant that actually matters (and is what the
+        # create_alert/ai_escalate redirect exists to guarantee) is that
+        # press_count is UNCHANGED by AI triage, not that it's always
+        # exactly 0 - asserting a hardcoded 0 only ever happened to pass
+        # when this resident's history happened to be empty.
+        existing = admin_client.get(f"{API}/alerts", params={"status": "active"}, timeout=15).json()
+        existing += admin_client.get(f"{API}/alerts", params={"status": "acknowledged"}, timeout=15).json()
+        prior = next((a for a in existing if a.get("resident_id") == rid), None)
+        press_count_before = prior.get("press_count", 0) if prior else 0
+
         payload = {
             "resident_id": rid,
             "room": room,
@@ -198,7 +224,12 @@ class TestPublicAlertStatus:
         assert r.status_code in (200, 201), r.text
         alert = r.json()
         alert_id = alert["alert_id"]
-        assert alert.get("triggered_by") == "ai_triage"
+        assert alert.get("effective_severity") == "assist"
+        assert alert.get("human_press_count") == press_count_before, (
+            "AI triage must not change the human press_count "
+            f"(was {press_count_before}, now {alert.get('human_press_count')})"
+        )
+        assert "wording_state" in alert
 
         # PUBLIC status active
         pub = s.get(f"{API}/alerts/public/{alert_id}/status", timeout=15)

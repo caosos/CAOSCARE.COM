@@ -25,6 +25,10 @@ OPENAI_API_KEY=sk-... ./scripts/run_backend_tests.sh
 Without one, those tests skip individually with an explicit reason -
 they do not fail, and nothing else is silently skipped alongside them.
 
+**Current status (2026-09-13, deterministic across repeated fresh runs):
+0 failed, 0 errors.** Every skip and deselection is documented below or
+in `pytest.ini`.
+
 ## What "trustworthy" means here
 
 A red result should mean the code is wrong. Before the fixes described
@@ -125,56 +129,98 @@ pure test-portability defect. Replaced with a `dorothy_id` fixture that
 resolves the same resident by name via the live `/residents` list; every
 assertion is unchanged.
 
-## What this gate does NOT fix, and why
+## Lockout decision (resolved)
 
-The audit found five failures that are not harness problems in the sense
-above - they're legacy smoke-test assertions (`backend_test.py`,
-`iter5/10/11_test.py`) written before a later, deliberate, documented
-product/architecture decision, and never updated:
+The audit's sixth finding - `test_lockout_and_reset_on_success` running
+cleanly isolated for the first time and failing deterministically on "a
+correct password during an active lockout still gets 429, not 200" - was
+a genuine product question, not a harness bug. Resolved (Michael,
+2026-09-13): **an active lockout is a hard wall for its full duration - a
+correct password during it must never authenticate and must never clear
+the counter early.**
 
-| Test | Asserts (stale) | What actually changed, and when |
+**Verified first, before any change:** a direct live-HTTP trace (5 wrong
+passwords -> 429, then the *correct* password) already returned 429, not
+200 - `routes/auth.py::_admin_throttle_check()` runs and can reject
+*before* the password is ever verified, so a correct password during
+lockout was already structurally incapable of bypassing it. **No bypass
+existed; no behavior fix was needed.** What was missing was auditability:
+neither a lockout being enforced nor a lockout being cleared ever produced
+any record.
+
+**The one production change** (`backend/routes/auth.py`): `_admin_throttle_check`
+(on every rejection) and `_admin_throttle_clear` (on an actual reset - only
+when there was pending, not-yet-expired failure state to clear, so a plain
+successful login with no recent failures doesn't log noise) now each call
+`routes.events.log_event()` - the same generic, already-admin-queryable
+(`GET /events`) audit primitive every other observable action in this
+codebase uses (`CaosEvent.event_type`'s own doc comment already lists
+`"auth.login"` as an example use). `auth.admin_lockout_rejected` carries
+the requesting ip and attempt count; `auth.admin_lockout_reset` carries the
+ip. Both functions became `async def` for the `await log_event(...)` call;
+their two call sites in `admin_login` were updated to `await` them. No
+other behavior changed - confirmed identical HTTP status codes/bodies
+before and after, live, for the full rejected/still-locked/reset sequence.
+
+There is no existing admin-facing "manually reset a lockout" endpoint
+anywhere in the codebase (`grep`-confirmed) - per explicit instruction,
+none was invented; "explicit authorized reset" is untested since there is
+nothing to test.
+
+**Tests** (`backend/tests/iter9_test.py::TestAdminLogin` +
+`backend/tests/test_admin_login_lockout.py`, new):
+- `test_threshold_triggers_lockout` - 5x 401 then 429 (live HTTP).
+- `test_wrong_password_during_active_lockout_rejected` - still 429, not a
+  fresh 401 (live HTTP).
+- `test_correct_password_during_active_lockout_rejected` - the correct
+  password gets 429 with no token, and a second correct attempt right
+  after is *still* 429, proving the first rejected attempt didn't clear
+  anything (live HTTP - this is the regression test for the check-before-
+  verify ordering; reordering `admin_login` to verify the password first
+  would be caught here).
+- `test_lockout_rejections_are_audited` - the rejections above are
+  actually queryable via `GET /events` (live HTTP + DB-backed).
+- `test_lockout_expires_and_login_succeeds` / `test_still_locked_just_before_expiry` -
+  the real 15-minute window can't be waited out against a live server
+  from the test process, so these call `routes.auth`'s internal throttle
+  functions directly in-process with real timestamps placed just past (and
+  just before) the window, rather than mocking `time.time()` globally.
+- `test_reset_audited_only_when_something_was_cleared` - in-process,
+  confirms the reset event fires only when there were pending failures to
+  clear, not on every clean login.
+
+## Legacy test failures (resolved)
+
+The audit found five more failures that were not harness problems -
+legacy smoke-test assertions (`backend_test.py`, `iter5/10/11_test.py`)
+written before a later, deliberate, documented product/architecture
+decision, and never updated. Each was audited against the current,
+documented contract; in every case the current behavior is correct and
+deliberate, so the stale test was updated to match it - no production
+behavior was changed to satisfy any of them.
+
+| Test | Was asserting (stale) | What actually changed, and the fix |
 |---|---|---|
-| `backend_test.py::TestPendants::test_list_seeded_pendants` | `>= 7` seeded pendants | This environment's demo seed produces 6. Seed-count drift, not a regression. |
-| `iter10_test.py::TestPublicAlertStatus::test_full_lifecycle` | `POST /alerts` with `triggered_by="ai_triage"` echoes it back | The 2026-09-06 "make 'a nurse has been paged' a real, auditable action" work moved AI-triage escalation to a dedicated `POST /alerts/ai-escalate` endpoint with its own model (`routes/ai_escalation.py`); the legacy direct-`/alerts` path this test uses was never part of that redesign. |
-| `iter11_test.py::TestWeather::test_default_facility_weather` | hardcoded `"Lancaster, PA"` label | Superseded by the 2026-08-25 "facility source of truth wired into Realtime voice" work - weather now reads the real `db.facilities` record; a generic fallback label is the *correct* behavior for an environment without that record configured, per that change. |
-| `iter5_test.py::TestPanicPress::test_two_presses_within_60s_escalate` | `auto_voice is False` on an RF-triggered alert | The 2026-08-29 real-pendant work explicitly set `auto_voice=True` for RF-triggered alerts ("a pendant press must always reach Aria hands-free") - a deliberate, documented product decision this test predates. |
-| `iter5_test.py::TestPublicDevices::test_public_room_command_updates_state` | a bare `power` command with no `kind` succeeds when a room has multiple power-capable devices | The later multi-device disambiguation safety fix (see PROJECT_STATE, "kiosk multi-light bug") deliberately requires `kind` in that situation and 400s otherwise - fixing the exact silent-misrouting risk that change was for. |
-
-These are real, but they are legacy-test-vs-product-drift, not one of the
-four named harness problems, and not something this pass changed - doing
-so would mean either reverting a deliberate, documented product decision
-(wrong) or rewriting old assertions to match current behavior (a genuine
-legacy-test-modernization task, better done deliberately with its own
-review than folded into a harness pass). They fail the same way, every
-run, for a documented reason - which is itself the point of this gate.
-
-**One more finding, not a harness problem or stale-test drift - a
-genuine, newly-legible product question:** with the rate-limit isolation
-fix above, `test_lockout_and_reset_on_success` now runs cleanly isolated
-for the first time, and its final assertion fails deterministically:
-after 5 wrong passwords trip the 429 lockout, a 6th attempt with the
-*correct* password still gets 429, not 200. Tracing `routes/auth.py`:
-`_admin_throttle_check()` runs and can raise 429 *before* the password is
-ever checked, so `_admin_throttle_clear()` (which exists specifically to
-reset the counter on a successful login) is unreachable once already
-locked out - the account is genuinely locked for the full 15-minute
-window regardless of whether the very next attempt is correct. Whether an
-admin/owner should be able to immediately recover with their correct
-password mid-lockout, or whether a fixed-duration lockout regardless of
-subsequent correct attempts is the intended security posture, is a
-product decision, not a harness one - left as a failing test (not
-weakened, not skipped) pending that decision, per "do not change
-production behavior unless you find a real production defect" - this is
-real, but not yet decided to be a *defect*.
+| `backend_test.py::TestPendants::test_list_seeded_pendants` | a hardcoded `>= 7` seeded pendants | `seed.py` assigns exactly one pendant per seeded resident, not a fixed count - the roster simply has 6 entries now, not 7. Fixed to derive the expected minimum from the actual `/residents` count instead of a new hardcoded number, so it can't go stale the same way again. |
+| `iter10_test.py::TestPublicAlertStatus::test_full_lifecycle` | `POST /alerts` with `triggered_by="ai_triage"` echoes `triggered_by` back | `routes/alerts.py::create_alert` deliberately redirects `triggered_by="ai_triage"` to `routes/ai_escalation.py::ai_escalate` (2026-09-06, "AI triage is NOT a human button press") - a different response shape with no `triggered_by` field at all. Updated to assert the current response shape (`effective_severity`, `wording_state`) and the real invariant that redirect exists to guarantee - human `press_count` is unchanged by AI triage (compared before/after, not assumed to always start at 0, since the shared `seeded_resident` fixture may already have history from earlier in the same canonical run). |
+| `iter11_test.py::TestWeather::test_default_facility_weather` | hardcoded `"Lancaster, PA"` label | The 2026-08-25 facility-source-of-truth fix replaced exactly this wrong hardcoded Pennsylvania fallback (the facility is actually in Conway, Arkansas) with the live `db.facilities` record, falling back to an honest generic label when none is configured. This test environment has no facility record, so `"the facility"` is the correct current result. Updated the assertion accordingly. |
+| `iter5_test.py::TestPanicPress::test_two_presses_within_60s_escalate` | `auto_voice is False` on the first pendant press | `routes/pendants.py` sets `auto_voice = True` unconditionally ("default ON - we always want voice for pendant events"), per the 2026-08-29 real-pendant directive - the test's own very next assertion (`auto_voice is True` on the second press) already reflected that decision; only the first-press expectation predated it. Updated to match. |
+| `iter5_test.py::TestPublicDevices::test_public_room_command_updates_state` | a bare `action=power` command with no `device_id`/`kind` succeeds in a room with more than one power-capable device | The kiosk multi-light/TV disambiguation safety fix (`routes/devices.py::public_room_command`) deliberately 400s in exactly that situation now, to stop a command silently landing on whichever device sorts first. The test already fetches the specific device it means to command - updated it to pass that device's `device_id`, the same "already disambiguated" path a real caller (e.g. a voice tool naming a specific light) uses. |
 
 ## Files
 
+- `backend/routes/auth.py` - the one production change: audit logging for
+  lockout rejection/reset via the existing `log_event` primitive (see
+  Lockout decision above). No behavior change - verified live before and
+  after.
 - `backend/tests/conftest.py` - the event-loop fix, the required-env-var
   check, and the `skip_if_openai_unavailable` fixture.
+- `backend/tests/test_admin_login_lockout.py` - new, in-process
+  expiry/reset-audit tests (see Lockout decision above).
 - `backend/scripts/run_backend_tests.sh` - the canonical command.
-- `backend/tests/iter9_test.py` - `OWNER_EMAIL` isolation fix, `dorothy_id`
-  fixture.
-- `backend/tests/backend_test.py`, `iter6_test.py`, `iter8_test.py`,
-  `iter10_test.py`, `iter11_test.py` - `skip_if_openai_unavailable` applied
-  at each confirmed OpenAI-dependent call site.
-- No production code changed.
+- `backend/tests/iter9_test.py` - `OWNER_EMAIL` isolation fix,
+  `dorothy_id` fixture, the lockout state-machine tests above.
+- `backend/tests/backend_test.py`, `iter5_test.py`, `iter6_test.py`,
+  `iter8_test.py`, `iter10_test.py`, `iter11_test.py` -
+  `skip_if_openai_unavailable` applied at each confirmed OpenAI-dependent
+  call site, plus the five legacy-test updates above.

@@ -99,27 +99,82 @@ class TestAdminLogin:
             codes.append(r.status_code)
         assert all(c == 403 for c in codes), f"staff-creds escalated to {codes}"
 
-    def test_lockout_and_reset_on_success(self, s):
-        """Uses OWNER_EMAIL (not ADMIN_EMAIL) specifically so this deliberate
-        lockout can never pollute ADMIN_EMAIL's throttle bucket for any other
-        test in this module or file - see the OWNER_EMAIL comment above."""
-        bad_codes = []
+    # ---- Lockout state machine (uses OWNER_EMAIL - see comment above).
+    # These three run in this declaration order and deliberately share the
+    # SAME accumulating lockout state (pytest runs class methods in
+    # declaration order by default, and nothing else in this class touches
+    # OWNER_EMAIL) - a rate limiter's transitions (below threshold -> at
+    # threshold -> still locked) are inherently sequential, so this avoids
+    # three separate 6-request setup loops just to re-derive the same
+    # state each time. Product decision (Michael, 2026-09-13): an active
+    # lockout is a hard wall for its full duration - a correct password
+    # during it must NOT authenticate and must NOT clear the counter early.
+    # There is currently no explicit admin-facing "reset lockout" capability
+    # in production; per that same decision, none was added here - only the
+    # lockout's own expiry (backend/tests/test_admin_login_lockout.py)
+    # clears it.
+
+    def test_threshold_triggers_lockout(self, s):
+        codes = []
         for _ in range(6):
             r = s.post(f"{API}/auth/admin-login", json={"email": OWNER_EMAIL, "password": "wrong-xyz"})
-            bad_codes.append(r.status_code)
-        # Within 6 attempts, we should see at least one 429
-        assert 429 in bad_codes, f"expected 429 after 5 failures, got {bad_codes}"
-        # 5 failed (401), then 6th should be 429
-        assert bad_codes[:5] == [401] * 5, f"expected 5x 401 then 429, got {bad_codes}"
-        assert bad_codes[5] == 429
+            codes.append(r.status_code)
+        assert codes[:5] == [401] * 5, f"expected 5x 401 then 429, got {codes}"
+        assert codes[5] == 429, f"expected lockout on the 6th attempt, got {codes}"
 
-        # Now successful login must clear the throttle
+    def test_wrong_password_during_active_lockout_rejected(self, s):
+        # Continuing from the lockout test_threshold_triggers_lockout just
+        # tripped: another wrong password must still be a flat 429, not a
+        # fresh 401 (the lockout, not the password, is the reason it fails).
+        r = s.post(f"{API}/auth/admin-login", json={"email": OWNER_EMAIL, "password": "still-wrong"})
+        assert r.status_code == 429, f"expected 429 while locked out, got {r.status_code} {r.text}"
+
+    def test_correct_password_during_active_lockout_rejected(self, s):
+        # The exact behavior this whole test class exists to lock in: a
+        # CORRECT password must not bypass an active lockout. It must not
+        # authenticate (no 200, no token) and must not clear the counter
+        # (verified in the next test - a second correct attempt right after
+        # this one must ALSO still be 429, proving nothing was reset).
         r = s.post(f"{API}/auth/admin-login", json={"email": OWNER_EMAIL, "password": OWNER_PW})
-        assert r.status_code == 200, f"successful admin-login blocked by stale lockout: {r.status_code} {r.text}"
+        assert r.status_code == 429, (
+            f"a correct password must not authenticate during an active lockout, "
+            f"got {r.status_code} {r.text}"
+        )
+        assert "token" not in r.json()
 
-        # Subsequent wrong password should go back to 401 (not 429)
+        # Prove the attempt above didn't clear anything: immediately retry
+        # with the correct password again - still must be 429.
+        r2 = s.post(f"{API}/auth/admin-login", json={"email": OWNER_EMAIL, "password": OWNER_PW})
+        assert r2.status_code == 429, (
+            f"a rejected correct-password attempt during lockout must not have cleared the "
+            f"counter either - got {r2.status_code} {r2.text} on the very next attempt"
+        )
+
+    def test_lockout_rejections_are_audited(self, s, admin_headers):
+        # auth.py's _admin_throttle_check logs auth.admin_lockout_rejected
+        # (source/events.py::log_event) on every rejection above - verify
+        # it's actually queryable via the same admin-only /events surface
+        # every other audit trail in this codebase uses, not just that the
+        # HTTP calls above returned 429.
+        r = s.get(f"{API}/events", headers=admin_headers,
+                  params={"event_type": "auth.admin_lockout_rejected", "target_id": OWNER_EMAIL})
+        assert r.status_code == 200, r.text
+        events = r.json()
+        assert len(events) >= 3, (
+            "expected an audit event for each of the >=3 rejected attempts above "
+            f"(threshold trip + wrong-during-lockout + 2x correct-during-lockout), got {len(events)}"
+        )
+        for ev in events:
+            assert ev["status"] == "rejected"
+            assert ev["target_type"] == "admin_account"
+            assert isinstance(ev["metadata"].get("attempt_count"), int) and ev["metadata"]["attempt_count"] >= 5
+
+        # Still locked - a wrong password now must be 429 (the lockout, not
+        # the password check), never a fresh 401. Expiry-based recovery is
+        # covered in test_admin_login_lockout.py, in-process, since this
+        # live server's real 15-minute window can't be waited out here.
         r = s.post(f"{API}/auth/admin-login", json={"email": OWNER_EMAIL, "password": "wrong-again"})
-        assert r.status_code == 401, f"expected 401 after counter reset, got {r.status_code}"
+        assert r.status_code == 429, f"expected still-locked 429, got {r.status_code}"
 
 
 # ============ Residents clinical_thresholds ============
