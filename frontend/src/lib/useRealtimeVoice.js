@@ -19,13 +19,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { API } from "../lib/api";
 import { logRealtimeEvent } from "./realtimeDiagnostics";
+import { clientInstanceId, logActivationClientEvent } from "./activationClient";
 import { createRealtimeHandlers } from "./realtimeMessageHandler";
 import { attachLifecycleDiagnostics } from "./realtimeLifecycleDiagnostics";
 import { buildSessionUpdate } from "./realtimeSessionUpdate";
 
 export function useRealtimeVoice({
   voice = "shimmer", residentId, kioskId, room, onEndCall,
-  sessionEndpoint = "/realtime/session", sessionPayload, triggerSource, alertId,
+  sessionEndpoint = "/realtime/session", sessionPayload, triggerSource, alertId, activationId,
 } = {}) {
   const pcRef = useRef(null);
   const dcRef = useRef(null);
@@ -69,8 +70,8 @@ export function useRealtimeVoice({
 
   // Keep tool-call context fresh if the parent passes new props mid-call
   useEffect(() => {
-    ctxRef.current = { ...ctxRef.current, resident_id: residentId, kiosk_id: kioskId, room, alert_id: alertId };
-  }, [residentId, kioskId, room, alertId]);
+    ctxRef.current = { ...ctxRef.current, resident_id: residentId, kiosk_id: kioskId, room, alert_id: alertId, activation_id: activationId };
+  }, [residentId, kioskId, room, alertId, activationId]);
 
   // Best-effort - never blocks the session on a failed POST. `alert_id` is
   // absent for non-alert-linked sessions (e.g. Michael's own operator
@@ -113,10 +114,10 @@ export function useRealtimeVoice({
   }, []);
 
   // Shared by stop() and start()'s failure path — best-effort, never blocks.
-  const releaseLease = (targetRoom, targetSession) => {
+  const releaseLease = (targetRoom, targetSession, reason = "unspecified") => {
     fetch(`${API}/realtime/room/${encodeURIComponent(targetRoom)}/release`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session_id: targetSession }),
+      body: JSON.stringify({ session_id: targetSession, reason, activation_id: ctxRef.current?.activation_id || activationId || null }),
     }).catch(() => {});
   };
 
@@ -147,9 +148,14 @@ export function useRealtimeVoice({
     // Free the room immediately rather than waiting out the stale grace
     // period, so the next trigger (pendant/manual) can claim right away.
     if (leaseRoomRef.current) {
-      releaseLease(leaseRoomRef.current, sessionIdRef.current);
+      releaseLease(leaseRoomRef.current, sessionIdRef.current, reason);
       leaseRoomRef.current = null;
     }
+    logActivationClientEvent("session_ended_client", {
+      room: leaseRoomRef.current || room, kiosk_id: kioskId, alert_id: alertId,
+      activation_id: ctxRef.current?.activation_id || activationId,
+      session_id: sessionIdRef.current, data: { reason },
+    });
     setStatus("idle");
     setResting(false);
     setMicLabel(null);
@@ -173,6 +179,11 @@ export function useRealtimeVoice({
       // singleton lease (see realtime_room_lease.py). session_id here is
       // reused as the lease's own id, so heartbeat/release below can
       // reference it without a second identifier.
+      logActivationClientEvent("session_mint_started", {
+        room, kiosk_id: kioskId, resident_id: residentId, alert_id: alertId,
+        activation_id: activationId, session_id: sessionIdRef.current,
+        data: { trigger_source: triggerSource || "manual_kiosk" },
+      });
       const sessionRes = await fetch(`${API}${sessionEndpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -183,7 +194,10 @@ export function useRealtimeVoice({
             kiosk_id: kioskId || null,
             room: room || null,
             alert_id: alertId || null,
+            activation_id: activationId || null,
+            client_instance_id: clientInstanceId(),
             session_id: sessionIdRef.current,
+            ts_client: new Date().toISOString(),
             trigger_source: triggerSource || "manual_kiosk",
           }
         ),
@@ -219,9 +233,19 @@ export function useRealtimeVoice({
       if (caos.context) ctxRef.current = { ...ctxRef.current, ...caos.context };
 
       // 2. Mic capture (full-duplex: track stays live for the whole session)
-      stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-      });
+      const _acx = ctxRef.current || {};
+      const _mic = { room: _acx.room || room, kiosk_id: kioskId, alert_id: _acx.alert_id || alertId,
+        activation_id: _acx.activation_id || activationId, session_id: sessionIdRef.current };
+      logActivationClientEvent("mic_requested", _mic);
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        });
+      } catch (micErr) {
+        logActivationClientEvent("mic_failed", { ..._mic, data: { name: micErr?.name, message: String(micErr?.message || micErr) } });
+        throw micErr;
+      }
+      logActivationClientEvent("mic_acquired", _mic);
       if (myGen !== startGenRef.current) {
         stream.getTracks().forEach((t) => t.stop());
         return;
@@ -404,7 +428,7 @@ export function useRealtimeVoice({
         setStatus("error");
       }
     }
-  }, [voice, residentId, kioskId, room, alertId, sessionEndpoint, sessionPayload, triggerSource, logSessionEnded, postAriaEvent, startAwaitingAnswerTimer]);
+  }, [voice, residentId, kioskId, room, alertId, activationId, sessionEndpoint, sessionPayload, triggerSource, logSessionEnded, postAriaEvent, startAwaitingAnswerTimer]);
 
   return { status, error, transcript, resting, micLabel, start, stop, audioElRef };
 }

@@ -76,6 +76,8 @@ from routes import resident_patterns as resident_patterns_routes  # noqa: E402
 from routes import resident_assistance_config as resident_assistance_config_routes  # noqa: E402
 from routes import ops_overview as ops_overview_routes  # noqa: E402
 from routes import reports as reports_routes  # noqa: E402
+from routes import activation_client_events as activation_client_events_routes  # noqa: E402
+from routes import activation_timeline as activation_timeline_routes  # noqa: E402
 from seed import demo_seed_enabled, seed  # noqa: E402
 
 
@@ -194,6 +196,8 @@ api.include_router(resident_patterns_routes.router)
 api.include_router(resident_assistance_config_routes.router)
 api.include_router(ops_overview_routes.router)
 api.include_router(reports_routes.router)
+api.include_router(activation_client_events_routes.router)
+api.include_router(activation_timeline_routes.router)
 
 app.include_router(api)
 
