@@ -4055,3 +4055,92 @@ Terminal 10 mint wiring at once). Separately: a short hands-on wake-word
 engine comparison per `docs/ARIA_WAKE_WORD_ARCHITECTURE.md`, and a teaching-
 surface UI for interpretation-pattern corrections, are the next Terminal 10
 increments — neither started here.
+
+---
+
+## 2026-09-13 — Five-lane integration: admin-operations, level1-breaktest, level1-integration, aria/conversation-substrate, resident-baselines onto a clean integration branch
+
+### Agent / tool
+Claude Code (Sonnet 5), dedicated `~/CAOSCARE-INTEGRATION` worktree,
+branch `claude/integration-2026-09-13` (off `origin/main` @ `d5b5a3e`).
+Explicit reconciliation task, no new feature work.
+
+### What changed
+Merged, one lane at a time, each as its own commit on top of the last,
+with backend + frontend tests run fresh (dropped test DB, restarted
+`uvicorn`) after every lane:
+
+1. `90e7dfb` — `claude/resident-baselines` (docs-only, zero overlap,
+   trivial).
+2. `919a91b` — `claude/admin-operations` (Owner/Admin ops console, staff
+   departments, reporting; auto-merged clean, no conflicts).
+3. `2cdf0ed` — `claude/level1-breaktest` (RF transmission-semantics gate +
+   activation observability; one trivial additive conflict in
+   `backend/server.py`).
+4. `582b717` — `claude/level1-integration` (session-fencing/concurrency
+   hardening on top of #3's feature; real content + add/add conflicts
+   across the RF-activation subsystem and the realtime-voice frontend —
+   resolved by taking the concurrency-safe superset and manually porting
+   the activation-observability instrumentation that would otherwise have
+   been dropped; also found and fixed a silent, non-conflicting auto-merge
+   of `test_resident_events.py` that would have shipped testing removed
+   behavior).
+5. `35c9350` — `aria/conversation-substrate` (the AGENTS.md NON-NEGOTIABLE
+   person-specific interpretation-continuity substrate — Layers B/C/E,
+   Terminal 10; heaviest overlap with #4 since both share a common
+   snapshotted ancestor tree — resolved file-by-file with branch-to-branch
+   diffs to determine which side was the genuine superset vs. which needed
+   a real bidirectional hand-merge; fixed one test that was stale against
+   an already-shipped, documented behavior change (`3951ef6`) neither
+   branch's own state had reconciled).
+
+Full resolution rationale (every conflict, every silent-auto-merge audit,
+every judgment call) is recorded in each merge commit's own message —
+see `git log 90e7dfb..35c9350` on this branch.
+
+### What was verified
+- Backend: fresh-DB `pytest` run after every lane; server boots clean
+  with every router registered at each step. Every lane-specific test
+  file (RF semantics, activation observability, session fencing,
+  concurrency isolation, all 8 aria substrate files) passes individually
+  and as its own group against a fresh DB.
+- Frontend: `yarn test --watchAll=false` after every lane (174/174 passing
+  at the end) and a final `yarn build` (succeeds, non-CI).
+- Cross-checked every file both `level1-integration` and
+  `aria/conversation-substrate` touched that auto-merged WITHOUT a
+  reported conflict, not just the ones git flagged — this is how the
+  `test_resident_events.py` and `test_request_tools_speak_from_layer_e.py`
+  issues were caught; git reported no conflict on either.
+
+### What is blocked / not done
+- Not pushed to `main` (explicitly out of scope for this task) and not
+  pushed to `origin` at all — this branch exists only in this worktree
+  pending Michael's review.
+- Three pre-existing, documented-in-commit-messages issues remain,
+  unrelated to this integration work and reproduced identically on the
+  unmerged source branches:
+  - `tests/test_ai_escalation.py::test_ai_escalation_real_auditable_page`
+    — a simulated failed page reports `wording_state="paged"` instead of
+    `"failed"` (false-success risk on a safety-relevant path). Inherited
+    from `claude/level1-integration`'s own commit history.
+  - The full-suite `pytest tests/` run shows failures from three
+    unrelated pre-existing conditions: no `OPENAI_API_KEY` in this test
+    environment, a shared 429 admin-login rate-limit lockout across
+    several live-server test files run in sequence (documented in the
+    `claude/admin-operations` merge commit), and a shared-event-loop
+    artifact across DB-direct `asyncio.run()` test scripts run in the
+    same pytest session (documented in the `claude/level1-breaktest`
+    merge commit) — none are regressions from this integration, all
+    pass individually against a fresh DB.
+  - `CI=true yarn build` fails on pre-existing `react-hooks/exhaustive-deps`
+    warnings in `Admin.jsx`/`AuditTab.jsx`/`FacilitiesTab.jsx`, inherited
+    from `claude/admin-operations` and reproduced identically on that
+    branch alone.
+
+### Next safe step
+Michael reviews this branch (`claude/integration-2026-09-13` @ `35c9350`)
+and the five merge-commit messages for the judgment calls made where
+lane intent genuinely diverged (most notably `realtime_resident_session.py`
+and `resident_requests.py`, where neither side was a strict superset of
+the other). If approved, merge to `main`; this session did not push
+anywhere or touch `main`.
