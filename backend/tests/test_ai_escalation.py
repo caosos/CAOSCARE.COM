@@ -172,7 +172,16 @@ async def _run():
         out = _escalate(reason="resident reports a fall", severity="emergency",
                         alert_id=alert_id, activation_id=act_id, resident_id=rid, room=room,
                         simulate_delivery="fail")
-        assert out["wording_state"] == "failed", "must not report a page when delivery failed"
+        assert out["wording_state"] == "failed", (
+            "must not report a page when delivery failed - got "
+            f"wording_state={out['wording_state']!r}, dispatch.status={out['dispatch'].get('status')!r}. "
+            "If dispatch.status is 'accepted', the simulate-fail hook never engaged: "
+            "the backend under test needs CAOSCARE_TEST_HOOKS=1 (see this module's "
+            "docstring and routes/staff_dispatch.py::_test_hooks()) - that is a test-"
+            "environment precondition, not necessarily a code regression. See also "
+            "test_staff_dispatch_wording.py for harness-independent coverage of this "
+            "same invariant that does not depend on the target server's env."
+        )
         assert out["wording_state"] != "paged"
         assert out["dispatch"]["status"] == "failed"
         assert out["dispatch"]["failure_reason"]
