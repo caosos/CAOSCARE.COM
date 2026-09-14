@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -20,14 +20,14 @@ export default function FacilitiesTab({ autoOpenAdd = false, onAutoOpenHandled, 
   const [addOpen, setAddOpen] = useState(false);
   const autoOpenedRef = useRef(false);
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     try {
       const { data } = await api.get("/facilities");
       setItems(data);
     } catch (err) { toast.error(err?.response?.data?.detail || "Failed to load"); }
     finally { setLoading(false); onChange && onChange(); }
-  };
-  useEffect(() => { refresh(); }, []);
+  }, [onChange]);
+  useEffect(() => { refresh(); }, [refresh]);
 
   useEffect(() => {
     if (autoOpenAdd && !autoOpenedRef.current && user?.role === "owner") {

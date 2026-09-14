@@ -48,7 +48,15 @@ class TestPanicPress:
             assert r1.status_code == 200
             a1 = r1.json()["alert"]
             assert a1["severity"] == "assist"
-            assert a1["auto_voice"] is False
+            # Current contract (routes/pendants.py: "default ON - we always
+            # want voice for pendant events", the 2026-08-29 real-pendant
+            # directive - "a pendant press must always reach Aria hands-free"):
+            # auto_voice is True from the FIRST press, not only once a second
+            # press escalates severity to emergency. This test's own sibling
+            # assertion two presses later (a2["auto_voice"] is True) already
+            # reflected that decision; only this first-press expectation
+            # predated it.
+            assert a1["auto_voice"] is True
             assert a1.get("press_count", 1) == 1
 
             r2 = requests.post(f"{API}/pendants/event", json={
@@ -278,8 +286,18 @@ class TestPublicDevices:
         pow_dev = next((d for d in devs if "power" in (d.get("capabilities") or [])), None)
         assert pow_dev is not None, f"no power device in room 101, have: {[d.get('label') for d in devs]}"
         new_val = not bool((pow_dev.get("state") or {}).get("power"))
+        # Current contract (routes/devices.py::public_room_command, the
+        # kiosk multi-light/TV disambiguation safety fix): a bare
+        # action+value with no device_id/kind now 400s when a room has more
+        # than one device sharing that capability, specifically to stop a
+        # command silently landing on whichever device happens to sort
+        # first (the exact bug that fix closed). This test already knows
+        # exactly which device it means (pow_dev, fetched above) - passing
+        # its device_id is the same "already disambiguated" path a real
+        # caller (e.g. a voice tool that named a specific light) uses, not
+        # a workaround.
         r = requests.post(f"{API}/devices/public/room/101/command",
-                          json={"action": "power", "value": new_val})
+                          json={"action": "power", "value": new_val, "device_id": pow_dev["device_id"]})
         assert r.status_code == 200, r.text
         queued = r.json()
         assert queued["action"] == "power"

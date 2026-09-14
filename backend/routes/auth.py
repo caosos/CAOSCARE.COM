@@ -11,6 +11,7 @@ import httpx
 
 from models import RegisterInput, LoginInput, User, UserPublic, uid, now_utc
 from deps import db, get_current_user, local_bypass_active
+from routes.events import log_event
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -36,12 +37,22 @@ ADMIN_LOCKOUT_MAX = 5
 ADMIN_LOCKOUT_WINDOW_S = 15 * 60
 
 
-def _admin_throttle_check(ip: str, email: str) -> None:
+async def _admin_throttle_check(ip: str, email: str) -> None:
+    """Enforced BEFORE the password is ever verified (see admin_login) - a
+    correct password submitted while locked out must never authenticate or
+    clear the lockout early. Do not reorder admin_login to verify the
+    password before calling this; that would silently reopen exactly that
+    bypass."""
     key = f"{ip}:{email.lower()}"
     now = time.time()
     attempts = [t for t in _ADMIN_ATTEMPTS.get(key, []) if now - t < ADMIN_LOCKOUT_WINDOW_S]
     _ADMIN_ATTEMPTS[key] = attempts
     if len(attempts) >= ADMIN_LOCKOUT_MAX:
+        await log_event(
+            event_type="auth.admin_lockout_rejected", source="ui", status="rejected",
+            target_type="admin_account", target_id=email.lower(),
+            metadata={"ip": ip, "attempt_count": len(attempts)},
+        )
         raise HTTPException(status_code=429, detail="Too many admin sign-in attempts. Try again in 15 minutes.")
 
 
@@ -50,8 +61,16 @@ def _admin_throttle_record(ip: str, email: str) -> None:
     _ADMIN_ATTEMPTS.setdefault(key, []).append(time.time())
 
 
-def _admin_throttle_clear(ip: str, email: str) -> None:
-    _ADMIN_ATTEMPTS.pop(f"{ip}:{email.lower()}", None)
+async def _admin_throttle_clear(ip: str, email: str) -> None:
+    key = f"{ip}:{email.lower()}"
+    had_attempts = bool(_ADMIN_ATTEMPTS.get(key))
+    _ADMIN_ATTEMPTS.pop(key, None)
+    if had_attempts:
+        await log_event(
+            event_type="auth.admin_lockout_reset", source="ui", status="ok",
+            target_type="admin_account", target_id=email.lower(),
+            metadata={"ip": ip},
+        )
 
 
 def _hash_pw(pw: str) -> str:
@@ -173,7 +192,7 @@ async def admin_login(data: LoginInput, request: Request):
         request.headers.get("x-forwarded-for", "").split(",")[0].strip()
         or (request.client.host if request.client else "unknown")
     )
-    _admin_throttle_check(client_ip, data.email)
+    await _admin_throttle_check(client_ip, data.email)
 
     user = await db.users.find_one({"email": data.email.lower()}, {"_id": 0})
 
@@ -192,7 +211,7 @@ async def admin_login(data: LoginInput, request: Request):
             detail="These are staff credentials. Please sign in at the staff portal.",
         )
 
-    _admin_throttle_clear(client_ip, data.email)
+    await _admin_throttle_clear(client_ip, data.email)
     token = _issue_jwt(user["user_id"])
     return {
         "token": token,

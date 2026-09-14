@@ -2217,3 +2217,1930 @@ Nothing. This fix is complete and verified. Live-hardware/voice break-testing of
 
 ### Next safe step
 Proceed to the live break-test pass against real Room 214 hardware and the real voice path.
+
+---
+
+## 2026-09-06 — Admin worktree: (1) Admin/Operations forensic audit, (2) staff department UI + department-aware home routing.
+
+### Agent / tool
+Claude Code (Sonnet 5), dedicated `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations` (off `d994331`). Separate lane from the RF/pendant/ResidentEvent/kiosk/realtime work — those files were not touched.
+
+### What changed
+- **`e125716`** — `docs/ADMIN_OPERATIONS_AUDIT.md` (new, report only). Forensic UI→API→DB audit of the staff/Admin operational surface: executive dashboard, maintenance, housekeeping, transportation, resident-assistance ops, device/system health, reporting, role-based experience. Findings ranked P0–P3. §21 maps shared-surface conflict points with the other lane.
+- **`9a96c2e`** — staff department assignment (audit P0 #1). `User.department` previously could not be set anywhere, so department-scoped task visibility / notification / department workspaces were all inert.
+  - `backend/routes/staff.py` (133 lines): `PATCH /staff/{id}` (edit name/role/department); `POST /staff` gained an optional `department`. Both validate the slug against the real `Department` list; `""` clears it; an admin cannot demote their own account out of the admin tier.
+  - `backend/routes/departments.py` (120 lines): default departments pinned as explicit `(slug,label)` pairs so the label can change without the slug drifting; one idempotent normalization `"Nursing"` → `"Nursing / Care"` (slug stays `nursing`).
+  - `frontend/src/pages/StaffTab.jsx` (248): Department column + Edit dialog + department picker in Add-staff, fed by `GET /departments` (seeded + custom).
+  - `frontend/src/lib/roleHome.js` (38): `roleHomePath`/`roleHomeLabel` now take the whole user. Plain `staff` routes by department — `maintenance`/`housekeeping`/`transportation`/`kitchen` → `/workspace`; `nursing`/care/unassigned → `/staff`; owner/admin → `/admin`; front_desk → `/front-desk`. Call sites updated: `Login.jsx`, `Landing.jsx`, `GoogleSignIn.jsx`, `AuthCallback.jsx`.
+  - `frontend/src/pages/DepartmentWorkspace.jsx` (new, 244) at `/workspace` (`App.js` route added): one shared workspace rendered per the signed-in staff member's department — that department's open queue (`GET /tasks` is already department-scoped server-side for a `staff` role by `User.department`) with Ack/Start/Done actions + `MyTasksCard`; transportation also gets today's ride summary. Reuses the existing StaffTask / resident-request bus — no new data model.
+
+### What was verified
+- **Backend, real running server (from this worktree, port 8001, shared `caoscare` Mongo):** new `backend/tests/test_staff_department.py` passes — create/list/patch department, unknown-slug rejection (create + patch), clear with `""`, combined name+role edit, self-demote guard, `"Nursing / Care"` label present with slug `nursing`. Separately verified end-to-end that a `staff` user with `department="maintenance"` sees a maintenance-routed resident-request via `GET /tasks` and does **not** see a housekeeping-routed one.
+- **Frontend:** new `roleHome.test.js` (routing matrix) + full suite **76/76** green (`REACT_APP_BACKEND_URL` set). Production `craco build` compiles — only pre-existing `react-hooks/exhaustive-deps` lint warnings in files not touched here; no new warnings from the changed/added files.
+- The `nursing` → `Nursing / Care` label normalization has already been applied to the live `caoscare` DB (ran as part of the port-8001 test-server startup). Slug unchanged, so `realtime_tools_operations.py` / `resident_requests.py` literal `"nursing"` references are unaffected. Custom departments (`therapy`, `resident_programs`) are untouched and appear in the picker.
+
+### What is blocked
+Nothing. The other lane's server on port 8000 was left running and untouched throughout.
+
+### Next safe step
+Continue the audit's ranked plan on this branch: automate the escalation tick + reconcile the two escalation implementations (P1 #4 — coordinate, touches `alerts.py`), then the operations overview dashboard (P0 #3) and the operational receipts/events browser (P1 #5). Maintenance/housekeeping data models (P0 #2 / P1 #7) remain unbuilt — the `/workspace` queues are department-scoped `StaffTask` lists until then.
+
+---
+
+## 2026-09-07 — Admin worktree: Admin/ED operations overview (read-only attention surface).
+
+### Agent / tool
+Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations` (commit `0e34465`, on top of `ea5f2ff`). Separate lane; RF/pendant/ResidentEvent/kiosk/realtime files untouched. The other lane's server on port 8000 was left running throughout; all testing used a second worktree server on port 8001 against the shared `caoscare` Mongo, torn down after.
+
+### What changed
+`GET /ops/overview` (admin only, read-only) + a new default **Overview** tab in `Admin.jsx` (opens here now, not Residents). Every value is derived live from the existing `staff_tasks` / `alerts` / `departments` / `transport_run` records - no new task or department model, no writes, `db.alerts` is queried only.
+
+- `backend/routes/ops_overview.py` (241) + `ops_overview_util.py` (63, parse/format helpers - split to stay under the 300-line cap). Sections: (1) one ranked **attention** list across assistance events + tasks - unacked emergency → unacked assist → overdue task → transport-no-slot/past-date → acknowledged-not-resolved → unassigned task → resident re-asked → open>72h (demoted). Ordered by fixed open-time within a tier so two polls match. `?attention_limit` default 50, max 400. (2) **departments** - per `Department` (+ a General/all-staff row): open/overdue/unassigned/in_progress/completed_today, via the existing `visibility_role` routing. (3) **assistance** - read-only event summary + separate "open >72h" likely-stale count with a `counts_caveat` string (the 333 stale RF-test activations from prior sessions are surfaced as suspect, not passed off as a live queue). (4) **tasks** - no-owner / overdue counts + "sitting longest" and "no owner" lists, oldest-first. (5) **transportation** - compact today from the same StaffTask+run truth the transport module uses.
+- `backend/server.py` (205) - router registered.
+- `frontend/src/pages/OperationsOverview.jsx` (267) + `frontend/src/lib/opsOverview.js` (52, pure helpers). Rows deep-link into the matching Admin tab (`onNavigate`) or `/staff` for assistance events.
+- `frontend/src/pages/Admin.jsx` (282) - new first "Overview" tab group, default `activeTab="overview"`. `frontend/src/lib/adminTabGroups.js` - the group entry.
+
+### What was verified
+- `backend/tests/test_ops_overview.py` (new) passes against a worktree backend: section structure always present; each seeded row lands in the right attention tier (emergency=0, overdue task=2, transport-no-slot=3, unassigned=5, stale alert≥7); ordering identical across two consecutive calls and monotonic by tier; department counts reflect fixtures; a brand-new empty department shows all-zero (the "renders with empty datasets" case); `possibly_stale_open_gt_72h ≥ 1`; oldest-open task lists correct; transport summary counts correct. All fixtures (admin, tasks, one department, three alert docs inserted directly - never through `alerts.py`) are deleted in teardown.
+- `test_staff_department.py` switched to its own per-run Motor client so it and `test_ops_overview.py` run together in one pytest process (the `deps.db` global otherwise binds to the first `asyncio.run` loop and errors for the rest - the same documented constraint the older `deps.db` test files hit; those still pass individually and were not regressed).
+- Frontend: new `opsOverview.test.js` (5 cases); full suite **81/81**; production `craco build` compiles - only pre-existing `react-hooks/exhaustive-deps` warnings in files not touched here (`Admin.jsx`'s is the same one, shifted one line by an added import).
+
+### What existing data was sufficient
+- Task attention (overdue via `due_at`, unassigned, re-requested), all department status counts, transportation "today", and the resident-assistance read-only summary all came straight from `staff_tasks` + `alerts` + `departments` + `transport_run` with no schema change.
+- The stale/test-data problem was addressable: alert **age** is the available signal, so "open >72h" is reported separately with an explicit caveat rather than pretending the 333-count is trustworthy.
+
+### What is still impossible without future lifecycle/escalation work
+- **Real overdue / SLA** - only `due_at` exists and it's set on almost nothing (one-off tasks only; templates and resident-requests never set it). "Overdue" today means "has a `due_at` in the past"; the far more common case (a request with no target time that has simply aged) can only be shown as "sitting longest", not "overdue". Needs a per-category SLA policy.
+- **Escalation state in the attention ranking** - `escalation_level` is bumped inconsistently (inline in `alerts_feed` vs the manual `escalation/tick`) and nothing runs the tick automatically, so it isn't a dependable sort input yet. Deliberately not used here.
+- **Assistance-event lifecycle depth** - minutes-open, press-count, Aria-state, silence/no-response, live-line outcome per event are on the `Alert` doc but summarising or ranking by them belongs to the RF/ResidentEvent lane; this pass only counts and ages events.
+- **Stale vs genuine open events** cannot be told apart precisely - only by age. A real "close/resolve stale events" pass (not done here, and not to be done unprompted) would let the assistance counts become production-trustworthy.
+- **"What changed since I last looked"** - there's no per-admin last-seen marker or event feed to diff against; the overview shows current state, not a delta. Needs the `CaosEvent` log surfaced (audit P1 #5).
+- **Cross-department follow-up / handoff** items (housekeeping→maintenance) have no model, so they can't appear as attention rows.
+
+### Next safe step
+Operational receipts + events browser (audit P1 #5, new files only), or the maintenance work-order model (audit P0 #2). Escalation automation (P1 #4) still needs a coordinated pass since it touches `alerts.py`.
+
+---
+
+## 2026-09-07 — Admin worktree: Maintenance work-order workspace (on the existing StaffTask spine).
+
+### Agent / tool
+Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations` (commit `20b9220`, on top of `9802f5b`). Claude 2's lane (RF / pendant / ResidentEvent / realtime / call_for_help / escalation) untouched. Other lane's server on port 8000 left running; testing used a worktree server on 8001 against the shared `caoscare` Mongo, torn down after.
+
+### Architecture decision (per the directive's "prove what can be reused")
+Inspected `StaffTask` first. A maintenance **work order == a `StaffTask` with `visibility_role == "maintenance"`**. No second model, no new collection. The requested NEW → ASSIGNED → IN PROGRESS → COMPLETED workflow maps directly:
+
+| Directive state | Existing representation |
+|---|---|
+| NEW / OPEN | `status="pending"`, `assigned_to=None` |
+| ASSIGNED | `status="pending"`, `assigned_to` set (assignment is a field, not a status) |
+| IN PROGRESS | `status="in_progress"` (existing `POST /tasks/{id}/start`) |
+| COMPLETED | `status="completed"` + notes/duration (existing `POST /tasks/{id}/complete`) |
+
+Fields (id, title, description, room, resident, source, priority, status, assignee, created_at, due_at, started_at, completed_at, completion notes, department) all already exist on `StaffTask`. Age is derived. Department isolation is already enforced by `routes/tasks.py::list_tasks` (a `staff` role sees only `visibility_role in [own department, "all_staff"]`). The Operations Overview already reads `staff_tasks` - it picked the new WOs up with zero change.
+
+### What had to be ADDED (small, generic, department-safe)
+- `routes/tasks.py::create_task` - now also allows a `staff` user **with a department** to create work; `visibility_role` **and** `category` are pinned to that user's own department slug so a department workspace can never create cross-department work. Owner is now allowed alongside admin (was `!= "admin"`, an existing over-restriction). Admin path unchanged. (+15 lines → 254)
+- `routes/task_assignment.py` (new, 81 lines) - `POST /tasks/{id}/assign` on its own router at the `/tasks` prefix (the `task_detail.py` pattern, keeps `tasks.py` under the cap). Claim / re-assign / unassign. Admin/owner assign anyone; a department member claims within their department or hands off to a **same-department** co-worker only. Files a `task_assigned` / `task_unassigned` receipt.
+- `routes/staff.py::GET /staff/assignable?department=` (+18 lines → 151) - names-only roster for the assign picker, reachable by any admin or a staff member querying **their own** department. The full `GET /staff` stays admin-only.
+- `server.py` - register `task_assignment` router.
+- Frontend: `lib/maintenance.js` (69, pure `workOrderBuckets`/`isOverdue`/`canClaim`/`canAssign`), `pages/MaintenanceWorkspace.jsx` (249, sections + claim/start/complete+notes/assign/history), `pages/MaintenanceWorkOrderForm.jsx` (146, create dialog - due date is **optional**, the form says so). `DepartmentWorkspace.jsx` renders `MaintenanceWorkspace` for a maintenance staffer, generic queue for everyone else. `Admin.jsx` + `adminTabGroups.js` - new "Operations departments" group with a Maintenance tab (`<MaintenanceWorkspace adminMode />`).
+
+`start` / `complete` / `acknowledge` needed no change - already open to any authenticated user.
+
+### What was verified
+`backend/tests/test_maintenance_workorders.py` (new) against a worktree backend, co-running with `test_ops_overview.py` + `test_staff_department.py` (3 passed): housekeeping staff cannot see maintenance WOs; a maintenance staffer can; a maintenance lead can create one (forced to `maintenance` even when the payload aims at `housekeeping`); a housekeeping staffer's create is forced to `housekeeping` and stays invisible to maintenance; claim → start → complete by a technician; completion notes + `duration_minutes` + `completed_by_name` + a receipt whose status transitions to `completed` all persist; cross-department assignment returns 403; admin assigns to another tech; `/staff/assignable` is department-scoped and 403s cross-department; `POST /tasks/resident-request` routing still works and stays out of the maintenance queue; the Operations Overview shows an unassigned maintenance WO at tier 5 / department "Maintenance", the maintenance department row's open count reflects the WOs, and a completed WO lands in `tasks.completed_today` - all from the one `StaffTask` collection.
+Frontend: `maintenance.test.js` (new, 15 cases - bucketing, bucket overlap, ordering, counts, empty/null). Full FE suite **94/94**. `roleHome.test.js` still green (maintenance staff → `/workspace`). Production build compiles - only the pre-existing `react-hooks/exhaustive-deps` warnings, none in any new/changed file (`Admin.jsx`'s is the same one, shifted one line by an added import).
+
+### What existing StaffTask infrastructure was reused
+Model + collection (`staff_tasks`), `list_tasks` department scoping, `POST /tasks/{id}/start|complete|acknowledge|skip`, `GET /tasks/{id}/detail` (task + receipts) for the history view, `create_receipt` / `update_receipt_status` wiring, `_resolve_denorms`, the department list + `visibility_role` routing, `notify_department` on create, the Operations Overview aggregation, `GET /residents`.
+
+### What is still missing for a mature Maintenance department
+- **Distinct maintenance statuses** - `blocked`, `waiting_parts`, `waiting_vendor`, `verified` (second-signoff). The current lifecycle has only pending/in_progress/completed/skipped. Adding them means widening the shared `TaskStatus` literal (in `models.py`, over the size cap) - a coordinated change, deferred.
+- **Vendor / parts / materials / cost** - no fields; a WO can't record "waiting on a $40 valve from Ferguson".
+- **Safety-impact / resident-impact classification** and a distinct **close reason** (vs. free-text `notes`).
+- **Preventive-maintenance rounds / recurring inspection checklists** - `StaffTaskTemplate` can recur but has no per-item checkoff or PM cadence semantics.
+- **Repeat-issue / "this room again" detection** - `re_request_count` exists for resident re-requests but there's no linking of related WOs by room+symptom.
+- **Editing an open WO's priority / due date / description** after creation - `StaffTaskUpdate` (models.py) only carries notes/assigned_to/status/acknowledged_by/schedule fields. Deliberately not extended this pass (the 8 required flows don't need it).
+- **Room-readiness / move-in-move-out** workflows and **housekeeping→maintenance handoff** (needs a `FollowUpRoute`-type object - no cross-department handoff mechanism exists, so nothing routes maintenance work out of housekeeping automatically).
+- **Non-admin sub-categories** - a department staffer's create pins `category` to the department slug, so internal sub-categories (laundry/rounds/bathing style) aren't expressible from a department workspace yet. Only affects a future generic-department create UI; the maintenance form always means "maintenance".
+
+### Next safe step
+Operational receipts + events browser (audit P1 #5, new files only), or begin the maintenance status/vendor/parts fields as a scoped models change. Escalation automation (P1 #4) still needs a coordinated pass (touches `alerts.py`).
+
+---
+
+## 2026-09-07 — Admin worktree: Activity log (read-only operational receipts + telemetry events browser).
+
+### Agent / tool
+Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations` (commit `ead4dfa`, on top of `3a99d12`). Claude 2's lane untouched. Other lane's server on port 8000 left running; testing used a worktree server on 8001 against the shared `caoscare` Mongo, torn down after.
+
+### What changed
+Closes ops audit P1 #5 - the `Receipt` and `CaosEvent` collections are populated by `create_receipt()` / `log_event()` all over the backend but had **no admin UI**. New "Activity log" tab under Admin → Reports, toggling two read-only browsers. Nothing writes.
+
+- **`backend/routes/receipts.py`** (152) - `GET /receipts` gains optional query params `related_object_id`, `action_type`, `source`, `room`, `since`, `until`, mirroring what `GET /events` already accepts (`created_at` is stored as an ISO string so a lexical `$gte`/`$lte` range works). `create_receipt` / `update_receipt_status` write helpers untouched; endpoint still `require_admin`. No change to `events.py` - its filter set already covered this.
+- **`frontend/src/lib/activityLog.js`** (71, pure) - `humanizeAction`, `receiptStatusTone` (fixed `ReceiptStatus` set), `eventStatusTone` (keyword-buckets free-text event status), `fmtDuration`, `receiptLink` (deep-links a receipt to its object: task→Tasks/Requests tab by source, alert→`/staff`, device_command→Devices tab), `summarizeMetadata`, `distinct`.
+- **`frontend/src/pages/ReceiptsPanel.jsx`** (142) - the operational-action log. Server-side date-range + object-type + status filters, client-side free-text search, row → detail dialog with an "open the underlying object" jump.
+- **`frontend/src/pages/EventsPanel.jsx`** (158) - the append-only telemetry trace. `event_type` / `room` / `resident_id` / `conversation_id` / date filters, metadata rendered as JSON in the detail, and "view full conversation" via `GET /events/conversation/{id}` (ordered).
+- **`frontend/src/pages/ActivityLog.jsx`** (44) - shell toggling the two panels; passes `onNavigate` down for the deep-link.
+- **`Admin.jsx`** (290) + **`adminTabGroups.js`** - "Activity log" first in the Reports group.
+
+### What was verified
+`backend/tests/test_activity_log.py` (new), co-running with the three other admin-lane DB tests (4 passed): a real receipt (create + start + complete a task over HTTP) is found via `GET /receipts` and correctly filtered by `related_object_type`, `action_type`, `source`+`room`, `status`+`related_object_id`, and the **new** `since`/`until` (present in-range, absent out-of-range); `GET /receipts/{id}` returns the one; two directly-inserted `CaosEvent` docs are found and filtered by `conversation_id`, `event_type`, `resident_id`, `since`/`until`; `GET /events/conversation/{CONV}` returns them **chronologically**; a `staff` role gets **403** on both `/receipts` and `/events`. All TAG fixtures deleted in teardown.
+Frontend: `activityLog.test.js` (new, 7 groups). Full FE suite **101/101**. Production build compiles - only the pre-existing `react-hooks/exhaustive-deps` warnings in 5 files not touched here (`Admin.jsx`'s is the same one, shifted by an added import); none in `ActivityLog.jsx` / `ReceiptsPanel.jsx` / `EventsPanel.jsx` / `activityLog.js`.
+
+### What existing infrastructure was reused
+`GET /receipts`, `GET /receipts/{id}`, `GET /events`, `GET /events/conversation/{id}` - all pre-existing, admin-gated, and previously unused by any screen. The `Receipt` / `CaosEvent` models and every `create_receipt` / `log_event` call site are unchanged.
+
+### What is still limited (not fixed this pass)
+- **Thin receipt history per object.** `acknowledge`/`start`/`complete`/`skip` call `update_receipt_status` (mutate the most-recent receipt's `status` in place) rather than appending a row, so a task's receipt trail is `task_created` + any `task_assigned`, with a mutating status - not a full per-transition ledger. The Activity log shows what's there faithfully; a richer trail would need those handlers to append instead of mutate (a `tasks.py` change, deferrable).
+- **`log_event` coverage is narrow** - only `admin_assistant*`, `realtime_diagnostics`, and `devices` call it, so the Events view is mostly Admin-Aria activity + device commands + auth. Task/alert/transportation lifecycle is in **receipts**, not events. Broadening `log_event` calls is a cross-cutting backend change, out of scope here.
+- **No cross-linking from an event/receipt to the CaosEvent `request_id` group** in the UI yet (the data supports it; only `conversation_id` reconstruction is wired).
+- **No CSV export** from the Activity log (the audit's reporting-framework item is separate; this is a browser, not a report builder).
+
+### Next safe step
+The reporting framework proper (daily exceptions / weekly workload / open-vs-closed, date-ranged + CSV, audit P1 #6) can now be built cleanly on top of the same `/receipts` + `/events` + `staff_tasks` reads. Escalation automation (P1 #4) still needs a coordinated pass (touches `alerts.py`).
+
+---
+
+## 2026-09-07 — Admin worktree: Operations reporting framework (daily exceptions, weekly workload, CSV).
+
+### Agent / tool
+Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations` (commit `bff7594`, on top of `6b343ee`). Claude 2's lane untouched - `db.alerts` is read-only here, no RF / pendant / ResidentEvent / Resident Aria / realtime / call_for_help / paging change. Other lane's server on port 8000 left running; testing used a worktree server on 8001 against the shared `caoscare` Mongo, torn down after.
+
+### Reuse (before building)
+Extracted the StaffTask predicates that `routes/ops_overview.py` had as inline closures into `routes/ops_overview_util.py`: `task_is_open`, `task_is_unassigned`, `task_is_overdue` (strict - needs a real `due_at` in the past; merely old is never overdue), `task_completed_on`, `task_created_on`. `ops_overview.py` now delegates to them - behaviour identical, re-verified by `test_ops_overview` in the same run. `routes/reports.py` consumes the same predicates + `parse_dt` / `age_seconds` / `local_date` / `dept_label` / `short_duration`. The reports also reuse `today_facility_date` / `FACILITY_TZ` and the `_csv_response` pattern from `routes/audit.py`; the frontend CSV download reuses `AuditTab.jsx`'s bearer+blob approach.
+
+### Added
+- `routes/reports.py` (263), registered in `server.py`:
+  - **`GET /reports/daily-exceptions?date=&department=&format=json|csv`** - one flat, ranked list of exception conditions the existing data can actually prove: open resident-assistance events (read live from `alerts`; >72h flagged "likely stale test data" in the row and in `caveats`), overdue tasks (real `due_at` only), failed/cancelled operational actions **filed on `date`** (from receipt `status`), transportation with no slot / past its requested date, resident re-requests (`re_request_count > 0`), and unassigned open work. Old-but-not-due work is reported with an `age_hours` value and a "Unassigned - open Nd" reason; it is never given `overdue: true`. Rank order: non-stale assistance → overdue → failed action → transportation → re-request → unassigned → stale assistance. `counts` + `total` + `caveats`.
+  - **`GET /reports/weekly-workload?week_start=&days=&department=&format=json|csv`** - one row per department (+ a General/all-staff row): `created` / `completed` within the window, `still_open` / `assigned_open` / `unassigned_open` as a live snapshot, `oldest_open_ref_id` + `oldest_open_age_hours`, and `by_staff` (assignment counts only). `caveats` state plainly these are task volumes, not productivity/quality/performance.
+  - Both `require_admin`; department isolation preserved (a `?department=` filter matches `visibility_role` for task rows, `nursing` for assistance rows, `assigned_role` for receipt rows). `format=csv` returns a `StreamingResponse` whose rows are the **exact same filtered set** as the JSON, with stable `ref_id` / `department_slug` / `receipt_id` columns for trace-back.
+- Frontend: `lib/reports.js` (47, pure - `exceptionKindLabel`, `exceptionTone`, `fmtHours`, `defaultWeekStart`, `buildQuery`), `pages/ReportsTab.jsx` (192 - mode toggle, date/week/dept filters, daily + weekly tables, "CSV" download). `Admin.jsx` (294) + `adminTabGroups.js` - "Ops reports" tab, first in the Reports group.
+
+### What was verified
+`backend/tests/test_reports.py` (new), co-running with the 4 other admin-lane DB tests (**5 passed**): populated daily report (each seeded row lands in the right `kind`; `total == len(rows) == sum(counts)`); **old-but-not-due (`created` 400 days ago, no `due_at`) is `kind="unassigned_open"`, `overdue=False`, `age_hours > 1000`, reason has no "overdue"**; the row with a 3h-past `due_at` is `kind="overdue"`, `overdue=True`; transportation / re-request / open-assistance / failed-action rows all present with the right `ref_type`; **empty report** via `?department=zzz_none` returns `rows=[]`, `total=0`, `counts={}`, `caveats` still present; department filter returns only that department's rows and excludes others; **weekly** `maintenance` row shows `still_open >= 2`, `unassigned_open >= 1`, `completed >= 1` (a task completed today), `created >= 2` (recent ones; the 400-day task is *not* counted in `created` but *is* the `oldest_open_ref_id` with `age_hours > 9000` - proving snapshot vs window), `by_staff` has the tech with `completed_this_week >= 1`; **CSV** row count + `ref_id` set + column headers match the filtered JSON for both reports, and `weekly` CSV's `staff_breakdown` carries the tech's name; a `staff` role gets **403** on json and csv for both endpoints; `GET /ops/overview` and `GET /receipts` still 200 (no regression).
+Frontend: `reports.test.js` (new, 5 groups). Full FE suite **106/106**. Production build compiles - only the pre-existing `react-hooks/exhaustive-deps` warnings in 5 files not touched here; none in `ReportsTab.jsx` / `reports.js`.
+
+### Which reports are fully trustworthy now
+- **Daily exceptions** - every row is a fact the underlying record proves. `unassigned_open`, `overdue` (real `due_at`), `transportation_attention`, `re_requested_open` are exact from `staff_tasks`. `open_assistance_event` is exact from `alerts` (with the honest stale-age caveat). `failed_action` is exact from receipt status.
+- **Weekly workload** - `created` / `completed` / `still_open` / `assigned_open` / `unassigned_open` / `oldest_open` are exact StaffTask counts for the window/snapshot. Department isolation and the admin-only gate hold.
+- **CSV** - byte-for-byte the same filtered rows as the on-screen report, with trace-back ids.
+
+### Which desired metrics still cannot be stated honestly, and why
+- **Response time / time-to-acknowledge / time-to-complete** for tasks - `acknowledged_at` is set only when someone calls `/tasks/{id}/acknowledge` (rare in practice), and `duration_minutes` is `completed_at - started_at`, so a task completed without a Start has no duration. Reporting an average would be computed off a biased subset. Not included.
+- **True SLA / "% completed on time"** - needs a per-category SLA policy that does not exist. Only explicit `due_at` overdue is reported.
+- **Trend / week-over-week deltas** - would need either stored historical snapshots or a multi-window query; the framework is single-window. Deferred (the `Insights` tab does a crude 7d-vs-prior-7d for a different signal).
+- **Repeat-problem / recurring-issue counts** - no linkage of related tasks by room+symptom exists (noted in the Maintenance pass).
+- **Per-staff throughput as a performance measure** - `by_staff` counts are shown but the caveat explicitly forbids reading them as productivity; an unassigned or reassigned task is unattributed, and there's no quality signal.
+- **Failed operational actions beyond receipts** - `log_event` coverage is narrow, so `failed_action` only sees domains that write a receipt with a failed/cancelled status (device commands, some task lifecycle). A broader "what errored today" would need wider `log_event` instrumentation - a cross-cutting backend change, out of this lane's scope.
+- **Kitchen / meal / housekeeping-specific measures** - those departments have no dedicated model yet, so weekly workload can only show their generic StaffTask counts, not meal-choice completion, room-turn times, etc.
+
+### Next safe step
+Escalation automation + reconciliation (audit P1 #4) still needs a coordinated pass (touches `alerts.py`). Otherwise: a monthly rollup on the same `/reports` base, or beginning the maintenance status/vendor/parts model.
+
+---
+
+## 2026-09-07 — Admin worktree: Owner command centre + facility UI coherence pass.
+
+### Agent / tool
+Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations` (commit `3138051`, on top of `9dd903c`). No Claude 2 Level-1 file touched (RF decode / pendant press / ResidentEvent activation / Resident Aria / realtime / call_for_help / paging / inactivity timer / severity). `db.alerts` and `db.rf_devices` are **read only** here. Other lane's server on port 8000 left running; work + demo seed used a worktree server on port 8001 against the shared `caoscare` Mongo.
+
+### What was structurally wrong (from Michael's live break-test)
+- Owner/Admin had no top-level "what's happening" home - landed on the Residents table; header pushed "Dashboard" (a generic staff view) and "Change my password" (wrong for a Google-OAuth Owner).
+- Actionable-looking cards were dead ends: Active / Emergency / Acknowledged / Resolved / Pattern flags all went nowhere or to `/admin` root; "Devices in service > Pendants" showed **0/0** because it queried the retired `/pendants` scaffold while the real RF system was matching physical presses.
+- Residents table works for 20 but not 100-300 - no fast finder.
+- Local mock data was isolated/contradictory; the Menu was empty so Aria couldn't answer "what's for dinner".
+
+### What was reconfigured
+- **Navigation** (`lib/adminTabGroups.js`, `Admin.jsx` 196←294): seven real groups - Community (Operations overview · Alerts & events · Maintenance) / Residents & care / Departments & staff / Communication & requests / Devices / Reports & audit / Facility setup. Admin opens on Community. `/admin?tab=<value>&resident=<id>` deep links (consumed then stripped). Header: dropped the staff "Dashboard" push; "Password" → **Users & access**.
+- **Resident/Room quick find** (`lib/residentSearch.js`, `pages/ResidentQuickFind.jsx`): ranked filtered dropdown, keyboard-driven; matches room / first / last / preferred / "First Last". Reuses the loaded residents list; opens the existing `ResidentRecordDialog`.
+- **Alerts board** (`pages/AlertsBoard.jsx` + `AlertsPage.jsx` + `/alerts` route + `lib/alertsView.js`): status/severity filters, query-param driven, reuses `GET /alerts` + `AlertDetailDialog`. **Data honesty:** open events > 72h get a "likely stale" badge, a banner, and a live-vs-stale count split - nothing deleted (matches the earlier stale-age caveat).
+- **Staff-dashboard cards** now drill: `AlertStatsRow.jsx` (extracted so `StaffDashboard.jsx` shrank 389→348) → `/alerts?status=…`; Pattern flags → `/admin?tab=insights`; live-location rows → resident record for admin/owner (plain `<div>` for a nurse, not a fake control).
+- **Users & access** (`StaffTab.jsx` 283): retitled; search + role + department filters; Workspace + Auth columns; honest note that reset-link delivery, account enable/disable, and last-login aren't in the model, and that SSO would slot in as another provider. Passwords never displayed - `Set password` (existing admin capability) is the honest local reset.
+- **Departments** (`DepartmentsTab.jsx`): Slug, Staff count, Workspace-destination columns from existing `Department` + `User` data.
+
+### What existing infrastructure was reused
+`GET /alerts` + `/alerts/stats` + `AlertDetailDialog`; `ResidentRecordDialog` / `MemoryDialog` / `MovementDialog`; the residents list `Admin.jsx` already fetches; `db.rf_devices` / `db.rf_events` / `db.residents`; `roleHome.js` routing truth; `Department` + `User.department`; `AuditTab.jsx`'s bearer+blob CSV pattern (n/a this pass); the real Menu ingest+approve path; the shared `ops_overview_util` predicates.
+
+### What dead-end UI was connected
+Active / Emergency now / Acknowledged / Resolved 24h → filtered `/alerts`. Pattern flags → Insights tab. Recent device activity rows → resident record. Live-location rows → resident record (role-gated). "Devices in service · Pendants" tile → the real Pendants (RF) tab. Resident quick-find → resident record. `/admin?tab=` deep links let Admin Aria / notifications target any tab.
+
+### How pendant/device truth was unified
+New `backend/routes/rf_fleet.py` (its own `/rf` router - **never edits `rf.py`**), read only: `GET /rf/fleet/summary` (any role, role-safe - no RSSI / match score / raw fingerprint; status rollup active/low_battery/offline; counts) and `GET /rf/fleet/devices` (admin drill-down - frequency, RSSI, match threshold, recent events, linked alert). `DeviceStatusCard.jsx` pendant tile now reads `/rf/fleet/summary` ("X / Y in service, Z need attention", links to the RF tab for admin) instead of the retired `/pendants` scaffold; also fixed the wearable battery field (`battery_pct` → `battery_percent`).
+
+### How department workspaces now relate to Owner
+Unchanged routing (`roleHome.js`): department staff → `/workspace` (Maintenance renders the full work-order workspace) or the Care board; Owner/Admin → the command centre. The command centre now *exposes* that routing - Users & access shows each user's workspace destination, Departments shows each department's - and Owner can drill into the same department queues (`DepartmentWorkspaceDialog`) and the Maintenance workspace (`?adminMode`) that staff use. No flattening, no tablet-specific logic (a tablet is just a logged-in client).
+
+### Mock community data added / corrected
+`backend/scripts/seed_demo_community.py` (idempotent, HTTP-against-live, `Demo -` / `@demo.caoscare` / **3W wing** markers, `--wipe`). Run once against the local DB: 10 demo residents **3W01–3W10** (+ kiosks, a mock smart light each, family contact, a memory), 6 demo staff across real departments (nursing/maintenance/housekeeping/transportation/kitchen + front_desk, password `demo-pass-1234`), department-routed tasks + a maintenance WO (one pending, one completed) + a transport request + two **resolved** (not active) historical alerts, and **7 days of menu through the real ingest+approve path** so `/menu/public/today` returns data (Resident Aria can answer "what's for dinner" from real facility data - Aria itself untouched). Verified coherent: menu live (11 items today), demo staff carry departments, maintenance tasks route by `visibility_role`, zero demo alerts left active.
+
+### Incident (reported, not hidden)
+The **first** demo-seed run used rooms `301–310`. Room `304` is a pre-existing test resident's room ("chancy"/Chauncey). Correcting a room-numbering choice, I ran `--wipe`, whose then-too-broad `{"room": {"$in": ["301".."310"]}}` deletes removed **pre-existing room-304 operational records that the seed did not create**: approximately 1 kiosk, ~5 `alerts` (active count went ~325 → 319), ~3 `staff_tasks`, ~2 `smart_devices`, and several `receipts`. **Preserved:** the `chancy` resident record itself, its 175 `conversations` and 2 `memories`, and — critically — **Room 214 / Helen Torres and all its Level-1 RF evidence (never in range, untouched).** There is no DB backup in this environment to restore from. The seed script is now fixed: a dedicated `3W01–3W10` wing that cannot collide with any real/existing room, and a **precise `--wipe`** scoped only to `Demo -` names/titles, `@demo.caoscare` emails, `^3W[0-9]{2}$` rooms, and demo `resident_id`s — never a numeric room range. Recommend Claude 2 / Michael sanity-check room-304 test state.
+
+### Tests
+- `backend/tests/test_rf_fleet.py` (new) - summary is any-role and omits RF internals; status rollup; admin-only drill-down carries frequency/threshold/events; staff gets 403 on the drill-down. Full admin-lane backend suite **6/6** (`test_rf_fleet` + reports + activity + maintenance + ops_overview + staff_department, co-run).
+- Frontend: `residentSearch.test.js` (10 - room/name/preferred/phrase ranking, 300-resident scale, empty/unknown), `alertsView.test.js` (6 - stale classification, tone, summary split, filters), `roleHome.test.js` extended (workspaceLabel / departmentWorkspaceLabel). Full FE suite **122/122**. Production build compiles - only the pre-existing `react-hooks/exhaustive-deps` warnings in 5 untouched files (`Admin.jsx`'s is the same `fetchAll` one, relocated); none in any new/changed file.
+- All production files < 300 lines; `StaffDashboard.jsx` (pre-existing over-cap) was **reduced** 389 → 348 by extracting `AlertStatsRow`.
+
+### What still requires future work
+- **Owner Users & Access:** account enable/disable, last-login, and password-reset-link delivery need model + auth support (`User` has no `is_active`/`last_login_at`; no reset-token/email infra). Session/login revocation not exposed. SSO/Okta deliberately not built - the provider field (`auth_provider`) is the seam.
+- **Department config:** no `manager`/`lead` field on `Department`; role/visibility config beyond department slug + the fixed `all_staff`/`family` specials would need a real access model (deferred by directive).
+- **Alert lifecycle cleanup:** the ~319 "active" alerts are still mostly stale RF test debris. The board *distinguishes* them (age) but a real resolve/lifecycle migration is a separate task owned with Claude 2 (touches the Level-1 contract).
+- **Deep-linking from AlertsBoard back into a resident/room/device detail** beyond the existing `AlertDetailDialog` (which already links resident + timeline).
+- **Admin Aria navigation** was left as-is (it already takes `onNavigate` → `setActiveTab`); wiring specific phrases ("show Room 214", "open the kitchen menu") to `?tab=`/`?resident=` targets is a small follow-up within its existing architecture.
+- **Non-admin resident detail:** a nurse still has no resident-record surface, so their live-location rows are intentionally non-interactive.
+
+### Next safe step
+STOP for Michael's visual break-test of the new Owner/Admin experience (per the directive). After that: Admin Aria phrase→destination wiring, or the Users & Access model gaps (enable/disable, last-login, reset-link) as a scoped auth change.
+
+---
+
+## 2026-09-07 — Admin worktree: repository-wide product-baseline / bootloader correction (documentation only).
+
+### Agent / tool
+Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations` (commit `928d28b`, on top of `db85011`). **Documentation-only pass — no application behaviour changed; `git status` was `.md` files only.** No Claude 2 runtime code touched (RF / pendant / ResidentEvent / Resident Aria / realtime / call_for_help). Append-only history logs (`PROJECT_STATE.md`, `ARIA_VOICE_FIRST.md`, `TERMINAL_8_OPERATIONAL_LAYER.md`) were not rewritten.
+
+### New canonical document
+- **`docs/CAOSCARE_PRODUCT_BASELINE.md`** (new) — durable product truth: what CAOSCare is; the CURRENT resident-room architecture; the staff-client model; Owner/Admin vs department staff; the Aria information principle; priority order (resident module first) with building/appointment ideas marked FUTURE-not-built; local-first deployment direction; engineering invariants incl. the 300-line rule; the canonical 13-step boot sequence; and a handoff-capsule template. Explicitly the durable-truth layer, separate from `PROJECT_STATE.md` (changing state), `REPO_MAP.md` (where code lives), `BUILD_STATUS.md` / `CURRENT_NODE_STATUS.md` (runtime snapshots).
+
+### Canonical onboarding read order (now consistent across AGENTS.md, README, CLAUDE.md, REPO_MAP)
+1. `AGENTS.md` · 2. `docs/CAOSCARE_PRODUCT_BASELINE.md` · 3. `docs/PROJECT_STATE.md` · 4. `docs/REPO_MAP.md` · 5. `docs/BUILD_STATUS.md` / `docs/CURRENT_NODE_STATUS.md` · 6. `README.md` + `docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md` (hardware section HISTORICAL/SUPERSEDED) + CCE-lite + task contracts · then: identify branch/ref + lane, inspect real source, inspect real runtime, **inventory available tools/connectors before saying "I can't"**, keep the six truth-types distinct, preserve evidence, update PROJECT_STATE + leave a handoff capsule.
+
+### Canonical resident-room hardware description
+Resident rooms are **not** tablet-based. Each room = a local CAOSCare **room node** — proven baseline an **HP EliteDesk-class small PC** (`caoscare1-hp-elitedesk` = HP EliteDesk 705 G4 DM) — sitting **hidden behind/near the TV**; an **eMeet-class conferencing speakerphone** near the resident as the **single room audio capture + playback endpoint** for Aria (one mic, one speaker); the **TV** as the normal television and an optional CAOSCare **visual surface** (TV audio to eventually route through the same eMeet AEC path; TV speakers muted when CAOSCare owns TV audio); a **handset** as the guaranteed-duplex fallback. Room-node integrations *may* include an RF receiver/transmitter for **a wide range of frequency devices** (common sub-GHz bands e.g. 315 / 319.5 / 433 / 868 / 915 MHz — not one fixed frequency), IR, Zigbee, Z-Wave, networking, Twilio, and more room automation as the product develops. `docs/ROOM_AUDIO_ARCHITECTURE.md` stays canonical for room-audio detail. Proven vs planned is always distinguished.
+
+### Canonical staff-client description
+A staff device (tablet / phone / computer) is a logged-in CAOSCare client. Auth resolves **role + department** → the appropriate authorized workspace (Maintenance/Housekeeping/Transportation/Kitchen → `/workspace`; Nursing/Care → resident-assistance surface; Owner/Admin → command centre). A "Maintenance tablet" is a Maintenance client. **No tablet-specific business logic.**
+
+### "kiosk" terminology (now stated in the baseline + REPO_MAP)
+`kiosk` = a per-room resident-facing CAOSCare **software surface** and its `Kiosk` record (room ↔ resident mapping, `kiosk_id`). It does **not** mean a physical tablet appliance.
+
+### Every stale doctrine found — and disposition
+| Location | Stale statement | Disposition |
+|---|---|---|
+| `AGENTS.md` "Product identity" / "preserve list" | "wearable/tablet/kiosk workflows / direction" (too ambiguous for the room architecture) | **Corrected** — split into room-node + staff-client + wearable-ingest, pointing at Baseline §2/§3 |
+| `AGENTS.md` read-order | did not mention the baseline; short 5-step order | **Corrected** — baseline is "read second"; 13-step boot sequence; Handoff-capsule section added |
+| `docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md` "Hardware / device direction" | "specialized tablet / dock/charging base / one power cord feeding the base / tablet charges when docked / kiosk console / care-environment console" | **Marked HISTORICAL/SUPERSEDED** in place; current architecture stated above it; top banner added |
+| same doc, "Repository discipline" | "code near 200 lines / 400 line hard cap" | **Corrected** to the 300-line rule |
+| same doc, "Staff Empowerment" / website reqs | "low-friction mobile/tablet/kiosk UX", "hardware/wearable/tablet direction" | **Corrected** to staff-client wording |
+| `README.md` intro + "Core doctrine" | "wearable/tablet/kiosk surfaces / workflows" | **Corrected**; resident-room wording fixed; onboarding order aligned + baseline added; "Current state" section flagged as an understated early snapshot |
+| `docs/REPO_MAP.md` | "one-press call / room-mounted tablet concept"; "resident kiosk/tablet"; "staff dashboard/tablet workflow"; first-read order lacked the baseline; "900 MHz" as if a single frequency | **Corrected** — room-node wording; "kiosk" defined as software; first-read order aligned; frequency → "a wide range of frequency devices" |
+| `docs/BUILD_STATUS.md` | whole doc reads as current ("realtime voice remains planned", pre-deployment) | **STALE-SNAPSHOT banner** at top → PROJECT_STATE + baseline; body preserved |
+| `CLAUDE.md` (repo) | boot order pointed only at placeholder docs; no baseline / PROJECT_STATE / REPO_MAP | **Corrected** — boot order leads with baseline + PROJECT_STATE + REPO_MAP; room-node + 300-line notes; placeholders called out |
+| `docs/ENGINEERING_CONTRACT.md` line 5 | placeholder intro cites "(200-line soft target, 400-line hard cap)" | **Corrected** to the 300 rule (the doc's own later Michael-directed section already had it) |
+| `docs/CAOSCARE_PRIVACY_SAFETY_SECURITY_NORTH_STAR.md` "Sensor rule" | "Tablet cameras and microphones..." | **Corrected** to "any room-node / integrated / staff-client camera and microphone" |
+| `docs/CAOSCARE_TABLET_BRIDGE_SETUP_RUNBOOK.md` | "wall-mounted Android tablet" as the RF-bridge host, throughout | **Banner: HISTORICAL/SUPERSEDED host framing** — RF signal-chain / rtl_433 / reconnect content still valid; read "tablet bridge" as "the room node's RF receiver/decode process". Body preserved. |
+| `docs/CAOSCARE_TABLET_SENSOR_PRIVACY_AND_STATUS_CONTRACT.md` | premise = wall-mounted resident tablet with onboard sensors | **Banner: premise partly superseded** — privacy principles remain in force and carry to any room-node/integrated sensor. Body preserved. |
+| `memory/PRD.md` | "Wall-mounted Android kiosks" as resident-room primary; Emergent LLM key / Claude Sonnet 4.5 / Whisper-1 stack; "Android tablet + USB RF receiver → bridge app" | **Banner: HISTORICAL PRD** — premises superseded; problem framing + feature history kept |
+| `memory/PRD_HUB_v1.md` | "living spec" status; "beyond a tablet on a wall" | **Banner: HISTORICAL living-spec snapshot** → baseline; brand + Device Class doctrine kept |
+| `docs/CAOSCARE_PROGRESS_HANDOFF_2026-08-11.md` | "~400-line ceiling/review gate" as current | **Banner: dated handoff** — 400 superseded by 300; current state = PROJECT_STATE |
+| `docs/CURRENT_NODE_STATUS.md`, `docs/ELITEDESK_NODE_BUILD.md`, `docs/ROOM_AUDIO_ARCHITECTURE.md` | already current/canonical; just lacked a pointer | **Pointer-only** to the baseline; bodies untouched |
+| `docs/CAOSCARE_BLUEPRINT.md` (placeholder) | none stale — but no pointer to where architecture truth lives now | **Pointer added**; still explicitly "to be authored with Michael — do not fill with inferred architecture" |
+
+### Stale statements in CODE — catalogued, NOT changed (docs-only scope + lane boundaries)
+These are frontend/marketing/comment strings, not architecture docs. **Not modified this pass.** Listed by owning lane so the right lane corrects them:
+
+- **Claude 2 / Resident Aria lane (must NOT be touched by Admin lane):**
+  - `backend/routes/realtime_self_knowledge.py:60` — Aria's self-knowledge prompt says *"A wall-mounted tablet kiosk in the resident's room (this device)."* Factually stale; correction belongs to the Resident Aria lane.
+- **Device / smart-room lane:**
+  - `backend/device_adapters.py` (×3), `backend/routes/devices.py` (×4), `backend/models.py:612`, `backend/scripts/seed_mock_devices.py` (×2) — "bridge tablet" terminology for the smart-device command-queue execution path. Per the baseline that host is the **room node**. Behaviour is correct; only the term is stale.
+  - `backend/routes/vision.py:4` — "forwards them via BLE to the wall-mounted tablet (kiosk)".
+- **Admin / marketing frontend (this lane could take these later, but they're product/marketing copy, deferred to avoid touching behaviour this pass):**
+  - `frontend/src/pages/Landing.jsx:17` — public copy: *"A tactile, room-mounted tablet."*
+  - `frontend/src/pages/Blueprint.jsx` (×2), `frontend/src/pages/InstallKioskWizard.jsx`, `frontend/src/pages/HelpHub.jsx:75`, `frontend/src/pages/DevicesTab.jsx` (×3), `frontend/src/pages/HardwareReceiptsTab.jsx:20` (`kiosk_tablet` display label — the underlying `DeviceClassEnum` value is load-bearing).
+- **Model:** `DeviceClassEnum` in `models.py` includes `kiosk_tablet` / `wall_terminal` — a schema change, needs a deliberate migration, not a doc pass.
+
+### What was verified
+- Re-grep for obsolete resident-tablet language across current docs: every remaining "resident tablet" hit is inside a `HISTORICAL / SUPERSEDED` marker or the baseline's own negation ("resident rooms are NOT tablet-based"). No current canonical doc asserts the resident room is a tablet.
+- Remaining `tablet` references are: valid **staff** clients (`CAOSCARE_FACILITY_OPERATIONS_CONTRACT.md` meal-entry workflows), **historical-banner'd** (`TABLET_BRIDGE`, `TABLET_SENSOR`, PRDs, PROGRESS_HANDOFF), or a quoted-and-superseded phrase.
+- 300-line rule now consistent (AGENTS.md, onboarding contract, ENGINEERING_CONTRACT, Baseline §8, CLAUDE.md); every "400-line" mention is explicitly framed as superseded.
+- Boot sequence identical across AGENTS.md / Baseline §9 / README / CLAUDE.md / REPO_MAP.
+- Future building/appointment capabilities are under Baseline §6 "FUTURE PRODUCT DIRECTION (not built)".
+- `git status` = `.md` only; no runtime code, no test change, no evidence erased.
+
+### Next safe step
+STOP — Michael and ChatGPT will independently inspect this onboarding before it becomes trusted doctrine. Then: the code-surface stale-terminology catalogue above can be handed to the owning lanes (Resident Aria line to Claude 2; device-lane "bridge tablet" comments and the Landing/Blueprint marketing copy as a small separate frontend pass).
+
+---
+
+## 2026-09-07 — Admin worktree: localhost:3000 dev frontend repointed at the claude/admin-operations worktree (infra, no code change).
+
+### Agent / tool
+Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations` @ `e81c7b4`. No repo code changed by this task; no backend/data touched; Claude 2's checkout, its uncommitted work, its `:8000` backend, and Room 214 evidence all untouched.
+
+### Why
+Michael's browser at `http://localhost:3000/admin` was still showing the OLD Admin IA (Departments under Communication & Requests, an Owner "Password" header). The local frontend dev server on `:3000` is a **systemd --user service** — `caoscare-frontend-dev.service` (`~/.config/systemd/user/caoscare-frontend-dev.service`) — whose `WorkingDirectory` was `/home/caoscare-1/CAOSCARE.COM/frontend` (the **main checkout**, on `main` @ `d994331` plus a large tree of **Claude 2's uncommitted Level-1/RF/realtime frontend work**). So `:3000` was serving `main`-era Admin code with none of this branch's commits.
+
+Killing the process just made systemd (`Restart=on-failure`) respawn it from the same directory.
+
+### What was done (smallest safe, fully reversible)
+- New systemd **drop-in**: `~/.config/systemd/user/caoscare-frontend-dev.service.d/worktree.conf` sets `WorkingDirectory=/home/caoscare-1/CAOSCARE-ADMIN/frontend`. The original unit file is unedited.
+- `~/CAOSCARE-ADMIN/frontend/.env` created (gitignored) = copy of `~/CAOSCARE.COM/frontend/.env` (`REACT_APP_BACKEND_URL=http://127.0.0.1:8000`, `REACT_APP_GOOGLE_CLIENT_ID=…`) so backend target + Google OAuth are unchanged.
+- `~/CAOSCARE-ADMIN/frontend/node_modules` → symlink to `~/CAOSCARE.COM/frontend/node_modules` (same pattern used for this session's builds/tests).
+- `systemctl --user daemon-reload && systemctl --user restart caoscare-frontend-dev.service`.
+
+### Verified
+- Service `active (running)`, `NRestarts=0`, `WorkingDirectory=/home/caoscare-1/CAOSCARE-ADMIN/frontend`; webpack node process cwd confirmed `= …/CAOSCARE-ADMIN/frontend`.
+- `GET /`, `/admin`, `/alerts` → 200 (`/alerts` is one of this branch's new routes — proves the router changes are live).
+- Served `/static/js/bundle.js` contains: `Departments & staff`, `Users & access`, `Alerts & events`, `Community`, `Operations overview`, `Reports & audit`, `Facility setup`, `Ops reports`, `Activity log`, `Community command centre`. Old group labels `Facility & staff` / `Devices & hardware` are **gone**.
+- Served `adminTabGroups` source in the bundle: `id:"departments"` / `label:"Departments & staff"` → tab `{value:"departments", label:"Departments"}`; `id:"communication"` / `label:"Communication & requests"` → **0** occurrences of a `departments` tab.
+- Owner header: renders a **"Users & access"** button (`data-testid="admin-users-access-btn"`), no password dialog. (`MyPasswordDialog` still exists as an unused exported function in `PasswordDialogs.jsx` because `SetPasswordDialog` from the same file is used by the Users & access tab — dead code in the bundle, not a rendered control.)
+- `:8000` backend healthy and untouched.
+
+### TRADE-OFF for Claude 2 (important)
+While this drop-in is in place, `:3000` serves the `claude/admin-operations` frontend, which does **not** include Claude 2's *uncommitted* Kiosk/realtime frontend changes in `~/CAOSCARE.COM/frontend/src` (those files are safe on disk, just not served). Kiosk routes (`/kiosk/:id`) still work from this branch's `main`-era Kiosk code.
+
+**To restore the previous behaviour** (serve `~/CAOSCARE.COM/frontend` again):
+```
+rm -rf ~/.config/systemd/user/caoscare-frontend-dev.service.d
+systemctl --user daemon-reload
+systemctl --user restart caoscare-frontend-dev.service
+```
+
+### Next safe step
+Michael visual break-test of `http://localhost:3000/admin`. Then decide whether `:3000` stays pointed at this branch or reverts (command above), or whether a second port is set up so both lanes have a live UI.
+
+---
+
+## 2026-09-07 — Admin worktree: Admin runtime completed — backend on :8001, frontend repointed, "Could not load the operations overview" fixed.
+
+### Agent / tool
+Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations` @ `<this commit>`. Claude 2's `:8000` backend (PID 607118, cwd `~/CAOSCARE-LEVEL1-INTEGRATION/backend`) untouched — observed only, still healthy.
+
+### Root cause of the blank Operations Overview
+`localhost:3000` (this branch's frontend, served since the earlier systemd drop-in) was configured `REACT_APP_BACKEND_URL=http://127.0.0.1:8000`. `:8000` is the **level1-integration** worktree's backend, which does **not** have `backend/routes/ops_overview.py` (nor `reports.py` / `rf_fleet.py` / `task_assignment.py`) registered → `GET /api/ops/overview` → 404 → `OperationsOverview.jsx`'s `.catch()` fired the red toast. **No admin-lane backend was running anywhere.**
+
+### Fix (Admin lane only, no reseed / clone / delete)
+- Started the current admin-operations backend from `~/CAOSCARE-ADMIN/backend` on **:8001** (`python -m uvicorn server:app --host 127.0.0.1 --port 8001`, venv `~/CAOSCARE.COM/backend/.venv`, nohup, log in the session scratchpad). It uses `~/CAOSCARE-ADMIN/backend/.env` — a copy of `~/CAOSCARE-LEVEL1-INTEGRATION/backend/.env` (the config `:8000` uses; **same `MONGO_URL` / `DB_NAME=caoscare` / `JWT_SECRET` / `GOOGLE_CLIENT_ID` / `GOOGLE_ADMIN_EMAILS`**, so the browser's existing session token validates unchanged) with `CORS_ORIGINS` widened to also allow `http://192.168.1.151:3000`. `.env` is gitignored.
+- Same local Mongo `caoscare`. No seed, no clone, no deletes.
+- `~/CAOSCARE-ADMIN/frontend/.env`: `REACT_APP_BACKEND_URL=http://127.0.0.1:8001` (was `:8000`). Restarted `caoscare-frontend-dev.service` (systemd --user) so CRA re-bakes `REACT_APP_*`. Served `bundle.js` now contains `const BACKEND_URL = "http://127.0.0.1:8001"`, zero occurrences of `:8000`.
+- Also fixed a pre-existing Owner-tier bug surfaced by the battery: `audit.py::_require_admin` and `task_templates.py` (×3) + `tasks.py` update/delete checked `role == "admin"` literally, 403'ing the Owner (Michael). Normalised to `role not in ("owner","admin")` to match `deps.require_admin`. Committed separately.
+
+### Proven
+- `GET /api/ops/overview` on :8001: **401** with no auth (`Not authenticated`); **200** with an Owner JWT + `Origin: http://localhost:3000` (CORS header returned, preflight OPTIONS 200). Body has all keys and real data from the shared DB: **Needs attention now** 50 rows / 373 total, **Department status** 9 departments, **Resident assistance** active 319 / open 322 / likely-stale>72h 299, **Task ownership & aging** open 62 / no-owner 49 / overdue 0, **Transportation** 2026-09-07 open 15 / needs-a-slot 11.
+- Endpoint battery on :8001 with Owner auth — **all 200**: `/ops/overview /reports/daily-exceptions /reports/weekly-workload /rf/fleet/summary /staff /residents /tasks /tasks/templates/all /departments /receipts /events /alerts /insights/summary /audit/summary /audit/tasks.csv /transportation/report /escalation/rule`; `/menu/public/today` 200 (public).
+- Frontend routes `/ /admin /alerts /staff /workspace` → 200.
+- Admin-lane backend pytest suite (`test_rf_fleet / test_reports / test_activity_log / test_maintenance_workorders / test_ops_overview / test_staff_department`) — **6/6** against :8001 after the audit/task-owner-tier change.
+- `:8000` PID 607118 unchanged throughout; `/api/health` on both :8000 and :8001 = `{"ok":true,"db":"up"}`.
+
+### For Michael / Claude 2
+- Michael: hard-refresh `http://localhost:3000/admin` — the Operations Overview now renders and the red toast is gone. His existing login still works (same JWT secret + DB).
+- The Admin backend on :8001 is a plain nohup process (not supervised). If the host reboots or it's killed, restart from `~/CAOSCARE-ADMIN/backend`: `<venv>/python -m uvicorn server:app --host 127.0.0.1 --port 8001`.
+- Revert the frontend to Claude 2's build: set `~/CAOSCARE-ADMIN/frontend/.env` `REACT_APP_BACKEND_URL` back and `rm -rf ~/.config/systemd/user/caoscare-frontend-dev.service.d && systemctl --user daemon-reload && systemctl --user restart caoscare-frontend-dev.service` (also documented in the prior entry).
+
+### Next safe step
+STOP for Michael's visual break-test of the full Admin/Owner UI on `localhost:3000/admin`.
+
+---
+
+## 2026-09-07 — Admin worktree: AUTH REGRESSION after the :8001 switch — root cause was browser-unreachable port, fixed with a dev-server /api proxy.
+
+### Agent / tool
+Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations` @ `<this commit>` (parent `72941a9`). Claude 2's `:8000` backend (PID 607118, cwd `~/CAOSCARE-LEVEL1-INTEGRATION/backend`, started Sep 7 18:42) — observed only, untouched, still healthy.
+
+### Symptom
+After the previous entry's change (frontend `REACT_APP_BACKEND_URL` → `http://127.0.0.1:8001`), a hard refresh of `localhost:3000/admin` bounced Michael to `/admin-login`; Google sign-in showed "Google sign-in failed". Looked like an auth/JWT/Google regression.
+
+### Root cause (proven, not guessed)
+**The Admin backend on `:8001` is not reachable from Michael's browser.** The browser that loads the dev server can only reach a fixed set of forwarded host ports — verified from the page via `fetch`: `127.0.0.1:3000`, `:8000`, and `:27017` all connect; **`127.0.0.1:8001` and `:8002` both fail with `TypeError: Failed to fetch`** (connection-level, not HTTP). `curl` from this host reaches `:8001` fine (CORS headers correct, preflight 200) — so the gap is browser↔host reachability of a newly-bound port, nothing to do with auth config.
+
+Consequences that mimicked an auth break:
+- `GET /api/auth/me` → network error → `auth.jsx` `fetchMe()` `catch` → `setUser(null)` → redirect to `/admin-login`.
+- `POST /api/auth/google/verify` → same network error → `GoogleSignIn.jsx` `catch` → "Google sign-in failed" toast.
+
+Ruled out with evidence:
+- **A — local-owner bypass lost:** no. `CAOSCARE_LOCAL_OWNER_BYPASS=false` in all three backend `.env` (`CAOSCARE.COM`, `LEVEL1-INTEGRATION`, `CAOSCARE-ADMIN`) and in both running processes; `/auth/local-bypass-status` = `{"active":false}` on :8000 and :8001. It was never the "remember-me" mechanism, so it must not be enabled now.
+- **B — existing JWT rejected:** no. Michael's stored `caos_token` is a genuine app JWT (`claim_keys = user_id,exp,iat`), issued ~1.4 days ago, **exp ~5.6 days in the future — not expired**. It returns **200 `owner`** on both `:8000` (direct) and `:8001` (through the new proxy).
+- **C — frontend vs backend Google client ID mismatch:** no. frontend `.env`, the served bundle, and `:8001` `GOOGLE_CLIENT_ID` are byte-identical (sha256/12 `ce99eaafc9a5`; suffix `…apps.googleusercontent.com`).
+- **D — `GOOGLE_ADMIN_EMAILS` / allowlist:** no. `:8001` loads `GOOGLE_ADMIN_EMAILS=mytaxicloud@gmail.com`; Michael is allowlisted; `google_verify` matches the existing user by email and updates in place (no duplicate).
+- **E — Google credential verification failing:** no. `POST /api/auth/google/verify` on `:8001` with a bogus credential returns **401 `Invalid Google credential`** (reaches Google tokeninfo), not 500 `not configured` — so `GOOGLE_CLIENT_ID` is loaded and the path is intact.
+- `JWT_SECRET` (sha256/12 `33c260f7d9ab`) and `DB_NAME=caoscare` / `MONGO_URL` identical across all three envs and both running processes.
+
+### Fix (Admin lane only — no backend data touched, no reseed/clone/delete, no account/session/Google changes)
+- Added `frontend/src/setupProxy.js` (CRA auto-loads it for `craco start` only; not used by `craco build`). It forwards `/api` → `process.env.ADMIN_BACKEND_ORIGIN || http://127.0.0.1:8001` with `changeOrigin`/`xfwd`. The dev server runs on this host and **can** reach `:8001`, so the browser now only ever calls its **own origin**.
+- `frontend/.env`: `REACT_APP_BACKEND_URL` = `http://localhost:3000` (its own dev origin; was `http://127.0.0.1:8001`). No backend origin hardcoded in application source — the proxy target is an env var, the app's base URL is just its own origin. `.env` stays gitignored.
+- Restarted `caoscare-frontend-dev.service` (systemd --user) so CRA re-bakes `REACT_APP_*` and loads `setupProxy.js`. New dev-server PID 613975, cwd `~/CAOSCARE-ADMIN/frontend`.
+- No change to `:8001`, `deps.py`, `auth.py`, CORS config, the Owner record, sessions, or Google config.
+
+### Proven after the fix
+- From this host: `GET localhost:3000/api/auth/local-bypass-status` → 200 `{"active":false}`; `GET localhost:3000/api/auth/me` (no token) → 401 `{"detail":"Not authenticated"}`; `OPTIONS localhost:3000/api/auth/google/verify` preflight → 200 with `access-control-allow-*`. All proxied to `:8001`.
+- **From Michael's browser** (same-origin `fetch` from the loaded page): `/api/auth/local-bypass-status` → 200; `/api/auth/me` **with his existing stored token → 200 `owner`**; `/api/auth/me` no token → 401; `/api/ops/overview` with token → 200.
+- `http://localhost:3000/admin` renders as **MICHAEL CHAMBERS · Owner**; Operations Overview shows real data ("Needs attention now — showing 50 of 373"). An in-place **F5 reload stays logged in** — no bounce to `/admin-login`.
+- Browser console: no auth, CORS, or failed-fetch errors (only the React DevTools info line).
+- Owner record unchanged: exactly **1** `owner`, `user_630fb526bd7f` / `mytaxicloud@gmail.com` / MICHAEL CHAMBERS, `created_at` 2026-07-29; exactly **1** user with that email (no duplicate).
+- `:8000` PID 607118 and `:8001` PID 611510 both still up and unchanged.
+
+### Google sign-in
+The transport failure that produced "Google sign-in failed" (POST to an unreachable `:8001`) is resolved — `/api/auth/google/verify` is now reachable and its preflight passes. Michael's stored session already authenticates him, so a Google re-login isn't required; if he does use the Google button, `google_verify` matches his existing account by email (`is_admin_email` → keeps `owner`) and updates in place — it cannot create a second user. The actual Google credential exchange can only be exercised by Michael clicking the button in the browser.
+
+### Known / follow-up
+- `setupProxy.js` is the Admin lane's answer to "the browser can't see arbitrary new host ports." If a future runtime forwards `:8001` to the browser directly, `frontend/.env` can point straight at it and this file becomes a no-op.
+- `:8001` is still a plain nohup process (not supervised) — see prior entry for the restart command.
+- Revert path unchanged from the prior entry (systemd drop-in removal + `.env`), plus `rm frontend/src/setupProxy.js` if pointing the frontend elsewhere.
+
+### Next safe step
+STOP for Michael: refresh `http://localhost:3000/admin` — it should keep him signed in as Owner and load the command centre. Then his visual break-test of the full Admin/Owner UI.
+
+---
+
+## 2026-09-07 — Admin worktree: Owner workflow-coherence pass (navigation/IA only — resident hub, Staff Dashboard discovery, requests↔assistance clarity, device-attention drill-down)
+
+### Agent / tool
+Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations`. No Claude 2 Level-1 file touched — RF decoding / press semantics / ResidentEvent lifecycle / Realtime voice / paging / Room 214 resident behavior all unchanged. `db.alerts` is read-only here; the only backend change is a derived, read-only `reason` string on `rf_fleet.py` (an Admin-lane file). Local dev only (`localhost:3000` → proxied `:8001`); nothing deployed.
+
+### What was confusing, and why (inspected first)
+1. **Staff Dashboard buried** — reachable only via the bare `/staff` route or an accidental deep-link; Admin had no visible link to it.
+2. **Requests vs assistance conflated** — the "Requests" board filters `source != "staff"` StaffTasks; nothing on it said pendant/help/emergency events live elsewhere. A resident's assistance events were invisible from that surface.
+3. **One resident's truth scattered** — `ResidentRecordDialog` already existed but was labelled "Resident Record", showed **only** Conversations, and was one small button in a 7-button row; it didn't reach assistance events, requests, or device state.
+4. **Conversations/transcripts not discoverable** — the data + UI *did* exist (`/residents/{id}/conversation-sessions` → `ConversationSessionDetail`); the only problem was the entry point.
+5. **Device "1 needs attention" opaque** — `DeviceStatusCard` showed a bare count with no per-device reason a human could act on.
+6. **Closing an assistance event hard to find** — the close-out (`AlertDetailDialog`) opened only from a Staff Dashboard/AlertsBoard row; Operations Overview attention rows for assistance linked to the whole `/staff` board, not the specific event.
+
+### Existing screens/routes reused (no duplication)
+`AlertDetailDialog` (the one close-out workflow), `RequestDetailDialog`, `ConversationSessionDetail`, `/residents/{id}/conversation-sessions`, `/residents/{id}/briefing`, `/residents/{id}/stats`, `GET /alerts` (client-filtered by resident, same pattern AlertsBoard uses), `GET /tasks?resident_id=`, `GET /rf/fleet/summary`, `requestDisplay.js` (`deriveStatus`/`sourceLabel`/badges), the `/admin?tab=`/`?resident=` deep-link machinery.
+
+### Navigation changes made
+- **`ResidentRecordDialog.jsx`** rewritten as a **resident hub** shell (68 lines) with a section switcher — **Overview · Conversations · Assistance events · Resident requests · Device**. New **`ResidentHubPanels.jsx`** (262) holds the five panels; each is a resident-filtered read over an existing endpoint, and anything with its own workflow opens the *same* dialog the rest of Admin uses (`AlertDetailDialog` for an assistance event's close-out, `RequestDetailDialog` for a request). No new model, no second workflow. `ResidentsTab.jsx` button renamed "Resident Record" → **"Resident hub"** (now the primary, forest/bold) with an honest tooltip.
+- **`Admin.jsx`** header gains a **"Live board"** link → `/staff` (owner/admin), so the live Staff Dashboard is an intentional destination, not an accident.
+- **`OperationsOverview.jsx`** — assistance attention rows now deep-link to `/staff?alert=<alert_id>` (the specific event), not the whole board. `StaffDashboard.jsx` reads `?alert=` and auto-opens that event's `AlertDetailDialog` + close-out. One event, one lifecycle, three coherent entry points (Ops Overview, resident hub, AlertsBoard). Ops Overview otherwise unchanged and un-weakened.
+- **`AlertsBoard.jsx`** — header now states these are pendant/help/emergency **assistance events** (with a link to Communication & requests) and carries a **"Live Staff Dashboard"** button.
+- **`RequestsBoard.jsx`** — subtitle clarified to "things a resident/family/Front Desk asked staff to *do*", with a line pointing pendant/help/emergency events to **Alerts & events**.
+- **`adminTabGroups.js`** — the "Requests" tab label → **"Resident requests"** (value unchanged, so `?tab=requests` and `TAB_ALIASES` still resolve; tutorial/route stability preserved).
+
+### Device-attention drill-down
+`rf_fleet.py::GET /rf/fleet/summary` now returns a plain-English **`reason`** per device, derived only from existing `RFDevice` truth — "Not assigned to a resident" / "Disabled in RF settings" / "No signal ever received since pairing" / "No signal in over 24h — last heard 3d ago" / "Battery low — last heard …" — `None` when healthy. No invented health states. `DeviceStatusCard.jsx` renders the reason under each pendant row (attention-first sort) and the tile now says "N need attention — see below". Verified live: the Staff Dashboard's mystery "1 need attention" now reads **"MOCK Eleanor Whitfield · Rm 401 · OFFLINE — Disabled in RF settings"**.
+
+### Helen Torres / Room 214 resident-truth flow now available (acceptance walkthrough, all passed live in a browser)
+Admin → Community (opens on Operations overview) → click a "Needs attention now" assistance row → lands on `/staff?alert=…` with that event's timeline + **Close out with outcome** open. "Live board" header button → Staff Dashboard. Residents & care → Residents → Helen Torres → **Resident hub**:
+- **Overview** — briefing narrative, open-alerts-24h / 30-day calls / falls / avg-response strip, pinned staff notes, last zone, pointer to the Clinician tab for full patterns.
+- **Conversations** — real session list (48/41/17-turn Aria sessions); clicking one shows the full transcript + requests/receipts/voice-diagnostics (existing `ConversationSessionDetail`).
+- **Assistance events** — Helen's 11 alerts, header explicitly "not staff task requests", 1 open; clicking the ACTIVE one opens the same `AlertDetailDialog` close-out.
+- **Resident requests** — the 1 completed "needs help using the bathroom" (nursing · Aria voice), clearly a *request*, distinct from the 11 assistance events.
+- **Device** — "Helen Torres pendant (Lifeline) · ACTIVE · last heard 2m ago · 135 presses · Reporting normally."
+Closing the hub returns to the Residents list with nothing lost; Operations Overview is one click away (Community group).
+
+### Transcript/conversation finding
+**Real data exists and is now exposed.** `db.conversations` turns are session-grouped by `/residents/{resident_id}/conversation-sessions`; the per-session detail (`/…/{session_id}`) returns turns + linked receipts/tasks + `realtime_diagnostics` + best-effort device actions. Previously only reachable via a single buried "Resident Record" button; now a first-class **Conversations** section of the resident hub. No fabrication. Remaining honest limitation: device actions in the session detail are room+time-window matched (not session-tagged at the source), already labelled as such in `ConversationSessionDetail`.
+
+### Files changed + line counts
+- `backend/routes/rf_fleet.py` — 130 → **159** (Admin-lane file; +`_human_ago`/`_reason` helpers + one field).
+- `backend/tests/test_rf_fleet.py` — 123 → **127** (asserts the new `reason`).
+- `frontend/src/pages/ResidentHubPanels.jsx` — **262** (new).
+- `frontend/src/pages/ResidentRecordDialog.jsx` — 90 → **68** (now a shell).
+- `frontend/src/pages/ResidentsTab.jsx` — 179 → **184**.
+- `frontend/src/pages/Admin.jsx` — 196 → **201**.
+- `frontend/src/pages/OperationsOverview.jsx` — 267 → **275**.
+- `frontend/src/pages/AlertsBoard.jsx` — 123 → **132**.
+- `frontend/src/pages/RequestsBoard.jsx` — 112 → **119**.
+- `frontend/src/pages/DeviceStatusCard.jsx` — 204 → **213**.
+- `frontend/src/lib/adminTabGroups.js` — 97 → **97** (label only).
+- `frontend/src/pages/StaffDashboard.jsx` — 348 → **353** (pre-existing over-cap file; +5 lines for the `?alert=` deep-link handler, not materially enlarged — no extraction practical for a 5-line effect).
+
+### Tests
+- Frontend suite: **122 / 122 pass** (unchanged — the new panels are thin reads over existing endpoints with no new pure-logic module).
+- Backend: `test_rf_fleet.py` (with new `reason` assertions), `test_ops_overview.py`, `test_resident_events.py` (Claude 2's lane) — **3 / 3 pass** against `:8001`.
+- Babel parse clean on all 10 touched/new JS/JSX files; `ast.parse` clean on `rf_fleet.py`.
+- Live browser walkthrough (above) completed as Owner; browser console shows only the pre-existing Radix `aria-describedby` dialog warnings — no errors, no 401/403/CORS, no React crashes.
+
+### Confirmation no Claude 2 resident behavior/runtime changed
+No file under RF decode / press semantics / `resident_activation` / ResidentEvent lifecycle / `realtime*` / paging / escalation was opened for edit. `:8000` (Claude 2's backend) untouched. `db.alerts` read-only; the `reason` field is a pure derivation in `rf_fleet.py`. `test_resident_events.py` still green.
+
+### Remaining UX ambiguity for Michael to break-test
+- The Residents row now has 7 action controls (Enter room · Brief · **Resident hub** · Memory · Movement · Edit · delete). Resident hub is bold/primary but the row is dense — worth deciding whether Memory/Movement should fold into the hub.
+- Resident hub **Overview** shows "avg response 388m" for Helen — that number comes straight from `/residents/{id}/stats` and is inflated by the known stale test alerts (unclosed pendant-test events). Honest existing data, but a reader may misread it; the stale-alert cleanup is still the separate forensic task.
+- The resident hub is a dialog (fast, keeps the residents list behind it). If Michael would rather it be a full page with its own URL, that's a follow-up.
+- `?alert=` on `/staff` opens the dialog but doesn't scroll the matching card into view in the (long) live-alerts list — the dialog is the point, but the card highlight could be added.
+
+### Commit
+`348aa1b3845be79dbf411593d4185cc4cc927e53` — pushed to `claude/admin-operations`.
+
+### Next safe step
+Michael break-tests the Owner workflow: Community → attention row → close-out; Live board button; Residents → Helen → each hub section; confirm Requests vs Assistance reads clearly; click the Staff Dashboard "1 need attention" and confirm it now names the device + reason. Then direct whether Memory/Movement should fold into the resident hub and whether the hub should become a routed page.
+
+---
+
+## 2026-09-07 — Admin worktree: Memory + Movement folded into the Resident hub (Michael: "fold it into the hub, yeah?")
+
+### Agent / tool
+Claude Code (Sonnet 5), `~/CAOSCARE-ADMIN` worktree, branch `claude/admin-operations`. Frontend-only, navigation/IA. No Claude 2 lane touched; no backend change.
+
+### What changed
+Follow-up to the workflow-coherence pass — the Residents row had 7 action controls. `MemoryDialog` and `MovementDialog` were each opened only from that row (confirmed: `ResidentsTab.jsx` was their sole caller).
+- **`MemoryDialog.jsx`** (267 → **183**) — the standalone `<Dialog>` wrapper and its duplicative Conversation/Requests tabs removed; default export is now `MemoryPanel({ resident })` — the memory list + add form + pin/importance/delete (the `MemoryCard` helper kept verbatim). The hub already owns Conversations (session-grouped transcripts) and the requests-vs-assistance split, so those tabs were redundant.
+- **`MovementDialog.jsx`** (95 → **89**) — same: default export is now `MovementPanel({ resident })`, the 24h/3d/7d zone-visit timeline body, no `<Dialog>` wrapper.
+- **`ResidentRecordDialog.jsx`** (68 → **76**) — two new sections, **Memory** and **Movement**, between Resident requests and Device; `max-w-3xl` → `max-w-4xl` now that it hosts the richer memory UI. Hub sections are now Overview · Conversations · Assistance events · Resident requests · Memory · Movement · Device.
+- **`ResidentsTab.jsx`** (184 → **176**) — removed the standalone "Memory" and "Movement" buttons, their `memoryFor`/`movementFor` state, their dialog renders, and the two imports. Row is now Enter room · Brief · **Resident hub** · Edit · delete (5 controls, down from 7). Hub button tooltip updated.
+
+Filenames `MemoryDialog.jsx` / `MovementDialog.jsx` are retained (they now export panels, not dialogs) to avoid rename churn across a bounded change; each carries a header comment explaining the fold-in. No dead code left — the old default `MemoryDialog`/`MovementDialog` dialog components are gone, not orphaned.
+
+### What was verified
+- Live in a browser as Owner: opened the hub for Helen Torres / Room 214, confirmed all 7 section tabs render; **Memory** shows the real memory list + "Teach CAOS something" add form + pin/importance/delete; **Movement** shows the window toggle + honest "No location data in this window." empty state (Helen has no pings). Residents rows visibly less crowded (Memory/Movement buttons gone).
+- Frontend suite **122 / 122 pass** (no test referenced the removed `mem-res-*` / `move-res-*` testids). Babel parse clean on all 5 touched files. `git diff --check` + secrets scan clean.
+- Line counts: every touched file well under the 300-line cap (`MemoryDialog.jsx` 183, `MovementDialog.jsx` 89, `ResidentRecordDialog.jsx` 76, `ResidentsTab.jsx` 176, `ResidentHubPanels.jsx` 262 unchanged).
+
+### Commit
+`95662b403b56eba4a93b53828be3d36e7a0b2f99` — pushed to `claude/admin-operations`.
+
+### Next safe step
+Michael break-tests the tightened Residents row + the Memory/Movement hub sections. Open question from the prior entry still stands: whether the hub should become a routed full page rather than a dialog.
+
+---
+
+## 2026-09-06 — Codex temporary takeover: Level 1 adversarial checkpoint; two source fixes, live recovery NOT passed
+
+### Agent / tool
+Codex on EliteDesk, shell, read-only local Mongo snapshots, isolated
+ASGI/Mongo reproductions and pytest. No subagents.
+
+### Branch / ref
+`main` at `d994331`, matching the local `origin/main` ref; no fetch, commit,
+staging, push, or deployment. Seven pre-existing climate files were
+fingerprinted and verified unchanged.
+
+### What changed
+Prepared bounded fixes in `resident_activation.py` (209 lines) and
+`kiosks.py` (142 lines): enforce uniqueness for new/adopted open-event keys,
+retry concurrent creators, avoid appending to a just-closed event, and
+limit room kiosk activation polling to its own room. Existing historical
+duplicates are preserved. Added isolated concurrency/isolation regression
+test and `docs/LEVEL1_BREAK_TEST_2026-09-06.md`; updated REPO_MAP.
+The running backend has no reload flag and was not restarted, so these
+source fixes are NOT live yet. No frontend or device-control changes.
+
+### What was verified
+Local health is healthy. Isolated baseline produced 12 open events for
+12 concurrent requests, frame-count inflation, foreign-room routing with
+null zones, and an old dismissal consuming a newer activation. Lease
+concurrency already yielded one winner and stale release was rejected.
+The new regression passed: 24 concurrent presses, one event/receipt,
+correct preserved press records, post-resolve concurrency, retained legacy
+history, and correct room/zone/central polling boundaries. Test evidence
+is retained in `caos_level1_test_4588857959bc`; baseline reproduction in
+`caos_level1_break_a8b656740a`. See audit for the additional ASGI rerun.
+
+Room 214 read-only snapshot found nine historical open events and no lease.
+Eight real RF frames at 22:04:50–22:04:53 UTC attached to one event but
+increased press_count 49 → 57; no new voice diagnostic entries appeared
+in the checked interval. This is frame evidence, not yet Michael-confirmed
+human-press/audio evidence. No raw transcripts/secrets were exposed.
+`git diff --check` passed; climate file hashes unchanged.
+
+### What is blocked / incomplete
+Live break test + automatic recovery are NOT complete. Michael confirmed
+availability but has not yet described the kiosk result of the requested
+single press. RF grouping, same-event frontend reactivation, terminal
+connection recovery, heartbeat rejection/audio fencing, delayed lifecycle
+fencing, UI end-call consumption, and durable lease transition history
+remain unresolved. Physical audio ownership cannot be inferred from one
+Mongo lease. Prior live-backend tests do not cover these boundaries.
+Public-site web-tool open failed; website content pending source review.
+
+### Next safe step
+Obtain the physical baseline observation; continue isolated regressions and
+minimal fixes for the documented remaining boundaries, then coordinate the
+local live acceptance sequence. Preserve real Room 214 events and device
+mappings; do not clean historical data or touch production/HA/network.
+
+---
+
+## 2026-09-07 — Room 214 conversation forensics: absolute companion timer proven, fixed to an inactivity timer
+
+### Agent / tool / ref
+Claude Code (Claude 2, Level 1 lane), worktree `~/CAOSCARE-LEVEL1-INTEGRATION`,
+branch `claude/level1-integration` (on top of `234d8ff`). Frontend only.
+Not merged to main.
+
+### Running-state check first (not assumed)
+`:8000` = uvicorn pid 579632, started 2026-09-07 10:03:22, cwd
+`~/CAOSCARE-LEVEL1-INTEGRATION/backend`. The worktree files are at
+`234d8ff` but the process predates that commit and has no `--reload`:
+`/api/alerts/ai-escalate` and `/api/staff-dispatch` return **absent** in the
+live OpenAPI, `/api/activation-events` present -> **`:8000` is running
+`d466367`**, NOT the "a nurse has been paged" fix (`234d8ff`). The `:3000`
+craco dev server serves `~/CAOSCARE.COM/frontend`, whose realtime lib files
+are byte-identical to this worktree's, so this frontend fix is what `:3000`
+will serve after a restart.
+
+### What ended Michael's conversation — PROVEN
+Session **`rt_mkqn5z8x_1788800249832`**, 2026-09-07T16:57:30.601Z ->
+17:02:32.661Z, **302.06 s**, tied to `alert_21577791fd3a`. Final events:
+`273.4s` resident "But you didn't sing it though, you just said the words.";
+`277.7s` Aria "...Let me go ahead and sing the tune for you now... Amazing
+grace, how sweet the sound..." (singing); **`302.1s` `session_ended`
+`reason: "companion_timeout"`**. The conversation was maximally active at
+the cutoff. `realtimeConnection.js` armed `companionTimeoutTimerRef` **once**
+in `dc.onopen` with `setTimeout(aria_companion_timeout_sec*1000)` (default
+300 s) and nothing ever reset it -> an absolute **session-age** timer.
+300 s after `dc.onopen` (~+2 s) == the observed 302 s. **The five-minute
+bug was the sole cause of this cutoff.** "That's beautiful." was NOT
+involved (no `end_call`/`end_conversation` attempt in the session; reason
+was `companion_timeout`, not `resident_end_*`).
+
+### Fix
+`frontend/src/lib/realtimeInactivityTimer.js` (new, 52 lines) -
+`createInactivityTimer({seconds, onTimeout})`: a rolling idle timeout.
+`bump()` cancels any pending timer and starts a fresh full window;
+`cancel()` for teardown. `realtimeConnection.js`: `dc.onopen` calls
+`inactivity.bump()` once (silence until the greeting), and
+`onConversationActivity` (new handler param) calls `inactivity.bump()` on
+every speech-lifecycle event. `realtimeMessageHandler.js`: fires
+`onConversationActivity()` on `input_audio_buffer.speech_started`,
+`.speech_stopped`, `output_audio_buffer.started`, and `.stopped/.cleared` -
+resident speech OR Aria speech. `useRealtimeVoice.js`
+`clearLifecycleTimers()` handles both the new `{close}` handle and the
+legacy raw id. `invite_silence_sec` (8 s) is untouched; companion_timeout
+still maps to the existing `aria-event {event:"timeout"}` lifecycle policy.
+Net: an active conversation is never terminated by this timer; five
+continuous minutes of real silence still ends it; each new silence gets its
+own full window.
+
+### Other findings in that conversation (not fixed here - shared contracts)
+- **PROVEN DEFECT (reported, not fixed - cross-contract): fabricated
+  bleeding emergency.** Aria's forced greeting opened with "Helen, I can see
+  that you're bleeding" + `call_for_help(severity=emergency)`, then spent
+  ~70 s claiming and retracting camera/vision capability. Root cause:
+  `db.memories` for `res_81b72be1e8b5` contains "User is bleeding." and
+  "User is 84 years old." (extracted 2026-09-07T15:30 by
+  `realtime_memory_ingest` from Michael's 15:26 ROLEPLAY session), fed into
+  the next session's companion instructions by
+  `build_resident_profile_and_memory`. Same class as TSB-001. Fixing it
+  touches memory ingestion + the companion prompt + the persona/senses
+  contract - out of this directive's scope ("do not redesign Resident Aria
+  broadly"). Recommended: delete the two roleplay-contaminated memories;
+  scope a memory-provenance / present-tense-emergency guard separately.
+- **QUALITY: fabricated request timestamp.** `check_request_status` returned
+  a stale bathroom request; Aria then invented "the request for bleeding was
+  placed around 11:57 AM" and retracted it.
+- **QUALITY: song sequence.** Offered "Amazing Grace", resident said no,
+  Aria offered "Amazing Grace" again; agreed "You Are My Sunshine" then sang
+  "Somewhere over the rainbow"; recited lyrics instead of singing.
+- **NOT PROVEN: barge-in / truncated Aria turns / echo fragments.** Several
+  Aria responses cut mid-word and 1-char `echo_like` user transcripts -
+  consistent with the non-eMeet laptop-mic + speaker setup Michael flagged;
+  eMeet/audio is explicitly out of scope.
+
+### Verified
+`frontend/src/lib/__tests__/realtimeInactivityTimer.test.js` (new) -
+directive tests 1-6 (active conversation past 5 min; speech across the
+5-min-from-start boundary; 5 min real inactivity fires; speech after
+silence cancels; later inactivity gets its own window; configurable
+window). `restingEndCallGuard.test.js` extended - directive test 7 ("That's
+beautiful." never triggers `end_call`/`end_conversation`). Full frontend
+suite **14 suites / 102 tests** pass. Backend regression re-run at HEAD
+(staging :8002, CAOSCARE_TEST_HOOKS=1): `test_ai_escalation`,
+`test_resident_events`, `test_rf_semantics`, `test_activation_observability`,
+`test_level1_session_fencing` all pass - the one-open-ResidentEvent / paging
+/ press-count work is intact.
+
+### Blocked / next
+`:8000` still runs `d466367`; `:3000` still serves the pre-fix frontend.
+Both need a restart from this worktree for the fix to be live (Michael's
+call). The fabricated-bleeding memory contamination needs Michael's decision
+on deleting the roleplay memories and a separate scoped pass.
+
+---
+
+## 2026-09-07 — Correction: inactivity timer is a two-flag silence state machine, not a rolling activity timer
+
+### Agent / ref
+Claude Code (Claude 2), `~/CAOSCARE-LEVEL1-INTEGRATION`,
+`claude/level1-integration` on top of `d8b4dbd`. Frontend only. Not
+deployed, not merged.
+
+### Why
+`d8b4dbd` fixed the absolute session-age defect but implemented it as a
+rolling `bump()` (cancel + restart a 5-min timer on every speech event),
+which leaves a timer *pending while someone is actively speaking*. The
+product contract is stricter: **active speech ⇒ no inactivity timer exists
+at all**; the window measures only a continuous period in which BOTH
+`residentSpeaking` and `ariaSpeaking` are false.
+
+### Exact state machine now implemented (realtimeInactivityTimer.js)
+Two booleans `residentSpeaking`, `ariaSpeaking`; one timer `handle`.
+- `open()` (dc.onopen) — both false ⇒ arm a fresh window.
+- `residentSpeechStarted()` — `residentSpeaking = true`; **cancel** (no timer
+  while the resident speaks).
+- `residentSpeechStopped()` — `residentSpeaking = false`; **arm only if**
+  `!ariaSpeaking` **and** no window is already running.
+- `ariaSpeechStarted()` — `ariaSpeaking = true`; **cancel**.
+- `ariaSpeechStopped()` — `ariaSpeaking = false`; **arm only if**
+  `!residentSpeaking` and none running.
+- Overlap: the window is not armed until the *last* of the two stops.
+- `response.done` is NOT consulted — the output-audio lifecycle
+  (`output_audio_buffer.started` / `.stopped` / `.cleared`) is authoritative.
+- Fire only after `seconds` continuous with both flags false. Any
+  `*Started` cancels a pending window; when both go silent again a brand-new
+  full window begins. A flapping duplicate `*Stopped` does not restart an
+  already-running window.
+
+`realtimeMessageHandler.js` calls `onSpeechEvent("resident_start"|
+"resident_stop"|"aria_start"|"aria_stop")` from the four existing
+`input_audio_buffer.speech_started/stopped` and
+`output_audio_buffer.started/stopped/cleared` handlers (no new telemetry).
+`realtimeConnection.js` maps those to the state-machine methods and calls
+`inactivity.open()` in `dc.onopen`.
+
+### Verified
+`realtimeInactivityTimer.test.js` rewritten to the exact invariant -
+directive tests 1-7: resident speaking >5 min (no timeout, `pending`
+false throughout); Aria output >5 min (same); overlap does not arm until
+both stop; both-silent runs the full window and fires; speech at 4:59
+cancels immediately; a later both-silent period gets a brand-new full
+window; a 25-minute active conversation sails past the old 5-min-from-start
+boundary and still ends correctly once genuinely quiet. Plus flap-guard,
+`cancel()` teardown, and configurable-window cases.
+Frontend suite **14 suites / 105 tests** pass. Level-1 backend regression
+(staging :8002): `test_ai_escalation`, `test_resident_events`,
+`test_rf_semantics`, `test_activation_observability`,
+`test_level1_session_fencing`, `test_level1_concurrency_isolation`,
+`test_room_device_isolation`, `test_public_demo_kiosk` all pass.
+Preserved: invite_silence (8s, untouched), one-open ResidentEvent,
+paging/dispatch, human press_count, end-call grounding, activation
+observability.
+
+### Blocked / next
+No deploy/restart this pass (per directive). `:8000` still `d466367`;
+`:3000` still the pre-fix frontend.
+
+---
+
+## 2026-09-07 — Stale request resurrection fixed: CURRENT (open) vs HISTORY, + authoritative lifecycle timestamps
+
+### Agent / ref
+Claude Code (Claude 2), `~/CAOSCARE-LEVEL1-INTEGRATION`,
+`claude/level1-integration` on top of `ab3243b`. Not deployed (`:8000` /
+`:3000` still `ab3243b` / pre-fix). Not merged.
+
+### Root cause(s) — proven by inspection
+1. **`routes/resident_requests.py::resident_request_status()`**:
+   `db.staff_tasks.find_one(q, sort=[("created_at",-1)])` with **NO status
+   filter**. It returned the newest matching request of ANY status, so a
+   `completed`/`skipped` request from days ago was handed to Aria (via the
+   `check_request_status` tool) as the resident's *current* request. This
+   is the whole "completed work masquerading as current context" defect.
+2. **`_resident_safe_view()`** exposed only `created_at`, a boolean
+   `acknowledged`, `latest_update` (= the free-text `notes`),
+   `re_request_count`, `scheduled_*`. It did NOT expose `acknowledged_at`,
+   `started_at`, `completed_at`, or `last_re_requested_at`, and gave no
+   facility-local rendering - so Aria literally could not answer "when was
+   it acknowledged / started / finished / re-asked" and had no way to say
+   a natural local time.
+3. **Tool contract**: `check_request_status`'s description said "most
+   recent staff request" with no open/current-only semantics.
+4. **NOT a cause (verified)**: the companion prompt / profile-memory
+   (`realtime_companion_memory.build_resident_profile_and_memory`) does
+   **not** inject `staff_tasks`/requests at all - there is no "recent
+   requests" context block and no request preload. `db.memories` held no
+   request-shaped fact for Helen. `resident-request/mine` is the Home
+   screen panel, not session context. So the spontaneous mentions came
+   from Aria calling `check_request_status` herself and getting a
+   stale/closed task back - fixed at (1)+(3), with a regression test
+   locking (4) down.
+
+### Current-vs-history contract implemented
+- `GET /tasks/resident-request/status` — **CURRENT only**: filters
+  `status ∈ {pending, in_progress}`. `{found:false, scope:"current"}` when
+  nothing is open (≠ "never existed"). This is what the
+  `check_request_status` tool calls.
+- `GET /tasks/resident-request/history` — **NEW**, explicit-only: recent
+  `status ∈ {completed, skipped}`, same scoping, ordered by
+  `completed_at desc`, small limit. Backs a **NEW `check_request_history`
+  tool** whose description says use ONLY on an explicit past-tense
+  question and NEVER volunteer old requests.
+- `GET /tasks/resident-request/mine` — unchanged behavior (the resident's
+  OWN Home screen, all statuses) but now returns the richer view.
+- Nothing preloads history into a session; nothing dumps requests into the
+  companion prompt.
+
+### Lifecycle timestamps now available to Aria (real StaffTask fields only)
+`created` · `acknowledged_at` · `started_at` · `completed_at` ·
+`last_re_requested_at` — each returned as `{iso (UTC), local (tz-aware
+iso), label ("today at 2:17 PM" / "yesterday at 4:06 PM" / "Monday at 2:17
+PM" / "September 3 at 2:17 PM")}`, or **null** when the field was never set
+(never invented). Plus `re_request_count`, `is_open`, `scheduled_date` /
+`scheduled_time_label` (planned window, kept separate from lifecycle).
+
+### Facility-local time
+`routes/facility_local_time.py` (new, 45 lines): `facility_tz()` reads
+`db.facilities.timezone` then falls back to `FACILITY_TZ`
+(America/Chicago - already correct for Conway); `facility_local(iso, tz)`
+formats via `zoneinfo`. No hardcoded timezone, no manufactured times, UTC
+retained for audit.
+
+### Timestamps that still do NOT exist in the model
+- **latest-update timestamp**: `StaffTask.notes` is a single free-text
+  string with no per-edit timestamp -> `latest_update_at` is returned as
+  an honest `null` (the note text is still returned as `latest_update`).
+- No `resolved_at` distinct from `completed_at` (they are the same
+  concept in this model). No generic `updated_at`. No per-status-transition
+  audit trail on StaffTask itself (receipts exist per action but are not
+  resident-safe-projected here).
+
+### Tests
+`backend/tests/test_request_status_lifecycle.py` (new) — directive 1-11:
+completed-only -> current not found; older-completed + newer-open ->
+current returns the open one; multiple-completed -> current not found;
+history still retrieves completed; companion context contains no completed
+request; authoritative `created` present; `acknowledged_at`/`started_at`
+surfaced when set; `completed_at` reaches history; missing times stay
+null; re-request keeps original `created` + separate `last_re_requested_at`
++ correct `re_request_count`; facility-local "yesterday at H:MM AM/PM"
+from the real tz. `frontend/.../requestStatusHistory.test.js` (new, 5) —
+`/status` vs `/history` routing, "no open request" wording, lifecycle
+labels rendered verbatim, null times omitted not fabricated.
+**All pass in isolation.** Regression: `test_ai_escalation`,
+`test_resident_events`, `test_rf_semantics`, `test_activation_observability`,
+`test_level1_session_fencing`, `test_level1_concurrency_isolation`,
+`test_room_device_isolation`, `test_public_demo_kiosk` each pass 100% in a
+separate process (Motor single-event-loop constraint, same as every prior
+entry). Frontend suite **15 suites / 110 tests**. `iter5-8` errors are the
+pre-existing missing-demo-credentials fixture failures, unrelated (none
+touch the request-status paths).
+
+### Preserved
+one StaffTask = one operational request; re-request dedup +
+`re_request_count` + `last_re_requested_at`; `resident_words` provenance;
+`reject_unconfirmed_time`; department routing + notification; receipts;
+Room 214 ResidentEvent semantics; pendant `press_count`; nursing
+page/dispatch; inactivity state machine; end-call grounding; transportation
+/ menu / schedule paths (their own status endpoints untouched).
+
+### Not done / next
+No deploy - `:8000`/`:3000` still `ab3243b`. Awaiting Michael + ChatGPT
+review before deploy.
+
+---
+
+## 2026-09-07 — check_request_status wording correction (acknowledged ≠ arrival)
+
+### Agent / tool
+Claude Sonnet 5 (Claude Code), Michael directing.
+
+### Branch / ref
+`claude/level1-integration` — `3951ef6` → `6608db0`
+(`Correct check_request_status wording: acknowledged/in_progress never
+authorise an arrival claim`). Pushed. **Not deployed** — `:8000`/`:3000`
+still `ab3243b`.
+
+### What changed
+Michael reviewed `3951ef6` (current-vs-history + lifecycle timestamps —
+**accepted**) and flagged one semantic contradiction in the tool wording.
+`backend/routes/realtime_tools_operations.py` `check_request_status`
+previously ended: *"Never say someone is on the way unless status is
+in_progress (or acknowledged_at is set)."* Per the established StaffTask
+lifecycle contract `acknowledged_at` = staff have SEEN/accepted awareness
+only; `in_progress` = work has STARTED only. **Neither authorises Aria to
+say anyone is coming / on the way / headed there.** Replaced with the
+explicit per-state contract:
+- pending, no `acknowledged_at` → request exists, unacknowledged.
+- pending WITH `acknowledged_at` → "staff acknowledged your request at
+  <label>" — not a coming/on-the-way claim.
+- `in_progress` → "staff have started working on it" (+ `started_at`
+  label) — still not an arrival claim.
+- "someone is coming / on the way / headed there" permitted ONLY when
+  `scheduled_date`/`scheduled_time_label` gives a real staff-entered
+  window, or another tool result explicitly proves a dispatch/arrival.
+
+Parallel clause added to the operator-build `check_request_status` in
+`backend/routes/realtime_aria_tools.py`.
+
+Wording-only change to the tool schema descriptions served to the model.
+**No change** to the current-vs-history architecture or lifecycle-timestamp
+plumbing from `3951ef6`.
+
+### Verified
+- Both tool schemas still build (`_build_tools()` / `_build_aria_tools()`);
+  old contradiction string absent, new per-state text present.
+- `backend/tests/test_request_status_lifecycle.py` — **1 passed** against a
+  staging backend on `:8002` from this worktree (`CAOSCARE_TEST_HOOKS=1`).
+- `frontend/src/lib/__tests__/requestStatusHistory.test.js` — **5 passed**.
+- No other test references the edited modules
+  (`grep` of `tests/` for `check_request_status` / `_build_*_tools` /
+  the module names → only `test_request_status_lifecycle.py`).
+
+### Line counts (materially modified production files)
+- `backend/routes/realtime_tools_operations.py` — 302 lines (was ~285;
+  +17 wording, still a data-only schema module, no code paths added).
+- `backend/routes/realtime_aria_tools.py` — 99 lines (was ~96; +3).
+
+### Blocked / not done
+Deploy still blocked pending Michael + ChatGPT review of `3951ef6` +
+`6608db0`. `:8000`/`:3000`/RF bridge/watcher untouched.
+
+### Next safe step
+Await review; on approval, deploy `6608db0` to `:8000`/`:3000` for live
+Room 214 acceptance (backend restart from this worktree + frontend file
+sync into the served tree, per the `ab3243b` deploy entry).
+
+---
+
+## 2026-09-07 — Aria self-knowledge: resident room is NOT a wall-mounted tablet
+
+### Agent / tool
+Claude Sonnet 5 (Claude Code), Michael directing.
+
+### Branch / ref
+`claude/level1-integration` — `a2db2bc` → `<this commit>`. Pushed.
+**Not deployed** — `:8000`/`:3000` still `ab3243b`.
+
+### Canonical Product Baseline (Michael, this directive)
+Resident rooms are **not** tablet-based. The resident-room system is: a
+local CAOSCare room node (EliteDesk-class computer, hidden near the TV) +
+an eMeet-class speakerphone near the resident for Aria audio + the TV as
+normal television and optional CAOSCare visual surface + room-node
+radios/integrations. **"Kiosk" is a software/UI concept, not a physical
+tablet.**
+
+### Stale lines found (Resident Aria runtime / self-knowledge, my lane)
+1. `backend/routes/realtime_self_knowledge.py:60` (injected into every
+   resident Realtime session via `_build_companion_instructions`):
+   `"  • A wall-mounted tablet kiosk in the resident's room (this device).\n"`
+2. `backend/routes/ai.py:64` `CAOS_SYSTEM_PROMPT` (legacy text/TTS
+   companion, still mounted at `/api/ai`):
+   `"You are the AI companion built into a wall-mounted kiosk in this
+   resident's room at a senior living community, running on the CAOS Care
+   platform"`
+
+### Replacement wording
+1. `realtime_self_knowledge.py` — the single stale bullet becomes:
+   `"  • You are the resident-facing CAOSCare voice presence in this room —
+   software, not a handheld or wall-mounted device. You run on the room's
+   own local CAOSCare node, and you listen and speak through the room's
+   resident audio endpoint (a speakerphone near the resident). Where the
+   room's TV / display is set up for it, you can also show things on that
+   screen. Only get into any of this if a resident actually asks how you
+   work.\n"` — no model names, no future-hardware-as-working implication.
+2. `ai.py` `CAOS_SYSTEM_PROMPT` opening becomes:
+   `"You are the resident-facing AI companion present in this resident's
+   room at a senior living community, running on the CAOS Care platform"`
+   (removed "built into a wall-mounted kiosk"; no new hardware claims).
+
+### Found but intentionally NOT changed (outside "Aria runtime/self-knowledge" scope)
+- `backend/routes/vision.py:4` — module docstring "forwards them via BLE to
+  the wall-mounted tablet (kiosk)" (AI-vision-glasses feature doc, not Aria
+  self-knowledge).
+- `backend/routes/devices.py:168` — code comment "big-button presses on the
+  resident tablet" (kiosk device endpoint, device lane).
+- `backend/routes/hardware.py` — `touchscreen` in `room_companion` /
+  `lobby_kiosk` hardware capability profiles (hardware spec registry;
+  directive says do not change other hardware).
+- `backend/routes/ai.py:64` also still says "grandchild who stops by" etc.
+  and `realtime_self_knowledge.py` still has a "## What's on the kiosk
+  screen" section — left as-is: "kiosk" there is the software/UI surface,
+  which the baseline explicitly preserves.
+
+### Not changed
+No Realtime behavior, tool logic, ResidentEvent behavior, RF behavior,
+paging, inactivity logic, or memory. `ai.py:279` hashes
+`CAOS_SYSTEM_PROMPT` into a receipt `prompt_hash` — that hash changes by
+design when the prompt text changes (provenance marker).
+
+### Verified
+- `python -c` AST + import of both modules; `_system_self_knowledge()`
+  rebuilds (4,520 chars) with the stale line absent and the new wording
+  present; `routes.ai.CAOS_SYSTEM_PROMPT` no longer contains "wall-mounted
+  kiosk".
+- `_build_companion_instructions(None)` builds full resident instructions
+  (16,523 chars) — stale device line absent, new wording present.
+- Regression, each in its own pytest process against staging `:8002`
+  (`CAOSCARE_TEST_HOOKS=1`): `test_request_status_lifecycle` 1 passed,
+  `test_resident_events` 1 passed, `test_ai_escalation` 1 passed.
+- No test asserts self-knowledge / system-prompt text (grep of `tests/`).
+- No frontend file changed → frontend suite not affected.
+
+### Line counts (materially modified production files)
+- `backend/routes/realtime_self_knowledge.py` — **116 lines** (was 110;
+  +6, the one bullet expanded to a wrapped multi-line string literal).
+- `backend/routes/ai.py` — **438 lines** (unchanged; in-place word swap on
+  the existing `CAOS_SYSTEM_PROMPT` line). Already above the 300 cap
+  pre-existing; not enlarged — compliant with the "do not make it larger"
+  rule; a 3-word swap inside a prompt constant is not practically
+  extractable.
+
+### Blocked / not done
+Deploy still blocked pending Michael + ChatGPT review. `:8000` (pid
+598629, `ab3243b`), `:3000` (pid 598685), RF bridge, watcher untouched.
+
+### Next safe step
+Await review; on approval this rides the same deploy as `6608db0`.
+
+---
+
+## 2026-09-07 — Level-1 integration deployed to live Room 214 path (backend :8000 + parallel frontend :3001)
+
+### Agent / tool
+Claude Sonnet 5 (Claude Code), Michael directing.
+
+### Branch / ref
+`claude/level1-integration` @ `081ae13` (deployed as-is; no new code commits — runtime/topology + this doc entry only).
+
+### What is now running
+- **Backend `:8000`** — restarted from `~/CAOSCARE-LEVEL1-INTEGRATION/backend`, pid `607118` (PPID 1, `nohup`, no supervisor). Loads `backend/.env` from cwd → `mongodb://localhost:27017` / DB `caoscare` (existing local DB; `CAOSCARE_ENABLE_DEMO_SEED=false`, no reseed). `/api/health` → `{"ok":true,"db":"up"}`. Verified live: `/api/tasks/resident-request/status` (`scope:"current"`) + `/history` (`scope:"history"`), `/api/alerts/ai-escalate`, `/api/staff-dispatch/*`, `/api/rf/event`, `/api/activation-events/*`, `/api/realtime/session` (mints an `ek_...` ephemeral key — OpenAI wired).
+- **Frontend `:3001`** — the Level-1 acceptance frontend, **served directly from `~/CAOSCARE-LEVEL1-INTEGRATION/frontend`** via the existing craco dev-server mechanism. pid `610968` (parent `610960` = `node_modules/.bin/craco start`), cwd = integration worktree frontend. Started with env only (nothing hardcoded): `PORT=3001 HOST=0.0.0.0 REACT_APP_BACKEND_URL=http://127.0.0.1:8000 DANGEROUSLY_DISABLE_HOST_CHECK=true BROWSER=none`. `node_modules` is a **symlink** → `~/CAOSCARE.COM/frontend/node_modules` (identical `package.json` + `yarn.lock`; symlink lives in a git-ignored path, no repo effect). Bundle verified: `REACT_APP_BACKEND_URL` baked as `http://127.0.0.1:8000` (no `:3000`/other), and contains `check_request_history`, current-vs-history wording, `createInactivityTimer` / `armIfBothSilent` / `residentSpeechStarted` / `aria_companion_timeout_sec`, `connectRealtimeVoice` / `/realtime/negotiate` / `X-CAOS-Ephemeral-Key`. Room 214 kiosk URL: `http://127.0.0.1:3001/kiosk/kio_dc8c06a19608` → HTTP 200; backend resolves that kiosk → room 214 → Helen Torres `res_81b72be1e8b5`.
+- This `:3001` server is **local parallel-dev/test topology only — NOT production architecture.**
+
+### Left untouched (verified)
+- **`:3000` Admin frontend** — still serving (HTTP 200), cwd still `~/CAOSCARE-ADMIN/frontend`, Claude 1's systemd drop-in `caoscare-frontend-dev.service.d/worktree.conf` unchanged (mtime 2026-09-07 18:40:43). Its pid churns on its own (606518 → 606758 → 610866 across the session); I issued no `systemctl` and did not touch `~/CAOSCARE-ADMIN`.
+- **RF bridge** pid `522046`, alive, `CAOS_API_URL=http://127.0.0.1:8000` (unchanged), polling (`last_bridge_poll_at` advancing).
+- **Helen's open event** `alerts/_id=6a9ed7b64ee1702fe3989c5e` — `status=acknowledged`, `resolved_at=null`, not mutated. `resident_aria_leases` active = 0. To be resolved via the Staff UI (not Mongo) before the clean one-press acceptance test.
+
+### Blocked / next
+Physical Room 214 acceptance test is Michael's step: resolve the old Helen event in the Staff UI, then open `http://127.0.0.1:3001/kiosk/kio_dc8c06a19608` and do one pendant press. No deploy to `:3000` / production; `claude/level1-integration` not merged to main.
+
+---
+
+## 2026-09-08 — Aria conversation-substrate lane: Room 214 evidence reconstruction, Layer E operational-state authority, future-agent onboarding SoT
+
+### Agent / tool
+Claude Code (Sonnet 5), EliteDesk primary worktree. Branch
+`aria/conversation-substrate`, on top of `90b153e`. No subagents. Read-only
+Mongo inspection of `caoscare` DB for evidence; source changes local only.
+
+### Branch / ref
+`aria/conversation-substrate`. No branch/worktree created, no `main` merge, no
+deploy, no production/HA/network changes. Did NOT touch the Claude Code 1 / 2
+lanes or the in-flight Level 1 session-fencing / RF-intake uncommitted work
+(reused it as the compatible plumbing beneath the substrate).
+
+### What changed
+**Documentation (new):**
+- `docs/ROOM_214_CONVERSATION_EVIDENCE_2026-09-08.md` — reconstruction of all
+  19 Helen Torres / Room 214 realtime sessions (2026-09-05 → 09-09) from raw
+  evidence (`conversations` 277 turns, `realtime_diagnostics` tool rows,
+  `alerts`, `staff_tasks`, `resident_aria_lease_events`, `activation_events`).
+  Per-session: what Aria knew, operational state, tools executed, what she said
+  next, where it broke. Evidence-class tagged (OBS / CODE / INF+ / INF- / GAP).
+  Sessions kept separate, not merged. Part 4 maps 9 transactional /
+  vending-machine mechanisms to exact current source. Part 5 scope-guards what
+  is NOT a substrate problem.
+- `docs/ARIA_LANE_ONBOARDING.md` — the single canonical reading list for any
+  future agent entering the Aria/voice/realtime/substrate lane (pointer list,
+  not a doctrine copy). Referenced from `AGENTS.md` and
+  `docs/ARIA_CONVERSATION_SUBSTRATE.md`. This is the durable mechanism for
+  "every new coding agent gets its baseline before it works" (mission §9).
+- `docs/ARIA_SUBSTRATE_IMPLEMENTATION_PLAN.md` — Layers A–F → modules, what is
+  done, ordered next steps, invariants.
+
+**Code (new, all < 300 lines):**
+- `backend/routes/aria_operational_state.py` (228) — Layer E authority:
+  `resolve_operational_state(resident_id, room, alert_id)` unifies open
+  `db.alerts` events + open `db.staff_tasks` requests into one snapshot with
+  normalized `lifecycle` (open/acknowledged/answered/in_progress/resolved/
+  escalated), `handled_by`, `opened_at` + conversational `opened_age`,
+  `relevance` (`current` iff it is the activation Aria was brought in on, or the
+  sole open event — never "newest wins"), `recently_resolved` (≤12 h),
+  `speak_guidance`. Read-only; no lifecycle transitions here. Public
+  `GET /api/aria/operational-state` (resident/room-scoped).
+- `backend/routes/realtime_operational_context.py` (49) — renders the snapshot
+  into a terse `## What's actually happening right now` prompt block; **empty
+  string when nothing is open** (no forced workflow at session start).
+
+**Code (modified, in the Layer E commit):**
+- `backend/routes/realtime_companion_prompt.py` (256→273) —
+  `_build_companion_instructions` now takes `operational_state` and appends the
+  block; opener changed from "say their name softly and ask what they need" to
+  presence-first ("a greeting is not a transaction… a task will surface on its
+  own if there is one"). (Staged with `git add -p` — an unrelated prior
+  uncommitted `get_room_status` climate-note hunk in the same file was left in
+  the working tree, not this commit.)
+- `backend/server.py` (+2) — register the new router.
+
+**Wiring left in the working tree (rides with the in-flight Level 1
+session-mint extraction, NOT in the Layer E commit):**
+- `backend/routes/realtime_resident_session.py` — `_mint` resolves operational
+  state (best-effort, never blocks the mint) and passes it to
+  `_build_companion_instructions` + `_caos.context.operational_state`. This file
+  is an uncommitted prior-session extraction of `_mint` out of `realtime.py`;
+  the Layer E wiring is additive on top and is committed when that extraction
+  is. Until then, the live consumer surface is the HTTP endpoint
+  `GET /api/aria/operational-state` (committed) plus the tested
+  `operational_state=` parameter on `_build_companion_instructions`.
+
+Note: `docs/PROJECT_STATE.md` and `docs/REPO_MAP.md` in this same commit also
+persist a previously-uncommitted **Codex Level 1 adversarial checkpoint** log
+entry (2026-09-06) that was already sitting in the working tree — append-only
+log files cannot be partially staged. Not authored by this work.
+
+**Tests (new):**
+- `backend/tests/test_aria_operational_state.py` (183) — lifecycle + relevance:
+  stale unacknowledged event reports `open` WITH an age (not timeless "already
+  on file"); a new live emergency event is `current` while an older bathroom
+  request drops to `background` (the Room 214 s16 regression); acknowledged /
+  resolved no longer read as waiting; empty state ⇒ empty block.
+- `backend/tests/test_companion_prompt_substrate.py` (78) — fresh session has no
+  "ask what they need" and no operational block; a populated state renders
+  lifecycle + age + guidance and is appended after the persona.
+
+### What was verified
+- `python -c "import server"` OK. All new/changed files import clean.
+- `pytest tests/test_aria_operational_state.py tests/test_companion_prompt_substrate.py`
+  → 5 passed, 1 skipped (the HTTP endpoint test — the shared dev backend on
+  :8000 has no reload flag and was not restarted, so `/api/aria/operational-state`
+  still 404s live; the wrapped function is fully tested).
+- `pytest tests/test_level1_session_fencing.py tests/test_level1_concurrency_isolation.py`
+  → 2 passed (my changes did not disturb the in-flight fencing work).
+- Line counts of every created/modified production-code file are in "What
+  changed" above; all handwritten code files ≤ 300.
+
+### What is blocked / not done
+- `GET /api/aria/operational-state` is not live until the dev backend is
+  reloaded/restarted (no reload flag; not done unprompted while other lanes may
+  be mid-test). `test_operational_state_http_endpoint` skips until then.
+- Pre-existing, NOT mine: `tests/test_resident_events.py::test_resident_event_model`
+  fails at `HEAD` `90b153e` too — its synthetic `_press` fingerprint is now
+  suppressed as supervisory by the newer `rf_activation_intake.py` classifier
+  (all switches open). Level 1 RF-intake lane concern, tracked in
+  `docs/LEVEL1_BREAK_TEST_2026-09-06.md`.
+- Substrate Layers B (cross-session continuity — the "I thought I just told
+  you" gap), C (runtime conversation-vs-intent state), D (subject-triggered
+  memory retrieval), F (capability truth in context) are designed in
+  `docs/ARIA_SUBSTRATE_IMPLEMENTATION_PLAN.md` "Next steps" but not built.
+- No frontend changes: `_caos.context.operational_state` is sent but not yet
+  consumed by `useRealtimeVoice.js` (e.g. refresh-on-reconnect via
+  `session.update`). Left for the frontend-refactor-aware follow-up.
+- Room 214 evidence gaps (Part 6): the carrier that injected stale "you're
+  bleeding" into s16/s17/s18 openers; whether any `call_for_help` page was
+  human-received at the time; audio-quality/latency analysis.
+
+### Next safe step
+Reload the dev backend and un-skip the endpoint test. Then Layer B
+(cross-session continuity block on mint + reconnect, keyed by resident +
+recency, regression against the s8→s9→s10 sequence), per the implementation
+plan's ordered next steps.
+
+---
+
+## 2026-09-08 — Aria substrate Layer B: cross-session continuity ("I thought I just told you")
+
+### Agent / tool
+Claude Code (Sonnet 5), EliteDesk primary worktree. Branch
+`aria/conversation-substrate`, on top of the Layer E commit `7050710`. No
+subagents. No merge, no deploy, no backend restart. Did not touch the
+in-flight Level 1 session-fencing / RF-intake / frontend-refactor work.
+
+### What changed (Layer B commit)
+**Code (new, all < 300 lines):**
+- `backend/routes/aria_time.py` (36) — shared conversational time phrasing
+  (`age_phrase`, `parse_dt`), extracted from `aria_operational_state.py` so
+  Layer B and Layer E describe "how long ago" identically (one source of truth).
+- `backend/routes/aria_continuity.py` (197) — `resolve_continuity(resident_id,
+  current_session_id, room)`: reads `db.conversations` (the existing turn store),
+  groups by `session_id`, keeps ≤3 prior sessions whose last turn is within 18 h,
+  reads each session's `session_ended` reason from `db.realtime_diagnostics` to
+  flag `unfinished`. `render_continuity_block` compacts to plain text: resident
+  lines verbatim (the referent for "that"/"the other one"), assistant lines
+  trimmed + de-greeted, tail-biased, hard-capped at 2200 chars. Header: this is
+  context not a task, not an opener, and Layer E is authoritative on live status.
+  Public `GET /api/aria/continuity` (resident/room-scoped, inspection).
+
+**Code (modified, in the Layer B commit):**
+- `backend/routes/aria_operational_state.py` — use `routes.aria_time` instead of
+  local `_age_label`/`_parse` (net −30 lines; behavior identical).
+- `backend/routes/realtime_companion_prompt.py` — `_build_companion_instructions`
+  takes `continuity=`; block order is baseline → continuity → operational
+  ("right now" kept last/freshest). (add -p; the unrelated prior `get_room_status`
+  climate hunk stays in the working tree, not this commit.)
+- `backend/server.py` (+2) — register the continuity router.
+
+**Wiring left in the working tree (rides with the in-flight Level 1 `_mint`
+extraction, NOT in this commit):**
+- `backend/routes/realtime_resident_session.py::_mint` — resolves continuity
+  best-effort and threads it into instructions + `_caos.context.continuity`.
+
+**Tests (new):**
+- `backend/tests/test_aria_continuity.py` — acceptance cases 1–8 + an economics
+  cap test (120-turn prior session still renders ≤ cap, keeps the tail).
+- `backend/tests/test_substrate_layers_integration.py` — Layer B + Layer E
+  assembled: history preserved for meaning, Layer E status ("resolved", by
+  "N. Osei") is the authority, continuity defers to it, block order asserted.
+
+### Report (as requested)
+1. **Continuity source(s):** `db.conversations` (turn store, keyed by
+   `session_id`) for the turns; `db.realtime_diagnostics` `session_ended.meta.reason`
+   for how each prior session ended. No parallel history system; no LLM call.
+2. **Survives a session boundary (BASELINE + CONTINUITY):** resident identity,
+   preferred name, accessibility, intake notes, durable two-bin memory (Layer A,
+   unchanged); plus a compact recap of ≤3 prior sessions within 18 h — the
+   resident's substantive lines verbatim + trimmed assistant grounding + whether
+   each ended cleanly or dropped.
+3. **Deliberately dies at the boundary (TRANSIENT):** the prior session's tool
+   state, intermediate tool-call args, `aria_state`, live-line state, any
+   "task in progress" feel. `resolve_continuity` returns none of it — it reads
+   only role/content/timestamps. An old request only appears as *words that were
+   said*, never as active work.
+4. **"I thought I just told you" is now supported:** the resident's actual prior
+   utterance (e.g. "the reading light over my chair keeps flickering") is carried
+   verbatim into the new session's prompt, so the model can resolve what "that"
+   / "the other one" / "like I was saying" refers to instead of answering "I must
+   have missed that."
+5. **Stale operational history can't win:** the continuity header explicitly
+   points at the Layer E "What's actually happening right now" section as the
+   authority on any call/request/nurse status; the integration test proves that
+   when history says "nobody has come" and Layer E says `resolved` by a named
+   nurse, the assembled prompt carries both and frames the item as handled.
+6. **Context size/cost:** one indexed `db.conversations` query
+   (`resident_id + created_at` index created best-effort) + in-memory trim.
+   Typical block ≈ 1 000 chars (~250 tokens); worst case bounded ≈ 2 800 chars
+   (~700 tokens) by `_TOTAL_CHAR_CAP`. No model call, no per-turn cost.
+7. **Modified production-file line counts:** `aria_continuity.py` 197 (new),
+   `aria_time.py` 36 (new), `aria_operational_state.py` 228→198,
+   `realtime_companion_prompt.py` 280, `realtime_resident_session.py` 139
+   (working-tree wiring), `server.py` +2. All ≤ 300.
+8. **Tests:** `test_aria_continuity.py` 3/3, `test_substrate_layers_integration.py`
+   1/1, `test_aria_operational_state.py` 2 pass /1 skip (HTTP endpoint, pending
+   reload), `test_companion_prompt_substrate.py` 3/3,
+   `test_level1_session_fencing.py` + `test_level1_concurrency_isolation.py`
+   2/2 (unchanged). Pre-existing unrelated failure `test_resident_events.py::
+   test_resident_event_model` (RF-intake lane) still present, not mine.
+9. **Remaining evidence gaps:** no live voice run exercised Layer B end-to-end
+   (needs backend reload + a real kiosk session); reconnect-time refresh of the
+   block (including the current session's own turns) is not built (waits on the
+   frontend refactor); "genuinely unresolved thread" detection is coarse
+   (clean-close vs dropped only — no semantic open-question extraction).
+10. **Commit SHA:** `6f0f876` (Layer B); `7050710` (Layer E, prior).
+
+### Next safe step
+Reload the dev backend; un-skip the HTTP endpoint test. Then STOP for
+Michael's review before Layer C / D / F (per directive).
+
+---
+
+## 2026-09-08 — Aria substrate Layer C: runtime conversation-vs-intent state
+
+### Agent / tool
+Claude Code (Sonnet 5). Branch `aria/conversation-substrate`, on top of the
+Layer B commit `6f0f876`. No subagents. No merge, no deploy, no backend
+restart, no new branch. Did not touch the in-flight Level 1 session-fencing /
+RF-intake / `useRealtimeVoice.js` frontend-refactor work.
+
+Note on the prior stop directive: the 2026-09-08 Layer B entry above recorded
+"STOP for Michael's review before Layer C / D / F" as a standing directive.
+This session's task was given directly by Michael, instructing the next
+unimplemented layer in `docs/ARIA_SUBSTRATE_IMPLEMENTATION_PLAN.md` be
+identified and built — i.e. the review gate this note describes. Recorded
+here so a future reader does not see the directive un-acted-on and assume it
+was silently ignored.
+
+### What changed
+**Code (new):**
+- `backend/routes/aria_conversation_state.py` (159) — Layer C.
+  `resolve_conversation_state(resident_id, session_id)` answers "has THIS
+  call already filed or finished a request, or asked a routing question
+  awaiting an answer" — keyed by `session_id`, not `resident_id`, so a
+  reconnect/`session.update` that reuses the same session_id sees what this
+  call already did. Reads `db.conversations` turns for the session and
+  `db.staff_tasks` rows linked via the existing `conversation_session_id`
+  field (see `resident_conversations.py`) — no new task-tracking table.
+  Returns `None` for a brand-new session (nothing persisted yet — must not
+  be told it's mid-conversation). States: `conversation_active` (ordinary
+  talk, nothing to guard), `action_in_progress` (an open task tied to this
+  session), `action_completed` (a task tied to this session resolved, few
+  turns since), `conversation_resumed` (resolved, but the conversation has
+  clearly moved on — more than `RESUMED_AFTER_TURNS` turns since), and
+  `awaiting_required_detail` (last turn was an unanswered assistant
+  question — the `request_live_staff` routing-question case in the
+  companion prompt, which previously had no state to track "already
+  asked"). `render_conversation_state_block()` renders guidance only for
+  the four non-default states — empty for `conversation_active` / a fresh
+  session, matching the Layer E "empty state ⇒ empty block" invariant.
+  Public `GET /api/aria/conversation-state` (read-only, resident/session-
+  scoped, same trust model as the other Aria inspection endpoints).
+  `actionable_intent_detected` (the sixth state in the contract's enum) is
+  documented as a live, in-the-moment classification with no persisted
+  trace to reconstruct after the fact, rather than faked with a heuristic.
+
+**Code (modified):**
+- `backend/routes/aria_operational_state.py` — `_task_lifecycle` renamed to
+  public `task_lifecycle` (net 0 lines) so Layer C reuses the one lifecycle
+  mapping instead of duplicating it; matches the `aria_time.py` extraction
+  precedent from Layer B.
+- `backend/routes/realtime_companion_prompt.py` — `_build_companion_instructions`
+  takes `conversation_state=`; block order is baseline → continuity →
+  **this call's own state** → operational ("right now" stays last/freshest).
+  (Committed via `git add -p`; the unrelated pre-existing `get_room_status`
+  climate-context hunk already sitting in this file's working tree stays
+  there, not in this commit — same discipline as the Layer B commit.)
+- `backend/server.py` (+1 import, +1 include_router) — registers the new
+  router.
+
+**Wiring left in the working tree (rides with the in-flight Level 1 `_mint`
+extraction, NOT in this commit — same as Layer B's wiring before it):**
+- `backend/routes/realtime_resident_session.py::_mint` — resolves
+  `conversation_state` best-effort and threads it into instructions +
+  `_caos.context.conversation_state`.
+
+**Tests (new):**
+- `backend/tests/test_aria_conversation_state.py` — cases 1–7 (fresh session
+  → `None`; ordinary conversation → `conversation_active` + empty block; an
+  open session-scoped task → `action_in_progress`; a resolved task with the
+  call closing out → `action_completed`; a resolved task with the
+  conversation clearly having moved on → `conversation_resumed`; an
+  unanswered assistant question → `awaiting_required_detail`; provider
+  portability — plain dict, no vendor keys) plus a full-prompt integration
+  case asserting the `## This call so far` block renders after `Who you are`.
+
+### What was verified
+- `python -c "import server"` OK (via `backend/.venv`). All new/changed
+  files import clean.
+- `pytest tests/test_aria_conversation_state.py tests/test_aria_operational_state.py
+  tests/test_aria_continuity.py tests/test_companion_prompt_substrate.py
+  tests/test_substrate_layers_integration.py` → 11 passed, 1 skipped (the
+  pre-existing operational-state HTTP endpoint skip, unrelated to this
+  change — still pending the dev-backend reload noted in the Layer E entry).
+- `pytest tests/test_level1_session_fencing.py tests/test_level1_concurrency_isolation.py`
+  → 2 passed (unchanged by this work).
+- Full `pytest tests/` (excluding `iter6/7/9_test.py`, which fail to collect
+  in this shell from a missing `REACT_APP_BACKEND_URL` env var, pre-existing
+  and unrelated) shows a large pre-existing block of HTTP-integration test
+  failures (`backend_test.py`, `iter5/8_test.py`, `test_room_device_isolation.py`,
+  etc.) — spot-checked one (`TestAlerts::test_alert_stats`): its `admin_token`
+  fixture gets a 404 logging into a live server this shell has no route to,
+  the same "shared dev backend not reloaded" condition the Layer E entry
+  already documented, not a regression from this change. None of the failing
+  test names touch a file this change modified.
+- Line counts of every created/modified production-code file: all ≤ 300
+  (`aria_conversation_state.py` 159; `aria_operational_state.py` 198;
+  `realtime_companion_prompt.py` 283; `server.py` 209; the uncommitted
+  working-tree `realtime_resident_session.py` 153).
+
+### What is blocked / not done
+- Same dev-backend-reload blocker as Layers B/E: `GET /api/aria/conversation-state`
+  is not live until the shared dev backend is restarted; not done unprompted
+  while other lanes may be mid-test.
+- No live voice run has exercised Layer C end-to-end.
+- `RESUMED_AFTER_TURNS` (currently 2) is a coarse heuristic for "the
+  conversation has moved on" — no semantic topic-change detection.
+- Substrate Layers D (subject-triggered memory retrieval) and F (capability
+  truth in context) remain designed but not built, per
+  `docs/ARIA_SUBSTRATE_IMPLEMENTATION_PLAN.md`.
+- `check_request_status` / `request_staff_help` result formatters still do
+  not defer to Layer E (plan item 4); `end_call` first-call honoring (item
+  5) and device-tool discipline (item 6) are also still open. Layer C
+  supplies the state those items would consume but does not itself change
+  any tool-result formatter.
+
+### Next safe step
+Per the implementation plan's ordered list: `check_request_status` /
+`request_staff_help` result formatters should defer to Layer E
+(`resolve_operational_state`) instead of their current timestamp-less text,
+and the `end_call` first-call-honoring fix (Room 214 mechanism #6). Reload
+the dev backend when coordinated with other lanes so the three new
+inspection endpoints (`operational-state`, `continuity`, `conversation-state`)
+go live and their HTTP tests can un-skip.
+
+---
+
+## 2026-09-09 — Incident: full test-suite run left real Room 214 hardware on
+
+### What happened
+After the Layer C work above, a routine `pytest tests/` (run to check for
+collateral breakage from that change) executed `backend/tests/test_light_control.py`
+and `backend/tests/test_climate_control.py` — pre-existing, deliberately-written
+integration tests that send REAL commands to Room 214's REAL Home
+Assistant-backed hardware (Michael's own commissioned Matter devices: two
+TP-Link Tapo bulbs and a Midea AC) and assert against the real HA read-back.
+Neither file restores original state or is excluded from a plain test run.
+The result: both real bulbs (`Room 214 desk lamp` / `dev_f8be14de18e3` and
+`Room 214 overhead light` / `dev_facc6dbc7e13`) and the real AC
+(`dev_fa83aeda0cd4`) were left in whatever state the last test method
+happened to set them to — the desk lamp was on when Michael noticed it.
+
+Compounding error: when first asked, this agent checked a nonexistent
+`db.devices` collection, got `None`, and told Michael "I don't have a name
+mapping" — false. The real mapping was in `db.smart_devices` all along
+(`label: "Room 214 desk lamp"` / `"Room 214 overhead light"`), one query
+away. Corrected per Michael's direct instruction: never report an unknown
+without first verifying it's actually unknown.
+
+### Remediation
+- Both real bulbs confirmed OFF via live Home Assistant read-back
+  (`_dispatch_command` power=off, `verified: true` for both), issued with
+  honest attribution (`issued_by: "claude_code:incident_2026-09-09_test_side_effect_remediation"`,
+  not a fake `kiosk:room:214` tag) so the device_commands log tells the
+  truth about what actually issued each command.
+- Real AC (`dev_fa83aeda0cd4`, Midea): a power=off attempt was made with the
+  same honest attribution but Home Assistant's live read-back reported the
+  entity as `hvac_mode: unavailable` / `actual_state: 'unavailable'` — not
+  confirmed on or off. Per this codebase's own "never report success if
+  state can't be verified" rule (the reason `_dispatch_command` raises a 502
+  here instead of guessing), no success is claimed. This same entity's
+  `hvac_mode` was already reporting `unavailable` intermittently during the
+  original 04:48 test burst, including inside an ack marked "verified" —
+  possibly this specific Matter/Midea integration's known flakiness
+  (`test_climate_control.py`'s own docstring notes this AC's limited
+  Matter feature set), not something newly broken. Needs a physical check;
+  not re-attempted repeatedly against real hardware without one.
+
+### Structural fix (so a routine test run can never do this again)
+- `backend/pytest.ini` (new) — registers a `real_hardware` marker and sets
+  `addopts = -m "not real_hardware"`, so a plain `pytest` (or `pytest tests/`)
+  excludes any test carrying that marker by default. Opt in explicitly with
+  `-m real_hardware` when actually intending to exercise the physical bulbs/AC.
+- `backend/tests/test_light_control.py` — `TestRealBulbCapabilities` marked
+  `real_hardware` at the class level; the two tests in
+  `TestRoomIsolationAndSelection` that issue a real, non-ambiguous command
+  against the real bulbs (`test_selects_the_light_not_another_device_kind_in_the_same_room`,
+  `test_device_id_targets_the_correct_light_among_two`) marked individually.
+  The isolation/rejection tests that never reach the real adapter (ambiguous-command
+  400s, mock-room-only commands) were left unmarked — verified by reading
+  `routes/devices.py::public_room_command`'s dispatch order that they cannot
+  mutate real hardware.
+- `backend/tests/test_climate_control.py` — `TestRealAcCapabilities` marked
+  `real_hardware` at the class level; `test_retired_mock_ac_excluded_from_selection`
+  (issues a real command) marked individually. Same reasoning for what was
+  left unmarked.
+- Verified: `pytest tests/test_light_control.py tests/test_climate_control.py`
+  now runs 5 hardware-safe tests and deselects the 13 real-hardware ones;
+  `pytest ... -m real_hardware --collect-only` still finds all 13 (the
+  escape hatch works); a full `pytest tests/` run afterward touched zero
+  Room 214 real-hardware device_commands (confirmed by timestamp — the only
+  new commands were against the room 318 mock devices).
+
+### What was verified
+- Both real bulbs' current DB state: `power: off`, matching a fresh live
+  Home Assistant read-back at the time of remediation.
+- Real AC current DB state still shows the stale pre-incident `power: on` —
+  `_dispatch_command`'s failure path does not overwrite `smart_devices.state`
+  on a verification-mismatch failure, so this field is not authoritative
+  for this device right now. Flagged as a real gap, not fixed tonight
+  (`db.smart_devices.state` should probably reflect "unknown"/"unavailable"
+  after a failed verification rather than silently keeping the last-known
+  value — needs a decision on the right failure-state representation,
+  not a rushed change at this hour).
+
+### What is blocked / not done
+- Real AC power state is physically unconfirmed. Needs a human to check
+  the actual unit, or a retry once Home Assistant reports the entity as
+  available again.
+- The "failed command leaves stale state in `db.smart_devices`" gap noted
+  above is unresolved — worth a real look, not a late-night patch.
+- No teardown/state-restoration was added to `test_light_control.py` /
+  `test_climate_control.py` for when someone deliberately runs them with
+  `-m real_hardware` — the marker gate stops accidental runs, but an
+  intentional `-m real_hardware` run will still leave the real devices in
+  their final test-state, same as before. Worth adding if these are run
+  again.
+
+### Next safe step
+Physically confirm the Room 214 AC's actual state. Separately, decide how
+`db.smart_devices.state` should represent a failed/unverified command
+(currently: silently stale) and consider adding before/after state capture +
+restoration to the two real-hardware test files for intentional runs.
+
+---
+
+## 2026-09-09 — Layer C review integration (independent-review acceptance constraints)
+
+### Agent / tool
+Claude Code (Sonnet 5), EliteDesk primary worktree, branch
+`aria/conversation-substrate`, on top of `a03d5b5` (Layer C, committed by a
+parallel session). No merge, no deploy, no backend restart. Did not touch the
+in-flight Level 1 `_mint` extraction or `useRealtimeVoice.js`.
+
+### Why
+An independent architecture review produced acceptance constraints for Layer C.
+Layer C (`a03d5b5`) was already committed; this integrates the constraints as
+bounded corrective changes rather than restarting it.
+
+### What changed
+- `backend/routes/aria_conversation_state.py` (159→207):
+  - `awaiting_required_detail` now requires **positive evidence** — a
+    `realtime_diagnostics` `tool_call` for this session with no resident turn
+    since (`_tool_awaiting_answer`). A trailing "?" alone no longer qualifies,
+    so an empathetic "How are you feeling?" resolves `conversation_active`
+    (emits nothing). Was: any assistant turn ending in "?".
+  - `resolve_conversation_state` now returns `ref` (the `task_id`) on the
+    `action_in_progress` / `action_completed` / `conversation_resumed` states.
+  - `render_conversation_state_block(cs, operational_state=None)` — new optional
+    arg. `_e_still_open()`: if Layer E's snapshot shows other open work but
+    **not** this call's `ref`, the block downgrades `action_in_progress` →
+    `action_completed` (never claims "in motion" against E's truth). Empty/None
+    E snapshot ⇒ defer to Layer C.
+  - Still session-scoped only: `conversations.session_id`,
+    `staff_tasks.conversation_session_id`, `realtime_diagnostics.session_id`.
+    No facility-wide `resident_id`/`room` query. No new collection.
+- `backend/routes/realtime_companion_prompt.py` (283→285): passes
+  `operational_state` into `render_conversation_state_block`.
+- `backend/tests/test_aria_conversation_state.py` (217→303): CASE 6 seed now
+  carries a realistic `request_live_staff` `tool_call` diagnostic; new
+  CASE 6b (empathetic question ⇒ `conversation_active`, empty block);
+  CASE 7 also asserts `json.dumps(cs)`; new tests —
+  `test_conversation_state_fresh_session_no_block`,
+  `test_conversation_state_reconnect_idempotent` (task filed this session →
+  reconnect same `session_id` → `action_in_progress`, no second task filed,
+  Layer E shows exactly one current item),
+  `test_conversation_state_defers_to_layer_e`.
+- `backend/tests/test_substrate_layers_integration.py` (107→180): new
+  `test_layers_bce_assemble_in_order` — B + C + E assembled, section-header
+  order `## Who you are` < `## Where you and X were` < `## This call so far` <
+  `## What's actually happening right now`. Existing order assertion tightened
+  to match `##` headers (the phrase "What's actually happening right now" also
+  appears inside the continuity block's prose).
+
+### Acceptance constraints — status
+1. existing Layer C cases pass — ✅ (CASE 6 seed made realistic)
+2. empathetic question ≠ `awaiting_required_detail` — ✅ CASE 6b
+3. `conversation_state=None` ⇒ no `## This call so far` — ✅
+4. reconnect idempotency — ✅
+5. B+C+E assemble in order — ✅
+6. C active but E resolved ⇒ not "in motion" — ✅
+7. `test_level1_session_fencing.py` + `test_level1_concurrency_isolation.py` — ✅ 2/2
+8. `python -c "import server"` — ✅
+9. `_caos.context.conversation_state` JSON-serializable — ✅ (plain dict/None; `_mint` wiring already sets it)
+10. documented alongside continuity/operational_state — ✅ (plan row C, this entry)
+11. line counts ≤ 300 — ✅ `aria_conversation_state.py` 207, `realtime_companion_prompt.py` 285,
+    `aria_operational_state.py` 198, `aria_continuity.py` 197, `aria_time.py` 36
+
+### Verified
+`pytest` (substrate + level1): **17 passed, 1 skipped** (the operational-state
+HTTP endpoint — dev backend not reloaded). `import server` OK.
+
+### Mint wiring
+`realtime_resident_session.py::_mint` (still untracked — rides with the Level 1
+extraction) already calls `resolve_conversation_state` and threads `conv_state`
+into instructions + `_caos.context.conversation_state`. Not committed here.
+
+### Next safe step
+Backend Step 1: make `check_request_status` / `request_staff_help` result
+formatting speak from `resolve_operational_state` (close the last "current
+state wins" gap — tool results still emit stale "already on file / ask #N"
+text). Then Layer B corrections (B-1 index in hot path, B-2 `None` end-reason).
+
+---
+
+## 2026-09-09 — Substrate Step 1: resident-request tools speak from Layer E (backend)
+
+### Agent / tool
+Claude Code (Sonnet 5), branch `aria/conversation-substrate`, on top of the
+Layer C review-integration commit. Backend-only. No merge/deploy/restart. Did
+not touch `realtimeOperationsTools.js` or any frontend.
+
+### The gap this closes
+`check_request_status` and the `request_staff_help` duplicate branch built
+their spoken result (in `frontend/src/lib/realtimeOperationsTools.js`) from
+`_resident_safe_view` / the dedupe response — raw `status`, "ask #N", no age.
+That could contradict Layer E's `## What's actually happening right now` block
+(Room 214 Part 4 #1). The backend contract is now authoritative and
+Layer-E-consistent; the frontend just needs to forward it.
+
+### What changed
+- `backend/routes/aria_request_status.py` (53, new) — `request_status_view(task)`
+  → `{lifecycle, opened_age, spoken}`. Reuses `aria_operational_state.task_lifecycle`
+  (Layer E) and `aria_time.age_phrase` — no independent lifecycle logic, no
+  re-query. `spoken` is one authoritative sentence; when `lifecycle == resolved`
+  it carries no "waiting/unanswered/still open" language, when open it carries
+  no "taken care of".
+- `backend/routes/resident_requests.py` (262→272) — `_resident_safe_view` now
+  spreads `request_status_view(task)` (adds `lifecycle`/`opened_age`/`spoken`;
+  raw `status` kept for back-compat); the `create_resident_request` dedupe
+  response adds the same three fields.
+- `backend/tests/test_request_tools_speak_from_layer_e.py` (new) —
+  open/acknowledged/resolved: `_resident_safe_view` lifecycle == `task_lifecycle`
+  == the lifecycle `resolve_operational_state` assigns the same task; a resolved
+  request's `spoken` has no stale waiting language and Layer E has dropped it
+  from open work; the dedupe branch never calls an open duplicate "resolved".
+
+### Verified
+`pytest` substrate + level1: **19 passed, 1 skipped** (operational-state HTTP
+endpoint, pending dev-backend reload). `import server` OK. Line counts ≤ 300
+(`aria_request_status.py` 53, `resident_requests.py` 272).
+
+### Remaining (frontend lane, not this commit)
+`realtimeOperationsTools.js` `check_request_status` (line ~95-101) and
+`request_staff_help` dedupe (line ~73-77) should return `data.spoken` verbatim
+instead of re-assembling from `data.status`/`data.re_request_count`. One line
+each. Blocked on the `useRealtimeVoice.js` refactor landing so the frontend
+isn't touched mid-refactor.
+
+### Next safe step
+Step 2 — Layer B corrections: B-2 (a missing/`None` session-end reason must not
+mean "unfinished"; require positive evidence) and B-1 (move the
+`db.conversations` continuity-index creation out of `resolve_continuity` into
+app startup/lifespan). Then Step 3 — coordinate the `_mint` wiring with the
+in-flight Level 1 extraction.
+
+---
+
+## 2026-09-09 — Substrate Step 2: Layer B corrections (B-1, B-2)
+
+### Agent / tool
+Claude Code (Sonnet 5), branch `aria/conversation-substrate`, on top of Step 1
+(`b864bfa`). Backend-only. No merge/deploy/restart. Did not touch frontend or
+the in-flight Level 1 work.
+
+### What changed
+- **B-2** — `backend/routes/aria_continuity.py`: `_UNFINISHED_ENDS` (which
+  included `None`) replaced by `_DROPPED_ENDS` (positive drop/timeout reasons
+  only) + `_CLEAN_ENDS` (resident-initiated close). A prior session is
+  `unfinished` only on positive evidence; a missing/unknown `session_ended`
+  reason is `unfinished=False, clean_close=False`. `render_continuity_block`
+  now emits a 3-way header tail: dropped → "may pick this back up",
+  clean → "ended when X was done", unknown → no tail (no claim either way).
+  Closes the reviewer's baseline→workflow leak: a clean session with no
+  diagnostic row is no longer recapped as an open thread.
+- **B-1** — index DDL out of the request path: new
+  `aria_continuity.ensure_indexes()` (builds the `resident_id + created_at`
+  index on `db.conversations`), called once from `server.py` lifespan after
+  `seed_default_departments()`. `resolve_continuity` no longer calls
+  `create_index`.
+
+### Tests
+- `test_aria_continuity.py`: CASE 4 also asserts `clean_close`; new CASE 4b
+  (B-2) — a session with no `session_ended` row is `unfinished=False,
+  clean_close=False` and its rendered header has no drop/goodbye tail; new
+  `test_continuity_index_creation_not_in_request_path` (B-1) — `resolve_continuity`
+  source has no `create_index`; `ensure_indexes` is an idempotent coroutine.
+
+### Verified
+`pytest` substrate + level1: **20 passed, 1 skipped** (operational-state HTTP
+endpoint, pending dev backend reload). `import server` OK. Line counts ≤ 300:
+`aria_continuity.py` 212.
+
+### Next safe step
+Step 3 — coordinate the `_mint` wiring (`realtime_resident_session.py`, still
+untracked, carries the B/C/E resolvers + `_caos.context` keys) with the
+in-flight Level 1 `_mint` extraction: land them together through the canonical
+mint path, do not independently rewrite `_mint`. If Level 1 is still actively
+conflicting, stop only that step and report the dependency.
+
+---
+
+## 2026-09-09 — Substrate Step 3: _mint wiring — BLOCKED on Level 1 extraction
+
+### Status
+STOPPED at Step 3 per directive ("if that work is still actively conflicting,
+stop ONLY this step and report the exact dependency").
+
+### The dependency
+The canonical resident session-mint path is mid-extraction by the Level 1 lane
+and is **uncommitted** in the worktree:
+- `backend/routes/realtime_resident_session.py` (untracked) — holds `_mint`
+- `backend/routes/resident_session_binding.py` (untracked)
+- `backend/routes/realtime.py` (modified, uncommitted) — `create_session` gutted
+  to `return await create_resident_session(payload)`
+
+The B/C/E substrate wiring is **already present and correct inside that
+untracked `_mint`**: it calls `resolve_operational_state`, `resolve_continuity`,
+`resolve_conversation_state`, passes all three to
+`_build_companion_instructions(...)`, and puts `operational_state` /
+`continuity` / `conversation_state` on `_caos.context`. Verified by import +
+source inspection; `/api/realtime/session` routes to it; `import server` OK.
+
+Not committed here because doing so would either (a) pull an entire in-flight
+Level 1 refactor into a substrate commit and misattribute it, or (b) require
+independently rewriting `_mint` in `realtime.py` — both explicitly disallowed.
+
+### Unblock condition
+When the Level 1 lane commits its `_mint` extraction, the substrate wiring
+lands with it. A follow-up commit should then add a mint-path integration test
+(`create_resident_session` / `_mint` assembles B+C+E into `instructions` and
+`_caos.context`).
+
+### Independent substrate work in this run — all done and committed
+- `2f25487` Layer C review integration
+- `b864bfa` Step 1 (request tools speak from Layer E, backend)
+- `0c95352` Step 2 (Layer B corrections B-1, B-2)
+
+Layer D / F not started (deferred by directive).
+
+---
+
+## 2026-09-10 — Terminal 10: conversation parity (multilingual, person-specific interpretation, turn-taking, wake-word plan)
+
+### Agent / tool
+Claude Code (Sonnet 5), branch `aria/conversation-substrate` (Michael's
+explicit authorization to execute Terminal 10 in this existing lane/branch
+rather than a new one). No merge, no deploy, no backend restart, no Linode
+deployment. Did not touch `useRealtimeVoice.js`, `realtimeMessageHandler.js`,
+`realtimeDeviceTools.js`, `realtimeConnection.js`, or any other file in the
+in-flight Level 1/frontend-refactor set.
+
+### First reads (per `commands/TERMINAL_10_CONVERSATION_PARITY.md` + `git fetch origin`)
+Read from `origin/main` (ahead of this branch's merge-base by 4 commits):
+`AGENTS.md`, `docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md` (new "Person-specific
+interpretation continuity — NON-NEGOTIABLE" section), `commands/TERMINAL_10_CONVERSATION_PARITY.md`.
+Read from this branch: `docs/ARIA_VOICE_FIRST.md`,
+`docs/reports/2026-08-23-2152-voice-regression-matrix.md`,
+`docs/reports/2026-08-23-1345-semantic-vad-failed-experiment.md`,
+`docs/ROOM_AUDIO_ARCHITECTURE.md`, `docs/CURRENT_NODE_STATUS.md`,
+`backend/routes/realtime_audio_config.py`, `frontend/src/lib/realtimeSessionUpdate.js`.
+Verified OpenAI Realtime API transcription-model/language behavior against
+current docs (WebSearch/WebFetch) before changing any field.
+
+### What changed
+
+**1. Multilingual transcription (`frontend/src/lib/realtimeSessionUpdate.js`):**
+removed the hard-coded `input_audio_transcription.language: "en"`. Verified: a
+full conversational session (`session.type: "realtime"`) only accepts
+gpt-4o-transcribe/gpt-4o-mini-transcribe/whisper-1, which use a singular,
+OPTIONAL language hint; the multi-language `languages` array
+(gpt-transcribe/gpt-live-transcribe) only works in a dedicated
+`session.type: "transcription"` session — not ours — so the model was not
+swapped (would have been unverified/guessed). Omitting the hint lets the
+model auto-detect per turn instead of forcing English.
+Test: `frontend/src/lib/__tests__/realtimeSessionUpdateLanguage.test.js` (4 tests).
+
+**2. Person-specific interpretation continuity (NON-NEGOTIABLE):**
+- `backend/routes/aria_interpretation_patterns.py` (197, new) — resident-scoped
+  `db.interpretation_patterns` collection (deliberately not a second
+  `db.memories` architecture — structured heard/understood pairs need a
+  lookup key prose memory can't give efficiently). `record_pattern()` upserts
+  by (resident_id, normalized heard_as): repeats strengthen `confirmed_count`;
+  a different `understood_as` is a correction applied to THAT pattern only,
+  with the prior value kept in `correction_history` (never silent, never
+  cross-pattern). `find_matching_patterns()` does exact-normalized-substring +
+  bounded stdlib `difflib` fuzzy matching (threshold 0.82) for phonetic
+  approximations. `list_patterns()` returns a bounded (≤15), ranked set for
+  mint-time context — never a full dump. `render_interpretation_block()`
+  instructs the model to use only listed patterns, never fabricate one, and
+  to preserve the resident's original wording when teaching/correcting.
+- `backend/routes/realtime_interpretation_tools.py` (57, new) — the
+  `confirm_interpretation_pattern` Realtime tool schema; wired into
+  `realtime_tools.py::_build_tools()`.
+- `frontend/src/lib/realtimeOperationsTools.js` — dispatch branch that POSTs
+  a confirmed pattern to `/api/aria/interpretation-patterns/confirm`.
+- `GET /api/aria/interpretation-patterns`, `GET .../match`,
+  `POST .../confirm` (public, resident-scoped, same trust model as the other
+  Aria context endpoints).
+- Acceptance case proven end-to-end (unit + full-prompt-assembly tests):
+  "dos savor" → confirmed as "dos sabores" / "two flavors" → a later close
+  phonetic variant ("dos sabor") matches the confirmed pattern → the
+  assembled companion prompt carries both the original wording and the
+  learned meaning, with no-fabrication guidance, and a fresh resident with no
+  confirmed patterns gets no block at all.
+- Tests: `backend/tests/test_aria_interpretation_patterns.py` (3 tests: store/
+  correction/matching/rendering; full prompt integration; tool registration).
+
+**3. Turn-taking instrumentation:**
+- `backend/routes/aria_turn_taking.py` (107, new) —
+  `resolve_turn_taking(session_id)` derives silence-before-response gaps,
+  response durations, barge-in count, "premature interrupt" count (barge-in
+  within 600 ms of `response_created`), and long-gap count (≥4000 ms) purely
+  from `realtime_diagnostics` events the frontend already writes — no new
+  capture added. Sanity-checked against three real historical Room 214
+  sessions (read-only, not part of the automated suite): `rt_mkqn5z8x`
+  (the "I know you're bleeding" session) shows 15 barge-ins across 24
+  resident turns and `rt_tz7t11g7` (the light-control retry storm) shows 84
+  assistant turns for 18 resident turns — both numerically confirm the
+  Room 214 evidence doc's qualitative findings.
+  `GET /api/aria/turn-taking/{session_id}` (no transcript text returned).
+- Test: `backend/tests/test_aria_turn_taking.py` (ordinary turn, barge-in,
+  premature interrupt, long gap, empty/unknown session).
+
+**4. Wake word — documented, not prototyped:**
+`docs/ARIA_WAKE_WORD_ARCHITECTURE.md`. Verified **no Level 1 change is
+needed**: `models.py:1552` already documents `Alert.trigger_source` as a
+free-form string with `"wake_word"` named as an anticipated value, and
+`POST /realtime/room/{room}/activate` already accepts any `trigger_source` —
+a wake-word listener is purely additive (a 4th caller of an existing
+endpoint). Engine choice (openWakeWord custom-trained vs Picovoice Porcupine)
+and a physical in-room listening test with Michael are documented as the
+next steps, per Terminal 10's own "prototype OR documented, verified
+blocker" acceptance.
+
+**Refactor (net negative line count):** `realtime_companion_prompt.py` was
+about to gain a 5th context-block append; extracted the assembly into
+`backend/routes/realtime_context_tail.py::render_context_tail()` (32, new).
+Net: `realtime_companion_prompt.py` 285 → 278 lines despite adding the
+interpretation-patterns capability.
+
+**Mint wiring** (rides with the in-flight Level 1 `_mint` extraction, same as
+Layers B/C/E before it — `backend/routes/realtime_resident_session.py`,
+untracked): resolves `list_patterns()` best-effort and threads it into
+`_build_companion_instructions(..., interpretation_patterns=...)` and
+`_caos.context.interpretation_patterns`.
+
+### What was verified
+- `python -c "import server"` OK.
+- Backend: `pytest` substrate + level1 + Terminal 10 — **24 passed, 1 skipped**
+  (operational-state HTTP endpoint, pending dev-backend reload; unrelated to
+  this work).
+- Frontend: full suite — **15 suites / 109 tests passed**, including the
+  in-flight refactor's own untracked test files (`activationClient`,
+  `realtimeConnectionRecovery`, `realtimeInactivityTimer`, `residentRecovery`)
+  — confirms the `realtimeOperationsTools.js`/`realtimeSessionUpdate.js`
+  edits did not disturb that lane's work.
+- Production file line counts (all ≤ 300): `aria_interpretation_patterns.py`
+  197, `realtime_interpretation_tools.py` 57, `aria_turn_taking.py` 107,
+  `realtime_context_tail.py` 32, `realtime_companion_prompt.py` 278,
+  `realtime_tools.py` 241, `server.py` 220, `realtimeSessionUpdate.js` 73,
+  `realtimeOperationsTools.js` 243, `realtime_resident_session.py` 163
+  (uncommitted, rides with Level 1).
+
+### Level 1 dependency (explicit, per directive)
+None required for what was built. Confirmed by inspection: the wake-word
+activation contract (`trigger_source` as a free-form string, `"wake_word"`
+already anticipated) already exists in Level 1's own model/endpoint. No
+Level 1 file was modified. If Level 1 later tightens `trigger_source` to a
+strict enum, `"wake_word"` must be included — flagged for the coordinator,
+not worked around independently.
+
+### What is blocked / not done
+- Wake-word engine selection and a physical in-room prototype (needs a
+  hands-on engine comparison + Michael present for a real listening test —
+  not forced blind this session, per Terminal 10's own guidance and the
+  semantic-VAD live-regression precedent).
+- `confirm_interpretation_pattern` has no teaching-surface UI yet (the
+  "what you said → what I understood → corrected form → meaning" comparison
+  display) — backend data/tool exist; UI is a separate, frontend-lane task.
+- The `_mint` wiring for `interpretation_patterns` is uncommitted, riding
+  with the Level 1 extraction (see the earlier Layer B/C/E entries for why).
+- `test_operational_state_http_endpoint` still skipped pending a dev-backend
+  reload (pre-existing, unrelated to this work).
+
+### Next safe step
+Coordinate the Level 1 `_mint` extraction commit (unblocks all substrate +
+Terminal 10 mint wiring at once). Separately: a short hands-on wake-word
+engine comparison per `docs/ARIA_WAKE_WORD_ARCHITECTURE.md`, and a teaching-
+surface UI for interpretation-pattern corrections, are the next Terminal 10
+increments — neither started here.
+
+---
+
+## 2026-09-13 — Five-lane integration: admin-operations, level1-breaktest, level1-integration, aria/conversation-substrate, resident-baselines onto a clean integration branch
+
+### Agent / tool
+Claude Code (Sonnet 5), dedicated `~/CAOSCARE-INTEGRATION` worktree,
+branch `claude/integration-2026-09-13` (off `origin/main` @ `d5b5a3e`).
+Explicit reconciliation task, no new feature work.
+
+### What changed
+Merged, one lane at a time, each as its own commit on top of the last,
+with backend + frontend tests run fresh (dropped test DB, restarted
+`uvicorn`) after every lane:
+
+1. `90e7dfb` — `claude/resident-baselines` (docs-only, zero overlap,
+   trivial).
+2. `919a91b` — `claude/admin-operations` (Owner/Admin ops console, staff
+   departments, reporting; auto-merged clean, no conflicts).
+3. `2cdf0ed` — `claude/level1-breaktest` (RF transmission-semantics gate +
+   activation observability; one trivial additive conflict in
+   `backend/server.py`).
+4. `582b717` — `claude/level1-integration` (session-fencing/concurrency
+   hardening on top of #3's feature; real content + add/add conflicts
+   across the RF-activation subsystem and the realtime-voice frontend —
+   resolved by taking the concurrency-safe superset and manually porting
+   the activation-observability instrumentation that would otherwise have
+   been dropped; also found and fixed a silent, non-conflicting auto-merge
+   of `test_resident_events.py` that would have shipped testing removed
+   behavior).
+5. `35c9350` — `aria/conversation-substrate` (the AGENTS.md NON-NEGOTIABLE
+   person-specific interpretation-continuity substrate — Layers B/C/E,
+   Terminal 10; heaviest overlap with #4 since both share a common
+   snapshotted ancestor tree — resolved file-by-file with branch-to-branch
+   diffs to determine which side was the genuine superset vs. which needed
+   a real bidirectional hand-merge; fixed one test that was stale against
+   an already-shipped, documented behavior change (`3951ef6`) neither
+   branch's own state had reconciled).
+
+Full resolution rationale (every conflict, every silent-auto-merge audit,
+every judgment call) is recorded in each merge commit's own message —
+see `git log 90e7dfb..35c9350` on this branch.
+
+### What was verified
+- Backend: fresh-DB `pytest` run after every lane; server boots clean
+  with every router registered at each step. Every lane-specific test
+  file (RF semantics, activation observability, session fencing,
+  concurrency isolation, all 8 aria substrate files) passes individually
+  and as its own group against a fresh DB.
+- Frontend: `yarn test --watchAll=false` after every lane (174/174 passing
+  at the end) and a final `yarn build` (succeeds, non-CI).
+- Cross-checked every file both `level1-integration` and
+  `aria/conversation-substrate` touched that auto-merged WITHOUT a
+  reported conflict, not just the ones git flagged — this is how the
+  `test_resident_events.py` and `test_request_tools_speak_from_layer_e.py`
+  issues were caught; git reported no conflict on either.
+
+### What is blocked / not done
+- Not pushed to `main` (explicitly out of scope for this task) and not
+  pushed to `origin` at all — this branch exists only in this worktree
+  pending Michael's review.
+- Three pre-existing, documented-in-commit-messages issues remain,
+  unrelated to this integration work and reproduced identically on the
+  unmerged source branches:
+  - `tests/test_ai_escalation.py::test_ai_escalation_real_auditable_page`
+    — a simulated failed page reports `wording_state="paged"` instead of
+    `"failed"` (false-success risk on a safety-relevant path). Inherited
+    from `claude/level1-integration`'s own commit history.
+  - The full-suite `pytest tests/` run shows failures from three
+    unrelated pre-existing conditions: no `OPENAI_API_KEY` in this test
+    environment, a shared 429 admin-login rate-limit lockout across
+    several live-server test files run in sequence (documented in the
+    `claude/admin-operations` merge commit), and a shared-event-loop
+    artifact across DB-direct `asyncio.run()` test scripts run in the
+    same pytest session (documented in the `claude/level1-breaktest`
+    merge commit) — none are regressions from this integration, all
+    pass individually against a fresh DB.
+  - `CI=true yarn build` fails on pre-existing `react-hooks/exhaustive-deps`
+    warnings in `Admin.jsx`/`AuditTab.jsx`/`FacilitiesTab.jsx`, inherited
+    from `claude/admin-operations` and reproduced identically on that
+    branch alone.
+
+### Next safe step
+Michael reviews this branch (`claude/integration-2026-09-13` @ `35c9350`)
+and the five merge-commit messages for the judgment calls made where
+lane intent genuinely diverged (most notably `realtime_resident_session.py`
+and `resident_requests.py`, where neither side was a strict superset of
+the other). If approved, merge to `main`; this session did not push
+anywhere or touch `main`.

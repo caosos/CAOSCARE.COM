@@ -48,7 +48,9 @@ def _csv_response(rows: list[dict], columns: list[str], filename: str) -> Stream
 
 
 def _require_admin(user):
-    if user.get("role") != "admin":
+    # "admin tier" = owner OR admin, matching deps.require_admin everywhere
+    # else. Was `!= "admin"`, which 403'd the Owner and broke the Audit tab.
+    if user.get("role") not in ("owner", "admin"):
         raise HTTPException(status_code=403, detail="Admin required")
 
 

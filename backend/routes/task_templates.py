@@ -22,7 +22,7 @@ async def list_templates(user=Depends(get_current_user)):
 
 @router.post("/templates")
 async def create_template(data: StaffTaskTemplateCreate, user=Depends(get_current_user)):
-    if user.get("role") != "admin":
+    if user.get("role") not in ("owner", "admin"):
         raise HTTPException(status_code=403, detail="Admin required")
     tpl = StaffTaskTemplate(**data.model_dump())
     doc = tpl.model_dump()
@@ -34,7 +34,7 @@ async def create_template(data: StaffTaskTemplateCreate, user=Depends(get_curren
 
 @router.delete("/templates/{template_id}")
 async def delete_template(template_id: str, user=Depends(get_current_user)):
-    if user.get("role") != "admin":
+    if user.get("role") not in ("owner", "admin"):
         raise HTTPException(status_code=403, detail="Admin required")
     r = await db.task_templates.delete_one({"template_id": template_id})
     if r.deleted_count == 0:
@@ -45,7 +45,7 @@ async def delete_template(template_id: str, user=Depends(get_current_user)):
 @router.post("/spawn-today")
 async def spawn_today(user=Depends(get_current_user)):
     """Idempotent — materializes one task per active template for today's date."""
-    if user.get("role") != "admin":
+    if user.get("role") not in ("owner", "admin"):
         raise HTTPException(status_code=403, detail="Admin required")
     today = now_utc().date().isoformat()
     start = f"{today}T00:00:00+00:00"

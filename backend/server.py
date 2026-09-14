@@ -33,6 +33,7 @@ from routes import vision as vision_routes  # noqa: E402
 from routes import tasks as task_routes  # noqa: E402
 from routes import task_templates as task_templates_routes  # noqa: E402
 from routes import task_detail as task_detail_routes  # noqa: E402
+from routes import task_assignment as task_assignment_routes  # noqa: E402
 from routes import resident_requests as resident_request_routes  # noqa: E402
 from routes import schedule as schedule_routes  # noqa: E402
 from routes import menu as menu_routes  # noqa: E402
@@ -56,6 +57,7 @@ from routes import realtime as realtime_routes  # noqa: E402
 from routes import realtime_room_lease as realtime_room_lease_routes  # noqa: E402
 from routes import rf as rf_routes  # noqa: E402
 from routes import rf_bridge_health as rf_bridge_health_routes  # noqa: E402
+from routes import rf_fleet as rf_fleet_routes  # noqa: E402
 from routes import facilities as facilities_routes  # noqa: E402
 from routes import hardware as hardware_routes  # noqa: E402
 from routes import escalation as escalation_routes  # noqa: E402
@@ -72,6 +74,17 @@ from routes import events as event_routes  # noqa: E402
 from routes import alert_lifecycle_events as alert_lifecycle_routes  # noqa: E402
 from routes import resident_patterns as resident_patterns_routes  # noqa: E402
 from routes import resident_assistance_config as resident_assistance_config_routes  # noqa: E402
+from routes import ops_overview as ops_overview_routes  # noqa: E402
+from routes import reports as reports_routes  # noqa: E402
+from routes import activation_client_events as activation_client_events_routes  # noqa: E402
+from routes import activation_timeline as activation_timeline_routes  # noqa: E402
+from routes import staff_dispatch as staff_dispatch_routes  # noqa: E402
+from routes import ai_escalation as ai_escalation_routes  # noqa: E402
+from routes import aria_operational_state as aria_operational_state_routes  # noqa: E402
+from routes import aria_continuity as aria_continuity_routes  # noqa: E402
+from routes import aria_conversation_state as aria_conversation_state_routes  # noqa: E402
+from routes import aria_interpretation_patterns as aria_interpretation_patterns_routes  # noqa: E402
+from routes import aria_turn_taking as aria_turn_taking_routes  # noqa: E402
 from seed import demo_seed_enabled, seed  # noqa: E402
 
 
@@ -104,6 +117,13 @@ async def lifespan(app: FastAPI):
     # least the baseline departments exist. No-ops if any already do.
     from routes.departments import seed_default_departments
     await seed_default_departments()
+    # Substrate lookup indexes — built once here, never in the session-mint
+    # / context-assembly path.
+    from routes.aria_continuity import ensure_indexes as _ensure_continuity_indexes
+    try:
+        await _ensure_continuity_indexes()
+    except Exception as e:
+        logging.warning(f"continuity index setup skipped: {e}")
     yield
 
 
@@ -147,6 +167,7 @@ api.include_router(vision_routes.router)
 api.include_router(task_routes.router)
 api.include_router(task_templates_routes.router)
 api.include_router(task_detail_routes.router)
+api.include_router(task_assignment_routes.router)
 api.include_router(resident_request_routes.router)
 api.include_router(schedule_routes.router)
 api.include_router(menu_routes.router)
@@ -170,6 +191,7 @@ api.include_router(realtime_routes.router)
 api.include_router(realtime_room_lease_routes.router)
 api.include_router(rf_routes.router)
 api.include_router(rf_bridge_health_routes.router)
+api.include_router(rf_fleet_routes.router)
 api.include_router(facilities_routes.router)
 api.include_router(hardware_routes.router)
 api.include_router(escalation_routes.router)
@@ -186,6 +208,17 @@ api.include_router(event_routes.router)
 api.include_router(alert_lifecycle_routes.router)
 api.include_router(resident_patterns_routes.router)
 api.include_router(resident_assistance_config_routes.router)
+api.include_router(ops_overview_routes.router)
+api.include_router(reports_routes.router)
+api.include_router(activation_client_events_routes.router)
+api.include_router(activation_timeline_routes.router)
+api.include_router(staff_dispatch_routes.router)
+api.include_router(ai_escalation_routes.router)
+api.include_router(aria_operational_state_routes.router)
+api.include_router(aria_continuity_routes.router)
+api.include_router(aria_conversation_state_routes.router)
+api.include_router(aria_interpretation_patterns_routes.router)
+api.include_router(aria_turn_taking_routes.router)
 
 app.include_router(api)
 

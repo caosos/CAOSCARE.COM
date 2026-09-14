@@ -21,6 +21,7 @@ import asyncio
 import os
 import sys
 import uuid
+from datetime import datetime, timedelta, timezone
 
 import pytest
 import requests
@@ -32,14 +33,22 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 FREQ = 319_500_000
 FP_HEX = "aabbccdd11"
+# A real DELIBERATE press carries the proven Interlogix/Lifeline press
+# signature (switch5 CLOSED). Frames without decoded semantics classify
+# `unknown` and are NOT admitted to the activation path (rf_semantics.py).
+_PRESS_DECODED = {"subtype": "unknown", "battery_ok": 1, "switch1": "OPEN",
+                  "switch2": "OPEN", "switch3": "OPEN", "switch4": "OPEN", "switch5": "CLOSED"}
 
 
 def _press(kiosk_id, seq, fp_hex=FP_HEX):
     r = requests.post(f"{API}/rf/event", json={
         "kiosk_id": kiosk_id,
         "fingerprint": {"frequency_hz": FREQ, "modulation": "OOK", "bit_pattern_hex": fp_hex,
-                         "bit_length": 40, "rssi": -50},
+                         "bit_length": 40, "rssi": -50, "decoded": _PRESS_DECODED},
         "sequence": seq,
+        # These represent distinct human presses, not eight frames from
+        # one RF burst. Capture time is explicit and >2s apart.
+        "captured_at": (datetime(2026, 9, 6, tzinfo=timezone.utc) + timedelta(seconds=seq * 10)).isoformat(),
     }, timeout=5)
     r.raise_for_status()
     return r.json()
@@ -107,6 +116,7 @@ async def _run_reactivation_sequence():
         session_id = f"rt_test_{uuid.uuid4().hex[:8]}"
         activate = requests.post(f"{API}/realtime/room/{room}/activate", json={
             "resident_id": resident_id, "kiosk_id": kiosk_id, "trigger_source": "pendant", "session_id": session_id,
+            "alert_id": alert_a, "activation_id": seen["activation_id"],
         }, timeout=5).json()
         assert activate["claimed"] is True
 
@@ -128,6 +138,7 @@ async def _run_reactivation_sequence():
         recovery_session = f"rt_recovered_{uuid.uuid4().hex[:8]}"
         recover = requests.post(f"{API}/realtime/room/{room}/activate", json={
             "resident_id": resident_id, "kiosk_id": kiosk_id, "trigger_source": "pendant", "session_id": recovery_session,
+            "alert_id": alert_a, "activation_id": seen["activation_id"],
         }, timeout=5).json()
         assert recover["claimed"] is True, "a new endpoint must be able to take ownership after the old session died"
 
@@ -135,7 +146,8 @@ async def _run_reactivation_sequence():
         # timeout fires) - this is the one thing that's allowed to
         # consume the activation, via the explicit aria-event, not via
         # releasing the lease.
-        aria_event_r = requests.post(f"{API}/alerts/{alert_a}/aria-event", json={"event": "dismissed"}, timeout=5)
+        aria_event_r = requests.post(f"{API}/alerts/{alert_a}/aria-event", json={"event": "dismissed", "session_id": recovery_session,
+                             "activation_id": seen["activation_id"]}, timeout=5)
         aria_event_r.raise_for_status()
         assert aria_event_r.json()["aria_state"] == "dismissed"
         requests.post(f"{API}/realtime/room/{room}/release", json={"session_id": recovery_session}, timeout=5)
@@ -164,13 +176,14 @@ async def _run_reactivation_sequence():
         r7 = _press(kiosk_id, 7)
         assert r7["alert_id"] != alert_a, "a press after the event is actually resolved must open a NEW event"
     finally:
-        await db.residents.delete_one({"resident_id": resident_id})
-        await db.kiosks.delete_one({"kiosk_id": kiosk_id})
-        await db.rf_devices.delete_one({"rf_device_id": rf_device_id})
-        await db.alerts.delete_many({"resident_id": resident_id})
-        await db.receipts.delete_many({"resident_id": resident_id})
-        await db.rf_events.delete_many({"fingerprint.bit_pattern_hex": FP_HEX})
-        await db.resident_aria_leases.delete_many({"room": room})
+        if not os.environ.get("CAOS_KEEP_TEST_EVIDENCE"):
+            await db.residents.delete_one({"resident_id": resident_id})
+            await db.kiosks.delete_one({"kiosk_id": kiosk_id})
+            await db.rf_devices.delete_one({"rf_device_id": rf_device_id})
+            await db.alerts.delete_many({"resident_id": resident_id})
+            await db.receipts.delete_many({"resident_id": resident_id})
+            await db.rf_events.delete_many({"fingerprint.bit_pattern_hex": FP_HEX})
+            await db.resident_aria_leases.delete_many({"room": room})
 
 
 
@@ -233,12 +246,13 @@ async def _run_two_sources_one_event():
         sources = {p["source"] for p in doc["presses"]}
         assert sources == {"rf_pendant", "kiosk_button"}
     finally:
-        await db.residents.delete_one({"resident_id": resident_id})
-        await db.kiosks.delete_one({"kiosk_id": kiosk_id})
-        await db.rf_devices.delete_one({"rf_device_id": rf_device_id})
-        await db.alerts.delete_many({"resident_id": resident_id})
-        await db.receipts.delete_many({"resident_id": resident_id})
-        await db.rf_events.delete_many({"fingerprint.bit_pattern_hex": fp_hex})
+        if not os.environ.get("CAOS_KEEP_TEST_EVIDENCE"):
+            await db.residents.delete_one({"resident_id": resident_id})
+            await db.kiosks.delete_one({"kiosk_id": kiosk_id})
+            await db.rf_devices.delete_one({"rf_device_id": rf_device_id})
+            await db.alerts.delete_many({"resident_id": resident_id})
+            await db.receipts.delete_many({"resident_id": resident_id})
+            await db.rf_events.delete_many({"fingerprint.bit_pattern_hex": fp_hex})
 
 
 
@@ -284,8 +298,9 @@ async def _run_staff_presence_mute():
         lease = await db.resident_aria_leases.find_one({"room": room}, {"_id": 0})
         assert lease is None, "staff presence must immediately drop the room's Aria lease/session"
     finally:
-        await db.alerts.delete_one({"alert_id": alert_id})
-        await db.resident_aria_leases.delete_many({"room": room})
+        if not os.environ.get("CAOS_KEEP_TEST_EVIDENCE"):
+            await db.alerts.delete_one({"alert_id": alert_id})
+            await db.resident_aria_leases.delete_many({"room": room})
 
 
 
@@ -307,7 +322,8 @@ async def _run_pattern_minimum_history():
         footnote = await footnote_for_resident_now(resident_id)
         assert footnote is None, "a resident with zero history must get no footnote, not a fabricated one"
     finally:
-        await db.resident_button_patterns.delete_many({"resident_id": resident_id})
+        if not os.environ.get("CAOS_KEEP_TEST_EVIDENCE"):
+            await db.resident_button_patterns.delete_many({"resident_id": resident_id})
 
 
 async def _run_all():

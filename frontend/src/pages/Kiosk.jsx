@@ -1,3 +1,4 @@
+import { createActivationPollGate } from "../lib/residentActivationPoll";
 import React, { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -14,6 +15,7 @@ import TodayPanel from "../components/kiosk/TodayPanel";
 import RequestsPanel from "../components/kiosk/RequestsPanel";
 import RoomDevicePanel from "../components/kiosk/RoomDevicePanel";
 import { sendRoomDeviceCommand } from "../lib/kioskDeviceControl";
+import { logActivationClientEvent } from "../lib/activationClient";
 
 // Kiosk is PUBLIC - no login. Selected/identified by kiosk_id in URL.
 // /kiosk/:kioskId  (use "demo" to pick an arbitrary kiosk automatically)
@@ -41,7 +43,13 @@ export default function Kiosk() {
   const [needsTap, setNeedsTap] = useState(false);       // remote pendant fired but we need a user tap first (autoplay/mic policy)
   const [pendingAlert, setPendingAlert] = useState(null);
   const audioCtxRef = useRef(null);
+  // { id, pressCount } of the last open event this kiosk auto-woke for.
+  // Versioned by press_count so a LATER pendant press that reactivates the
+  // SAME open event (same alert_id, press_count bumped) still re-wakes Aria
+  // - see kioskEmergencyWake.js / docs/LEVEL1_BREAKTEST.md (invariant 6).
   const seenEmergencyRef = useRef(null);
+  const lastWakeDecisionRef = useRef(null);  // dedupe wake-decision breadcrumbs to transitions only
+  const activationGateRef = useRef(createActivationPollGate());
   const triggerSourceRef = useRef("manual_kiosk");  // what's about to start the next RealtimeChatScreen — pendant | manual_kiosk
   const callStateRef = useRef("idle");     // sync callState for async callbacks
   useEffect(() => { callStateRef.current = callState; }, [callState]);
@@ -180,24 +188,68 @@ export default function Kiosk() {
     return () => { stop = true; clearInterval(t); };
   }, [kiosk?.room, callState]);
 
-  // Poll for incoming emergencies (panic-press / fall) → auto hands-free
+  // Kiosk presence breadcrumbs — so "when was the kiosk actually here" is
+  // answerable from evidence (activation observability, 2026-09-07).
+  useEffect(() => {
+    if (!kiosk?.kiosk_id) return;
+    const base = { kiosk_id: kiosk.kiosk_id, room: kiosk.room, resident_id: resident?.resident_id };
+    logActivationClientEvent("kiosk_mounted", { ...base, data: { path: window.location.pathname } });
+    const onVis = () => logActivationClientEvent(
+      document.visibilityState === "hidden" ? "page_hidden" : "page_visible", base);
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      logActivationClientEvent("kiosk_unmounted", base);
+    };
+  }, [kiosk?.kiosk_id, kiosk?.room, resident?.resident_id]);
+
+  // Poll for incoming emergencies (panic-press / fall) → auto hands-free.
+  // The accept/reject decision itself belongs to activationGateRef (keyed
+  // on activation_id, with the connect-retry/backoff state that
+  // realtimeConnection.js's recover() path drives via .finish() below) -
+  // that gate is load-bearing for the concurrency-safe activation cycle
+  // and must stay the single source of truth for "do we wake". The
+  // observability breadcrumbs alongside it (alert_first_seen/cleared,
+  // wake_accepted/rejected) are a separate, additive requirement (Level 1
+  // observability, 2026-09-07) computed from the same poll result so
+  // "when did the kiosk actually see/act on this" stays evidenced.
   useEffect(() => {
     if (!kiosk?.kiosk_id) return;
     let stop = false;
+    const base = { kiosk_id: kiosk.kiosk_id, room: kiosk.room, resident_id: resident?.resident_id };
+    logActivationClientEvent("poll_started", { ...base, data: { interval_ms: 3000 } });
     const poll = async () => {
       try {
         const { data } = await axios.get(`${API}/kiosks/${kiosk.kiosk_id}/active-emergency`);
         if (stop) return;
         const a = data.alert;
-        if (a && a.alert_id !== seenEmergencyRef.current && callStateRef.current === "idle") {
-          seenEmergencyRef.current = a.alert_id;
-          handleIncomingEmergency(a);
+        const prevId = seenEmergencyRef.current?.id || null;
+        const crumb = a
+          ? { ...base, alert_id: a.alert_id, activation_id: a.activation_id, data: { press_count: a.press_count } }
+          : base;
+        if (a && a.alert_id !== prevId) logActivationClientEvent("alert_first_seen", crumb);
+        if (!a && prevId) logActivationClientEvent("alert_cleared", { ...base, alert_id: prevId });
+        seenEmergencyRef.current = a ? { id: a.alert_id, pressCount: a.press_count || 0 } : null;
+
+        const idle = callStateRef.current === "idle";
+        const wake = activationGateRef.current.accept(a, idle);
+        const reason = wake ? "accepted" : (!a ? "no_alert" : (!idle ? "rejected_in_call" : "rejected_gate"));
+        // Log the wake decision only on a transition - never every idle 3s poll.
+        const decisionKey = a ? `${a.alert_id}:${a.press_count}:${wake ? "wake" : reason}` : null;
+        if (wake || (decisionKey && decisionKey !== lastWakeDecisionRef.current)) {
+          logActivationClientEvent(wake ? "wake_accepted" : "wake_rejected",
+            { ...crumb, data: { ...(crumb.data || {}), reason, call_state: callStateRef.current } });
         }
+        lastWakeDecisionRef.current = decisionKey;
+        if (wake) handleIncomingEmergency(a);
       } catch { /* silent */ }
     };
     poll();
     const t = setInterval(poll, 3000);
-    return () => { stop = true; clearInterval(t); };
+    return () => {
+      stop = true; clearInterval(t);
+      logActivationClientEvent("poll_stopped", base);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kiosk]);
 
@@ -307,9 +359,9 @@ export default function Kiosk() {
         message: severity === "emergency" ? "Emergency button pressed" : "Assistance requested",
         triggered_by: "kiosk_button",
       });
+      activationGateRef.current.accept(data, true);
       setAlert(data);
       setCallState("chatting");
-      // RealtimeChatScreen owns the greeting + conversation from here.
     } catch {
       toast.error("Could not send the call. Please try again.");
       setCallState("idle");
@@ -317,7 +369,6 @@ export default function Kiosk() {
   };
 
   const cancelCall = async () => {
-    // Restore any TVs/speakers we muted when the call began.
     if (mutedDevicesRef.current.length) {
       for (const m of mutedDevicesRef.current) {
         if (m.prior_power === "on") {
@@ -571,8 +622,10 @@ export default function Kiosk() {
         a11yRootClass={a11yRootClass}
         triggerSource={triggerSourceRef.current}
         alertId={alert?.alert_id}
+        activationId={alert?.activation_id}
         onOpenVoicePicker={() => setVoicePickerOpen(true)}
-        onEnd={() => {
+        onEnd={(result) => {
+          activationGateRef.current.finish(result);
           setCallState("idle");
           setAlert(null);
         }}

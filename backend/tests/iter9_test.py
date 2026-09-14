@@ -13,7 +13,19 @@ ADMIN_EMAIL = "admin@caoscare.com"
 ADMIN_PW = "admin1234"
 STAFF_EMAIL = "nurse@caoscare.com"
 STAFF_PW = "nurse1234"
-DOROTHY_ID = "res_d71b29751cf3"
+
+# The admin-login throttle (routes/auth.py::_ADMIN_ATTEMPTS) is in-memory,
+# per-process, keyed by "ip:email" - shared for the lifetime of whichever
+# backend server the whole test suite runs against. Deliberately-triggering
+# a lockout against ADMIN_EMAIL would poison that same bucket for every
+# other test in this file (the module-scoped `admin_token` fixture below)
+# and every other test file that logs in as ADMIN_EMAIL later in the same
+# `pytest tests/` run. Use the separately-seeded owner account (role
+# "owner" also passes /admin-login's role check) for the one test that
+# needs to actually trip the lockout, so its bucket ("ip:OWNER_EMAIL") can
+# never collide with anyone else's use of ADMIN_EMAIL.
+OWNER_EMAIL = "owner@caoscare.com"
+OWNER_PW = "owner1234"
 
 
 # ---------- Fixtures ----------
@@ -34,6 +46,24 @@ def admin_token(s):
 @pytest.fixture(scope="module")
 def admin_headers(admin_token):
     return {"Authorization": f"Bearer {admin_token}", "Content-Type": "application/json"}
+
+
+@pytest.fixture(scope="module")
+def dorothy_id(s, admin_headers):
+    """Resolves "Dorothy Walsh"'s real resident_id by name via the live
+    residents list, rather than a hardcoded id. seed.py mints every
+    resident_id randomly (uid()) on each seed run, so a literal
+    "res_..." constant only ever matches the one environment it happened
+    to be copied from - it can never be portable across a fresh seed
+    (this environment's, CI's, another developer's, ...). This is a test
+    harness portability defect, not environment drift: fixing it changes
+    no assertion, only how Dorothy's id is found."""
+    r = s.get(f"{API}/residents", headers=admin_headers)
+    assert r.status_code == 200, r.text
+    for resident in r.json():
+        if resident.get("name") == "Dorothy Walsh":
+            return resident["resident_id"]
+    pytest.skip('no seeded resident named "Dorothy Walsh" in this environment')
 
 
 # ============ Admin-login endpoint ============
@@ -69,36 +99,91 @@ class TestAdminLogin:
             codes.append(r.status_code)
         assert all(c == 403 for c in codes), f"staff-creds escalated to {codes}"
 
-    def test_lockout_and_reset_on_success(self, s):
-        """Use a unique admin-style email so we don't pollute the real admin bucket."""
-        # We test against the real admin email but use a bad password 5x to trigger 429,
-        # then a valid login should clear. Run last so other tests aren't impacted.
-        bad_codes = []
+    # ---- Lockout state machine (uses OWNER_EMAIL - see comment above).
+    # These three run in this declaration order and deliberately share the
+    # SAME accumulating lockout state (pytest runs class methods in
+    # declaration order by default, and nothing else in this class touches
+    # OWNER_EMAIL) - a rate limiter's transitions (below threshold -> at
+    # threshold -> still locked) are inherently sequential, so this avoids
+    # three separate 6-request setup loops just to re-derive the same
+    # state each time. Product decision (Michael, 2026-09-13): an active
+    # lockout is a hard wall for its full duration - a correct password
+    # during it must NOT authenticate and must NOT clear the counter early.
+    # There is currently no explicit admin-facing "reset lockout" capability
+    # in production; per that same decision, none was added here - only the
+    # lockout's own expiry (backend/tests/test_admin_login_lockout.py)
+    # clears it.
+
+    def test_threshold_triggers_lockout(self, s):
+        codes = []
         for _ in range(6):
-            r = s.post(f"{API}/auth/admin-login", json={"email": ADMIN_EMAIL, "password": "wrong-xyz"})
-            bad_codes.append(r.status_code)
-        # Within 6 attempts, we should see at least one 429
-        assert 429 in bad_codes, f"expected 429 after 5 failures, got {bad_codes}"
-        # 5 failed (401), then 6th should be 429
-        assert bad_codes[:5] == [401] * 5, f"expected 5x 401 then 429, got {bad_codes}"
-        assert bad_codes[5] == 429
+            r = s.post(f"{API}/auth/admin-login", json={"email": OWNER_EMAIL, "password": "wrong-xyz"})
+            codes.append(r.status_code)
+        assert codes[:5] == [401] * 5, f"expected 5x 401 then 429, got {codes}"
+        assert codes[5] == 429, f"expected lockout on the 6th attempt, got {codes}"
 
-        # Now successful login must clear the throttle
-        r = s.post(f"{API}/auth/admin-login", json={"email": ADMIN_EMAIL, "password": ADMIN_PW})
-        assert r.status_code == 200, f"successful admin-login blocked by stale lockout: {r.status_code} {r.text}"
+    def test_wrong_password_during_active_lockout_rejected(self, s):
+        # Continuing from the lockout test_threshold_triggers_lockout just
+        # tripped: another wrong password must still be a flat 429, not a
+        # fresh 401 (the lockout, not the password, is the reason it fails).
+        r = s.post(f"{API}/auth/admin-login", json={"email": OWNER_EMAIL, "password": "still-wrong"})
+        assert r.status_code == 429, f"expected 429 while locked out, got {r.status_code} {r.text}"
 
-        # Subsequent wrong password should go back to 401 (not 429)
-        r = s.post(f"{API}/auth/admin-login", json={"email": ADMIN_EMAIL, "password": "wrong-again"})
-        assert r.status_code == 401, f"expected 401 after counter reset, got {r.status_code}"
+    def test_correct_password_during_active_lockout_rejected(self, s):
+        # The exact behavior this whole test class exists to lock in: a
+        # CORRECT password must not bypass an active lockout. It must not
+        # authenticate (no 200, no token) and must not clear the counter
+        # (verified in the next test - a second correct attempt right after
+        # this one must ALSO still be 429, proving nothing was reset).
+        r = s.post(f"{API}/auth/admin-login", json={"email": OWNER_EMAIL, "password": OWNER_PW})
+        assert r.status_code == 429, (
+            f"a correct password must not authenticate during an active lockout, "
+            f"got {r.status_code} {r.text}"
+        )
+        assert "token" not in r.json()
+
+        # Prove the attempt above didn't clear anything: immediately retry
+        # with the correct password again - still must be 429.
+        r2 = s.post(f"{API}/auth/admin-login", json={"email": OWNER_EMAIL, "password": OWNER_PW})
+        assert r2.status_code == 429, (
+            f"a rejected correct-password attempt during lockout must not have cleared the "
+            f"counter either - got {r2.status_code} {r2.text} on the very next attempt"
+        )
+
+    def test_lockout_rejections_are_audited(self, s, admin_headers):
+        # auth.py's _admin_throttle_check logs auth.admin_lockout_rejected
+        # (source/events.py::log_event) on every rejection above - verify
+        # it's actually queryable via the same admin-only /events surface
+        # every other audit trail in this codebase uses, not just that the
+        # HTTP calls above returned 429.
+        r = s.get(f"{API}/events", headers=admin_headers,
+                  params={"event_type": "auth.admin_lockout_rejected", "target_id": OWNER_EMAIL})
+        assert r.status_code == 200, r.text
+        events = r.json()
+        assert len(events) >= 3, (
+            "expected an audit event for each of the >=3 rejected attempts above "
+            f"(threshold trip + wrong-during-lockout + 2x correct-during-lockout), got {len(events)}"
+        )
+        for ev in events:
+            assert ev["status"] == "rejected"
+            assert ev["target_type"] == "admin_account"
+            assert isinstance(ev["metadata"].get("attempt_count"), int) and ev["metadata"]["attempt_count"] >= 5
+
+        # Still locked - a wrong password now must be 429 (the lockout, not
+        # the password check), never a fresh 401. Expiry-based recovery is
+        # covered in test_admin_login_lockout.py, in-process, since this
+        # live server's real 15-minute window can't be waited out here.
+        r = s.post(f"{API}/auth/admin-login", json={"email": OWNER_EMAIL, "password": "wrong-again"})
+        assert r.status_code == 429, f"expected still-locked 429, got {r.status_code}"
 
 
 # ============ Residents clinical_thresholds ============
 class TestResidentClinicalThresholds:
-    def test_dorothy_exists(self, s, admin_headers):
-        r = s.get(f"{API}/residents/{DOROTHY_ID}", headers=admin_headers)
+    def test_dorothy_exists(self, s, admin_headers, dorothy_id):
+        r = s.get(f"{API}/residents/{dorothy_id}", headers=admin_headers)
         assert r.status_code == 200, f"Dorothy missing: {r.text}"
 
-    def test_set_and_clear_thresholds(self, s, admin_headers):
+    def test_set_and_clear_thresholds(self, s, admin_headers, dorothy_id):
         # Set thresholds
         thresholds = {
             "hr_resting_min": 55,
@@ -108,7 +193,7 @@ class TestResidentClinicalThresholds:
             "inactivity_minutes": 90,
             "notes": "TEST - chronic afib",
         }
-        r = s.put(f"{API}/residents/{DOROTHY_ID}",
+        r = s.put(f"{API}/residents/{dorothy_id}",
                   json={"name": "Dorothy Walsh", "room": "204", "pendant_id": "P-204",
                         "clinical_thresholds": thresholds},
                   headers=admin_headers)
@@ -118,7 +203,7 @@ class TestResidentClinicalThresholds:
             assert saved.get(k) == v, f"{k}: expected {v}, got {saved.get(k)}"
 
         # GET persists
-        r = s.get(f"{API}/residents/{DOROTHY_ID}", headers=admin_headers)
+        r = s.get(f"{API}/residents/{dorothy_id}", headers=admin_headers)
         assert r.status_code == 200
         saved = r.json().get("clinical_thresholds") or {}
         assert saved.get("hr_resting_min") == 55
@@ -151,27 +236,27 @@ class TestResidentClinicalThresholds:
 # ============ Wearable event threshold re-evaluation ============
 class TestWearableThresholds:
     @pytest.fixture(scope="class")
-    def setup_dorothy(self, s, admin_headers):
+    def setup_dorothy(self, s, admin_headers, dorothy_id):
         # Ensure Dorothy has thresholds
         thresholds = {"hr_resting_min": 55, "hr_resting_max": 105, "hr_exertion_max": 135}
-        r = s.put(f"{API}/residents/{DOROTHY_ID}",
+        r = s.put(f"{API}/residents/{dorothy_id}",
                   json={"name": "Dorothy Walsh", "room": "204", "pendant_id": "P-204",
                         "clinical_thresholds": thresholds},
                   headers=admin_headers)
         assert r.status_code == 200
         yield thresholds
         # teardown: clear thresholds per request from main agent
-        s.put(f"{API}/residents/{DOROTHY_ID}",
+        s.put(f"{API}/residents/{dorothy_id}",
               json={"name": "Dorothy Walsh", "room": "204", "pendant_id": "P-204",
                     "clinical_thresholds": None},
               headers=admin_headers)
 
     @pytest.fixture(scope="class")
-    def wearable(self, s, admin_headers, setup_dorothy):
+    def wearable(self, s, admin_headers, dorothy_id, setup_dorothy):
         mac = f"AA:BB:CC:{uuid.uuid4().hex[:2]}:{uuid.uuid4().hex[:2]}:{uuid.uuid4().hex[:2]}"
         r = s.post(f"{API}/wearables",
                    json={"device_label": "TEST_Dorothy Watch", "device_type": "smartwatch",
-                         "mac_address": mac, "resident_id": DOROTHY_ID, "status": "active"},
+                         "mac_address": mac, "resident_id": dorothy_id, "status": "active"},
                    headers=admin_headers)
         assert r.status_code in (200, 201), r.text
         w = r.json()
@@ -223,14 +308,14 @@ class TestWearableThresholds:
 
 # ============ Memory extractor (Haiku 4.5) ============
 class TestMemoryExtraction:
-    def test_extract_and_store(self, s, admin_headers):
+    def test_extract_and_store(self, s, admin_headers, dorothy_id, skip_if_openai_unavailable):
         # pre-count
-        pre = s.get(f"{API}/memory/{DOROTHY_ID}", headers=admin_headers)
+        pre = s.get(f"{API}/memory/{dorothy_id}", headers=admin_headers)
         assert pre.status_code == 200
         before = len(pre.json())
 
         payload = {
-            "resident_id": DOROTHY_ID,
+            "resident_id": dorothy_id,
             "session_id": f"test-session-{uuid.uuid4().hex[:6]}",
             "user_text": (
                 "My daughter Kaitlyn visited yesterday from Boston with her twins "
@@ -240,6 +325,7 @@ class TestMemoryExtraction:
             "assistant_text": "That sounds wonderful, Dorothy. How lovely that they came to see you.",
         }
         r = s.post(f"{API}/memory/extract", json=payload, headers=admin_headers)
+        skip_if_openai_unavailable(r)
         assert r.status_code == 200, r.text
         body = r.json()
         assert body.get("ok") is True
@@ -249,7 +335,7 @@ class TestMemoryExtraction:
         # Allow a tiny propagation delay
         time.sleep(0.5)
 
-        post = s.get(f"{API}/memory/{DOROTHY_ID}", headers=admin_headers)
+        post = s.get(f"{API}/memory/{dorothy_id}", headers=admin_headers)
         assert post.status_code == 200
         after_items = post.json()
         assert len(after_items) >= before + body["saved"], (

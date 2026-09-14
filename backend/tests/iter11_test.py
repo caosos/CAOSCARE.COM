@@ -82,8 +82,16 @@ class TestWeather:
         # Schema completeness
         missing = self.REQUIRED_KEYS - set(body.keys())
         assert not missing, f"missing keys: {missing}"
-        # Default label from .env
-        assert body["label"] == "Lancaster, PA", body["label"]
+        # Current contract (routes/weather.py, 2026-08-25 fix): the live
+        # db.facilities record's own city/state is preferred over any
+        # hardcoded default - "Lancaster, PA" was never a real fact, it was
+        # the specific wrong hardcoded fallback that fix replaced (it
+        # silently served Pennsylvania-area weather for a facility actually
+        # in Conway, Arkansas). This test environment has no facility
+        # record configured at all, so the honest, documented generic
+        # fallback (DEFAULT_LABEL) is the CORRECT current result, not a
+        # regression.
+        assert body["label"] == "the facility", body["label"]
         # Narrative is a single human sentence ending with a period
         narrative = body["narrative"]
         assert isinstance(narrative, str) and narrative.strip().endswith("."), narrative
@@ -177,8 +185,9 @@ class TestRealtimeSession:
         "mark_resting", "get_current_time", "get_weather", "research_topic", "set_timer",
     }
 
-    def test_session_has_nine_tools_and_anchors(self, s):
+    def test_session_has_nine_tools_and_anchors(self, s, skip_if_openai_unavailable):
         r = s.post(f"{API}/realtime/session", json={}, timeout=30)
+        skip_if_openai_unavailable(r)
         assert r.status_code == 200, r.text
         body = r.json()
         assert "_caos" in body
@@ -208,8 +217,9 @@ class TestRealtimeSession:
         assert ctx.get("facility_label") == "Lancaster, PA"
         assert ctx.get("facility_tz") == "America/New_York"
 
-    def test_set_timer_tool_schema(self, s):
+    def test_set_timer_tool_schema(self, s, skip_if_openai_unavailable):
         r = s.post(f"{API}/realtime/session", json={}, timeout=30)
+        skip_if_openai_unavailable(r)
         assert r.status_code == 200
         tools = {t["name"]: t for t in r.json()["_caos"]["tools"]}
         st = tools["set_timer"]

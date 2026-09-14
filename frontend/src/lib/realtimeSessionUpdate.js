@@ -46,7 +46,21 @@ export function buildSessionUpdate({ caos, voice }) {
           // Real Room 102 evidence showed correctly-bounded turns with
           // wrong recognized words (VAD wasn't the problem); gpt-4o-transcribe
           // is documented to improve recognition accuracy over whisper-1.
-          transcription: { model: "gpt-4o-transcribe", language: "en" },
+          //
+          // 2026-09-10 (Terminal 10, verified against current OpenAI docs):
+          // a full conversational session (session.type: "realtime", ours)
+          // only accepts gpt-4o-transcribe / gpt-4o-mini-transcribe / whisper-1
+          // as input_audio_transcription.model - these use the singular,
+          // OPTIONAL `language` hint. The newer multi-language `languages`
+          // array (built for code-switching) belongs to gpt-transcribe /
+          // gpt-live-transcribe, which are only valid inside a DEDICATED
+          // session.type:"transcription" session, not this one - confirmed,
+          // not guessed, so we do not swap the model. `language` was hard-
+          // coded to "en", forcing every utterance through English
+          // recognition even when the resident speaks Spanish or switches
+          // mid-sentence (Michael's "dos savor" case). Omitting the hint
+          // lets the model auto-detect the spoken language per turn instead.
+          transcription: { model: "gpt-4o-transcribe" },
           ...(caos.noise_reduction ? { noise_reduction: caos.noise_reduction } : {}),
           ...(caos.turn_detection ? { turn_detection: { ...caos.turn_detection, create_response: false } } : {}),
         },
