@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { api, API } from "../lib/api";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -17,20 +17,29 @@ export default function AuditTab() {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const fetchSummary = async () => {
+  // Takes the range explicitly (rather than closing over `start`/`end`
+  // state) so this stays referentially stable - the mount effect below
+  // fetches once with the initial range, and the Refresh button passes
+  // whatever range is currently in the date inputs. Neither call site's
+  // behavior changes; this just avoids a stale/reactive closure.
+  const fetchSummary = useCallback(async (s, e) => {
     setLoading(true);
     try {
       const { data } = await api.get("/audit/summary", {
-        params: { start: `${start}T00:00:00+00:00`, end: `${end}T23:59:59+00:00` },
+        params: { start: `${s}T00:00:00+00:00`, end: `${e}T23:59:59+00:00` },
       });
       setSummary(data);
     } catch (err) {
       toast.error(err?.response?.data?.detail || "Could not load summary");
     }
     setLoading(false);
-  };
+  }, []);
 
-  useEffect(() => { fetchSummary(); /* eslint-disable-next-line */ }, []);
+  // Mount-only fetch using the same defaults `start`/`end` were seeded
+  // with (thirtyAgo()/today()), not the live state - so this effect has
+  // no reactive dependency to omit, and editing the date inputs correctly
+  // requires the explicit Refresh button rather than auto-refetching.
+  useEffect(() => { fetchSummary(thirtyAgo(), today()); }, [fetchSummary]);
 
   const download = async (kind) => {
     try {
@@ -95,7 +104,7 @@ export default function AuditTab() {
           <Label>End</Label>
           <Input type="date" value={end} onChange={(e) => setEnd(e.target.value)} data-testid="audit-end" />
         </div>
-        <Button onClick={fetchSummary} variant="outline" className="border-2 rounded-full" data-testid="audit-refresh">
+        <Button onClick={() => fetchSummary(start, end)} variant="outline" className="border-2 rounded-full" data-testid="audit-refresh">
           {loading ? "Loading…" : "Refresh counts"}
         </Button>
       </div>

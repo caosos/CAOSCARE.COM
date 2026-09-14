@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { api } from "../lib/api";
@@ -71,7 +71,7 @@ export default function Admin() {
     if (t || rid) setSp((p) => { const n = new URLSearchParams(p); n.delete("tab"); n.delete("resident"); return n; }, { replace: true });
   }, [sp, groups]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const fetchAll = async () => {
+  const fetchAll = useCallback(async () => {
     try {
       const [r, s, k, z] = await Promise.all([
         api.get("/residents"), api.get("/staff"), api.get("/kiosks"), api.get("/zones"),
@@ -85,14 +85,17 @@ export default function Admin() {
       setFacilities(f.data);
     } catch { /* banner just won't render; rest of Admin still works */ }
     finally { setFacilitiesLoaded(true); }
-  };
+  }, [nav]);
 
   const goSetUpCommunity = () => { setActiveTab("facilities"); setAutoOpenFacilityDialog(true); };
-  const refreshFacilities = async () => {
+  // Stable identity (empty deps - only calls api.get/setFacilities) so
+  // FacilitiesTab's own mount-effect dependency on this prop doesn't
+  // refire on every Admin re-render.
+  const refreshFacilities = useCallback(async () => {
     try { const f = await api.get("/facilities"); setFacilities(f.data); } catch { /* keep prior state */ }
-  };
+  }, []);
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
   return (
     <div className="min-h-screen bg-caos-bone">
