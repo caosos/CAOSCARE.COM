@@ -59,7 +59,7 @@ export default function RFPairingTab() {
 
   return (
     <div className="space-y-6" data-testid="rf-tab">
-      <div className="flex items-end justify-between">
+      <div className="flex flex-wrap items-end justify-between gap-y-3">
         <div>
           <h2 className="font-display text-3xl text-caos-forest">Pendants</h2>
           <p className="text-caos-mute text-sm mt-1">
@@ -72,8 +72,8 @@ export default function RFPairingTab() {
             changes the reachable range, not the software.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Link to="/admin/install" data-testid="rf-install-link">
+        <div className="flex items-center gap-2 overflow-x-auto max-w-full">
+          <Link to="/admin/install" data-testid="rf-install-link" className="shrink-0">
             <Button variant="outline" className="rounded-full">
               <Download className="w-4 h-4 mr-2" /> Install bridge
             </Button>

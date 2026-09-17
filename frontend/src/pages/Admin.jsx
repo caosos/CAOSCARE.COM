@@ -100,15 +100,15 @@ export default function Admin() {
   return (
     <div className="min-h-screen bg-caos-bone">
       <header className="border-b border-caos-line bg-caos-bone sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-4">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-y-2 px-4 sm:px-6 py-4">
           <div className="flex items-center gap-6">
             <Link to="/" className="text-xl" data-testid="admin-home-link">
               <span className="font-display font-bold tracking-tighter text-caos-forest">CAOS</span>
               <span className="font-display font-light text-caos-forest">Care</span>
             </Link>
-            <span className="text-caos-mute text-sm">· {user?.role === "owner" ? "Owner" : "Admin"} · Command centre</span>
+            <span className="text-caos-mute text-sm whitespace-nowrap">· {user?.role === "owner" ? "Owner" : "Admin"} · Command centre</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 overflow-x-auto max-w-full">
             {user?.role === "owner" && (
               <Link to="/admin/blueprint" data-testid="admin-blueprint-link">
                 <Button variant="outline" className="border-2 h-10 rounded-full border-caos-terracotta text-caos-terracotta hover:bg-caos-terracotta hover:text-white">

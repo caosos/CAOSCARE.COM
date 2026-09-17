@@ -72,11 +72,11 @@ export default function WearablesTab({ residents }) {
           <h2 className="font-display text-xl font-medium text-caos-forest">Wearables</h2>
           <p className="text-caos-mute text-sm mt-1 max-w-2xl">
             Pair any device (smartwatch, earbuds, BLE beacon, glasses) that can reach the network.
-            Companion apps POST <code className="text-xs bg-caos-ambient px-1.5 py-0.5 rounded">/api/wearables/event</code> with
-            <code className="text-xs bg-caos-ambient px-1.5 py-0.5 rounded">{`{wearable_id, event_type, heart_rate?, zone?}`}</code>.
+            Companion apps POST <code className="text-xs bg-caos-ambient px-1.5 py-0.5 rounded break-all">/api/wearables/event</code> with
+            <code className="text-xs bg-caos-ambient px-1.5 py-0.5 rounded break-all">{`{wearable_id, event_type, heart_rate?, zone?}`}</code>.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 overflow-x-auto max-w-full">
           <Dialog open={testOpen} onOpenChange={setTestOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" className="border-2 rounded-full" data-testid="test-wearable-btn">

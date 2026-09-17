@@ -57,14 +57,14 @@ export default function TransportationTab() {
 
   return (
     <Card className="border-caos-line p-6" data-testid="transportation-tab-root">
-      <div className="flex justify-between items-start mb-4">
+      <div className="flex flex-wrap justify-between items-start gap-y-3 mb-4">
         <div>
           <h2 className="font-display text-xl font-medium text-caos-forest">Transportation — daily operations</h2>
           <p className="text-caos-mute text-sm mt-1">What came in, what went out, what's still open — one day at a time.</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-auto" data-testid="transport-date-picker" />
-          <Button variant="outline" className="border-2 rounded-full" onClick={seedSlots} data-testid="seed-slots-btn">Seed 2-week schedule</Button>
+        <div className="flex items-center gap-3 overflow-x-auto max-w-full">
+          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-auto shrink-0" data-testid="transport-date-picker" />
+          <Button variant="outline" className="border-2 rounded-full shrink-0" onClick={seedSlots} data-testid="seed-slots-btn">Seed 2-week schedule</Button>
         </div>
       </div>
 

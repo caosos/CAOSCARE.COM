@@ -59,14 +59,14 @@ export default function ScheduleTab() {
 
   return (
     <Card className="border-caos-line p-6" data-testid="schedule-tab-root">
-      <div className="flex justify-between items-start mb-4">
+      <div className="flex flex-wrap justify-between items-start gap-y-3 mb-4">
         <div>
           <h2 className="font-display text-xl font-medium text-caos-forest">Daily schedule</h2>
           <p className="text-caos-mute text-sm mt-1">
             What Aria tells residents when they ask "what's happening today." Only what's listed here is ever spoken — nothing is guessed.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 overflow-x-auto max-w-full">
           <Input
             type="date"
             value={date}

@@ -121,15 +121,15 @@ export default function StaffDashboard() {
     <div className="min-h-screen bg-caos-bone">
       {/* Top bar */}
       <header className="border-b border-caos-line bg-caos-bone sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-4">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-y-2 px-4 sm:px-6 py-4">
           <div className="flex items-center gap-6">
             <Link to="/" data-testid="staff-home-link" className="text-xl">
               <span className="font-display font-bold tracking-tighter text-caos-forest">CAOS</span>
               <span className="font-display font-light text-caos-forest">Care</span>
             </Link>
-            <span className="text-caos-mute text-sm">· Staff Dashboard</span>
+            <span className="text-caos-mute text-sm whitespace-nowrap">· Staff Dashboard</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 overflow-x-auto max-w-full">
             <Link to="/admin" data-testid="nav-admin">
               <Button variant="outline" className="border-2 h-10 rounded-full">
                 <Shield className="w-4 h-4 mr-2" /> Admin

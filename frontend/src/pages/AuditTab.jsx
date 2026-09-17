@@ -68,7 +68,7 @@ export default function AuditTab() {
   };
 
   const Row = ({ kind, label, count }) => (
-    <div className="flex items-center justify-between p-4 rounded-2xl border border-caos-line bg-white" data-testid={`audit-row-${kind}`}>
+    <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl border border-caos-line bg-white" data-testid={`audit-row-${kind}`}>
       <div className="flex items-center gap-3">
         <FileText className="w-5 h-5 text-caos-forest" />
         <div>

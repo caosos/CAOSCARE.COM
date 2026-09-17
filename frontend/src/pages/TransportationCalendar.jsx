@@ -108,12 +108,12 @@ export default function TransportationCalendar() {
     <Card className="border-caos-line p-6" data-testid="transportation-calendar-root">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h2 className="font-display text-xl font-medium text-caos-forest">Transportation calendar</h2>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="border-2 rounded-full" onClick={() => setDate((d) => addDays(d, -step))} data-testid="calendar-prev">←</Button>
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-auto" data-testid="calendar-date-picker" />
-          <Button variant="outline" size="sm" className="border-2 rounded-full" onClick={() => setDate((d) => addDays(d, step))} data-testid="calendar-next">→</Button>
-          <Button variant="outline" size="sm" className={`border-2 rounded-full ${view === "day" ? "bg-caos-forest text-white" : ""}`} onClick={() => setView("day")} data-testid="calendar-view-day">Day</Button>
-          <Button variant="outline" size="sm" className={`border-2 rounded-full ${view === "week" ? "bg-caos-forest text-white" : ""}`} onClick={() => setView("week")} data-testid="calendar-view-week">Week</Button>
+        <div className="flex items-center gap-2 overflow-x-auto max-w-full">
+          <Button variant="outline" size="sm" className="border-2 rounded-full shrink-0" onClick={() => setDate((d) => addDays(d, -step))} data-testid="calendar-prev">←</Button>
+          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-auto shrink-0" data-testid="calendar-date-picker" />
+          <Button variant="outline" size="sm" className="border-2 rounded-full shrink-0" onClick={() => setDate((d) => addDays(d, step))} data-testid="calendar-next">→</Button>
+          <Button variant="outline" size="sm" className={`border-2 rounded-full shrink-0 ${view === "day" ? "bg-caos-forest text-white" : ""}`} onClick={() => setView("day")} data-testid="calendar-view-day">Day</Button>
+          <Button variant="outline" size="sm" className={`border-2 rounded-full shrink-0 ${view === "week" ? "bg-caos-forest text-white" : ""}`} onClick={() => setView("week")} data-testid="calendar-view-week">Week</Button>
         </div>
       </div>
       {!data ? (

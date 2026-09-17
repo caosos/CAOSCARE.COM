@@ -52,7 +52,7 @@ export default function ClinicianTab({ residents = [] }) {
             Per-resident care pattern. Trends, response times, and recent events.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Select value={residentId} onValueChange={setResidentId}>
             <SelectTrigger className="w-[260px]" data-testid="clinician-resident-picker"><SelectValue placeholder="Pick a resident" /></SelectTrigger>
             <SelectContent>

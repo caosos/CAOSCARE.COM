@@ -200,9 +200,9 @@ export default function DevicesTab({ residents }) {
       <div className="mt-6 bg-caos-ambient rounded-xl p-4 text-sm text-caos-ink/80">
         <p className="font-semibold text-caos-forest mb-1">How the tablet executes commands</p>
         <p>
-          Commands queue at <code className="text-xs bg-white px-1 rounded">GET /api/devices/queue/{`{room}`}</code>.
+          Commands queue at <code className="text-xs bg-white px-1 rounded break-all">GET /api/devices/queue/{`{room}`}</code>.
           The room's bridge tablet polls this endpoint, executes locally (BLE GATT / WiFi HTTP / RF transmit via the same RFM69 board / IR blaster / Zigbee dongle), then POSTs
-          <code className="text-xs bg-white px-1 rounded ml-1">/api/devices/queue/{`{command_id}`}/ack</code> with status = executed or failed.
+          <code className="text-xs bg-white px-1 rounded ml-1 break-all">/api/devices/queue/{`{command_id}`}/ack</code> with status = executed or failed.
         </p>
       </div>
     </Card>

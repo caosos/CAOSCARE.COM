@@ -66,15 +66,15 @@ export default function MenuTab() {
 
   return (
     <Card className="border-caos-line p-6" data-testid="menu-tab-root">
-      <div className="flex justify-between items-start mb-4">
+      <div className="flex flex-wrap justify-between items-start gap-y-3 mb-4">
         <div>
           <h2 className="font-display text-xl font-medium text-caos-forest">Menu</h2>
           <p className="text-caos-mute text-sm mt-1">
             Aria only ever speaks from <strong>approved</strong> items. New entries start as drafts — nothing is live until you approve it.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-auto" data-testid="menu-date-picker" />
+        <div className="flex items-center gap-3 overflow-x-auto max-w-full">
+          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-auto shrink-0" data-testid="menu-date-picker" />
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button className="bg-caos-forest hover:bg-caos-forest-hover rounded-full" data-testid="add-menu-btn">

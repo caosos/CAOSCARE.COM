@@ -90,9 +90,9 @@ export default function Roadmap() {
           const pct = progressFor(phase);
           return (
             <section key={phase} data-testid={`roadmap-phase-${phase}`}>
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex flex-wrap items-center justify-between gap-y-2 mb-3">
                 <h3 className="font-display text-xl font-medium text-caos-forest">{PHASE_TITLES[phase]}</h3>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 shrink-0">
                   <span className="text-sm text-caos-mute font-mono">{pct}%</span>
                   <div className="w-32 h-1.5 bg-caos-ambient rounded-full overflow-hidden">
                     <div
