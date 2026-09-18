@@ -4144,3 +4144,119 @@ lane intent genuinely diverged (most notably `realtime_resident_session.py`
 and `resident_requests.py`, where neither side was a strict superset of
 the other). If approved, merge to `main`; this session did not push
 anywhere or touch `main`.
+
+---
+
+## 2026-09-18 — Responsive usability pass: table→card presentation on Residents and Users & access, deployed
+
+### Agent / tool
+Claude Code (Sonnet 5), temp worktree `/tmp/caoscare-mobile-ux` off `main`.
+
+### Branch / ref
+`main`. Starting SHA `04d087a843db4bb9167b7840f6c0174ca0b68ef3` (the prior
+session's header/toolbar-overflow fix, already merged+deployed). This
+session's commit `4b4764680540ccf4fd53bf4bc3871dd51f4ed024` pushed and
+deployed on top of it — both origin/main and production now at `4b47646`.
+
+### What changed
+The previous responsive pass (commit `04d087a`, see the entry two above
+this one) eliminated *page-level* horizontal overflow app-wide, but left
+several data tables (Residents, Users & access) internally horizontally
+scrollable below 1024px — technically reachable, not actually usable
+one-handed on a phone (name visible, but Edit/Enter-room off-screen to
+the right). This pass replaces "scroll to find the action" with a
+one-item-per-card stack on phone/portrait-tablet widths, while leaving
+the exact same `<Table>` untouched at 1024px+.
+
+- `frontend/src/lib/useIsCompact.js` (new) — one shared breakpoint hook
+  (`max-width: 1023px` via `matchMedia`, live-updating) so every surface
+  using it switches presentation at the identical width instead of each
+  component picking its own.
+- `frontend/src/pages/ResidentsCards.jsx` (new) — phone/tablet card for
+  Residents: name + preferred name + room always visible; pendant/
+  participation as compact chips; **Enter room / Set up room** + **Edit**
+  as always-visible primary actions; AI-personalization text, Brief,
+  Resident hub, Delete behind a native `<details>` "More" disclosure.
+- `frontend/src/pages/StaffCards.jsx` (new) — same pattern for Users &
+  access: name + role always visible, department as a badge, **Edit** +
+  **Set password** always visible, email/workspace/auth-provider/Delete
+  behind "More".
+- `frontend/src/pages/ResidentsTab.jsx` / `StaffTab.jsx` — each now
+  branches on `useIsCompact()` to render its existing `<Table>`
+  (unchanged JSX) or the new cards, fed the identical data array and the
+  identical handler functions already defined in that file - no
+  duplicated business logic, no new API calls, no new state shape.
+- `frontend/src/pages/AlertsBoard.jsx` — one more overflow-only fix
+  (same `overflow-x-auto max-w-full` + `shrink-0` pattern as the prior
+  session): the "Live Staff Dashboard" + "Refresh" button pair still
+  overflowed at 320px even after wrapping onto its own row.
+
+### Surfaces inspected and left unchanged (verified, not assumed)
+`StaffDashboard.jsx` (Live board), `MaintenanceWorkspace.jsx`, the generic
+department queue (`DepartmentWorkspace.jsx` non-maintenance branch),
+`RequestsBoard.jsx`, and `AlertsBoard.jsx`'s alert cards were all already
+stacked-card or CSS-grid presentations with no `<Table>` and no
+horizontal-scroll dependency for their primary actions - read each file
+directly and re-confirmed 0px document-level overflow at 320-768px rather
+than assuming from the priority list. `TransportationCalendar.jsx`'s
+optional week view (7 day-columns, `min-w-[260px]` each) intentionally
+keeps its own pre-existing contained `overflow-x-auto` scroll - genuinely
+wide reference data, and the default view is single-day (no scroll
+needed) - left as the task's own explicit "wide analytical data" carve-out.
+`DepartmentsTab.jsx`/`DevicesTab.jsx`/`WearablesTab.jsx`/`ClinicianTab.jsx`/
+`RFPairingTab.jsx` still use plain tables below 1024px and were **not**
+touched - lower-frequency admin/config surfaces, not on the named
+priority list, flagged as a follow-up candidate rather than redesigned.
+
+### What was verified
+Responsive: 0px document-level horizontal overflow at 320/360/390/412/
+768/1024px across Residents, Users & access, Communication & requests,
+Maintenance, Alerts, `/staff`, `/front-desk`, `/workspace` (measured via
+`document.documentElement.scrollWidth` vs `clientWidth` in same-origin
+off-screen iframes, plus direct visual screenshots at 390/768/1024px
+confirming identity + primary actions are immediately visible with no
+scroll, the "More" disclosure opens/closes correctly, and the desktop
+table's full column set/density is unchanged at 1024px). The pre-existing
+Add-resident dialog (untouched) already fits 390px cleanly. 24/24
+frontend suites (174/174 tests) and `CI=true yarn build` both pass.
+Production smoke-tested post-deploy: `/api/health` OK, `/`, `/admin`,
+`/staff`, `/front-desk` all 200, unauthenticated `/api/auth/me` and a
+bad-credential login both correctly 401 (not a crash), served bundle
+hash matches the freshly built one, sibling `caos-backend.service` and
+nginx untouched, local-owner-bypass confirmed off.
+
+### HANDOFF CAPSULE
+```
+Objective:        Make Residents + Users & access (and any other
+                   high-use table found) usable one-handed on phone/
+                   tablet without side-to-side hunting for the action.
+Branch:           main
+Lane / ownership: Frontend responsive presentation only. No backend,
+                   API, route, permission, or business-logic change.
+Last proven state: Deployed and smoke-tested live on caoscare.com.
+Commits:          4b4764680540ccf4fd53bf4bc3871dd51f4ed024 (this pass)
+                  04d087a843db4bb9167b7840f6c0174ca0b68ef3 (prior:
+                  header/toolbar page-level overflow fix)
+Runtime state:    caoscare.com live at 4b47646; caoscare-backend.service
+                  active/enabled/Restart=always; caos-backend.service
+                  and nginx confirmed untouched throughout both deploys.
+Unresolved proven defects: none found in the surfaces inspected this
+                   pass. Departments/Devices/Wearables/Clinician/RF-
+                   pairing tables remain plain `<Table>`s below 1024px -
+                   not defects per this task's own scope bar, but real
+                   candidates for the same useIsCompact()+cards
+                   treatment if they become a genuine workflow problem.
+Product invariants that matter here: desktop density/columns must stay
+                   exactly as-is (verified at 1024px); mobile and desktop
+                   must share one data/handler source (verified - no
+                   duplicated fetch/business logic was introduced).
+Do NOT change:     Any backend route/model, StaffTask/Resident schema,
+                   or the 1024px breakpoint without re-checking every
+                   surface currently keyed to useIsCompact().
+Next safe action: If Michael wants the same treatment on Departments/
+                   Devices/Wearables/Clinician/RF-pairing, reuse
+                   useIsCompact() + the same card-shell pattern
+                   (identity+status always visible, primary action(s)
+                   always visible, secondary fields behind <details>
+                   "More") rather than inventing a new pattern per file.
+```
