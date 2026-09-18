@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import ResidentRecordDialog from "./ResidentRecordDialog";
 import ResidentFormDialog from "./ResidentFormDialog";
 import ResidentQuickFind from "./ResidentQuickFind";
+import ResidentsCards from "./ResidentsCards";
+import { useIsCompact } from "../lib/useIsCompact";
 
 /* -------------- Residents -------------- */
 export default function ResidentsTab({ residents, kiosks, onChange, focusResidentId, onFocusHandled }) {
@@ -95,6 +97,8 @@ export default function ResidentsTab({ residents, kiosks, onChange, focusResiden
     }
   };
 
+  const isCompact = useIsCompact();
+
   return (
     <Card className="border-caos-line p-6">
       <div className="flex justify-between items-center gap-4 mb-4 flex-wrap">
@@ -104,6 +108,20 @@ export default function ResidentsTab({ residents, kiosks, onChange, focusResiden
           <Plus className="w-4 h-4 mr-2" /> Add resident
         </Button>
       </div>
+      {isCompact ? (
+        <ResidentsCards
+          residents={residents}
+          kioskForRoom={kioskForRoom}
+          enterRoom={enterRoom}
+          setUpRoom={setUpRoom}
+          settingUpRoom={settingUpRoom}
+          speakBriefing={speakBriefing}
+          briefingId={briefingId}
+          openEdit={open_edit}
+          remove={remove}
+          setRecordFor={setRecordFor}
+        />
+      ) : (
       <Table>
         <TableHeader>
           <TableRow>
@@ -169,6 +187,7 @@ export default function ResidentsTab({ residents, kiosks, onChange, focusResiden
           })}
         </TableBody>
       </Table>
+      )}
       <ResidentFormDialog open={formOpen} onOpenChange={setFormOpen} resident={editingResident} kiosks={kiosks} onSaved={onChange} />
       <ResidentRecordDialog resident={recordFor} open={!!recordFor} onOpenChange={(o) => { if (!o) setRecordFor(null); }} />
     </Card>

@@ -14,6 +14,8 @@ import { Badge } from "../components/ui/badge";
 import { Trash2, Plus, Pencil } from "lucide-react";
 import { SetPasswordDialog } from "../components/PasswordDialogs";
 import { toast } from "sonner";
+import StaffCards from "./StaffCards";
+import { useIsCompact } from "../lib/useIsCompact";
 
 const NONE = "__none";
 const ROLES = [
@@ -102,6 +104,8 @@ export default function StaffTab({ staff, onChange }) {
     }
   };
 
+  const isCompact = useIsCompact();
+
   return (
     <Card className="border-caos-line p-6">
       <div className="flex justify-between items-center mb-2">
@@ -169,6 +173,9 @@ export default function StaffTab({ staff, onChange }) {
         </Select>
         <span className="text-xs text-caos-mute self-center">{filtered.length} of {staff.length}</span>
       </div>
+      {isCompact ? (
+        <StaffCards staff={filtered} deptLabel={deptLabel} onEdit={setEditing} onDelete={remove} />
+      ) : (
       <Table>
         <TableHeader>
           <TableRow>
@@ -202,6 +209,7 @@ export default function StaffTab({ staff, onChange }) {
           ))}
         </TableBody>
       </Table>
+      )}
 
       <EditStaffDialog
         staff={editing}

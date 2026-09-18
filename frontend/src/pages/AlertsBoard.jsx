@@ -65,9 +65,9 @@ export default function AlertsBoard() {
             (those are under <Link to="/admin?tab=requests" className="underline">Communication &amp; requests</Link>).
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Link to="/staff" data-testid="alerts-open-live-board">
-            <Button variant="outline" className="border-2"><Radio className="w-4 h-4 mr-2" /> Live Staff Dashboard</Button>
+        <div className="flex items-center gap-2 overflow-x-auto max-w-full">
+          <Link to="/staff" data-testid="alerts-open-live-board" className="shrink-0">
+            <Button variant="outline" className="border-2 whitespace-nowrap"><Radio className="w-4 h-4 mr-2" /> Live Staff Dashboard</Button>
           </Link>
           <Button variant="ghost" onClick={load} data-testid="alerts-refresh"><RefreshCw className="w-4 h-4 mr-2" /> Refresh</Button>
         </div>
