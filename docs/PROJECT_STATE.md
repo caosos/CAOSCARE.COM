@@ -4459,3 +4459,195 @@ Next safe action:  If Michael wants this class of bug prevented rather
                    most obviously stale operational feed if a similar
                    refresh is wanted there.
 ```
+
+---
+
+## 2026-09-19 — Room 214 kiosk real-usability pass: runtime-truth check, real touch brightness control, shared facility-content read path
+
+### Agent / tool
+Claude Code (Sonnet 5), working directly in `/home/caoscare-1/CAOSCARE-INTEGRATION` (this worktree moved from the old `claude/integration-2026-09-13` branch onto current `main` as part of this pass - see "Runtime truth" below for why).
+
+### Branch / ref
+`main`. Commit `7bad62440aa5c0694ffd301a1756904160b98bd8`, deployed to and
+verified on production (was `e0438dd9a361...`, the prior session's SHA).
+
+### RUNTIME TRUTH (established before touching anything, per instruction)
+The standing `localhost:3000` dev frontend (a systemd --user service,
+`caoscare-frontend-dev.service`) was NOT running current `main` and was
+NOT touching Linode - verified from actual runtime configuration, not
+URL appearance:
+- Its `WorkingDirectory` drop-in pointed at `~/CAOSCARE-ADMIN/frontend`
+  (git SHA `28b8906`, the `claude/admin-operations` lane, 12 days stale -
+  predates the whole five-lane integration merge).
+- Its `setupProxy.js` forwarded `/api` to `127.0.0.1:8001`, a backend
+  process running the SAME stale lane SHA, started Sep 7 and never
+  restarted since.
+- Both `:8000` and `:8001` (and now this session's replacement) point at
+  `MONGO_URL=mongodb://localhost:27017`, `DB_NAME=caoscare` - EliteDesk's
+  one real local database, the same one Room 214's real hardware/RF/
+  conversation history has always lived in. Confirmed the actual most
+  recent Room 214 conversation (32 minutes old at investigation time)
+  really did run through this exact stale `:8001` process against this
+  real local DB - so "which backend was Room 214 actually using" =
+  **EliteDesk, not Linode, but running 12-day-old code** - a real,
+  non-obvious runtime-truth finding, not something guessable from the
+  kiosk URL alone.
+
+**Repointed this same standing environment to current `main`** (this
+worktree checked out from `claude/integration-2026-09-13` to `main`;
+`backend/.env`/`frontend/.env` created here pointing at the SAME real
+local `caoscare` Mongo + the same real HA_TOKEN/HA_BASE_URL - no reseed,
+no fresh/test DB, no hardware config overwritten) rather than spinning up
+another disposable ephemeral test harness on a random port (the pattern
+used in the two immediately-prior sessions) - per explicit instruction,
+there are only two real environments (EliteDesk, Linode) and a third
+throwaway one would have made "verify against what Michael actually
+opens" impossible. New backend process on `:8092`; drop-in updated to
+point `:3000` at this worktree's frontend + `ADMIN_BACKEND_ORIGIN=
+http://127.0.0.1:8092`. `:8000`/`:8001`/`~/CAOSCARE-ADMIN`/
+`~/CAOSCARE-LEVEL1-INTEGRATION` left exactly as they were (not killed,
+not reclaimed) - only the one standing service's target changed.
+
+### Latest Room 214 conversation - EliteDesk vs Linode, NOT merged, NOT pretended synchronized
+- **EliteDesk** (real, 32 min before investigation): session
+  `rt_bx9i0qsm_1789853753103`, resident `res_81b72be1e8b5` (Helen
+  Torres, preferred "Helen"), room 214, kiosk `kio_dc8c06a19608`,
+  21:35:58-21:37:49 UTC 2026-09-19, 22 turns. Tool calls: `toggle_light`
+  x2 (overhead on, desk off - matches real HA `last_command_at`
+  timestamps in the same window), `check_request_status` x2 (maintenance/
+  nursing), `get_menu(dinner)` -> correctly reported no data (empty local
+  DB, not a bug - see below), `end_call`. No `alerts`/
+  `resident_aria_leases`/`activation_events` row references this
+  session's `aria_session_id` at all - manual kiosk session ("I just want
+  to talk" or an already-open tab), not pendant-triggered.
+- **Linode** (separate, real, older): session `rt_0dbtwci1_1789418861322`,
+  same `resident_id`/`kiosk_id` (both DBs share this facility's original
+  seed record, confirmed by byte-identical `created_at` - then diverged),
+  2026-09-14, only 13 turns total ever for this resident on production -
+  a demo/walkthrough with a visitor ("Adriana"), also hit the empty-menu
+  case that day.
+- **Not merged. Not synchronized.** Confirmed genuinely different,
+  independently-evolving conversation histories on each side.
+
+### Light controls - real defect traced and fixed
+`GET /devices/public/by-room/214` already returned each light's own
+correct distinct label ("Room 214 desk lamp", "Room 214 overhead light")
+- identity data was never missing/wrong. The defect was entirely in
+`RoomDevicePanel.jsx`: one generic button per device, wired only to a
+power toggle, with brightness shown as inert text. New
+`LightControlCard.jsx` gives brightness-capable lights a real power
+button + 1-100 slider (commits on release) + 25/50/75/100 quick buttons,
+calling the exact same `onCommand` (`sendDeviceCommand` ->
+`sendRoomDeviceCommand` -> `POST /devices/public/room/{room}/command`)
+Aria's own `toggle_light` voice tool already posts to - one command
+path, no UI-only device state. Verified against REAL hardware: tapped
+50% on the Overhead Light -> toast confirmed -> independently read
+Home Assistant's own `light.smart_multicolor_bulb_2` state directly
+(bypassing the app) -> `attributes.brightness=128` (128/255=50%, exact
+match). Both real bulbs restored to their pre-test state afterward.
+
+### Menu/activities - real cause traced, NOT a second seed
+EliteDesk's own local `caoscare` DB has real historical menu/schedule
+data but nothing at or after 2026-09-14 (menu) / 2026-09-06 (schedule) -
+a genuinely separate staleness gap from production's (already refreshed
+in the prior session), not a wrong-backend/fetch/auth/timezone/filter
+bug. Aria's own `get_menu` tool call in the real EliteDesk session above
+already correctly said "I don't have today's dinner yet" against this
+genuinely empty dataset - the whole stack down to the tool call was
+already working correctly.
+
+**Architecture decision** (reported before implementing, per
+instruction): shared facility content (menu/activities/notices) has one
+authoritative source - whichever backend the facility's real kitchen/
+activities staff actually enter it into via the existing real ingestion
+pathways, which today is production. Added one optional env var,
+`REACT_APP_FACILITY_CONTENT_URL`, read only by `TodayPanel.jsx`: unset
+(every real deployment including production itself) -> falls back to
+the local `API` exactly as before, zero behavior change - verified the
+production build (built without this var, matching the real deploy
+script) contains no unwanted coupling. Set only in this local,
+gitignored, never-committed EliteDesk dev `.env` -> both public,
+unauthenticated, non-resident-specific reads
+(`/menu/public/today`, `/schedule/public/today`) go to the real
+facility's live data instead of requiring a second, separately-
+maintained local seed. Resident identity, conversations, device control,
+RF/pendant, and Aria voice all remain fully local. Also fixed a real,
+separate rendering bug found in the same trace:
+`const nextMeal = menu[0]?.meal_period` only ever showed whichever meal
+sorted first, silently dropping the other two - `TodayPanel.jsx` now
+buckets into breakfast/lunch/dinner and shows every meal present, each
+labeled.
+
+### What was verified
+Real EliteDesk hardware (see above). Production, post-deploy: `GET
+/kiosk/kio_dc8c06a19608` renders the new light card (production's own
+generic single "Lamp" device, confirming the fix generalizes beyond
+Room 214's specific two-bulb EliteDesk rig) and the fixed three-meal
+menu panel, both against production's own self-referencing local data
+(11 menu items / 2 schedule items today, unaffected by the new env var
+since it's unset there). `/api/health` OK throughout both deploys.
+Sibling `caos-backend.service`/nginx confirmed untouched. 24/24 frontend
+suites (174/174 tests) and a clean `CI=true` production build (without
+the new env var, matching the real deploy pipeline) both pass. No
+backend files changed this pass.
+
+### HANDOFF CAPSULE
+```
+Objective:        Fix Room 214's real touch-brightness gap and the idle-
+                   kiosk menu/activities blank state, after first
+                   establishing which backend Room 214 was actually
+                   using and whether EliteDesk/Linode Room 214 state had
+                   diverged.
+Branch:           main
+Lane / ownership: Frontend-only (Kiosk.jsx, RoomDevicePanel.jsx, new
+                   LightControlCard.jsx, TodayPanel.jsx). No backend
+                   code change. No device-command contract change - both
+                   the touch UI and Aria's voice tools still post to the
+                   identical POST /devices/public/room/{room}/command.
+Last proven state: Deployed and verified live on caoscare.com; verified
+                   against real Room 214 hardware on EliteDesk (real
+                   Home Assistant read-back matched the touch-issued
+                   brightness command exactly).
+Commits:           7bad62440aa5c0694ffd301a1756904160b98bd8
+Runtime state:     EliteDesk's standing localhost:3000 dev service now
+                   serves this worktree (current main) via a fresh
+                   backend on :8092, both against the same real local
+                   `caoscare` Mongo DB and real HA_TOKEN/HA_BASE_URL
+                   EliteDesk has always used - not a fresh/test DB, no
+                   hardware config touched. The prior stale :8000/:8001
+                   processes and their worktrees (~/CAOSCARE-ADMIN,
+                   ~/CAOSCARE-LEVEL1-INTEGRATION) were left running,
+                   untouched, in case anything else still depends on
+                   them - only the one shared systemd frontend's target
+                   moved. caoscare.com live at 7bad624;
+                   caoscare-backend.service restarted/healthy;
+                   caos-backend.service/nginx confirmed untouched.
+Unresolved proven defects: none found in the surfaces this pass touched.
+                   EliteDesk's local menu/schedule data is still stale
+                   past 2026-09-14/09-06 in absolute terms - masked, not
+                   fixed, by reading production's content instead; if
+                   EliteDesk ever needs to work fully offline from
+                   Linode again, its own local data would need its own
+                   refresh via the same seed scripts.
+Product invariants that matter here: touch UI and voice tools must
+                   share one device-command path (preserved - verified
+                   no new command path was introduced); shared facility
+                   content has one authoritative source per facility,
+                   not per room-node (this is the first place that
+                   principle was implemented, via an opt-in-only env
+                   var, not a schema/architecture change).
+Do NOT change:     REACT_APP_FACILITY_CONTENT_URL must stay unset in
+                   every real deployment's build/env - it is an
+                   EliteDesk-local-dev-only override; do not add it to
+                   the production deploy script or commit it into any
+                   tracked .env.
+Next safe action:  If Michael wants EliteDesk's own local menu/schedule
+                   genuinely current (not just reading production's),
+                   run the same idempotent seed scripts from the prior
+                   session against EliteDesk's own local backend
+                   (:8092) instead of/in addition to relying on the new
+                   read-through. Separately: production's Room 214 only
+                   has one generic mock "Lamp" (not the real two-bulb
+                   rig) - expected, since the real commissioned hardware
+                   only physically exists at EliteDesk.
+```
