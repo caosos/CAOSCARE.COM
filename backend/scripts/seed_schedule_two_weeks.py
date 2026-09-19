@@ -15,8 +15,23 @@ endpoint itself.
 Run with: python3 scripts/seed_schedule_two_weeks.py
 (Only works once schedule_ingest_routes.router is registered in server.py
 and the backend has been restarted - see the TODO in server.py.)
+
+Idempotent per day: schedule_ingest.py's dev-test endpoint has no
+draft/approve or dedup concept of its own (see that module's docstring -
+ScheduleItem is plain CRUD), so re-running this script naively would
+create duplicate rows every time. Before building either week's email,
+this script checks db.schedule_items for each target date and drops any
+date that already has at least one item (real staff entry OR a prior run
+of this same script - either way, never silently duplicated or
+overwritten) from that week's email, reporting exactly which dates were
+skipped and why.
+
+CAOSCARE_SEED_BASE_URL overrides the default local-dev backend origin
+(e.g. http://127.0.0.1:8001/api on a host where the backend listens on a
+different port than the 8000 this script defaults to for local dev).
 """
 import asyncio
+import os
 import sys
 from datetime import datetime, timedelta
 
@@ -27,7 +42,7 @@ from routes.auth import _issue_jwt  # noqa: E402
 from routes.realtime_facility import today_facility_date  # noqa: E402
 from deps import db  # noqa: E402
 
-BASE = "http://127.0.0.1:8000/api"
+BASE = os.environ.get("CAOSCARE_SEED_BASE_URL", "http://127.0.0.1:8000/api")
 
 
 def day(offset: int) -> str:
@@ -61,7 +76,7 @@ DAY_PLANS = [
         ("6:00 PM", "Movie Night", '"Singin\' in the Rain", popcorn served, Theater Room', "activity"),
     ],
     [  # day 4
-        ("1:00 PM", "Birthday Celebration", "Cake and punch for August birthdays, Dining Room", "activity"),
+        ("1:00 PM", "Birthday Celebration", "Cake and punch celebrating this month's resident birthdays, Dining Room", "activity"),
         ("3:00 PM", "Family Visiting Hours", "Extended visiting window, all common areas", "facility_note"),
     ],
     [  # day 5
@@ -97,7 +112,7 @@ DAY_PLANS = [
     ],
     [  # day 12
         ("10:00 AM", "Scenic Drive", "Van tour of the botanical gardens, sign up at the front desk", "activity"),
-        ("1:30 PM", "Birthday Celebration", "Cake and punch for late-August birthdays, Dining Room", "activity"),
+        ("1:30 PM", "Birthday Celebration", "Cake and punch celebrating this month's resident birthdays, Dining Room", "activity"),
     ],
     [  # day 13
         ("10:30 AM", "Hymn Sing", "Led by Chaplain Ruiz, Chapel", "activity"),
@@ -110,7 +125,8 @@ DAY_PLANS = [
 def _build_week_email(day_offsets: list[int]) -> str:
     """Builds one raw email body covering the given days, in the exact
     format schedule_ingest.py expects: 'Weekday YYYY-MM-DD:' header per
-    day, then one activity line per entry."""
+    day, then one activity line per entry. Only offsets actually passed in
+    are included - callers filter out already-populated dates first."""
     lines = []
     for offset in day_offsets:
         lines.append(f"{weekday_name(offset)} {day(offset)}:")
@@ -121,37 +137,69 @@ def _build_week_email(day_offsets: list[int]) -> str:
     return "\n".join(lines)
 
 
+async def _already_populated_offsets(all_offsets: list[int]) -> set[int]:
+    """Returns the subset of offsets whose target date already has at
+    least one ScheduleItem (any source) - real staff entry or a prior run
+    of this same script. Those dates are left untouched, never
+    superseded or duplicated - ScheduleItem has no draft/approve or
+    upsert concept of its own (see schedule_ingest.py's own docstring)."""
+    dates = [day(o) for o in all_offsets]
+    existing = await db.schedule_items.distinct("date", {"date": {"$in": dates}})
+    existing_set = set(existing)
+    return {o for o in all_offsets if day(o) in existing_set}
+
+
 async def main():
     owner = await db.users.find_one({"role": "owner"}, {"_id": 0, "user_id": 1})
     token = _issue_jwt(owner["user_id"])
     headers = {"Authorization": f"Bearer {token}"}
 
+    all_offsets = list(range(14))
+    already = await _already_populated_offsets(all_offsets)
+    if already:
+        print("=== Skipping already-populated dates (not touched, not duplicated) ===")
+        for o in sorted(already):
+            print(f"  {day(o)} already has schedule item(s) on file - skipped")
+        print()
+
+    week1_offsets = [o for o in range(0, 7) if o not in already]
+    week2_offsets = [o for o in range(7, 14) if o not in already]
+
     async with httpx.AsyncClient(base_url=BASE, headers=headers, timeout=15.0) as c:
-        print("=== Week 1 activities calendar email (days 0-6) ===")
-        week1_text = _build_week_email(list(range(0, 7)))
-        print(week1_text)
-        r1 = await c.post("/schedule/ingest/dev-test", json={
-            "raw_text": week1_text, "source_ref": "activities-coordinator-week1-dev-test",
-        })
-        r1.raise_for_status()
-        res1 = r1.json()
-        print(f"  created_count={res1['created_count']} skipped_lines={res1['skipped_lines']} notes={res1['notes']}")
+        res1 = {"created_count": 0, "skipped_lines": [], "notes": []}
+        if week1_offsets:
+            print("=== Week 1 activities calendar email ===")
+            week1_text = _build_week_email(week1_offsets)
+            print(week1_text)
+            r1 = await c.post("/schedule/ingest/dev-test", json={
+                "raw_text": week1_text, "source_ref": "activities-coordinator-week1-dev-test",
+            })
+            r1.raise_for_status()
+            res1 = r1.json()
+            print(f"  created_count={res1['created_count']} skipped_lines={res1['skipped_lines']} notes={res1['notes']}")
+        else:
+            print("=== Week 1: every date already populated, nothing to send ===")
 
-        print("\n=== Week 2 activities calendar email (days 7-13) ===")
-        week2_text = _build_week_email(list(range(7, 14)))
-        print(week2_text)
-        r2 = await c.post("/schedule/ingest/dev-test", json={
-            "raw_text": week2_text, "source_ref": "activities-coordinator-week2-dev-test",
-        })
-        r2.raise_for_status()
-        res2 = r2.json()
-        print(f"  created_count={res2['created_count']} skipped_lines={res2['skipped_lines']} notes={res2['notes']}")
+        res2 = {"created_count": 0, "skipped_lines": [], "notes": []}
+        if week2_offsets:
+            print("\n=== Week 2 activities calendar email ===")
+            week2_text = _build_week_email(week2_offsets)
+            print(week2_text)
+            r2 = await c.post("/schedule/ingest/dev-test", json={
+                "raw_text": week2_text, "source_ref": "activities-coordinator-week2-dev-test",
+            })
+            r2.raise_for_status()
+            res2 = r2.json()
+            print(f"  created_count={res2['created_count']} skipped_lines={res2['skipped_lines']} notes={res2['notes']}")
+        else:
+            print("\n=== Week 2: every date already populated, nothing to send ===")
 
-        expected = sum(len(plan) for plan in DAY_PLANS)
+        expected = sum(len(DAY_PLANS[o]) for o in week1_offsets + week2_offsets)
         actual = res1["created_count"] + res2["created_count"]
 
         print("\n=== ACCEPTANCE CHECKS ===")
-        print(f"  Expected {expected} activities created across 14 days, got {actual}: "
+        print(f"  Expected {expected} activities created across {len(week1_offsets) + len(week2_offsets)} "
+              f"not-yet-populated day(s) (of 14 total, {len(already)} already had data), got {actual}: "
               f"{'PASS' if actual == expected else 'FAIL'}")
         print(f"  No skipped/unparseable lines: "
               f"{'PASS' if not res1['skipped_lines'] and not res2['skipped_lines'] else 'FAIL'}")
