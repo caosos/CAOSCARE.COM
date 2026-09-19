@@ -592,7 +592,7 @@ export default function Kiosk() {
           <div className="w-full text-left mt-14 space-y-0">
             <RequestsPanel residentId={resident?.resident_id} room={kiosk?.room} />
             <TodayPanel />
-            <RoomDevicePanel devices={devices} room={kiosk?.room} onToggle={(d) => sendDeviceCommand("power", d.state?.power === "on" ? "off" : "on", d.kind, d.device_id)} />
+            <RoomDevicePanel devices={devices} room={kiosk?.room} onCommand={sendDeviceCommand} />
           </div>
         </div>
 

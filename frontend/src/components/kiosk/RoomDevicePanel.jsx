@@ -1,6 +1,7 @@
 import React from "react";
 import { Lightbulb, Fan, Thermometer, Tv, Volume2, Power, WifiOff } from "lucide-react";
 import { nearestColorName, colorTempLabel } from "../../lib/realtimeLightControl";
+import LightControlCard from "./LightControlCard";
 
 const DEVICE_ICON = {
   light: Lightbulb, fan: Fan, heater: Thermometer, ac: Thermometer, thermostat: Thermometer,
@@ -37,13 +38,29 @@ function stateLines(d) {
   return lines;
 }
 
-export default function RoomDevicePanel({ devices, room, onToggle }) {
+// `onCommand` is Kiosk.jsx's own sendDeviceCommand(action, value, kind,
+// deviceId) - the exact same function the old single-button toggle
+// already called and the exact same POST /devices/public/room/{room}/
+// command path Aria's voice tools use (kioskDeviceControl.js /
+// realtimeDeviceTools.js). Passed straight through to LightControlCard
+// for brightness taps/slider drags too - one command path, never a
+// separate UI-only device state.
+export default function RoomDevicePanel({ devices, room, onCommand }) {
   if (!devices?.length) return null;
   return (
     <div className="w-full max-w-4xl mx-auto" data-testid="kiosk-device-panel">
       <p className="text-xs font-bold uppercase tracking-[0.3em] text-caos-mute mb-4">Your room</p>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
         {devices.map((d) => {
+          const name = d.label.replace(`Room ${room} `, "");
+          // Brightness-capable lights get real touch controls (power +
+          // brightness slider/quick-percents), not a bare power toggle -
+          // each device's own identity (Desk lamp / Overhead light) stays
+          // distinct since `name` comes from that device's own label, not
+          // a generic "Light" fallback.
+          if ((d.capabilities || []).includes("brightness")) {
+            return <LightControlCard key={d.device_id} device={d} name={name} onCommand={onCommand} />;
+          }
           const Icon = DEVICE_ICON[d.kind] || Power;
           const offline = d.online === false;
           const isOn = d.state?.power === "on";
@@ -53,7 +70,7 @@ export default function RoomDevicePanel({ devices, room, onToggle }) {
               key={d.device_id}
               data-testid={`kiosk-dev-${d.device_id}`}
               disabled={offline}
-              onClick={() => !offline && onToggle(d)}
+              onClick={() => !offline && onCommand("power", isOn ? "off" : "on", d.kind, d.device_id)}
               className={`rounded-3xl border-2 p-5 flex flex-col items-start gap-2 text-left transition-all ${
                 offline
                   ? "bg-caos-mute/10 text-caos-mute border-caos-line cursor-not-allowed"
@@ -64,7 +81,7 @@ export default function RoomDevicePanel({ devices, room, onToggle }) {
             >
               {offline ? <WifiOff className="w-8 h-8" strokeWidth={2} /> : <Icon className="w-8 h-8" strokeWidth={2} />}
               <span className="font-display text-lg font-semibold leading-tight capitalize">
-                {d.label.replace(`Room ${room} `, "")}
+                {name}
               </span>
               <span className={`text-xs font-bold uppercase tracking-wider ${isOn ? "text-white/80" : "text-caos-mute"}`}>
                 {lines.join(" · ")}
