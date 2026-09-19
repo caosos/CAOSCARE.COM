@@ -4260,3 +4260,202 @@ Next safe action: If Michael wants the same treatment on Departments/
                    always visible, secondary fields behind <details>
                    "More") rather than inventing a new pattern per file.
 ```
+
+---
+
+## 2026-09-19 — Production data reconciliation: Room 401 Mo/Eleanor identity contamination fixed; two-week menu + activities refresh seeded live
+
+### Agent / tool
+Claude Code (Sonnet 5), working directly against production (Linode) via
+SSH + the real authenticated HTTP API, plus a temp worktree
+`/tmp/caoscare-seed-refresh` off `main` for the one code fix this pass
+required. GitHub is code truth; Linode/MongoDB is production data truth -
+treated as such throughout, no assumption that EliteDesk/local data
+matched.
+
+### Branch / ref
+`main`. Code commit `e0438dd9a3616c9c16e836f76f34c219794cfeb9`, deployed
+to and verified on production (was `4b47646...`, the previous session's
+already-deployed HEAD). No merge conflict, no other code change.
+
+### PART 1 — Room 401 "Mo" (idle screen) vs "Eleanor" (in-conversation) — ROOT CAUSE, NOT a binding defect
+Investigated production data only, proved the cause before touching
+anything, per the explicit instruction. Confirmed via direct queries:
+exactly **one** `residents` document for room 401 (`res_0d3ef4252ae2`,
+`name: "MOCK Eleanor Whitfield"`, `preferred_name: "Mo"`) and exactly
+**one** `kiosks` document for room 401 (`kio_8579b341dcf2`,
+`public_demo: true` - this is the kiosk `caoscare.com/kiosk/demo`
+resolves to, which is what Michael's phone was showing). `GET
+/residents/public/by-kiosk/{kiosk_id}` is a plain room-string match with
+no ambiguity. Pulled the actual most-recent conversation
+(`rt_zpo8yvpa_1789843789948`, today) turn-by-turn: `resident_id`, `room`,
+and `kiosk_id` were **correct and consistent on every single turn** -
+the session mint, the kiosk binding, and the Admin view all already
+agreed on one resident identity. **There was never a stale/duplicate
+resident or kiosk record for this room.**
+
+The actual defect: `db.memories` held two contaminated "events" facts -
+`"My name is Eleanor."` (2026-08-29, a residual of the original TSB-001
+incident never cleaned from this production DB) and `"My name is Eleanor
+Whitfield."` (created **today**, extracted from a real test turn where
+Michael, testing, said "No, it says Eleanor Whitfield, that's my name" -
+a genuine capitalized-name-in-turn utterance that passed the existing
+extraction guard's literal check, even though it was a challenge/question
+about provenance, not a real self-identifying assertion - Aria never
+actually called `update_preferred_name`, so `preferred_name` correctly
+stayed "Mo" throughout). Both facts were rendered verbatim into every
+subsequent session's `## Recent moments with Mo` prompt block via
+`build_resident_profile_and_memory`, contradicting that same prompt's own
+explicit "ALWAYS call them Mo, never any other name" instruction - which
+is what let a later session address the resident as Eleanor despite the
+idle screen (which reads `preferred_name` directly, unaffected by
+memories) correctly showing "Mo".
+
+### Repair (data only, no code change)
+Archived (`archived: true`, not deleted) both contaminated memory
+documents (`mem_df18c32a919e`, `mem_a49ac14ec071`) via the real,
+authenticated `PATCH /api/memory/{memory_id}` endpoint - not a raw Mongo
+write - using an owner JWT minted server-side via the same
+`_issue_jwt()` precedent this codebase has used for every prior one-off
+authenticated production maintenance call. Archiving (not hard-deleting)
+was chosen specifically so the extraction-output record itself is
+preserved for audit, per "preserve prior records; do not rewrite history
+merely to make current state look clean" - and `db.conversations` (the
+actual transcript, including Michael's real test utterances) was never
+touched at all.
+
+### Verified (post-fix, and again after the Part 2 backend restart)
+`_build_companion_instructions('res_0d3ef4252ae2')` rebuilt live on
+production: `## Recent moments with Mo` now shows only genuine facts (the
+correct `"My name is Mo."` event from 2026-09-02, plus unrelated real
+facts) with zero "Eleanor" leakage; the one remaining "Eleanor Whitfield"
+string in the prompt is the intentional "if their full name is X, do NOT
+use it" safety instruction, not a leaked memory. `GET /api/residents`
+(Admin) and `GET /residents/public/by-kiosk/kio_8579b341dcf2` (public)
+both independently confirm `resident_id: res_0d3ef4252ae2`,
+`preferred_name: "Mo"`, `room: "401"` - identical, consistent identity
+across every surface. Not fixed and out of scope for a "smallest repair"
+data pass: the extractor's name-fact guard still only checks "does the
+capitalized name literally appear in the resident's own turn," not
+whether the turn was genuinely self-identifying vs. a challenge/question
+- flagged as a real, evidenced recurrence risk for a future dedicated
+pass, not patched blind here.
+
+### PART 2 — Two-week menu + activities refresh
+Inspected production first: **zero** `menu_items` and **zero**
+`schedule_items` existed anywhere in the next 14 facility-local days
+(2026-09-19 through 2026-10-02) - both collections' most recent existing
+data ended 2026-09-05, confirming Michael's "haven't been updated
+recently" report exactly, with a clean 14-day gap and nothing real to
+protect from overwrite in that window.
+
+Found and fixed one real code defect before running anything: `backend/
+scripts/seed_schedule_two_weeks.py` had two `DAY_PLANS` entries
+hardcoding `"Cake and punch for August birthdays"` / `"...late-August
+birthdays"` - stale the moment the script runs in any other month. Also
+found both `seed_menu_two_weeks.py` and `seed_schedule_two_weeks.py`
+lacked any idempotency guard (menu's approve step *supersedes* same-date
+approved items by design - a second run would have silently hidden real
+data; schedule's dev-test endpoint is plain CRUD with no dedup at all -
+a second run would have created duplicate rows) and hardcoded
+`BASE = "http://127.0.0.1:8000/api"` (production listens on 8001).
+
+Fixed all three in commit `e0438dd9a3616c9c16e836f76f34c219794cfeb9`:
+date-neutral birthday wording; a per-date pre-check in each script that
+skips (reports, never overwrites/duplicates) any date already holding
+real data; `BASE` now reads `CAOSCARE_SEED_BASE_URL` env var. Tested
+locally against a fresh backend (first run: 14/14 days both scripts,
+137 menu items / 34 schedule items; immediate second run: 0 new
+documents, all 14 dates correctly skipped, confirmed via direct count)
+before commit + push + deploy to the exact SHA above.
+
+Ran both fixed scripts against the **real production backend**
+(`CAOSCARE_SEED_BASE_URL=http://127.0.0.1:8001/api`, through the real
+kitchen-email/activities-email ingestion endpoints, not a direct DB
+write) - both produced 14/14 days on the first run, then immediately
+re-ran both a second time on production itself to prove idempotency
+live: all 14 dates correctly skipped, zero new documents. Final count
+delta confirmed exact: `menu_items` 148→285 (+137), `schedule_items`
+37→71 (+34) - matches the seed output precisely, no duplicates.
+
+### Verified (production, after seeding)
+`GET /api/menu/public/today` returns real items for today
+(2026-09-19), a mid-range date (2026-09-30, 9 items), and the last day
+(2026-10-02, 10 items). `GET /api/schedule/public/today` returns real
+activities for today (Chair Yoga, Bingo), 2026-09-27 (Resident Council
+Meeting, Book Club), and 2026-10-01 (Scenic Drive, Birthday
+Celebration - confirmed date-neutral wording live, not "August").
+`GET /api/health` → `{"ok":true,"db":"up"}` throughout. Part 1's fix
+re-confirmed intact after this deploy's backend restart.
+
+### Other stale/empty operational feeds found - reported, NOT seeded (out of scope, not requested)
+- `transport_slots`: 243 documents, but date range is 2026-08-09 through
+  2026-09-04 only - entirely in the past relative to today (2026-09-19),
+  same staleness pattern as menu/schedule were. Has an existing seed
+  script (`seed_transportation_pilot.py`) but was not run here - not
+  named in this task's scope.
+- `staff_tasks`: most recent `created_at` 2026-08-30 (~3 weeks stale) -
+  but this is a live operational ticket queue, not a mock content feed;
+  its staleness reflects no recent real activity, not missing seed data.
+- `insights`, `roadmap_items`, `wearables`, `family_contacts`: all zero
+  documents. No existing seed script targets any of these with the same
+  naming convention as the menu/schedule scripts; not seeded, since
+  inventing new seed content for modules nobody asked about would be
+  exactly the "blindly seed unrelated modules" this task explicitly said
+  not to do.
+
+### HANDOFF CAPSULE
+```
+Objective:        Fix a real production identity-contamination bug
+                   (Room 401 Mo/Eleanor) and refresh two weeks of stale
+                   menu + activities data using the real ingestion
+                   pathways, without duplicating or overwriting genuine
+                   data.
+Branch:           main
+Lane / ownership: Production data reconciliation (Part 1, data-only) +
+                   two small seed-script fixes (Part 2, code + data).
+                   No resident/kiosk schema change, no session-mint
+                   logic change.
+Last proven state: Deployed and verified live on caoscare.com. Room 401
+                   resolves one consistent identity (res_0d3ef4252ae2 /
+                   "Mo") across Admin, public kiosk lookup, and Aria's
+                   own rendered prompt. Menu + activities both populated
+                   2026-09-19 through 2026-10-02, publicly readable,
+                   confirmed idempotent on a real second production run.
+Commits:          e0438dd9a3616c9c16e836f76f34c219794cfeb9 (seed-script
+                   fixes - deployed)
+                   Part 1's repair was a data-only PATCH via the real
+                   memory API, not a code commit - no fake commit was
+                   created to record it; this capsule is that record.
+Runtime state:    caoscare.com live at e0438dd; caoscare-backend.service
+                   restarted and healthy; caos-backend.service and nginx
+                   untouched (not independently re-checked this pass,
+                   but the deploy script's own guard covers them as in
+                   every prior deploy).
+Unresolved proven defects: the memory extractor's name-fact guard checks
+                   only "does the capitalized name literally appear in
+                   the resident's own turn," not whether that turn was a
+                   genuine self-identifying statement vs. a challenge or
+                   question quoting the system back at it - this exact
+                   gap produced today's fresh "Eleanor Whitfield" fact
+                   and could recur for any resident whose full `name`
+                   differs from `preferred_name`. Flagged, not fixed -
+                   a real fix needs its own dedicated pass with tests,
+                   not a rushed change bundled into a data-reconciliation
+                   task.
+Product invariants that matter here: preferred_name is authoritative for
+                   what Aria calls a resident; derived `db.memories`
+                   facts must never be allowed to contradict it; archived
+                   (not deleted) is the correct remediation for a bad
+                   extracted fact so provenance/audit trail survives.
+Do NOT change:     db.conversations (raw transcript) - never rewritten,
+                   never will be, regardless of what it shows happened.
+Next safe action:  If Michael wants this class of bug prevented rather
+                   than just cleaned up after the fact, scope a dedicated
+                   pass on the extractor's self-assertion vs.
+                   challenge/question distinction (EXTRACTOR_SYSTEM in
+                   backend/routes/memory.py) - do not bundle it into
+                   another task. Separately: transport_slots is the next
+                   most obviously stale operational feed if a similar
+                   refresh is wanted there.
+```
