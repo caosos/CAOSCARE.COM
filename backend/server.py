@@ -39,6 +39,8 @@ from routes import schedule as schedule_routes  # noqa: E402
 from routes import menu as menu_routes  # noqa: E402
 from routes import menu_ingest as menu_ingest_routes  # noqa: E402
 from routes import schedule_ingest as schedule_ingest_routes  # noqa: E402
+from routes import email_inbound as email_inbound_routes  # noqa: E402
+from routes import email_inbound_allowlist as email_inbound_allowlist_routes  # noqa: E402
 from routes import transportation as transportation_routes  # noqa: E402
 from routes import transportation_report as transportation_report_routes  # noqa: E402
 from routes import transportation_resources as transportation_resources_routes  # noqa: E402
@@ -173,6 +175,8 @@ api.include_router(schedule_routes.router)
 api.include_router(menu_routes.router)
 api.include_router(menu_ingest_routes.router)
 api.include_router(schedule_ingest_routes.router)
+api.include_router(email_inbound_routes.router)
+api.include_router(email_inbound_allowlist_routes.router)
 api.include_router(transportation_routes.router)
 api.include_router(transportation_report_routes.router)
 api.include_router(transportation_resources_routes.router)

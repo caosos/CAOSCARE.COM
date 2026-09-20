@@ -139,23 +139,19 @@ def _parse_schedule_email(raw_text: str) -> tuple[list[dict], list[str], list[st
     return items, skipped_lines, notes
 
 
-@router.post("/dev-test")
-async def ingest_dev_test(body: dict, user=Depends(get_current_user)):
-    """Simulates 'a weekly activities calendar email arrived' for
-    development/acceptance testing, without a real mailbox. Body:
-    {raw_text, source_ref?}. See module docstring for the expected format -
-    dates are explicit per-day headers inside raw_text itself, not a single
-    top-level field, since one email here typically covers a whole week.
-
-    No draft/approve step (see module docstring) - parsed activities are
-    created directly as live ScheduleItem rows, same auth gate as
-    POST /schedule."""
-    if user.get("role") not in ("admin", "owner", "staff"):
-        raise HTTPException(status_code=403, detail="Staff required")
-    raw_text = (body.get("raw_text") or "")[:16000]
-    if not raw_text.strip():
-        raise HTTPException(status_code=400, detail="raw_text is required")
-
+async def create_schedule_items(
+    *, raw_text: str, source: str, source_ref: Optional[str] = None,
+    created_by: Optional[str] = None,
+) -> dict:
+    """The one internal ingestion function for an activities/schedule
+    email, real or dev-test - parses raw_text and creates the live
+    ScheduleItem rows it finds. `source` is provenance only
+    ("email_dev_test" | "email" | anything else a future caller
+    supplies). Raises 422 if no day header is found at all (see module
+    docstring) - the caller decides how to represent that (the dev-test
+    endpoint lets the HTTPException propagate; the real inbound-email
+    webhook catches it and records the message as needs_review instead
+    of a hard failure, since a malformed real email should never 500)."""
     parsed_items, skipped_lines, notes = _parse_schedule_email(raw_text)
     if not parsed_items and not skipped_lines:
         raise HTTPException(
@@ -172,7 +168,7 @@ async def ingest_dev_test(body: dict, user=Depends(get_current_user)):
         si = ScheduleItem(
             date=it["date"], time_label=it["time_label"], title=it["title"],
             description=it["description"], category=it["category"],
-            source="email_dev_test", created_by=user["user_id"],
+            source=source, source_ref=source_ref, created_by=created_by,
         )
         doc = si.model_dump()
         doc["created_at"] = doc["created_at"].isoformat()
@@ -182,10 +178,35 @@ async def ingest_dev_test(body: dict, user=Depends(get_current_user)):
         created.append(doc)
 
     return {
-        "source": "email_dev_test",
-        "source_ref": body.get("source_ref"),
+        "source": source,
+        "source_ref": source_ref,
         "created_count": len(created),
         "created": created,
         "skipped_lines": skipped_lines,
         "notes": notes,
     }
+
+
+@router.post("/dev-test")
+async def ingest_dev_test(body: dict, user=Depends(get_current_user)):
+    """Simulates 'a weekly activities calendar email arrived' for
+    development/acceptance testing, without needing a real inbound
+    email. Body: {raw_text, source_ref?}. See module docstring for the
+    expected format - dates are explicit per-day headers inside raw_text
+    itself, not a single top-level field, since one email here typically
+    covers a whole week.
+
+    No draft/approve step (see module docstring) - parsed activities are
+    created directly as live ScheduleItem rows, same auth gate as
+    POST /schedule. The real inbound-email webhook (email_inbound.py)
+    calls the same create_schedule_items() this endpoint calls."""
+    if user.get("role") not in ("admin", "owner", "staff"):
+        raise HTTPException(status_code=403, detail="Staff required")
+    raw_text = (body.get("raw_text") or "")[:16000]
+    if not raw_text.strip():
+        raise HTTPException(status_code=400, detail="raw_text is required")
+
+    return await create_schedule_items(
+        raw_text=raw_text, source="email_dev_test",
+        source_ref=body.get("source_ref"), created_by=user["user_id"],
+    )

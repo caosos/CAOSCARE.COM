@@ -957,6 +957,7 @@ class ScheduleItem(BaseModel):
     description: Optional[str] = ""
     category: ScheduleCategory = "activity"
     source: str = "staff_entry"
+    source_ref: Optional[str] = None            # e.g. the InboundEmailMessage.inbound_id that produced this row
     created_by: Optional[str] = None
     created_at: datetime = Field(default_factory=now_utc)
     updated_at: datetime = Field(default_factory=now_utc)
@@ -1085,6 +1086,69 @@ class MenuUpload(BaseModel):
     approved_by: Optional[str] = None
     approved_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=now_utc)
+
+
+# ---------- Inbound email adapter (real menu@/activities@ ingestion) ----------
+# One shared record per inbound email, regardless of which lane it routed to -
+# the provenance/receipts/dedup layer sitting IN FRONT OF menu_ingest.py's and
+# schedule_ingest.py's own create_menu_upload()/create_schedule_items()
+# functions. Email is transport/provenance only, per the architecture rule -
+# this record exists so staff/Aria can answer "who emailed this, when, and
+# what happened to it," never as a second copy of the menu/schedule domain.
+InboundEmailStatus = Literal[
+    "received", "duplicate", "unrecognized_recipient", "quarantined",
+    "routed", "error",
+]
+
+
+class InboundEmailMessage(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    inbound_id: str = Field(default_factory=lambda: uid("inbound"))
+    provider: str = "resend"
+    provider_message_id: str                    # Resend's data.email_id - the real dedup key
+    provider_event_id: Optional[str] = None      # svix-id - dedups a retried webhook delivery
+    provider_event_type: Optional[str] = None    # e.g. "email.received"
+    from_address: str
+    to_addresses: List[str] = Field(default_factory=list)
+    subject: Optional[str] = ""
+    received_at: Optional[datetime] = None       # Resend's own created_at for the event, if given
+    text_body: Optional[str] = None
+    html_body: Optional[str] = None
+    attachments: List[dict] = Field(default_factory=list)   # [{filename, content_type}] - metadata only (Phase 1)
+    routed_lane: Optional[str] = None            # "menu" | "activities" | None (unrecognized recipient)
+    sender_trust: str = "unknown"                # "approved" | "quarantined" | "unknown" (no allowlist configured for the lane)
+    status: InboundEmailStatus = "received"
+    parse_status: Optional[str] = None           # mirrors the created MenuUpload/schedule batch's own parse result
+    parse_notes: Optional[str] = None
+    linked_object_type: Optional[str] = None     # "menu_upload" | "schedule_items"
+    linked_object_id: Optional[str] = None
+    error_message: Optional[str] = None
+    created_at: datetime = Field(default_factory=now_utc)
+
+
+EmailAllowlistLane = Literal["menu", "activities"]
+
+
+class EmailAllowlistEntry(BaseModel):
+    """A department's approved-sender list for the inbound email adapter.
+    `pattern` is either an exact address ("chef@facility.com") or a
+    domain suffix ("@facility.com"). An empty allowlist for a lane means
+    "not configured yet" - every sender to that lane is quarantined
+    (fail closed), never treated as approved by omission."""
+    model_config = ConfigDict(extra="ignore")
+    entry_id: str = Field(default_factory=lambda: uid("mailallow"))
+    lane: EmailAllowlistLane
+    pattern: str
+    label: Optional[str] = None
+    active: bool = True
+    created_by: Optional[str] = None
+    created_at: datetime = Field(default_factory=now_utc)
+
+
+class EmailAllowlistEntryCreate(BaseModel):
+    lane: EmailAllowlistLane
+    pattern: str
+    label: Optional[str] = None
 
 
 # ---------- Transportation availability (Terminal 8, lane 3 - separate from the request itself) ----------

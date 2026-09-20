@@ -1,12 +1,13 @@
 """Menu email ingestion - the adapter boundary described in the Terminal 8
 handoff: email is source/provenance/transport, never the domain model.
 
-No real mailbox is configured yet (still open per the Terminal 8 living
-build log), so this exposes a dev-test ingestion endpoint that takes a raw
-email BODY exactly the way a real inbound-email adapter eventually would,
-and runs it through the same parse -> draft -> approve -> live pipeline.
-Swapping the dev-test trigger for a real IMAP/webhook listener later is a
-transport change only - this parsing/approval logic does not move.
+Two triggers now share the exact same internal ingestion function
+(create_menu_upload() below): the dev-test endpoint (auth'd staff, still
+useful for acceptance testing without waiting on a real inbound email) and
+the real inbound-email webhook (backend/routes/email_inbound.py, which
+receives at menu@inbound.caoscare.com via Resend and calls create_menu_upload()
+directly - a Python function call, not a second HTTP round trip). There is
+deliberately no separate parsing/creation logic for either path.
 
 Parser is deliberately simple and honest: plain-text body only, looks for
 "Breakfast"/"Lunch"/"Dinner or Supper" section headers and comma/line-
@@ -54,32 +55,28 @@ def _parse_menu_email(raw_text: str) -> tuple[list[dict], str, Optional[str]]:
     return items, "parsed", None
 
 
-@router.post("/ingest/dev-test")
-async def ingest_dev_test(body: dict, user=Depends(get_current_user)):
-    """Simulates 'an email arrived' for development/acceptance testing,
-    without a real mailbox. Body: {service_date, raw_text, source_ref?}.
-    service_date is required explicitly rather than guessed from free text -
-    real date-detection from an arbitrary email body is exactly the kind of
-    fragile guessing this project avoids; a real email adapter would supply
-    this from the message's own date or a clearly-labeled line, not regex
-    over prose."""
-    if user.get("role") not in ("admin", "owner", "staff"):
-        raise HTTPException(status_code=403, detail="Staff required")
-    service_date = body.get("service_date")
-    raw_text = (body.get("raw_text") or "")[:8000]
-    if not service_date or not raw_text.strip():
-        raise HTTPException(status_code=400, detail="service_date and raw_text are required")
-
+async def create_menu_upload(
+    *, raw_text: str, service_date: str, source: str,
+    source_ref: Optional[str] = None, created_by: Optional[str] = None,
+) -> dict:
+    """The one internal ingestion function for a menu email, real or
+    dev-test - parses raw_text, creates the MenuUpload + its draft
+    MenuItem rows, and returns the upload doc. `source` is provenance
+    only ("email_dev_test" | "email" | anything else a future caller
+    supplies) - the parsing/creation logic never branches on it.
+    Items stay draft/needs_review until a staff member approves the
+    upload via POST /menu/uploads/{id}/approve - a real inbound email
+    can never publish directly to the public menu on its own."""
     parsed_items, parse_status, parse_notes = _parse_menu_email(raw_text)
 
     upload = MenuUpload(
-        source="email_dev_test",
-        source_ref=body.get("source_ref"),
+        source=source,
+        source_ref=source_ref,
         raw_text=raw_text,
         service_date=service_date,
         parse_status=parse_status,
         parse_notes=parse_notes,
-        created_by=user["user_id"],
+        created_by=created_by,
     )
     upload_doc = upload.model_dump()
     upload_doc["created_at"] = upload_doc["created_at"].isoformat()
@@ -88,7 +85,7 @@ async def ingest_dev_test(body: dict, user=Depends(get_current_user)):
     for it in parsed_items:
         mi = MenuItem(
             date=service_date, meal_period=it["meal_period"], item_name=it["item_name"],
-            source="email_dev_test", upload_id=upload_doc["upload_id"],
+            source=source, upload_id=upload_doc["upload_id"],
         )
         mi_doc = mi.model_dump()
         mi_doc["created_at"] = mi_doc["created_at"].isoformat()
@@ -100,6 +97,30 @@ async def ingest_dev_test(body: dict, user=Depends(get_current_user)):
     await db.menu_uploads.insert_one(dict(upload_doc))
     upload_doc.pop("_id", None)
     return upload_doc
+
+
+@router.post("/ingest/dev-test")
+async def ingest_dev_test(body: dict, user=Depends(get_current_user)):
+    """Simulates 'an email arrived' for development/acceptance testing,
+    without needing a real inbound email. Body: {service_date, raw_text,
+    source_ref?}. service_date is required explicitly rather than guessed
+    from free text - real date-detection from an arbitrary email body is
+    exactly the kind of fragile guessing this project avoids. The real
+    inbound-email webhook (email_inbound.py) determines service_date
+    itself (an explicit "Date: YYYY-MM-DD" line in the body, falling back
+    to the facility's own today) before calling the same
+    create_menu_upload() this endpoint calls."""
+    if user.get("role") not in ("admin", "owner", "staff"):
+        raise HTTPException(status_code=403, detail="Staff required")
+    service_date = body.get("service_date")
+    raw_text = (body.get("raw_text") or "")[:8000]
+    if not service_date or not raw_text.strip():
+        raise HTTPException(status_code=400, detail="service_date and raw_text are required")
+
+    return await create_menu_upload(
+        raw_text=raw_text, service_date=service_date, source="email_dev_test",
+        source_ref=body.get("source_ref"), created_by=user["user_id"],
+    )
 
 
 @router.get("/uploads")
