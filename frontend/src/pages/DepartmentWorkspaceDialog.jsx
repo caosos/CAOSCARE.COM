@@ -1,8 +1,12 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { api } from "../lib/api";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
+import { useAuth } from "../lib/auth";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../components/ui/dialog";
 import { Badge } from "../components/ui/badge";
-import { Loader2, Mail, Clock } from "lucide-react";
+import { Button } from "../components/ui/button";
+import { Textarea } from "../components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import { Loader2, Mail, Clock, Hand, Play, Check } from "lucide-react";
 import { toast } from "sonner";
 
 // Blueprint section 5: "Each department must be clickable and open a real
@@ -11,6 +15,13 @@ import { toast } from "sonner";
 // same field routes.py's _notify_department() already treats as "who a
 // department's work belongs to" (routes/departments.py, routes/tasks.py).
 // No parallel data model - deliberately.
+//
+// 2026-09-21 (Track 1 Lane 3, audit §8/§11.4): this dialog was read-only
+// despite POST /tasks/{id}/{acknowledge,start,complete,assign} already
+// existing and already used by MaintenanceWorkspace.jsx - the exact
+// pattern mirrored below (same endpoints, same GET /staff/assignable
+// roster call, generalized to this department's own slug instead of a
+// hardcoded "maintenance"). No new backend lifecycle, no new task states.
 const STATUS_STYLES = {
   pending: "bg-caos-mute/10 text-caos-mute",
   in_progress: "bg-caos-amber/15 text-[#8B5A20] border border-caos-amber",
@@ -29,10 +40,14 @@ function ageLabel(iso) {
 }
 
 export default function DepartmentWorkspaceDialog({ department, onClose }) {
+  const { user } = useAuth();
   const [tasks, setTasks] = useState([]);
+  const [roster, setRoster] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [completeFor, setCompleteFor] = useState(null);
+  const [notes, setNotes] = useState("");
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!department) return;
     setLoading(true);
     api.get("/tasks", { params: { visibility_role: department.slug } })
@@ -41,12 +56,40 @@ export default function DepartmentWorkspaceDialog({ department, onClose }) {
       .finally(() => setLoading(false));
   }, [department]);
 
+  useEffect(() => {
+    load();
+    if (!department) { setRoster([]); return; }
+    api.get("/staff/assignable", { params: { department: department.slug } })
+      .then(({ data }) => setRoster(data)).catch(() => setRoster([]));
+  }, [department, load]);
+
   if (!department) return null;
+
+  const act = async (id, path, body) => {
+    try {
+      await api.post(`/tasks/${id}/${path}`, body);
+      toast.success("Done");
+      load();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Action failed");
+    }
+  };
+  const acknowledge = (id) => act(id, "acknowledge");
+  const claim = (id) => act(id, "assign", { assigned_to: user?.user_id });
+  const assignTo = (id, uid) => act(id, "assign", { assigned_to: uid || null });
+  const start = (id) => act(id, "start");
+  const doComplete = async () => {
+    if (!completeFor) return;
+    await act(completeFor, "complete", { notes });
+    setCompleteFor(null);
+    setNotes("");
+  };
 
   const open = tasks.filter((t) => OPEN_STATUSES.includes(t.status));
   const counts = tasks.reduce((acc, t) => { acc[t.status] = (acc[t.status] || 0) + 1; return acc; }, {});
 
   return (
+    <>
     <Dialog open={!!department} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto" data-testid="dept-workspace-dialog">
         <DialogHeader>
@@ -81,13 +124,17 @@ export default function DepartmentWorkspaceDialog({ department, onClose }) {
             {open.map((t) => (
               <div key={t.task_id} className="border border-caos-line rounded-lg p-3" data-testid={`dept-workspace-task-${t.task_id}`}>
                 <div className="flex items-start justify-between gap-2">
-                  <div>
+                  <div className="min-w-0">
                     <div className="font-medium text-sm">{t.title}</div>
                     {(t.resident_name || t.room) && (
                       <div className="text-xs text-caos-mute mt-0.5">
                         {t.resident_name}{t.resident_name && t.room ? " · " : ""}{t.room ? `Room ${t.room}` : ""}
                       </div>
                     )}
+                    <div className="text-xs text-caos-mute mt-0.5">
+                      {t.assigned_name ? `→ ${t.assigned_name}` : "unassigned"}
+                      {t.acknowledged_by_name ? ` · acknowledged by ${t.acknowledged_by_name}` : ""}
+                    </div>
                   </div>
                   <Badge className={STATUS_STYLES[t.status] || ""} variant="outline">{t.status.replace("_", " ")}</Badge>
                 </div>
@@ -99,11 +146,52 @@ export default function DepartmentWorkspaceDialog({ department, onClose }) {
                     </span>
                   )}
                 </div>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {!t.acknowledged_by && (
+                    <Button size="sm" variant="outline" className="border-2 h-7 text-xs" onClick={() => acknowledge(t.task_id)} data-testid={`dept-ack-${t.task_id}`}>
+                      Acknowledge
+                    </Button>
+                  )}
+                  {!t.assigned_to && (
+                    <Button size="sm" variant="outline" className="border-2 h-7 text-xs" onClick={() => claim(t.task_id)} data-testid={`dept-claim-${t.task_id}`}>
+                      <Hand className="w-3.5 h-3.5 mr-1" /> Claim
+                    </Button>
+                  )}
+                  {t.status === "pending" && (
+                    <Button size="sm" className="bg-caos-forest hover:bg-caos-forest-hover h-7 text-xs" onClick={() => start(t.task_id)} data-testid={`dept-start-${t.task_id}`}>
+                      <Play className="w-3.5 h-3.5 mr-1" /> Start
+                    </Button>
+                  )}
+                  <Button size="sm" variant="outline" className="border-2 h-7 text-xs" onClick={() => { setCompleteFor(t.task_id); setNotes(""); }} data-testid={`dept-complete-${t.task_id}`}>
+                    <Check className="w-3.5 h-3.5 mr-1" /> Complete
+                  </Button>
+                </div>
+                <div className="mt-2">
+                  <Select value={t.assigned_to || "__none"} onValueChange={(v) => assignTo(t.task_id, v === "__none" ? "" : v)}>
+                    <SelectTrigger className="h-7 w-48 text-xs" data-testid={`dept-assign-${t.task_id}`}><SelectValue placeholder="Assign to…" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none">Unassigned</SelectItem>
+                      {roster.map((u) => <SelectItem key={u.user_id} value={u.user_id}>{u.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             ))}
           </div>
         </div>
       </DialogContent>
     </Dialog>
+
+    <Dialog open={!!completeFor} onOpenChange={(o) => { if (!o) setCompleteFor(null); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle className="font-display">Complete request</DialogTitle></DialogHeader>
+        <Textarea placeholder="What was done / outcome (optional)…" value={notes}
+          onChange={(e) => setNotes(e.target.value)} rows={4} data-testid="dept-complete-notes" />
+        <DialogFooter>
+          <Button onClick={doComplete} className="bg-caos-forest" data-testid="dept-complete-submit">Mark complete</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
