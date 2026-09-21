@@ -13,9 +13,21 @@ import { Badge } from "../components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs";
 import { Plus, Trash2, Play, Check, Repeat } from "lucide-react";
 import { toast } from "sonner";
+import { CATEGORIES, SHIFTS } from "../lib/taskConstants";
+import TaskTemplatesBoard from "./TaskTemplatesBoard";
 
-const CATEGORIES = ["laundry", "meds", "meal", "rounds", "bathing", "housekeeping", "activity", "transport", "check_in", "paperwork", "other"];
-const SHIFTS = ["day", "evening", "night", "any"];
+// Facility-local (browser wall-clock) YYYY-MM-DD - matches how a real
+// front-desk laptop physically in the building experiences "today,"
+// consistent with the same local-date convention used elsewhere in Admin
+// rather than a UTC-derived date that can read as tomorrow/yesterday near
+// midnight. tasks.py's day= filter already exists (list_tasks) - this is
+// the "smallest existing-pattern equivalent" wiring, no new backend filter.
+function localTodayISO() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 const STATUS_STYLES = {
   pending: "bg-caos-mute/10 text-caos-mute",
   in_progress: "bg-caos-amber/15 text-[#8B5A20] border border-caos-amber",
@@ -34,11 +46,16 @@ export default function TasksTab({ residents, staff }) {
   const [tab, setTab] = useState("today");
   const [tasks, setTasks] = useState([]);
   const [templates, setTemplates] = useState([]);
+  // Default true: the tab is literally labeled "Today" - it must actually
+  // mean that. "Show all" stays one click away rather than removing older/
+  // undated tasks from view entirely (audit §6#4/§8: the day= filter
+  // already existed and was simply never passed).
+  const [todayOnly, setTodayOnly] = useState(true);
 
   const fetchAll = async () => {
     try {
       const [t, tpl] = await Promise.all([
-        api.get("/tasks"),
+        api.get("/tasks", { params: todayOnly ? { day: localTodayISO() } : {} }),
         api.get("/tasks/templates/all"),
       ]);
       setTasks(t.data);
@@ -47,7 +64,7 @@ export default function TasksTab({ residents, staff }) {
       toast.error("Could not load tasks");
     }
   };
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => { fetchAll(); }, [todayOnly]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const spawnToday = async () => {
     try {
@@ -66,29 +83,41 @@ export default function TasksTab({ residents, staff }) {
             Daily workflow. Templates spawn real tasks each morning. Staff tap Start → Complete. Every move is logged.
           </p>
         </div>
-        <Button onClick={spawnToday} variant="outline" className="border-2 rounded-full" data-testid="tasks-spawn-today-btn">
-          <Repeat className="w-4 h-4 mr-2" /> Spawn today's tasks
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => setTodayOnly((v) => !v)}
+            variant="outline"
+            className="border-2 rounded-full"
+            data-testid="tasks-today-toggle"
+          >
+            {todayOnly ? "Show all" : "Today only"}
+          </Button>
+          <Button onClick={spawnToday} variant="outline" className="border-2 rounded-full" data-testid="tasks-spawn-today-btn">
+            <Repeat className="w-4 h-4 mr-2" /> Spawn today's tasks
+          </Button>
+        </div>
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
-          <TabsTrigger value="today" data-testid="tasks-subtab-today">Today ({tasks.length})</TabsTrigger>
+          <TabsTrigger value="today" data-testid="tasks-subtab-today">
+            {todayOnly ? "Today" : "All"} ({tasks.length})
+          </TabsTrigger>
           <TabsTrigger value="templates" data-testid="tasks-subtab-templates">Templates ({templates.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="today" className="mt-4">
-          <TasksBoard tasks={tasks} residents={residents} staff={staff} onChange={fetchAll} />
+          <TasksBoard tasks={tasks} residents={residents} staff={staff} onChange={fetchAll} todayOnly={todayOnly} />
         </TabsContent>
         <TabsContent value="templates" className="mt-4">
-          <TemplatesBoard templates={templates} residents={residents} onChange={fetchAll} />
+          <TaskTemplatesBoard templates={templates} residents={residents} onChange={fetchAll} />
         </TabsContent>
       </Tabs>
     </Card>
   );
 }
 
-function TasksBoard({ tasks, residents, staff, onChange }) {
+function TasksBoard({ tasks, residents, staff, onChange, todayOnly }) {
   const [open, setOpen] = useState(false);
   const empty = { title: "", description: "", category: "other", shift: "any", assigned_to: "", resident_id: "", notes: "" };
   const [form, setForm] = useState(empty);
@@ -208,122 +237,9 @@ function TasksBoard({ tasks, residents, staff, onChange }) {
             </TableRow>
           ))}
           {tasks.length === 0 && (
-            <TableRow><TableCell colSpan={8} className="text-center text-caos-mute py-6">No tasks today. Click "Spawn today's tasks".</TableCell></TableRow>
-          )}
-        </TableBody>
-      </Table>
-    </div>
-  );
-}
-
-function TemplatesBoard({ templates, residents, onChange }) {
-  const [open, setOpen] = useState(false);
-  const empty = { title: "", description: "", category: "other", shift: "any", recur: "daily", active: true, resident_id: "" };
-  const [form, setForm] = useState(empty);
-
-  const create = async (e) => {
-    e.preventDefault();
-    try {
-      const payload = { ...form };
-      if (!payload.resident_id) delete payload.resident_id;
-      await api.post("/tasks/templates", payload);
-      toast.success("Template created");
-      setOpen(false);
-      setForm(empty);
-      onChange();
-    } catch (err) { toast.error(err?.response?.data?.detail || "Failed"); }
-  };
-
-  const remove = async (id) => {
-    if (!window.confirm("Delete this template?")) return;
-    await api.delete(`/tasks/templates/${id}`);
-    toast.success("Deleted");
-    onChange();
-  };
-
-  return (
-    <div>
-      <div className="flex justify-end mb-3">
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-caos-forest hover:bg-caos-forest-hover rounded-full" data-testid="add-template-btn">
-              <Plus className="w-4 h-4 mr-2" /> New template
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg">
-            <DialogHeader><DialogTitle className="font-display">New recurring template</DialogTitle></DialogHeader>
-            <form onSubmit={create} className="space-y-3">
-              <div><Label>Title</Label><Input required data-testid="tpl-title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
-              <div><Label>Description</Label><Textarea data-testid="tpl-desc" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
-              <div className="grid grid-cols-3 gap-3">
-                <div><Label>Category</Label>
-                  <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
-                    <SelectTrigger data-testid="tpl-cat"><SelectValue /></SelectTrigger>
-                    <SelectContent>{CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div><Label>Shift</Label>
-                  <Select value={form.shift} onValueChange={(v) => setForm({ ...form, shift: v })}>
-                    <SelectTrigger data-testid="tpl-shift"><SelectValue /></SelectTrigger>
-                    <SelectContent>{SHIFTS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div><Label>Recur</Label>
-                  <Select value={form.recur} onValueChange={(v) => setForm({ ...form, recur: v })}>
-                    <SelectTrigger data-testid="tpl-recur"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="daily">Daily</SelectItem>
-                      <SelectItem value="weekly">Weekly</SelectItem>
-                      <SelectItem value="per_shift">Per shift</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div>
-                <Label>Resident (optional)</Label>
-                <Select value={form.resident_id || "__none"} onValueChange={(v) => setForm({ ...form, resident_id: v === "__none" ? "" : v })}>
-                  <SelectTrigger data-testid="tpl-resident"><SelectValue placeholder="None" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none">None</SelectItem>
-                    {(residents || []).map((r) => <SelectItem key={r.resident_id} value={r.resident_id}>{r.name} · Rm {r.room}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <label className="flex items-center gap-2 cursor-pointer" data-testid="tpl-active">
-                <Checkbox checked={form.active} onCheckedChange={(v) => setForm({ ...form, active: !!v })} />
-                <span className="text-sm font-semibold text-caos-forest">Active (will spawn)</span>
-              </label>
-              <DialogFooter><Button type="submit" className="bg-caos-forest" data-testid="tpl-save">Create</Button></DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      <Table>
-        <TableHeader><TableRow>
-          <TableHead>Title</TableHead><TableHead>Category</TableHead><TableHead>Shift</TableHead>
-          <TableHead>Recur</TableHead><TableHead>Active</TableHead><TableHead></TableHead>
-        </TableRow></TableHeader>
-        <TableBody>
-          {templates.map((t) => (
-            <TableRow key={t.template_id} data-testid={`tpl-row-${t.template_id}`}>
-              <TableCell>
-                <div className="font-medium">{t.title}</div>
-                <div className="text-caos-mute text-xs">{t.description}</div>
-              </TableCell>
-              <TableCell className="text-xs uppercase tracking-wider">{t.category}</TableCell>
-              <TableCell className="text-xs uppercase tracking-wider">{t.shift}</TableCell>
-              <TableCell className="text-xs uppercase tracking-wider">{t.recur}</TableCell>
-              <TableCell>{t.active ? <Badge className="bg-caos-moss text-white">ACTIVE</Badge> : <Badge variant="outline">paused</Badge>}</TableCell>
-              <TableCell>
-                <Button variant="ghost" size="sm" onClick={() => remove(t.template_id)} data-testid={`del-tpl-${t.template_id}`}>
-                  <Trash2 className="w-4 h-4 text-caos-terracotta" />
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-          {templates.length === 0 && (
-            <TableRow><TableCell colSpan={6} className="text-center text-caos-mute py-6">No templates yet.</TableCell></TableRow>
+            <TableRow><TableCell colSpan={8} className="text-center text-caos-mute py-6">
+              {todayOnly ? 'No tasks today. Click "Spawn today\'s tasks", or "Show all" to see older/undated tasks.' : "No tasks."}
+            </TableCell></TableRow>
           )}
         </TableBody>
       </Table>
