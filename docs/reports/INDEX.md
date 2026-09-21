@@ -2,7 +2,51 @@
 
 Start here. Updated by Claude Code and ChatGPT-Aria as shared project state changes — this is the fastest way to reconstruct current CAOSCARE state without asking Michael to relay prior conversations.
 
-_Last updated: 2026-08-29_
+_Last updated: 2026-09-20_
+
+## Operational workflow audit + architecture reconciliation (2026-09-20) — CURRENT
+[2026-09-20-operational-workflow-audit.md](2026-09-20-operational-workflow-audit.md)
+— Report-only inspection of Live Board, Community command centre, department
+queues, transportation, devices, reports/audit, and clinician surfaces as
+they exist on `main`. Real, current counts (2026-09-20): the "hundreds of
+active events" complaint is `alerts.py::alert_stats`'s unfiltered
+`count_documents({"status":"active"})` — 319 active, ages 342-1010h,
+almost entirely 2026-08-29→09-06 RF-hardware-test debris; menu/schedule
+local data stops at 2026-09-13/09-05; 15 open transportation tasks all
+12+ days stale (11 = `ops_overview`'s own `needs_action` count, an exact
+match to Michael's reported number); `TasksTab`'s "Today" ignores the
+`day=` filter the backend already supports. Full UI→API→DB trace for
+every screen, duplicate-source-of-truth catalog, and a full duplicate-
+request/idempotency trace (`resident_requests.py::create_resident_request()`).
+Historical evidence — not rewritten after the fact.
+
+Following a multi-AI review of that audit, the resulting architecture
+decisions were reconciled into existing canonical documents (documentation-
+only pass, no code changed): **`docs/ENGINEERING_CONTRACT.md`** gained the
+"Operational service-layer architecture" section — the canonical, single
+location for all 15 ratified decisions (one canonical service layer;
+Aria as NL interface not a separate authority; `ActorContext` requirement;
+simulation provenance; internal-state-vs-external-side-effect / event_log-
+vs-receipt boundary; `StaffTask` event_log requirement; legacy-data
+quarantine; canonical escalation authority — `escalation.py::tick()`, not
+`alerts.py::alerts_feed`'s inline computation, with the `AlertStatus`
+enum's missing `"escalated"` value flagged as a live bug; production
+scheduling independent of simulation; reuse of Aria's `resolve_operational_state()`
+(Layer E) for Live Board rather than a third "what's open now" model; Live
+Board as a read model, never a second source of truth; role interfaces as
+shared-component compositions) plus the binding **GATE** (no simulator
+writes until provenance/ActorContext/lifecycle-history/escalation/legacy-
+data treatment are *implemented*, not just decided) and the Track 1
+(unblocked now) / Track 2 (gated) execution split.
+**`docs/reports/RUNNING_FACILITY_TESTBED.md`** gained a reconciliation
+addendum (§13): the canonical-function table any future simulator must
+call instead of writing `db.*` directly, the pendant help_press-vs-
+supervisory reaffirmation, and the coverage-before-duration sequencing.
+**`docs/CAOSCARE_PRODUCT_BASELINE.md`** §8 gained one durable-truth-level
+sentence pointing at the above. **`docs/ADMIN_OPERATIONS_AUDIT.md`**
+marked partially-superseded (its P0 #1-#3 are now resolved) pointing at
+the current audit. See `docs/PROJECT_STATE.md`'s 2026-09-20 entries for
+the full session record.
 
 ## Troubleshooting Bulletins (TSB) — permanent failure/fix/evidence log
 [../tsb/INDEX.md](../tsb/INDEX.md)

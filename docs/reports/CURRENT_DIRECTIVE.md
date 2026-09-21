@@ -1,8 +1,35 @@
 # CAOSCARE Current Development Directive
 
-_Last updated: 2026-08-23_
+_Last updated: 2026-09-20 (new §0 added below; §§1-12 preserved as prior history — some, notably §3's "Voice reliability" priority, are now superseded by later PROJECT_STATE.md entries and by §0's own current priority; not rewritten in place per this repo's "do not delete useful history, mark superseded" convention)_
 
 This is the current shared working directive for Michael, ChatGPT-Aria, and Claude Code. Read it from `origin/main` before substantial work.
+
+## 0. CURRENT PRIORITY (2026-09-20): Track 1 / Track 2 operational reconciliation
+
+Following a multi-AI review of `docs/reports/2026-09-20-operational-workflow-audit.md`,
+the ratified architecture decisions and their canonical location live in
+`docs/ENGINEERING_CONTRACT.md` ("Operational service-layer architecture,
+Michael-directed, 2026-09-20"). Do not re-derive or re-decide these —
+read that section first.
+
+**Track 1 (may proceed now, no gate):** age-bound stale-alert reporting,
+`TasksTab` "Today" filter fix, menu/schedule seed refresh, front-desk reuse
+of the existing resident-request dedup, wiring `DepartmentWorkspaceDialog`
+to already-existing assign/ack/start/complete endpoints. Full list in
+`docs/ENGINEERING_CONTRACT.md`'s Two-track section.
+
+**Track 2 (architecture contract implementation — GATED):** ActorContext/
+service-layer authorization, `StaffTask` event_log, canonical escalation
+reconciliation, simulation provenance, legacy-data quarantine, canonical
+current-state aggregation reuse (Layer E). **NO SIMULATOR WRITES**
+(`docs/reports/RUNNING_FACILITY_TESTBED.md`, Lane F below) until Track 2 is
+implemented, not merely decided — see the GATE in `docs/ENGINEERING_CONTRACT.md`.
+
+This supersedes §3's "Voice reliability" framing as the standing
+top-of-list priority; §3 is preserved below as the historical record of
+that prior priority window and its still-relevant engineering-method
+lessons (one controlled change at a time, forensic report, keep or
+revert), not as the current focus.
 
 ## 1. Shared-state architecture
 

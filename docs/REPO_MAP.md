@@ -348,6 +348,7 @@ docs/REPO_MAP.md
 docs/BUILD_STATUS.md                         First runnable/deployment-prep status and blockers
 docs/DEPLOYMENT_RUNBOOK.md                   First non-Docker /opt/caoscare server path
 docs/ROOM_AUDIO_ARCHITECTURE.md              Room audio hardware topology decision (2026-08-27): EliteDesk=compute/TV routing, eMeet=single room audio endpoint, TV audio to eventually share one AEC path via the eMeet, handset=fallback. Explicitly marks TV-audio-routing/AEC-under-load as unverified pending hardware.
+docs/ENGINEERING_CONTRACT.md                 CAOSCare-specific engineering doctrine (Michael-directed sections recorded verbatim ahead of the full contract): the 300-line production-code rule, and (2026-09-20) the canonical operational service-layer architecture — one canonical service layer, ActorContext/authorization, event_log-vs-receipt boundary, canonical escalation authority, simulation provenance, and the binding no-simulator-writes GATE. See docs/reports/2026-09-20-operational-workflow-audit.md for the evidence trail.
 docs/tsb/INDEX.md                            Troubleshooting Bulletin (TSB) log — permanent failure/fix/evidence records, established 2026-08-29. See docs/tsb/ for individual bulletins.
 ```
 

@@ -1,5 +1,18 @@
 # CAOSCare — Admin / Operations Dashboard Audit
 
+> **PARTIALLY SUPERSEDED — 2026-09-20.** This audit's P0 #1-#3 findings
+> (staff department assignment, an Operations Overview, a Maintenance
+> work-order workspace) are **resolved** as of `main` — built by the same
+> `claude/admin-operations` lane in the days following this audit. Its
+> P1/P2 findings on maintenance state-model depth, escalation
+> automation, and reporting depth remain substantially accurate. For the
+> CURRENT operational-surface state (real counts, UI→API→DB traces for
+> every screen, and the architecture decisions ratified from it), read
+> `docs/reports/2026-09-20-operational-workflow-audit.md` — its own
+> header records exactly what changed since this document and re-verifies
+> what's still open. This document is preserved as historical evidence,
+> not rewritten.
+
 **Date:** 2026-09-06
 **Agent/tool:** Claude Code (Sonnet 5), `CAOSCARE-ADMIN` worktree
 **Branch/ref:** `claude/admin-operations` @ `d994331` (identical to `origin/main` at audit start)

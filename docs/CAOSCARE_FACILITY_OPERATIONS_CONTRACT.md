@@ -2,7 +2,13 @@
 
 ## Status
 
-Active product-scope contract.
+Active product-scope contract. **Product scope** (what workflows/surfaces
+CAOSCare should eventually cover) — for the *architecture* rules governing
+HOW any of this is implemented (canonical service layer, ActorContext,
+event-log vs. receipt boundary, escalation ownership, simulation
+provenance), see `docs/ENGINEERING_CONTRACT.md`'s "Operational
+service-layer architecture" section (ratified 2026-09-20). Do not
+duplicate that doctrine here.
 
 This document expands CAOSCare beyond resident-facing assistance into a full senior-care facility operations platform.
 

@@ -2,7 +2,17 @@
 
 ## Status
 
-Active planning map.
+Active planning map. **Known, intentionally-preserved discrepancy
+(2026-09-20):** the "Recommended evolution" below (`StaffTask ->
+OperationalTask`, `Task completion -> OperationalReceipt`) was **not**
+followed — actual implementation kept the `StaffTask`/`Receipt` names and
+generalized the model in place instead of renaming it. Per
+`docs/ENGINEERING_CONTRACT.md` decision 1 (one canonical service layer,
+not a parallel one under a new name), this is the right outcome, not a
+gap — but the text below is left as-written rather than silently edited
+to match reality; treat any "-> Operational*" rename language in this
+document as historical intent, not a current target. For current
+architecture rules see `docs/ENGINEERING_CONTRACT.md`.
 
 This document records the visible gap between the current CAOSCare application surfaces and the facility-wide operations platform direction.
 

@@ -1,8 +1,15 @@
 # CAOSCARE Running Facility Testbed
 
-_Last updated: 2026-08-23_
+_Last updated: 2026-09-20 (addendum appended below §12 — original body preserved unmodified)_
 
 This document defines how CAOSCARE becomes a **running facility**, not a collection of static admin screens.
+
+> **Reconciliation addendum, 2026-09-20:** this document's vision is
+> unchanged and ratified. See §13 below for how it reconciles against
+> `docs/reports/2026-09-20-operational-workflow-audit.md` and the binding
+> **GATE** in `docs/ENGINEERING_CONTRACT.md` — no simulator write beyond
+> the existing one-shot dev seed scripts is authorized until that gate's
+> conditions are implemented, not merely decided.
 
 For conversation/UI shorthand, Michael may call CAOSCARE **the Care app**. This is shorthand, not a repository/product rename unless explicitly decided later.
 
@@ -251,3 +258,92 @@ The first meaningful running-facility milestone passes when Michael can:
 8. inspect the audit/activity history and distinguish every synthetic action from real activity
 
 That is the baseline for calling CAOSCARE a functioning facility testbed.
+
+---
+
+## 13. Reconciliation with the 2026-09-20 operational workflow audit (addendum)
+
+Nothing in §1–§12 above is superseded — the audit confirmed this
+document's premises directly: **no** simulation engine, scenario runner,
+demo clock, or continuous event generator exists anywhere in this
+repository today (verified by exhaustive grep, `docs/reports/2026-09-20-operational-workflow-audit.md`
+§13/§14). The only things resembling this domain are the one-shot seed
+scripts (`seed_demo_community.py`, `seed_mock_devices.py`,
+`seed_transportation_pilot.py`, `seed_menu_two_weeks.py`,
+`seed_schedule_two_weeks.py`) and a single-click synthetic-location-ping
+generator (`POST /locations/mock/generate`) — none continuous, none
+scenario-driven. §11's "use domain services/endpoints instead of giant
+direct-DB scripts" and §6's "explicit provenance" requirements are exactly
+what remained undecided in the abstract; this addendum makes them
+concrete.
+
+### The GATE (binding, see `docs/ENGINEERING_CONTRACT.md` for the full decision record)
+
+**No simulator writes** beyond the existing one-shot dev seed scripts
+until provenance marking, service-layer actor context/authorization,
+`StaffTask` lifecycle history, canonical escalation semantics, and
+legacy-data migration/quarantine treatment are **implemented**, not just
+decided. This gate binds Lane F (`docs/reports/MULTI_AGENT_EXECUTION_PLAN.md`)
+and any future session picking up this document.
+
+### Canonical functions the simulator must call (never a direct `db.*` write)
+
+Per the audit's own §14 mapping — this is the concrete version of §11's
+"use domain services/endpoints" requirement:
+
+| Simulated activity | Canonical function (never bypass) |
+|---|---|
+| Resident voice/front-desk request | `resident_requests.py::create_resident_request()` — the SAME function traced in the audit's §12 duplicate-detection path; a simulated request gets the same dedup/receipt/notification behavior a real one does, for free |
+| Plain staff-originated work | `tasks.py::create_task()` |
+| Maintenance/department claim → start → complete | `task_assignment.py::POST /tasks/{id}/assign` + `tasks.py::POST /tasks/{id}/{start,complete}` |
+| Pendant help_press | `rf_semantics.py::classify_transmission()` gate, then `resident_activation.py::record_resident_activation()` — **never** a direct `db.alerts.insert_one()`. This is the one place a naive simulator could accidentally bypass the exact RF help_press-vs-supervisory semantic distinction the pilot requires preserved (§3 below) |
+| Transportation booking | `transportation_engine.py::find_or_create_run()` — the same deterministic, defer-to-pending-under-uncertainty engine real requests use |
+| Escalation | `escalation.py::tick()`, called by the simulator's own clock loop — the ONE existing function already shaped for a scheduler to call; it has simply never had one (see `docs/ENGINEERING_CONTRACT.md` decision 9: production scheduling for real escalation must exist independent of the simulator) |
+| Menu/schedule changes | `menu_ingest.py::create_menu_upload()` / `schedule_ingest.py::create_schedule_items()` — already proven reusable by two independent real callers (the dev-test endpoints and this session's own real inbound-email adapter) |
+| Receipts/audit | Automatic — every function above already calls `create_receipt()` internally |
+
+### Pendant scope for the pilot (reaffirms existing, already-enforced behavior)
+
+Deliberate pendant activation represents HELP / urgent resident
+assistance only — it is **not** the generic way to wake Aria for ordinary
+conversation, lighting, menu questions, or transportation questions; voice/
+Aria handles ordinary interaction. This distinction is **already real and
+already enforced** in code today: `rf_semantics.py::classify_transmission()`,
+wired into `rf_matched_intake.py` (`if rfclass.semantic != ACTIVATION_CLASS:
+<do not activate>`) — confirmed live-evidenced 2026-09-06/07 per that
+module's own docstring. Nothing here changes that; the simulator must
+route every synthetic pendant event through this same classifier, never
+around it.
+
+### Provenance and the naming-convention precedent
+
+No `simulated: bool` field exists on any model today (verified by grep).
+The existing, working precedent is a **naming convention**:
+`seed_demo_community.py` uses `"Demo - "`-prefixed resident/staff names,
+`@demo.caoscare` emails, and a dedicated `3W01`–`3W10` room range that
+cannot collide with any real room. A month-long simulator following the
+same convention is immediately filterable out of real metrics without a
+schema change — though per `docs/ENGINEERING_CONTRACT.md` decision 4, a
+proper `simulated: bool` / `source: "simulation"` field is the more robust
+answer and should be built before large-scale simulation writes begin,
+not deferred indefinitely. Real Room 214 hardware/resident data (keyed by
+its own real `resident_id`/room "214") already sits outside any reserved
+simulation range and requires no special-casing to coexist.
+
+### Coverage before duration (decision 15)
+
+Before any month-long run: prove one small, deterministic scenario —
+request → dedup/routing → acknowledge/assign → start → complete, plus a
+deliberately-unanswered case that reaches `escalation.py::tick()`'s
+canonical escalation path (`docs/ENGINEERING_CONTRACT.md` decision 8). A
+month of synthetic activity is generated/replayed only after that thin
+slice passes end-to-end — it is not hand-authored.
+
+### What this addendum does not change
+
+§1–§12 above (owner control surface, prerequisites, synthetic-activity
+categories, deterministic scenario packs, event-engine field
+requirements, clinician/staff-app targets, safe separation, architecture
+constraints, acceptance milestone) remain the target design. This
+addendum adds the specific gate, the canonical function table, and the
+coverage-before-duration sequencing the original document left abstract.

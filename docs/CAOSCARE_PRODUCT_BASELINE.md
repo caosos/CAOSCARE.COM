@@ -193,6 +193,14 @@ Priority layers (do **not** present later layers as built):
 - **One source of truth.** No duplicate task, resident, alert, device, RF,
   reporting, staff, or department universes. A simplified dashboard may
   summarise a real source; clicking through must reach the real detail.
+  Concretely (ratified 2026-09-20, full decision record in
+  `docs/ENGINEERING_CONTRACT.md`): human UI, Aria, any future simulator,
+  front desk, and external adapters all call the SAME canonical service
+  functions rather than each maintaining a parallel state system, and a
+  human-facing "what needs attention now" aggregation (Live Board) is a
+  read model over the canonical domain objects — reusing Aria's own
+  `resolve_operational_state()` unification where practical — never a
+  second source of truth in its own right.
 - **If the UI shows something actionable, it should generally be clickable
   into the underlying truth.** No decorative dead-end numbers/cards/rows;
   if something genuinely can't drill deeper, make its non-interactive

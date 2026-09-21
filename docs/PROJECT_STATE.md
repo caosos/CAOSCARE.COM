@@ -4651,3 +4651,54 @@ Next safe action:  If Michael wants EliteDesk's own local menu/schedule
                    rig) - expected, since the real commissioned hardware
                    only physically exists at EliteDesk.
 ```
+
+---
+
+## 2026-09-20 — Documentation-only architecture reconciliation: 15 ratified decisions from the operational workflow audit recorded into canonical docs
+
+### Agent / tool
+Claude Code (Sonnet 5), EliteDesk primary worktree (`CAOSCARE-INTEGRATION`), executing a fork per Michael's explicit "documentation reconciliation, do not implement product code" directive following a multi-AI review of `docs/reports/2026-09-20-operational-workflow-audit.md`.
+
+### Branch / ref
+`main`, on top of `ec7b3c5` (the audit-report commit from earlier the same day). Documentation only - no backend/frontend/database/config touched, no deploy.
+
+### What changed
+Read, per the directive, in order: `AGENTS.md`, `docs/CAOSCARE_PRODUCT_BASELINE.md`, `docs/CAOSCARE_FACILITY_OPERATIONS_CONTRACT.md`, `docs/BUILD_STATUS.md`, `docs/CAOSCARE_OPERATIONS_GAP_MAP.md`, `docs/reports/2026-09-20-operational-workflow-audit.md`, `docs/reports/RUNNING_FACILITY_TESTBED.md`, `docs/reports/CURRENT_DIRECTIVE.md`, `docs/reports/MULTI_AGENT_EXECUTION_PLAN.md`, `docs/reports/INDEX.md`, `docs/tsb/INDEX.md`, `docs/ARIA_SUBSTRATE_IMPLEMENTATION_PLAN.md`, `docs/ADMIN_OPERATIONS_AUDIT.md`, `docs/ENGINEERING_CONTRACT.md`, this file's own recent entries, `docs/REPO_MAP.md`'s documentation map.
+
+**Judgment call on where the 15 decisions live** (per the directive's own "UPDATE EXISTING > CROSS-REFERENCE > CREATE NEW" preference): confirmed `docs/tsb/INDEX.md`'s convention is strictly per-incident reproducible-failure bulletins - NOT a vehicle for forward-looking architecture doctrine, ruling out a new TSB. `docs/CAOSCARE_FACILITY_OPERATIONS_CONTRACT.md` and `docs/CAOSCARE_OPERATIONS_GAP_MAP.md` are both product-*scope* documents (what workflows to build), the wrong shape for architecture/data-model doctrine. `docs/CAOSCARE_PRODUCT_BASELINE.md` explicitly says "not a build log" and stays at a durable, high-level invariant altitude. `docs/ENGINEERING_CONTRACT.md` is the **existing placeholder explicitly reserved** for "CAOSCare-specific engineering doctrine... built collaboratively with Michael," already carrying one prior Michael-directed section (the 300-line rule) recorded the same way - decided this is the correct, single canonical home for all 15 decisions, rather than creating a new document. `docs/reports/RUNNING_FACILITY_TESTBED.md` already existed as the (Lane F, per `MULTI_AGENT_EXECUTION_PLAN.md`) canonical simulation-testbed doctrine document - the simulation-specific decisions (provenance, legacy-data quarantine before simulation, production/simulation separation, canonical-function reuse, coverage-before-duration) were reconciled there as a dated addendum (§13) rather than duplicated into `ENGINEERING_CONTRACT.md`; that section cross-references the contract instead of restating it.
+
+**Documents changed (9, grouped into 7 reasons below, plus this file as the log entry itself):**
+1. `docs/ENGINEERING_CONTRACT.md` - new "Operational service-layer architecture (Michael-directed, 2026-09-20)" section: all 15 ratified decisions verbatim-reasoned, the canonical escalation-authority decision (`escalation.py::tick()` wins; `alerts.py::alerts_feed`'s inline computation must be retired; `AlertStatus` needs `"escalated"`), the two-track execution model, and the binding GATE. This is the reserved canonical home for exactly this kind of content.
+2. `docs/reports/RUNNING_FACILITY_TESTBED.md` - new §13 addendum: the GATE restated, the canonical-function table (`create_resident_request`, `record_resident_activation`, `find_or_create_run`, `escalation.tick`, etc.) any future simulator must call instead of writing `db.*` directly, the pendant help_press-vs-supervisory reaffirmation (already real and enforced in `rf_semantics.py`, not new), and coverage-before-duration sequencing. §1-§12 preserved unmodified.
+3. `docs/reports/CURRENT_DIRECTIVE.md` - new §0 stating the Track 1/Track 2 split and GATE are the current standing priority, explicitly noting this supersedes §3's stale "Voice reliability" framing without deleting §3 (preserved as history + still-valid engineering-method lessons).
+4. `docs/CAOSCARE_PRODUCT_BASELINE.md` §8 - one added sentence under the existing "One source of truth" invariant, pointing at `ENGINEERING_CONTRACT.md` for the full decision record; kept at durable-invariant altitude, not the implementation-level detail.
+5. `docs/ADMIN_OPERATIONS_AUDIT.md` - added a "PARTIALLY SUPERSEDED" banner (its P0 #1-#3 are resolved; P1/P2 still substantially accurate) pointing at the 2026-09-20 audit; body untouched.
+6. `docs/CAOSCARE_FACILITY_OPERATIONS_CONTRACT.md` and `docs/CAOSCARE_OPERATIONS_GAP_MAP.md` - short cross-reference pointers to `ENGINEERING_CONTRACT.md` for architecture doctrine (these two stay product-scope only); the GAP_MAP pointer also explicitly flags the preserved `StaffTask -> OperationalTask` rename-that-never-happened as intentional, not silently corrected.
+7. `docs/reports/INDEX.md` - new top entry linking the 2026-09-20 audit (previously unindexed, confirmed via grep in the prior session) and this reconciliation pass; `docs/REPO_MAP.md`'s documentation map gained one line indexing `ENGINEERING_CONTRACT.md`'s newly-canonical status.
+
+**Contradictions intentionally preserved, not silently resolved:**
+- `docs/CAOSCARE_OPERATIONS_GAP_MAP.md`'s "Recommended evolution: StaffTask -> OperationalTask" was never followed in actual implementation (StaffTask/Receipt kept their names) - flagged explicitly in that document rather than rewritten to match reality.
+- `docs/tsb/INDEX.md` still shows TSB-001/TSB-002 as `OPEN - documented, not remediated`, even though later `PROJECT_STATE.md` entries document substantial TSB-001 remediation work - NOT touched this pass; TSB status changes require reproducing the fix against the live failure mode per that convention's own rule, which is outside a documentation-reconciliation pass's remit.
+- The canonical-escalation decision (§8, `ENGINEERING_CONTRACT.md`) is a **ratified decision, not an implemented fix** - `alerts.py::alerts_feed`'s inline escalation and the `AlertStatus` enum's missing `"escalated"` value are both still present in code exactly as the audit found them; only the documentation now states which one must win once Track 2 implementation happens, and flags that `alerts.py` also needs Level-1/Aria-lane coordination before anyone edits it.
+- `docs/CAOSCARE_FACILITY_OPERATIONS_CONTRACT.md`/`docs/reports/MULTI_AGENT_EXECUTION_PLAN.md`/`docs/reports/CURRENT_DIRECTIVE.md`'s stale lane model (Lanes A-F, "Voice fundamentals highest priority", `ADMIN_PRODUCT_BLUEPRINT.md` references) was left otherwise untouched beyond the one new §0 in `CURRENT_DIRECTIVE.md` - a full staleness sweep of the coordination docs was out of scope for this pass.
+
+### What was verified
+`git status`/`git diff --stat` confirmed only the 7 documentation files above were changed before staging; no code/config/`.venv` included. No documentation-lint/link-check tooling exists in this repo (checked `scripts/` for any `*doc*`/`*lint*`/markdown-link-check config - none found).
+
+### Blocked / not yet done
+Everything under the GATE in `docs/ENGINEERING_CONTRACT.md` (ActorContext/service-layer authorization, `StaffTask` event_log, canonical-escalation code reconciliation, `simulated`/provenance field, legacy-data migration policy) - **ratified, not implemented**. Track 1's five items are unblocked and unimplemented as of this entry. TSB-001/002 status not re-verified this pass.
+
+### Next safe step
+Track 1 items may proceed independently, in any order, per `docs/ENGINEERING_CONTRACT.md`'s two-track section. Track 2 implementation should be single-threaded per the GATE, coordinating `alerts.py` ownership with the Level-1/Aria substrate lane before touching escalation.
+
+HANDOFF CAPSULE
+- Objective:        Preserve the operational-workflow-audit's ratified architecture decisions in existing canonical docs before implementation begins.
+- Branch:           main
+- Lane / ownership: Documentation only this pass; no code lane claimed or touched.
+- Last proven state: `git diff --stat` confirmed exactly 7 doc files changed, nothing else; pushed to origin/main.
+- Commits:          (see this entry's own commit, immediately following this file in the same commit)
+- Runtime state:    Not applicable - no runtime touched.
+- Unresolved proven defects: `AlertStatus` enum missing `"escalated"` (escalation.py writes it anyway) - documented as decision 8, not yet fixed in code.
+- Product invariants that matter here: one canonical service layer (Baseline §8); Live Board is a read model, never a second source of truth; no simulator writes until the GATE's conditions are implemented.
+- Do NOT change:    `docs/reports/2026-09-20-operational-workflow-audit.md` itself - historical, preserved as-written.
+- Next safe action: Pick a Track 1 item (all unblocked, all reuse existing functions) or begin Track 2's ActorContext design as its own dedicated pass.
