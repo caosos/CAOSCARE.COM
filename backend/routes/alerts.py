@@ -1,10 +1,11 @@
 """Alerts routes - create from kiosk, list/acknowledge/resolve for staff."""
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, Query
 from models import AlertCreate, AlertClose, now_utc
 from deps import db, get_current_user
 from routes.resident_activation import record_resident_activation
+from routes.ops_overview_util import STALE_ALERT_HOURS
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
 
@@ -301,17 +302,19 @@ async def close_alert(alert_id: str, data: AlertClose, user=Depends(get_current_
 
 @router.get("/stats")
 async def alert_stats(user=Depends(get_current_user)):
-    active = await db.alerts.count_documents({"status": "active"})
-    ack = await db.alerts.count_documents({"status": "acknowledged"})
-    resolved_today_ct = 0
-    # count resolved in last 24h
-    from datetime import timedelta
-    cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+    """Age-bound per ENGINEERING_CONTRACT.md Track 1 item 1 (audit §6#1) -
+    was an unfiltered all-time count; historical access is unaffected via
+    AlertsBoard/ops_overview's own possibly_stale_open_gt_72h field."""
+    stale_cutoff = (datetime.now(timezone.utc) - timedelta(hours=STALE_ALERT_HOURS)).isoformat()
+    current = {"created_at": {"$gte": stale_cutoff}}
+    active = await db.alerts.count_documents({"status": "active", **current})
+    ack = await db.alerts.count_documents({"status": "acknowledged", **current})
+    resolved_24h_cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
     resolved_today_ct = await db.alerts.count_documents(
-        {"status": "resolved", "resolved_at": {"$gte": cutoff}}
+        {"status": "resolved", "resolved_at": {"$gte": resolved_24h_cutoff}}
     )
     emergency_active = await db.alerts.count_documents(
-        {"status": "active", "severity": "emergency"}
+        {"status": "active", "severity": "emergency", **current}
     )
     return {
         "active": active,

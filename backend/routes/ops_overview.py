@@ -24,6 +24,7 @@ from routes.realtime_facility import today_facility_date
 from routes.ops_overview_util import (
     EPOCH, parse_dt, age_seconds, local_date, dept_label, task_link_hint, short_duration,
     task_is_open, task_is_unassigned, task_is_overdue, task_completed_on,
+    STALE_ALERT_HOURS, alert_is_stale,
 )
 
 router = APIRouter(prefix="/ops", tags=["ops-overview"])
@@ -32,7 +33,7 @@ OPEN_TASK = ("pending", "in_progress")
 OPEN_ALERT = ("active", "acknowledged")
 ATTENTION_CAP = 50
 LIST_CAP = 15
-STALE_HOURS = 72
+STALE_HOURS = STALE_ALERT_HOURS  # single shared threshold - see ops_overview_util.py
 
 COUNTS_CAVEAT = (
     "Open resident-assistance events include historical RF/pendant test "
@@ -100,20 +101,32 @@ async def operations_overview(
     ))
 
     # ---------- 3. RESIDENT ASSISTANCE SUMMARY (read-only) ----------
+    # Track 1 item 1 (ENGINEERING_CONTRACT.md, audit §6#1/§9 Option B): the
+    # headline counters below must describe CURRENT open work, not
+    # historical RF-test debris masquerading as active - open_alerts (all
+    # of it, unfiltered) is still what feeds the §1 attention list above,
+    # which already correctly demotes-not-hides stale items to tier 7; this
+    # section is the one that was reporting the raw, unfiltered 319/321 as
+    # if it were live. Nothing is deleted - `possibly_stale_open_gt_72h`
+    # below is the same pre-existing field this always had, now genuinely
+    # the complement of the (now current-only) counters instead of a number
+    # baked into an already-inflated total.
     def alert_age(a):
         return age_seconds(a.get("created_at"), now) or 0
 
-    oldest = open_alerts[0] if open_alerts else None
+    current_alerts = [a for a in open_alerts if not alert_is_stale(a, now)]
+    stale_open_count = len(open_alerts) - len(current_alerts)
+    oldest = current_alerts[0] if current_alerts else None
     assistance = {
-        "active": sum(1 for a in open_alerts if a.get("status") == "active"),
-        "acknowledged": sum(1 for a in open_alerts if a.get("status") == "acknowledged"),
+        "active": sum(1 for a in current_alerts if a.get("status") == "active"),
+        "acknowledged": sum(1 for a in current_alerts if a.get("status") == "acknowledged"),
         "resolved_today": resolved_today,
-        "open_total": len(open_alerts),
-        "unowned_open": sum(1 for a in open_alerts if not a.get("acknowledged_by")),
-        "owned_open": sum(1 for a in open_alerts if a.get("acknowledged_by")),
-        "aging_open_gt_2h": sum(1 for a in open_alerts if alert_age(a) > 7200),
-        "aging_open_gt_24h": sum(1 for a in open_alerts if alert_age(a) > 86400),
-        "possibly_stale_open_gt_72h": sum(1 for a in open_alerts if alert_age(a) > STALE_HOURS * 3600),
+        "open_total": len(current_alerts),
+        "unowned_open": sum(1 for a in current_alerts if not a.get("acknowledged_by")),
+        "owned_open": sum(1 for a in current_alerts if a.get("acknowledged_by")),
+        "aging_open_gt_2h": sum(1 for a in current_alerts if alert_age(a) > 7200),
+        "aging_open_gt_24h": sum(1 for a in current_alerts if alert_age(a) > 86400),
+        "possibly_stale_open_gt_72h": stale_open_count,
         "oldest_open": None if not oldest else {
             "alert_id": oldest.get("alert_id"), "resident_name": oldest.get("resident_name"),
             "room": oldest.get("room"), "severity": oldest.get("severity"),

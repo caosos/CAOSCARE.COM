@@ -63,6 +63,16 @@ def short_duration(seconds: float) -> str:
     return f"{s // 86400}d"
 
 
+# ---- shared "is this alert stale test debris" policy (used by ops_overview.py
+# and alerts.py::alert_stats, per ENGINEERING_CONTRACT.md's Track 1 item 1 -
+# ONE threshold, reused, not two files each hardcoding their own "72") ----
+STALE_ALERT_HOURS = 72
+
+
+def alert_is_stale(a: dict, now: datetime) -> bool:
+    return (age_seconds(a.get("created_at"), now) or 0) > STALE_ALERT_HOURS * 3600
+
+
 # ---- shared StaffTask predicates (used by ops_overview.py and reports.py) ----
 # One source of truth for "open", "overdue", "unassigned", "created / closed
 # on a given facility-local day". `overdue` is deliberately strict: it needs a
