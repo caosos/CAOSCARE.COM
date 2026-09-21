@@ -1,6 +1,8 @@
 """Resident-request-bus entry points (Terminal 8): the public, no-auth
-routes Aria/the kiosk call to raise and check on a real request, plus
-department email notification and re-request (duplicate) detection.
+routes Aria/the kiosk call to raise and check on a real request (plus one
+authenticated source, "front_desk", added 2026-09-21 - see
+create_resident_request's own docstring), department email notification,
+and re-request (duplicate) detection.
 
 Split out of routes/tasks.py to stay under the repo's 400-line file cap -
 this shares the same StaffTask/Receipt records tasks.py owns rather than
@@ -9,11 +11,11 @@ so the public URLs (/api/tasks/resident-request, .../status) don't move.
 """
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from models import StaffTask, TaskPriority, now_utc
-from deps import db
+from deps import db, get_current_user
 from routes.receipts import create_receipt
 from routes.notifications import notify_department
 from routes.departments import get_active_departments
@@ -71,17 +73,32 @@ class ResidentRequestInput(BaseModel):
     resident_words: Optional[str] = None
     summary: str
     priority: TaskPriority = "normal"
-    source: str = "aria_voice"  # "aria_voice" | "kiosk_button"
+    source: str = "aria_voice"  # "aria_voice" | "kiosk_button" | "front_desk" (auth required for front_desk)
     conversation_session_id: Optional[str] = None
 
 
-@router.post("/resident-request")
-async def create_resident_request(data: ResidentRequestInput):
-    """No auth - same public trust model as /alerts and the other
-    resident-facing endpoints called from the kiosk during a live call.
-    Creates a real StaffTask (so it appears in the existing, working staff
-    task queue) plus a receipt, and returns enough for Aria to report
-    truthfully: created, not "someone is on the way".
+async def create_resident_request(data: ResidentRequestInput, *, user: Optional[dict] = None) -> dict:
+    """Public (no auth) for "aria_voice"/"kiosk_button" - same trust model
+    as /alerts and the other resident-facing endpoints called from the
+    kiosk during a live call. Creates a real StaffTask (so it appears in
+    the existing, working staff task queue) plus a receipt, and returns
+    enough for Aria to report truthfully: created, not "someone is on the
+    way".
+
+    "front_desk" is the one other allowed source, and it is NOT public -
+    `user` must be an already-authenticated caller (owner/admin/staff/
+    front_desk role) resolved by the thin HTTP route wrapper below from a
+    real Request via get_current_user - the same auth every other
+    authenticated route in this app already uses, not a new mechanism,
+    and not a weakening of the public sources' own trust model, which is
+    untouched. Taking an already-resolved `user` dict here (never a
+    Request) keeps this function directly callable in-process - by tests,
+    or a future simulator per ENGINEERING_CONTRACT.md decision 1 - without
+    needing to fabricate an HTTP Request object. This is the Track 1 reuse
+    point (audit §12): a human-entered request goes through the exact same
+    dedup/receipt/notification/lifecycle-speaking logic below as a
+    resident-originated one, instead of the plain POST /tasks path
+    (tasks.py::create_task), which has no duplicate-detection at all.
 
     If the same resident (or room, when there's no resident_id) already
     has an open request in this category, this does NOT spawn a second
@@ -93,7 +110,12 @@ async def create_resident_request(data: ResidentRequestInput):
     visibility_role = await _resolve_visibility_role(data.category)
     if not visibility_role:
         raise HTTPException(status_code=400, detail=f"Unsupported request category: {data.category}")
-    if data.source not in ("aria_voice", "kiosk_button"):
+    requested_by = "resident"
+    if data.source == "front_desk":
+        if not user or user.get("role") not in ("owner", "admin", "staff", "front_desk"):
+            raise HTTPException(status_code=403, detail="Not authorized to create resident requests")
+        requested_by = user.get("name") or user.get("email") or "front_desk"
+    elif data.source not in ("aria_voice", "kiosk_button"):
         raise HTTPException(status_code=400, detail="Invalid source")
     # 2026-08-23 (real, confirmed bug - Chauncey/Room 304): a fabricated
     # "10 o'clock" reached a live staff task. Reject rather than trust a
@@ -137,7 +159,7 @@ async def create_resident_request(data: ResidentRequestInput):
             action_type="resident_request_re_requested", related_object_type="task",
             related_object_id=existing["task_id"], source=data.source,
             resident_id=data.resident_id, room=data.room,
-            conversation_session_id=data.conversation_session_id, requested_by="resident",
+            conversation_session_id=data.conversation_session_id, requested_by=requested_by,
             assigned_role=visibility_role,
         )
         await notify_department(
@@ -183,7 +205,7 @@ async def create_resident_request(data: ResidentRequestInput):
     receipt = await create_receipt(
         action_type="resident_request_created", related_object_type="task", related_object_id=doc["task_id"],
         source=data.source, resident_id=data.resident_id, room=data.room,
-        conversation_session_id=data.conversation_session_id, requested_by="resident",
+        conversation_session_id=data.conversation_session_id, requested_by=requested_by,
         assigned_role=visibility_role,
     )
     await notify_department(
@@ -192,6 +214,16 @@ async def create_resident_request(data: ResidentRequestInput):
         f"{data.summary}\nRoom: {data.room or 'unknown'}\nPriority: {data.priority}",
     )
     return {"task_id": doc["task_id"], "receipt_id": receipt["receipt_id"], "status": doc["status"], "duplicate": False}
+
+
+@router.post("/resident-request")
+async def resident_request_endpoint(data: ResidentRequestInput, request: Request):
+    """Thin HTTP wrapper - the only place a real Request/get_current_user
+    is touched. Resolves the caller ONLY for the one non-public source
+    (front_desk); aria_voice/kiosk_button never authenticate, preserving
+    the existing public trust model exactly."""
+    user = await get_current_user(request) if data.source == "front_desk" else None
+    return await create_resident_request(data, user=user)
 
 
 def _iso(v) -> Optional[str]:
