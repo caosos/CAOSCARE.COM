@@ -192,9 +192,9 @@ ELITEDESK HEAD == GITHUB origin/main
 working tree clean
 ```
 
-## 9. Standing ~300-line architecture rule
+## 9. Standing file-size/modularity rule
 
-Handwritten production code should normally remain at or below approximately **300 lines per file**.
+Canonical text lives in `AGENTS.md`'s "Change discipline" section (updated 2026-09-21) — implementation files/components roughly 300-400 lines, ~400 a signal to split by responsibility, not a hard wall. Do not restate the full rule here; this section is a pointer only.
 
 This is a design ceiling to prevent God files, not an arbitrary line-count game.
 

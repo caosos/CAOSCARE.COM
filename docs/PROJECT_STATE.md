@@ -4702,3 +4702,27 @@ HANDOFF CAPSULE
 - Product invariants that matter here: one canonical service layer (Baseline §8); Live Board is a read model, never a second source of truth; no simulator writes until the GATE's conditions are implemented.
 - Do NOT change:    `docs/reports/2026-09-20-operational-workflow-audit.md` itself - historical, preserved as-written.
 - Next safe action: Pick a Track 1 item (all unblocked, all reuse existing functions) or begin Track 2's ActorContext design as its own dedicated pass.
+
+---
+
+## 2026-09-21 — File-size/modularity rule updated and relocated to AGENTS.md (documentation only)
+
+### Agent / tool
+Claude Code, EliteDesk primary worktree.
+
+### Branch / ref
+`main`, on top of `85c2c52`.
+
+### What changed
+Michael ratified a replacement for the 2026-08-21 "aim below 300, 300-line hard cap" rule: implementation files/UI components should stay roughly 300-400 lines when reasonably practical, ~400 is a signal to split by responsibility (not a hard wall), information-dense files (docs, static/reference data, generated artifacts, schemas) are exempt when decomposition would reduce clarity, existing oversized files are not license to keep growing, and a bounded task that can't safely extract should stop and report rather than improvise a refactor. Per Michael's own follow-up steer, the canonical home was **moved from `docs/ENGINEERING_CONTRACT.md` to `AGENTS.md`'s "Change discipline" section** — the test applied: which file does every agent actually read before writing code (the mandatory boot-sequence entry point), not which file happens to already hold the growing pile of architecture-decision-record content from the 2026-09-20 reconciliation pass. `docs/tsb/INDEX.md`'s convention (per-incident bulletins only) was re-confirmed to rule out a TSB.
+
+**Canonical location:** `AGENTS.md` → "Change discipline" → code section (full rule text, superseding history noted inline). `docs/ENGINEERING_CONTRACT.md` now holds only a short pointer + a 2-line history record (2026-08-21 and 2026-09-21 wording), not a restatement. Short pointers also updated in `docs/CAOSCARE_PRODUCT_BASELINE.md` §8, `CLAUDE.md`, `docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md` (both its top banner and its discipline-list line), `docs/BUILD_STATUS.md`'s stale-snapshot banner, `docs/reports/CURRENT_DIRECTIVE.md` §9, `docs/ARIA_LANE_ONBOARDING.md`, and `docs/REPO_MAP.md`'s description of `ENGINEERING_CONTRACT.md`.
+
+### What was verified
+Grepped the full repo for every remaining "300-line"/"300 lines"/"below 300" mention after editing: all remaining hits are either (a) this new AGENTS.md canonical text itself, (b) the two files' own explicit superseded-history sections, or (c) historical dated records (`docs/PROJECT_STATE.md`'s own append-only past entries, dated `docs/reports/*.md` incident/session files, `commands/TERMINAL_9_*.md`) which are preserved as historical evidence per the standing rule not to rewrite history. No live/current-instruction document was left stating the old number as if still authoritative.
+
+### Blocked / not yet done
+Nothing code-related touched. `docs/reports/MULTI_AGENT_EXECUTION_PLAN.md` and `docs/reports/INDEX.md` each still carry a loose "~300-line" mention in prose describing that standing instruction set - left as-is since "~300" reads as compatible-enough shorthand for the new 300-400 range and isn't stated as a hard number; not worth a edit given diminishing value.
+
+### Next safe step
+Resume Track 1 execution (age-bound stale-alert counters, Tasks "Today" filter, DepartmentWorkspace wiring, front-desk request dedup reuse, local menu/schedule seed refresh) - this doc update was a prerequisite gate before those lanes began growing files, per Michael's explicit sequencing.

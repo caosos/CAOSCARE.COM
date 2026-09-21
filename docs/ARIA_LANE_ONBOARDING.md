@@ -20,7 +20,7 @@ text here or into new files — reference the canonical sources below.
 3. `CLAUDE.md` (repo root) — onboarding entrypoint
 4. `README.md`
 5. `docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md` — capability bundle, safety, discipline
-6. `docs/ENGINEERING_CONTRACT.md` — **300-line handwritten-code cap** (Michael-directed 2026-08-21) and CAOSCare-specific working rules
+6. `docs/ENGINEERING_CONTRACT.md` — CAOSCare-specific working rules and the operational service-layer architecture decisions (2026-09-20); file-size/modularity rule itself is canonical in `AGENTS.md`'s "Change discipline" section
 
 ### 1. Doctrine (placeholders — DO NOT invent their contents)
 7. `docs/CAOS_THESIS.md` — placeholder; author with Michael only

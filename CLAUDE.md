@@ -25,8 +25,9 @@ inspect the actual machine/repository state. Status documents are
 snapshots, not proof that the current runtime still matches them.
 
 Resident rooms are a **room node behind the TV + eMeet audio + TV**, not a
-tablet (Product Baseline §2). Handwritten production-code files: **300-line
-hard cap** (Product Baseline §8).
+tablet (Product Baseline §2). File size/modularity target: implementation
+files ~300-400 lines, ~400 a split signal not a hard wall — see `AGENTS.md`
+"Change discipline" for the canonical rule (do not restate it here).
 
 Do not redesign established architecture without first identifying the
 existing design and explaining why a change is necessary.

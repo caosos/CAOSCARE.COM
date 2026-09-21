@@ -7,8 +7,9 @@
 > built. For **current runtime state** read `docs/PROJECT_STATE.md` (recent
 > dated entries) and `docs/CURRENT_NODE_STATUS.md`. For **canonical
 > architecture** read `docs/CAOSCARE_PRODUCT_BASELINE.md` — in particular,
-> resident rooms are a **room node + eMeet audio + TV**, not a tablet, and
-> the handwritten-code size rule is **300 lines**, not 400. This file is
+> resident rooms are a **room node + eMeet audio + TV**, not a tablet. The
+> file-size/modularity rule (canonical in `AGENTS.md`'s "Change discipline")
+> is roughly 300-400 lines, not a hard 300 or 400 wall. This file is
 > retained as history of the first runnable path; do not treat its "planned"
 > statements as current.
 

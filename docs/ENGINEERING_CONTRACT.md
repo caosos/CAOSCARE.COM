@@ -2,28 +2,23 @@
 
 **Not yet written.** This document is meant to define how agents are expected to work specifically within CAOSCare — the project-specific complement to the universal engineering principles in the global `~/.claude/CLAUDE.md` (understand before changing, one source of truth, verify the exact path the user uses, documentation describes reality, etc.).
 
-Meant to cover things specific to this repository: the required-reading order and when it applies (canonical: `AGENTS.md` / `docs/CAOSCARE_PRODUCT_BASELINE.md` §9), the code-size discipline (**aim below 300, 300-line hard cap** — see the section below and Product Baseline §8; this replaced the earlier "200 soft / 400 hard" wording that still appears in older docs), how/when to update `docs/PROJECT_STATE.md` and `docs/CURRENT_NODE_STATUS.md`, how contradictions between docs and running code should be surfaced and resolved, and any CAOSCare-specific SOPs for recurring operations (deploying, restarting services, testing voice paths, etc.).
+Meant to cover things specific to this repository: the required-reading order and when it applies (canonical: `AGENTS.md` / `docs/CAOSCARE_PRODUCT_BASELINE.md` §9), the code-size/modularity discipline (canonical text now lives in `AGENTS.md`'s "Change discipline" section — that is the mandatory entry point every agent reads before writing code, which is where a build/coding standard belongs, as opposed to the architecture-decision-record content elsewhere in this file; see the short pointer below), how/when to update `docs/PROJECT_STATE.md` and `docs/CURRENT_NODE_STATUS.md`, how contradictions between docs and running code should be surfaced and resolved, and any CAOSCare-specific SOPs for recurring operations (deploying, restarting services, testing voice paths, etc.).
 
 To be built collaboratively with Michael. **Do not invent this document's contents.**
 
 ---
 
-## Code file size (Michael-directed, 2026-08-21)
+## Code file size / modularity — see AGENTS.md (moved 2026-09-21)
 
-The rest of this document is still unwritten — this section is an explicit rule Michael gave directly, not an agent inference, recorded here so it isn't lost before the full contract exists.
+**Canonical rule now lives in `AGENTS.md`'s "Change discipline" → code section.** Decided by asking which file every agent actually reads before writing code — `AGENTS.md` is the mandatory entry point (boot-sequence step 1 everywhere in this repo), not this file; a build/coding standard belongs with onboarding, not with the architecture-decision-record content this file otherwise holds (see the "Operational service-layer architecture" section below). This is not a TSB matter either — `docs/tsb/INDEX.md`'s own convention is per-incident reproducible-failure bulletins, not proactive standards.
 
-Handwritten production code files must not exceed 300 lines unless Michael explicitly approves an exception.
+Do not restate the rule here; this note exists only so a reader who lands on this file first is pointed to the real location instead of finding two competing copies.
 
-- Aim below 300 lines.
-- Split by clear domain or responsibility, never arbitrary line chopping.
-- Do not create God files.
-- Do not launch a broad refactor solely to shorten an untouched legacy file that is already over the cap.
-- If modifying an existing code file already above 300 lines, do not make it larger — extract the responsibility being changed when practical.
-- Before finishing any coding task, report the line counts of every created or materially modified production-code file.
+### History (superseded, kept for record only — do not follow either version below)
 
-Documentation, informational files, reports, generated files, static data, lockfiles, and necessary configuration files are exempt.
+**2026-08-21 version:** handwritten production code files must not exceed 300 lines unless Michael explicitly approves an exception (aim below 300, hard cap 300, split by domain, no God files, no broad refactor to shrink an untouched legacy file, extract rather than enlarge an already-over-cap file, report line counts). This replaced a prior 400-line hard cap recorded in `AGENTS.md`.
 
-This replaces the prior 400-line hard cap recorded in `AGENTS.md`.
+**2026-09-21 version (current — see `AGENTS.md`):** keep implementation files/components roughly within 300-400 lines when reasonably practical; ~400 lines is a signal to split by responsibility, not a hard wall; no mechanical splitting; information-dense files (docs, static/reference data, generated artifacts, schemas) are exempt when decomposition would reduce clarity; existing oversized files are not license to keep growing them; when a bounded task's required change would push a file substantially beyond the guideline and safe extraction is out of that task's scope, stop and report rather than improvising a refactor.
 
 ---
 

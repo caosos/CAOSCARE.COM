@@ -11,8 +11,9 @@
 >   tablet/phone/computer clients of the role/department workspaces
 >   (Baseline §3);
 > - the code-size rule here ("200 lines / 400-line hard cap") is
->   `SUPERSEDED` by "aim below 300, 300-line hard cap" (Baseline §8,
->   `AGENTS.md`).
+>   `SUPERSEDED` — canonical rule now lives in `AGENTS.md`'s "Change
+>   discipline" section (roughly 300-400 lines, ~400 a split signal, not
+>   a hard wall).
 >
 > Everything else in this contract (care doctrine, safety boundaries,
 > privacy, UX doctrine, memory principles, acceptance criteria) remains
@@ -380,7 +381,7 @@ All build work must follow CAOS discipline:
 - no main production deploy without approval
 - no secrets committed
 - no runtime data committed
-- handwritten production-code files: aim below 300 lines, **hard cap 300 lines** unless Michael explicitly approves an exception (this replaces the older "200 soft / 400 hard" wording — see `AGENTS.md` and Product Baseline §8)
+- handwritten implementation files: roughly 300-400 lines, ~400 a signal to split, not a hard wall — canonical rule (and full history of prior wording) in `AGENTS.md`'s "Change discipline" section, do not restate it here
 - docs may be long-form when needed
 - receipts/commit SHAs in handoff; leave a handoff capsule (`AGENTS.md`)
 

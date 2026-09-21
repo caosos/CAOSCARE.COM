@@ -205,15 +205,11 @@ Priority layers (do **not** present later layers as built):
   into the underlying truth.** No decorative dead-end numbers/cards/rows;
   if something genuinely can't drill deeper, make its non-interactive
   nature visually clear.
-- **Handwritten production-code file size: aim below 300 lines; hard cap
-  300 lines** unless Michael explicitly approves an exception. Split by
-  clear domain/responsibility, never arbitrary chopping. Do not launch a
-  broad refactor solely to shrink an untouched legacy file; if you must
-  modify a file already over the cap, do not make it larger — extract the
-  responsibility being changed. Documentation, reports, generated files,
-  static data, lockfiles, and necessary config are exempt. This is the
-  canonical rule; it **replaces** the older "200-line soft / 400-line hard"
-  guidance in `docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md`.
+- **File size / modularity.** Implementation files and UI components stay
+  roughly within 300-400 lines when reasonably practical; ~400 is a signal
+  to split by responsibility, not a hard wall. Canonical rule (and its
+  history) lives in `AGENTS.md`'s "Change discipline" section — do not
+  restate it here.
 - **Truth discipline.** The system must know the difference between
   requested, attempted, succeeded, failed, inferred, and unknown.
   Meaningful actions produce receipts / events.

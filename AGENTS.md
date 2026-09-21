@@ -155,17 +155,24 @@ For code, when code exists:
 
 1. inspect relevant files first
 2. preserve accepted behavior
-3. aim below 300 lines for handwritten production code files
-4. hard cap handwritten production code files at 300 lines unless Michael explicitly approves an exception
-5. split by clear domain or responsibility, never arbitrary line chopping
-6. avoid God files
-7. do not launch a broad refactor solely to shorten an untouched legacy file that is already over the cap
-8. if modifying an existing code file already above 300 lines, do not make it larger — extract the responsibility being changed when practical
-9. prefer focused modules and contracts
-10. add receipts / logs / checks where appropriate
-11. before finishing any coding task, report the line counts of every created or materially modified production-code file
-
-Documentation, informational files, reports, generated files, static data, lockfiles, and necessary configuration files are exempt from the 300-line cap.
+3. **file size / modularity target (Michael-directed, 2026-09-21 — this is the canonical location for this rule; do not restate it elsewhere, cross-reference this section instead):**
+   - keep implementation/code files and UI components roughly within **300-400 lines** whenever reasonably practical
+   - treat **~400 lines as a signal to split by responsibility**, not a hard wall to hit before continuing to grow the file
+   - do not split mechanically merely to satisfy a line count — modules need coherent responsibilities and useful boundaries
+   - files may exceed this range when their size is primarily **information rather than implementation complexity** (documentation, static/reference data, generated artifacts, schemas/configuration where decomposition would reduce clarity, or similarly information-dense material)
+   - existing oversized files are not authorization to keep enlarging them
+   - when work would materially grow an already-large implementation file, prefer extracting a coherent module/component/helper rather than adding another large block
+   - do not perform unrelated refactors solely to reduce line count during a bounded task — if the required change would push a file substantially beyond the guideline and safe extraction is outside the assigned scope, **stop and report the issue rather than expanding scope**
+   - line count is a maintainability heuristic, not a substitute for good architecture
+   - before finishing any coding task, report the line counts of every created or materially modified implementation file
+   - superseded prior wording ("aim below 300, 300-line hard cap," and before that "200 soft / 400 hard") is recorded for history only in `docs/ENGINEERING_CONTRACT.md`, not to be followed
+4. split by clear domain or responsibility, never arbitrary line chopping
+5. avoid God files
+6. do not launch a broad refactor solely to shorten an untouched legacy file that is already over the guideline
+7. if modifying an existing code file already above the guideline, do not make it substantially larger — extract the responsibility being changed when practical, or stop and report if extraction is outside the bounded task's scope
+8. prefer focused modules and contracts
+9. add receipts / logs / checks where appropriate
+10. before finishing any coding task, report the line counts of every created or materially modified production-code file
 
 ## Branch hygiene
 
