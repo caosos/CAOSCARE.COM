@@ -29,7 +29,12 @@ _REALTIME_EVENTS = {
     "mic_requested", "mic_acquired", "mic_failed",
     "session_mint_started", "session_ended_client",
 }
-_ALLOWED = _KIOSK_EVENTS | _REALTIME_EVENTS
+# Local "Aria" wake-word trigger (room-node/aria_wake) as seen by the room page.
+_WAKE_WORD_EVENTS = {
+    "wake_listener_connected", "wake_listener_disconnected", "wake_word_detected",
+    "wake_word_ignored", "wake_word_session_bound", "wake_listening_resumed",
+}
+_ALLOWED = _KIOSK_EVENTS | _REALTIME_EVENTS | _WAKE_WORD_EVENTS
 
 
 class ClientEvent(BaseModel):
@@ -55,8 +60,10 @@ async def client_events(batch: ClientEventBatch):
     for e in batch.events[:50]:
         if e.event not in _ALLOWED:
             continue
+        layer = ("realtime" if e.event in _REALTIME_EVENTS
+                 else "wake_word" if e.event in _WAKE_WORD_EVENTS else "kiosk")
         await alog(
-            "realtime" if e.event in _REALTIME_EVENTS else "kiosk",
+            layer,
             e.event,
             activation_id=e.activation_id, room=e.room, resident_id=e.resident_id,
             alert_id=e.alert_id, kiosk_id=e.kiosk_id, client_instance_id=e.client_instance_id,

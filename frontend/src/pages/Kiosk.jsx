@@ -16,6 +16,9 @@ import RequestsPanel from "../components/kiosk/RequestsPanel";
 import RoomDevicePanel from "../components/kiosk/RoomDevicePanel";
 import { sendRoomDeviceCommand } from "../lib/kioskDeviceControl";
 import { logActivationClientEvent } from "../lib/activationClient";
+import { useKioskMediaPrime, openInFullTab, inSandboxedIframe } from "../lib/useKioskMediaPrime";
+import { useWakeWord } from "../lib/useWakeWord";
+import { wakeUrlFromSearch } from "../lib/wakeWordClient";
 
 // Kiosk is PUBLIC - no login. Selected/identified by kiosk_id in URL.
 // /kiosk/:kioskId  (use "demo" to pick an arbitrary kiosk automatically)
@@ -39,10 +42,9 @@ export default function Kiosk() {
   const [callState, setCallState] = useState("idle"); // idle | calling | waiting | chatting
   const [alert, setAlert] = useState(null);
   const [devices, setDevices] = useState([]);
-  const [micReady, setMicReady] = useState(false);       // user gesture received + mic permission granted
+  const { micReady, primeMedia } = useKioskMediaPrime();
   const [needsTap, setNeedsTap] = useState(false);       // remote pendant fired but we need a user tap first (autoplay/mic policy)
   const [pendingAlert, setPendingAlert] = useState(null);
-  const audioCtxRef = useRef(null);
   // { id, pressCount } of the last open event this kiosk auto-woke for.
   // Versioned by press_count so a LATER pendant press that reactivates the
   // SAME open event (same alert_id, press_count bumped) still re-wakes Aria
@@ -50,7 +52,7 @@ export default function Kiosk() {
   const seenEmergencyRef = useRef(null);
   const lastWakeDecisionRef = useRef(null);  // dedupe wake-decision breadcrumbs to transitions only
   const activationGateRef = useRef(createActivationPollGate());
-  const triggerSourceRef = useRef("manual_kiosk");  // what's about to start the next RealtimeChatScreen — pendant | manual_kiosk
+  const triggerSourceRef = useRef("manual_kiosk");  // what's about to start the next RealtimeChatScreen — pendant | manual_kiosk | wake_word
   const callStateRef = useRef("idle");     // sync callState for async callbacks
   useEffect(() => { callStateRef.current = callState; }, [callState]);
 
@@ -89,48 +91,6 @@ export default function Kiosk() {
   // in the room so the mic doesn't pick up Wheel of Fortune dialogue as
   // resident speech. On call end, we restore the prior power state.
   const mutedDevicesRef = useRef([]); // [{ device_id, prior_power }]
-
-  // Prime browser audio + mic permission on the first user click.
-  // Without a user gesture, Chrome will silently block both TTS playback and getUserMedia.
-  // Note: when running inside a cross-origin iframe (e.g. the Emergent preview pane),
-  // Chrome rejects getUserMedia synchronously unless the parent tag sets
-  // allow="microphone". We detect that case and offer a "open in full tab" escape.
-  const inSandboxedIframe = () => {
-    try { return window.self !== window.top; } catch { return true; }
-  };
-
-  const openInFullTab = () => {
-    try { window.open(window.location.href, "_blank", "noopener"); } catch { /* ignore */ }
-  };
-
-  const primeMedia = async () => {
-    if (micReady) return true;
-    try {
-      // Unlock AudioContext for playback (announcements, RealtimeChatScreen audio)
-      if (!audioCtxRef.current) {
-        const Ctx = window.AudioContext || window.webkitAudioContext;
-        audioCtxRef.current = new Ctx();
-        if (audioCtxRef.current.state === "suspended") await audioCtxRef.current.resume();
-      }
-      // Ask for mic access and immediately release the stream (Realtime's own
-      // WebRTC setup re-acquires it when the call actually starts)
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach((t) => t.stop());
-      setMicReady(true);
-      return true;
-    } catch (e) {
-      // Iframe sandbox = no prompt, direct NotAllowedError. Give the user a way out.
-      if (inSandboxedIframe()) {
-        toast.error("This preview frame can't ask for your mic. Tap to open in a full tab.", {
-          duration: 8000,
-          action: { label: "Open full tab", onClick: openInFullTab },
-        });
-      } else {
-        toast.error("Microphone permission needed. Please allow it in your browser.");
-      }
-      return false;
-    }
-  };
 
   // Load kiosk + resident
   useEffect(() => {
@@ -300,6 +260,18 @@ export default function Kiosk() {
     } catch { /* ignore */ }
     // RealtimeChatScreen owns its own greeting + listening loop from here.
   };
+
+  // Local "Aria" wake word (room-node/aria_wake, enabled per endpoint with
+  // ?wake=1): starts the same no-event conversation path as a manual talk,
+  // just without a tap and without opening a resident event.
+  const startWakeConversation = () => {
+    if (callStateRef.current !== "idle") return;
+    triggerSourceRef.current = "wake_word";
+    setAlert(null);
+    beginConversation(null);
+  };
+  useWakeWord({ url: wakeUrlFromSearch(window.location.search), callState, kiosk,
+    residentId: resident?.resident_id, onWake: () => startWakeConversation() });
 
   // Non-conversational, mode-independent single-line TTS announcement.
   // Used for medication reminders - NOT part of any conversation, so it
@@ -625,7 +597,8 @@ export default function Kiosk() {
         activationId={alert?.activation_id}
         onOpenVoicePicker={() => setVoicePickerOpen(true)}
         onEnd={(result) => {
-          activationGateRef.current.finish(result);
+          // The pendant retry gate only tracks resident-event cycles.
+          if (triggerSourceRef.current !== "wake_word") activationGateRef.current.finish(result);
           setCallState("idle");
           setAlert(null);
         }}
