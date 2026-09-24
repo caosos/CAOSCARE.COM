@@ -2,7 +2,23 @@
 
 Start here. Updated by Claude Code and ChatGPT-Aria as shared project state changes — this is the fastest way to reconstruct current CAOSCARE state without asking Michael to relay prior conversations.
 
-_Last updated: 2026-09-20_
+_Last updated: 2026-09-23_
+
+## Resident Aria wake word + engineering history (2026-09-23) — CURRENT
+[2026-09-23-milestones-and-decision-history.md](2026-09-23-milestones-and-decision-history.md)
+— Chronological milestone record (April scaffold → 2026-09-23), decision
+chains (voice activation, voice pipeline, room hardware, device control,
+operational architecture), superseded approaches not to reintroduce, what is
+physically proven vs experimental, and doc-vs-code contradictions found.
+**Local "Aria" wake word is physically working at close range (~3–4 ft) in
+Room 214** — say "Aria", conversation starts with no touch, real HA light
+changes are verified before Aria confirms, the system returns to listening.
+Far-field capture is the open constraint; false-wake rate is unmeasured.
+Code on branch `aria/wake-word-proof`, not yet merged. Full record:
+`../ARIA_WAKE_WORD_ARCHITECTURE.md`.
+[2026-09-23-oversized-files-audit.md](2026-09-23-oversized-files-audit.md)
+— Report-only inventory of the 10 implementation files over 400 lines, with
+suggested responsibility splits and a recommended order. Nothing split.
 
 ## Operational workflow audit + architecture reconciliation (2026-09-20) — CURRENT
 [2026-09-20-operational-workflow-audit.md](2026-09-20-operational-workflow-audit.md)

@@ -53,6 +53,10 @@ source **for this work**, not licence to fill in unrelated placeholder content.
   claim `verified_control` / `verified_read` capabilities
 - `docs/CAOSCARE_MEMORY_AUTOMATION_CONTRACT.md` — resident memory scope/consent
 - `docs/ROOM_AUDIO_ARCHITECTURE.md`, `docs/CAOSCARE_CONNECTIVITY_RESPONSE_RELAY_CONTRACT.md`
+- `docs/ARIA_WAKE_WORD_ARCHITECTURE.md` — local "Aria" wake word: current
+  status, engine decision, physical evidence, open far-field work
+- `docs/reports/2026-09-23-milestones-and-decision-history.md` — what was
+  tried, superseded, proven; what not to reintroduce
 - `docs/LEVEL1_BREAK_TEST_2026-09-06.md` — RF/event/lease/session fencing lane
   (adjacent; the plumbing beneath the substrate)
 

@@ -73,9 +73,70 @@ Current resident-room architecture:
 
 **Proven vs planned must always be distinguished.** Proven today: EliteDesk
 host + Nooelec SDR + rtl_433 RF decode + real paired Lifeline/Interlogix
-pendants + OpenAI Realtime voice through a room audio endpoint. Planned /
-partial: TV audio into the CAOSCare AEC path, IR/Zigbee/Z-Wave transmit,
-full room-automation surface, multi-room fleet.
+pendants + OpenAI Realtime voice through a room audio endpoint + resident
+voice control of real Home Assistant-backed lights with read-back
+verification (2026-09-05) + **local "Aria" wake-word activation at close
+range, Room 214, 2026-09-23** (branch `aria/wake-word-proof`, not yet merged
+— see `docs/ARIA_WAKE_WORD_ARCHITECTURE.md`). Planned / partial: far-field
+wake reliability, TV audio into the CAOSCare AEC path, IR/Zigbee/Z-Wave
+transmit, full room-automation surface, multi-room fleet.
+
+### Resident activation paths
+
+- **Pendant / RF** — the resident safety system. Opens a resident
+  assistance event (`Alert`) through `record_resident_activation()`. It is
+  **not** replaced or changed by voice activation.
+- **Room screen** — "Call for help" / "I just want to talk" buttons.
+- **Voice ("Aria", spoken "air-ee-uh")** — local on-device wake detection
+  starts a conversation-only session (no resident event). Requirement:
+  natural voice activation without touching anything; detection must stay
+  local — no continuous room audio sent to a cloud service to find the wake
+  word. Status and evidence: `docs/ARIA_WAKE_WORD_ARCHITECTURE.md`.
+
+### Room-control boundary — Home Assistant (Michael-directed, 2026-09-23)
+
+```
+Aria / resident endpoint
+  → canonical CAOSCare service layer
+  → Home Assistant integration (backend/device_adapters.py)
+  → physical room device
+  → verified resulting state (read-back)
+  → CAOSCare receipt / device state
+  → Aria confirmation (only of the verified result)
+```
+
+- Home Assistant is a **local hardware/control integration layer**, not
+  CAOSCare's canonical brain. CAOSCare owns residents, rooms, devices,
+  requests and truth; HA executes and reports physical state.
+- Resident endpoints do **not** each need Home Assistant administrator
+  accounts; the CAOSCare backend holds the integration credential.
+- Michael's personal/home Home Assistant and the CAOSCare development /
+  facility Home Assistant are **separate systems** — never conflate them.
+- Home Assistant Cloud (Nabu Casa) is an optional remote-access service and
+  is **not** the same thing as local Home Assistant; nothing here depends on
+  it.
+- Known gap: today the resident page calls the device endpoint
+  (`/devices/public/room/{room}/command`) from the browser without
+  authentication — existing technical debt, not the intended boundary.
+
+### Resident endpoint — alternative UNDER EVALUATION (not ratified)
+
+A **managed Android phone + dock** is being evaluated as a possible future
+resident endpoint. **This is not a ratified replacement; the EliteDesk + eMeet
++ TV room node above remains the active architecture** and is not deprecated.
+
+- Possible phone advantages being investigated: built-in battery, Wi-Fi,
+  optional cellular failover, Bluetooth, camera, display, mic/speaker, local
+  compute, USB-C peripherals, possibly lower room hardware cost.
+- Possible dock capabilities being investigated: charging, far-field
+  mic/speaker, USB expansion, IR, and only those room-local radios or
+  peripherals that prove necessary. No dock name has been chosen — use
+  neutral terms ("phone dock", "CAOSCare dock") until Michael names it.
+- Phone work must not block current development. New resident-facing work
+  should avoid needless coupling of the service layer to EliteDesk/Chrome,
+  without speculative refactors. The wake-word page protocol
+  (`room-node/aria_wake/README.md`) was built endpoint-neutral for this
+  reason. Nothing Android has been built or tested.
 
 ### "Kiosk" terminology
 

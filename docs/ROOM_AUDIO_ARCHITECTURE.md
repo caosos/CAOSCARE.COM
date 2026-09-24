@@ -73,6 +73,17 @@ under the same "supported practical finding, not lab-proven DSP behavior"
 framing. Both observations point the same direction and are consistent with
 each other, but neither is elevated to a universal hardware claim here.
 
+**Wake-word field observation (2026-09-23, Room 214, Michael's report).** The
+local "Aria" wake listener (`docs/ARIA_WAKE_WORD_ARCHITECTURE.md`) taps the
+same eMeet capture stream (shared PulseAudio source, consistent with the
+one-capture-point decision above). Practical reliable detection was ~3–4 ft;
+from the bed Michael had to speak louder. This is **not** a contradiction of
+the 10–12 ft conversation observation: the Realtime conversation hears
+Chrome's processed capture (echo cancellation, noise suppression, auto-gain),
+while the wake listener reads the raw source with no gain stage. Which factor
+limits wake range — mic reach, input level, or detector threshold — is
+**unmeasured**; far-field capture for wake detection is open work.
+
 ## The software boundary this implies (for later work)
 
 CAOSCare's software does not need to know today which physical box is

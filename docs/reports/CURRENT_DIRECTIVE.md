@@ -31,6 +31,16 @@ that prior priority window and its still-relevant engineering-method
 lessons (one controlled change at a time, forensic report, keep or
 revert), not as the current focus.
 
+### 0a. Resident Aria live speech lane (Michael-directed, 2026-09-22/23)
+
+Phase-locked Resident Aria work (live speech-to-speech, then resident context,
+tools, TV, vision) runs alongside Track 1/Track 2 in the Resident Aria lane.
+Each phase stops for Michael's approval. Current milestone: local "Aria" wake
+word physically proven at close range (`docs/ARIA_WAKE_WORD_ARCHITECTURE.md`).
+The EliteDesk + eMeet + TV room node stays the active endpoint; a managed
+Android phone + dock is under evaluation only (Product Baseline §2). Phone work
+must not block current development.
+
 ## 1. Shared-state architecture
 
 - **EliteDesk** is the only active CAOSCARE development machine.

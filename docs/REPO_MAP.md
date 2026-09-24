@@ -68,6 +68,7 @@ backend/                                       FastAPI backend and domain routes
 android-companion/                             Android companion / RF bridge companion surface
 android-bridge/                                Android RF bridge / protocol support surface
 android-vision/                                Android vision / voice assistance surface
+room-node/                                     Resident room-node processes (room-node/aria_wake/ = local "Aria" wake-word listener)
 .emergent/                                     Emergent-generated summary/metadata surface
 ```
 
@@ -139,7 +140,7 @@ PR #7: public Emergent branding removed from frontend/public/index.html
 PR #8: REACT_APP_BACKEND_URL guard added; value must be backend origin without trailing /api
 PR #9: Emergent visual-edit tooling removed from frontend package/config surface
 PR #11: public provider/care-domain copy no longer hardcodes Claude/Sonnet/Haiku claims
-yarn.lock: still missing; reproducible frontend install remains blocked until lockfile policy is approved
+yarn.lock: committed (since 2026-06-14) — the earlier "still missing" note is stale (corrected 2026-09-23)
 ```
 
 Potential future CCE-lite UI surfaces:
@@ -220,8 +221,7 @@ Current backend/auth/deployment status notes:
 ```text
 PR #10: backend/scripts/bootstrap_owner.py exists for one-time first-owner creation
 PR #10: public /auth/register is staff-only; owner/admin creation is no longer public self-registration
-Emergent Google auth: remains legacy/pending replacement through the existing Google session exchange
-owned OAuth / direct Google OAuth: not implemented
+Direct Google Sign-In: implemented 2026-06-10 (`3e47c14`) — backend/routes/auth.py verifies Google ID tokens; frontend/src/components/GoogleSignIn.jsx. The earlier "Emergent auth pending / direct OAuth not implemented" notes are stale (corrected 2026-09-23). frontend/src/pages/AuthCallback.jsx still carries a legacy session_id callback — see docs/reports/2026-09-23-milestones-and-decision-history.md §5.
 First server validation: use bootstrapped owner admin/JWT login, not Google login, as the initial validation path
 ```
 
@@ -381,10 +381,8 @@ These documents do not prove a live deployment. They define the first runnable p
 Current remaining auth/deployment blockers:
 
 ```text
-Emergent Google auth remains legacy/pending owned OAuth replacement
-owned OAuth / direct Google OAuth is not implemented
-frontend lockfile / yarn.lock is missing
-server deployment is not done
+(2026-09-23: direct Google OAuth and frontend/yarn.lock both exist — those two former blockers are stale)
+server deployment: done — caoscare.com runs on Linode via scripts/deploy_caoscare.sh (first deploy 2026-08-30; see PROJECT_STATE) — the "not done" note is stale (corrected 2026-09-23)
 MongoDB, backend health, owner bootstrap, admin/JWT login, frontend build, reverse proxy, and live website behavior still require first-server validation
 ```
 
@@ -487,10 +485,10 @@ CCE-lite must preserve these boundaries. Sensitive care outputs should route thr
 6. Add hardware/device contract covering kiosk, RF bridge, wearables, and vision surfaces.
 7. Add feature parity matrix separating repo-visible, runtime-verified, planned, and blocked capabilities.
 8. Add smoke/regression checklist for frontend, backend, and Android surfaces.
-9. Replace Emergent Google auth with owned OAuth / direct Google OAuth or explicitly choose JWT-only first-server validation.
+9. ~~Replace Emergent Google auth with owned OAuth~~ — done 2026-06-10 (`3e47c14`); remaining: retire dead `AuthCallback.jsx` legacy callback.
 10. Keep `CAOSCARE_ENABLE_DEMO_SEED=false` for production/server boot; use `backend/scripts/bootstrap_owner.py` for first owner creation.
-11. Add/approve a frontend lockfile such as `yarn.lock` for reproducible deployment builds.
-12. Complete first server deployment and validate MongoDB, backend health, owner bootstrap, admin/JWT login, frontend build, reverse proxy, and live website behavior.
+11. ~~Add/approve a frontend lockfile~~ — `frontend/yarn.lock` committed 2026-06-14.
+12. ~~Complete first server deployment~~ — caoscare.com deployed on Linode from 2026-08-30; ongoing deploys via `scripts/deploy_caoscare.sh`.
 13. If implementation begins, add CCE-lite policy/verifier/receipt modules with acceptance criteria and runtime tests.
 ```
 
@@ -677,3 +675,23 @@ This repository is an active CAOS Care multi-surface codebase. Keep the map curr
 - Tests: `backend/tests/test_aria_interpretation_patterns.py`,
   `backend/tests/test_aria_turn_taking.py`,
   `frontend/src/lib/__tests__/realtimeSessionUpdateLanguage.test.js`.
+
+## 2026-09-23 — Local "Aria" wake word (branch `aria/wake-word-proof`, not yet on `main`)
+
+- `room-node/aria_wake/aria_wake.py`: on-device keyword spotter (sherpa-onnx
+  KWS) on the eMeet (shared PulseAudio tap); localhost-only WebSocket with a
+  page-origin allowlist. `README.md` documents the endpoint-neutral protocol;
+  `keywords.txt` ("ARIA" only); `test_aria_wake.py` (state machine). Model
+  files and `.venv` are gitignored (setup in the README).
+- `frontend/src/lib/wakeWordClient.js` (protocol client, `?wake=1` opt-in),
+  `frontend/src/lib/useWakeWord.js` (call-state sync + `wake_word`
+  breadcrumbs), `frontend/src/lib/useKioskMediaPrime.js` (media priming moved
+  out of `Kiosk.jsx`).
+- `backend/routes/activation_client_events.py`: `wake_word` breadcrumb layer.
+- `frontend/src/lib/realtimeMessageHandler.js`: a refused `mark_resting` is
+  now spoken instead of silencing Aria.
+- Tests: `frontend/src/lib/__tests__/wakeWordClient.test.js`,
+  `restingRefusalSpeaks.test.js`, `backend/tests/test_wake_word_client_events.py`.
+- Docs: `docs/ARIA_WAKE_WORD_ARCHITECTURE.md` (status, decisions, evidence),
+  `docs/reports/2026-09-23-milestones-and-decision-history.md`,
+  `docs/reports/2026-09-23-oversized-files-audit.md`.

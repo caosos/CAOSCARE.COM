@@ -5,3 +5,13 @@
 Meant to capture: her identity (name, what she is and isn't), communication principles (positive behavioral invariants — "speaks only from available evidence," "resolves a verified capability, executes it, reports the observed outcome" — rather than long prohibition lists), the boundary between conversational identity (Aria) and governed execution (CAOS), and how that identity should be adapted per deployment context (operator vs. resident-facing) without duplicating the underlying rules.
 
 To be built collaboratively with Michael. **Do not invent this document's contents.**
+
+**Factual note (2026-09-23), not doctrine:** the duplication described above
+is now wider than two builders. Aria's identity/behaviour text currently lives
+in at least four places: `backend/routes/realtime_companion_prompt.py`
+(resident Realtime, plus `realtime_self_knowledge.py` and the context-layer
+modules), `backend/routes/realtime.py::_build_aria_instructions` (owner
+`/aria` build), `backend/routes/ai.py::CAOS_SYSTEM_PROMPT` (legacy
+`/api/ai/chat`, no current frontend caller found), and
+`backend/routes/admin_assistant.py` (Admin Aria). See
+`docs/reports/2026-09-23-milestones-and-decision-history.md` §5.

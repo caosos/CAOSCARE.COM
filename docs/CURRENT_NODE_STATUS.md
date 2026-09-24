@@ -11,6 +11,30 @@ Generated: 2026-08-09. Last reconciled: **2026-08-29 (live physical-pendant test
 
 **If you are a fresh Claude Code or Codex instance on ANY machine, read this file in full before touching resident-voice, RF/pendant, or Realtime-session code.**
 
+## Runtime snapshot — reconciled 2026-09-23 (supersedes the older runtime sections below)
+
+Verified from live processes (`ss`, `/proc/<pid>/cwd`, start times), not assumed:
+
+| Port / process | What | Code actually running | Notes |
+|---|---|---|---|
+| `:3000` | CRA dev server, `caoscare-frontend-dev.service` (systemd --user) | `~/CAOSCARE-INTEGRATION/frontend` working tree, branch `aria/wake-word-proof` (hot reload) | Proxies `/api` → `:8092` (`ADMIN_BACKEND_ORIGIN`). `node_modules` is a symlink into `~/CAOSCARE.COM`. |
+| `:8092` | Backend (uvicorn, `nohup`) | `~/CAOSCARE-INTEGRATION/backend` at commit `12dadd4` | Serves the Room 214 page. Log `/tmp/room214_backend_12dadd4.log`. |
+| `127.0.0.1:8765` | "Aria" wake-word listener (`nohup`) | `room-node/aria_wake/aria_wake.py`, same branch | Capturing `alsa_input.usb-EMEET_EMEET_OfficeCore_Luna_Plus_…` (the eMeet is the OS default source and sink). Log `/tmp/aria_wake_12dadd4.log`. |
+| `:8000` | Backend (stale lane) | `~/CAOSCARE-LEVEL1-INTEGRATION`, `claude/level1-integration` @ `91483cc`, started 2026-09-07 | **Still receives all pendant events** — the RF bridge posts here. |
+| `:8001` | Backend (stale lane) | `~/CAOSCARE-ADMIN`, `claude/admin-operations` @ `28b8906`, started 2026-09-07 | Idle since 2026-09-20. |
+| RF bridge | `android-bridge/caos_rf_bridge.py` (pid 522046, started 2026-09-06 from `~/CAOSCARE.COM`) | `CAOS_API_URL=http://127.0.0.1:8000`, single band 319.5 MHz | Nooelec SDR on USB. |
+| `mongod` | systemd | — | All backends share the local `caoscare` database. |
+| Home Assistant OS VM | libvirt | — | `192.168.122.137:8123`; Room 214 lights are HA-backed, TV/thermostat are mock. |
+
+Room 214 page for wake-word use: `http://localhost:3000/kiosk/kio_dc8c06a19608?wake=1`
+in the EliteDesk's own Chrome (microphone permission already granted for
+`localhost:3000`).
+
+**Not reboot-safe:** `:8092`, the wake listener, `:8000`, `:8001` and the RF
+bridge all run under `nohup`; only `mongod` and the `:3000` dev service are
+systemd-managed. Pendant events and the Room 214 page are served by
+different code (`:8000` vs `:8092`) — known ambiguity, not yet reconciled.
+
 ## Repo / git (reconciled 2026-09-01)
 
 ```text
