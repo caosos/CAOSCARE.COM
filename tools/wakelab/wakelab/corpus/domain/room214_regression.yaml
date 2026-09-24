@@ -1,0 +1,20 @@
+# Authored by CAOSCare (Wake Phrase Lab, 2026-09-24) from the product docs
+# and everyday senior-living language. No measured frequency: these get
+# corpus.domain_assumed_per_million. Add entries freely; keep one per line.
+# Transcribed background speech around Room 214 false wakes of the
+# single-word "Aria" wake phrase, 2026-09-24 02:06-02:46 UTC (sessions
+# rt_rfi71p83, rt_7c7mkf80, rt_aj4lz20f, rt_r2b4te5e, rt_e7swwihd).
+# LIMITATION: these are Realtime transcripts of what followed each wake,
+# not proof of the exact audio that triggered the detector.
+category: room214_regression
+metric: regression
+phrases:
+  - "that area"
+  - "underneath her"
+  - "thirteen"
+  - "buna ziua"
+  - "she can say that"
+  - "why are you"
+  - "to attract"
+  - "are you there"
+  - "ari are you awake"

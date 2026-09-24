@@ -1,0 +1,29 @@
+# Authored by CAOSCare (Wake Phrase Lab, 2026-09-24) from the product docs
+# and everyday senior-living language. No measured frequency: these get
+# corpus.domain_assumed_per_million. Add entries freely; keep one per line.
+category: greetings
+metric: domain
+phrases:
+  - "hi"
+  - "hello"
+  - "hey"
+  - "hey there"
+  - "good morning"
+  - "good afternoon"
+  - "good evening"
+  - "good night"
+  - "how are you"
+  - "how are you doing"
+  - "how's it going"
+  - "nice to see you"
+  - "see you later"
+  - "bye"
+  - "bye bye"
+  - "take care"
+  - "have a good day"
+  - "sweetheart"
+  - "honey"
+  - "dear"
+  - "buddy"
+  - "ma'am"
+  - "sir"

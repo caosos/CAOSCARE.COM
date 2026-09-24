@@ -1,0 +1,83 @@
+# Wake Phrase Lab corpus sources.
+#
+# Nothing listed here is committed to git. `python -m wakelab fetch` downloads
+# each file into the cache (default ~/.cache/caoscare-wakelab, override with
+# WAKELAB_CACHE), verifies it against the pinned sha256 when one is recorded,
+# and writes a provenance manifest. Pin sha256 after a first verified fetch so
+# later runs are bit-for-bit reproducible.
+#
+# License notes are summaries for engineering use, not legal advice; commercial
+# use of any derived artefact needs review.
+
+sources:
+  cmudict:
+    kind: file
+    url: https://raw.githubusercontent.com/cmusphinx/cmudict/74790861f652b15e4ac49015a90074ad62a27690/cmudict.dict
+    version: "git 74790861f652 (2025-10-24)"
+    license: "BSD-2-Clause-style (Carnegie Mellon University)"
+    attribution: "The CMU Pronouncing Dictionary, Carnegie Mellon University"
+    use: "English pronunciations (ARPAbet), including variants"
+    sha256: "81917843c7f44ce2b094ac63873c2c7a4cf802040792c455ba3ca406891c3d22"
+
+  wordfreq:
+    kind: python_package
+    package: wordfreq
+    version: "3.1.1"
+    license: "code Apache-2.0; bundled data CC-BY-SA 4.0 (includes OpenSubtitles 2018, SUBTLEX-US/UK, Wikipedia, and more)"
+    attribution: "wordfreq by Robyn Speer; see its NOTICE.md for data credits"
+    use: "Word frequencies (zipf) across written and subtitle/TV-dialogue sources; snapshot to ~2021"
+    top_n: 100000
+
+  tatoeba_eng:
+    kind: file
+    url: https://downloads.tatoeba.org/exports/per_language/eng/eng_sentences.tsv.bz2
+    version: "rolling weekly export (record retrieval date + sha256 in the manifest)"
+    license: "CC-BY 2.0 FR"
+    attribution: "Sentences from Tatoeba (https://tatoeba.org), CC-BY 2.0 FR"
+    use: "Short everyday English sentences -> 2- and 3-word phrase frequencies and cross-word-boundary collisions"
+    sha256: null
+
+  census_first_female:
+    kind: file
+    url: https://www2.census.gov/topics/genealogy/1990surnames/dist.female.first
+    version: "1990 census"
+    license: "US Government work, public domain"
+    attribution: "US Census Bureau, 1990 frequently occurring first names"
+    use: "Common first names"
+    sha256: "bd2f310fc4e5d5e5ea122c9d4342c9821145823118eb20db1647f305ec77b358"
+
+  census_first_male:
+    kind: file
+    url: https://www2.census.gov/topics/genealogy/1990surnames/dist.male.first
+    version: "1990 census"
+    license: "US Government work, public domain"
+    attribution: "US Census Bureau, 1990 frequently occurring first names"
+    use: "Common first names"
+    sha256: "0a5078ef6effe3b483d15b0f7f95047662126c9bfb624ecd5e5b978fc0f2470b"
+
+  census_surnames_2010:
+    kind: file
+    url: https://www2.census.gov/topics/genealogy/2010surnames/names.zip
+    version: "2010 census"
+    license: "US Government work, public domain"
+    attribution: "US Census Bureau, 2010 frequently occurring surnames"
+    use: "Common surnames"
+    sha256: "117c41cb4668727b7627b2845b6df3f83eb2a22a1813f42c0ff4bdcab86de135"
+
+  fda_ndc:
+    kind: file
+    optional: true
+    url: https://www.accessdata.fda.gov/cder/ndctext.zip
+    version: "rolling daily export (record retrieval date + sha256 in the manifest)"
+    license: "US Government work, public domain"
+    attribution: "US FDA National Drug Code Directory"
+    use: "Drug proprietary/non-proprietary names; pronunciations are G2P guesses (weak evidence)"
+    sha256: null
+
+  facility_local:
+    kind: local_file
+    optional: true
+    path_env: WAKELAB_FACILITY_NAMES
+    default_path: local/facility_names.txt
+    license: "private facility data - NEVER committed, NEVER printed in reports"
+    use: "Resident/staff names for facility-domain collisions (one name per line)"

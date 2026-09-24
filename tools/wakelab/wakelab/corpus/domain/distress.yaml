@@ -1,0 +1,34 @@
+# Authored by CAOSCare (Wake Phrase Lab, 2026-09-24) from the product docs
+# and everyday senior-living language. No measured frequency: these get
+# corpus.domain_assumed_per_million. Add entries freely; keep one per line.
+category: distress
+metric: distress
+phrases:
+  - "help"
+  - "help me"
+  - "somebody help"
+  - "help help"
+  - "nurse"
+  - "i need a nurse"
+  - "i need help"
+  - "i fell"
+  - "i've fallen"
+  - "i can't get up"
+  - "i can't breathe"
+  - "emergency"
+  - "call nine one one"
+  - "nine one one"
+  - "stop"
+  - "stop it"
+  - "hurry"
+  - "ouch"
+  - "it hurts"
+  - "chest pain"
+  - "i'm dizzy"
+  - "i'm scared"
+  - "fire"
+  - "get the nurse"
+  - "call someone"
+  - "come quick"
+  - "i need somebody"
+  - "i'm bleeding"

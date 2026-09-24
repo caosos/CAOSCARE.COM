@@ -1,0 +1,48 @@
+# Wake Phrase Lab analysis settings. Every threshold here is a policy choice,
+# recorded so a run can be reproduced and argued about. Distances are
+# normalised weighted phoneme edit distances (0.0 = identical sounds).
+
+distance:
+  near: 0.25            # at or below this counts as a near collision
+  exact: 0.0001         # at or below this counts as an exact collision
+  clipped_max: 0.12     # G6 is stricter: a clipped remnant must be nearly identical to common speech
+  risk_tau: 0.10        # risk weight = exp(-distance / tau) for near matches
+  min_contained_phones: 3   # shortest common word counted as "hidden inside" a candidate
+
+frequency:
+  exact_min_zipf: 3.0       # G1: exact collision with a word at least this common
+  near_min_zipf: 4.0        # G2: near collision with high-frequency speech
+  phrase_exact_min_per_million: 1.0   # G1: exact collision with a phrase at least this common
+  phrase_near_min_per_million: 5.0    # G2/G3/G6/G7: near/embedded collisions with phrases
+  words_per_hour: 9000      # ~150 words/min of speech or TV, for rough exposure estimates
+
+corpus:
+  wordfreq_top_n: 100000
+  phrase_orders: [2, 3]
+  phrase_min_count: 3
+  phrase_max_per_order: 400000
+  domain_assumed_per_million: 20.0   # authored domain phrases have no measured frequency
+  prefilter_limit: 4000
+  prefilter_cutoff: 55
+
+gates:
+  # Gates are independent. Any REJECT removes the candidate; nothing
+  # (speakability included) can offset a collision gate.
+  G1_exact_common: true
+  G2_near_high_frequency: true
+  G3_embedded_or_contains: true
+  G4_domain_names_commands: true
+  G5_distress_vocabulary: true
+  G6_clipped_boundary: true
+  G7_accent_casual_variant: true
+  G8_speakability: true
+  gate_drug_names: false    # FDA names are G2P guesses dominated by homeopathic Latin; reported, not gated
+  max_consonant_cluster: 3     # longest allowed run of consonants (3 is allowed)
+  hard_phonemes: [ZH]
+  min_syllables: 2
+  max_syllables: 5
+
+# Pronunciations pinned for specific candidates. Authoritative for that
+# candidate; the dictionary pronunciation is only reported as information.
+pronunciation_overrides:
+  aria: ["EH1 R IY0 AH0"]   # Michael-directed intended "air-ee-uh" (2026-09-23)
