@@ -146,7 +146,12 @@ export function createRealtimeHandlers({
         output: JSON.stringify(result),
       },
     });
-    if (fn.name === "mark_resting") {
+    // 2026-09-23 (Room 214, rt_wpngzbuw): a REFUSED mark_resting ("Just to
+    // make sure - would you like me to go quiet?") used to take this branch
+    // too, silencing Aria with no response.create - she never asked the
+    // question and sat mute. Only a granted rest rests; a refusal falls
+    // through to the normal branch so she speaks the confirmation.
+    if (fn.name === "mark_resting" && result.ok) {
       // 2026-08-29 (real bug, confirmed live): setResting(true) alone never
       // stopped the SERVER auto-responding to every VAD-detected utterance -
       // resting was a UI dim only, so she kept replying in a tight loop.
