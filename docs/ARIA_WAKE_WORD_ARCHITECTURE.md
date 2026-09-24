@@ -1,5 +1,16 @@
 # Aria Wake-Word — Smallest Viable Architecture
 
+> **Update 2026-09-24 — single-word "Aria" is NOT accepted as the production
+> wake phrase.** After the close-range proof below, the listener woke Aria five
+> times overnight from background speech (02:06–02:46 UTC). The intended
+> pronunciation "air-ee-uh" (`EH1 R IY0 AH0`) is phonetically **identical** to
+> the common word *area*. **The listener is OFF.** Aria remains the assistant's
+> name; the wake phrase will be chosen by the Wake Phrase Lab
+> (`docs/WAKE_PHRASE_LAB.md`, `tools/wakelab/`). No replacement has been
+> selected. A local Whisper verifier experiment is preserved, not adopted
+> (`docs/experiments/2026-09-24-whisper-wake-verifier.md`). The listener/page
+> architecture below remains valid for whichever phrase is chosen.
+
 **Status (2026-09-23): IMPLEMENTED and PHYSICALLY VERIFIED at close range in
 the Room 214 test environment** (EliteDesk + eMeet). Code lives on branch
 `aria/wake-word-proof` (commits `12dadd4`, `ab2ef40`) — **not yet merged to

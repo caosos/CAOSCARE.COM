@@ -68,7 +68,8 @@ backend/                                       FastAPI backend and domain routes
 android-companion/                             Android companion / RF bridge companion surface
 android-bridge/                                Android RF bridge / protocol support surface
 android-vision/                                Android vision / voice assistance surface
-room-node/                                     Resident room-node processes (room-node/aria_wake/ = local "Aria" wake-word listener)
+room-node/                                     Resident room-node processes (room-node/aria_wake/ = local wake-word listener; currently OFF)
+tools/wakelab/                                 Wake Phrase Lab - research tooling, isolated from runtime (docs/WAKE_PHRASE_LAB.md)
 .emergent/                                     Emergent-generated summary/metadata surface
 ```
 
@@ -695,3 +696,12 @@ This repository is an active CAOS Care multi-surface codebase. Keep the map curr
 - Docs: `docs/ARIA_WAKE_WORD_ARCHITECTURE.md` (status, decisions, evidence),
   `docs/reports/2026-09-23-milestones-and-decision-history.md`,
   `docs/reports/2026-09-23-oversized-files-audit.md`.
+
+## 2026-09-24 — Wake Phrase Lab, Step 1 (`tools/wakelab/`)
+
+Research tooling only; nothing in runtime imports it. `python -m wakelab
+fetch | build | sources | inspect`. Corpus sources + licenses in
+`config/sources.yaml`; thresholds, gates and pronunciation overrides in
+`config/default.yaml`; authored domain corpus in `wakelab/corpus/domain/`.
+Methodology and limits: `docs/WAKE_PHRASE_LAB.md`. Preserved (not adopted)
+listener verifier experiment: `docs/experiments/`.

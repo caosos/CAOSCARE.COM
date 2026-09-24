@@ -4879,3 +4879,56 @@ the directive.
 - Product invariants: truth before confirmation; local wake detection only; one eMeet per room; pendant path separate from voice.
 - Do NOT change:    pendant/RF path, :8000/:8001, escalation, production.
 - Next safe action: Michael approves merging the branch to main; then boot-persistent services for the listener + room page, then far-field measurement changing one variable at a time.
+
+---
+
+## 2026-09-24 — Room 214 false wakes; listener OFF; Wake Phrase Lab Step 1
+
+### Agent / tool
+Claude Code (Opus 5.5), EliteDesk worktree `~/CAOSCARE-INTEGRATION`, branch
+`aria/wake-word-proof` (on `79a855d`). Uncommitted at time of writing, pending
+Michael's review.
+
+### What happened
+- 02:06–02:46 UTC: the wake listener woke Aria 5 times from background speech
+  (Realtime transcripts: "that area", "underneath her", "thirteen", "Buna
+  ziua"); each session greeted aloud. All `trigger_source: wake_word`; no
+  pendant involvement, no resident events. Listener stopped at Michael's
+  request (~02:50 UTC); still OFF.
+- Threshold sweep: recall and false wakes move together; no setting separates
+  "Aria" from "area". A local Whisper verifier cut synthetic false wakes to
+  0/144 but also cut recall; Michael directed it NOT be the production fix. It
+  is preserved as `docs/experiments/2026-09-24-whisper-wake-verifier.patch` +
+  `.md`; `room-node/aria_wake/` is back at its committed state.
+- Decision (Michael): Aria remains the assistant's name; single-word "Aria" is
+  not accepted as the production wake phrase. Build a Wake Phrase Lab.
+
+### Wake Phrase Lab Step 1 (`tools/wakelab/`, docs/WAKE_PHRASE_LAB.md)
+Reproducible corpus registry (sha256 manifest; CMUdict, wordfreq, Tatoeba,
+Census names, FDA drugs, authored CAOSCare domain lists, optional private
+facility names), lexicon (CMUdict + g2p_en + pinned overrides), accent/casual
+variants and clipping, an explicit confusability model (PanPhon tried and
+rejected as implausible), collision search, separate metrics, frequency and
+domain risk, gates G1–G8, `inspect` with human + JSON reports. 833,832 corpus
+items; build ~55 s; inspect 2–11 s per candidate after a 5 s load.
+
+### What was verified
+Lab tests 18/18 (fixture corpus + real-corpus integration). `inspect aria`:
+REJECT, G1 exact with "area" (identical `EH R IY AH`), dangerous phrases "the
+area", "this area", "common area", "that area"; the dictionary "ar-ee-uh" is
+information only and also fails (e.g. inside "sorry about"). Controls: "okay
+nabu", "hey mycroft", "bumblebee" PASS text stage; "hello", "computer",
+"alexa", "jupiter", "porcupine" REJECT on real collisions; "hey jarvis" REJECT
+on the surname Jarvis. No runtime file imports `tools/wakelab`.
+
+### HANDOFF CAPSULE
+- Objective:        Choose a production wake phrase by evidence (Aria stays the name).
+- Branch:           aria/wake-word-proof (lab + docs uncommitted pending review)
+- Lane / ownership: Resident Aria / wake phrase research tooling. Not: pendant, HA, runtime, production.
+- Last proven state: lab Step 1 tests 18/18; `inspect aria` REJECT (area).
+- Commits:          none yet this entry.
+- Runtime state:    wake listener OFF; :8092/:3000 unchanged; Room 214 untouched.
+- Unresolved proven defects: no production wake phrase; listener off.
+- Product invariants: collision is the primary gate; speakability never offsets it; local-only wake detection; private names never committed.
+- Do NOT change:    Room 214 runtime/listener, pendant, Home Assistant, Aria identity.
+- Next safe action: Michael reviews Step 1; then Step 2 (candidate generation + Pareto ranking).

@@ -1,0 +1,226 @@
+diff --git a/room-node/aria_wake/README.md b/room-node/aria_wake/README.md
+index 187f12f..2f24e96 100644
+--- a/room-node/aria_wake/README.md
++++ b/room-node/aria_wake/README.md
+@@ -8,8 +8,16 @@ source, shared - never exclusive) and tells the room page, over a
+ existing Realtime conversation (`trigger_source: "wake_word"`, no resident
+ event, no new backend control surface).
+ 
+-No audio leaves the machine for wake detection, nothing is recorded, nothing
+-is transcribed.
++No audio leaves the machine, nothing is recorded. A spotter hit is only a
++*candidate*: its last ~2.4 s are re-heard by a local Whisper model
++(`whisper-base.en`, sherpa-onnx) and a wake is sent only if the name was heard.
++The heard text is not logged unless `ARIA_WAKE_LOG_VERIFY_TEXT=1` (tuning only).
++
++Why (2026-09-24): with the spotter alone, Room 214 woke on background speech
++("that area", "underneath her", "thirteen"). Synthetic check: spotter alone 22/30
++real wakes, 7/144 false; with verification 17/30 real, 0/144 false (+~0.6 s).
++If the verifier model cannot load, the listener fails closed (never wakes)
++unless `ARIA_WAKE_VERIFY=0`.
+ 
+ ## Engine
+ 
+@@ -33,6 +41,9 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+ curl -LO https://github.com/k2-fsa/sherpa-onnx/releases/download/kws-models/sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01.tar.bz2
+ tar xjf sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01.tar.bz2
+ mkdir -p model && cp sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01/{tokens.txt,*.int8.onnx} model/
++curl -LO https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-base.en.tar.bz2
++tar xjf sherpa-onnx-whisper-base.en.tar.bz2
++mkdir -p model/whisper-base.en && cp sherpa-onnx-whisper-base.en/base.en-{encoder,decoder}.int8.onnx sherpa-onnx-whisper-base.en/base.en-tokens.txt model/whisper-base.en/
+ .venv/bin/python aria_wake.py            # JSON-lines log on stdout
+ ```
+ 
+diff --git a/room-node/aria_wake/aria_wake.py b/room-node/aria_wake/aria_wake.py
+index c7865a5..862d332 100644
+--- a/room-node/aria_wake/aria_wake.py
++++ b/room-node/aria_wake/aria_wake.py
+@@ -6,7 +6,10 @@ PulseAudio default source - a shared, non-exclusive tap), runs an on-device
+ keyword spotter, and tells the room page over a localhost-only WebSocket
+ that "Aria" was heard. The page then starts the existing Realtime session
+ through its normal path. Nothing here claims leases, mints sessions, calls
+-OpenAI, stores audio, or transcribes speech.
++OpenAI, stores audio, or sends audio anywhere. A spotter hit is only a
++candidate: its last ~2.4 s are re-heard by a local Whisper model and the wake
++is emitted only if the name was heard (see VERIFY). Heard text is not logged
++unless ARIA_WAKE_LOG_VERIFY_TEXT=1.
+ 
+ Engine: sherpa-onnx open-vocabulary keyword spotting (Apache-2.0) - chosen
+ because no usable pretrained openWakeWord "Aria" model exists yet and this
+@@ -24,11 +27,13 @@ suppressed, so Aria's own voice can never re-trigger the wake word.
+ import asyncio
+ import json
+ import os
++import re
+ import subprocess
+ import sys
+ import threading
+ import time
+ import uuid
++from collections import deque
+ from datetime import datetime, timezone
+ 
+ import numpy as np
+@@ -44,6 +49,18 @@ KEYWORDS_FILE = os.environ.get("ARIA_WAKE_KEYWORDS", os.path.join(os.path.dirnam
+ KEYWORDS_SCORE = float(os.environ.get("ARIA_WAKE_KEYWORDS_SCORE", "1.0"))
+ KEYWORDS_THRESHOLD = float(os.environ.get("ARIA_WAKE_KEYWORDS_THRESHOLD", "0.15"))
+ SOURCE = os.environ.get("ARIA_WAKE_SOURCE", "")  # PulseAudio source; empty = system default
++# Second-stage verification (2026-09-24, Room 214 false wakes on "that area",
++# "underneath her", "thirteen"...): a keyword-spotter hit is only a candidate.
++# The last ~2.4 s are re-heard by a small local Whisper model and the wake is
++# emitted only if it actually heard the name. Local only, only on a candidate,
++# nothing stored. Fails closed: no verifier -> no wakes (unless explicitly off).
++VERIFY = os.environ.get("ARIA_WAKE_VERIFY", "1") != "0"
++VERIFY_MODEL_DIR = os.environ.get(
++    "ARIA_WAKE_VERIFY_MODEL_DIR", os.path.join(MODEL_DIR, "whisper-base.en"))
++VERIFY_LOG_TEXT = os.environ.get("ARIA_WAKE_LOG_VERIFY_TEXT", "0") == "1"  # off: never log room speech
++VERIFY_NAME = re.compile(r"\b(aria|ariah|arya)\b", re.I)  # spellings of the name, not pronunciations
++VERIFY_CLIP_S = 2.4
++VERIFY_TAIL_CHUNKS = 4        # let 0.4 s more arrive after the spotter fires
+ PENDING_WAKE_TIMEOUT_S = 20   # page never confirmed a conversation -> resume listening
+ RESUME_COOLDOWN_S = 1.5       # ignore the tail of Aria's last words after a session ends
+ SAMPLE_RATE = 16000
+@@ -77,6 +94,24 @@ def build_spotter():
+     )
+ 
+ 
++class Verifier:
++    """Local Whisper re-check of a candidate wake clip."""
++
++    def __init__(self):
++        m = VERIFY_MODEL_DIR
++        self.rec = sherpa_onnx.OfflineRecognizer.from_whisper(
++            encoder=f"{m}/base.en-encoder.int8.onnx", decoder=f"{m}/base.en-decoder.int8.onnx",
++            tokens=f"{m}/base.en-tokens.txt", num_threads=2)
++
++    def check(self, clip):
++        started = time.monotonic()
++        s = self.rec.create_stream()
++        s.accept_waveform(SAMPLE_RATE, clip)
++        self.rec.decode_stream(s)
++        text = s.result.text.strip()
++        return bool(VERIFY_NAME.search(text)), text, round((time.monotonic() - started) * 1000)
++
++
+ def spot(spotter, stream, samples):
+     """Feed one chunk; return the keyword if it completed in this chunk."""
+     stream.accept_waveform(SAMPLE_RATE, samples)
+@@ -185,24 +220,54 @@ class Server:
+             self.clients.discard(ws)
+             log("client_disconnected", clients=len(self.clients))
+ 
+-    def on_detect(self, keyword):
+-        """Called from the audio thread."""
++    def candidate_allowed(self, keyword):
++        """Cheap gate before spending a verification: suppressed / no page."""
+         if not self.state.may_wake():
+             log("detection_suppressed", keyword=keyword, mode=self.state.mode)
+-            return
++            return False
+         if not self.clients:
+             log("detection_no_client", keyword=keyword)
++            return False
++        return True
++
++    def on_detect(self, keyword, verified=None):
++        """Called from the audio thread after verification."""
++        if not self.candidate_allowed(keyword):
+             return
+         self.state.set("pending")
+         wake = {"type": "wake", "wake_id": f"wake_{uuid.uuid4().hex[:12]}", "keyword": keyword,
+                 "detected_at": now_iso(), "confidence": None,  # engine exposes no score; thresholded internally
+-                **self.info()}
++                "verified": verified, **self.info()}
+         log("wake_detected", **{k: v for k, v in wake.items() if k != "type"})
+         asyncio.run_coroutine_threadsafe(self.broadcast(wake), self.loop)
+ 
++    def verify_candidate(self, verifier, keyword, clip):
++        """Returns True only when the local verifier heard the name."""
++        if verifier is None:
++            if VERIFY:
++                log("candidate_rejected", keyword=keyword, reason="verifier_unavailable")
++                return False
++            return True
++        ok, text, ms = verifier.check(clip)
++        fields = {"keyword": keyword, "verify_ms": ms}
++        if VERIFY_LOG_TEXT:
++            fields["heard"] = text
++        log("candidate_verified" if ok else "candidate_rejected", **fields,
++            **({} if ok else {"reason": "name_not_heard"}))
++        return ok
++
+     def audio_loop(self):
+         spotter = build_spotter()
+         stream = spotter.create_stream()
++        verifier = None
++        if VERIFY:
++            try:
++                verifier = Verifier()
++                log("verifier_ready", model=VERIFY_MODEL_DIR)
++            except Exception as e:  # fail closed: candidates are rejected, never woken
++                log("verifier_unavailable", model=VERIFY_MODEL_DIR, error=str(e))
++        ring = deque(maxlen=int(VERIFY_CLIP_S * SAMPLE_RATE / CHUNK))
++        pending = None  # [keyword, chunks_still_to_collect]
+         cmd = ["parec", "--raw", "--format=s16le", f"--rate={SAMPLE_RATE}", "--channels=1",
+                "--latency-msec=100", f"--device={self.device}"]
+         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+@@ -218,9 +283,19 @@ class Server:
+                 self.state.reset_stream = False
+                 spotter.reset_stream(stream)
+             samples = np.frombuffer(buf, dtype=np.int16).astype(np.float32) / 32768.0
++            ring.append(samples)
++            if pending:
++                pending[1] -= 1
++                if pending[1] <= 0:
++                    kw, pending = pending[0], None
++                    if self.verify_candidate(verifier, kw, np.concatenate(ring)):
++                        self.on_detect(kw, verified=verifier is not None)
++                    spotter.reset_stream(stream)
++                continue
+             kw = spot(spotter, stream, samples)
+             if kw:
+-                self.on_detect(kw)
++                if self.candidate_allowed(kw):
++                    pending = [kw, VERIFY_TAIL_CHUNKS]
+             elif silence.update(samples):
+                 spotter.reset_stream(stream)
+ 
+diff --git a/room-node/aria_wake/test_aria_wake.py b/room-node/aria_wake/test_aria_wake.py
+index 1833a3d..f2c0301 100644
+--- a/room-node/aria_wake/test_aria_wake.py
++++ b/room-node/aria_wake/test_aria_wake.py
+@@ -44,3 +44,34 @@ def test_silence_reset_fires_once_after_speech_then_pause():
+     fired = [r.update(quiet) for _ in range(aw.SilenceReset.QUIET_CHUNKS + 5)]
+     assert fired.count(True) == 1
+     assert fired.index(True) == aw.SilenceReset.QUIET_CHUNKS - 1
++
++
++def test_name_check_accepts_the_name_not_look_alikes():
++    for heard in ["Aria.", "Arya, turn the light off.", "Hey Aria"]:
++        assert aw.VERIFY_NAME.search(heard), heard
++    # Real Room 214 false-wake phrases (2026-09-24) and near misses.
++    for heard in ["that area.", "Is the area clear?", "Are you awake?", "Are ya?",
++                  "underneath her.", "thirteen", "Maria, come here.", "RE are you there?"]:
++        assert not aw.VERIFY_NAME.search(heard), heard
++
++
++def test_candidate_fails_closed_without_verifier(monkeypatch):
++    server = aw.Server("test-device")
++    monkeypatch.setattr(aw, "VERIFY", True)
++    assert server.verify_candidate(None, "ARIA", np.zeros(1600, dtype=np.float32)) is False
++    monkeypatch.setattr(aw, "VERIFY", False)
++    assert server.verify_candidate(None, "ARIA", np.zeros(1600, dtype=np.float32)) is True
++
++
++def test_verified_candidate_emits_only_when_name_heard():
++    class FakeVerifier:
++        def __init__(self, text):
++            self.text = text
++
++        def check(self, clip):
++            return bool(aw.VERIFY_NAME.search(self.text)), self.text, 1
++
++    server = aw.Server("test-device")
++    clip = np.zeros(1600, dtype=np.float32)
++    assert server.verify_candidate(FakeVerifier("that area."), "ARIA", clip) is False
++    assert server.verify_candidate(FakeVerifier("Aria, lights off"), "ARIA", clip) is True

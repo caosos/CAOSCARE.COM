@@ -19,7 +19,7 @@ Verified from live processes (`ss`, `/proc/<pid>/cwd`, start times), not assumed
 |---|---|---|---|
 | `:3000` | CRA dev server, `caoscare-frontend-dev.service` (systemd --user) | `~/CAOSCARE-INTEGRATION/frontend` working tree, branch `aria/wake-word-proof` (hot reload) | Proxies `/api` → `:8092` (`ADMIN_BACKEND_ORIGIN`). `node_modules` is a symlink into `~/CAOSCARE.COM`. |
 | `:8092` | Backend (uvicorn, `nohup`) | `~/CAOSCARE-INTEGRATION/backend` at commit `12dadd4` | Serves the Room 214 page. Log `/tmp/room214_backend_12dadd4.log`. |
-| `127.0.0.1:8765` | "Aria" wake-word listener (`nohup`) | `room-node/aria_wake/aria_wake.py`, same branch | Capturing `alsa_input.usb-EMEET_EMEET_OfficeCore_Luna_Plus_…` (the eMeet is the OS default source and sink). Log `/tmp/aria_wake_12dadd4.log`. |
+| `127.0.0.1:8765` | Wake-word listener | `room-node/aria_wake/aria_wake.py` | **OFF since 2026-09-24 ~02:50 UTC** (overnight false wakes; see `docs/WAKE_PHRASE_LAB.md`). Last log `/tmp/aria_wake_12dadd4.log`. The eMeet remains the OS default source and sink. |
 | `:8000` | Backend (stale lane) | `~/CAOSCARE-LEVEL1-INTEGRATION`, `claude/level1-integration` @ `91483cc`, started 2026-09-07 | **Still receives all pendant events** — the RF bridge posts here. |
 | `:8001` | Backend (stale lane) | `~/CAOSCARE-ADMIN`, `claude/admin-operations` @ `28b8906`, started 2026-09-07 | Idle since 2026-09-20. |
 | RF bridge | `android-bridge/caos_rf_bridge.py` (pid 522046, started 2026-09-06 from `~/CAOSCARE.COM`) | `CAOS_API_URL=http://127.0.0.1:8000`, single band 319.5 MHz | Nooelec SDR on USB. |

@@ -75,9 +75,10 @@ Current resident-room architecture:
 host + Nooelec SDR + rtl_433 RF decode + real paired Lifeline/Interlogix
 pendants + OpenAI Realtime voice through a room audio endpoint + resident
 voice control of real Home Assistant-backed lights with read-back
-verification (2026-09-05) + **local "Aria" wake-word activation at close
-range, Room 214, 2026-09-23** (branch `aria/wake-word-proof`, not yet merged
-— see `docs/ARIA_WAKE_WORD_ARCHITECTURE.md`). Planned / partial: far-field
+verification (2026-09-05) + the local wake-word mechanism (listener → page →
+existing session) at close range, Room 214, 2026-09-23 — with "Aria" as the
+test phrase, which is **not** accepted for production (see below and
+`docs/ARIA_WAKE_WORD_ARCHITECTURE.md`). Planned / partial: far-field
 wake reliability, TV audio into the CAOSCare AEC path, IR/Zigbee/Z-Wave
 transmit, full room-automation surface, multi-room fleet.
 
@@ -87,11 +88,15 @@ transmit, full room-automation surface, multi-room fleet.
   assistance event (`Alert`) through `record_resident_activation()`. It is
   **not** replaced or changed by voice activation.
 - **Room screen** — "Call for help" / "I just want to talk" buttons.
-- **Voice ("Aria", spoken "air-ee-uh")** — local on-device wake detection
-  starts a conversation-only session (no resident event). Requirement:
-  natural voice activation without touching anything; detection must stay
-  local — no continuous room audio sent to a cloud service to find the wake
-  word. Status and evidence: `docs/ARIA_WAKE_WORD_ARCHITECTURE.md`.
+- **Voice (spoken wake phrase)** — local on-device wake detection starts a
+  conversation-only session (no resident event). Requirement: natural voice
+  activation without touching anything; detection must stay local — no
+  continuous room audio sent to a cloud service to find the wake phrase.
+  **Aria is the assistant's name; the single word "Aria" is not accepted as
+  the production wake phrase** (2026-09-24: "air-ee-uh" is identical to the
+  common word "area"; overnight false wakes). The wake phrase is being chosen
+  by evidence (`docs/WAKE_PHRASE_LAB.md`); none selected yet. Status:
+  `docs/ARIA_WAKE_WORD_ARCHITECTURE.md`.
 
 ### Room-control boundary — Home Assistant (Michael-directed, 2026-09-23)
 

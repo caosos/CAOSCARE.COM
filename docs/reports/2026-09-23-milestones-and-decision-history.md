@@ -46,6 +46,7 @@ Trivial commits are grouped under the milestone they served.
 | 2026-09-16 → 09-19 | `04d087a`, `4b47646`, `e0438dd`, `7bad624` | Responsive phone/tablet layouts; Room 401 identity contamination repaired (data); idempotent menu/schedule seeds; Room 214 touch brightness | Michael usability + data findings | Deployed + smoke-tested | Name-extraction guard gap (see PROJECT_STATE 09-19) |
 | 2026-09-20 | `e092e36`, `ec7b3c5`, `85c2c52`, `9b2f1c4`, `1179a62`, `c0668e5`, `fb216d4` | Resend inbound-email adapter for menu/activities; operational workflow audit; **15 ratified service-layer decisions + GATE** (`docs/ENGINEERING_CONTRACT.md`); Track 1 lanes 1–4 | Audit | Commit messages + tests (lanes not separately logged in PROJECT_STATE — recorded 2026-09-23) | Track 1 lane 5 (seed refresh) and all of Track 2 not done |
 | 2026-09-21 | `1f44536` | File-size rule 300–400 lines, relocated to `AGENTS.md` | Michael-directed | Doc grep | Oversized files remain (see `2026-09-23-oversized-files-audit.md`) |
+| 2026-09-24 | (this branch, uncommitted at time of writing) | Overnight Room 214 false wakes from background speech; listener turned OFF; Whisper verifier tried and preserved as experiment only; **Wake Phrase Lab Step 1** (`tools/wakelab/`) built: corpus + provenance, phonetics, confusability model, collision gates, `inspect` | "Aria" (air-ee-uh) = "area" by dictionary; choose the phrase for low collision instead of tuning a detector | Lab tests 18/18; `inspect aria` REJECT on G1 with "area" identical; controls discriminate | No replacement selected; candidate generation, acoustic and soak stages not built |
 | 2026-09-23 | branch `aria/wake-word-proof`: `12dadd4`, `ab2ef40` | **Local "Aria" wake word → existing Realtime session → real HA light → verified → rest → wake again**; refused-rest silence bug fixed | Resident voice-activation requirement (§2) | **PHYSICALLY VERIFIED** close range, Room 214 (`docs/ARIA_WAKE_WORD_ARCHITECTURE.md`) | Far-field capture; false-wake rate unmeasured; not yet merged to `main` |
 
 ---
@@ -62,7 +63,11 @@ tap / pendant only (screen button, RF pendant opens an Alert)
     Porcupine (proprietary) vs sherpa-onnx KWS (no training)         2026-09-23
   → local "Aria" detection built; plan's /activate step corrected    IMPLEMENTED 2026-09-23 (12dadd4)
   → physical Room 214 proof (4 voice-started sessions, light off/on) PHYSICALLY VERIFIED 2026-09-23
-  → far-field audio capture identified as the next constraint        OPEN
+  → far-field audio capture identified as the next constraint        (superseded next day)
+  → overnight false wakes from background speech; listener OFF      2026-09-24
+  → dictionary shows "air-ee-uh" == "area"; single-word "Aria" NOT
+    accepted as production wake phrase (Aria stays the name)         RATIFIED 2026-09-24
+  → Wake Phrase Lab: select a low-collision wake phrase by evidence   IN PROGRESS (Step 1 built)
 ```
 Pronunciation is **"air-ee-uh"**; the two-syllable "Arya" is not a
 substitute. The pendant remains the separate safety path.
@@ -124,6 +129,9 @@ Live Board as a read model; plus the no-simulator-writes GATE.
 | Absolute 5-minute companion timer | Cut off an active conversation mid-song | `ab3243b`, session `rt_mkqn5z8x` |
 | `alerts.py::alerts_feed` inline escalation | Ratified to retire in favour of `escalation.tick()` (not yet removed in code) | `docs/ENGINEERING_CONTRACT.md` §8 |
 | Wake-word listener calling `POST /realtime/room/{room}/activate` | Would claim the lease and block the page's own session mint | `docs/ARIA_WAKE_WORD_ARCHITECTURE.md` "Correction" |
+| Single-word "Aria" as the production wake phrase | Identical to "area" ("air-ee-uh"); 5 overnight false wakes in Room 214 | `docs/WAKE_PHRASE_LAB.md` |
+| Tuning detector sensitivity to separate "Aria" from "area" | Recall and false wakes move together; same sounds cannot be separated | same |
+| Whisper second-stage verifier as the fix | Preserved experiment only; wake-phrase selection addresses the cause | `docs/experiments/2026-09-24-whisper-wake-verifier.md` |
 | 200/400-line and 300-line hard caps | Replaced by the 300–400 heuristic | `AGENTS.md` |
 
 ---
