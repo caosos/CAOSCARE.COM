@@ -4726,3 +4726,40 @@ Nothing code-related touched. `docs/reports/MULTI_AGENT_EXECUTION_PLAN.md` and `
 
 ### Next safe step
 Resume Track 1 execution (age-bound stale-alert counters, Tasks "Today" filter, DepartmentWorkspace wiring, front-desk request dedup reuse, local menu/schedule seed refresh) - this doc update was a prerequisite gate before those lanes began growing files, per Michael's explicit sequencing.
+
+---
+
+## 2026-09-23 — Resident Aria: local "Aria" wake word → real Room 214 light, physically accepted
+
+### Agent / tool
+Claude Code (Opus 5.5), EliteDesk worktree `~/CAOSCARE-INTEGRATION`, branch `aria/wake-word-proof` (off `main` @ `fb216d4`). Resident Aria lane. No production deploy, no pendant/escalation/simulator changes, :8000/:8001 untouched.
+
+### What changed
+- `room-node/aria_wake/` (new): on-device "Aria" listener — sherpa-onnx open-vocabulary KWS (Apache-2.0, gigaspeech 3.3M int8) on the eMeet via a shared PulseAudio tap; localhost-only WebSocket (origin allowlist); suppressed during conversations, 1.5 s cooldown on return to listening, silence-based stream reset (measured drift fix). No audio stored/transcribed/sent anywhere. openWakeWord not used yet: no usable pretrained "Aria" model exists (community one is es_ES, recall 0.01); custom training is the follow-up.
+- Room page (opt-in `?wake=1`): `lib/wakeWordClient.js`, `lib/useWakeWord.js` start the existing no-event conversation path with `trigger_source: "wake_word"` and breadcrumb detection → session → return-to-wake via `activation_events` (allowlist extended in `activation_client_events.py`). Media priming extracted to `lib/useKioskMediaPrime.js` (Kiosk.jsx 669 → 642).
+- Fix (`realtimeMessageHandler.js`): a REFUSED `mark_resting` previously rested anyway with no `response.create`, silencing Aria ("I'm going to bed", session `rt_wpngzbuw_1790215179553`). Refusals are now spoken.
+- Commits: `12dadd4` (wake word), `ab2ef40` (mark_resting fix).
+
+### What was verified (physical, Michael in Room 214, eMeet as mic)
+- Runtime: :3000 → :8092 both on this branch (backend restarted on `12dadd4`, log `/tmp/room214_backend_12dadd4.log`); listener log `/tmp/aria_wake_12dadd4.log`.
+- 4 wake-word sessions started by voice with no touch (wake → session bound < 1 s). Overhead light OFF and ON via the existing HA path, each `verified=True` by HA read-back before Aria confirmed (`device_commands` for `dev_facc6dbc7e13`). Repeat wake after "goodbye" worked; return-to-wake logged each time. From bed: worked, but Michael had to speak louder.
+- Tests: frontend 26 suites / 180 tests pass, `CI=true yarn build` passes; listener state tests 4/4; `test_wake_word_client_events.py` + activation observability pass. Full backend gate not re-run.
+
+### Known limitations / debt (unchanged or newly evidenced)
+- Browser tools still call unauthenticated `/devices/public/...` (existing debt, not expanded).
+- Aria said "I'll be quiet now" in the same response as a mark_resting call that was then refused (speech before tool result) — not fixed.
+- "I'm going to bed" interpreted as rest, not lights-off; "the light" is ambiguous with two lights (asks which) — behavior, not bug.
+- Wake detection at bed distance needs louder speech; no real false-wake soak with TV audio yet; listener confidence not exposed by engine.
+- Listener and :8092 run under `nohup`, not systemd — they will not survive a reboot.
+
+### HANDOFF CAPSULE
+- Objective:        Resident Aria live S2S; wake word → room action on the room endpoint (EliteDesk now, Android later).
+- Branch:           aria/wake-word-proof (local, not pushed, not merged)
+- Lane / ownership: Resident Aria / live speech lane. Not: escalation, simulator, pendant, staff/admin, production.
+- Last proven state: physical Room 214 acceptance above (2026-09-24 ~02:00 UTC).
+- Commits:          12dadd4, ab2ef40
+- Runtime state:    :8092 (this branch), :3000 dev server (this worktree), aria_wake listener on 127.0.0.1:8765 (nohup); :8000/:8001/RF bridge untouched (stale lanes).
+- Unresolved proven defects: speech-before-tool-result on mark_resting; unauthenticated public tool endpoints.
+- Product invariants: truth before confirmation (HA read-back); no cloud wake detection; one room audio endpoint (eMeet); no resident event for a conversation-only wake.
+- Do NOT change:    pendant/RF path, escalation, :8000/:8001.
+- Next safe action: systemd services for listener + Chrome kiosk launch; far-field sensitivity tuning with a bed-distance/TV-on soak; then Michael's call on openWakeWord custom "Aria" training and the GPT-Live vs Realtime decision.
