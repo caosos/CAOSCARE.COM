@@ -4726,3 +4726,21 @@ Nothing code-related touched. `docs/reports/MULTI_AGENT_EXECUTION_PLAN.md` and `
 
 ### Next safe step
 Resume Track 1 execution (age-bound stale-alert counters, Tasks "Today" filter, DepartmentWorkspace wiring, front-desk request dedup reuse, local menu/schedule seed refresh) - this doc update was a prerequisite gate before those lanes began growing files, per Michael's explicit sequencing.
+
+---
+
+## 2026-09-25 — SEO fix deployed; deploy also shipped 9 other main commits
+
+### Agent / tool
+Claude Code (Opus 5.5), temporary worktree off `origin/main` (isolated from `aria/wake-word-proof`).
+
+### What changed
+- `348d164`: `frontend/public/robots.txt`, `sitemap.xml`, canonical + descriptive title. Pushed to `main`; deployed with `scripts/deploy_caoscare.sh` (production `7bad624` → `348d164`, "DEPLOY SUCCEEDED", backup `20260926-020924-pre-deploy-7bad62440aa5`).
+- The deploy also shipped `95bb5e4..fb216d4` (Track 1 lanes 1-4, Resend inbound email, docs) — not separately authorised. Requirement recorded: `docs/reports/2026-09-25-release-control-requirement.md`. No rollback (Michael).
+- Google Search Console: caoscare.com domain property verified by Michael (GoDaddy DNS TXT).
+
+### What was verified
+Deploy script's own health check only. Live robots.txt / sitemap.xml responses NOT yet verified by the agent (auto-mode check denied read-only verification; Michael deciding on a scoped permission).
+
+### Open
+Release-control requirement; PostHog session recording on every page incl. kiosk/family (privacy, undecided); sitemap submission after live verification.
