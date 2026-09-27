@@ -16,6 +16,9 @@ jobs:
   frontend-check:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      # Required at import/build time; CI does not deploy this bundle.
+      REACT_APP_BACKEND_URL: http://127.0.0.1:8000
     defaults:
       run:
         working-directory: frontend

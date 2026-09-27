@@ -5138,3 +5138,9 @@ that change the frontend. This verifies the build independently of the
 EliteDesk once GitHub Actions finishes; no production deployment is part of
 the workflow. Desktop/mobile visual and actual room hardware checks remain
 separate. Check the PR's workflow result before merging.
+
+First CI run installed dependencies, then failed 8 suites at import time
+because `REACT_APP_BACKEND_URL` was unset (20 suites / 116 tests passed;
+build was skipped). The frontend's `api.js` requires this variable even for
+unit-test imports. The workflow now supplies a CI-only localhost origin;
+no backend server or deployment is implied. Re-run required.
