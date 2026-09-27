@@ -46,14 +46,8 @@ export default function CapabilityDemo({ capability, open, onClose, onCloseAutoF
               <span className="text-sm text-caos-mute">{STATUS_META[capability.status].meaning}</span>
             </div>
             <DialogDescription className="mt-5 text-lg text-caos-ink">{capability.summary}</DialogDescription>
-            {capability.parts && (
-              <ul className="mt-5 flex flex-wrap gap-2" aria-label="Status of each part">
-                {capability.parts.map((p) => (
-                  <li key={p.id} className="flex items-center gap-2 rounded-full bg-white border border-caos-line pl-3 pr-1 py-1 text-sm">
-                    {p.name} <StatusPill status={p.status} />
-                  </li>
-                ))}
-              </ul>
+            {capability.limitation && (
+              <p className="mt-5 rounded-xl bg-white border border-caos-line p-4 text-caos-ink"><b>Limits:</b> {capability.limitation}</p>
             )}
             <ol className="mt-8 space-y-6">
               {capability.steps.map((step, i) => <Step key={STEP_TITLES[i]} index={i} step={step} />)}

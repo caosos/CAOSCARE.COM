@@ -33,13 +33,12 @@ export default function ForResidents() {
         {EXPERIENCE_VIDEOS[0] && (
           <section className="max-w-3xl" aria-label="Resident experience video">
             <ExperienceVideo video={EXPERIENCE_VIDEOS[0]} featured />
-            <p className="text-sm text-caos-mute mt-3">Illustrative film. It includes planned features, such as family video calls, that are not available yet.</p>
           </section>
         )}
         <section aria-labelledby="resident-heading">
           <h2 id="resident-heading" className="font-display text-3xl md:text-4xl text-caos-forest mb-4">What Aria can help with</h2>
-          <p className="mb-6 max-w-3xl">Select a card to see, step by step, what the resident says, what CAOSCare does, and what comes back.</p>
-          <div className="mb-8"><StatusLegend /></div>
+          <p className="mb-6 max-w-3xl">Capabilities proven in our test room open a step-by-step demonstration. The others show what is built so far or what is planned.</p>
+          <div className="mb-8"><StatusLegend items={RESIDENT_CAPABILITIES} /></div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {RESIDENT_CAPABILITIES.map((c) => <CapabilityCard key={c.id} capability={c} onOpen={demo.open} />)}
           </div>
@@ -47,7 +46,7 @@ export default function ForResidents() {
         <StaffResponsePreview />
         <section aria-labelledby="design-heading">
           <h2 id="design-heading" className="font-display text-3xl md:text-4xl text-caos-forest mb-4">Also in design</h2>
-          <p className="mb-7 max-w-3xl">Phone, calling, messages and wearables. Devices come from a small catalog approved for each community; availability, setup and pricing will be shown with the room package once verified.</p>
+          <p className="mb-7 max-w-3xl">Phone, calling, messages, blinds and wearables. Devices come from a small catalog approved for each community; availability, setup and pricing will be shown with the room package once verified.</p>
           <PublicCatalog items={[...RESIDENT_AREAS, ...WEARABLE_AREAS]} label="Planned resident options" />
         </section>
         <section className="rounded-3xl bg-caos-ambient p-8 md:p-12">

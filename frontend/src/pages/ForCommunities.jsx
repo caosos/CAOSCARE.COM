@@ -38,14 +38,14 @@ export default function ForCommunities() {
         <section id="dashboard" aria-labelledby="dashboard-heading" className="scroll-mt-28">
           <p className="text-xs font-bold uppercase tracking-widest text-caos-mute">Public demonstration</p>
           <h2 id="dashboard-heading" className="font-display text-3xl md:text-5xl text-caos-forest mt-3">Staff dashboard demo</h2>
-          <p className="mt-4 mb-8 max-w-3xl">Illustrative records showing the staff experience. There is no resident data here and it does not sign anyone in. Staff at a community use <Link to="/login" className="underline underline-offset-4">Staff sign in</Link>.</p>
-          <StaffDashboardPreview onOpen={demo.open} />
+          <p className="mt-4 mb-8 max-w-3xl">An illustrative layout of the staff board, with sample records. There is no resident data here and it does not sign anyone in. Staff at a community use <Link to="/login" className="underline underline-offset-4">Staff sign in</Link>.</p>
+          <StaffDashboardPreview />
         </section>
 
         <section aria-labelledby="workflows-heading">
-          <h2 id="workflows-heading" className="font-display text-3xl md:text-4xl text-caos-forest mb-4">Every department, step by step</h2>
-          <p className="mb-6 max-w-3xl">Select a department to see what the resident says, what CAOSCare does, what staff see, and what comes back.</p>
-          <div className="mb-8"><StatusLegend /></div>
+          <h2 id="workflows-heading" className="font-display text-3xl md:text-4xl text-caos-forest mb-4">Every department, and where it stands</h2>
+          <p className="mb-6 max-w-3xl">Open a department to see what is built so far and what has not yet been accepted in real staff use.</p>
+          <div className="mb-8"><StatusLegend items={COMMUNITY_WORKFLOWS} /></div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {COMMUNITY_WORKFLOWS.map((c) => <CapabilityCard key={c.id} capability={c} onOpen={demo.open} />)}
           </div>

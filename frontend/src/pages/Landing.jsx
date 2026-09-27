@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../components/ui/button";
-import { Shield, Activity, Heart, MapPin, MessageSquare, Zap } from "lucide-react";
+import { Shield, Activity, Heart, Lightbulb, MapPin, MessageSquare, Zap } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { roleHomePath, roleHomeLabel } from "../lib/roleHome";
 import ExperienceVideoLibrary from "../components/landing/ExperienceVideoLibrary";
@@ -15,13 +15,15 @@ const HERO_IMG =
 const FEATURE_IMG =
   "https://images.pexels.com/photos/18459198/pexels-photo-18459198.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940";
 
-// Feature cards open the same step-by-step demonstrations as /for-residents.
+// Same capability cards as /for-residents: proven ones open a demonstration,
+// the rest expand into a labelled description.
 const FEATURE_CARDS = [
-  { id: "one_press", icon: Zap },
   { id: "voice", icon: MessageSquare },
-  { id: "location", icon: MapPin },
-  { id: "low_vision", icon: Heart },
+  { id: "lighting", icon: Lightbulb },
   { id: "rf_pendant", icon: Shield },
+  { id: "one_press", icon: Zap },
+  { id: "low_vision", icon: Heart },
+  { id: "location", icon: MapPin },
 ];
 
 export default function Landing() {
@@ -119,7 +121,7 @@ export default function Landing() {
               <div className="absolute bottom-6 left-6 right-6 bg-white/90 backdrop-blur rounded-2xl p-5 border border-caos-line">
                 <p className="text-xs font-bold uppercase tracking-widest text-caos-terracotta">Illustrative scene</p>
                 <p className="text-lg font-display font-medium text-caos-forest mt-1">
-                  "Help is coming, Margaret. Want to tell me about your grandkids while we wait?"
+                  "I’m right here with you, Margaret. Want to tell me about your grandkids?"
                 </p>
               </div>
             </div>
@@ -148,7 +150,7 @@ export default function Landing() {
                 <Activity className="w-6 h-6 text-caos-forest" strokeWidth={2} />
               </span>
               <span className="font-display text-xl font-medium text-caos-forest">Staff dashboard</span>
-              <span className="text-caos-mute mt-3 leading-relaxed flex-1">Requests arrive in each department's queue with the resident's words, priority and real status. Staff use it on a computer, tablet or phone.</span>
+              <span className="text-caos-mute mt-3 leading-relaxed flex-1">Requests are recorded in each department's queue with the resident's words and priority. The staff workflows are in development.</span>
               <span className="mt-5 text-caos-forest font-medium underline underline-offset-4">Open the staff dashboard demo</span>
             </Link>
           </div>
