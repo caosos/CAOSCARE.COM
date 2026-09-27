@@ -4,6 +4,7 @@ import { Button } from "../components/ui/button";
 import { Shield, Activity, Heart, MapPin, MessageSquare, Zap } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { roleHomePath, roleHomeLabel } from "../lib/roleHome";
+import ExperienceVideoLibrary from "../components/landing/ExperienceVideoLibrary";
 
 const HERO_IMG =
   "https://images.unsplash.com/photo-1765896387387-0538bc9f997e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODh8MHwxfHNlYXJjaHwxfHxzZW5pb3IlMjByZXNpZGVudCUyMGNhcmVnaXZlciUyMHNtaWxlfGVufDB8fHx8MTc3NjU2NTU1NXww&ixlib=rb-4.1.0&q=85";
@@ -14,7 +15,7 @@ const features = [
   {
     icon: Zap,
     title: "One-press call",
-    body: "A tactile, room-mounted tablet. One press pages staff and opens a calm AI conversation with the resident.",
+    body: "A familiar pendant or call button can page staff while Aria provides calm, voice-first support in the resident’s room.",
   },
   {
     icon: MessageSquare,
@@ -132,6 +133,8 @@ export default function Landing() {
         </div>
       </section>
 
+      <ExperienceVideoLibrary />
+
       {/* Feature grid */}
       <section className="px-6 md:px-12 py-20 bg-caos-ambient">
         <div className="max-w-7xl mx-auto">
@@ -171,10 +174,10 @@ export default function Landing() {
             <p className="text-lg text-caos-ink/75 mt-6 leading-relaxed max-w-xl">
               Your existing pendants still work. Your pagers still page. CAOS Care sits on top —
               replacing the "we lost her again" room-only tracker with a building-wide location mesh and
-              a kiosk that can talk back to the resident.
+              Aria available through the resident-room node.
             </p>
             <ul className="mt-8 space-y-3 text-caos-ink">
-              <li className="flex gap-3"><span className="w-1 bg-caos-terracotta" />Drop-in tablet + transmitter, mounts to the wall</li>
+              <li className="flex gap-3"><span className="w-1 bg-caos-terracotta" />Hidden resident-room node + unobtrusive voice/audio hardware</li>
               <li className="flex gap-3"><span className="w-1 bg-caos-terracotta" />Zone-level geolocation using your existing mesh</li>
               <li className="flex gap-3"><span className="w-1 bg-caos-terracotta" />Forward-compatible with AI vision glasses and earbuds</li>
             </ul>

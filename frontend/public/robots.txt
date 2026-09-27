@@ -1,0 +1,17 @@
+# CAOS Care - only the public home page is meant for search engines.
+# App surfaces are private (login-protected or resident/family links).
+User-agent: *
+Allow: /$
+Disallow: /api/
+Disallow: /admin
+Disallow: /admin-login
+Disallow: /login
+Disallow: /staff
+Disallow: /workspace
+Disallow: /front-desk
+Disallow: /alerts
+Disallow: /aria
+Disallow: /kiosk/
+Disallow: /family/
+
+Sitemap: https://caoscare.com/sitemap.xml
