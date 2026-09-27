@@ -5074,3 +5074,57 @@ HANDOFF CAPSULE
 - Product invariants: wake listener OFF; no community data invented; production deploys only an approved GitHub SHA.
 - Do NOT change:    production without approval; RF bridge target (:8000) without a pendant-path decision.
 - Next safe action: Michael approves the exact main SHA for production.
+
+---
+
+## 2026-09-27 — Public onboarding and community sales preview (branch review)
+
+### Agent / tool
+Codex, isolated branch `feature/public-onboarding-catalog` off `main` `b099dc1`.
+Public website and onboarding documentation lane only.
+
+### What changed
+- `CAOSCARE_START_HERE.md` explicitly points coding agents to the canonical
+  `AGENTS.md` line-count/modularity rule and handoff reporting requirement.
+- `docs/PUBLIC_ONBOARDING_PACKAGE.md` records audience paths, local
+  resident/family showing, full department/service inventory, familiar Aria
+  handset, front-desk/neighbor calls, real per-room answering-machine
+  mailbox, approved wearables, room packages and ten-second video sequence.
+- Public `/for-communities` has a labelled sample-data staff dashboard
+  preview and expandable operational catalog. Public `/for-residents` shows
+  the resident video, room/phone/calling/messages and wearable groups.
+  `Staff sign in` remains the separate authenticated path. Landing navigation
+  links both new paths and its hero demo button points to the preview.
+- Corrected unsupported existing landing claims about building-wide
+  location, universal pendant compatibility and WCAG AAA.
+
+### What was verified
+- Current cloned `main` tip `b099dc1`; clean starting checkout.
+- Source inspection: previous hero `Staff dashboard` linked to login, the
+  active room baseline is EliteDesk + eMeet + TV, and the video catalog has
+  only 30-second illustrative Video #001. Local MP4 visual frames sampled;
+  its news TV scene shows a Fox News-like logo. Audio/transcript not reviewed.
+- `git diff --check` passes. HTTP HEAD to live `caoscare.com` returned 200,
+  but the public page's client-rendered content was not verified there.
+- Frontend test/build is **not verified** in this environment: Yarn dependency
+  fetch stalled and was stopped before packages installed.
+
+### Open / next safe step
+- Run the frontend tests/build and inspect desktop/mobile rendering on the
+  EliteDesk or another environment with dependencies; fix any issue before
+  merging. Verify the full video audio and create captions before promotion.
+- Production remains at the previously recorded `d7ff96a`; this branch is
+  neither merged nor deployed. Present the exact approved release range
+  before any future deployment.
+
+HANDOFF CAPSULE
+- Objective:        Public resident/family/community onboarding and honest sales preview.
+- Branch:           feature/public-onboarding-catalog (off b099dc1).
+- Lane / ownership: Public site and onboarding docs; not backend, Resident Aria, RF or deployment.
+- Last proven state: source/static checks; frontend build and runtime rendering pending.
+- Commits:          see branch tip when pushed.
+- Runtime state:    no local server started or production action taken.
+- Unresolved proven defects: no new runtime defect proven; test gate pending dependencies.
+- Product invariants: room node + eMeet + TV; real status/receipts; sample-only public demo.
+- Do NOT change:    production or actual resident data.
+- Next safe action: run frontend test/build and desktop/mobile review on EliteDesk.

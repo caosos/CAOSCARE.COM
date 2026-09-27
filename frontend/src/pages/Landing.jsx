@@ -24,8 +24,8 @@ const features = [
   },
   {
     icon: MapPin,
-    title: "Building-wide location",
-    body: "Use the mesh network that's already in the walls. We track residents to the zone, not just the room.",
+    title: "Building awareness · planned",
+    body: "Future integrations may help staff understand location and building conditions where compatible systems are available.",
   },
   {
     icon: Activity,
@@ -35,12 +35,12 @@ const features = [
   {
     icon: Heart,
     title: "Built for low-vision",
-    body: "Huge touch targets, WCAG AAA contrast, voice-first. Designed with blind residents in mind.",
+    body: "Voice-first interactions and large touch targets help residents who prefer not to use a screen.",
   },
   {
     icon: Shield,
     title: "Frequency-flexible RF integration",
-    body: "Not locked to a single pendant vendor or frequency. The RF bridge covers common PERS and sub-GHz bands, up to ~1.7 GHz with the receiver hardware we've tested — no rip-and-replace of pendants residents already know.",
+    body: "The room node has decoded paired RF pendants in a test room. Other devices and frequencies need compatibility testing before installation.",
   },
 ];
 
@@ -63,7 +63,9 @@ export default function Landing() {
           <span className="font-display font-bold tracking-tighter text-caos-forest">CAOS</span>
           <span className="font-display font-light text-caos-forest">Care</span>
         </Link>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          <Link to="/for-residents" className="text-caos-forest px-2">Residents & families</Link>
+          <Link to="/for-communities" data-testid="nav-communities" className="text-caos-forest px-2">For communities</Link>
           <Link to="/kiosk/demo" data-testid="nav-kiosk">
             <Button variant="ghost" className="text-caos-forest hover:bg-caos-ambient">
               Try kiosk
@@ -98,9 +100,9 @@ export default function Landing() {
               </p>
             </div>
             <p className="mt-8 text-lg text-caos-ink/70 max-w-xl leading-relaxed">
-              CARE turns every room into a companion. Residents press one big button;
-              a warm assistive voice helps gather context while staff are notified and routed — using the mesh
-              network already humming inside your building.
+              CAOSCare brings Aria into the room. A resident can speak naturally
+              or press a familiar help button; requests reach staff with their
+              actual status and history.
             </p>
             <div className="mt-10 flex flex-wrap gap-4">
               <Link to="/kiosk/demo" data-testid="hero-try-kiosk">
@@ -108,12 +110,12 @@ export default function Landing() {
                   Launch kiosk demo
                 </Button>
               </Link>
-              <Link to={authedDest} data-testid={user ? "hero-continue" : "hero-staff-login"}>
+              <Link to="/for-communities#dashboard" data-testid="hero-staff-dashboard-preview">
                 <Button
                   variant="outline"
                   className="rounded-full px-8 h-[60px] text-lg border-2 border-caos-forest text-caos-forest hover:bg-caos-forest hover:text-white"
                 >
-                  {user ? authedLabel : "Staff dashboard"}
+                  Staff dashboard demo
                 </Button>
               </Link>
             </div>
@@ -172,14 +174,14 @@ export default function Landing() {
               Built on what you already have.
             </h2>
             <p className="text-lg text-caos-ink/75 mt-6 leading-relaxed max-w-xl">
-              Your existing pendants still work. Your pagers still page. CAOS Care sits on top —
-              replacing the "we lost her again" room-only tracker with a building-wide location mesh and
-              Aria available through the resident-room node.
+              The hidden room node makes Aria available without a resident tablet.
+              Compatible pendants can be paired and tested with the community's setup,
+              while staff use their authorized workspaces.
             </p>
             <ul className="mt-8 space-y-3 text-caos-ink">
               <li className="flex gap-3"><span className="w-1 bg-caos-terracotta" />Hidden resident-room node + unobtrusive voice/audio hardware</li>
-              <li className="flex gap-3"><span className="w-1 bg-caos-terracotta" />Zone-level geolocation using your existing mesh</li>
-              <li className="flex gap-3"><span className="w-1 bg-caos-terracotta" />Forward-compatible with AI vision glasses and earbuds</li>
+              <li className="flex gap-3"><span className="w-1 bg-caos-terracotta" />Familiar help pendant, where paired and verified</li>
+              <li className="flex gap-3"><span className="w-1 bg-caos-terracotta" />Options for voice, phone and approved room devices</li>
             </ul>
           </div>
         </div>
