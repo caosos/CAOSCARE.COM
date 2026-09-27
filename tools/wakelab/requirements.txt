@@ -4,3 +4,8 @@ g2p-en==2.1.0       # Apache-2.0; pulls nltk (Apache-2.0), inflect (MIT), numpy
 rapidfuzz==3.14.5   # MIT
 PyYAML==6.0.3       # MIT
 pytest==9.1.1       # MIT (tests)
+# Acoustic stage (SYNTHETIC screening). Model/dataset files are fetched to the cache, never committed.
+sherpa-onnx==1.13.8 # Apache-2.0 - same keyword spotter family as room-node/aria_wake
+soundfile==0.14.0   # BSD-3-Clause (libsndfile LGPL-2.1)
+scipy==1.15.3       # BSD-3-Clause
+sentencepiece==0.2.2 # Apache-2.0 - keyword BPE tokenization

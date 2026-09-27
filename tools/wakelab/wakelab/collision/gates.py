@@ -35,7 +35,14 @@ def _pass(gate, title):
 
 def evaluate(analysis, speak, cfg):
     g, fr, dist = cfg["gates"], cfg["frequency"], cfg["distance"]
-    m = analysis["metrics"]
+    # The candidate's own occurrences are judged by G0 (how often people say
+    # it), never as a collision with itself; G1-G7 see only OTHER speech.
+    self_hits = [f for k in ("exact", "near") for f in analysis["metrics"][k] if f.get("is_candidate_itself")]
+    # Distress/domain/facility self-matches still gate: a candidate that IS a
+    # care word or a call for help is rejected for that reason.
+    moved = ("name", "common_word", "phrase")
+    m = {k: [f for f in v if not (f.get("is_candidate_itself") and f["metric"] in moved)]
+         for k, v in analysis["metrics"].items()}
     out = []
     # Only matches where ordinary speech SOUNDS LIKE the candidate can cause a
     # false wake; a common word hidden inside the candidate ("contains") cannot.
@@ -47,6 +54,10 @@ def evaluate(analysis, speak, cfg):
             return
         out.append(_fail(key, title, why, evidence) if evidence else _pass(key, title))
 
+    gate("G0_self_frequency", "The candidate itself is common speech",
+         [f for f in self_hits if f["relation"] == "whole" and _common(f, fr, "exact")],
+         "people say the candidate itself often (a common word, or a name heard often in dialogue/TV); "
+         "a human name is not rejected for being a name, only for being frequent")
     gate("G1_exact_common", "Exact collision with common speech",
          [f for f in m["exact"] if _common(f, fr, "exact")],
          "the candidate has the SAME phonemes as a common word or phrase; every ordinary use of it is a potential false wake")

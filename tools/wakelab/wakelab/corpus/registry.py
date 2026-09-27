@@ -9,6 +9,7 @@ import datetime
 import hashlib
 import json
 import os
+import tarfile
 import urllib.request
 
 from ..config import LAB_DIR, cache_dir, sources
@@ -46,6 +47,20 @@ def local_path(source_id, spec=None):
     return None
 
 
+def extract_dir(source_id):
+    return os.path.join(cache_dir(), source_id)
+
+
+def extract(source_id, archive, force=False):
+    """Unpack a downloaded archive once into <cache>/<source_id>/."""
+    target = extract_dir(source_id)
+    if force or not os.path.isdir(target):
+        with tarfile.open(archive) as tar:
+            tar.extractall(target + ".part", filter="data")
+        os.replace(target + ".part", target)
+    return target
+
+
 def fetch(only=None, include_optional=False, force=False, log=print):
     """Download file sources; returns the updated manifest."""
     manifest = load_manifest()
@@ -71,6 +86,8 @@ def fetch(only=None, include_optional=False, force=False, log=print):
             if spec.get("sha256") and spec["sha256"] != digest:
                 raise RuntimeError(f"{sid}: sha256 mismatch (pinned {spec['sha256']}, got {digest})")
             entry.update(sha256=digest, bytes=os.path.getsize(path), cache_file=os.path.basename(path))
+            if spec.get("extract"):
+                entry["extracted_to"] = os.path.basename(extract(sid, path, force=force))
         elif spec["kind"] == "python_package":
             from importlib.metadata import version
             entry["installed_version"] = version(spec["package"])

@@ -4932,3 +4932,23 @@ on the surname Jarvis. No runtime file imports `tools/wakelab`.
 - Product invariants: collision is the primary gate; speakability never offsets it; local-only wake detection; private names never committed.
 - Do NOT change:    Room 214 runtime/listener, pendant, Home Assistant, Aria identity.
 - Next safe action: Michael reviews Step 1; then Step 2 (candidate generation + Pareto ranking).
+
+---
+
+## 2026-09-24 — Wake Phrase Lab: acoustic stage, Step 2 ranking, speaker-verification design (uncommitted)
+
+### Agent / tool
+Claude Code (Opus 5.5), `~/CAOSCARE-INTEGRATION`, branch `aria/wake-word-proof` on `4b94f48`. Uncommitted pending Michael's review. Room 214 untouched; listener OFF; no deploy.
+
+### What changed
+- `tools/wakelab`: acoustic stage (`wakelab/audio/`, SYNTHETIC: TTS positives × styles × simulated rooms, adversarial negatives, LibriSpeech soak, sherpa-onnx KWS mirroring the listener); Step 2 `rank` (`rank.py`, `rank_report.py`: candidate generation, gate veto, separate dimensions, Pareto finalists, hostile "area" test incl. word-dropped forms); G0 self-frequency gate (names no longer rejected for being names); pinned pronunciation now applies inside phrases ("okay aria").
+- Docs: `docs/WAKE_PHRASE_LAB.md` (status distinctions, Step 2, acoustic results), `docs/SPEAKER_VERIFICATION_DESIGN.md` (design only), `docs/reports/2026-09-24-wake-phrase-physical-test-sheet.md` (prepared, not run).
+
+### What was verified
+Lab tests 30/30. "hey aria" SYNTHETIC: 68% true wakes (far 39%, TV 28%), 8/952 adversarial false wakes (only hey area / hay area / hey Ari; 0 on bare "area" phrases), 0 soak false wakes in 5.6 h; baseline "aria" 63/952 and 0.36/h. Text-stage finalists: okay nabu, hey mycroft (controls), natividad, pasquale, guadalupe; all four Aria phrases REJECT.
+
+### Blocked / open
+G4 name-frequency policy (38 candidates rejected only by rare sound-alike names); speaker-verification "who may wake Aria" policy; per-event false-wake audit for 2026-09-24 not in git (raw evidence in local Mongo + `/tmp/aria_wake_12dadd4.log`).
+
+### Next safe step
+Michael reviews; decides whether to acoustically screen the text finalists and which candidates go to the Room 214 sheet.

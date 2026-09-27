@@ -70,6 +70,62 @@ Calibration evidence (2026-09-24): "aria" REJECT (G1: area), "okay nabu" and
 "hey mycroft" PASS (text stage), "hello", "computer", "alexa", "jupiter"
 REJECT on real collisions, "hey jarvis" REJECT only on the surname Jarvis.
 
+## Status of decisions (2026-09-24)
+
+- **PHYSICALLY VERIFIED:** Room 214 local wake → live Aria → natural close →
+  listening loop (2026-09-23, close range).
+- **SUPERSEDED:** single-word "Aria" as the production wake phrase.
+- **RATIFIED:** Aria's identity ≠ the wake tripwire; phonetic collision is a
+  veto; speaker verification ≠ authentication
+  (`docs/SPEAKER_VERIFICATION_DESIGN.md`); pendant/emergency independent.
+- **EXPERIMENTAL:** Hey Aria, Okay Aria, Aria please, Listen Aria; a
+  distinctive 3-4 syllable conventional-name tripwire; speaker verification.
+
+## Step 1 amendments (2026-09-24)
+
+- **G0 self frequency.** The candidate's own occurrences are judged by how
+  often people say it (same threshold as G1); they are never a "collision
+  with itself". A human name is not rejected for being a Census name — only
+  for being frequent (Samantha, Veronica, Penelope, Matilda fail G0).
+  Distress/domain self-matches still gate ("help" stays rejected).
+- **Pinned words inside phrases.** "okay aria" now uses the pinned
+  air-ee-uh pronunciation; before, phrases silently fell back to the
+  dictionary "ar-ee-uh".
+
+## Step 2 — ranking (`python -m wakelab rank`)
+
+Candidates: the four Aria phrases, directive name examples, controls, and
+277 generated conventional names (Census rank ≤ 1500, CMUdict pronunciation,
+3-4 syllables, wordfreq zipf < 3.0). Every candidate is inspected; any gate
+failure is a veto. Survivors are kept on SEPARATE dimensions (collision
+margin to the nearest other speech, look-alike rate, self frequency,
+consonant contrast, high-frequency fricatives, onset strength) and the report
+lists the Pareto front — no combined score. Every Aria phrase also gets a
+**hostile "area" test**: distance from area / the area / this area / that
+area / their area / your area / our area / dining area / common area / gray
+area / hey area to the candidate, its clipped forms, and the form left if the
+detector loses a whole word.
+
+Result (run `20260924T004956_rank`, text stage): finalists okay nabu, hey
+mycroft (controls), natividad, pasquale, guadalupe. All four Aria phrases
+REJECT; every one reduces to exactly "area" if its extra word is lost. 6 of
+276 generated names pass; 38 candidates (incl. "okay aria", only via the rare
+name "Otelia") fail solely on G4 sound-alike names — **G4 has no
+name-frequency weighting; that policy is open for Michael**, not changed.
+
+## Acoustic stage (`python -m wakelab acoustic`, SYNTHETIC)
+
+gpt-4o-mini-tts voices × speaking styles × simulated room conditions
+(positives), adversarial neighbours/traps/Room 214 phrases (negatives), and
+LibriSpeech test-clean continuous soak; sherpa-onnx KWS mirroring the
+listener loop, with single-word "aria" at the Room 214 setting as baseline on
+identical audio. "hey aria" (threshold 0.15): 68% true wakes (clean 93%, far
+39%, TV speech 28%), 8/952 adversarial false wakes (only "hey area", "hay
+area", "hey Ari"; 0 on bare "area" phrases), 0 soak false wakes in 5.6 h;
+baseline "aria": 63/952, 0.36/h. Synthetic voices and read speech — not a
+substitute for Room 214 testing. Physical test sheet:
+`docs/reports/2026-09-24-wake-phrase-physical-test-sheet.md`.
+
 ## Limitations (keep in view)
 
 - **Text/phoneme analysis predicts acoustic danger; it does not prove real
@@ -84,6 +140,9 @@ REJECT on real collisions, "hey jarvis" REJECT only on the surname Jarvis.
 - The confusability model and all thresholds are engineering judgements,
   recorded in `config/default.yaml` and `phonetics/features.py`.
 - English only. No older-adult or dysarthric speech data.
+- Generated name candidates are names residents or staff may actually have;
+  the optional private facility-name list is the check for that and is not
+  present on this node yet.
 - Room 214 transcripts are what the conversation model heard after each
   wake, not proof of the audio that triggered the detector.
 - Licensing: wordfreq data is CC-BY-SA 4.0 and Tatoeba CC-BY 2.0 FR; used
