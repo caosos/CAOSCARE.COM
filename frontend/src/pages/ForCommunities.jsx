@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { COMMUNITY_AREAS, STATUS } from "../lib/publicOnboarding";
 import PublicCatalog, { Status } from "../components/landing/PublicCatalog";
@@ -7,13 +7,20 @@ export default function ForCommunities() {
   const { hash } = useLocation();
   const [activeId, setActiveId] = useState(COMMUNITY_AREAS[0].id);
   const active = COMMUNITY_AREAS.find((item) => item.id === activeId);
+  const detailRef = useRef(null);
+  const selectService = (id) => {
+    setActiveId(id);
+    if (window.innerWidth < 1024) {
+      requestAnimationFrame(() => detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    }
+  };
   useEffect(() => {
     if (hash === "#dashboard") document.getElementById("dashboard")?.scrollIntoView();
   }, [hash]);
   return (
     <div className="min-h-screen bg-caos-bone text-caos-ink" data-testid="for-communities">
       <nav className="px-6 md:px-12 py-6 border-b border-caos-line flex flex-wrap items-center justify-between gap-4">
-        <Link to="/" className="font-display text-2xl text-caos-forest">CAOSCare</Link>
+        <Link to="/" className="text-2xl text-caos-forest"><span className="font-display font-bold tracking-tighter">CAOS</span><span className="font-display font-light">Care</span></Link>
         <div className="flex flex-wrap gap-5 text-caos-forest">
           <Link to="/for-residents">Residents & families</Link>
           <Link to="/experience">Explore a room</Link>
@@ -39,14 +46,14 @@ export default function ForCommunities() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mt-8">
             <div className="lg:col-span-1 flex flex-col gap-2" role="group" aria-label="Choose a service">
               {COMMUNITY_AREAS.map((item) => (
-                <button key={item.id} type="button" onClick={() => setActiveId(item.id)}
+                <button key={item.id} type="button" onClick={() => selectService(item.id)}
                   aria-pressed={activeId === item.id}
                   className={`text-left rounded-xl px-4 py-3 border min-h-[48px] ${activeId === item.id ? "border-caos-forest bg-caos-ambient" : "border-caos-line bg-white"}`}>
                   {item.name}
                 </button>
               ))}
             </div>
-            <article className="lg:col-span-2 rounded-3xl bg-white border border-caos-line p-7 md:p-10" aria-live="polite">
+            <article ref={detailRef} className="lg:col-span-2 rounded-3xl bg-white border border-caos-line p-7 md:p-10 scroll-mt-5" aria-live="polite">
               <p className="text-xs uppercase tracking-widest text-caos-mute">Sample Community · illustrative preview</p>
               <h3 className="font-display text-3xl text-caos-forest mt-5">{active.name}</h3>
               <Status value={active.status} />
@@ -56,7 +63,7 @@ export default function ForCommunities() {
                 <p className="mt-2 font-medium">{active.example}</p>
               </div>
               <p className="mt-6"><b>What staff would do:</b> {active.staff}</p>
-              <p className="text-sm text-caos-mute mt-6">{STATUS[active.status]} describes this service's development stage, not the sample row.</p>
+              <p className="text-sm text-caos-mute mt-6">{STATUS[active.status].label} describes this service's development stage, not the sample row.</p>
             </article>
           </div>
         </section>

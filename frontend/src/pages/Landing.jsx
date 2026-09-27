@@ -20,7 +20,7 @@ const features = [
   {
     icon: MessageSquare,
     title: "Voice companion",
-    body: "CAOS Care assistive voice support helps comfort residents, gather context, and route staff-reviewed alerts while care teams respond.",
+    body: "CAOSCare assistive voice support helps comfort residents, gather context, and route staff-reviewed alerts while care teams respond.",
   },
   {
     icon: MapPin,
@@ -30,7 +30,7 @@ const features = [
   {
     icon: Activity,
     title: "Staff dashboard",
-    body: "Live alert feed, severity color-coded, acknowledge and resolve in one tap. Works on tablets and pagers.",
+    body: "Review requests and alerts in the staff workspace on an authorized tablet, phone or computer.",
   },
   {
     icon: Heart,
@@ -39,7 +39,7 @@ const features = [
   },
   {
     icon: Shield,
-    title: "Frequency-flexible RF integration",
+    title: "Paired pendant integration",
     body: "The room node has decoded paired RF pendants in a test room. Other devices and frequencies need compatibility testing before installation.",
   },
 ];
@@ -58,14 +58,15 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-caos-bone">
       {/* Top nav */}
-      <nav className="flex items-center justify-between px-6 md:px-12 py-6 border-b border-caos-line bg-caos-bone/80 backdrop-blur sticky top-0 z-40">
+      <nav className="flex items-center justify-between px-6 md:px-12 py-5 border-b border-caos-line bg-caos-bone/80 backdrop-blur relative md:sticky md:top-0 z-40">
         <Link to="/" data-testid="nav-home" className="text-2xl">
           <span className="font-display font-bold tracking-tighter text-caos-forest">CAOS</span>
           <span className="font-display font-light text-caos-forest">Care</span>
         </Link>
-        <div className="flex flex-wrap items-center justify-end gap-3">
+        <div className="hidden md:flex flex-wrap items-center justify-end gap-3">
           <Link to="/for-residents" className="text-caos-forest px-2">Residents & families</Link>
           <Link to="/for-communities" data-testid="nav-communities" className="text-caos-forest px-2">For communities</Link>
+          <Link to="/experience" className="text-caos-forest px-2">Explore a room</Link>
           <Link to="/kiosk/demo" data-testid="nav-kiosk">
             <Button variant="ghost" className="text-caos-forest hover:bg-caos-ambient">
               Try kiosk
@@ -77,6 +78,16 @@ export default function Landing() {
             </Button>
           </Link>
         </div>
+        <details className="md:hidden relative text-caos-forest">
+          <summary className="catalog-summary cursor-pointer rounded-full border border-caos-forest px-5 py-2 font-semibold">Explore</summary>
+          <div className="absolute right-0 top-full mt-3 w-60 rounded-2xl border border-caos-line bg-white shadow-xl p-3 flex flex-col gap-1 z-50">
+            <Link to="/for-residents" className="rounded-lg px-3 py-3">Residents & families</Link>
+            <Link to="/for-communities" className="rounded-lg px-3 py-3">For communities</Link>
+            <Link to="/experience" className="rounded-lg px-3 py-3">Explore a room</Link>
+            <Link to="/kiosk/demo" className="rounded-lg px-3 py-3">Try kiosk</Link>
+            <Link to={authedDest} className="rounded-lg px-3 py-3 font-semibold">{authedLabel}</Link>
+          </div>
+        </details>
       </nav>
 
       {/* Hero */}
@@ -125,7 +136,7 @@ export default function Landing() {
               <img src={HERO_IMG} alt="Caregiver with resident" className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-caos-forest/15" />
               <div className="absolute bottom-6 left-6 right-6 bg-white/90 backdrop-blur rounded-2xl p-5 border border-caos-line">
-                <p className="text-xs font-bold uppercase tracking-widest text-caos-terracotta">Live demo</p>
+                <p className="text-xs font-bold uppercase tracking-widest text-caos-terracotta">Illustrative scene</p>
                 <p className="text-lg font-display font-medium text-caos-forest mt-1">
                   "Help is coming, Margaret. Want to tell me about your grandkids while we wait?"
                 </p>
@@ -189,7 +200,7 @@ export default function Landing() {
 
       <footer className="border-t border-caos-line px-6 md:px-12 py-10 text-caos-mute text-sm">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between gap-4">
-          <p>© 2026 CAOS Care. Assistive care workflows for senior living.</p>
+          <p>© 2026 CAOSCare. Assistive care workflows for senior living.</p>
           <p>Built for dignity, designed for the people who already paid for one system.</p>
         </div>
       </footer>

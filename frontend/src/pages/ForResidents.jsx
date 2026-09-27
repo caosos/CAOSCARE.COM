@@ -9,7 +9,7 @@ export default function ForResidents() {
   return (
     <div className="min-h-screen bg-caos-bone text-caos-ink" data-testid="for-residents">
       <nav className="px-6 md:px-12 py-6 border-b border-caos-line flex flex-wrap items-center justify-between gap-4">
-        <Link to="/" className="font-display text-2xl text-caos-forest">CAOSCare</Link>
+        <Link to="/" className="text-2xl text-caos-forest"><span className="font-display font-bold tracking-tighter">CAOS</span><span className="font-display font-light">Care</span></Link>
         <div className="flex flex-wrap gap-5 text-caos-forest">
           <Link to="/for-communities">For communities</Link>
           <Link to="/experience">Explore a room</Link>

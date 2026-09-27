@@ -68,7 +68,7 @@ export default function Login() {
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.22em] opacity-70">Staff & admin portal</p>
             <h2 className="font-display text-4xl md:text-5xl font-light tracking-tight mt-4 leading-tight">
-              Every alert, every resident, every zone — in one calm view.
+              Every request, every resident, every handoff — in one calm view.
             </h2>
           </div>
         </div>
@@ -77,7 +77,7 @@ export default function Login() {
       <div className="flex items-center justify-center p-8 md:p-12">
         <div className="w-full max-w-md">
           <h1 className="font-display text-3xl font-medium text-caos-forest">Welcome back</h1>
-          <p className="text-caos-mute mt-2">Sign in to CAOS Care staff dashboard.</p>
+          <p className="text-caos-mute mt-2">Sign in to your CAOSCare staff workspace.</p>
 
           <Tabs defaultValue="login" className="mt-8">
             <TabsList className="grid grid-cols-2 w-full">

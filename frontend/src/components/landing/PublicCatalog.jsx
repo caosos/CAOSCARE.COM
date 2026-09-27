@@ -1,8 +1,8 @@
 import React from "react";
-import { STATUS } from "../../lib/publicOnboarding";
+import { StatusBadge } from "../roomExperience/RoomFeatureConfigurator";
 
 export function Status({ value }) {
-  return <span className="text-xs font-bold uppercase tracking-widest text-caos-terracotta">{STATUS[value]}</span>;
+  return <StatusBadge status={value} />;
 }
 
 export default function PublicCatalog({ items, label }) {
@@ -10,7 +10,7 @@ export default function PublicCatalog({ items, label }) {
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4" aria-label={label}>
       {items.map((item) => (
         <details key={item.name || item.id} className="group rounded-2xl border border-caos-line bg-white p-5">
-          <summary className="cursor-pointer list-none flex items-start justify-between gap-4 min-h-[48px]">
+          <summary className="catalog-summary cursor-pointer list-none flex items-start justify-between gap-4 min-h-[48px]">
             <span>
               <span className="block font-display text-xl text-caos-forest">{item.name}</span>
               <Status value={item.status} />

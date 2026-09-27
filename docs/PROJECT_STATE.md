@@ -5144,3 +5144,41 @@ because `REACT_APP_BACKEND_URL` was unset (20 suites / 116 tests passed;
 build was skipped). The frontend's `api.js` requires this variable even for
 unit-test imports. The workflow now supplies a CI-only localhost origin;
 no backend server or deployment is implied. Re-run required.
+
+---
+
+## 2026-09-27 — Public onboarding review corrections (PR #41)
+
+### Agent / tool and branch
+Codex on `feature/public-onboarding-catalog`; correction from Claude's
+EliteDesk review comment on PR #41. No merge or production deployment.
+
+### Review evidence
+Claude tested an isolated `:3002` worktree (the running `:3000` checkout was
+untouched): all four public routes worked at desktop/phone widths, no
+horizontal overflow, 28/28 frontend suites and 191/191 tests, clean build.
+It identified conflicting room status labels, built activities and front
+desk workspace marked Planned, mobile navigation/panel issues, and flaws in
+the existing 30-second Video #001. Its timestamped audio transcript and
+two-second frame review are preserved in the PR comment.
+
+### Changes in this correction
+- Room-related public stages derive from `lib/roomExperience/features.js`,
+  and public cards reuse its status badge. Lighting is In pilot on both
+  pages. Activities and the existing front desk workspace read In development;
+  desk calls remain Planned. The resident's TV, climate, blinds and lighting
+  have separate statuses. A focused test protects those relationships.
+- A new 8.6-second single-room greeting cut with poster and VTT replaces the
+  30-second film in the public library; the original file is preserved but
+  unlinked. The recut omits the duplicate exchange, planned family call,
+  TV static and imitation news logo. Generated with ffmpeg from 11.1–19.7 s
+  of the original and visually inspected at one-second intervals. The new
+  audio and cue timing still need local human review.
+- Mobile landing navigation is compact and no longer pinned; mobile staff
+  demo selection scrolls its result into view. Public page wordmarks match;
+  leftover unsupported copy on the landing/login screens is corrected.
+
+### Gate and next safe step
+Publish the correction to the existing draft PR, run frontend GitHub Actions,
+then review the new clip with audio and both mobile paths in the isolated
+EliteDesk worktree. Keep the branch draft until the review passes.

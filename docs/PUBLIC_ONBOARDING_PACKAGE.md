@@ -63,10 +63,11 @@ expandable service/device groups. Every public capability carries its own
 | Maintenance/housekeeping | Report a broken item or cleaning need | Assign, progress, complete, audit work | Partial operational workspace |
 | Transportation and appointments | Ask for a ride; pending is not booked | Calendar, driver/vehicle, capacity and confirmation | Partial; current schedule data is not a real community deployment |
 | Kitchen menus | Ask what dinner is; hear published menu or unknown | Publish current menu and corrections | Partial |
-| Programs/activities | Ask what is on today | Publish schedule and changes | Planned complete service |
+| Programs/activities | Ask what is on today | Schedule intake, Today panel and Aria schedule lookup exist | In development; community publishing still needs setup |
 | Therapy | Appointments, reminders and messages | Authorized scheduling/coordination | Planned complete service |
 | Beauty shop/salon | Ask for availability or an appointment | Confirm before promising a booking | Planned |
-| Front desk | Call or request a callback | Single desk station, queue, presence, call acceptance | Planned voice routing |
+| Front desk workspace | Request and transportation coordination | Authorized desk view of requests, residents and transportation | In development |
+| Front desk calls | Call or request a callback | Single desk station, queue, presence, call acceptance | Planned voice routing |
 | Leadership | Follow the status of a request | Cross-department view, real detail and receipts | Partial admin views; full coordination later |
 | Family | Calls, messages, photos/video where available | Scoped communication/permissions | Planned full experience |
 | Room devices | Voice control of lights; TV, climate, plugs and blinds as available | Approved device inventory, verified resulting state | Lights pilot; remaining devices vary |
@@ -144,13 +145,15 @@ source evidence, and website destination in the video catalog.
 | 011 · Wearables | Resident presses HELP pendant → actual staff event appears; optional supported wearable information | Both |
 | 012 · Leadership | Manager opens the same resident request and receipts from overview | Community |
 
-Video #001 is currently a **30-second illustrative resident film**, not a
-finished ten-second module. The file is
-`frontend/public/media/caoscare-resident-experience-01.mp4`; the code's
-single list is `frontend/src/lib/experienceVideos.js`. Visual frame review
-shows a resident in bed, sitting in a chair, TV news and a video call.
-The TV scene has a Fox News-like logo; review or replace that scene before
-promoting the film further. Captions/transcript still need verification.
+Video #001 now uses a **nine-second greeting cut** from one continuous
+resident/room scene: `frontend/public/media/caoscare-resident-greeting-01.mp4`
+with poster and English VTT. The public list is
+`frontend/src/lib/experienceVideos.js`. The earlier 30-second file remains
+in the repo for editing reference but is no longer served in the public
+library: it repeated a greeting, depicted several different residents as
+"Margaret", showed planned calling and TV control as working, included a
+Fox News-like logo, and ended mid-laugh. Recheck the new cut's audio and
+caption timing locally before promoting it.
 
 ## Acceptance before publication or installation
 
