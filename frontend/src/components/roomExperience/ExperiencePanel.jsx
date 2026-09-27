@@ -1,7 +1,7 @@
 import React from "react";
 import { ExperienceVideo } from "../landing/ExperienceVideoLibrary";
 import { EXPERIENCE_VIDEOS } from "../../lib/experienceVideos";
-import { StatusBadge } from "./RoomFeatureConfigurator";
+import StatusPill from "../capabilities/StatusPill";
 
 // "Experience this room with CAOSCare": what the resident would say for each
 // switched-on feature, plus the resident-experience video library. Later
@@ -28,7 +28,7 @@ export default function ExperiencePanel({ model, features, selected }) {
             <li key={f.id} className="bg-white rounded-2xl border border-caos-line p-4">
               <p className="font-display text-xl text-caos-forest">“{f.phrase}”</p>
               <p className="flex flex-wrap items-center gap-2 mt-2 text-sm text-caos-mute">
-                {f.label} <StatusBadge status={f.status} />
+                {f.label} <StatusPill status={f.status} />
               </p>
             </li>
           ))}

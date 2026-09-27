@@ -5182,3 +5182,40 @@ two-second frame review are preserved in the PR comment.
 Publish the correction to the existing draft PR, run frontend GitHub Actions,
 then review the new clip with audio and both mobile paths in the isolated
 EliteDesk worktree. Keep the branch draft until the review passes.
+## 2026-09-27 — Interactive capability cards on the public site (draft, stacked on PR #41)
+
+### Agent / tool
+Claude Code (Opus 5.5), worktree `~/CAOSCARE-WEBSITE`, branch `feature/interactive-capability-cards` off `feature/public-onboarding-catalog` `6129f0c` (PR #41). Public website frontend only.
+
+### What changed
+- One status registry, `frontend/src/lib/capabilities/status.js` (working / pilot / in development / planned, each with a plain definition shown on the page). `/experience`, `/for-residents`, `/for-communities` and the landing page all read it. This fixes the PR #41 contradiction (Lighting "In pilot" on /experience vs "In development" on /for-residents) and corrects activities and the front desk from "Planned" to "Working".
+- Capability cards on `/`, `/for-residents` and `/for-communities` open a demonstration on the same page: Radix dialog on desktop, full-screen panel on phone; scroll kept; focus returns to the card; `#cap-<id>` direct links. Each demo has five steps (resident does/says → CAOSCare understands → system action → staff/family see → what comes back), sample data, and a status banner saying what is not built.
+- Resident: one-press call, voice companion, building-wide location, low vision, pendant (RF), room controls (per-part status), plus a small "How staff respond" preview.
+- For Communities: staff dashboard demo (sample live board; each row opens its workflow) and 12 workflow cards: nursing, maintenance, transportation, dining, activities, housekeeping, therapy, beauty shop, front desk, administration, alerts/escalation, receipts/history/reporting.
+- Landing: feature cards open the same demos; "LIVE DEMO" label → "Illustrative"; removed "pagers" and "Frequency-flexible" card copy; footer spelled "CAOSCare". The For Residents video now says it includes planned features.
+
+### What was verified
+Frontend 29/29 suites, 201/201 tests (new `capabilities.test.js`: every surface's status equals the registry, 12 required workflows, five steps each, no "on the way" promise in Aria quotes). `CI=true` production build clean. Headless Chrome (desktop 1440, phone 390): no horizontal overflow on `/`, `/for-residents`, `/for-communities`; every tested card opens a dialog with 5 steps; phone dialog is full-screen (390×844); scroll position unchanged after close; hash set on open and cleared on close; focus returns to the card; dashboard rows open their workflow; `#cap-escalation` deep link opens on load; no console errors.
+
+### Not done
+Not merged, not deployed. Staff sign-in (/login) unchanged. Other PR #41 review items (Video #001 content, phone sticky nav, login "every zone", public Register tab) not addressed here.
+
+---
+
+## 2026-09-27 — PR #42 restacked on PR #41 head and corrected to CURRENT_PRIORITY
+
+### Agent / tool
+Claude Code (Opus 5.5), EliteDesk `~/CAOSCARE-WEBSITE`, branch `feature/interactive-capability-cards`. Not merged, not pushed, not deployed.
+
+### What changed
+- Rebased onto PR #41 head `a668199`; conflicts resolved keeping PR #41's work (wordmark, phone Explore menu, details-marker CSS, "Illustrative scene", "Paired pendant", login wording, front-desk workspace vs calls split, recut greeting video).
+- Statuses corrected per the 2026-09-27 audit (evidence noted in `lib/capabilities/status.js`). In pilot: voice, lights, paired pendant, each with stated limits. Everything else In development or Planned; nothing is Working.
+- Only In pilot capabilities open a five-step demonstration. In development / Planned capabilities expand into "Built so far" / "Not yet accepted" or "Planned" text. The staff dashboard demo is a non-interactive illustrative layout with each row's real status.
+- Landing hero quote no longer says "Help is coming" (Aria must not claim arrival).
+- PR #41's `publicOnboarding.test.js` kept and repointed at the new data.
+
+### What was verified
+Lights path files unchanged since the 2026-09-19 verified commit `7bad624` (evidence: live voice + HA read-back 09-05, touch 09-19, wake-word session 09-23); no new live hardware test run. Frontend 30/30 suites, 204/204 tests. `CI=true` build clean. Headless desktop 1440 and phone 390 on `/`, `/for-residents`, `/for-communities`, `/experience`: no overflow; only voice/lights/pendant are dialog buttons; all other cards are inline descriptions; phone dialog full-screen; scroll and focus restored; no console errors; Staff sign in → `/login`.
+
+### Not done
+Branch not force-pushed (PR #42 on GitHub still shows the old `38f06e9`). localhost:3000 unchanged (integration checkout).

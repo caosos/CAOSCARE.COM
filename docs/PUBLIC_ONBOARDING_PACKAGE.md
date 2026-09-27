@@ -53,7 +53,23 @@ materials and a community-specific checklist of enabled services.
 
 The site should expose the following through plain-language navigation and
 expandable service/device groups. Every public capability carries its own
-`In pilot`, `In development`, or `Planned` label from build evidence.
+`Working`, `In pilot`, `In development`, or `Planned` label from build evidence.
+All pages read that label from one registry,
+`frontend/src/lib/capabilities/status.js`; change it there, from evidence only.
+
+### Interactive capability cards (2026-09-27, corrected to CURRENT_PRIORITY)
+
+Rule: the website never claims or demonstrates a capability beyond its
+acceptance evidence. Only `Working` / `In pilot` capabilities open a
+step-by-step demonstration (five steps: resident does/says, CAOSCare
+understands, system action, staff/family see, what comes back), with their
+limits stated. `In development` and `Planned` capabilities expand in place
+into a labelled description: what is built so far and what is not yet
+accepted, or the planned design. The staff dashboard demo is an illustrative,
+non-interactive layout showing each workflow's real status. Data:
+`frontend/src/lib/capabilities/{status,resident,community}.js`.
+
+
 
 | Area | Resident/family story | Staff/community story | 2026-09-27 position |
 |---|---|---|---|
