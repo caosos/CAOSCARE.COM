@@ -57,16 +57,18 @@ expandable service/device groups. Every public capability carries its own
 All pages read that label from one registry,
 `frontend/src/lib/capabilities/status.js`; change it there, from evidence only.
 
-### Interactive capability demonstrations (2026-09-27)
+### Interactive capability cards (2026-09-27, corrected to CURRENT_PRIORITY)
 
-Every major capability card on `/`, `/for-residents` and `/for-communities`
-opens a demonstration on the same page (a dialog; a full-screen panel on a
-phone). Each walks through five steps: what the resident does or says, what
-CAOSCare understands, what the system does, what staff or family see, and
-what comes back. Content is sample data in
-`frontend/src/lib/capabilities/{resident,community}.js`. A demo can be linked
-directly as `#cap-<id>`. Planned and in-development demonstrations say so in
-the dialog; a demonstration never implies an unfinished feature is available.
+Rule: the website never claims or demonstrates a capability beyond its
+acceptance evidence. Only `Working` / `In pilot` capabilities open a
+step-by-step demonstration (five steps: resident does/says, CAOSCare
+understands, system action, staff/family see, what comes back), with their
+limits stated. `In development` and `Planned` capabilities expand in place
+into a labelled description: what is built so far and what is not yet
+accepted, or the planned design. The staff dashboard demo is an illustrative,
+non-interactive layout showing each workflow's real status. Data:
+`frontend/src/lib/capabilities/{status,resident,community}.js`.
+
 
 
 | Area | Resident/family story | Staff/community story | 2026-09-27 position |

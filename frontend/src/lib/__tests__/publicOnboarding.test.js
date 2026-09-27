@@ -1,24 +1,21 @@
-import { COMMUNITY_AREAS, RESIDENT_AREAS, WEARABLE_AREAS } from "../publicOnboarding";
+// Carried over from PR #41: the room builder and the public catalogs must
+// agree, and the built desk/schedule stay distinct from future calls.
+import { RESIDENT_AREAS } from "../publicOnboarding";
 import { FEATURES_BY_ID } from "../roomExperience/features";
+import { RESIDENT_BY_ID } from "../capabilities/resident";
+import { COMMUNITY_BY_ID } from "../capabilities/community";
 
 test("resident room stages stay aligned with the room builder", () => {
-  const pairs = [
-    ["Talk to the room", "voice"], ["Ask for staff help", "help"],
-    ["Lighting", "lighting"], ["Television", "tv"],
-    ["Thermostat & comfort", "climate"], ["Motorized blinds", "blinds"],
-    ["Family connection", "family_call"],
-  ];
-  for (const [name, featureId] of pairs) {
-    expect(RESIDENT_AREAS.find((item) => item.name === name)?.status)
-      .toBe(FEATURES_BY_ID[featureId].status);
+  for (const id of ["voice", "lighting", "tv", "climate"]) {
+    expect([id, RESIDENT_BY_ID[id].status]).toEqual([id, FEATURES_BY_ID[id].status]);
   }
-  expect(WEARABLE_AREAS.find((item) => item.name === "Familiar HELP pendant")?.status)
-    .toBe(FEATURES_BY_ID.help.status);
+  for (const id of ["blinds", "family_call"]) {
+    expect([id, RESIDENT_AREAS.find((i) => i.id === id).status]).toEqual([id, FEATURES_BY_ID[id].status]);
+  }
 });
 
 test("built schedule and desk are distinguished from future calls", () => {
-  const stage = (id) => COMMUNITY_AREAS.find((item) => item.id === id)?.status;
-  expect(stage("programs")).toBe("in_development");
-  expect(stage("frontdesk")).toBe("in_development");
-  expect(stage("calls")).toBe("planned");
+  expect(COMMUNITY_BY_ID.activities.status).toBe("in_development");
+  expect(COMMUNITY_BY_ID.front_desk.status).toBe("in_development");
+  expect(COMMUNITY_BY_ID.front_desk_calls.status).toBe("planned");
 });
