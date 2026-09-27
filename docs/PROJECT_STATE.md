@@ -5074,3 +5074,148 @@ HANDOFF CAPSULE
 - Product invariants: wake listener OFF; no community data invented; production deploys only an approved GitHub SHA.
 - Do NOT change:    production without approval; RF bridge target (:8000) without a pendant-path decision.
 - Next safe action: Michael approves the exact main SHA for production.
+
+---
+
+## 2026-09-27 — Public onboarding and community sales preview (branch review)
+
+### Agent / tool
+Codex, isolated branch `feature/public-onboarding-catalog` off `main` `b099dc1`.
+Public website and onboarding documentation lane only.
+
+### What changed
+- `CAOSCARE_START_HERE.md` explicitly points coding agents to the canonical
+  `AGENTS.md` line-count/modularity rule and handoff reporting requirement.
+- `docs/PUBLIC_ONBOARDING_PACKAGE.md` records audience paths, local
+  resident/family showing, full department/service inventory, familiar Aria
+  handset, front-desk/neighbor calls, real per-room answering-machine
+  mailbox, approved wearables, room packages and ten-second video sequence.
+- Public `/for-communities` has a labelled sample-data staff dashboard
+  preview and expandable operational catalog. Public `/for-residents` shows
+  the resident video, room/phone/calling/messages and wearable groups.
+  `Staff sign in` remains the separate authenticated path. Landing navigation
+  links both new paths and its hero demo button points to the preview.
+- Corrected unsupported existing landing claims about building-wide
+  location, universal pendant compatibility and WCAG AAA.
+
+### What was verified
+- Current cloned `main` tip `b099dc1`; clean starting checkout.
+- Source inspection: previous hero `Staff dashboard` linked to login, the
+  active room baseline is EliteDesk + eMeet + TV, and the video catalog has
+  only 30-second illustrative Video #001. Local MP4 visual frames sampled;
+  its news TV scene shows a Fox News-like logo. Audio/transcript not reviewed.
+- `git diff --check` passes. HTTP HEAD to live `caoscare.com` returned 200,
+  but the public page's client-rendered content was not verified there.
+- Frontend test/build is **not verified** in this environment: Yarn dependency
+  fetch stalled and was stopped before packages installed.
+
+### Open / next safe step
+- Run the frontend tests/build and inspect desktop/mobile rendering on the
+  EliteDesk or another environment with dependencies; fix any issue before
+  merging. Verify the full video audio and create captions before promotion.
+- Production remains at the previously recorded `d7ff96a`; this branch is
+  neither merged nor deployed. Present the exact approved release range
+  before any future deployment.
+
+HANDOFF CAPSULE
+- Objective:        Public resident/family/community onboarding and honest sales preview.
+- Branch:           feature/public-onboarding-catalog (off b099dc1).
+- Lane / ownership: Public site and onboarding docs; not backend, Resident Aria, RF or deployment.
+- Last proven state: source/static checks; frontend build and runtime rendering pending.
+- Commits:          see branch tip when pushed.
+- Runtime state:    no local server started or production action taken.
+- Unresolved proven defects: no new runtime defect proven; test gate pending dependencies.
+- Product invariants: room node + eMeet + TV; real status/receipts; sample-only public demo.
+- Do NOT change:    production or actual resident data.
+- Next safe action: run frontend test/build and desktop/mobile review on EliteDesk.
+
+### 2026-09-27 addendum — automated frontend gate
+
+After the draft review branch was published, added
+`.github/workflows/frontend-check.yml` to run a frozen Yarn install,
+frontend tests and a production build on pull requests and main pushes
+that change the frontend. This verifies the build independently of the
+EliteDesk once GitHub Actions finishes; no production deployment is part of
+the workflow. Desktop/mobile visual and actual room hardware checks remain
+separate. Check the PR's workflow result before merging.
+
+First CI run installed dependencies, then failed 8 suites at import time
+because `REACT_APP_BACKEND_URL` was unset (20 suites / 116 tests passed;
+build was skipped). The frontend's `api.js` requires this variable even for
+unit-test imports. The workflow now supplies a CI-only localhost origin;
+no backend server or deployment is implied. Re-run required.
+
+---
+
+## 2026-09-27 — Public onboarding review corrections (PR #41)
+
+### Agent / tool and branch
+Codex on `feature/public-onboarding-catalog`; correction from Claude's
+EliteDesk review comment on PR #41. No merge or production deployment.
+
+### Review evidence
+Claude tested an isolated `:3002` worktree (the running `:3000` checkout was
+untouched): all four public routes worked at desktop/phone widths, no
+horizontal overflow, 28/28 frontend suites and 191/191 tests, clean build.
+It identified conflicting room status labels, built activities and front
+desk workspace marked Planned, mobile navigation/panel issues, and flaws in
+the existing 30-second Video #001. Its timestamped audio transcript and
+two-second frame review are preserved in the PR comment.
+
+### Changes in this correction
+- Room-related public stages derive from `lib/roomExperience/features.js`,
+  and public cards reuse its status badge. Lighting is In pilot on both
+  pages. Activities and the existing front desk workspace read In development;
+  desk calls remain Planned. The resident's TV, climate, blinds and lighting
+  have separate statuses. A focused test protects those relationships.
+- A new 8.6-second single-room greeting cut with poster and VTT replaces the
+  30-second film in the public library; the original file is preserved but
+  unlinked. The recut omits the duplicate exchange, planned family call,
+  TV static and imitation news logo. Generated with ffmpeg from 11.1–19.7 s
+  of the original and visually inspected at one-second intervals. The new
+  audio and cue timing still need local human review.
+- Mobile landing navigation is compact and no longer pinned; mobile staff
+  demo selection scrolls its result into view. Public page wordmarks match;
+  leftover unsupported copy on the landing/login screens is corrected.
+
+### Gate and next safe step
+Publish the correction to the existing draft PR, run frontend GitHub Actions,
+then review the new clip with audio and both mobile paths in the isolated
+EliteDesk worktree. Keep the branch draft until the review passes.
+## 2026-09-27 — Interactive capability cards on the public site (draft, stacked on PR #41)
+
+### Agent / tool
+Claude Code (Opus 5.5), worktree `~/CAOSCARE-WEBSITE`, branch `feature/interactive-capability-cards` off `feature/public-onboarding-catalog` `6129f0c` (PR #41). Public website frontend only.
+
+### What changed
+- One status registry, `frontend/src/lib/capabilities/status.js` (working / pilot / in development / planned, each with a plain definition shown on the page). `/experience`, `/for-residents`, `/for-communities` and the landing page all read it. This fixes the PR #41 contradiction (Lighting "In pilot" on /experience vs "In development" on /for-residents) and corrects activities and the front desk from "Planned" to "Working".
+- Capability cards on `/`, `/for-residents` and `/for-communities` open a demonstration on the same page: Radix dialog on desktop, full-screen panel on phone; scroll kept; focus returns to the card; `#cap-<id>` direct links. Each demo has five steps (resident does/says → CAOSCare understands → system action → staff/family see → what comes back), sample data, and a status banner saying what is not built.
+- Resident: one-press call, voice companion, building-wide location, low vision, pendant (RF), room controls (per-part status), plus a small "How staff respond" preview.
+- For Communities: staff dashboard demo (sample live board; each row opens its workflow) and 12 workflow cards: nursing, maintenance, transportation, dining, activities, housekeeping, therapy, beauty shop, front desk, administration, alerts/escalation, receipts/history/reporting.
+- Landing: feature cards open the same demos; "LIVE DEMO" label → "Illustrative"; removed "pagers" and "Frequency-flexible" card copy; footer spelled "CAOSCare". The For Residents video now says it includes planned features.
+
+### What was verified
+Frontend 29/29 suites, 201/201 tests (new `capabilities.test.js`: every surface's status equals the registry, 12 required workflows, five steps each, no "on the way" promise in Aria quotes). `CI=true` production build clean. Headless Chrome (desktop 1440, phone 390): no horizontal overflow on `/`, `/for-residents`, `/for-communities`; every tested card opens a dialog with 5 steps; phone dialog is full-screen (390×844); scroll position unchanged after close; hash set on open and cleared on close; focus returns to the card; dashboard rows open their workflow; `#cap-escalation` deep link opens on load; no console errors.
+
+### Not done
+Not merged, not deployed. Staff sign-in (/login) unchanged. Other PR #41 review items (Video #001 content, phone sticky nav, login "every zone", public Register tab) not addressed here.
+
+---
+
+## 2026-09-27 — PR #42 restacked on PR #41 head and corrected to CURRENT_PRIORITY
+
+### Agent / tool
+Claude Code (Opus 5.5), EliteDesk `~/CAOSCARE-WEBSITE`, branch `feature/interactive-capability-cards`. Not merged, not pushed, not deployed.
+
+### What changed
+- Rebased onto PR #41 head `a668199`; conflicts resolved keeping PR #41's work (wordmark, phone Explore menu, details-marker CSS, "Illustrative scene", "Paired pendant", login wording, front-desk workspace vs calls split, recut greeting video).
+- Statuses corrected per the 2026-09-27 audit (evidence noted in `lib/capabilities/status.js`). In pilot: voice, lights, paired pendant, each with stated limits. Everything else In development or Planned; nothing is Working.
+- Only In pilot capabilities open a five-step demonstration. In development / Planned capabilities expand into "Built so far" / "Not yet accepted" or "Planned" text. The staff dashboard demo is a non-interactive illustrative layout with each row's real status.
+- Landing hero quote no longer says "Help is coming" (Aria must not claim arrival).
+- PR #41's `publicOnboarding.test.js` kept and repointed at the new data.
+
+### What was verified
+Lights path files unchanged since the 2026-09-19 verified commit `7bad624` (evidence: live voice + HA read-back 09-05, touch 09-19, wake-word session 09-23); no new live hardware test run. Frontend 30/30 suites, 204/204 tests. `CI=true` build clean. Headless desktop 1440 and phone 390 on `/`, `/for-residents`, `/for-communities`, `/experience`: no overflow; only voice/lights/pendant are dialog buttons; all other cards are inline descriptions; phone dialog full-screen; scroll and focus restored; no console errors; Staff sign in → `/login`.
+
+### Not done
+Branch not force-pushed (PR #42 on GitHub still shows the old `38f06e9`). localhost:3000 unchanged (integration checkout).

@@ -10,12 +10,13 @@ export const EXPERIENCE_VIDEOS = [
   {
     id: "resident-experience-01",
     number: "001",
-    title: "The room is Aria",
+    title: "Good morning, Aria",
     summary:
-      "A resident's day, spoken naturally to the room — no screen to find, no device to learn.",
-    src: "/media/caoscare-resident-experience-01.mp4",
-    poster: "/media/caoscare-resident-experience-01-poster.jpg",
-    duration: "0:30",
-    kind: "Illustrative scenes",
+      "A resident greets Aria and hears the morning information in one room.",
+    src: "/media/caoscare-resident-greeting-01.mp4",
+    poster: "/media/caoscare-resident-greeting-01-poster.jpg",
+    captions: "/media/caoscare-resident-greeting-01.vtt",
+    duration: "0:09",
+    kind: "Illustrative scene",
   },
 ];
