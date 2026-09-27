@@ -24,6 +24,14 @@ Read `AGENTS.md` first.
 
 Then follow the read order and task-specific routing already defined there.
 
+For any code or UI work, read the **Change discipline → file size / modularity**
+rule in `AGENTS.md` before editing. Keep implementation files roughly within
+300–400 lines when practical; around 400 is a signal to split by coherent
+responsibility, not a hard cap. Do not keep enlarging an oversized file or
+split it mechanically. Report line counts of every created or materially
+modified production-code file at handoff. `AGENTS.md` is authoritative for
+the complete rule and exceptions.
+
 ## Re-ground before advising
 
 Before giving architecture, implementation, integration, status, or next-step advice:

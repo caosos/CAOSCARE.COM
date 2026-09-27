@@ -6,6 +6,8 @@ import { Toaster } from "./components/ui/sonner";
 
 import Landing from "./pages/Landing";
 import RoomExperience from "./pages/RoomExperience";
+import ForCommunities from "./pages/ForCommunities";
+import ForResidents from "./pages/ForResidents";
 import Login from "./pages/Login";
 import AdminLogin from "./pages/AdminLogin";
 import Kiosk from "./pages/Kiosk";
@@ -72,6 +74,8 @@ function AppRouter() {
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/experience" element={<RoomExperience />} />
+      <Route path="/for-communities" element={<ForCommunities />} />
+      <Route path="/for-residents" element={<ForResidents />} />
       <Route path="/login" element={<Login />} />
       <Route path="/admin-login" element={<AdminLogin />} />
       <Route path="/kiosk/:kioskId" element={<Kiosk />} />

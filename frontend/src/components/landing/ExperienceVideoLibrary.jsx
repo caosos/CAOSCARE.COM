@@ -27,6 +27,7 @@ export function ExperienceVideo({ video, featured }) {
           aria-describedby={summaryId}
         >
           <source src={video.src} type="video/mp4" />
+          {video.captions && <track kind="captions" src={video.captions} srcLang="en" label="English" default />}
           Your browser can't play this video.{" "}
           <a href={video.src}>Download the video</a>.
         </video>

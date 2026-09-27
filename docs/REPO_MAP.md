@@ -91,6 +91,20 @@ Implementation note: CAOS Care should not run a heavy multi-model council for ev
 
 ## Frontend map
 
+Public onboarding and sales preview (2026-09-27):
+
+```text
+frontend/src/pages/ForCommunities.jsx          Public staff-dashboard preview and community service catalog (sample data)
+frontend/src/pages/ForResidents.jsx            Resident/family experience, video, phone and device groups
+frontend/src/components/landing/PublicCatalog.jsx Shared expandable service/device cards and status labels
+frontend/src/lib/publicOnboarding.js           Public service/device inventory with capability stages
+docs/PUBLIC_ONBOARDING_PACKAGE.md              Audience paths, full feature inventory, phone/mailbox design, ten-second films
+```
+
+These public pages are distinct from authenticated staff workspaces and
+use no resident/backend data. Verify the current branch before claiming they
+are merged or deployed.
+
 Verified frontend page surfaces include:
 
 ```text

@@ -5074,3 +5074,111 @@ HANDOFF CAPSULE
 - Product invariants: wake listener OFF; no community data invented; production deploys only an approved GitHub SHA.
 - Do NOT change:    production without approval; RF bridge target (:8000) without a pendant-path decision.
 - Next safe action: Michael approves the exact main SHA for production.
+
+---
+
+## 2026-09-27 — Public onboarding and community sales preview (branch review)
+
+### Agent / tool
+Codex, isolated branch `feature/public-onboarding-catalog` off `main` `b099dc1`.
+Public website and onboarding documentation lane only.
+
+### What changed
+- `CAOSCARE_START_HERE.md` explicitly points coding agents to the canonical
+  `AGENTS.md` line-count/modularity rule and handoff reporting requirement.
+- `docs/PUBLIC_ONBOARDING_PACKAGE.md` records audience paths, local
+  resident/family showing, full department/service inventory, familiar Aria
+  handset, front-desk/neighbor calls, real per-room answering-machine
+  mailbox, approved wearables, room packages and ten-second video sequence.
+- Public `/for-communities` has a labelled sample-data staff dashboard
+  preview and expandable operational catalog. Public `/for-residents` shows
+  the resident video, room/phone/calling/messages and wearable groups.
+  `Staff sign in` remains the separate authenticated path. Landing navigation
+  links both new paths and its hero demo button points to the preview.
+- Corrected unsupported existing landing claims about building-wide
+  location, universal pendant compatibility and WCAG AAA.
+
+### What was verified
+- Current cloned `main` tip `b099dc1`; clean starting checkout.
+- Source inspection: previous hero `Staff dashboard` linked to login, the
+  active room baseline is EliteDesk + eMeet + TV, and the video catalog has
+  only 30-second illustrative Video #001. Local MP4 visual frames sampled;
+  its news TV scene shows a Fox News-like logo. Audio/transcript not reviewed.
+- `git diff --check` passes. HTTP HEAD to live `caoscare.com` returned 200,
+  but the public page's client-rendered content was not verified there.
+- Frontend test/build is **not verified** in this environment: Yarn dependency
+  fetch stalled and was stopped before packages installed.
+
+### Open / next safe step
+- Run the frontend tests/build and inspect desktop/mobile rendering on the
+  EliteDesk or another environment with dependencies; fix any issue before
+  merging. Verify the full video audio and create captions before promotion.
+- Production remains at the previously recorded `d7ff96a`; this branch is
+  neither merged nor deployed. Present the exact approved release range
+  before any future deployment.
+
+HANDOFF CAPSULE
+- Objective:        Public resident/family/community onboarding and honest sales preview.
+- Branch:           feature/public-onboarding-catalog (off b099dc1).
+- Lane / ownership: Public site and onboarding docs; not backend, Resident Aria, RF or deployment.
+- Last proven state: source/static checks; frontend build and runtime rendering pending.
+- Commits:          see branch tip when pushed.
+- Runtime state:    no local server started or production action taken.
+- Unresolved proven defects: no new runtime defect proven; test gate pending dependencies.
+- Product invariants: room node + eMeet + TV; real status/receipts; sample-only public demo.
+- Do NOT change:    production or actual resident data.
+- Next safe action: run frontend test/build and desktop/mobile review on EliteDesk.
+
+### 2026-09-27 addendum — automated frontend gate
+
+After the draft review branch was published, added
+`.github/workflows/frontend-check.yml` to run a frozen Yarn install,
+frontend tests and a production build on pull requests and main pushes
+that change the frontend. This verifies the build independently of the
+EliteDesk once GitHub Actions finishes; no production deployment is part of
+the workflow. Desktop/mobile visual and actual room hardware checks remain
+separate. Check the PR's workflow result before merging.
+
+First CI run installed dependencies, then failed 8 suites at import time
+because `REACT_APP_BACKEND_URL` was unset (20 suites / 116 tests passed;
+build was skipped). The frontend's `api.js` requires this variable even for
+unit-test imports. The workflow now supplies a CI-only localhost origin;
+no backend server or deployment is implied. Re-run required.
+
+---
+
+## 2026-09-27 — Public onboarding review corrections (PR #41)
+
+### Agent / tool and branch
+Codex on `feature/public-onboarding-catalog`; correction from Claude's
+EliteDesk review comment on PR #41. No merge or production deployment.
+
+### Review evidence
+Claude tested an isolated `:3002` worktree (the running `:3000` checkout was
+untouched): all four public routes worked at desktop/phone widths, no
+horizontal overflow, 28/28 frontend suites and 191/191 tests, clean build.
+It identified conflicting room status labels, built activities and front
+desk workspace marked Planned, mobile navigation/panel issues, and flaws in
+the existing 30-second Video #001. Its timestamped audio transcript and
+two-second frame review are preserved in the PR comment.
+
+### Changes in this correction
+- Room-related public stages derive from `lib/roomExperience/features.js`,
+  and public cards reuse its status badge. Lighting is In pilot on both
+  pages. Activities and the existing front desk workspace read In development;
+  desk calls remain Planned. The resident's TV, climate, blinds and lighting
+  have separate statuses. A focused test protects those relationships.
+- A new 8.6-second single-room greeting cut with poster and VTT replaces the
+  30-second film in the public library; the original file is preserved but
+  unlinked. The recut omits the duplicate exchange, planned family call,
+  TV static and imitation news logo. Generated with ffmpeg from 11.1–19.7 s
+  of the original and visually inspected at one-second intervals. The new
+  audio and cue timing still need local human review.
+- Mobile landing navigation is compact and no longer pinned; mobile staff
+  demo selection scrolls its result into view. Public page wordmarks match;
+  leftover unsupported copy on the landing/login screens is corrected.
+
+### Gate and next safe step
+Publish the correction to the existing draft PR, run frontend GitHub Actions,
+then review the new clip with audio and both mobile paths in the isolated
+EliteDesk worktree. Keep the branch draft until the review passes.
