@@ -53,7 +53,21 @@ materials and a community-specific checklist of enabled services.
 
 The site should expose the following through plain-language navigation and
 expandable service/device groups. Every public capability carries its own
-`In pilot`, `In development`, or `Planned` label from build evidence.
+`Working`, `In pilot`, `In development`, or `Planned` label from build evidence.
+All pages read that label from one registry,
+`frontend/src/lib/capabilities/status.js`; change it there, from evidence only.
+
+### Interactive capability demonstrations (2026-09-27)
+
+Every major capability card on `/`, `/for-residents` and `/for-communities`
+opens a demonstration on the same page (a dialog; a full-screen panel on a
+phone). Each walks through five steps: what the resident does or says, what
+CAOSCare understands, what the system does, what staff or family see, and
+what comes back. Content is sample data in
+`frontend/src/lib/capabilities/{resident,community}.js`. A demo can be linked
+directly as `#cap-<id>`. Planned and in-development demonstrations say so in
+the dialog; a demonstration never implies an unfinished feature is available.
+
 
 | Area | Resident/family story | Staff/community story | 2026-09-27 position |
 |---|---|---|---|

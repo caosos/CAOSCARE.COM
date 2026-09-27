@@ -726,3 +726,10 @@ listener verifier experiment: `docs/experiments/`.
 - `frontend/src/lib/roomExperience/`: `communities.js` (demo/verified data rules), `features.js` (capability catalog + honest build status), `model.js` (helpers + validator).
 - `frontend/src/components/roomExperience/`: `FloorPlanView`, `RoomFeatureConfigurator`, `ExperiencePanel` (reuses the landing video player).
 - Design + V1 notes: `docs/ROOM_BUILDER_DESIGN.md`.
+
+## 2026-09-27 — Interactive capability cards (branch feature/interactive-capability-cards)
+
+- `frontend/src/lib/capabilities/status.js`: the single public capability status registry (working / pilot / in_development / planned). `/experience`, `/for-residents`, `/for-communities` and the landing page all read it.
+- `frontend/src/lib/capabilities/{resident,community,steps}.js`: five-step demonstration data (sample data only); `community.js` also holds the staff dashboard demo rows.
+- `frontend/src/components/capabilities/`: `CapabilityCard`, `CapabilityDemo` (dialog / phone full-screen panel), `useCapabilityDemo` (`#cap-<id>` links, focus return), `StatusPill`, `StatusLegend`, `StaffDashboardPreview`, `StaffResponsePreview`.
+- `frontend/src/lib/publicOnboarding.js` now holds only the planned phone/calling/messages/wearable entries; the old `COMMUNITY_AREAS` list is replaced by `community.js`.
