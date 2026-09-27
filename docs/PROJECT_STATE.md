@@ -5182,3 +5182,20 @@ two-second frame review are preserved in the PR comment.
 Publish the correction to the existing draft PR, run frontend GitHub Actions,
 then review the new clip with audio and both mobile paths in the isolated
 EliteDesk worktree. Keep the branch draft until the review passes.
+## 2026-09-27 — Interactive capability cards on the public site (draft, stacked on PR #41)
+
+### Agent / tool
+Claude Code (Opus 5.5), worktree `~/CAOSCARE-WEBSITE`, branch `feature/interactive-capability-cards` off `feature/public-onboarding-catalog` `6129f0c` (PR #41). Public website frontend only.
+
+### What changed
+- One status registry, `frontend/src/lib/capabilities/status.js` (working / pilot / in development / planned, each with a plain definition shown on the page). `/experience`, `/for-residents`, `/for-communities` and the landing page all read it. This fixes the PR #41 contradiction (Lighting "In pilot" on /experience vs "In development" on /for-residents) and corrects activities and the front desk from "Planned" to "Working".
+- Capability cards on `/`, `/for-residents` and `/for-communities` open a demonstration on the same page: Radix dialog on desktop, full-screen panel on phone; scroll kept; focus returns to the card; `#cap-<id>` direct links. Each demo has five steps (resident does/says → CAOSCare understands → system action → staff/family see → what comes back), sample data, and a status banner saying what is not built.
+- Resident: one-press call, voice companion, building-wide location, low vision, pendant (RF), room controls (per-part status), plus a small "How staff respond" preview.
+- For Communities: staff dashboard demo (sample live board; each row opens its workflow) and 12 workflow cards: nursing, maintenance, transportation, dining, activities, housekeeping, therapy, beauty shop, front desk, administration, alerts/escalation, receipts/history/reporting.
+- Landing: feature cards open the same demos; "LIVE DEMO" label → "Illustrative"; removed "pagers" and "Frequency-flexible" card copy; footer spelled "CAOSCare". The For Residents video now says it includes planned features.
+
+### What was verified
+Frontend 29/29 suites, 201/201 tests (new `capabilities.test.js`: every surface's status equals the registry, 12 required workflows, five steps each, no "on the way" promise in Aria quotes). `CI=true` production build clean. Headless Chrome (desktop 1440, phone 390): no horizontal overflow on `/`, `/for-residents`, `/for-communities`; every tested card opens a dialog with 5 steps; phone dialog is full-screen (390×844); scroll position unchanged after close; hash set on open and cleared on close; focus returns to the card; dashboard rows open their workflow; `#cap-escalation` deep link opens on load; no console errors.
+
+### Not done
+Not merged, not deployed. Staff sign-in (/login) unchanged. Other PR #41 review items (Video #001 content, phone sticky nav, login "every zone", public Register tab) not addressed here.
