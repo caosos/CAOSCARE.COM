@@ -5035,3 +5035,42 @@ HANDOFF CAPSULE
 - Product invariants: no invented community data; capability status from evidence; resident rooms are not tablet-based.
 - Do NOT change:    :3000 / CAOSCARE-INTEGRATION; production.
 - Next safe action: Michael reviews http://localhost:3001/experience.
+
+---
+
+## 2026-09-27 — Convergence: stranded EliteDesk work integrated into one canonical line and pushed to GitHub
+
+### Agent / tool
+Claude Code (Opus 5.5), canonical EliteDesk checkout `~/CAOSCARE-INTEGRATION`, branch `integration/2026-09-27` → pushed to `main`. Not deployed.
+
+### Safety refs (all pushed to GitHub as tags)
+`safety/2026-09-27/{aria-wake-word-proof 32526f5, feature-room-experience-v1 c41dae1, docs-release-control 9673955, docs-room-builder ed7494d, main fb216d4, origin-main d7ff96a, wake-word-uncommitted f93ff7b}` — the last is a snapshot commit object of the 22 uncommitted wake-phrase files (excluding the untracked backend/.venv), made without touching the working tree.
+
+### Integrated (merge commits, product intent unchanged)
+- `aria/wake-word-proof`: local wake-word listener + opt-in `?wake=1` page trigger (12dadd4), refused-mark_resting-is-spoken fix (ab2ef40), wake-word docs/history, Wake Phrase Lab Step 1 (bcbdf07); plus the previously-uncommitted Wake Phrase Lab acoustic stage / Step 2 / speaker-verification design, committed as 897dc60 (identical to the safety snapshot). Listener remains OFF; default kiosk behaviour unchanged.
+- `main` d7ff96a (SEO, favicon, Video Library #001, resident-room wording).
+- `feature/room-experience-v1` (public `/experience` V1 + Room Builder design doc).
+- `docs/release-control` (release-control requirement + 2026-09-25 deploy record).
+- Duplicates recorded without content change: `docs/room-builder` ed7494d (= 919d9cf) and the wake-branch favicon cherry-pick 32526f5 (= afeff27).
+- Conflicts: only the append-only logs `docs/PROJECT_STATE.md` / `docs/REPO_MAP.md`; resolved by keeping every entry in date order.
+
+### Deliberately not integrated (already on GitHub, other lanes, need their own review)
+`origin/agent/*` (13, 2026-08-30 contract docs), `aria-core-scaffold`, `aria-ambient-intent`, `local-ai-room-node` (2026-06), `aria/sim-7-inbound-email-bus`, `chore/repo-hygiene-20260908`, `codex/...audit...`, `conflict_020526_1222` (Emergent auto), `feature/adaptive-conversation-tempo` (known VAD conflict), `feature/runtime-agent-lanes-20260830`.
+
+### What was verified
+Frontend 28/28 suites, 191/191; production build compiled, 0 warnings. Backend canonical gate (`scripts/run_backend_tests.sh`, HA disabled): 223 passed / 4 failed / 13 skipped vs untouched main baseline 222 / 4 / 13 — the same 4 pre-existing failures (iter10/iter11 realtime-session tool-set expectations and weather label run when a real OpenAI key/FACILITY_LABEL are present in backend/.env; test_ops_overview past_requested_date_open). Listener tests 4/4; Wake Phrase Lab 30/30. localhost:3000 (restarted from this checkout) serves `/` (video, favicon, SEO title/canonical, current wording, no "room-mounted tablet") and `/experience`; kiosk route 200; wake-word code in bundle. Separate `:3001` website server stopped.
+
+### Open
+Pre-existing failing tests above (stale expectations; not fixed here). Production still d7ff96a; deploying the converged commit needs Michael's approval with the release-control range shown.
+
+HANDOFF CAPSULE
+- Objective:        One canonical CAOSCare line on GitHub main; EliteDesk :3000 serves it.
+- Branch:           main (pushed from ~/CAOSCARE-INTEGRATION integration/2026-09-27)
+- Lane / ownership: Convergence only; no product behaviour changed.
+- Last proven state: gates above; :3000 verified.
+- Commits:          see this entry's commit (tip of main).
+- Runtime state:    :3000 dev (this checkout), :8092 backend (this checkout), :8000/:8001 old lane backends still running (RF bridge posts to :8000); production d7ff96a.
+- Unresolved proven defects: the 4 pre-existing backend test failures.
+- Product invariants: wake listener OFF; no community data invented; production deploys only an approved GitHub SHA.
+- Do NOT change:    production without approval; RF bridge target (:8000) without a pendant-path decision.
+- Next safe action: Michael approves the exact main SHA for production.
