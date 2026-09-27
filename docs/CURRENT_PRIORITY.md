@@ -1,0 +1,204 @@
+# CAOSCARE Current Priority
+
+**Status:** Active execution priority  
+**Set by Michael:** 2026-09-26  
+**Target:** **CAOSCare Pilot 1 operational by 2026-10-10**
+
+This file is intentionally short-lived/current-state guidance. It does not replace the Product Baseline, AGENTS.md, lane contracts, or PROJECT_STATE. When this target is completed or Michael changes direction, update this file rather than leaving stale priority instructions in onboarding.
+
+## Pilot 1 finish line
+
+By 2026-10-10, CAOSCare should be usable as a real pilot in **one or two resident rooms** at a community, using the community's normal network, with the minimum dependable hardware and software required to operate.
+
+The target is not "finish every future CAOSCare idea." The target is a real, usable product slice.
+
+Pilot 1 should prove these two chains:
+
+```text
+Resident speaks / presses
+→ Aria understands
+→ CAOS routes
+→ correct department is notified
+→ staff sees and acts
+→ lifecycle / receipt changes
+→ Aria can truthfully report current status
+```
+
+and:
+
+```text
+Resident asks for a room action
+→ CAOS issues the device command
+→ actual hardware executes / verifies
+→ Aria reports the observed result truthfully
+```
+
+## Non-negotiable demo rule
+
+**Do not publicly demonstrate a capability as working before the real resident/staff/admin workflow is actually usable and acceptance-tested.**
+
+Marketing/demo surfaces are downstream of the working product.
+
+For each capability:
+
+1. build the real operational workflow;
+2. make the resident/staff/admin pages usable in normal work;
+3. run a real end-to-end acceptance test;
+4. only then expose a public demonstration of that capability;
+5. if unfinished, hide it or label it honestly as in development / planned.
+
+The public website must never outrun the real product.
+
+## Priority order
+
+### P0 — Keep the development/deployment topology disciplined
+
+Normal completion path:
+
+```text
+Laptop (control/gateway)
+→ SSH EliteDesk
+→ build / integrate / test
+→ commit
+→ push GitHub
+→ Michael reviews exact release
+→ deploy exact approved GitHub SHA to Linode
+→ verify production
+```
+
+EliteDesk is the current integrated development environment. GitHub is canonical committed source/history. Linode is approved production. Feature branches/worktrees are temporary lanes, not permanent alternate CAOSCare versions.
+
+### P1 — Finish and stabilize the real software people will use
+
+Close and acceptance-test the actual operational workflows and their UI surfaces, including the highest-value pilot paths:
+
+- resident Aria request creation/status;
+- nursing/care requests;
+- maintenance requests;
+- transportation;
+- dining/menu;
+- activities/programs;
+- housekeeping;
+- front desk / administration requests;
+- department workspaces and staff lifecycle;
+- admin/leadership visibility;
+- receipts/history/status truth.
+
+The standard is not "backend code exists." The intended resident, staff member, or administrator must be able to use the workflow without developer knowledge or SSH.
+
+### P2 — Make real email/notification exchange operational
+
+Configure and live-test the existing inbound/outbound communication plumbing.
+
+Minimum pilot proof:
+
+- a real inbound menu email reaches CAOSCare, is safely ingested, reviewed/approved, and updates the real menu;
+- a real inbound activities/program email reaches the system and updates the relevant workflow;
+- a real resident/staff request routes to the correct department and produces an actual notification/email;
+- notification status and receipts are inspectable;
+- no "logged only" behavior is presented as actual delivery.
+
+Add department addresses/allowlists as needed using the existing architecture rather than inventing parallel email systems.
+
+### P3 — Close Resident Aria's real-life operational loops
+
+Test natural requests such as:
+
+- "My sink is leaking."
+- "There is a smell in my bathroom."
+- "There is something on the floor."
+- "I need help going to the bathroom."
+- "I need a nurse."
+- "I want to speak with the executive director."
+- "I need transportation for my appointment at 9:30 on the fifth."
+
+Aria should understand intent, ask only for genuinely missing information, create/use the correct real workflow, route it, preserve resident wording/context, avoid false claims, and answer later status questions from the real system state.
+
+CAOSCare must be more than another Alexa: relationship/context + governed action + receipts + truthful follow-through.
+
+### P4 — Build the minimum dependable room hardware stack
+
+For one room first, then reproduce it in a second room.
+
+Minimum practical stack may include:
+
+- hidden EliteDesk-class room node;
+- reliable Wi-Fi/Ethernet on the community network;
+- eMeet-class audio endpoint;
+- dependable wake/voice path for the actual room;
+- RF/pendant receiving required for pilot;
+- IR control for the actual TV;
+- the minimum real light/HVAC/device control needed for the chosen pilot rooms;
+- other protocols only when they close an actual pilot requirement.
+
+Michael has indicated budget is available for required RF/IR/device hardware. Do not buy broad speculative hardware before identifying the exact pilot-room need.
+
+### P5 — Make one room boringly reliable, then clone to room two
+
+Acceptance includes:
+
+- auto-start after reboot/power loss;
+- service recovery after normal network interruptions;
+- correct resident/room identity;
+- no duplicate voice sessions;
+- real pendant/event routing;
+- truthful hardware command success/failure;
+- normal operation without SSH babysitting.
+
+Document the provision/setup so the second room is a reproduction, not a second science experiment.
+
+### P6 — Public resident/family experience
+
+This is the first public story people should understand.
+
+Show what living with CAOSCare feels like using only proven capabilities:
+
+- resident experience videos;
+- interactive capability cards;
+- room/apartment experience;
+- accessibility/low-vision support;
+- voice/help/maintenance/status flows;
+- proven room controls;
+- family/resident communication where actually usable.
+
+Capability cards should be clickable and open an on-page demonstration rather than dead marketing copy.
+
+### P7 — Public "For Communities" / community experience
+
+Separate community/operator marketing from real staff sign-in.
+
+- **Staff dashboard demo** = public sample/demo experience.
+- **Staff sign in** = real authenticated operational product.
+
+Community/operator demonstrations should show the real workflow behind nursing, maintenance, transportation, dining, activities, housekeeping, front desk/administration, reporting/receipts, and other completed domains.
+
+Community profiles should eventually support verified community-specific information such as photos, floor plans, dining, amenities, and reusable CAOSCare experience modules. Build this as data-driven exchangeable community information, not one hardcoded page per facility.
+
+### P8 — End-to-end pilot acceptance
+
+Before calling Pilot 1 ready, deliberately exercise the system from resident request through staff action and follow-up, including browser/mobile use, emails, restart/recovery, actual room hardware, and production-facing website claims.
+
+Every failure becomes a bounded punch-list item. Avoid unrelated feature expansion until the pilot chain passes.
+
+## Scope discipline through 2026-10-10
+
+New ideas go to the backlog unless they are required to close a Pilot 1 loop.
+
+Do not let these displace the deadline unless Michael explicitly changes priority:
+
+- broad old-branch cleanup;
+- speculative future device protocols;
+- polishing features not needed for Pilot 1;
+- large unrelated refactors;
+- demos of unimplemented capabilities;
+- expansion to many rooms before one/two-room reliability is proven.
+
+## Current decision rule
+
+When choosing what to work on next, ask:
+
+**Does this materially help make one or two real rooms + real staff workflows operational by 2026-10-10?**
+
+If yes, prioritize it.
+
+If no, backlog it unless Michael explicitly overrides this priority.
