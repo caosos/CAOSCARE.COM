@@ -5219,3 +5219,18 @@ Lights path files unchanged since the 2026-09-19 verified commit `7bad624` (evid
 
 ### Not done
 Branch not force-pushed (PR #42 on GitHub still shows the old `38f06e9`). localhost:3000 unchanged (integration checkout).
+
+---
+
+## 2026-09-27 — Living Pilot 1 execution checklist created
+
+### Agent / tool
+Claude Code (Opus 5.5), EliteDesk `~/CAOSCARE-INTEGRATION`, branch `integration/2026-09-27` on `c7b789d`. Documentation only; not deployed.
+
+### What changed
+- New `docs/PILOT1_EXECUTION_CHECKLIST.md`: the authoritative execution tracker for the 2026-10-10 Pilot 1 target. 14 phases with acceptance criteria, status symbols, the update protocol, and starting statuses taken from existing evidence (5 `[x]`, 4 `[!]`, 76 `[~]`, 139 `[ ]`).
+- `CAOSCARE_START_HERE.md`: hydration now requires reading `docs/CURRENT_PRIORITY.md` and the checklist and identifying the current phase and active task; no lower-priority work while a checklist task is active unless Michael redirects; update the checklist after every work block.
+- `docs/CURRENT_PRIORITY.md`: points to the checklist as the execution tracker.
+
+### Current phase / task
+PHASE 1: Michael's visual review of the public-capability WIP on localhost:3000 (`wip/public-capability-panels` `0985ae5`).

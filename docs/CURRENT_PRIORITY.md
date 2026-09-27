@@ -4,6 +4,8 @@
 **Set by Michael:** 2026-09-26  
 **Target:** **CAOSCare Pilot 1 operational by 2026-10-10**
 
+**Execution tracker:** [`docs/PILOT1_EXECUTION_CHECKLIST.md`](PILOT1_EXECUTION_CHECKLIST.md) is the authoritative, living checklist for the 2026-10-10 Pilot 1 target: phases, task status, acceptance evidence, the current phase and the current active task. This file sets priority; the checklist tracks execution. Update the checklist after every meaningful work block.
+
 This file is intentionally short-lived/current-state guidance. It does not replace the Product Baseline, AGENTS.md, lane contracts, or PROJECT_STATE. When this target is completed or Michael changes direction, update this file rather than leaving stale priority instructions in onboarding.
 
 ## Pilot 1 finish line

@@ -1,0 +1,396 @@
+# CAOSCare Pilot 1 Execution Checklist
+
+Target: 2026-10-10
+
+Current phase: PHASE 1 — Visual review of current public WIP
+Current active task: Michael reviews the public capability-panel WIP on localhost:3000 and records one punch list
+Current integration branch: `integration/2026-09-27`
+Current integration SHA: `c7b789d` (last code state; this checklist is committed on top of it)
+Last updated: 2026-09-27
+Last updated by: Claude Code (Opus 5.5), EliteDesk
+
+Pilot definition:
+One or two real resident rooms + real staff workflows + department notifications + resident Aria + minimum room controls + public website demonstrating only accepted capabilities.
+
+Related: [`docs/CURRENT_PRIORITY.md`](CURRENT_PRIORITY.md) (priority order and rules) · [`docs/PROJECT_STATE.md`](PROJECT_STATE.md) (dated history) · [`frontend/src/lib/capabilities/status.js`](../frontend/src/lib/capabilities/status.js) (public status registry).
+
+---
+
+## Update protocol
+
+> **After every meaningful CAOSCare work block, the agent performing the work must update this checklist before declaring the task complete.**
+
+Each update must include:
+
+- changed task status
+- evidence supporting every new `[x]`
+- the relevant commit SHA
+- runtime/test result where applicable
+- the blocker, for every `[!]`
+- any newly discovered required task, added to the correct phase
+- the header fields: Current phase, Current active task, Last updated, Last updated by (and the integration branch/SHA when they change)
+
+Rules:
+
+- A task does **not** become `[x]` because code exists. `[x]` requires the phase's stated acceptance evidence.
+- Do not mark future work complete based on design intent.
+- If work spans several phases, update every affected phase.
+- If Michael changes priority, update this checklist rather than leaving stale ordering.
+- Do not delete completed checklist history to shorten the file.
+
+Status symbols:
+
+| Symbol | Meaning |
+|---|---|
+| `[ ]` | Not started |
+| `[~]` | In progress (includes: implementation exists but not yet accepted) |
+| `[x]` | Completed and verified |
+| `[!]` | Blocked / failed acceptance |
+| `[-]` | Intentionally deferred / not required for Pilot 1 |
+
+---
+
+## PHASE 1 — Visual review of current public WIP
+
+- [x] Serve current public-capability WIP on localhost:3000 — `wip/public-capability-panels` `0985ae5` via `caoscare-frontend-dev.service` from `~/CAOSCARE-WIP-PANELS/frontend` (2026-09-27). Restore to integration with the backup drop-in `~/.config/systemd/user/caoscare-frontend-dev.worktree.conf.integration-backup`.
+- [ ] Michael reviews `/`
+- [ ] Michael reviews `/for-residents`
+- [ ] Michael reviews `/for-communities`
+- [ ] Michael reviews `/experience`
+- [~] Click every major public capability card — agent pass done 2026-09-27 on localhost:3000: 45 panels per width, desktop 1440 + phone 390, all open with image/status/flow and close cleanly; Michael's pass pending.
+- [ ] Record Michael's visual/product punch list (one bounded list, added to Phase 2)
+- [x] Confirm original 30-second Video #001 — `/media/caoscare-resident-experience-01.mp4`, 30.04 s, plays on localhost:3000 (2026-09-27); blob `ea7868b2` unchanged since `d7ff96a`.
+- [x] Confirm Staff sign in remains real login — goes to `/login` with a password field (2026-09-27).
+- [~] Confirm status claims are honest — registry audited 2026-09-27 (`status.js`; only voice, lights, pendant, room screen are In pilot; nothing Working); `capabilities.test.js` locks it. Michael's confirmation pending.
+
+Acceptance: Michael has reviewed the actual localhost experience and there is one bounded punch list for corrections.
+
+## PHASE 2 — Public experience corrections
+
+- [ ] Fix stale/misleading copy
+- [ ] Replace weak/outdated screenshots — known: TV and thermostat shown on demo devices; pendant screenshot is a thin table crop.
+- [ ] Remove old tablet wording — known: room screen says "the tablet will ask for microphone permission" (`frontend/src/pages/Kiosk.jsx`).
+- [ ] Correct pendant frequency overclaims — known: admin Pendants screen says any 315/319/433/868/915 MHz pendant works (`frontend/src/pages/RFPairingTab.jsx`); proven with one 319.5 MHz model only.
+- [ ] Correct unsupported notification wording — known: room screen says "I'll stay with you while staff are notified".
+- [ ] Improve text-heavy panels
+- [~] Ensure real UI screenshots are used where software exists — 22 real screens (demo data) in WIP `0985ae5`; not yet merged.
+- [~] Keep planned/in-development demonstrations explicitly labeled — done in WIP `0985ae5`; not yet merged.
+- [ ] Desktop/mobile acceptance of the corrected pages
+
+Acceptance: every public claim and screenshot accurately represents the current product.
+
+## PHASE 3 — Real staff operational workflows
+
+Status note: `[~]` below means the software path exists (see screenshots in `frontend/public/media/screens/`) but has not been accepted by real staff.
+
+**Nursing / care**
+
+- [~] Resident request created
+- [~] Correct department routing
+- [~] Nursing queue visible
+- [~] Acknowledge
+- [~] Assign/action
+- [~] Complete
+- [~] Receipt/history
+- [~] Resident can ask real status
+
+**Maintenance**
+
+- [~] Request
+- [~] Work order
+- [~] Assignment
+- [~] In progress
+- [~] Notes
+- [~] Time spent
+- [~] Completion
+- [~] History/status back to resident
+
+**Transportation**
+
+- [ ] Real drivers configured
+- [ ] Real vehicles configured
+- [~] Availability
+- [~] Request
+- [~] Assignment
+- [ ] Confirmation
+- [~] Change/cancel
+- [ ] Completion/history
+
+**Kitchen / dining / menu**
+
+- [~] Menu intake
+- [~] Review
+- [~] Publish
+- [~] Resident lookup through Aria
+- [ ] Corrections propagate
+
+**Activities / programs**
+
+- [~] Schedule intake
+- [~] Publish
+- [~] Resident Today view
+- [~] Aria lookup
+
+**Housekeeping**
+
+- [~] Request/task
+- [~] Queue
+- [~] Assignment
+- [~] Progress
+- [~] Completion
+- [~] Receipt
+
+**Front desk**
+
+- [~] Resident directory
+- [~] Request queue
+- [~] Callback/request handling
+- [~] Status lifecycle
+
+**Administration / reporting**
+
+- [~] Cross-department view
+- [~] Request detail
+- [~] Receipts/history — some status changes still overwrite the previous receipt instead of appending (`docs/ENGINEERING_CONTRACT.md` decision 5).
+- [~] Operational overview
+
+**Alerts / escalation**
+
+- [!] One valid state model — two escalation implementations exist; `"escalated"` is not a valid `AlertStatus` (`docs/ENGINEERING_CONTRACT.md` decision 8).
+- [!] Timer/rule behavior — no automatic timer; escalation runs only when an administrator triggers it.
+- [ ] Escalation receipts
+- [ ] Acceptance test
+
+Acceptance: intended staff can use included workflows in normal work without SSH or developer knowledge.
+
+## PHASE 4 — Real email / notification system
+
+- [~] Configure provider/runtime — Resend inbound webhook exists (`e092e36`); live configuration not verified.
+- [ ] Configure domain/webhook
+- [ ] Configure API keys securely
+- [~] Configure sender allowlists — per-lane allowlist exists in code; real addresses not configured.
+- [ ] Real inbound menu email
+- [ ] Review/publish menu (from a real email)
+- [ ] Real inbound activities email
+- [ ] Department contact addresses
+- [ ] Real outbound nursing notification
+- [ ] Real outbound maintenance notification
+- [ ] Real outbound transportation notification
+- [ ] Front desk/admin notification
+- [ ] Delivery/receipt visibility
+- [ ] Fallback routing verified
+
+Acceptance: real information enters and leaves CAOSCare through actual configured communication paths.
+
+## PHASE 5 — Resident Aria operational loops
+
+Acceptance-test natural speech:
+
+- [ ] "I need help going to the bathroom." — earlier live routing to nursing seen 2026-08-29; not re-accepted on the current tree.
+- [ ] "I need a nurse."
+- [ ] "My sink is leaking."
+- [ ] "Something smells strange in my bathroom."
+- [ ] "There is something on the floor."
+- [ ] "I want to talk to the executive director."
+- [ ] "I need transportation for my appointment at 9:30 on the fifth."
+- [ ] "Did anybody see my request?"
+
+For each phrase, check: intent understood · missing information clarified only when necessary · correct real workflow used · resident wording/context preserved · correct routing · real receipt/status · no fabricated staff action · follow-up reports actual state.
+
+Acceptance: Aria closes real operational loops rather than acting as a command-only assistant.
+
+## PHASE 6 — Resident calling / phone
+
+- [ ] Finalize Pilot 1 phone architecture
+- [ ] Analog handset
+- [ ] ATA
+- [ ] SIP/PBX
+- [ ] Aria bridge
+- [ ] Off-hook → Aria
+- [ ] Dial 0 → front desk
+- [ ] "Aria, call the front desk"
+- [ ] Approved family contact calling
+- [ ] Resident-to-resident/internal calling where enabled
+- [ ] Call state: requested
+- [ ] Call state: dialing
+- [ ] Call state: connected
+- [ ] Call state: unanswered
+- [ ] Call state: failed
+- [ ] Call state: ended
+- [ ] Call receipt/history
+- [ ] No tablet required
+
+Acceptance: the resident can make a real two-way front-desk call and an approved family call.
+
+## PHASE 7 — Room hardware
+
+Inventory exact make/model/protocol:
+
+- [ ] Thermostat
+- [~] Light bulbs — two TP-Link Tapo L535E (Matter) in Room 214.
+- [ ] Smart plugs
+- [ ] TV
+- [~] eMeet/audio — eMeet OfficeCore Luna Plus in Room 214.
+- [~] RF receiver — Nooelec NESDR SMArt v5 on the EliteDesk.
+- [~] Pendant — one Lifeline pendant, 319.5 MHz, paired to Room 214.
+- [~] Existing room node — HP EliteDesk 705 G4 DM.
+
+Implement/test:
+
+- [~] Lights — voice + touch with Home Assistant read-back verified in Room 214 (2026-09-05 / 09-19 / 09-23); not yet in a pilot room.
+- [!] Thermostat — Midea AC's Matter session is unstable; no verified voice temperature change.
+- [ ] Smart plugs
+- [ ] IR hardware
+- [ ] TV power/input/channel as supported
+- [~] RF pendant listening — works in Room 214; staff response loop not accepted.
+- [ ] Existing facility pendant path remains untouched (verify at the pilot community)
+- [!] Wake phrase — single-word "Aria" rejected (false wakes 2026-09-24); listener off; Wake Phrase Lab in progress (`docs/WAKE_PHRASE_LAB.md`).
+- [ ] False-wake test
+- [ ] Far-field test
+- [ ] TV/noise soak test
+- [~] Device state read-back — implemented for lights and climate; verified for lights only.
+
+Acceptance: advertised room commands operate real pilot-room hardware and report verified state.
+
+## PHASE 8 — Pilot Room 1
+
+- [ ] Select room
+- [ ] Network access
+- [ ] Install room node
+- [ ] Install/configure audio
+- [ ] Correct room/resident identity
+- [ ] Contacts/permissions
+- [ ] Autostart
+- [ ] Reboot recovery
+- [ ] Network loss/recovery
+- [ ] Voice test
+- [ ] Request test
+- [ ] Calling test
+- [ ] Room-control test
+- [ ] Pendant parallel-path test
+- [ ] No SSH babysitting during ordinary operation
+
+Acceptance: Room 1 operates normally without developer intervention.
+
+## PHASE 9 — Pilot Room 2 / repeatability
+
+- [ ] Document Room 1 provisioning
+- [ ] Hardware checklist
+- [ ] Software/config checklist
+- [ ] Validation checklist
+- [ ] Reproduce in Room 2
+- [ ] Record room-specific differences
+
+Acceptance: the second room is a repeatable deployment rather than a second custom build.
+
+## PHASE 10 — Public resident / family experience
+
+- [x] Featured original 30-second Video #001 — restored 2026-09-27 (integration `2961ade`, PR #41 `9f7dc4c`, PR #42 `b4934ce`); plays on localhost:3000.
+- [~] Resident imagery — four supplied images organized in WIP `0985ae5` (`frontend/public/media/marketing/`).
+- [~] Resident actual UI — room-screen screenshots in WIP `0985ae5`.
+- [ ] Morning experience
+- [~] Voice interaction — panel in WIP.
+- [~] Help request — panel in WIP.
+- [~] Room controls — panels in WIP.
+- [~] Family connection — Planned panel in WIP.
+- [ ] Calling where accepted
+- [~] Accessibility / low vision — panel in WIP.
+- [ ] Community selector/profile structure
+- [ ] Verified community-specific images
+- [ ] Floor plans where verified
+- [ ] Dining experience
+- [ ] Activities experience
+
+Acceptance: a prospective resident/family can understand what living with CAOSCare actually feels like.
+
+## PHASE 11 — Public community / sales experience
+
+Status note: `[~]` here means the panel exists on WIP `0985ae5` (real screenshots, sample data) and is awaiting Michael's review and merge.
+
+- [~] Staff dashboard demo
+- [~] Nursing visual workflow
+- [~] Maintenance visual workflow
+- [~] Transportation visual workflow
+- [~] Kitchen/menu visual workflow
+- [~] Activities visual workflow
+- [~] Housekeeping visual workflow
+- [~] Front desk visual workflow
+- [~] Admin/reporting visual workflow
+- [~] Alerts/escalation visual workflow
+- [~] Therapy panel
+- [~] Beauty shop panel
+- [x] Staff sign in remains separate — `/login`, verified 2026-09-27.
+- [~] Demo records explicitly sample/illustrative — every screenshot labelled "CAOSCare screen · sample data"; photos "Illustrative photo".
+- [ ] Community-specific reusable content model
+
+Acceptance: a community operator can see what residents experience and what each staff department actually uses.
+
+## PHASE 12 — Blue / white visual system
+
+- [ ] Confirm final palette with Michael
+- [ ] Update centralized CSS variables (`frontend/src/index.css`, `:root` `--caos-*`)
+- [ ] Blue/white primary identity
+- [ ] Restrained neutrals
+- [ ] Remove tan/orange/forest-green-heavy presentation
+- [ ] Status colors remain distinguishable
+- [ ] Accessibility/contrast check
+- [ ] Desktop/mobile review
+
+Acceptance: Michael approves the visual direction and accessibility remains sound.
+
+## PHASE 13 — Full pilot acceptance
+
+Run real end-to-end tests for:
+
+- [ ] Nursing
+- [ ] Maintenance
+- [ ] Transportation
+- [ ] Menus
+- [ ] Activities
+- [ ] Housekeeping
+- [ ] Front desk
+- [ ] Administration
+- [ ] Email inbound
+- [ ] Email outbound
+- [ ] Calling
+- [ ] Lights
+- [ ] Thermostat
+- [ ] TV/IR
+- [ ] Pendant
+- [ ] Wake phrase
+- [ ] Staff dashboard
+- [ ] Resident Aria
+- [ ] Mobile
+- [ ] Restart/recovery
+- [ ] Network interruption/recovery
+
+Every failure becomes a punch-list item.
+
+Acceptance: no unknown critical gaps remain; remaining defects are documented and bounded.
+
+## PHASE 14 — Release
+
+- [ ] EliteDesk integrated state clean
+- [ ] Full tests
+- [ ] Production build
+- [ ] Commit
+- [ ] Push GitHub
+- [ ] Show Michael current production SHA
+- [ ] Show proposed SHA
+- [ ] Show exact commit range
+- [ ] Show exact changed files
+- [ ] Identify extras
+- [ ] Michael approves exact release
+- [ ] Deploy exact approved GitHub SHA to Linode
+- [ ] Verify production
+- [ ] Record deployment receipt
+
+Acceptance: Linode runs the exact SHA Michael approved.
+
+---
+
+## Update log
+
+| Date | By | Change |
+|---|---|---|
+| 2026-09-27 | Claude Code (Opus 5.5) | Checklist created on `integration/2026-09-27` at `c7b789d`. Starting statuses taken from `docs/PROJECT_STATE.md` evidence and the 2026-09-27 localhost:3000 panel pass. |
