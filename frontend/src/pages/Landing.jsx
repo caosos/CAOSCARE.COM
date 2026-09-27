@@ -4,6 +4,7 @@ import { Button } from "../components/ui/button";
 import { Shield, Activity, Heart, MapPin, MessageSquare, Zap } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { roleHomePath, roleHomeLabel } from "../lib/roleHome";
+import ExperienceVideoLibrary from "../components/landing/ExperienceVideoLibrary";
 
 const HERO_IMG =
   "https://images.unsplash.com/photo-1765896387387-0538bc9f997e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODh8MHwxfHNlYXJjaHwxfHxzZW5pb3IlMjByZXNpZGVudCUyMGNhcmVnaXZlciUyMHNtaWxlfGVufDB8fHx8MTc3NjU2NTU1NXww&ixlib=rb-4.1.0&q=85";
@@ -131,6 +132,8 @@ export default function Landing() {
           </div>
         </div>
       </section>
+
+      <ExperienceVideoLibrary />
 
       {/* Feature grid */}
       <section className="px-6 md:px-12 py-20 bg-caos-ambient">

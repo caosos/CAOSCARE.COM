@@ -4726,3 +4726,35 @@ Nothing code-related touched. `docs/reports/MULTI_AGENT_EXECUTION_PLAN.md` and `
 
 ### Next safe step
 Resume Track 1 execution (age-bound stale-alert counters, Tasks "Today" filter, DepartmentWorkspace wiring, front-desk request dedup reuse, local menu/schedule seed refresh) - this doc update was a prerequisite gate before those lanes began growing files, per Michael's explicit sequencing.
+
+---
+
+## 2026-09-26 — Public site: resident-experience video library, Video #001
+
+### Agent / tool
+Claude Code (Opus 5.5), temporary worktree off `origin/main` (`ae6c405`), branch `feature/video-library-001`. Public-website frontend lane only.
+
+### What changed
+- `CAOSCare_30sec_resident_experience.mp4` moved (git mv, history kept) from the repo root to `frontend/public/media/caoscare-resident-experience-01.mp4` (H.264 + AAC, 1280x720, 30.0 s, moov-first); poster `caoscare-resident-experience-01-poster.jpg` = frame at 10 s.
+- `frontend/src/lib/experienceVideos.js`: the single library list (add a video = add an entry). `frontend/src/components/landing/ExperienceVideoLibrary.jsx`: "See CAOSCare in everyday life." section — featured first video, grid for later ones; `controls`, `preload="none"`, poster, `playsInline`, no autoplay, labelled via aria-labelledby/-describedby; entries marked "Illustrative scenes". `Landing.jsx`: +1 import, section placed after the hero. Test `lib/__tests__/experienceVideos.test.js` (unique ids, assets exist).
+
+### What was verified
+Frontend tests 25/25 suites, 176/176; production build compiled with no warnings. Local served build: assets 200 with correct types, range requests 206; desktop 1440 and phone 390 renders; real-time headless playback unmuted: playing, 98 frames decoded, audio track decoded (68 KB), no media error; on page load the player is paused, preload none, 0 bytes fetched. Favicon, robots.txt, sitemap.xml present in the build.
+
+### Open
+- The film shows a TV channel logo imitating Fox News (~22 s); trademark/brand-impersonation review before promoting it publicly.
+- No captions: needs a verified transcript (a `<track>` slot can be added to the library entry).
+- Existing landing copy still says "CAOS Care" and describes the room as a "room-mounted tablet" (stale per the Product Baseline) — not changed here.
+- Not deployed. Production is `afeff27`; deploying this needs Michael's approval of the exact commit.
+
+HANDOFF CAPSULE
+- Objective:        Resident-experience video library on the public site, Video #001.
+- Branch:           feature/video-library-001 (off main ae6c405)
+- Lane / ownership: Public website frontend only. Not backend, Resident Aria runtime, Room 214, pendant.
+- Last proven state: local production build + real-time playback verified (above).
+- Commits:          see this entry's commit.
+- Runtime state:    nothing deployed; production afeff27.
+- Unresolved proven defects: none in this change.
+- Product invariants: user-started playback only; no capability claims beyond the film; written brand "CAOSCare".
+- Do NOT change:    favicon/SEO files; other landing sections.
+- Next safe action: Michael reviews; approve exact commit; merge to main; deploy with release-control range shown.
