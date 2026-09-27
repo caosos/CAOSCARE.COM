@@ -102,6 +102,20 @@ Add department addresses/allowlists as needed using the existing architecture ra
 
 ### P3 — Close Resident Aria's real-life operational loops
 
+#### Resident calling is a Pilot 1 requirement
+
+Residents must be able to use Aria to initiate real calls without operating a complicated device.
+
+Minimum Pilot 1 calling paths:
+
+- **Front desk:** "Aria, call the front desk." Aria initiates a real two-way call to the community front desk using the room audio/handset path and reports call state truthfully.
+- **Family:** a resident may ask Aria to call an approved family contact. Use the resident's structured contact list/permissions; do not guess numbers or call arbitrary contacts.
+- Preserve a simple call lifecycle: requested → dialing → connected / unanswered / failed → ended, with a receipt/log suitable for troubleshooting and operational review.
+- Aria must never claim a person answered or that a call connected unless the telephony provider/runtime proves it.
+- Calling must be usable from the resident room without requiring a tablet UI.
+
+Current repository evidence says Twilio SMS/email plumbing exists, but live-line Twilio **voice** is not yet operational in the current audited state. Treat real voice calling as unfinished until a live front-desk call and a live approved-family call are acceptance-tested.
+
 Test natural requests such as:
 
 - "My sink is leaking."
@@ -120,18 +134,27 @@ CAOSCare must be more than another Alexa: relationship/context + governed action
 
 For one room first, then reproduce it in a second room.
 
+Michael already has pilot hardware available including:
+- a wireless thermostat;
+- wireless light bulbs;
+- wireless smart plugs.
+
+Inventory their exact makes/models/protocols before buying duplicates. Integrate them only through verified adapters and read-back where available.
+
 Minimum practical stack may include:
 
 - hidden EliteDesk-class room node;
 - reliable Wi-Fi/Ethernet on the community network;
 - eMeet-class audio endpoint;
 - dependable wake/voice path for the actual room;
-- RF/pendant receiving required for pilot;
-- IR control for the actual TV;
+- IR control for the actual TV (procure the minimum compatible IR hardware needed for the pilot room);
+- RF/pendant receiving as a **secondary / additive** CAOSCare feature; CAOSCare must not interfere with or replace the resident's existing community call-button workflow during Pilot 1;
 - the minimum real light/HVAC/device control needed for the chosen pilot rooms;
 - other protocols only when they close an actual pilot requirement.
 
 Michael has indicated budget is available for required RF/IR/device hardware. Do not buy broad speculative hardware before identifying the exact pilot-room need.
+
+Pendant priority for Pilot 1: preserve the facility's existing button behavior first. CAOSCare may listen/ingest the pendant signal in parallel for context, receipts, Aria follow-up, or staff workflow integration, but the existing resident safety/call path remains authoritative unless a later validated deployment intentionally changes it. A common pendant use case is toileting/bathroom assistance; CAOSCare should be able to interpret that context through the resident/staff workflow without falsely treating every button press as the same intent.
 
 ### P5 — Make one room boringly reliable, then clone to room two
 
