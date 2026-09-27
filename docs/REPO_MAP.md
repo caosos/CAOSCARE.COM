@@ -705,3 +705,10 @@ fetch | build | sources | inspect`. Corpus sources + licenses in
 `config/default.yaml`; authored domain corpus in `wakelab/corpus/domain/`.
 Methodology and limits: `docs/WAKE_PHRASE_LAB.md`. Preserved (not adopted)
 listener verifier experiment: `docs/experiments/`.
+
+## 2026-09-27 — Public room experience V1 (`/experience`, branch feature/room-experience-v1)
+
+- `frontend/src/pages/RoomExperience.jsx`: community → apartment → floor plan + sq ft → features → experience.
+- `frontend/src/lib/roomExperience/`: `communities.js` (demo/verified data rules), `features.js` (capability catalog + honest build status), `model.js` (helpers + validator).
+- `frontend/src/components/roomExperience/`: `FloorPlanView`, `RoomFeatureConfigurator`, `ExperiencePanel` (reuses the landing video player).
+- Design + V1 notes: `docs/ROOM_BUILDER_DESIGN.md`.
