@@ -1,18 +1,21 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import PublicCatalog from "../components/landing/PublicCatalog";
-import { RESIDENT_AREAS, WEARABLE_AREAS } from "../lib/publicOnboarding";
-import { RESIDENT_BY_ID, RESIDENT_CAPABILITIES } from "../lib/capabilities/resident";
+import { RESIDENT_CAPABILITIES } from "../lib/capabilities/resident";
+import { CAPABILITIES_BY_ID } from "../lib/capabilities";
 import { ExperienceVideo } from "../components/landing/ExperienceVideoLibrary";
 import { EXPERIENCE_VIDEOS } from "../lib/experienceVideos";
 import CapabilityCard from "../components/capabilities/CapabilityCard";
-import CapabilityDemo from "../components/capabilities/CapabilityDemo";
+import CapabilityPanel from "../components/capabilities/CapabilityPanel";
 import StatusLegend from "../components/capabilities/StatusLegend";
-import StaffResponsePreview from "../components/capabilities/StaffResponsePreview";
-import useCapabilityDemo from "../components/capabilities/useCapabilityDemo";
+import StaffDashboardShowcase from "../components/capabilities/StaffDashboardShowcase";
+import useCapabilityPanel from "../components/capabilities/useCapabilityPanel";
+
+// Cards in two groups: what exists today (any stage) and what is planned.
+const AVAILABLE = RESIDENT_CAPABILITIES.filter((c) => c.status !== "planned");
+const PLANNED = RESIDENT_CAPABILITIES.filter((c) => c.status === "planned");
 
 export default function ForResidents() {
-  const demo = useCapabilityDemo(RESIDENT_BY_ID);
+  const panel = useCapabilityPanel(CAPABILITIES_BY_ID);
   return (
     <div className="min-h-screen bg-caos-bone text-caos-ink" data-testid="for-residents">
       <nav className="px-6 md:px-12 py-6 border-b border-caos-line flex flex-wrap items-center justify-between gap-4">
@@ -37,17 +40,23 @@ export default function ForResidents() {
         )}
         <section aria-labelledby="resident-heading">
           <h2 id="resident-heading" className="font-display text-3xl md:text-4xl text-caos-forest mb-4">What Aria can help with</h2>
-          <p className="mb-6 max-w-3xl">Capabilities proven in our test room open a step-by-step demonstration. The others show what is built so far or what is planned.</p>
+          <p className="mb-6 max-w-3xl">Open any card to see what it looks like, what happens at each step, and exactly how far it has been built and tested.</p>
           <div className="mb-8"><StatusLegend items={RESIDENT_CAPABILITIES} /></div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {RESIDENT_CAPABILITIES.map((c) => <CapabilityCard key={c.id} capability={c} onOpen={demo.open} />)}
+            {AVAILABLE.map((c) => <CapabilityCard key={c.id} capability={c} onOpen={panel.open} />)}
           </div>
         </section>
-        <StaffResponsePreview />
+        <section aria-labelledby="staff-respond-heading">
+          <h2 id="staff-respond-heading" className="font-display text-3xl md:text-4xl text-caos-forest mb-4">How staff respond</h2>
+          <p className="mb-6 max-w-3xl">A resident's request reaches the staff software with their own words. These are real CAOSCare screens with sample data.</p>
+          <StaffDashboardShowcase onOpen={panel.open} compact />
+        </section>
         <section aria-labelledby="design-heading">
-          <h2 id="design-heading" className="font-display text-3xl md:text-4xl text-caos-forest mb-4">Also in design</h2>
-          <p className="mb-7 max-w-3xl">Phone, calling, messages, blinds and wearables. Devices come from a small catalog approved for each community; availability, setup and pricing will be shown with the room package once verified.</p>
-          <PublicCatalog items={[...RESIDENT_AREAS, ...WEARABLE_AREAS]} label="Planned resident options" />
+          <h2 id="design-heading" className="font-display text-3xl md:text-4xl text-caos-forest mb-4">Planned</h2>
+          <p className="mb-6 max-w-3xl">Designed but not available yet. Devices will come from a small list approved for each community; availability, setup and pricing will be shown once verified.</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {PLANNED.map((c) => <CapabilityCard key={c.id} capability={c} onOpen={panel.open} />)}
+          </div>
         </section>
         <section className="rounded-3xl bg-caos-ambient p-8 md:p-12">
           <h2 className="font-display text-3xl text-caos-forest">A local introduction, together</h2>
@@ -55,8 +64,8 @@ export default function ForResidents() {
           <Link to="/for-communities" className="inline-block mt-5 text-caos-forest underline underline-offset-4">How the community uses CAOSCare</Link>
         </section>
       </main>
-      <CapabilityDemo capability={demo.capability} open={demo.isOpen} onClose={demo.close}
-        onCloseAutoFocus={demo.onCloseAutoFocus} />
+      <CapabilityPanel capability={panel.capability} open={panel.isOpen} onClose={panel.close}
+        onCloseAutoFocus={panel.onCloseAutoFocus} />
     </div>
   );
 }

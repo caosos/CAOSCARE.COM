@@ -5,6 +5,9 @@ import { availableFeatures, bedroomLabel, defaultSelection, formatSquareFeet } f
 import FloorPlanView from "../components/roomExperience/FloorPlanView";
 import RoomFeatureConfigurator from "../components/roomExperience/RoomFeatureConfigurator";
 import ExperiencePanel from "../components/roomExperience/ExperiencePanel";
+import { CAPABILITIES_BY_ID } from "../lib/capabilities";
+import CapabilityPanel from "../components/capabilities/CapabilityPanel";
+import useCapabilityPanel from "../components/capabilities/useCapabilityPanel";
 
 // Public room experience (V1): community -> apartment model -> floor plan +
 // square footage -> configure CAOSCare features -> experience the room.
@@ -23,6 +26,7 @@ export default function RoomExperience() {
   const model = community?.models.find((m) => m.id === modelId) || community?.models[0];
   const features = useMemo(() => (model ? availableFeatures(model) : []), [model]);
   const [selected, setSelected] = useState(() => (model ? defaultSelection(model) : new Set()));
+  const panel = useCapabilityPanel(CAPABILITIES_BY_ID);
 
   const pickCommunity = (c) => { setCommunityId(c.id); pickModel(c.models[0]); };
   const pickModel = (m) => { setModelId(m.id); setSelected(defaultSelection(m)); };
@@ -102,12 +106,14 @@ export default function RoomExperience() {
           </div>
           <div className="lg:col-span-5">
             <h3 className="font-display text-xl text-caos-forest mb-4 lg:mt-12">Choose CAOSCare features</h3>
-            <RoomFeatureConfigurator features={features} selected={selected} onToggle={toggle} />
+            <RoomFeatureConfigurator features={features} selected={selected} onToggle={toggle} onShow={panel.open} />
           </div>
         </section>
 
         <ExperiencePanel model={model} features={features} selected={selected} />
       </main>
+      <CapabilityPanel capability={panel.capability} open={panel.isOpen} onClose={panel.close}
+        onCloseAutoFocus={panel.onCloseAutoFocus} />
     </div>
   );
 }

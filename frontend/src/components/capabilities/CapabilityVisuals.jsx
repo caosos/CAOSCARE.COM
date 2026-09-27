@@ -32,7 +32,7 @@ export default function CapabilityVisuals({ visuals }) {
             <li key={v.src}>
               <button type="button" onClick={() => setIndex(i)} aria-pressed={i === index} aria-label={`Show image ${i + 1}: ${v.alt}`}
                       className={`w-24 h-16 rounded-lg overflow-hidden border-2 bg-caos-ambient ${i === index ? "border-caos-forest" : "border-caos-line"}`}>
-                <VisualImage visual={v} className="w-full h-full object-cover object-top" />
+                <VisualImage visual={v} className={`w-full h-full object-cover ${v.kind === "screen" ? "object-left-top" : "object-center"}`} />
               </button>
             </li>
           ))}

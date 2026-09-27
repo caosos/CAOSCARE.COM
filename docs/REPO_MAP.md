@@ -733,3 +733,9 @@ listener verifier experiment: `docs/experiments/`.
 - `frontend/src/lib/capabilities/{resident,community,steps}.js`: five-step demonstration data (sample data only); `community.js` also holds the staff dashboard demo rows.
 - `frontend/src/components/capabilities/`: `CapabilityCard`, `CapabilityDemo` (dialog / phone full-screen panel), `useCapabilityDemo` (`#cap-<id>` links, focus return), `StatusPill`, `StatusLegend`, `StaffDashboardPreview`, `StaffResponsePreview`.
 - `frontend/src/lib/publicOnboarding.js` now holds only the planned phone/calling/messages/wearable entries; the old `COMMUNITY_AREAS` list is replaced by `community.js`.
+
+## 2026-09-27 — Capability panels (branch wip/public-capability-panels)
+
+- `frontend/src/components/capabilities/`: `CapabilityPanel` (the on-page panel), `CapabilityVisuals`, `CapabilityCard`, `StaffDashboardShowcase`, `useCapabilityPanel` (`#cap-<id>` links, focus return), `StatusPill`, `StatusLegend`.
+- `frontend/src/lib/capabilities/`: `status.js` (single status registry), `resident.js`, `community.js`, `visuals.js`, `index.js`.
+- `frontend/public/media/screens/`: real software screenshots (demo data). `frontend/public/media/marketing/`: supplied lifestyle images.

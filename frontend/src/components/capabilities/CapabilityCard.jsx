@@ -12,7 +12,7 @@ export default function CapabilityCard({ capability, onOpen, icon: Icon }) {
             className="group text-left h-full w-full min-w-0 bg-white rounded-2xl border border-caos-line overflow-hidden flex flex-col hover:border-caos-forest focus-visible:outline focus-visible:outline-2 focus-visible:outline-caos-forest transition-colors">
       {thumb && (
         <span className="block aspect-video bg-caos-ambient overflow-hidden">
-          <VisualImage visual={thumb} className="w-full h-full object-cover object-top" />
+          <VisualImage visual={thumb} className={`w-full h-full object-cover ${thumb.kind === "screen" ? "object-left-top" : "object-center"}`} />
         </span>
       )}
       <span className="p-5 md:p-6 flex flex-col flex-1">

@@ -5219,3 +5219,26 @@ Lights path files unchanged since the 2026-09-19 verified commit `7bad624` (evid
 
 ### Not done
 Branch not force-pushed (PR #42 on GitHub still shows the old `38f06e9`). localhost:3000 unchanged (integration checkout).
+
+---
+
+## 2026-09-27 — Clickable capability panels with real software screenshots (WIP branch)
+
+### Agent / tool
+Claude Code (Opus 5.5), EliteDesk, branch `wip/public-capability-panels` (on `integration/2026-09-27` `c7b789d`), worked in a temporary worktree so localhost:3000 kept serving the integration checkout. Not merged, not deployed.
+
+### What changed
+- Removed the redundant repo-root copy of the 30-second video (byte-identical to `frontend/public/media/caoscare-resident-experience-01.mp4`, which is untouched).
+- Every capability card on `/`, `/for-residents`, `/for-communities` and `/experience` opens one panel type (`CapabilityPanel`) with status, visuals, the four-part flow, built today and not yet accepted/planned. Retired: `CapabilityDemo`, `StaffDashboardPreview`, `StaffResponsePreview`, `PublicCatalog`, `publicOnboarding.js`, `steps.js`.
+- 22 screenshots of the actual staff and room software (`frontend/public/media/screens/`), captured from an isolated demo database (`caoscare_public_demo`: seeded demo community, no real residents, outbound services disabled). Four supplied lifestyle images in `frontend/public/media/marketing/`.
+- Staff dashboard demo now shows real screenshots (sample data) instead of a drawn table.
+
+### What was verified
+Frontend 29/29 suites, 205/205 tests; CI production build clean. Headless desktop 1440 and phone 390 on all four pages: every card (7, 16, 15, 7 openers) opens a panel with a loaded image, status and full flow; closes with focus returned, scroll unchanged and hash cleared; phone panels full-screen; no horizontal overflow; only console message is the signed-out `/api/auth/me` 401. Video #001 plays (30.04 s). Staff sign in → `/login`.
+
+### Product defects found while capturing (not fixed here)
+- Real Pendants admin screen says any 315/319/433/868/915 MHz pendant works (overclaims; public crop excludes it).
+- Real room screen says "I'll stay with you while staff are notified" and "the tablet will ask for microphone permission".
+
+### Next
+Michael reviews on the :3007 review server; decide whether this merges into integration.

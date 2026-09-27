@@ -57,41 +57,23 @@ expandable service/device groups. Every public capability carries its own
 All pages read that label from one registry,
 `frontend/src/lib/capabilities/status.js`; change it there, from evidence only.
 
-### Interactive capability cards (2026-09-27, corrected to CURRENT_PRIORITY)
+### Clickable capability panels (2026-09-27)
 
-Rule: the website never claims or demonstrates a capability beyond its
-acceptance evidence. Only `Working` / `In pilot` capabilities open a
-step-by-step demonstration (five steps: resident does/says, CAOSCare
-understands, system action, staff/family see, what comes back), with their
-limits stated. `In development` and `Planned` capabilities expand in place
-into a labelled description: what is built so far and what is not yet
-accepted, or the planned design. The staff dashboard demo is an illustrative,
-non-interactive layout showing each workflow's real status. Data:
-`frontend/src/lib/capabilities/{status,resident,community}.js`.
+Every capability card on `/`, `/for-residents`, `/for-communities` and
+`/experience` opens the same on-page panel (dialog; full-screen on phones):
+title, status from `frontend/src/lib/capabilities/status.js`, visuals, what
+the resident or staff member does, what CAOSCare does, what staff see, what
+happens next, what is built today, and what is not yet accepted or still
+planned. In-development and planned flows are worded as designs ("would"),
+never as working features.
 
-
-
-| Area | Resident/family story | Staff/community story | 2026-09-27 position |
-|---|---|---|---|
-| Room conversation | Talk from chair/bed to Aria; TV may display information | Authorized resident context and conversation history | Pilot in test room; far-field wake phrase unselected |
-| Help button and pendant | Press familiar button for assistance | Event, routing, acknowledgement, receipts | Pilot RF decode and paired pendant; broader deployment unproven |
-| Nursing/care requests | Ask for help, hear the actual next step | Care queue, human response and escalation | Pilot request path, not autonomous clinical care |
-| Maintenance/housekeeping | Report a broken item or cleaning need | Assign, progress, complete, audit work | Partial operational workspace |
-| Transportation and appointments | Ask for a ride; pending is not booked | Calendar, driver/vehicle, capacity and confirmation | Partial; current schedule data is not a real community deployment |
-| Kitchen menus | Ask what dinner is; hear published menu or unknown | Publish current menu and corrections | Partial |
-| Programs/activities | Ask what is on today | Schedule intake, Today panel and Aria schedule lookup exist | In development; community publishing still needs setup |
-| Therapy | Appointments, reminders and messages | Authorized scheduling/coordination | Planned complete service |
-| Beauty shop/salon | Ask for availability or an appointment | Confirm before promising a booking | Planned |
-| Front desk workspace | Request and transportation coordination | Authorized desk view of requests, residents and transportation | In development |
-| Front desk calls | Call or request a callback | Single desk station, queue, presence, call acceptance | Planned voice routing |
-| Leadership | Follow the status of a request | Cross-department view, real detail and receipts | Partial admin views; full coordination later |
-| Family | Calls, messages, photos/video where available | Scoped communication/permissions | Planned full experience |
-| Room devices | Voice control of lights; TV, climate, plugs and blinds as available | Approved device inventory, verified resulting state | Lights pilot; remaining devices vary |
-
-No public card should quietly turn a proposed service into a released
-feature. The site's example rows are labelled sample data. Never suggest a
-resident request was acknowledged, booked or completed merely because Aria
-heard it.
+Visuals (`frontend/src/lib/capabilities/visuals.js`):
+- `frontend/public/media/screens/`: screenshots of the actual CAOSCare
+  software, captured from an isolated demo database (`caoscare_public_demo`
+  on the EliteDesk, seeded by `backend/scripts/seed_demo_community.py`).
+  Sample data only; retake when the screen changes.
+- `frontend/public/media/marketing/`: the four supplied lifestyle images,
+  labelled "Illustrative photo"; never a stand-in for a software screen.
 
 ## The familiar phone and answering machine
 
