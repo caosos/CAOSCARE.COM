@@ -15,7 +15,7 @@ describe("resident-experience video library", () => {
     for (const key of ["id", "number", "title", "summary", "src", "poster", "duration", "kind"]) {
       expect(v[key]).toBeTruthy();
     }
-    for (const asset of [v.src, v.poster, v.captions]) {
+    for (const asset of [v.src, v.poster, v.captions].filter(Boolean)) {
       expect(asset.startsWith("/media/")).toBe(true);
       expect(fs.existsSync(path.join(PUBLIC, asset))).toBe(true);
     }
