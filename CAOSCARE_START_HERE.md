@@ -24,6 +24,12 @@ Read `AGENTS.md` first.
 
 Then follow the read order and task-specific routing already defined there.
 
+## Current execution priority
+
+Immediately after repository-wide hydration, read **`docs/CURRENT_PRIORITY.md`** when it exists. It holds Michael's current execution target and priority order. Treat it as current-state guidance, not durable product architecture; the Product Baseline and contracts still govern product truth.
+
+Do not let lower-priority feature expansion displace an active deadline in `docs/CURRENT_PRIORITY.md` unless Michael explicitly changes priority.
+
 ## Re-ground before advising
 
 Before giving architecture, implementation, integration, status, or next-step advice:
