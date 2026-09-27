@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from "./lib/auth";
 import { Toaster } from "./components/ui/sonner";
 
 import Landing from "./pages/Landing";
+import RoomExperience from "./pages/RoomExperience";
 import Login from "./pages/Login";
 import AdminLogin from "./pages/AdminLogin";
 import Kiosk from "./pages/Kiosk";
@@ -70,6 +71,7 @@ function AppRouter() {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
+      <Route path="/experience" element={<RoomExperience />} />
       <Route path="/login" element={<Login />} />
       <Route path="/admin-login" element={<AdminLogin />} />
       <Route path="/kiosk/:kioskId" element={<Kiosk />} />

@@ -677,3 +677,10 @@ This repository is an active CAOS Care multi-surface codebase. Keep the map curr
 - Tests: `backend/tests/test_aria_interpretation_patterns.py`,
   `backend/tests/test_aria_turn_taking.py`,
   `frontend/src/lib/__tests__/realtimeSessionUpdateLanguage.test.js`.
+
+## 2026-09-27 — Public room experience V1 (`/experience`, branch feature/room-experience-v1)
+
+- `frontend/src/pages/RoomExperience.jsx`: community → apartment → floor plan + sq ft → features → experience.
+- `frontend/src/lib/roomExperience/`: `communities.js` (demo/verified data rules), `features.js` (capability catalog + honest build status), `model.js` (helpers + validator).
+- `frontend/src/components/roomExperience/`: `FloorPlanView`, `RoomFeatureConfigurator`, `ExperiencePanel` (reuses the landing video player).
+- Design + V1 notes: `docs/ROOM_BUILDER_DESIGN.md`.

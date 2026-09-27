@@ -4758,3 +4758,36 @@ HANDOFF CAPSULE
 - Product invariants: user-started playback only; no capability claims beyond the film; written brand "CAOSCare".
 - Do NOT change:    favicon/SEO files; other landing sections.
 - Next safe action: Michael reviews; approve exact commit; merge to main; deploy with release-control range shown.
+
+---
+
+## 2026-09-27 — Environment reconciliation + public room-experience V1 (EliteDesk only)
+
+### Agent / tool
+Claude Code (Opus 5.5). New persistent worktree `~/CAOSCARE-WEBSITE`, branch `feature/room-experience-v1` off `main` `d7ff96a`.
+
+### Environment state (proven)
+- GitHub `main` = Linode production = `d7ff96a` (production tree clean; build of 2026-09-27 00:24 UTC serves `main.7a1fa061.js`, which contains the video library; MP4/poster/favicon/robots/sitemap all served correctly; no service worker).
+- EliteDesk `:3000` = `caoscare-frontend-dev.service`, running since 2026-09-19, serving `~/CAOSCARE-INTEGRATION/frontend` on lane branch `aria/wake-word-proof` (`32526f5`, 5 commits behind main, 7 lane commits ahead). It has none of the SEO/video/wording commits — the cause of the "old page" when viewing the EliteDesk dev site. `:3000` also serves the Room 214 kiosk, so it was not changed.
+
+### What changed
+- Public route `/experience` (V1 of the room experience): see `docs/ROOM_BUILDER_DESIGN.md` "V1 as built". Demo data only, clearly labelled; capability status honest (pilot / in development / planned). `ExperienceVideo` exported from the landing library for reuse. `ROOM_BUILDER_DESIGN.md` brought in from the unpushed proposal (`ed7494d`).
+- Served for review on EliteDesk `:3001` via transient user unit `caoscare-website-dev` (`systemctl --user stop caoscare-website-dev` to stop).
+
+### What was verified
+Frontend tests 26/26 suites, 185/185; production build compiled with no warnings from the new files.
+
+### Not done / open
+Not deployed (review first). No real community data. Landing page does not link to `/experience` yet.
+
+HANDOFF CAPSULE
+- Objective:        Public community/room experience (commercial website), V1 foundation.
+- Branch:           feature/room-experience-v1 (worktree ~/CAOSCARE-WEBSITE)
+- Lane / ownership: Public website frontend only. Not Resident Aria, Room 214, staff ops, backend.
+- Last proven state: tests + build pass; dev server :3001.
+- Commits:          see this entry's commit.
+- Runtime state:    EliteDesk :3001 website dev server (transient unit); :3000 unchanged (integration lane); production d7ff96a.
+- Unresolved proven defects: none in this change.
+- Product invariants: no invented community data; capability status from evidence; resident rooms are not tablet-based.
+- Do NOT change:    :3000 / CAOSCARE-INTEGRATION; production.
+- Next safe action: Michael reviews http://localhost:3001/experience.

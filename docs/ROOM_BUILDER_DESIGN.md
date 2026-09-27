@@ -98,3 +98,19 @@ targets and readable text (older users, families on phones).
 3. Pricing in the summary, or capabilities only for now?
 4. Room plans describe a person's home — confirm storage/retention
    expectations before any public, logged-out version.
+
+## V1 as built (2026-09-27, branch `feature/room-experience-v1`, EliteDesk review only)
+
+Public route `/experience` — community → apartment model → floor plan +
+square footage → CAOSCare features → "Experience this room with CAOSCare"
+(example phrases + the resident-experience video library). Not deployed.
+
+- Data: `frontend/src/lib/roomExperience/` — `communities.js` (only a clearly
+  labelled demo community; real ones require `dataStatus: "verified"` + a
+  published source), `features.js` (capability catalog with build status:
+  In pilot / In development / Planned), `model.js` (helpers + validator).
+- UI: `pages/RoomExperience.jsx`, `components/roomExperience/` (FloorPlanView:
+  real floor-plan image when provided, otherwise a labelled schematic;
+  RoomFeatureConfigurator; ExperiencePanel reusing the video player).
+- Not in V1: the RoomPlan editing model, placing items, voice/conversational
+  setup, saving, pricing, generated previews (phases 2-3 above).

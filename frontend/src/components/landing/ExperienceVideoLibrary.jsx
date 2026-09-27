@@ -7,7 +7,7 @@ import { EXPERIENCE_VIDEOS } from "../../lib/experienceVideos";
 // Playback is always user-started with the video's own audio: no autoplay,
 // and preload="none" so the page never downloads video nobody asked for.
 
-function ExperienceVideo({ video, featured }) {
+export function ExperienceVideo({ video, featured }) {
   const titleId = `xp-${video.id}-title`;
   const summaryId = `xp-${video.id}-summary`;
   return (
