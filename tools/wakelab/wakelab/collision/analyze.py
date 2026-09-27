@@ -81,19 +81,26 @@ def _risk(findings, cfg):
 def analyze(idx, pron, cfg, candidate_text=""):
     """Full metric set for one pronunciation of a candidate."""
     findings = search(idx, pron, cfg)
+    exact = cfg["distance"]["exact"]
     for f in findings:
-        f["is_candidate_itself"] = f["text"].lower() == candidate_text.lower()
+        # the candidate itself, or a same-sounding spelling of it as a NAME
+        # (Delilah / Delila) - not a collision with a different word
+        f["is_candidate_itself"] = (f["text"].lower() == candidate_text.lower() or
+                                    (f["metric"] == "name" and f["relation"] == "whole"
+                                     and f["distance"] <= exact))
     base_keys = {(f["_i"], f["relation"]) for f in findings}
     var = []
     for vpron, rule, desc in variants(pron):
         for f in search(idx, vpron, cfg, relations=("whole", "embedded")):
             if (f["_i"], f["relation"]) not in base_keys:
-                var.append(dict(f, variant_rule=rule, variant_desc=desc, variant_phonemes=" ".join(bases(vpron))))
+                var.append(dict(f, variant_rule=rule, variant_desc=desc, variant_phonemes=" ".join(bases(vpron)),
+                                is_candidate_itself=f["text"].lower() == candidate_text.lower()))
     clip = []
     for cpron, label in clipped(pron):
         for f in search(idx, cpron, cfg, relations=("whole",)):
             if f["metric"] in ("common_word", "phrase", "distress"):
-                clip.append(dict(f, clip=label, clipped_phonemes=" ".join(bases(cpron))))
+                clip.append(dict(f, clip=label, clipped_phonemes=" ".join(bases(cpron)),
+                                 is_candidate_itself=f["text"].lower() == candidate_text.lower()))
 
     def pick(pred):
         return [f for f in findings if pred(f)]

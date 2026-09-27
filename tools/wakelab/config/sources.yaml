@@ -81,3 +81,25 @@ sources:
     default_path: local/facility_names.txt
     license: "private facility data - NEVER committed, NEVER printed in reports"
     use: "Resident/staff names for facility-domain collisions (one name per line)"
+
+  # ---- Acoustic stage (Step 3) ----
+  sherpa_kws_gigaspeech:
+    kind: file
+    extract: true
+    url: https://github.com/k2-fsa/sherpa-onnx/releases/download/kws-models/sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01.tar.bz2
+    version: "2024-01-01 release asset"
+    license: "model card: Apache-2.0; trained on GigaSpeech XL - training-data terms need review before any production use"
+    attribution: "k2-fsa sherpa-onnx keyword-spotting model (icefall zipformer)"
+    use: "Open-vocabulary keyword spotter used to screen candidate wake phrases on synthetic audio (same engine as the Room 214 listener)"
+    sha256: null
+
+  librispeech_test_clean:
+    kind: file
+    extract: true
+    optional: true
+    url: https://www.openslr.org/resources/12/test-clean.tar.gz
+    version: "OpenSLR SLR12 test-clean (~5.4 h, 2,620 utterances)"
+    license: "CC-BY 4.0"
+    attribution: "LibriSpeech ASR corpus (Panayotov et al.), OpenSLR SLR12"
+    use: "Hours of ordinary continuous speech for false-wakes-per-hour (read audiobook speech - not conversation)"
+    sha256: null

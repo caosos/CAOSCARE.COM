@@ -18,7 +18,7 @@ from .config import cache_dir
 from .corpus.build import load
 from .corpus.registry import load_manifest, local_path
 from .phonetics.arpabet import parse
-from .phonetics.lexicon import Lexicon, load_cmudict
+from .phonetics.lexicon import Lexicon, load_cmudict, tokenize
 from .speakability import metrics as speak_metrics
 
 LIMITATION = ("Text/phoneme collision analysis PREDICTS acoustic danger from dictionary "
@@ -48,6 +48,9 @@ class Lab:
         if phonemes:
             return [(parse(phonemes), "intended", "command line")]
         pinned = self.lexicon.overrides.get(text.lower())
+        if not pinned and any(w in self.lexicon.overrides for w in tokenize(text)):
+            # a phrase containing a pinned word ("okay aria") uses the pinned word's pronunciation
+            pinned = [p for p, _, _ in self.lexicon.phrase(text, use_g2p=True, max_variants=4)]
         dict_prons = [(p, s) for p, _, s in self.dictionary.phrase(text, use_g2p=True, max_variants=4)]
         if pinned:
             out = [(p, "intended", "override (config/default.yaml pronunciation_overrides)") for p in pinned]
