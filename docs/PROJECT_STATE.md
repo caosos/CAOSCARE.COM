@@ -5128,3 +5128,13 @@ HANDOFF CAPSULE
 - Product invariants: room node + eMeet + TV; real status/receipts; sample-only public demo.
 - Do NOT change:    production or actual resident data.
 - Next safe action: run frontend test/build and desktop/mobile review on EliteDesk.
+
+### 2026-09-27 addendum — automated frontend gate
+
+After the draft review branch was published, added
+`.github/workflows/frontend-check.yml` to run a frozen Yarn install,
+frontend tests and a production build on pull requests and main pushes
+that change the frontend. This verifies the build independently of the
+EliteDesk once GitHub Actions finishes; no production deployment is part of
+the workflow. Desktop/mobile visual and actual room hardware checks remain
+separate. Check the PR's workflow result before merging.
