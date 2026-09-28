@@ -2,10 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 const PREFIX = "#cap-";
 
-// Open/close state for a page's capability demonstration. The open demo is
+// Open/close state for a page's capability panel. The open demo is
 // reflected in the URL hash (#cap-<id>) with replaceState, so a demo can be
 // linked to without adding history entries or moving the page.
-export default function useCapabilityDemo(byId) {
+export default function useCapabilityPanel(byId) {
   const [openId, setOpenId] = useState(null);
   // Keep the last-opened capability mounted while the dialog closes, so the
   // dialog can run its close lifecycle and return focus to the opening card.

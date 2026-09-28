@@ -40,6 +40,7 @@ export const CAPABILITY_STATUS = {
   voice: "pilot", // live Room 214 conversations; started by screen tap; wake phrase not chosen
   lighting: "pilot", // Matter bulbs, HA read-back: live voice 09-05, touch 09-19, wake-word session 09-23; path unchanged since 7bad624
   rf_pendant: "pilot", // one Lifeline pendant (319.5 MHz) paired, decoded, battery/signal shown, Room 214
+  room_screen: "pilot", // the room screen used live in Room 214 (tap to talk, light control 09-19)
   help: "in_development", // request/event reaches staff screens; staff loop not accepted
   one_press: "in_development", // press -> event -> Aria live; staff close-out + recovery not accepted (2026-09-06 break test)
   low_vision: "in_development", // magnification built; not accepted with a resident
@@ -48,9 +49,7 @@ export const CAPABILITY_STATUS = {
   blinds: "planned",
   location: "planned",
   family_call: "planned",
-  handset: "planned",
-  community_calls: "planned",
-  answering_machine: "planned",
+  phone: "planned", // handset, calls within the community, answering machine; no voice telephony yet
   wearables: "planned",
   // Community workflows: implementation exists, no real staff acceptance yet
   nursing: "in_development",
@@ -60,8 +59,8 @@ export const CAPABILITY_STATUS = {
   activities: "in_development",
   housekeeping: "in_development",
   front_desk: "in_development",
-  administration: "in_development",
-  reporting: "in_development",
+  administration: "in_development", // operations overview, reports, activity log
+  staff_dashboard: "in_development", // live board exists; not accepted in staff use
   escalation: "in_development",
   front_desk_calls: "planned", // no voice telephony yet
   therapy: "planned",

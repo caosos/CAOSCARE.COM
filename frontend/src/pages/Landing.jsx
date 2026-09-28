@@ -5,18 +5,18 @@ import { Shield, Activity, Heart, Lightbulb, MapPin, MessageSquare, Zap } from "
 import { useAuth } from "../lib/auth";
 import { roleHomePath, roleHomeLabel } from "../lib/roleHome";
 import ExperienceVideoLibrary from "../components/landing/ExperienceVideoLibrary";
-import { RESIDENT_BY_ID } from "../lib/capabilities/resident";
+import { CAPABILITIES_BY_ID } from "../lib/capabilities";
 import CapabilityCard from "../components/capabilities/CapabilityCard";
-import CapabilityDemo from "../components/capabilities/CapabilityDemo";
-import useCapabilityDemo from "../components/capabilities/useCapabilityDemo";
+import CapabilityPanel from "../components/capabilities/CapabilityPanel";
+import useCapabilityPanel from "../components/capabilities/useCapabilityPanel";
 
 const HERO_IMG =
   "https://images.unsplash.com/photo-1765896387387-0538bc9f997e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODh8MHwxfHNlYXJjaHwxfHxzZW5pb3IlMjByZXNpZGVudCUyMGNhcmVnaXZlciUyMHNtaWxlfGVufDB8fHx8MTc3NjU2NTU1NXww&ixlib=rb-4.1.0&q=85";
 const FEATURE_IMG =
   "https://images.pexels.com/photos/18459198/pexels-photo-18459198.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940";
 
-// Same capability cards as /for-residents: proven ones open a demonstration,
-// the rest expand into a labelled description.
+// Every card opens the same on-page panel as /for-residents and
+// /for-communities (lib/capabilities).
 const FEATURE_CARDS = [
   { id: "voice", icon: MessageSquare },
   { id: "lighting", icon: Lightbulb },
@@ -24,6 +24,7 @@ const FEATURE_CARDS = [
   { id: "one_press", icon: Zap },
   { id: "low_vision", icon: Heart },
   { id: "location", icon: MapPin },
+  { id: "staff_dashboard", icon: Activity },
 ];
 
 export default function Landing() {
@@ -34,7 +35,7 @@ export default function Landing() {
   // paint briefly shows the guest CTA even for a signed-in user; harmless
   // since Protected routes still gate on the real check, not this button.
   const { user } = useAuth();
-  const demo = useCapabilityDemo(RESIDENT_BY_ID);
+  const panel = useCapabilityPanel(CAPABILITIES_BY_ID);
   const authedDest = user ? roleHomePath(user) : "/login";
   const authedLabel = user ? roleHomeLabel(user) : "Staff sign in";
 
@@ -142,17 +143,8 @@ export default function Landing() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {FEATURE_CARDS.map(({ id, icon }) => (
-              <CapabilityCard key={id} capability={RESIDENT_BY_ID[id]} icon={icon} onOpen={demo.open} />
+              <CapabilityCard key={id} capability={CAPABILITIES_BY_ID[id]} icon={icon} onOpen={panel.open} />
             ))}
-            <Link to="/for-communities#dashboard" data-testid="feature-staff-dashboard"
-                  className="bg-white rounded-2xl p-6 md:p-8 border border-caos-line hover:border-caos-forest transition-colors flex flex-col">
-              <span className="w-12 h-12 rounded-xl bg-caos-ambient flex items-center justify-center mb-5">
-                <Activity className="w-6 h-6 text-caos-forest" strokeWidth={2} />
-              </span>
-              <span className="font-display text-xl font-medium text-caos-forest">Staff dashboard</span>
-              <span className="text-caos-mute mt-3 leading-relaxed flex-1">Requests are recorded in each department's queue with the resident's words and priority. The staff workflows are in development.</span>
-              <span className="mt-5 text-caos-forest font-medium underline underline-offset-4">Open the staff dashboard demo</span>
-            </Link>
           </div>
         </div>
       </section>
@@ -187,8 +179,8 @@ export default function Landing() {
           <p>Built for dignity, designed for the people who already paid for one system.</p>
         </div>
       </footer>
-      <CapabilityDemo capability={demo.capability} open={demo.isOpen} onClose={demo.close}
-        onCloseAutoFocus={demo.onCloseAutoFocus} />
+      <CapabilityPanel capability={panel.capability} open={panel.isOpen} onClose={panel.close}
+        onCloseAutoFocus={panel.onCloseAutoFocus} />
     </div>
   );
 }
