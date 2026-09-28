@@ -80,3 +80,26 @@ describe("transportStatusMessage", () => {
     expect(transportStatusMessage({ found: true, status: "in_progress", booked: true, requested_for_date: "2026-10-05", run: { date: "2026-10-05", depart_time: "08:45", status: "in_progress" } })).toMatch(/marked departed/);
   });
 });
+
+describe("ride history on the shared timeline", () => {
+  const { buildRequestTimeline } = require("../requestHistory");
+  test("book, change, depart, complete read as ride steps with detail", () => {
+    const task = {
+      created_at: "2026-10-01T10:00:00Z", source: "aria_voice", status: "completed",
+      event_log: [
+        { at: "2026-10-01T10:05:00Z", field: "ride_booked", by: "u1", by_name: "Dana", text: "Pickup 08:45 on 2026-10-05 · Pete, Van" },
+        { at: "2026-10-02T09:00:00Z", field: "ride_changed", by: "u1", by_name: "Dana", text: "Pickup 09:00 on 2026-10-05 · Pete, Van" },
+        { at: "2026-10-05T09:00:00Z", field: "status", from: "pending", to: "in_progress", by: "u2", by_name: "Pete" },
+        { at: "2026-10-05T11:00:00Z", field: "status", from: "in_progress", to: "completed", by: "u2", by_name: "Pete" },
+      ],
+    };
+    const labels = buildRequestTimeline(task).map((e) => [e.label, e.text || ""]);
+    expect(labels).toEqual([
+      ["Created (aria voice)", ""],
+      ["Ride booked by Dana", "Pickup 08:45 on 2026-10-05 · Pete, Van"],
+      ["Ride changed by Dana", "Pickup 09:00 on 2026-10-05 · Pete, Van"],
+      ["Started by Pete", ""],
+      ["Completed by Pete", ""],
+    ]);
+  });
+});

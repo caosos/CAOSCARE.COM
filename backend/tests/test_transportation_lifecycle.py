@@ -65,6 +65,11 @@ def _status(resident_id):
     return r.json()
 
 
+async def _log(db, task_id):
+    t = await db.staff_tasks.find_one({"task_id": task_id}, {"_id": 0, "event_log": 1})
+    return [(e["field"], e.get("to"), e.get("by_name")) for e in t.get("event_log", [])]
+
+
 def _receipt_types(admin, task_id):
     detail = _get(f"/tasks/{task_id}/detail", admin).json()
     return [r["action_type"] for r in detail.get("receipts", [])]
@@ -121,6 +126,7 @@ async def _run():
         again = _post("/transportation/request", resident_id=r1, purpose="doctor appointment",
                       requested_for_date=MON, source="aria_voice").json()
         assert again["duplicate"] is True and again["task_id"] == t1["task_id"]
+        assert ("re_request", 1, "resident") in await _log(db, t1["task_id"])
         # the public path cannot claim to be the front desk
         assert _post("/transportation/request", resident_id=r1, purpose="x", requested_for_date=MON,
                      source="front_desk").status_code == 403
@@ -138,6 +144,9 @@ async def _run():
         assert s["booked"] is True and s["run"]["depart_time"] == "08:45"
         assert s["run"]["driver_name"] == drv_a["name"] and s["run"]["vehicle_name"] == van["name"]
         assert "transportation_booked" in _receipt_types(admin, t1["task_id"])
+        booked = [e for e in (await db.staff_tasks.find_one({"task_id": t1["task_id"]}))["event_log"] if e["field"] == "ride_booked"]
+        assert len(booked) == 1 and "Pickup 08:45" in booked[0]["text"] and drv_a["name"] in booked[0]["text"]
+        assert booked[0]["by_name"].endswith("front_desk")
 
         # ---- 4. staff-entered ride to the same named destination shares the run ----
         t2 = _post("/transportation/staff/request", desk, resident_id=r2, purpose="eye exam",
@@ -146,6 +155,7 @@ async def _run():
         assert t2["booked"] is True and t2["shared"] is True, t2
         task2 = await db.staff_tasks.find_one({"task_id": t2["task_id"]}, {"_id": 0})
         assert task2["source"] == "front_desk"
+        assert [f for f, _, _ in await _log(db, t2["task_id"])] == ["ride_booked"]
         # same time, no destination -> never pooled. A is busy, B is off on
         # Mondays, and the flex driver is never auto-picked, so C gets it.
         t3 = _post("/transportation/staff/request", desk, resident_id=r3, purpose="pharmacy",
@@ -185,12 +195,17 @@ async def _run():
         assert r.status_code == 200 and r.json()["riders"] == 2, r.text
         assert _status(r1)["status"] == "in_progress" and _status(r1)["run"]["status"] == "in_progress"
         assert _post(f"/transportation/runs/{shared_run['run_id']}/depart", driver_staff).status_code == 400
+        log2 = await _log(db, t2["task_id"])
+        assert ("status", "in_progress", f"{TAG} staff transportation") in log2
+        assert any(f == "assigned_to" for f, _, _ in log2)          # departing driver takes it
         r = _post(f"/transportation/runs/{shared_run['run_id']}/complete", driver_staff, notes="Both back by 11:20")
         assert r.status_code == 200, r.text
         s = _status(r1)
         assert s["status"] == "completed" and s["run"]["status"] == "completed" and s["run"]["completed_at"]
         types = _receipt_types(admin, t2["task_id"])
         assert "transportation_departed" in types and "transportation_completed" in types
+        log2 = await _log(db, t2["task_id"])
+        assert [f for f, _, _ in log2][-2:] == ["note", "status"] and log2[-1][1] == "completed"
 
         # ---- 7. single-rider completion closes that rider's run ----
         r = _post(f"/transportation/request/{t3['task_id']}/complete", desk)
@@ -205,6 +220,7 @@ async def _run():
                   vehicle_id=car["vehicle_id"])
         assert r.status_code == 200 and r.json()["booked"] is True, r.text
         assert "transportation_changed" in _receipt_types(admin, t4["task_id"])
+        assert [f for f, _, _ in await _log(db, t4["task_id"])] == ["ride_changed"]
         # outside B's shift -> not booked
         r = _post(f"/transportation/staff/request/{t4['task_id']}/change", desk, requested_for_date=WED,
                   start_time="17:30", driver_id=drv_b["driver_id"]).json()
@@ -220,6 +236,9 @@ async def _run():
         s = _status(r1)
         assert s["status"] == "skipped" and s["booked"] is False and s["cancel_reason"] == "Appointment moved by the clinic"
         assert (await db.transport_runs.find_one({"run_id": run4}))["status"] == "cancelled"
+        log4 = await db.staff_tasks.find_one({"task_id": t4["task_id"]})
+        tail = [(e["field"], e.get("to"), e.get("text")) for e in log4["event_log"]][-2:]
+        assert tail == [("note", None, "Appointment moved by the clinic"), ("status", "skipped", None)]
         assert _post(f"/transportation/staff/request/{t4['task_id']}/cancel", desk).status_code == 400
 
         # ---- 10. closing a ride through the generic task path frees the driver ----

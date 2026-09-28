@@ -66,7 +66,7 @@ async def staff_create_request(data: StaffRequestInput, user=Depends(require_fro
         start_time=data.start_time, priority=data.priority, source="front_desk",
     )
     return await submit_transport_request(
-        req, requested_by=user["user_id"], destination=data.destination,
+        req, actor=user, destination=data.destination,
         driver_id=data.driver_id, vehicle_id=data.vehicle_id,
     )
 
@@ -79,11 +79,11 @@ async def staff_change_request(task_id: str, data: StaffChangeInput, user=Depend
         requested_for_time_label=data.requested_for_time_label, start_time=data.start_time,
     )
     return await change_request(
-        task_id, change, source="front_desk", requested_by=user["user_id"],
+        task_id, change, source="front_desk", actor=user,
         destination=data.destination, driver_id=data.driver_id, vehicle_id=data.vehicle_id,
     )
 
 
 @router.post("/request/{task_id}/cancel")
 async def staff_cancel_request(task_id: str, data: StaffCancelInput = StaffCancelInput(), user=Depends(require_front_desk_or_admin)):
-    return await cancel_request(task_id, source="front_desk", requested_by=user["user_id"], reason=data.reason)
+    return await cancel_request(task_id, source="front_desk", actor=user, reason=data.reason)

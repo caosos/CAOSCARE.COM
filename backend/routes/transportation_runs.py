@@ -17,6 +17,8 @@ from deps import db, get_current_user
 from models import now_utc
 from routes.receipts import create_receipt
 from transportation_engine import OPEN_RUN_STATUSES, CLOSED_TASK_STATUSES, reconcile_run
+from routes.task_history import update_task_with_history
+from routes.transport_task_history import close_events, depart_events
 
 router = APIRouter(prefix="/transportation", tags=["transportation-runs"])
 
@@ -56,14 +58,11 @@ async def _rider_receipt(task: dict, action_type: str, user: dict, status: str, 
 
 
 async def _complete_rider(task: dict, user: dict, now: str, notes: Optional[str]) -> None:
-    await db.staff_tasks.update_one(
-        {"task_id": task["task_id"]},
-        {"$set": {
-            "status": "completed", "completed_at": now, "started_at": task.get("started_at") or now,
-            "completed_by": user["user_id"], "completed_by_name": user.get("name"),
-            **({"notes": notes} if notes else {}),
-        }},
-    )
+    await update_task_with_history(task["task_id"], {
+        "status": "completed", "completed_at": now, "started_at": task.get("started_at") or now,
+        "completed_by": user["user_id"], "completed_by_name": user.get("name"),
+        **({"notes": notes} if notes else {}),
+    }, close_events(task, "completed", user, notes))
     await _rider_receipt(task, "transportation_completed", user, "completed", notes or "Ride completed")
 
 
@@ -81,12 +80,11 @@ async def depart_run(run_id: str, user=Depends(require_transport_operator)):
         {"$set": {"status": "in_progress", "departed_at": now, "closed_by_name": user.get("name"), "updated_at": now}},
     )
     for t in riders:
-        await db.staff_tasks.update_one(
-            {"task_id": t["task_id"]},
-            {"$set": {"status": "in_progress", "started_at": now,
-                      "assigned_to": t.get("assigned_to") or user["user_id"],
-                      "assigned_name": t.get("assigned_name") or user.get("name")}},
-        )
+        await update_task_with_history(t["task_id"], {
+            "status": "in_progress", "started_at": now,
+            "assigned_to": t.get("assigned_to") or user["user_id"],
+            "assigned_name": t.get("assigned_name") or user.get("name"),
+        }, depart_events(t, user))
         await _rider_receipt(t, "transportation_departed", user, "in_progress", f"Departed at {run['depart_time']}")
     return {"run_id": run_id, "status": "in_progress", "riders": len(riders)}
 
