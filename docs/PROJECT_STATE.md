@@ -5380,3 +5380,21 @@ HANDOFF CAPSULE
 - Product invariants: Aria reports only real state; no arrival claims; one StaffTask = one request; receipts are evidence.
 - Do NOT change:    shared lifecycle/status/receipt code outside Lane E.
 - Next safe action: Lane E implements SC-3; coordinator integrates pilot/maintenance (test + docs only) and re-runs the acceptance test.
+
+---
+
+## 2026-09-28 — Coordinator: Maintenance lane integrated; Front desk/Transportation not cleared
+
+### Agent / branch
+Claude Code (Opus 5.5), coordinator. `integration/2026-09-27` `387289c` → merge `6d1ffa4` of `pilot/maintenance` `51deae0`. Not merged to main, not deployed.
+
+### What changed / verified
+- Maintenance adds `backend/tests/test_maintenance_resident_loop.py`. Conflicts only in docs (`PILOT1_ACTIVE_WORK.md` kept integration's renumbered version; `PROJECT_STATE.md` both entries).
+- Backend gate: 225 passed, 4 failed (same pre-existing), 1 xfailed (the SC-3 test, still failing as expected). Focused nursing/maintenance: 6 passed, 1 xfailed. Frontend 30 suites / 211 tests; build compiles.
+- Browser sink-leak lifecycle on localhost:3000 (`task_cf8ca2182ecb`, demo 3W02): claim, acknowledge, start, two notes, complete; timeline and five separate receipts correct. Aria still says "no one has picked it up yet" after the claim (SC-3); SC-4, SC-5 unchanged.
+
+### Blocked
+Front desk/Transportation `94af8c4` bypasses the shared history (direct `staff_tasks` writes, no `RequestTimeline`) and needs SC-6/SC-7. Details in `PILOT1_ACTIVE_WORK.md`.
+
+### Next safe step
+Shared Core fixes SC-3 and SC-5; Lane C reworks onto integration.

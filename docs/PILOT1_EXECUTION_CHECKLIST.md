@@ -3,9 +3,9 @@
 Target: 2026-10-10
 
 Current phase: PHASE 3 — Real staff operational workflows (focus: operational completion)
-Current active task: Integrate Maintenance lane (B); then Shared Core SC-3 (Aria status after a claim)
+Current active task: Shared Core SC-3 / SC-5 (Aria status truth); Front desk/Transportation lane rework before integration
 Current integration branch: `integration/2026-09-27`
-Current integration SHA: `3249fcd` (last code state)
+Current integration SHA: `6d1ffa4` (last code state)
 Last updated: 2026-09-28
 Last updated by: Claude Code (Opus 5.5), EliteDesk
 
@@ -112,7 +112,7 @@ Status note: `[~]` below means the software path exists (see screenshots in `fro
 
 **Maintenance**
 
-- [x] Request — "My sink is leaking" via the real Aria tool code created a maintenance request for demo resident 3W02 (`task_e5dd5e5527b5`, integration `3249fcd`, browser + real Aria tool code, 2026-09-28).
+- [x] Request — Maintenance lane integrated at `6d1ffa4`; lifecycle re-run passed there (`task_cf8ca2182ecb`). "My sink is leaking" via the real Aria tool code created a maintenance request for demo resident 3W02 (`task_e5dd5e5527b5`, integration `3249fcd`, browser + real Aria tool code, 2026-09-28).
 - [x] Work order — shown in the maintenance workspace (`/workspace`) for the demo maintenance user.
 - [x] Assignment — claimed in the browser; history shows "Claimed by".
 - [x] In progress — Start in the browser.
@@ -123,7 +123,7 @@ Status note: `[~]` below means the software path exists (see screenshots in `fro
 
 **Transportation**
 
-- [ ] Transportation shows request history through the shared helper (`lib/requestHistory.js` + `RequestTimeline.jsx`) — required before the Transportation lane is accepted.
+- [ ] Transportation shows request history through the shared helper (`lib/requestHistory.js` + `RequestTimeline.jsx`), with ride state changes written through `routes/task_history` — required before the Transportation lane is accepted. Not met by `94af8c4` (2026-09-28 review).
 - [ ] Real drivers configured
 - [ ] Real vehicles configured
 - [~] Availability
@@ -411,6 +411,7 @@ Acceptance: Linode runs the exact SHA Michael approved.
 
 | Date | By | Change |
 |---|---|---|
+| 2026-09-28 | Claude Code (Opus 5.5), coordinator | Merged Maintenance `51deae0` at `6d1ffa4`; sink-leak lifecycle re-run passed; SC-3 test still xfail. Front desk/Transportation `94af8c4` not cleared (bypasses shared history). |
 | 2026-09-28 | Claude Code (Opus 5.5), coordinator | Merged Shared Core `a6230cb` at `3249fcd`. Nursing receipt/history → [x]; Maintenance request–completion → [x]; resident status → [!] (SC-3). Added Transportation shared-history requirement. |
 | 2026-09-28 | Claude Code (Opus 5.5), coordinator | Merged panels `0985ae5` at `e70fbce` (one PROJECT_STATE conflict, both entries kept). Therapy/Beauty Shop placeholders `7a5fbe9` → [x]. localhost:3000 back on integration. |
 | 2026-09-28 | Claude Code (Opus 5.5) | Multi-agent coordination model adopted; `PILOT1_ACTIVE_WORK.md` created. No status changes. |
