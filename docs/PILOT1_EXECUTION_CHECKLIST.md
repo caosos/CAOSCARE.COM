@@ -3,7 +3,7 @@
 Target: 2026-10-10
 
 Current phase: PHASE 3 — Real staff operational workflows (focus: operational completion)
-Current active task: Shared Core SC-3 / SC-5 (Aria status truth); Front desk/Transportation lane rework before integration
+Current active task: Shared Core SC-3 / SC-5 (Aria status truth); Front desk/Transportation lane rework; Lane G demo kiosk command-to-visual state (priority)
 Current integration branch: `integration/2026-09-27`
 Current integration SHA: `6d1ffa4` (last code state)
 Last updated: 2026-09-28
@@ -51,6 +51,33 @@ Status symbols:
 | `[-]` | Intentionally deferred / not required for Pilot 1 |
 
 ---
+
+## PRIORITY — Demo kiosk command-to-visual state (Lane G, added 2026-09-28)
+
+Michael, 2026-09-28: the demo kiosk (`/kiosk/demo`, the kiosk marked `public_demo`) must visibly respond to the same Aria commands the real room uses. Owned by Lane G (`pilot/demo-kiosk`, see [`PILOT1_ACTIVE_WORK.md`](PILOT1_ACTIVE_WORK.md)). Functionality before visual redesign; the blue/white theme stays in Phase 12.
+
+Rules:
+
+- No separate fake command parser. Aria uses the same intents, tools and actions as the real room.
+- Demo devices may use simulated adapters and state (the existing `mock` device adapter).
+- The UI shows the device state the command returned, without a page refresh.
+- Voice and typed input use the same execution path.
+- Demo state never changes real room or device state.
+- Success is claimed only when the state actually changed.
+
+Acceptance:
+
+- [ ] "Turn the light on." → normal room-control tool → demo light state ON → the kiosk room visual changes → UI shows ON
+- [ ] "Turn the light off." → state OFF → room visual changes immediately
+- [ ] Thermostat up / down
+- [ ] TV on / off
+- [ ] TV volume / channel (as currently supported)
+- [ ] Blinds open / close (as currently supported)
+- [ ] Staff-help request shown on the kiosk
+- [ ] Call-front-desk visualization (a visualization only; calling itself is Phase 6)
+- [ ] Typed input uses the same path as voice
+- [ ] DEMO RESET restores a known baseline for lights, TV, thermostat, blinds and demo requests
+- [ ] Verified that demo commands and reset never touch a real room or device
 
 ## PHASE 1 — Visual review of current public WIP
 
@@ -411,6 +438,7 @@ Acceptance: Linode runs the exact SHA Michael approved.
 
 | Date | By | Change |
 |---|---|---|
+| 2026-09-28 | Claude Code (Opus 5.5), coordinator | Added priority requirement: demo kiosk command-to-visual state (Lane G). No status changes. |
 | 2026-09-28 | Claude Code (Opus 5.5), coordinator | Merged Maintenance `51deae0` at `6d1ffa4`; sink-leak lifecycle re-run passed; SC-3 test still xfail. Front desk/Transportation `94af8c4` not cleared (bypasses shared history). |
 | 2026-09-28 | Claude Code (Opus 5.5), coordinator | Merged Shared Core `a6230cb` at `3249fcd`. Nursing receipt/history → [x]; Maintenance request–completion → [x]; resident status → [!] (SC-3). Added Transportation shared-history requirement. |
 | 2026-09-28 | Claude Code (Opus 5.5), coordinator | Merged panels `0985ae5` at `e70fbce` (one PROJECT_STATE conflict, both entries kept). Therapy/Beauty Shop placeholders `7a5fbe9` → [x]. localhost:3000 back on integration. |
