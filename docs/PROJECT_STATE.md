@@ -5398,3 +5398,36 @@ Front desk/Transportation `94af8c4` bypasses the shared history (direct `staff_t
 
 ### Next safe step
 Shared Core fixes SC-3 and SC-5; Lane C reworks onto integration.
+
+---
+
+## 2026-09-28 — Pilot 1 recovery / continuity checkpoint
+
+### Agent / branch
+Claude Code (Opus 5.5), Pilot 1 integration coordinator, `~/CAOSCARE-INTEGRATION` on `integration/2026-09-27` (started at `a95acbe`). Documentation only; no application code changed. Not merged to main, not deployed.
+
+### What changed
+- New `docs/PILOT1_RECOVERY_CHECKPOINT.md`: pipeline, lanes and exact tips, shared-core status (implemented / integrated / verified), next integration order, Michael's decisions, standard acceptance tests, local runtime, do-not-change list.
+- `CAOSCARE_START_HERE.md` reading order: AGENTS → CURRENT_PRIORITY → checklist → active-work → recovery checkpoint; live evidence beats the checkpoint; Pilot 1 files live on `integration/2026-09-27`.
+- `CURRENT_PRIORITY.md`, checklist and active-work map reconciled with the lane branches; SC-10 recorded; demo data continuity added to the checklist.
+
+### What was verified
+- Every EliteDesk worktree is clean and equal to its GitHub branch; local integration HEAD equalled `origin` (`a95acbe`) before this checkpoint.
+- Production `/opt/caoscare/app` is at `d7ff96a` (read over SSH); `caoscare-backend.service` active; public health OK.
+
+### What is blocked
+- `main` (`880d10f`) has no pointer to the Pilot 1 files; an agent that fetches only `main` will not find them until main is updated (needs Michael's approval).
+- Live calling needs Asterisk host, ATA, handset, SIP trunk and OpenAI SIP configuration. Room hardware inventory (thermostat, bulbs, plugs), IR for the TV, and wake-phrase choice are open.
+
+HANDOFF CAPSULE
+- Objective:        USABLE Pilot 1 by 2026-10-10 (see `PILOT1_RECOVERY_CHECKPOINT.md` §5).
+- Branch:           `integration/2026-09-27`; code state `dc3e9ee`, docs after it; tip = this commit on GitHub.
+- Lane tips:        maintenance `51deae0` (integrated), frontdesk-transport `6b67ac8`, community-services `d95c4d6`, shared-core `5a9eb32`, communications `0978bb1`, demo-kiosk `0b69cae`.
+- Last proven tests: 2026-09-28 on integration — backend gate 225 passed / 4 pre-existing failures / 1 xfail (SC-3); frontend 30 suites / 211 tests; build compiles; nursing and maintenance lifecycles in the browser.
+- Runtime state:    :3000 frontend from `~/CAOSCARE-INTEGRATION/frontend`; :8092 backend from the same checkout (on `3249fcd` code); :8000 old Level 1 backend still receives the RF bridge; :8001 old Admin backend; Mongo `caoscare`.
+- Production:       `d7ff96a`, unchanged.
+- Unresolved shared-core: SC-3..SC-7 implemented not integrated; SC-8 partly; SC-9, SC-10, CM-1 open.
+- Hardware/accounts: Asterisk/ATA/trunk/OpenAI SIP; room device inventory; TV IR; wake phrase; RF pendant stays additive only.
+- Integration order: Shared Core `5a9eb32` → Demo kiosk `0b69cae` → Front desk/Transportation `6b67ac8` → Community services `d95c4d6` → Communications `0978bb1`.
+- Do NOT change:    main, Linode, Video #001, RF bridge target / facility pendant path, Room 214 real devices/data, other lanes' worktrees.
+- Next safe action: coordinator merges `pilot/shared-core` `5a9eb32`, runs the gates, and re-checks Aria status after a claim.

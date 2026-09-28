@@ -1,0 +1,184 @@
+# CAOSCare Pilot 1 Recovery Checkpoint
+
+Target: 2026-10-10
+Goal: USABLE Pilot 1 product, not merely a website/demo
+
+Current integration branch: `integration/2026-09-27` (GitHub `caosos/CAOSCARE.COM`)
+Current integration SHA: the tip of `origin/integration/2026-09-27`. Code state `dc3e9ee` (Shared Core SC-1/SC-2 + Maintenance merged); later commits are documentation only.
+Current localhost:3000 source: `~/CAOSCARE-INTEGRATION/frontend` (systemd user service `caoscare-frontend-dev.service`, `/api` proxied to :8092)
+Last verified: 2026-09-28
+Coordinator: Claude Code session in `~/CAOSCARE-INTEGRATION` on the EliteDesk (`caoscare1-hp-elitedesk`)
+Production/Linode SHA: `d7ff96a4e4d1f4f253929377d7f386ee4b1cac6a` (read on the host 2026-09-28; public bundle `main.7a1fa061.js`)
+Production deployment status: unchanged since 2026-09-27; none of the Pilot 1 integration work is deployed
+
+**How to use this file.** Read it after `AGENTS.md`, `docs/CURRENT_PRIORITY.md`, `docs/PILOT1_EXECUTION_CHECKLIST.md` and `docs/PILOT1_ACTIVE_WORK.md`. If it conflicts with live source or runtime evidence, live evidence wins and this file must be updated.
+
+**Where to read it.** These Pilot 1 files live on `integration/2026-09-27`, not on `main`. `main` (`880d10f`) is behind and its onboarding does not mention them. Read them with `git fetch origin && git show origin/integration/2026-09-27:docs/PILOT1_RECOVERY_CHECKPOINT.md` or from a checkout of that branch.
+
+---
+
+## 1. Non-negotiable development pipeline
+
+```text
+Laptop/control
+→ SSH EliteDesk
+→ feature lanes/worktrees
+→ EliteDesk integration
+→ whole-system tests
+→ commit/push GitHub
+→ Michael reviews exact release
+→ deploy exact approved GitHub SHA to Linode
+→ production verification
+```
+
+- EliteDesk = development/integration authority.
+- GitHub = durable canonical committed history.
+- Linode = approved production only.
+- Worker lanes never deploy and never merge `main`.
+- The integration coordinator merges one lane at a time and tests after every integration.
+- Shared contracts belong to Shared Core (Lane E).
+- Do not create parallel versions of CAOSCare.
+- Release: show Michael the current production SHA, the proposed SHA and the exact commit/file range; deploy only after his explicit approval, with `scripts/deploy_caoscare.sh <sha>`.
+
+## 2. Lanes and exact state (2026-09-28)
+
+All worktrees below were clean and equal to their GitHub branch at this checkpoint.
+
+| Lane | Purpose | Branch | Worktree | SHA | Status | Accepted / proven | Open blockers | Shared dependencies | Next action |
+|---|---|---|---|---|---|---|---|---|---|
+| Coordinator | Integration, tests, checklist, localhost:3000 | `integration/2026-09-27` | `~/CAOSCARE-INTEGRATION` | see header | Active | Nursing, Maintenance, Shared Core SC-1/SC-2, public panels, Therapy/Beauty placeholders integrated and browser-verified | — | all | Integrate Shared Core `5a9eb32` |
+| A Nursing | Care request loop | `pilot/nursing` (never created) | — | — | Core loop integrated at `7ae91bc` | "I need help going to the bathroom" → nursing queue → claim/ack/start/notes/complete → history (browser, 2026-09-28) | Aria status after a claim (SC-3, fixed on `pilot/shared-core`, not integrated) | Shared Core | None until SC-3 is integrated |
+| B Maintenance | Work orders | `pilot/maintenance` | `~/CAOSCARE-LANE-MAINTENANCE` | `51deae0` | **Integrated** at `6d1ffa4` | "My sink is leaking" lifecycle, three notes, five separate receipts (browser, `task_cf8ca2182ecb`); acceptance test `test_maintenance_resident_loop.py` | SC-3 test is a strict xfail until Shared Core is integrated | Shared Core | Remove the xfail when SC-3 lands (it will start passing) |
+| C Front desk / Transportation | Front desk requests, callbacks, rides | `pilot/frontdesk-transport` | `~/CAOSCARE-LANE-FRONTDESK` | `6b67ac8` | Reworked, handed off | Every ride step now goes through `task_history.update_task_with_history`; history shown with the shared `RequestTimeline` (lane claim; coordinator not yet verified) | Needs SC-6, SC-7 (on `pilot/shared-core`) | Shared Core | Integrate after Shared Core; verify the transport timeline in the browser |
+| D Community services | Dining/menu, activities/programs, housekeeping | `pilot/community-services` | `~/CAOSCARE-LANE-SERVICES` | `d95c4d6` | Handed off (based on `e9373d5`) | Kitchen/Activities/Housekeeping workspaces, menu paste intake and review, schedule draft batches, clock-ordered public schedule (lane tests only) | SC-9, CM-1; live/integration acceptance not done | Shared Core, Communications | Integrate after Front desk; live acceptance |
+| E Shared core | Shared contracts | `pilot/shared-core` | `~/CAOSCARE-LANE-SHARED` | `5a9eb32` | SC-3..SC-7 implemented, awaiting integration | SC-1/SC-2 integrated at `3249fcd` and browser-verified | SC-8, SC-9, SC-10 open | — | Coordinator integrates `5a9eb32` next |
+| F Communications / calling | Email delivery, notifications, phones | `pilot/communications` | `~/CAOSCARE-LANE-COMMS` | `0978bb1` | Implemented (based on `e9373d5`), tests only | Truthful notification delivery and fallback, Communications admin tab; calling per Michael's D1–D8 (see §6) — no Asterisk, ATA, trunk or OpenAI SIP test yet | Hardware, accounts, provider config; SC-8 | Shared Core | Integrate last; live acceptance needs hardware |
+| G Demo kiosk | Demo kiosk command-to-visual state | `pilot/demo-kiosk` | `~/CAOSCARE-LANE-DEMO-KIOSK` | `0b69cae` | Handed off (based on `a95acbe`) | Typed input into the same Aria Realtime session; normal room-control tool path → `mock` adapter → `simulated_device.py`; light on/off, TV on/off, thermostat 68, DEMO RESET (`POST /api/demo/reset`, refuses rooms with non-simulated devices) — proven with real Aria by the lane | SC-10; touches shared files (`device_adapters.py`, realtime hooks, `Kiosk.jsx`) | Shared Core | Integrate right after Shared Core; review shared-file changes |
+
+Other worktrees on the EliteDesk (older lanes, all clean and pushed, not part of Pilot 1 lanes): `~/CAOSCARE.COM` (`aria/conversation-substrate`), `~/CAOSCARE-ADMIN`, `~/CAOSCARE-CLAUDE`, `~/CAOSCARE-LEVEL1`, `~/CAOSCARE-LEVEL1-INTEGRATION`, `~/CAOSCARE-WEBSITE` (`feature/interactive-capability-cards`, PR #42), `~/CAOSCARE-WIP-PANELS` (merged into integration at `e70fbce`; can be retired when Michael agrees).
+
+## 3. Shared core requests
+
+"Implemented" means on a worker branch; "Integrated" means on `integration/2026-09-27`; "Verified" means proven in the browser/acceptance on integration.
+
+| ID | Requirement | Implemented | Integrated | Verified |
+|---|---|---|---|---|
+| SC-1 | Receipts append per status change | `a6230cb` | `3249fcd` | Yes, 2026-09-28 |
+| SC-2 | Timestamped note history (`StaffTask.event_log`) | `a6230cb` | `3249fcd` | Yes, 2026-09-28 |
+| SC-3 | A claimed request counts as seen (truth defect) | `5a9eb32` | No | No |
+| SC-4 | Latest note / completer in spoken status | `5a9eb32` | No | No |
+| SC-5 | Real note timestamps; "times asked" wording | `5a9eb32` | No | No |
+| SC-6 | Front desk claim/assign/note on Administration | `5a9eb32` | No | No |
+| SC-7 | Staff-entered callback times allowed | `5a9eb32` | No | No |
+| SC-8 | Notifications linked to their request | Partly (`aa10645`: `notify_department` accepts the link; call sites not all passing it) | No | No |
+| SC-9 | Department list readable by staff | No | No | No |
+| SC-10 | Unsupported light attribute must not silently power the light on (truth defect) | No (filed by Lane G) | No | No |
+| CM-1 | Inbound activities email linked to its draft batch | No | No | No |
+
+## 4. Next integration order
+
+1. Shared Core `5a9eb32` (SC-3..SC-7) — then re-run nursing and maintenance status checks; the SC-3 xfail should pass.
+2. Demo kiosk `0b69cae` (priority; review shared-file changes).
+3. Front desk / Transportation `6b67ac8` (needs SC-6/SC-7 from step 1).
+4. Community services `d95c4d6` (based on `e9373d5`; expect doc conflicts).
+5. Communications `0978bb1` (based on `e9373d5`; live acceptance needs hardware).
+
+Test after each: backend gate (`backend/scripts/run_backend_tests.sh`), frontend tests, production build, the lane's browser acceptance.
+
+## 5. Michael's decisions and priorities
+
+**Deadline.** Pilot 1 must be USABLE by 2026-10-10: real resident Aria; real staff workflows; department routing and notifications; one or two actual resident rooms; minimum room hardware; calling; truthful receipts and status; a public site that shows only real, accepted capabilities.
+
+**Functionality before design.** No major visual redesign while operational loops are unfinished.
+
+**Public website.**
+
+- Every major capability/department card is clickable.
+- Each panel shows:
+  - actual software where it exists;
+  - supporting lifestyle imagery;
+  - what the resident/staff does;
+  - what CAOSCare does;
+  - what staff sees;
+  - what happens next;
+  - what is built;
+  - what is not yet accepted.
+- Actual software visuals outrank generic pictures.
+- Review notes:
+  - Michael likes the interactive direction.
+  - Therapy and Beauty Shop images must depict therapy and a salon; they are labelled placeholders until real images exist.
+  - The colour palette is disliked; a cleaner blue + white with restrained neutrals comes later.
+- Status labels advance only after acceptance evidence (`frontend/src/lib/capabilities/status.js`).
+
+**Video.** Featured Video #001 is the ORIGINAL stitched ~30-second film, `frontend/public/media/caoscare-resident-experience-01.mp4`. Agents may raise concerns but may not recut, replace or edit Michael-supplied creative assets without explicit approval.
+
+**Ask Aria.** Every appropriate page eventually gets a persistent bottom-right Ask Aria control. It is the same governed Aria, not a separate help bot:
+
+- page-aware, product-aware, and knows CAOSCare workflows and where requests route;
+- public mode exposes no private resident data;
+- authenticated mode is permission-scoped;
+- text fallback, with realtime voice where supported;
+- no fabricated status or actions.
+
+**Demo kiosk.** Commands must visibly affect the demo room before more design work.
+
+- Flow: "Turn the light on" → normal Aria tool contract → simulated demo adapter → resulting state ON → the kiosk room visibly changes → truthful confirmation.
+- The same flow applies to lights, thermostat, TV, blinds when supported, help requests and the front-desk call visualization.
+- No second parser; demo state never touches real devices; DEMO RESET is required.
+
+**Demo data continuity.** The simulated staff dashboard must not freeze between logins.
+
+- Track `last_simulated_at`, with background simulation when available and deterministic catch-up on login/startup.
+- Progress old simulated requests realistically, move finished work to history, keep open work bounded, and generate a plausible current state.
+- Demo data stays strictly separate from real resident data.
+- **Not yet assigned to a lane.**
+
+**Room hardware.** Michael has a wireless thermostat, wireless light bulbs and wireless smart plugs.
+
+- Still needed: the exact model/protocol inventory, IR hardware for the pilot TV, dependable audio and wake phrase, and RF pendant listening as a secondary, additive path only.
+- The facility's existing pendant/call-button behaviour must never be interfered with.
+- Pendant presses are often restroom assistance, but never assume every press is.
+
+**Calling (Pilot 1 decisions).**
+
+- Asterisk; an analog handset + ATA with off-hook/hotline behaviour to Aria, keeping direct digits (`0` = front desk).
+- Approved family-contact calling; a SIP front-desk endpoint; local call control.
+- Truthful provider/PBX call state.
+- **911 bypasses Aria entirely.**
+- Linode must not be needed for room-to-front-desk calls.
+
+**Resident experience.** Aria is not "another Alexa". Core loop: ordinary resident need → context/intent → governed workflow → correct human department → receipt/state → truthful later follow-up.
+
+## 6. Standard acceptance tests
+
+| Area | Say / do | Must happen |
+|---|---|---|
+| Nursing | "I need help going to the bathroom." | Nursing request → staff sees → claim/ack/start/note/complete → history → Aria later reports the truth |
+| Maintenance | "My sink is leaking." | Work order → claim/assign/start/note/time/complete → history → Aria reports the truth |
+| Transportation | "I need transportation for my appointment at 9:30 on the fifth." | Clarify only missing facts → availability/request → staff assignment/confirmation → history/status |
+| Front desk | "I want to speak with the executive director." | Front desk request with lifecycle and callback |
+| Status | "Did anybody see my request?" | Answer from real state only; acknowledged ≠ on the way; in progress ≠ arrived |
+| Room | "Turn the light on." | Real device or simulated demo state → verified state → visual/voice confirmation |
+| Calling | "Aria, call the front desk." / "Call my daughter." | Truthful call state; family contact must be approved |
+
+Demo data for tests: residents in rooms `3W01`–`3W10` (`Demo -` names), staff `@demo.caoscare` (e.g. Nancy Reyes RN, nursing; Carl Boone, maintenance), seeded by `backend/scripts/seed_demo_community.py`. Never use Room 214 / real residents for scripted tests.
+
+## 7. Local runtime (EliteDesk, 2026-09-28)
+
+| Port | What | Source |
+|---|---|---|
+| 3000 | Frontend dev server (`caoscare-frontend-dev.service`, drop-in `~/.config/systemd/user/caoscare-frontend-dev.service.d/worktree.conf`) | `~/CAOSCARE-INTEGRATION/frontend` |
+| 8092 | Backend (nohup uvicorn, log `/tmp/room214_backend_3249fcd.log`) | `~/CAOSCARE-INTEGRATION/backend`, restarted 2026-09-27 20:26 CDT on `3249fcd` code (no backend code changed since) |
+| 8000 | Old Level 1 backend, still the RF bridge target (`android-bridge/caos_rf_bridge.py`, pid 522046) | `~/CAOSCARE-LEVEL1-INTEGRATION/backend` |
+| 8001 | Old Admin backend | `~/CAOSCARE-ADMIN/backend` |
+| 27017 | MongoDB, database `caoscare` (shared by all local backends; real Room 214 data lives here) | system |
+
+The pendant (RF bridge) still posts to :8000, not :8092. Moving it is a Room 214 hardware decision for Michael.
+
+## 8. Do not change without Michael
+
+- `main`, Linode, production data.
+- Michael-supplied creative assets (Video #001).
+- The RF bridge target and the facility pendant/call-button path.
+- Real Room 214 devices and data (real-hardware tests are gated by the `real_hardware` pytest marker).
+- Another lane's worktree.

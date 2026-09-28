@@ -34,14 +34,21 @@ the complete rule and exceptions.
 
 ## Current execution priority
 
-Immediately after repository-wide hydration:
+Immediately after repository-wide hydration, read in this order:
 
-1. Read **`docs/CURRENT_PRIORITY.md`** when it exists. It holds Michael's current execution target and priority order. Treat it as current-state guidance, not durable product architecture; the Product Baseline and contracts still govern product truth.
-2. Read **`docs/PILOT1_EXECUTION_CHECKLIST.md`**, the authoritative execution tracker for the 2026-10-10 Pilot 1 target.
-3. Read **`docs/PILOT1_ACTIVE_WORK.md`**, the parallel-work ownership map. Identify your lane, branch/worktree, owned files and shared dependencies. Shared contracts change only through the Shared Core lane.
-4. Identify the checklist's **Current phase** and **Current active task** before recommending new CAOSCare work.
+1. **`AGENTS.md`** (already part of hydration).
+2. **`docs/CURRENT_PRIORITY.md`** — Michael's current execution target and priority order. Current-state guidance, not durable architecture; the Product Baseline and contracts still govern product truth.
+3. **`docs/PILOT1_EXECUTION_CHECKLIST.md`** — the authoritative execution tracker for the 2026-10-10 Pilot 1 target.
+4. **`docs/PILOT1_ACTIVE_WORK.md`** — the parallel-work ownership map. Identify your lane, branch/worktree, owned files and shared dependencies. Shared contracts change only through the Shared Core lane.
+5. **`docs/PILOT1_RECOVERY_CHECKPOINT.md`** — the recovery snapshot: pipeline, lane tips, shared-core status, Michael's decisions, standard acceptance tests, runtime, next integration order.
 
-All three files are read before modifying CAOSCare.
+The Pilot 1 files live on the **`integration/2026-09-27`** branch. If they are missing from the checkout or branch you fetched (for example `main`), read them from `origin/integration/2026-09-27`.
+
+Before recommending or changing work, know: the current integration SHA, your lane, the current active task, your shared dependencies, and the 2026-10-10 target.
+
+If the recovery checkpoint conflicts with live source or runtime evidence, live evidence wins and the checkpoint must be updated.
+
+All five files are read before modifying CAOSCare.
 
 Do not start lower-priority work when the checklist has an active unfinished task unless Michael explicitly redirects priority.
 
