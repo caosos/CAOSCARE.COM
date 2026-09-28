@@ -2,8 +2,8 @@
 
 Target: 2026-10-10
 
-Current phase: PHASE 1 — Visual review of current public WIP
-Current active task: Michael reviews the public capability-panel WIP on localhost:3000 and records one punch list
+Current phase: PHASE 3 — Real staff operational workflows (focus: operational completion)
+Current active task: Work block A — Nursing / care requests end-to-end (then B Maintenance, C Front desk)
 Current integration branch: `integration/2026-09-27`
 Current integration SHA: `c7b789d` (last code state; this checklist is committed on top of it)
 Last updated: 2026-09-27
@@ -53,19 +53,31 @@ Status symbols:
 ## PHASE 1 — Visual review of current public WIP
 
 - [x] Serve current public-capability WIP on localhost:3000 — `wip/public-capability-panels` `0985ae5` via `caoscare-frontend-dev.service` from `~/CAOSCARE-WIP-PANELS/frontend` (2026-09-27). Restore to integration with the backup drop-in `~/.config/systemd/user/caoscare-frontend-dev.worktree.conf.integration-backup`.
-- [ ] Michael reviews `/`
-- [ ] Michael reviews `/for-residents`
-- [ ] Michael reviews `/for-communities`
-- [ ] Michael reviews `/experience`
-- [~] Click every major public capability card — agent pass done 2026-09-27 on localhost:3000: 45 panels per width, desktop 1440 + phone 390, all open with image/status/flow and close cleanly; Michael's pass pending.
-- [ ] Record Michael's visual/product punch list (one bounded list, added to Phase 2)
+- [x] Michael reviews `/` — Michael's first visual review on localhost:3000 (WIP `0985ae5`), 2026-09-27; approved moving forward.
+- [x] Michael reviews `/for-residents` — same review.
+- [x] Michael reviews `/for-communities` — same review.
+- [x] Michael reviews `/experience` — same review.
+- [x] Click every major public capability card — agent pass 2026-09-27 (45 panels per width, desktop 1440 + phone 390) plus Michael's review.
+- [x] Record Michael's visual/product punch list — recorded 2026-09-27 at the top of Phase 2.
 - [x] Confirm original 30-second Video #001 — `/media/caoscare-resident-experience-01.mp4`, 30.04 s, plays on localhost:3000 (2026-09-27); blob `ea7868b2` unchanged since `d7ff96a`.
 - [x] Confirm Staff sign in remains real login — goes to `/login` with a password field (2026-09-27).
-- [~] Confirm status claims are honest — registry audited 2026-09-27 (`status.js`; only voice, lights, pendant, room screen are In pilot; nothing Working); `capabilities.test.js` locks it. Michael's confirmation pending.
+- [x] Confirm status claims are honest — registry audited 2026-09-27 (`status.js`; only voice, lights, pendant, room screen are In pilot; nothing Working); `capabilities.test.js` locks it. Accepted in Michael's review 2026-09-27.
 
 Acceptance: Michael has reviewed the actual localhost experience and there is one bounded punch list for corrections.
 
+**Phase 1 complete (2026-09-27):** Michael reviewed the WIP on localhost:3000 and approved moving forward. Execution focus is now operational completion (Phase 3).
+
 ## PHASE 2 — Public experience corrections
+
+Michael's review punch list (2026-09-27):
+
+- [ ] Therapy panel imagery does not represent therapy — replace with a relevant image or an honest placeholder.
+- [ ] Beauty Shop panel imagery does not represent beauty/salon service — replace with a relevant image or an honest placeholder.
+- [ ] Global "Ask Aria" button is still missing from actual pages (task recorded in Phase 11).
+- [ ] Blue/white redesign has not happened yet (Phase 12; deferred by priority).
+- [x] Public department-panel structure is accepted as the pattern to keep — Michael's review, 2026-09-27.
+
+General corrections:
 
 - [ ] Fix stale/misleading copy
 - [ ] Replace weak/outdated screenshots — known: TV and thermostat shown on demo devices; pendant screenshot is a thin table crop.
@@ -80,6 +92,8 @@ Acceptance: Michael has reviewed the actual localhost experience and there is on
 Acceptance: every public claim and screenshot accurately represents the current product.
 
 ## PHASE 3 — Real staff operational workflows
+
+Working priority order (Michael, 2026-09-27): Nursing → Maintenance → Front desk → Transportation → Kitchen → Housekeeping → Activities → Admin/reporting → Alerts/escalation. Calling/phone (Phase 6) and room hardware (Phase 7) remain parallel Pilot 1 requirements. Do not change an "In development" label to improve the website; advance a label only after the real workflow passes acceptance.
 
 Status note: `[~]` below means the software path exists (see screenshots in `frontend/public/media/screens/`) but has not been accepted by real staff.
 
@@ -322,6 +336,7 @@ Status note: `[~]` here means the panel exists on WIP `0985ae5` (real screenshot
 - [x] Staff sign in remains separate — `/login`, verified 2026-09-27.
 - [~] Demo records explicitly sample/illustrative — every screenshot labelled "CAOSCare screen · sample data"; photos "Illustrative photo".
 - [ ] Community-specific reusable content model
+- [ ] Global "Ask Aria" control: persistent bottom-right on appropriate pages; text fallback; public pages use public product knowledge only; signed-in pages use permission-scoped context and existing tool permissions; no fabricated actions. Deferred behind Phase 3 blocks A–C.
 
 Acceptance: a community operator can see what residents experience and what each staff department actually uses.
 
@@ -393,4 +408,5 @@ Acceptance: Linode runs the exact SHA Michael approved.
 
 | Date | By | Change |
 |---|---|---|
+| 2026-09-27 | Claude Code (Opus 5.5) | Phase 1 closed on Michael's review; punch list added to Phase 2; Ask Aria task in Phase 11; priority order and operational focus set for Phase 3. |
 | 2026-09-27 | Claude Code (Opus 5.5) | Checklist created on `integration/2026-09-27` at `c7b789d`. Starting statuses taken from `docs/PROJECT_STATE.md` evidence and the 2026-09-27 localhost:3000 panel pass. |
