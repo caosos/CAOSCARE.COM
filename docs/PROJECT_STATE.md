@@ -5299,3 +5299,46 @@ HANDOFF CAPSULE
 - Product invariants: receipts never rewritten; lifecycle history append-only; no backfilled history; resident view stays an explicit allow-list.
 - Do NOT change:    event_log outside task_history.py; receipts in place.
 - Next safe action: coordinator merges pilot/shared-core into integration/2026-09-27, runs whole-system tests, then Lane B starts from that commit.
+
+---
+
+## 2026-09-28 — Coordinator: Shared Core SC-1/SC-2 integrated
+
+### Agent / tool
+Claude Code (Opus 5.5), Pilot 1 integration coordinator, EliteDesk `~/CAOSCARE-INTEGRATION`.
+
+### Branch / ref
+`integration/2026-09-27`, `02bed1c` → merge `3249fcd` of `pilot/shared-core` `a6230cb`. Not merged to main, not deployed.
+
+### What changed
+- Merged SC-1 (append-only receipts) and SC-2 (`StaffTask.event_log` note history, shared request timeline). Conflicts only in the append-only logs `PROJECT_STATE.md` and `REPO_MAP.md`; both sides kept.
+- Restarted the :8092 backend (running unchanged since 2026-09-23) on the merged code; no live Aria lease at the time. Log `/tmp/room214_backend_3249fcd.log`.
+- Four lanes had each filed a different "SC-3"; renumbered once in `PILOT1_ACTIVE_WORK.md` (SC-3…SC-9, CM-1).
+
+### What was verified
+- Backend gate: 224 passed, 4 failed (the same pre-existing iter10/iter11/test_ops_overview failures; 223 passed before). Focused nursing/maintenance/history tests: 7 passed.
+- Frontend: 30 suites / 211 tests; production build compiles.
+- Browser on localhost:3000 (integration, /api → :8092), demo data only:
+  - Nursing `task_f34bfff0a8c8` (3W01, demo nurse) and maintenance "My sink is leaking" `task_e5dd5e5527b5` (3W02, demo maintenance user): claim, acknowledge, start, two notes, complete, history.
+  - Each step is a separate timeline event with name and time; all three notes are kept in order; five/six separate receipts, none overwritten.
+- Aria status via the real `check_request_status` code: correct when pending, acknowledged, in progress and completed.
+
+### What is blocked
+- **SC-3 still open**: after a claim without acknowledgement Aria says "no one has picked it up yet… assigned to <name>". Defect lives in `backend/routes/aria_operational_state.py::task_lifecycle` (ignores `assigned_to`), spoken by `aria_request_status.request_status_view`.
+- **SC-5 new**: `frontend/src/lib/realtimeOperationsTools.js:132` says the latest note has "no timestamp on record" although the backend now returns `latest_update_at`.
+- Transportation must show history through the shared helper (`lib/requestHistory.js` + `RequestTimeline.jsx`) before its lane is accepted.
+
+### Next safe step
+Integrate the Maintenance lane (`pilot/maintenance` `51deae0`); then Shared Core fixes SC-3 and SC-5.
+
+HANDOFF CAPSULE
+- Objective:        Pilot 1 lane integration, one lane at a time.
+- Branch:           integration/2026-09-27
+- Lane / ownership: Coordinator; no feature implementation.
+- Last proven state: nursing + maintenance lifecycle and shared history verified in the browser on 3249fcd.
+- Commits:          3249fcd (merge) + this docs commit.
+- Runtime state:    localhost:3000 → integration frontend; :8092 backend on 3249fcd; production unchanged.
+- Unresolved proven defects: SC-3, SC-5 (Aria status truth).
+- Product invariants: Aria speaks only from real state; receipts append, never rewrite.
+- Do NOT change:    main, Linode, lane worktrees.
+- Next safe action: merge pilot/maintenance 51deae0 and re-run the gates.

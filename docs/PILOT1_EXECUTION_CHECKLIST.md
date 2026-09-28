@@ -3,9 +3,9 @@
 Target: 2026-10-10
 
 Current phase: PHASE 3 — Real staff operational workflows (focus: operational completion)
-Current active task: Work block B — Maintenance (Nursing block A done 2026-09-28, gaps recorded)
+Current active task: Integrate Maintenance lane (B); then Shared Core SC-3 (Aria status after a claim)
 Current integration branch: `integration/2026-09-27`
-Current integration SHA: `7a5fbe9` (last code state)
+Current integration SHA: `3249fcd` (last code state)
 Last updated: 2026-09-28
 Last updated by: Claude Code (Opus 5.5), EliteDesk
 
@@ -107,22 +107,23 @@ Status note: `[~]` below means the software path exists (see screenshots in `fro
 - [x] Acknowledge — browser; card shows "seen by".
 - [x] Assign/action — Claim, Start and Note in the browser.
 - [x] Complete — browser, with completion note.
-- [~] Receipt/history — History dialog shows created, acknowledged, started, completed with names and times. Gaps: receipt status is updated in place ("task assigned · completed"); the completion note overwrites the earlier progress note (one notes field); note edits create no receipt.
-- [x] Resident can ask real status — real `check_request_status` code: pending → "no one has picked it up yet"; acknowledged → "Staff have seen it — not finished yet"; in progress → "Someone is working on it now"; completed → no open request. Never says someone is on the way.
+- [x] Receipt/history — shared timeline shows created, re-request, claimed, acknowledged, started, three separate notes in order and completed, each with name and time; six separate receipts, none overwritten (`task_f34bfff0a8c8`, integration `3249fcd`, browser + real Aria tool code, 2026-09-28). Fixed by SC-1/SC-2.
+- [!] Resident can ask real status — **blocked by SC-3**: after a nurse claims a request without acknowledging it, Aria says "no one has picked it up yet… assigned to <nurse>" (re-proven on `3249fcd`). Other states correct: real `check_request_status` code: pending → "no one has picked it up yet"; acknowledged → "Staff have seen it — not finished yet"; in progress → "Someone is working on it now"; completed → no open request. Never says someone is on the way.
 
 **Maintenance**
 
-- [~] Request
-- [~] Work order
-- [~] Assignment
-- [~] In progress
-- [~] Notes
-- [~] Time spent
-- [~] Completion
-- [~] History/status back to resident
+- [x] Request — "My sink is leaking" via the real Aria tool code created a maintenance request for demo resident 3W02 (`task_e5dd5e5527b5`, integration `3249fcd`, browser + real Aria tool code, 2026-09-28).
+- [x] Work order — shown in the maintenance workspace (`/workspace`) for the demo maintenance user.
+- [x] Assignment — claimed in the browser; history shows "Claimed by".
+- [x] In progress — Start in the browser.
+- [x] Notes — three notes kept in order in the history.
+- [x] Time spent — history shows the start-to-complete duration.
+- [x] Completion — with completion note.
+- [!] History/status back to resident — history correct; Aria status **blocked by SC-3** (says "no one has picked it up yet" after a claim). Also SC-5 (says the note has no timestamp).
 
 **Transportation**
 
+- [ ] Transportation shows request history through the shared helper (`lib/requestHistory.js` + `RequestTimeline.jsx`) — required before the Transportation lane is accepted.
 - [ ] Real drivers configured
 - [ ] Real vehicles configured
 - [~] Availability
@@ -410,6 +411,7 @@ Acceptance: Linode runs the exact SHA Michael approved.
 
 | Date | By | Change |
 |---|---|---|
+| 2026-09-28 | Claude Code (Opus 5.5), coordinator | Merged Shared Core `a6230cb` at `3249fcd`. Nursing receipt/history → [x]; Maintenance request–completion → [x]; resident status → [!] (SC-3). Added Transportation shared-history requirement. |
 | 2026-09-28 | Claude Code (Opus 5.5), coordinator | Merged panels `0985ae5` at `e70fbce` (one PROJECT_STATE conflict, both entries kept). Therapy/Beauty Shop placeholders `7a5fbe9` → [x]. localhost:3000 back on integration. |
 | 2026-09-28 | Claude Code (Opus 5.5) | Multi-agent coordination model adopted; `PILOT1_ACTIVE_WORK.md` created. No status changes. |
 | 2026-09-28 | Claude Code (Opus 5.5) | Work block A (Nursing): 7 items [x], receipt/history [~] with gaps recorded. |
