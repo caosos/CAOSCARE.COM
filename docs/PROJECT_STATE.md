@@ -5234,3 +5234,37 @@ Claude Code (Opus 5.5), EliteDesk `~/CAOSCARE-INTEGRATION`, branch `integration/
 
 ### Current phase / task
 PHASE 1: Michael's visual review of the public-capability WIP on localhost:3000 (`wip/public-capability-panels` `0985ae5`).
+
+---
+
+## 2026-09-27 — Lane F (Communications / calling): delivery truth, fallback, Communications tab, phone architecture proposal
+
+### Agent / tool
+Claude Code (Opus 5.5), EliteDesk worktree `~/CAOSCARE-LANE-COMMS`, branch `pilot/communications` from integration `e9373d5`. Not merged, not deployed.
+
+### What changed
+- `backend/routes/notification_delivery.py` (new): the one outbound provider module; records `provider_message_id`; `apply_resend_delivery_event()` moves a notification to delivered/bounced/delayed/complained. `NotificationStatus` extended; `Notification` gains `department`, `route`, `related_object_type/id`, `delivery_events`.
+- `notify_department`: falls through on provider failure (not only on no recipients), skips staff without email, records an explicit `failed` when nobody is reachable, returns the records, accepts `related_object_type/id`.
+- Bug fixed: `email_inbound.py` would have stored Resend delivery events (`email.delivered` …) as inbound mail; they now update outbound delivery status. HTTP clients closed properly.
+- Admin → Communication & requests → **Email & notifications** (`CommunicationsTab.jsx`, `EmailInboundPanel.jsx`): provider status, test send, delivery log with truthful labels, inbound sender allowlists per lane, inbound provenance. Provider status/log removed from the Family tab (one home).
+- `docs/PILOT1_COMMUNICATIONS.md`: configuration vs code gaps, setup steps, acceptance tests, proposed handset → ATA → Asterisk → OpenAI Realtime SIP architecture with decisions D1–D8 (incl. 911 handling and public webhook reachability).
+
+### What was verified
+Backend gate (`run_backend_tests.sh`, isolated port/DB): 209 passed / 1 failed; the failure (`test_ops_overview` `past_requested_date_open`) is identical at the untouched baseline `e9373d5` (208 / 1). New `tests/test_notification_delivery.py` (mock Resend, signed webhooks, isolated DB). Frontend 31 suites / 207 tests; `CI=true` build clean.
+
+### Not done / blocked
+- No live provider test: no Resend/Twilio configuration verified on any backend (credential inspection not permitted to this lane). Every Phase 4 acceptance item still needs the configuration in `PILOT1_COMMUNICATIONS.md` §1.
+- Per-request delivery visibility needs SC-3 (callers pass `related_object_id`).
+- Calling: nothing built; architecture awaits Michael's decisions.
+
+HANDOFF CAPSULE
+- Objective:        Pilot 1 real email/notifications and resident calling.
+- Branch:           pilot/communications
+- Lane / ownership: Lane F — notification delivery, inbound email, calling. Not: StaffTask/request schema, receipts semantics (Lane E), menu/activities UI (Lane D).
+- Last proven state: tests above; no live provider or telephony test.
+- Commits:          see branch tip.
+- Runtime state:    none started or changed by this lane.
+- Unresolved proven defects: `twilio` package missing so `escalation._try_sms` / `try_call_on_call_phone` cannot send; Twilio env name drift (`TWILIO_FROM_PHONE` vs `TWILIO_FROM_NUMBER`).
+- Product invariants: `logged` ≠ `sent` ≠ `delivered`; call state only from telephony events; approved family contacts only; CAOSCare is not emergency dispatch.
+- Do NOT change:    other lanes' worktrees; production.
+- Next safe action: Michael configures Resend (domain, key, webhook, secret) and answers D1–D8; Lane E takes SC-3.

@@ -515,7 +515,14 @@ class Insight(BaseModel):
 
 # ---------- Notifications ----------
 NotificationChannel = Literal["sms", "email", "pager", "inapp"]
-NotificationStatus = Literal["queued", "sent", "failed", "logged"]
+# Delivery truth, weakest to strongest claim (routes/notification_delivery.py):
+#   logged    - no provider configured; recorded here only, nothing left CAOSCare
+#   failed    - provider rejected it, the call errored, or no recipient existed
+#   sent      - provider ACCEPTED it for delivery (not proof it arrived)
+#   delayed / bounced / complained / delivered - reported later by the
+#               provider's delivery webhook against provider_message_id
+#   queued    - legacy value, not written by current code
+NotificationStatus = Literal["queued", "sent", "delayed", "delivered", "bounced", "complained", "failed", "logged"]
 
 
 class Notification(BaseModel):
@@ -529,6 +536,12 @@ class Notification(BaseModel):
     resident_id: Optional[str] = None
     status: NotificationStatus = "logged"
     provider_response: Optional[str] = None
+    provider_message_id: Optional[str] = None   # provider's id (Resend email id), keys delivery webhooks
+    department: Optional[str] = None            # department slug for notify_department() fan-out
+    route: Optional[str] = None                 # "department_contact" | "department_staff" | "admin_fallback"
+    related_object_type: Optional[str] = None   # e.g. "task" - what this notification is about
+    related_object_id: Optional[str] = None
+    delivery_events: List[dict] = Field(default_factory=list)  # provider webhook history
     created_at: datetime = Field(default_factory=now_utc)
 
 

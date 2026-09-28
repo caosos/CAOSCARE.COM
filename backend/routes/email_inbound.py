@@ -41,6 +41,7 @@ from routes.menu_ingest import create_menu_upload
 from routes.schedule_ingest import create_schedule_items
 from routes.realtime_facility import today_facility_date
 from routes.receipts import create_receipt
+from routes.notification_delivery import apply_resend_delivery_event
 
 router = APIRouter(prefix="/email/inbound", tags=["email-inbound"])
 
@@ -101,10 +102,11 @@ async def _fetch_received_email(email_id: str) -> dict:
     api_key = os.environ.get("RESEND_API_KEY", "")
     if not api_key:
         raise RuntimeError("RESEND_API_KEY is not configured")
-    resp = await httpx.AsyncClient(timeout=15).get(
-        f"https://api.resend.com/emails/receiving/{email_id}",
-        headers={"Authorization": f"Bearer {api_key}"},
-    )
+    async with httpx.AsyncClient(timeout=15) as client:
+        resp = await client.get(
+            f"https://api.resend.com/emails/receiving/{email_id}",
+            headers={"Authorization": f"Bearer {api_key}"},
+        )
     resp.raise_for_status()
     return resp.json()
 
@@ -166,6 +168,12 @@ async def resend_inbound_webhook(request: Request):
     payload = await request.json()
     event_type = payload.get("type")
     data = payload.get("data") or {}
+    if event_type != "email.received":
+        # Same Resend webhook/secret also carries delivery events for mail
+        # CAOSCare SENT (delivered/bounced/...). Those update the outbound
+        # notification record; they are never ingested as inbound mail.
+        result = await apply_resend_delivery_event(event_type or "", data, payload.get("created_at"))
+        return {"ok": True, "status": "delivery_event", "event_type": event_type, **result}
     provider_message_id = data.get("email_id")
     svix_id = request.headers.get("svix-id")
     if not provider_message_id:

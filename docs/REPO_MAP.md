@@ -733,3 +733,11 @@ listener verifier experiment: `docs/experiments/`.
 - `frontend/src/lib/capabilities/{resident,community,steps}.js`: five-step demonstration data (sample data only); `community.js` also holds the staff dashboard demo rows.
 - `frontend/src/components/capabilities/`: `CapabilityCard`, `CapabilityDemo` (dialog / phone full-screen panel), `useCapabilityDemo` (`#cap-<id>` links, focus return), `StatusPill`, `StatusLegend`, `StaffDashboardPreview`, `StaffResponsePreview`.
 - `frontend/src/lib/publicOnboarding.js` now holds only the planned phone/calling/messages/wearable entries; the old `COMMUNITY_AREAS` list is replaced by `community.js`.
+
+## 2026-09-27 — Communications lane (branch pilot/communications)
+
+- `backend/routes/notification_delivery.py`: the one outbound provider module (Resend email, Twilio SMS); one `db.notifications` record per attempt with truthful status; `apply_resend_delivery_event()` records Resend delivery events.
+- `backend/routes/notifications.py`: routing only — `notify_department()` tiered fallback (department inbox → department staff → admin), family alert fan-out, `/notifications` API (filter by `related_object_id`/`department`/`status`).
+- `backend/routes/email_inbound.py`: non-`email.received` Resend events go to delivery status, never ingested as mail.
+- `frontend/src/pages/CommunicationsTab.jsx` + `EmailInboundPanel.jsx` (Admin → Email & notifications), `frontend/src/lib/notificationDelivery.js` (status vocabulary).
+- `docs/PILOT1_COMMUNICATIONS.md`: config vs code gaps, setup steps, acceptance tests, proposed phone architecture and open decisions.
