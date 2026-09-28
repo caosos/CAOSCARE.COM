@@ -7,6 +7,7 @@
  * anything else so the caller can fall through to its own dispatch.
  */
 import { API } from "./api";
+import { transportStatusMessage } from "./transportation";
 
 // 2026-08-23: the backend rejects an operational mutation (422 +
 // needs_clarification) when a free-text field claims a fact - so far only
@@ -188,13 +189,7 @@ export async function executeOperationsTool({ name, args, ctx }) {
     const r = await fetch(`${API}/transportation/request/status?${qs.toString()}`);
     if (!r.ok) return { ok: false, message: `couldn't check that (${r.status}).` };
     const data = await r.json();
-    if (!data.found) return { ok: true, message: "no transportation request found on record." };
-    return {
-      ok: true,
-      message: data.booked
-        ? `booked for ${data.slot?.start_time} on ${data.requested_for_date}.`
-        : `still waiting - requested for ${data.requested_for_date}, no confirmed time yet.`,
-    };
+    return { ok: true, message: transportStatusMessage(data) };
   }
 
   if (name === "change_transportation_request") {
@@ -215,7 +210,7 @@ export async function executeOperationsTool({ name, args, ctx }) {
     return {
       ok: true,
       message: data.booked
-        ? `changed and confirmed for ${data.slot.start_time} on ${args.requested_for_date}.`
+        ? `changed and confirmed - pickup at ${data.run.depart_time} on ${data.run.date}.`
         : `changed to ${args.requested_for_date} - no confirmed time yet.`,
     };
   }

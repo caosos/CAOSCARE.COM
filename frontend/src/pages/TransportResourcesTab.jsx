@@ -6,8 +6,10 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "../components/ui/table";
 import { Checkbox } from "../components/ui/checkbox";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, Clock } from "lucide-react";
 import { toast } from "sonner";
+import DriverHoursDialog from "../components/DriverHoursDialog";
+import { driverHoursLabel } from "../lib/transportation";
 
 // Transportation resource config (drivers, vehicles, scheduling buffer) -
 // admin-only facility configuration. Deliberately does NOT invent vehicle
@@ -17,6 +19,7 @@ import { toast } from "sonner";
 
 function DriverSection({ drivers, onChange }) {
   const [form, setForm] = useState({ name: "", is_flex: false });
+  const [hoursFor, setHoursFor] = useState(null);
   const add = async () => {
     if (!form.name.trim()) return;
     try {
@@ -40,16 +43,21 @@ function DriverSection({ drivers, onChange }) {
       <div className="flex gap-2 mb-4">
         <Input placeholder="Driver name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} data-testid="driver-name-input" />
         <label className="flex items-center gap-2 text-sm whitespace-nowrap">
-          <Checkbox checked={form.is_flex} onCheckedChange={(v) => setForm({ ...form, is_flex: !!v })} /> Flex (not always available)
+          <Checkbox checked={form.is_flex} onCheckedChange={(v) => setForm({ ...form, is_flex: !!v })} /> Flex (book by name only)
         </label>
         <Button onClick={add} className="bg-caos-forest hover:bg-caos-forest-hover rounded-full" data-testid="add-driver-btn"><Plus className="w-4 h-4" /></Button>
       </div>
       <Table>
-        <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Flex</TableHead><TableHead>Enabled</TableHead><TableHead></TableHead></TableRow></TableHeader>
+        <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Working hours</TableHead><TableHead>Flex</TableHead><TableHead>Enabled</TableHead><TableHead></TableHead></TableRow></TableHeader>
         <TableBody>
           {drivers.map((d) => (
             <TableRow key={d.driver_id} data-testid={`driver-row-${d.driver_id}`}>
               <TableCell>{d.name}</TableCell>
+              <TableCell>
+                <Button variant="ghost" size="sm" className="h-auto py-1 px-2 text-left font-normal" onClick={() => setHoursFor(d)} data-testid={`driver-hours-${d.driver_id}`}>
+                  <Clock className="w-3.5 h-3.5 mr-1.5 shrink-0" /> {driverHoursLabel(d)}
+                </Button>
+              </TableCell>
               <TableCell><Checkbox checked={d.is_flex} onCheckedChange={() => toggle(d, "is_flex")} /></TableCell>
               <TableCell><Checkbox checked={d.enabled} onCheckedChange={() => toggle(d, "enabled")} /></TableCell>
               <TableCell><Button variant="ghost" size="sm" onClick={() => remove(d.driver_id)}><Trash2 className="w-4 h-4 text-caos-terracotta" /></Button></TableCell>
@@ -57,6 +65,8 @@ function DriverSection({ drivers, onChange }) {
           ))}
         </TableBody>
       </Table>
+      <p className="text-caos-mute text-xs mt-3">Flex drivers are never booked automatically — front desk can pick them by name when assigning a ride.</p>
+      <DriverHoursDialog driver={hoursFor} onClose={() => setHoursFor(null)} onSaved={onChange} />
     </Card>
   );
 }

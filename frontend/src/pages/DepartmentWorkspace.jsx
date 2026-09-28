@@ -5,10 +5,11 @@ import { api } from "../lib/api";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
-import { LogOut, RefreshCw, Play, Check, Eye, Bus } from "lucide-react";
+import { LogOut, RefreshCw, Play, Check, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { MyTasksCard } from "./TasksTab";
 import MaintenanceWorkspace from "./MaintenanceWorkspace";
+import TransportationCalendar from "./TransportationCalendar";
 
 // One shared operational workspace, rendered per the signed-in staff
 // member's Department (User.department -> Department.slug). It reuses the
@@ -34,40 +35,6 @@ function ageLabel(iso) {
   if (h < 1) return `${Math.max(1, Math.floor(ms / 60_000))}m`;
   if (h < 24) return `${h}h`;
   return `${Math.floor(h / 24)}d`;
-}
-
-function TransportSummary() {
-  const [report, setReport] = useState(null);
-  useEffect(() => {
-    const today = new Date();
-    const d = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-    api.get("/transportation/report", { params: { date: d } })
-      .then(({ data }) => setReport(data))
-      .catch(() => setReport(null));
-  }, []);
-  if (!report) return null;
-  const s = report.summary;
-  return (
-    <Card className="border-caos-line p-5" data-testid="workspace-transport-summary">
-      <div className="flex items-center gap-2 mb-3">
-        <Bus className="w-4 h-4 text-caos-forest" />
-        <h3 className="font-display text-lg font-medium text-caos-forest">Today's rides</h3>
-      </div>
-      <div className="grid grid-cols-3 gap-3 text-center">
-        {[["Requests", s.total_requests_received], ["Booked", s.total_booked], ["Unresolved", s.total_unresolved]].map(([l, v]) => (
-          <div key={l} className="rounded-xl border border-caos-line p-2">
-            <div className="text-xl font-display text-caos-forest">{v}</div>
-            <div className="text-[10px] uppercase tracking-wider text-caos-mute">{l}</div>
-          </div>
-        ))}
-      </div>
-      {report.current_state?.waiting_unbooked?.length > 0 && (
-        <div className="mt-3 text-xs text-caos-mute">
-          Waiting on a slot: {report.current_state.waiting_unbooked.map((r) => r.room || r.task_id).join(", ")}
-        </div>
-      )}
-    </Card>
-  );
 }
 
 export default function DepartmentWorkspace() {
@@ -166,7 +133,16 @@ export default function DepartmentWorkspace() {
             StaffTask data either way. */}
         {dept === "maintenance" && <MaintenanceWorkspace />}
 
-        {dept && dept !== "maintenance" && (
+        {/* Transportation works from the ride calendar: Departed / Ride
+            completed update the ride and every rider's request together. */}
+        {dept === "transportation" && (
+          <div className="space-y-6">
+            <TransportationCalendar />
+            <MyTasksCard />
+          </div>
+        )}
+
+        {dept && dept !== "maintenance" && dept !== "transportation" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <section className="lg:col-span-2">
               <div className="flex items-center justify-between mb-3">
@@ -239,7 +215,6 @@ export default function DepartmentWorkspace() {
             </section>
 
             <section className="space-y-6">
-              {dept === "transportation" && <TransportSummary />}
               <MyTasksCard />
             </section>
           </div>

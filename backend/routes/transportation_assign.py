@@ -18,6 +18,7 @@ driver/vehicle capacity or availability - if none is configured, or none is
 free for the requested time, it returns a specific, honest reason the UI
 surfaces directly instead of silently failing or hiding the button.
 """
+from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
@@ -52,7 +53,10 @@ async def assign_context(task_id: str, user=Depends(require_front_desk_or_admin)
 
 
 class AssignInput(BaseModel):
-    start_time: str  # "HH:MM" 24h - the exact time staff is committing to
+    start_time: str  # "HH:MM" 24h - the exact pickup time staff is committing to
+    destination: Optional[str] = None   # named destination - the only way a ride can share a run
+    driver_id: Optional[str] = None     # a specific driver (flex drivers are only ever booked this way)
+    vehicle_id: Optional[str] = None
 
 
 @router.post("/request/{task_id}/assign")
@@ -83,15 +87,17 @@ async def assign_transport_request(task_id: str, data: AssignInput, user=Depends
             ),
         }
 
-    booking = await find_or_create_run(task["requested_for_date"], data.start_time, task.get("description"), task_id)
+    booking = await find_or_create_run(
+        task["requested_for_date"], data.start_time, data.destination, task_id, data.driver_id, data.vehicle_id,
+    )
     run = booking["run"]
     if not run:
+        chosen = " the chosen driver/vehicle" if (data.driver_id or data.vehicle_id) else " a free driver and vehicle"
         return {
             "booked": False, "reason": "no_availability",
             "message": (
-                f"No free driver and vehicle pair for {data.start_time} on "
-                f"{task['requested_for_date']} - every configured resource is already "
-                "committed to another run in that window."
+                f"No{chosen} for {data.start_time} on {task['requested_for_date']} - "
+                "already committed to another run in that window, or outside the driver's working hours."
             ),
         }
 
@@ -100,6 +106,7 @@ async def assign_transport_request(task_id: str, data: AssignInput, user=Depends
         action_type="transportation_booked", related_object_type="task", related_object_id=task_id,
         source="staff", resident_id=task.get("resident_id"), room=task.get("room"),
         requested_by=user["user_id"], assigned_role="transportation",
+        result=f"Pickup {run['depart_time']} on {task['requested_for_date']}",
     )
     await notify_department(
         "transportation", "CAOS Care: transportation assigned by staff",

@@ -15,11 +15,11 @@ find_one_and_update with a capacity guard so two concurrent requests for
 the same last slot cannot both win it.
 """
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from models import StaffTask, TaskPriority, now_utc
-from deps import db, get_current_user
+from deps import db
 from routes.receipts import create_receipt
 from routes.notifications import notify_department
 from routes.tasks import _resolve_denorms
@@ -66,6 +66,11 @@ class TransportRequestInput(BaseModel):
     conversation_session_id: Optional[str] = None
 
 
+# Sources the public (unauthenticated) request path may claim. A request
+# raised by staff goes through routes/transportation_staff.py instead.
+PUBLIC_SOURCES = ("aria_voice", "kiosk_button")
+
+
 def _booking_notify_body(task: dict, run: Optional[dict]) -> str:
     if run:
         shared = f" (sharing run with {len(run['resident_task_ids']) - 1} other resident(s))" if len(run.get("resident_task_ids", [])) > 1 else ""
@@ -83,11 +88,10 @@ def _booking_notify_body(task: dict, run: Optional[dict]) -> str:
 @router.post("/request")
 async def create_transport_request(data: TransportRequestInput):
     """No auth - same public trust model as the other resident-facing
-    request endpoints. Dedup: an existing open transportation request for
-    the same resident/room on the SAME requested_for_date is treated as a
-    re-request (history preserved, not silently discarded), matching the
-    maintenance/nursing re-request pattern. A different date is treated as
-    a genuinely separate ride."""
+    request endpoints. The time guard and booking live in
+    submit_transport_request, shared with the staff path."""
+    if data.source not in PUBLIC_SOURCES:
+        raise HTTPException(status_code=403, detail="Staff-entered requests use /transportation/staff/request")
     # 2026-08-23: same guard as /tasks/resident-request - a claimed clock
     # time must trace back to something the resident actually said.
     rejection = await reject_unconfirmed_time(
@@ -96,7 +100,18 @@ async def create_transport_request(data: TransportRequestInput):
     )
     if rejection:
         raise HTTPException(status_code=422, detail={"needs_clarification": True, "field": "requested_for_time_label", "reason": rejection})
+    return await submit_transport_request(data, requested_by="resident")
 
+
+async def submit_transport_request(
+    data: TransportRequestInput, *, requested_by: str, destination: Optional[str] = None,
+    driver_id: Optional[str] = None, vehicle_id: Optional[str] = None,
+) -> dict:
+    """Create (or re-request) one ride and try to book it. Dedup: an
+    existing open transportation request for the same resident/room on the
+    SAME requested_for_date is treated as a re-request (history preserved,
+    not silently discarded), matching the maintenance/nursing re-request
+    pattern. A different date is treated as a genuinely separate ride."""
     dup_q: dict = {
         "category": "transportation", "status": {"$in": OPEN_TASK_STATUSES},
         "requested_for_date": data.requested_for_date,
@@ -119,7 +134,7 @@ async def create_transport_request(data: TransportRequestInput):
             action_type="transportation_re_requested", related_object_type="task",
             related_object_id=existing["task_id"], source=data.source,
             resident_id=data.resident_id, room=data.room,
-            conversation_session_id=data.conversation_session_id, requested_by="resident",
+            conversation_session_id=data.conversation_session_id, requested_by=requested_by,
             assigned_role="transportation",
         )
         return {
@@ -137,7 +152,7 @@ async def create_transport_request(data: TransportRequestInput):
         "visibility_role": "transportation",
         "resident_id": data.resident_id,
         "room": data.room,
-        "resident_words": data.purpose,
+        "resident_words": data.purpose if data.source in PUBLIC_SOURCES else None,
         "conversation_session_id": data.conversation_session_id,
         "requested_for_date": data.requested_for_date,
         "requested_for_time_label": data.requested_for_time_label,
@@ -152,7 +167,7 @@ async def create_transport_request(data: TransportRequestInput):
     # Resource-aware booking (see transportation_engine.py) - the single
     # place Aria, Admin, and Front Desk all get the same booked/pending
     # answer from. Needs the real task_id, so this runs after insert.
-    booking = await find_or_create_run(data.requested_for_date, data.start_time, data.purpose, doc["task_id"])
+    booking = await find_or_create_run(data.requested_for_date, data.start_time, destination, doc["task_id"], driver_id, vehicle_id)
     run = booking["run"]
     if run:
         await db.staff_tasks.update_one({"task_id": doc["task_id"]}, {"$set": {"transport_run_id": run["run_id"]}})
@@ -162,7 +177,7 @@ async def create_transport_request(data: TransportRequestInput):
         action_type="transportation_booked" if run else "transportation_requested",
         related_object_type="task", related_object_id=doc["task_id"],
         source=data.source, resident_id=data.resident_id, room=data.room,
-        conversation_session_id=data.conversation_session_id, requested_by="resident",
+        conversation_session_id=data.conversation_session_id, requested_by=requested_by,
         assigned_role="transportation",
     )
     if not run and data.start_time:
@@ -189,21 +204,26 @@ class TransportChangeInput(BaseModel):
     start_time: Optional[str] = None
 
 
-@router.post("/request/{task_id}/change")
-async def change_transport_request(task_id: str, data: TransportChangeInput):
-    """No auth, matching the request endpoint's trust model. Releases the
-    old slot (if any), attempts to reserve the new one, preserves history
-    via a receipt rather than pretending the original request never
-    existed."""
+async def _open_transport_task(task_id: str) -> dict:
     existing = await db.staff_tasks.find_one({"task_id": task_id, "category": "transportation"}, {"_id": 0})
     if not existing:
         raise HTTPException(status_code=404, detail="Transportation request not found")
     if existing["status"] not in OPEN_TASK_STATUSES:
-        raise HTTPException(status_code=400, detail=f"Request is already {existing['status']}, cannot change")
+        raise HTTPException(status_code=400, detail=f"Request is already {existing['status']}")
+    return existing
 
+
+async def change_request(
+    task_id: str, data: TransportChangeInput, *, source: str, requested_by: Optional[str] = None,
+    destination: Optional[str] = None, driver_id: Optional[str] = None, vehicle_id: Optional[str] = None,
+) -> dict:
+    """Releases the old run seat (if any), attempts to book the new time,
+    preserves history via a receipt rather than pretending the original
+    request never existed. Shared by Aria's change and the staff change."""
+    existing = await _open_transport_task(task_id)
     await release_task_from_run(existing.get("transport_run_id"), task_id)
     await release_legacy_slot(existing.get("transport_slot_id"))
-    booking = await find_or_create_run(data.requested_for_date, data.start_time, existing.get("description"), task_id)
+    booking = await find_or_create_run(data.requested_for_date, data.start_time, destination, task_id, driver_id, vehicle_id)
     new_run = booking["run"]
 
     patch = {
@@ -215,10 +235,11 @@ async def change_transport_request(task_id: str, data: TransportChangeInput):
     await db.staff_tasks.update_one({"task_id": task_id}, {"$set": patch})
     updated = await db.staff_tasks.find_one({"task_id": task_id}, {"_id": 0})
 
+    when = f"{data.requested_for_date} at {new_run['depart_time']}" if new_run else f"{data.requested_for_date}, no confirmed time"
     receipt = await create_receipt(
         action_type="transportation_changed", related_object_type="task", related_object_id=task_id,
-        source="aria_voice", resident_id=existing.get("resident_id"), room=existing.get("room"),
-        assigned_role="transportation",
+        source=source, resident_id=existing.get("resident_id"), room=existing.get("room"),
+        requested_by=requested_by, assigned_role="transportation", result=f"Changed to {when}",
     )
     await notify_department("transportation", "CAOS Care: transportation request changed", _booking_notify_body(updated, new_run))
     return {
@@ -228,47 +249,33 @@ async def change_transport_request(task_id: str, data: TransportChangeInput):
     }
 
 
-@router.post("/request/{task_id}/cancel")
-async def cancel_transport_request(task_id: str):
-    existing = await db.staff_tasks.find_one({"task_id": task_id, "category": "transportation"}, {"_id": 0})
-    if not existing:
-        raise HTTPException(status_code=404, detail="Transportation request not found")
-    if existing["status"] not in OPEN_TASK_STATUSES:
-        raise HTTPException(status_code=400, detail=f"Request is already {existing['status']}")
-
+async def cancel_request(task_id: str, *, source: str, requested_by: Optional[str] = None, reason: Optional[str] = None) -> dict:
+    existing = await _open_transport_task(task_id)
     await release_task_from_run(existing.get("transport_run_id"), task_id)
     await release_legacy_slot(existing.get("transport_slot_id"))
-    await db.staff_tasks.update_one(
-        {"task_id": task_id},
-        {"$set": {"status": "skipped", "completed_at": now_utc().isoformat()}},
-    )
+    patch = {"status": "skipped", "completed_at": now_utc().isoformat()}
+    if reason:
+        patch["notes"] = reason
+    await db.staff_tasks.update_one({"task_id": task_id}, {"$set": patch})
     receipt = await create_receipt(
         action_type="transportation_cancelled", related_object_type="task", related_object_id=task_id,
-        source="aria_voice", resident_id=existing.get("resident_id"), room=existing.get("room"),
-        assigned_role="transportation", status="cancelled",
+        source=source, resident_id=existing.get("resident_id"), room=existing.get("room"),
+        requested_by=requested_by, assigned_role="transportation", status="cancelled", result=reason,
     )
     await notify_department(
         "transportation", "CAOS Care: transportation request cancelled",
-        f"Cancelled — was {existing['requested_for_date']}\nPurpose: {existing['description']}\nRoom: {existing.get('room') or 'unknown'}",
+        f"Cancelled — was {existing['requested_for_date']}\nPurpose: {existing['description']}\nRoom: {existing.get('room') or 'unknown'}"
+        + (f"\nReason: {reason}" if reason else ""),
     )
     return {"task_id": task_id, "receipt_id": receipt["receipt_id"], "status": "skipped"}
 
 
-@router.post("/request/{task_id}/complete")
-async def complete_transport_request(task_id: str, user=Depends(get_current_user)):
-    """Staff-confirmed - the ride actually happened. Authenticated,
-    unlike the resident-facing endpoints above, since this is a real-world
-    fact only staff can confirm."""
-    existing = await db.staff_tasks.find_one({"task_id": task_id, "category": "transportation"}, {"_id": 0})
-    if not existing:
-        raise HTTPException(status_code=404, detail="Transportation request not found")
-    await db.staff_tasks.update_one(
-        {"task_id": task_id},
-        {"$set": {"status": "completed", "completed_at": now_utc().isoformat(), "completed_by": user["user_id"]}},
-    )
-    await create_receipt(
-        action_type="transportation_completed", related_object_type="task", related_object_id=task_id,
-        source="staff", resident_id=existing.get("resident_id"), room=existing.get("room"),
-        assigned_role="transportation", status="completed",
-    )
-    return {"task_id": task_id, "status": "completed"}
+@router.post("/request/{task_id}/change")
+async def change_transport_request(task_id: str, data: TransportChangeInput):
+    """No auth, matching the request endpoint's trust model (Aria)."""
+    return await change_request(task_id, data, source="aria_voice", requested_by="resident")
+
+
+@router.post("/request/{task_id}/cancel")
+async def cancel_transport_request(task_id: str):
+    return await cancel_request(task_id, source="aria_voice", requested_by="resident")

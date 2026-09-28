@@ -24,8 +24,9 @@ export function deriveStatus(t) {
   if (t.status === "completed") return "Completed";
   if (t.status === "skipped") return "Cancelled";
   if (t.category === "transportation") {
-    if (t.transport_run_id || t.transport_slot_id) return "Confirmed";
+    // A departed ride is in progress even though it has a run; check first.
     if (t.status === "in_progress") return "In progress";
+    if (t.transport_run_id || t.transport_slot_id) return "Confirmed";
     return "Needs coordination";
   }
   if (t.status === "in_progress") return "In progress";
