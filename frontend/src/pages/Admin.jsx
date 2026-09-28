@@ -162,6 +162,7 @@ export default function Admin() {
           <TabsContent value="alerts" className="mt-6"><AlertsBoard /></TabsContent>
           <TabsContent value="nursing" className="mt-6"><DepartmentQueue department="nursing" title="Nursing requests" adminMode /></TabsContent>
           <TabsContent value="maintenance" className="mt-6"><MaintenanceWorkspace adminMode /></TabsContent>
+          <TabsContent value="housekeeping" className="mt-6"><DepartmentQueue department="housekeeping" title="Housekeeping requests" adminMode /></TabsContent>
           <TabsContent value="residents" className="mt-6">
             <ResidentsTab residents={residents} kiosks={kiosks} onChange={fetchAll}
               focusResidentId={focusResidentId} onFocusHandled={() => setFocusResidentId(null)} />

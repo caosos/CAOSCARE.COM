@@ -946,6 +946,7 @@ class CaosEvent(BaseModel):
 # now; an email/calendar adapter can feed this same model later without
 # residents or Aria needing to know the difference.
 ScheduleCategory = Literal["activity", "facility_note", "staff_hours"]
+ScheduleItemStatus = Literal["draft", "published", "superseded"]
 
 
 class ScheduleItem(BaseModel):
@@ -956,8 +957,15 @@ class ScheduleItem(BaseModel):
     title: str
     description: Optional[str] = ""
     category: ScheduleCategory = "activity"
-    source: str = "staff_entry"
+    # Staff-typed rows are published at once (the author is the reviewer);
+    # emailed/pasted calendars arrive as drafts and are published as a batch.
+    # Rows stored before this field existed count as published.
+    status: ScheduleItemStatus = "published"
+    source: str = "staff_entry"                 # "staff_entry" | "staff_paste" | "email" | "email_dev_test" (seed scripts)
     source_ref: Optional[str] = None            # e.g. the InboundEmailMessage.inbound_id that produced this row
+    ingest_id: Optional[str] = None             # groups the rows one emailed/pasted calendar produced
+    published_by: Optional[str] = None
+    published_at: Optional[datetime] = None
     created_by: Optional[str] = None
     created_at: datetime = Field(default_factory=now_utc)
     updated_at: datetime = Field(default_factory=now_utc)
@@ -1035,7 +1043,7 @@ class MenuItem(BaseModel):
     description: Optional[str] = ""
     availability: Optional[str] = None          # e.g. "always available", "while supplies last"
     status: MenuItemStatus = "draft"
-    source: str = "staff_entry"                 # "staff_entry" | "email_dev_test" (future: "email")
+    source: str = "staff_entry"                 # "staff_entry" | "staff_paste" | "email" | "email_dev_test" (seed/demo scripts)
     upload_id: Optional[str] = None             # links back to the MenuUpload batch that created it, if any
     created_by: Optional[str] = None
     approved_by: Optional[str] = None
@@ -1058,6 +1066,7 @@ class MenuItemUpdate(BaseModel):
     item_name: Optional[str] = None
     description: Optional[str] = None
     availability: Optional[str] = None
+    publish: Optional[bool] = None               # publish the correction in the same action (editor = reviewer)
 
 
 # ---------- Menu ingestion (email adapter boundary) ----------
@@ -1074,7 +1083,7 @@ MenuUploadStatus = Literal["draft", "approved"]
 class MenuUpload(BaseModel):
     model_config = ConfigDict(extra="ignore")
     upload_id: str = Field(default_factory=lambda: uid("mupload"))
-    source: str = "email_dev_test"              # future: "email"
+    source: str = "email_dev_test"              # "email" | "staff_paste" | "email_dev_test" (seed/demo scripts)
     source_ref: Optional[str] = None            # simulated message id / filename
     raw_text: str = ""                          # preserved body, truncated at ingest time
     service_date: str                           # YYYY-MM-DD this upload is for

@@ -733,3 +733,12 @@ listener verifier experiment: `docs/experiments/`.
 - `frontend/src/lib/capabilities/{resident,community,steps}.js`: five-step demonstration data (sample data only); `community.js` also holds the staff dashboard demo rows.
 - `frontend/src/components/capabilities/`: `CapabilityCard`, `CapabilityDemo` (dialog / phone full-screen panel), `useCapabilityDemo` (`#cap-<id>` links, focus return), `StatusPill`, `StatusLegend`, `StaffDashboardPreview`, `StaffResponsePreview`.
 - `frontend/src/lib/publicOnboarding.js` now holds only the planned phone/calling/messages/wearable entries; the old `COMMUNITY_AREAS` list is replaced by `community.js`.
+
+## 2026-09-27 — Community services (Lane D, branch pilot/community-services)
+
+- `backend/routes/service_content_access.py`: who may change the menu (Kitchen/Administration/admin) and the schedule (Activities/Administration/admin).
+- `backend/routes/schedule.py`: schedule draft → published → superseded, batch publish, clock-order public read without staff notes. `schedule_ingest.py` creates draft batches (`ingest_id`) and adds `/schedule/ingest/paste`. `menu_ingest.py` adds `/menu/ingest/paste`.
+- `frontend/src/pages/CommunityServicesWorkspace.jsx`: Housekeeping / Kitchen / Activities staff workspace (request queue plus Menu or Schedule).
+- `frontend/src/pages/{MenuItemDialog,MenuUploadsPanel,ScheduleItemDialog,ScheduleReviewPanel}.jsx`: split out of `MenuTab.jsx` / `ScheduleTab.jsx`.
+- `frontend/src/lib/communityServices.js`: status views and Aria's menu/schedule result text (shared by the staff screens and `realtimeOperationsTools.js`).
+- Test: `backend/tests/test_community_services.py`.

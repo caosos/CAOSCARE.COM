@@ -7,6 +7,7 @@
  * anything else so the caller can fall through to its own dispatch.
  */
 import { API } from "./api";
+import { menuToolMessage, scheduleToolMessage } from "./communityServices";
 
 // 2026-08-23: the backend rejects an operational mutation (422 +
 // needs_clarification) when a free-text field claims a fact - so far only
@@ -231,12 +232,11 @@ export async function executeOperationsTool({ name, args, ctx }) {
   }
 
   if (name === "get_todays_schedule") {
-    const r = await fetch(`${API}/schedule/public/today`);
+    const qs = new URLSearchParams();
+    if (args.date) qs.set("date", args.date);
+    const r = await fetch(`${API}/schedule/public/today?${qs.toString()}`);
     if (!r.ok) return { ok: false, message: `couldn't reach the schedule (${r.status}).` };
-    const items = await r.json();
-    if (!items.length) return { ok: true, message: "nothing is listed on today's schedule yet." };
-    const lines = items.map((i) => `${i.time_label ? `${i.time_label}: ` : ""}${i.title}`);
-    return { ok: true, message: `today: ${lines.join("; ")}.` };
+    return { ok: true, message: scheduleToolMessage(await r.json(), { date: args.date || null }) };
   }
 
   if (name === "get_menu") {
@@ -246,11 +246,7 @@ export async function executeOperationsTool({ name, args, ctx }) {
     const r = await fetch(`${API}/menu/public/today?${qs.toString()}`);
     if (!r.ok) return { ok: false, message: `couldn't reach the menu (${r.status}).` };
     const items = await r.json();
-    if (!items.length) {
-      return { ok: true, message: `I don't have today's ${args.meal_period || "menu"} yet - let me check and get back to you.` };
-    }
-    const lines = items.map((i) => `${i.meal_period}: ${i.item_name}${i.availability ? ` (${i.availability})` : ""}`);
-    return { ok: true, message: lines.join("; ") + "." };
+    return { ok: true, message: menuToolMessage(items, { mealPeriod: args.meal_period || null, date: args.date || null }) };
   }
 
   if (name === "confirm_interpretation_pattern") {

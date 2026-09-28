@@ -238,17 +238,23 @@ def _build_operations_tools(request_categories: list[str] | None = None) -> list
             "type": "function",
             "name": "get_todays_schedule",
             "description": (
-                "Get today's real activities/facility schedule - things like what "
-                "activity is happening, when the AC or another facility system is "
-                "off for maintenance, or general 'what's going on today' questions. "
+                "Get the real published activities/facility schedule for a day - "
+                "things like what activity is happening and where, when the AC or "
+                "another facility system is off for maintenance, or general "
+                "'what's going on today/tomorrow' questions. "
                 "Answer ONLY from what this returns. If it comes back empty, say "
-                "honestly that nothing is listed for today yet - never invent an "
+                "honestly that nothing is listed for that day yet - never invent an "
                 "activity or time. This is not for staff on-duty hours or requests - "
                 "just the resident-facing daily schedule."
             ),
             "parameters": {
                 "type": "object",
-                "properties": {},
+                "properties": {
+                    "date": {
+                        "type": "string",
+                        "description": "YYYY-MM-DD. Leave empty for today. Compute 'tomorrow' yourself from the current facility date/time you were given."
+                    }
+                },
                 "additionalProperties": False
             }
         },
