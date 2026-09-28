@@ -14,7 +14,6 @@ routes below are for reading/querying, plus one admin-only manual-create
 escape hatch for anything not yet wired to call create_receipt() itself.
 """
 from typing import Optional
-from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends, Query
 
 from deps import db, require_admin
@@ -80,6 +79,10 @@ async def create_receipt(
     return doc
 
 
+_CARRIED = ("source", "resident_id", "room", "zone", "conversation_session_id",
+            "assigned_role", "assigned_user")
+
+
 async def update_receipt_status(
     related_object_type: str,
     related_object_id: str,
@@ -87,28 +90,55 @@ async def update_receipt_status(
     *,
     result: Optional[str] = None,
     failure_reason: Optional[str] = None,
-) -> None:
-    """Update the most recent receipt for a domain object - e.g. when a
-    task moves from pending to completed. Silently no-ops if no receipt
-    exists yet (older objects predate this system)."""
-    patch: dict = {"status": status}
-    now = now_utc().isoformat()
-    if status == "acknowledged":
-        patch["acknowledged_at"] = now
-    if status in ("completed", "failed", "cancelled"):
-        patch["completed_at"] = now
-    if result is not None:
-        patch["result"] = result
-    if failure_reason is not None:
-        patch["failure_reason"] = failure_reason
-    # update_one() doesn't support sort (only find_one_and_update does) -
-    # use that instead to correctly target the most recent receipt if a
-    # domain object ever ends up with more than one.
-    await db.receipts.find_one_and_update(
+    requested_by: Optional[str] = None,
+) -> Optional[dict]:
+    """Record a status change for a domain object as a NEW receipt.
+
+    Receipts are never rewritten (ENGINEERING_CONTRACT.md decision 5): the
+    receipt that recorded an earlier step keeps saying what it said, and
+    this one records the new step. Context (resident, room, session,
+    department, assignee) is carried forward from the object's earlier
+    receipts.
+    Silently no-ops if the object has no receipt yet (older objects predate
+    this system) - nothing is invented for them."""
+    earlier = await db.receipts.find(
         {"related_object_type": related_object_type, "related_object_id": related_object_id},
-        {"$set": patch},
-        sort=[("created_at", -1)],
+        {"_id": 0},
+    ).sort("created_at", -1).to_list(200)
+    if not earlier:
+        return None
+    # Newest non-empty value per field: a claim receipt carries no room, so
+    # the room comes from the creation receipt, the assignee from the claim.
+    prior = {k: next((r[k] for r in earlier if r.get(k)), None) for k in _CARRIED}
+    # ...except the assignee, which the latest (un)assign receipt decides.
+    assign = next((r for r in earlier if r["action_type"].endswith(("_assigned", "_unassigned"))), None)
+    if assign:
+        prior["assigned_user"] = assign.get("assigned_user")
+    r = Receipt(
+        action_type=f"{related_object_type}_{status}",
+        related_object_type=related_object_type,
+        related_object_id=related_object_id,
+        source=prior.get("source") or "system",
+        resident_id=prior.get("resident_id"),
+        room=prior.get("room"),
+        zone=prior.get("zone"),
+        conversation_session_id=prior.get("conversation_session_id"),
+        requested_by=requested_by,
+        assigned_role=prior.get("assigned_role"),
+        assigned_user=prior.get("assigned_user"),
+        status=status,
+        result=result,
+        failure_reason=failure_reason,
+        acknowledged_at=now_utc() if status == "acknowledged" else None,
+        completed_at=now_utc() if status in ("completed", "failed", "cancelled") else None,
     )
+    doc = r.model_dump()
+    for k in ("created_at", "acknowledged_at", "completed_at"):
+        if doc.get(k) is not None:
+            doc[k] = doc[k].isoformat()
+    await db.receipts.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
 
 
 @router.get("")

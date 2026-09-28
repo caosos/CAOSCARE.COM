@@ -78,7 +78,7 @@ export default function DepartmentQueue({ department, title, itemName = "request
   };
 
   const saveNote = async () => {
-    if (!noteFor) return;
+    if (!noteFor || !noteText.trim()) return;
     try {
       await api.patch(`/tasks/${noteFor}`, { notes: noteText });
       toast.success("Note saved");
@@ -144,7 +144,7 @@ export default function DepartmentQueue({ department, title, itemName = "request
               </Button>
             )}
             {canNote(t) && t.status !== "completed" && t.status !== "skipped" && (
-              <Button size="sm" variant="ghost" onClick={() => { setNoteFor(t.task_id); setNoteText(t.notes || ""); }} data-testid={`wo-note-${t.task_id}`}>
+              <Button size="sm" variant="ghost" onClick={() => { setNoteFor(t.task_id); setNoteText(""); }} data-testid={`wo-note-${t.task_id}`}>
                 <NotebookPen className="w-4 h-4 mr-1" /> Note
               </Button>
             )}
@@ -244,11 +244,11 @@ export default function DepartmentQueue({ department, title, itemName = "request
 
       <Dialog open={!!noteFor} onOpenChange={(o) => { if (!o) setNoteFor(null); }}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle className="font-display">Staff note</DialogTitle></DialogHeader>
-          <p className="text-sm text-caos-mute">The resident can hear this note when they ask Aria about the request.</p>
+          <DialogHeader><DialogTitle className="font-display">Add a note</DialogTitle></DialogHeader>
+          <p className="text-sm text-caos-mute">The resident can hear the latest note when they ask Aria about the request. Earlier notes stay in History.</p>
           <Textarea value={noteText} onChange={(e) => setNoteText(e.target.value)} rows={4} data-testid="wo-note-text" />
           <DialogFooter>
-            <Button onClick={saveNote} className="bg-caos-forest" data-testid="wo-note-save">Save note</Button>
+            <Button onClick={saveNote} disabled={!noteText.trim()} className="bg-caos-forest" data-testid="wo-note-save">Save note</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from models import StaffTask, TaskPriority, now_utc
 from deps import db, get_current_user
 from routes.receipts import create_receipt
+from routes.task_history import task_event, update_task_with_history
 from routes.notifications import notify_department
 from routes.departments import get_active_departments
 from routes.facility_local_time import facility_tz as _facility_tz, facility_local as _facility_local
@@ -151,9 +152,10 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
         same_issue = (existing.get("resident_words") or "").strip().lower() == (data.resident_words or data.summary or "").strip().lower()
         count = existing.get("re_request_count", 0) + 1
         now_iso = now_utc().isoformat()
-        await db.staff_tasks.update_one(
-            {"task_id": existing["task_id"]},
-            {"$set": {"re_request_count": count, "last_re_requested_at": now_iso}},
+        await update_task_with_history(
+            existing["task_id"], {"re_request_count": count, "last_re_requested_at": now_iso},
+            [task_event("re_request", to=count, by=(user or {}).get("user_id") or "resident",
+                        by_name=requested_by, text=data.resident_words or data.summary)],
         )
         receipt = await create_receipt(
             action_type="resident_request_re_requested", related_object_type="task",
@@ -241,9 +243,10 @@ def _resident_safe_view(task: dict, tz: str) -> dict:
 
     Every lifecycle timestamp that ACTUALLY EXISTS on StaffTask is exposed
     here as {iso, local, label}; one that does not exist / was never set is
-    null (Aria says "I don't have that", never invents one). `latest_update`
-    is the free-text staff note - StaffTask has no per-note timestamp, so
-    `latest_update_at` is null by design, not omission.
+    null (Aria says "I don't have that", never invents one).
+    `latest_update` is the latest staff note; `latest_update_at` is when it
+    was written, from the task's event_log (null for notes written before
+    event_log existed).
     """
     status = task["status"]
     is_open = status in OPEN_TASK_STATUSES
@@ -252,6 +255,8 @@ def _resident_safe_view(task: dict, tz: str) -> dict:
     started = _iso(task.get("started_at"))
     completed = _iso(task.get("completed_at"))
     last_re = _iso(task.get("last_re_requested_at"))
+    note_times = [e.get("at") for e in task.get("event_log") or [] if e.get("field") == "note"]
+    note_at = note_times[-1] if note_times and task.get("notes") else None
     return {
         "task_id": task["task_id"],
         "category": task["category"],
@@ -263,7 +268,7 @@ def _resident_safe_view(task: dict, tz: str) -> dict:
         "scheduled_date": task.get("requested_for_date"),        # planned service window,
         "scheduled_time_label": task.get("requested_for_time_label"),  # separate from lifecycle
         "latest_update": task.get("notes") or "",
-        "latest_update_at": None,         # StaffTask.notes has no timestamp - honest null
+        "latest_update_at": _facility_local(note_at, tz),
         "re_request_count": task.get("re_request_count", 0),
         # ---- authoritative lifecycle timestamps (UTC iso + facility-local) ----
         "created_at": created,            # raw UTC kept for back-compat / audit

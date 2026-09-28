@@ -16,6 +16,7 @@ from models import StaffTask, StaffTaskCreate, StaffTaskUpdate, now_utc
 from deps import db, get_current_user
 from routes.receipts import create_receipt, update_receipt_status
 from routes.notifications import send_email
+from routes.task_history import task_event, update_task_with_history, patch_events
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -153,7 +154,7 @@ async def update_task(task_id: str, data: StaffTaskUpdate, user=Depends(get_curr
     patch = {k: v for k, v in data.model_dump(exclude_none=True).items()}
     if "assigned_to" in patch:
         await _resolve_denorms(patch)
-    await db.staff_tasks.update_one({"task_id": task_id}, {"$set": patch})
+    await update_task_with_history(task_id, patch, patch_events(existing, patch, user))
     updated = await db.staff_tasks.find_one({"task_id": task_id}, {"_id": 0})
     return _iso(updated)
 
@@ -168,14 +169,11 @@ async def acknowledge_task(task_id: str, user=Depends(get_current_user)):
     if not existing:
         raise HTTPException(status_code=404, detail="Task not found")
     if not existing.get("acknowledged_at"):
-        await db.staff_tasks.update_one(
-            {"task_id": task_id},
-            {"$set": {
-                "acknowledged_by": user["user_id"], "acknowledged_by_name": user.get("name"),
-                "acknowledged_at": now_utc().isoformat(),
-            }},
-        )
-        await update_receipt_status("task", task_id, "acknowledged")
+        await update_task_with_history(task_id, {
+            "acknowledged_by": user["user_id"], "acknowledged_by_name": user.get("name"),
+            "acknowledged_at": now_utc().isoformat(),
+        }, [task_event("acknowledged", user=user)])
+        await update_receipt_status("task", task_id, "acknowledged", requested_by=user["user_id"])
     return _iso(await db.staff_tasks.find_one({"task_id": task_id}, {"_id": 0}))
 
 
@@ -190,9 +188,26 @@ async def start_task(task_id: str, user=Depends(get_current_user)):
         "assigned_to": existing.get("assigned_to") or user["user_id"],
         "assigned_name": existing.get("assigned_name") or user.get("name"),
     }
-    await db.staff_tasks.update_one({"task_id": task_id}, {"$set": patch})
-    await update_receipt_status("task", task_id, "in_progress")
+    entries = []
+    if existing.get("status") != "in_progress":
+        entries.append(task_event("status", user=user, frm=existing.get("status"), to="in_progress"))
+    if not existing.get("assigned_to"):
+        entries.append(task_event("assigned_to", user=user, to=patch["assigned_to"],
+                                  to_name=patch["assigned_name"]))
+    await update_task_with_history(task_id, patch, entries)
+    await update_receipt_status("task", task_id, "in_progress", requested_by=user["user_id"])
     return _iso(await db.staff_tasks.find_one({"task_id": task_id}, {"_id": 0}))
+
+
+def _close_events(existing: dict, to_status: str, body: dict, user: dict) -> list[dict]:
+    """A closing note is appended as its own history entry, so it no
+    longer replaces the progress notes recorded before it."""
+    entries = []
+    note = (body.get("notes") or "").strip()
+    if note:
+        entries.append(task_event("note", user=user, text=note))
+    entries.append(task_event("status", user=user, frm=existing.get("status"), to=to_status))
+    return entries
 
 
 @router.post("/{task_id}/complete")
@@ -220,8 +235,9 @@ async def complete_task(task_id: str, body: dict = None, user=Depends(get_curren
     }
     if not existing.get("started_at"):
         patch["started_at"] = finished.isoformat()
-    await db.staff_tasks.update_one({"task_id": task_id}, {"$set": patch})
-    await update_receipt_status("task", task_id, "completed", result=patch["notes"] or "completed")
+    await update_task_with_history(task_id, patch, _close_events(existing, "completed", body, user))
+    await update_receipt_status("task", task_id, "completed", result=patch["notes"] or "completed",
+                                requested_by=user["user_id"])
     return _iso(await db.staff_tasks.find_one({"task_id": task_id}, {"_id": 0}))
 
 
@@ -238,8 +254,9 @@ async def skip_task(task_id: str, body: dict = None, user=Depends(get_current_us
         "completed_by_name": user.get("name"),
         "notes": body.get("notes") or existing.get("notes") or "",
     }
-    await db.staff_tasks.update_one({"task_id": task_id}, {"$set": patch})
-    await update_receipt_status("task", task_id, "cancelled", failure_reason=patch["notes"] or "skipped")
+    await update_task_with_history(task_id, patch, _close_events(existing, "skipped", body, user))
+    await update_receipt_status("task", task_id, "cancelled", failure_reason=patch["notes"] or "skipped",
+                                requested_by=user["user_id"])
     return _iso(await db.staff_tasks.find_one({"task_id": task_id}, {"_id": 0}))
 
 

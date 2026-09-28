@@ -792,6 +792,9 @@ class StaffTask(BaseModel):
     acknowledged_at: Optional[datetime] = None
     re_request_count: int = 0                # times a resident asked again before this closed
     last_re_requested_at: Optional[datetime] = None
+    # Append-only transition + note history (ENGINEERING_CONTRACT decision 6),
+    # written only via routes/task_history.py. Legacy tasks have none.
+    event_log: List[dict] = Field(default_factory=list)
     # Shared "when" field for any request type that needs a future time
     # instead of "now" (transportation today; nursing's "talk to my nurse
     # tomorrow" can reuse the same two fields later - build once, per the

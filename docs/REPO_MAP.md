@@ -733,3 +733,17 @@ listener verifier experiment: `docs/experiments/`.
 - `frontend/src/lib/capabilities/{resident,community,steps}.js`: five-step demonstration data (sample data only); `community.js` also holds the staff dashboard demo rows.
 - `frontend/src/components/capabilities/`: `CapabilityCard`, `CapabilityDemo` (dialog / phone full-screen panel), `useCapabilityDemo` (`#cap-<id>` links, focus return), `StatusPill`, `StatusLegend`, `StaffDashboardPreview`, `StaffResponsePreview`.
 - `frontend/src/lib/publicOnboarding.js` now holds only the planned phone/calling/messages/wearable entries; the old `COMMUNITY_AREAS` list is replaced by `community.js`.
+
+## 2026-09-27 — Shared core SC-1 / SC-2 (branch `pilot/shared-core`)
+
+- `backend/routes/task_history.py`: append-only `StaffTask.event_log`
+  (status, acknowledged, assignment, note, re-request; who + when). The only
+  writer of `event_log`; lifecycle routes in `tasks.py`, `task_assignment.py`
+  and `resident_requests.py` call it.
+- `backend/routes/receipts.py::update_receipt_status`: appends a new receipt
+  per status change (context carried forward from earlier receipts); never
+  rewrites one.
+- `frontend/src/lib/requestHistory.js` + `frontend/src/components/RequestTimeline.jsx`:
+  the one request-history timeline, used by `RequestHistoryDialog.jsx`
+  (department queues) and `RequestDetailDialog.jsx` (admin).
+- Test: `backend/tests/test_shared_core_history.py` (Nursing + Maintenance).
