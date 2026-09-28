@@ -101,7 +101,7 @@ export default function DepartmentQueue({ department, title, itemName = "request
             <div className="flex items-center gap-2 flex-wrap">
               <Badge className={`uppercase text-[10px] font-bold ${PRIO_STYLE[t.priority] || PRIO_STYLE.normal}`}>{t.priority}</Badge>
               <Badge variant="outline" className="uppercase text-[10px]">{t.status.replace("_", " ")}</Badge>
-              <span className="text-xs text-caos-mute">opened {ageLabel(t.created_at)} ago</span>
+              <span className="text-xs text-caos-mute">opened {ageLabel(t.created_at)}</span>
               {t.due_at && (
                 <span className={`text-xs ${overdue ? "text-caos-terracotta font-semibold" : "text-caos-mute"}`}>
                   due {new Date(t.due_at).toLocaleDateString()}{overdue ? " · OVERDUE" : ""}
@@ -219,7 +219,10 @@ export default function DepartmentQueue({ department, title, itemName = "request
             {b.completed.map((t) => (
               <div key={t.task_id} className="flex justify-between border-b border-caos-line py-1 text-caos-mute">
                 <span>{t.title}{t.room ? ` · Rm ${t.room}` : ""}</span>
-                <span className="text-xs">{t.completed_by_name || ""} · {ageLabel(t.completed_at)} ago</span>
+                <span className="text-xs flex items-center gap-2">
+                  {t.completed_by_name || ""} · {ageLabel(t.completed_at)}
+                  <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => setHistoryFor(t.task_id)} data-testid={`wo-history-${t.task_id}`}>History</Button>
+                </span>
               </div>
             ))}
           </div>

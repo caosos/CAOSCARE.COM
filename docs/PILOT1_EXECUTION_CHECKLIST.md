@@ -3,7 +3,7 @@
 Target: 2026-10-10
 
 Current phase: PHASE 3 — Real staff operational workflows (focus: operational completion)
-Current active task: Work block A — Nursing / care requests end-to-end (then B Maintenance, C Front desk)
+Current active task: Work block B — Maintenance (Nursing block A done 2026-09-28, gaps recorded)
 Current integration branch: `integration/2026-09-27`
 Current integration SHA: `c7b789d` (last code state; this checklist is committed on top of it)
 Last updated: 2026-09-27
@@ -99,14 +99,14 @@ Status note: `[~]` below means the software path exists (see screenshots in `fro
 
 **Nursing / care**
 
-- [~] Resident request created
-- [~] Correct department routing
-- [~] Nursing queue visible
-- [~] Acknowledge
-- [~] Assign/action
-- [~] Complete
-- [~] Receipt/history
-- [~] Resident can ask real status
+- [x] Resident request created — the real Aria tool code (`request_staff_help`) created a high-priority nursing request with the resident's words "I need help going to the bathroom", resident 3W01 (local acceptance 2026-09-28, demo resident 3W01 + demo nurse, task `task_71d0ee8a08ac`). Live spoken voice test still needs Michael.
+- [x] Correct department routing — routed to nursing; shown in the demo nurse's queue.
+- [x] Nursing queue visible — `/staff` Nursing requests queue as a nursing-department nurse (browser, :3005 integration build); also an Admin Nursing tab.
+- [x] Acknowledge — browser; card shows "seen by".
+- [x] Assign/action — Claim, Start and Note in the browser.
+- [x] Complete — browser, with completion note.
+- [~] Receipt/history — History dialog shows created, acknowledged, started, completed with names and times. Gaps: receipt status is updated in place ("task assigned · completed"); the completion note overwrites the earlier progress note (one notes field); note edits create no receipt.
+- [x] Resident can ask real status — real `check_request_status` code: pending → "no one has picked it up yet"; acknowledged → "Staff have seen it — not finished yet"; in progress → "Someone is working on it now"; completed → no open request. Never says someone is on the way.
 
 **Maintenance**
 
@@ -408,5 +408,6 @@ Acceptance: Linode runs the exact SHA Michael approved.
 
 | Date | By | Change |
 |---|---|---|
+| 2026-09-28 | Claude Code (Opus 5.5) | Work block A (Nursing): 7 items [x], receipt/history [~] with gaps recorded. |
 | 2026-09-27 | Claude Code (Opus 5.5) | Phase 1 closed on Michael's review; punch list added to Phase 2; Ask Aria task in Phase 11; priority order and operational focus set for Phase 3. |
 | 2026-09-27 | Claude Code (Opus 5.5) | Checklist created on `integration/2026-09-27` at `c7b789d`. Starting statuses taken from `docs/PROJECT_STATE.md` evidence and the 2026-09-27 localhost:3000 panel pass. |
