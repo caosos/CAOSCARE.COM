@@ -22,6 +22,7 @@ import { MyTasksCard } from "./TasksTab";
 import PagerFeedCard from "./PagerFeedCard";
 import DeviceStatusCard from "./DeviceStatusCard";
 import AlertStatsRow from "./AlertStatsRow";
+import DepartmentQueue from "./DepartmentQueue";
 
 function severityColor(s) {
   if (s === "emergency") return { border: "#B6463A", bg: "#FDECE9", text: "#98392F" };
@@ -155,6 +156,14 @@ export default function StaffDashboard() {
 
       <div className="max-w-7xl mx-auto px-6 py-8">
         <AlertStatsRow stats={stats} insightSummary={insightSummary} />
+
+        {/* Resident requests routed to nursing (Aria, room screen, front desk).
+            Help calls from the pendant/help button stay in Live alerts. */}
+        {(user?.department === "nursing" || ["owner", "admin"].includes(user?.role)) && (
+          <div className="mb-8">
+            <DepartmentQueue department="nursing" title="Nursing requests" adminMode={["owner", "admin"].includes(user?.role)} />
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* Alerts */}

@@ -1,14 +1,17 @@
-// Pure helpers for the Maintenance work-order workspace. A "work order" is
-// just a StaffTask with visibility_role === "maintenance" - these functions
-// slice that existing list into the operational buckets the workspace
-// shows. No new model, no server call here.
+// Pure helpers for department request queues (Maintenance work orders,
+// Nursing requests, ...). A department request is just a StaffTask whose
+// visibility_role is that department - these functions slice that existing
+// list into the operational buckets the queue shows. No new model, no
+// server call here. `department` defaults to "maintenance".
 
 const DONE = ["completed", "skipped"];
 
-export function isMaintenanceWO(t) {
+export function isDepartmentTask(t, department = "maintenance") {
   if (!t) return false;
-  return t.visibility_role === "maintenance" || (!t.visibility_role && t.category === "maintenance");
+  return t.visibility_role === department || (!t.visibility_role && t.category === department);
 }
+
+export const isMaintenanceWO = (t) => isDepartmentTask(t, "maintenance");
 
 export function isOverdue(t, now = Date.now()) {
   if (!t || !t.due_at || DONE.includes(t.status)) return false;
@@ -19,12 +22,12 @@ export function isOverdue(t, now = Date.now()) {
 export function canClaim(t, user) {
   if (!t || t.assigned_to || t.status !== "pending") return false;
   if (["owner", "admin"].includes(user?.role)) return true;
-  return user?.role === "staff" && user?.department === (t.visibility_role || "maintenance");
+  return user?.role === "staff" && user?.department === (t.visibility_role || t.category);
 }
 
-export function canAssign(user) {
+export function canAssign(user, department = "maintenance") {
   return ["owner", "admin"].includes(user?.role) ||
-    (user?.role === "staff" && user?.department === "maintenance");
+    (user?.role === "staff" && user?.department === department);
 }
 
 export function ageLabel(iso) {
@@ -38,10 +41,10 @@ export function ageLabel(iso) {
 
 const byCreatedAsc = (a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0);
 
-// Slice a task list into the Maintenance workspace's sections. Deterministic:
+// Slice a task list into a department queue's sections. Deterministic:
 // every bucket is oldest-first except `completed` (newest-closed first).
-export function workOrderBuckets(tasks, { meId = null, now = Date.now(), completedLimit = 20 } = {}) {
-  const wos = (tasks || []).filter(isMaintenanceWO);
+export function workOrderBuckets(tasks, { meId = null, now = Date.now(), completedLimit = 20, department = "maintenance" } = {}) {
+  const wos = (tasks || []).filter((t) => isDepartmentTask(t, department));
   const open = wos.filter((t) => !DONE.includes(t.status));
   const unassigned = open.filter((t) => t.status === "pending" && !t.assigned_to).sort(byCreatedAsc);
   const inProgress = open.filter((t) => t.status === "in_progress").sort(byCreatedAsc);

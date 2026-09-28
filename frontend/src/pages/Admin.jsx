@@ -36,6 +36,7 @@ import ZonesTab from "./ZonesTab";
 import { tabGroups, resolveTab } from "../lib/adminTabGroups";
 import OperationsOverview from "./OperationsOverview";
 import MaintenanceWorkspace from "./MaintenanceWorkspace";
+import DepartmentQueue from "./DepartmentQueue";
 import ActivityLog from "./ActivityLog";
 import ReportsTab from "./ReportsTab";
 import AlertsBoard from "./AlertsBoard";
@@ -159,6 +160,7 @@ export default function Admin() {
 
           <TabsContent value="overview" className="mt-6"><OperationsOverview onNavigate={setActiveTab} /></TabsContent>
           <TabsContent value="alerts" className="mt-6"><AlertsBoard /></TabsContent>
+          <TabsContent value="nursing" className="mt-6"><DepartmentQueue department="nursing" title="Nursing requests" adminMode /></TabsContent>
           <TabsContent value="maintenance" className="mt-6"><MaintenanceWorkspace adminMode /></TabsContent>
           <TabsContent value="residents" className="mt-6">
             <ResidentsTab residents={residents} kiosks={kiosks} onChange={fetchAll}

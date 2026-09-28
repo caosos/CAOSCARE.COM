@@ -119,7 +119,10 @@ export async function executeOperationsTool({ name, args, ctx }) {
     const scheduleClause = data.scheduled_date || data.scheduled_time_label
       ? `planned for ${[data.scheduled_time_label, data.scheduled_date].filter(Boolean).join(" on ")}`
       : "no scheduled time yet";
+    // `spoken` is the backend's authoritative one-line status (same lifecycle
+    // vocabulary as Aria's "right now" context); lead with it.
     const parts = [
+      ...(data.spoken ? [`summary: ${data.spoken.replace(/\.$/, "")}`] : []),
       `it's for ${data.what_for || "something you asked about"}`,
       `status: ${data.status}${data.acknowledged ? " (acknowledged)" : " (not yet acknowledged)"}${data.assigned_to_name ? `, assigned to ${data.assigned_to_name}` : ""}`,
       scheduleClause,

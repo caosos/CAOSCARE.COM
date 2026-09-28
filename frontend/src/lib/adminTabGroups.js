@@ -12,6 +12,7 @@ export function tabGroups(residents, staff, kiosks, zones, user) {
       tabs: [
         { value: "overview", label: "Operations overview" },
         { value: "alerts", label: "Alerts & events" },
+        { value: "nursing", label: "Nursing" },
         { value: "maintenance", label: "Maintenance" },
       ],
     },

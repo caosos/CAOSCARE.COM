@@ -529,7 +529,7 @@ export default function Kiosk() {
             </h1>
             <p className="kiosk-prompt mt-6 text-2xl md:text-3xl text-caos-ink/80 leading-snug">
               If you need help, press the big red button.<br />
-              I'll stay with you while staff are notified.
+              Your call goes to the staff screen, and I'll stay with you.
             </p>
 
             <button
@@ -554,7 +554,7 @@ export default function Kiosk() {
             </div>
             {!micReady && (
               <p className="mt-4 text-sm text-caos-mute italic" data-testid="kiosk-mic-prime-hint">
-                Tap any button above — the tablet will ask for microphone permission once, then the voice is hands-free.
+                Tap any button above — this screen will ask for microphone permission once, then the voice is hands-free.
               </p>
             )}
           </div>
