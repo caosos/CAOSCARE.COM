@@ -38,7 +38,10 @@ Immediately after repository-wide hydration:
 
 1. Read **`docs/CURRENT_PRIORITY.md`** when it exists. It holds Michael's current execution target and priority order. Treat it as current-state guidance, not durable product architecture; the Product Baseline and contracts still govern product truth.
 2. Read **`docs/PILOT1_EXECUTION_CHECKLIST.md`**, the authoritative execution tracker for the 2026-10-10 Pilot 1 target.
-3. Identify the checklist's **Current phase** and **Current active task** before recommending new CAOSCare work.
+3. Read **`docs/PILOT1_ACTIVE_WORK.md`**, the parallel-work ownership map. Identify your lane, branch/worktree, owned files and shared dependencies. Shared contracts change only through the Shared Core lane.
+4. Identify the checklist's **Current phase** and **Current active task** before recommending new CAOSCare work.
+
+All three files are read before modifying CAOSCare.
 
 Do not start lower-priority work when the checklist has an active unfinished task unless Michael explicitly redirects priority.
 
