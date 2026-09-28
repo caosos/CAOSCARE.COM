@@ -75,3 +75,18 @@ def patch_events(existing: dict, patch: dict, user: dict) -> list[dict]:
         entries.append(task_event("assigned_to", user=user, frm=existing.get("assigned_to"),
                                   to=patch["assigned_to"], to_name=patch.get("assigned_name")))
     return entries
+
+
+def latest_note_at(task: dict) -> Optional[str]:
+    """When the task's current note (`notes`) was written, from event_log.
+    None for a note written before event_log existed - never guessed."""
+    if not task.get("notes"):
+        return None
+    times = [e.get("at") for e in task.get("event_log") or [] if e.get("field") == "note"]
+    return times[-1] if times else None
+
+
+def times_asked(task: dict) -> int:
+    """How many times the resident has asked: the first ask plus every
+    re-request. The single source for "asked N times" wording."""
+    return int(task.get("re_request_count") or 0) + 1

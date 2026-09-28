@@ -62,7 +62,10 @@ def task_lifecycle(t: dict) -> str:
         return "resolved"
     if t.get("status") == "in_progress":
         return "in_progress"
-    if t.get("acknowledged_at"):
+    # A real staff owner counts as seen: once someone has claimed or been
+    # assigned the request, it is never "no one has picked it up" (SC-3).
+    if t.get("acknowledged_at") or t.get("assigned_to") or t.get("assigned_name") \
+            or t.get("assigned_to_name"):
         return "acknowledged"
     return "open"
 

@@ -107,3 +107,22 @@ describe("workOrderBuckets", () => {
     expect(workOrderBuckets(null, {}).all).toEqual([]);
   });
 });
+
+describe("SC-6: front desk acts for Administration only", () => {
+  const fd = { role: "front_desk", user_id: "f1" };
+  const maint = { role: "staff", department: "maintenance" };
+  const task = (vis) => ({ status: "pending", assigned_to: null, visibility_role: vis });
+  test("front desk can claim and assign Administration requests", () => {
+    expect(canClaim(task("administration"), fd)).toBe(true);
+    expect(canAssign(fd, "administration")).toBe(true);
+  });
+  test("front desk cannot claim or assign other departments", () => {
+    expect(canClaim(task("maintenance"), fd)).toBe(false);
+    expect(canAssign(fd, "nursing")).toBe(false);
+  });
+  test("department staff behaviour is unchanged", () => {
+    expect(canClaim(task("maintenance"), maint)).toBe(true);
+    expect(canClaim(task("administration"), maint)).toBe(false);
+    expect(canAssign(maint, "maintenance")).toBe(true);
+  });
+});

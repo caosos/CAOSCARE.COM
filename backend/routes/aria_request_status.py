@@ -14,11 +14,12 @@ from typing import Optional
 
 from routes.aria_operational_state import task_lifecycle
 from routes.aria_time import age_phrase
+from routes.facility_local_time import facility_local
+from routes.task_history import latest_note_at
 
 
-def _by(view: dict) -> str:
-    who = view.get("assigned_to_name") or view.get("assigned_name") or view.get("completed_by_name")
-    return f" ({who})" if who else ""
+def _owner(task: dict) -> Optional[str]:
+    return task.get("assigned_to_name") or task.get("assigned_name")
 
 
 def _sched(view: dict) -> str:
@@ -29,24 +30,41 @@ def _sched(view: dict) -> str:
     return " Planned for " + " on ".join(x for x in (label, date) if x) + "."
 
 
-def request_status_view(task: dict) -> dict:
-    """`task` is a raw staff_tasks doc OR an already-projected resident view
-    (both carry `status`/`acknowledged_at`/`created_at`/schedule fields)."""
+def _note(task: dict, tz: Optional[str], lead: str) -> str:
+    """The current staff note, with when it was written when that is known
+    (from event_log). A note older than event_log is spoken without a time,
+    never with an invented one."""
+    text = (task.get("latest_update") or task.get("notes") or "").strip().rstrip(".")
+    if not text:
+        return ""
+    when = facility_local(latest_note_at(task), tz) if tz else None
+    stamp = f" ({when['label']})" if when else ""
+    return f" {lead}{stamp}: {text}."
+
+
+def request_status_view(task: dict, tz: Optional[str] = None) -> dict:
+    """`task` is a raw staff_tasks doc (it carries event_log, needed for the
+    note time). `tz` (facility timezone) enables the note's time label."""
     lifecycle = task_lifecycle(task)
     opened = task.get("created_at")
     opened_age = age_phrase(opened) if opened else "at an unknown time"
     what = (task.get("what_for") or task.get("resident_words") or task.get("description")
             or task.get("title") or "your request")
-    upd = (task.get("latest_update") or task.get("notes") or "").strip().rstrip(".")
+    owner = _owner(task)
 
     if lifecycle == "resolved":
-        spoken = f"That one — {what} — has been taken care of{_by(task)}."
+        who = task.get("completed_by_name") or owner
+        spoken = f"That one — {what} — has been taken care of{f' by {who}' if who else ''}."
+        spoken += _note(task, tz, "Their note")
     elif lifecycle == "in_progress":
-        spoken = f"Someone is working on it now{_by(task)}.{_sched(task)}"
+        spoken = f"{owner or 'Someone'} is working on it now.{_sched(task)}"
+        spoken += _note(task, tz, "Latest note")
     elif lifecycle == "acknowledged":
-        spoken = f"Staff have seen it{_by(task)} — not finished yet.{_sched(task)}"
-        if upd:
-            spoken += f" Latest from them: {upd}."
+        if owner:
+            spoken = f"{owner} has taken it on — work hasn't started yet.{_sched(task)}"
+        else:
+            spoken = f"Staff have seen it — not finished yet.{_sched(task)}"
+        spoken += _note(task, tz, "Latest note")
     else:  # open
         spoken = (f"It's still open — you raised it {opened_age}, and no one has "
                   f"picked it up yet.{_sched(task)}")

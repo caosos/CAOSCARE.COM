@@ -20,6 +20,7 @@ from pydantic import BaseModel
 from deps import db, get_current_user
 from routes.receipts import create_receipt
 from routes.task_history import task_event, update_task_with_history
+from routes.staff_scope import acting_departments, acts_for
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -47,20 +48,15 @@ async def assign_task(task_id: str, data: AssignInput, user=Depends(get_current_
     if not existing:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    role = user.get("role")
-    my_dept = user.get("department")
     vis = existing.get("visibility_role")
     target_id = (data.assigned_to or "").strip() or None
 
-    if role in ("owner", "admin"):
-        pass
-    elif role == "staff" and my_dept and vis == my_dept:
-        if target_id and target_id != user["user_id"]:
-            tgt = await db.users.find_one({"user_id": target_id}, {"_id": 0, "department": 1})
-            if not tgt or tgt.get("department") != my_dept:
-                raise HTTPException(status_code=403, detail="You can only assign within your own department")
-    else:
+    if not acts_for(user, vis):
         raise HTTPException(status_code=403, detail="Not allowed to assign this task")
+    if user.get("role") not in ("owner", "admin") and target_id and target_id != user["user_id"]:
+        tgt = await db.users.find_one({"user_id": target_id}, {"_id": 0, "role": 1, "department": 1})
+        if not tgt or vis not in acting_departments(tgt):
+            raise HTTPException(status_code=403, detail="You can only assign within your own department")
 
     assigned_name = None
     if target_id:

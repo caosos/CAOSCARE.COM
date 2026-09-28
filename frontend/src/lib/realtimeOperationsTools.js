@@ -27,6 +27,14 @@ async function needsClarificationMessage(r) {
   return null;
 }
 
+
+// "asked N times" counts the first ask plus every re-request - the same count
+// the staff queue shows. Backend sends times_asked; re_request_count alone is
+// only the number of repeats.
+function timesAsked(d) {
+  return d.times_asked || (Number(d.re_request_count) || 0) + 1;
+}
+
 export async function executeOperationsTool({ name, args, ctx }) {
   const { room, residentId, sessionId, turnSuspect, turnSuspectReason } = ctx;
   // 2026-08-23: "echo_like" genuinely suggests mishearing - ask to repeat.
@@ -72,7 +80,7 @@ export async function executeOperationsTool({ name, args, ctx }) {
         : `something else already open in ${args.category} ("${data.existing_summary}")`;
       return {
         ok: true,
-        message: `there's already an open ${args.category} request on file for ${aboutClause} - I've let them know again (this is ask #${data.re_request_count}), current status: ${data.status}.`,
+        message: `there's already an open ${args.category} request on file for ${aboutClause} - I've let them know again (they've now been asked ${timesAsked(data)} times).${data.spoken ? ` ${data.spoken}` : ""}`,
         task_id: data.task_id,
       };
     }
@@ -107,7 +115,8 @@ export async function executeOperationsTool({ name, args, ctx }) {
       }
       const items = data.requests.slice(0, 3).map((d) => {
         const t = lifecycle(d);
-        return `${d.what_for || "a request"} (${d.category})${t.length ? " — " + t.join(", ") : ""}`;
+        const said = d.spoken ? ` ${d.spoken.replace(/\.$/, "")}` : "";
+        return `${d.what_for || "a request"} (${d.category})${t.length ? " — " + t.join(", ") : ""}.${said}`;
       });
       return { ok: true, message: "past requests: " + items.join("; ") + "." };
     }
@@ -119,17 +128,18 @@ export async function executeOperationsTool({ name, args, ctx }) {
     const scheduleClause = data.scheduled_date || data.scheduled_time_label
       ? `planned for ${[data.scheduled_time_label, data.scheduled_date].filter(Boolean).join(" on ")}`
       : "no scheduled time yet";
-    // `spoken` is the backend's authoritative one-line status (same lifecycle
-    // vocabulary as Aria's "right now" context); lead with it.
+    // `spoken` is the backend's authoritative status (same lifecycle as
+    // Aria's "right now" context: owner, latest staff note with its real
+    // time). Do not restate raw status/ownership/notes here - a second
+    // wording is what contradicted it before (SC-3/SC-5).
     const parts = [
       ...(data.spoken ? [`summary: ${data.spoken.replace(/\.$/, "")}`] : []),
       `it's for ${data.what_for || "something you asked about"}`,
-      `status: ${data.status}${data.acknowledged ? " (acknowledged)" : " (not yet acknowledged)"}${data.assigned_to_name ? `, assigned to ${data.assigned_to_name}` : ""}`,
       scheduleClause,
     ];
     const t = lifecycle(data);
     if (t.length) parts.push(t.join(", "));
-    if (data.latest_update) parts.push(`latest staff update: ${data.latest_update.replace(/\.$/, "")} (no timestamp on record)`);
+    if (data.times_asked > 1) parts.push(`asked ${data.times_asked} times in all`);
     return { ok: true, message: parts.join("; ") + "." };
   }
 
@@ -171,7 +181,7 @@ export async function executeOperationsTool({ name, args, ctx }) {
     }
     const data = await r.json();
     if (data.duplicate) {
-      return { ok: true, message: `there's already an open transportation request on file for ${data.status === "pending" ? "that date" : data.status} - I've flagged it again (ask #${data.re_request_count}).` };
+      return { ok: true, message: `there's already an open transportation request on file for ${data.status === "pending" ? "that date" : data.status} - I've flagged it again (they've now been asked ${timesAsked(data)} times).` };
     }
     if (!data.booked) {
       return { ok: true, message: `request submitted for ${args.requested_for_date} - the front desk needs to coordinate the time, no confirmed time yet.` };
