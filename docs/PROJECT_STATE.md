@@ -5234,3 +5234,41 @@ Claude Code (Opus 5.5), EliteDesk `~/CAOSCARE-INTEGRATION`, branch `integration/
 
 ### Current phase / task
 PHASE 1: Michael's visual review of the public-capability WIP on localhost:3000 (`wip/public-capability-panels` `0985ae5`).
+
+---
+
+## 2026-09-27 — Lane B (Maintenance): "My sink is leaking" local acceptance, handoff
+
+### Agent / tool
+Claude Code (Opus 5.5), EliteDesk, worktree `~/CAOSCARE-LANE-MAINTENANCE`, branch `pilot/maintenance` from `e9373d5`. Lane B only. Not merged, not deployed. Shared request/status/receipt code was not modified.
+
+### What changed
+- New `backend/tests/test_maintenance_resident_loop.py` (159 lines): the resident-originated maintenance loop end to end over HTTP (request bus → maintenance-only routing → dedup on re-ask → acknowledge/claim/note → start → complete with time spent → current status clears → history answers → receipts). Plus a strict xfail reproducing SC-3.
+- `docs/PILOT1_ACTIVE_WORK.md`: Lane B row; shared-core requests SC-3 (truth defect) and SC-4; SC-1/SC-2 evidence from maintenance.
+- No production code changed: the maintenance lifecycle already existed (`DepartmentQueue` + `/workspace` for maintenance staff, `/tasks` lifecycle, `duration_minutes` on completion).
+
+### What was verified (local, isolated)
+Environment: lane backend `:8094` (worktree code) on a private copy of the demo database `caoscare_lane_maintenance` (copied from `caoscare_public_demo`); every outbound key blank, Home Assistant disabled; lane frontend `:3009`; headless Chrome. `:3000`, `:8092`, `:8000`, `:8001` and the shared `caoscare` DB were not touched.
+- Resident request: the unchanged `realtimeOperationsTools.js` body (API import only redirected) ran `request_staff_help` for demo resident 3W01 with "My sink is leaking." → `task_89ba5e337525`, category/visibility `maintenance`, source `aria_voice`, receipt `resident_request_created`, department email to the maintenance tech recorded as `logged` (no provider; not delivered, not claimed as delivered).
+- Staff (real UI, signed in as demo maintenance tech Carl Boone, who lands on `/workspace`): work order in the maintenance queue with the resident's words → Claim → Acknowledge → Note → Start → second note → Complete with a completion note → History dialog shows created, receipts, acknowledged, started, completed by Carl Boone · 0.3 min.
+- Aria status (real `check_request_status` / `check_request_history` code) at each step: open "no one has picked it up yet" · **after claim: still "no one has picked it up yet" while also "assigned to Demo - Carl Boone" (SC-3)** · acknowledged "Staff have seen it (Carl Boone) — not finished yet. Latest from them: …" · in progress "Someone is working on it now (Carl Boone)" + latest staff update · after completion: no open request; history lists it with asked/acknowledged/started/completed times; the room-screen list says "taken care of (Demo - Carl Boone)". Aria never said anyone was on the way.
+- Tests against `:8094`: `test_maintenance_resident_loop` (1 passed, 1 xfailed as intended), `test_maintenance_workorders`, `test_request_status_lifecycle`, `test_request_tools_speak_from_layer_e`, `test_staff_department` pass. `test_request_status_lifecycle` reads `REACT_APP_BACKEND_URL`, not `TEST_API_BASE`; with only `TEST_API_BASE` set it queries :8000 while inserting into the test DB and fails.
+
+### Not done / blocked
+- SC-3 (claim not counted as seen; resident told something false) needs Lane E.
+- SC-1/SC-2 reproduced on maintenance; SC-4 minor.
+- "Time spent" is measured start→complete automatically; there is no manual time entry.
+- Live spoken test ("My sink is leaking" to Aria in a room) not run — needs Michael. Routing to maintenance depends on Aria choosing the category; the tool description covers "something broken".
+- Real email delivery is Phase 4 / Lane F.
+
+HANDOFF CAPSULE
+- Objective:        Maintenance Pilot 1 lifecycle from a resident's spoken request to Aria's status answer.
+- Branch:           pilot/maintenance (from e9373d5)
+- Lane / ownership: Lane B. Did not modify shared request/status/receipt code, DepartmentQueue.jsx, main, or Linode.
+- Last proven state: local acceptance above, 2026-09-27 ~20:04–20:08 CDT.
+- Commits:          see this entry's commit on pilot/maintenance.
+- Runtime state:    lane-only :8094 backend, :3009 frontend, headless Chrome :9344, DB caoscare_lane_maintenance (disposable; drop when done).
+- Unresolved proven defects: SC-3 (truth), SC-1, SC-2; SC-4 minor.
+- Product invariants: Aria reports only real state; no arrival claims; one StaffTask = one request; receipts are evidence.
+- Do NOT change:    shared lifecycle/status/receipt code outside Lane E.
+- Next safe action: Lane E implements SC-3; coordinator integrates pilot/maintenance (test + docs only) and re-runs the acceptance test.
