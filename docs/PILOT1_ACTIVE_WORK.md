@@ -3,7 +3,7 @@
 Target: 2026-10-10
 
 Integration branch: `integration/2026-09-27`
-Integration SHA: `7ae91bc` (last code state). Workers branch from the current tip of `origin/integration/2026-09-27`, which adds only documentation on top of it.
+Integration SHA: `7a5fbe9` (last code state). Workers branch from the current tip of `origin/integration/2026-09-27`.
 Coordinator: the Claude Code session in the protected integration checkout `~/CAOSCARE-INTEGRATION` on the EliteDesk
 Last updated: 2026-09-28
 
@@ -34,7 +34,7 @@ No two agents independently redesign the same shared contract.
 | F | Communications / calling | `pilot/communications` | `~/CAOSCARE-LANE-COMMS` | Unassigned | Inbound/outbound email provider config and code gaps, department notifications delivery, call lifecycle, SIP/PBX/Aria phone bridge, front desk/family call receipts | Request/status changes coordinate with Lane E |
 | Coord | Integration coordinator | `integration/2026-09-27` | `~/CAOSCARE-INTEGRATION` | This checkout | This file, the authoritative checklist, merge order, whole-system tests, localhost:3000 | Everything, read-only except integration merges |
 
-Pending coordinator item: merge `wip/public-capability-panels` (`0985ae5`, Michael-accepted panel pattern, incl. the Therapy/Beauty Shop image punch list) into integration, then point localhost:3000 back at the integration checkout.
+Coordinator log: 2026-09-28 merged `wip/public-capability-panels` (`0985ae5`) at `e70fbce`; Therapy/Beauty Shop placeholders `7a5fbe9`; localhost:3000 serves integration again (proxying /api to :8092). `wip/public-capability-panels` and `~/CAOSCARE-WIP-PANELS` are now merged and can be retired once Michael agrees.
 
 ## Shared core requests
 

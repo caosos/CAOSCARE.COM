@@ -5,7 +5,7 @@ Target: 2026-10-10
 Current phase: PHASE 3 — Real staff operational workflows (focus: operational completion)
 Current active task: Work block B — Maintenance (Nursing block A done 2026-09-28, gaps recorded)
 Current integration branch: `integration/2026-09-27`
-Current integration SHA: `7ae91bc` (last code state)
+Current integration SHA: `7a5fbe9` (last code state)
 Last updated: 2026-09-28
 Last updated by: Claude Code (Opus 5.5), EliteDesk
 
@@ -54,7 +54,7 @@ Status symbols:
 
 ## PHASE 1 — Visual review of current public WIP
 
-- [x] Serve current public-capability WIP on localhost:3000 — `wip/public-capability-panels` `0985ae5` via `caoscare-frontend-dev.service` from `~/CAOSCARE-WIP-PANELS/frontend` (2026-09-27). Restore to integration with the backup drop-in `~/.config/systemd/user/caoscare-frontend-dev.worktree.conf.integration-backup`.
+- [x] Serve current public-capability WIP on localhost:3000 — `wip/public-capability-panels` `0985ae5` via `caoscare-frontend-dev.service` from `~/CAOSCARE-WIP-PANELS/frontend` (2026-09-27). Restored 2026-09-28: localhost:3000 serves the integration checkout again (panels merged at `e70fbce`).
 - [x] Michael reviews `/` — Michael's first visual review on localhost:3000 (WIP `0985ae5`), 2026-09-27; approved moving forward.
 - [x] Michael reviews `/for-residents` — same review.
 - [x] Michael reviews `/for-communities` — same review.
@@ -73,8 +73,8 @@ Acceptance: Michael has reviewed the actual localhost experience and there is on
 
 Michael's review punch list (2026-09-27):
 
-- [ ] Therapy panel imagery does not represent therapy — replace with a relevant image or an honest placeholder.
-- [ ] Beauty Shop panel imagery does not represent beauty/salon service — replace with a relevant image or an honest placeholder.
+- [x] Therapy panel imagery — replaced with a labelled placeholder ("Placeholder · no photo yet"), `7a5fbe9`; test locks it. A real therapy photo is still wanted.
+- [x] Beauty Shop panel imagery — replaced with a labelled placeholder, `7a5fbe9`; test locks it. A real salon photo is still wanted.
 - [ ] Global "Ask Aria" button is still missing from actual pages (task recorded in Phase 11).
 - [ ] Blue/white redesign has not happened yet (Phase 12; deferred by priority).
 - [x] Public department-panel structure is accepted as the pattern to keep — Michael's review, 2026-09-27.
@@ -87,8 +87,8 @@ General corrections:
 - [ ] Correct pendant frequency overclaims — known: admin Pendants screen says any 315/319/433/868/915 MHz pendant works (`frontend/src/pages/RFPairingTab.jsx`); proven with one 319.5 MHz model only.
 - [ ] Correct unsupported notification wording — known: room screen says "I'll stay with you while staff are notified".
 - [ ] Improve text-heavy panels
-- [~] Ensure real UI screenshots are used where software exists — 22 real screens (demo data) in WIP `0985ae5`; not yet merged.
-- [~] Keep planned/in-development demonstrations explicitly labeled — done in WIP `0985ae5`; not yet merged.
+- [~] Ensure real UI screenshots are used where software exists — 22 real screens (demo data), merged into integration at `e70fbce`; desktop/mobile acceptance on integration still pending.
+- [~] Keep planned/in-development demonstrations explicitly labeled — merged into integration at `e70fbce`.
 - [ ] Desktop/mobile acceptance of the corrected pages
 
 Acceptance: every public claim and screenshot accurately represents the current product.
@@ -302,8 +302,8 @@ Acceptance: the second room is a repeatable deployment rather than a second cust
 ## PHASE 10 — Public resident / family experience
 
 - [x] Featured original 30-second Video #001 — restored 2026-09-27 (integration `2961ade`, PR #41 `9f7dc4c`, PR #42 `b4934ce`); plays on localhost:3000.
-- [~] Resident imagery — four supplied images organized in WIP `0985ae5` (`frontend/public/media/marketing/`).
-- [~] Resident actual UI — room-screen screenshots in WIP `0985ae5`.
+- [~] Resident imagery — four supplied images organized, merged at `e70fbce` (`frontend/public/media/marketing/`).
+- [~] Resident actual UI — room-screen screenshots, merged at `e70fbce`.
 - [ ] Morning experience
 - [~] Voice interaction — panel in WIP.
 - [~] Help request — panel in WIP.
@@ -321,7 +321,7 @@ Acceptance: a prospective resident/family can understand what living with CAOSCa
 
 ## PHASE 11 — Public community / sales experience
 
-Status note: `[~]` here means the panel exists on WIP `0985ae5` (real screenshots, sample data) and is awaiting Michael's review and merge.
+Status note: `[~]` here means the panel exists in integration (merged at `e70fbce` after Michael's review; real screenshots, sample data); the workflow behind it is not yet accepted.
 
 - [~] Staff dashboard demo
 - [~] Nursing visual workflow
@@ -410,6 +410,7 @@ Acceptance: Linode runs the exact SHA Michael approved.
 
 | Date | By | Change |
 |---|---|---|
+| 2026-09-28 | Claude Code (Opus 5.5), coordinator | Merged panels `0985ae5` at `e70fbce` (one PROJECT_STATE conflict, both entries kept). Therapy/Beauty Shop placeholders `7a5fbe9` → [x]. localhost:3000 back on integration. |
 | 2026-09-28 | Claude Code (Opus 5.5) | Multi-agent coordination model adopted; `PILOT1_ACTIVE_WORK.md` created. No status changes. |
 | 2026-09-28 | Claude Code (Opus 5.5) | Work block A (Nursing): 7 items [x], receipt/history [~] with gaps recorded. |
 | 2026-09-27 | Claude Code (Opus 5.5) | Phase 1 closed on Michael's review; punch list added to Phase 2; Ask Aria task in Phase 11; priority order and operational focus set for Phase 3. |
