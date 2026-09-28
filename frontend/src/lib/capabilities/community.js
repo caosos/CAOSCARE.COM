@@ -3,7 +3,7 @@
 // an isolated demo database (sample data only). No staff workflow has real
 // staff acceptance yet, so none is Working or In pilot (see status.js).
 import { statusOf } from "./status";
-import { PHOTOS, SCREENS } from "./visuals";
+import { PHOTOS, SCREENS, PLACEHOLDERS } from "./visuals";
 
 export const COMMUNITY_WORKFLOWS = [
   {
@@ -152,7 +152,7 @@ export const COMMUNITY_WORKFLOWS = [
   {
     id: "therapy", name: "Therapy", department: "Therapy",
     summary: "Therapy visits and messages in the resident's own schedule.",
-    visuals: [PHOTOS.caregiver],
+    visuals: [PLACEHOLDERS.therapy],
     flow: {
       does: "Would ask \"When is my therapy today?\"",
       caos: "Would read the resident's therapy visits.",
@@ -165,7 +165,7 @@ export const COMMUNITY_WORKFLOWS = [
   {
     id: "beauty", name: "Beauty shop", department: "Salon",
     summary: "Salon requests that are only booked once the salon confirms.",
-    visuals: [PHOTOS.morning],
+    visuals: [PLACEHOLDERS.beauty],
     flow: {
       does: "Would ask \"Can I get my hair done Friday?\"",
       caos: "Would record an appointment request.",

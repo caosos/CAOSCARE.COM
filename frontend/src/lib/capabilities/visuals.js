@@ -10,6 +10,8 @@
 
 const screen = (file, width, height, alt) => ({ kind: "screen", src: `/media/screens/${file}`, width, height, alt });
 const photo = (file, alt) => ({ kind: "photo", src: `/media/marketing/${file}`, width: 1672, height: 941, alt });
+// kind "placeholder" = an honest stand-in where no relevant photo exists yet.
+const placeholder = (file, alt) => ({ kind: "placeholder", src: `/media/placeholders/${file}`, width: 1600, height: 900, alt });
 
 export const SCREENS = {
   roomScreen: screen("room-screen.jpg", 1100, 1506, "The resident's room screen: greeting, help button, talk button, requests, today's activities and menu, and room controls"),
@@ -41,4 +43,9 @@ export const PHOTOS = {
   caregiver: photo("caregiver-bedside-with-tablet.png", "A caregiver at a resident's bedside showing her a request list on a tablet"),
   morning: photo("resident-morning-in-bedroom.png", "A resident sitting up in bed in a sunny bedroom with window blinds"),
   maintenance: photo("maintenance-technician-at-sink.png", "A maintenance technician repairing a resident's bathroom sink while she looks on"),
+};
+
+export const PLACEHOLDERS = {
+  therapy: placeholder("therapy.svg", "Placeholder: no therapy photo yet"),
+  beauty: placeholder("beauty-shop.svg", "Placeholder: no beauty shop photo yet"),
 };

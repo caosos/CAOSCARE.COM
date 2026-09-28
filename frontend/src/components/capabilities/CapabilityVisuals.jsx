@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-const TAG = { screen: "CAOSCare screen · sample data", photo: "Illustrative photo" };
+const TAG = { screen: "CAOSCare screen · sample data", photo: "Illustrative photo", placeholder: "Placeholder · no photo yet" };
 
 export function VisualImage({ visual, className = "" }) {
   return (

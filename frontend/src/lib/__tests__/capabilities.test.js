@@ -4,7 +4,7 @@ import { CAPABILITY_STATUS, STATUS_META, isDemonstrable, statusOf } from "../cap
 import { RESIDENT_CAPABILITIES } from "../capabilities/resident";
 import { COMMUNITY_WORKFLOWS } from "../capabilities/community";
 import { ALL_CAPABILITIES, CAPABILITIES_BY_ID } from "../capabilities";
-import { PHOTOS, SCREENS } from "../capabilities/visuals";
+import { PHOTOS, SCREENS, PLACEHOLDERS } from "../capabilities/visuals";
 import { ROOM_FEATURES } from "../roomExperience/features";
 
 const PUBLIC = path.join(__dirname, "..", "..", "..", "public");
@@ -58,11 +58,18 @@ describe("capability panels", () => {
   });
 
   test("every visual file exists and carries alt text", () => {
-    for (const v of [...Object.values(SCREENS), ...Object.values(PHOTOS)]) {
+    for (const v of [...Object.values(SCREENS), ...Object.values(PHOTOS), ...Object.values(PLACEHOLDERS)]) {
       expect([v.src, fs.existsSync(path.join(PUBLIC, v.src))]).toEqual([v.src, true]);
       expect(v.alt.length).toBeGreaterThan(15);
-      expect(["screen", "photo"]).toContain(v.kind);
+      expect(["screen", "photo", "placeholder"]).toContain(v.kind);
     }
+  });
+
+  test("therapy and beauty shop show honest placeholders, not unrelated photos", () => {
+    // Michael's 2026-09-27 review: the caregiver and bedroom photos did not
+    // represent therapy or a salon.
+    expect(CAPABILITIES_BY_ID.therapy.visuals).toEqual([PLACEHOLDERS.therapy]);
+    expect(CAPABILITIES_BY_ID.beauty.visuals).toEqual([PLACEHOLDERS.beauty]);
   });
 
   test("staff departments show actual CAOSCare screens, not only photos", () => {

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-label="Therapy: photo not yet available">
+  <rect width="1600" height="900" fill="#EAE7DF"/>
+  <rect x="40" y="40" width="1520" height="820" rx="36" fill="none" stroke="#E2DFD5" stroke-width="6" stroke-dasharray="24 18"/>
+  <text x="800" y="430" text-anchor="middle" font-family="Georgia, serif" font-size="96" fill="#153428">Therapy</text>
+  <text x="800" y="530" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="44" fill="#6B726A">Photo not yet available</text>
+</svg>
