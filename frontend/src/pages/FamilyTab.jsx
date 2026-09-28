@@ -53,6 +53,16 @@ export default function FamilyTab({ residents }) {
     fetchAll();
   };
 
+  const setCalls = async (id, allow) => {
+    try {
+      await api.patch(`/family-contacts/${id}/calls`, { allow_calls: allow });
+      toast.success(allow ? "Resident can call this contact" : "Calling turned off");
+      fetchAll();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Failed");
+    }
+  };
+
   const toggleNotifyOn = (key) => {
     const has = form.notify_on.includes(key);
     setForm({ ...form, notify_on: has ? form.notify_on.filter((k) => k !== key) : [...form.notify_on, key] });
@@ -132,7 +142,7 @@ export default function FamilyTab({ residents }) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Contact</TableHead><TableHead>Resident</TableHead><TableHead>Phone</TableHead><TableHead>Email</TableHead><TableHead>Notify on</TableHead><TableHead></TableHead>
+              <TableHead>Contact</TableHead><TableHead>Resident</TableHead><TableHead>Phone</TableHead><TableHead>Email</TableHead><TableHead>Notify on</TableHead><TableHead>Resident may call</TableHead><TableHead></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -151,6 +161,15 @@ export default function FamilyTab({ residents }) {
                     <div className="flex flex-wrap gap-1">
                       {c.notify_on.map((k) => <Badge key={k} variant="outline" className="text-xs">{k}</Badge>)}
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    <Checkbox
+                      checked={!!c.allow_calls}
+                      disabled={!c.phone}
+                      onCheckedChange={(v) => setCalls(c.contact_id, !!v)}
+                      aria-label={`Allow ${c.name} to be called by the resident`}
+                      data-testid={`fam-calls-${c.contact_id}`}
+                    />
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1">
@@ -178,7 +197,7 @@ export default function FamilyTab({ residents }) {
               );
             })}
             {contacts.length === 0 && (
-              <TableRow><TableCell colSpan={6} className="text-center text-caos-mute py-6">No family contacts yet.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center text-caos-mute py-6">No family contacts yet.</TableCell></TableRow>
             )}
           </TableBody>
         </Table>

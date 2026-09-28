@@ -5268,3 +5268,22 @@ HANDOFF CAPSULE
 - Product invariants: `logged` ≠ `sent` ≠ `delivered`; call state only from telephony events; approved family contacts only; CAOSCare is not emergency dispatch.
 - Do NOT change:    other lanes' worktrees; production.
 - Next safe action: Michael configures Resend (domain, key, webhook, secret) and answers D1–D8; Lane E takes SC-3.
+
+---
+
+## 2026-09-27 — Lane F: Pilot 1 calling built to Michael's decisions D1–D8 (no hardware/accounts yet)
+
+### Agent / tool
+Claude Code (Opus 5.5), `~/CAOSCARE-LANE-COMMS`, branch `pilot/communications` (on `aa10645`). Not merged, not deployed.
+
+### What changed
+- `telephony/asterisk/`: Asterisk 18 PJSIP, dialplan, ARI, HTTP config and a 911 front-desk alert script. 911/9911 dial the trunk directly (no Aria, no CAOSCare before the Dial; front desk fallback); 0 rings ext 200 with no CAOSCare dependency; 700 reaches OpenAI Realtime SIP with `X-CAOS-Call-Id`/`X-CAOS-Extension`, falling back to the front desk; REFER transfers resolve a one-time token via CURL. ATA must use a **warm line** (auto-dial 700 after ~3 s) so 0 and 911 stay dialable — a pure hotline would block them.
+- Backend: `CallSession` lifecycle (forward-only, history, requested/outcome receipts) driven by ARI events; lazy records for dialplan-started calls; localhost+token dial-target endpoint; extension registry; OpenAI `realtime.call.incoming` webhook (Standard Webhooks verifier shared with Resend) → accept with the resident's instructions + telephone section → sideband tools (`request_staff_help`, `check_request_status`, `transfer_to_front_desk`, `call_family_contact`, `end_call`). Transcripts saved through the existing turn ingest. `FamilyContact.allow_calls` + admin approval. `websockets>=14` added to requirements (lazy import).
+- Frontend: Admin → Phones & calls (extensions, call log with state history); Family tab "Resident may call" checkbox.
+- `docs/PILOT1_COMMUNICATIONS.md` §2 rewritten: decisions, topology, extensions, warm line, transfer/family/911 flows, provider comparison (recommend Telnyx credential trunk; prices unverified), hardware/accounts/secrets lists, live acceptance tests.
+
+### What was verified
+Backend gate 210 passed / 1 pre-existing failure (`test_ops_overview`, same at `e9373d5`); new `tests/test_telephony.py` covers lifecycle, ARI mapping, dial-target guard/one-time token, signed webhook accept/reject/duplicate, tools, and a scripted sideband conversation. Frontend 32 suites / 210 tests; CI build clean. Nothing run against Asterisk, an ATA, a trunk or OpenAI SIP (none installed/configured).
+
+### Next safe step
+Buy ATA/handset/desk phone; open trunk + OpenAI SIP accounts; install Asterisk on the EliteDesk and a webhook tunnel; then run `docs/PILOT1_COMMUNICATIONS.md` §2.10 starting with 933 and dial 0.

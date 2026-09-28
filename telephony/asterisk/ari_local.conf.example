@@ -1,0 +1,6 @@
+; Copy to ari_local.conf. Same user/password as the backend's
+; ASTERISK_ARI_USER / ASTERISK_ARI_PASSWORD.
+[caoscare]
+type = user
+read_only = yes
+password = CHANGE_ME_LONG_RANDOM

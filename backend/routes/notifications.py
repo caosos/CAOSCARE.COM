@@ -4,8 +4,8 @@ are re-exported here because existing callers import them from this module."""
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends
 
-from models import NotificationTest, FamilyContact, FamilyContactCreate, now_utc
-from deps import db, get_current_user
+from models import NotificationTest, FamilyContact, FamilyContactCreate, FamilyContactCallApproval, now_utc
+from deps import db, get_current_user, require_admin
 from routes.notification_delivery import (  # noqa: F401 - send_* re-exported
     send_email, send_sms, record_undeliverable, provider_config, _save as _log_notification,
 )
@@ -139,6 +139,16 @@ async def create_family(data: FamilyContactCreate, user=Depends(get_current_user
     await db.family_contacts.insert_one(doc)
     doc.pop("_id", None)
     return doc
+
+
+@router.patch("/family-contacts/{contact_id}/calls")
+async def set_family_call_approval(contact_id: str, data: FamilyContactCallApproval, user=Depends(require_admin)):
+    """Staff approve (or withdraw) a contact for resident-initiated calls.
+    Aria can only call approved contacts, using the number on file."""
+    r = await db.family_contacts.update_one({"contact_id": contact_id}, {"$set": {"allow_calls": data.allow_calls}})
+    if r.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Contact not found")
+    return {"ok": True, "allow_calls": data.allow_calls}
 
 
 @router.delete("/family-contacts/{contact_id}")

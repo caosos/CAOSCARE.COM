@@ -562,6 +562,7 @@ class FamilyContact(BaseModel):
     email: Optional[str] = ""
     phone: Optional[str] = ""
     notify_on: List[Literal["emergency", "assist", "wander", "daily_summary"]] = Field(default_factory=lambda: ["emergency", "wander"])
+    allow_calls: bool = False   # resident may ask Aria to phone this contact (off until staff approve)
     portal_token: str = Field(default_factory=lambda: uid("ptok"))   # magic-link token for family portal
     created_at: datetime = Field(default_factory=now_utc)
 
@@ -573,6 +574,11 @@ class FamilyContactCreate(BaseModel):
     email: Optional[str] = ""
     phone: Optional[str] = ""
     notify_on: List[Literal["emergency", "assist", "wander", "daily_summary"]] = Field(default_factory=lambda: ["emergency", "wander"])
+    allow_calls: bool = False
+
+
+class FamilyContactCallApproval(BaseModel):
+    allow_calls: bool
 
 
 # ---------- Wearable devices (P3) ----------

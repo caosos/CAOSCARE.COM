@@ -3,8 +3,8 @@
 Owner: Lane F (`pilot/communications`). Status as of 2026-09-27.
 Tracker: `docs/PILOT1_EXECUTION_CHECKLIST.md` Phases 4 and 6. This file
 separates **configuration/runtime gaps** (need accounts, keys, DNS, hardware
-or a decision) from **code gaps** (need engineering), and proposes the Pilot 1
-phone architecture for Michael's decision. It does not mark anything done.
+or a decision) from **code gaps** (need engineering), and records the Pilot 1 phone architecture Michael
+decided on 2026-09-27. It does not mark anything done.
 
 ---
 
@@ -123,77 +123,176 @@ integration `backend/.env` contains none of them. Production was not checked.
 
 ---
 
-## 2. Calling — proposed Pilot 1 architecture (decision required)
+## 2. Calling — Pilot 1 architecture (decided 2026-09-27)
 
-### What exists today
+Michael's decisions D1–D8 are recorded below with how each is implemented.
+**Nothing here has run against real hardware, Asterisk, a SIP trunk or
+OpenAI.** Asterisk is not installed on the EliteDesk (Ubuntu candidate:
+Asterisk 18.10). Config files are in `telephony/asterisk/`.
 
-- No call model, no call lifecycle, no SIP/PBX code. The only calling code is
-  `resident_activation.try_call_on_call_phone`: a one-way Twilio TwiML
-  `<Say>` announcement to the facility on-call phone. It is not a two-way
-  call and currently cannot run (no `twilio` package).
-- `FamilyContact` has `phone`, but no permission saying the resident may
-  **call** that contact (only `notify_on` for alerts).
-- Resident Aria runs in the room-node browser over WebRTC; tools execute in
-  the browser and call backend endpoints.
+| # | Decision | Implementation |
+|---|---|---|
+| D1 | Asterisk | `telephony/asterisk/` for Asterisk 18 (PJSIP, ARI, func_curl) |
+| D2 | Analog handset + ATA, off-hook reaches Aria with no digits | ATA **warm line** (see §2.3) |
+| D3 | SIP trunk, provider compared first | §2.8 — recommend Telnyx credential trunk |
+| D4 | Handset: Aria transfers; eMeet: Aria asks resident to pick up | §2.4 |
+| D5 | Real SIP desk phone on local Asterisk | extension 200 |
+| D6 | 911 bypasses Aria completely | §2.6 |
+| D7 | Phone control and call-state truth local | Asterisk + EliteDesk backend; ARI is local; Linode not involved |
+| D8 | Current OpenAI Realtime SIP, verified | §2.2 |
 
-### Proposed topology
+### 2.1 Topology
 
 ```text
-analog handset ──RJ11── ATA (FXS port, one per room)
-                          │ SIP (LAN)
-                          ▼
-                 Asterisk PBX on the facility/room node (local-first)
-                   ext 1xx  = room handsets (ATA port ↔ room ↔ resident)
-                   ext 700  = Aria
-                   ext 0    = front desk (desk SIP phone or ring group)
-                   trunk A  = SIP trunk provider → PSTN (family, outside)
-                   trunk B  = OpenAI Realtime SIP (TLS 5061 + SRTP)
-                          │
-                          │ ARI events (dial, ringing, answer, busy, hangup)
-                          ▼
-                 CAOSCare backend: CallSession lifecycle + receipts
+analog handset ─RJ11─ ATA (FXS)  ──SIP/LAN──┐
+front desk SIP phone (ext 200) ──SIP/LAN────┤
+                                            ▼
+                       Asterisk 18 on the EliteDesk
+             [from-room]   0 → 200 · 911/9911 → trunk · 700 → OpenAI
+             [caos-transfer]  REFER target 77<token> → CURL CAOSCare → Dial
+             ARI (127.0.0.1:8088) ──events──► CAOSCare backend (same host)
+                       │                          call_sessions + receipts
+          TLS 5061/SRTP│ trunk "openai"           ▲
+                       ▼                          │ realtime.call.incoming
+              OpenAI Realtime SIP ────────────────┘ (webhook, via tunnel)
+                       │ sideband WebSocket (outbound from backend)
+          SIP trunk ───┴── PSTN (family calls, 911 with E911 address)
 ```
 
-| Behaviour | How it works |
-|---|---|
-| Off-hook → Aria | ATA hotline (auto-dial on off-hook) to ext 700. Asterisk sends the call to OpenAI SIP. The backend receives `realtime.call.incoming`, maps the calling extension to room/resident, accepts it with the same instructions builder as the room session (`_build_companion_instructions`), and runs a small server-side tool set over the sideband WebSocket (`wss://api.openai.com/v1/realtime?call_id=…`). Hang up ends the call. |
-| Dial 0 → front desk | ATA dial plan sends `0` to ext 0; handled entirely in Asterisk. Aria is not involved. |
-| "Aria, call the front desk" | On the handset: Aria's `call_front_desk` tool → `POST /v1/realtime/calls/{id}/refer` → SIP REFER → Asterisk transfers the handset to ext 0. From the eMeet room session: needs decision D4. |
-| Approved family call | `call_family_contact(contact_id)` only for contacts marked callable for that resident; number comes from the record, never from speech. REFER to trunk A. |
-| Truthful lifecycle | `CallSession` states set only from ARI/OpenAI events: `requested → dialing → ringing → connected \| unanswered \| busy \| failed → ended`. Aria reads the state; she never says "connected" or "they answered" without an `answer` event. One receipt per external effect. |
+Extensions (Pilot 1):
 
-Why this shape: the handset keeps the resident's familiar interaction; the
-PBX owns all telephony (dial 0 works even if CAOSCare is down); Aria is one
-extension, not a second phone system; call state comes from the telephony
-layer, not the model.
-
-### Code that would be built after approval (Lane F)
-
-1. `CallSession` model/collection + receipts (lifecycle above) and an ARI
-   event consumer. Coordinate the shared receipt semantics with Lane E
-   (receipts append per effect — SC-1).
-2. Room ↔ extension mapping (extend `Kiosk`/room configuration — Lane E if
-   it touches shared room records).
-3. `FamilyContact.allow_calls` (per-resident approval) + admin toggle.
-4. OpenAI SIP webhook handler + sideband tool runner with Pilot tools only:
-   `request_staff_help`, `check_request_status`, `call_front_desk`,
-   `call_family_contact`, `end_call`. These call the same backend service
-   functions as the browser tools; browser-side grounding guards that exist
-   only in JS must be ported, not skipped.
-5. Consolidate the Twilio paths (§1) onto one module.
-
-### Decisions needed from Michael
-
-| # | Decision | Why it blocks |
+| Ext | What | Where defined |
 |---|---|---|
-| D1 | PBX: Asterisk (recommended; FreePBX UI optional) and which host — the room EliteDesk or a separate facility node | Everything else registers to it |
-| D2 | ATA model (e.g. a 1–2 port FXS ATA with hotline/off-hook auto-dial and TLS) and handset | Hardware purchase; must support off-hook auto-dial |
-| D3 | SIP trunk provider and numbers (family/outside calls, caller ID) | Outbound PSTN |
-| D4 | "Aria, call the front desk" from the eMeet session: (a) Aria asks the resident to pick up the handset, (b) a softphone on the room node uses the eMeet for the call | Two different builds |
-| D5 | Front desk endpoint: a desk SIP phone on the PBX, or forward to the facility's existing front-desk number | Where ext 0 rings; unanswered behaviour (queue/callback) |
-| D6 | **911 / emergency dialing from the handset.** Residents may dial 911 on any phone. Either pass 911 straight to a trunk with a registered E911 address (independent of Aria/CAOSCare, which only records it) or ensure the device cannot be mistaken for a working phone. CAOSCare must not become emergency dispatch. | Safety/legal; must be settled before a handset is placed in a room |
-| D7 | Public reachability: OpenAI's `realtime.call.incoming` webhook (and Resend's) must reach a public HTTPS URL, but Room 214's resident data lives in the EliteDesk database, not Linode | Which backend owns calls for a pilot room; tunnel vs production |
-| D8 | Aria engine for phone calls: OpenAI Realtime SIP (above) vs the pending `gpt-live-1` decision | Same bridge either way at the PBX; differs in the backend handler |
+| `2XX` (e.g. 214) | Room handset, one per ATA port; ext = room number where possible | `pjsip_local.conf`, and Admin → Phones & calls (kind *Room handset*, room) |
+| `200` | Front desk SIP phone | same, kind *Front desk* |
+| `700` | Aria (OpenAI SIP) | dialplan only; optionally listed as kind *Aria* |
+| `0` | Dials 200 from a room | dialplan |
+| `911`, `9911`, `933` | Emergency / provider address test | dialplan, trunk only |
 
-Until D1–D3 and D6 are decided nothing in §2 is built; the checklist item
-"Finalize Pilot 1 phone architecture" stays `[ ]` until Michael approves.
+### 2.2 Aria on the handset (verified against OpenAI's SIP guide, 2026-09-27)
+
+1. Off-hook → ATA warm line dials 700. Dialplan sets `CAOS_CALL_ID=aria-<uniqueid>` and dials `sip:<OPENAI_PROJECT_ID>@sip.api.openai.com;transport=tls` with headers `X-CAOS-Call-Id` and `X-CAOS-Extension`.
+2. OpenAI POSTs `realtime.call.incoming` (Standard Webhooks signature, `OPENAI_WEBHOOK_SECRET`) to `/api/telephony/openai/webhook` (`routes/phone_aria.py`). The backend maps extension → room → resident, then `POST /v1/realtime/calls/{call_id}/accept` with `type: realtime`, `model: OPENAI_REALTIME_MODEL` (existing env; the guide's example uses `gpt-realtime-2.1`; the code default is `gpt-realtime` — set the env var, do not hard-code), the resident's normal companion instructions plus a telephone section.
+3. `routes/phone_aria_sideband.py` opens `wss://api.openai.com/v1/realtime?call_id=…`, installs the phone tools, near-field noise reduction and `gpt-4o-transcribe`, and saves each turn through the same `realtime_turn_ingest` the room uses (so request grounding and memory work unchanged).
+4. Phone tools (`routes/phone_aria_tools.py`): `request_staff_help`, `check_request_status`, `transfer_to_front_desk`, `call_family_contact`, `end_call`. They call the same backend functions as the room tools. `end_call` hangs up only if the resident's last words are a goodbye (same phrase set as the room path's guard).
+5. If OpenAI or CAOSCare cannot be reached, the dialplan falls back to ringing the front desk. A signed webhook for an unknown call is rejected.
+
+Not on the phone path: lights/TV/thermostat (room voice only).
+
+### 2.3 ATA warm line (D2 + D6 together)
+
+A pure *hotline* (dial the instant the handset lifts) would make 0 and 911
+impossible to dial from that phone. Use a **warm line**: off-hook, wait
+about 3 seconds for a digit, then auto-dial 700. A resident who just picks up
+and waits reaches Aria without dialing; a resident who dials 911 or 0 is
+routed immediately.
+
+ATA settings (field names differ by model — confirm on the purchased unit):
+- Off-hook auto-dial: `700`; auto-dial delay: `3` s
+- Dial plan: send `0`, `911`, `9911`, `933` immediately, no inter-digit wait
+- SIP account = the room extension/password from `pjsip_local.conf`; DTMF RFC 2833/4733; G.711 µ-law
+- Registration to the EliteDesk's LAN address
+
+### 2.4 "Call the front desk" (D4, D5)
+
+- **On the handset:** Aria says she is connecting them, then (after she finishes speaking) the backend creates a `front_desk` CallSession with a one-time token and calls OpenAI `refer` with `sip:77<token>@…`. Asterisk puts the resident's leg in `[caos-transfer]`, CURLs `/api/telephony/local/dial-target/<token>` (localhost + `CAOS_TELEPHONY_TOKEN`, token valid 120 s, single use), and dials `PJSIP/200`. Unknown/expired token → rings the front desk anyway.
+- **From the eMeet room session:** Aria asks the resident to pick up the handset. When they do, the warm line brings them to Aria on the phone, who transfers as above. No room-browser code change is needed for this; the eMeet-side wording is a Resident Aria prompt change (not made here — Aria lane).
+- Dial 0 reaches 200 with no CAOSCare involvement.
+- Unanswered front desk: the call is recorded `unanswered`; Pilot 1 has no voicemail/queue. See open items.
+
+### 2.5 Approved family call
+
+- Staff tick **Resident may call** on a family contact (Admin → Family; `PATCH /family-contacts/{id}/calls`, admin only; off by default; needs a phone number).
+- Aria's `call_family_contact` tool only offers approved contacts' ids; names (never numbers) are in her instructions. The number comes from the stored contact, normalized to E.164 (NANP), and is resolved by Asterisk through the same one-time token, then dialed on the trunk with the room's DID as caller ID.
+- Aria never takes a number from speech.
+
+### 2.6 911 (D6)
+
+- `911` and `9911` in `[from-room]`: set `CAOS_CALL_ID=emg-…`, set caller ID to the room's DID, start the front-desk alert in the background, `Dial(PJSIP/911@trunk)`. No CURL, no Aria, no wait before the Dial. If the trunk fails, ring the front desk.
+- Front desk alert (`caos-911-alert.sh`): writes an Asterisk call file that rings ext 200 and reads out "911, room 214" — the on-site notification Kari's Law expects for multi-line systems. It is backgrounded so it cannot delay the emergency call.
+- CAOSCare records the call afterwards from ARI and emails administration. That record can never affect the call.
+- **Dispatchable location:** each pilot room needs its own DID with an E911 address that includes the room/apartment (RAY BAUM'S Act). Confirm the exact obligations with the provider and counsel before a handset goes in a room.
+- Aria, if told of an emergency on the phone, tells the resident to hang up and dial 9 1 1 or press their pendant. The community pendant/call system remains authoritative and unchanged.
+
+### 2.7 Call state and receipts (built)
+
+`CallSession` (`backend/models_calls.py`, collection `call_sessions`):
+`requested → dialing → ringing → connected | unanswered | failed → ended`.
+
+- Sources: Asterisk ARI `Dial` events (`dialstatus` "" → dialing, RINGING/PROGRESS → ringing, ANSWER → connected, NOANSWER/BUSY → unanswered, CHANUNAVAIL/CONGESTION → failed, CANCEL → ended) and `ChannelDestroyed` → ended with cause (`routes/asterisk_ari_events.py`); OpenAI accept/refer failures → failed. Never Aria's words.
+- Correlation: inherited channel variable `CAOS_CALL_ID`, listed in `ari.conf channelvars`. Dialplan-started calls (`aria-`, `fd0-`, `emg-`) are created on their first event.
+- Forward-only transitions; late/duplicate events are ignored; each change is appended to `history` with time, source and detail.
+- Receipts: one when the attempt is requested, one for the outcome (connected / unanswered / failed). New rows, never edits.
+- `spoken_call_state()` gives the only wording Aria may use for a state ("ringing, nobody has answered yet").
+- Admin → Communication & requests → **Phones & calls**: extensions and the call log with each state change.
+
+### 2.8 SIP trunk provider (D3)
+
+| | Telnyx (credential connection) | Twilio Elastic SIP Trunking | VoIP.ms |
+|---|---|---|---|
+| Works behind the EliteDesk NAT | Yes — registration; inbound arrives over the registration | Outbound with credentials; inbound needs a publicly reachable SIP address (port forward) | Yes — registration sub-account |
+| Asterisk guide | Official credential-trunk guide | Official guides | Official wiki |
+| E911 per number with suite/apartment | Yes, portal/API, dynamic E911 | Yes, per number (MSAG-validated), monthly fee | Yes, per DID |
+| E911 test | Documented test procedure | — | — |
+
+**Recommendation:** Telnyx credential connection — simplest behind NAT,
+per-room DIDs each with an apartment-level E911 address, documented Asterisk
+setup. Prices and current terms were not verified; compare before buying.
+Twilio is fine if inbound calls to rooms are not needed in Pilot 1.
+
+### 2.9 What is needed, by kind
+
+**Code — built in this lane (tests only):** CallSession lifecycle + receipts;
+ARI event mapping and listener; local dial-target endpoint; extension
+registry; family call approval; OpenAI SIP webhook, accept and sideband tool
+runner; Phones & calls admin tab; Asterisk config (`telephony/asterisk/`).
+
+**Code — not built:**
+- eMeet-session prompt wording "please pick up your phone" (Resident Aria lane).
+- Unanswered front desk: queue, callback request or voicemail (needs Michael's choice).
+- Syncing call receipts to Linode (D7 allows it; not needed for operation).
+- Installing Asterisk as a boot-persistent service and a tunnel for the webhook (ops work on the EliteDesk).
+
+**Hardware:**
+- ATA with warm-line (off-hook auto-dial delay) support — one FXS port per pilot room (e.g. a 1–2 port model; confirm the setting exists before buying).
+- Analog corded handset/phone with a simple, large-button base.
+- SIP desk phone for the front desk (PoE or with power supply).
+- Network: EliteDesk wired/stable LAN; router allows outbound TLS 5061 and UDP RTP to OpenAI's published ranges (SRTP must flow both ways — may need an RTP port-forward restricted to OpenAI's CIDRs).
+
+**Accounts / provider setup:**
+- SIP trunk account; one DID per pilot room (+ optionally a main DID); E911 address on each room DID including the room number; confirm 933 test support.
+- OpenAI project: SIP enabled, project ID, webhook pointing at the tunnel URL for `/api/telephony/openai/webhook`, webhook signing secret.
+- A tunnel (e.g. Cloudflare Tunnel) exposing only that webhook path of the EliteDesk backend over HTTPS.
+
+**Secrets / configuration** (names only; never committed):
+
+| Where | Variable | Purpose |
+|---|---|---|
+| backend env | `OPENAI_API_KEY` | already used; accept/refer/hangup + sideband |
+| backend env | `OPENAI_WEBHOOK_SECRET` | verify `realtime.call.incoming` (webhook fails closed without it) |
+| backend env | `OPENAI_REALTIME_MODEL` | e.g. `gpt-realtime-2.1` (existing variable) |
+| backend env | `CAOS_TELEPHONY_TOKEN` | shared with the dialplan; dial-target fails closed without it |
+| backend env | `CAOS_TELEPHONY_ALLOWED_HOSTS` | default `127.0.0.1,::1` |
+| backend env | `ASTERISK_ARI_URL`, `ASTERISK_ARI_USER`, `ASTERISK_ARI_PASSWORD` | ARI listener (off when unset), e.g. `http://127.0.0.1:8088` |
+| backend env | `CAOS_SIP_TRUNK_ENDPOINT` (default `trunk`), `CAOS_REFER_HOST`, `CAOS_PHONE_VOICE` | optional |
+| `pjsip_local.conf` | room/front-desk passwords, `ROOM_DID` per room, trunk username/password/host, NAT addresses | Asterisk |
+| `extensions_local.conf` | `FRONT_DESK_EXT`, `OPENAI_PROJECT_ID`, `CAOS_API`, `CAOS_TELEPHONY_TOKEN` | Asterisk |
+| `ari_local.conf` | ARI user password | Asterisk |
+| backend deps | `pip install -r requirements.txt` (adds `websockets>=14`) | listener + sideband |
+
+### 2.10 Live acceptance tests still required (none run)
+
+| Checklist item | Test | Evidence |
+|---|---|---|
+| Analog handset / ATA | ATA registered to Asterisk | `pjsip show endpoints` shows 214 Avail |
+| Off-hook → Aria | Lift handset, wait | Aria greets by name within ~5 s; `call_sessions` aria-… `dialing → connected`; webhook accepted |
+| Dial 0 → front desk | Lift, dial 0 | Desk phone rings; fd0-… `ringing → connected → ended`. Repeat unanswered → `unanswered` |
+| Dial 0 with CAOSCare stopped | Stop backend, dial 0 | Desk phone still rings |
+| "Aria, call the front desk" | On handset | REFER sent after Aria finishes; desk rings; child call `connected`; Aria never said "answered" |
+| eMeet → handset | Ask Aria via eMeet | Aria asks resident to pick up; transfer from handset works |
+| Approved family call | Approved contact | Rings the real number with the room DID; unapproved contact refused |
+| Call states | Each of: answered, no answer, busy, bad number | Correct terminal state + receipts per call |
+| 911 route | Provider's 933 test (not 911) from the room handset | Provider reads back the room's registered address; front desk alert rings |
+| 911 independence | Stop backend and OpenAI access; dial 933 | Still routed; front desk alert still rings |
+| 911 delay | Time from last digit to trunk INVITE | No added delay versus a plain Dial |
+| No tablet required | Whole flow from the handset only | — |
