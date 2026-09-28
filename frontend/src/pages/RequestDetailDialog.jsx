@@ -7,25 +7,7 @@ import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
 import { toast } from "sonner";
 import { sourceLabel, deriveStatus, STATUS_BADGE_CLASS, fmtDateTime } from "../lib/requestDisplay";
-
-function humanizeAction(actionType) {
-  const s = (actionType || "").replace(/_/g, " ");
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-function buildTimeline(task, receipts) {
-  const events = [];
-  events.push({ at: task.created_at, label: task.resident_words ? `Requested: "${task.resident_words}"` : "Request created" });
-  for (const r of receipts) {
-    events.push({ at: r.created_at, label: humanizeAction(r.action_type), meta: r.receipt_id });
-  }
-  if (task.acknowledged_at) events.push({ at: task.acknowledged_at, label: `Acknowledged${task.acknowledged_by_name ? ` by ${task.acknowledged_by_name}` : ""}` });
-  if (task.started_at) events.push({ at: task.started_at, label: `Work started${task.assigned_name ? ` — ${task.assigned_name}` : ""}` });
-  if (task.completed_at) {
-    events.push({ at: task.completed_at, label: task.status === "skipped" ? "Cancelled" : `Completed${task.completed_by_name ? ` by ${task.completed_by_name}` : ""}` });
-  }
-  return events.filter((e) => e.at).sort((a, b) => new Date(a.at) - new Date(b.at));
-}
+import RequestTimeline from "../components/RequestTimeline";
 
 export default function RequestDetailDialog({ taskId, open, onOpenChange, onChange }) {
   const [data, setData] = useState(null);
@@ -129,14 +111,7 @@ export default function RequestDetailDialog({ taskId, open, onOpenChange, onChan
 
             <div>
               <h3 className="font-display text-lg font-medium text-caos-forest mb-2">Timeline</h3>
-              <div className="space-y-1.5 text-sm">
-                {buildTimeline(t, data.receipts).map((e, i) => (
-                  <div key={i} className="flex gap-3">
-                    <span className="text-caos-mute text-xs whitespace-nowrap w-32">{fmtDateTime(e.at)}</span>
-                    <span>{e.label}</span>
-                  </div>
-                ))}
-              </div>
+              <RequestTimeline task={t} receipts={data.receipts} />
             </div>
           </>
         )}

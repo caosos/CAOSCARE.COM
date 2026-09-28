@@ -5257,3 +5257,45 @@ Frontend 29/29 suites, 205/205 tests; CI production build clean. Headless deskto
 
 ### Next
 Michael reviews on the :3007 review server; decide whether this merges into integration.
+
+---
+
+## 2026-09-27 — Lane E (Shared Core): SC-1 append-only receipts, SC-2 StaffTask event_log / note history
+
+### Agent / tool
+Claude Code (Opus 5.5), EliteDesk worktree `~/CAOSCARE-LANE-SHARED`, branch `pilot/shared-core` from `e9373d5` (the assigned starting SHA). Not merged, not deployed. No integration/main merge.
+
+### What changed
+Implements ENGINEERING_CONTRACT decisions 5 and 6 for staff requests, and nothing broader.
+- **SC-1** `backend/routes/receipts.py::update_receipt_status` now inserts a new receipt (`action_type = <object>_<status>`, e.g. `task_completed`) instead of rewriting the most recent one. Context (source, resident, room, zone, session, department) is carried forward from the earlier receipts (newest non-empty value per field; the assignee comes from the latest assign/unassign receipt). It still no-ops when an object has no receipt. Callers pass `requested_by` for the acting user.
+- **SC-2** new `backend/routes/task_history.py`: `StaffTask.event_log` (new model field) is append-only, written in the same update as the field change, one entry per step: `{at, field, from, to, to_name, by, by_name, text}` for status, acknowledged, assigned_to, note, re_request. Written by `tasks.py` (PATCH, acknowledge, start, complete, skip), `task_assignment.py` and `resident_requests.py` (re-request). A closing note is its own entry, so completion no longer erases progress notes; `notes` stays the latest note. Unchanged notes are not re-logged. Legacy tasks are not backfilled.
+- Resident view: `latest_update_at` now carries the real time of the latest note (null for notes written before `event_log`). `event_log` is not exposed on the public resident endpoints.
+- Shared UI: `lib/requestHistory.js` + `components/RequestTimeline.jsx` are the one request timeline (event_log with notes, fallback to task timestamps for legacy tasks, receipts in a collapsed list). Used by `RequestHistoryDialog.jsx` and `RequestDetailDialog.jsx` (its duplicate timeline builder removed). `DepartmentQueue.jsx` "Note" now adds a new note instead of editing the previous one in place.
+- Tests updated where they encoded the overwrite behaviour the contract names as a violation (`test_activity_log.py`, `test_maintenance_workorders.py`); one comment in `test_request_status_lifecycle.py`.
+
+### What was verified
+- Backend gate (`scripts/run_backend_tests.sh`, fresh DB, no OpenAI key): **1 failed, 209 passed, 31 skipped**. The same gate on untouched `e9373d5`: 1 failed, 208 passed, 31 skipped. Same single pre-existing failure (`test_ops_overview` past-requested-date); +1 = the new test.
+- New `backend/tests/test_shared_core_history.py` (Nursing + Maintenance over HTTP): Aria nursing request, re-request, acknowledge, claim, start, two progress notes, completion note: all three notes kept in order with the nurse's name; one receipt per step; no receipt rewritten; latest-note time in the resident view; `event_log` absent from it. Maintenance admin work order, tech claim/start/note/complete: progress note kept as the current note. Department isolation intact. Legacy task: only the new step is logged, nothing backfilled.
+- Frontend: 31 suites / 209 tests pass (new `requestHistory.test.js`); `CI=true` build compiles clean.
+- Not verified: browser click-through of the new history view; live Room 214/voice paths (not touched).
+
+### Line counts (created / materially modified)
+`task_history.py` 77 (new), `receipts.py` 182, `tasks.py` 271, `task_assignment.py` 83, `resident_requests.py` 368 (was 363), `models.py` 1632 (+3, pre-existing oversized schema file), `requestHistory.js` 68 (new), `RequestTimeline.jsx` 45 (new), `RequestHistoryDialog.jsx` 32, `RequestDetailDialog.jsx` 121, `DepartmentQueue.jsx` 259.
+
+### Dependent lanes / integration notes
+- **Nursing (A), Maintenance (B):** consume `RequestTimeline` / `event_log` as-is; do not add a second history. Rebase/merge onto this commit before building on the queue or history UI.
+- **Front desk / transportation (C):** `transportation.py` changes task status itself without `task_history`; its steps are not in `event_log` yet. Call `update_task_with_history` when that lane touches those paths.
+- **Level-1 / Aria lane (`alerts.py`, `staff_dispatch.py`, not edited):** alert close-out and page outcomes now append `alert_completed` / `alert_failed` receipts instead of rewriting the latest alert receipt (previously this could rewrite the `staff_page` receipt). `test_staff_dispatch_wording` and `test_ai_escalation` pass.
+- **Coordinator:** after integration, update ENGINEERING_CONTRACT decisions 5 and 6 ("not built") to name what is built for StaffTask, and the checklist Receipt/history item.
+
+HANDOFF CAPSULE
+- Objective:        Shared-core SC-1 (append receipts) and SC-2 (timestamped note/step history) for all department requests.
+- Branch:           pilot/shared-core (from e9373d5)
+- Lane / ownership: Lane E Shared Core. Owns StaffTask lifecycle/history, receipts, shared queue/history UI. Did not touch alerts.py, staff_dispatch.py, transportation.py, Aria voice, RF.
+- Last proven state: backend gate and frontend suite/build as above; new cross-domain test passes.
+- Commits:          see this entry's commit on pilot/shared-core.
+- Runtime state:    nothing restarted or deployed; :8092/:3000 untouched.
+- Unresolved proven defects: pre-existing test_ops_overview failure (not this lane). Transportation status changes not yet in event_log.
+- Product invariants: receipts never rewritten; lifecycle history append-only; no backfilled history; resident view stays an explicit allow-list.
+- Do NOT change:    event_log outside task_history.py; receipts in place.
+- Next safe action: coordinator merges pilot/shared-core into integration/2026-09-27, runs whole-system tests, then Lane B starts from that commit.

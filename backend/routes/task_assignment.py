@@ -19,6 +19,7 @@ from pydantic import BaseModel
 
 from deps import db, get_current_user
 from routes.receipts import create_receipt
+from routes.task_history import task_event, update_task_with_history
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -68,9 +69,10 @@ async def assign_task(task_id: str, data: AssignInput, user=Depends(get_current_
             raise HTTPException(status_code=404, detail="Assignee not found")
         assigned_name = u.get("name")
 
-    await db.staff_tasks.update_one(
-        {"task_id": task_id},
-        {"$set": {"assigned_to": target_id, "assigned_name": assigned_name}},
+    await update_task_with_history(
+        task_id, {"assigned_to": target_id, "assigned_name": assigned_name},
+        [task_event("assigned_to", user=user, frm=existing.get("assigned_to"), to=target_id,
+                    to_name=assigned_name)],
     )
     await create_receipt(
         action_type="task_unassigned" if not target_id else "task_assigned",

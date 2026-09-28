@@ -132,7 +132,7 @@ async def _run():
         assert s["acknowledged_at"] is None
         assert s["started_at"] is None
         assert s["completed_at"] is None
-        assert s["latest_update_at"] is None      # StaffTask.notes has no timestamp
+        assert s["latest_update_at"] is None      # no note in event_log -> no invented time
 
         # 10. re-request: original created_at unchanged, last_re_requested_at separate, count intact
         created0 = now - timedelta(days=1)        # exactly 24h -> "yesterday at <same time>"

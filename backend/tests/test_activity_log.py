@@ -88,10 +88,15 @@ async def _run():
 
         mine = requests.get(f"{API}/receipts", headers=A, params={"related_object_id": task_id}, timeout=5).json()
         assert mine and all(x["related_object_id"] == task_id for x in mine)
-        rc = mine[0]
-        assert rc["action_type"] == "task_created" and rc["source"] == "staff"
-        # the lifecycle mutates that receipt's status in place
-        assert rc["status"] == "completed"
+        by_action = {x["action_type"]: x for x in mine}
+        rc = by_action["task_created"]
+        assert rc["source"] == "staff"
+        # SC-1: a status change appends its own receipt; the creation
+        # receipt is never rewritten to look like the task was completed.
+        assert rc["status"] == "created"
+        done = by_action["task_completed"]
+        assert done["status"] == "completed" and done["completed_at"] and done["room"] == ROOM
+        assert "task_in_progress" in by_action
 
         one = requests.get(f"{API}/receipts/{rc['receipt_id']}", headers=A, timeout=5)
         assert one.status_code == 200 and one.json()["receipt_id"] == rc["receipt_id"]
@@ -102,7 +107,8 @@ async def _run():
         assert rc["receipt_id"] in rc_q(related_object_type="task")
         assert rc["receipt_id"] in rc_q(action_type="task_created")
         assert rc["receipt_id"] in rc_q(source="staff", room=ROOM)
-        assert rc["receipt_id"] in rc_q(status="completed", related_object_id=task_id)
+        assert done["receipt_id"] in rc_q(status="completed", related_object_id=task_id)
+        assert rc["receipt_id"] not in rc_q(status="completed", related_object_id=task_id)
         # new since/until params (mirror /events)
         assert rc["receipt_id"] in rc_q(since=(now - timedelta(days=1)).isoformat(), until=(now + timedelta(days=1)).isoformat())
         assert rc["receipt_id"] not in rc_q(since=(now + timedelta(days=1)).isoformat())

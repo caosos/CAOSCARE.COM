@@ -739,3 +739,17 @@ listener verifier experiment: `docs/experiments/`.
 - `frontend/src/components/capabilities/`: `CapabilityPanel` (the on-page panel), `CapabilityVisuals`, `CapabilityCard`, `StaffDashboardShowcase`, `useCapabilityPanel` (`#cap-<id>` links, focus return), `StatusPill`, `StatusLegend`.
 - `frontend/src/lib/capabilities/`: `status.js` (single status registry), `resident.js`, `community.js`, `visuals.js`, `index.js`.
 - `frontend/public/media/screens/`: real software screenshots (demo data). `frontend/public/media/marketing/`: supplied lifestyle images.
+
+## 2026-09-27 — Shared core SC-1 / SC-2 (branch `pilot/shared-core`)
+
+- `backend/routes/task_history.py`: append-only `StaffTask.event_log`
+  (status, acknowledged, assignment, note, re-request; who + when). The only
+  writer of `event_log`; lifecycle routes in `tasks.py`, `task_assignment.py`
+  and `resident_requests.py` call it.
+- `backend/routes/receipts.py::update_receipt_status`: appends a new receipt
+  per status change (context carried forward from earlier receipts); never
+  rewrites one.
+- `frontend/src/lib/requestHistory.js` + `frontend/src/components/RequestTimeline.jsx`:
+  the one request-history timeline, used by `RequestHistoryDialog.jsx`
+  (department queues) and `RequestDetailDialog.jsx` (admin).
+- Test: `backend/tests/test_shared_core_history.py` (Nursing + Maintenance).

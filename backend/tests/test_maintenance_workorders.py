@@ -134,9 +134,9 @@ async def _run():
         assert detail["task"]["completed_at"] and detail["task"]["duration_minutes"] is not None
         actions = {rc["action_type"] for rc in detail["receipts"]}
         assert {"task_created", "task_assigned"}.issubset(actions), actions
-        # the existing task lifecycle mutates a receipt's status rather than
-        # appending a "completed" receipt - assert that transition happened.
-        assert any(rc.get("status") == "completed" and rc.get("completed_at") for rc in detail["receipts"]), detail["receipts"]
+        # SC-1: each lifecycle step appends its own receipt.
+        assert {"task_in_progress", "task_completed"}.issubset(actions), actions
+        assert any(rc["action_type"] == "task_completed" and rc.get("completed_at") for rc in detail["receipts"]), detail["receipts"]
 
         # --- cross-department assignment is refused ---
         r = requests.post(f"{API}/tasks/{wo2}/assign", headers=T1, json={"assigned_to": users["hk"]["user_id"]}, timeout=5)
