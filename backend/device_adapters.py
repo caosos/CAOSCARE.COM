@@ -8,7 +8,9 @@ change (2026-08-27, per Michael's "prepare for real physical hardware"
 directive).
 
 Two adapters exist today:
-  mock            - executes synchronously, no physical device.
+  mock            - simulated device, no hardware (simulated_device.py):
+                    validates against the device's capabilities and holds
+                    the resulting state as the simulator's read-back.
   home_assistant  - calls a real, running Home Assistant instance's REST
                     API, then reads the entity back to prove the physical
                     device actually reflects the change - HA returning 200
@@ -31,6 +33,8 @@ from typing import Optional
 
 import httpx
 
+from simulated_device import apply_simulated_command
+
 HA_BASE_URL = os.environ.get("HA_BASE_URL", "").rstrip("/")
 HA_TOKEN = os.environ.get("HA_TOKEN", "")
 
@@ -48,8 +52,12 @@ _VERIFY_DELAY_S = 0.4
 
 
 async def execute_mock(device: dict, action: str, value):
-    """Always succeeds synchronously - no physical device exists to fail against."""
-    return {"detail": "mock room device - executed synchronously, no bridge tablet"}
+    """Simulated device (no hardware): validates the command against the
+    device's own capabilities and returns the resulting simulated state as
+    the read-back, so an unsupported or invalid command fails instead of
+    being reported as done (simulated_device.py)."""
+    state = apply_simulated_command(device, action, value)
+    return {"detail": "simulated device - no hardware; state read back from the simulator", "state": state}
 
 
 def _brightness255_to_pct(raw) -> Optional[int]:

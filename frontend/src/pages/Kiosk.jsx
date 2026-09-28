@@ -14,6 +14,7 @@ import ProfileHeader from "../components/kiosk/ProfileHeader";
 import TodayPanel from "../components/kiosk/TodayPanel";
 import RequestsPanel from "../components/kiosk/RequestsPanel";
 import RoomDevicePanel from "../components/kiosk/RoomDevicePanel";
+import DemoKioskPanel from "../components/kiosk/demo/DemoKioskPanel";
 import { sendRoomDeviceCommand } from "../lib/kioskDeviceControl";
 import { logActivationClientEvent } from "../lib/activationClient";
 import { useKioskMediaPrime, openInFullTab, inSandboxedIframe } from "../lib/useKioskMediaPrime";
@@ -264,6 +265,19 @@ export default function Kiosk() {
   // Local "Aria" wake word (room-node/aria_wake, enabled per endpoint with
   // ?wake=1): starts the same no-event conversation path as a manual talk,
   // just without a tap and without opening a resident event.
+  // Public demo kiosk: typing starts the same no-event conversation, then the
+  // call screen sends the text into it (realtimeTypedTurn.js).
+  const isDemo = kiosk?.public_demo === true;
+  const [initialTypedText, setInitialTypedText] = useState(null);
+  const startTypedConversation = async (text) => {
+    if (callStateRef.current !== "idle" || !(await primeMedia())) return false;
+    triggerSourceRef.current = "manual_kiosk";
+    setAlert(null);
+    setInitialTypedText(text);
+    beginConversation(null);
+    return true;
+  };
+
   const startWakeConversation = () => {
     if (callStateRef.current !== "idle") return;
     triggerSourceRef.current = "wake_word";
@@ -562,6 +576,7 @@ export default function Kiosk() {
           {/* Resident information hierarchy - requests/schedule/devices,
               same underlying state Aria's tools read (see 2026-08-27 report) */}
           <div className="w-full text-left mt-14 space-y-0">
+            {isDemo && <DemoKioskPanel room={kiosk?.room} onStartTyped={startTypedConversation} />}
             <RequestsPanel residentId={resident?.resident_id} room={kiosk?.room} />
             <TodayPanel />
             <RoomDevicePanel devices={devices} room={kiosk?.room} onCommand={sendDeviceCommand} />
@@ -595,12 +610,15 @@ export default function Kiosk() {
         triggerSource={triggerSourceRef.current}
         alertId={alert?.alert_id}
         activationId={alert?.activation_id}
+        demo={isDemo}
+        initialText={initialTypedText}
         onOpenVoicePicker={() => setVoicePickerOpen(true)}
         onEnd={(result) => {
           // The pendant retry gate only tracks resident-event cycles.
           if (triggerSourceRef.current !== "wake_word") activationGateRef.current.finish(result);
           setCallState("idle");
           setAlert(null);
+          setInitialTypedText(null);
         }}
       />
       {voicePickerDialog}

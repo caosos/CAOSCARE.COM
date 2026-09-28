@@ -5398,3 +5398,46 @@ Front desk/Transportation `94af8c4` bypasses the shared history (direct `staff_t
 
 ### Next safe step
 Shared Core fixes SC-3 and SC-5; Lane C reworks onto integration.
+
+---
+
+## 2026-09-28 — Lane G (Demo kiosk): command-to-visual state, typed input, DEMO RESET
+
+### Agent / tool
+Claude Code (Opus 5.5), EliteDesk, worktree `~/CAOSCARE-LANE-DEMO-KIOSK`, branch `pilot/demo-kiosk` from `a95acbe`. Not merged, not deployed.
+
+### Command path (no separate parser)
+Typed or spoken text → the same Realtime session → Aria's normal tools (`toggle_light`, `toggle_tv`, `adjust_room_temperature`) → `POST /api/devices/public/room/{room}/command` → `_dispatch_command` → `mock` adapter → `simulated_device.apply_simulated_command` → state stored and returned as read-back (`verified: true`) → the demo room visual reads `GET /devices/public/by-room/{room}` every second.
+
+### What changed
+- `backend/simulated_device.py` (76, new): simulated device state. Validates the action against the device's own capabilities/inputs and the value range; unsupported/invalid/offline → error, so the command fails and Aria cannot report success.
+- `backend/device_adapters.py::execute_mock` now uses it (shared file; affects every `mock` device: they now reject unsupported actions and record `verified: true` against the simulator).
+- `backend/routes/demo_kiosk.py` (95, new): `POST /api/demo/reset` for the `public_demo` kiosk's room. Baseline light off/80%, thermostat on 72°F, TV off vol 20 ch 3, blinds closed (devices created if missing); open requests in that room closed as `skipped` with a `demo_reset` history entry; receipt `demo_reset`. Refuses (409) if the room has any non-`mock` device.
+- Typed input (`frontend/src/lib/realtimeTypedTurn.js`, 76, new): text is sent as a user message into the live session; the server's echo is treated like a completed voice transcript (same grounding, persistence, transcript). Reply requests are sequenced so a typed message never causes a rejected `response.create` (any server error ends a kiosk call).
+- Demo UI, only on the `public_demo` kiosk: room visual (light glow, TV screen with channel/volume, thermostat, blinds), typed box and DEMO RESET on the idle screen and in the call screen (`components/kiosk/demo/`, `lib/demoRoom.js`). Typing on the idle screen starts the same no-event conversation as the wake word path.
+
+### What was verified
+Private DB `caoscare_lane_demo_kiosk` (copy of `caoscare_public_demo`, 3W01 kiosk designated `public_demo`), lane backend `:8095` (HA blank, email/SMS blank, real OpenAI key), lane frontend `:3010`, headless Chrome with a silent fake microphone. Real Aria sessions:
+- "Turn the light on." → `toggle_light(state=on)` → verified on → visual on → "The light is on now."; "Turn the light off." → off; repeated "on" → on, then "already on".
+- "Make the light green." → Aria: the light doesn't support color (true) — but the light was switched on (SC-10).
+- "Turn the TV on." → TV visual on (CH 3, VOL 20); "Set the thermostat to 68 degrees." → 68°; "Turn the TV on, then turn the TV off." → off.
+- DEMO RESET (in call) → baseline. Aria's confirmations came after the tool result. 0 `realtime_error` in the final session (an earlier run found one; fixed).
+- Separation: no Home Assistant configured for the lane backend, private DB has 0 non-`mock` devices, reset refuses a room with a real device (test).
+- Tests: backend `test_demo_kiosk.py` 2 passed; full backend gate (fresh DB, lane-unique port/DB) 211 passed, 1 failed (pre-existing `test_ops_overview`); frontend 31 suites / 221 tests; CI build compiles.
+
+### Not done / remaining devices
+- Voice with a real microphone not tested (only typed + fake silent mic); the voice path is the same session and tools.
+- TV volume/channel: `toggle_tv` volume needs volume words in the resident's text; there is no channel tool. Blinds: no Aria tool (visual + reset only). Staff-help request on the kiosk: the existing Requests panel only (not in the room visual). Call-front-desk visualization: not built.
+- The shared `caoscare` DB's demo kiosk (Room 401) has thermostat + TV only; DEMO RESET there would create a light and blinds and reset its state — a decision for the coordinator before running it there.
+
+HANDOFF CAPSULE
+- Objective:        Demo kiosk shows the real room-command result visually; typed = voice path; DEMO RESET.
+- Branch:           pilot/demo-kiosk (from a95acbe)
+- Lane / ownership: Lane G. Touched shared files noted in PILOT1_ACTIVE_WORK (mock adapter, realtime typed-turn hooks, Kiosk.jsx). Did not change Aria tool contracts or the room-command endpoint.
+- Last proven state: real Aria typed session above, 2026-09-28 ~02:38–02:50 UTC.
+- Commits:          see this entry's commit.
+- Runtime state:    lane-only :8095 backend, :3010 frontend, headless Chrome :9345, DB caoscare_lane_demo_kiosk.
+- Unresolved proven defects: SC-10 (unsupported light attribute switches the light on unreported).
+- Product invariants: Aria confirms only verified state; demo never touches a real room or device.
+- Do NOT change:    real rooms/devices; shared tool contracts outside Lane E.
+- Next safe action: coordinator reviews the shared-file changes, integrates, decides the Room 401 demo device baseline.

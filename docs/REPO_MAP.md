@@ -753,3 +753,11 @@ listener verifier experiment: `docs/experiments/`.
   the one request-history timeline, used by `RequestHistoryDialog.jsx`
   (department queues) and `RequestDetailDialog.jsx` (admin).
 - Test: `backend/tests/test_shared_core_history.py` (Nursing + Maintenance).
+
+## 2026-09-28 — Demo kiosk command-to-visual state (branch `pilot/demo-kiosk`)
+
+- `backend/simulated_device.py`: simulated device state for the `mock` adapter (validates action/value against the device's capabilities and inputs; returns the resulting state as the read-back).
+- `backend/routes/demo_kiosk.py`: `POST /api/demo/reset` for the kiosk marked `public_demo` (baseline light/thermostat/TV/blinds, closes open demo requests with a history entry, refuses rooms with any non-`mock` device).
+- `frontend/src/lib/realtimeTypedTurn.js`: typed input into the same Realtime session as voice (reply sequencing, echo recognition).
+- `frontend/src/lib/demoRoom.js` + `frontend/src/components/kiosk/demo/` (`DemoRoomVisual`, `DemoControls`, `DemoKioskPanel`): the demo room picture, typed box and DEMO RESET, shown only on the `public_demo` kiosk.
+- Tests: `backend/tests/test_demo_kiosk.py`, `frontend/src/lib/__tests__/demoKiosk.test.js`.

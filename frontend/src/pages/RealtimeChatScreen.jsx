@@ -12,6 +12,8 @@ import { Button } from "../components/ui/button";
 import { Mic, X, Volume2, AlertCircle } from "lucide-react";
 import { useRealtimeVoice } from "../lib/useRealtimeVoice";
 import CopyTranscriptButton from "../components/CopyTranscriptButton";
+import DemoRoomVisual from "../components/kiosk/demo/DemoRoomVisual";
+import { DemoTypedInput, DemoResetButton } from "../components/kiosk/demo/DemoControls";
 
 export default function RealtimeChatScreen({
   resident,
@@ -23,8 +25,10 @@ export default function RealtimeChatScreen({
   triggerSource,
   alertId,
   activationId,
+  demo = false,          // public demo kiosk: room visual + typed input + reset
+  initialText = null,    // a typed message that started this conversation
 }) {
-  const { status, error, transcript, resting, micLabel, start, stop, audioElRef } = useRealtimeVoice({
+  const { status, error, transcript, resting, micLabel, start, stop, sendText, audioElRef } = useRealtimeVoice({
     voice: voiceId,
     residentId: resident?.resident_id,
     kioskId: kiosk?.kiosk_id,
@@ -43,6 +47,13 @@ export default function RealtimeChatScreen({
     return () => clearTimeout(t);
   }, [status, onEnd]);
   const localAudioElRef = useRef(null);
+  const initialSentRef = useRef(false);
+  const live = ["live", "listening", "speaking"].includes(status);
+  // A typed message that opened this conversation goes in once the session is live.
+  useEffect(() => {
+    if (!initialText || initialSentRef.current || !live) return;
+    initialSentRef.current = sendText(initialText);
+  }, [initialText, live, sendText]);
   const startedRef = useRef(false);
 
   // Hand the in-DOM audio element to the hook so playback is reliable
@@ -133,6 +144,16 @@ export default function RealtimeChatScreen({
           </p>
         )}
       </div>
+
+      {demo && (
+        <div className="mt-4 space-y-3" data-testid="demo-call-panel">
+          <DemoRoomVisual room={kiosk?.room || resident?.room} compact />
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex-1 min-w-[16rem]"><DemoTypedInput onSend={(t) => sendText(t)} /></div>
+            <DemoResetButton />
+          </div>
+        </div>
+      )}
 
       <Card className="border-caos-line bg-white/70 backdrop-blur p-4 max-h-56 overflow-y-auto mt-4">
         <div className="flex items-center justify-between gap-2 mb-2">

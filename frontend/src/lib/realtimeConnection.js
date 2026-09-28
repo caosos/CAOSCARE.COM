@@ -11,6 +11,7 @@ import { buildSessionUpdate } from "./realtimeSessionUpdate";
 import { createLeaseWatchdog } from "./realtimeLeaseWatchdog";
 import { createInactivityTimer } from "./realtimeInactivityTimer";
 
+import { createTypedTurnState, markResponseRequested } from "./realtimeTypedTurn";
 export async function connectRealtimeVoice({
   attemptRef, voice, residentId, kioskId, room, alertId, activationId, sessionEndpoint,
   sessionPayload, triggerSource, onEndCall, pcRef, dcRef, localStreamRef,
@@ -19,10 +20,12 @@ export async function connectRealtimeVoice({
   turnSuspectRef, greetingCreateResponseOffRef, restingRef, firstSpeechHeardRef,
   awaitingAnswerTimerRef, inviteSilenceTimerRef, companionTimeoutTimerRef,
   setStatus, setError, setMicLabel, setResting, setTranscript,
-  stop, releaseLease, postAriaEvent, startAwaitingAnswerTimer, logSessionEnded
+  stop, releaseLease, postAriaEvent, startAwaitingAnswerTimer, logSessionEnded, typedTurnRef
 }) {
     if (pcRef.current) return;              // already connected
     const myGen = ++startGenRef.current;
+    const typedTurn = createTypedTurnState(); // fresh per connection (realtimeTypedTurn.js)
+    if (typedTurnRef) typedTurnRef.current = typedTurn;
     sessionIdRef.current = `rt_${Math.random().toString(36).slice(2, 10)}_${Date.now()}`;
     const sid = sessionIdRef.current;
     const attempt = { cancelReason: null };
@@ -181,7 +184,7 @@ export async function connectRealtimeVoice({
         turnSuspectRef, assistantSpeakingRef, restingRef,
         greetingCreateResponseOffRef,
         setStatus, setResting, setTranscript, setError,
-        startAwaitingAnswerTimer,
+        startAwaitingAnswerTimer, typedTurnRef,
         onSpeechEvent: (kind) => { if (myGen === startGenRef.current) SPEECH[kind]?.(); },
         onFirstSpeechStarted: () => {
           if (awaitingAnswerTimerRef.current) { clearTimeout(awaitingAnswerTimerRef.current); awaitingAnswerTimerRef.current = null; }
@@ -203,7 +206,7 @@ export async function connectRealtimeVoice({
         }
         greetingCreateResponseOffRef.current = true;
         send(buildSessionUpdate({ caos, voice }));
-        send({ type: "response.create" });
+        markResponseRequested(typedTurn, send); // the greeting
         setStatus("live");
 
         postAriaEvent("activated");

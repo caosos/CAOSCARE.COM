@@ -21,6 +21,7 @@ import { API } from "../lib/api";
 import { logRealtimeEvent } from "./realtimeDiagnostics";
 import { logActivationClientEvent } from "./activationClient";
 import { connectRealtimeVoice } from "./realtimeConnection";
+import { createTypedTurnState, sendTypedTurn } from "./realtimeTypedTurn";
 
 const REASON_TO_ARIA_EVENT = {
     resident_end_call: "dismissed", resident_end_conversation: "dismissed",
@@ -66,6 +67,7 @@ export function useRealtimeVoice({
   // (realtimeCareControl.js), separate from the once-per-session invite
   // timer above since it can be (re)armed mid-conversation.
   const awaitingAnswerTimerRef = useRef(null);
+  const typedTurnRef = useRef(createTypedTurnState()); // typed input reply sequencing (realtimeTypedTurn.js)
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState(null);
   const [transcript, setTranscript] = useState([]);
@@ -185,9 +187,19 @@ export function useRealtimeVoice({
   turnSuspectRef, greetingCreateResponseOffRef, restingRef, firstSpeechHeardRef,
   awaitingAnswerTimerRef, inviteSilenceTimerRef, companionTimeoutTimerRef,
   setStatus, setError, setMicLabel, setResting, setTranscript,
-  stop, releaseLease, postAriaEvent, startAwaitingAnswerTimer, logSessionEnded
+  stop, releaseLease, postAriaEvent, startAwaitingAnswerTimer, logSessionEnded, typedTurnRef
   }), [voice, residentId, kioskId, room, alertId, activationId, sessionEndpoint,
     sessionPayload, triggerSource, onEndCall, stop, postAriaEvent, logSessionEnded, startAwaitingAnswerTimer]);
 
-  return { status, error, transcript, resting, micLabel, start, stop, audioElRef };
+  // Typed input into this same live session (realtimeTypedTurn.js).
+  // Returns false when there is no open session to type into.
+  const sendText = useCallback((text) => {
+    const dc = dcRef.current;
+    if (!dc || dc.readyState !== "open") return false;
+    try {
+      return sendTypedTurn(typedTurnRef.current, (e) => dc.send(JSON.stringify(e)), text);
+    } catch { return false; }
+  }, []);
+
+  return { status, error, transcript, resting, micLabel, start, stop, sendText, audioElRef };
 }
