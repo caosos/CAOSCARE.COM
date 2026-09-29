@@ -6,10 +6,15 @@ Integration branch: `integration/2026-09-27`
 Integration SHA: `6d1ffa4` (last code state; Shared Core + Maintenance merged). Workers branch from the current tip of `origin/integration/2026-09-27`.
 Coordinator: the Claude Code session in the protected integration checkout `~/CAOSCARE-INTEGRATION` on the EliteDesk
 Last updated: 2026-09-28
-Recovery snapshot: [`PILOT1_RECOVERY_CHECKPOINT.md`](PILOT1_RECOVERY_CHECKPOINT.md)
+Recovery snapshot: [`PILOT1_RECOVERY_CHECKPOINT.md`](PILOT1_RECOVERY_CHECKPOINT.md)  
+Ready queue: [`PILOT1_READY_QUEUE.md`](PILOT1_READY_QUEUE.md)
 
 This is the short-lived coordination map for parallel Pilot 1 work.
 [`PILOT1_EXECUTION_CHECKLIST.md`](PILOT1_EXECUTION_CHECKLIST.md) remains the authoritative tracker; only the coordinator marks checklist items `[x]`, after accepted integration.
+
+The coordinator also owns [`PILOT1_READY_QUEUE.md`](PILOT1_READY_QUEUE.md): approved bounded future work that an idle compatible worker may take. Worker agents never invent work merely because they are idle. Shared-contract dependencies still go through Shared Core, and integration remains one branch at a time with tests between merges.
+
+**Michael's control rule:** “Capture everything. Execute one thing. Finish it. Then move.” Michael should normally receive one active decision/action at a time. Safe independent lanes may still run in parallel.
 
 **Rule:** before modifying code, every parallel agent reads this file and identifies:
 
