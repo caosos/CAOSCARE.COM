@@ -182,3 +182,49 @@ The pendant (RF bridge) still posts to :8000, not :8092. Moving it is a Room 214
 - The RF bridge target and the facility pendant/call-button path.
 - Real Room 214 devices and data (real-hardware tests are gated by the `real_hardware` pytest marker).
 - Another lane's worktree.
+
+---
+
+## Michael's execution rule and ready queue
+
+> **Capture everything. Execute one thing. Finish it. Then move.**
+
+This is an operating/governance rule, not a ban on safe concurrency.
+
+**Michael:** actively manages one decision/action at a time. New ideas are captured immediately but do not hijack the current task. Whenever practical, present Michael with one next decision/action.
+
+**CAOSCare organization:** may run several jobs in parallel only when they are independently bounded, already approved, clearly owned, have known dependencies, and cannot silently redefine one another's shared contracts. “One thing at a time” applies per worker and to Michael's active management burden.
+
+The coordinator now owns four related functions:
+1. **ACTIVE WORK** — who is currently doing what?
+2. **DEPENDENCIES** — what shared/core work must happen first?
+3. **READY QUEUE** — what approved bounded job can an idle worker safely take next?
+4. **INTEGRATION** — what completed branch is safe to merge next?
+
+The coordinator must **not** create busywork to keep agents occupied, give two agents ownership of the same shared contract, or start lower-priority speculative work merely because a worker is idle. **Idle is better than destructive parallelism.**
+
+Authoritative queue: [`PILOT1_READY_QUEUE.md`](PILOT1_READY_QUEUE.md).
+
+Current queue summary at this checkpoint:
+- **READY:** RQ-004 Pilot hardware inventory.
+- **WAITING:** RQ-001 Demo data continuity; RQ-002 Global Ask Aria; RQ-003 Live Nursing voice acceptance; RQ-006 Pilot Room 1 provisioning.
+- **BLOCKED:** RQ-005 Live email / Resend acceptance.
+- No queued task was started in the governance work block that created the queue.
+
+## External memory principle
+
+Chat/Claude sessions are **execution terminals, not authoritative project memory**.
+
+Durable project truth lives in:
+- source/runtime evidence;
+- Git history;
+- `CURRENT_PRIORITY.md`;
+- `PILOT1_EXECUTION_CHECKLIST.md`;
+- `PILOT1_ACTIVE_WORK.md`;
+- `PILOT1_READY_QUEUE.md`;
+- `PILOT1_RECOVERY_CHECKPOINT.md`;
+- `PROJECT_STATE.md`.
+
+A conversation may disappear without taking the project with it. New agents should not require Michael to reconstruct prior conversation.
+
+Before changing code, a cold-start agent must know the current integration SHA, its lane, current active task, shared dependencies, whether its job is ACTIVE / READY / WAITING / BLOCKED, and the October 10 usable-product target.
