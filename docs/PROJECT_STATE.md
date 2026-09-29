@@ -5431,3 +5431,30 @@ HANDOFF CAPSULE
 - Integration order: Shared Core `5a9eb32` → Demo kiosk `0b69cae` → Front desk/Transportation `6b67ac8` → Community services `d95c4d6` → Communications `0978bb1`.
 - Do NOT change:    main, Linode, Video #001, RF bridge target / facility pendant path, Room 214 real devices/data, other lanes' worktrees.
 - Next safe action: coordinator merges `pilot/shared-core` `5a9eb32`, runs the gates, and re-checks Aria status after a claim.
+
+---
+
+## 2026-09-28 — Ready Queue + Michael execution rule externalized
+
+### Scope
+Documentation/governance only on `integration/2026-09-27`. No product feature started, no Linode deployment, no main merge.
+
+### Decision
+Michael's control rule is now durable repository truth:
+
+> **Capture everything. Execute one thing. Finish it. Then move.**
+
+Michael actively manages one decision/action at a time; new ideas are captured without hijacking the current task. Safe independent workers may operate in parallel when ownership, dependencies and shared-contract boundaries are explicit.
+
+### Ready Queue
+Created `docs/PILOT1_READY_QUEUE.md` with statuses READY / WAITING / BLOCKED / ASSIGNED / DONE / PARKED, coordinator assignment rules, exact definitions of done, dependencies, safe-to-start conditions, origin, and resulting branch/SHA fields.
+
+Seed state:
+- READY: RQ-004 Pilot hardware inventory.
+- WAITING: RQ-001 Demo data continuity; RQ-002 Global Ask Aria; RQ-003 Live Nursing voice acceptance; RQ-006 Pilot Room 1 provisioning.
+- BLOCKED: RQ-005 Live email / Resend acceptance.
+
+No queued task was started in this work block.
+
+### Continuity
+`CAOSCARE_START_HERE.md` now hydrates the Ready Queue before the Recovery Checkpoint. The recovery checkpoint records that chat/Claude sessions are execution terminals, not authoritative project memory; durable truth lives in source/runtime evidence, Git history, CURRENT_PRIORITY, the Pilot 1 checklist, active work, ready queue, recovery checkpoint and PROJECT_STATE.
