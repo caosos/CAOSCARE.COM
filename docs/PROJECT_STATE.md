@@ -5458,3 +5458,22 @@ No queued task was started in this work block.
 
 ### Continuity
 `CAOSCARE_START_HERE.md` now hydrates the Ready Queue before the Recovery Checkpoint. The recovery checkpoint records that chat/Claude sessions are execution terminals, not authoritative project memory; durable truth lives in source/runtime evidence, Git history, CURRENT_PRIORITY, the Pilot 1 checklist, active work, ready queue, recovery checkpoint and PROJECT_STATE.
+
+---
+
+## 2026-10-01 — RQ-004 room hardware list + RQ-005 email dependency list (documentation only)
+
+### Agent / tool
+Claude Code (Opus 5.5), cloud container (not the EliteDesk). Branch `claude/caoscare-pilot1-start-gveszq`, started from `integration/2026-09-27` @ `c8c61d1`. Michael approved both documents.
+
+### What changed
+- `docs/PILOT1_ROOM1_HARDWARE_BOM.md` (RQ-004): every Pilot Room 1 device with make/model, protocol, owned/needed and evidence, from repository sources only. Unknowns (thermostat, smart plugs, TV, handset/ATA/desk phone ownership, wired network) collected into one request for Michael. Assumes Room 1 = the Room 214 set-up in Michael's bedroom; to be confirmed.
+- `docs/PILOT1_EMAIL_DEPENDENCIES.md` (supports RQ-005, still BLOCKED): Michael's Resend/DNS/webhook/allowlist/department-address checklist, code gaps, acceptance list. Points to Lane F `PILOT1_COMMUNICATIONS.md` §1 as the technical reference.
+- Finding: production `d7ff96a` treats every Resend webhook event as inbound mail; until Lane F (`0978bb1`) is deployed the webhook must subscribe only `email.received`.
+- Finding: the expected-information lifecycle and reminder emails are not built in any branch; needs a design and a ready-queue entry.
+
+### Not done
+No code, runtime, hardware, Resend or DNS touched. Checklist, active work and ready queue left to the coordinator.
+
+### Next safe step
+Michael answers the six questions in the hardware list and works through the email checklist; the coordinator decides RQ-004's status.

@@ -753,3 +753,8 @@ listener verifier experiment: `docs/experiments/`.
   the one request-history timeline, used by `RequestHistoryDialog.jsx`
   (department queues) and `RequestDetailDialog.jsx` (admin).
 - Test: `backend/tests/test_shared_core_history.py` (Nursing + Maintenance).
+
+## 2026-10-01 — Pilot 1 hardware and email lists
+
+- `docs/PILOT1_ROOM1_HARDWARE_BOM.md`: Pilot Room 1 hardware inventory (RQ-004).
+- `docs/PILOT1_EMAIL_DEPENDENCIES.md`: what Michael must configure for the email pipeline, plus code gaps (RQ-005).
