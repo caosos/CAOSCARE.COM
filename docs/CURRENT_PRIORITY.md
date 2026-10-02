@@ -10,6 +10,33 @@
 
 This file is intentionally short-lived/current-state guidance. It does not replace the Product Baseline, AGENTS.md, lane contracts, or PROJECT_STATE. When this target is completed or Michael changes direction, update this file rather than leaving stale priority instructions in onboarding.
 
+## Immediate execution accelerator — observable operations simulator
+
+Michael approved building an **observable CAOSCare Operations Simulator** as a
+first-class development/acceptance tool. It is not a side demo and must not
+create a second data universe.
+
+The simulator must:
+
+- use the same canonical workflows as real residents/staff/admin;
+- support multiple bounded simulated agents with explicit roles/departments;
+- allow real people (including Michael) to be scheduled into a role and take
+  over work through the normal CAOSCare UI;
+- provide Start / Pause / Resume / Step / Stop controls and a visible event
+  stream;
+- make real-vs-simulated identity unmistakable;
+- preserve the hard rule **No action without a receipt. No receipt without
+  provenance.**;
+- make every action traceable from origin → actor → authority → execution →
+  resulting state → evidence;
+- never accept an agent's own "done" claim as proof.
+
+Canonical requirements: [`docs/CAOSCARE_OPERATIONS_SIMULATOR.md`](CAOSCARE_OPERATIONS_SIMULATOR.md).
+
+This work is intended to **accelerate** the real product by continuously
+exercising its actual workflows. It must not displace Room 1, voice, real
+communications, hardware or operator usability with a disconnected simulator.
+
 ## Pilot 1 finish line
 
 By 2026-10-10, CAOSCare should be usable as a real pilot in **one or two resident rooms** at a community, using the community's normal network, with the minimum dependable hardware and software required to operate.
