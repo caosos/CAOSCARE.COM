@@ -52,6 +52,28 @@ Status symbols:
 
 ---
 
+## PRIORITY — Receipt-backed Operations Simulator (approved 2026-10-02)
+
+Canonical spec: [`docs/CAOSCARE_OPERATIONS_SIMULATOR.md`](CAOSCARE_OPERATIONS_SIMULATOR.md).
+
+Hard law: **No action without a receipt. No receipt without provenance.** The simulator exercises the same canonical services and domain objects as real users; it may simulate actors/adapters, never a separate business-logic universe.
+
+Acceptance:
+
+- [ ] Every simulator action has an origin-linked durable receipt/event
+- [ ] Live simulator UI shows RUNNING / PAUSED / STOPPED, simulation time/speed and current actors
+- [ ] Operator can Start, Pause, Step one event, Resume and Stop without SSH
+- [ ] One simulated resident can create a canonical request
+- [ ] One simulated staff actor can accept/progress/complete it through canonical lifecycle services
+- [ ] Receipt drill-down traces origin, actor, authority, execution, resulting state and evidence
+- [ ] Real and simulated actors are visibly and structurally distinct
+- [ ] Michael can be scheduled as a real worker into a role normally occupied by a simulated agent
+- [ ] Michael can claim/complete simulated-origin work through the normal staff UI
+- [ ] Simulator observes Michael's real receipt/state change and continues from that state
+- [ ] Pause/stop prevents new simulated actions without erasing history
+- [ ] Simulation reset cannot touch real resident/staff data
+- [ ] Completion claims require system evidence, not only agent text
+
 ## PRIORITY — Demo kiosk command-to-visual state (Lane G, added 2026-09-28)
 
 Michael, 2026-09-28: the demo kiosk (`/kiosk/demo`, the kiosk marked `public_demo`) must visibly respond to the same Aria commands the real room uses. Owned by Lane G (`pilot/demo-kiosk`, see [`PILOT1_ACTIVE_WORK.md`](PILOT1_ACTIVE_WORK.md)). Functionality before visual redesign; the blue/white theme stays in Phase 12.
@@ -441,6 +463,7 @@ Acceptance: Linode runs the exact SHA Michael approved.
 
 | Date | By | Change |
 |---|---|---|
+| 2026-10-02 | ChatGPT / Michael simulator governance | Approved receipt-backed Operations Simulator, mixed real+simulated staffing, live controls and provenance law; governance/spec branch only, no production deployment. |
 | 2026-09-28 | ChatGPT / Michael governance checkpoint | Added `PILOT1_READY_QUEUE.md`, externalized Michael's one-active-decision rule, coordinator queue ownership, and no-invented-busywork rule. Documentation/governance only; no queued task started. |
 | 2026-09-28 | Claude Code (Opus 5.5), coordinator | Recovery checkpoint (`PILOT1_RECOVERY_CHECKPOINT.md`); Lane G status noted; demo data continuity and Ask Aria wording added. No status changes. |
 | 2026-09-28 | Claude Code (Opus 5.5), coordinator | Added priority requirement: demo kiosk command-to-visual state (Lane G). No status changes. |
