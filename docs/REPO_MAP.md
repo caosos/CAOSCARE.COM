@@ -51,6 +51,7 @@ docs/CURRENT_NODE_STATUS.md               Resident-room bring-up host snapshot
 README.md
 docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md  Product/onboarding context (hardware section HISTORICAL/SUPERSEDED)
 docs/CCE_LITE_TRUST_LAYER_PROPOSAL.md      CAOS Care CCE-lite trust-layer proposal
+docs/CAOSCARE_OPERATIONS_SIMULATOR.md        Receipt-backed multi-agent community simulator contract
 docs/DEPLOYMENT_RUNBOOK.md                 First non-Docker /opt/caoscare server path
 ```
 
