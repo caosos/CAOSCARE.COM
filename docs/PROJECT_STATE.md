@@ -5458,3 +5458,49 @@ No queued task was started in this work block.
 
 ### Continuity
 `CAOSCARE_START_HERE.md` now hydrates the Ready Queue before the Recovery Checkpoint. The recovery checkpoint records that chat/Claude sessions are execution terminals, not authoritative project memory; durable truth lives in source/runtime evidence, Git history, CURRENT_PRIORITY, the Pilot 1 checklist, active work, ready queue, recovery checkpoint and PROJECT_STATE.
+
+
+---
+
+## 2026-10-02 — Receipt law + observable Operations Simulator approved
+
+### Agent / tool
+ChatGPT with Michael, writing through the GitHub connector.
+
+### Branch / ref
+`agent/operations-simulator-receipts`, branched from `integration/2026-09-27`.
+No merge to `main`, no Linode deployment.
+
+### Michael-directed product decisions
+- **No action without a receipt. No receipt without provenance.**
+- If an action cannot be traced to where it originated, CAOSCare is failing.
+- Multiple agents are required, but their actions may never be hidden.
+- Build an artificially running community that Michael can watch.
+- Simulator must support mock residents/staff/departments operating real CAOSCare workflows.
+- Real people can be logged in and scheduled into roles normally held by simulated workers.
+- Michael must be able to take over work himself instead of discarding the simulation.
+- Operator must be able to start, pause, step, resume and stop the simulated community.
+- Simulator uses the same canonical services and objects as real operations; no second task/request universe.
+
+### What changed on this branch
+- Added `docs/CAOSCARE_OPERATIONS_SIMULATOR.md`.
+- Ratified receipt/provenance and simulator same-world invariants in the Product Baseline.
+- Made receipt/provenance a mandatory agent rule in `AGENTS.md`.
+- Added simulator priority/acceptance/queue/lane references across current execution docs.
+- Updated `docs/REPO_MAP.md`.
+
+### What is verified
+- This is a governance/specification change in GitHub.
+- Simulator runtime/code is **not yet implemented or acceptance-tested** by this documentation work.
+
+### HANDOFF CAPSULE
+- Objective: Build the smallest visible receipt-backed Operations Simulator slice.
+- Branch: `agent/operations-simulator-receipts` for governance/spec; coordinator assigns implementation branch/worktree.
+- Lane / ownership: Simulator lane owns scheduler/actors/scenarios/operator UI; Shared Core owns canonical receipt/service-contract changes; department lanes keep their business workflows.
+- Last proven state: Governance/spec only; no simulator runtime claim.
+- Commits: See branch history for the documentation commits created in this work block.
+- Runtime state: Unchanged by this work block.
+- Unresolved proven defects: Simulator not implemented yet.
+- Product invariants that matter here: no action without receipt; provenance to origin; same canonical world; real/simulated identity explicit; human oversight.
+- Do NOT change: do not create a parallel request/task universe; do not deploy; do not merge main from a worker lane.
+- Next safe action: coordinator assigns SIM-0/SIM-1 implementation lane and inventories existing receipt/task/simulation code before coding.
