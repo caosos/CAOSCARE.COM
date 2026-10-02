@@ -279,6 +279,17 @@ Priority layers (do **not** present later layers as built):
 - **Truth discipline.** The system must know the difference between
   requested, attempted, succeeded, failed, inferred, and unknown.
   Meaningful actions produce receipts / events.
+- **Receipt/provenance invariant (Michael-directed, 2026-10-02).** No action is
+  validly complete without a durable receipt, and no receipt is valid without a
+  traceable origin. Human, agent, scheduler, Aria, provider, device, simulator
+  and external-integration actions must link actor + authority + intent + target
+  + execution + result evidence + resulting state. An agent's self-report is
+  never completion evidence. See `docs/CAOSCARE_OPERATIONS_SIMULATOR.md`.
+- **Simulator same-world invariant.** Any operations simulator uses the same
+  canonical service functions and domain objects as real resident/staff/admin
+  flows. Simulated actors/adapters are explicit; they do not create a parallel
+  business-logic universe. Real and simulated actors may coexist in a scenario
+  when their identity/provenance is unambiguous.
 - **Preserve evidence.** Never do a destructive cleanup (bulk delete,
   overwrite, migration) of real or historical test data without explicit
   approval; raw evidence is preserved before any lifecycle migration.
