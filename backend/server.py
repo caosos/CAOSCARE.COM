@@ -18,6 +18,7 @@ from routes import residents as resident_routes  # noqa: E402
 from routes import resident_analytics as resident_analytics_routes  # noqa: E402
 from routes import staff as staff_routes  # noqa: E402
 from routes import kiosks as kiosk_routes  # noqa: E402
+from routes import demo_kiosk as demo_kiosk_routes  # noqa: E402
 from routes import alerts as alert_routes  # noqa: E402
 from routes import location as location_routes  # noqa: E402
 from routes import ai as ai_routes  # noqa: E402
@@ -154,6 +155,7 @@ api.include_router(resident_routes.router)
 api.include_router(resident_analytics_routes.router)
 api.include_router(staff_routes.router)
 api.include_router(kiosk_routes.router)
+api.include_router(demo_kiosk_routes.router)
 api.include_router(alert_routes.router)
 api.include_router(location_routes.router)
 api.include_router(ai_routes.router)

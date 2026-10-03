@@ -27,6 +27,7 @@ import { executeCareTool, ringLiveLineOnSilence } from "./realtimeCareControl";
 import { logRealtimeEvent, transcriptionConfidence, LOW_CONFIDENCE_THRESHOLD } from "./realtimeDiagnostics";
 import { reenableAutoResponse, createGreetingResponseGate } from "./realtimeAutoResponseGate";
 import { createTurnGroundingTracker } from "./realtimeTurnGrounding";
+import { typedTurnFromMessage, TYPED_TURN_CLASS, onTypedEcho, onTypedResponseCreated, onTypedResponseDone } from "./realtimeTypedTurn";
 
 // Dispatches a model-emitted function call to whichever tool module claims
 // it (operations/device/display, in that order), falling back to "not
@@ -78,7 +79,7 @@ export function createRealtimeHandlers({
   myGen, startGenRef, sessionIdRef, ctxRef, caos, send, stop, onEndCall,
   turnSuspectRef, assistantSpeakingRef, restingRef, greetingCreateResponseOffRef,
   setStatus, setResting, setTranscript, setError, onFirstSpeechStarted,
-  startAwaitingAnswerTimer, onSpeechEvent,
+  startAwaitingAnswerTimer, onSpeechEvent, typedTurnRef,
 }) {
   // Speech-lifecycle -> the companion INACTIVITY state machine
   // (realtimeInactivityTimer.js via realtimeConnection.js). ACTIVE SPEECH =
@@ -98,6 +99,7 @@ export function createRealtimeHandlers({
   let lastPlaybackStoppedAt = null;
   const greetingGate = createGreetingResponseGate({ send, caos, greetingCreateResponseOffRef });
   const turnGrounding = createTurnGroundingTracker(); // see realtimeTurnGrounding.js
+  const typedItemsSeen = new Set(); // typed-turn echoes, once each (realtimeTypedTurn.js)
 
   // Saves one turn immediately, independently - no pairing, no waiting on
   // the other side of the exchange. See RealtimeTurnIngest's docstring
@@ -262,6 +264,7 @@ export function createRealtimeHandlers({
       // has ACTUALLY finished playing - see realtimeAutoResponseGate.js.
       greetingGate.onAudioStopped();
     }
+    if (msg.type === "response.done" && typedTurnRef?.current) onTypedResponseDone(typedTurnRef.current, send, msg.response);
     if (msg.type === "response.done") {
       setStatus("live");
       logRealtimeEvent(sessionIdRef.current, "response_done", { responseId: msg.response?.id });
@@ -269,8 +272,18 @@ export function createRealtimeHandlers({
       // createGreetingResponseGate's docstring in realtimeAutoResponseGate.js.
       greetingGate.onResponseDone();
     }
+    if (msg.type === "response.created" && typedTurnRef?.current) onTypedResponseCreated(typedTurnRef.current);
     if (msg.type === "response.created") {
       logRealtimeEvent(sessionIdRef.current, "response_created", { responseId: msg.response?.id });
+    }
+    const typed = typedTurnFromMessage(msg);
+    if (typed && !typedItemsSeen.has(typed.id)) {
+      typedItemsSeen.add(typed.id);
+      if (typedTurnRef?.current) onTypedEcho(typedTurnRef.current);
+      setTranscript((t) => [...t, { role: "user", text: typed.text, ts: Date.now(), typed: true }]);
+      turnGrounding.onTranscriptionCompleted(TYPED_TURN_CLASS, typed.text);
+      postTurn("user", typed.text, typed.id, true);
+      logRealtimeEvent(sessionIdRef.current, "user_transcript", { text: typed.text, meta: { typed: true } });
     }
     if (msg.type === "conversation.item.input_audio_transcription.completed") {
       const userText = msg.transcript || "";
