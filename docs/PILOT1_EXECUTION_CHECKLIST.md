@@ -3,9 +3,9 @@
 Target: 2026-10-10
 
 Current phase: PHASE 3 — Real staff operational workflows (focus: operational completion)
-Current active task: Integrate Demo kiosk `0b69cae`, then Front desk/Transportation `6b67ac8` (Shared Core SC-3..SC-7 integrated at `1d02630`) (order in `PILOT1_RECOVERY_CHECKPOINT.md` §4)
+Current active task: Michael decides the Room 401 demo baseline (DEMO RESET on the shared demo room); next integration Front desk/Transportation `6b67ac8` (Demo kiosk integrated at `239324a`) (order in `PILOT1_RECOVERY_CHECKPOINT.md` §4)
 Current integration branch: `integration/2026-09-27`
-Current integration SHA: `1d02630` (last code state)
+Current integration SHA: `239324a` (last code state)
 Last updated: 2026-10-02
 Last updated by: Claude Code (Opus 5.5), EliteDesk
 
@@ -67,19 +67,19 @@ Rules:
 
 Acceptance:
 
-- [ ] "Turn the light on." → normal room-control tool → demo light state ON → the kiosk room visual changes → UI shows ON
-- [ ] "Turn the light off." → state OFF → room visual changes immediately
-- [ ] Thermostat up / down
-- [ ] TV on / off
-- [ ] TV volume / channel (as currently supported)
-- [ ] Blinds open / close (as currently supported)
-- [ ] Staff-help request shown on the kiosk
-- [ ] Call-front-desk visualization (a visualization only; calling itself is Phase 6)
-- [ ] Typed input uses the same path as voice
-- [ ] DEMO RESET restores a known baseline for lights, TV, thermostat, blinds and demo requests
-- [ ] Verified that demo commands and reset never touch a real room or device
+- [x] (proven isolated stack (integration `239324a` code, DB copy `caoscare_coord_demo_1002`, 3W01 as demo room, no real devices, HA off), real Aria typed session, 2026-10-02: `toggle_light` → mock/simulated device `verified: true` → visual ON → "The light is on now.") "Turn the light on." → normal room-control tool → demo light state ON → the kiosk room visual changes → UI shows ON
+- [x] "Turn the light off." → state OFF → room visual changes immediately — same isolated run; visual OFF within ~5 s (1 s poll), "I've turned the light off."
+- [x] Thermostat up / down — 72 → 68 (isolated stack) and 79 → 74 → 79 (localhost:3000 demo kiosk (Room 401, shared DB), real Aria typed session, 2026-10-02); visual and caption followed each change
+- [x] TV on / off — isolated stack and localhost:3000 demo kiosk (Room 401, shared DB), real Aria typed session, 2026-10-02
+- [ ] TV volume / channel (as currently supported) — not proven: no channel tool; volume needs volume words in the request
+- [ ] Blinds open / close (as currently supported) — not proven: blinds are drawn and reset, but Aria has no blinds tool
+- [ ] Staff-help request shown on the kiosk — not built in the demo room visual (existing Requests panel only)
+- [ ] Call-front-desk visualization (a visualization only; calling itself is Phase 6) — not built
+- [~] Typed input uses the same path as voice — typed text goes into the same Realtime session and tools (proven, both runs); a real spoken voice run on the demo kiosk not yet done
+- [x] DEMO RESET restores a known baseline for lights, TV, thermostat, blinds and demo requests — on the isolated stack (browser button + `test_demo_kiosk.py::test_demo_light_reset_and_guards`: baseline, demo requests closed as `skipped` with history, refuses a room with a real device). **Not run on localhost:3000 Room 401**: it would close Room 401's 6 open requests and add a light and blinds — needs Michael's decision on the Room 401 demo baseline.
+- [x] Verified that demo commands and reset never touch a real room or device — during the localhost:3000 demo kiosk (Room 401, shared DB), real Aria typed session, 2026-10-02 run, Room 214's device-command count stayed at 284 and all six Room 214 device states were identical before/after; reset refuses a room holding any non-mock device (test). See SC-11 for how mock devices in real rooms are now recorded.
 
-Lane G status (2026-09-28): implemented on `pilot/demo-kiosk` `0b69cae` — light on/off, TV on/off, thermostat, typed input, DEMO RESET proven with real Aria by the lane; **not yet integrated**, so items stay `[ ]` until coordinator acceptance. Truth defect SC-10 filed (unsupported light colour silently switched the light on).
+Lane G status: integrated at `239324a` 2026-10-02 (`pilot/demo-kiosk` `0b69cae`); acceptance above. SC-10 (unsupported colour switches the light on) still open.
 
 ## PHASE 1 — Visual review of current public WIP
 
@@ -441,6 +441,7 @@ Acceptance: Linode runs the exact SHA Michael approved.
 
 | Date | By | Change |
 |---|---|---|
+| 2026-10-02 | Claude Code (Opus 5.5), coordinator | Merged Demo kiosk `0b69cae` at `239324a`. Demo light on/off, thermostat, TV on/off, DEMO RESET (isolated), real-room separation → [x]; typed=voice [~]; volume/channel, blinds, staff-help visual, front-desk call visual not proven. Filed SC-11, SC-12. |
 | 2026-10-02 | Claude Code (Opus 5.5), coordinator | Merged Shared Core `5a9eb32` at `1d02630`. Nursing resident status [!] → [x]; Maintenance status back to resident [!] → [x]. SC-3 test passes. |
 | 2026-09-28 | ChatGPT / Michael governance checkpoint | Added `PILOT1_READY_QUEUE.md`, externalized Michael's one-active-decision rule, coordinator queue ownership, and no-invented-busywork rule. Documentation/governance only; no queued task started. |
 | 2026-09-28 | Claude Code (Opus 5.5), coordinator | Recovery checkpoint (`PILOT1_RECOVERY_CHECKPOINT.md`); Lane G status noted; demo data continuity and Ask Aria wording added. No status changes. |

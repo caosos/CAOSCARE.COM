@@ -5580,3 +5580,41 @@ HANDOFF CAPSULE
 - Product invariants: Aria confirms only verified state; demo never touches a real room or device.
 - Do NOT change:    real rooms/devices; shared tool contracts outside Lane E.
 - Next safe action: coordinator reviews the shared-file changes, integrates, decides the Room 401 demo device baseline.
+
+---
+
+## 2026-10-02 — Coordinator: Demo kiosk (Lane G) integrated
+
+### Agent / branch
+Claude Code (Opus 5.5), Pilot 1 coordinator, `~/CAOSCARE-INTEGRATION`. Origin `integration/2026-09-27` at `9488066` (= local). Merged `pilot/demo-kiosk` `0b69cae` → `239324a`. Not merged to main, not deployed.
+
+### Review before merge
+- Real Room 214 hardware (two Home Assistant lights, Home Assistant AC) uses the `home_assistant` adapter, which this lane does not touch.
+- `device_adapters.execute_mock` now calls `simulated_device.py` for every `mock` device, including real Room 214's mock TV/thermostat: unsupported commands now fail (more truthful), but successful ones are recorded `verified: true` against the simulator → filed SC-11.
+- DEMO RESET on the shared DB's demo room (Room 401) would close its 6 open requests and add a light and blinds → not run; needs Michael.
+
+### Files
+Backend: `device_adapters.py`, `routes/demo_kiosk.py` (new), `simulated_device.py` (new), `server.py`, `tests/test_demo_kiosk.py` (new). Frontend: `components/kiosk/demo/*` (new), `lib/demoRoom.js`, `lib/realtimeTypedTurn.js` (new), `lib/realtimeConnection.js`, `lib/realtimeMessageHandler.js`, `lib/useRealtimeVoice.js`, `pages/Kiosk.jsx`, `pages/RealtimeChatScreen.jsx`, test. Conflicts only in docs (`PILOT1_ACTIVE_WORK.md` kept integration's; `PROJECT_STATE.md`, `REPO_MAP.md` both sides).
+
+### Tests
+- Backend gate: 228 passed, 4 failed (same pre-existing iter10/iter11 ×3 and `test_ops_overview`), 14 skipped. The extra skip is `test_demo_light_reset_and_guards`, which needs a backend with a demo kiosk; run separately on the isolated stack: 2/2 passed.
+- Frontend 31 suites / 226 tests; production build compiles.
+
+### Acceptance (real Aria, typed into the live session; silent fake mic)
+- Isolated stack: integration code on :8097/:3011, DB copy `caoscare_coord_demo_1002` (3W01 = demo room, zero non-mock devices, HA blank). DEMO RESET → baseline; "Turn the light on/off", "Turn the TV on/off", "Set the thermostat to 68 degrees" → each visual and caption changed ("Demo room · simulated devices"); Aria confirmed after the state changed; commands recorded `executed`, `verified: true`, `mock`.
+- localhost:3000 `/kiosk/demo` (Room 401, shared DB, :8092 restarted on `239324a`): TV on/off, thermostat 79 → 74 → 79; "Turn the light on." → Aria: no light set up in this room (truthful). Room 214: 284 device commands before and after, all states identical. Room 401: 6 open requests before and after; devices back to the starting state.
+
+### Remaining
+SC-10, SC-11, SC-12 open; volume/channel, blinds tool, staff-help and front-desk-call visuals not built; real spoken voice on the demo kiosk not tested; Room 401 demo baseline needs Michael. RQ-001 Demo data continuity now READY.
+
+HANDOFF CAPSULE
+- Objective:        USABLE Pilot 1 by 2026-10-10.
+- Branch:           `integration/2026-09-27`; code state `239324a`.
+- Lane / ownership: Coordinator; no feature work.
+- Last proven state: demo kiosk command-to-visual (isolated + localhost:3000), 2026-10-02; Room 214 untouched.
+- Commits:          `239324a` (merge) + this docs commit.
+- Runtime state:    :3000 → integration frontend; :8092 backend on `239324a` (log `/tmp/room214_backend_239324a.log`); isolated :8097/:3011 stopped; DB copy `caoscare_coord_demo_1002` kept; production `d7ff96a`.
+- Unresolved proven defects: SC-10, SC-11.
+- Product invariants: demo never touches real devices; Aria confirms only changed state.
+- Do NOT change:    main, PR #41/#42, Linode, Room 214 devices, Room 401 data (until Michael decides).
+- Next safe action: Michael decides the Room 401 demo baseline; then integrate Front desk/Transportation `6b67ac8`.

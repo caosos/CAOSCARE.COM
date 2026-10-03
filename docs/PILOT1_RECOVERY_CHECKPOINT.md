@@ -4,7 +4,7 @@ Target: 2026-10-10
 Goal: USABLE Pilot 1 product, not merely a website/demo
 
 Current integration branch: `integration/2026-09-27` (GitHub `caosos/CAOSCARE.COM`)
-Current integration SHA: the tip of `origin/integration/2026-09-27`. Code state `1d02630` (Shared Core SC-1..SC-7 + Maintenance merged, 2026-10-02); later commits are documentation only.
+Current integration SHA: the tip of `origin/integration/2026-09-27`. Code state `239324a` (Shared Core SC-1..SC-7, Maintenance and Demo kiosk merged, 2026-10-02); later commits are documentation only.
 Current localhost:3000 source: `~/CAOSCARE-INTEGRATION/frontend` (systemd user service `caoscare-frontend-dev.service`, `/api` proxied to :8092)
 Last verified: 2026-10-02
 Coordinator: Claude Code session in `~/CAOSCARE-INTEGRATION` on the EliteDesk (`caoscare1-hp-elitedesk`)
@@ -53,7 +53,7 @@ All worktrees below were clean and equal to their GitHub branch at this checkpoi
 | D Community services | Dining/menu, activities/programs, housekeeping | `pilot/community-services` | `~/CAOSCARE-LANE-SERVICES` | `d95c4d6` | Handed off (based on `e9373d5`) | Kitchen/Activities/Housekeeping workspaces, menu paste intake and review, schedule draft batches, clock-ordered public schedule (lane tests only) | SC-9, CM-1; live/integration acceptance not done | Shared Core, Communications | Integrate after Front desk; live acceptance |
 | E Shared core | Shared contracts | `pilot/shared-core` | `~/CAOSCARE-LANE-SHARED` | `5a9eb32` | SC-1..SC-7 integrated (`3249fcd`, `1d02630`) | SC-1, SC-2, SC-3 browser-verified; SC-4/SC-5 partly; SC-6/SC-7 tests only | SC-8, SC-9, SC-10 open | — | SC-10, then SC-8/SC-9 |
 | F Communications / calling | Email delivery, notifications, phones | `pilot/communications` | `~/CAOSCARE-LANE-COMMS` | `0978bb1` | Implemented (based on `e9373d5`), tests only | Truthful notification delivery and fallback, Communications admin tab; calling per Michael's D1–D8 (see §6) — no Asterisk, ATA, trunk or OpenAI SIP test yet | Hardware, accounts, provider config; SC-8 | Shared Core | Integrate last; live acceptance needs hardware |
-| G Demo kiosk | Demo kiosk command-to-visual state | `pilot/demo-kiosk` | `~/CAOSCARE-LANE-DEMO-KIOSK` | `0b69cae` | Handed off (based on `a95acbe`) | Typed input into the same Aria Realtime session; normal room-control tool path → `mock` adapter → `simulated_device.py`; light on/off, TV on/off, thermostat 68, DEMO RESET (`POST /api/demo/reset`, refuses rooms with non-simulated devices) — proven with real Aria by the lane | SC-10; touches shared files (`device_adapters.py`, realtime hooks, `Kiosk.jsx`) | Shared Core | Integrate right after Shared Core; review shared-file changes |
+| G Demo kiosk | Demo kiosk command-to-visual state | `pilot/demo-kiosk` | `~/CAOSCARE-LANE-DEMO-KIOSK` | `0b69cae` | **Integrated** at `239324a` | Light on/off, thermostat, TV on/off visible from Aria commands (isolated stack + localhost:3000 Room 401); DEMO RESET on the isolated stack; Room 214 untouched | SC-10, SC-11, SC-12; Room 401 demo baseline decision; volume/channel, blinds tool, staff-help/front-desk visuals not built | Shared Core | Michael decides the Room 401 baseline |
 
 Other worktrees on the EliteDesk (older lanes, all clean and pushed, not part of Pilot 1 lanes): `~/CAOSCARE.COM` (`aria/conversation-substrate`), `~/CAOSCARE-ADMIN`, `~/CAOSCARE-CLAUDE`, `~/CAOSCARE-LEVEL1`, `~/CAOSCARE-LEVEL1-INTEGRATION`, `~/CAOSCARE-WEBSITE` (`feature/interactive-capability-cards`, PR #42), `~/CAOSCARE-WIP-PANELS` (merged into integration at `e70fbce`; can be retired when Michael agrees).
 
@@ -73,12 +73,14 @@ Other worktrees on the EliteDesk (older lanes, all clean and pushed, not part of
 | SC-8 | Notifications linked to their request | Partly (`aa10645`: `notify_department` accepts the link; call sites not all passing it) | No | No |
 | SC-9 | Department list readable by staff | No | No | No |
 | SC-10 | Unsupported light attribute must not silently power the light on (truth defect) | No (filed by Lane G) | No | No |
+| SC-11 | Mock devices in real rooms recorded as verified (simulator) | No | No | No |
+| SC-12 | TV/thermostat commands carry the conversation `session_id` | No | No | No |
 | CM-1 | Inbound activities email linked to its draft batch | No | No | No |
 
 ## 4. Next integration order
 
 1. Shared Core `5a9eb32` (SC-3..SC-7) — **done** at `1d02630` 2026-10-02; SC-3 test passes.
-2. Demo kiosk `0b69cae` (priority; review shared-file changes).
+2. Demo kiosk `0b69cae` — **done** at `239324a` 2026-10-02.
 3. Front desk / Transportation `6b67ac8` (needs SC-6/SC-7 from step 1).
 4. Community services `d95c4d6` (based on `e9373d5`; expect doc conflicts).
 5. Communications `0978bb1` (based on `e9373d5`; live acceptance needs hardware).
@@ -168,7 +170,7 @@ Demo data for tests: residents in rooms `3W01`–`3W10` (`Demo -` names), staff 
 | Port | What | Source |
 |---|---|---|
 | 3000 | Frontend dev server (`caoscare-frontend-dev.service`, drop-in `~/.config/systemd/user/caoscare-frontend-dev.service.d/worktree.conf`) | `~/CAOSCARE-INTEGRATION/frontend` |
-| 8092 | Backend (nohup uvicorn, log `/tmp/room214_backend_1d02630.log`) | `~/CAOSCARE-INTEGRATION/backend`, restarted 2026-10-02 22:27 CDT on `1d02630` |
+| 8092 | Backend (nohup uvicorn, log `/tmp/room214_backend_239324a.log`) | `~/CAOSCARE-INTEGRATION/backend`, restarted 2026-10-02 22:40 CDT on `239324a` |
 | 8000 | Old Level 1 backend, still the RF bridge target (`android-bridge/caos_rf_bridge.py`, pid 522046) | `~/CAOSCARE-LEVEL1-INTEGRATION/backend` |
 | 8001 | Old Admin backend | `~/CAOSCARE-ADMIN/backend` |
 | 27017 | MongoDB, database `caoscare` (shared by all local backends; real Room 214 data lives here) | system |
@@ -206,8 +208,8 @@ The coordinator must **not** create busywork to keep agents occupied, give two a
 Authoritative queue: [`PILOT1_READY_QUEUE.md`](PILOT1_READY_QUEUE.md).
 
 Current queue summary at this checkpoint:
-- **READY:** RQ-003 Live Nursing voice acceptance (since `1d02630`, needs Michael); RQ-004 Pilot hardware inventory.
-- **WAITING:** RQ-001 Demo data continuity; RQ-002 Global Ask Aria; RQ-006 Pilot Room 1 provisioning.
+- **READY:** RQ-001 Demo data continuity (Demo kiosk integrated at `239324a`); RQ-003 Live Nursing voice acceptance (needs Michael); RQ-004 Pilot hardware inventory.
+- **WAITING:** RQ-002 Global Ask Aria; RQ-006 Pilot Room 1 provisioning.
 - **BLOCKED:** RQ-005 Live email / Resend acceptance.
 - No queued task was started in the governance work block that created the queue.
 
