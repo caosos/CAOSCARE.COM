@@ -796,3 +796,9 @@ listener verifier experiment: `docs/experiments/`.
 - `backend/routes/task_actions.py`: assign / acknowledge / start / note / schedule / complete / skip / delete on top of it; `tasks.py` and `task_assignment.py` are thin routes over these.
 - `Receipt` provenance fields (actor, authority, parent / correlation receipt, before/after state, result label, provider refs, next state); `GET /receipts?correlation_id=` returns one workflow's chain.
 - Test: `backend/tests/test_sim0_provenance_chain.py`; demo isolation in `test_demo_kiosk.py`.
+
+## 2026-10-03 — SC-15 / SC-14 (branch `pilot/shared-core`)
+
+- `backend/routes/task_lifecycle.py`: `check()` (exists → authority → open (SC-14 closed guard) → recorded origin) and `record_refusal()`; `transition()` uses `check()`.
+- `backend/routes/transport_task_history.py`: `ride_actor()`, `ride_authority()`, `booking_entry()` — ride steps (`transportation.py`, `transportation_assign.py`, `transportation_runs.py`) are lifecycle transitions with chained receipts.
+- Test: `backend/tests/test_transport_ride_receipts.py`.

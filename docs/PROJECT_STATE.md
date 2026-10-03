@@ -5893,3 +5893,63 @@ Rooms 401/214 device-command counts (184, 284) and Room 401's 6 open requests un
 
 ### Follow-ups (assigned to Agent 2, `caoscare-1-47`)
 SC-15 Transportation ride-step receipts through `task_lifecycle` (blocker for Transportation acceptance; verify linked receipts before calling it receipt-compliant). SC-14 closed-state guard.
+
+---
+
+## 2026-10-03 — Lane E (Shared Core): SC-15 transportation ride receipts, SC-14 closed-state guard
+
+### Agent / tool
+Claude Code (Opus 5.5), Agent 2, `~/CAOSCARE-LANE-SHARED`, `pilot/shared-core` fast-forwarded to integration `ebee833` (coordinator assignment). Not merged, not deployed.
+
+### What changed
+- **SC-15**: every ride step is a `task_lifecycle` transition with one receipt chained to the ride's origin (actor, identity basis, authority, before/after state, workflow id, next state; each event_log entry carries its receipt id):
+  - request → `transportation_requested` (origin)
+  - booking → `transportation_booked` / `transportation_no_slot`
+  - re-request → `transportation_re_requested`
+  - change → `transportation_changed`
+  - cancel → `transportation_cancelled`
+  - front desk assign → `transportation_booked`
+  - run depart / complete → `transportation_departed` / `transportation_completed` per rider
+- Lifecycle `check()` runs before any run-seat side effect (change, cancel, assign, depart, complete), so a refused step books or releases nothing.
+- Authority names: `public_resident_bus` for Aria/room requests (unverified room claim), `front_desk_transport`, `acts_for:transportation`, `admin_override:<role>`. The routes keep their existing role gates.
+- A legacy ride re-request is refused, recorded, and filed as a new ride.
+- `transport_task_history.py` now builds entries from an `ActorContext`; the entry shapes are unchanged (`ride_booked` / `ride_not_booked` / `ride_changed`, notes, status).
+- No backend code now writes task state outside `task_lifecycle.transition` (`update_task_with_history` has one caller).
+- **SC-14 — choice: refuse, no reopen.** Every lifecycle action on a completed or skipped request (start, complete, acknowledge, skip, note, schedule, assign, change) is refused and the refusal is recorded as `task_<action>_refused`; nothing changes.
+  - Generic task routes return 409.
+  - Transportation keeps its existing 400 contract and now records the refusal too.
+  - Refusals are evidence, not part of the workflow chain.
+  - There is no reopen endpoint. If reopening is needed later, it would be an explicit, receipted action.
+
+### What was verified
+- Backend gate (fresh DB, no OpenAI key here): **219 passed, 0 failed, 31 skipped**.
+- `test_transport_ride_receipts.py` (new), over HTTP:
+  - Front-desk ride: request (booked) → change → depart → complete.
+  - Aria ride: request → front desk assign → Aria change → depart → complete.
+  - Cancel.
+  - Every step has its own receipt; parent links run to the origin; one workflow id; actor, identity basis and authority match the step; before equals the previous after; event_log entries ↔ receipts.
+  - Aria's status answer is unchanged at each stage (pending/not booked → booked → completed; cancelled with its reason).
+  - Closed ride cancel/complete → 400, unchanged, refusal recorded.
+- `test_sim0_provenance_chain.py`: on a completed request, start/complete/acknowledge/skip/note → 409, state unchanged (`started_at` kept), five refusal receipts, and the workflow chain is unchanged.
+- Lane C `test_transportation_lifecycle.py` and the shared-core, maintenance and demo tests pass.
+- Frontend 32 suites / 244 tests; CI build compiles.
+
+### Not done / limits
+- `transport_runs` (the run document itself) has no receipt; per-rider receipts record each rider's step.
+- If a rider on a run is refused, the run still departs or completes; the refused rider stays open and is returned in `refused`.
+- Notifications are still not linked (SC-8). Alerts are not covered.
+
+### Line counts
+`task_lifecycle.py` 212, `transport_task_history.py` 109, `transportation.py` 299, `transportation_assign.py` 123, `transportation_runs.py` 142.
+
+HANDOFF CAPSULE
+- Objective:        SC-15 ride-step receipts + SC-14 closed-state guard.
+- Branch:           pilot/shared-core (from integration ebee833).
+- Lane / ownership: Lane E; transportation route files touched only to route steps through the lifecycle (behaviour and responses unchanged apart from the added `refused` list on run responses).
+- Last proven state: gates above, 2026-10-03.
+- Commits:          see this entry's commit.
+- Runtime state:    nothing restarted or deployed.
+- Unresolved proven defects: none new.
+- Product invariants: one lifecycle path for every task state change; closed requests are not changed; refusals are recorded.
+- Do NOT change:    task state outside task_lifecycle.transition.
+- Next safe action: coordinator integrates and runs the browser ride lifecycle.
