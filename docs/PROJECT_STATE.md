@@ -5537,3 +5537,53 @@ HANDOFF CAPSULE
 - Product invariants: Aria speaks only from real state; receipts append; one lane per merge, gates between.
 - Do NOT change:    main, PR #41/#42, Linode, Video #001, RF bridge target, Room 214 real devices.
 - Next safe action: integrate `pilot/demo-kiosk` `0b69cae` (review its shared-file changes), then run the gates and the demo kiosk acceptance.
+
+---
+
+## 2026-10-03 — RQ-004 Pilot Room 1 hardware inventory (documentation only)
+
+### Agent / tool
+Claude Code (Opus 5.5), Agent 2. Worktree `~/CAOSCARE-SIM-INVESTIGATE`, branch `agent/pilot-room1-hardware-inventory`. The branch starts from `origin/integration/2026-09-27` at `9488066`. `~/CAOSCARE-INTEGRATION` was not touched. Not merged, not deployed.
+
+### What changed
+- Added `docs/PILOT1_ROOM1_HARDWARE_INVENTORY.md` (commit `401fb90`), a per-item matrix. Each item records:
+  - model and evidence level
+  - function and protocol
+  - software state and test evidence
+  - what is missing and the next acceptance test
+- It covers the room node, eMeet, TV/IR, lights, thermostat/heating, smart plugs, RF receiver, pendant, network, calling, and adapters/power.
+- Identifying details were removed for the public repo. A fuller private draft is kept outside the repo.
+- Added a `REPO_MAP.md` pointer.
+
+### What was verified (read-only)
+Three sources were checked: the EliteDesk's OS, Home Assistant entity states, and Mongo.
+- **Confirmed on the EliteDesk:** the HP EliteDesk 705 G4 DM itself, the eMeet OfficeCore Luna Plus (the default sink and source), the RTL2838 SDR, Intel 9260 Wi-Fi/Bluetooth and the HA VM.
+- **Lights:** the two Tapo Matter bulbs are present in HA.
+- **Midea AC:** unavailable in HA since 2026-09-13.
+- **Missing from HA:** there are no TV, thermostat, plug or IR entities.
+- **Pendant:** the test pendant was heard 2026-10-03.
+- **Not installed:** Asterisk.
+- **RF bridge:** started 2026-09-06 from an older lane checkout and still posts to the stale `:8000` backend.
+
+### Blocked
+- Pilot Room 1 has not been selected.
+- No make or model is recorded for any of these:
+  - the TV
+  - the "wireless thermostat"
+  - the smart plugs
+  - the community pendant system
+  - the community network
+  - the ATA, handset or SIP phone
+- The photo requests are listed in the inventory.
+
+HANDOFF CAPSULE
+- Objective:        RQ-004 exact Pilot Room 1 BOM / compatibility matrix.
+- Branch:           agent/pilot-room1-hardware-inventory (from origin integration 9488066).
+- Lane / ownership: Documentation only. No code, runtime, HA or device changes.
+- Last proven state: read-only OS/HA/Mongo evidence, 2026-10-02/03.
+- Commits:          401fb90 (inventory) + this commit.
+- Runtime state:    unchanged.
+- Unresolved proven defects: RF bridge on an older checkout posting to :8000; Midea AC unavailable in HA; room-node services not reboot-persistent.
+- Product invariants: no guessed models; the facility pendant path stays authoritative; HA read-back before Aria confirms.
+- Do NOT change:    RF bridge target, HA, test-room devices, production.
+- Next safe action: Michael selects Pilot Room 1 and photographs the TV's rear label, remote and input ports; coordinator decides whether RQ-004 stays READY or becomes BLOCKED on that evidence.
