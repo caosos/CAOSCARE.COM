@@ -108,4 +108,19 @@ Operational workflows need real lifecycle evidence where practical.
 
 **Public website.** Marketing does not outrun product truth. Public statuses advance only after acceptance evidence; the public site consumes accepted features and does not redefine backend truth.
 
+**Handoff to Michael (Michael-directed, 2026-10-03).** At the end of each work block, commit and push the completed work to the authorized branch, then give Michael one GitHub reference he can paste to Aria instead of screenshots:
+
+```text
+REFERENCE: <full commit SHA>
+BRANCH: <branch name>
+GITHUB: https://github.com/caosos/CAOSCARE.COM/commit/<full SHA>
+RESULT: what changed, in 2–4 sentences
+VERIFICATION: tests/build performed and their actual results
+RECEIPT: originating task, files/state changed, evidence of the result
+STATUS: complete | blocked | still in progress
+NEXT: the one next action
+```
+
+Work spanning several commits: give the branch or PR link plus the start and end SHAs. A change that exists only on the EliteDesk is reported as **LOCAL ONLY**, with no GitHub reference, and is not called complete until it is pushed and verified there. No merge to `main` and no Linode deploy without Michael's exact approval.
+
 **Production.** No worker or coordinator deploys. Release: accepted EliteDesk integration → push GitHub → show Michael the current production SHA, the proposed SHA and the exact commit/file range → Michael explicitly approves → deploy that exact GitHub SHA to Linode → verify production.
