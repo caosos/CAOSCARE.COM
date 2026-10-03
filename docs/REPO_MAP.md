@@ -773,3 +773,9 @@ listener verifier experiment: `docs/experiments/`.
 - `frontend/src/lib/realtimeTypedTurn.js`: typed input into the same Realtime session as voice (reply sequencing, echo recognition).
 - `frontend/src/lib/demoRoom.js` + `frontend/src/components/kiosk/demo/` (`DemoRoomVisual`, `DemoControls`, `DemoKioskPanel`): the demo room picture, typed box and DEMO RESET, shown only on the `public_demo` kiosk.
 - Tests: `backend/tests/test_demo_kiosk.py`, `frontend/src/lib/__tests__/demoKiosk.test.js`.
+
+## 2026-10-03 — Demo-only room for the demo kiosk
+
+- `backend/routes/demo_kiosk.py`: `DEMO_ROOM` (`DEMO`), `ensure_demo_room()` (synthetic resident "Demo - Sample Resident" + its kiosk as the single `public_demo` kiosk); DEMO RESET refuses any room other than `DEMO_ROOM`.
+- `backend/scripts/setup_demo_room.py`: runs `ensure_demo_room()` against the configured DB (idempotent).
+- `backend/tests/test_demo_kiosk.py::test_demo_room_leaves_other_rooms_untouched`.

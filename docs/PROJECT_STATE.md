@@ -5618,3 +5618,33 @@ HANDOFF CAPSULE
 - Product invariants: demo never touches real devices; Aria confirms only changed state.
 - Do NOT change:    main, PR #41/#42, Linode, Room 214 devices, Room 401 data (until Michael decides).
 - Next safe action: Michael decides the Room 401 demo baseline; then integrate Front desk/Transportation `6b67ac8`.
+
+---
+
+## 2026-10-03 — Demo kiosk uses a demo-only room
+
+### Agent / branch
+Claude Code (Opus 5.5), Pilot 1 coordinator, `~/CAOSCARE-INTEGRATION` on `integration/2026-09-27` (started at `4c77fbf`, equal to origin; no local work). Not merged to main, not deployed.
+
+### What changed (Michael's decision: "Use a demo-only room for the demo kiosk.")
+- `routes/demo_kiosk.py`: `ensure_demo_room()` creates the synthetic resident "Demo - Sample Resident" (preferred "Sam", room `DEMO`) and its kiosk as ordinary Resident/Kiosk records and makes that kiosk the single `public_demo` kiosk. DEMO RESET now refuses (409) unless the demo kiosk is in `DEMO`, in addition to the existing non-mock-device refusal. Requests in the demo room use the normal request workflow.
+- `scripts/setup_demo_room.py` (new). Test `test_demo_room_leaves_other_rooms_untouched` (new); the existing reset test now sets up the demo room itself, so both run in the gate instead of skipping.
+- Local shared DB: ran the setup script. Demo kiosk moved from Room 401's kiosk to `kio_67f409214f27` (room `DEMO`, resident `res_fd05a2b60ef8`); Room 401's kiosk only lost the `public_demo` flag.
+
+### What was verified
+- Backend gate: 231 passed, 3 failed (iter10 `test_session_default`, iter11 `test_default_facility_weather`, iter11 `test_session_has_nine_tools_and_anchors` — all in the earlier baseline), 13 skipped. `test_ops_overview`, the fourth baseline failure, passed here and on two reruns; not touched by this change, cause not investigated.
+- All three `test_demo_kiosk.py` tests pass in the gate. Frontend 31 suites / 226 tests; production build compiles.
+- Browser, localhost:3000 `/kiosk/demo` (:8092 restarted on this code), real Aria typed session: header "Room DEMO · Demo - Sample Resident"; reset → baseline; light on/off, TV on, thermostat 68 changed the visual; "My sink is leaking…" → maintenance request `task_595f6cca96a9` in room `DEMO`; second reset → that request `skipped`. Rooms 401 and 214: devices, device-command counts (184, 284) and requests identical before and after; Room 401 still has its 6 open requests.
+
+### Note
+Production still has Room 401's kiosk as the public demo. When this is deployed, run `backend/scripts/setup_demo_room.py` there (after Michael's release approval).
+
+HANDOFF CAPSULE
+- Objective:        USABLE Pilot 1 by 2026-10-10.
+- Branch:           `integration/2026-09-27`; this commit.
+- Lane / ownership: Coordinator; bounded demo-kiosk fix.
+- Last proven state: demo-only room on localhost:3000, 2026-10-03; Rooms 401/214 unchanged.
+- Runtime state:    :3000 → integration frontend; :8092 backend on this code (log `/tmp/room214_backend_demoroom.log`); production `d7ff96a`.
+- Unresolved proven defects: SC-10, SC-11, SC-12.
+- Do NOT change:    main, PR #41/#42, Linode, Room 214 devices, Room 401 data.
+- Next safe action: integrate Front desk/Transportation `6b67ac8`.

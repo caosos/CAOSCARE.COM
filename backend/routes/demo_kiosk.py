@@ -1,24 +1,35 @@
-"""Demo kiosk: DEMO RESET for the public demo room.
+"""Demo kiosk: the demo-only room and DEMO RESET.
 
-The demo room is whichever kiosk an admin designated `public_demo`
-(routes/kiosks.py). Its devices are ordinary SmartDevice records with
+The public demo kiosk lives in its own demo-only room, DEMO_ROOM, with a
+synthetic resident (DEMO_RESIDENT_NAME, "Demo - " like every demo record).
+`ensure_demo_room()` creates that resident and kiosk as ordinary Resident
+and Kiosk records and makes the kiosk the `public_demo` one (Michael,
+2026-10-03: "Use a demo-only room for the demo kiosk"). Requests made there
+go through the normal request workflow; only the room is synthetic.
+
+The demo room's devices are ordinary SmartDevice records with
 protocol "mock", so Aria and the kiosk control them through the normal
 room-command path (/devices/public/room/{room}/command) and the simulated
 adapter (simulated_device.py). Nothing here executes commands.
 
 Reset restores a known baseline: one light, thermostat, TV and blinds in
 the demo room (created if missing), baseline state, and open demo requests
-closed with a history entry. It refuses when the room holds any
-non-simulated device, so it can never touch a real room or real hardware.
+closed with a history entry. It refuses unless the public demo kiosk is
+in DEMO_ROOM, and when that room holds any non-simulated device, so it can
+never touch a real room, real requests or real hardware.
 """
 from fastapi import APIRouter, HTTPException
 
 from deps import db
-from models import SmartDevice, now_utc
+from models import Kiosk, Resident, SmartDevice, now_utc
 from routes.receipts import create_receipt
 from routes.task_history import task_event, update_task_with_history
 
 router = APIRouter(prefix="/demo", tags=["demo"])
+
+DEMO_ROOM = "DEMO"
+DEMO_RESIDENT_NAME = "Demo - Sample Resident"
+DEMO_KIOSK_NAME = "Demo room (simulated devices)"
 
 # One device per kind. Labels get the "Room <room> " prefix Aria's tools
 # strip when naming a device.
@@ -34,6 +45,32 @@ DEMO_BASELINE = [
 OPEN_TASK_STATUSES = ["pending", "in_progress"]
 
 
+def _iso(doc: dict) -> dict:
+    doc["created_at"] = doc["created_at"].isoformat()
+    return doc
+
+
+async def ensure_demo_room(database=None) -> dict:
+    """Create the demo-only resident and kiosk if missing and make that kiosk
+    the single public demo kiosk. Idempotent. Touches no other room's data:
+    other kiosks only lose the `public_demo` flag (as routes/kiosks.py does)."""
+    database = database if database is not None else db
+    resident = await database.residents.find_one({"room": DEMO_ROOM}, {"_id": 0})
+    if not resident:
+        resident = _iso(Resident(name=DEMO_RESIDENT_NAME, preferred_name="Sam", room=DEMO_ROOM,
+                                 pendant_id="DEMO-NONE",
+                                 memory="Synthetic demo resident for the public demo kiosk.").model_dump())
+        await database.residents.insert_one(dict(resident))
+    kiosk = await database.kiosks.find_one({"room": DEMO_ROOM}, {"_id": 0})
+    if not kiosk:
+        kiosk = _iso(Kiosk(name=DEMO_KIOSK_NAME, room=DEMO_ROOM, zone="Demo").model_dump())
+        await database.kiosks.insert_one(dict(kiosk))
+    await database.kiosks.update_many({"kiosk_id": {"$ne": kiosk["kiosk_id"]}, "public_demo": True},
+                                      {"$set": {"public_demo": False}})
+    await database.kiosks.update_one({"kiosk_id": kiosk["kiosk_id"]}, {"$set": {"public_demo": True}})
+    return {"room": DEMO_ROOM, "kiosk_id": kiosk["kiosk_id"], "resident_id": resident["resident_id"]}
+
+
 async def _demo_kiosk() -> dict:
     kiosk = await db.kiosks.find_one({"public_demo": True}, {"_id": 0})
     if not kiosk or not kiosk.get("room"):
@@ -45,6 +82,11 @@ async def _demo_kiosk() -> dict:
 async def demo_reset():
     kiosk = await _demo_kiosk()
     room = kiosk["room"]
+    if room != DEMO_ROOM:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Demo reset refused: the public demo kiosk is in room {room}, not the demo-only room {DEMO_ROOM}.",
+        )
     devices = await db.smart_devices.find({"room": room}, {"_id": 0}).to_list(100)
     real = [d["device_id"] for d in devices if d.get("protocol") != "mock"]
     if real:

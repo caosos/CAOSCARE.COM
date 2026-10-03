@@ -3,7 +3,7 @@
 Target: 2026-10-10
 
 Current phase: PHASE 3 — Real staff operational workflows (focus: operational completion)
-Current active task: Michael decides the Room 401 demo baseline (DEMO RESET on the shared demo room); next integration Front desk/Transportation `6b67ac8` (Demo kiosk integrated at `239324a`) (order in `PILOT1_RECOVERY_CHECKPOINT.md` §4)
+Current active task: Integrate Front desk/Transportation `6b67ac8` (demo kiosk moved to the demo-only room `DEMO`, 2026-10-03) (Demo kiosk integrated at `239324a`) (order in `PILOT1_RECOVERY_CHECKPOINT.md` §4)
 Current integration branch: `integration/2026-09-27`
 Current integration SHA: `239324a` (last code state)
 Last updated: 2026-10-02
@@ -76,7 +76,7 @@ Acceptance:
 - [ ] Staff-help request shown on the kiosk — not built in the demo room visual (existing Requests panel only)
 - [ ] Call-front-desk visualization (a visualization only; calling itself is Phase 6) — not built
 - [~] Typed input uses the same path as voice — typed text goes into the same Realtime session and tools (proven, both runs); a real spoken voice run on the demo kiosk not yet done
-- [x] DEMO RESET restores a known baseline for lights, TV, thermostat, blinds and demo requests — on the isolated stack (browser button + `test_demo_kiosk.py::test_demo_light_reset_and_guards`: baseline, demo requests closed as `skipped` with history, refuses a room with a real device). **Not run on localhost:3000 Room 401**: it would close Room 401's 6 open requests and add a light and blinds — needs Michael's decision on the Room 401 demo baseline.
+- [x] DEMO RESET restores a known baseline for lights, TV, thermostat, blinds and demo requests — on the isolated stack (browser button + `test_demo_kiosk.py::test_demo_light_reset_and_guards`: baseline, demo requests closed as `skipped` with history, refuses a room with a real device). Michael's decision (2026-10-03): the demo kiosk uses a demo-only room. It now lives in room `DEMO` with synthetic resident "Demo - Sample Resident" (`backend/scripts/setup_demo_room.py`); reset refuses any other room. Proven on localhost:3000 `/kiosk/demo`, shared local DB, real Aria typed session, 2026-10-03: reset → baseline; a demo maintenance request created by Aria was closed as `skipped` by reset; Room 401 (6 open requests) and Room 214 unchanged.
 - [x] Verified that demo commands and reset never touch a real room or device — during the localhost:3000 demo kiosk (Room 401, shared DB), real Aria typed session, 2026-10-02 run, Room 214's device-command count stayed at 284 and all six Room 214 device states were identical before/after; reset refuses a room holding any non-mock device (test). See SC-11 for how mock devices in real rooms are now recorded.
 
 Lane G status: integrated at `239324a` 2026-10-02 (`pilot/demo-kiosk` `0b69cae`); acceptance above. SC-10 (unsupported colour switches the light on) still open.
@@ -441,6 +441,7 @@ Acceptance: Linode runs the exact SHA Michael approved.
 
 | Date | By | Change |
 |---|---|---|
+| 2026-10-03 | Claude Code (Opus 5.5), coordinator | Demo kiosk moved to demo-only room `DEMO` (Michael's decision); reset restricted to it; isolation test added; proven on localhost:3000. |
 | 2026-10-02 | Claude Code (Opus 5.5), coordinator | Merged Demo kiosk `0b69cae` at `239324a`. Demo light on/off, thermostat, TV on/off, DEMO RESET (isolated), real-room separation → [x]; typed=voice [~]; volume/channel, blinds, staff-help visual, front-desk call visual not proven. Filed SC-11, SC-12. |
 | 2026-10-02 | Claude Code (Opus 5.5), coordinator | Merged Shared Core `5a9eb32` at `1d02630`. Nursing resident status [!] → [x]; Maintenance status back to resident [!] → [x]. SC-3 test passes. |
 | 2026-09-28 | ChatGPT / Michael governance checkpoint | Added `PILOT1_READY_QUEUE.md`, externalized Michael's one-active-decision rule, coordinator queue ownership, and no-invented-busywork rule. Documentation/governance only; no queued task started. |
