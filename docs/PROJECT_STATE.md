@@ -5818,3 +5818,9 @@ No merge to `main`, no Linode deployment.
 - Product invariants that matter here: no action without receipt; provenance to origin; same canonical world; real/simulated identity explicit; human oversight.
 - Do NOT change: do not create a parallel request/task universe; do not deploy; do not merge main from a worker lane.
 - Next safe action: coordinator assigns SIM-0/SIM-1 implementation lane and inventories existing receipt/task/simulation code before coding.
+
+---
+
+## 2026-10-03 — Coordinator: simulator receipt-law docs integrated (merge 2 of the approved sequence)
+
+Merged `agent/operations-simulator-receipts` `ffd1f607b958bd305627b9caa79690186d4115dc` at `75d19d8` (SHA verified; tree clean). Docs only: AGENTS.md receipt/provenance law, Product Baseline invariants, `docs/CAOSCARE_OPERATIONS_SIMULATOR.md`, Lane H / RQ-007. Conflicts only in `PILOT1_ACTIVE_WORK.md`, `PILOT1_EXECUTION_CHECKLIST.md`, `PILOT1_READY_QUEUE.md`, `PROJECT_STATE.md`; both sides kept. `git diff 5e6413c 75d19d8 -- backend frontend scripts` is empty, so merge 1's test and browser results (backend 232/3 baseline/13, frontend 32/244, build) apply unchanged. Next: Shared Core SC-13 `f5f07b4`.
