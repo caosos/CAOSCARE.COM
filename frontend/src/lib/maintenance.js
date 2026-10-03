@@ -19,15 +19,27 @@ export function isOverdue(t, now = Date.now()) {
   return Number.isFinite(d) && d < now;
 }
 
+// Departments a user acts for - mirrors backend/routes/staff_scope.py (the
+// authority): staff their own department; front desk Administration too.
+export function actingDepartments(user) {
+  const depts = [];
+  if (["staff", "front_desk"].includes(user?.role) && user?.department) depts.push(user.department);
+  if (user?.role === "front_desk" && !depts.includes("administration")) depts.push("administration");
+  return depts;
+}
+
+export function actsFor(user, department) {
+  if (["owner", "admin"].includes(user?.role)) return true;
+  return !!department && actingDepartments(user).includes(department);
+}
+
 export function canClaim(t, user) {
   if (!t || t.assigned_to || t.status !== "pending") return false;
-  if (["owner", "admin"].includes(user?.role)) return true;
-  return user?.role === "staff" && user?.department === (t.visibility_role || t.category);
+  return actsFor(user, t.visibility_role || t.category);
 }
 
 export function canAssign(user, department = "maintenance") {
-  return ["owner", "admin"].includes(user?.role) ||
-    (user?.role === "staff" && user?.department === department);
+  return actsFor(user, department);
 }
 
 export function ageLabel(iso) {

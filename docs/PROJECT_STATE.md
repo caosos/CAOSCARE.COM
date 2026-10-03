@@ -5458,3 +5458,44 @@ No queued task was started in this work block.
 
 ### Continuity
 `CAOSCARE_START_HERE.md` now hydrates the Ready Queue before the Recovery Checkpoint. The recovery checkpoint records that chat/Claude sessions are execution terminals, not authoritative project memory; durable truth lives in source/runtime evidence, Git history, CURRENT_PRIORITY, the Pilot 1 checklist, active work, ready queue, recovery checkpoint and PROJECT_STATE.
+
+---
+
+## 2026-09-28 — Lane E (Shared Core): SC-3..SC-7 status truth and front-desk scope
+
+### Agent / tool
+Claude Code (Opus 5.5), `~/CAOSCARE-LANE-SHARED`, branch `pilot/shared-core`, fast-forwarded to the integration tip `a95acbe` before work. Not merged, not deployed; main untouched.
+
+### What changed (all in the shared contract, no department-specific patch)
+- **SC-3** `aria_operational_state.task_lifecycle`: a request with a real owner (claimed or assigned) is `acknowledged`, never `open`. It is the one lifecycle function, so the resident status, Layer E context, conversation state and the resident view's `acknowledged` flag all change together. Unassigning makes it genuinely unseen again.
+- **SC-4** `aria_request_status.request_status_view(task, tz)`: in progress and acknowledged statuses carry the latest staff note; resolved names who completed it and their closing note; an owner is named ("<name> has taken it on — work hasn't started yet").
+- **SC-5** The note is spoken with its real time from `event_log` (`task_history.latest_note_at`); a note older than `event_log` is spoken without a time. `times_asked` (first ask + re-requests, `task_history.times_asked`) is returned by the view and the duplicate response and used for Aria and the repeat-request staff email ("asked 2x", not "ask #1"). `realtimeOperationsTools.js` no longer restates raw status/ownership/notes beside the backend's `spoken` (that second wording was the contradiction) and no longer says "no timestamp on record".
+- **SC-6** new `backend/routes/staff_scope.py` (`acting_departments`, `acts_for`, `members_query`): front desk acts for Administration (plus its own department if set). Used by `task_assignment.py` (claim/assign; target must act for the task's department) and `/staff/assignable` (Administration roster includes front desk users). Notes follow the existing owner rule (a front desk user who owns the request can note it). Frontend `maintenance.js` `canClaim`/`canAssign` use the mirrored `actsFor`. Department staff rules unchanged.
+- **SC-7** `create_resident_request` skips `reject_unconfirmed_time` only for the authenticated `front_desk` source; Aria/kiosk requests are still checked.
+- Lane B's strict `xfail` for SC-3 in `test_maintenance_resident_loop.py` removed; it now passes as a regression test.
+
+### What was verified
+- Backend gate (fresh DB, no OpenAI key): **1 failed, 212 passed, 31 skipped**. The single failure is the pre-existing `test_ops_overview` past-requested-date case (same as the previous Lane E entry's baseline).
+- New `backend/tests/test_shared_core_status_truth.py`, over HTTP. Nursing: unseen says "no one has picked it up"; after a claim, status and Layer E say acknowledged and name the nurse; repeat ask gives `times_asked` 2; in progress speaks the note with the same time label the view returns; history names the nurse and the closing note. Maintenance: admin assignment names the tech; unassign returns to unseen; tech cannot assign across departments. Front desk: callback "at 3 PM" accepted from front desk, still 422 from Aria voice; front desk claims/assigns to a front desk colleague and notes; cannot act on maintenance or assign outside Administration; nursing staff cannot act on Administration.
+- `test_maintenance_resident_loop.py` (Lane B) passes, including the former SC-3 xfail.
+- Frontend: 30 suites / 216 tests (new SC-3/SC-5 Aria wording tests, SC-6 permission tests); `CI=true` build compiles.
+- Not verified: live voice session; front desk UI click-through (Lane C's workspace is not integrated).
+
+### Not changed / notes
+- The resident status endpoint only covers resident-originated requests (Aria voice, kiosk). A front-desk-entered request is not reported by Aria. This scope was not changed; raise it if it is wanted.
+- `transportation.py` (Lane C) still has its own duplicate count; its Aria message now uses the same times-asked wording.
+
+### Line counts
+`aria_request_status.py` 71, `aria_operational_state.py` 201, `staff_scope.py` 41 (new), `task_history.py` 92, `task_assignment.py` 79, `staff.py` 151, `resident_requests.py` 373 (was 368), `realtimeOperationsTools.js` 285, `maintenance.js` 84.
+
+HANDOFF CAPSULE
+- Objective:        Aria status truth after claim, latest note with real time, times-asked wording, front-desk department scope, staff-entered callback times.
+- Branch:           pilot/shared-core (from integration a95acbe)
+- Lane / ownership: Lane E Shared Core. Did not edit alerts.py, staff_dispatch.py, transportation.py, Lane C front desk UI.
+- Last proven state: backend gate + new test + Lane B test + frontend suite/build as above.
+- Commits:          see this entry's commit.
+- Runtime state:    nothing restarted or deployed.
+- Unresolved proven defects: pre-existing test_ops_overview failure.
+- Product invariants: one lifecycle function; spoken status built once in the backend; Aria never contradicts it; a claim is never "unseen".
+- Do NOT change:    task_lifecycle or request_status_view per department.
+- Next safe action: coordinator integrates; Lane C rebases its front desk workspace onto staff_scope; then SC-8 / SC-9.

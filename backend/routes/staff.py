@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field, EmailStr
 from models import User, UserPublic
 from deps import db, require_admin, get_current_user
+from routes.staff_scope import acts_for, members_query
 from routes.departments import department_slug_exists
 import bcrypt
 
@@ -60,14 +61,13 @@ async def list_assignable(department: Optional[str] = None, user=Depends(get_cur
     Any admin/owner, or a staff member querying their OWN department - so a
     Maintenance lead can populate an assign dropdown without the full
     admin-only staff list."""
-    role = user.get("role")
     dept = (department or user.get("department") or "").strip()
     if not dept:
         raise HTTPException(status_code=400, detail="department is required")
-    if role not in ("owner", "admin") and user.get("department") != dept:
+    if not acts_for(user, dept):
         raise HTTPException(status_code=403, detail="You can only list your own department")
     return await db.users.find(
-        {"department": dept}, {"_id": 0, "user_id": 1, "name": 1, "department": 1},
+        members_query(dept), {"_id": 0, "user_id": 1, "name": 1, "department": 1},
     ).sort("name", 1).to_list(200)
 
 

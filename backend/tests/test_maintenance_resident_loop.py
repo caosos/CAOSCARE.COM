@@ -151,8 +151,7 @@ def test_maintenance_resident_loop():
     asyncio.run(_with_world(_full_loop))
 
 
-@pytest.mark.xfail(strict=True, reason="SHARED CORE REQUEST SC-3: a claim does not count as acknowledged, "
-                   "so Aria says 'no one has picked it up yet' about a claimed work order")
+# SC-3 (fixed in shared core): a claim counts as seen for resident status.
 def test_claimed_work_order_is_not_reported_as_unseen():
     if not _backend_up():
         pytest.skip(f"backend not reachable at {BASE_URL}")

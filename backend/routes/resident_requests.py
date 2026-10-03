@@ -17,7 +17,7 @@ from pydantic import BaseModel
 from models import StaffTask, TaskPriority, now_utc
 from deps import db, get_current_user
 from routes.receipts import create_receipt
-from routes.task_history import task_event, update_task_with_history
+from routes.task_history import task_event, update_task_with_history, latest_note_at, times_asked
 from routes.notifications import notify_department
 from routes.departments import get_active_departments
 from routes.facility_local_time import facility_tz as _facility_tz, facility_local as _facility_local
@@ -120,8 +120,10 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
         raise HTTPException(status_code=400, detail="Invalid source")
     # 2026-08-23 (real, confirmed bug - Chauncey/Room 304): a fabricated
     # "10 o'clock" reached a live staff task. Reject rather than trust a
-    # syntactically valid summary - see operational_provenance.py.
-    rejection = await reject_unconfirmed_time(
+    # syntactically valid summary - see operational_provenance.py. The check
+    # guards times a model might invent; a time typed by an authenticated
+    # front-desk user (e.g. a callback time) is staff-entered fact (SC-7).
+    rejection = None if data.source == "front_desk" else await reject_unconfirmed_time(
         data.summary, resident_id=data.resident_id, conversation_session_id=data.conversation_session_id,
     )
     if rejection:
@@ -164,20 +166,22 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
             conversation_session_id=data.conversation_session_id, requested_by=requested_by,
             assigned_role=visibility_role,
         )
+        asked = times_asked({"re_request_count": count})
         await notify_department(
             visibility_role,
-            f"CAOS Care: REPEAT request ({count}x) — {data.category}",
-            f"Asked again (#{count}) — {data.summary}\n"
+            f"CAOS Care: REPEAT request (asked {asked}x) — {data.category}",
+            f"Asked {asked} times now — {data.summary}\n"
             f"Room: {data.room or 'unknown'}\n"
             f"Original request: {existing['created_at']}\n"
             f"This still hasn't been closed out.",
         )
         # Speak the duplicate from Layer E's lifecycle vocabulary + real age,
         # so it cannot contradict "What's actually happening right now".
-        auth = request_status_view(existing)
+        auth = request_status_view({**existing, "re_request_count": count}, await _facility_tz())
         return {
             "task_id": existing["task_id"], "receipt_id": receipt["receipt_id"],
             "status": existing["status"], "duplicate": True, "re_request_count": count,
+            "times_asked": asked,
             "existing_summary": existing.get("resident_words") or existing.get("description") or existing.get("title"),
             "same_issue": same_issue,
             "scheduled_date": existing.get("requested_for_date"),
@@ -255,21 +259,22 @@ def _resident_safe_view(task: dict, tz: str) -> dict:
     started = _iso(task.get("started_at"))
     completed = _iso(task.get("completed_at"))
     last_re = _iso(task.get("last_re_requested_at"))
-    note_times = [e.get("at") for e in task.get("event_log") or [] if e.get("field") == "note"]
-    note_at = note_times[-1] if note_times and task.get("notes") else None
+    note_at = latest_note_at(task)
     return {
         "task_id": task["task_id"],
         "category": task["category"],
         "what_for": task.get("resident_words") or task.get("description") or task.get("title") or "",
         "status": status,
         "is_open": is_open,               # the operational current-vs-closed answer
-        "acknowledged": bool(ack or status in ("in_progress", "completed")),
+        "acknowledged": request_status_view(task)["lifecycle"] != "open",
         "assigned_to_name": task.get("assigned_name"),
+        "completed_by_name": task.get("completed_by_name"),
         "scheduled_date": task.get("requested_for_date"),        # planned service window,
         "scheduled_time_label": task.get("requested_for_time_label"),  # separate from lifecycle
         "latest_update": task.get("notes") or "",
         "latest_update_at": _facility_local(note_at, tz),
         "re_request_count": task.get("re_request_count", 0),
+        "times_asked": times_asked(task),
         # ---- authoritative lifecycle timestamps (UTC iso + facility-local) ----
         "created_at": created,            # raw UTC kept for back-compat / audit
         "created": _facility_local(created, tz),
@@ -280,7 +285,7 @@ def _resident_safe_view(task: dict, tz: str) -> dict:
         # Layer-E-consistent lifecycle + a ready-to-speak sentence. `status`
         # (raw) is kept above for back-compat; `lifecycle`/`spoken` are what
         # a truthful tool result should use.
-        **request_status_view(task),
+        **request_status_view(task, tz),
     }
 
 

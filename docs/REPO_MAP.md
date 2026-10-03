@@ -753,3 +753,15 @@ listener verifier experiment: `docs/experiments/`.
   the one request-history timeline, used by `RequestHistoryDialog.jsx`
   (department queues) and `RequestDetailDialog.jsx` (admin).
 - Test: `backend/tests/test_shared_core_history.py` (Nursing + Maintenance).
+
+## 2026-09-28 — Shared core SC-3..SC-7 (branch `pilot/shared-core`)
+
+- `backend/routes/staff_scope.py`: which departments a user acts for (staff:
+  own department; front desk: Administration). Authority for claim/assign
+  and the assignable roster; mirrored in `frontend/src/lib/maintenance.js`
+  (`actingDepartments` / `actsFor`).
+- `backend/routes/aria_request_status.py`: the one spoken request status
+  (owner, latest note with its real time, completer + closing note).
+  `aria_operational_state.task_lifecycle` counts a claimed/assigned request
+  as seen. `task_history.py` gains `latest_note_at` / `times_asked`.
+- Test: `backend/tests/test_shared_core_status_truth.py`.
