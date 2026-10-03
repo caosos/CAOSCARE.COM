@@ -3,10 +3,10 @@
 Target: 2026-10-10
 
 Current phase: PHASE 3 — Real staff operational workflows (focus: operational completion)
-Current active task: Integrate Shared Core `5a9eb32` (SC-3..SC-7), then Demo kiosk `0b69cae`, then Front desk/Transportation `6b67ac8` (order in `PILOT1_RECOVERY_CHECKPOINT.md` §4)
+Current active task: Integrate Demo kiosk `0b69cae`, then Front desk/Transportation `6b67ac8` (Shared Core SC-3..SC-7 integrated at `1d02630`) (order in `PILOT1_RECOVERY_CHECKPOINT.md` §4)
 Current integration branch: `integration/2026-09-27`
-Current integration SHA: `6d1ffa4` (last code state)
-Last updated: 2026-09-28
+Current integration SHA: `1d02630` (last code state)
+Last updated: 2026-10-02
 Last updated by: Claude Code (Opus 5.5), EliteDesk
 
 Pilot definition:
@@ -137,7 +137,7 @@ Status note: `[~]` below means the software path exists (see screenshots in `fro
 - [x] Assign/action — Claim, Start and Note in the browser.
 - [x] Complete — browser, with completion note.
 - [x] Receipt/history — shared timeline shows created, re-request, claimed, acknowledged, started, three separate notes in order and completed, each with name and time; six separate receipts, none overwritten (`task_f34bfff0a8c8`, integration `3249fcd`, browser + real Aria tool code, 2026-09-28). Fixed by SC-1/SC-2.
-- [!] Resident can ask real status — **blocked by SC-3**: after a nurse claims a request without acknowledging it, Aria says "no one has picked it up yet… assigned to <nurse>" (re-proven on `3249fcd`). Other states correct: real `check_request_status` code: pending → "no one has picked it up yet"; acknowledged → "Staff have seen it — not finished yet"; in progress → "Someone is working on it now"; completed → no open request. Never says someone is on the way.
+- [x] Resident can ask real status — SC-3 fixed (integration `1d02630`, 2026-10-02, browser + real `check_request_status` code, `task_f22555dbe047`): pending → "no one has picked it up yet"; after a claim → "Demo - Nancy Reyes RN has taken it on — work hasn't started yet"; in progress → "… is working on it now" with the latest note and its real time; completed → no open request. Never says someone is on the way. Live spoken voice test is RQ-003.
 
 **Maintenance**
 
@@ -148,7 +148,7 @@ Status note: `[~]` below means the software path exists (see screenshots in `fro
 - [x] Notes — three notes kept in order in the history.
 - [x] Time spent — history shows the start-to-complete duration.
 - [x] Completion — with completion note.
-- [!] History/status back to resident — history correct; Aria status **blocked by SC-3** (says "no one has picked it up yet" after a claim). Also SC-5 (says the note has no timestamp).
+- [x] History/status back to resident — SC-3/SC-5 fixed (integration `1d02630`, 2026-10-02, browser + real `check_request_status` code, `task_69c2e4ea8f6d`): after the claim "Demo - Carl Boone has taken it on — work hasn't started yet"; latest note spoken with its real time; history shows each step and three notes; five separate receipts.
 
 **Transportation**
 
@@ -441,6 +441,7 @@ Acceptance: Linode runs the exact SHA Michael approved.
 
 | Date | By | Change |
 |---|---|---|
+| 2026-10-02 | Claude Code (Opus 5.5), coordinator | Merged Shared Core `5a9eb32` at `1d02630`. Nursing resident status [!] → [x]; Maintenance status back to resident [!] → [x]. SC-3 test passes. |
 | 2026-09-28 | ChatGPT / Michael governance checkpoint | Added `PILOT1_READY_QUEUE.md`, externalized Michael's one-active-decision rule, coordinator queue ownership, and no-invented-busywork rule. Documentation/governance only; no queued task started. |
 | 2026-09-28 | Claude Code (Opus 5.5), coordinator | Recovery checkpoint (`PILOT1_RECOVERY_CHECKPOINT.md`); Lane G status noted; demo data continuity and Ask Aria wording added. No status changes. |
 | 2026-09-28 | Claude Code (Opus 5.5), coordinator | Added priority requirement: demo kiosk command-to-visual state (Lane G). No status changes. |

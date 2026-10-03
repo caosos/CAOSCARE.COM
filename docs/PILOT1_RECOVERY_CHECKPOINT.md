@@ -4,9 +4,9 @@ Target: 2026-10-10
 Goal: USABLE Pilot 1 product, not merely a website/demo
 
 Current integration branch: `integration/2026-09-27` (GitHub `caosos/CAOSCARE.COM`)
-Current integration SHA: the tip of `origin/integration/2026-09-27`. Code state `dc3e9ee` (Shared Core SC-1/SC-2 + Maintenance merged); later commits are documentation only.
+Current integration SHA: the tip of `origin/integration/2026-09-27`. Code state `1d02630` (Shared Core SC-1..SC-7 + Maintenance merged, 2026-10-02); later commits are documentation only.
 Current localhost:3000 source: `~/CAOSCARE-INTEGRATION/frontend` (systemd user service `caoscare-frontend-dev.service`, `/api` proxied to :8092)
-Last verified: 2026-09-28
+Last verified: 2026-10-02
 Coordinator: Claude Code session in `~/CAOSCARE-INTEGRATION` on the EliteDesk (`caoscare1-hp-elitedesk`)
 Production/Linode SHA: `d7ff96a4e4d1f4f253929377d7f386ee4b1cac6a` (read on the host 2026-09-28; public bundle `main.7a1fa061.js`)
 Production deployment status: unchanged since 2026-09-27; none of the Pilot 1 integration work is deployed
@@ -46,12 +46,12 @@ All worktrees below were clean and equal to their GitHub branch at this checkpoi
 
 | Lane | Purpose | Branch | Worktree | SHA | Status | Accepted / proven | Open blockers | Shared dependencies | Next action |
 |---|---|---|---|---|---|---|---|---|---|
-| Coordinator | Integration, tests, checklist, localhost:3000 | `integration/2026-09-27` | `~/CAOSCARE-INTEGRATION` | see header | Active | Nursing, Maintenance, Shared Core SC-1/SC-2, public panels, Therapy/Beauty placeholders integrated and browser-verified | — | all | Integrate Shared Core `5a9eb32` |
-| A Nursing | Care request loop | `pilot/nursing` (never created) | — | — | Core loop integrated at `7ae91bc` | "I need help going to the bathroom" → nursing queue → claim/ack/start/notes/complete → history (browser, 2026-09-28) | Aria status after a claim (SC-3, fixed on `pilot/shared-core`, not integrated) | Shared Core | None until SC-3 is integrated |
-| B Maintenance | Work orders | `pilot/maintenance` | `~/CAOSCARE-LANE-MAINTENANCE` | `51deae0` | **Integrated** at `6d1ffa4` | "My sink is leaking" lifecycle, three notes, five separate receipts (browser, `task_cf8ca2182ecb`); acceptance test `test_maintenance_resident_loop.py` | SC-3 test is a strict xfail until Shared Core is integrated | Shared Core | Remove the xfail when SC-3 lands (it will start passing) |
+| Coordinator | Integration, tests, checklist, localhost:3000 | `integration/2026-09-27` | `~/CAOSCARE-INTEGRATION` | see header | Active | Nursing, Maintenance, Shared Core SC-1/SC-2, public panels, Therapy/Beauty placeholders integrated and browser-verified; Shared Core SC-3..SC-7 integrated at `1d02630` | — | all | Integrate Demo kiosk `0b69cae` |
+| A Nursing | Care request loop | `pilot/nursing` (never created) | — | — | Core loop integrated at `7ae91bc` | "I need help going to the bathroom" → nursing queue → claim/ack/start/notes/complete → history (browser, 2026-09-28) | None in software; live voice test is RQ-003 | Shared Core | RQ-003 live voice acceptance with Michael |
+| B Maintenance | Work orders | `pilot/maintenance` | `~/CAOSCARE-LANE-MAINTENANCE` | `51deae0` | **Integrated** at `6d1ffa4` | "My sink is leaking" lifecycle, three notes, five separate receipts (browser, `task_cf8ca2182ecb`); acceptance test `test_maintenance_resident_loop.py` | None (SC-3 test passes since `1d02630`) | Shared Core | — |
 | C Front desk / Transportation | Front desk requests, callbacks, rides | `pilot/frontdesk-transport` | `~/CAOSCARE-LANE-FRONTDESK` | `6b67ac8` | Reworked, handed off | Every ride step now goes through `task_history.update_task_with_history`; history shown with the shared `RequestTimeline` (lane claim; coordinator not yet verified) | Needs SC-6, SC-7 (on `pilot/shared-core`) | Shared Core | Integrate after Shared Core; verify the transport timeline in the browser |
 | D Community services | Dining/menu, activities/programs, housekeeping | `pilot/community-services` | `~/CAOSCARE-LANE-SERVICES` | `d95c4d6` | Handed off (based on `e9373d5`) | Kitchen/Activities/Housekeeping workspaces, menu paste intake and review, schedule draft batches, clock-ordered public schedule (lane tests only) | SC-9, CM-1; live/integration acceptance not done | Shared Core, Communications | Integrate after Front desk; live acceptance |
-| E Shared core | Shared contracts | `pilot/shared-core` | `~/CAOSCARE-LANE-SHARED` | `5a9eb32` | SC-3..SC-7 implemented, awaiting integration | SC-1/SC-2 integrated at `3249fcd` and browser-verified | SC-8, SC-9, SC-10 open | — | Coordinator integrates `5a9eb32` next |
+| E Shared core | Shared contracts | `pilot/shared-core` | `~/CAOSCARE-LANE-SHARED` | `5a9eb32` | SC-1..SC-7 integrated (`3249fcd`, `1d02630`) | SC-1, SC-2, SC-3 browser-verified; SC-4/SC-5 partly; SC-6/SC-7 tests only | SC-8, SC-9, SC-10 open | — | SC-10, then SC-8/SC-9 |
 | F Communications / calling | Email delivery, notifications, phones | `pilot/communications` | `~/CAOSCARE-LANE-COMMS` | `0978bb1` | Implemented (based on `e9373d5`), tests only | Truthful notification delivery and fallback, Communications admin tab; calling per Michael's D1–D8 (see §6) — no Asterisk, ATA, trunk or OpenAI SIP test yet | Hardware, accounts, provider config; SC-8 | Shared Core | Integrate last; live acceptance needs hardware |
 | G Demo kiosk | Demo kiosk command-to-visual state | `pilot/demo-kiosk` | `~/CAOSCARE-LANE-DEMO-KIOSK` | `0b69cae` | Handed off (based on `a95acbe`) | Typed input into the same Aria Realtime session; normal room-control tool path → `mock` adapter → `simulated_device.py`; light on/off, TV on/off, thermostat 68, DEMO RESET (`POST /api/demo/reset`, refuses rooms with non-simulated devices) — proven with real Aria by the lane | SC-10; touches shared files (`device_adapters.py`, realtime hooks, `Kiosk.jsx`) | Shared Core | Integrate right after Shared Core; review shared-file changes |
 
@@ -65,11 +65,11 @@ Other worktrees on the EliteDesk (older lanes, all clean and pushed, not part of
 |---|---|---|---|---|
 | SC-1 | Receipts append per status change | `a6230cb` | `3249fcd` | Yes, 2026-09-28 |
 | SC-2 | Timestamped note history (`StaffTask.event_log`) | `a6230cb` | `3249fcd` | Yes, 2026-09-28 |
-| SC-3 | A claimed request counts as seen (truth defect) | `5a9eb32` | No | No |
-| SC-4 | Latest note / completer in spoken status | `5a9eb32` | No | No |
-| SC-5 | Real note timestamps; "times asked" wording | `5a9eb32` | No | No |
-| SC-6 | Front desk claim/assign/note on Administration | `5a9eb32` | No | No |
-| SC-7 | Staff-entered callback times allowed | `5a9eb32` | No | No |
+| SC-3 | A claimed request counts as seen (truth defect) | `5a9eb32` | `1d02630` | Yes, 2026-10-02 |
+| SC-4 | Latest note / completer in spoken status | `5a9eb32` | `1d02630` | Partly (latest note yes; completer by test only) |
+| SC-5 | Real note timestamps; "times asked" wording | `5a9eb32` | `1d02630` | Partly (note time yes; wording by test only) |
+| SC-6 | Front desk claim/assign/note on Administration | `5a9eb32` | `1d02630` | Tests only |
+| SC-7 | Staff-entered callback times allowed | `5a9eb32` | `1d02630` | Tests only |
 | SC-8 | Notifications linked to their request | Partly (`aa10645`: `notify_department` accepts the link; call sites not all passing it) | No | No |
 | SC-9 | Department list readable by staff | No | No | No |
 | SC-10 | Unsupported light attribute must not silently power the light on (truth defect) | No (filed by Lane G) | No | No |
@@ -77,7 +77,7 @@ Other worktrees on the EliteDesk (older lanes, all clean and pushed, not part of
 
 ## 4. Next integration order
 
-1. Shared Core `5a9eb32` (SC-3..SC-7) — then re-run nursing and maintenance status checks; the SC-3 xfail should pass.
+1. Shared Core `5a9eb32` (SC-3..SC-7) — **done** at `1d02630` 2026-10-02; SC-3 test passes.
 2. Demo kiosk `0b69cae` (priority; review shared-file changes).
 3. Front desk / Transportation `6b67ac8` (needs SC-6/SC-7 from step 1).
 4. Community services `d95c4d6` (based on `e9373d5`; expect doc conflicts).
@@ -168,7 +168,7 @@ Demo data for tests: residents in rooms `3W01`–`3W10` (`Demo -` names), staff 
 | Port | What | Source |
 |---|---|---|
 | 3000 | Frontend dev server (`caoscare-frontend-dev.service`, drop-in `~/.config/systemd/user/caoscare-frontend-dev.service.d/worktree.conf`) | `~/CAOSCARE-INTEGRATION/frontend` |
-| 8092 | Backend (nohup uvicorn, log `/tmp/room214_backend_3249fcd.log`) | `~/CAOSCARE-INTEGRATION/backend`, restarted 2026-09-27 20:26 CDT on `3249fcd` code (no backend code changed since) |
+| 8092 | Backend (nohup uvicorn, log `/tmp/room214_backend_1d02630.log`) | `~/CAOSCARE-INTEGRATION/backend`, restarted 2026-10-02 22:27 CDT on `1d02630` |
 | 8000 | Old Level 1 backend, still the RF bridge target (`android-bridge/caos_rf_bridge.py`, pid 522046) | `~/CAOSCARE-LEVEL1-INTEGRATION/backend` |
 | 8001 | Old Admin backend | `~/CAOSCARE-ADMIN/backend` |
 | 27017 | MongoDB, database `caoscare` (shared by all local backends; real Room 214 data lives here) | system |
@@ -206,8 +206,8 @@ The coordinator must **not** create busywork to keep agents occupied, give two a
 Authoritative queue: [`PILOT1_READY_QUEUE.md`](PILOT1_READY_QUEUE.md).
 
 Current queue summary at this checkpoint:
-- **READY:** RQ-004 Pilot hardware inventory.
-- **WAITING:** RQ-001 Demo data continuity; RQ-002 Global Ask Aria; RQ-003 Live Nursing voice acceptance; RQ-006 Pilot Room 1 provisioning.
+- **READY:** RQ-003 Live Nursing voice acceptance (since `1d02630`, needs Michael); RQ-004 Pilot hardware inventory.
+- **WAITING:** RQ-001 Demo data continuity; RQ-002 Global Ask Aria; RQ-006 Pilot Room 1 provisioning.
 - **BLOCKED:** RQ-005 Live email / Resend acceptance.
 - No queued task was started in the governance work block that created the queue.
 

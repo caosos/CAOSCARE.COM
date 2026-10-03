@@ -5499,3 +5499,41 @@ HANDOFF CAPSULE
 - Product invariants: one lifecycle function; spoken status built once in the backend; Aria never contradicts it; a claim is never "unseen".
 - Do NOT change:    task_lifecycle or request_status_view per department.
 - Next safe action: coordinator integrates; Lane C rebases its front desk workspace onto staff_scope; then SC-8 / SC-9.
+
+---
+
+## 2026-10-02 — Coordinator: Shared Core SC-3..SC-7 integrated
+
+### Agent / branch
+Claude Code (Opus 5.5), Pilot 1 coordinator, `~/CAOSCARE-INTEGRATION` (`caoscare1-hp-elitedesk`). Origin `integration/2026-09-27` was `c8c61d1` (6 governance/docs commits ahead of local `2035e77`; local had no unique work, fast-forwarded). Merged `pilot/shared-core` `5a9eb32` → merge `1d02630`. Not merged to main, not deployed.
+
+### Files affected by the merge
+`backend/routes/{aria_operational_state,aria_request_status,resident_requests,staff,staff_scope(new),task_assignment,task_history}.py`, `backend/tests/{test_shared_core_status_truth(new),test_maintenance_resident_loop}.py`, `frontend/src/lib/{maintenance,realtimeOperationsTools}.js` and their tests, docs. Conflicts only in docs: `PILOT1_ACTIVE_WORK.md` (kept integration's newer version), `PROJECT_STATE.md` (both entries).
+
+### Test evidence
+- Backend gate: 227 passed, 4 failed, 0 xfailed. The 4 are the same pre-existing failures (`iter10_test.py::TestRealtimeSession::test_session_default`, `iter11_test.py::TestWeather::test_default_facility_weather`, `iter11_test.py::TestRealtimeSession::test_session_has_nine_tools_and_anchors`, `test_ops_overview.py::test_ops_overview`). Before: 225 passed / 4 failed / 1 xfailed.
+- `test_maintenance_resident_loop.py::test_claimed_work_order_is_not_reported_as_unseen` (the SC-3 expected failure) now passes as a normal test.
+- Focused nursing/maintenance/history/status tests: 8 passed. Frontend: 30 suites / 216 tests; production build compiles.
+
+### Workflow result (localhost:3000 → :8092 restarted on `1d02630`, demo data)
+- Nursing `task_f22555dbe047` (3W01, demo nurse) and maintenance `task_69c2e4ea8f6d` (3W02, demo maintenance user), through the browser plus Aria's real `check_request_status` code:
+  - pending → "no one has picked it up yet";
+  - **after claim** → "Demo - Nancy Reyes RN has taken it on — work hasn't started yet" (was "no one has picked it up yet");
+  - in progress → "… is working on it now. Latest note (today at 10:29 PM): …";
+  - completed → no open request.
+- History shows claim, acknowledge, start, three notes and complete as separate events; five separate receipts.
+
+### Remaining
+SC-4 completer wording and SC-5 "times asked" verified by backend tests only; SC-6/SC-7 tests only until the Front desk lane is integrated. Open: SC-8, SC-9, SC-10, CM-1. RQ-003 live Nursing voice acceptance is now READY (needs Michael).
+
+HANDOFF CAPSULE
+- Objective:        USABLE Pilot 1 by 2026-10-10.
+- Branch:           `integration/2026-09-27`; code state `1d02630`.
+- Lane / ownership: Coordinator; no feature work.
+- Last proven state: nursing + maintenance lifecycle and Aria status after a claim, browser + real tool code, 2026-10-02.
+- Commits:          `1d02630` (merge) + this docs commit.
+- Runtime state:    :3000 → `~/CAOSCARE-INTEGRATION/frontend`; :8092 backend on `1d02630` (log `/tmp/room214_backend_1d02630.log`); :8000 old Level 1 backend still receives the RF bridge; production `d7ff96a`.
+- Unresolved proven defects: SC-10 (unsupported light colour powers the light on silently; on `pilot/demo-kiosk` evidence).
+- Product invariants: Aria speaks only from real state; receipts append; one lane per merge, gates between.
+- Do NOT change:    main, PR #41/#42, Linode, Video #001, RF bridge target, Room 214 real devices.
+- Next safe action: integrate `pilot/demo-kiosk` `0b69cae` (review its shared-file changes), then run the gates and the demo kiosk acceptance.
