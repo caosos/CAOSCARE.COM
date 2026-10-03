@@ -18,8 +18,9 @@ def _line(item: dict) -> str:
     reasks = ""
     if item.get("re_request_count"):
         reasks = f" Asked again {item['re_request_count']}x."
+    seen = " (staff have not seen it yet)" if item.get("lifecycle") in ("open", "escalated") else ""
     return (f"- {item['about']} — opened {item['opened_age']}, "
-            f"currently **{item['lifecycle']}**{who}{sched}.{reasks}{upd}")
+            f"currently **{item['lifecycle']}**{seen}{who}{sched}.{reasks}{upd}")
 
 
 def render_operational_block(state: Optional[dict]) -> str:

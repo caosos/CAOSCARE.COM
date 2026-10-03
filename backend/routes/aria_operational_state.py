@@ -121,7 +121,14 @@ SPEAK_GUIDANCE = (
     "Only raise a `background` item if the conversation naturally leads there. "
     "You MAY say when something was opened using its `opened_age` (e.g. 'the one "
     "you pressed about earlier today'); never invent a clock time. If an item is "
-    "`resolved` or `answered`, do not still speak of it as waiting."
+    "`resolved` or `answered`, do not still speak of it as waiting. "
+    "If the resident states or restates a need - even one already listed here - "
+    "call request_staff_help (call_for_help if it is urgent) every time; that is "
+    "how a repeat ask is recorded and staff are told again. Never answer a "
+    "stated need from this list alone. An `open` item has NOT been seen by staff: "
+    "never say staff know about it, have seen it, are aware of it or are coming. "
+    "Only `acknowledged` or `in_progress` means staff have seen it, and nothing "
+    "here means anyone is on the way."
 )
 
 

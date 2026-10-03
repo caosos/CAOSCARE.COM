@@ -9,6 +9,7 @@ this shares the same StaffTask/Receipt records tasks.py owns rather than
 creating a parallel data model, and is mounted at the same /tasks prefix
 so the public URLs (/api/tasks/resident-request, .../status) don't move.
 """
+import re
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request
@@ -78,6 +79,19 @@ class ResidentRequestInput(BaseModel):
     priority: TaskPriority = "normal"
     source: str = "aria_voice"  # "aria_voice" | "kiosk_button" | "front_desk" (auth required for front_desk)
     conversation_session_id: Optional[str] = None
+
+
+def _same_words(a: Optional[str], b: Optional[str]) -> bool:
+    """'My sink is leaking.' and 'sink is leaking' are the same issue: compare
+    words only (case, punctuation, a leading my/the ignored), or one phrase
+    containing the other."""
+    def norm(x):
+        w = re.sub(r"[^a-z0-9 ]+", " ", (x or "").lower()).split()
+        while w and w[0] in ("my", "the", "our"):
+            w = w[1:]
+        return " ".join(w)
+    x, y = norm(a), norm(b)
+    return bool(x and y) and (x == y or x in y or y in x)
 
 
 async def create_resident_request(data: ResidentRequestInput, *, user: Optional[dict] = None) -> dict:
@@ -176,7 +190,7 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
         # open request was about the lamp. Returning the existing ticket's own
         # summary lets the model describe it honestly instead of assuming it
         # matches what was just asked.
-        same_issue = (existing.get("resident_words") or "").strip().lower() == (data.resident_words or data.summary or "").strip().lower()
+        same_issue = _same_words(existing.get("resident_words"), data.resident_words or data.summary)
         count = existing.get("re_request_count", 0)
         asked = times_asked({"re_request_count": count})
         await notify_department(

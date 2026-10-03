@@ -5893,3 +5893,29 @@ Rooms 401/214 device-command counts (184, 284) and Room 401's 6 open requests un
 
 ### Follow-ups (assigned to Agent 2, `caoscare-1-47`)
 SC-15 Transportation ride-step receipts through `task_lifecycle` (blocker for Transportation acceptance; verify linked receipts before calling it receipt-compliant). SC-14 closed-state guard.
+
+---
+
+## 2026-10-03 — Lane E: restated resident need is always recorded; no "staff know" before acknowledgement
+
+### Agent / branch
+Claude Code (Opus 5.5), Agent 2, worktree `~/CAOSCARE-LANE-REREQUEST`, branch `pilot/shared-core-rerequest` from `test/okay-nabu-voice` `5c40b90`. Not merged, not deployed.
+
+### Problem (Nabu demo session `rt_2a0kohbb_1791067607790`)
+"My sink is leaking." on an open, unacknowledged request: no tool call; spoken "the maintenance team knows about it"; `re_request_count` stayed 0. Cause: the open request was in the prompt's operational block, so the model answered from context; the companion prompt also told it to reassure that "help is already on the way".
+
+### What changed
+- `aria_operational_state.SPEAK_GUIDANCE`: a stated/restated need always goes through `request_staff_help`; `open` = not seen by staff; only `acknowledged`/`in_progress` means seen; nothing means "on the way".
+- `realtime_operational_context._line`: open items carry "(staff have not seen it yet)".
+- `realtime_companion_prompt`: removed "reassure them help is already on the way".
+- `request_staff_help` tool description: call it every time a need is stated, even when already listed.
+- `resident_requests._same_words`: "My sink is leaking." matches "sink is leaking" (same issue).
+
+### Verified
+- New `tests/test_rerequest_spoken_truth.py` (HTTP): re-request recorded once, receipt parent and workflow id = origin, event_log entry carries it; spoken status "no one has picked it up" when open, "seen" after acknowledge; Layer E block marks the open item unseen; companion prompt has no arrival promise.
+- Backend gate 222 passed / 0 failed / 31 skipped. Frontend 32 suites / 244 tests; build compiles.
+- Typed demo-kiosk session (isolated stack :8098/:3019, DB `caoscare_rereq_demo`, assistant name Nabu, real Realtime): "My sink is leaking." → `request_staff_help` → `task_43704779adb6` `re_request_count` 1, receipt `rcpt_f5ba0e5f3ed9` parent/correlation `rcpt_f84cb6675db3` (origin); Nabu: "I've let them know again… It's still open, and no one has picked it up yet."
+- Limit: the always-call rule is an instruction to the model, not enforced in code.
+
+### Line counts
+`aria_operational_state.py` 208, `realtime_operational_context.py` 50, `realtime_companion_prompt.py` 282, `realtime_tools_operations.py` 296, `resident_requests.py` 396 (+14).
