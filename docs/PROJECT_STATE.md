@@ -5953,3 +5953,23 @@ HANDOFF CAPSULE
 - Product invariants: one lifecycle path for every task state change; closed requests are not changed; refusals are recorded.
 - Do NOT change:    task state outside task_lifecycle.transition.
 - Next safe action: coordinator integrates and runs the browser ride lifecycle.
+
+---
+
+## 2026-10-03 — Coordinator: Shared Core SC-15 + SC-14 integrated
+
+### Agent / branch
+Claude Code (Opus 5.5), coordinator. Michael approved integrating `56f7807` once Claude 2 confirmed its server work was finished; Claude 2 confirmed (`56f7807af7787ec14ab47884d738375d90957ffd` unchanged, no server processes left running). Pre-checks: integration at `ebee833` = origin, tree clean, merge is a fast-forward. Merged with `--no-ff` at `268963c`. Not merged to main, not deployed.
+
+### Tests
+Backend gate 234 passed / 3 failed (baseline iter10/iter11) / 13 skipped, including the new `test_transport_ride_receipts.py`. Frontend 32 suites / 244 tests; build compiles.
+
+### Browser + receipts (localhost:3000 → :8092 restarted on `268963c`, no live lease; log `/tmp/room214_backend_268963c.log`)
+- Front desk (demo Dana Frost) created a ride for demo 3W02 (`task_bb4109c4a4da`, 2026-10-07) and cancelled it with a reason. "Ride cancelled"; it left the pending list.
+- Receipts: `transportation_requested` (authenticated front desk, authority `front_desk_transport`, chain origin) and `transportation_cancelled` (parent = origin, same correlation id); the event_log note and status entries carry the cancel receipt id.
+- Closed-request guard: a second cancel → 400 "already skipped", `task_cancel_refused` recorded; `POST /start` on completed `task_e3f03fbf6092` → 409, `started_at` kept, `task_start_refused` recorded. Refusals have no correlation id (recorded as evidence, outside the workflow chain, by design).
+- Assign / change / depart / complete not exercised in the browser (no drivers/vehicles configured; Michael did not authorise demo ones) — covered by the gate test only.
+- Rooms 401/214 unchanged (184/284 device commands; Room 401's 6 open requests).
+
+### Not in this merge
+Agent 2's Nabu re-request fix (`bbfce3b` on `pilot/shared-core-rerequest`, based on `test/okay-nabu-voice` `5c40b90`) — awaiting review/approval.

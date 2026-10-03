@@ -3,7 +3,7 @@
 Target: 2026-10-10
 
 Current phase: PHASE 3 — Real staff operational workflows (focus: operational completion)
-Current active task: Agent 2 fixes the Transportation receipt gap (SC-15) and closed-state guard (SC-14); then Community services `d95c4d6` (approved sequence complete at `79ca54b`, 2026-10-03) (order in `PILOT1_RECOVERY_CHECKPOINT.md` §4)
+Current active task: Michael decides the simulator gate (escalation decision 8, stale-alert policy decision 7, or a demo-room-only SIM-1); Agent 2's Nabu re-request fix `bbfce3b` awaits review; then Community services `d95c4d6` (SC-14/SC-15 integrated at `268963c`, 2026-10-03)
 Current integration branch: `integration/2026-09-27`
 Current integration SHA: `239324a` (last code state)
 Last updated: 2026-10-02
@@ -174,7 +174,7 @@ Status note: `[~]` below means the software path exists (see screenshots in `fro
 
 **Transportation**
 
-- [~] Transportation shows request history through the shared helper (`lib/requestHistory.js` + `RequestTimeline.jsx`), with ride state changes written through `routes/task_history` — required before the Transportation lane is accepted. Integrated at `5e6413c` (2026-10-03): a front-desk ride for demo 3W01 (`task_d76a0350db2d`) shows its history in the shared timeline. Ride steps (book/depart/complete) not exercised in the browser — no drivers/vehicles configured. Blocker: ride steps write receipts outside the SC-13 lifecycle service (assigned to Agent 2); not receipt-compliant until linked receipts are verified.
+- [x] Transportation shows request history through the shared helper (`lib/requestHistory.js` + `RequestTimeline.jsx`), with ride state changes written through `routes/task_history` — required before the Transportation lane is accepted. Receipt-compliant at `268963c` (2026-10-03, SC-15): every ride step goes through the lifecycle with a receipt chained to the ride's origin. Browser: front-desk ride `task_bb4109c4a4da` created and cancelled with a reason (origin + cancel receipts linked, refusal of a second cancel recorded). Assign/depart/complete verified by `test_transport_ride_receipts.py` only — no drivers/vehicles configured.
 - [ ] Real drivers configured
 - [ ] Real vehicles configured
 - [~] Availability
@@ -463,6 +463,7 @@ Acceptance: Linode runs the exact SHA Michael approved.
 
 | Date | By | Change |
 |---|---|---|
+| 2026-10-03 | Claude Code (Opus 5.5), coordinator | Merged Shared Core SC-15 + SC-14 `56f7807` at `268963c`. Transportation history/receipts → [x] (browser request/cancel; assign/depart/complete by test). Closed-request refusal verified. |
 | 2026-10-03 | Claude Code (Opus 5.5), coordinator | Merged simulator docs `ffd1f60` at `75d19d8` and Shared Core SC-13 `f5f07b4` at `79ca54b`. Nursing + maintenance lifecycles: one receipt per step incl. notes; Aria status correct at every stage. Filed SC-14 (no closed-state guard), SC-15 (transport receipts). |
 | 2026-10-03 | Claude Code (Opus 5.5), coordinator | Merged Front desk/Transportation `6b67ac8` at `5e6413c`. Front-desk ride created and shown in the shared timeline; report/calendar truthful with 0 drivers/vehicles. Transportation receipt gap remains a blocker (Agent 2). SC-6/SC-7 still tests only. |
 | 2026-10-03 | Claude Code (Opus 5.5), coordinator | Demo kiosk moved to demo-only room `DEMO` (Michael's decision); reset restricted to it; isolation test added; proven on localhost:3000. |
