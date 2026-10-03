@@ -23,11 +23,11 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
 from deps import db, require_front_desk_or_admin
-from routes.receipts import create_receipt
 from routes.notifications import notify_department
 from transportation_engine import find_or_create_run, to_minutes
-from routes.task_history import update_task_with_history
-from routes.transport_task_history import booking_events
+from routes import task_lifecycle
+from routes.task_history import task_event
+from routes.transport_task_history import booking_entry, ride_actor, ride_authority, who
 
 router = APIRouter(prefix="/transportation", tags=["transportation-assign"])
 
@@ -89,6 +89,10 @@ async def assign_transport_request(task_id: str, data: AssignInput, user=Depends
             ),
         }
 
+    # Lifecycle check before the engine reserves a seat, so a refused step
+    # (no recorded origin) books nothing.
+    actor, authority = ride_actor(user, task, "staff"), ride_authority(user)
+    await task_lifecycle.check(task_id, actor, user, action="book", authority=authority)
     booking = await find_or_create_run(
         task["requested_for_date"], data.start_time, data.destination, task_id, data.driver_id, data.vehicle_id,
     )
@@ -103,14 +107,11 @@ async def assign_transport_request(task_id: str, data: AssignInput, user=Depends
             ),
         }
 
-    await update_task_with_history(task_id, {"transport_run_id": run["run_id"]}, await booking_events(
-        run, user, requested_time=data.start_time, date=task["requested_for_date"]))
-    receipt = await create_receipt(
-        action_type="transportation_booked", related_object_type="task", related_object_id=task_id,
-        source="staff", resident_id=task.get("resident_id"), room=task.get("room"),
-        requested_by=user["user_id"], assigned_role="transportation",
-        result=f"Pickup {run['depart_time']} on {task['requested_for_date']}",
-    )
+    field, text = await booking_entry(run, requested_time=data.start_time, date=task["requested_for_date"])
+    _, receipt = await task_lifecycle.transition(
+        task_id, actor, user, action="book", authority=authority, action_type="transportation_booked",
+        status="created", result=f"Pickup {run['depart_time']} on {task['requested_for_date']}",
+        build=lambda t, rid: ({"transport_run_id": run["run_id"]}, [task_event(field, text=text, **who(actor, rid))]))
     await notify_department(
         "transportation", "CAOS Care: transportation assigned by staff",
         f"ASSIGNED — {task['requested_for_date']} at {run['depart_time']}\n"

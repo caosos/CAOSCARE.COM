@@ -120,14 +120,46 @@ async def record_origin(task: dict, actor: ActorContext, *, action_type: str, au
         **_receipt_context(task, actor))
 
 
-async def _record_refusal(task: dict, actor: ActorContext, authority: str, action: str) -> None:
+CLOSED_STATUSES = ("completed", "skipped")
+LEGACY_REASON = "no origin receipt: legacy request without provenance; transition refused, nothing changed"
+
+
+async def record_refusal(task: dict, actor: ActorContext, authority: Optional[str], action: str,
+                         reason: str) -> None:
+    """A refused attempt is evidence too: who tried what, and why nothing changed."""
     await create_receipt(
         action_type=f"task_{action}_refused", related_object_type="task", related_object_id=task["task_id"],
-        status="failed", failure_reason="no origin receipt: legacy request without provenance; "
-                                        "transition refused, nothing changed",
+        status="failed", failure_reason=reason,
         provenance={**actor.receipt_fields(), "authority": authority, "before_state": state_of(task),
                     "after_state": state_of(task), "result_label": "failed"},
         **_receipt_context(task, actor))
+
+
+async def check(task_id: str, actor: ActorContext, user: Optional[dict], *, action: str,
+                authority: Optional[str] = None, allow_closed: bool = False):
+    """Everything that must hold before a request may change, in order:
+    exists (404) -> actor has authority (403, nothing written) -> request is
+    still open (SC-14: a completed/skipped request is closed; the attempt is
+    refused and recorded, there is no implicit reopen) -> request has a
+    recorded origin (D5, refused and recorded). Callers with side effects
+    outside the task (a ride's run seat) call this first so a refused step
+    changes nothing. Returns (task, authority, chain_head)."""
+    task = await load(task_id)
+    auth = authority or authority_for(task, actor, user)
+    if not auth:
+        raise LifecycleError(403, "Not allowed to act on this request")
+    if not allow_closed and task.get("status") in CLOSED_STATUSES:
+        await record_refusal(task, actor, auth, action,
+                             f"request is already {task['status']}: closed requests are not changed; "
+                             "nothing changed")
+        raise LifecycleError(409, f"This request is already {task['status']}. Nothing was changed; "
+                                  "the attempt was recorded.")
+    head = await chain_head(task_id)
+    if not head:
+        await record_refusal(task, actor, auth, action, LEGACY_REASON)
+        raise LifecycleError(409, "This request has no recorded origin, so it can't be changed here. "
+                                  "Nothing was changed; the attempt was recorded.")
+    return task, auth, head
 
 
 Build = Callable[[dict, str], Optional[tuple]]
@@ -136,19 +168,12 @@ Build = Callable[[dict, str], Optional[tuple]]
 async def transition(task_id: str, actor: ActorContext, user: Optional[dict], *, action: str,
                      action_type: str, status: str, build: Build, authority: Optional[str] = None,
                      result: Optional[str] = None, failure_reason: Optional[str] = None,
-                     provider_refs: Optional[list] = None, require_chain: bool = True):
+                     provider_refs: Optional[list] = None, allow_closed: bool = False):
     """Apply one state change and record it. `build(task, receipt_id)` returns
     (set_fields, event_entries), or None when nothing would change (no write,
     no receipt). Returns (task_after, receipt_or_None)."""
-    task = await load(task_id)
-    auth = authority or authority_for(task, actor, user)
-    if not auth:
-        raise LifecycleError(403, "Not allowed to act on this request")
-    head = await chain_head(task_id)
-    if not head and require_chain:
-        await _record_refusal(task, actor, auth, action)
-        raise LifecycleError(409, "This request has no recorded origin, so it can't be changed here. "
-                                  "Nothing was changed; the attempt was recorded.")
+    task, auth, head = await check(task_id, actor, user, action=action, authority=authority,
+                                   allow_closed=allow_closed)
     rid = uid("rcpt")
     built = build(task, rid)
     if built is None:

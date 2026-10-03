@@ -14,7 +14,9 @@ claims -> starts -> adds a note -> completes. Proves:
   flag are ignored;
 - a legacy request with no recorded origin is refused and the refusal is
   recorded; a repeat ask on it is filed as a new request, not lost;
-- an admin acts under an explicit override authority.
+- an admin acts under an explicit override authority;
+- SC-14: start/complete/acknowledge/skip/note on a completed request are
+  refused (409), nothing changes, and each refusal is recorded.
 
     TEST_API_BASE=http://127.0.0.1:8070 pytest tests/test_sim0_provenance_chain.py -q
 """
@@ -130,6 +132,22 @@ async def _run():
         logged = {e.get("receipt_id") for e in t["event_log"]}
         assert None not in logged                                            # every entry is receipted
         assert logged == {r["receipt_id"] for r in chain[1:]}                # and every receipt has its entry
+
+        # ---------- SC-14: a completed request is closed; changes are refused and recorded ----------
+        closed_before, n_before = await task(tid), len(await receipts(tid))
+        for path in ("start", "complete", "acknowledge", "skip"):
+            assert requests.post(f"{API}/tasks/{tid}/{path}", headers=tech, timeout=5).status_code == 409
+        assert requests.patch(f"{API}/tasks/{tid}", headers=tech, json={"notes": "late note"}, timeout=5).status_code == 409
+        assert await task(tid) == closed_before                              # still completed, started_at kept
+        refusals = (await receipts(tid))[n_before:]
+        assert [r["action_type"] for r in refusals] == [
+            "task_start_refused", "task_complete_refused", "task_acknowledge_refused",
+            "task_skip_refused", "task_note_refused"]
+        assert all(r["status"] == "failed" and "already completed" in r["failure_reason"] for r in refusals)
+        # refusals are evidence, not part of the chain: the workflow is unchanged
+        via_api = _ok(requests.get(f"{API}/receipts", headers=H["admin"],
+                                   params={"correlation_id": origin_id}, timeout=5))
+        assert {r["receipt_id"] for r in via_api} == {r["receipt_id"] for r in chain}
 
         # ---------- unauthorized: housekeeper on a maintenance request ----------
         other = _ask(f"{TAG}-H", "The bathroom fan is rattling")["task_id"]

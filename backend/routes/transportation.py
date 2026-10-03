@@ -20,11 +20,11 @@ from pydantic import BaseModel
 
 from models import StaffTask, TaskPriority, now_utc
 from deps import db
-from routes.receipts import create_receipt
 from routes.notifications import notify_department
 from routes.tasks import _resolve_denorms
-from routes.task_history import task_event, update_task_with_history
-from routes.transport_task_history import actor_kwargs, booking_events, close_events
+from routes import task_lifecycle
+from routes.task_history import task_event
+from routes.transport_task_history import booking_entry, close_events, ride_actor, ride_authority, who
 from routes.realtime_facility import today_facility_date
 from routes.transportation_legacy_slots import DEFAULT_SLOT_HOURS, release_legacy_slot
 from transportation_engine import find_or_create_run, release_task_from_run, get_scheduling_config, to_minutes, find_free_resource_pair
@@ -114,8 +114,10 @@ async def submit_transport_request(
     SAME requested_for_date is treated as a re-request (history preserved,
     not silently discarded), matching the maintenance/nursing re-request
     pattern. A different date is treated as a genuinely separate ride.
-    `actor` is the staff user entering it; None means the resident."""
-    requested_by = (actor or {}).get("user_id") or "resident"
+    `actor` is the staff user entering it; None means the resident.
+    Every step is a task_lifecycle transition with its own chained receipt
+    (SIM-0 / SC-15)."""
+    user, authority = actor, ride_authority(actor)
     dup_q: dict = {
         "category": "transportation", "status": {"$in": OPEN_TASK_STATUSES},
         "requested_for_date": data.requested_for_date,
@@ -129,21 +131,26 @@ async def submit_transport_request(
 
     existing = await db.staff_tasks.find_one(dup_q, {"_id": 0}, sort=[("created_at", -1)]) if dup_q else None
     if existing:
-        count = existing.get("re_request_count", 0) + 1
-        await update_task_with_history(
-            existing["task_id"], {"re_request_count": count, "last_re_requested_at": now_utc().isoformat()},
-            [task_event("re_request", to=count, text=data.purpose, **actor_kwargs(actor))],
-        )
-        receipt = await create_receipt(
-            action_type="transportation_re_requested", related_object_type="task",
-            related_object_id=existing["task_id"], source=data.source,
-            resident_id=data.resident_id, room=data.room,
-            conversation_session_id=data.conversation_session_id, requested_by=requested_by,
-            assigned_role="transportation",
-        )
+        ra = ride_actor(user, existing, data.source)
+        # A legacy ride with no recorded origin refuses the change (recorded,
+        # D5); the ask is then filed as a new ride rather than lost (D3).
+        try:
+            existing, receipt = await task_lifecycle.transition(
+                existing["task_id"], ra, user, action="re_request", authority=authority,
+                action_type="transportation_re_requested", status="created",
+                build=lambda t, rid: (
+                    {"re_request_count": t.get("re_request_count", 0) + 1,
+                     "last_re_requested_at": now_utc().isoformat()},
+                    [task_event("re_request", to=t.get("re_request_count", 0) + 1, text=data.purpose,
+                                **who(ra, rid))]))
+        except task_lifecycle.LifecycleError as e:
+            if e.status_code != 409:
+                raise
+            existing = None
+    if existing:
         return {
             "task_id": existing["task_id"], "receipt_id": receipt["receipt_id"],
-            "status": existing["status"], "duplicate": True, "re_request_count": count,
+            "status": existing["status"], "duplicate": True, "re_request_count": existing["re_request_count"],
             "booked": bool(existing.get("transport_run_id") or existing.get("transport_slot_id")),
         }
 
@@ -160,6 +167,7 @@ async def submit_transport_request(
         "conversation_session_id": data.conversation_session_id,
         "requested_for_date": data.requested_for_date,
         "requested_for_time_label": data.requested_for_time_label,
+        **await task_lifecycle.simulation_marker(data.resident_id),
     }
     await _resolve_denorms(payload)
     task = StaffTask(**payload)
@@ -167,35 +175,28 @@ async def submit_transport_request(
     doc["created_at"] = doc["created_at"].isoformat()
     await db.staff_tasks.insert_one(doc)
     doc.pop("_id", None)
+    ra = ride_actor(user, doc, data.source)
+    receipt = await task_lifecycle.record_origin(doc, ra, action_type="transportation_requested",
+                                                 authority=authority)
 
     # Resource-aware booking (see transportation_engine.py) - the single
     # place Aria, Admin, and Front Desk all get the same booked/pending
-    # answer from. Needs the real task_id, so this runs after insert.
+    # answer from. Needs the real task_id, so this runs after insert. An
+    # exact time with no free run is a real "needs coordination" step
+    # (transportation_no_slot), distinct from "no time given yet".
     booking = await find_or_create_run(data.requested_for_date, data.start_time, destination, doc["task_id"], driver_id, vehicle_id)
     run = booking["run"]
-    await update_task_with_history(
-        doc["task_id"], {"transport_run_id": run["run_id"]} if run else None,
-        await booking_events(run, actor, requested_time=data.start_time, date=data.requested_for_date),
-    )
+    entry = await booking_entry(run, requested_time=data.start_time, date=data.requested_for_date)
+    if entry:
+        field, text = entry
+        _, step = await task_lifecycle.transition(
+            doc["task_id"], ra, user, action="book", authority=authority, result=text,
+            action_type="transportation_booked" if run else "transportation_no_slot", status="created",
+            build=lambda t, rid: ({"transport_run_id": run["run_id"]} if run else None,
+                                  [task_event(field, text=text, **who(ra, rid))]))
+        receipt = step or receipt
     if run:
         doc["transport_run_id"] = run["run_id"]
-
-    receipt = await create_receipt(
-        action_type="transportation_booked" if run else "transportation_requested",
-        related_object_type="task", related_object_id=doc["task_id"],
-        source=data.source, resident_id=data.resident_id, room=data.room,
-        conversation_session_id=data.conversation_session_id, requested_by=requested_by,
-        assigned_role="transportation",
-    )
-    if not run and data.start_time:
-        # An exact time was requested but no run/resource pair could be
-        # confirmed - a real "needs coordination" event, distinct from "no
-        # time given yet".
-        await create_receipt(
-            action_type="transportation_no_slot", related_object_type="task",
-            related_object_id=doc["task_id"], source=data.source,
-            resident_id=data.resident_id, room=data.room, assigned_role="transportation",
-        )
     await notify_department("transportation", f"CAOS Care: transportation {'booked' if run else 'requested'}", _booking_notify_body(doc, run))
 
     return {
@@ -211,11 +212,17 @@ class TransportChangeInput(BaseModel):
     start_time: Optional[str] = None
 
 
-async def _open_transport_task(task_id: str) -> dict:
+async def _open_transport_task(task_id: str, user: Optional[dict], source: str, action: str) -> dict:
+    """The ride must exist and still be open. A step on a closed ride is
+    refused (400, the transportation contract) and the refusal is recorded
+    (SC-14)."""
     existing = await db.staff_tasks.find_one({"task_id": task_id, "category": "transportation"}, {"_id": 0})
     if not existing:
         raise HTTPException(status_code=404, detail="Transportation request not found")
     if existing["status"] not in OPEN_TASK_STATUSES:
+        await task_lifecycle.record_refusal(
+            existing, ride_actor(user, existing, source), ride_authority(user), action,
+            f"request is already {existing['status']}: closed requests are not changed; nothing changed")
         raise HTTPException(status_code=400, detail=f"Request is already {existing['status']}")
     return existing
 
@@ -226,9 +233,13 @@ async def change_request(
 ) -> dict:
     """Releases the old run seat (if any), attempts to book the new time,
     preserves history via a receipt rather than pretending the original
-    request never existed. Shared by Aria's change and the staff change."""
-    requested_by = (actor or {}).get("user_id") or "resident"
-    existing = await _open_transport_task(task_id)
+    request never existed. Shared by Aria's change and the staff change.
+    The lifecycle check runs before the seat is released, so a refused
+    change touches nothing."""
+    user, authority = actor, ride_authority(actor)
+    existing = await _open_transport_task(task_id, user, source, "change")
+    ra = ride_actor(user, existing, source)
+    await task_lifecycle.check(task_id, ra, user, action="change", authority=authority)
     await release_task_from_run(existing.get("transport_run_id"), task_id)
     await release_legacy_slot(existing.get("transport_slot_id"))
     booking = await find_or_create_run(data.requested_for_date, data.start_time, destination, task_id, driver_id, vehicle_id)
@@ -240,16 +251,13 @@ async def change_request(
         "transport_run_id": new_run["run_id"] if new_run else None,
         "transport_slot_id": None,
     }
-    await update_task_with_history(task_id, patch, await booking_events(
-        new_run, actor, requested_time=data.start_time, date=data.requested_for_date, changed=True))
-    updated = await db.staff_tasks.find_one({"task_id": task_id}, {"_id": 0})
-
+    field, text = await booking_entry(new_run, requested_time=data.start_time,
+                                      date=data.requested_for_date, changed=True)
     when = f"{data.requested_for_date} at {new_run['depart_time']}" if new_run else f"{data.requested_for_date}, no confirmed time"
-    receipt = await create_receipt(
-        action_type="transportation_changed", related_object_type="task", related_object_id=task_id,
-        source=source, resident_id=existing.get("resident_id"), room=existing.get("room"),
-        requested_by=requested_by, assigned_role="transportation", result=f"Changed to {when}",
-    )
+    updated, receipt = await task_lifecycle.transition(
+        task_id, ra, user, action="change", authority=authority, action_type="transportation_changed",
+        status="created", result=f"Changed to {when}",
+        build=lambda t, rid: (patch, [task_event(field, text=text, **who(ra, rid))]))
     await notify_department("transportation", "CAOS Care: transportation request changed", _booking_notify_body(updated, new_run))
     return {
         "task_id": task_id, "receipt_id": receipt["receipt_id"], "status": updated["status"],
@@ -259,19 +267,19 @@ async def change_request(
 
 
 async def cancel_request(task_id: str, *, source: str, actor: Optional[dict] = None, reason: Optional[str] = None) -> dict:
-    requested_by = (actor or {}).get("user_id") or "resident"
-    existing = await _open_transport_task(task_id)
+    user, authority = actor, ride_authority(actor)
+    existing = await _open_transport_task(task_id, user, source, "cancel")
+    ra = ride_actor(user, existing, source)
+    await task_lifecycle.check(task_id, ra, user, action="cancel", authority=authority)
     await release_task_from_run(existing.get("transport_run_id"), task_id)
     await release_legacy_slot(existing.get("transport_slot_id"))
     patch = {"status": "skipped", "completed_at": now_utc().isoformat()}
     if reason:
         patch["notes"] = reason
-    await update_task_with_history(task_id, patch, close_events(existing, "skipped", actor, reason))
-    receipt = await create_receipt(
-        action_type="transportation_cancelled", related_object_type="task", related_object_id=task_id,
-        source=source, resident_id=existing.get("resident_id"), room=existing.get("room"),
-        requested_by=requested_by, assigned_role="transportation", status="cancelled", result=reason,
-    )
+    _, receipt = await task_lifecycle.transition(
+        task_id, ra, user, action="cancel", authority=authority, action_type="transportation_cancelled",
+        status="cancelled", result=reason,
+        build=lambda t, rid: (patch, close_events(t, "skipped", ra, rid, reason)))
     await notify_department(
         "transportation", "CAOS Care: transportation request cancelled",
         f"Cancelled — was {existing['requested_for_date']}\nPurpose: {existing['description']}\nRoom: {existing.get('room') or 'unknown'}"
