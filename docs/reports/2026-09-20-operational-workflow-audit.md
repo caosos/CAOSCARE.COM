@@ -376,7 +376,7 @@ Michael's localhost:3000 screenshots (2026-10-03, about 12:07–12:15 PM CDT) ch
 
 ### Menu
 
-- **No draft items exist** (366 approved, 68 superseded). The row shows any non-approved item as "draft" with an **Approve** button, so superseded items appear as drafts. For 10/03: 11 approved items and 10 superseded items from an earlier dev-test upload.
+- **No draft items exist** (366 approved, 68 superseded). The row shows any non-approved item as "draft" with an **Approve** button, so superseded items appear as drafts. For 10/03: at 12:09 PM the date still had the 10-item menu seeded on 2026-09-21 (all approved); between 12:09 and 12:10 a new 11-item upload was ingested and approved, which marked the 10 older items superseded. The 12:10 screenshot shows exactly those 10 superseded items as "draft" with Approve buttons beside the new approved items.
 - **Per-item Approve does not check status:** approving a superseded item would publish it beside the current menu (`/menu/public/today` returns every `approved` item for the date).
 - **A row cannot be opened for review**; the row shows name, description and availability only (no source, upload or date coverage). Approval publishes immediately to Aria's menu answer.
 - `pilot/community-services` `d95c4d6` (not integrated) blocks re-publishing replaced items and adds an item review dialog and an uploads panel.
@@ -405,6 +405,27 @@ Michael's localhost:3000 screenshots (2026-10-03, about 12:07–12:15 PM CDT) ch
 
 Every open request and alert above is Demo, MOCK, TEST or test-room data, except the single Room 214 emergency alert. No record was changed by this verification.
 
+### Screenshot review (the nine images, 12:07–12:15 PM)
+
+The nine screenshots were reviewed against the findings above; all are consistent with the code and data. They are kept only on the EliteDesk (`~/CAOSCARE-SCREENSHOTS/`), not in the repository, because they show resident names.
+
+| Time | Screen | Matches |
+|---|---|---|
+| 12:07 | Transportation daily operations, 10/03 | 0/0/0/0 and 11 unresolved; waiting list = the 14 open records minus 4 slot-linked, including the Demo pharmacy pickup (completed a minute later) and one with no requested-for date |
+| 12:08 | Transportation attention cards | "Past its requested date" / "Ride requested, no slot booked" on TEST and MOCK records, 40–54 days open, unowned |
+| 12:08 | Communication & requests list | Demo, MOCK and TEST requests only |
+| 12:08 | Request detail (Demo pharmacy pickup) | "Needs coordination", Receipts (1), Acknowledge/Start/Complete |
+| 12:09 | Menu, 10/03 | the 2026-09-21 seed menu, all approved |
+| 12:10 | Menu, 10/03 | after the new upload: superseded items shown as "draft" with Approve |
+| 12:12 | Staff dashboard | Nursing 8 open / 6 unassigned / 1 in progress / 0 overdue (before the 12:12 claim) |
+| 12:13 | Alerts & events | 338 / 322 open / 0 live / 322 likely stale; Room 214 emergency first |
+| 12:15 | Transport calendar, 10/03 | "Nothing scheduled" |
+
+Two findings added from the images:
+
+- **The dashboard hides the old real emergency.** The Staff Dashboard shows "Active 0 / Emergency now 0" because `alerts.py::alert_stats` counts only alerts newer than 72 hours. The real, unacknowledged Room 214 emergency is therefore visible only on Alerts & events, labelled "likely stale". An unhandled real emergency drops out of the dashboard counts after 72 hours.
+- **Automated-test leftovers in the shared DB.** Two open Administration requests whose text begins `TEST-ISOLATION-401/403` (2026-08-29, MOCK residents) were created by `backend/tests/test_room_device_isolation.py` running against the shared local backend and not cleaned up. They appear in Communication & Requests as ordinary requests.
+
 ### Recommended next bounded step
 
 **Integrate `pilot/frontdesk-transport` `6b67ac8`** (awaiting Michael's go-ahead). It is reviewed, merges cleanly in code, and closes the largest functional gap found: staff currently cannot create or book a ride, and ride steps are not on the shared history. Acceptance after merge: a staff-created ride for a Demo resident in the browser, its history timeline, and the transportation report, with drivers/vehicles still unconfigured reported truthfully.
@@ -414,5 +435,6 @@ Follow-ups captured (not started):
 - generic Complete on transportation requests (route it to the ride lifecycle or block it);
 - state guards on request transitions (with SC-13);
 - superseded menu items and per-item review (Community services lane);
-- the Room 214 open emergency (staff close-out) and the stale-banner wording;
+- the Room 214 open emergency (staff close-out), the stale-banner wording, and dashboard counts that drop old unacknowledged emergencies;
+- leftover `TEST-ISOLATION` requests from a test run against the shared DB (and keeping such tests off the shared DB);
 - the controlled pendant press test.
