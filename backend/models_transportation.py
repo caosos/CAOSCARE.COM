@@ -25,22 +25,32 @@ from models import uid, now_utc
 RunStatus = Literal["confirmed", "in_progress", "completed", "cancelled"]
 
 
-class TransportDriver(BaseModel):
+class DriverHours(BaseModel):
+    """A driver's regular working hours. work_days uses Python weekday
+    numbers (0=Mon .. 6=Sun). Unset fields mean "not configured", which the
+    engine treats as unrestricted - the admin screen shows "no hours set"
+    rather than hiding that the schedule is open."""
+    work_days: Optional[List[int]] = None
+    shift_start: Optional[str] = None   # HH:MM 24h
+    shift_end: Optional[str] = None     # HH:MM 24h
+
+
+class TransportDriver(DriverHours):
     model_config = ConfigDict(extra="ignore")
     driver_id: str = Field(default_factory=lambda: uid("drv"))
     name: str
-    is_flex: bool = False           # flex = not automatically assumed available
+    is_flex: bool = False           # flex = never auto-booked; staff pick them explicitly
     enabled: bool = True
     created_at: datetime = Field(default_factory=now_utc)
 
 
-class TransportDriverCreate(BaseModel):
+class TransportDriverCreate(DriverHours):
     name: str
     is_flex: bool = False
     enabled: bool = True
 
 
-class TransportDriverUpdate(BaseModel):
+class TransportDriverUpdate(DriverHours):
     name: Optional[str] = None
     is_flex: Optional[bool] = None
     enabled: Optional[bool] = None
@@ -82,6 +92,9 @@ class TransportRun(BaseModel):
     resident_task_ids: List[str] = []              # StaffTask ids riding this run
     status: RunStatus = "confirmed"
     notes: Optional[str] = None
+    departed_at: Optional[str] = None
+    completed_at: Optional[str] = None
+    closed_by_name: Optional[str] = None           # who marked it departed/completed
     created_at: datetime = Field(default_factory=now_utc)
     updated_at: datetime = Field(default_factory=now_utc)
 

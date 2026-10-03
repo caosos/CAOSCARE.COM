@@ -5648,3 +5648,104 @@ HANDOFF CAPSULE
 - Unresolved proven defects: SC-10, SC-11, SC-12.
 - Do NOT change:    main, PR #41/#42, Linode, Room 214 devices, Room 401 data.
 - Next safe action: integrate Front desk/Transportation `6b67ac8`.
+
+---
+
+## 2026-09-28 — Lane C (Front desk / transportation): real workflows built and acceptance-tested on an isolated lane runtime
+
+### Agent / tool
+Claude Code (Opus 5.5), EliteDesk worktree `~/CAOSCARE-LANE-FRONTDESK`, branch `pilot/frontdesk-transport` from `e9373d5` (the starting SHA Michael assigned). Not merged, not deployed. No integration/main merge.
+
+### What changed
+Transportation (lane-owned files only):
+- `transportation_engine.py`: driver working hours (`work_days`, `shift_start`, `shift_end` on `TransportDriver`) gate bookings; flex drivers are never auto-picked, only booked by name; staff can pick a specific driver/vehicle; a run is shared only with an explicitly named destination (Aria's path no longer passes the purpose as a destination, which could have pooled two residents going to different doctors); `reconcile_run` closes a run once every rider's request is closed, including via the shared `/tasks` complete/skip path.
+- `routes/transportation_runs.py` (new): run lifecycle `POST /transportation/runs/{id}/depart` and `/complete`, and per-rider `/request/{id}/complete`; one receipt per rider per step. Operators: owner/admin, front desk, transportation-department staff.
+- `routes/transportation_staff.py` (new): front desk books, changes and cancels (with reason) a ride for a resident; recorded as `source="front_desk"` with the staff member as requester. Shares one core with Aria's path (`submit_transport_request`, `change_request`, `cancel_request` in `routes/transportation.py`). The public path now rejects `source="front_desk"`.
+- Assign accepts driver/vehicle/destination; fleet lists readable by front desk; driver hours editable by admin (null clears).
+- Status endpoint (what Aria reads): prefers the open ride, includes front-desk rides, returns run date/pickup/status/driver/vehicle and the cancel reason; a cancelled ride is never "booked".
+- Aria: fixed a crash in the change-ride message (`data.slot` → `data.run`); status wording now comes from `lib/transportation.js::transportStatusMessage` (cancelled/completed/departed/confirmed/waiting; never "on the way" before staff mark departed). Tool text only: an appointment time is not a pickup time ("9:30 on the fifth" is recorded as said; the front desk picks the pickup).
+- UI: calendar with New ride, per-rider change/cancel/history, Departed / Ride completed; assign dialog shows what the resident said and no longer pre-fills 10:00; driver hours dialog; transportation staff land on the calendar (`DepartmentWorkspace`) instead of a generic queue whose "Done" bypassed the ride.
+
+Front desk:
+- `FrontDeskDashboard.jsx`: tabs Front desk requests (the Administration department queue, where Aria's "front desk" requests route) / Transportation / Residents / All requests; New request and New ride.
+- `FrontDeskRequestForm.jsx`: request on a resident's behalf through the existing authenticated front-desk path of `POST /tasks/resident-request` (same routing, dedup, receipt, notification). `routes/front_desk.py` (new): read-only department list for that form.
+- `FrontDeskResidentDirectory.jsx`: search, open requests/rides per resident, request/ride shortcuts, per-resident request history.
+- Shared helper touched (one line, transport branch): `requestDisplay.js` shows a departed ride as In progress, not Confirmed.
+
+### What was verified
+Isolated lane runtime: backend :8093 + frontend :3006 from this worktree, DB `caoscare_lane_frontdesk` (demo seed only; no real residents; no provider keys, so no real email/SMS). The integration runtime (:3000/:8092) and the real `caoscare` DB were not touched.
+- Backend: new `tests/test_transportation_lifecycle.py` passes (Aria request, re-request, public-source guard, driver hours, named assign, shared ride, flex never auto-booked, calendar permissions, depart/complete, single-rider complete, change, cancel with reason, generic skip frees the driver). Full backend suite on the lane backend: 3 failed / 208 passed / 30 skipped; the 3 are pre-existing or environmental: `test_ops_overview` past-requested-date, `test_ai_escalation` paged-vs-failed wording, `iter10` realtime session (no OpenAI key on the lane backend).
+- Frontend: 31 suites / 221 tests (new `transportation.test.js`); `CI=true` production build compiles.
+- Browser acceptance (headless Chrome driving the real lane UI, demo accounts Dana Frost = front desk, Pete Nash = transportation): callback acknowledge → start → note → complete → history; new request from the resident directory; duplicate asks counted on one item; the natural request "doctor appointment, 9:30 on Oct 5" (as Aria sends it) assigned to a named driver/van at 08:45; second ride to the same clinic shared the van; change to the flex driver; cancel with reason; driver marks departed then completed; Aria status read-back correct for completed / booked / cancelled rides; receipt trail requested → booked → departed → completed; no horizontal overflow at 390 px.
+
+### Not verified / not done
+- A spoken Aria request through real audio (only the exact API call Aria's tool makes was exercised).
+- Real drivers and vehicles are not configured anywhere: names, working hours and vehicle capacities must come from Michael (checklist "Real drivers/vehicles configured" stays open). Lane DB uses labelled "Demo -" records.
+- Calls (desk calls, family calls) are Lane F.
+
+### Shared-core requests filed (not implemented here)
+- SC-3: front desk can claim/assign/note Administration requests (today they can acknowledge/start/complete; `/staff/assignable?department=administration` returns 403).
+- SC-4: the time-provenance guard rejects front-desk callbacks that name a time ("callback at 3 pm" → 422).
+
+### Integration notes
+- Branch base is `e9373d5`; `pilot/shared-core` (SC-1/SC-2) is not in it. After integration, transportation status changes should go through its `update_task_with_history` so ride steps appear in `StaffTask.event_log` (Shared Core's own handoff says the same).
+- Touched outside the lane's own files (small, flagged): `realtime_tools_operations.py` (request_transportation description text), `realtimeOperationsTools.js` (transport branches only), `requestDisplay.js` (transport branch), `DepartmentWorkspace.jsx` (transportation dept renders the calendar), `server.py` (router registration).
+- Pre-existing, not fixed: the driver workspace calls admin-only `/api/departments` (403, swallowed; label falls back to the slug).
+
+### Line counts (created / materially modified)
+`transportation_engine.py` 195, `transportation.py` 281, `transportation_runs.py` 127 (new), `transportation_staff.py` 89 (new), `transportation_assign.py` 119, `transportation_calendar.py` 91, `transportation_voice_context.py` 114, `transportation_resources.py` 98, `models_transportation.py` 113, `front_desk.py` 20 (new), `realtime_tools_operations.py` 292, `server.py` 246; `FrontDeskDashboard.jsx` 87, `TransportationCalendar.jsx` 126, `TransportRunCard.jsx` 85, `TransportRideForm.jsx` 106, `TransportResourceFields.jsx` 82, `TransportAssignAction.jsx` 87, `TransportCancelDialog.jsx` 46, `DriverHoursDialog.jsx` 63, `FrontDeskRequestForm.jsx` 113, `FrontDeskResidentDirectory.jsx` 98, `TransportResourcesTab.jsx` 164, `DepartmentWorkspace.jsx` 225, `realtimeOperationsTools.js` 270, `lib/transportation.js` 83, `requestDisplay.js` 53.
+
+HANDOFF CAPSULE
+- Objective:        Real front desk and transportation workflows for Pilot 1.
+- Branch:           pilot/frontdesk-transport (from e9373d5)
+- Lane / ownership: Lane C. Owns front desk workspace + transportation lifecycle/UI. Did not change request/receipt schema, Aria voice runtime, RF, calling, alerts.
+- Last proven state: backend lifecycle test + full suite (3 pre-existing failures), frontend 31/221 + CI build, headless browser acceptance on the lane runtime (above).
+- Commits:          see this entry's commit on pilot/frontdesk-transport.
+- Runtime state:    lane backend :8093 and frontend :3006 (this worktree, DB caoscare_lane_frontdesk) left running for review; :3000/:8092 untouched.
+- Unresolved proven defects: SC-3, SC-4 (shared core); transport steps not in event_log until integrated with pilot/shared-core.
+- Product invariants: booked = a confirmed pickup, never "on the way" before departed; no invented capacity/hours; front desk and Aria share one booking path; receipts per step.
+- Do NOT change:    shared request/receipt contracts from this lane; resident_requests.py (SC-4 goes to Shared Core).
+- Next safe action: coordinator merges pilot/shared-core then this branch into integration; wire transport status changes to update_task_with_history; Michael supplies real drivers/vehicles/hours.
+
+---
+
+## 2026-09-28 — Lane C rework: ride steps on the shared task history, shared timeline
+
+### Agent / tool
+Claude Code (Opus 5.5), `~/CAOSCARE-LANE-FRONTDESK`, branch `pilot/frontdesk-transport`, rebased onto integration `a95acbe` (Shared Core SC-1/SC-2 + Maintenance). Not merged, not deployed.
+
+### Why
+Coordinator review of `94af8c4`: ride changes wrote `staff_tasks` directly in 8 places, so the shared timeline missed book/depart/complete/cancel; transport history did not use `RequestTimeline`.
+
+### What changed
+- New `backend/routes/transport_task_history.py`: builds ride events on top of `task_history.task_event`. Status changes use the shared `status` field (depart → in_progress, completed, cancelled → skipped); a cancel reason or completion note is a `note` entry, same shape as `tasks.py` close-out; departing an unassigned ride logs a claim, same as `tasks.py` start; a re-request is the shared `re_request` entry. Ride facts that are not a status change use `ride_booked`, `ride_not_booked`, `ride_changed`, with pickup / driver / vehicle in `text`.
+- Every transport write to `staff_tasks` except the initial insert now goes through `update_task_with_history` (`transportation.py`: re-request, booking at request time, change, cancel; `transportation_assign.py`: assign; `transportation_runs.py`: depart, complete). No other history mechanism.
+- Shared timeline (Lane E files, flagged): `lib/requestHistory.js` default case now labels unknown fields "Ride booked by X" and passes `text` through as plain detail; `RequestTimeline.jsx` renders that detail unquoted. Two small generic edits; no ride-specific code in the shared files.
+- Transport history in the UI already opens the shared `RequestHistoryDialog` → `RequestTimeline` (calendar rider History, resident directory history).
+- SC-6 / SC-7: still open on integration; nothing consumed. Front desk can still acknowledge/start/complete and note after starting; a callback naming a time is still rejected (422).
+
+### What was verified
+- Canonical backend gate (`backend/scripts/run_backend_tests.sh`, own port 8071 and DB `caoscare_gate_lane_c`): 1 failed / 211 passed / 31 skipped; the one failure is the pre-existing `test_ops_overview`, the same single failure recorded for integration.
+- `test_transportation_lifecycle.py` now also asserts the `event_log` entries for re-request, booked (text names pickup and driver, by the front desk user), depart (status + driver claim), complete (note then status), change, cancel (reason note then skipped).
+- Frontend: 31 suites / 229 tests (new timeline test for a ride log); CI build compiles.
+- Browser, rebased lane build (:3006 → :8093, demo DB): front desk callback acknowledge → start → two notes → complete, history in the shared timeline with both notes and 4 separate receipts; Aria-format ride "9:30" on Oct 6 assigned to a named driver/van at 08:45; shared ride; change to the flex driver by name; cancel with reason; driver departs and completes; each rider's shared-timeline history shows booked / changed / started + claimed / completed / note + skipped with pickup, driver and vehicle; Aria status correct for completed, booked, cancelled (with reason).
+
+### Open
+- SC-6, SC-7 (Shared Core). Suggestion for Lane E: `STATUS_LABEL` reads "Started" and "Skipped" for a departed / cancelled ride; a per-entry label or text on status entries would read better. Not changed here.
+- Live-pilot setup requirement: real drivers (names, working days/hours, flex or not) and vehicles (names, seat capacity) must be entered by Michael/staff under Admin → Transport resources before Pilot 1; none exist on any real database.
+- A spoken Aria ride request through real audio is still untested (the exact API call her tool makes was tested).
+
+### Line counts
+`transport_task_history.py` 83 (new), `transportation.py` 291, `transportation_runs.py` 125, `transportation_assign.py` 122, `transportation_staff.py` 89, `requestHistory.js` 72, `RequestTimeline.jsx` 45.
+
+HANDOFF CAPSULE
+- Objective:        Lane C ready for integration: ride steps on the shared history and timeline.
+- Branch:           pilot/frontdesk-transport (rebased on integration a95acbe)
+- Lane / ownership: Lane C. Touched two shared timeline files minimally (flagged).
+- Last proven state: gate 1 pre-existing failure; frontend 31/229 + build; browser acceptance on the rebased build.
+- Commits:          see this entry's commit.
+- Runtime state:    lane backend :8093 / frontend :3006 (demo DB caoscare_lane_frontdesk); :3000/:8092 untouched.
+- Unresolved proven defects: SC-6, SC-7 open; driver workspace /api/departments 403 (SC-9).
+- Product invariants: one history (event_log) for every department; booked ≠ on the way; front desk and Aria share one booking path.
+- Do NOT change:    task_history.py semantics from this lane.
+- Next safe action: coordinator reviews and merges; then consume SC-6/SC-7 when Shared Core delivers them; Michael enters real drivers/vehicles.

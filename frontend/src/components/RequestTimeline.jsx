@@ -17,8 +17,8 @@ export default function RequestTimeline({ task, receipts = [] }) {
             <div className="min-w-0">
               <div>{e.label}</div>
               {e.text && (
-                <div className={`text-caos-ink/80 whitespace-pre-wrap ${e.kind === "note" ? "" : "italic"}`}>
-                  {e.kind === "note" ? e.text : `"${e.text}"`}
+                <div className={`text-caos-ink/80 whitespace-pre-wrap ${e.kind ? "" : "italic"}`}>
+                  {e.kind ? e.text : `"${e.text}"`}
                 </div>
               )}
             </div>

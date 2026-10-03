@@ -30,8 +30,12 @@ function describe(e, task) {
       return { label: `Note${by(e)}`, text: e.text, kind: "note" };
     case "re_request":
       return { label: `Resident asked again (${Number(e.to) + 1}x)`, text: e.text };
-    default:
-      return { label: String(e.field).replace(/_/g, " ") };
+    default: {
+      // Domain steps that are not a status change (e.g. a ride booked or
+      // changed) carry their detail in `text` - shown as plain detail.
+      const name = String(e.field).replace(/_/g, " ");
+      return { label: `${name.charAt(0).toUpperCase()}${name.slice(1)}${by(e)}`, text: e.text, kind: "detail" };
+    }
   }
 }
 

@@ -180,7 +180,12 @@ def _build_operations_tools(request_categories: list[str] | None = None) -> list
                 "don't have a confirmed time yet - do NOT say 'booked' "
                 "unless the result says booked=true. `requested_for_time_label` "
                 "must be the time AS THE RESIDENT SAID IT, or omitted entirely "
-                "if they never gave one - never invent a specific time."
+                "if they never gave one - never invent a specific time. An "
+                "APPOINTMENT time is not a pickup time: for 'my appointment is "
+                "at 9:30' put '9:30 appointment' in requested_for_time_label and "
+                "leave start_time empty - the front desk picks the pickup time. "
+                "Only pass start_time when the resident chose a pickup time that "
+                "check_transportation_availability showed as open."
             ),
             "parameters": {
                 "type": "object",
@@ -188,7 +193,7 @@ def _build_operations_tools(request_categories: list[str] | None = None) -> list
                     "purpose": {"type": "string", "description": "e.g. 'pharmacy pickup', 'doctor appointment', 'grocery shopping'."},
                     "requested_for_date": {"type": "string", "description": "YYYY-MM-DD, resolved from what the resident said."},
                     "requested_for_time_label": {"type": "string", "description": "The time as the resident said it, e.g. 'around 10' or 'after lunch'."},
-                    "start_time": {"type": "string", "description": "Exact 'HH:00' 24h if you confirmed a specific open slot via check_transportation_availability."}
+                    "start_time": {"type": "string", "description": "Exact pickup 'HH:MM' 24h, only if the resident chose an open pickup time from check_transportation_availability. Never an appointment time."}
                 },
                 "required": ["purpose", "requested_for_date"],
                 "additionalProperties": False

@@ -779,3 +779,12 @@ listener verifier experiment: `docs/experiments/`.
 - `backend/routes/demo_kiosk.py`: `DEMO_ROOM` (`DEMO`), `ensure_demo_room()` (synthetic resident "Demo - Sample Resident" + its kiosk as the single `public_demo` kiosk); DEMO RESET refuses any room other than `DEMO_ROOM`.
 - `backend/scripts/setup_demo_room.py`: runs `ensure_demo_room()` against the configured DB (idempotent).
 - `backend/tests/test_demo_kiosk.py::test_demo_room_leaves_other_rooms_untouched`.
+
+## 2026-09-28 — Front desk / transportation (branch `pilot/frontdesk-transport`)
+
+- `backend/transportation_engine.py`: the one booking engine (driver hours, flex-by-name, named driver/vehicle, destination-only sharing, `reconcile_run`).
+- `backend/routes/transportation.py`: Aria's request/change/cancel plus the shared cores `submit_transport_request` / `change_request` / `cancel_request`.
+- `backend/routes/transportation_staff.py`: front desk books/changes/cancels rides. `backend/routes/transportation_runs.py`: depart/complete (runs and single riders). `backend/routes/front_desk.py`: department list for the front desk request form.
+- `frontend/src/pages/FrontDeskDashboard.jsx` + `frontend/src/components/FrontDesk*.jsx`: front desk workspace. `frontend/src/components/Transport*.jsx`, `DriverHoursDialog.jsx`, `frontend/src/lib/transportation.js`: transportation UI and Aria status wording.
+- Test: `backend/tests/test_transportation_lifecycle.py`.
+- `backend/routes/transport_task_history.py`: ride steps (booked / not booked / changed / depart / close) as entries on the shared `StaffTask.event_log` via `task_history.py`.

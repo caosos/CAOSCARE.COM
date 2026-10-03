@@ -1,11 +1,12 @@
 """Transportation resource config - drivers, vehicles, scheduling buffer.
-Admin-only (this is facility configuration, not day-to-day coordination -
-Front Desk reads the calendar, it doesn't edit the fleet). Split out of
+Editing is admin-only (facility configuration, not day-to-day
+coordination); Front Desk can read the driver/vehicle lists to pick one
+when assigning a ride. Split out of
 transportation.py to keep both under the 300-line cap.
 """
 from fastapi import APIRouter, HTTPException, Depends
 
-from deps import db, require_admin
+from deps import db, require_admin, require_front_desk_or_admin
 from models import now_utc
 from models_transportation import (
     TransportDriver, TransportDriverCreate, TransportDriverUpdate,
@@ -18,7 +19,7 @@ router = APIRouter(prefix="/transportation", tags=["transportation-resources"])
 
 
 @router.get("/drivers")
-async def list_drivers(user=Depends(require_admin)):
+async def list_drivers(user=Depends(require_front_desk_or_admin)):
     return await db.transport_drivers.find({}, {"_id": 0}).sort("name", 1).to_list(50)
 
 
@@ -34,7 +35,8 @@ async def create_driver(data: TransportDriverCreate, user=Depends(require_admin)
 
 @router.patch("/drivers/{driver_id}")
 async def update_driver(driver_id: str, data: TransportDriverUpdate, user=Depends(require_admin)):
-    patch = {k: v for k, v in data.model_dump().items() if v is not None}
+    # exclude_unset (not "drop None") so an admin can clear hours with null
+    patch = data.model_dump(exclude_unset=True)
     r = await db.transport_drivers.update_one({"driver_id": driver_id}, {"$set": patch})
     if r.matched_count == 0:
         raise HTTPException(status_code=404, detail="Driver not found")
@@ -50,7 +52,7 @@ async def delete_driver(driver_id: str, user=Depends(require_admin)):
 
 
 @router.get("/vehicles")
-async def list_vehicles(user=Depends(require_admin)):
+async def list_vehicles(user=Depends(require_front_desk_or_admin)):
     return await db.transport_vehicles.find({}, {"_id": 0}).sort("name", 1).to_list(50)
 
 

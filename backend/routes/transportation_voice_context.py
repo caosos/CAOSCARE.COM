@@ -66,7 +66,11 @@ async def cancel_my_transport_request(data: TransportCancelByContextInput):
 async def transport_request_status(
     resident_id: Optional[str] = None, room: Optional[str] = None, conversation_session_id: Optional[str] = None,
 ):
-    q: dict = {"category": "transportation", "source": {"$in": ["aria_voice", "kiosk_button"]}}
+    """The resident's current ride: the soonest open request if there is
+    one, otherwise the most recent closed one (so Aria can say it was
+    cancelled or completed instead of "still waiting"). Includes rides the
+    front desk entered for the resident, and the real run facts."""
+    q: dict = {"category": "transportation", "source": {"$in": ["aria_voice", "kiosk_button", "front_desk"]}}
     if resident_id:
         q["resident_id"] = resident_id
     elif room:
@@ -75,21 +79,36 @@ async def transport_request_status(
         q["conversation_session_id"] = conversation_session_id
     else:
         raise HTTPException(status_code=400, detail="resident_id, room, or conversation_session_id required")
-    task = await db.staff_tasks.find_one(q, {"_id": 0}, sort=[("created_at", -1)])
+    task = await db.staff_tasks.find_one(
+        {**q, "status": {"$in": OPEN_TASK_STATUSES}}, {"_id": 0}, sort=[("requested_for_date", 1), ("created_at", 1)],
+    ) or await db.staff_tasks.find_one(q, {"_id": 0}, sort=[("created_at", -1)])
     if not task:
         return {"found": False}
     slot = None
+    run_view = None
     if task.get("transport_run_id"):
-        run = await db.transport_runs.find_one({"run_id": task["transport_run_id"]}, {"_id": 0, "depart_time": 1, "return_time": 1})
-        slot = {"start_time": run["depart_time"], "end_time": run.get("return_time")} if run else None
+        run = await db.transport_runs.find_one({"run_id": task["transport_run_id"]}, {"_id": 0})
+        if run:
+            slot = {"start_time": run["depart_time"], "end_time": run.get("return_time")}
+            driver = await db.transport_drivers.find_one({"driver_id": run.get("driver_id")}, {"_id": 0, "name": 1}) if run.get("driver_id") else None
+            vehicle = await db.transport_vehicles.find_one({"vehicle_id": run.get("vehicle_id")}, {"_id": 0, "name": 1}) if run.get("vehicle_id") else None
+            run_view = {
+                "date": run["date"], "depart_time": run["depart_time"], "status": run["status"],
+                "departed_at": run.get("departed_at"), "completed_at": run.get("completed_at"),
+                "driver_name": (driver or {}).get("name"), "vehicle_name": (vehicle or {}).get("name"),
+            }
     elif task.get("transport_slot_id"):
         slot = await db.transport_slots.find_one({"slot_id": task["transport_slot_id"]}, {"_id": 0, "start_time": 1, "end_time": 1})
     return {
         "found": True,
         "status": task["status"],
-        "booked": bool(task.get("transport_run_id") or task.get("transport_slot_id")),
+        # A cancelled request keeps its old run id for history - it is not booked.
+        "booked": bool(task.get("transport_run_id") or task.get("transport_slot_id")) and task["status"] != "skipped",
+        "purpose": task.get("description"),
         "requested_for_date": task.get("requested_for_date"),
         "requested_for_time_label": task.get("requested_for_time_label"),
         "slot": slot,
+        "run": run_view,
+        "cancel_reason": task.get("notes") if task["status"] == "skipped" else None,
         "re_request_count": task.get("re_request_count", 0),
     }
