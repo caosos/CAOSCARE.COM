@@ -341,3 +341,78 @@ No `simulated: bool` field exists on any current model — verified by grep. The
 - **Prevent contaminating real pilot metrics:** the `Demo -`/`3W0x`-style naming convention (§19) — reports/§9a's `ops_overview.py` and `reports.py` would need one additional filter clause to exclude the reserved simulation range, the same shape `seed_demo_community.py --wipe` already uses to safely scope its own cleanup.
 - **Pause/resume/reset safely:** a single admin-only toggle (env var or a `db.simulation_state` doc with `running: bool`) the loop checks before firing its next event; "reset" = delete only documents matching the reserved simulation naming/range, exactly as `seed_demo_community.py --wipe` already does for its own demo data — never a blanket `db.staff_tasks.delete_many({})`.
 - **Coexistence with real Room 214 hardware:** no change needed — Room 214's real resident (`res_81b72be1e8b5`/Helen Torres) and its real `rf_devices`/`rf_events`/`conversations` are keyed by real resident_id/room "214" already outside any reserved simulation range; a simulator using a disjoint room/resident range (per §19) coexists automatically with zero special-casing, the same way the existing `seed_demo_community.py`'s `3W0x` wing already coexists with Room 214 today (confirmed: this session's own count query shows Room 401's stale alerts and Room 214's real data are already two disjoint, non-interfering sets in the current database).
+
+---
+
+## 2026-10-03 addendum — Care App screenshot findings, verified
+
+Michael's localhost:3000 screenshots (2026-10-03, about 12:07–12:15 PM CDT) checked against code at `integration/2026-09-27` `ce5751a` and the local `caoscare` database, read-only (no request, menu, alert or device record was changed). Counts are as of about 12:30 PM CDT and can move. "Demo", "MOCK" and "TEST" below describe each record's provenance (resident-name prefix or room); no resident-identifying detail is recorded here.
+
+### Transportation
+
+- **"Unresolved" is not day-scoped.** `transportation_report.py` counts "received / booked / completed / cancelled" only for the selected date (requests created that day, `transportation_*` receipts filed that day), but `total_unresolved` and "waiting / unbooked" count **every** open transportation request on any date that has neither `transport_run_id` nor a legacy `transport_slot_id`. That is why 10/03 shows 0 requests yet 11 unresolved.
+- **The 11 → 10 change is real:** at 12:08 PM the owner account acknowledged and then completed a Demo "pharmacy pickup" request (requested for 2026-09-08) with the generic Acknowledge/Complete buttons. The report now returns 10 waiting, 1 follow-up, 0 upcoming.
+- **Source records (14 open transportation requests):**
+
+  | Group | Count | Notes |
+  |---|---|---|
+  | TEST rooms (Aug 10 / Aug 22 seed + voice tests) | 6 | 4 carry a legacy `transport_slot_id`, so they count as "booked" and are excluded from "waiting" while their dates are long past |
+  | MOCK residents, `source: system` (Aug 23 seed) | 6 | requested-for dates Aug 23–27 |
+  | MOCK residents, Aria voice (Aug 24, Aug 27) | 2 | one with no requested-for date |
+
+  All 14 are unassigned and pending, 37–54 days old. "Past its requested date, still open" and "Ride requested, no slot booked" are both views of these same records; one has `re_request_count = 1` (the "follow-up required").
+- **Calendar "Nothing scheduled" is correct:** the calendar reads `transport_runs`; no driver, vehicle or run has ever been configured (those collections do not exist), and there are no `transport_slots` on 10/03.
+- **How staff create and book a ride (on `ce5751a`):** there is **no staff control to create a ride request**; requests come only from Aria (`request_transportation`) or seed scripts. Booking is the per-request **Assign** action (`/transportation/request/{id}/assign` → `find_or_create_run`), which needs at least one driver and vehicle — with none configured it can only report "not configured". **"Seed 2-week schedule" seeds the legacy hourly `transport_slots` model**, which the current booking engine does not use.
+- **Generic Complete bypasses the ride lifecycle:** completing a transportation request from Communication & Requests uses `/tasks/{id}/complete`, so no `transportation_completed` receipt is filed and the day's "completed" stays 0. In this case a ride that was never booked was marked completed.
+- Branch `pilot/frontdesk-transport` `6b67ac8` (reviewed, not integrated) adds staff ride creation (`TransportRideForm`, `routes/transportation_staff.py`), front-desk request entry, and ride steps on the shared request history.
+
+### Communication & Requests
+
+- The page's split is accurate: it lists StaffTask requests (`source` not `staff`); pendant/help/emergency events are `alerts`.
+- "Needs coordination" is a **display label** (`requestDisplay.js::deriveStatus`) for a transportation request with no run or slot, not a stored status.
+- **Transitions on `ce5751a` are not guarded by state or role:** `/tasks/{id}/acknowledge|start|complete|skip` accept any signed-in user and any current status (a completed request could be started again). The UI hides some buttons, but the server does not enforce them. `pilot/shared-core` `f5f07b4` (SC-13, not integrated) adds role/department authority to every change, but no closed-state guard was found on reading it — to confirm at integration.
+- **"Receipts (1)"** was the origin receipt (`transportation_requested`). Since SC-1 each later step appends its own receipt; the completed sample now has 3 (requested, acknowledged, completed).
+- **The resident-visible update form** saves `requested_for_date`, `requested_for_time_label` and the note through `PATCH /tasks/{id}`. Those fields are what Aria's `check_request_status` and the resident Home screen read; the note can only be saved by the assignee or an admin.
+
+### Menu
+
+- **No draft items exist** (366 approved, 68 superseded). The row shows any non-approved item as "draft" with an **Approve** button, so superseded items appear as drafts. For 10/03: 11 approved items and 10 superseded items from an earlier dev-test upload.
+- **Per-item Approve does not check status:** approving a superseded item would publish it beside the current menu (`/menu/public/today` returns every `approved` item for the date).
+- **A row cannot be opened for review**; the row shows name, description and availability only (no source, upload or date coverage). Approval publishes immediately to Aria's menu answer.
+- `pilot/community-services` `d95c4d6` (not integrated) blocks re-publishing replaced items and adds an item review dialog and an uploads panel.
+
+### Nursing / Claim
+
+- Counts verified: 8 open, 1 in progress, 0 overdue. Unassigned is now **5** (was 6): the owner account claimed one request at 12:12 PM (still unacknowledged).
+- Open nursing requests by provenance: 6 MOCK residents (5 kiosk button, 1 voice), 1 in the "test" room, 1 staff-created with no resident. None are Demo-room or real-resident requests.
+- **Claim = assign to yourself.** It calls the same `POST /tasks/{id}/assign` as the dropdown. Claim shows only on pending, unassigned requests in your department; the dropdown assigns anyone acting for that department (admin/owner: anyone). Claim does **not** acknowledge; since SC-3, Aria says "<name> has taken it on — work hasn't started yet".
+- The assign endpoint checks department scope but not status; Acknowledge/Start/Complete check neither (see above).
+
+### Alerts & events
+
+- Counts match the screenshot: 338 total, 322 open (`active` or `acknowledged`), **all 322 older than 72 hours**, 0 live; no alert of any status was created in the last 72 hours (newest open: 2026-09-21).
+- **Criteria:** "likely stale" = open and `created_at` more than 72 h ago (`alertsView.js`, `STALE_ALERT_HOURS` server-side); "live" = open minus likely stale. Age is the only signal; nothing is deleted.
+- Open events by room: Room 401 (MOCK resident) 272, "test" room 31, other rooms 18, **Room 214 (the real pilot test room) 1**.
+- **The 12-day-old Emergency / L3 / "Aria dismissed" event is the Room 214 one** (2026-09-21): a real paired-pendant press plus a room-screen press, AI escalation to level 3 nine seconds later, a live line rung, Aria dismissed, never acknowledged or resolved by staff. It is old, but it is **not** RF test debris. The banner's wording ("likely stale RF/pendant test activations") is an inference that does not hold for this record.
+
+### Pendants
+
+- Two pendants are paired. The Room 214 pendant is enabled. The Room 401 test pendant was **deliberately disabled on 2026-09-06** (fingerprint similarity 0.893 with the Room 214 pendant, a misattribution risk). That is why the app shows one active.
+- Both transmissions are still being received: in the last 14 days, pattern `…043c` produced 794 events matched to the Room 214 pendant, and pattern `…f83c` (the disabled pendant's stored pattern) produced 720 events with **no match** (latest 12:28 PM today).
+- **Unresolved:** TSB-002 had attributed both patterns to one pendant's two message types; Michael now reports two physical pendants. Which physical pendant sends which pattern needs a controlled press test (one pendant at a time) before any pairing change.
+
+### Data provenance
+
+Every open request and alert above is Demo, MOCK, TEST or test-room data, except the single Room 214 emergency alert. No record was changed by this verification.
+
+### Recommended next bounded step
+
+**Integrate `pilot/frontdesk-transport` `6b67ac8`** (awaiting Michael's go-ahead). It is reviewed, merges cleanly in code, and closes the largest functional gap found: staff currently cannot create or book a ride, and ride steps are not on the shared history. Acceptance after merge: a staff-created ride for a Demo resident in the browser, its history timeline, and the transportation report, with drivers/vehicles still unconfigured reported truthfully.
+
+Follow-ups captured (not started):
+- day-scope or relabel "unresolved" in the transportation report;
+- generic Complete on transportation requests (route it to the ride lifecycle or block it);
+- state guards on request transitions (with SC-13);
+- superseded menu items and per-item review (Community services lane);
+- the Room 214 open emergency (staff close-out) and the stale-banner wording;
+- the controlled pendant press test.
