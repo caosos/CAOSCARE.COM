@@ -5868,3 +5868,28 @@ HANDOFF CAPSULE
 - Product invariants: no state change without a chained receipt; identity basis never overstated; demo/simulated work explicitly marked; one lifecycle path.
 - Do NOT change:    task state outside task_lifecycle.transition; receipt provenance from request bodies.
 - Next safe action: coordinator integrates the simulator docs branch, merges the integration tip into pilot/shared-core if it moved, then integrates SC-13; Lane C rebases its ride steps onto task_lifecycle.
+
+---
+
+## 2026-10-03 — Coordinator: Shared Core SC-13 / SIM-0 integrated (merge 3 of the approved sequence)
+
+### Agent / branch
+Claude Code (Opus 5.5), coordinator. Merged `pilot/shared-core` `f5f07b4876302a8a85a18c7f4b27c063db2cdf8e` at `79ca54b` into `integration/2026-09-27` (SHA verified; tree clean). Code auto-merged; conflicts only in `PROJECT_STATE.md` and `REPO_MAP.md` (both sides kept). `demo_kiosk.py` keeps the demo-only room and adds the synthetic/simulated markers. Not merged to main, not deployed.
+
+### Tests
+Backend gate: 233 passed, 3 failed (baseline iter10/iter11), 13 skipped. Frontend 32 suites / 244 tests; build compiles.
+
+### Browser + Aria (localhost:3000 → :8092 restarted on `79ca54b`, no live lease; log `/tmp/room214_backend_79ca54b.log`)
+- Nursing `task_82d967c490cf` (3W01, demo nurse) and maintenance "My sink is leaking." `task_e3f03fbf6092` (3W02, demo maintenance user): claim, acknowledge, start, two notes, complete with note, history.
+- Each step, including each note, is its own receipt (7 per request) with actor type, authority (assignee), before/after state; every `event_log` entry carries its receipt id.
+- Aria (real `check_request_status` code): unseen → "no one has picked it up yet"; after claim → "<name> has taken it on — work hasn't started yet"; in progress with the latest note and its time; after completion → no open request.
+- One harness error of mine (priority "medium" → 422) was rerun with "normal"; not an app defect.
+
+### Closed-state guard — not present (SC-14)
+On the completed demo maintenance request, `POST /start` set it back to in progress (overwriting `started_at`); `/complete`, `/acknowledge` and a note were also accepted. Receipts record each step truthfully. The same `start` code had no guard before SC-13 (pre-existing). The staff UI hides the buttons on closed requests. Filed SC-14 for Agent 2.
+
+### Isolation
+Rooms 401/214 device-command counts (184, 284) and Room 401's 6 open requests unchanged; temporary harness removed.
+
+### Follow-ups (assigned to Agent 2, `caoscare-1-47`)
+SC-15 Transportation ride-step receipts through `task_lifecycle` (blocker for Transportation acceptance; verify linked receipts before calling it receipt-compliant). SC-14 closed-state guard.

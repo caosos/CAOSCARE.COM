@@ -82,8 +82,8 @@ Other worktrees on the EliteDesk (older lanes, all clean and pushed, not part of
 1. Shared Core `5a9eb32` (SC-3..SC-7) — **done** at `1d02630` 2026-10-02; SC-3 test passes.
 2. Demo kiosk `0b69cae` — **done** at `239324a` 2026-10-02.
 3. Front desk / Transportation `6b67ac8` — **done** at `5e6413c` 2026-10-03; ride-step receipt gap open (Agent 2).
-3a. Simulator receipt-law docs `ffd1f60` (Michael-approved 2026-10-03).
-3b. Shared Core SC-13 `f5f07b4` (Michael-approved 2026-10-03).
+3a. Simulator receipt-law docs `ffd1f60` — **done** at `75d19d8` 2026-10-03.
+3b. Shared Core SC-13 `f5f07b4` — **done** at `79ca54b` 2026-10-03; follow-ups SC-14, SC-15 assigned to Agent 2.
 4. Community services `d95c4d6` (based on `e9373d5`; expect doc conflicts).
 5. Communications `0978bb1` (based on `e9373d5`; live acceptance needs hardware).
 

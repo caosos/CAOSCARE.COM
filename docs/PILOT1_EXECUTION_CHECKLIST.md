@@ -3,7 +3,7 @@
 Target: 2026-10-10
 
 Current phase: PHASE 3 — Real staff operational workflows (focus: operational completion)
-Current active task: Merge simulator receipt-law docs `ffd1f60`, then Shared Core SC-13 `f5f07b4` (Michael-approved sequence, 2026-10-03; Front desk/Transportation integrated at `5e6413c`) (order in `PILOT1_RECOVERY_CHECKPOINT.md` §4)
+Current active task: Agent 2 fixes the Transportation receipt gap (SC-15) and closed-state guard (SC-14); then Community services `d95c4d6` (approved sequence complete at `79ca54b`, 2026-10-03) (order in `PILOT1_RECOVERY_CHECKPOINT.md` §4)
 Current integration branch: `integration/2026-09-27`
 Current integration SHA: `239324a` (last code state)
 Last updated: 2026-10-02
@@ -463,6 +463,7 @@ Acceptance: Linode runs the exact SHA Michael approved.
 
 | Date | By | Change |
 |---|---|---|
+| 2026-10-03 | Claude Code (Opus 5.5), coordinator | Merged simulator docs `ffd1f60` at `75d19d8` and Shared Core SC-13 `f5f07b4` at `79ca54b`. Nursing + maintenance lifecycles: one receipt per step incl. notes; Aria status correct at every stage. Filed SC-14 (no closed-state guard), SC-15 (transport receipts). |
 | 2026-10-03 | Claude Code (Opus 5.5), coordinator | Merged Front desk/Transportation `6b67ac8` at `5e6413c`. Front-desk ride created and shown in the shared timeline; report/calendar truthful with 0 drivers/vehicles. Transportation receipt gap remains a blocker (Agent 2). SC-6/SC-7 still tests only. |
 | 2026-10-03 | Claude Code (Opus 5.5), coordinator | Demo kiosk moved to demo-only room `DEMO` (Michael's decision); reset restricted to it; isolation test added; proven on localhost:3000. |
 | 2026-10-02 | Claude Code (Opus 5.5), coordinator | Merged Demo kiosk `0b69cae` at `239324a`. Demo light on/off, thermostat, TV on/off, DEMO RESET (isolated), real-room separation → [x]; typed=voice [~]; volume/channel, blinds, staff-help visual, front-desk call visual not proven. Filed SC-11, SC-12. |
