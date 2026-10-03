@@ -3,7 +3,7 @@
 Target: 2026-10-10
 
 Current phase: PHASE 3 — Real staff operational workflows (focus: operational completion)
-Current active task: Integrate Front desk/Transportation `6b67ac8` (demo kiosk moved to the demo-only room `DEMO`, 2026-10-03) (Demo kiosk integrated at `239324a`) (order in `PILOT1_RECOVERY_CHECKPOINT.md` §4)
+Current active task: Merge simulator receipt-law docs `ffd1f60`, then Shared Core SC-13 `f5f07b4` (Michael-approved sequence, 2026-10-03; Front desk/Transportation integrated at `5e6413c`) (order in `PILOT1_RECOVERY_CHECKPOINT.md` §4)
 Current integration branch: `integration/2026-09-27`
 Current integration SHA: `239324a` (last code state)
 Last updated: 2026-10-02
@@ -152,11 +152,11 @@ Status note: `[~]` below means the software path exists (see screenshots in `fro
 
 **Transportation**
 
-- [ ] Transportation shows request history through the shared helper (`lib/requestHistory.js` + `RequestTimeline.jsx`), with ride state changes written through `routes/task_history` — required before the Transportation lane is accepted. Not met by `94af8c4` (2026-09-28 review).
+- [~] Transportation shows request history through the shared helper (`lib/requestHistory.js` + `RequestTimeline.jsx`), with ride state changes written through `routes/task_history` — required before the Transportation lane is accepted. Integrated at `5e6413c` (2026-10-03): a front-desk ride for demo 3W01 (`task_d76a0350db2d`) shows its history in the shared timeline. Ride steps (book/depart/complete) not exercised in the browser — no drivers/vehicles configured. Blocker: ride steps write receipts outside the SC-13 lifecycle service (assigned to Agent 2); not receipt-compliant until linked receipts are verified.
 - [ ] Real drivers configured
 - [ ] Real vehicles configured
 - [~] Availability
-- [~] Request
+- [~] Request — front desk created a ride in the browser (2026-10-03); it stays in "Needs coordination" and is listed unbooked in the report and calendar
 - [~] Assignment
 - [ ] Confirmation
 - [~] Change/cancel
@@ -441,6 +441,7 @@ Acceptance: Linode runs the exact SHA Michael approved.
 
 | Date | By | Change |
 |---|---|---|
+| 2026-10-03 | Claude Code (Opus 5.5), coordinator | Merged Front desk/Transportation `6b67ac8` at `5e6413c`. Front-desk ride created and shown in the shared timeline; report/calendar truthful with 0 drivers/vehicles. Transportation receipt gap remains a blocker (Agent 2). SC-6/SC-7 still tests only. |
 | 2026-10-03 | Claude Code (Opus 5.5), coordinator | Demo kiosk moved to demo-only room `DEMO` (Michael's decision); reset restricted to it; isolation test added; proven on localhost:3000. |
 | 2026-10-02 | Claude Code (Opus 5.5), coordinator | Merged Demo kiosk `0b69cae` at `239324a`. Demo light on/off, thermostat, TV on/off, DEMO RESET (isolated), real-room separation → [x]; typed=voice [~]; volume/channel, blinds, staff-help visual, front-desk call visual not proven. Filed SC-11, SC-12. |
 | 2026-10-02 | Claude Code (Opus 5.5), coordinator | Merged Shared Core `5a9eb32` at `1d02630`. Nursing resident status [!] → [x]; Maintenance status back to resident [!] → [x]. SC-3 test passes. |

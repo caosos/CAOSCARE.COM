@@ -5749,3 +5749,27 @@ HANDOFF CAPSULE
 - Product invariants: one history (event_log) for every department; booked ≠ on the way; front desk and Aria share one booking path.
 - Do NOT change:    task_history.py semantics from this lane.
 - Next safe action: coordinator reviews and merges; then consume SC-6/SC-7 when Shared Core delivers them; Michael enters real drivers/vehicles.
+
+---
+
+## 2026-10-03 — Coordinator: Front desk / Transportation integrated (merge 1 of the approved sequence)
+
+### Agent / branch
+Claude Code (Opus 5.5), Pilot 1 coordinator, `~/CAOSCARE-INTEGRATION`. Michael approved, in this session, the sequence Front desk `6b67ac8` → simulator docs `ffd1f60` → Shared Core `f5f07b4` into `integration/2026-09-27` only. Merged `pilot/frontdesk-transport` `6b67ac8d66b7058f04d26669320843c5574fc655` at `5e6413c`. Not merged to main, not deployed.
+
+### Pre-checks
+Integration HEAD `ce5751a` = origin; tree clean (only untracked `backend/.venv`). All three approved SHAs matched exactly. Conflicts only in `PILOT1_ACTIVE_WORK.md` (kept ours), `PROJECT_STATE.md` and `REPO_MAP.md` (both sides).
+
+### Tests
+Backend gate: 232 passed, 3 failed (the same baseline iter10/iter11), 13 skipped. Focused transportation/shared-core/maintenance/request-status/demo-kiosk: 13 passed. Frontend 32 suites / 244 tests; build compiles.
+
+### Browser acceptance (localhost:3000 → :8092 restarted on `5e6413c`, demo front desk user Dana Frost)
+Front desk → Residents → New ride for demo 3W01: purpose, date 2026-10-06, time label. Saved → "Saved — no pickup time yet; it stays in Needs coordination." (`task_d76a0350db2d`). The resident's history shows the ride in the shared timeline ("Created (front desk)") and one receipt. The transport report lists it under waiting/unbooked and the calendar under pending; drivers 0, vehicles 0 (not configured). No console errors. Rooms 401/214: device-command counts (184, 284) and Room 401's 6 open requests unchanged.
+
+### Not verified / blocked
+- Ride book/depart/complete not exercised in the browser (no drivers/vehicles).
+- SC-6/SC-7 still covered by tests only (an API check was declined as a write to shared data).
+- Ride steps write receipts outside the SC-13 lifecycle service: Transportation is not receipt-compliant. Assigned to Agent 2 after the sequence.
+
+### Next
+Merge 2: simulator receipt-law docs `ffd1f60`.
