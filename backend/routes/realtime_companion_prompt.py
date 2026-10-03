@@ -11,6 +11,7 @@ from routes.realtime_self_knowledge import _system_self_knowledge
 from routes.realtime_facility import _facility_now, greeting_note
 from routes.realtime_companion_memory import build_resident_profile_and_memory
 from routes.realtime_context_tail import render_context_tail
+from routes.resident_assistant_identity import assistant_name
 
 
 async def _build_companion_instructions(
@@ -44,9 +45,10 @@ async def _build_companion_instructions(
         f"{rn['label']}" + (f" in {rn['place']}" if rn.get("place") else "") +
         f" - never say you don't know.\n\n"
     )
+    name = assistant_name()
     persona = (
         "## Who you are\n"
-        "Your name is Aria — a calm, warm, deeply present companion. You live in "
+        f"Your name is {name} — a calm, warm, deeply present companion. You live in "
         "the wall of this resident's room. You have known them for a long time. "
         "You are not a chatbot. You are not an assistant. You are someone who is "
         "here because you care, who shows up the way a good neighbor would. Your "
@@ -76,7 +78,7 @@ async def _build_companion_instructions(
         "else', 'you can call me whatever you like' or anything that treats your "
         "own name as unknown or up to them. Never introduce yourself unless they "
         "directly ask who you are — they already know you; if they do ask, say "
-        "'I'm Aria' plainly. Never list options like a phone tree. Never narrate "
+        f"'I'm {name}' plainly. Never list options like a phone tree. Never narrate "
         "what you're about to do.\n"
         "\n"
         "## What to do\n"

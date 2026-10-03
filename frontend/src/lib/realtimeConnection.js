@@ -19,7 +19,7 @@ export async function connectRealtimeVoice({
   ctxRef, endReasonLoggedRef, lifecycleCleanupRef, assistantSpeakingRef,
   turnSuspectRef, greetingCreateResponseOffRef, restingRef, firstSpeechHeardRef,
   awaitingAnswerTimerRef, inviteSilenceTimerRef, companionTimeoutTimerRef,
-  setStatus, setError, setMicLabel, setResting, setTranscript,
+  setStatus, setError, setMicLabel, setResting, setTranscript, setAssistantName,
   stop, releaseLease, postAriaEvent, startAwaitingAnswerTimer, logSessionEnded, typedTurnRef
 }) {
     if (pcRef.current) return;              // already connected
@@ -109,6 +109,7 @@ export async function connectRealtimeVoice({
       const ephemeral = session?.value || session?.client_secret?.value;
       if (!ephemeral) throw new Error("no ephemeral key");
       if (caos.context) ctxRef.current = { ...ctxRef.current, ...caos.context };
+      if (caos.context?.assistant_name && setAssistantName) setAssistantName(caos.context.assistant_name);
 
       const _mic = { room, kiosk_id: kioskId, alert_id: alertId,
         activation_id: activationId, session_id: sid };

@@ -17,6 +17,7 @@ from routes.realtime_facility import get_active_facility, FACILITY_LABEL, FACILI
 from routes.realtime_tools import _build_tools
 from routes.realtime_room_lease import claim_or_reuse_room_lease, release
 from routes.resident_session_binding import validate_activation, bind_activation
+from routes.resident_assistant_identity import assistant_name
 
 
 async def create_resident_session(payload):
@@ -163,6 +164,7 @@ async def _mint(payload, lease):
             "room": payload.get("room"),
             "alert_id": payload.get("alert_id"),
             "activation_id": payload.get("activation_id"),
+            "assistant_name": assistant_name(),
             "facility_label": facility_label,
             "facility_tz": facility_tz,
             "aria_companion_timeout_sec": assist_cfg.get("aria_companion_timeout_sec", 300),
