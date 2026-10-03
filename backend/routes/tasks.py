@@ -9,14 +9,14 @@ Workflow
     taps Complete → status=completed + completed_at + duration_minutes + notes.
   • Full audit trail: who did what, when, how long, what notes.
 """
-from datetime import datetime, timezone, timedelta
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends
-from models import StaffTask, StaffTaskCreate, StaffTaskUpdate, now_utc
+from models import StaffTask, StaffTaskCreate, StaffTaskUpdate
 from deps import db, get_current_user
-from routes.receipts import create_receipt, update_receipt_status
 from routes.notifications import send_email
-from routes.task_history import task_event, update_task_with_history, patch_events
+from routes import task_actions, task_lifecycle
+from routes.actor_context import actor_from_user
+from routes.task_lifecycle import record_origin, simulation_marker
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -109,7 +109,9 @@ async def list_tasks(
 @router.post("")
 async def create_task(data: StaffTaskCreate, user=Depends(get_current_user)):
     role = user.get("role")
-    if role not in ("owner", "admin"):
+    if role in ("owner", "admin"):
+        authority = f"admin_override:{role}"
+    else:
         # A department member (staff WITH a department) may open work only
         # for their OWN department - visibility_role and category are forced
         # to their department slug so a department workspace can never
@@ -117,16 +119,14 @@ async def create_task(data: StaffTaskCreate, user=Depends(get_current_user)):
         # what lets a Maintenance lead raise a work order without an admin.
         dept = user.get("department")
         if role == "staff" and dept:
-            # A department workspace only ever raises work FOR its own
-            # department - both fields are pinned to the creator's slug so
-            # nothing cross-department can be minted here regardless of what
-            # the client sent.
             data.visibility_role = dept
             data.category = dept
+            authority = f"dept_member:{dept}"
         else:
             raise HTTPException(status_code=403, detail="Not allowed to create work here")
     payload = data.model_dump()
     await _resolve_denorms(payload)
+    payload.update(await simulation_marker(payload.get("resident_id")))
     task = StaffTask(**payload)
     doc = task.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
@@ -134,138 +134,50 @@ async def create_task(data: StaffTaskCreate, user=Depends(get_current_user)):
         doc["due_at"] = doc["due_at"].isoformat()
     await db.staff_tasks.insert_one(doc)
     doc.pop("_id", None)
-    await create_receipt(
-        action_type="task_created", related_object_type="task", related_object_id=doc["task_id"],
-        source="staff", resident_id=doc.get("resident_id"), room=doc.get("room"),
-        requested_by=user["user_id"], assigned_role=doc.get("visibility_role"),
-        assigned_user=doc.get("assigned_to"),
-    )
+    await record_origin(doc, actor_from_user(user), action_type="task_created", authority=authority)
     return doc
 
 
 @router.patch("/{task_id}")
 async def update_task(task_id: str, data: StaffTaskUpdate, user=Depends(get_current_user)):
-    existing = await db.staff_tasks.find_one({"task_id": task_id}, {"_id": 0})
-    if not existing:
-        raise HTTPException(status_code=404, detail="Task not found")
-    if user.get("role") not in ("owner", "admin") and existing.get("assigned_to") != user["user_id"]:
-        raise HTTPException(status_code=403, detail="Not your task")
-
-    patch = {k: v for k, v in data.model_dump(exclude_none=True).items()}
-    if "assigned_to" in patch:
-        await _resolve_denorms(patch)
-    await update_task_with_history(task_id, patch, patch_events(existing, patch, user))
-    updated = await db.staff_tasks.find_one({"task_id": task_id}, {"_id": 0})
-    return _iso(updated)
+    """A note and/or the planned service window. Status and assignment are
+    not settable here (StaffTaskUpdate forbids them): they go through the
+    lifecycle endpoints, which authorize and receipt each step."""
+    actor = actor_from_user(user)
+    patch = data.model_dump(exclude_unset=True)
+    if "notes" in patch:
+        await task_actions.add_note(task_id, patch.pop("notes"), actor, user)
+    if patch:
+        await task_actions.set_schedule(task_id, patch, actor, user)
+    return _iso(await task_lifecycle.load(task_id))
 
 
 @router.post("/{task_id}/acknowledge")
 async def acknowledge_task(task_id: str, user=Depends(get_current_user)):
-    """Distinct from /start - 'someone has seen this' vs 'work has begun'.
-    Real event Michael's Communication & Requests timeline needs (previously
-    unwired: acknowledged_by/acknowledged_at existed on StaffTask but nothing
-    ever set them)."""
-    existing = await db.staff_tasks.find_one({"task_id": task_id}, {"_id": 0})
-    if not existing:
-        raise HTTPException(status_code=404, detail="Task not found")
-    if not existing.get("acknowledged_at"):
-        await update_task_with_history(task_id, {
-            "acknowledged_by": user["user_id"], "acknowledged_by_name": user.get("name"),
-            "acknowledged_at": now_utc().isoformat(),
-        }, [task_event("acknowledged", user=user)])
-        await update_receipt_status("task", task_id, "acknowledged", requested_by=user["user_id"])
-    return _iso(await db.staff_tasks.find_one({"task_id": task_id}, {"_id": 0}))
+    """Distinct from /start - 'someone has seen this' vs 'work has begun'."""
+    task, _ = await task_actions.acknowledge(task_id, actor_from_user(user), user)
+    return _iso(task)
 
 
 @router.post("/{task_id}/start")
 async def start_task(task_id: str, user=Depends(get_current_user)):
-    existing = await db.staff_tasks.find_one({"task_id": task_id}, {"_id": 0})
-    if not existing:
-        raise HTTPException(status_code=404, detail="Task not found")
-    patch = {
-        "status": "in_progress",
-        "started_at": now_utc().isoformat(),
-        "assigned_to": existing.get("assigned_to") or user["user_id"],
-        "assigned_name": existing.get("assigned_name") or user.get("name"),
-    }
-    entries = []
-    if existing.get("status") != "in_progress":
-        entries.append(task_event("status", user=user, frm=existing.get("status"), to="in_progress"))
-    if not existing.get("assigned_to"):
-        entries.append(task_event("assigned_to", user=user, to=patch["assigned_to"],
-                                  to_name=patch["assigned_name"]))
-    await update_task_with_history(task_id, patch, entries)
-    await update_receipt_status("task", task_id, "in_progress", requested_by=user["user_id"])
-    return _iso(await db.staff_tasks.find_one({"task_id": task_id}, {"_id": 0}))
-
-
-def _close_events(existing: dict, to_status: str, body: dict, user: dict) -> list[dict]:
-    """A closing note is appended as its own history entry, so it no
-    longer replaces the progress notes recorded before it."""
-    entries = []
-    note = (body.get("notes") or "").strip()
-    if note:
-        entries.append(task_event("note", user=user, text=note))
-    entries.append(task_event("status", user=user, frm=existing.get("status"), to=to_status))
-    return entries
+    task, _ = await task_actions.start(task_id, actor_from_user(user), user)
+    return _iso(task)
 
 
 @router.post("/{task_id}/complete")
 async def complete_task(task_id: str, body: dict = None, user=Depends(get_current_user)):
-    existing = await db.staff_tasks.find_one({"task_id": task_id}, {"_id": 0})
-    if not existing:
-        raise HTTPException(status_code=404, detail="Task not found")
-    body = body or {}
-    started = existing.get("started_at")
-    duration = None
-    finished = now_utc()
-    if started:
-        try:
-            started_dt = datetime.fromisoformat(started.replace("Z", "+00:00"))
-            duration = round((finished - started_dt).total_seconds() / 60.0, 1)
-        except Exception:
-            pass
-    patch = {
-        "status": "completed",
-        "completed_at": finished.isoformat(),
-        "completed_by": user["user_id"],
-        "completed_by_name": user.get("name"),
-        "duration_minutes": duration,
-        "notes": body.get("notes") or existing.get("notes") or "",
-    }
-    if not existing.get("started_at"):
-        patch["started_at"] = finished.isoformat()
-    await update_task_with_history(task_id, patch, _close_events(existing, "completed", body, user))
-    await update_receipt_status("task", task_id, "completed", result=patch["notes"] or "completed",
-                                requested_by=user["user_id"])
-    return _iso(await db.staff_tasks.find_one({"task_id": task_id}, {"_id": 0}))
+    task, _ = await task_actions.complete(task_id, (body or {}).get("notes"), actor_from_user(user), user)
+    return _iso(task)
 
 
 @router.post("/{task_id}/skip")
 async def skip_task(task_id: str, body: dict = None, user=Depends(get_current_user)):
-    body = body or {}
-    existing = await db.staff_tasks.find_one({"task_id": task_id}, {"_id": 0})
-    if not existing:
-        raise HTTPException(status_code=404, detail="Task not found")
-    patch = {
-        "status": "skipped",
-        "completed_at": now_utc().isoformat(),
-        "completed_by": user["user_id"],
-        "completed_by_name": user.get("name"),
-        "notes": body.get("notes") or existing.get("notes") or "",
-    }
-    await update_task_with_history(task_id, patch, _close_events(existing, "skipped", body, user))
-    await update_receipt_status("task", task_id, "cancelled", failure_reason=patch["notes"] or "skipped",
-                                requested_by=user["user_id"])
-    return _iso(await db.staff_tasks.find_one({"task_id": task_id}, {"_id": 0}))
+    task, _ = await task_actions.skip(task_id, (body or {}).get("notes"), actor_from_user(user), user)
+    return _iso(task)
 
 
 @router.delete("/{task_id}")
 async def delete_task(task_id: str, user=Depends(get_current_user)):
-    if user.get("role") not in ("owner", "admin"):
-        raise HTTPException(status_code=403, detail="Admin required")
-    r = await db.staff_tasks.delete_one({"task_id": task_id})
-    if r.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Task not found")
+    await task_actions.delete(task_id, actor_from_user(user), user)
     return {"ok": True}
-

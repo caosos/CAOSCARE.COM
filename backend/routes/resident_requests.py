@@ -16,8 +16,10 @@ from pydantic import BaseModel
 
 from models import StaffTask, TaskPriority, now_utc
 from deps import db, get_current_user
-from routes.receipts import create_receipt
-from routes.task_history import task_event, update_task_with_history, latest_note_at, times_asked
+from routes import task_lifecycle
+from routes.actor_context import actor_from_user, actor_resident_claim
+from routes.task_history import task_event, latest_note_at, times_asked
+from routes.task_lifecycle import simulation_marker
 from routes.notifications import notify_department
 from routes.departments import get_active_departments
 from routes.facility_local_time import facility_tz as _facility_tz, facility_local as _facility_local
@@ -111,12 +113,16 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
     visibility_role = await _resolve_visibility_role(data.category)
     if not visibility_role:
         raise HTTPException(status_code=400, detail=f"Unsupported request category: {data.category}")
-    requested_by = "resident"
+    marker = await simulation_marker(data.resident_id)
     if data.source == "front_desk":
         if not user or user.get("role") not in ("owner", "admin", "staff", "front_desk"):
             raise HTTPException(status_code=403, detail="Not authorized to create resident requests")
-        requested_by = user.get("name") or user.get("email") or "front_desk"
-    elif data.source not in ("aria_voice", "kiosk_button"):
+        actor, authority = actor_from_user(user, channel="front_desk"), "front_desk_entry"
+    elif data.source in ("aria_voice", "kiosk_button"):
+        # The room is known; who spoke is a claim, not a verified identity (D3).
+        actor = actor_resident_claim(data.resident_id, data.room, data.source, synthetic=bool(marker))
+        authority = "public_resident_bus"
+    else:
         raise HTTPException(status_code=400, detail="Invalid source")
     # 2026-08-23 (real, confirmed bug - Chauncey/Room 304): a fabricated
     # "10 o'clock" reached a live staff task. Reject rather than trust a
@@ -138,6 +144,25 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
         dup_q = None  # nothing to dedup against (no resident/room on either side)
 
     existing = await db.staff_tasks.find_one(dup_q, {"_id": 0}, sort=[("created_at", -1)]) if dup_q else None
+    words = data.resident_words or data.summary
+    if existing:
+        # The repeat ask is a state change on the open request, so it goes
+        # through the lifecycle (chained receipt). A legacy request with no
+        # recorded origin refuses the change (and records that, D5); the
+        # resident's ask is then filed as a new request rather than lost (D3).
+        try:
+            existing, receipt = await task_lifecycle.transition(
+                existing["task_id"], actor, user, action="re_request", authority=authority,
+                action_type="resident_request_re_requested", status="created",
+                build=lambda t, rid: (
+                    {"re_request_count": t.get("re_request_count", 0) + 1,
+                     "last_re_requested_at": now_utc().isoformat()},
+                    [task_event("re_request", to=t.get("re_request_count", 0) + 1, by=actor.actor_id,
+                                by_name=actor.name or "resident", text=words, receipt_id=rid)]))
+        except task_lifecycle.LifecycleError as e:
+            if e.status_code != 409:
+                raise
+            existing = None
 
     if existing:
         # 2026-08-27 (real, confirmed bug - Room 401/Ellie): the old response
@@ -152,20 +177,7 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
         # summary lets the model describe it honestly instead of assuming it
         # matches what was just asked.
         same_issue = (existing.get("resident_words") or "").strip().lower() == (data.resident_words or data.summary or "").strip().lower()
-        count = existing.get("re_request_count", 0) + 1
-        now_iso = now_utc().isoformat()
-        await update_task_with_history(
-            existing["task_id"], {"re_request_count": count, "last_re_requested_at": now_iso},
-            [task_event("re_request", to=count, by=(user or {}).get("user_id") or "resident",
-                        by_name=requested_by, text=data.resident_words or data.summary)],
-        )
-        receipt = await create_receipt(
-            action_type="resident_request_re_requested", related_object_type="task",
-            related_object_id=existing["task_id"], source=data.source,
-            resident_id=data.resident_id, room=data.room,
-            conversation_session_id=data.conversation_session_id, requested_by=requested_by,
-            assigned_role=visibility_role,
-        )
+        count = existing.get("re_request_count", 0)
         asked = times_asked({"re_request_count": count})
         await notify_department(
             visibility_role,
@@ -177,7 +189,7 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
         )
         # Speak the duplicate from Layer E's lifecycle vocabulary + real age,
         # so it cannot contradict "What's actually happening right now".
-        auth = request_status_view({**existing, "re_request_count": count}, await _facility_tz())
+        auth = request_status_view(existing, await _facility_tz())
         return {
             "task_id": existing["task_id"], "receipt_id": receipt["receipt_id"],
             "status": existing["status"], "duplicate": True, "re_request_count": count,
@@ -201,6 +213,7 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
         "room": data.room,
         "resident_words": data.resident_words,
         "conversation_session_id": data.conversation_session_id,
+        **marker,
     }
     await _resolve_denorms(payload)
     task = StaffTask(**payload)
@@ -208,12 +221,8 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
     doc["created_at"] = doc["created_at"].isoformat()
     await db.staff_tasks.insert_one(doc)
     doc.pop("_id", None)
-    receipt = await create_receipt(
-        action_type="resident_request_created", related_object_type="task", related_object_id=doc["task_id"],
-        source=data.source, resident_id=data.resident_id, room=data.room,
-        conversation_session_id=data.conversation_session_id, requested_by=requested_by,
-        assigned_role=visibility_role,
-    )
+    receipt = await task_lifecycle.record_origin(doc, actor, action_type="resident_request_created",
+                                                 authority=authority)
     await notify_department(
         visibility_role,
         f"CAOS Care: new {data.category} request",

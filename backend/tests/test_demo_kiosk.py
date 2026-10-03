@@ -4,9 +4,10 @@ DEMO RESET (routes/demo_kiosk.py, simulated_device.py).
 Proves: the demo light turns on/off through /devices/public/room/{room}/command
 with a verified simulated read-back; repeated commands are stable; an
 unsupported or invalid command fails instead of being reported as done;
-reset restores the baseline and closes open demo requests with a history
-entry; reset refuses a room holding any non-simulated device; a demo
-command never touches another room's devices.
+reset restores the baseline and closes only requests marked simulated for
+the demo room, each with its own receipt, leaving an unmarked/unverified
+open request in the room untouched; reset refuses a room holding any
+non-simulated device; a demo command never touches another room's devices.
 
 Also proves (2026-10-03, demo-only room): the demo kiosk lives in its own
 demo room with a synthetic resident; demo commands, a demo request and
@@ -120,16 +121,40 @@ def test_demo_light_reset_and_guards():
         return other
 
     other_room = asyncio.run(_db_run(seed))
+
+    async def demo_resident(db):
+        return (await db.residents.find_one({"room": room}, {"_id": 0, "resident_id": 1}))["resident_id"]
+    # A genuine demo request: made through the normal request path by the
+    # synthetic demo resident, so it is marked simulated for the demo room.
+    demo = requests.post(f"{API}/tasks/resident-request", timeout=5, json={
+        "category": "maintenance", "resident_id": asyncio.run(_db_run(demo_resident)), "room": room,
+        "resident_words": "The demo sink drips", "summary": "The demo sink drips",
+        "source": "aria_voice"}).json()["task_id"]
     try:
         _cmd(room, "power", "on", "light")
         assert _state(other_room, "light")["power"] == "off"                # other room untouched
+
+        async def unmarked_before(db):
+            t = await db.staff_tasks.find_one({"task_id": f"{tag}_t"}, {"_id": 0})
+            return t, await db.receipts.count_documents({"related_object_id": f"{tag}_t"})
+        before = asyncio.run(_db_run(unmarked_before))
         body = requests.post(f"{API}/demo/reset", timeout=5).json()
-        assert body["requests_closed"] >= 1
+        assert body["requests_closed"] >= 1 and body["left_open"] >= 1
+        assert {"room", "kiosk_id", "devices", "receipt_id"} <= set(body)   # response stays additive
 
         async def check(db):
-            t = await db.staff_tasks.find_one({"task_id": f"{tag}_t"}, {"_id": 0})
-            assert t["status"] == "skipped"
-            assert t["event_log"][-1]["by"] == "demo_reset" and t["event_log"][-1]["to"] == "skipped"
+            # unmarked / unverified request in room DEMO: not silently closed
+            assert await unmarked_before(db) == before
+            # the genuine demo request: closed through the lifecycle, own receipt
+            t = await db.staff_tasks.find_one({"task_id": demo}, {"_id": 0})
+            assert t["status"] == "skipped" and t["simulated"] is True and t["simulation_scope"] == "demo_room"
+            assert t["event_log"][-1]["by"] == "system:demo_reset" and t["event_log"][-1]["to"] == "skipped"
+            chain = await db.receipts.find({"related_object_id": demo}, {"_id": 0}).sort("created_at", 1).to_list(10)
+            origin, closing = chain[0], chain[-1]
+            assert origin["identity_basis"] == "synthetic" and origin["actor_type"] == "simulated-agent"
+            assert closing["action_type"] == "task_cancelled" and closing["actor_id"] == "system:demo_reset"
+            assert closing["authority"] == "system:demo_reset" and closing["parent_receipt_id"] == origin["receipt_id"]
+            assert t["event_log"][-1]["receipt_id"] == closing["receipt_id"]
             await db.smart_devices.insert_one({"device_id": f"{tag}_real", "label": "real", "kind": "light",
                                                "protocol": "home_assistant", "room": room, "capabilities": ["power"],
                                                "state": {}, "online": True})
@@ -140,6 +165,8 @@ def test_demo_light_reset_and_guards():
         async def cleanup(db):
             await db.smart_devices.delete_many({"device_id": {"$regex": f"^{tag}"}})
             await db.staff_tasks.delete_many({"task_id": {"$regex": f"^{tag}"}})
+            await db.staff_tasks.delete_many({"task_id": demo})
+            await db.receipts.delete_many({"related_object_id": {"$in": [demo, f"{tag}_t"]}})
         asyncio.run(_db_run(cleanup))
         requests.post(f"{API}/demo/reset", timeout=5)
 

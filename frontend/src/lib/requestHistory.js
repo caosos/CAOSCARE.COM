@@ -28,6 +28,8 @@ function describe(e, task) {
       return { label: `Assigned to ${e.to_name || "staff"}${by(e)}` };
     case "note":
       return { label: `Note${by(e)}`, text: e.text, kind: "note" };
+    case "scheduled":
+      return { label: `Visit window set${by(e)}`, text: e.text };
     case "re_request":
       return { label: `Resident asked again (${Number(e.to) + 1}x)`, text: e.text };
     default: {

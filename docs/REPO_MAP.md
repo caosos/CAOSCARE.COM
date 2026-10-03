@@ -789,3 +789,10 @@ listener verifier experiment: `docs/experiments/`.
 - `frontend/src/pages/FrontDeskDashboard.jsx` + `frontend/src/components/FrontDesk*.jsx`: front desk workspace. `frontend/src/components/Transport*.jsx`, `DriverHoursDialog.jsx`, `frontend/src/lib/transportation.js`: transportation UI and Aria status wording.
 - Test: `backend/tests/test_transportation_lifecycle.py`.
 - `backend/routes/transport_task_history.py`: ride steps (booked / not booked / changed / depart / close) as entries on the shared `StaffTask.event_log` via `task_history.py`.
+## 2026-10-03 — SIM-0 receipt / provenance spine (SC-13, branch `pilot/shared-core`)
+
+- `backend/routes/actor_context.py`: `ActorContext` (who acts, how their identity is known, channel) built server-side.
+- `backend/routes/task_lifecycle.py`: the one StaffTask state-change path — authority check, legacy refusal, task + history write, chained receipt; `record_origin()` for new requests; `simulation_marker()`.
+- `backend/routes/task_actions.py`: assign / acknowledge / start / note / schedule / complete / skip / delete on top of it; `tasks.py` and `task_assignment.py` are thin routes over these.
+- `Receipt` provenance fields (actor, authority, parent / correlation receipt, before/after state, result label, provider refs, next state); `GET /receipts?correlation_id=` returns one workflow's chain.
+- Test: `backend/tests/test_sim0_provenance_chain.py`; demo isolation in `test_demo_kiosk.py`.

@@ -8,6 +8,8 @@ from fastapi import APIRouter, HTTPException, Depends
 from models import StaffTask, StaffTaskTemplate, StaffTaskTemplateCreate, now_utc
 from deps import db, get_current_user
 from routes.tasks import _iso, _resolve_denorms
+from routes.actor_context import actor_from_user
+from routes.task_lifecycle import record_origin
 
 router = APIRouter(prefix="/tasks", tags=["task-templates"])
 
@@ -73,5 +75,8 @@ async def spawn_today(user=Depends(get_current_user)):
         doc = task.model_dump()
         doc["created_at"] = doc["created_at"].isoformat()
         await db.staff_tasks.insert_one(doc)
+        doc.pop("_id", None)
+        await record_origin(doc, actor_from_user(user), action_type="task_spawned_from_template",
+                            authority=f"admin_override:{user['role']}")
         created += 1
     return {"ok": True, "created": created, "date": today}

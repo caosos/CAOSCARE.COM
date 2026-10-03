@@ -33,9 +33,12 @@ def task_event(
     text: Optional[str] = None,
     by: Optional[str] = None,
     by_name: Optional[str] = None,
+    receipt_id: Optional[str] = None,
 ) -> dict:
     """Build one event_log entry. `user` is the authenticated staff user;
-    pass `by`/`by_name` instead for non-user actors (e.g. "resident")."""
+    pass `by`/`by_name` instead for non-user actors (e.g. "resident").
+    `receipt_id` links the entry to the receipt that records it (SIM-0),
+    so history and receipts can be checked against each other."""
     entry: dict = {"at": now_utc().isoformat(), "field": field}
     if frm is not None:
         entry["from"] = frm
@@ -47,6 +50,8 @@ def task_event(
         entry["text"] = text
     entry["by"] = (user or {}).get("user_id") or by
     entry["by_name"] = (user or {}).get("name") or by_name
+    if receipt_id:
+        entry["receipt_id"] = receipt_id
     return entry
 
 
@@ -60,21 +65,6 @@ async def update_task_with_history(task_id: str, set_fields: Optional[dict], ent
         update["$push"] = {"event_log": {"$each": entries}}
     if update:
         await db.staff_tasks.update_one({"task_id": task_id}, update)
-
-
-def patch_events(existing: dict, patch: dict, user: dict) -> list[dict]:
-    """event_log entries for a generic field PATCH (PATCH /tasks/{id}):
-    one entry per tracked field whose value actually changes."""
-    entries: list[dict] = []
-    new_note = patch.get("notes")
-    if new_note is not None and new_note.strip() and new_note != (existing.get("notes") or ""):
-        entries.append(task_event("note", user=user, text=new_note))
-    if "status" in patch and patch["status"] != existing.get("status"):
-        entries.append(task_event("status", user=user, frm=existing.get("status"), to=patch["status"]))
-    if "assigned_to" in patch and patch["assigned_to"] != existing.get("assigned_to"):
-        entries.append(task_event("assigned_to", user=user, frm=existing.get("assigned_to"),
-                                  to=patch["assigned_to"], to_name=patch.get("assigned_name")))
-    return entries
 
 
 def latest_note_at(task: dict) -> Optional[str]:

@@ -504,6 +504,10 @@ async def seed():
             "created_at": now_utc().isoformat(),
         }
         await db.staff_tasks.insert_one(task_doc)
+        task_doc.pop("_id", None)
+        from routes.actor_context import actor_system
+        from routes.task_lifecycle import record_origin
+        await record_origin(task_doc, actor_system("seed"), action_type="task_seeded", authority="system:seed")
 
     # Seed medication reminders (1-2 per resident)
     if residents_for_family and await db.med_reminders.count_documents({}) == 0:

@@ -5824,3 +5824,47 @@ No merge to `main`, no Linode deployment.
 ## 2026-10-03 — Coordinator: simulator receipt-law docs integrated (merge 2 of the approved sequence)
 
 Merged `agent/operations-simulator-receipts` `ffd1f607b958bd305627b9caa79690186d4115dc` at `75d19d8` (SHA verified; tree clean). Docs only: AGENTS.md receipt/provenance law, Product Baseline invariants, `docs/CAOSCARE_OPERATIONS_SIMULATOR.md`, Lane H / RQ-007. Conflicts only in `PILOT1_ACTIVE_WORK.md`, `PILOT1_EXECUTION_CHECKLIST.md`, `PILOT1_READY_QUEUE.md`, `PROJECT_STATE.md`; both sides kept. `git diff 5e6413c 75d19d8 -- backend frontend scripts` is empty, so merge 1's test and browser results (backend 232/3 baseline/13, frontend 32/244, build) apply unchanged. Next: Shared Core SC-13 `f5f07b4`.
+## 2026-10-03 — Lane E (Shared Core): SC-13 / SIM-0 receipt and provenance spine
+
+### Agent / tool
+Claude Code (Opus 5.5), Agent 2, `~/CAOSCARE-LANE-SHARED`, branch `pilot/shared-core`, fast-forwarded to the integration tip `ce5751a` before work (coordinator assignment, session caoscare-1-25). Not merged, not deployed; main untouched.
+
+### Michael's decisions applied
+D1 every state-changing workflow action gets a provenance-linked receipt · D2 lifecycle permissions in the service (department / assignee, admin/owner override; PATCH cannot change status) · D3 a room-screen/voice request is an unverified room claim, never authenticated; demo actors are synthetic · D4 result labels verified / simulated / unverified / failed · D5 legacy requests with no recorded origin are refused and the refusal is recorded.
+
+### What changed
+- New `routes/actor_context.py`, `routes/task_lifecycle.py`, `routes/task_actions.py`: one service path for claim, acknowledge, start, note, schedule, complete, skip, delete. Each step: authority checked → legacy refusal (recorded) → task + event_log written in one update → one receipt with actor, identity basis, authority, parent and workflow (correlation) id, before/after state read back from the database, result label, next state. Each event_log entry carries its receipt id.
+- `tasks.py`, `task_assignment.py` are thin routes over it. `StaffTaskUpdate` (PATCH) now accepts only notes and the planned visit window; any other field → 422.
+- Origin receipts for every creation path: resident request (room claim or front desk), staff/admin work order, template spawn, seed. A repeat ask on a legacy request is refused on it and filed as a new request, so the resident's ask is not lost.
+- `Receipt` gets optional provenance fields; `GET /receipts?correlation_id=` returns one workflow's chain.
+- Marker (approved by the coordinator): `Resident.synthetic` (set by `ensure_demo_room`), `StaffTask.simulated` / `simulation_scope="demo_room"`, set only from the server-side resident record. DEMO RESET closes only marked tasks (each through the lifecycle, own receipt) and adds `left_open` to its response.
+- Shared timeline shows the new schedule entry ("Visit window set").
+- `ENGINEERING_CONTRACT.md`: dated note — the receipt law extends decision 5 (decision 5 not rewritten).
+
+### What was verified
+- Backend gate (fresh DB, this worktree has no backend/.env so no OpenAI key): **217 passed, 0 failed, 31 skipped**. The coordinator's 3 known iter10/iter11 failures need a real key and skip here.
+- `test_sim0_provenance_chain.py` (new): sink-leak request → claim → start → note → complete = 5 receipts, parent links unbroken to the origin, one workflow id, every receipt names actor/identity basis/authority, before = previous after, every history entry ↔ receipt; housekeeper start/complete/ack/skip/note → 403 with nothing written; PATCH status/assigned_to/verified → 422 with nothing written; body claims (actor, result label, authority, simulated) ignored; admin skip recorded as `admin_override:admin`; legacy start → 409, unchanged, refusal recorded; repeat ask on legacy → new request.
+- `test_demo_kiosk.py`: a genuine demo request (synthetic resident) is closed with its own `system:demo_reset` receipt chained to its origin; an unmarked open task in room DEMO keeps its status, history and receipt count; `left_open` reported; existing response fields unchanged.
+- Nursing + maintenance lifecycles (`test_shared_core_status_truth`, `test_maintenance_resident_loop`, `test_shared_core_history`): pass, including Aria status after a claim.
+- Frontend 31 suites / 226 tests; `CI=true` build compiles.
+
+### Not done / limits
+- Mongo is a standalone server: no multi-document transaction. The task is written, then its receipt immediately after; a missing receipt is detectable from the entry's receipt_id.
+- Not covered: alerts (`update_receipt_status` unchanged), transportation's own task writes (Lane C), provider/notification linkage (SC-8 — `provider_refs` stays empty), device results (SC-11), no SIM-1 scheduler.
+- Admin delete writes a receipt first but is not refused for legacy tasks.
+- Production DB: the demo resident gets `synthetic` only when `scripts/setup_demo_room.py` runs there.
+
+### Line counts
+`actor_context.py` 67 (new), `task_lifecycle.py` 187 (new), `task_actions.py` 161 (new), `tasks.py` 183, `task_assignment.py` 46, `task_history.py` 82, `receipts.py` 199, `resident_requests.py` 382, `demo_kiosk.py` 152, `task_templates.py` 82, `requestHistory.js` 70, `models.py` 1664 (+32, fields only, pre-existing oversized schema file), `seed.py` 581 (+4, pre-existing oversized).
+
+HANDOFF CAPSULE
+- Objective:        SIM-0 receipt/provenance spine for the staff-request workflow (SC-13).
+- Branch:           pilot/shared-core (from integration ce5751a).
+- Lane / ownership: Lane E Shared Core; owned demo_kiosk.py + test for SC-13. Did not touch notifications.py (SC-8), alerts.py, transportation, frontend workspaces.
+- Last proven state: gates above, 2026-10-03.
+- Commits:          see this entry's commit.
+- Runtime state:    nothing restarted or deployed; :8092/:3000 untouched.
+- Unresolved proven defects: none new.
+- Product invariants: no state change without a chained receipt; identity basis never overstated; demo/simulated work explicitly marked; one lifecycle path.
+- Do NOT change:    task state outside task_lifecycle.transition; receipt provenance from request bodies.
+- Next safe action: coordinator integrates the simulator docs branch, merges the integration tip into pilot/shared-core if it moved, then integrates SC-13; Lane C rebases its ride steps onto task_lifecycle.
