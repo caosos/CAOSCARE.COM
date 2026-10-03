@@ -212,6 +212,16 @@ Stop and report before acting if:
 - source evidence contradicts product claims
 - a feature would remove human oversight from safety-critical care
 
+## Receipt and provenance law
+
+**No action without a receipt. No receipt without provenance.**
+
+Every meaningful action or state change by a human, agent, scheduler, Aria, provider, device adapter, simulator, or external integration must create durable evidence linked back to its origin. If the system cannot answer who/what initiated an action, why it was authorized, what object changed, what executed it, and what evidence proves the result, that action is not validly complete.
+
+Agents may never use self-report (for example, "done") as proof of completion. Coding agents require branch/diff/tests/commit evidence. Operational agents require request/action/state/provider receipts. Simulated actors are held to the same rule and must be explicitly identified as simulated.
+
+The canonical simulator/receipt requirements are in `docs/CAOSCARE_OPERATIONS_SIMULATOR.md`.
+
 ## Non-negotiable
 
 CAOS Care must be built as a governed assistive care platform with human oversight, privacy controls, receipts, safety boundaries, and operational usefulness.
