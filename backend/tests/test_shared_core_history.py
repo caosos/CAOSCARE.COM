@@ -6,7 +6,8 @@ event_log with who and when, so a completion note no longer erases the
 progress notes before it. Runs the two department flows that share this
 contract (nursing resident request from Aria, maintenance work order from
 the admin) end to end over HTTP, plus a legacy task that predates
-event_log (nothing may be backfilled).
+event_log and receipts (nothing may be backfilled; SIM-0 D5: a change to it
+is refused and the refusal is recorded).
 
     TEST_API_BASE=http://127.0.0.1:8070 pytest tests/test_shared_core_history.py -q
 Skips cleanly if the backend is unreachable.
@@ -61,7 +62,7 @@ def _assert_append_only(receipts):
     for rc in receipts:
         a = rc["action_type"]
         if a in ("task_created", "resident_request_created", "task_assigned", "task_unassigned",
-                 "resident_request_re_requested"):
+                 "resident_request_re_requested", "task_note_added", "task_schedule_updated"):
             assert rc["status"] == "created", rc
         elif a.startswith("task_"):
             assert a == f"task_{rc['status']}", rc
@@ -132,7 +133,9 @@ async def _run():
         assert all(e["by"] == users["nurse"]["user_id"] and e["by_name"] == users["nurse"]["name"]
                    for e in staff), staff
         rr = next(e for e in log if e["field"] == "re_request")
-        assert rr["by"] == "resident" and rr["text"] == "is anyone coming?"
+        # a room claim: the actor is the room it came from, identity unverified (SIM-0 D3)
+        assert rr["by"] == f"room:{NURSE_ROOM}" and rr["by_name"] == "resident"
+        assert rr["text"] == "is anyone coming?"
         ats = [e["at"] for e in log]
         assert ats == sorted(ats)
 
@@ -173,17 +176,20 @@ async def _run():
         assert nt in seen_n and mt not in seen_n
         assert mt in seen_t and nt not in seen_t
 
-        # ---------- legacy task: no event_log, nothing backfilled ----------
+        # ---------- legacy task: nothing backfilled, change refused (D5) ----------
         lt = uid("task")
         await db.staff_tasks.insert_one({
             "task_id": lt, "title": f"{TAG} legacy", "category": "nursing", "status": "pending",
             "visibility_role": "nursing", "room": LEGACY_ROOM, "priority": "normal",
             "source": "staff", "notes": "old note", "created_at": now_utc().isoformat(),
         })
-        _post(f"/tasks/{lt}/acknowledge", N)   # no receipt exists: nothing to append to
+        # SIM-0 D5: no recorded origin -> the change is refused, nothing is
+        # written to the task, and the refused attempt itself is recorded.
+        r = requests.post(f"{API}/tasks/{lt}/acknowledge", headers=N, timeout=5)
+        assert r.status_code == 409, r.text
         ld = _detail(lt, N)
-        assert [e["field"] for e in ld["task"]["event_log"]] == ["acknowledged"]
-        assert ld["receipts"] == []
+        assert ld["task"].get("event_log", []) == [] and not ld["task"].get("acknowledged_at")
+        assert [rc["action_type"] for rc in ld["receipts"]] == ["task_acknowledge_refused"]
     finally:
         tids = [t["task_id"] for t in await db.staff_tasks.find(
             {"room": {"$regex": f"^{TAG}"}}, {"_id": 0, "task_id": 1}).to_list(50)]

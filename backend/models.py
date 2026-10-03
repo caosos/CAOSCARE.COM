@@ -176,6 +176,9 @@ class Resident(BaseModel):
     memory: Optional[str] = ""         # things the AI should remember about them
     preferred_name: Optional[str] = ""
     clinical_thresholds: Optional[ClinicalThresholds] = None
+    # A synthetic (demo/simulation) identity - set only server-side, e.g. by
+    # demo_kiosk.ensure_demo_room. Work created for it is marked simulated.
+    synthetic: bool = False
     created_at: datetime = Field(default_factory=now_utc)
 
 
@@ -813,6 +816,11 @@ class StaffTask(BaseModel):
     # requires one of these to be set); slot_id is kept only so historical
     # pilot-seed data stays readable.
     transport_run_id: Optional[str] = None
+    # Simulation provenance (ENGINEERING_CONTRACT decision 4). Set only by the
+    # canonical creation paths from the server-side resident record, never
+    # from a request body. simulation_scope: "demo_room" today.
+    simulated: bool = False
+    simulation_scope: Optional[str] = None
     created_at: datetime = Field(default_factory=now_utc)
 
 
@@ -834,10 +842,13 @@ class StaffTaskCreate(BaseModel):
 
 
 class StaffTaskUpdate(BaseModel):
+    """Generic PATCH: a note and the planned service window only. Status,
+    assignment and acknowledgement go through the lifecycle endpoints
+    (task_lifecycle.py), so a PATCH can never change them without the
+    lifecycle's authorization and receipt (SIM-0, Michael D2). Unknown
+    fields are rejected rather than silently ignored."""
+    model_config = ConfigDict(extra="forbid")
     notes: Optional[str] = None
-    assigned_to: Optional[str] = None
-    status: Optional[TaskStatus] = None
-    acknowledged_by: Optional[str] = None
     # Reuses the same "when" pair transportation already uses (see StaffTask's
     # comment above) rather than inventing a separate maintenance-only
     # schedule field - lets staff record a planned service window (e.g.
@@ -877,6 +888,8 @@ class StaffTaskTemplateCreate(BaseModel):
 # a domain object (related_object_type/id) rather than duplicating that
 # object's own data - see backend/routes/receipts.py.
 ReceiptStatus = Literal["created", "acknowledged", "in_progress", "completed", "failed", "cancelled"]
+ActorType = Literal["real-human", "simulated-agent", "system", "external-provider"]
+ResultLabel = Literal["verified", "simulated", "unverified", "failed"]
 
 
 class Receipt(BaseModel):
@@ -899,6 +912,25 @@ class Receipt(BaseModel):
     follow_up_required: bool = False
     related_object_type: Optional[str] = None  # "task", "alert", "device_command", ...
     related_object_id: Optional[str] = None
+    # Provenance (SIM-0, receipt law 2026-10-02): who acted, under what
+    # authority, what changed, and which receipt this one follows. All
+    # optional so receipts written before SIM-0 stay readable.
+    actor_id: Optional[str] = None
+    actor_type: Optional[ActorType] = None
+    actor_name: Optional[str] = None
+    actor_role: Optional[str] = None
+    actor_department: Optional[str] = None
+    channel: Optional[str] = None
+    identity_basis: Optional[str] = None       # authenticated / unverified_room_claim / synthetic / system
+    simulated: bool = False
+    authority: Optional[str] = None            # the rule that allowed it, e.g. "acts_for:maintenance"
+    parent_receipt_id: Optional[str] = None
+    correlation_id: Optional[str] = None       # the workflow's origin receipt
+    before_state: Optional[dict] = None
+    after_state: Optional[dict] = None
+    result_label: Optional[ResultLabel] = None
+    provider_refs: List[str] = Field(default_factory=list)
+    next_state: Optional[str] = None
     created_at: datetime = Field(default_factory=now_utc)
 
 

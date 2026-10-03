@@ -45,6 +45,9 @@ async def create_receipt(
     assigned_user: Optional[str] = None,
     status: ReceiptStatus = "created",
     result: Optional[str] = None,
+    failure_reason: Optional[str] = None,
+    provenance: Optional[dict] = None,
+    receipt_id: Optional[str] = None,
 ) -> dict:
     """Importable helper - call this directly from other route modules
     when a meaningful action happens. Never blocks the caller's own
@@ -55,7 +58,17 @@ async def create_receipt(
     caller isn't forced through a created->update_receipt_status("completed")
     round trip, and isn't tempted to reach for update_receipt_status's
     "most recent receipt for this object" lookup when a more specific one
-    already exists."""
+    already exists.
+
+    `provenance` carries the SIM-0 fields (actor, authority, parent /
+    correlation receipt, before/after state, result label, provider refs,
+    next state) built by task_lifecycle.py; `receipt_id` lets that caller
+    reference the receipt from the task's history before it is written."""
+    extra = dict(provenance or {})
+    if receipt_id:
+        extra["receipt_id"] = receipt_id
+    if requested_by is None and extra.get("actor_id"):
+        requested_by = extra["actor_id"]
     r = Receipt(
         action_type=action_type,
         related_object_type=related_object_type,
@@ -70,7 +83,9 @@ async def create_receipt(
         assigned_user=assigned_user,
         status=status,
         result=result,
+        failure_reason=failure_reason,
         completed_at=now_utc() if status == "completed" else None,
+        **extra,
     )
     doc = r.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
@@ -150,6 +165,7 @@ async def list_receipts(
     action_type: Optional[str] = None,
     source: Optional[str] = None,
     room: Optional[str] = None,
+    correlation_id: Optional[str] = None,   # one workflow's receipt chain (SIM-0)
     since: Optional[str] = None,   # ISO; created_at is stored as an ISO string, so a lexical range works (same as routes/events.py)
     until: Optional[str] = None,
     limit: int = Query(200, le=1000),
@@ -160,6 +176,7 @@ async def list_receipts(
         ("resident_id", resident_id), ("related_object_type", related_object_type),
         ("related_object_id", related_object_id), ("status", status),
         ("action_type", action_type), ("source", source), ("room", room),
+        ("correlation_id", correlation_id),
     ):
         if val:
             q[field] = val

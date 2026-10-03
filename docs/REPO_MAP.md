@@ -779,3 +779,11 @@ listener verifier experiment: `docs/experiments/`.
 - `backend/routes/demo_kiosk.py`: `DEMO_ROOM` (`DEMO`), `ensure_demo_room()` (synthetic resident "Demo - Sample Resident" + its kiosk as the single `public_demo` kiosk); DEMO RESET refuses any room other than `DEMO_ROOM`.
 - `backend/scripts/setup_demo_room.py`: runs `ensure_demo_room()` against the configured DB (idempotent).
 - `backend/tests/test_demo_kiosk.py::test_demo_room_leaves_other_rooms_untouched`.
+
+## 2026-10-03 — SIM-0 receipt / provenance spine (SC-13, branch `pilot/shared-core`)
+
+- `backend/routes/actor_context.py`: `ActorContext` (who acts, how their identity is known, channel) built server-side.
+- `backend/routes/task_lifecycle.py`: the one StaffTask state-change path — authority check, legacy refusal, task + history write, chained receipt; `record_origin()` for new requests; `simulation_marker()`.
+- `backend/routes/task_actions.py`: assign / acknowledge / start / note / schedule / complete / skip / delete on top of it; `tasks.py` and `task_assignment.py` are thin routes over these.
+- `Receipt` provenance fields (actor, authority, parent / correlation receipt, before/after state, result label, provider refs, next state); `GET /receipts?correlation_id=` returns one workflow's chain.
+- Test: `backend/tests/test_sim0_provenance_chain.py`; demo isolation in `test_demo_kiosk.py`.

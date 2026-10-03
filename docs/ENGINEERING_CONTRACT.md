@@ -261,3 +261,31 @@ See `docs/reports/2026-09-20-operational-workflow-audit.md` for the full
 evidence trail every finding above cites, and
 `docs/reports/RUNNING_FACILITY_TESTBED.md` for the simulation-specific
 architecture addendum (decisions 4, 7, 9, 13, 14, 15 in that context).
+
+### 2026-10-03 note — receipt law extends decision 5; SIM-0 implementation (SC-13)
+
+Decision 5 above is left as written. On 2026-10-02 Michael approved the
+receipt law ("No action without a receipt. No receipt without provenance."),
+recorded in `docs/CAOSCARE_OPERATIONS_SIMULATOR.md`. It **extends** decision
+5: for staff requests, every state-changing workflow action now gets a
+durable receipt (not only external side effects), linked to its originating
+request, actor, authorization, before/after state, evidence, time and next
+state (Michael D1, 2026-10-03). The append-only `StaffTask.event_log`
+(decision 6) remains the task's own history; each entry now carries the id
+of the receipt that records it.
+
+Implemented by SC-13 for StaffTask (decisions 3, 4 and 6 for this domain):
+- `backend/routes/actor_context.py` — `ActorContext`: actor type, identity
+  basis (authenticated / unverified room claim / synthetic / system),
+  channel, role, department. Built server-side only (decision 3).
+- `backend/routes/task_lifecycle.py` + `task_actions.py` — the one path for
+  claim, acknowledge, start, note, schedule, complete, skip, delete:
+  authority checked in the service (D2: department / assignee, admin/owner
+  override), receipt chained to the request's origin, legacy requests with
+  no recorded origin refused with the refusal recorded (D5).
+- `StaffTask.simulated` / `simulation_scope` and `Resident.synthetic`
+  (decision 4, demo room only so far), set only from the server-side
+  resident record.
+Not covered yet: alerts (`alerts.py` still uses `update_receipt_status`),
+transportation's own task writes, notification/provider linkage (SC-8),
+device results (SC-11).

@@ -13,17 +13,20 @@ room-command path (/devices/public/room/{room}/command) and the simulated
 adapter (simulated_device.py). Nothing here executes commands.
 
 Reset restores a known baseline: one light, thermostat, TV and blinds in
-the demo room (created if missing), baseline state, and open demo requests
-closed with a history entry. It refuses unless the public demo kiosk is
-in DEMO_ROOM, and when that room holds any non-simulated device, so it can
-never touch a real room, real requests or real hardware.
+the demo room (created if missing), baseline state, and open requests
+marked simulated for the demo room closed through the lifecycle, each with
+its own receipt; any other open request there is left untouched. It refuses
+unless the public demo kiosk is in DEMO_ROOM, and when that room holds any
+non-simulated device, so it can never touch a real room, real requests or
+real hardware.
 """
 from fastapi import APIRouter, HTTPException
 
 from deps import db
 from models import Kiosk, Resident, SmartDevice, now_utc
 from routes.receipts import create_receipt
-from routes.task_history import task_event, update_task_with_history
+from routes import task_actions
+from routes.actor_context import actor_system
 
 router = APIRouter(prefix="/demo", tags=["demo"])
 
@@ -58,9 +61,14 @@ async def ensure_demo_room(database=None) -> dict:
     resident = await database.residents.find_one({"room": DEMO_ROOM}, {"_id": 0})
     if not resident:
         resident = _iso(Resident(name=DEMO_RESIDENT_NAME, preferred_name="Sam", room=DEMO_ROOM,
-                                 pendant_id="DEMO-NONE",
+                                 pendant_id="DEMO-NONE", synthetic=True,
                                  memory="Synthetic demo resident for the public demo kiosk.").model_dump())
         await database.residents.insert_one(dict(resident))
+    elif not resident.get("synthetic"):
+        # Mark the existing demo resident synthetic (SIM-0): work created for
+        # it is then marked simulated, and only that work is reset.
+        await database.residents.update_one({"resident_id": resident["resident_id"]},
+                                            {"$set": {"synthetic": True}})
     kiosk = await database.kiosks.find_one({"room": DEMO_ROOM}, {"_id": 0})
     if not kiosk:
         kiosk = _iso(Kiosk(name=DEMO_KIOSK_NAME, room=DEMO_ROOM, zone="Demo").model_dump())
@@ -119,19 +127,26 @@ async def demo_reset():
             device_id = doc["device_id"]
         result.append({"device_id": device_id, "kind": base["kind"], "state": base["state"]})
 
+    # Only work marked simulated for the demo room is closed, each through the
+    # lifecycle with its own receipt. Any other open request in the room
+    # (unmarked, unverified, or older than the marker) is left exactly as it
+    # is and counted, never silently closed.
+    actor = actor_system("demo_reset")
+    open_q = {"room": room, "status": {"$in": OPEN_TASK_STATUSES}}
+    marked = {**open_q, "simulated": True, "simulation_scope": "demo_room"}
     closed = 0
-    async for task in db.staff_tasks.find({"room": room, "status": {"$in": OPEN_TASK_STATUSES}}, {"_id": 0}):
-        await update_task_with_history(
-            task["task_id"],
-            {"status": "skipped", "completed_at": now, "notes": "Closed by demo reset"},
-            [task_event("status", frm=task["status"], to="skipped", text="Demo reset",
-                        by="demo_reset", by_name="Demo reset")],
-        )
-        closed += 1
+    async for task in db.staff_tasks.find(marked, {"_id": 0, "task_id": 1}):
+        try:
+            await task_actions.skip(task["task_id"], "Closed by demo reset", actor, None,
+                                    authority="system:demo_reset")
+            closed += 1
+        except HTTPException:
+            pass   # refused (e.g. no recorded origin): left open, counted below
+    left_open = await db.staff_tasks.count_documents(open_q)
 
     receipt = await create_receipt(
         action_type="demo_reset", related_object_type="kiosk", related_object_id=kiosk["kiosk_id"],
         source="system", resident_id=resident_id, room=room,
     )
     return {"room": room, "kiosk_id": kiosk["kiosk_id"], "devices": result,
-            "requests_closed": closed, "receipt_id": receipt["receipt_id"]}
+            "requests_closed": closed, "left_open": left_open, "receipt_id": receipt["receipt_id"]}
