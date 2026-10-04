@@ -6031,3 +6031,15 @@ Approval (Michael, 2026-10-03, coordinator session): "Approved. Update AGENTS.md
 - `AGENTS.md` line 61 (preserve list): "resident-room-node architecture" → "room architecture (central EliteDesk server + Voice PE room endpoint)".
 - `CLAUDE.md` lines 27-28: same corrected architecture; the old wording kept as a superseded note.
 - Documentation only. Branch `docs/aria-voice-pe-decision`; not merged; main, integration, PR #41/#42, Linode, website and hardware untouched.
+
+---
+
+## 2026-10-03 — Coordinator: Aria Voice PE decision docs merged into integration
+
+Approval (Michael, 2026-10-03, coordinator session): merge `docs/aria-voice-pe-decision` at exactly `fe06d6739d2b05d80de1689d4f3160fb8a9b0870` into `integration/2026-09-27` with a merge commit.
+
+- Pre-checks: source resolved to `fe06d67` (exact); integration `d5556ed264a3c471c8c8623e22f583cd49bbe399` = origin, clean.
+- Merge commit `22ca2e32c6dd2abda411422fed1db9bd8f3a1b4f` (`--no-ff`), no conflicts. Brings in `444e297` (decision: Aria on Voice PE, "Hey Aria", Naboo superseded), `f5d8ea5` (correction: central EliteDesk server, Voice PE per apartment, no standard-room eMeet, separate handset telephony) and `fe06d67` (AGENTS.md / CLAUDE.md aligned).
+- Files: AGENTS.md, CLAUDE.md, docs/ARIA_WAKE_WORD_ARCHITECTURE.md, docs/CAOSCARE_PRODUCT_BASELINE.md, docs/CURRENT_PRIORITY.md, docs/PROJECT_STATE.md, docs/ROOM_AUDIO_ARCHITECTURE.md. No source/runtime file changed.
+- Agreement check: AGENTS.md, CLAUDE.md, Product Baseline §2, ROOM_AUDIO_ARCHITECTURE, ARIA_WAKE_WORD_ARCHITECTURE, CURRENT_PRIORITY and PROJECT_STATE all state the corrected architecture (central EliteDesk; Voice PE per apartment; no per-apartment EliteDesk; no standard-room eMeet; separate handset telephony; Aria, "Hey Aria", "Aria" test candidate); older wording is marked superseded.
+- Not done: main, PR #41/#42, Linode, website, runtime and hardware untouched.
