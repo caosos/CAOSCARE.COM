@@ -845,3 +845,7 @@ listener verifier experiment: `docs/experiments/`.
 
 - `backend/scripts/measure_voice_prompt.py`: per-section / per-tool size of the voice bridge's model request (no model call). Audit: `docs/reports/2026-10-04-voice-prompt-context-audit.md`.
 - `backend/routes/companion_tool_guidance.py` (capability + tool guidance generated from the tools a call provides), `backend/routes/companion_prompt_contract.py` (required sections / single-statement rules / unsupported-claim checks); test `backend/tests/test_companion_prompt_phase_a.py`.
+
+## 2026-10-04 — Room announcements (branch `spike/voice-bridge`)
+
+- `backend/routes/room_announcements.py` (service + `/api/room-announcements`), `backend/routes/room_announcement_policy.py` (routing + authority), `backend/models_announcements.py`, `backend/announcement_providers.py` (provider interface; HA Assist satellite announce). Contract: `docs/ROOM_ANNOUNCEMENT_CONTRACT.md`; test `backend/tests/test_room_announcements.py`.

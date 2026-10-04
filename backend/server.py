@@ -77,6 +77,7 @@ from routes import receipts as receipt_routes  # noqa: E402
 from routes import realtime_diagnostics as realtime_diagnostics_routes  # noqa: E402
 from routes import voice_bridge as voice_bridge_routes  # noqa: E402
 from routes import voice_bridge_devices as voice_bridge_devices_routes  # noqa: E402
+from routes import room_announcements as room_announcements_routes  # noqa: E402
 from routes import capacity_monitor as capacity_monitor_routes  # noqa: E402
 from routes import resident_conversations as resident_conversations_routes  # noqa: E402
 from routes import admin_assistant as admin_assistant_routes  # noqa: E402
@@ -142,6 +143,10 @@ async def lifespan(app: FastAPI):
         await _ensure_voice_bridge_indexes()
     except Exception as e:
         logging.warning(f"voice bridge index setup skipped: {e}")
+    try:
+        await room_announcements_routes.ensure_indexes()
+    except Exception as e:
+        logging.warning(f"room announcement index setup skipped: {e}")
     monitor = None
     if os.environ.get("CAOSCARE_CAPACITY_MONITOR", "1") != "0":
         from routes.capacity_monitor import run_forever as _capacity_monitor
@@ -234,6 +239,7 @@ api.include_router(receipt_routes.router)
 api.include_router(realtime_diagnostics_routes.router)
 api.include_router(voice_bridge_routes.router)
 api.include_router(voice_bridge_devices_routes.router)
+api.include_router(room_announcements_routes.router)
 api.include_router(capacity_monitor_routes.router)
 api.include_router(resident_conversations_routes.router)
 api.include_router(admin_assistant_routes.router)

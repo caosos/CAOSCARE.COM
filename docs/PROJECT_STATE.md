@@ -6320,3 +6320,25 @@ All custom-firmware systems use plaintext `ws://` (two with no device authentica
 
 ### Not done
 No implementation (Phase 1). External runtime behaviour not verified.
+
+---
+
+## 2026-10-04 — Voice PE slice 1: room-targeted announcements with receipts
+
+### Agent / branch
+Claude Code (Opus 5.5), `spike/voice-bridge`, starting SHA `97a34f795125c59a3a19392c5ed0b4dd710c09c9`. Authorized by Michael 2026-10-04 ("CARE APP — VOICE PE INTEGRATION SLICE 1"). Not merged, not deployed.
+
+### What changed
+- `backend/models_announcements.py` (new), `backend/announcement_providers.py` (new), `backend/routes/room_announcement_policy.py` (new), `backend/routes/room_announcements.py` (new): `POST /api/room-announcements`, `GET /api/room-announcements/{id}`, in-process `announce()`; lifecycle requested → authorized/rejected → queued → sent_to_provider → playback_started/finished or failed → receipt_recorded; one chained receipt per state via `create_receipt`; unique idempotency key; provider interface with the Home Assistant `assist_satellite.announce` provider.
+- `backend/server.py`: router + index setup.
+- `backend/tests/test_room_announcements.py` (new, 19 tests).
+- `docs/ROOM_ANNOUNCEMENT_CONTRACT.md` (new); `docs/REPO_MAP.md`.
+
+### Verification
+Focused tests only, throwaway DB, fakes and mocked HA HTTP: `test_room_announcements.py` 19 passed; `test_voice_bridge.py`, `test_voice_bridge_units.py`, `test_voice_bridge_flow.py`, `test_companion_prompt_phase_a.py` 23 passed. Test databases dropped.
+
+### Resource state
+Available RAM 8.6–9.3 GB throughout; swap full (2.0 GB, pre-existing) with no sustained swapping; wake lab PID 3013581 alive and advancing (`kestra_kess_truh`).
+
+### Not done
+No live Home Assistant test (HA down/untouched); no hardware test; no deployment; full backend/frontend suites, production build and load tests deferred while wake training runs. No quiet-hours, emergency-announcement or scheduling policy exists — recorded as `none_defined` / refused, not invented.
