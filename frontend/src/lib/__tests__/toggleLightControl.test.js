@@ -80,10 +80,44 @@ test("'make it warm white' maps to the warm color_temp Kelvin value", async () =
 test("unsupported capability (color on a basic light) is reported honestly, not silently dropped", async () => {
   mockFetch(LIGHT_BASIC); // no color/color_temp capability
   const r = await executeDeviceTool({ name: "toggle_light", args: { color: "blue" }, ctx: ctx() });
-  expect(r.ok).toBe(true); // the call itself succeeded, just not that field
+  expect(r.ok).toBe(false); // SC-10: nothing the resident asked for happened
+  expect(r.unsupported).toEqual(["color"]);
   expect(r.message).toContain("doesn't support color");
   const posts = global.fetch.mock.calls.filter(([u]) => String(u).includes("/command"));
   expect(posts).toHaveLength(0); // never sent a color command the device can't do
+});
+
+// SC-10 (Lane G demo 2026-09-28): "make the light green" on an OFF light
+// without color switched it on, then reported "doesn't support color" with
+// ok:true. Capability is now checked first; nothing is sent.
+const LIGHT_BASIC_OFF = { device_id: "dev_light", kind: "light", capabilities: ["power", "brightness"], state: { power: "off", brightness: 80 } };
+
+test("SC-10: unsupported color on an OFF light sends no power-on and no command at all", async () => {
+  mockFetch(LIGHT_BASIC_OFF);
+  const r = await executeDeviceTool({ name: "toggle_light", args: { color: "green" }, ctx: ctx() });
+  expect(r.ok).toBe(false);
+  expect(r.message).toContain("doesn't support color");
+  expect(r.message).toContain("left it as it was");
+  expect(r.message).not.toMatch(/turned|set the/);
+  const posts = global.fetch.mock.calls.filter(([u]) => String(u).includes("/command"));
+  expect(posts).toHaveLength(0);
+});
+
+test("SC-10: a supported + unsupported mix (brightness + color temperature) changes nothing", async () => {
+  mockFetch(LIGHT_BASIC_OFF);
+  const r = await executeDeviceTool({ name: "toggle_light", args: { state: "on", brightness: 40, color_temp: "warm" }, ctx: ctx() });
+  expect(r.ok).toBe(false);
+  expect(r.unsupported).toEqual(["color temperature"]);
+  const posts = global.fetch.mock.calls.filter(([u]) => String(u).includes("/command"));
+  expect(posts).toHaveLength(0);
+});
+
+test("SC-10: supported attributes on an OFF light still imply power-on (unchanged)", async () => {
+  mockFetch(LIGHT_BASIC_OFF);
+  const r = await executeDeviceTool({ name: "toggle_light", args: { brightness: 40 }, ctx: ctx() });
+  expect(r.ok).toBe(true);
+  const posts = global.fetch.mock.calls.filter(([u]) => String(u).includes("/command"));
+  expect(posts.map(([, o]) => JSON.parse(o.body).action)).toEqual(["power", "brightness"]);
 });
 
 test("no room context is rejected before any network call", async () => {

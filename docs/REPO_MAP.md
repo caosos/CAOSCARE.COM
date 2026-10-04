@@ -814,3 +814,8 @@ listener verifier experiment: `docs/experiments/`.
 ## 2026-10-04 — Pilot Room 1 hardware BOM (RQ-004)
 
 - `docs/PILOT1_ROOM1_HARDWARE_INVENTORY.md`: evidence-based Pilot Room 1 BOM (owned / ordered / required / optional / do-not-buy) and the single request for missing physical facts. No purchase is authorized by it.
+
+## 2026-10-04 — Device truth SC-10/11/12 (branch `pilot/shared-core-device-truth`)
+
+- `backend/device_adapters.py::simulation_fields()`: the one statement of a device's simulation truth (`simulated`, `simulation_scope` demo_room / real_room); used by `execute_mock` and every `device_commands` record. `verified` comes only from the adapter.
+- Test: `backend/tests/test_device_truth.py`; frontend `frontend/src/lib/__tests__/deviceSessionTrace.test.js`.

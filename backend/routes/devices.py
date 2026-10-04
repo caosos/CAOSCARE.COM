@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends, Request
 from models import SmartDevice, SmartDeviceCreate, DeviceCommandInput, now_utc
 from deps import db, get_current_user
-from device_adapters import has_adapter, execute as execute_adapter
+from device_adapters import has_adapter, execute as execute_adapter, simulation_fields
 from routes.receipts import create_receipt
 from routes.events import log_event
 
@@ -102,6 +102,7 @@ async def _dispatch_command(dev: dict, cmd: DeviceCommandInput, issued_by: str) 
         "endpoint": dev.get("endpoint"),
         "state_before": state_before,
         "session_id": cmd.session_id,
+        **simulation_fields(dev),
     }
     new_state = state_before
     if has_adapter(protocol):
@@ -111,13 +112,15 @@ async def _dispatch_command(dev: dict, cmd: DeviceCommandInput, issued_by: str) 
             command["acked_at"] = command["issued_at"]
             command["ack_detail"] = result.get("detail", "")
             if "state" in result:
-                # Adapter did its own real read-back (home_assistant) - this
-                # IS verified truth, so it fully replaces state rather than
-                # merging with the (possibly stale) prior optimistic value,
-                # and a mode-switch (color -> color_temp) correctly drops
-                # the now-irrelevant field instead of leaving it stale.
+                # Adapter did its own read-back (home_assistant: the real
+                # device; mock: the simulator) - it fully replaces state
+                # rather than merging with the (possibly stale) prior
+                # optimistic value, and a mode-switch (color -> color_temp)
+                # correctly drops the now-irrelevant field instead of
+                # leaving it stale. Verified only when the adapter says so:
+                # a simulator read-back in a real room is not (SC-11).
                 new_state = result["state"]
-                command["verified"] = True
+                command["verified"] = result.get("verified") is True
             else:
                 new_state = {**new_state, cmd.action: cmd.value}
                 command["verified"] = False
@@ -214,6 +217,7 @@ async def public_room_command(room: str, request: Request, cmd: DeviceCommandInp
     # the lower-level device_commands log (2026-09-05, real Matter light
     # work - "preserve the existing device receipt/audit path").
     resident_id = target.get("resident_id")
+    simulated = bool(simulation_fields(target))
     started = time.monotonic()
     try:
         result = await _dispatch_command(target, cmd, f"kiosk:room:{room}")
@@ -224,6 +228,7 @@ async def public_room_command(room: str, request: Request, cmd: DeviceCommandInp
             related_object_id=target["device_id"], source="aria_voice",
             resident_id=resident_id, room=room, conversation_session_id=cmd.session_id,
             status="failed", result=str(e.detail),
+            provenance={"simulated": simulated, "result_label": "failed"},
         )
         await log_event(
             event_type="device.command", source="resident_aria", resident_id=resident_id, room=room,
@@ -234,18 +239,22 @@ async def public_room_command(room: str, request: Request, cmd: DeviceCommandInp
         )
         raise
     duration_ms = (time.monotonic() - started) * 1000
-    verified = bool(result.get("verified"))
+    # One label for receipt and event: a simulator result is "simulated"
+    # even when verified against the demo room's simulator, so no record
+    # reads as physical proof (SC-11).
+    label = "simulated" if simulated else "verified" if result.get("verified") else "unverified"
     receipt = await create_receipt(
         action_type="resident_aria_device_command", related_object_type="device",
         related_object_id=target["device_id"], source="aria_voice",
         resident_id=resident_id, room=room, conversation_session_id=cmd.session_id,
         status="completed", result=result.get("ack_detail"),
+        provenance={"simulated": simulated, "result_label": label},
     )
     await log_event(
         event_type="device.command", source="resident_aria", resident_id=resident_id, room=room,
         conversation_id=cmd.session_id, target_type="device", target_id=target["device_id"],
         action=cmd.action, status=result.get("status"), duration_ms=duration_ms,
-        verification_status="verified" if verified else "unverified", receipt_id=receipt["receipt_id"],
+        verification_status=label, receipt_id=receipt["receipt_id"],
         metadata={"protocol": target.get("protocol"), "requested_value": cmd.value,
                   "state_before": result.get("state_before"), "state_after": result.get("state")},
     )

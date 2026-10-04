@@ -33,6 +33,7 @@ from typing import Optional
 
 import httpx
 
+from routes.demo_kiosk import DEMO_ROOM
 from simulated_device import apply_simulated_command
 
 HA_BASE_URL = os.environ.get("HA_BASE_URL", "").rstrip("/")
@@ -55,9 +56,29 @@ async def execute_mock(device: dict, action: str, value):
     """Simulated device (no hardware): validates the command against the
     device's own capabilities and returns the resulting simulated state as
     the read-back, so an unsupported or invalid command fails instead of
-    being reported as done (simulated_device.py)."""
+    being reported as done (simulated_device.py).
+
+    Always `simulated: True`. `verified` is True only in the demo-only room,
+    where the simulator IS the device the demo is about; a mock device in a
+    real room is scaffolding, so its read-back is never recorded as verified
+    (SC-11)."""
     state = apply_simulated_command(device, action, value)
-    return {"detail": "simulated device - no hardware; state read back from the simulator", "state": state}
+    sim = simulation_fields(device)
+    return {
+        "detail": f"simulated device ({sim['simulation_scope']}) - no hardware; state read back from the simulator",
+        "state": state, "verified": sim["simulation_scope"] == "demo_room", **sim,
+    }
+
+
+def simulation_fields(device: dict) -> dict:
+    """What every record of a command on this device states about
+    simulation: {} for a real-transport device; for a mock device,
+    `simulated: True` and whether it sits in the demo-only room or in a
+    real room (SC-11)."""
+    if device.get("protocol") != "mock":
+        return {}
+    return {"simulated": True,
+            "simulation_scope": "demo_room" if device.get("room") == DEMO_ROOM else "real_room"}
 
 
 def _brightness255_to_pct(raw) -> Optional[int]:
@@ -252,7 +273,7 @@ async def execute_home_assistant(device: dict, action: str, value):
         verified_state = {"power": after.get("state")}
     return {
         "detail": f"home_assistant: called {domain}.{service} on {entity_id}, verified by read-back",
-        "state": verified_state,
+        "state": verified_state, "verified": True,
     }
 
 
