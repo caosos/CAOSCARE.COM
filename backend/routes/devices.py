@@ -169,7 +169,13 @@ async def public_room_command(room: str, request: Request, cmd: DeviceCommandInp
     assigned to that room. HMAC optional."""
     from routes.device_auth import verify_device_token
     await verify_device_token(request, "locations.ingest")  # reuse the locations scope
+    return await execute_room_command(room, cmd)
 
+
+async def execute_room_command(room: str, cmd: DeviceCommandInput) -> dict:
+    """Room-scoped device command with its receipt and event - the one path
+    for resident-originated commands (room screen route above, voice bridge).
+    Callers authenticate the room before calling."""
     devices = await db.smart_devices.find({"room": room}, {"_id": 0}).to_list(50)
     if not devices:
         raise HTTPException(status_code=404, detail=f"No devices in room {room}")

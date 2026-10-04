@@ -21,9 +21,11 @@ from routes.resident_requests import (
     resident_request_status, resident_request_history,
 )
 
+from routes.voice_bridge_action_tools import ACTION_TOOLS, run_action_tool
+
 BRIDGE_TOOLS = ("get_menu", "get_todays_schedule", "request_staff_help",
                 "check_request_status", "check_request_history",
-                "get_current_time", "end_call")
+                "get_current_time", "end_call") + ACTION_TOOLS
 ENDING_TOOLS = ("end_call",)
 
 
@@ -78,6 +80,8 @@ async def run_bridge_tool(name: str, args: dict, ctx: dict) -> dict:
         return {"ok": True, **await fn(**kw)}
     if name == "get_current_time":
         return {"ok": True, **(await _facility_now())}
+    if name in ACTION_TOOLS:
+        return await run_action_tool(name, args, ctx)
     if name in ENDING_TOOLS:
         return {"ok": True, "ended": True}
     return {"ok": False, "detail": f"tool {name} is not available on this endpoint"}

@@ -826,3 +826,11 @@ listener verifier experiment: `docs/experiments/`.
 - `integrations/home_assistant/custom_components/caoscare_conversation/bridge_client.py`: the agent's HTTP call (no HA imports).
 - `docs/VOICE_PE_BRIDGE_INSTALL.md`: installation, configuration, verification, rollback.
 - Tests: `backend/tests/test_voice_bridge_flow.py`, `backend/tests/test_voice_bridge_units.py`.
+
+## 2026-10-04 — Voice bridge capacity and load harness (branch `spike/voice-bridge`)
+
+- `backend/routes/voice_bridge_admission.py`: priority classes and per-worker admission (reserved staff-help slots).
+- `backend/routes/voice_bridge_action_tools.py`: bridge tools for lights, thermostat, transportation, call for help (canonical services).
+- `backend/routes/devices.py::execute_room_command`: the one room-scoped command path (room screen + voice bridge).
+- `backend/loadtest/`: load harness (`python -m loadtest.run`), simulated provider, results in `loadtest/results/`.
+- Report: `docs/reports/2026-10-04-voice-bridge-load-test.md`.

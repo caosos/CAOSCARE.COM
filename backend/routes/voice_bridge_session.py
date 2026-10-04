@@ -75,7 +75,10 @@ async def resolve_identity(device_ids: list) -> dict:
         {"_id": 0, "resident_id": 1, "name": 1, "preferred_name": 1, "synthetic": 1})
     if not resident:
         raise HTTPException(404, "no resident is assigned to this room")
-    facility = await get_active_facility() or {}
+    facility = {}
+    if kiosk.get("facility_id"):
+        facility = await db.facilities.find_one({"facility_id": kiosk["facility_id"]}, {"_id": 0}) or {}
+    facility = facility or await get_active_facility() or {}
     return {"device_id": ids[0], "kiosk_id": kiosk["kiosk_id"], "room": kiosk["room"],
             "resident_id": resident["resident_id"],
             "resident_name": resident.get("preferred_name") or resident.get("name"),

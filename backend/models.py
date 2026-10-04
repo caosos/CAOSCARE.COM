@@ -218,6 +218,7 @@ class Kiosk(BaseModel):
     # voice endpoints (Voice PE). The voice bridge resolves room/resident
     # from this mapping only; a device id belongs to at most one kiosk.
     voice_device_ids: List[str] = Field(default_factory=list)
+    facility_id: Optional[str] = None   # community; unset = the single active facility
     created_at: datetime = Field(default_factory=now_utc)
 
 

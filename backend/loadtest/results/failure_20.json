@@ -1,0 +1,2093 @@
+{
+ "scenario": "failure",
+ "config": {
+  "scenario": "failure",
+  "levels": "20",
+  "workers": 2,
+  "port": 8097,
+  "max_active": 40,
+  "reserved": 8,
+  "llm_ms": 1200,
+  "llm_jitter_ms": 400,
+  "llm_max_conc": 0,
+  "llm_rpm": 0,
+  "stt_ms": 400,
+  "stt_max_conc": 1000,
+  "tts_ms": 600,
+  "tts_max_conc": 1000,
+  "keep_db": false,
+  "duration": 32.0,
+  "out": "loadtest/results/failure_20.json",
+  "run_id": "caos_vb_load_1791091095"
+ },
+ "db": "caos_vb_load_1791091095",
+ "levels": {
+  "20": {
+   "rooms": 20,
+   "turns": 225,
+   "duration_s": 44.2,
+   "throughput_turns_per_s": 5.1,
+   "accepted_sessions": 20,
+   "rejected_sessions": 0,
+   "deferred_first_turns": 0,
+   "queued_turns": 0,
+   "max_queue_wait_ms": 0,
+   "deferred_turns": 0,
+   "dropped_turns": 0,
+   "http_errors": 0,
+   "degraded_turns": 78,
+   "duplicates_answered_once": 6,
+   "first_ack_s": {
+    "p50": 0.1,
+    "p95": 17.3,
+    "p99": 17.8,
+    "max": 17.9
+   },
+   "complete_response_s": {
+    "p50": 0.8,
+    "p95": 3.4,
+    "p99": 3.7,
+    "max": 3.7
+   },
+   "client_leaks": 0,
+   "dropped_examples": [],
+   "by_class": {
+    "emergency": {
+     "turns": 10,
+     "deferred": 0,
+     "degraded": 0,
+     "p50_s": 0.1,
+     "p95_s": 0.6,
+     "max_s": 0.6
+    },
+    "information": {
+     "turns": 26,
+     "deferred": 0,
+     "degraded": 15,
+     "p50_s": 1.3,
+     "p95_s": 17.3,
+     "max_s": 17.3
+    },
+    "conversation": {
+     "turns": 46,
+     "deferred": 0,
+     "degraded": 29,
+     "p50_s": 1.2,
+     "p95_s": 17.3,
+     "max_s": 17.3
+    },
+    "operational": {
+     "turns": 26,
+     "deferred": 0,
+     "degraded": 17,
+     "p50_s": 1.8,
+     "p95_s": 17.8,
+     "max_s": 17.9
+    },
+    "room_action": {
+     "turns": 24,
+     "deferred": 0,
+     "degraded": 15,
+     "p50_s": 2.6,
+     "p95_s": 17.3,
+     "max_s": 17.3
+    },
+    "staff_help": {
+     "turns": 6,
+     "deferred": 0,
+     "degraded": 2,
+     "p50_s": 2.6,
+     "p95_s": 3.0,
+     "max_s": 3.0
+    },
+    "session_end": {
+     "turns": 81,
+     "deferred": 0,
+     "degraded": 0,
+     "p50_s": 0.0,
+     "p95_s": 0.1,
+     "max_s": 0.1
+    },
+    "retry": {
+     "turns": 6,
+     "deferred": 0,
+     "degraded": 0,
+     "p50_s": 0.0,
+     "p95_s": 0.1,
+     "max_s": 0.1
+    }
+   },
+   "resources": {
+    "samples": 166,
+    "cpu_cores": 8,
+    "app_cpu_pct": {
+     "avg": 17.0,
+     "p95": 52.9,
+     "max": 129.7
+    },
+    "mongo_cpu_pct": {
+     "avg": 8.2,
+     "p95": 25.6,
+     "max": 64.9
+    },
+    "host_cpu_pct": {
+     "avg": 99.2,
+     "p95": 100.0,
+     "max": 100.0
+    },
+    "rss_mb": {
+     "avg": 198.3,
+     "p95": 199.1,
+     "max": 199.1
+    },
+    "fds": {
+     "avg": 71.2,
+     "p95": 75,
+     "max": 75
+    },
+    "conns": {
+     "avg": 16.3,
+     "p95": 20,
+     "max": 20
+    }
+   },
+   "checks": {
+    "receipts_stored": 225,
+    "missing_receipts": 0,
+    "orphan_receipts": 0,
+    "receipts_with_wrong_resident": 0,
+    "tasks_created": 8,
+    "orphan_tasks": [],
+    "help_events": 2,
+    "orphan_help_events": [],
+    "duplicate_open_requests": {},
+    "duplicate_open_help_events": {},
+    "ending_requested": 20,
+    "ending_succeeded": 20,
+    "sessions_closed": 81,
+    "device_commands": 10,
+    "device_commands_unverified": 0
+   },
+   "server": {
+    "calls": 163,
+    "rate_limited": 0,
+    "failed": 58,
+    "timeouts": 20,
+    "leak_contexts": 0,
+    "workers": 2,
+    "admission": [
+     {
+      "active": 0,
+      "queued": 0,
+      "slots": 40,
+      "reserved_for_staff_help": 8,
+      "admitted": 68,
+      "deferred": 0,
+      "max_queue": 0,
+      "max_active": 13,
+      "by_class": {
+       "emergency": {
+        "admitted": 0,
+        "deferred": 0,
+        "wait_s_total": 0.0
+       },
+       "staff_help": {
+        "admitted": 3,
+        "deferred": 0,
+        "wait_s_total": 3.443332388997078e-05
+       },
+       "operational": {
+        "admitted": 13,
+        "deferred": 0,
+        "wait_s_total": 0.00015672529116272926
+       },
+       "room_action": {
+        "admitted": 14,
+        "deferred": 0,
+        "wait_s_total": 0.00019234651699662209
+       },
+       "information": {
+        "admitted": 12,
+        "deferred": 0,
+        "wait_s_total": 0.000136679969727993
+       },
+       "conversation": {
+        "admitted": 26,
+        "deferred": 0,
+        "wait_s_total": 0.00033531198278069496
+       }
+      }
+     },
+     {
+      "active": 0,
+      "queued": 0,
+      "slots": 40,
+      "reserved_for_staff_help": 8,
+      "admitted": 60,
+      "deferred": 0,
+      "max_queue": 0,
+      "max_active": 9,
+      "by_class": {
+       "emergency": {
+        "admitted": 0,
+        "deferred": 0,
+        "wait_s_total": 0.0
+       },
+       "staff_help": {
+        "admitted": 3,
+        "deferred": 0,
+        "wait_s_total": 3.017159178853035e-05
+       },
+       "operational": {
+        "admitted": 13,
+        "deferred": 0,
+        "wait_s_total": 0.0001977928914129734
+       },
+       "room_action": {
+        "admitted": 10,
+        "deferred": 0,
+        "wait_s_total": 0.00010769953951239586
+       },
+       "information": {
+        "admitted": 14,
+        "deferred": 0,
+        "wait_s_total": 0.0001677628606557846
+       },
+       "conversation": {
+        "admitted": 20,
+        "deferred": 0,
+        "wait_s_total": 0.00023075705394148827
+       }
+      }
+     }
+    ]
+   },
+   "stt_wait_max_s": 0.0,
+   "tts_wait_max_s": 0.0,
+   "control_timeline": [
+    {
+     "mode": "ok",
+     "at_s": 0.3
+    },
+    {
+     "mode": "down",
+     "at_s": 4.3
+    },
+    {
+     "mode": "ok",
+     "at_s": 12.3
+    },
+    {
+     "mode": "slow",
+     "at_s": 16.3
+    },
+    {
+     "mode": "ok",
+     "at_s": 22.3
+    }
+   ],
+   "turn_timeline": [
+    {
+     "t_rel": 0.6,
+     "kind": "emergency",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.4688504198566079
+    },
+    {
+     "t_rel": 0.6,
+     "kind": "emergency",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.5519635733217001
+    },
+    {
+     "t_rel": 0.8,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 1.3407879653386772
+    },
+    {
+     "t_rel": 0.6,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 1.4630861589685082
+    },
+    {
+     "t_rel": 0.6,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 1.59720450732857
+    },
+    {
+     "t_rel": 0.7,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 1.4827992217615247
+    },
+    {
+     "t_rel": 0.7,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 1.4352684179320931
+    },
+    {
+     "t_rel": 0.6,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 1.98551986226812
+    },
+    {
+     "t_rel": 1.9,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 0.9239298212341964
+    },
+    {
+     "t_rel": 0.6,
+     "kind": "staff_help",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 2.53367686457932
+    },
+    {
+     "t_rel": 0.6,
+     "kind": "lighting",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 2.6727014388889074
+    },
+    {
+     "t_rel": 0.5,
+     "kind": "staff_help",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 2.511062049306929
+    },
+    {
+     "t_rel": 0.6,
+     "kind": "thermostat",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 2.7436135839670897
+    },
+    {
+     "t_rel": 0.6,
+     "kind": "transportation",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 2.607897240202874
+    },
+    {
+     "t_rel": 0.7,
+     "kind": "nursing",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 2.5821052119135857
+    },
+    {
+     "t_rel": 0.7,
+     "kind": "transportation",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 2.7802792540751398
+    },
+    {
+     "t_rel": 0.7,
+     "kind": "thermostat",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 2.621681995689869
+    },
+    {
+     "t_rel": 0.6,
+     "kind": "maintenance",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 2.937536376994103
+    },
+    {
+     "t_rel": 2.2,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 1.190040429122746
+    },
+    {
+     "t_rel": 0.6,
+     "kind": "maintenance",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 2.8509581252001226
+    },
+    {
+     "t_rel": 0.6,
+     "kind": "nursing",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 2.9680783259682357
+    },
+    {
+     "t_rel": 0.7,
+     "kind": "lighting",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 2.8143377052620053
+    },
+    {
+     "t_rel": 4.0,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.04290736559778452
+    },
+    {
+     "t_rel": 3.9,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.03551075700670481
+    },
+    {
+     "t_rel": 4.1,
+     "kind": "retry",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.04401332279667258
+    },
+    {
+     "t_rel": 4.2,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.04663765709847212
+    },
+    {
+     "t_rel": 4.2,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.06400513090193272
+    },
+    {
+     "t_rel": 4.4,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.03835404897108674
+    },
+    {
+     "t_rel": 4.2,
+     "kind": "retry",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.03604407608509064
+    },
+    {
+     "t_rel": 4.4,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.033028552774339914
+    },
+    {
+     "t_rel": 3.1,
+     "kind": "activities",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 1.3351313779130578
+    },
+    {
+     "t_rel": 3.1,
+     "kind": "menu",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 1.3552218731492758
+    },
+    {
+     "t_rel": 4.5,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.07579420786350965
+    },
+    {
+     "t_rel": 4.5,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.04039966780692339
+    },
+    {
+     "t_rel": 4.8,
+     "kind": "lighting",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.059595340862870216
+    },
+    {
+     "t_rel": 4.7,
+     "kind": "status",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.05812382698059082
+    },
+    {
+     "t_rel": 3.1,
+     "kind": "activities",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 1.537347137928009
+    },
+    {
+     "t_rel": 3.1,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 1.6762005989439785
+    },
+    {
+     "t_rel": 3.6,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 1.4524559280835092
+    },
+    {
+     "t_rel": 5.2,
+     "kind": "status",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.06160729471594095
+    },
+    {
+     "t_rel": 3.1,
+     "kind": "menu",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 2.1045895852148533
+    },
+    {
+     "t_rel": 4.1,
+     "kind": "lighting",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 1.2694172537885606
+    },
+    {
+     "t_rel": 5.5,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.03496800968423486
+    },
+    {
+     "t_rel": 5.5,
+     "kind": "status",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.057978343684226274
+    },
+    {
+     "t_rel": 4.2,
+     "kind": "status",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 1.4279442471452057
+    },
+    {
+     "t_rel": 5.8,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.02686515497043729
+    },
+    {
+     "t_rel": 5.9,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.04736590525135398
+    },
+    {
+     "t_rel": 5.5,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.10295710060745478
+    },
+    {
+     "t_rel": 5.8,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.07408215617761016
+    },
+    {
+     "t_rel": 6.1,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.035211272072046995
+    },
+    {
+     "t_rel": 5.9,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.07551134377717972
+    },
+    {
+     "t_rel": 6.0,
+     "kind": "emergency",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.07501029269769788
+    },
+    {
+     "t_rel": 6.0,
+     "kind": "staff_help",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.070116912946105
+    },
+    {
+     "t_rel": 6.3,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.07192988693714142
+    },
+    {
+     "t_rel": 6.2,
+     "kind": "transportation",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.09286771202459931
+    },
+    {
+     "t_rel": 6.4,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.03541165078058839
+    },
+    {
+     "t_rel": 6.2,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.051787498872727156
+    },
+    {
+     "t_rel": 6.4,
+     "kind": "staff_help",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.06454047281295061
+    },
+    {
+     "t_rel": 6.3,
+     "kind": "emergency",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.12985542928799987
+    },
+    {
+     "t_rel": 6.5,
+     "kind": "thermostat",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.11466075899079442
+    },
+    {
+     "t_rel": 6.6,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.04016639292240143
+    },
+    {
+     "t_rel": 6.7,
+     "kind": "transportation",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.06249743839725852
+    },
+    {
+     "t_rel": 6.7,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.03349342383444309
+    },
+    {
+     "t_rel": 6.9,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.03481344832107425
+    },
+    {
+     "t_rel": 7.0,
+     "kind": "thermostat",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.10012435400858521
+    },
+    {
+     "t_rel": 7.2,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.09395425114780664
+    },
+    {
+     "t_rel": 7.2,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.053036213386803865
+    },
+    {
+     "t_rel": 7.3,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.07201914396136999
+    },
+    {
+     "t_rel": 7.2,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.04585101921111345
+    },
+    {
+     "t_rel": 7.5,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.06045363424345851
+    },
+    {
+     "t_rel": 7.4,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.07251279102638364
+    },
+    {
+     "t_rel": 7.6,
+     "kind": "lighting",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.06877356022596359
+    },
+    {
+     "t_rel": 7.4,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.07800367474555969
+    },
+    {
+     "t_rel": 7.5,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.0736795817501843
+    },
+    {
+     "t_rel": 7.7,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.06404200615361333
+    },
+    {
+     "t_rel": 7.9,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.12665558932349086
+    },
+    {
+     "t_rel": 8.0,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.08188161300495267
+    },
+    {
+     "t_rel": 7.9,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.029072387609630823
+    },
+    {
+     "t_rel": 8.1,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.08404764020815492
+    },
+    {
+     "t_rel": 8.0,
+     "kind": "nursing",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.09473872231319547
+    },
+    {
+     "t_rel": 8.3,
+     "kind": "maintenance",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.06537564797326922
+    },
+    {
+     "t_rel": 8.3,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.03412584774196148
+    },
+    {
+     "t_rel": 8.4,
+     "kind": "lighting",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.09335709596052766
+    },
+    {
+     "t_rel": 8.5,
+     "kind": "lighting",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.08911101706326008
+    },
+    {
+     "t_rel": 8.6,
+     "kind": "activities",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.07475026790052652
+    },
+    {
+     "t_rel": 8.4,
+     "kind": "nursing",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.09406585898250341
+    },
+    {
+     "t_rel": 8.5,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.06144763296470046
+    },
+    {
+     "t_rel": 8.8,
+     "kind": "activities",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.05757828429341316
+    },
+    {
+     "t_rel": 8.8,
+     "kind": "transportation",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.09045129595324397
+    },
+    {
+     "t_rel": 8.9,
+     "kind": "retry",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.06490525836125016
+    },
+    {
+     "t_rel": 9.0,
+     "kind": "staff_help",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.07346132211387157
+    },
+    {
+     "t_rel": 9.2,
+     "kind": "maintenance",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.092999710701406
+    },
+    {
+     "t_rel": 9.1,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.08361384738236666
+    },
+    {
+     "t_rel": 9.1,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.1427988586947322
+    },
+    {
+     "t_rel": 9.1,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.1180822029709816
+    },
+    {
+     "t_rel": 9.2,
+     "kind": "staff_help",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.14379593078047037
+    },
+    {
+     "t_rel": 9.1,
+     "kind": "status",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.1676538037136197
+    },
+    {
+     "t_rel": 9.5,
+     "kind": "lighting",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.09431505622342229
+    },
+    {
+     "t_rel": 9.6,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.08035750687122345
+    },
+    {
+     "t_rel": 9.6,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.03337755473330617
+    },
+    {
+     "t_rel": 9.5,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.03956700162962079
+    },
+    {
+     "t_rel": 9.5,
+     "kind": "thermostat",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.10141078103333712
+    },
+    {
+     "t_rel": 9.8,
+     "kind": "retry",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.0343336989171803
+    },
+    {
+     "t_rel": 9.9,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.03364148875698447
+    },
+    {
+     "t_rel": 9.7,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.03664011042565107
+    },
+    {
+     "t_rel": 9.6,
+     "kind": "status",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.10347888944670558
+    },
+    {
+     "t_rel": 9.9,
+     "kind": "status",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.08226106502115726
+    },
+    {
+     "t_rel": 9.9,
+     "kind": "thermostat",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.12972551630809903
+    },
+    {
+     "t_rel": 10.1,
+     "kind": "emergency",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.07090473407879472
+    },
+    {
+     "t_rel": 10.1,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.03401556611061096
+    },
+    {
+     "t_rel": 10.2,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.03110215300694108
+    },
+    {
+     "t_rel": 10.4,
+     "kind": "emergency",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.09801405714824796
+    },
+    {
+     "t_rel": 10.5,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.05762228416278958
+    },
+    {
+     "t_rel": 10.3,
+     "kind": "menu",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.1021636831574142
+    },
+    {
+     "t_rel": 10.4,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.07925629802048206
+    },
+    {
+     "t_rel": 10.6,
+     "kind": "menu",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.11076591303572059
+    },
+    {
+     "t_rel": 10.5,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.03630116302520037
+    },
+    {
+     "t_rel": 10.6,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.0744122969917953
+    },
+    {
+     "t_rel": 10.7,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.0731597407720983
+    },
+    {
+     "t_rel": 10.6,
+     "kind": "transportation",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.10609742626547813
+    },
+    {
+     "t_rel": 10.7,
+     "kind": "status",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.11085768602788448
+    },
+    {
+     "t_rel": 10.8,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.03577461978420615
+    },
+    {
+     "t_rel": 10.9,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.08456978015601635
+    },
+    {
+     "t_rel": 10.8,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.0691777360625565
+    },
+    {
+     "t_rel": 11.1,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.07166629703715444
+    },
+    {
+     "t_rel": 11.1,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.09130665520206094
+    },
+    {
+     "t_rel": 11.4,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.05949573963880539
+    },
+    {
+     "t_rel": 11.6,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.08589259814471006
+    },
+    {
+     "t_rel": 11.7,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.06884828768670559
+    },
+    {
+     "t_rel": 11.9,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.043052425142377615
+    },
+    {
+     "t_rel": 11.8,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.04607828380540013
+    },
+    {
+     "t_rel": 12.0,
+     "kind": "staff_help",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.08161068893969059
+    },
+    {
+     "t_rel": 12.1,
+     "kind": "staff_help",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.08943626889958978
+    },
+    {
+     "t_rel": 12.0,
+     "kind": "lighting",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.07248219614848495
+    },
+    {
+     "t_rel": 12.2,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.07552363025024533
+    },
+    {
+     "t_rel": 12.1,
+     "kind": "transportation",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 0.1327668773010373
+    },
+    {
+     "t_rel": 12.5,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.051629161927849054
+    },
+    {
+     "t_rel": 12.5,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.03454469237476587
+    },
+    {
+     "t_rel": 12.6,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.03448365023359656
+    },
+    {
+     "t_rel": 12.9,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.038698229007422924
+    },
+    {
+     "t_rel": 13.1,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.08764627389609814
+    },
+    {
+     "t_rel": 13.1,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.0408860482275486
+    },
+    {
+     "t_rel": 12.2,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 1.1674386039376259
+    },
+    {
+     "t_rel": 12.3,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 1.1322535942308605
+    },
+    {
+     "t_rel": 12.2,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 1.2784678880125284
+    },
+    {
+     "t_rel": 13.9,
+     "kind": "emergency",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.0708666667342186
+    },
+    {
+     "t_rel": 14.5,
+     "kind": "emergency",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.06239622971042991
+    },
+    {
+     "t_rel": 12.3,
+     "kind": "activities",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 2.3879090677946806
+    },
+    {
+     "t_rel": 12.5,
+     "kind": "lighting",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 2.5603824108839035
+    },
+    {
+     "t_rel": 13.0,
+     "kind": "nursing",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 2.300364185590297
+    },
+    {
+     "t_rel": 13.2,
+     "kind": "lighting",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 2.2524954858236015
+    },
+    {
+     "t_rel": 14.2,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 1.1664052563719451
+    },
+    {
+     "t_rel": 14.3,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 1.1680482309311628
+    },
+    {
+     "t_rel": 13.8,
+     "kind": "maintenance",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 1.8432039390318096
+    },
+    {
+     "t_rel": 12.7,
+     "kind": "maintenance",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 2.918040654156357
+    },
+    {
+     "t_rel": 12.9,
+     "kind": "nursing",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 2.6178784030489624
+    },
+    {
+     "t_rel": 15.8,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.030595513060688972
+    },
+    {
+     "t_rel": 14.3,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 1.5205104043707252
+    },
+    {
+     "t_rel": 16.2,
+     "kind": "retry",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.04736303584650159
+    },
+    {
+     "t_rel": 14.7,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 1.1703882990404963
+    },
+    {
+     "t_rel": 13.0,
+     "kind": "thermostat",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 3.0360939921811223
+    },
+    {
+     "t_rel": 13.3,
+     "kind": "thermostat",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 2.9909838591702282
+    },
+    {
+     "t_rel": 16.2,
+     "kind": "retry",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.038034443743526936
+    },
+    {
+     "t_rel": 16.4,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.04595130821689963
+    },
+    {
+     "t_rel": 14.3,
+     "kind": "transportation",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 2.276580455247313
+    },
+    {
+     "t_rel": 15.0,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 1.5298043410293758
+    },
+    {
+     "t_rel": 16.5,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.035995738580822945
+    },
+    {
+     "t_rel": 17.1,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.0463288058526814
+    },
+    {
+     "t_rel": 17.2,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.06709795910865068
+    },
+    {
+     "t_rel": 14.4,
+     "kind": "activities",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 2.7687320741824806
+    },
+    {
+     "t_rel": 17.1,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.04025208530947566
+    },
+    {
+     "t_rel": 15.7,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 1.6758140451274812
+    },
+    {
+     "t_rel": 17.6,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.04287264822050929
+    },
+    {
+     "t_rel": 17.7,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.03219839930534363
+    },
+    {
+     "t_rel": 18.2,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.033443482127040625
+    },
+    {
+     "t_rel": 18.5,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.0330413281917572
+    },
+    {
+     "t_rel": 20.0,
+     "kind": "emergency",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.09146902896463871
+    },
+    {
+     "t_rel": 20.3,
+     "kind": "emergency",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.059039870742708445
+    },
+    {
+     "t_rel": 14.7,
+     "kind": "staff_help",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 17.933620157651603
+    },
+    {
+     "t_rel": 15.4,
+     "kind": "staff_help",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 17.750179830938578
+    },
+    {
+     "t_rel": 15.6,
+     "kind": "transportation",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 17.79856139421463
+    },
+    {
+     "t_rel": 16.2,
+     "kind": "lighting",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 17.335798919200897
+    },
+    {
+     "t_rel": 16.3,
+     "kind": "status",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 17.326080522034317
+    },
+    {
+     "t_rel": 33.7,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.03336811624467373
+    },
+    {
+     "t_rel": 16.4,
+     "kind": "menu",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 17.298769962973893
+    },
+    {
+     "t_rel": 16.6,
+     "kind": "status",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 17.324443079996854
+    },
+    {
+     "t_rel": 34.1,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.02831088611856103
+    },
+    {
+     "t_rel": 17.1,
+     "kind": "status",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 17.285434931050986
+    },
+    {
+     "t_rel": 34.4,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.031201110687106848
+    },
+    {
+     "t_rel": 17.2,
+     "kind": "status",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 17.284067806322128
+    },
+    {
+     "t_rel": 17.2,
+     "kind": "menu",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 17.295373159926385
+    },
+    {
+     "t_rel": 34.7,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.039401393849402666
+    },
+    {
+     "t_rel": 17.6,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 17.295509553980082
+    },
+    {
+     "t_rel": 34.8,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.0364149259403348
+    },
+    {
+     "t_rel": 35.0,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.034062768798321486
+    },
+    {
+     "t_rel": 18.1,
+     "kind": "lighting",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 17.287729274947196
+    },
+    {
+     "t_rel": 35.4,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.04946612427011132
+    },
+    {
+     "t_rel": 35.4,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.045531334821134806
+    },
+    {
+     "t_rel": 18.6,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 17.28867693990469
+    },
+    {
+     "t_rel": 18.6,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 17.294402914121747
+    },
+    {
+     "t_rel": 19.0,
+     "kind": "thermostat",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 17.280438790097833
+    },
+    {
+     "t_rel": 34.9,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 1.438816050067544
+    },
+    {
+     "t_rel": 19.0,
+     "kind": "thermostat",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 17.290312138851732
+    },
+    {
+     "t_rel": 19.3,
+     "kind": "transportation",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 17.29322780109942
+    },
+    {
+     "t_rel": 35.6,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 1.2258094041608274
+    },
+    {
+     "t_rel": 37.1,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.04097864683717489
+    },
+    {
+     "t_rel": 37.4,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.038292362820357084
+    },
+    {
+     "t_rel": 37.4,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.03314992692321539
+    },
+    {
+     "t_rel": 37.5,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.033505912870168686
+    },
+    {
+     "t_rel": 20.4,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 17.2953685419634
+    },
+    {
+     "t_rel": 37.8,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.04515998112037778
+    },
+    {
+     "t_rel": 36.0,
+     "kind": "activities",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 2.1703278571367264
+    },
+    {
+     "t_rel": 36.8,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 1.240575147792697
+    },
+    {
+     "t_rel": 21.0,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 17.282686128281057
+    },
+    {
+     "t_rel": 37.0,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 1.3177573732100427
+    },
+    {
+     "t_rel": 21.3,
+     "kind": "conversation",
+     "status": 200,
+     "degraded": true,
+     "deferred": null,
+     "response_s": 17.289888578932732
+    },
+    {
+     "t_rel": 39.1,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.03797716274857521
+    },
+    {
+     "t_rel": 39.1,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.034249247051775455
+    },
+    {
+     "t_rel": 39.1,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.034379085060209036
+    },
+    {
+     "t_rel": 36.5,
+     "kind": "lighting",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 2.792345827911049
+    },
+    {
+     "t_rel": 39.5,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.03435121709480882
+    },
+    {
+     "t_rel": 39.6,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.03254474001005292
+    },
+    {
+     "t_rel": 40.2,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.03119168011471629
+    },
+    {
+     "t_rel": 38.7,
+     "kind": "activities",
+     "status": 200,
+     "degraded": false,
+     "deferred": null,
+     "response_s": 2.7204412538558245
+    },
+    {
+     "t_rel": 42.4,
+     "kind": "ending",
+     "status": 200,
+     "degraded": null,
+     "deferred": null,
+     "response_s": 0.027785039972513914
+    }
+   ]
+  }
+ }
+}

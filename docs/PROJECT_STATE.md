@@ -6219,3 +6219,25 @@ The 26 tools came from reviewed commits (4878047, fa6b7ac, 8045b12, d6cb486/234d
 - Bridge tests: 33 passed (flow, units, config, original).
 - Backend gate (port 8073, fresh DB): 275 passed, 0 failed, 13 skipped (all skips: data not seeded in the gate DB).
 - `flake8 --select=E9,F63,F7,F82` (CI step): 0. `compileall`, `import server`: ok. pyflakes on changed files: clean except a pre-existing unused variable in `iter10_test.py`.
+
+---
+
+## 2026-10-04 — Voice bridge 80-room concurrency harness and capacity controls
+
+### Agent / branch
+Claude Code (Opus 5.5), `~/CAOSCARE-VOICEBRIDGE`, `spike/voice-bridge` from `f36351c`. No physical device, no paid or external provider call, nothing merged or deployed.
+
+### What changed
+- Harness `backend/loadtest/` (`run.py`, `mock_app.py`, `mock_provider.py`, `scenarios.py`, `sampler.py`, `verify.py`, `report.py`): simulated Voice PE rooms (own community, apartment, resident, device, conversation) against the real `/api/voice-bridge/turn`; simulated model/STT/TTS latency, limits, outages; CPU/memory/descriptor/connection sampling; receipt, workflow, leakage and session-ending checks. Results in `backend/loadtest/results/`, report `docs/reports/2026-10-04-voice-bridge-load-test.md`.
+- Bridge: priority classes; emergency fast path through `ai_escalate` (no model, no wait, `voice_emergency_escalated` receipt); per-worker admission control (`CAOSCARE_VOICE_BRIDGE_MAX_ACTIVE` default 16, `CAOSCARE_VOICE_BRIDGE_RESERVED` default 4) with honest `voice_turn_deferred` replies; dedicated provider thread pool (the shared default pool capped model calls at 12); one rate-limit retry; tools for lights, thermostat, transportation and call for help via the canonical services (`devices.execute_room_command` extracted from the room-screen route); `Kiosk.facility_id` per-room community.
+
+### Measured (simulated 1.2 s model, all rooms speaking at once)
+- Two workers × 40 slots (8 reserved): 1/5/10/20/40/80 rooms — no deferrals, drops, missing/orphan receipts, leaks or duplicate workflows; first answer p95 2.5–3.6 s; emergencies p95 ≤ 0.9 s; every closing phrase closed its session. 120 rooms passed (p95 5.2 s); 160 deferred some low-priority turns.
+- Bottleneck: one worker's event loop (~1 core) from ~40 rooms; then MongoDB. ~0.04 backend + ~0.016 MongoDB CPU-seconds per turn. Prompt ~33,000 characters per model call: with a real provider, concurrency/token quotas come first.
+- Saturation (8 slots): emergencies and staff help all served; 110 lower-priority turns deferred honestly with receipts. Provider outage/slow windows: honest fallbacks with failed receipts within HA's 25 s, recovery immediate. 1 unexplained client `ReadError` in one 160-room/4-worker run, not reproduced in 3 reruns.
+
+### Verification
+Bridge tests 37 passed; backend gate 278 passed, 0 failed, 14 skipped (data not seeded; one OpenAI-dependent skip).
+
+### Not done
+Real provider latency/quotas; Home Assistant; physical Voice PE; admission shared across hosts. Capacity-monitoring assignment (received 2026-10-04) not started.

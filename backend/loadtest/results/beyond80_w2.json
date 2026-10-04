@@ -1,0 +1,509 @@
+{
+ "scenario": "levels",
+ "config": {
+  "scenario": "levels",
+  "levels": "120,160",
+  "workers": 2,
+  "port": 8097,
+  "max_active": 80,
+  "reserved": 8,
+  "llm_ms": 1200,
+  "llm_jitter_ms": 400,
+  "llm_max_conc": 0,
+  "llm_rpm": 0,
+  "stt_ms": 400,
+  "stt_max_conc": 1000,
+  "tts_ms": 600,
+  "tts_max_conc": 1000,
+  "keep_db": false,
+  "out": "loadtest/results/beyond80_w2.json",
+  "run_id": "caos_vb_load_1791090701"
+ },
+ "db": "caos_vb_load_1791090701",
+ "levels": {
+  "120": {
+   "rooms": 120,
+   "turns": 348,
+   "duration_s": 15.5,
+   "throughput_turns_per_s": 22.51,
+   "accepted_sessions": 120,
+   "rejected_sessions": 0,
+   "deferred_first_turns": 0,
+   "queued_turns": 0,
+   "max_queue_wait_ms": 0,
+   "deferred_turns": 0,
+   "dropped_turns": 0,
+   "http_errors": 0,
+   "degraded_turns": 0,
+   "duplicates_answered_once": 12,
+   "first_ack_s": {
+    "p50": 2.6,
+    "p95": 5.2,
+    "p99": 6.6,
+    "max": 6.9
+   },
+   "complete_response_s": {
+    "p50": 3.3,
+    "p95": 6.0,
+    "p99": 7.3,
+    "max": 7.6
+   },
+   "client_leaks": 0,
+   "by_class": {
+    "emergency": {
+     "turns": 12,
+     "deferred": 0,
+     "degraded": 0,
+     "p50_s": 2.0,
+     "p95_s": 2.3,
+     "max_s": 2.3
+    },
+    "information": {
+     "turns": 48,
+     "deferred": 0,
+     "degraded": 0,
+     "p50_s": 2.7,
+     "p95_s": 5.1,
+     "max_s": 6.5
+    },
+    "conversation": {
+     "turns": 72,
+     "deferred": 0,
+     "degraded": 0,
+     "p50_s": 2.7,
+     "p95_s": 5.2,
+     "max_s": 6.8
+    },
+    "operational": {
+     "turns": 36,
+     "deferred": 0,
+     "degraded": 0,
+     "p50_s": 4.1,
+     "p95_s": 5.1,
+     "max_s": 5.2
+    },
+    "room_action": {
+     "turns": 36,
+     "deferred": 0,
+     "degraded": 0,
+     "p50_s": 4.4,
+     "p95_s": 6.0,
+     "max_s": 6.9
+    },
+    "staff_help": {
+     "turns": 12,
+     "deferred": 0,
+     "degraded": 0,
+     "p50_s": 3.7,
+     "p95_s": 4.7,
+     "max_s": 5.2
+    },
+    "retry": {
+     "turns": 12,
+     "deferred": 0,
+     "degraded": 0,
+     "p50_s": 0.8,
+     "p95_s": 4.0,
+     "max_s": 4.0
+    },
+    "session_end": {
+     "turns": 120,
+     "deferred": 0,
+     "degraded": 0,
+     "p50_s": 0.5,
+     "p95_s": 4.2,
+     "max_s": 5.4
+    }
+   },
+   "resources": {
+    "samples": 52,
+    "cpu_cores": 8,
+    "app_cpu_pct": {
+     "avg": 87.1,
+     "p95": 196.9,
+     "max": 222.8
+    },
+    "mongo_cpu_pct": {
+     "avg": 35.6,
+     "p95": 78.1,
+     "max": 113.4
+    },
+    "host_cpu_pct": {
+     "avg": 38.5,
+     "p95": 59.5,
+     "max": 70.1
+    },
+    "rss_mb": {
+     "avg": 215.4,
+     "p95": 217.8,
+     "max": 218.0
+    },
+    "fds": {
+     "avg": 158.3,
+     "p95": 200,
+     "max": 200
+    },
+    "conns": {
+     "avg": 80.1,
+     "p95": 120,
+     "max": 120
+    }
+   },
+   "checks": {
+    "receipts_stored": 348,
+    "missing_receipts": 0,
+    "orphan_receipts": 0,
+    "receipts_with_wrong_resident": 0,
+    "tasks_created": 48,
+    "orphan_tasks": [],
+    "help_events": 12,
+    "orphan_help_events": [],
+    "duplicate_open_requests": {},
+    "duplicate_open_help_events": {},
+    "ending_requested": 120,
+    "ending_succeeded": 120,
+    "sessions_closed": 120,
+    "device_commands": 36,
+    "device_commands_unverified": 0
+   },
+   "server": {
+    "calls": 336,
+    "rate_limited": 0,
+    "failed": 0,
+    "timeouts": 0,
+    "leak_contexts": 0,
+    "workers": 2,
+    "admission": [
+     {
+      "active": 0,
+      "queued": 0,
+      "slots": 80,
+      "reserved_for_staff_help": 8,
+      "admitted": 94,
+      "deferred": 0,
+      "max_queue": 0,
+      "max_active": 45,
+      "by_class": {
+       "emergency": {
+        "admitted": 0,
+        "deferred": 0,
+        "wait_s_total": 0.0
+       },
+       "staff_help": {
+        "admitted": 6,
+        "deferred": 0,
+        "wait_s_total": 7.110089063644409e-05
+       },
+       "operational": {
+        "admitted": 11,
+        "deferred": 0,
+        "wait_s_total": 0.00014555128291249275
+       },
+       "room_action": {
+        "admitted": 16,
+        "deferred": 0,
+        "wait_s_total": 0.00021839700639247894
+       },
+       "information": {
+        "admitted": 23,
+        "deferred": 0,
+        "wait_s_total": 0.00029983557760715485
+       },
+       "conversation": {
+        "admitted": 38,
+        "deferred": 0,
+        "wait_s_total": 0.0004776613786816597
+       }
+      }
+     },
+     {
+      "active": 0,
+      "queued": 0,
+      "slots": 80,
+      "reserved_for_staff_help": 8,
+      "admitted": 110,
+      "deferred": 0,
+      "max_queue": 0,
+      "max_active": 65,
+      "by_class": {
+       "emergency": {
+        "admitted": 0,
+        "deferred": 0,
+        "wait_s_total": 0.0
+       },
+       "staff_help": {
+        "admitted": 6,
+        "deferred": 0,
+        "wait_s_total": 0.0001063719391822815
+       },
+       "operational": {
+        "admitted": 25,
+        "deferred": 0,
+        "wait_s_total": 0.00034460658207535744
+       },
+       "room_action": {
+        "admitted": 20,
+        "deferred": 0,
+        "wait_s_total": 0.00026574917137622833
+       },
+       "information": {
+        "admitted": 25,
+        "deferred": 0,
+        "wait_s_total": 0.0003234422765672207
+       },
+       "conversation": {
+        "admitted": 34,
+        "deferred": 0,
+        "wait_s_total": 0.00046061212196946144
+       }
+      }
+     }
+    ]
+   },
+   "stt_wait_max_s": 0.0,
+   "tts_wait_max_s": 0.0
+  },
+  "160": {
+   "rooms": 160,
+   "turns": 464,
+   "duration_s": 19.9,
+   "throughput_turns_per_s": 23.27,
+   "accepted_sessions": 150,
+   "rejected_sessions": 0,
+   "deferred_first_turns": 10,
+   "queued_turns": 33,
+   "max_queue_wait_ms": 2549,
+   "deferred_turns": 10,
+   "dropped_turns": 0,
+   "http_errors": 0,
+   "degraded_turns": 0,
+   "duplicates_answered_once": 11,
+   "first_ack_s": {
+    "p50": 3.3,
+    "p95": 7.6,
+    "p99": 9.3,
+    "max": 10.8
+   },
+   "complete_response_s": {
+    "p50": 4.0,
+    "p95": 8.3,
+    "p99": 9.9,
+    "max": 11.3
+   },
+   "client_leaks": 0,
+   "by_class": {
+    "emergency": {
+     "turns": 16,
+     "deferred": 0,
+     "degraded": 0,
+     "p50_s": 2.3,
+     "p95_s": 2.4,
+     "max_s": 2.4
+    },
+    "information": {
+     "turns": 64,
+     "deferred": 2,
+     "degraded": 0,
+     "p50_s": 3.3,
+     "p95_s": 9.0,
+     "max_s": 10.8
+    },
+    "conversation": {
+     "turns": 96,
+     "deferred": 8,
+     "degraded": 0,
+     "p50_s": 3.3,
+     "p95_s": 9.0,
+     "max_s": 10.1
+    },
+    "operational": {
+     "turns": 48,
+     "deferred": 0,
+     "degraded": 0,
+     "p50_s": 5.1,
+     "p95_s": 7.0,
+     "max_s": 7.1
+    },
+    "room_action": {
+     "turns": 48,
+     "deferred": 0,
+     "degraded": 0,
+     "p50_s": 5.6,
+     "p95_s": 7.6,
+     "max_s": 10.6
+    },
+    "staff_help": {
+     "turns": 16,
+     "deferred": 0,
+     "degraded": 0,
+     "p50_s": 5.2,
+     "p95_s": 6.1,
+     "max_s": 6.1
+    },
+    "retry": {
+     "turns": 16,
+     "deferred": 0,
+     "degraded": 0,
+     "p50_s": 3.7,
+     "p95_s": 8.2,
+     "max_s": 9.8
+    },
+    "session_end": {
+     "turns": 160,
+     "deferred": 0,
+     "degraded": 0,
+     "p50_s": 0.9,
+     "p95_s": 5.7,
+     "max_s": 7.8
+    }
+   },
+   "resources": {
+    "samples": 61,
+    "cpu_cores": 8,
+    "app_cpu_pct": {
+     "avg": 83.3,
+     "p95": 195.0,
+     "max": 221.8
+    },
+    "mongo_cpu_pct": {
+     "avg": 39.5,
+     "p95": 101.2,
+     "max": 116.2
+    },
+    "host_cpu_pct": {
+     "avg": 38.3,
+     "p95": 60.1,
+     "max": 64.7
+    },
+    "rss_mb": {
+     "avg": 223.4,
+     "p95": 224.9,
+     "max": 225.0
+    },
+    "fds": {
+     "avg": 189.3,
+     "p95": 245,
+     "max": 245
+    },
+    "conns": {
+     "avg": 104.7,
+     "p95": 160,
+     "max": 160
+    }
+   },
+   "checks": {
+    "receipts_stored": 464,
+    "missing_receipts": 0,
+    "orphan_receipts": 0,
+    "receipts_with_wrong_resident": 0,
+    "tasks_created": 64,
+    "orphan_tasks": [],
+    "help_events": 16,
+    "orphan_help_events": [],
+    "duplicate_open_requests": {},
+    "duplicate_open_help_events": {},
+    "ending_requested": 160,
+    "ending_succeeded": 160,
+    "sessions_closed": 160,
+    "device_commands": 48,
+    "device_commands_unverified": 0
+   },
+   "server": {
+    "calls": 784,
+    "rate_limited": 0,
+    "failed": 0,
+    "timeouts": 0,
+    "leak_contexts": 0,
+    "workers": 2,
+    "admission": [
+     {
+      "active": 0,
+      "queued": 0,
+      "slots": 80,
+      "reserved_for_staff_help": 8,
+      "admitted": 220,
+      "deferred": 0,
+      "max_queue": 0,
+      "max_active": 45,
+      "by_class": {
+       "emergency": {
+        "admitted": 0,
+        "deferred": 0,
+        "wait_s_total": 0.0
+       },
+       "staff_help": {
+        "admitted": 12,
+        "deferred": 0,
+        "wait_s_total": 0.00013493886217474937
+       },
+       "operational": {
+        "admitted": 25,
+        "deferred": 0,
+        "wait_s_total": 0.00029683206230401993
+       },
+       "room_action": {
+        "admitted": 32,
+        "deferred": 0,
+        "wait_s_total": 0.00043176906183362007
+       },
+       "information": {
+        "admitted": 64,
+        "deferred": 0,
+        "wait_s_total": 0.0008756895549595356
+       },
+       "conversation": {
+        "admitted": 87,
+        "deferred": 0,
+        "wait_s_total": 0.0011227321811020374
+       }
+      }
+     },
+     {
+      "active": 0,
+      "queued": 0,
+      "slots": 80,
+      "reserved_for_staff_help": 8,
+      "admitted": 251,
+      "deferred": 10,
+      "max_queue": 30,
+      "max_active": 77,
+      "by_class": {
+       "emergency": {
+        "admitted": 0,
+        "deferred": 0,
+        "wait_s_total": 0.0
+       },
+       "staff_help": {
+        "admitted": 16,
+        "deferred": 0,
+        "wait_s_total": 0.0002286653034389019
+       },
+       "operational": {
+        "admitted": 64,
+        "deferred": 0,
+        "wait_s_total": 14.931682919617742
+       },
+       "room_action": {
+        "admitted": 52,
+        "deferred": 0,
+        "wait_s_total": 24.323805212508887
+       },
+       "information": {
+        "admitted": 46,
+        "deferred": 2,
+        "wait_s_total": 1.5610138620249927
+       },
+       "conversation": {
+        "admitted": 73,
+        "deferred": 8,
+        "wait_s_total": 3.4196248026564717
+       }
+      }
+     }
+    ]
+   },
+   "stt_wait_max_s": 0.0,
+   "tts_wait_max_s": 0.0
+  }
+ }
+}
