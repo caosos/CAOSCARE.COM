@@ -2,12 +2,12 @@
 
 Target: 2026-10-10
 
-Current phase: PHASE 3 — Real staff operational workflows (focus: operational completion)
-Current active task: Michael decides the simulator gate (escalation decision 8, stale-alert policy decision 7, or a demo-room-only SIM-1); Agent 2's Nabu re-request fix `bbfce3b` awaits review; then Community services `d95c4d6` (SC-14/SC-15 integrated at `268963c`, 2026-10-03)
+Current phase: PHASE 3 — Real staff operational workflows (with Phase 7 voice/hardware work in parallel)
+Current active task: Coordinator/Nabu (Michael-reported) classifies the currently failing tests and integrates one bounded lane at a time; Claude Code 2 is working on microWakeWord. Hardware prototype lane is waiting on the ordered Voice PE / IR Mate. Do not advance status without commit/test/runtime evidence.
 Current integration branch: `integration/2026-09-27`
-Current integration SHA: `239324a` (last code state)
-Last updated: 2026-10-02
-Last updated by: Claude Code (Opus 5.5), EliteDesk
+Current integration SHA: tip of `integration/2026-09-27`; last explicitly recorded accepted code SHA is `268963c` (verify current tip before the next merge)
+Last updated: 2026-10-03
+Last updated by: ChatGPT + Michael priority/hardware reconciliation (documentation lane)
 
 Pilot definition:
 One or two real resident rooms + real staff workflows + department notifications + resident Aria + minimum room controls + public website demonstrating only accepted capabilities.
@@ -292,40 +292,59 @@ Acceptance: the resident can make a real two-way front-desk call and an approved
 
 ## PHASE 7 — Room hardware
 
+**Architecture reset (Michael, 2026-10-03):** the product target is **one
+facility/building server + thin in-room endpoints**, not an EliteDesk-class
+general-purpose PC in every resident room. The existing EliteDesk/eMeet rig is
+retained as proven development and temporary Pilot 1 acceptance hardware while
+the thin-endpoint prototype is evaluated.
+
 Inventory exact make/model/protocol:
 
-- [ ] Thermostat
+- [~] Facility server — existing HP EliteDesk-class development/integration host is proven; exact production server BOM still to be frozen.
+- [~] Thin room voice endpoint — Home Assistant Voice Preview Edition ordered from CloudFree; **backordered / physical acceptance pending**.
+- [~] Room IR controller — Seeed Studio XIAO Smart IR Mate ordered from RobotShop; **physical acceptance pending**.
+- [ ] Voice PE USB-C power supply/cable — minimum 5 V / 2 A requirement known; purchase/receipt not yet recorded here.
+- [ ] IR Mate power/cable requirement — verify included accessories / exact room power plan on arrival.
+- [ ] Thermostat — exact pilot-room make/model/protocol.
 - [~] Light bulbs — two TP-Link Tapo L535E (Matter) in Room 214.
-- [ ] Smart plugs
-- [ ] TV
-- [~] eMeet/audio — eMeet OfficeCore Luna Plus in Room 214.
-- [~] RF receiver — Nooelec NESDR SMArt v5 on the EliteDesk.
-- [~] Pendant — one Lifeline pendant, 319.5 MHz, paired to Room 214.
-- [~] Existing room node — HP EliteDesk 705 G4 DM.
+- [ ] Smart plugs — exact make/model/protocol.
+- [ ] TV — exact pilot-room make/model and native IP/CEC/IR capability.
+- [~] Existing development audio — eMeet OfficeCore Luna Plus in Room 214; proven rig, not assumed fleet endpoint.
+- [~] Existing RF receiver — Nooelec NESDR SMArt v5 on the EliteDesk; optional/additive path only.
+- [~] Existing pendant — one Lifeline pendant, 319.5 MHz, paired to Room 214; existing community pendant systems remain independent.
+- [~] Existing room node — HP EliteDesk 705 G4 DM; proven temporary rig, **not the target per-room fleet architecture**.
+- [ ] Building radio BOM — only radios actually required by selected pilot devices (Zigbee/Thread/Matter/Z-Wave/BLE/IP); no speculative dongle pile.
 
 Implement/test:
 
 - [~] Lights — voice + touch with Home Assistant read-back verified in Room 214 (2026-09-05 / 09-19 / 09-23); not yet in a pilot room.
 - [!] Thermostat — Midea AC's Matter session is unstable; no verified voice temperature change.
-- [ ] Smart plugs
-- [ ] IR hardware
-- [ ] TV power/input/channel as supported
-- [~] RF pendant listening — works in Room 214; staff response loop not accepted.
-- [ ] Existing facility pendant path remains untouched (verify at the pilot community)
-- [!] Wake phrase — single-word "Aria" rejected (false wakes 2026-09-24); listener off; Wake Phrase Lab in progress (`docs/WAKE_PHRASE_LAB.md`).
-- [ ] False-wake test
-- [ ] Far-field test
-- [ ] TV/noise soak test
+- [ ] Smart plugs.
+- [ ] Voice PE → CAOSCare/Home Assistant network path.
+- [ ] Wake-word / microWakeWord acceptance: useful distance, low false-wake rate, no self-wake from assistant audio, name-in-sentence behaviour tested, continued-conversation behaviour accepted.
+- [ ] XIAO IR Mate learn/replay test with a real TV remote.
+- [ ] XIAO IR Mate learn/replay test with PTAC/fan or another real IR device.
+- [ ] TV control hierarchy accepted: native local IP/API first; CEC only where useful; IR fallback.
+- [ ] TV power/input/channel/volume as supported by the selected path.
+- [ ] Window coverings / blinds control path through the selected real protocol.
+- [ ] Music playback path: built-in room endpoint first; external speaker only if testing proves needed.
+- [-] CAOSCare pendant integration is **not required for Pilot 1 core acceptance**. Existing facility pendant/call-button behaviour stays untouched. Passive read/ingest may be added later if easy, approved and non-interfering.
+- [ ] False-wake test.
+- [ ] Far-field test.
+- [ ] TV/noise soak test.
 - [~] Device state read-back — implemented for lights and climate; verified for lights only.
+- [ ] Room hardware BOM finalized from physical evidence after the ordered prototype hardware arrives.
 
-Acceptance: advertised room commands operate real pilot-room hardware and report verified state.
+Acceptance: the advertised resident voice/control path operates real hardware,
+reports verified state, and the room install does not require a general-purpose
+PC unless a specific proven requirement justifies it.
 
 ## PHASE 8 — Pilot Room 1
 
 - [ ] Select room
 - [ ] Network access
-- [ ] Install room node
-- [ ] Install/configure audio
+- [ ] Install room endpoint (thin endpoint target; existing EliteDesk/eMeet rig may be used only as a temporary Pilot 1 acceptance fixture if needed)
+- [ ] Install/configure voice/audio
 - [ ] Correct room/resident identity
 - [ ] Contacts/permissions
 - [ ] Autostart
@@ -335,7 +354,7 @@ Acceptance: advertised room commands operate real pilot-room hardware and report
 - [ ] Request test
 - [ ] Calling test
 - [ ] Room-control test
-- [ ] Pendant parallel-path test
+- [-] Pendant parallel-path test — optional for Pilot 1; verify only that CAOSCare does not interfere with the community's existing system
 - [ ] No SSH babysitting during ordinary operation
 
 Acceptance: Room 1 operates normally without developer intervention.
@@ -426,7 +445,7 @@ Run real end-to-end tests for:
 - [ ] Lights
 - [ ] Thermostat
 - [ ] TV/IR
-- [ ] Pendant
+- [-] Pendant integration — not required for Pilot 1; existing community system remains independent
 - [ ] Wake phrase
 - [ ] Staff dashboard
 - [ ] Resident Aria
@@ -463,6 +482,7 @@ Acceptance: Linode runs the exact SHA Michael approved.
 
 | Date | By | Change |
 |---|---|---|
+| 2026-10-03 | ChatGPT / Michael hardware-priority reconciliation | Reframed Phase 7 around one building server + thin room endpoints; recorded ordered Voice PE (backordered) + XIAO IR Mate; pendant integration made optional/additive; existing EliteDesk/eMeet retained as temporary proven rig only. microWakeWord and current failing tests recorded as active evidence-gated work. |
 | 2026-10-03 | Claude Code (Opus 5.5), coordinator | Merged Shared Core SC-15 + SC-14 `56f7807` at `268963c`. Transportation history/receipts → [x] (browser request/cancel; assign/depart/complete by test). Closed-request refusal verified. |
 | 2026-10-03 | Claude Code (Opus 5.5), coordinator | Merged simulator docs `ffd1f60` at `75d19d8` and Shared Core SC-13 `f5f07b4` at `79ca54b`. Nursing + maintenance lifecycles: one receipt per step incl. notes; Aria status correct at every stage. Filed SC-14 (no closed-state guard), SC-15 (transport receipts). |
 | 2026-10-03 | Claude Code (Opus 5.5), coordinator | Merged Front desk/Transportation `6b67ac8` at `5e6413c`. Front-desk ride created and shown in the shared timeline; report/calendar truthful with 0 drivers/vehicles. Transportation receipt gap remains a blocker (Agent 2). SC-6/SC-7 still tests only. |
