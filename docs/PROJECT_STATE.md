@@ -6298,3 +6298,9 @@ Next: Agent Three SIM-3 (mixed real + simulated staffing); Agent Four SC-8 + SC-
 ## 2026-10-04 — Coordinator: PR #52 (RQ-001 demo continuity) reviewed — changes requested
 
 PR #52 `pilot/rq-001-demo-continuity` `90160fbe758ecd9a4036f31c70468abb08a16e96` (base `5567d3e`, before SC-16/17). Design accepted (canonical services only, demo room only, exactly-once windows, bounded backlog, chained receipts, real-data snapshots in tests). Not merged: (1) rebase onto `1118baa`; (2) generated requests must carry SC-17 provenance (source `simulator` + `simulation_run_id`), not `aria_voice` — SHARED CORE REQUEST if a run identity is needed; (3) the startup (`server.py`) and sign-in (`auth.py::_issue_jwt`) hooks must be behind a default-off setting so merging cannot change the shared `caoscare` DB's or production's demo room — enabling it is Michael's decision; (4) state whether the email guard stays now that SC-16 records simulated notifications only; (5) rerun focused tests and the gate.
+
+---
+
+## 2026-10-04 — Coordinator: RQ-009 Hearing Assistance / Personal Audio Compatibility assigned to Agent Six
+
+Michael's instruction 2026-10-04. Added RQ-009 to `docs/PILOT1_READY_QUEUE.md` (ASSIGNED, Agent Six) and to the Round 5 board and merge queue in `docs/PILOT1_ACTIVE_WORK.md`. Scope: research/docs only on an isolated branch (`research/rq-009-hearing-assistance`), deliverable `docs/research/RQ-009_HEARING_ASSISTANCE_PERSONAL_AUDIO.md`, draft PR into integration; no heavy compute, no code/firmware/shared-file ownership. Docs only; nothing merged or deployed.
