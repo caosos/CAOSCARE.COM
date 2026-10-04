@@ -27,7 +27,7 @@ import time
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Response
 from pydantic import BaseModel
 
 from deps import db
@@ -36,6 +36,7 @@ from routes.arrival_claim_guard import candidate_tasks, guard_reply
 from routes.realtime_diagnostics import DiagnosticEvent, log_event
 from routes.realtime_memory_ingest import RealtimeTurnIngest, realtime_turn_ingest
 from routes.resident_conversation_context import build_resident_instructions
+from routes.capacity_telemetry import RECORDER
 from routes.voice_bridge_admission import ADMISSION, CLASS_NAMES, MAX_WAIT_S, classify
 from routes.voice_bridge_config import resolve_model
 from routes.voice_bridge_receipts import refusal_receipt, turn_receipt
@@ -209,7 +210,27 @@ def _out(reply: str, conv_id: str, session_id: str, keep_open: bool, tools: list
 
 
 @router.post("/turn")
-async def voice_bridge_turn(data: VoiceBridgeTurn, authorization: Optional[str] = Header(None)):
+async def voice_bridge_turn(data: VoiceBridgeTurn, authorization: Optional[str] = Header(None),
+                            response: Response = None):
+    """Every turn is also counted for capacity monitoring (real vs simulated,
+    priority class, outcome, latency)."""
+    meta, t0, out = {}, time.monotonic(), None
+    try:
+        out = await _handle_turn(data, authorization, meta)
+        return out
+    finally:
+        if "simulated" in meta:
+            if response is not None and meta["simulated"]:
+                response.headers["X-CAOSCare-Simulated"] = "1"
+            o = out or {}
+            outcome = ("emergency" if o.get("priority_class") == "emergency" else "deferred" if o.get("deferred")
+                       else "duplicate" if o.get("duplicate") else "ended" if o.get("session_ended")
+                       else "degraded" if o.get("degraded") else "served" if out else "error")
+            RECORDER.voice_turn(o.get("priority_class") or "unclassified", outcome, time.monotonic() - t0,
+                                meta["simulated"], meta.get("error"))
+
+
+async def _handle_turn(data: VoiceBridgeTurn, authorization: Optional[str], meta: dict) -> dict:
     _check_token(authorization)
     if not MODEL_CONFIG["ok"]:
         raise HTTPException(503, MODEL_CONFIG["error"])
@@ -220,6 +241,7 @@ async def voice_bridge_turn(data: VoiceBridgeTurn, authorization: Optional[str] 
     device_ids = [data.device_id, data.satellite_id]
     try:
         ident = await resolve_identity(device_ids)
+        meta["simulated"] = bool(ident.get("synthetic"))
         session = await open_or_get_session(conv_id, ident)
     except HTTPException as e:
         await refusal_receipt(device_ids=device_ids, ha_conversation_id=conv_id, utterance=text,
@@ -258,14 +280,18 @@ async def voice_bridge_turn(data: VoiceBridgeTurn, authorization: Optional[str] 
     priority = classify(text)
     if priority == 1:
         return await _emergency_turn(ident, session, conv_id, text)
-    admitted, waited = await ADMISSION.acquire(priority, MAX_WAIT_S[priority])
+    # A synthetic (simulator) resident never uses the slots reserved for
+    # real staff-help requests.
+    admit_prio = 3 if priority == 2 and ident.get("synthetic") else priority
+    admitted, waited = await ADMISSION.acquire(admit_prio, MAX_WAIT_S[admit_prio])
     if not admitted:
-        return await _deferred_turn(ident, session, conv_id, text, priority, waited)
+        return await _deferred_turn(ident, session, conv_id, text, admit_prio, waited)
     try:
         await _ingest(ident, sid, "user", text)
         turn = await _converse(ident, sid, text, budget=min(TURN_BUDGET_SECONDS, 22.0 - waited))
     finally:
         ADMISSION.release()
+    meta["error"] = turn["error"]
     reply = turn["reply"]
     await _ingest(ident, sid, "assistant", reply)
     keep_open = not turn["ended"]

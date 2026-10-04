@@ -74,8 +74,12 @@ class Admission:
 
     def snapshot(self) -> dict:
         import copy
+        oldest = min((getattr(f, "enqueued_at", None) for _, _, f in self._waiters if not f.done()), default=None)
         return {"active": self.active, "queued": len(self._waiters), "slots": self.max_active,
-                "reserved_for_staff_help": self.reserved, **copy.deepcopy(self.stats)}
+                "reserved_for_staff_help": self.reserved, "reserved": self.reserved,
+                "reserved_in_use": max(0, self.active - (self.max_active - self.reserved)),
+                "oldest_queued_s": round(time.monotonic() - oldest, 2) if oldest else 0.0,
+                **copy.deepcopy(self.stats)}
 
     async def acquire(self, priority: int, timeout: float) -> tuple:
         """(admitted, waited_seconds)."""
@@ -84,6 +88,7 @@ class Admission:
         if not better_waiting and self._can_run(priority):
             return self._admit(priority, t0)
         fut = asyncio.get_running_loop().create_future()
+        fut.enqueued_at = t0
         entry = (priority, next(self._seq), fut)
         heapq.heappush(self._waiters, entry)
         self.stats["max_queue"] = max(self.stats["max_queue"], len(self._waiters))

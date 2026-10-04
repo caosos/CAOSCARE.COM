@@ -6241,3 +6241,24 @@ Bridge tests 37 passed; backend gate 278 passed, 0 failed, 14 skipped (data not 
 
 ### Not done
 Real provider latency/quotas; Home Assistant; physical Voice PE; admission shared across hosts. Capacity-monitoring assignment (received 2026-10-04) not started.
+
+---
+
+## 2026-10-04 — Capacity monitoring and scalability alerts
+
+### Agent / branch
+Claude Code (Opus 5.5), `spike/voice-bridge` from `ac5dac6`. Not merged or deployed.
+
+### What changed
+- `backend/routes/capacity_telemetry.py`, `capacity_model.py`, `capacity_alerts.py`, `capacity_monitor.py`: per-request traffic classes (10; real vs simulated), voice-turn and receipt-write counters, host readings, per-worker publishing with one sampling leader, `capacity_samples` (30 days), utilization against tested safe values, bottleneck/headroom/emergency reserve/projection, alerts NORMAL/WATCH/ACTION NEEDED/CRITICAL with sustain, hysteresis, cooldown, cause-based recommendations and receipts for every step. Admin API `/api/capacity/*`.
+- Voice bridge records every turn; simulator residents cannot use reserved staff-help slots. `create_receipt` records write latency.
+- Admin → Community → Capacity (`frontend/src/pages/CapacityTab.jsx`, `lib/capacity.js`).
+- `docs/CAPACITY_MONITORING.md`. Load-test report: contention notice for `ratelimit_80.json` and `failure_20.json` (firmware lane's wake-word training ran at the same time).
+
+### Verification
+- `tests/test_capacity_monitor.py` (synthetic samples, isolated DB): traffic separation, resident/staff/combined attribution, sustained opening, CPU saturation, hysteresis, acknowledgment, evidence-gated resolution, receipt chain, cooldown, automatic resolution, device flood, disk/memory pressure, background burst, simulator burst, provider rate limit/failure recommendations, headroom, reserve, projection, real host readings; admin API (live sample, status, validated config change with receipt).
+- Live: 40-room load with 20 synthetic residents and the monitor at 2 s — real and simulated turns counted apart; host CPU alert attributed to another process (firmware training) with "reduce or reschedule background work".
+- Backend gate 281 passed, 0 failed, 13 skipped; frontend 33 suites / 247 tests; production build ok.
+
+### Not done
+STT/TTS failures and audio drops are not observable from CAOSCare (Home Assistant owns them); configured safe values (disk, memory, DB, devices) are not test-derived; projection needs ≥ 3 days of samples.

@@ -13,11 +13,13 @@ happens - see backend/routes/tasks.py for the first caller. The HTTP
 routes below are for reading/querying, plus one admin-only manual-create
 escape hatch for anything not yet wired to call create_receipt() itself.
 """
+import time
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, Query
 
 from deps import db, require_admin
 from models import Receipt, ReceiptStatus, TaskSource, now_utc
+from routes.capacity_telemetry import RECORDER
 
 router = APIRouter(prefix="/receipts", tags=["receipts"])
 
@@ -89,7 +91,9 @@ async def create_receipt(
     )
     doc = r.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
+    t0 = time.monotonic()
     await db.receipts.insert_one(doc)
+    RECORDER.receipt_write((time.monotonic() - t0) * 1000)
     doc.pop("_id", None)
     return doc
 

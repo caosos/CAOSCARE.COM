@@ -339,6 +339,15 @@ fallback for such a turn.
 
 ## Saturation, provider failures, speech limits
 
+**Contention notice.** The final runs of `ratelimit_80.json` (00:18) and
+`failure_20.json` (00:19) overlapped a wake-word training job from the
+firmware lane that started at 00:17:32 and used about 7 of 8 cores (host CPU
+p95 100% in both files). Their correctness results stand (no drops, no missing
+receipts, honest fallbacks, recovery after the outage), but their latency
+figures do not represent the bridge alone. All other runs finished before
+00:17:30 with host CPU p95 at or below 82%. Rerun both when the EliteDesk is
+otherwise idle.
+
 **saturation_80_m8.json** — workers 1, model slots/worker 8 (reserved 2), simulated model 1200±400 ms
 
 | rooms | turns | turns/s | first answer p50/p95/max s | full response p95 s | deferred | degraded | dropped | app CPU p95 % | mongod CPU p95 % | host CPU p95 % | RSS MB | conns | receipts missing/orphan | leaks | dup workflows | endings |

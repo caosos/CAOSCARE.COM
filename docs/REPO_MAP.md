@@ -834,3 +834,9 @@ listener verifier experiment: `docs/experiments/`.
 - `backend/routes/devices.py::execute_room_command`: the one room-scoped command path (room screen + voice bridge).
 - `backend/loadtest/`: load harness (`python -m loadtest.run`), simulated provider, results in `loadtest/results/`.
 - Report: `docs/reports/2026-10-04-voice-bridge-load-test.md`.
+
+## 2026-10-04 — Capacity monitoring (branch `spike/voice-bridge`)
+
+- `backend/routes/capacity_telemetry.py` (traffic classes, counters, host readings), `capacity_model.py` (safe values, utilization, bottleneck, projection, recommendations), `capacity_alerts.py` (levels, hysteresis, cooldown, receipts), `capacity_monitor.py` (sampling loop, middleware, `/api/capacity/*`).
+- `frontend/src/pages/CapacityTab.jsx`, `frontend/src/lib/capacity.js` (Admin → Community → Capacity).
+- `docs/CAPACITY_MONITORING.md`; test `backend/tests/test_capacity_monitor.py`.

@@ -209,6 +209,10 @@ async def main(args):
     levels = [int(x) for x in args.levels.split(",")]
     total = sum(levels) if args.scenario == "levels" else max(levels)
     await seed(db, total)
+    if args.simulated_rooms:
+        await db.residents.update_many({"resident_id": {"$in": [room_ids(i)["resident_id"]
+                                                                for i in range(args.simulated_rooms)]}},
+                                       {"$set": {"synthetic": True}})
     rooms_all = [{**room_ids(i), "i": i} for i in range(total)]
     args.run_id = db_name
     server = start_server(args, db_name, stats_dir, control_file)
@@ -286,6 +290,7 @@ def parse(argv=None):
     p.add_argument("--tts-ms", type=int, default=600)
     p.add_argument("--tts-max-conc", type=int, default=1000)
     p.add_argument("--keep-db", action="store_true")
+    p.add_argument("--simulated-rooms", type=int, default=0, help="mark the first N residents synthetic")
     p.add_argument("--duration", type=float, default=0, help="keep rooms talking for this many seconds")
     p.add_argument("--out", default=str(BACKEND / "loadtest" / "results" / "levels.json"))
     return p.parse_args(argv)
