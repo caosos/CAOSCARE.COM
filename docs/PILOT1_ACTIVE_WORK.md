@@ -3,9 +3,9 @@
 Target: 2026-10-10
 
 Integration branch: `integration/2026-09-27`
-Integration SHA: `239324a` (last code state; Shared Core SC-1..SC-7, Maintenance and Demo kiosk merged). Workers branch from the current tip of `origin/integration/2026-09-27`.
+Integration SHA: tip `0f331b7` (2026-10-04; last code state `268963c` — Shared Core SC-1..SC-7, SC-13..SC-15, Maintenance, Demo kiosk, Front desk/transport merged; later commits are docs and the legacy wake-listener re-scope `79699a0`). Workers branch from the current tip of `origin/integration/2026-09-27`.
 Coordinator: the Claude Code session in the protected integration checkout `~/CAOSCARE-INTEGRATION` on the EliteDesk
-Last updated: 2026-09-28
+Last updated: 2026-10-04 (Round 5 board)
 Recovery snapshot: [`PILOT1_RECOVERY_CHECKPOINT.md`](PILOT1_RECOVERY_CHECKPOINT.md)  
 Ready queue: [`PILOT1_READY_QUEUE.md`](PILOT1_READY_QUEUE.md)
 
@@ -25,6 +25,47 @@ The coordinator also owns [`PILOT1_READY_QUEUE.md`](PILOT1_READY_QUEUE.md): appr
 - other agents touching adjacent systems
 
 No two agents independently redesign the same shared contract.
+
+---
+
+## Round 5 live board (2026-10-04, Michael: parallel execution)
+
+GitHub is the communication bus. Every worker: one bounded objective, one branch, one worktree, owned files below, tests, pushed commits, a **draft PR into `integration/2026-09-27`**, no self-merge. The coordinator merges one PR at a time and runs the integration gate between merges. A worker whose base goes stale after a merge refreshes against the new tip and reruns its tests.
+
+PR body (keep current):
+
+```text
+OBJECTIVE:
+OWNED AREA:
+BASE SHA:
+CURRENT HEAD:
+FILES CHANGED:
+SHARED DEPENDENCIES:
+TESTS:
+ACCEPTANCE:
+KNOWN LIMITATIONS:
+STATUS:
+NEXT:
+```
+
+| Agent | Objective | Branch (base `0f331b7` unless noted) | Owned files | Shared — do not change; file a SHARED CORE REQUEST | Status |
+|---|---|---|---|---|---|
+| Claude Two | Wake-phrase acoustic quick-gate (wake research only) | `research/wake-phrase-funnel` (based on `main`/firmware line, not integration) | `research/wake-phrase-funnel/`, `firmware/voice-pe-aria/lab/` | anything under `backend/`, `frontend/` | Active, `24ceaff`. Not an integration candidate: it carries the firmware history from `main`; anything for integration comes as a separate reviewed branch. Last verified receipt `772e216` (coordinator PASS 2026-10-04). |
+| Agent Three | **SIM-1** minimal actor scheduler (RQ-007), backend only | `pilot/sim-1-scheduler` | new `backend/simulation/` package, new `backend/routes/simulation.py` (if needed), `backend/tests/test_sim1_*.py` | `task_lifecycle.py`, `task_actions.py`, `actor_context.py`, `receipts.py`, `resident_requests.py`, `models.py` (call them, never edit) | Not started. **Scope until Michael lifts the ENGINEERING_CONTRACT gate:** demo room only (synthetic resident in room `DEMO`, `StaffTask.simulated`), StaffTask lifecycle only; no alerts, escalation or pendant events (gate items 7 and 8 — stale-alert quarantine and canonical escalation — are not implemented). Acceptance = `CAOSCARE_OPERATIONS_SIMULATOR.md` §9 SIM-1. |
+| Agent Four | **SC-10, SC-11, SC-12** device-truth fixes only (Shared Core lane) | `pilot/shared-core-device-truth` | `frontend/src/lib/realtimeLightControl.js` (SC-10), `backend/device_adapters.py` `execute_mock` + `backend/simulated_device.py` (SC-11), `frontend/src/lib/realtimeDeviceTools.js` / `realtimeClimateControl.js` session_id plumbing (SC-12), their tests | `routes/devices.py` command contract, demo kiosk behaviour (`demo_kiosk.py`, its tests must keep passing), real-room adapters | Not started. Note: `spike/voice-bridge` (not integrated) also calls the room-command path; keep the `/devices/public/room/{room}/command` contract unchanged. |
+| Agent Five | **RQ-004** Pilot Room 1 hardware inventory / BOM (docs/evidence only; no guessed model numbers) | `agent/pilot-room1-hardware-inventory` (existing, `d0adfbd` on `9488066`) | `docs/PILOT1_ROOM1_HARDWARE_INVENTORY.md` | product baseline, room architecture docs (report changes, do not rewrite) | Branch exists, 2 commits ahead of its base, **no PR yet**. Must refresh onto the current tip (room architecture changed 2026-10-03: central EliteDesk, Voice PE per room, no standard-room eMeet) and open a draft PR. |
+
+### Merge queue (one at a time; gate between merges)
+
+| # | Candidate | Head | State | Blocker / next |
+|---|---|---|---|---|
+| 1 | RQ-004 inventory (Agent Five) | `d0adfbd` | No PR | Refresh onto `0f331b7`, reconcile with the Voice PE architecture, open draft PR |
+| 2 | SC-10/11/12 (Agent Four) | — | Not started | Draft PR + tests (`test_demo_kiosk.py`, light/climate frontend tests) |
+| 3 | SIM-1 (Agent Three) | — | Not started | Draft PR + SIM-1 acceptance test |
+| — | PR #45 `docs/2026-10-03-hardware-priority-reset` | `41b544c` | Draft, **conflicting** (base `d5556ed`; integration has since changed the same docs) | Owner refreshes onto the current tip; coordinator then reviews against the 2026-10-03 Voice PE decision docs |
+| — | `pilot/shared-core-rerequest` (Claude Two, earlier) | `bbfce3b` | No PR; based on `test/okay-nabu-voice` | Carries the okay-nabu test keyword file; needs Michael's review and a clean branch without the Nabu test path before integration |
+| — | `docs/care-app-audit-2026-10-03` | `6b15e5e` | No PR (one audit doc) | Owner opens a draft PR if it should land |
+| — | `spike/voice-bridge` (coordinator's voice lane) | `ac11d76` | Spike, not proposed | Not in this round's train |
 
 ---
 
@@ -57,9 +98,9 @@ Coordinator log: 2026-10-03 demo kiosk moved to demo-only room `DEMO` (synthetic
 | SC-7 | Lane C (lane-local SC-4) | Skip `reject_unconfirmed_time` for authenticated `source="front_desk"` requests | Staff-entered callback times are rejected (422) | Front desk | Integrated at `1d02630`; backend tests only — browser verification comes with the Front desk lane |
 | SC-8 | Lane F (lane-local SC-3) | Pass `related_object_type="task"`, `related_object_id` to `notify_department` at every call site; delete dead `tasks.py::_notify_department` | Per-request delivery status | All departments, history UI | Open. Partly prepared on `pilot/communications` `aa10645` (`notify_department` accepts the link); call sites not updated; not integrated |
 | SC-9 | Lane D (lane-local SC-3) | Department staff can read the department list (`GET /departments` is admin-only) or the workspace heading gets another label source | Workspace headings show the slug | All department workspaces | Open |
-| SC-10 | Lane G (lane-local, `pilot/demo-kiosk` @ `a95acbe`) | `realtimeLightControl.js::handleToggleLight` checks the light's capabilities before the implicit power-on | **Truth defect.** Demo 2026-09-28: "Make the light green" on an off light switched it on, then reported only "doesn't support color" with `ok: true` | Every room with lights (real and demo) | Open |
-| SC-11 | Coordinator (2026-10-02, Demo kiosk review) | Mock devices outside a demo room are now recorded `verified: true` against the simulator (`device_adapters.execute_mock` → `simulated_device.py`); e.g. real Room 214's mock TV/thermostat. Record them as simulated (not verified), or limit the simulator read-back to demo rooms | Records/receipts call a non-existent device "verified" in a real resident room | Room 214 and any real room with mock scaffolding; receipts; Aria | Open |
-| SC-12 | Coordinator (2026-10-02) | `toggle_tv` and `adjust_room_temperature` pass `session_id` to the room command like `toggle_light` does | TV/thermostat `device_commands` have no conversation link (light commands do) | Traceability, Resident hub | Open, low |
+| SC-10 | Lane G (lane-local, `pilot/demo-kiosk` @ `a95acbe`) | `realtimeLightControl.js::handleToggleLight` checks the light's capabilities before the implicit power-on | **Truth defect.** Demo 2026-09-28: "Make the light green" on an off light switched it on, then reported only "doesn't support color" with `ok: true` | Every room with lights (real and demo) | Assigned to Agent Four (Round 5, `pilot/shared-core-device-truth`) |
+| SC-11 | Coordinator (2026-10-02, Demo kiosk review) | Mock devices outside a demo room are now recorded `verified: true` against the simulator (`device_adapters.execute_mock` → `simulated_device.py`); e.g. real Room 214's mock TV/thermostat. Record them as simulated (not verified), or limit the simulator read-back to demo rooms | Records/receipts call a non-existent device "verified" in a real resident room | Room 214 and any real room with mock scaffolding; receipts; Aria | Assigned to Agent Four (Round 5) |
+| SC-12 | Coordinator (2026-10-02) | `toggle_tv` and `adjust_room_temperature` pass `session_id` to the room command like `toggle_light` does | TV/thermostat `device_commands` have no conversation link (light commands do) | Traceability, Resident hub | Assigned to Agent Four (Round 5) |
 | SC-13 | Michael / Agent 2 (SIM-0, 2026-10-03) | ActorContext, one lifecycle service (`task_lifecycle.py`, `task_actions.py`) with authority checks, a receipt per action chained to the request's origin, legacy no-origin refusal, `Resident.synthetic` / `StaffTask.simulated` | Receipt law for staff requests | All departments, simulator | Integrated at `79ca54b` (2026-10-03); nursing + maintenance browser lifecycles: one receipt per step incl. each note, with actor/authority/before/after |
 | SC-14 | Coordinator (2026-10-03, SC-13 integration) | Closed-state guard: start/complete/acknowledge/note on a completed or skipped request must be refused (or an explicit reopen) | `POST /tasks/{id}/start` on a completed request sets it back to in progress and overwrites `started_at` (pre-existing; SC-13 records it truthfully but allows it). UI hides the buttons. | All departments | Integrated at `268963c` (2026-10-03): closed requests refuse lifecycle actions (409; transport keeps 400); refusal recorded. Verified: start on completed `task_e3f03fbf6092` → 409, `started_at` kept, `task_start_refused` recorded |
 | SC-15 | Michael (2026-10-03 approval) | Transportation ride steps (`transport_task_history.py`, `transportation_runs.py`, `transportation.py`, `transportation_assign.py`) go through `task_lifecycle` so each step has a linked receipt | Ride steps write receipts outside the SC-13 lifecycle service | Transportation acceptance | Integrated at `268963c` (2026-10-03): ride steps go through `task_lifecycle`. Verified: browser front-desk ride `task_bb4109c4a4da` request → cancel; both receipts chained to the origin with actor/authority; assign/depart/complete by `test_transport_ride_receipts.py` (gate) |

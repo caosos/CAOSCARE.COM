@@ -6084,3 +6084,22 @@ Approval (Michael, 2026-10-03, coordinator session): merge `chore/rescope-legacy
 - Checks after merge: `room-node/aria_wake/` present; `aria_wake.py` without `ARIA_WAKE_ENABLE_LEGACY` exits 2 with the legacy message and opens no port; no systemd unit/timer, cron entry, `deploy_caoscare.sh` or backend setup script references it; no standard frontend flow builds a `?wake=1` link (only a code comment mentions it); listener tests 5 passed; frontend wake-client tests 4 passed; AGENTS.md, CLAUDE.md, Product Baseline, ROOM_AUDIO_ARCHITECTURE and CURRENT_PRIORITY still state the standard architecture (central EliteDesk; Voice PE per apartment; no per-apartment EliteDesk; no standard-room eMeet; separate handset telephony; Aria, "Hey Aria").
 - Process disposition: the running `aria_wake.py` (PID 2833238, port 8766) was started by the earlier Nabu wake test, not by the re-scope task, and Michael asked to keep that test stack running — left running. The re-scope task left no process running.
 - Not done: main, PR #41/#42, Linode, hardware and firmware untouched.
+
+---
+
+## 2026-10-04 — Coordinator: Round 5 parallel-execution board
+
+### Agent / branch
+Claude Code (Opus 5.5), Pilot 1 integration coordinator, `~/CAOSCARE-INTEGRATION` on `integration/2026-09-27`, tip verified `0f331b75da18cf2339bcd23a0a435805f9a0eb0e` (= origin). Michael's directive "CARE APP BUILD ROUND 5 — MULTI-AGENT COORDINATOR DIRECTIVE". Docs only; nothing merged, deployed or restarted.
+
+### What changed
+- `docs/PILOT1_ACTIVE_WORK.md`: Round 5 live board (agents, branches, owned files, shared dependencies, scope limits), PR body template, merge queue; header SHA refreshed; SC-10/11/12 assigned to Agent Four.
+- `docs/PILOT1_READY_QUEUE.md`: RQ-004 ASSIGNED (Agent Five), RQ-007 SIM-1 ASSIGNED (Agent Three).
+- `docs/PILOT1_EXECUTION_CHECKLIST.md`: header SHA and active task.
+
+### Findings
+- Open PRs into integration: only #45 (draft, conflicting — base `d5556ed`). #41/#42/#23 target main/other (not touched).
+- `agent/pilot-room1-hardware-inventory` `d0adfbd` has no PR and predates the 2026-10-03 room-architecture correction.
+- `pilot/shared-core-rerequest` `bbfce3b` is based on `test/okay-nabu-voice` (carries the okay-nabu keyword file); needs review and a clean branch.
+- SIM-1 scoped to the demo room and StaffTask lifecycle: ENGINEERING_CONTRACT gate items 7 (legacy/stale-data quarantine) and 8 (canonical escalation) are still unimplemented. Lifting that limit is Michael's decision.
+- `research/wake-phrase-funnel` is based on `main` with the firmware history; not an integration candidate as-is.
