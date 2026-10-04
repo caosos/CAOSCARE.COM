@@ -6280,3 +6280,15 @@ HANDOFF CAPSULE
 - Product invariants: one canonical request model; simulated work never reaches a real provider; simulator provenance only server-side; real requests unchanged.
 - Do NOT change:    simulator provenance from request bodies; provider calls without the simulation check.
 - Next safe action: coordinator review; Agent Three decides whether SIM-1 can drop its live-email-key refusal.
+
+---
+
+## 2026-10-04 — Coordinator: SIM-2 (PR #50) and SC-16/SC-17 (PR #51) integrated
+
+Pilot 1 coordinator, `integration/2026-09-27`. One merge at a time, gate between. Not merged to main, not deployed; HA, Linode, PR #41/#42 untouched; Claude Two's batch not touched.
+
+1. PR #50 `pilot/sim-2-live-operations` `89e99a68ea36f3ad6603cd61ab26e94655c9a205` → merge `5567d3e61efcf125829e2b57a2bb44986572c5af`. Code review passed at `c05dc48`; after the rebase the only code change was `min-w-0` (phone width) in `LiveOperations.jsx`. Browser acceptance evidence (Agent Three, PR body: headless Chrome, real admin login, scratch DB; start/pause/step/resume/stop; receipt → request → actor trace with SIMULATED/REAL badges; no console errors; 390 px). PROJECT_STATE conflict resolved keeping both sides. On the merge: frontend 34 suites / 263 tests; backend gate 248/3/13 (the known stale tests). MERGED.
+2. PR #51 `pilot/shared-core-sim-provenance` `d29f1cafd8a167a8dd9162cb173470cf672b71c0` → merge `895769ae77567ef2b590061f4160710449717942`. Reviewed: SC-16 — `notifications.simulation_of(task)` from the task's own marker; simulated notifications recorded `status: simulated`, never handed to Twilio/Resend; SC-17 — `TaskSource` `simulator`, `simulation_run_id` on StaffTask and on every receipt of its chain (`task_lifecycle._run_link`), set in-process only; real requests unchanged. Log conflicts resolved keeping both sides. On the merge: `test_sim_provenance.py` + SIM-1 13 passed; gate 255/3/13 (+7); frontend 34/263. MERGED.
+
+Checklist: simulator items updated with evidence (receipt chains, controls without SSH, drill-down, real/simulated distinct marked done; UI state partially — no speed control).
+Next: Agent Three SIM-3 (mixed real + simulated staffing); Agent Four SC-8 + SC-9; Agent Five RQ-001 (unblocked by SC-17) and the RQ-008 report PR.
