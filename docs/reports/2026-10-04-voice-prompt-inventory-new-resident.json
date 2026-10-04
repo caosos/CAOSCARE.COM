@@ -1,0 +1,282 @@
+{
+ "identifiers": {
+  "resident_id": "res_measure",
+  "room": "M-101",
+  "session_id": "vb_measure-current",
+  "profile": "new"
+ },
+ "system_chars": 18325,
+ "history": {
+  "messages": 0,
+  "chars": 0,
+  "cap_messages": 20
+ },
+ "tools": {
+  "count": 11,
+  "chars": 14424,
+  "per_tool": [
+   {
+    "tool": "adjust_room_temperature",
+    "chars": 1325,
+    "est_tokens": 331
+   },
+   {
+    "tool": "toggle_light",
+    "chars": 1538,
+    "est_tokens": 384
+   },
+   {
+    "tool": "call_for_help",
+    "chars": 1313,
+    "est_tokens": 328
+   },
+   {
+    "tool": "get_current_time",
+    "chars": 428,
+    "est_tokens": 107
+   },
+   {
+    "tool": "end_call",
+    "chars": 644,
+    "est_tokens": 161
+   },
+   {
+    "tool": "request_staff_help",
+    "chars": 2458,
+    "est_tokens": 614
+   },
+   {
+    "tool": "check_request_status",
+    "chars": 2210,
+    "est_tokens": 552
+   },
+   {
+    "tool": "check_request_history",
+    "chars": 959,
+    "est_tokens": 240
+   },
+   {
+    "tool": "request_transportation",
+    "chars": 1800,
+    "est_tokens": 450
+   },
+   {
+    "tool": "get_todays_schedule",
+    "chars": 600,
+    "est_tokens": 150
+   },
+   {
+    "tool": "get_menu",
+    "chars": 1127,
+    "est_tokens": 282
+   }
+  ]
+ },
+ "sections": [
+  {
+   "section": "## About yourself (the platform you live on)",
+   "source": "realtime_self_knowledge._system_self_knowledge",
+   "inclusion": "always",
+   "classification": "on-demand",
+   "chars": 1034,
+   "est_tokens": 258
+  },
+  {
+   "section": "## What you actually run on (so you can answer 'how do you work')",
+   "source": "realtime_self_knowledge._system_self_knowledge",
+   "inclusion": "always",
+   "classification": "on-demand",
+   "chars": 1228,
+   "est_tokens": 307
+  },
+  {
+   "section": "## What's on the kiosk screen (so you can describe buttons)",
+   "source": "realtime_self_knowledge._system_self_knowledge",
+   "inclusion": "always",
+   "classification": "on-demand",
+   "chars": 775,
+   "est_tokens": 194
+  },
+  {
+   "section": "## What you can DO right now (your full toolset)",
+   "source": "realtime_self_knowledge._system_self_knowledge",
+   "inclusion": "always",
+   "classification": "duplication",
+   "chars": 1031,
+   "est_tokens": 258
+  },
+  {
+   "section": "## NEVER over-promise (CRITICAL trust rule)",
+   "source": "realtime_self_knowledge._system_self_knowledge",
+   "inclusion": "always",
+   "classification": "duplication",
+   "chars": 452,
+   "est_tokens": 113
+  },
+  {
+   "section": "## Right now",
+   "source": "realtime_companion_prompt time anchor (_facility_now)",
+   "inclusion": "always",
+   "classification": "always",
+   "chars": 488,
+   "est_tokens": 122
+  },
+  {
+   "section": "## Who you are",
+   "source": "realtime_companion_prompt persona",
+   "inclusion": "always",
+   "classification": "always",
+   "chars": 396,
+   "est_tokens": 99
+  },
+  {
+   "section": "## How you sound",
+   "source": "realtime_companion_prompt persona",
+   "inclusion": "always",
+   "classification": "always",
+   "chars": 547,
+   "est_tokens": 137
+  },
+  {
+   "section": "## Language",
+   "source": "realtime_companion_prompt persona",
+   "inclusion": "always",
+   "classification": "always",
+   "chars": 329,
+   "est_tokens": 82
+  },
+  {
+   "section": "## What never to say",
+   "source": "realtime_companion_prompt persona",
+   "inclusion": "always",
+   "classification": "always",
+   "chars": 475,
+   "est_tokens": 119
+  },
+  {
+   "section": "## What to do",
+   "source": "realtime_companion_prompt persona",
+   "inclusion": "always",
+   "classification": "always",
+   "chars": 671,
+   "est_tokens": 168
+  },
+  {
+   "section": "## Visually impaired residents",
+   "source": "realtime_companion_prompt persona",
+   "inclusion": "always",
+   "classification": "always",
+   "chars": 288,
+   "est_tokens": 72
+  },
+  {
+   "section": "## Truth discipline (CRITICAL \u2014 never violate)",
+   "source": "realtime_companion_prompt governance",
+   "inclusion": "always",
+   "classification": "always",
+   "chars": 860,
+   "est_tokens": 215
+  },
+  {
+   "section": "## Memory is reference, not filler (CRITICAL)",
+   "source": "realtime_companion_prompt governance",
+   "inclusion": "always",
+   "classification": "always",
+   "chars": 1408,
+   "est_tokens": 352
+  },
+  {
+   "section": "## Attribution discipline \u2014 never claim 'you told me'",
+   "source": "realtime_companion_prompt governance",
+   "inclusion": "always",
+   "classification": "always",
+   "chars": 789,
+   "est_tokens": 197
+  },
+  {
+   "section": "## When you make a mistake \u2014 fix it instantly",
+   "source": "realtime_companion_prompt governance",
+   "inclusion": "always",
+   "classification": "always",
+   "chars": 440,
+   "est_tokens": 110
+  },
+  {
+   "section": "## Tools you can actually use",
+   "source": "realtime_companion_prompt tool guidance",
+   "inclusion": "always",
+   "classification": "by-intent",
+   "chars": 2998,
+   "est_tokens": 750
+  },
+  {
+   "section": "## How to be more than Alexa",
+   "source": "realtime_companion_prompt persona",
+   "inclusion": "always",
+   "classification": "by-intent",
+   "chars": 774,
+   "est_tokens": 194
+  },
+  {
+   "section": "## Sensitive adult-life topics \u2014 talk like a trustworthy adult, not a ",
+   "source": "realtime_companion_prompt persona",
+   "inclusion": "always",
+   "classification": "by-intent",
+   "chars": 1535,
+   "est_tokens": 384
+  },
+  {
+   "section": "## Safety",
+   "source": "realtime_companion_prompt safety",
+   "inclusion": "always",
+   "classification": "always",
+   "chars": 292,
+   "est_tokens": 73
+  },
+  {
+   "section": "## About this person",
+   "source": "realtime_companion_memory profile + intake notes",
+   "inclusion": "per-resident",
+   "classification": "always",
+   "chars": 817,
+   "est_tokens": 204
+  },
+  {
+   "section": "## What you know about Maggie (durable facts)",
+   "source": "realtime_companion_memory facts bin (<=40)",
+   "inclusion": "per-resident",
+   "classification": "on-demand",
+   "chars": 231,
+   "est_tokens": 58
+  },
+  {
+   "section": "## Recent moments with Maggie",
+   "source": "realtime_companion_memory events bin (<=20)",
+   "inclusion": "per-resident",
+   "classification": "on-demand",
+   "chars": 223,
+   "est_tokens": 56
+  },
+  {
+   "section": "## This conversation's channel",
+   "source": "voice_bridge.CHANNEL_NOTE",
+   "inclusion": "always",
+   "classification": "always",
+   "chars": 244,
+   "est_tokens": 61
+  }
+ ],
+ "total_chars": 32749,
+ "total_est_tokens": 8187,
+ "layers_present": {
+  "op_state": true,
+  "continuity": true,
+  "conv_state": false,
+  "interpretation_patterns": false
+ },
+ "omitted": {
+  "menu/activities data": "not in the prompt; fetched by get_menu / get_todays_schedule tools",
+  "receipts and provenance": "not in the prompt; written server-side by the bridge",
+  "department list": "not in the prompt; inside the request_staff_help tool schema"
+ }
+}

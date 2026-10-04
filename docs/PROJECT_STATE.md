@@ -6262,3 +6262,23 @@ Claude Code (Opus 5.5), `spike/voice-bridge` from `ac5dac6`. Not merged or deplo
 
 ### Not done
 STT/TTS failures and audio drops are not observable from CAOSCare (Home Assistant owns them); configured safe values (disk, memory, DB, devices) are not test-derived; projection needs ≥ 3 days of samples.
+
+---
+
+## 2026-10-04 — Voice prompt and context budget audit
+
+### Agent / branch
+Claude Code (Opus 5.5), `spike/voice-bridge` from `ef5f4f8`. Static analysis and measurement only (Wake Word Lab running); no behaviour change, no model call, no test suites, nothing merged or deployed.
+
+### What changed
+- `backend/scripts/measure_voice_prompt.py`: builds the bridge's first model request exactly as `_converse` does (instructions + channel note, history, tool schemas) on a throwaway DB, reports characters / estimated tokens (chars ÷ 4) per section and per tool, identifiers, omitted context. `--db-resident` reads a real resident read-only, sizes only.
+- Report `docs/reports/2026-10-04-voice-prompt-context-audit.md`; inventories `docs/reports/2026-10-04-voice-prompt-inventory-{new-resident,representative}.json`.
+
+### Measured
+New resident 32,749 chars (~8,190 tokens est.; matches the load report's 33,083); representative resident 39,431 (~9,860). Tool schemas 14,424 (11 tools, 37% of a new resident's call). Tool turns make a second call carrying the same context.
+
+### Findings
+The bridge prompt names 7 tools the bridge does not expose (get_room_status, mark_resting, request_live_staff, set_timer, get_weather, research_topic, update_preferred_name) — capability-truth defect, found by cross-check, not observed live. Capability list and tool guidance duplicate the tool schemas; kiosk-screen text is irrelevant on Voice PE; the per-minute time anchor sits before ~13k static characters, defeating prefix caching.
+
+### Proposed (not implemented)
+Budgets per turn type (common turn ≈ 15,000 chars), safety/governance never truncated; phases A (dedup + ordering + channel-generated tool guidance) → B (tools by intent) → C (summaries + targeted memory) → D (re-verify). Estimated reduction 50–60%, unverified.
