@@ -10,7 +10,7 @@
 
 Training generator: Piper LibriTTS-R multi-speaker (.pt, piper-sample-generator).
 Run with the research venv (venv-mww). Output under ~/caoscare-firmware-work/samples/lab.
-usage: gen_lab.py negatives|positives|eval|extra_confusion [trained|supplemental]
+usage: gen_lab.py negatives|positives|eval|extra_confusion [trained|supplemental|batch1]
 """
 import json
 import sys
@@ -22,10 +22,10 @@ import torch
 
 from lab_common import (EVAL_LENGTH_SCALES, EVAL_SENTENCES, EVAL_SPEAKERS, EXTRA_CONFUSION, FORMS, GEN_PT, LENGTH_SCALES,
                         NOISE_SCALES, NOISE_WS, SAMPLES, SEED, TRAIN_NEGATIVES_PER_PHRASE,
-                        TRAIN_POSITIVES_PER_FORM, VOICES, ipa_phrase, load_supplemental_candidates,
+                        TRAIN_POSITIVES_PER_FORM, VOICES, ipa_phrase, load_batch_candidates, load_supplemental_candidates,
                         load_trained_candidates, training_negative_phrases)
 
-WHICH = sys.argv[2] if len(sys.argv) > 2 else "trained"   # "trained" (original 15) | "supplemental"
+WHICH = sys.argv[2] if len(sys.argv) > 2 else "trained"   # "trained" (original 15) | "supplemental" | "batch1"
 
 sys.path.insert(0, str(GEN_PT.parents[1]))
 from piper_sample_generator.__main__ import generate_samples  # noqa: E402
@@ -62,6 +62,8 @@ def negatives():
 
 
 def cand_list():
+    if WHICH.startswith("batch"):
+        return load_batch_candidates(WHICH)
     return load_supplemental_candidates() if WHICH == "supplemental" else load_trained_candidates()
 
 
@@ -113,7 +115,7 @@ def eval_set():
         for alt in c.get("alt_pronunciations", []):   # pronunciation-sensitivity diagnostics
             jobs.append(("pronunciation/" + c["slug"] + "/" + slug(alt["label"]),
                          ipa_phrase(alt["arpa_words"], "intended"), True))
-    if WHICH != "supplemental":   # shared negatives/sentences already exist; supplemental adds positives only
+    if WHICH == "trained":   # shared negatives/sentences already exist; later sets add positives only
         for p in training_negative_phrases(nb["train"]):
             jobs.append(("negatives_trained/" + slug(p), p, False))
         for p in nb["eval"]:

@@ -39,10 +39,12 @@ def ambient_faph(streams, cut):
     return round(events / hours, 3)
 
 
-def main():
+def main(cands=None, out=None):
+    """Default: the completed 26-model lab -> lab/results. A follow-on batch passes its own candidate
+    list and output folder (report_batch.py) so the 26-model results are never rewritten."""
     originals = load_trained_candidates()
     supplemental = load_supplemental_candidates()
-    cands = originals + supplemental
+    cands = cands if cands is not None else originals + supplemental
     supp_slugs = {c["slug"] for c in supplemental}
     res, conf, cross, roc = {}, defaultdict(dict), defaultdict(dict), []
     for c in cands:
@@ -72,8 +74,8 @@ def main():
             elif parts[0] in ("negatives_trained", "negatives_heldout", "sentences"):
                 neg[(parts[0], parts[1])].append(r["peak"])
         matched = next((x for x in sorted(CUTOFFS) if ambient_faph(st, x) <= MATCHED_FAPH), max(CUTOFFS))
-        row = {"id": c["id"], "slug": c["slug"], "group": "supplemental (mandatory)" if c["slug"] in supp_slugs
-               else "original 15", "kind": c["kind"], "launcher": c.get("launcher"),
+        row = {"id": c["id"], "slug": c["slug"], "group": c.get("group") if str(c.get("group", "")).startswith("batch")
+               else "supplemental (mandatory)" if c["slug"] in supp_slugs else "original 15", "kind": c["kind"], "launcher": c.get("launcher"),
                "base": c.get("base"), "tflite_sha256": e["tflite_sha256"], "tflite_bytes": e["tflite_bytes"],
                "arena_bytes": e["arena_bytes"], "matched_cutoff": matched}
         for point, cut in (("fixed", REPORT_CUTOFF), ("matched", matched)):
@@ -125,7 +127,8 @@ def main():
                             [v for k in GROUPS for cond in GROUPS[k] for v in own[cond]], cut),
                         "ambient_false_per_hour": ambient_faph(st, cut),
                         "confusion_false_rate": rate([v for vals in neg.values() for v in vals], cut)})
-    out = LAB / "results"
+    out = out or LAB / "results"
+    out.mkdir(parents=True, exist_ok=True)
     (out / "phase2_results.json").write_text(json.dumps({
         "report_cutoff": REPORT_CUTOFF, "matched_faph": MATCHED_FAPH, "ambient_streams": AMBIENT,
         "condition_groups": GROUPS, "models": res, "confusion_by_phrase_at_matched_cutoff": conf,

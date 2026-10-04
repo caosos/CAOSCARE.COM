@@ -39,8 +39,8 @@ import numpy as np
 import soundfile as sf
 from scipy.signal import butter, fftconvolve, lfilter, resample_poly
 
-from lab_common import (CUTOFFS, EVAL_DATA, REPORT_CUTOFF, RUNS, SAMPLES, SEED, load_supplemental_candidates,
-                        load_trained_candidates, sha256)
+from lab_common import (CUTOFFS, EVAL_DATA, REPORT_CUTOFF, RUNS, SAMPLES, SEED, load_batch_candidates,
+                        load_supplemental_candidates, load_trained_candidates, sha256)
 
 SR = 16000
 WORKERS = 3      # memory: ~1.4-1.8 GB per worker (TF runtime + int16 noise); 3 keeps the 14 GB host safe
@@ -240,8 +240,13 @@ def cross_supplemental(slug, tflite, is_original):
 def main(slug, cross=False):
     originals = {c["slug"]: c for c in load_trained_candidates()}
     supplemental = {c["slug"]: c for c in load_supplemental_candidates()}
-    # original models keep exactly their original job list; supplemental models cross-check all 22
-    cands = {**originals, **supplemental} if slug in supplemental else originals
+    batch = {c["slug"]: c for c in load_batch_candidates()}
+    # original models keep exactly their original job list; supplemental models cross-check all 26;
+    # batch models (Round 5) cross-check all 26 plus their own batch
+    if slug in batch:
+        cands = {**originals, **supplemental, **batch}
+    else:
+        cands = {**originals, **supplemental} if slug in supplemental else originals
     tflite = str(RUNS / slug / "trained/tflite_stream_state_internal_quant/stream_state_internal_quant.tflite")
     if cross:
         return cross_supplemental(slug, tflite, slug in originals)

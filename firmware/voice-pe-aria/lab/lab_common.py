@@ -188,5 +188,12 @@ def load_phase1_rows():
     return rows
 
 
+def load_batch_candidates(name="batch1"):
+    """Follow-on acoustic batches selected from the wake-phrase funnel (batch1_candidates.json, Round 5).
+    Kept separate from the 26 so the completed lab's results are never rewritten."""
+    f = LAB / f"{name}_candidates.json"
+    return json.loads(f.read_text()) if f.exists() else []
+
+
 def candidate(slug):
-    return next(c for c in load_all_candidates() if c["slug"] == slug)
+    return next(c for c in load_all_candidates() + load_batch_candidates() if c["slug"] == slug)
