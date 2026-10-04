@@ -5,7 +5,7 @@ Target: 2026-10-10
 Current phase: PHASE 3 — Real staff operational workflows (focus: operational completion)
 Current active task: Round 5 parallel lanes (see `PILOT1_ACTIVE_WORK.md` Round 5 board: SIM-1 demo-room-only, SC-10/11/12, RQ-004). Earlier: Michael decides the simulator gate (escalation decision 8, stale-alert policy decision 7, or a demo-room-only SIM-1); Agent 2's Nabu re-request fix `bbfce3b` awaits review; then Community services `d95c4d6` (SC-14/SC-15 integrated at `268963c`, 2026-10-03)
 Current integration branch: `integration/2026-09-27`
-Current integration SHA: `0f331b7` (tip, 2026-10-04; last code state `268963c`)
+Current integration SHA: `42ac6f3` (tip, 2026-10-04; last code state `1126d8c` — SIM-1)
 Last updated: 2026-10-04 (Round 5 board)
 Last updated by: Claude Code (Opus 5.5), EliteDesk
 
@@ -60,17 +60,17 @@ Hard law: **No action without a receipt. No receipt without provenance.** The si
 
 Acceptance:
 
-- [ ] Every simulator action has an origin-linked durable receipt/event
+- [~] Every simulator action has an origin-linked durable receipt/event — run and request receipt chains (SIM-1, integrated at `1126d8c`; `test_sim1_actor_scheduler.py` 6 passed and gate 240/3/13 on the merge, 2026-10-04); simulated requests still carry channel `aria_voice` and no `simulation_run_id` (SC-17)
 - [ ] Live simulator UI shows RUNNING / PAUSED / STOPPED, simulation time/speed and current actors
-- [ ] Operator can Start, Pause, Step one event, Resume and Stop without SSH
-- [ ] One simulated resident can create a canonical request
-- [ ] One simulated staff actor can accept/progress/complete it through canonical lifecycle services
+- [~] Operator can Start, Pause, Step one event, Resume and Stop without SSH — admin API `/api/simulator/*` (SIM-1, integrated at `1126d8c`; `test_sim1_actor_scheduler.py` 6 passed and gate 240/3/13 on the merge, 2026-10-04); UI is SIM-2
+- [x] One simulated resident can create a canonical request (SIM-1, integrated at `1126d8c`; `test_sim1_actor_scheduler.py` 6 passed and gate 240/3/13 on the merge, 2026-10-04)
+- [x] One simulated staff actor can accept/progress/complete it through canonical lifecycle services (SIM-1, integrated at `1126d8c`; `test_sim1_actor_scheduler.py` 6 passed and gate 240/3/13 on the merge, 2026-10-04)
 - [ ] Receipt drill-down traces origin, actor, authority, execution, resulting state and evidence
 - [ ] Real and simulated actors are visibly and structurally distinct
 - [ ] Michael can be scheduled as a real worker into a role normally occupied by a simulated agent
 - [ ] Michael can claim/complete simulated-origin work through the normal staff UI
 - [ ] Simulator observes Michael's real receipt/state change and continues from that state
-- [ ] Pause/stop prevents new simulated actions without erasing history
+- [x] Pause/stop prevents new simulated actions without erasing history (SIM-1, integrated at `1126d8c`; `test_sim1_actor_scheduler.py` 6 passed and gate 240/3/13 on the merge, 2026-10-04)
 - [ ] Simulation reset cannot touch real resident/staff data
 - [ ] Completion claims require system evidence, not only agent text
 
