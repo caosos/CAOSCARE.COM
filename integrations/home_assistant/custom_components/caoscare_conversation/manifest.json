@@ -1,0 +1,11 @@
+{
+  "domain": "caoscare_conversation",
+  "name": "CAOSCare conversation agent",
+  "version": "0.1.0",
+  "documentation": "https://github.com/caosos/CAOSCARE.COM",
+  "codeowners": [],
+  "config_flow": true,
+  "dependencies": ["conversation"],
+  "requirements": [],
+  "iot_class": "local_polling"
+}
