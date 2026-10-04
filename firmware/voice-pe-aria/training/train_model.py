@@ -2,7 +2,7 @@
 notebook (augmentation, feature generation, config, mixednet architecture),
 with sound-alike hard negatives added as an extra negative feature set.
 
-usage: train_model.py <naboo|hey_naboo> [training_steps]
+usage: train_model.py <aria|hey_aria> [training_steps]
 """
 import os
 import subprocess
@@ -24,7 +24,7 @@ RUN = W / "runs" / NAME
 RUN.mkdir(parents=True, exist_ok=True)
 os.chdir(RUN)
 
-NEGATIVE_TTS = ["adversarial"] + (["bare_naboo_negative"] if NAME == "hey_naboo" else [])
+NEGATIVE_TTS = ["adversarial_aria"] + (["bare_aria_negative"] if NAME == "hey_aria" else [])
 
 
 def augmenter():

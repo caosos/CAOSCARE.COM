@@ -5116,3 +5116,58 @@ HANDOFF CAPSULE
 - Product invariants: local on-device wake detection; stock Okay Nabu kept as fallback; no device flashed without approval.
 - Do NOT change:    any running device/HA; main/integration.
 - Next safe action: Michael approves a USB flash of one test Voice PE, then runs the device tests in the README.
+
+---
+
+## 2026-10-03 — Correction: Voice PE wake word is ARIA; "Aria"/"Hey Aria" firmware spike (offline only)
+
+### Agent / tool
+Claude Code (Opus 5.5), isolated worktree `~/CAOSCARE-FIRMWARE-ARIA`, branch `firmware/voice-pe-aria` (from `firmware/voice-pe-naboo` @ `9dff64b`). Firmware/model lane only.
+
+### Michael's correction (provenance)
+- The assistant identity remains **ARIA**.
+- Wake-word candidates are "Hey Aria" and "Aria", pronounced AR-ee-uh.
+- Naboo, Hey Naboo, Hey Nabu and Okay Nabu are not CAOSCare product wake words.
+- Do not create "Eria".
+- The Naboo branch is preserved unchanged as evidence; this entry supersedes the Naboo product direction recorded in the entry above.
+
+### What changed
+- `firmware/voice-pe-aria/` (renamed from `voice-pe-naboo`; training scripts, manifest tooling, recovery docs and the microWakeWord patch reused):
+  - new models `aria` and `hey_aria`;
+  - stock wake words (Okay Nabu, Hey Jarvis, Hey Mycroft) removed;
+  - stock sensitivity select replaced by one with the same name that tunes the Aria models;
+  - `update`, `dashboard_import` and the Beta switch removed;
+  - eval extended with volume levels, a simulated room at 1/2/4 m, noise, and held-out sentences;
+  - README and results rewritten.
+- `docs/REPO_MAP.md`: firmware line updated.
+
+### What was verified
+- Speech generator reads the plain spelling "Aria" as /ˈɛɹiə/, the same sound as "area". Positives therefore use AR-ee-uh respellings: Ahria, Ahreea, Ahrya.
+- **Aria @ 0.90:**
+  - clean true accept 87%;
+  - held-out sound-alike false accepts 13%;
+  - sentence false accepts 3%;
+  - DiPCo 0 false accepts/hour;
+  - simulated 1–4 m true accept 64%.
+- **Hey Aria @ 0.97:** true accept 68%; held-out sound-alike false accepts 15% (trained sound-alikes 23%); DiPCo never reaches 0 false accepts/hour.
+- Aria beats Hey Aria on every measure; neither is resident-ready.
+- **Compile:** exit 0 under ESPHome 2026.9.0; flash 38.4%, RAM 50.7%.
+- **Binary contents:** Aria strings present; Okay Nabu, Hey Jarvis, Hey Mycroft and the update URL absent.
+
+### Blocked / not done
+- No device: the Voice PE has not arrived, so nothing was flashed.
+- No real voices tested.
+- HA → CAOSCare conversation pipeline not built or verified here.
+- Training data licence is non-commercial.
+
+HANDOFF CAPSULE
+- Objective:        Decide by device testing whether "Aria" is usable as the Voice PE wake word.
+- Branch:           firmware/voice-pe-aria (not merged)
+- Lane / ownership: Voice PE firmware + wake-word models only. Not backend, HA runtime, voice-bridge branch, website, production, main, PR #41/#42.
+- Last proven state: offline eval + clean compile (above); hashes in firmware/voice-pe-aria/README.md.
+- Commits:          see this entry's commit.
+- Runtime state:    nothing running; no device touched.
+- Unresolved proven defects: Aria/Hey Aria false-accept on Ari/Ariana/Maria/Marie/area-type sounds (13–23% offline).
+- Product invariants: local on-device wake detection; Aria identity; no device flashed without approval.
+- Do NOT change:    firmware/voice-pe-naboo branch; main; integration; Linode.
+- Next safe action: when the Voice PE arrives, USB-flash firmware.factory.bin and run the README device tests (false-wake soak first).

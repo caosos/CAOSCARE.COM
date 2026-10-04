@@ -1,0 +1,72 @@
+== aria cutoff 0.5
+condition             true acc  other ph AIR-ee-uh FA held-out FA trained FA sentence
+clean                  261/270    55/270     8/120      81/384     62/360      17/180
+quiet_-12dB            263/270    54/270     7/120      81/384     64/360      16/180
+very_quiet_-24dB       259/270    51/270     8/120      74/384     61/360      13/180
+room_1m                232/270    11/270     6/120      53/384     52/360       5/180
+room_2m                220/270    14/270     5/120      44/384     49/360       6/180
+room_4m                230/270     8/270     7/120      54/384     55/360      10/180
+room_4m_noise_10dB     216/270    18/270    11/120      71/384     62/360      15/180
+worst phrases (FA/clips, all conditions): ari 136/168; hurry 80/168; ariana 74/168; maria 71/168; harry 63/168; marie 62/168; hey_victoria 55/168; victoria 39/168; is_this_area_clean_yet 29/126; laria 34/168; cafeteria 32/168; i_m_sorry 42/294
+clean true accept by voice: en_GB-alan-medium 41/45, en_GB-cori-high 44/45, en_US-amy-medium 45/45, en_US-joe-medium 45/45, en_US-lessac-medium 42/45, en_US-ryan-high 44/45
+
+== aria cutoff 0.9
+condition             true acc  other ph AIR-ee-uh FA held-out FA trained FA sentence
+clean                  235/270    48/270     4/120      50/384     32/360       6/180
+quiet_-12dB            243/270    42/270     3/120      49/384     34/360       4/180
+very_quiet_-24dB       246/270    29/270     3/120      46/384     32/360       4/180
+room_1m                173/270     5/270     3/120      18/384     28/360       1/180
+room_2m                173/270     5/270     2/120      20/384     25/360       3/180
+room_4m                174/270     0/270     5/120      22/384     30/360       1/180
+room_4m_noise_10dB     143/270     4/270     4/120      30/384     32/360       8/180
+worst phrases (FA/clips, all conditions): ari 97/168; ariana 52/168; harry 40/168; marie 39/168; hey_victoria 31/168; maria 23/168; hurry 23/168; that_area 20/168; laria 20/168; cafeteria 20/168; is_this_area_clean_yet 15/126; victoria 14/168
+clean true accept by voice: en_GB-alan-medium 34/45, en_GB-cori-high 40/45, en_US-amy-medium 43/45, en_US-joe-medium 45/45, en_US-lessac-medium 38/45, en_US-ryan-high 35/45
+
+== aria cutoff 0.97
+condition             true acc  other ph AIR-ee-uh FA held-out FA trained FA sentence
+clean                  210/270    36/270     2/120      35/384     23/360       4/180
+quiet_-12dB            228/270    26/270     2/120      35/384     24/360       3/180
+very_quiet_-24dB       234/270    15/270     2/120      32/384     23/360       3/180
+room_1m                128/270     1/270     3/120      11/384     17/360       1/180
+room_2m                136/270     3/270     2/120      11/384     17/360       2/180
+room_4m                141/270     0/270     3/120      13/384     19/360       0/180
+room_4m_noise_10dB     117/270     0/270     2/120      20/384     20/360       5/180
+worst phrases (FA/clips, all conditions): ari 74/168; ariana 38/168; marie 27/168; harry 23/168; hey_victoria 19/168; laria 16/168; maria 15/168; hurry 15/168; is_this_area_clean_yet 11/126; that_area 14/168; hey_gloria 12/168; cafeteria 10/168
+clean true accept by voice: en_GB-alan-medium 25/45, en_GB-cori-high 37/45, en_US-amy-medium 40/45, en_US-joe-medium 44/45, en_US-lessac-medium 31/45, en_US-ryan-high 33/45
+
+== hey_aria cutoff 0.9
+condition             true acc  other ph AIR-ee-uh FA held-out FA trained FA sentence
+clean                  195/270     1/270    56/120      68/384     92/360      22/180
+quiet_-12dB            193/270     1/270    45/120      65/384     88/360      18/180
+very_quiet_-24dB       188/270     1/270    45/120      62/384     79/360      16/180
+room_1m                191/270     2/270    50/120      54/384     83/360      17/180
+room_2m                190/270     1/270    42/120      57/384     90/360      13/180
+room_4m                188/270     5/270    38/120      67/384    102/360      14/180
+room_4m_noise_10dB     167/270     8/270    32/120      54/384     76/360      11/180
+worst phrases (FA/clips, all conditions): hey_mario 133/168; the_area 111/168; hey_ari 110/168; hey_area 97/168; hey_gloria 91/168; hey_maria 133/294; hey_daria 67/168; victoria 56/168; this_area 48/168; hey_larry 39/168; valeria 32/168; common_area 25/168
+clean true accept by voice: en_GB-alan-medium 16/45, en_GB-cori-high 45/45, en_US-amy-medium 45/45, en_US-joe-medium 39/45, en_US-lessac-medium 45/45, en_US-ryan-high 5/45
+
+== hey_aria cutoff 0.94
+condition             true acc  other ph AIR-ee-uh FA held-out FA trained FA sentence
+clean                  190/270     1/270    52/120      64/384     88/360      18/180
+quiet_-12dB            187/270     1/270    44/120      60/384     80/360      14/180
+very_quiet_-24dB       181/270     1/270    43/120      55/384     74/360      14/180
+room_1m                187/270     1/270    44/120      50/384     76/360      11/180
+room_2m                183/270     1/270    36/120      53/384     82/360      12/180
+room_4m                184/270     4/270    36/120      62/384     96/360       9/180
+room_4m_noise_10dB     162/270     5/270    28/120      50/384     71/360      10/180
+worst phrases (FA/clips, all conditions): hey_mario 127/168; hey_ari 110/168; the_area 105/168; hey_area 92/168; hey_gloria 87/168; hey_maria 120/294; hey_daria 55/168; victoria 52/168; this_area 43/168; hey_larry 35/168; valeria 31/168; common_area 25/168
+clean true accept by voice: en_GB-alan-medium 14/45, en_GB-cori-high 45/45, en_US-amy-medium 45/45, en_US-joe-medium 37/45, en_US-lessac-medium 45/45, en_US-ryan-high 4/45
+
+== hey_aria cutoff 0.97
+condition             true acc  other ph AIR-ee-uh FA held-out FA trained FA sentence
+clean                  184/270     1/270    46/120      57/384     81/360      15/180
+quiet_-12dB            181/270     1/270    40/120      55/384     76/360      11/180
+very_quiet_-24dB       179/270     1/270    37/120      52/384     69/360      10/180
+room_1m                181/270     1/270    40/120      42/384     63/360       7/180
+room_2m                181/270     1/270    32/120      47/384     72/360       8/180
+room_4m                181/270     3/270    33/120      53/384     86/360       7/180
+room_4m_noise_10dB     154/270     4/270    23/120      43/384     62/360      10/180
+worst phrases (FA/clips, all conditions): hey_mario 121/168; hey_ari 108/168; the_area 99/168; hey_area 86/168; hey_gloria 82/168; hey_maria 97/294; hey_daria 45/168; victoria 43/168; this_area 37/168; hey_larry 30/168; valeria 26/168; common_area 20/168
+clean true accept by voice: en_GB-alan-medium 13/45, en_GB-cori-high 45/45, en_US-amy-medium 45/45, en_US-joe-medium 33/45, en_US-lessac-medium 45/45, en_US-ryan-high 3/45
+

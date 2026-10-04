@@ -1,15 +1,15 @@
 {
   "type": "micro",
-  "wake_word": "Hey Naboo",
+  "wake_word": "Aria",
   "author": "CAOSCare firmware spike (microWakeWord basic training recipe)",
   "website": "https://github.com/kahrendt/microWakeWord",
-  "model": "hey_naboo.tflite",
+  "model": "aria.tflite",
   "trained_languages": [
     "en"
   ],
   "version": 2,
   "micro": {
-    "probability_cutoff": 0.96,
+    "probability_cutoff": 0.9,
     "feature_step_size": 10,
     "sliding_window_size": 5,
     "tensor_arena_size": 34000,

@@ -69,7 +69,7 @@ android-companion/                             Android companion / RF bridge com
 android-bridge/                                Android RF bridge / protocol support surface
 android-vision/                                Android vision / voice assistance surface
 room-node/                                     Resident room-node processes (room-node/aria_wake/ = local wake-word listener; currently OFF)
-firmware/voice-pe-naboo/                       Spike: HA Voice PE firmware with custom "Hey Naboo"/"Naboo" microWakeWord models (evaluation only; see its README)
+firmware/voice-pe-aria/                        Spike: HA Voice PE firmware with custom "Aria"/"Hey Aria" microWakeWord models (evaluation only; see its README). The earlier Naboo spike is on branch firmware/voice-pe-naboo.
 tools/wakelab/                                 Wake Phrase Lab - research tooling, isolated from runtime (docs/WAKE_PHRASE_LAB.md)
 .emergent/                                     Emergent-generated summary/metadata surface
 ```

@@ -9,7 +9,7 @@ from pathlib import Path
 
 W = Path.cwd()  # the training work directory (runs/<name>/... lives here)
 DEST = Path(__file__).resolve().parent.parent / "models"
-WAKE_WORD = {"naboo": "Naboo", "hey_naboo": "Hey Naboo"}
+WAKE_WORD = {"aria": "Aria", "hey_aria": "Hey Aria"}
 
 run, cutoff, arena = sys.argv[1], float(sys.argv[2]), int(sys.argv[3])
 src = W / "runs" / run / "trained/tflite_stream_state_internal_quant/stream_state_internal_quant.tflite"
