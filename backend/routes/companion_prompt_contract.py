@@ -25,7 +25,10 @@ RULES = {
     "attribution_source": r"never claim 'you told me'",
     "no_unbacked_action": r"unless you have actually invoked the tool",
     "name_correction_tool": r"`update_preferred_name`",
+    "help_status": r"I've requested help",
 }
+# Statements that are false and must never be in the prompt (Michael, 2026-10-04).
+FORBIDDEN = (r"help is already\s+on the way", r"caregiver is on the way", r"live[s]? in\s+the wall")
 
 # Text that is only true on the kiosk (screen) channel.
 KIOSK_ONLY = ("## What's on the kiosk screen", "The kiosk will hang up",
@@ -65,3 +68,7 @@ def duplicated_instructions(text: str) -> list:
 
 def missing_sections(text: str) -> list:
     return [h for h in REQUIRED_SECTIONS if h not in text]
+
+
+def forbidden_statements(text: str) -> list:
+    return [p for p in FORBIDDEN if re.search(p, text)]

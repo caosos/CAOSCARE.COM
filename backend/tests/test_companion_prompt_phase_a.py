@@ -111,3 +111,26 @@ def test_kiosk_channel_keeps_its_tools_and_screen():
 def test_static_text_precedes_per_call_text():
     text = _prompt()
     assert text.index("## Safety") < text.index("## Right now")
+
+
+def test_help_wording_follows_actual_state():
+    """Michael 2026-10-04: no "already on the way" for a request that was only
+    created; acknowledged / assigned / en route each said only when true."""
+    for text in (_prompt(), _prompt(tools=None, channel="kiosk")):
+        assert contract.forbidden_statements(text) == []
+        assert contract.rule_counts(text)["help_status"] == 1
+        for phrase in ("I've requested help", "say it was acknowledged",
+                       "say who it was assigned to",
+                       "on the way only when you have been told staff are actually on their way"):
+            assert phrase in text, phrase
+        safety = text[text.index("## Safety"):]
+        assert "help has been requested" in safety and "on the way" not in safety
+
+
+def test_aria_is_not_described_as_living_in_the_wall():
+    for text in (_prompt(), _prompt(tools=None, channel="kiosk")):
+        who = text[text.index("## Who you are"):text.index("## How you sound")]
+        assert "wall" not in who
+        assert "through the voice device in their room" in who
+        assert "You have known them for a long time" in who   # tone kept
+

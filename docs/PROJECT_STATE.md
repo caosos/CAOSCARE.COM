@@ -6342,3 +6342,40 @@ Available RAM 8.6–9.3 GB throughout; swap full (2.0 GB, pre-existing) with no 
 
 ### Not done
 No live Home Assistant test (HA down/untouched); no hardware test; no deployment; full backend/frontend suites, production build and load tests deferred while wake training runs. No quiet-hours, emergency-announcement or scheduling policy exists — recorded as `none_defined` / refused, not invented.
+
+---
+
+## 2026-10-04 — Prompt corrections: help wording and "lives in the wall"; wake-lab ranking script audit
+
+### Agent / branch
+Claude Code (Opus 5.5), coordinator, `spike/voice-bridge` from `80e5cabfd13fc631a449eca8049c8e8bcd9799cf`. Origin: Michael's instruction 2026-10-04 (items 1 and 2), fixing the two inaccurate statements flagged in the Phase A report. Not merged, not deployed.
+
+### Prompt corrections (item 2)
+1. Help wording — one rule, `companion_tool_guidance.HELP_STATUS_RULE`, used by "What to do"; Safety refers to it.
+   - Before ("What to do"): "If they need help, reassure them help is already on the way and stay with them — keep talking, ..."
+   - After: "If they need help, tell them plainly what has actually happened, never more: once you have asked for help, say 'I've requested help'; if you have been told staff acknowledged it, say it was acknowledged; if it was assigned to someone, say who it was assigned to; say someone is on the way only when you have been told staff are actually on their way to the room. Then stay with them — keep talking, ..."
+   - Before (Safety): "... call `call_for_help` IMMEDIATELY with severity='emergency', then gently confirm a caregiver is on the way and stay on the line with them, keeping them company."
+   - After: "... call `call_for_help` IMMEDIATELY with severity='emergency', then gently tell them help has been requested (following the rule on what to say about help above) and stay on the line with them, keeping them company."
+2. Placement wording ("Who you are").
+   - Before: "You are Aria — a calm, warm, deeply present companion. You live in the wall of this resident's room. You have known them for a long time."
+   - After: "You are Aria — a calm, warm, deeply present companion. You are here for them through the voice device in their room, whenever they want to talk. You have known them for a long time."
+- `companion_prompt_contract.py`: `help_status` rule (stated once) and `FORBIDDEN` statements (`help is already on the way`, `caregiver is on the way`, `lives in the wall`).
+- Files: `backend/routes/realtime_companion_prompt.py`, `backend/routes/companion_tool_guidance.py`, `backend/routes/companion_prompt_contract.py`, `backend/tests/test_companion_prompt_phase_a.py`.
+- Not changed: `arrival_claim_guard.py` still lets a bridge reply say help is "coming" once an authenticated staff claim/acknowledge/start receipt exists — looser than the new prompt rule (only when staff are actually en route). CAOSCare has no "en route" state for nursing/maintenance requests (only transport `departed`). Flagged for a decision.
+
+### Focused tests
+`test_companion_prompt_phase_a.py` (12, incl. 2 new), `test_companion_prompt_substrate.py`, `test_resident_assistant_name.py`, `test_voice_bridge.py`, `test_voice_bridge_units.py`, `test_voice_bridge_flow.py`, `test_substrate_layers_integration.py`, `test_aria_conversation_state.py`, `test_aria_interpretation_patterns.py`: 41 passed. Throwaway databases dropped.
+
+### Wake-lab ranking script audit (item 1, read-only)
+Inspected (no file modified, nothing run): `lab_common.py`, `eval_lab.py`, `report_lab.py`, `recommend_lab.py`, `provenance_lab.py`, `results_md.py`, `naming_risk.py`, `pronunciation_identity.py`, `run_lab.sh`, `run_supplemental.sh`, `finalize_lab.sh`, `trained_candidates.json`, `supplemental_candidates.json`, `results/discovery*.json`, `results/recommendation.json`, `results/naming_risk.json`, pipeline/eval logs. Defects reported to Michael (not fixed; Claude 2's files):
+1. `recommend_lab.py` reads only `results/discovery.json`; the 4 Sivia candidates exist only in `discovery_supplemental.json` → KeyError once they are evaluated; recommendation step fails in both `run_supplemental.sh` and `finalize_lab.sh` (recommendation.json currently stale from 02:50, 1 model).
+2. `identity()` matches the substring `"aria"`, so Zaria scores 10 (Aria family) instead of 7 (its `NAMES` entry is unreachable): +0.3 weighted.
+3. `eval_lab.py` seeds per-clip noise with Python `hash()` of strings, randomized per interpreter (PYTHONHASHSEED not set for eval) — noisy conditions differ between models; not identical conditions as documented.
+4. Candidates without `lab_eval.json` are silently dropped from the report and ranking (`aria` eval failed at 02:21); provenance shows them as "trained", not failed, until finalize marks FAILED_FINAL.
+5. RESULTS_TABLES §3 header says "≤ 0.5 ambient FA/h" but models that never reach it fall back to cutoff 0.99 (e.g. kotrubo 1.953, hello kotrubo 1.066).
+6. `results_md.py` (and `naming_risk.py`) are not run by any pipeline script — RESULTS_TABLES.md stays stale unless run manually.
+7. Minor: ties keep input order (undocumented); finalist rule "one per base word" collapses the two Callista and two Sivia pronunciations into one slot; models whose cross-check is missing silently omit the extra confusion set.
+No defect: weights sum to 1.0; score directions correct; all 18 conditions counted; no duplicate slugs/ids; licence gate present in recommendation, provenance and tables.
+
+### Resource state
+Available RAM ~9.1 GB; swap full (pre-existing) without sustained swapping; wake lab PID 3013581 alive and advancing; `finalize_lab.sh` (PID 2950328) waiting. Home Assistant, Linode, main, PR #41/#42 untouched.

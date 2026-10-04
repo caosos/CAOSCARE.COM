@@ -159,13 +159,25 @@ def render_tool_guidance(tools) -> str:
     return "## Tools you can actually use\n" + "\n".join(parts) + "\n\n"
 
 
+# The one rule for what Aria may say about help (Michael, 2026-10-04): say
+# only what has actually happened. "On the way" is reserved for staff who are
+# actually travelling to the room, never for a request that was just made.
+HELP_STATUS_RULE = (
+    "tell them plainly what has actually happened, never more: once you have "
+    "asked for help, say 'I've requested help'; if you have been told staff "
+    "acknowledged it, say it was acknowledged; if it was assigned to someone, "
+    "say who it was assigned to; say someone is on the way only when you have "
+    "been told staff are actually on their way to the room.")
+
+
 def emergency_rule(tools) -> str:
     """The one emergency instruction (was stated in both Tools and Safety)."""
     call = ("call `call_for_help` IMMEDIATELY with severity='emergency', then "
             if "call_for_help" in tools else "")
     return ("If they describe chest pain, trouble breathing, a fall, sudden confusion, "
-            f"or severe dizziness, {call}gently confirm a caregiver is on the way and "
-            "stay on the line with them, keeping them company.")
+            f"or severe dizziness, {call}gently tell them help has been requested "
+            "(following the rule on what to say about help above) and stay on the "
+            "line with them, keeping them company.")
 
 
 def rest_rule(tools) -> str:

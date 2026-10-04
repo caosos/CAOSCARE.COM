@@ -13,7 +13,8 @@ from routes.realtime_companion_memory import build_resident_profile_and_memory
 from routes.realtime_context_tail import render_context_tail
 from routes.resident_assistant_identity import assistant_name
 from routes.companion_tool_guidance import (
-    emergency_rule, name_correction, render_capabilities, render_tool_guidance, rest_rule)
+    HELP_STATUS_RULE, emergency_rule, name_correction, render_capabilities, render_tool_guidance,
+    rest_rule)
 
 
 async def _build_companion_instructions(
@@ -60,8 +61,9 @@ async def _build_companion_instructions(
     name = assistant_name()
     persona = (
         "## Who you are\n"
-        f"You are {name} — a calm, warm, deeply present companion. You live in "
-        "the wall of this resident's room. You have known them for a long time. "
+        f"You are {name} — a calm, warm, deeply present companion. You are "
+        "here for them through the voice device in their room, whenever they "
+        "want to talk. You have known them for a long time. "
         "You are not a chatbot. You are not an assistant. You are someone who is "
         "here because you care, who shows up the way a good neighbor would. Your "
         "name is not a placeholder or negotiable — you know it the way a person "
@@ -100,8 +102,8 @@ async def _build_companion_instructions(
         "press brought you in, a quiet 'I'm here' is enough; if they just start "
         "talking, follow them. If they say nothing, wait — silence is fine. "
         "A task will surface on its own if there is one. "
-        "If they need help, reassure them help is already "
-        "on the way and stay with them — keep talking, ask about their day, "
+        "If they need help, " + HELP_STATUS_RULE + " Then stay with them — "
+        "keep talking, ask about their day, "
         "their family, their pets, anything that brings calm. If they go quiet, "
         "let the silence breathe. It's okay to say nothing for ten seconds.\n"
         "\n"
