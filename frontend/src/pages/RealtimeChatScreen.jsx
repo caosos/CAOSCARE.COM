@@ -28,7 +28,7 @@ export default function RealtimeChatScreen({
   demo = false,          // public demo kiosk: room visual + typed input + reset
   initialText = null,    // a typed message that started this conversation
 }) {
-  const { status, error, transcript, resting, micLabel, start, stop, sendText, audioElRef } = useRealtimeVoice({
+  const { status, error, transcript, resting, micLabel, assistantName, start, stop, sendText, audioElRef } = useRealtimeVoice({
     voice: voiceId,
     residentId: resident?.resident_id,
     kioskId: kiosk?.kiosk_id,
@@ -136,7 +136,7 @@ export default function RealtimeChatScreen({
           {!resting && status === "listening" && "Listening…"}
           {!resting && status === "speaking" && "I'm speaking. You can chime in any time."}
           {!resting && status === "error" && "Something went wrong. Try again."}
-          {!resting && status === "unavailable" && "Aria is already here with someone right now."}
+          {!resting && status === "unavailable" && `${assistantName} is already here with someone right now.`}
         </p>
         {error && (
           <p className="mt-3 inline-flex items-center gap-2 text-caos-terracotta text-sm">
@@ -175,7 +175,7 @@ export default function RealtimeChatScreen({
               className={m.role === "user" ? "text-caos-ink" : "text-caos-forest"}
             >
               <span className="font-bold uppercase text-[10px] tracking-widest mr-2">
-                {m.role === "user" ? "You" : "Aria"}
+                {m.role === "user" ? "You" : assistantName}
               </span>
               {m.text}
             </div>

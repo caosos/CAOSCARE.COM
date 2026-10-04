@@ -73,6 +73,7 @@ export function useRealtimeVoice({
   const [transcript, setTranscript] = useState([]);
   const [resting, setResting] = useState(false);
   const [micLabel, setMicLabel] = useState(null);   // human-readable input device name, once known
+  const [assistantName, setAssistantName] = useState("Aria");  // from the session (backend setting)
 
   // Keep tool-call context fresh if the parent passes new props mid-call
   useEffect(() => {
@@ -186,7 +187,7 @@ export function useRealtimeVoice({
   ctxRef, endReasonLoggedRef, lifecycleCleanupRef, assistantSpeakingRef,
   turnSuspectRef, greetingCreateResponseOffRef, restingRef, firstSpeechHeardRef,
   awaitingAnswerTimerRef, inviteSilenceTimerRef, companionTimeoutTimerRef,
-  setStatus, setError, setMicLabel, setResting, setTranscript,
+  setStatus, setError, setMicLabel, setResting, setTranscript, setAssistantName,
   stop, releaseLease, postAriaEvent, startAwaitingAnswerTimer, logSessionEnded, typedTurnRef
   }), [voice, residentId, kioskId, room, alertId, activationId, sessionEndpoint,
     sessionPayload, triggerSource, onEndCall, stop, postAriaEvent, logSessionEnded, startAwaitingAnswerTimer]);
@@ -201,5 +202,5 @@ export function useRealtimeVoice({
     } catch { return false; }
   }, []);
 
-  return { status, error, transcript, resting, micLabel, start, stop, sendText, audioElRef };
+  return { status, error, transcript, resting, micLabel, assistantName, start, stop, sendText, audioElRef };
 }
