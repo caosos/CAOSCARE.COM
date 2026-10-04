@@ -6217,6 +6217,13 @@ PR #48 `pilot/shared-core-device-truth` `95b4df87a056d8a4a852e8a82b98f1d969286d9
 
 ---
 
+## 2026-10-04 — Coordinator: PR #50 (SIM-2) reviewed; RQ-001 assigned to Agent Five
+
+Michael's "KEEP THE TRAIN MOVING". Tip `0b6f9db`.
+- PR #50 `pilot/sim-2-live-operations` `c05dc488c889279b1a296ff0b0d2228f2cc5253d` (base `f35d8ee`), code review passed: frontend only; shared touches `adminTabGroups.js` +1, `Admin.jsx` +2; state from `/simulator/*`, receipts and `/tasks` only (no second state or request model); requests open in the existing `RequestDetailDialog`; real/simulated from receipt fields via one helper; controls post to `/simulator/{action}`. Not merged — waiting for Agent Three's browser acceptance evidence.
+- Agent Four: WIP `8c72b4b` on `pilot/shared-core-sim-provenance` (base `0b6f9db`), no PR; no file overlap with #50; touches `backend/simulation/` as the SC-17 call site. Merge order #50 → SC-16/17 → RQ-001.
+- Agent Five: RQ-001 Demo data continuity assigned (new files only; demo room only; depends on SC-17 `simulation_run_id`, so it rebases and opens its PR after SC-16/17 merges). RQ-008 audit report still needs a draft PR.
+
 ## 2026-10-04 — Agent Four (Shared Core): SC-16 simulated notifications, SC-17 simulator provenance
 
 ### Agent / branch
