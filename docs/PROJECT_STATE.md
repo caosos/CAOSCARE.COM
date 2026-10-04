@@ -6103,3 +6103,4 @@ Claude Code (Opus 5.5), Pilot 1 integration coordinator, `~/CAOSCARE-INTEGRATION
 - `pilot/shared-core-rerequest` `bbfce3b` is based on `test/okay-nabu-voice` (carries the okay-nabu keyword file); needs review and a clean branch.
 - SIM-1 scoped to the demo room and StaffTask lifecycle: ENGINEERING_CONTRACT gate items 7 (legacy/stale-data quarantine) and 8 (canonical escalation) are still unimplemented. Lifting that limit is Michael's decision.
 - `research/wake-phrase-funnel` is based on `main` with the firmware history; not an integration candidate as-is.
+- Integration gate on `55b733e` (code `268963c`): 234 passed, 3 failed (stale iter10/iter11 expectations: 26-tool session, `FACILITY_LABEL`), 13 skipped; port 8077, throwaway DB dropped afterwards. Okay-Nabu test stack (PID 2833238, :8766; backend :8096) still running from 2026-10-03, left as is.
