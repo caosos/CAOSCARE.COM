@@ -80,6 +80,30 @@
 - The integration checkout had 3 unpushed commits.
 - A wake-lab batch was running throughout the audit and Phase 1.
 
-## Phase 1 result
+## Phase 1 result (2026-10-04, ~20:43 UTC)
 
-(See below.)
+Run while the wake-lab batch kept running. Nothing in `~/caoscare-firmware-work`, no dataset or zip, no worktree, no Chrome model, no VM image and no log was touched.
+
+| Step | Command | Result |
+|---|---|---|
+| npm cache | `npm cache clean --force` | `~/.npm` 6.4G → 109M |
+| yarn cache | `yarn cache clean` | `~/.cache/yarn` 485M → 8K |
+| pip cache | `pip cache purge` (backend venv pip; shared `~/.cache/pip`) | 946 files, 288 MB removed |
+| uv unused cache | `uv cache prune` (`firmware-work/bin/uv`) | 0 bytes; every entry still referenced, so `~/.cache/uv` stays 3.8G |
+| Disabled snap revisions | `sudo snap remove <name> --revision=<rev>` ×7 | `/var/lib/snapd` 4.3G → 3.1G; 0 disabled revisions left |
+
+| Measure | Before | After |
+|---|---|---|
+| `/` used / free | 162G / 61G (73%) | 154G / 68G (70%) |
+| Bytes free | 64,524,374,016 | 72,551,915,520 |
+| **Net reclaimed** | | **8.03 GB (7.48 GiB)** |
+
+The audit estimated ~11G for Phase 1. The shortfall is the uv cache: nothing in it was unused. The net figure is measured while the lab batch was writing, so it may slightly understate what the cleanup freed.
+
+## Not done (later phases, each needs sign-off)
+
+- Dataset zips (5.6G): after the lab batch, with the lab owner's OK.
+- Chrome on-device AI model (4.3G): after turning the setting off.
+- The RF bridge log in `/tmp`: rotation decision pending.
+- Merged idle worktrees: coordinator confirms each.
+- Wake-lab feature data / extracted datasets: lab owner only.
