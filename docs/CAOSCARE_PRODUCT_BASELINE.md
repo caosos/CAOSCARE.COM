@@ -48,6 +48,19 @@ Current resident-room architecture:
   (the bring-up host is `caoscare1-hp-elitedesk`, an HP EliteDesk 705 G4
   DM). It is meant to sit **hidden behind or near the resident's TV**. The
   resident does not operate or see a conventional computer.
+- **Architecture correction (Michael, 2026-10-03; supersedes the per-room
+  room-node and eMeet lines in this section)** — the HP EliteDesk is the
+  **central community server** running Home Assistant and CAOSCare;
+  apartments get no EliteDesk. The **Voice PE** is the room voice endpoint
+  (local wake word, mic/audio processing, audio transport, playback, LEDs,
+  controls) over Wi-Fi; central HA + CAOSCare do speech processing,
+  conversation, memory, governance, workflows, device orchestration,
+  receipts and provenance. No eMeet in the standard room. Test the Voice
+  PE's microphones in a real apartment first; if coverage is short,
+  investigate another room audio endpoint without a per-apartment
+  EliteDesk. SIP/front-desk calling stays a separate handset/telephony
+  function. Assistant: Aria; wake phrase "Hey Aria" ("Aria" a test
+  candidate). Canonical detail: `docs/ROOM_AUDIO_ARCHITECTURE.md`.
 - **Aria room voice endpoint (Michael, 2026-10-03)** — the Home Assistant
   **Voice Preview Edition** is the primary Aria room voice endpoint (custom
   firmware wake phrase "Hey Aria"; "Aria" a test candidate). CAOSCare stays
@@ -55,6 +68,8 @@ Current resident-room architecture:
   device layer; the resident hears one assistant, Aria. The eMeet stays on
   the EliteDesk by USB for calls/conference and as an optional CAOSCare audio
   endpoint. This supersedes the eMeet-as-single-Aria-endpoint line below.
+  *(The EliteDesk/eMeet part of this line is itself superseded by the
+  architecture correction above.)*
   Canonical detail: `docs/ROOM_AUDIO_ARCHITECTURE.md`.
 - **Resident audio** — an **eMeet-class conferencing speakerphone** sits
   near the resident's normal sitting/bed position and is the **single room

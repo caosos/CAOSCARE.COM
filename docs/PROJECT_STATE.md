@@ -5995,3 +5995,28 @@ Claude Code (Opus 5.5), coordinator, documentation only. Branch `docs/aria-voice
 
 ### Related runtime/branches now superseded as product direction
 `test/okay-nabu-voice` (`5c40b90`) and the local Nabu test stack (:8096, :3012, listener :8766) are test history; the assistant-name setting stays generic (default "Aria").
+
+---
+
+## 2026-10-03 — CORRECTION (supersedes the entry above): central EliteDesk server, Voice PE room endpoint, no eMeet in the standard room
+
+### Agent / branch
+Claude Code (Opus 5.5), coordinator, documentation only. Branch `docs/aria-voice-pe-decision` on top of `444e2973063c8af2e45c9da38cd0aaa858c0bb11`. Not merged; no deploy; main, PR #41/#42, Linode, website and hardware untouched.
+
+### Supersedes
+The entry "Decision recorded: Aria on Home Assistant Voice PE …" directly above (commit `444e297`) described an EliteDesk/eMeet combination in each apartment. That entry is kept unchanged as the original receipt; this entry is the linked superseding receipt. Michael's architecture correction, given in the coordinator session on 2026-10-03:
+
+1. The HP EliteDesk is the central community server; Home Assistant and CAOSCare run centrally on it.
+2. Apartments do not receive individual EliteDesk computers.
+3. The Home Assistant Voice Preview Edition is the room voice endpoint: local wake-word detection, microphone/audio processing, audio transport, response playback, LEDs and physical controls; it connects to the central system over Wi-Fi.
+4. Central Home Assistant and CAOSCare perform speech processing, conversation, resident memory, governance, workflows, device orchestration, receipts and provenance.
+5. The standard room design does not include an eMeet.
+6. First test the Voice PE's built-in microphones and XMOS audio processing in a real apartment; if coverage is insufficient, investigate an additional room audio endpoint without adding an EliteDesk to every apartment.
+7. SIP/front-desk calling remains a separate handset/telephony function unless later acceptance testing proves the Voice PE can safely support that role.
+8. Unchanged: the resident-facing assistant remains Aria; primary wake phrase "Hey Aria"; secondary test candidate "Aria".
+
+### Files corrected (each correction marked "supersedes", originals kept)
+`docs/ROOM_AUDIO_ARCHITECTURE.md` (correction block at the top; the earlier 2026-10-03 update and the 2026-08-27 EliteDesk/eMeet items marked superseded), `docs/CAOSCARE_PRODUCT_BASELINE.md` §2 (correction bullet superseding the per-room room-node and eMeet lines), `docs/ARIA_WAKE_WORD_ARCHITECTURE.md` (decision block note), `docs/CURRENT_PRIORITY.md` (correction paragraph; room stack now "central EliteDesk server" and "no eMeet / separate handset telephony"), this file.
+
+### Still describing a per-room node (not changed in this correction, flagged)
+`AGENTS.md` line 43 and `CLAUDE.md` line 27 still say "room node behind the TV + eMeet audio". The Product Baseline now records the correction; those onboarding lines need Michael's go-ahead to update.

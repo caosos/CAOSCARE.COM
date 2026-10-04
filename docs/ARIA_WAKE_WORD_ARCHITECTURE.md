@@ -17,7 +17,9 @@
 > room voice endpoint; wake detection runs on the device's custom firmware
 > (local, on-device), keeping its microphones, speaker, XMOS audio processing,
 > LEDs, controls, Home Assistant connectivity and factory recovery. The room
-> audio roles (Voice PE vs eMeet) are in `docs/ROOM_AUDIO_ARCHITECTURE.md`.
+> audio roles are in `docs/ROOM_AUDIO_ARCHITECTURE.md`. *(Correction 2026-10-03,
+> Michael: no eMeet in the standard room; the EliteDesk is the central server,
+> not a per-apartment computer; the Voice PE connects to it over Wi-Fi.)*
 > The EliteDesk listener below (`room-node/aria_wake/`, OFF) is earlier
 > history. The 2026-09-24 finding stands: a bare "Aria" collides with
 > "area", which is why it is only a test candidate.
