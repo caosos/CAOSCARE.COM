@@ -76,13 +76,13 @@ export default function LiveOperations() {
       </div>
       <SimControls state={state} busy={busy} onControl={control} />
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="space-y-4">
+        <div className="space-y-4 min-w-0">
           <SimActors cast={cast} startedBy={state?.started_by}
                      onSelect={(a) => { const r = stream.find((x) => x.actor_id === a.actor_id); if (r) setTrace(r); }} />
           <SimActivity current={current} requests={requests} failed={failed}
                        onOpenReceipt={setTrace} onOpenRequest={setRequestId} />
         </div>
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 min-w-0">
           <SimEventStream rows={stream} currentId={current?.receipt_id} onSelect={setTrace} />
         </div>
       </div>
