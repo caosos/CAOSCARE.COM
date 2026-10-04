@@ -40,7 +40,14 @@ It is intended to support senior-care and assisted-living environments through:
 - staff support
 - documentation and receipts
 - family/staff communication assistance
-- a resident room node (local CAOSCare computer behind the TV) with voice/audio (eMeet), the TV as a visual surface, and RF/IR/other room hardware — see the Product Baseline §2. Resident rooms are NOT tablet-based.
+- room architecture (Michael, 2026-10-03 — see the Product Baseline §2 and `docs/ROOM_AUDIO_ARCHITECTURE.md`):
+  - one central community EliteDesk runs Home Assistant and CAOSCare; no EliteDesk is installed in each apartment;
+  - each apartment uses a Home Assistant Voice Preview Edition as the Aria room voice endpoint over Wi-Fi;
+  - no eMeet is included in the standard room hardware; test the Voice PE microphones in a real apartment before adding another audio endpoint;
+  - SIP/front-desk calling remains a separate handset/telephony function unless later testing establishes another accepted architecture;
+  - the resident-facing assistant is Aria; primary wake phrase "Hey Aria", secondary test candidate "Aria";
+  - resident rooms are NOT tablet-based.
+  - *Superseded (history only, do not treat as current): a per-apartment "room node" — a local CAOSCare computer behind the TV with an eMeet speakerphone.*
 - staff clients (tablet / phone / computer) running the role- and department-scoped workspace — see the Product Baseline §3
 - behavior-change awareness
 - escalation support under human oversight
@@ -58,7 +65,7 @@ Do not remove or silently degrade:
 - privacy/consent boundaries
 - audit receipts
 - escalation/handoff paths
-- the resident-room-node architecture and the staff-client model as defined in `docs/CAOSCARE_PRODUCT_BASELINE.md` (§2, §3); wearable-ingest direction
+- the room architecture (central EliteDesk server + Voice PE room endpoint) and the staff-client model as defined in `docs/CAOSCARE_PRODUCT_BASELINE.md` (§2, §3); wearable-ingest direction
 - human-in-the-loop care decisions
 - low-intimidation senior-care UX
 - CAOS ecosystem alignment

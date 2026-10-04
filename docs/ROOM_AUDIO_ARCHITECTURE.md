@@ -1,5 +1,45 @@
 # Room Audio Architecture — decision record
 
+> **Correction 2026-10-03 (Michael) — supersedes the earlier 2026-10-03 Voice PE / eMeet entry (commit `444e297`).**
+> 1. The HP EliteDesk is the **central community server**; Home Assistant and CAOSCare run centrally on it.
+> 2. Apartments do **not** receive individual EliteDesk computers.
+> 3. The Home Assistant **Voice Preview Edition** is the room voice endpoint. It does local wake-word detection, microphone/audio processing, audio transport, response playback, LEDs and physical controls, and connects to the central system over Wi-Fi.
+> 4. Central Home Assistant and CAOSCare do speech processing, conversation, resident memory, governance, workflows, device orchestration, receipts and provenance.
+> 5. The standard room design does **not** include an eMeet.
+> 6. First test the Voice PE's built-in microphones and XMOS audio processing in a real apartment. If coverage is insufficient, investigate an additional room audio endpoint **without** adding an EliteDesk to every apartment.
+> 7. SIP/front-desk calling stays a separate handset/telephony function unless later acceptance testing proves the Voice PE can safely support it.
+> 8. The resident-facing assistant remains **Aria**. Primary wake phrase "Hey Aria"; secondary test candidate "Aria".
+>
+> Superseded by this correction: the per-room EliteDesk and the eMeet roles in the update below, and the "EliteDesk = room compute" and "eMeet = single room audio endpoint" items in the 2026-08-27 decision further down. Kept as history.
+
+> **Update 2026-10-03 (Michael) — Voice PE is the primary Aria room voice
+> endpoint; the eMeet's role changes.** *(eMeet role and per-room EliteDesk superseded by the correction above)* This supersedes the "eMeet is the
+> single room audio endpoint for Aria" item below; the rest of this record
+> is kept as history and its acoustic reasoning still applies.
+>
+> Architecture:
+> 1. Home Assistant **Voice Preview Edition** is the primary Aria room voice endpoint.
+> 2. Custom firmware provides the Aria wake phrase ("Hey Aria"; "Aria" as a test
+>    candidate) while preserving the Voice PE microphones, speaker, XMOS audio
+>    processing, LEDs, controls, Home Assistant connectivity and factory recovery.
+> 3. Home Assistant provides the device and automation integration layer.
+> 4. CAOSCare remains the conversational, resident-context, memory, governance,
+>    workflow, authorization, provenance and receipt authority.
+> 5. The resident experiences one assistant named Aria.
+> 6. Home Assistant and Nabu Casa are underlying infrastructure, never separate
+>    resident-facing assistant identities.
+>
+> eMeet Luna Plus role:
+> 1. Do not assume the eMeet can serve as a direct external microphone for the Voice PE.
+> 2. The Voice PE has 3.5 mm audio output; it does not expose a standard external microphone input.
+> 3. The eMeet initially stays connected by USB to the EliteDesk room node.
+> 4. Initial roles: SIP/telephone/front-desk calls, conference audio, and an optional CAOSCare audio endpoint.
+> 5. Test the Voice PE's built-in far-field microphones first.
+> 6. If Voice PE room coverage is insufficient, investigate an EliteDesk audio
+>    bridge using the eMeet — without creating a second resident assistant or a
+>    separate conversation history.
+> 7. To the resident, the Voice PE and the eMeet are parts of the same Aria room system.
+
 **Status: decided.** Recorded 2026-08-27 from Michael's field session report and
 directive. This is the **canonical** architecture record for how audio capture,
 Aria playback, and TV/media playback relate in a resident room; the summary in
@@ -15,7 +55,7 @@ not as competing sources of truth.
   it is not itself a room audio device.
 - **eMeet** (or whatever conferencing-speakerphone-class device occupies this
   role in a given room) sits near the resident and is the **single room audio
-  capture/playback endpoint for Aria** — the one microphone and the one
+  capture/playback endpoint for Aria** *(superseded 2026-10-03: the Voice PE is the primary Aria endpoint; see the update above)* — the one microphone and the one
   speaker Aria's voice pipeline uses in that room.
 - **TV audio should eventually be brought into the CAOSCare audio path**
   electrically/digitally and played back through that same eMeet, so **one**
