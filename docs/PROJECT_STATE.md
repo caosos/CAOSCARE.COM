@@ -6072,3 +6072,15 @@ Before: started by anyone running `python aria_wake.py`; page connected with `?w
 
 ### Tests (changed files only)
 `room-node/aria_wake/test_aria_wake.py`: 5 passed (incl. the new off-unless-enabled test). `python aria_wake.py` without the env var: exits 2 with the legacy message, no port opened. `frontend/src/lib/__tests__/wakeWordClient.test.js`: 4 passed. `wakeWordClient.js`, `useWakeWord.js`, `Kiosk.jsx` parse cleanly (comment-only changes).
+
+---
+
+## 2026-10-03 — Coordinator: legacy Aria wake-listener re-scope merged into integration
+
+Approval (Michael, 2026-10-03, coordinator session): merge `chore/rescope-legacy-aria-wake` at exactly `8e5ab77830889ab8224f356485153d8c15533375` into `integration/2026-09-27` with a merge commit.
+
+- Pre-checks: source = `8e5ab77` (exact); integration `342fdc22d4808935a69c27250e2b5aa565b84f75` = origin, clean, no intervening commits.
+- Merge commit `79699a0085582436205857c9a59ac77855281025` (`--no-ff`), no conflicts, 11 files (+92/−8). Links: re-scope `8e5ab77`; architecture merge `22ca2e3` (444e297, f5d8ea5, fe06d67).
+- Checks after merge: `room-node/aria_wake/` present; `aria_wake.py` without `ARIA_WAKE_ENABLE_LEGACY` exits 2 with the legacy message and opens no port; no systemd unit/timer, cron entry, `deploy_caoscare.sh` or backend setup script references it; no standard frontend flow builds a `?wake=1` link (only a code comment mentions it); listener tests 5 passed; frontend wake-client tests 4 passed; AGENTS.md, CLAUDE.md, Product Baseline, ROOM_AUDIO_ARCHITECTURE and CURRENT_PRIORITY still state the standard architecture (central EliteDesk; Voice PE per apartment; no per-apartment EliteDesk; no standard-room eMeet; separate handset telephony; Aria, "Hey Aria").
+- Process disposition: the running `aria_wake.py` (PID 2833238, port 8766) was started by the earlier Nabu wake test, not by the re-scope task, and Michael asked to keep that test stack running — left running. The re-scope task left no process running.
+- Not done: main, PR #41/#42, Linode, hardware and firmware untouched.
