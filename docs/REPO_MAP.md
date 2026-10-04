@@ -802,3 +802,7 @@ listener verifier experiment: `docs/experiments/`.
 - `backend/routes/task_lifecycle.py`: `check()` (exists → authority → open (SC-14 closed guard) → recorded origin) and `record_refusal()`; `transition()` uses `check()`.
 - `backend/routes/transport_task_history.py`: `ride_actor()`, `ride_authority()`, `booking_entry()` — ride steps (`transportation.py`, `transportation_assign.py`, `transportation_runs.py`) are lifecycle transitions with chained receipts.
 - Test: `backend/tests/test_transport_ride_receipts.py`.
+
+## 2026-10-04 — Pilot Room 1 hardware BOM (RQ-004)
+
+- `docs/PILOT1_ROOM1_HARDWARE_INVENTORY.md`: evidence-based Pilot Room 1 BOM (owned / ordered / required / optional / do-not-buy) and the single request for missing physical facts. No purchase is authorized by it.
