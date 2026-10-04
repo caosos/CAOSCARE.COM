@@ -132,6 +132,9 @@ async def lifespan(app: FastAPI):
         await _ensure_continuity_indexes()
     except Exception as e:
         logging.warning(f"continuity index setup skipped: {e}")
+    from routes.voice_bridge import MODEL_CONFIG as _vb_model
+    from routes.voice_bridge_config import log_selection as _log_vb_model
+    _log_vb_model(_vb_model)
     from routes.voice_bridge_session import ensure_indexes as _ensure_voice_bridge_indexes
     try:
         await _ensure_voice_bridge_indexes()

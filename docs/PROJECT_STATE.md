@@ -6195,3 +6195,27 @@ HANDOFF CAPSULE
 - Unresolved proven defects: none in the bridge; baseline iter10/iter11 tests unchanged.
 - Do NOT change:    main, PR #41/#42, Linode, firmware branches, Room 214 devices.
 - Next safe action: HA install + STT/TTS choice + backend bind address, then the physical steps above.
+
+---
+
+## 2026-10-03 — Voice bridge verification: three failing backend tests resolved; model, bind address and TTS boundary configured
+
+### Agent / branch
+Claude Code (Opus 5.5), `~/CAOSCARE-VOICEBRIDGE`, `spike/voice-bridge` from `f32cce2`. Not installed in Home Assistant; nothing merged, deployed or flashed.
+
+### The three failures (reproduced 251 passed / 3 failed / 14 skipped at `f32cce2`)
+Each was reproduced with the same gate on both parent commits, `b215a26` and `aa3d2f1` (worktrees, port 8074): all three fail identically there, so they predate the bridge work. They run only when the gate's backend picks up `backend/.env` (real `OPENAI_API_KEY`, `FACILITY_LABEL="the EliteDesk node"`); without those they skip or pass, which is why earlier gates reported them inconsistently.
+- `iter10_test.py::TestRealtimeSession::test_session_default` — expected the 2026-08 five-tool set; the session now has 26 tools. After that, it expected the ephemeral key at `client_secret.value`; the current OpenAI `/realtime/client_secrets` response (passed through unchanged) has it top-level as `value`, which the client has read since the 2026-08-02 fix. Stale expectations; production correct. Updated to the explicit current 26-tool set (core five still required) and to `value`.
+- `iter11_test.py::TestRealtimeSession::test_session_has_nine_tools_and_anchors` — expected exactly 9 tools and the hardcoded "Lancaster, PA" / "America/New_York" removed by the 2026-08-25 facility fix. Stale; updated to the same 26-tool set and the configured `FACILITY_LABEL` / `FACILITY_TZ` (no facility record in the gate DB).
+- `iter11_test.py::TestWeather::test_default_facility_weather` — expected "the facility"; the code's fallback is `FACILITY_LABEL` or "the facility", and the local `.env` sets it. Stale (assumed the variable unset); production correct. Now compares with the configured value.
+The 26 tools came from reviewed commits (4878047, fa6b7ac, 8045b12, d6cb486/234d8ff, 3951ef6, 12cf89c); the list is now an explicit constant in `iter10_test.py`, so a change is a deliberate edit.
+
+### Configuration added
+- `backend/routes/voice_bridge_config.py`: `CAOSCARE_VOICE_BRIDGE_PROVIDER` (default `openai`, the only provider) and `CAOSCARE_VOICE_BRIDGE_MODEL` (default `gpt-4o-mini`; accepted `gpt-4o-mini`, `gpt-4.1`, `gpt-4.1-mini`, `gpt-4o`). Unsupported → bridge turns answer 503 with the reason, no silent fallback; the rest of CAOSCare runs. Logged at startup (`voice bridge model: openai/gpt-4o-mini`).
+- `backend/serve.py`: launcher with `CAOSCARE_BIND_HOST` (default `127.0.0.1`; allowed `127.0.0.1`, `::1`, `192.168.122.1` = virbr0) and `CAOSCARE_BIND_PORT` (default 8000, 1024–65535). `0.0.0.0`, `::`, LAN addresses and hostnames are refused. Not switched on; nothing now listens on 192.168.122.1.
+- TTS boundary: the bridge returns text only (`speech_format: "plain_text"`); Home Assistant's pipeline owns TTS (local or cloud is an HA setting). Documented in `docs/VOICE_PE_BRIDGE_INSTALL.md` §6 (later sections renumbered; verification is now §9).
+
+### Verification
+- Bridge tests: 33 passed (flow, units, config, original).
+- Backend gate (port 8073, fresh DB): 275 passed, 0 failed, 13 skipped (all skips: data not seeded in the gate DB).
+- `flake8 --select=E9,F63,F7,F82` (CI step): 0. `compileall`, `import server`: ok. pyflakes on changed files: clean except a pre-existing unused variable in `iter10_test.py`.

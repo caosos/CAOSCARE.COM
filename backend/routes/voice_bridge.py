@@ -29,11 +29,12 @@ from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel
 
 from deps import db
-from routes.ai import OPENAI_TEXT_MODEL, _post_openai
+from routes.ai import _post_openai
 from routes.arrival_claim_guard import candidate_tasks, guard_reply
 from routes.realtime_diagnostics import DiagnosticEvent, log_event
 from routes.realtime_memory_ingest import RealtimeTurnIngest, realtime_turn_ingest
 from routes.resident_conversation_context import build_resident_instructions
+from routes.voice_bridge_config import resolve_model
 from routes.voice_bridge_receipts import refusal_receipt, turn_receipt
 from routes.voice_bridge_session import (claim_turn, ending_phrase, open_or_get_session,
                                          record_turn, resolve_identity, session_state)
@@ -44,7 +45,7 @@ router = APIRouter(prefix="/voice-bridge", tags=["voice-bridge"])
 MAX_TOOL_ROUNDS = 4
 HISTORY_TURNS = 20
 TURN_BUDGET_SECONDS = float(os.environ.get("CAOSCARE_VOICE_BRIDGE_BUDGET_S", "18"))
-MODEL = os.environ.get("CAOSCARE_VOICE_BRIDGE_MODEL") or OPENAI_TEXT_MODEL
+MODEL_CONFIG = resolve_model()  # read once at import; logged at startup (server.py)
 CHANNEL_NOTE = (
     "\n\n## This conversation's channel\n"
     "You are speaking through the room's voice satellite: the resident's words "
@@ -127,7 +128,7 @@ async def _converse(ident: dict, session_id: str, text: str) -> dict:
             break
         try:
             resp = await asyncio.to_thread(_post_openai, "/chat/completions", {
-                "model": MODEL, "messages": messages, "tools": tools, "tool_choice": "auto"},
+                "model": MODEL_CONFIG["model"], "messages": messages, "tools": tools, "tool_choice": "auto"},
                 timeout=max(1, int(remaining)))
             msg = resp["choices"][0]["message"]
         except Exception as e:  # provider down, timeout, malformed reply
@@ -168,14 +169,16 @@ async def _converse(ident: dict, session_id: str, text: str) -> dict:
 
 def _out(reply: str, conv_id: str, session_id: str, keep_open: bool, tools: list, receipt_id: str,
          **extra) -> dict:
-    return {"response_text": reply, "conversation_id": conv_id, "session_id": session_id,
-            "continue_conversation": keep_open, "tools_used": [t["name"] for t in tools],
-            "receipt_id": receipt_id, **extra}
+    return {"response_text": reply, "speech_format": "plain_text", "conversation_id": conv_id,
+            "session_id": session_id, "continue_conversation": keep_open,
+            "tools_used": [t["name"] for t in tools], "receipt_id": receipt_id, **extra}
 
 
 @router.post("/turn")
 async def voice_bridge_turn(data: VoiceBridgeTurn, authorization: Optional[str] = Header(None)):
     _check_token(authorization)
+    if not MODEL_CONFIG["ok"]:
+        raise HTTPException(503, MODEL_CONFIG["error"])
     text = (data.text or "").strip()
     if not text:
         raise HTTPException(422, "empty transcript")

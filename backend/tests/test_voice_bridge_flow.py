@@ -83,7 +83,6 @@ def fake_llm_factory(state):
 def main():
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     assert os.environ["DB_NAME"].startswith("caos_vb_test_")
-    import asyncio
     from fastapi import APIRouter, FastAPI
     from fastapi.testclient import TestClient
     import routes.voice_bridge as vb
@@ -138,6 +137,7 @@ def main():
         r = turn("What's for dinner?").json()
         assert TODAY_DINNER in r["response_text"] and "**" not in r["response_text"], r
         assert r["continue_conversation"] is True and r["session_id"] == "vb_conv1"
+        assert r["speech_format"] == "plain_text" and "audio" not in r  # text only; HA owns TTS
         r2 = turn("What time is that?").json()
         assert "5 PM" in r2["response_text"], r2  # history reached the model
         conv_turns = run(db.conversations.count_documents({"session_id": "vb_conv1", "resident_id": "res_101"}))
