@@ -20,6 +20,13 @@
 > audio roles are in `docs/ROOM_AUDIO_ARCHITECTURE.md`. *(Correction 2026-10-03,
 > Michael: no eMeet in the standard room; the EliteDesk is the central server,
 > not a per-apartment computer; the Voice PE connects to it over Wi-Fi.)*
+> **Re-scoped 2026-10-03 (Michael): `room-node/aria_wake/` is a legacy development/fallback Aria voice endpoint. Not standard apartment hardware.**
+> Kept for development before the Voice PE, synthetic/microphone tests,
+> emergency fallback and comparison testing; off by default (starts only with
+> `ARIA_WAKE_ENABLE_LEGACY=1`; the page needs `?wake=1`). It may only be
+> considered for removal after Voice PE real-room acceptance proves wake
+> accuracy, conversation continuity, response playback and deterministic
+> session ending.
 > The EliteDesk listener below (`room-node/aria_wake/`, OFF) is earlier
 > history. The 2026-09-24 finding stands: a bare "Aria" collides with
 > "area", which is why it is only a test candidate.

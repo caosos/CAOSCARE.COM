@@ -6043,3 +6043,32 @@ Approval (Michael, 2026-10-03, coordinator session): merge `docs/aria-voice-pe-d
 - Files: AGENTS.md, CLAUDE.md, docs/ARIA_WAKE_WORD_ARCHITECTURE.md, docs/CAOSCARE_PRODUCT_BASELINE.md, docs/CURRENT_PRIORITY.md, docs/PROJECT_STATE.md, docs/ROOM_AUDIO_ARCHITECTURE.md. No source/runtime file changed.
 - Agreement check: AGENTS.md, CLAUDE.md, Product Baseline §2, ROOM_AUDIO_ARCHITECTURE, ARIA_WAKE_WORD_ARCHITECTURE, CURRENT_PRIORITY and PROJECT_STATE all state the corrected architecture (central EliteDesk; Voice PE per apartment; no per-apartment EliteDesk; no standard-room eMeet; separate handset telephony; Aria, "Hey Aria", "Aria" test candidate); older wording is marked superseded.
 - Not done: main, PR #41/#42, Linode, website, runtime and hardware untouched.
+
+---
+
+## 2026-10-03 — `room-node/aria_wake/` re-scoped as a legacy development/fallback endpoint
+
+### Agent / branch
+Claude Code (Opus 5.5), coordinator. Branch `chore/rescope-legacy-aria-wake` (worktree `~/CAOSCARE-ARIA-WAKE-FALLBACK`) from `integration/2026-09-27` @ `342fdc22d4808935a69c27250e2b5aa565b84f75`. Not merged; no deploy; main, PR #41/#42, Linode, hardware, `firmware/voice-pe-*` and `spike/voice-bridge` untouched.
+
+### Decision (Michael, 2026-10-03, coordinator session)
+Re-scope `room-node/aria_wake/` as "Legacy development/fallback Aria voice endpoint. Not standard apartment hardware." Keep it (not deleted, not renamed), disabled by default, for development before the Voice PE, synthetic and microphone testing, emergency fallback if Voice PE acceptance fails, and comparison testing. Standard room provisioning must not install, enable or advertise it. Retirement condition: may only be considered for removal after Voice PE real-room acceptance proves wake accuracy, conversation continuity, response playback and deterministic session ending. Follows the merged architecture decision (`22ca2e3`: 444e297, f5d8ea5, fe06d67).
+
+### References found
+- Code: `room-node/aria_wake/aria_wake.py`, `README.md`, `test_aria_wake.py`, `keywords.txt`; `frontend/src/lib/wakeWordClient.js`, `frontend/src/lib/useWakeWord.js`, `frontend/src/pages/Kiosk.jsx` (page connects only with `?wake=1`); `frontend/src/lib/__tests__/wakeWordClient.test.js`; `backend/routes/activation_client_events.py` (`wake_word` breadcrumb layer); `tools/wakelab` (research tooling mirroring the detector).
+- Docs: ARIA_WAKE_WORD_ARCHITECTURE, CURRENT_NODE_STATUS, PRODUCT_BASELINE, REPO_MAP, CURRENT_PRIORITY, ROOM_AUDIO_ARCHITECTURE, ARIA_LANE_ONBOARDING, ARIA_SUBSTRATE_IMPLEMENTATION_PLAN, SPEAKER_VERIFICATION_DESIGN, PROJECT_STATE, reports (2026-09-23 milestones, 2026-09-24 test sheet, CURRENT_DIRECTIVE, INDEX), experiments (2026-09-24 whisper verifier .md/.patch).
+- Services / provisioning: none. No systemd user or system unit, timer or cron entry; `scripts/deploy_caoscare.sh` and `backend/scripts/setup_demo_room.py` do not reference it.
+- Running: one copy (PID 2833238, port 8766) is the Nabu test listener started manually in this session; left as is.
+
+### Changes
+- `aria_wake.py`: label + retirement condition in the module docstring; `legacy_enabled()` — the process exits (code 2, message) unless `ARIA_WAKE_ENABLE_LEGACY=1`.
+- `test_aria_wake.py`: test that it is off unless explicitly enabled.
+- `README.md`: label, purposes, disabled-by-default, no standard provisioning, retirement condition; start command includes the env var.
+- `wakeWordClient.js`, `useWakeWord.js`, `Kiosk.jsx`: comment labels only (no behaviour change; still `?wake=1` opt-in).
+- Docs: ARIA_WAKE_WORD_ARCHITECTURE (re-scope note), CURRENT_NODE_STATUS (port row and page link labelled legacy), PRODUCT_BASELINE (proven-list wording), REPO_MAP (`room-node/` line). Historical reports/experiments left as written.
+
+### Behaviour
+Before: started by anyone running `python aria_wake.py`; page connected with `?wake=1`. After: the process refuses to start without `ARIA_WAKE_ENABLE_LEGACY=1`; page opt-in unchanged; nothing provisions it.
+
+### Tests (changed files only)
+`room-node/aria_wake/test_aria_wake.py`: 5 passed (incl. the new off-unless-enabled test). `python aria_wake.py` without the env var: exits 2 with the legacy message, no port opened. `frontend/src/lib/__tests__/wakeWordClient.test.js`: 4 passed. `wakeWordClient.js`, `useWakeWord.js`, `Kiosk.jsx` parse cleanly (comment-only changes).

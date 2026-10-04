@@ -1,5 +1,23 @@
 # Aria wake-word listener (room node)
 
+> **Legacy development/fallback Aria voice endpoint. Not standard apartment hardware.**
+>
+> The standard apartment design (Michael, 2026-10-03) is one central EliteDesk
+> server running Home Assistant and CAOSCare, with a Home Assistant Voice PE in
+> each apartment as the Aria room voice endpoint ("Hey Aria"). See
+> `docs/ROOM_AUDIO_ARCHITECTURE.md`. This listener is kept only for:
+> - development before the Voice PE arrives;
+> - synthetic and microphone testing;
+> - emergency fallback if Voice PE acceptance fails;
+> - comparison testing between this room-node path and the Voice PE.
+>
+> **Disabled by default.** It does not start unless `ARIA_WAKE_ENABLE_LEGACY=1`
+> is set, and the room page only connects to it when its URL carries `?wake=1`.
+> No standard provisioning (deploy script, demo setup, services) installs or
+> starts it.
+>
+> **Retirement condition:** May only be considered for removal after Voice PE real-room acceptance proves wake accuracy, conversation continuity, response playback and deterministic session ending.
+
 Local, on-device "Aria" trigger for a resident room endpoint. Implements the
 trigger half of `docs/ARIA_WAKE_WORD_ARCHITECTURE.md`: it listens on the
 room's existing audio capture endpoint (the eMeet, via the PulseAudio default
@@ -33,7 +51,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 curl -LO https://github.com/k2-fsa/sherpa-onnx/releases/download/kws-models/sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01.tar.bz2
 tar xjf sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01.tar.bz2
 mkdir -p model && cp sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01/{tokens.txt,*.int8.onnx} model/
-.venv/bin/python aria_wake.py            # JSON-lines log on stdout
+ARIA_WAKE_ENABLE_LEGACY=1 .venv/bin/python aria_wake.py   # JSON-lines log on stdout
 ```
 
 Env: `ARIA_WAKE_SOURCE` (PulseAudio source; default = system default source),

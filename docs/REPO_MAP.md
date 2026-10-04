@@ -69,7 +69,7 @@ backend/                                       FastAPI backend and domain routes
 android-companion/                             Android companion / RF bridge companion surface
 android-bridge/                                Android RF bridge / protocol support surface
 android-vision/                                Android vision / voice assistance surface
-room-node/                                     Resident room-node processes (room-node/aria_wake/ = local wake-word listener; currently OFF)
+room-node/                                     room-node/aria_wake/ = LEGACY development/fallback Aria voice endpoint (not standard apartment hardware; off unless ARIA_WAKE_ENABLE_LEGACY=1)
 tools/wakelab/                                 Wake Phrase Lab - research tooling, isolated from runtime (docs/WAKE_PHRASE_LAB.md)
 .emergent/                                     Emergent-generated summary/metadata surface
 ```
