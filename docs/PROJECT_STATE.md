@@ -6107,6 +6107,36 @@ Claude Code (Opus 5.5), Pilot 1 integration coordinator, `~/CAOSCARE-INTEGRATION
 
 ---
 
+## 2026-10-04 — SIM-1 minimal simulated-actor scheduler (Agent Three, draft PR #49)
+
+### Agent / branch
+Claude Code (Opus 5.5), Round 5 Agent Three. Branch `pilot/sim-1-scheduler` (worktree `~/CAOSCARE-SIM1`) on `origin/integration/2026-09-27` @ `270561e5b1cf6053d7c3400abce58bda15d95d25` (assignment tip `0f331b7`; integration moved docs-only during the work, rebased). Draft PR #49 into `integration/2026-09-27`. Not merged; no deploy; no runtime service, main, Linode or hardware touched.
+
+### What changed
+- New `backend/simulation/` (roster, scenario, scheduler) and `backend/routes/simulation.py` (admin-only controls). `backend/server.py` +2 lines to mount the router (shared file, flagged in the PR).
+- One simulated resident (the demo room's synthetic resident) raises a normal maintenance request through `create_resident_request`; simulated `sim:staff:maintenance-1` acknowledges / starts / notes / completes it through `task_actions`. The simulator writes no StaffTask or task receipt itself; its own receipts (run chain: start, pause, resume, stop, one per step referencing the canonical receipt) go through `create_receipt`.
+- The scheduler refuses to start, and records the refusal, while a live email provider key is configured, because department notifications cannot yet mark simulated requests (SCR-SIM-1).
+
+### Verified
+- `tests/test_sim1_actor_scheduler.py` 6 passed; SIM-1 acceptance items 1-11 asserted; mutation check (pause guard, simulated-only guard, real-resident guard disabled) → 3 failures.
+- Full gate `scripts/run_backend_tests.sh` (port 8071, throwaway DB): 225 passed, 0 failed, 31 skipped.
+- Live uvicorn backend (scratch DB, real admin login, 1 s tick): loop advanced, pause held, step +1, resume, stop froze it; task visible in `GET /api/tasks` as `simulated: true`, room DEMO. Scratch DBs dropped afterwards.
+
+### Blocked / filed
+SHARED CORE REQUESTS in PR #49: SCR-SIM-1 (simulated requests are notified like real ones), SCR-SIM-2 (no `simulator` channel / `simulation_run_id` on the request). Scope limited to the demo room until Michael lifts the ENGINEERING_CONTRACT gate (items 7, 8).
+
+HANDOFF CAPSULE
+- Objective:        SIM-1 minimal actor scheduler (RQ-007); next is SIM-2 Live Operations UI
+- Branch:           `pilot/sim-1-scheduler` (draft PR #49)
+- Lane / ownership: `backend/simulation/`, `backend/routes/simulation.py`, `backend/tests/test_sim1_*.py`; must not edit task_lifecycle / task_actions / actor_context / receipts / resident_requests / models
+- Last proven state:SIM-1 tests 6/6, full gate 0 failed, live HTTP run on scratch DB (see Verified)
+- Commits:          `ca3be53` (code) + this docs commit
+- Runtime state:    nothing started or left running; :8092 and the Okay-Nabu stack untouched
+- Unresolved proven defects: none in SIM-1; SCR-SIM-1/2 are shared-core gaps
+- Product invariants that matter here: same-world rule; no action without a receipt; real/simulated identity explicit; demo room only
+- Do NOT change:    shared lifecycle/receipt modules; demo kiosk behaviour; real rooms
+- Next safe action: coordinator review of PR #49 (incl. the `server.py` touch and SCR-SIM-1/2)
+
 ## 2026-10-04 — Agent Four (Shared Core): SC-10, SC-11, SC-12 device truth
 
 ### Agent / branch

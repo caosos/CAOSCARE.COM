@@ -803,6 +803,14 @@ listener verifier experiment: `docs/experiments/`.
 - `backend/routes/transport_task_history.py`: `ride_actor()`, `ride_authority()`, `booking_entry()` — ride steps (`transportation.py`, `transportation_assign.py`, `transportation_runs.py`) are lifecycle transitions with chained receipts.
 - Test: `backend/tests/test_transport_ride_receipts.py`.
 
+## 2026-10-04 — SIM-1 minimal actor scheduler (branch `pilot/sim-1-scheduler`, draft PR #49)
+
+- `backend/simulation/roster.py`: simulated actors — the demo room's synthetic resident and `sim:staff:maintenance-1` (role/department/shift; not a User); refuses real identities in simulated slots.
+- `backend/simulation/scenario.py`: deterministic `sink_leak` steps, each a call to `create_resident_request` or `task_actions`.
+- `backend/simulation/scheduler.py`: run state STOPPED/RUNNING/PAUSED (`db.sim_runs`), start/pause/resume/step/stop, run receipt chain (step receipts reference the canonical receipt), background tick loop.
+- `backend/routes/simulation.py`: admin-only `/api/simulator/{state,start,pause,resume,step,stop}`, `/api/simulator/runs/{id}/history`.
+- Test: `backend/tests/test_sim1_actor_scheduler.py`.
+
 ## 2026-10-04 — Device truth SC-10/11/12 (branch `pilot/shared-core-device-truth`)
 
 - `backend/device_adapters.py::simulation_fields()`: the one statement of a device's simulation truth (`simulated`, `simulation_scope` demo_room / real_room); used by `execute_mock` and every `device_commands` record. `verified` comes only from the adapter.
