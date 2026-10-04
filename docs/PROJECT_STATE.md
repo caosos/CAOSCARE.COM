@@ -6304,3 +6304,19 @@ Focused tests only (Wake Word Lab running): `test_companion_prompt_phase_a.py` (
 
 ### Pending (deferred until the Wake Word Lab finishes)
 Full backend gate, full frontend suite, production build, load harness re-run. Not verified: live Voice PE turn; realtime room session with the new prompt (built and contract-checked only).
+
+---
+
+## 2026-10-04 — Voice PE external component audit, Phase 1 (read-only)
+
+### Agent / branch
+Claude Code (Opus 5.5), coordinator, `spike/voice-bridge` from `27dd6e8`. Read-only source study through the GitHub API at pinned commits; nothing copied, executed, installed, built or flashed; Home Assistant, Linode, main, integration, PR #41/#42 untouched; wake lab (PID 3013581) left running.
+
+### What changed
+`docs/VOICE_PE_EXTERNAL_COMPONENT_AUDIT.md` — provenance, architecture, comparison matrix, licences, security, overlap, decisions, minimal architecture, slices, tests, open questions for: esphome/home-assistant-voice-pe, xandervanerven/home-assistant-voice-pe + ha-openai-realtime, maxmaxme/voice-assistant + home-assistant-voice-pe, TristanBrotherton/voicepe-realtime + voicepe-realtime-firmware, skorokithakis/havpe-server, and HA core conversation/assist_satellite/esphome/mcp_server contracts.
+
+### Findings
+All custom-firmware systems use plaintext `ws://` (two with no device authentication; maxmaxme with a bearer token in cleartext); havpe-server requires removing ESPHome API encryption — rejected. maxmaxme/voice-assistant and havpe-server are AGPL-3.0 (no incorporation). Adopting any external backend would create a parallel assistant/memory/tool universe. Adopt only official HA/ESPHome contracts (stock encrypted firmware, device/satellite id, continue_conversation, assist_satellite announce). Reference: wake arbitration, server-owned follow-up, turn admission, room-targeted timers/announcements, session refresh. Realtime speech-to-speech left as a Michael decision.
+
+### Not done
+No implementation (Phase 1). External runtime behaviour not verified.
