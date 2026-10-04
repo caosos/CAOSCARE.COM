@@ -6199,3 +6199,18 @@ HANDOFF CAPSULE
 - Product invariants: verified only on adapter-declared read-back; simulated always explicit; refused commands change nothing.
 - Do NOT change:    the /devices/public/room/{room}/command request contract.
 - Next safe action: coordinator reviews the draft PR; decide whether to wire or retire realtimeClimateControl.js.
+
+---
+
+## 2026-10-04 — Coordinator: Shared Core SC-10/11/12 (PR #48) integrated
+
+### Agent / branch
+Claude Code (Opus 5.5), Pilot 1 coordinator, `integration/2026-09-27`. Michael's "PR #48 IS READY". Not merged to main, not deployed; HA, Linode, PR #41/#42 untouched; Claude Two's batch not touched.
+
+### Merge
+PR #48 `pilot/shared-core-device-truth` `95b4df87a056d8a4a852e8a82b98f1d969286d94` (refreshed; merge base = tip `f35d8ee`) → merge `085813eebdc7970716c1d1b4f8eafa1aedcc9078`. Reviewed: SC-10 (`realtimeLightControl.js`: unsupported attribute refuses the whole request before anything is sent), SC-11 (`device_adapters.execute_mock`/`simulation_fields`: mock always simulated, verified only in room `DEMO`; `routes/devices.py` labels only, route/body unchanged), SC-12 (TV/thermostat commands carry `session_id`). Import check OK (new `routes.demo_kiosk` import in `device_adapters`). Tests on the merge: frontend `toggleLightControl`, `deviceSessionTrace`, `toggleTvVolumeGuard`, `demoKiosk` — 4 suites / 38 passed; backend gate (port 8077, throwaway DB) 248 passed / 3 failed (the known stale iter10/iter11 tests) / 13 skipped — previous 240 + 8 device-truth tests, which ran. PR shows MERGED.
+
+### Assignments
+- Agent Four: SC-16 (simulated requests never send real notifications or provider side effects) + SC-17 (explicit simulator provenance and `simulation_run_id` on canonical requests, no second model), fresh branch from the new tip.
+- Agent Three: SIM-2 from the current tip (no SIM-2 branch on GitHub yet).
+- RQ-008: Agent Five's audit (`docs/rq-008-storage-receipt` `39a5abf`) reports Phase 1 cache cleanup already executed (npm/yarn/pip caches, 7 disabled snap revisions via `sudo snap remove`; 8.03 GB; no firmware/lab/dataset/worktree/VM/log touched). The coordinator assignment had been read-only; it is within Michael's "safe cache cleanup first". No further deletion while Claude Two's batch runs; later phases need sign-off. Agent Five to open a draft PR for the report.

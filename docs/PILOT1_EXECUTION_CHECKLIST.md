@@ -5,7 +5,7 @@ Target: 2026-10-10
 Current phase: PHASE 3 — Real staff operational workflows (focus: operational completion)
 Current active task: Round 5 parallel lanes (see `PILOT1_ACTIVE_WORK.md` Round 5 board: SIM-1 demo-room-only, SC-10/11/12, RQ-004). Earlier: Michael decides the simulator gate (escalation decision 8, stale-alert policy decision 7, or a demo-room-only SIM-1); Agent 2's Nabu re-request fix `bbfce3b` awaits review; then Community services `d95c4d6` (SC-14/SC-15 integrated at `268963c`, 2026-10-03)
 Current integration branch: `integration/2026-09-27`
-Current integration SHA: `42ac6f3` (tip, 2026-10-04; last code state `1126d8c` — SIM-1)
+Current integration SHA: `085813e`+ (2026-10-04; last code state `085813e` — SC-10/11/12)
 Last updated: 2026-10-04 (Round 5 board)
 Last updated by: Claude Code (Opus 5.5), EliteDesk
 
