@@ -6030,3 +6030,15 @@ Claude Code (Opus 5.5), `~/CAOSCARE-VOICEBRIDGE`, `spike/voice-bridge` from `30c
 
 ### Not changed
 gpt-4o-mini still did not call end_call on "goodbye" (not in this fix list). Realtime room-screen replies are not passed through the arrival guard (bridge only).
+
+---
+
+## 2026-10-03 — test_ops_overview date fix (spike/voice-bridge)
+
+Instruction (Michael, 2026-10-03): fix only the `test_ops_overview` date bug on `spike/voice-bridge` from `7999de0`; change production code only if the test proves it wrong.
+
+- Branch/HEAD verified: `spike/voice-bridge` at `7999de0` = origin, tree clean.
+- Trace: the test seeded `requested_for_date` as UTC "yesterday"; `ops_overview` counts `past_requested_date_open` by comparing that facility-local calendar date with `today_facility_date()` (FACILITY_TZ, America/Chicago). Between 00:00 UTC and local midnight the UTC "yesterday" equals the facility's today, so nothing is past. Reproduced at 02:31 UTC / 21:31 Chicago: 1 failed.
+- Production date handling is correct (both sides are facility-local dates); not changed.
+- Fix: `backend/tests/test_ops_overview.py` seeds yesterday from `today_facility_date()`.
+- Results: `test_ops_overview` 1 passed (same hour). Related ops tests (ops_overview, reports, activity_log, staff_department, maintenance_workorders): 7 passed. Full gate: 243 passed, 3 failed, 13 skipped. The 3 remaining are baseline failures (also at the integration tip), not regressions: `iter10_test.py::TestRealtimeSession::test_session_default`, `iter11_test.py::TestRealtimeSession::test_session_has_nine_tools_and_anchors` (expect the old 9-tool resident session; it has 26), `iter11_test.py::TestWeather::test_default_facility_weather` (expects "the facility"; this machine's `.env` sets "the EliteDesk node"). Unchanged.
