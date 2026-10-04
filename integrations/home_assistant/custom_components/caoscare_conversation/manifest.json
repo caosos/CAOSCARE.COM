@@ -1,7 +1,7 @@
 {
   "domain": "caoscare_conversation",
   "name": "CAOSCare conversation agent",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "documentation": "https://github.com/caosos/CAOSCARE.COM",
   "codeowners": [],
   "config_flow": true,

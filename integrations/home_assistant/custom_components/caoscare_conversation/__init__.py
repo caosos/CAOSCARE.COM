@@ -1,8 +1,9 @@
-"""CAOSCare conversation agent for Home Assistant Assist (spike, untested in HA).
+"""CAOSCare conversation agent for Home Assistant Assist (not yet run in Home Assistant).
 
 Forwards each Assist transcript to CAOSCare's voice bridge and speaks the
 reply. CAOSCare owns the conversation, residents, requests and receipts;
-this integration stores only the bridge URL, credential and room endpoint.
+this integration stores only the bridge URL and credential. Each Voice PE
+is identified to CAOSCare by its Home Assistant device id.
 """
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
