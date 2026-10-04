@@ -6214,3 +6214,32 @@ PR #48 `pilot/shared-core-device-truth` `95b4df87a056d8a4a852e8a82b98f1d969286d9
 - Agent Four: SC-16 (simulated requests never send real notifications or provider side effects) + SC-17 (explicit simulator provenance and `simulation_run_id` on canonical requests, no second model), fresh branch from the new tip.
 - Agent Three: SIM-2 from the current tip (no SIM-2 branch on GitHub yet).
 - RQ-008: Agent Five's audit (`docs/rq-008-storage-receipt` `39a5abf`) reports Phase 1 cache cleanup already executed (npm/yarn/pip caches, 7 disabled snap revisions via `sudo snap remove`; 8.03 GB; no firmware/lab/dataset/worktree/VM/log touched). The coordinator assignment had been read-only; it is within Michael's "safe cache cleanup first". No further deletion while Claude Two's batch runs; later phases need sign-off. Agent Five to open a draft PR for the report.
+
+---
+
+## 2026-10-04 — SIM-2 Live Operations UI, first slice (Agent Three, draft PR #50)
+
+### Agent / branch
+Claude Code (Opus 5.5), Round 5 Agent Three. Branch `pilot/sim-2-live-operations` (worktree `~/CAOSCARE-SIM2`) from `f35d8ee` (SIM-1 merged), rebased onto `0b6f9db`. Draft PR #50 into `integration/2026-09-27`. Board name was `pilot/sim-2-live-ops`; Michael's directive named `pilot/sim-2-live-operations`, which is used. Not merged; no deploy; no runtime service, main, Linode or hardware touched.
+
+### What changed
+Frontend only. New Admin → Community → Live operations tab: run state, simulated time, next action, Start / Pause / Step / Resume / Stop, actors with real/simulated badges, current action, active simulated request, failures, merged receipt stream, and a receipt trace (actor, authority, before/after, parent receipt, the canonical receipt a simulator step references, the request via the existing `RequestDetailDialog`). Every value comes from the SIM-1 API and the canonical `/receipts` and `/tasks` endpoints; no simulator state is kept in the frontend; requests use `requestDisplay`. Shared files: `adminTabGroups.js` +1, `Admin.jsx` +2.
+
+### Verified
+- Frontend 34 suites / 263 tests (new `simulator.test.js`); `CI=true` build compiles.
+- Browser (headless Chrome over CDP, real admin login, scratch DB, backend from this branch with a 3 s tick): start → RUNNING, loop advanced; pause held 7 s; step +1 and stayed PAUSED; trace walked request receipt → origin → request dialog, and simulator step → canonical `task_acknowledged` receipt; resume ticked after 3.0 s (UI shows it within the 2 s poll); stop froze the run; no console errors. A run with departments missing showed the failed step in Current action and Failures. A phone-width overflow (612 px at 390) was found and fixed. Scratch DB dropped afterwards.
+
+### Limits
+No speed control (backend `SIM_TICK_SECONDS`). The request dialog shows source "Aria voice" for simulated requests (SC-17). The request dialog's action buttons act as the real signed-in operator (SIM-3 direction).
+
+HANDOFF CAPSULE
+- Objective:        SIM-2 Live Operations UI; next is SIM-3 (real + simulated staffing)
+- Branch:           `pilot/sim-2-live-operations` (draft PR #50)
+- Lane / ownership: `frontend/src/pages/LiveOperations.jsx`, `frontend/src/components/simulator/`, `frontend/src/lib/simulator.js` + test; must not edit shared lifecycle/receipt modules
+- Last proven state:tests 34/263, build, browser run above
+- Commits:          `c05dc48`, phone fix, this docs commit (SHAs after rebase in the PR)
+- Runtime state:    nothing left running
+- Unresolved proven defects: none in SIM-2; SC-16/SC-17 open (Agent Four)
+- Product invariants that matter here: no second simulator state model; real/simulated explicit; every action traceable to origin
+- Do NOT change:    SIM-1 scheduler contract without a coordinator decision; shared lifecycle/receipt modules
+- Next safe action: coordinator review of PR #50 (incl. the Admin.jsx / adminTabGroups.js touch)
