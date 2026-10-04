@@ -19,14 +19,14 @@ Verified from live processes (`ss`, `/proc/<pid>/cwd`, start times), not assumed
 |---|---|---|---|
 | `:3000` | CRA dev server, `caoscare-frontend-dev.service` (systemd --user) | `~/CAOSCARE-INTEGRATION/frontend` working tree, branch `aria/wake-word-proof` (hot reload) | Proxies `/api` → `:8092` (`ADMIN_BACKEND_ORIGIN`). `node_modules` is a symlink into `~/CAOSCARE.COM`. |
 | `:8092` | Backend (uvicorn, `nohup`) | `~/CAOSCARE-INTEGRATION/backend` at commit `12dadd4` | Serves the Room 214 page. Log `/tmp/room214_backend_12dadd4.log`. |
-| `127.0.0.1:8765` | Wake-word listener | `room-node/aria_wake/aria_wake.py` | **OFF since 2026-09-24 ~02:50 UTC** (overnight false wakes; see `docs/WAKE_PHRASE_LAB.md`). Last log `/tmp/aria_wake_12dadd4.log`. The eMeet remains the OS default source and sink. |
+| `127.0.0.1:8765` | Wake-word listener — *legacy development/fallback endpoint, not standard apartment hardware (re-scoped 2026-10-03); starts only with `ARIA_WAKE_ENABLE_LEGACY=1`* | `room-node/aria_wake/aria_wake.py` | **OFF since 2026-09-24 ~02:50 UTC** (overnight false wakes; see `docs/WAKE_PHRASE_LAB.md`). Last log `/tmp/aria_wake_12dadd4.log`. The eMeet remains the OS default source and sink. |
 | `:8000` | Backend (stale lane) | `~/CAOSCARE-LEVEL1-INTEGRATION`, `claude/level1-integration` @ `91483cc`, started 2026-09-07 | **Still receives all pendant events** — the RF bridge posts here. |
 | `:8001` | Backend (stale lane) | `~/CAOSCARE-ADMIN`, `claude/admin-operations` @ `28b8906`, started 2026-09-07 | Idle since 2026-09-20. |
 | RF bridge | `android-bridge/caos_rf_bridge.py` (pid 522046, started 2026-09-06 from `~/CAOSCARE.COM`) | `CAOS_API_URL=http://127.0.0.1:8000`, single band 319.5 MHz | Nooelec SDR on USB. |
 | `mongod` | systemd | — | All backends share the local `caoscare` database. |
 | Home Assistant OS VM | libvirt | — | `192.168.122.137:8123`; Room 214 lights are HA-backed, TV/thermostat are mock. |
 
-Room 214 page for wake-word use: `http://localhost:3000/kiosk/kio_dc8c06a19608?wake=1`
+Room 214 page for legacy wake-word testing (not the standard apartment design): `http://localhost:3000/kiosk/kio_dc8c06a19608?wake=1`
 in the EliteDesk's own Chrome (microphone permission already granted for
 `localhost:3000`).
 

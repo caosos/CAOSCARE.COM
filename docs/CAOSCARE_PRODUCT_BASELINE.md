@@ -98,7 +98,7 @@ Current resident-room architecture:
 host + Nooelec SDR + rtl_433 RF decode + real paired Lifeline/Interlogix
 pendants + OpenAI Realtime voice through a room audio endpoint + resident
 voice control of real Home Assistant-backed lights with read-back
-verification (2026-09-05) + the local wake-word mechanism (listener → page →
+verification (2026-09-05) + the local wake-word mechanism (now a legacy development/fallback endpoint, `room-node/aria_wake/`; listener → page →
 existing session) at close range, Room 214, 2026-09-23 — with "Aria" as the
 test phrase, which is **not** accepted for production (see below and
 `docs/ARIA_WAKE_WORD_ARCHITECTURE.md`). Planned / partial: far-field

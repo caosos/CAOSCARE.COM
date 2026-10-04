@@ -1,5 +1,6 @@
 /**
- * Connects the room page to the local "Aria" wake-word detector and keeps
+ * Legacy development/fallback Aria voice endpoint. Not standard apartment hardware.
+ * Connects the room page to the legacy local "Aria" wake-word detector and keeps
  * it in step with the page's own call state:
  *   idle        -> detector listens for "Aria"
  *   any call    -> detector suppressed (Aria's own voice can't re-trigger it)

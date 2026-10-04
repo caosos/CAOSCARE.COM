@@ -44,3 +44,10 @@ def test_silence_reset_fires_once_after_speech_then_pause():
     fired = [r.update(quiet) for _ in range(aw.SilenceReset.QUIET_CHUNKS + 5)]
     assert fired.count(True) == 1
     assert fired.index(True) == aw.SilenceReset.QUIET_CHUNKS - 1
+
+
+def test_legacy_listener_is_off_unless_explicitly_enabled():
+    assert not aw.legacy_enabled({})
+    assert not aw.legacy_enabled({aw.ENABLE_ENV: "0"})
+    assert not aw.legacy_enabled({aw.ENABLE_ENV: "true"})
+    assert aw.legacy_enabled({aw.ENABLE_ENV: "1"})

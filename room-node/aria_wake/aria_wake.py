@@ -1,5 +1,12 @@
 """Local "Aria" wake-word listener for a CAOSCare room endpoint.
 
+Legacy development/fallback Aria voice endpoint. Not standard apartment hardware.
+The standard apartment voice endpoint is the Home Assistant Voice PE
+(docs/ROOM_AUDIO_ARCHITECTURE.md, Michael 2026-10-03). Kept for development
+before the Voice PE, synthetic/microphone testing, emergency fallback if Voice
+PE acceptance fails, and comparison testing. Disabled by default: it only
+starts with ARIA_WAKE_ENABLE_LEGACY=1. May only be considered for removal after Voice PE real-room acceptance proves wake accuracy, conversation continuity, response playback and deterministic session ending.
+
 A trigger, not a conversation participant (docs/ARIA_WAKE_WORD_ARCHITECTURE.md).
 It reads the room's existing audio capture endpoint (the eMeet, via the
 PulseAudio default source - a shared, non-exclusive tap), runs an on-device
@@ -232,7 +239,19 @@ class Server:
             await asyncio.Future()
 
 
+ENABLE_ENV = "ARIA_WAKE_ENABLE_LEGACY"
+
+
+def legacy_enabled(env=None) -> bool:
+    """Off unless explicitly enabled - never part of standard room provisioning."""
+    return (env if env is not None else os.environ).get(ENABLE_ENV) == "1"
+
+
 if __name__ == "__main__":
+    if not legacy_enabled():
+        print(f"aria_wake: legacy development/fallback endpoint, disabled by default; "
+              f"set {ENABLE_ENV}=1 to run it (see README.md).", file=sys.stderr)
+        sys.exit(2)
     try:
         asyncio.run(Server(resolve_source()).run())
     except KeyboardInterrupt:
