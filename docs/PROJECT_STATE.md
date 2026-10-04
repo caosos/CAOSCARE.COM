@@ -6137,6 +6137,35 @@ HANDOFF CAPSULE
 - Do NOT change:    shared lifecycle/receipt modules; demo kiosk behaviour; real rooms
 - Next safe action: coordinator review of PR #49 (incl. the `server.py` touch and SCR-SIM-1/2)
 
+---
+
+## 2026-10-04 — Agent Five: RQ-004 Pilot Room 1 hardware BOM refreshed onto the Voice PE architecture
+
+Claude Code (Opus 5.5), Agent Five, Round 5. Branch `pilot/rq-004-room1-bom` from `integration/2026-09-27` @ `55b733e`. Docs only. Not merged, not deployed. Replaces the PR-less draft on `agent/pilot-room1-hardware-inventory` (`d0adfbd`); its doc commit `401fb90` was cherry-picked to keep history, then rewritten.
+
+- `docs/PILOT1_ROOM1_HARDWARE_INVENTORY.md`: six-category BOM against the corrected architecture (central EliteDesk, Voice PE per room, no standard-room eMeet, separate handset telephony) and one consolidated request for Michael.
+- Read-only evidence (2026-10-04): HA VM crashed (2026-10-03 evening); RTL-SDR not enumerated after repeated USB reconnects; wired Ethernet has no cable; device registry holds only the two L535E bulbs and the Midea AC as real devices; Asterisk not installed.
+- Voice PE and XIAO Smart IR Mate orders are recorded only on unmerged `docs/2026-10-03-hardware-priority-reset`.
+- Not done: no restarts (HA VM, SDR, RF bridge are reported as blockers), no purchases, coordinator trackers not edited.
+- Next safe step: Michael answers the consolidated request in the BOM doc; ops restores the HA VM.
+
+---
+
+## 2026-10-04 — Coordinator: Round 5 merge train — SIM-1 (#49) and RQ-004 BOM (#47) integrated
+
+### Agent / branch
+Claude Code (Opus 5.5), Pilot 1 coordinator, `integration/2026-09-27`. Michael's "ROUND 5 — COORDINATOR NEXT-WORK DIRECTIVE". Not merged to main, not deployed; HA, Linode, PR #41/#42 untouched; Claude Two's wake batch not touched.
+
+### Merges (one at a time)
+1. PR #49 `pilot/sim-1-scheduler` `6dc4ea5eb10d9a14f701a3cfb2a1247af3a4901a` → merge `1126d8c6afbe55ddfec0ed3d2c27929b611e9767`. Reviewed: new `backend/simulation/`, admin-only `routes/simulation.py`, `server.py` +2 (router, accepted); canonical services called, not edited. Tests on the merge: `test_sim1_actor_scheduler.py` 6 passed (scratch DB); gate (`run_backend_tests.sh`, port 8077, throwaway DB) 240 passed / 3 failed (the known stale iter10/iter11 tests) / 13 skipped — baseline + 6, no regression. PR shows MERGED.
+2. PR #47 `pilot/rq-004-room1-bom` `e45a840b73dac9c079918af7b948413845751ba8` → merge `42ac6f3bd645c563a31908635d9af203ed92fb3e`. Docs only; conflicts only in `PROJECT_STATE.md` / `REPO_MAP.md`, resolved by keeping both sides. BOM reviewed: unknown physical facts marked UNKNOWN, none guessed. PR shows MERGED.
+
+### Not merged
+PR #48 `pilot/shared-core-device-truth` `aa5ec95`: conflicts only in `PROJECT_STATE.md` / `REPO_MAP.md`; Agent Four refreshes it (instruction on the PR). Its `routes/devices.py` change (simulated labels; route and body unchanged) accepted as the SC-11 site.
+
+### Tracker updates
+RQ-008 (storage + obsolete worktree cleanup) added: read-only audit assigned to Agent Five; deletion only from a Michael-approved list after heavy jobs finish. SCR-SIM-1/2 numbered SC-16/SC-17, assigned to Agent Four after #48. SIM-2 assigned to Agent Three. Checklist: SIM-1 items marked with evidence. Runtime findings from the BOM recorded on the board (HA VM shut off/crashed since ~2026-10-03 20:19 CDT; RTL-SDR not enumerated; RF bridge posting to a stale backend) — not acted on.
+
 ## 2026-10-04 — Agent Four (Shared Core): SC-10, SC-11, SC-12 device truth
 
 ### Agent / branch
