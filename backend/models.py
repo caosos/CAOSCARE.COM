@@ -518,7 +518,8 @@ class Insight(BaseModel):
 
 # ---------- Notifications ----------
 NotificationChannel = Literal["sms", "email", "pager", "inapp"]
-NotificationStatus = Literal["queued", "sent", "failed", "logged"]
+# "simulated": produced for a simulated request; never handed to a provider (SC-16).
+NotificationStatus = Literal["queued", "sent", "failed", "logged", "simulated"]
 
 
 class Notification(BaseModel):
@@ -532,6 +533,12 @@ class Notification(BaseModel):
     resident_id: Optional[str] = None
     status: NotificationStatus = "logged"
     provider_response: Optional[str] = None
+    # SC-16: set only for a notification produced by a simulated request.
+    simulated: bool = False
+    simulation_scope: Optional[str] = None
+    simulation_run_id: Optional[str] = None
+    task_id: Optional[str] = None
+    receipt_id: Optional[str] = None
     created_at: datetime = Field(default_factory=now_utc)
 
 
@@ -753,7 +760,12 @@ TaskShift = Literal["day", "evening", "night", "any"]
 TaskPriority = Literal["low", "normal", "high", "urgent"]
 # Who/what originated this task/request - lets Aria-initiated and
 # resident-initiated items be distinguished from staff-scheduled work.
-TaskSource = Literal["staff", "aria_voice", "kiosk_button", "family", "system", "front_desk", "aria_admin"]
+TaskSource = Literal["staff", "aria_voice", "kiosk_button", "family", "system", "front_desk", "aria_admin",
+                     "simulator"]
+# Requests that originate with a resident (the resident-request bus).
+# "simulator" = a simulated resident in an operations-simulator run (SC-17);
+# only ever set server-side, never accepted from a request body.
+RESIDENT_ORIGIN_SOURCES = ("aria_voice", "kiosk_button", "simulator")
 # Coarse role gate for who should see this in their queue/dashboard.
 # Enforced backend-side wherever tasks are listed for a given role - see
 # ENGINEERING_CONTRACT.md (once written) for the authorization pattern.
@@ -819,8 +831,10 @@ class StaffTask(BaseModel):
     # Simulation provenance (ENGINEERING_CONTRACT decision 4). Set only by the
     # canonical creation paths from the server-side resident record, never
     # from a request body. simulation_scope: "demo_room" today.
+    # simulation_run_id: the operations-simulator run that raised it (SC-17).
     simulated: bool = False
     simulation_scope: Optional[str] = None
+    simulation_run_id: Optional[str] = None
     created_at: datetime = Field(default_factory=now_utc)
 
 
@@ -923,6 +937,7 @@ class Receipt(BaseModel):
     channel: Optional[str] = None
     identity_basis: Optional[str] = None       # authenticated / unverified_room_claim / synthetic / system
     simulated: bool = False
+    simulation_run_id: Optional[str] = None    # simulator run that produced it (SC-17)
     authority: Optional[str] = None            # the rule that allowed it, e.g. "acts_for:maintenance"
     parent_receipt_id: Optional[str] = None
     correlation_id: Optional[str] = None       # the workflow's origin receipt

@@ -825,3 +825,8 @@ listener verifier experiment: `docs/experiments/`.
 - `frontend/src/pages/LiveOperations.jsx`: Admin → Community → Live operations. Reads `/simulator/state`, `/simulator/runs/{id}/history`, `/receipts`, `/tasks`; polls 2 s while running. No simulator state of its own.
 - `frontend/src/components/simulator/`: `SimControls` (state, simulated time, next action, Start/Pause/Step/Resume/Stop), `SimActors`, `SimActivity` (current action, active simulated requests, failures), `SimEventStream` (run + request receipt chains), `SimReceiptTrace` (receipt → parent / canonical receipt → request → actor), `ActorBadge`.
 - `frontend/src/lib/simulator.js`: pure helpers (allowed controls, real/simulated/system badge, chain ordering by parent link, stream merge). Test: `frontend/src/lib/__tests__/simulator.test.js`.
+## 2026-10-04 — SC-16 / SC-17 simulator notifications + provenance (branch `pilot/shared-core-sim-provenance`)
+
+- `backend/routes/notifications.py::simulation_of()` + `send_email`/`send_sms`/`notify_department(simulation=)`: a simulated task's notifications are recorded `status: "simulated"` and never reach a provider.
+- `create_resident_request(..., simulation_run_id=)`: in-process simulator provenance on the canonical request (`source: "simulator"`, run id on the task and every receipt via `task_lifecycle._run_link`). `models.RESIDENT_ORIGIN_SOURCES`: the one list of resident-originated sources.
+- Test: `backend/tests/test_sim_provenance.py`.

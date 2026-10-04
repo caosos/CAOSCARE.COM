@@ -9,6 +9,7 @@ export const SOURCE_LABELS = {
   front_desk: "Front Desk",
   system: "System/automation",
   staff: "Staff",
+  simulator: "Simulator (simulated)",
 };
 
 export function sourceLabel(source) {
