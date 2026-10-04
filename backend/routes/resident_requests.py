@@ -26,6 +26,7 @@ from routes.facility_local_time import facility_tz as _facility_tz, facility_loc
 from routes.tasks import _resolve_denorms
 from routes.aria_request_status import request_status_view
 from routes.resident_request_dedup import find_same_issue
+from routes.resident_request_origin import room_claim_authority
 from operational_provenance import reject_unconfirmed_time
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -92,7 +93,8 @@ class ResidentRequestInput(BaseModel):
 
 
 async def create_resident_request(data: ResidentRequestInput, *, user: Optional[dict] = None,
-                                  simulation_run_id: Optional[str] = None) -> dict:
+                                  simulation_run_id: Optional[str] = None,
+                                  origin_authority: Optional[str] = None) -> dict:
     """Public (no auth) for "aria_voice"/"kiosk_button" - same trust model
     as /alerts and the other resident-facing endpoints called from the
     kiosk during a live call. Creates a real StaffTask (so it appears in
@@ -151,8 +153,10 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
         actor, authority = actor_from_user(user, channel="front_desk"), "front_desk_entry"
     elif data.source in ("aria_voice", "kiosk_button"):
         # The room is known; who spoke is a claim, not a verified identity (D3).
+        if not (data.resident_id or data.room):
+            raise HTTPException(status_code=422, detail="A resident request needs the room or resident it came from")
         actor = actor_resident_claim(data.resident_id, data.room, data.source, synthetic=bool(marker))
-        authority = "public_resident_bus"
+        authority = await room_claim_authority(data.room, origin_authority)
     else:
         raise HTTPException(status_code=400, detail="Invalid source")
     if source != "front_desk" and (data.callback_phone or (data.callback_window or "").strip()):
