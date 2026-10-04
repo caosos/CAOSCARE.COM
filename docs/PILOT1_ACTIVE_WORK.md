@@ -67,6 +67,10 @@ NEXT:
 | — | `docs/care-app-audit-2026-10-03` | `6b15e5e` | No PR (one audit doc) | Owner opens a draft PR if it should land |
 | — | `spike/voice-bridge` (coordinator's voice lane) | `ac11d76` | Spike, not proposed | Not in this round's train |
 
+**Integration gate baseline (2026-10-04, tip `55b733e`, code `268963c`; `scripts/run_backend_tests.sh`, port 8077, throwaway DB, HA disabled):** 234 passed, 3 failed, 13 skipped. The 3 failures are stale test expectations, not product defects: `iter10_test.py::TestRealtimeSession::test_session_default` and `iter11_test.py::TestRealtimeSession::test_session_has_nine_tools_and_anchors` expect the old 5/9-tool session (it has 26 tools); `iter11_test.py::TestWeather::test_default_facility_weather` expects "the facility" but this machine's `.env` sets `FACILITY_LABEL`. Corrected versions exist on `spike/voice-bridge` (`f36351c`); a test-only extraction is a candidate READY task. Any new failure after a merge is a regression.
+
+**Runtime note:** the "Okay Nabu" test stack from 2026-10-03 is still running (wake listener PID 2833238 on 127.0.0.1:8766 from `~/CAOSCARE-JARVIS`, backend :8096). Nabu is superseded as product identity; left running per Michael's earlier instruction — stop only on his word.
+
 ---
 
 ## Lanes
