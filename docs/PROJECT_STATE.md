@@ -6020,3 +6020,14 @@ The entry "Decision recorded: Aria on Home Assistant Voice PE …" directly abov
 
 ### Still describing a per-room node (not changed in this correction, flagged)
 `AGENTS.md` line 43 and `CLAUDE.md` line 27 still say "room node behind the TV + eMeet audio". The Product Baseline now records the correction; those onboarding lines need Michael's go-ahead to update.
+
+---
+
+## 2026-10-03 — AGENTS.md and CLAUDE.md aligned with the corrected room architecture
+
+Approval (Michael, 2026-10-03, coordinator session): "Approved. Update AGENTS.md and CLAUDE.md on the same docs/aria-voice-pe-decision branch so they match the corrected canonical architecture." Follows the correction entry above (commit `f5d8ea5`), which flagged these two files.
+
+- `AGENTS.md` line 43 (product identity) replaced with the corrected room architecture: one central community EliteDesk running Home Assistant and CAOSCare; a Voice PE per apartment as the Aria room endpoint over Wi-Fi; no EliteDesk per apartment; no eMeet in the standard room; test the Voice PE microphones in a real apartment before adding another audio endpoint; SIP/front-desk calling a separate handset/telephony function unless later testing establishes another architecture; assistant Aria, wake phrase "Hey Aria", test candidate "Aria". The old per-apartment "room node behind the TV + eMeet" kept as a line marked superseded.
+- `AGENTS.md` line 61 (preserve list): "resident-room-node architecture" → "room architecture (central EliteDesk server + Voice PE room endpoint)".
+- `CLAUDE.md` lines 27-28: same corrected architecture; the old wording kept as a superseded note.
+- Documentation only. Branch `docs/aria-voice-pe-decision`; not merged; main, integration, PR #41/#42, Linode, website and hardware untouched.
