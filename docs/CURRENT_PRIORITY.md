@@ -10,6 +10,12 @@
 
 This file is intentionally short-lived/current-state guidance. It does not replace the Product Baseline, AGENTS.md, lane contracts, or PROJECT_STATE. When this target is completed or Michael changes direction, update this file rather than leaving stale priority instructions in onboarding.
 
+## Aria room voice decision (Michael, 2026-10-03)
+
+**Correction (Michael, 2026-10-03, supersedes the eMeet/EliteDesk wording in the paragraph below):** the HP EliteDesk is the central community server running Home Assistant and CAOSCare; apartments get no EliteDesk. The Voice PE is the room voice endpoint over Wi-Fi; central HA + CAOSCare handle speech, conversation, memory, workflows, devices and receipts. The standard room has no eMeet. Test the Voice PE's own microphones in a real apartment first; if coverage is short, investigate another room audio endpoint without a per-apartment EliteDesk. SIP/front-desk calling stays a separate handset/telephony function. See `docs/ROOM_AUDIO_ARCHITECTURE.md`.
+
+The resident-facing assistant remains **Aria**. Primary wake phrase **"Hey Aria"** (secondary test candidate "Aria"; pronunciation AR-ee-uh) on the Home Assistant Voice Preview Edition with custom firmware (`firmware/voice-pe-aria`, firmware architect). Do **not** use "Hey Naboo", "Naboo", "Hey Nabu" or "Okay Nabu" as product identity or production wake phrase; `firmware/voice-pe-naboo` @ `9dff64b` is preserved proof only, never merged into the product path. The CAOSCare ↔ Home Assistant bridge is `spike/voice-bridge` @ `aa3d2f1` (spike, not merged). CAOSCare stays the conversation/memory/workflow/receipt authority; the eMeet stays on the EliteDesk for calls. Detail: `docs/ROOM_AUDIO_ARCHITECTURE.md`, `docs/ARIA_WAKE_WORD_ARCHITECTURE.md`.
+
 ## Immediate execution accelerator — observable operations simulator
 
 Michael approved building an **observable CAOSCare Operations Simulator** as a
@@ -174,9 +180,10 @@ Inventory their exact makes/models/protocols before buying duplicates. Integrate
 
 Minimum practical stack may include:
 
-- hidden EliteDesk-class room node;
+- central EliteDesk server running Home Assistant + CAOSCare (no per-apartment computer — correction, Michael, 2026-10-03; replaces "hidden EliteDesk-class room node");
 - reliable Wi-Fi/Ethernet on the community network;
-- eMeet-class audio endpoint;
+- Home Assistant Voice PE as the Aria room voice endpoint ("Hey Aria"; see `docs/ROOM_AUDIO_ARCHITECTURE.md`, 2026-10-03);
+- no eMeet in the standard room; SIP/front-desk calling via a separate handset/telephony function (correction, Michael, 2026-10-03; replaces the eMeet line recorded in `444e297`);
 - dependable wake/voice path for the actual room;
 - IR control for the actual TV (procure the minimum compatible IR hardware needed for the pilot room);
 - RF/pendant receiving as a **secondary / additive** CAOSCare feature; CAOSCare must not interfere with or replace the resident's existing community call-button workflow during Pilot 1;

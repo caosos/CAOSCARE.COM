@@ -1,5 +1,7 @@
 /**
- * Room-page side of the local "Aria" wake-word protocol
+ * Legacy development/fallback Aria voice endpoint. Not standard apartment hardware.
+ * The standard apartment endpoint is the Home Assistant Voice PE; this is
+ * the room-page side of the legacy local "Aria" wake-word protocol
  * (room-node/aria_wake/aria_wake.py). The detector is endpoint-specific
  * (a Python process on the EliteDesk today, a native service on an Android
  * endpoint later); this WebSocket contract is the portable part.

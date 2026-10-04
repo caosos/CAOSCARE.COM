@@ -6042,3 +6042,111 @@ Instruction (Michael, 2026-10-03): fix only the `test_ops_overview` date bug on 
 - Production date handling is correct (both sides are facility-local dates); not changed.
 - Fix: `backend/tests/test_ops_overview.py` seeds yesterday from `today_facility_date()`.
 - Results: `test_ops_overview` 1 passed (same hour). Related ops tests (ops_overview, reports, activity_log, staff_department, maintenance_workorders): 7 passed. Full gate: 243 passed, 3 failed, 13 skipped. The 3 remaining are baseline failures (also at the integration tip), not regressions: `iter10_test.py::TestRealtimeSession::test_session_default`, `iter11_test.py::TestRealtimeSession::test_session_has_nine_tools_and_anchors` (expect the old 9-tool resident session; it has 26), `iter11_test.py::TestWeather::test_default_facility_weather` (expects "the facility"; this machine's `.env` sets "the EliteDesk node"). Unchanged.
+## 2026-10-03 — Decision recorded: Aria on Home Assistant Voice PE ("Hey Aria"); Naboo superseded; eMeet role
+
+### Agent / branch
+Claude Code (Opus 5.5), coordinator, documentation only. Branch `docs/aria-voice-pe-decision` (worktree `~/CAOSCARE-DOCS-ARIA`) from `origin/integration/2026-09-27` @ `d5556ed264a3c471c8c8623e22f583cd49bbe399`. Not merged; no deploy, no hardware flashed, main / PR #41 / PR #42 / public website untouched.
+
+### Decision (Michael, 2026-10-03, given in the coordinator session)
+- The resident-facing assistant remains **Aria**. Primary custom wake phrase **"Hey Aria"**; secondary candidate for testing **"Aria"**; pronunciation **AR-ee-uh**.
+- "Hey Naboo", "Naboo", "Hey Nabu", "Okay Nabu" are not the CAOSCare product identity or an intended production wake phrase.
+- `firmware/voice-pe-naboo` @ `9dff64b833c5df96d3a2e1d0f18e5bb9e140c284` (verified on GitHub): proof complete (custom Voice PE firmware trained, compiled, recovered, flashed), preserved, superseded, not approved for product use, must not be merged into the product path.
+- `spike/voice-bridge` @ `aa3d2f104dab39e3007ba382869425aca685f8f5` (verified on GitHub): bridge spike and date-test correction complete, not merged.
+- Authorized firmware direction: `firmware/voice-pe-aria` (wake candidates "Hey Aria", "Aria"), built and evaluated by the firmware architect — not on GitHub yet when recorded.
+- Architecture: Voice PE is the primary Aria room voice endpoint; custom firmware keeps the microphones, speaker, XMOS audio processing, LEDs, controls, HA connectivity and factory recovery; Home Assistant is the device/automation layer; CAOSCare is the conversation, resident-context, memory, governance, workflow, authorization, provenance and receipt authority; the resident experiences one assistant, Aria; Home Assistant and Nabu Casa are infrastructure, not assistant identities.
+- eMeet Luna Plus: not assumed to work as an external Voice PE microphone (Voice PE has 3.5 mm audio out, no standard mic input); stays on the EliteDesk by USB; initial roles SIP/telephone/front-desk calls, conference audio, optional CAOSCare audio endpoint; test the Voice PE's own far-field microphones first; if coverage is insufficient, investigate an EliteDesk audio bridge with the eMeet without a second assistant or separate conversation history; to the resident the Voice PE and eMeet are one Aria room system.
+
+### Files updated
+`docs/ROOM_AUDIO_ARCHITECTURE.md` (update block; the eMeet-as-single-Aria-endpoint item marked superseded in place), `docs/ARIA_WAKE_WORD_ARCHITECTURE.md` (decision block), `docs/CAOSCARE_PRODUCT_BASELINE.md` §2 (endpoint + wake phrase lines, so the Baseline does not contradict the decision), `docs/CURRENT_PRIORITY.md` (decision section; room stack lines), this file. No new canonical document, so `REPO_MAP.md` unchanged.
+
+### Related runtime/branches now superseded as product direction
+`test/okay-nabu-voice` (`5c40b90`) and the local Nabu test stack (:8096, :3012, listener :8766) are test history; the assistant-name setting stays generic (default "Aria").
+
+---
+
+## 2026-10-03 — CORRECTION (supersedes the entry above): central EliteDesk server, Voice PE room endpoint, no eMeet in the standard room
+
+### Agent / branch
+Claude Code (Opus 5.5), coordinator, documentation only. Branch `docs/aria-voice-pe-decision` on top of `444e2973063c8af2e45c9da38cd0aaa858c0bb11`. Not merged; no deploy; main, PR #41/#42, Linode, website and hardware untouched.
+
+### Supersedes
+The entry "Decision recorded: Aria on Home Assistant Voice PE …" directly above (commit `444e297`) described an EliteDesk/eMeet combination in each apartment. That entry is kept unchanged as the original receipt; this entry is the linked superseding receipt. Michael's architecture correction, given in the coordinator session on 2026-10-03:
+
+1. The HP EliteDesk is the central community server; Home Assistant and CAOSCare run centrally on it.
+2. Apartments do not receive individual EliteDesk computers.
+3. The Home Assistant Voice Preview Edition is the room voice endpoint: local wake-word detection, microphone/audio processing, audio transport, response playback, LEDs and physical controls; it connects to the central system over Wi-Fi.
+4. Central Home Assistant and CAOSCare perform speech processing, conversation, resident memory, governance, workflows, device orchestration, receipts and provenance.
+5. The standard room design does not include an eMeet.
+6. First test the Voice PE's built-in microphones and XMOS audio processing in a real apartment; if coverage is insufficient, investigate an additional room audio endpoint without adding an EliteDesk to every apartment.
+7. SIP/front-desk calling remains a separate handset/telephony function unless later acceptance testing proves the Voice PE can safely support that role.
+8. Unchanged: the resident-facing assistant remains Aria; primary wake phrase "Hey Aria"; secondary test candidate "Aria".
+
+### Files corrected (each correction marked "supersedes", originals kept)
+`docs/ROOM_AUDIO_ARCHITECTURE.md` (correction block at the top; the earlier 2026-10-03 update and the 2026-08-27 EliteDesk/eMeet items marked superseded), `docs/CAOSCARE_PRODUCT_BASELINE.md` §2 (correction bullet superseding the per-room room-node and eMeet lines), `docs/ARIA_WAKE_WORD_ARCHITECTURE.md` (decision block note), `docs/CURRENT_PRIORITY.md` (correction paragraph; room stack now "central EliteDesk server" and "no eMeet / separate handset telephony"), this file.
+
+### Still describing a per-room node (not changed in this correction, flagged)
+`AGENTS.md` line 43 and `CLAUDE.md` line 27 still say "room node behind the TV + eMeet audio". The Product Baseline now records the correction; those onboarding lines need Michael's go-ahead to update.
+
+---
+
+## 2026-10-03 — AGENTS.md and CLAUDE.md aligned with the corrected room architecture
+
+Approval (Michael, 2026-10-03, coordinator session): "Approved. Update AGENTS.md and CLAUDE.md on the same docs/aria-voice-pe-decision branch so they match the corrected canonical architecture." Follows the correction entry above (commit `f5d8ea5`), which flagged these two files.
+
+- `AGENTS.md` line 43 (product identity) replaced with the corrected room architecture: one central community EliteDesk running Home Assistant and CAOSCare; a Voice PE per apartment as the Aria room endpoint over Wi-Fi; no EliteDesk per apartment; no eMeet in the standard room; test the Voice PE microphones in a real apartment before adding another audio endpoint; SIP/front-desk calling a separate handset/telephony function unless later testing establishes another architecture; assistant Aria, wake phrase "Hey Aria", test candidate "Aria". The old per-apartment "room node behind the TV + eMeet" kept as a line marked superseded.
+- `AGENTS.md` line 61 (preserve list): "resident-room-node architecture" → "room architecture (central EliteDesk server + Voice PE room endpoint)".
+- `CLAUDE.md` lines 27-28: same corrected architecture; the old wording kept as a superseded note.
+- Documentation only. Branch `docs/aria-voice-pe-decision`; not merged; main, integration, PR #41/#42, Linode, website and hardware untouched.
+
+---
+
+## 2026-10-03 — Coordinator: Aria Voice PE decision docs merged into integration
+
+Approval (Michael, 2026-10-03, coordinator session): merge `docs/aria-voice-pe-decision` at exactly `fe06d6739d2b05d80de1689d4f3160fb8a9b0870` into `integration/2026-09-27` with a merge commit.
+
+- Pre-checks: source resolved to `fe06d67` (exact); integration `d5556ed264a3c471c8c8623e22f583cd49bbe399` = origin, clean.
+- Merge commit `22ca2e32c6dd2abda411422fed1db9bd8f3a1b4f` (`--no-ff`), no conflicts. Brings in `444e297` (decision: Aria on Voice PE, "Hey Aria", Naboo superseded), `f5d8ea5` (correction: central EliteDesk server, Voice PE per apartment, no standard-room eMeet, separate handset telephony) and `fe06d67` (AGENTS.md / CLAUDE.md aligned).
+- Files: AGENTS.md, CLAUDE.md, docs/ARIA_WAKE_WORD_ARCHITECTURE.md, docs/CAOSCARE_PRODUCT_BASELINE.md, docs/CURRENT_PRIORITY.md, docs/PROJECT_STATE.md, docs/ROOM_AUDIO_ARCHITECTURE.md. No source/runtime file changed.
+- Agreement check: AGENTS.md, CLAUDE.md, Product Baseline §2, ROOM_AUDIO_ARCHITECTURE, ARIA_WAKE_WORD_ARCHITECTURE, CURRENT_PRIORITY and PROJECT_STATE all state the corrected architecture (central EliteDesk; Voice PE per apartment; no per-apartment EliteDesk; no standard-room eMeet; separate handset telephony; Aria, "Hey Aria", "Aria" test candidate); older wording is marked superseded.
+- Not done: main, PR #41/#42, Linode, website, runtime and hardware untouched.
+
+---
+
+## 2026-10-03 — `room-node/aria_wake/` re-scoped as a legacy development/fallback endpoint
+
+### Agent / branch
+Claude Code (Opus 5.5), coordinator. Branch `chore/rescope-legacy-aria-wake` (worktree `~/CAOSCARE-ARIA-WAKE-FALLBACK`) from `integration/2026-09-27` @ `342fdc22d4808935a69c27250e2b5aa565b84f75`. Not merged; no deploy; main, PR #41/#42, Linode, hardware, `firmware/voice-pe-*` and `spike/voice-bridge` untouched.
+
+### Decision (Michael, 2026-10-03, coordinator session)
+Re-scope `room-node/aria_wake/` as "Legacy development/fallback Aria voice endpoint. Not standard apartment hardware." Keep it (not deleted, not renamed), disabled by default, for development before the Voice PE, synthetic and microphone testing, emergency fallback if Voice PE acceptance fails, and comparison testing. Standard room provisioning must not install, enable or advertise it. Retirement condition: may only be considered for removal after Voice PE real-room acceptance proves wake accuracy, conversation continuity, response playback and deterministic session ending. Follows the merged architecture decision (`22ca2e3`: 444e297, f5d8ea5, fe06d67).
+
+### References found
+- Code: `room-node/aria_wake/aria_wake.py`, `README.md`, `test_aria_wake.py`, `keywords.txt`; `frontend/src/lib/wakeWordClient.js`, `frontend/src/lib/useWakeWord.js`, `frontend/src/pages/Kiosk.jsx` (page connects only with `?wake=1`); `frontend/src/lib/__tests__/wakeWordClient.test.js`; `backend/routes/activation_client_events.py` (`wake_word` breadcrumb layer); `tools/wakelab` (research tooling mirroring the detector).
+- Docs: ARIA_WAKE_WORD_ARCHITECTURE, CURRENT_NODE_STATUS, PRODUCT_BASELINE, REPO_MAP, CURRENT_PRIORITY, ROOM_AUDIO_ARCHITECTURE, ARIA_LANE_ONBOARDING, ARIA_SUBSTRATE_IMPLEMENTATION_PLAN, SPEAKER_VERIFICATION_DESIGN, PROJECT_STATE, reports (2026-09-23 milestones, 2026-09-24 test sheet, CURRENT_DIRECTIVE, INDEX), experiments (2026-09-24 whisper verifier .md/.patch).
+- Services / provisioning: none. No systemd user or system unit, timer or cron entry; `scripts/deploy_caoscare.sh` and `backend/scripts/setup_demo_room.py` do not reference it.
+- Running: one copy (PID 2833238, port 8766) is the Nabu test listener started manually in this session; left as is.
+
+### Changes
+- `aria_wake.py`: label + retirement condition in the module docstring; `legacy_enabled()` — the process exits (code 2, message) unless `ARIA_WAKE_ENABLE_LEGACY=1`.
+- `test_aria_wake.py`: test that it is off unless explicitly enabled.
+- `README.md`: label, purposes, disabled-by-default, no standard provisioning, retirement condition; start command includes the env var.
+- `wakeWordClient.js`, `useWakeWord.js`, `Kiosk.jsx`: comment labels only (no behaviour change; still `?wake=1` opt-in).
+- Docs: ARIA_WAKE_WORD_ARCHITECTURE (re-scope note), CURRENT_NODE_STATUS (port row and page link labelled legacy), PRODUCT_BASELINE (proven-list wording), REPO_MAP (`room-node/` line). Historical reports/experiments left as written.
+
+### Behaviour
+Before: started by anyone running `python aria_wake.py`; page connected with `?wake=1`. After: the process refuses to start without `ARIA_WAKE_ENABLE_LEGACY=1`; page opt-in unchanged; nothing provisions it.
+
+### Tests (changed files only)
+`room-node/aria_wake/test_aria_wake.py`: 5 passed (incl. the new off-unless-enabled test). `python aria_wake.py` without the env var: exits 2 with the legacy message, no port opened. `frontend/src/lib/__tests__/wakeWordClient.test.js`: 4 passed. `wakeWordClient.js`, `useWakeWord.js`, `Kiosk.jsx` parse cleanly (comment-only changes).
+
+---
+
+## 2026-10-03 — Coordinator: legacy Aria wake-listener re-scope merged into integration
+
+Approval (Michael, 2026-10-03, coordinator session): merge `chore/rescope-legacy-aria-wake` at exactly `8e5ab77830889ab8224f356485153d8c15533375` into `integration/2026-09-27` with a merge commit.
+
+- Pre-checks: source = `8e5ab77` (exact); integration `342fdc22d4808935a69c27250e2b5aa565b84f75` = origin, clean, no intervening commits.
+- Merge commit `79699a0085582436205857c9a59ac77855281025` (`--no-ff`), no conflicts, 11 files (+92/−8). Links: re-scope `8e5ab77`; architecture merge `22ca2e3` (444e297, f5d8ea5, fe06d67).
+- Checks after merge: `room-node/aria_wake/` present; `aria_wake.py` without `ARIA_WAKE_ENABLE_LEGACY` exits 2 with the legacy message and opens no port; no systemd unit/timer, cron entry, `deploy_caoscare.sh` or backend setup script references it; no standard frontend flow builds a `?wake=1` link (only a code comment mentions it); listener tests 5 passed; frontend wake-client tests 4 passed; AGENTS.md, CLAUDE.md, Product Baseline, ROOM_AUDIO_ARCHITECTURE and CURRENT_PRIORITY still state the standard architecture (central EliteDesk; Voice PE per apartment; no per-apartment EliteDesk; no standard-room eMeet; separate handset telephony; Aria, "Hey Aria").
+- Process disposition: the running `aria_wake.py` (PID 2833238, port 8766) was started by the earlier Nabu wake test, not by the re-scope task, and Michael asked to keep that test stack running — left running. The re-scope task left no process running.
+- Not done: main, PR #41/#42, Linode, hardware and firmware untouched.

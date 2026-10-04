@@ -1,5 +1,36 @@
 # Aria Wake-Word — Smallest Viable Architecture
 
+> **Decision 2026-10-03 (Michael) — Aria on Home Assistant Voice PE.**
+> The resident-facing assistant remains **Aria**. Primary custom wake phrase:
+> **"Hey Aria"**; secondary candidate for testing: **"Aria"**; pronunciation
+> **AR-ee-uh**. "Hey Naboo", "Naboo", "Hey Nabu" and "Okay Nabu" are **not** the
+> CAOSCare product identity or an intended production wake phrase. The Naboo
+> firmware work (`firmware/voice-pe-naboo` @ `9dff64b833c5df96d3a2e1d0f18e5bb9e140c284`)
+> is preserved as proof that custom Voice PE firmware can be trained,
+> compiled, recovered and flashed; it is superseded as a product direction and
+> must not be merged into the active product path. Authorized firmware
+> direction: branch `firmware/voice-pe-aria` (wake candidates "Hey Aria" and
+> "Aria"; built and evaluated by the firmware architect; not yet on GitHub
+> when this was recorded).
+>
+> Endpoint: the **Home Assistant Voice Preview Edition** is the primary Aria
+> room voice endpoint; wake detection runs on the device's custom firmware
+> (local, on-device), keeping its microphones, speaker, XMOS audio processing,
+> LEDs, controls, Home Assistant connectivity and factory recovery. The room
+> audio roles are in `docs/ROOM_AUDIO_ARCHITECTURE.md`. *(Correction 2026-10-03,
+> Michael: no eMeet in the standard room; the EliteDesk is the central server,
+> not a per-apartment computer; the Voice PE connects to it over Wi-Fi.)*
+> **Re-scoped 2026-10-03 (Michael): `room-node/aria_wake/` is a legacy development/fallback Aria voice endpoint. Not standard apartment hardware.**
+> Kept for development before the Voice PE, synthetic/microphone tests,
+> emergency fallback and comparison testing; off by default (starts only with
+> `ARIA_WAKE_ENABLE_LEGACY=1`; the page needs `?wake=1`). It may only be
+> considered for removal after Voice PE real-room acceptance proves wake
+> accuracy, conversation continuity, response playback and deterministic
+> session ending.
+> The EliteDesk listener below (`room-node/aria_wake/`, OFF) is earlier
+> history. The 2026-09-24 finding stands: a bare "Aria" collides with
+> "area", which is why it is only a test candidate.
+
 > **Update 2026-09-24 — single-word "Aria" is NOT accepted as the production
 > wake phrase.** After the close-range proof below, the listener woke Aria five
 > times overnight from background speech (02:06–02:46 UTC). The intended

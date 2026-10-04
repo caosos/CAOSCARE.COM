@@ -262,7 +262,8 @@ export default function Kiosk() {
     // RealtimeChatScreen owns its own greeting + listening loop from here.
   };
 
-  // Local "Aria" wake word (room-node/aria_wake, enabled per endpoint with
+  // Legacy development/fallback Aria voice endpoint (not standard apartment
+  // hardware; the Voice PE is). Local "Aria" wake word (room-node/aria_wake, enabled per endpoint with
   // ?wake=1): starts the same no-event conversation path as a manual talk,
   // just without a tap and without opening a resident event.
   // Public demo kiosk: typing starts the same no-event conversation, then the
