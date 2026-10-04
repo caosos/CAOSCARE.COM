@@ -1,0 +1,582 @@
+# CAOSCare Wake Word Lab - discovery candidate list (2026-10-03).
+# kind: aria | invented | word | phrase | name | nominated | control
+# phonemes: intended ARPAbet (stress digits); omitted = dictionary/G2P reading.
+# launchers: true -> screen also generates Hey/Hi/Hello/Okay + base.
+# Krysta == Krista acoustically (one entry). Controls are calibration only;
+# Okay Nabu is excluded as a product wake word (Michael, 2026-10-03).
+candidates:
+- text: aria
+  kind: aria
+  phonemes: AA1 R IY0 AH0
+- text: hey aria
+  kind: aria
+  phonemes: HH EY1 AA1 R IY0 AH0
+- text: okay aria
+  kind: aria
+  phonemes: OW2 K EY1 AA1 R IY0 AH0
+- text: aria care
+  kind: aria
+  phonemes: AA1 R IY0 AH0 K EH1 R
+- text: hello aria
+  kind: aria
+  phonemes: HH AH0 L OW1 AA1 R IY0 AH0
+- text: hi aria
+  kind: aria
+  phonemes: HH AY1 AA1 R IY0 AH0
+- text: aria please
+  kind: aria
+  phonemes: AA1 R IY0 AH0 P L IY1 Z
+- text: aria listen
+  kind: aria
+  phonemes: AA1 R IY0 AH0 L IH1 S AH0 N
+- text: aria nova
+  kind: aria
+  phonemes: AA1 R IY0 AH0 N OW1 V AH0
+- text: aria bell
+  kind: aria
+  phonemes: AA1 R IY0 AH0 B EH1 L
+- text: zaria
+  kind: aria
+  phonemes: Z AA1 R IY0 AH0
+  launchers: true
+- text: hey zaria
+  kind: aria
+  phonemes: HH EY1 Z AA1 R IY0 AH0
+- text: hello zaria
+  kind: aria
+  phonemes: HH AH0 L OW1 Z AA1 R IY0 AH0
+- text: calaria
+  kind: aria
+  phonemes: K AH0 L AA1 R IY0 AH0
+- text: solaria
+  kind: aria
+  phonemes: S OW0 L AA1 R IY0 AH0
+- text: ariamo
+  kind: aria
+  phonemes: AA2 R IY0 AA1 M OW0
+- text: ariola
+  kind: aria
+  phonemes: AA2 R IY0 OW1 L AH0
+- text: kobaria
+  kind: aria
+  phonemes: K OW0 B AA1 R IY0 AH0
+- text: aria kovo
+  kind: aria
+  phonemes: AA1 R IY0 AH0 K OW1 V OW0
+- text: kovo
+  kind: invented
+  phonemes: K OW1 V OW0
+- text: tazu
+  kind: invented
+  phonemes: T AA1 Z UW0
+- text: zubo
+  kind: invented
+  phonemes: Z UW1 B OW0
+- text: pemo
+  kind: invented
+  phonemes: P EH1 M OW0
+- text: toko
+  kind: invented
+  phonemes: T OW1 K OW0
+- text: kumbo
+  kind: invented
+  phonemes: K UW1 M B OW0
+- text: bodu
+  kind: invented
+  phonemes: B OW1 D UW0
+- text: vimba
+  kind: invented
+  phonemes: V IH1 M B AH0
+- text: gubo
+  kind: invented
+  phonemes: G UW1 B OW0
+- text: dabo
+  kind: invented
+  phonemes: D AA1 B OW0
+- text: kovalo
+  kind: invented
+  phonemes: K OW1 V AH0 L OW0
+- text: tikamo
+  kind: invented
+  phonemes: T IY1 K AH0 M OW0
+- text: zeloka
+  kind: invented
+  phonemes: Z EH0 L OW1 K AH0
+- text: bekuna
+  kind: invented
+  phonemes: B EH0 K UW1 N AH0
+- text: dorivo
+  kind: invented
+  phonemes: D AO0 R IY1 V OW0
+- text: pakuma
+  kind: invented
+  phonemes: P AH0 K UW1 M AH0
+- text: tokalo
+  kind: invented
+  phonemes: T OW0 K AA1 L OW0
+- text: mirabo
+  kind: invented
+  phonemes: M IH0 R AA1 B OW0
+- text: velika
+  kind: invented
+  phonemes: V EH0 L IY1 K AH0
+- text: zanobi
+  kind: invented
+  phonemes: Z AH0 N OW1 B IY0
+- text: lumoko
+  kind: invented
+  phonemes: L UW0 M OW1 K OW0
+- text: okavo
+  kind: invented
+  phonemes: OW0 K AA1 V OW0
+- text: bonomo
+  kind: invented
+  phonemes: B OW0 N OW1 M OW0
+- text: lumaro
+  kind: invented
+  phonemes: L UW0 M AA1 R OW0
+- text: doravo
+  kind: invented
+  phonemes: D OW0 R AA1 V OW0
+- text: nomaro
+  kind: invented
+  phonemes: N OW0 M AA1 R OW0
+- text: gomaya
+  kind: invented
+  phonemes: G OW0 M AY1 AH0
+- text: molova
+  kind: invented
+  phonemes: M OW0 L OW1 V AH0
+- text: bumaro
+  kind: invented
+  phonemes: B UW0 M AA1 R OW0
+- text: tomolo
+  kind: invented
+  phonemes: T OW0 M OW1 L OW0
+- text: valora
+  kind: invented
+  phonemes: V AH0 L AO1 R AH0
+- text: nolavo
+  kind: invented
+  phonemes: N OW0 L AA1 V OW0
+- text: kaboda
+  kind: invented
+  phonemes: K AH0 B OW1 D AH0
+- text: tumbaro
+  kind: invented
+  phonemes: T UW0 M B AA1 R OW0
+- text: pokava
+  kind: invented
+  phonemes: P OW0 K AA1 V AH0
+- text: gobanu
+  kind: invented
+  phonemes: G OW0 B AA1 N UW0
+- text: dakumo
+  kind: invented
+  phonemes: D AH0 K UW1 M OW0
+- text: takalumo
+  kind: invented
+  phonemes: T AA2 K AH0 L UW1 M OW0
+  launchers: true
+- text: zimbalina
+  kind: invented
+  phonemes: Z IH2 M B AH0 L IY1 N AH0
+- text: bonavita
+  kind: invented
+  phonemes: B OW2 N AH0 V IY1 T AH0
+- text: kolabamo
+  kind: invented
+  phonemes: K OW2 L AH0 B AA1 M OW0
+  launchers: true
+- text: domakuro
+  kind: invented
+  phonemes: D OW2 M AH0 K UW1 R OW0
+  launchers: true
+- text: pakadoro
+  kind: invented
+  phonemes: P AA2 K AH0 D AO1 R OW0
+  launchers: true
+- text: lomabuko
+  kind: invented
+  phonemes: L OW2 M AH0 B UW1 K OW0
+  launchers: true
+- text: okabaro
+  kind: invented
+  phonemes: OW2 K AH0 B AA1 R OW0
+- text: tobamaku
+  kind: invented
+  phonemes: T OW2 B AH0 M AA1 K UW0
+  launchers: true
+- text: gumaroba
+  kind: invented
+  phonemes: G UW2 M AH0 R OW1 B AH0
+  launchers: true
+- text: mamaloo
+  kind: invented
+  phonemes: M AA2 M AH0 L UW1
+- text: oolamo
+  kind: invented
+  phonemes: UW2 L AH0 M OW1
+- text: bobolo
+  kind: invented
+  phonemes: B OW1 B OW0 L OW0
+- text: lomamba
+  kind: invented
+  phonemes: L OW0 M AA1 M B AH0
+- text: domboro
+  kind: invented
+  phonemes: D AA0 M B AO1 R OW0
+- text: nabolo
+  kind: invented
+  phonemes: N AA0 B OW1 L OW0
+- text: gombolo
+  kind: invented
+  phonemes: G AA0 M B OW1 L OW0
+- text: kalamazoo
+  kind: word
+- text: timbuktu
+  kind: word
+- text: okavango
+  kind: word
+- text: kookaburra
+  kind: word
+- text: bobolink
+  kind: word
+- text: ukulele
+  kind: word
+- text: hullabaloo
+  kind: word
+- text: periwinkle
+  kind: word
+- text: tapioca
+  kind: word
+- text: gazebo
+  kind: word
+- text: pagoda
+  kind: word
+- text: kabuki
+  kind: word
+- text: komodo
+  kind: word
+- text: kalimba
+  kind: word
+- text: bamboozle
+  kind: word
+- text: begonia
+  kind: word
+- text: petunia
+  kind: word
+- text: dandelion
+  kind: word
+- text: toucan
+  kind: word
+- text: kestrel
+  kind: word
+- text: juniper
+  kind: word
+- text: marigold
+  kind: word
+- text: bumblebee
+  kind: word
+- text: domino
+  kind: word
+- text: avocado
+  kind: word
+- text: calypso
+  kind: word
+- text: hey kestrel
+  kind: phrase
+- text: okay kestrel
+  kind: phrase
+- text: hello kestrel
+  kind: phrase
+- text: hey juniper
+  kind: phrase
+- text: hey marigold
+  kind: phrase
+- text: hey bumblebee
+  kind: phrase
+- text: hey kalamazoo
+  kind: phrase
+- text: hey kookaburra
+  kind: phrase
+- text: okay ukulele
+  kind: phrase
+- text: hey compass
+  kind: phrase
+- text: hey beacon
+  kind: phrase
+- text: hey lantern
+  kind: phrase
+- text: hey willow
+  kind: phrase
+- text: okay nova
+  kind: phrase
+- text: hello nova
+  kind: phrase
+- text: hey caretaker
+  kind: phrase
+- text: okay kovalo
+  kind: phrase
+  phonemes: OW2 K EY1 K OW1 V AH0 L OW0
+- text: hey tikamo
+  kind: phrase
+  phonemes: HH EY1 T IY1 K AH0 M OW0
+- text: hello bonomo
+  kind: phrase
+  phonemes: HH AH0 L OW1 B OW0 N OW1 M OW0
+- text: hey kovo
+  kind: phrase
+  phonemes: HH EY1 K OW1 V OW0
+- text: okay lumaro
+  kind: phrase
+  phonemes: OW2 K EY1 L UW0 M AA1 R OW0
+- text: hey dorivo
+  kind: phrase
+  phonemes: HH EY1 D AO0 R IY1 V OW0
+- text: victoria
+  kind: name
+- text: magnolia
+  kind: name
+- text: gardenia
+  kind: name
+- text: dakota
+  kind: name
+- text: hey tobias
+  kind: name
+- text: okay nabu
+  kind: control
+- text: hey jarvis
+  kind: control
+- text: hey mycroft
+  kind: control
+- text: alexa
+  kind: control
+- text: computer
+  kind: control
+- text: okay google
+  kind: control
+- text: callista
+  id: callista (kuh-LISS-tuh)
+  kind: nominated
+  say: kuh-LISS-tuh
+  phonemes: K AH0 L IH1 S T AH0
+  launchers: true
+- text: callista
+  id: callista (CALL-iss-tuh)
+  kind: nominated
+  say: CALL-iss-tuh
+  phonemes: K AO1 L IH0 S T AH0
+  launchers: true
+- text: kestra
+  id: kestra (KESS-truh)
+  kind: nominated
+  say: KESS-truh
+  phonemes: K EH1 S T R AH0
+  launchers: true
+- text: krysta
+  id: krysta (KRISS-tuh)
+  kind: nominated
+  say: KRISS-tuh
+  phonemes: K R IH1 S T AH0
+  launchers: true
+- text: zari
+  id: zari (ZAR-ee)
+  kind: nominated
+  say: ZAR-ee
+  phonemes: Z AA1 R IY0
+  launchers: true
+- text: vesta
+  id: vesta (VESS-tuh)
+  kind: nominated
+  say: VESS-tuh
+  phonemes: V EH1 S T AH0
+  launchers: true
+- text: kestara
+  id: kestara (kess-TAR-uh)
+  kind: nominated
+  say: kess-TAR-uh
+  phonemes: K EH0 S T AA1 R AH0
+  launchers: true
+- text: kestia
+  id: kestia (KESS-tee-uh)
+  kind: nominated
+  say: KESS-tee-uh
+  phonemes: K EH1 S T IY0 AH0
+  launchers: true
+- text: celestra
+  id: celestra (suh-LESS-truh)
+  kind: nominated
+  say: suh-LESS-truh
+  phonemes: S AH0 L EH1 S T R AH0
+  launchers: true
+- text: zelora
+  id: zelora (zeh-LOR-uh)
+  kind: nominated
+  say: zeh-LOR-uh
+  phonemes: Z EH0 L AO1 R AH0
+  launchers: true
+- text: zivara
+  id: zivara (zih-VAR-uh)
+  kind: nominated
+  say: zih-VAR-uh
+  phonemes: Z IH0 V AA1 R AH0
+  launchers: true
+- text: velora
+  id: velora (veh-LOR-uh)
+  kind: nominated
+  say: veh-LOR-uh
+  phonemes: V EH0 L AO1 R AH0
+  launchers: true
+- text: tovara
+  id: tovara (toh-VAR-uh)
+  kind: nominated
+  say: toh-VAR-uh
+  phonemes: T OW0 V AA1 R AH0
+  launchers: true
+- text: talista
+  id: talista (tuh-LISS-tuh)
+  kind: nominated
+  say: tuh-LISS-tuh
+  phonemes: T AH0 L IH1 S T AH0
+  launchers: true
+- text: tavira
+  id: tavira (tuh-VEER-uh)
+  kind: nominated
+  say: tuh-VEER-uh
+  phonemes: T AH0 V IH1 R AH0
+  launchers: true
+- text: jovia
+  id: jovia (JOH-vee-uh)
+  kind: nominated
+  say: JOH-vee-uh
+  phonemes: JH OW1 V IY0 AH0
+  launchers: true
+- text: zestra
+  id: zestra (ZESS-truh)
+  kind: nominated
+  say: ZESS-truh
+  phonemes: Z EH1 S T R AH0
+  launchers: true
+- text: kallara
+  id: kallara (kuh-LAR-uh)
+  kind: nominated
+  say: kuh-LAR-uh
+  phonemes: K AH0 L AA1 R AH0
+  launchers: true
+- text: zebedee
+  kind: name
+  launchers: true
+  phonemes: Z EH1 B AH0 D IY2
+- text: barnaby
+  kind: name
+  launchers: true
+- text: kazimir
+  kind: name
+  launchers: true
+  phonemes: K AE1 Z IH0 M IH2 R
+- text: jericho
+  kind: name
+  launchers: true
+- text: pomona
+  kind: name
+  launchers: true
+- text: montague
+  kind: name
+  launchers: true
+- text: dagobert
+  kind: name
+  launchers: true
+  phonemes: D AE1 G AH0 B ER0 T
+- text: galileo
+  kind: name
+  launchers: true
+- text: octavius
+  kind: name
+  launchers: true
+- text: jedidiah
+  kind: name
+  launchers: true
+- text: tiberius
+  kind: name
+  launchers: true
+- text: bartholomew
+  kind: name
+  launchers: true
+- text: ignatius
+  kind: name
+  launchers: true
+- text: kestovi
+  kind: invented
+  phonemes: K EH0 S T OW1 V IY0
+  launchers: true
+- text: tikastro
+  kind: invented
+  phonemes: T IY0 K AE1 S T R OW0
+  launchers: true
+- text: dakrumo
+  kind: invented
+  phonemes: D AH0 K R UW1 M OW0
+  launchers: true
+- text: boktari
+  kind: invented
+  phonemes: B AA0 K T AA1 R IY0
+  launchers: true
+- text: jaskoba
+  kind: invented
+  phonemes: JH AH0 S K OW1 B AH0
+  launchers: true
+- text: gektora
+  kind: invented
+  phonemes: G EH0 K T AO1 R AH0
+  launchers: true
+- text: zuktavo
+  kind: invented
+  phonemes: Z UW0 K T AA1 V OW0
+  launchers: true
+- text: tokastra
+  kind: invented
+  phonemes: T OW0 K AE1 S T R AH0
+  launchers: true
+- text: kobastro
+  kind: invented
+  phonemes: K OW0 B AE1 S T R OW0
+  launchers: true
+- text: dekrova
+  kind: invented
+  phonemes: D EH0 K R OW1 V AH0
+  launchers: true
+- text: jistova
+  kind: invented
+  phonemes: JH IH0 S T OW1 V AH0
+  launchers: true
+- text: petrako
+  kind: invented
+  phonemes: P EH0 T R AA1 K OW0
+  launchers: true
+- text: gotrika
+  kind: invented
+  phonemes: G OW0 T R IY1 K AH0
+  launchers: true
+- text: bektavo
+  kind: invented
+  phonemes: B EH0 K T AA1 V OW0
+  launchers: true
+- text: kotrubo
+  kind: invented
+  phonemes: K OW0 T R UW1 B OW0
+  launchers: true
+- text: daskovi
+  kind: invented
+  phonemes: D AA0 S K OW1 V IY0
+  launchers: true
+- text: kika doodle
+  kind: phrase
+  phonemes: K IY1 K AH0 D UW1 D AH0 L
+- text: tikka tokka
+  kind: phrase
+  phonemes: T IH1 K AH0 T AA1 K AH0
+- text: jumbo taco
+  kind: phrase
+- text: pocket tuba
+  kind: phrase

@@ -1,0 +1,284 @@
+[
+ {
+  "id": "aria",
+  "text": "aria",
+  "slug": "aria",
+  "kind": "aria",
+  "base": null,
+  "launcher": null,
+  "phonemes": "AA1 R IY0 AH0",
+  "arpa_words": [
+   "AA1 R IY0 AH0"
+  ],
+  "phase1_rank": 399,
+  "phase1_measurable": 3.71,
+  "phase1_subjective": 8.33,
+  "advance_reason": "rule A - comparison baseline (Michael); text screen: text gates failed: G0_self_frequency, G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G7_accent_casual_variant",
+  "alt_pronunciations": [
+   {
+    "label": "AIR-ee-uh (area-like)",
+    "arpa_words": [
+     "EH1 R IY0 AH0"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "hey aria",
+  "text": "hey aria",
+  "slug": "hey_aria",
+  "kind": "aria",
+  "base": null,
+  "launcher": null,
+  "phonemes": "HH EY1 AA1 R IY0 AH0",
+  "arpa_words": [
+   "HH EY1",
+   "AA1 R IY0 AH0"
+  ],
+  "phase1_rank": 334,
+  "phase1_measurable": 5.71,
+  "phase1_subjective": 8.33,
+  "advance_reason": "rule A - comparison baseline (Michael); text screen: text gates failed: G3_embedded_or_contains, G4_domain_names_commands, G7_accent_casual_variant",
+  "alt_pronunciations": [
+   {
+    "label": "AIR-ee-uh (area-like)",
+    "arpa_words": [
+     "HH EY1",
+     "EH1 R IY0 AH0"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "zaria",
+  "text": "zaria",
+  "slug": "zaria",
+  "kind": "aria",
+  "base": null,
+  "launcher": null,
+  "phonemes": "Z AA1 R IY0 AH0",
+  "arpa_words": [
+   "Z AA1 R IY0 AH0"
+  ],
+  "phase1_rank": 400,
+  "phase1_measurable": 3.7,
+  "phase1_subjective": 6.67,
+  "advance_reason": "rule A - comparison baseline (Michael); text screen: text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary, G7_accent_casual_variant",
+  "alt_pronunciations": [
+   {
+    "label": "AIR-ee-uh (area-like)",
+    "arpa_words": [
+     "Z EH1 R IY0 AH0"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "okay aria",
+  "text": "okay aria",
+  "slug": "okay_aria",
+  "kind": "aria",
+  "base": null,
+  "launcher": null,
+  "phonemes": "OW2 K EY1 AA1 R IY0 AH0",
+  "arpa_words": [
+   "OW2 K EY1",
+   "AA1 R IY0 AH0"
+  ],
+  "phase1_rank": 163,
+  "phase1_measurable": 8.13,
+  "phase1_subjective": 8.33,
+  "advance_reason": "rule B - requested Aria variant, passed text screen (rank 163)",
+  "alt_pronunciations": [
+   {
+    "label": "AIR-ee-uh (area-like)",
+    "arpa_words": [
+     "OW2 K EY1",
+     "EH1 R IY0 AH0"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "kolabamo",
+  "text": "kolabamo",
+  "slug": "kolabamo",
+  "kind": "invented",
+  "base": null,
+  "launcher": null,
+  "phonemes": "K OW2 L AH0 B AA1 M OW0",
+  "arpa_words": [
+   "K OW2 L AH0 B AA1 M OW0"
+  ],
+  "phase1_rank": 38,
+  "phase1_measurable": 9.41,
+  "phase1_subjective": 7.0,
+  "advance_reason": "rule C - best passing invented, no consonant cluster base (rank 38, measurable 9.41)"
+ },
+ {
+  "id": "hey kolabamo",
+  "text": "hey kolabamo",
+  "slug": "hey_kolabamo",
+  "kind": "launcher",
+  "base": "kolabamo",
+  "launcher": "hey",
+  "phonemes": "HH EY1 K OW2 L AH0 B AA1 M OW0",
+  "arpa_words": [
+   "HH EY1",
+   "K OW2 L AH0 B AA1 M OW0"
+  ],
+  "phase1_rank": 1,
+  "phase1_measurable": 10.0,
+  "phase1_subjective": 7.33,
+  "advance_reason": "rule C - best passing launcher of 'kolabamo' (rank 1): prefix measured, not assumed"
+ },
+ {
+  "id": "kotrubo",
+  "text": "kotrubo",
+  "slug": "kotrubo",
+  "kind": "invented",
+  "base": null,
+  "launcher": null,
+  "phonemes": "K OW0 T R UW1 B OW0",
+  "arpa_words": [
+   "K OW0 T R UW1 B OW0"
+  ],
+  "phase1_rank": 144,
+  "phase1_measurable": 8.43,
+  "phase1_subjective": 7.67,
+  "advance_reason": "rule C - best passing invented, internal ST/SK/KR/TR/KT base (rank 144, measurable 8.43)"
+ },
+ {
+  "id": "hello kotrubo",
+  "text": "hello kotrubo",
+  "slug": "hello_kotrubo",
+  "kind": "launcher",
+  "base": "kotrubo",
+  "launcher": "hello",
+  "phonemes": "HH AH0 L OW1 K OW0 T R UW1 B OW0",
+  "arpa_words": [
+   "HH AH0 L OW1",
+   "K OW0 T R UW1 B OW0"
+  ],
+  "phase1_rank": 53,
+  "phase1_measurable": 9.29,
+  "phase1_subjective": 7.33,
+  "advance_reason": "rule C - best passing launcher of 'kotrubo' (rank 53): prefix measured, not assumed"
+ },
+ {
+  "id": "kookaburra",
+  "text": "kookaburra",
+  "slug": "kookaburra",
+  "kind": "word",
+  "base": null,
+  "launcher": null,
+  "phonemes": "K UW2 K AH0 B UH1 R AH0",
+  "arpa_words": [
+   "K UW2 K AH0 B UH1 R AH0"
+  ],
+  "phase1_rank": 105,
+  "phase1_measurable": 8.84,
+  "phase1_subjective": 7.0,
+  "advance_reason": "rule C - best passing real word base (rank 105, measurable 8.84)"
+ },
+ {
+  "id": "hey kookaburra",
+  "text": "hey kookaburra",
+  "slug": "hey_kookaburra",
+  "kind": "phrase",
+  "base": null,
+  "launcher": null,
+  "phonemes": "HH EY1 K UW2 K AH0 B UH1 R AH0",
+  "arpa_words": [
+   "HH EY1",
+   "K UW2 K AH0 B UH1 R AH0"
+  ],
+  "phase1_rank": 4,
+  "phase1_measurable": 9.87,
+  "phase1_subjective": 7.0,
+  "advance_reason": "rule C - best passing launcher of 'kookaburra' (rank 4): prefix measured, not assumed"
+ },
+ {
+  "id": "okay velora (veh-LOR-uh)",
+  "text": "okay velora",
+  "slug": "okay_velora_veh_lor_uh",
+  "kind": "launcher",
+  "base": "velora (veh-LOR-uh)",
+  "launcher": "okay",
+  "phonemes": "OW2 K EY1 V EH0 L AO1 R AH0",
+  "arpa_words": [
+   "OW2 K EY1",
+   "V EH0 L AO1 R AH0"
+  ],
+  "phase1_rank": 12,
+  "phase1_measurable": 9.69,
+  "phase1_subjective": 7.0,
+  "advance_reason": "rule D - best passing nominated name (Michael) phrase (rank 12, measurable 9.69)"
+ },
+ {
+  "id": "velora (veh-LOR-uh)",
+  "text": "velora",
+  "slug": "velora_veh_lor_uh",
+  "kind": "nominated",
+  "base": null,
+  "launcher": null,
+  "phonemes": "V EH0 L AO1 R AH0",
+  "arpa_words": [
+   "V EH0 L AO1 R AH0"
+  ],
+  "phase1_rank": 363,
+  "phase1_measurable": 5.19,
+  "phase1_subjective": 8.0,
+  "advance_reason": "rule D - bare 'velora (veh-LOR-uh)' trained to measure the launcher effect; text screen: text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary, G7_accent_casual_variant"
+ },
+ {
+  "id": "hello pomona",
+  "text": "hello pomona",
+  "slug": "hello_pomona",
+  "kind": "launcher",
+  "base": "pomona",
+  "launcher": "hello",
+  "phonemes": "HH AH0 L OW1 P OW0 M OW1 N AH0",
+  "arpa_words": [
+   "HH AH0 L OW1",
+   "P OW0 M OW1 N AH0"
+  ],
+  "phase1_rank": 3,
+  "phase1_measurable": 9.96,
+  "phase1_subjective": 6.67,
+  "advance_reason": "rule D - best passing human name phrase (rank 3, measurable 9.96)"
+ },
+ {
+  "id": "pomona",
+  "text": "pomona",
+  "slug": "pomona",
+  "kind": "name",
+  "base": null,
+  "launcher": null,
+  "phonemes": "P OW0 M OW1 N AH0",
+  "arpa_words": [
+   "P OW0 M OW1 N AH0"
+  ],
+  "phase1_rank": 352,
+  "phase1_measurable": 5.43,
+  "phase1_subjective": 6.67,
+  "advance_reason": "rule D - bare 'pomona' trained to measure the launcher effect; text screen: text gates failed: G7_accent_casual_variant"
+ },
+ {
+  "id": "okay lumaro",
+  "text": "okay lumaro",
+  "slug": "okay_lumaro",
+  "kind": "phrase",
+  "base": null,
+  "launcher": null,
+  "phonemes": "OW2 K EY1 L UW0 M AA1 R OW0",
+  "arpa_words": [
+   "OW2 K EY1",
+   "L UW0 M AA1 R OW0"
+  ],
+  "phase1_rank": 24,
+  "phase1_measurable": 9.51,
+  "phase1_subjective": 7.0,
+  "advance_reason": "rule F - next best passing base (rank 24, measurable 9.51)"
+ }
+]

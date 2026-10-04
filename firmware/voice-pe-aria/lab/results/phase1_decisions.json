@@ -1,0 +1,2017 @@
+[
+ {
+  "id": "hey kolabamo",
+  "decision": "advanced to Phase 2",
+  "reason": "rule C - best passing launcher of 'kolabamo' (rank 1): prefix measured, not assumed"
+ },
+ {
+  "id": "hi kolabamo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 2 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello pomona",
+  "decision": "advanced to Phase 2",
+  "reason": "rule D - best passing human name phrase (rank 3, measurable 9.96)"
+ },
+ {
+  "id": "hey kookaburra",
+  "decision": "advanced to Phase 2",
+  "reason": "rule C - best passing launcher of 'kookaburra' (rank 4): prefix measured, not assumed"
+ },
+ {
+  "id": "hello bektavo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 5 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello jericho",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 6 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello dagobert",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 7 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey bektavo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 8 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey daskovi",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 9 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay bektavo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 10 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay jericho",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 11 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay velora (veh-LOR-uh)",
+  "decision": "advanced to Phase 2",
+  "reason": "rule D - best passing nominated name (Michael) phrase (rank 12, measurable 9.69)"
+ },
+ {
+  "id": "hello velora (veh-LOR-uh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 13 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello barnaby",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 14 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello daskovi",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 15 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay pomona",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 16 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello jistova",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 17 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay kestovi",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 18 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay daskovi",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 19 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello kestovi",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 20 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey dagobert",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 21 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi daskovi",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 22 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi bektavo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 23 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay lumaro",
+  "decision": "advanced to Phase 2",
+  "reason": "rule F - next best passing base (rank 24, measurable 9.51)"
+ },
+ {
+  "id": "hi dagobert",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 25 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "aria kovo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 26 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello montague",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 27 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay dagobert",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 28 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey domakuro",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 29 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi domakuro",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 30 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey lomabuko",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 31 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi lomabuko",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 32 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey tobamaku",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 33 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi tobamaku",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 34 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey gumaroba",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 35 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi gumaroba",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 36 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay jistova",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 37 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "kolabamo",
+  "decision": "advanced to Phase 2",
+  "reason": "rule C - best passing invented, no consonant cluster base (rank 38, measurable 9.41)"
+ },
+ {
+  "id": "hello tovara (toh-VAR-uh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 39 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello ignatius",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 40 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey jedidiah",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 41 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay barnaby",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 42 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay montague",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 43 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi jedidiah",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 44 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey dorivo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 45 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "jumbo taco",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 46 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello jovia (JOH-vee-uh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 47 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello zebedee",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 48 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello dakrumo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 49 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi petrako",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 50 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello petrako",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 51 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello gotrika",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 52 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello kotrubo",
+  "decision": "advanced to Phase 2",
+  "reason": "rule C - best passing launcher of 'kotrubo' (rank 53): prefix measured, not assumed"
+ },
+ {
+  "id": "okay kovalo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 54 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello dekrova",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 55 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay celestra (suh-LESS-truh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 56 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay ignatius",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 57 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello boktari",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 58 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi tiberius",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 59 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello zuktavo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 60 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay dakrumo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 61 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay gektora",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 62 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay dekrova",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 63 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay gotrika",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 64 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay kotrubo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 65 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okavango",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 66 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi takalumo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 67 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey kestovi",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 68 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay zelora (zeh-LOR-uh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 69 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello kazimir",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 70 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi kotrubo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 71 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello zelora (zeh-LOR-uh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 72 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi kestovi",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 73 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello nova",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 74 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay jovia (JOH-vee-uh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 75 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi velora (veh-LOR-uh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 76 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay boktari",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 77 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey takalumo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 78 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello bonomo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 79 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay zaria",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 80 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey boktari",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 81 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay kestara (kess-TAR-uh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 82 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay kestia (KESS-tee-uh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 83 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay zuktavo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 84 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello tokastra",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 85 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello kobastro",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 86 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello gektora",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 87 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey kovo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 88 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello kestrel",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 89 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey zuktavo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 90 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi zuktavo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 91 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "tobamaku",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 92 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay kazimir",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 93 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay petrako",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 94 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello jaskoba",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 95 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey jistova",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 96 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey petrako",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 97 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey kotrubo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 98 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay krysta (KRISS-tuh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 99 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey velora (veh-LOR-uh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 100 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay jaskoba",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 101 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay tikastro",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 102 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay kobastro",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 103 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello kestia (KESS-tee-uh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 104 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "kookaburra",
+  "decision": "advanced to Phase 2",
+  "reason": "rule C - best passing real word base (rank 105, measurable 8.84)"
+ },
+ {
+  "id": "okay zebedee",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 106 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello aria",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 107 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "domakuro",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 108 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello celestra (suh-LESS-truh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 109 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello callista (kuh-LISS-tuh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 110 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey gektora",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 111 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi gektora",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 112 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello zestra (ZESS-truh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 113 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay tokastra",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 114 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi tovara (toh-VAR-uh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 115 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello zaria",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 116 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi boktari",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 117 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey dekrova",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 118 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi jistova",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 119 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay callista (CALL-iss-tuh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 120 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey tiberius",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 121 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello tikastro",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 122 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay kestra (KESS-truh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 123 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay zivara (zih-VAR-uh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 124 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay tovara (toh-VAR-uh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 125 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi dakrumo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 126 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi kobastro",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 127 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello callista (CALL-iss-tuh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 128 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello vesta (VESS-tuh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 129 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay zari (ZAR-ee)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 130 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "gumaroba",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 131 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "lumoko",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 132 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello tavira (tuh-VEER-uh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 133 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi dekrova",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 134 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay zestra (ZESS-truh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 135 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey dakrumo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 136 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey tokastra",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 137 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi tokastra",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 138 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey pakadoro",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 139 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi pakadoro",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 140 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey kobastro",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 141 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey tikamo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 142 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello krysta (KRISS-tuh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 143 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "kotrubo",
+  "decision": "advanced to Phase 2",
+  "reason": "rule C - best passing invented, internal ST/SK/KR/TR/KT base (rank 144, measurable 8.43)"
+ },
+ {
+  "id": "hello zivara (zih-VAR-uh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 145 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay vesta (VESS-tuh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 146 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "takalumo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 147 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "lomabuko",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 148 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello kestara (kess-TAR-uh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 149 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay kestrel",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 150 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey tovara (toh-VAR-uh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 151 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay callista (kuh-LISS-tuh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 152 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey tikastro",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 153 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "daskovi",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 154 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi tikastro",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 155 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey gotrika",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 156 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi gotrika",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 157 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi kestia (KESS-tee-uh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 158 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "pakadoro",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 159 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey celestra (suh-LESS-truh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 160 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey jovia (JOH-vee-uh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 161 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi jovia (JOH-vee-uh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 162 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay aria",
+  "decision": "advanced to Phase 2",
+  "reason": "rule B - requested Aria variant, passed text screen (rank 163)"
+ },
+ {
+  "id": "hey jaskoba",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 164 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi jaskoba",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 165 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay nova",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 166 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "bobolink",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 167 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "gombolo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 168 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey kazimir",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 169 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "periwinkle",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 170 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "zuktavo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 171 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi kazimir",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 172 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey pomona",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 173 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi pomona",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 174 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay kallara (kuh-LAR-uh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 175 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello kallara (kuh-LAR-uh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 176 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey tavira (tuh-VEER-uh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 177 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey galileo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 178 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hello talista (tuh-LISS-tuh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 179 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi galileo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 180 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey kalamazoo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 181 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey octavius",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 182 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi octavius",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 183 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey juniper",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 184 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey jericho",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 185 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey kestia (KESS-tee-uh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 186 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi jericho",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 187 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "kobaria",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 188 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey montague",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 189 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi montague",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 190 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey bartholomew",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 191 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi bartholomew",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 192 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey kallara (kuh-LAR-uh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 193 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "tikka tokka",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 194 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "bamboozle",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 195 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "nolavo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 196 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "dakumo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 197 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey bumblebee",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 198 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay talista (tuh-LISS-tuh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 199 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey marigold",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 200 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey caretaker",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 201 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey barnaby",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 202 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hi barnaby",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 203 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "pokava",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 204 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "mamaloo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 205 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "petrako",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 206 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey lantern",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 207 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey ignatius",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 208 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "hey callista (CALL-iss-tuh)",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 209 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "tokastra",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 210 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "kazimir",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 211 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "lomamba",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 212 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "kovalo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 213 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "zimbalina",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 214 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "gazebo",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 215 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "begonia",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 216 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "bumblebee",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 217 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "octavius",
+  "decision": "passed Phase 1, not advanced",
+  "reason": "rank 218 below the 15-model training budget or sound/base already represented"
+ },
+ {
+  "id": "okay google",
+  "decision": "rejected at Phase 1",
+  "reason": "calibration control - not a product candidate"
+ },
+ {
+  "id": "okay nabu",
+  "decision": "rejected at Phase 1",
+  "reason": "calibration control - not a product candidate"
+ },
+ {
+  "id": "hello zaria",
+  "decision": "rejected at Phase 1",
+  "reason": "same sound as 'hello zaria' (spelling variant)"
+ },
+ {
+  "id": "hey mycroft",
+  "decision": "rejected at Phase 1",
+  "reason": "calibration control - not a product candidate"
+ },
+ {
+  "id": "hello kolabamo",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G8_speakability"
+ },
+ {
+  "id": "hello jedidiah",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G8_speakability"
+ },
+ {
+  "id": "okay kolabamo",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G8_speakability"
+ },
+ {
+  "id": "okay jedidiah",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G8_speakability"
+ },
+ {
+  "id": "hello galileo",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G8_speakability"
+ },
+ {
+  "id": "okay tiberius",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G8_speakability"
+ },
+ {
+  "id": "hello domakuro",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G8_speakability"
+ },
+ {
+  "id": "hello pakadoro",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G8_speakability"
+ },
+ {
+  "id": "hello lomabuko",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G8_speakability"
+ },
+ {
+  "id": "hello tobamaku",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G8_speakability"
+ },
+ {
+  "id": "hello octavius",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G8_speakability"
+ },
+ {
+  "id": "hello bartholomew",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G8_speakability"
+ },
+ {
+  "id": "okay domakuro",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G8_speakability"
+ },
+ {
+  "id": "okay pakadoro",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G8_speakability"
+ },
+ {
+  "id": "okay lomabuko",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G8_speakability"
+ },
+ {
+  "id": "okay tobamaku",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G8_speakability"
+ },
+ {
+  "id": "okay gumaroba",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G8_speakability"
+ },
+ {
+  "id": "okay octavius",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G8_speakability"
+ },
+ {
+  "id": "okay galileo",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G8_speakability"
+ },
+ {
+  "id": "okay bartholomew",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G8_speakability"
+ },
+ {
+  "id": "okay takalumo",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G8_speakability"
+ },
+ {
+  "id": "hello takalumo",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G8_speakability"
+ },
+ {
+  "id": "hello gumaroba",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G8_speakability"
+ },
+ {
+  "id": "hello tiberius",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G8_speakability"
+ },
+ {
+  "id": "okay ukulele",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G8_speakability"
+ },
+ {
+  "id": "hi zebedee",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G7_accent_casual_variant"
+ },
+ {
+  "id": "hello kestra (KESS-truh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G7_accent_casual_variant"
+ },
+ {
+  "id": "pocket tuba",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains"
+ },
+ {
+  "id": "bektavo",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G4_domain_names_commands, G7_accent_casual_variant"
+ },
+ {
+  "id": "nabolo",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains"
+ },
+ {
+  "id": "jedidiah",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency"
+ },
+ {
+  "id": "hello zari (ZAR-ee)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G7_accent_casual_variant"
+ },
+ {
+  "id": "okay tavira (tuh-VEER-uh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains"
+ },
+ {
+  "id": "dagobert",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency"
+ },
+ {
+  "id": "kika doodle",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains"
+ },
+ {
+  "id": "hi celestra (suh-LESS-truh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G7_accent_casual_variant"
+ },
+ {
+  "id": "hi zelora (zeh-LOR-uh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G7_accent_casual_variant"
+ },
+ {
+  "id": "aria bell",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands"
+ },
+ {
+  "id": "bekuna",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains"
+ },
+ {
+  "id": "mirabo",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains"
+ },
+ {
+  "id": "hi zestra (ZESS-truh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains"
+ },
+ {
+  "id": "hi kallara (kuh-LAR-uh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains"
+ },
+ {
+  "id": "bobolo",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G7_accent_casual_variant"
+ },
+ {
+  "id": "bonavita",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains, G4_domain_names_commands"
+ },
+ {
+  "id": "hi kestra (KESS-truh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G7_accent_casual_variant"
+ },
+ {
+  "id": "hey kestrel",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G4_domain_names_commands"
+ },
+ {
+  "id": "hi kestara (kess-TAR-uh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G7_accent_casual_variant"
+ },
+ {
+  "id": "hey kestara (kess-TAR-uh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G7_accent_casual_variant"
+ },
+ {
+  "id": "hey jarvis",
+  "decision": "rejected at Phase 1",
+  "reason": "calibration control - not a product candidate; text gates failed: G4_domain_names_commands"
+ },
+ {
+  "id": "hi tavira (tuh-VEER-uh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G7_accent_casual_variant"
+ },
+ {
+  "id": "tapioca",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains, G4_domain_names_commands"
+ },
+ {
+  "id": "hey zestra (ZESS-truh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains"
+ },
+ {
+  "id": "aria nova",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G7_accent_casual_variant"
+ },
+ {
+  "id": "hey zebedee",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G7_accent_casual_variant"
+ },
+ {
+  "id": "hey zelora (zeh-LOR-uh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G7_accent_casual_variant"
+ },
+ {
+  "id": "doravo",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G4_domain_names_commands, G7_accent_casual_variant"
+ },
+ {
+  "id": "aria care",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains"
+ },
+ {
+  "id": "ariola",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains"
+ },
+ {
+  "id": "gobanu",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G7_accent_casual_variant"
+ },
+ {
+  "id": "hey kestra (KESS-truh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G7_accent_casual_variant"
+ },
+ {
+  "id": "tokalo",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains, G4_domain_names_commands"
+ },
+ {
+  "id": "oolamo",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains"
+ },
+ {
+  "id": "celestra (suh-LESS-truh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains, G4_domain_names_commands"
+ },
+ {
+  "id": "solaria",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency"
+ },
+ {
+  "id": "bonomo",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G7_accent_casual_variant"
+ },
+ {
+  "id": "kaboda",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains, G4_domain_names_commands"
+ },
+ {
+  "id": "aria please",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains"
+ },
+ {
+  "id": "calaria",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains, G4_domain_names_commands"
+ },
+ {
+  "id": "hey zivara (zih-VAR-uh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains, G7_accent_casual_variant"
+ },
+ {
+  "id": "okavo",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G4_domain_names_commands, G7_accent_casual_variant"
+ },
+ {
+  "id": "hi zivara (zih-VAR-uh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G7_accent_casual_variant"
+ },
+ {
+  "id": "tomolo",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains"
+ },
+ {
+  "id": "hi zaria",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G7_accent_casual_variant"
+ },
+ {
+  "id": "bartholomew",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G0_self_frequency"
+ },
+ {
+  "id": "zubo",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains"
+ },
+ {
+  "id": "gubo",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains"
+ },
+ {
+  "id": "aria listen",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains"
+ },
+ {
+  "id": "okabaro",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains"
+ },
+ {
+  "id": "molova",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G7_accent_casual_variant"
+ },
+ {
+  "id": "hey tobias",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency"
+ },
+ {
+  "id": "dakrumo",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains, G7_accent_casual_variant"
+ },
+ {
+  "id": "kestovi",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G7_accent_casual_variant"
+ },
+ {
+  "id": "hey callista (kuh-LISS-tuh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G4_domain_names_commands"
+ },
+ {
+  "id": "hey vesta (VESS-tuh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains"
+ },
+ {
+  "id": "kalimba",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands"
+ },
+ {
+  "id": "ariamo",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains, G4_domain_names_commands"
+ },
+ {
+  "id": "hi callista (kuh-LISS-tuh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G4_domain_names_commands"
+ },
+ {
+  "id": "hi ignatius",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency"
+ },
+ {
+  "id": "lumaro",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G4_domain_names_commands"
+ },
+ {
+  "id": "dekrova",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G7_accent_casual_variant"
+ },
+ {
+  "id": "tiberius",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains"
+ },
+ {
+  "id": "hi aria",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains, G4_domain_names_commands, G7_accent_casual_variant"
+ },
+ {
+  "id": "hey zaria",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G4_domain_names_commands, G7_accent_casual_variant"
+ },
+ {
+  "id": "hey zaria",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G4_domain_names_commands, G7_accent_casual_variant; same sound as 'hey zaria' (spelling variant)"
+ },
+ {
+  "id": "hi callista (CALL-iss-tuh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains"
+ },
+ {
+  "id": "kalamazoo",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains"
+ },
+ {
+  "id": "tovara (toh-VAR-uh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains, G4_domain_names_commands, G7_accent_casual_variant"
+ },
+ {
+  "id": "kobastro",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G4_domain_names_commands, G7_accent_casual_variant"
+ },
+ {
+  "id": "pakuma",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains, G6_clipped_boundary"
+ },
+ {
+  "id": "jaskoba",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains"
+ },
+ {
+  "id": "hi zari (ZAR-ee)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G6_clipped_boundary, G7_accent_casual_variant"
+ },
+ {
+  "id": "hi vesta (VESS-tuh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains, G7_accent_casual_variant"
+ },
+ {
+  "id": "kabuki",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains"
+ },
+ {
+  "id": "petunia",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains"
+ },
+ {
+  "id": "kovo",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains, G4_domain_names_commands"
+ },
+ {
+  "id": "boktari",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G7_accent_casual_variant"
+ },
+ {
+  "id": "gomaya",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains"
+ },
+ {
+  "id": "gektora",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency"
+ },
+ {
+  "id": "jistova",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G7_accent_casual_variant"
+ },
+ {
+  "id": "ukulele",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G0_self_frequency, G3_embedded_or_contains"
+ },
+ {
+  "id": "vimba",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands"
+ },
+ {
+  "id": "hey aria",
+  "decision": "advanced to Phase 2",
+  "reason": "rule A - comparison baseline (Michael); text screen: text gates failed: G3_embedded_or_contains, G4_domain_names_commands, G7_accent_casual_variant"
+ },
+ {
+  "id": "hey krysta (KRISS-tuh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G4_domain_names_commands, G6_clipped_boundary"
+ },
+ {
+  "id": "hey talista (tuh-LISS-tuh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G7_accent_casual_variant"
+ },
+ {
+  "id": "barnaby",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency"
+ },
+ {
+  "id": "kestia (KESS-tee-uh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains, G4_domain_names_commands"
+ },
+ {
+  "id": "dorivo",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G4_domain_names_commands, G6_clipped_boundary, G7_accent_casual_variant"
+ },
+ {
+  "id": "bumaro",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G4_domain_names_commands, G6_clipped_boundary"
+ },
+ {
+  "id": "tikastro",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains, G4_domain_names_commands"
+ },
+ {
+  "id": "galileo",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G0_self_frequency"
+ },
+ {
+  "id": "gotrika",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains, G4_domain_names_commands, G7_accent_casual_variant"
+ },
+ {
+  "id": "gardenia",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G7_accent_casual_variant"
+ },
+ {
+  "id": "hi talista (tuh-LISS-tuh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G7_accent_casual_variant"
+ },
+ {
+  "id": "magnolia",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G0_self_frequency"
+ },
+ {
+  "id": "juniper",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G0_self_frequency"
+ },
+ {
+  "id": "hey willow",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G6_clipped_boundary"
+ },
+ {
+  "id": "zanobi",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains"
+ },
+ {
+  "id": "hey zari (ZAR-ee)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary, G7_accent_casual_variant"
+ },
+ {
+  "id": "montague",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G0_self_frequency"
+ },
+ {
+  "id": "pomona",
+  "decision": "advanced to Phase 2",
+  "reason": "rule D - bare 'pomona' trained to measure the launcher effect; text screen: text gates failed: G7_accent_casual_variant"
+ },
+ {
+  "id": "dandelion",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains"
+ },
+ {
+  "id": "jovia (JOH-vee-uh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary"
+ },
+ {
+  "id": "velika",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains, G4_domain_names_commands, G7_accent_casual_variant"
+ },
+ {
+  "id": "zebedee",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G6_clipped_boundary"
+ },
+ {
+  "id": "tazu",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G6_clipped_boundary, G7_accent_casual_variant"
+ },
+ {
+  "id": "ignatius",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains"
+ },
+ {
+  "id": "zestra (ZESS-truh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains, G4_domain_names_commands"
+ },
+ {
+  "id": "hey beacon",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G4_domain_names_commands, G6_clipped_boundary, G7_accent_casual_variant"
+ },
+ {
+  "id": "hi krysta (KRISS-tuh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G4_domain_names_commands, G6_clipped_boundary, G7_accent_casual_variant"
+ },
+ {
+  "id": "kestara (kess-TAR-uh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains, G4_domain_names_commands, G7_accent_casual_variant"
+ },
+ {
+  "id": "velora (veh-LOR-uh)",
+  "decision": "advanced to Phase 2",
+  "reason": "rule D - bare 'velora (veh-LOR-uh)' trained to measure the launcher effect; text screen: text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary, G7_accent_casual_variant"
+ },
+ {
+  "id": "zeloka",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary"
+ },
+ {
+  "id": "komodo",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains, G4_domain_names_commands, G7_accent_casual_variant"
+ },
+ {
+  "id": "hey compass",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G6_clipped_boundary, G7_accent_casual_variant"
+ },
+ {
+  "id": "nomaro",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary, G7_accent_casual_variant"
+ },
+ {
+  "id": "kestra (KESS-truh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains, G4_domain_names_commands"
+ },
+ {
+  "id": "tavira (tuh-VEER-uh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary"
+ },
+ {
+  "id": "hullabaloo",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G6_clipped_boundary, G7_accent_casual_variant"
+ },
+ {
+  "id": "pemo",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G6_clipped_boundary, G7_accent_casual_variant"
+ },
+ {
+  "id": "kestrel",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands"
+ },
+ {
+  "id": "callista (CALL-iss-tuh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary"
+ },
+ {
+  "id": "pagoda",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains, G6_clipped_boundary"
+ },
+ {
+  "id": "dabo",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary, G7_accent_casual_variant"
+ },
+ {
+  "id": "callista (kuh-LISS-tuh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary"
+ },
+ {
+  "id": "zari (ZAR-ee)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G7_accent_casual_variant"
+ },
+ {
+  "id": "domboro",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G6_clipped_boundary, G7_accent_casual_variant"
+ },
+ {
+  "id": "avocado",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G0_self_frequency, G7_accent_casual_variant"
+ },
+ {
+  "id": "kumbo",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains, G7_accent_casual_variant"
+ },
+ {
+  "id": "calypso",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G6_clipped_boundary"
+ },
+ {
+  "id": "toko",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G6_clipped_boundary, G7_accent_casual_variant"
+ },
+ {
+  "id": "tumbaro",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary, G7_accent_casual_variant"
+ },
+ {
+  "id": "bodu",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains, G7_accent_casual_variant"
+ },
+ {
+  "id": "domino",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G0_self_frequency, G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands"
+ },
+ {
+  "id": "toucan",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary"
+ },
+ {
+  "id": "zelora (zeh-LOR-uh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G4_domain_names_commands, G6_clipped_boundary, G7_accent_casual_variant"
+ },
+ {
+  "id": "jericho",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G0_self_frequency, G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary"
+ },
+ {
+  "id": "zivara (zih-VAR-uh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary, G7_accent_casual_variant"
+ },
+ {
+  "id": "timbuktu",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G6_clipped_boundary"
+ },
+ {
+  "id": "marigold",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains"
+ },
+ {
+  "id": "krysta (KRISS-tuh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary"
+ },
+ {
+  "id": "talista (tuh-LISS-tuh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary"
+ },
+ {
+  "id": "kallara (kuh-LAR-uh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary, G7_accent_casual_variant"
+ },
+ {
+  "id": "valora",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary, G7_accent_casual_variant"
+ },
+ {
+  "id": "tikamo",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G6_clipped_boundary, G7_accent_casual_variant"
+ },
+ {
+  "id": "dakota",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G0_self_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary"
+ },
+ {
+  "id": "computer",
+  "decision": "rejected at Phase 1",
+  "reason": "calibration control - not a product candidate; text gates failed: G0_self_frequency, G2_near_high_frequency, G3_embedded_or_contains"
+ },
+ {
+  "id": "aria",
+  "decision": "advanced to Phase 2",
+  "reason": "rule A - comparison baseline (Michael); text screen: text gates failed: G0_self_frequency, G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G7_accent_casual_variant"
+ },
+ {
+  "id": "zaria",
+  "decision": "advanced to Phase 2",
+  "reason": "rule A - comparison baseline (Michael); text screen: text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary, G7_accent_casual_variant"
+ },
+ {
+  "id": "victoria",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G0_self_frequency, G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary, G7_accent_casual_variant"
+ },
+ {
+  "id": "alexa",
+  "decision": "rejected at Phase 1",
+  "reason": "calibration control - not a product candidate; text gates failed: G0_self_frequency, G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary"
+ },
+ {
+  "id": "vesta (VESS-tuh)",
+  "decision": "rejected at Phase 1",
+  "reason": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary"
+ }
+]
