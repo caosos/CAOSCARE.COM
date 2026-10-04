@@ -14,13 +14,13 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
-from models import StaffTask, TaskPriority, now_utc
+from models import RESIDENT_ORIGIN_SOURCES, StaffTask, TaskPriority, now_utc
 from deps import db, get_current_user
 from routes import task_lifecycle
 from routes.actor_context import actor_from_user, actor_resident_claim
 from routes.task_history import task_event, latest_note_at, times_asked
 from routes.task_lifecycle import simulation_marker
-from routes.notifications import notify_department
+from routes.notifications import notify_department, simulation_of
 from routes.departments import get_active_departments
 from routes.facility_local_time import facility_tz as _facility_tz, facility_local as _facility_local
 from routes.tasks import _resolve_denorms
@@ -77,10 +77,13 @@ class ResidentRequestInput(BaseModel):
     summary: str
     priority: TaskPriority = "normal"
     source: str = "aria_voice"  # "aria_voice" | "kiosk_button" | "front_desk" (auth required for front_desk)
+    # There is deliberately no simulation_run_id here: simulator provenance is
+    # never taken from a request body (SC-17) - see create_resident_request.
     conversation_session_id: Optional[str] = None
 
 
-async def create_resident_request(data: ResidentRequestInput, *, user: Optional[dict] = None) -> dict:
+async def create_resident_request(data: ResidentRequestInput, *, user: Optional[dict] = None,
+                                  simulation_run_id: Optional[str] = None) -> dict:
     """Public (no auth) for "aria_voice"/"kiosk_button" - same trust model
     as /alerts and the other resident-facing endpoints called from the
     kiosk during a live call. Creates a real StaffTask (so it appears in
@@ -109,12 +112,27 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
     a new receipt against it. That keeps one task = one operational item
     (no duplicate-queue clutter) while still giving Michael/staff a real,
     auditable trail of how many times it's been asked - the signal he
-    uses to decide whether to bump priority."""
+    uses to decide whether to bump priority.
+
+    `simulation_run_id` (SC-17) is for the in-process operations simulator
+    only - never reachable from HTTP. It must name a real simulator run and a
+    synthetic resident; the request is then recorded with source and channel
+    "simulator" and the run id on the task and every receipt, and its
+    notifications are simulated, never delivered (SC-16)."""
     visibility_role = await _resolve_visibility_role(data.category)
     if not visibility_role:
         raise HTTPException(status_code=400, detail=f"Unsupported request category: {data.category}")
-    marker = await simulation_marker(data.resident_id)
-    if data.source == "front_desk":
+    marker = await simulation_marker(data.resident_id, simulation_run_id)
+    source = data.source
+    if simulation_run_id:
+        if not marker:
+            raise HTTPException(status_code=400, detail="A simulation run may only raise requests for a synthetic resident")
+        if not await db.sim_runs.find_one({"run_id": simulation_run_id}, {"_id": 1}):
+            raise HTTPException(status_code=400, detail=f"Unknown simulation run {simulation_run_id}")
+        source = "simulator"
+        actor = actor_resident_claim(data.resident_id, data.room, "simulator", synthetic=True)
+        authority = "simulation_run"
+    elif data.source == "front_desk":
         if not user or user.get("role") not in ("owner", "admin", "staff", "front_desk"):
             raise HTTPException(status_code=403, detail="Not authorized to create resident requests")
         actor, authority = actor_from_user(user, channel="front_desk"), "front_desk_entry"
@@ -135,7 +153,10 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
     if rejection:
         raise HTTPException(status_code=422, detail={"needs_clarification": True, "field": "summary", "reason": rejection})
 
-    dup_q: dict = {"category": data.category, "status": {"$in": OPEN_TASK_STATUSES}}
+    # A run's requests only ever dedup within that run; everything else
+    # (real residents, demo-kiosk asks) never lands on a run's request.
+    dup_q: dict = {"category": data.category, "status": {"$in": OPEN_TASK_STATUSES},
+                   "simulation_run_id": simulation_run_id}
     if data.resident_id:
         dup_q["resident_id"] = data.resident_id
     elif data.room:
@@ -186,6 +207,7 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
             f"Room: {data.room or 'unknown'}\n"
             f"Original request: {existing['created_at']}\n"
             f"This still hasn't been closed out.",
+            simulation=simulation_of(existing, receipt["receipt_id"]),
         )
         # Speak the duplicate from Layer E's lifecycle vocabulary + real age,
         # so it cannot contradict "What's actually happening right now".
@@ -207,7 +229,7 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
         "description": data.summary,
         "category": data.category,
         "priority": data.priority,
-        "source": data.source,
+        "source": source,
         "visibility_role": visibility_role,
         "resident_id": data.resident_id,
         "room": data.room,
@@ -227,6 +249,7 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
         visibility_role,
         f"CAOS Care: new {data.category} request",
         f"{data.summary}\nRoom: {data.room or 'unknown'}\nPriority: {data.priority}",
+        simulation=simulation_of(doc, receipt["receipt_id"]),
     )
     return {"task_id": doc["task_id"], "receipt_id": receipt["receipt_id"], "status": doc["status"], "duplicate": False}
 
@@ -299,7 +322,7 @@ def _resident_safe_view(task: dict, tz: str) -> dict:
 
 
 def _scope_query(resident_id, room, conversation_session_id, allow_session: bool = True) -> dict:
-    q: dict = {"source": {"$in": ["aria_voice", "kiosk_button"]}}
+    q: dict = {"source": {"$in": list(RESIDENT_ORIGIN_SOURCES)}}
     if resident_id:
         q["resident_id"] = resident_id
     elif room:

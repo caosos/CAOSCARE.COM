@@ -26,7 +26,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException
 
 from deps import db
-from models import now_utc
+from models import RESIDENT_ORIGIN_SOURCES, now_utc
 from routes.aria_time import age_phrase as _age_label, parse_dt as _parse
 
 router = APIRouter(prefix="/aria", tags=["realtime"])
@@ -154,7 +154,7 @@ async def resolve_operational_state(
 
     open_tasks = await db.staff_tasks.find(
         {**scope, "status": {"$in": OPEN_TASK_STATUSES},
-         "source": {"$in": ["aria_voice", "kiosk_button"]}}, {"_id": 0},
+         "source": {"$in": list(RESIDENT_ORIGIN_SOURCES)}}, {"_id": 0},
     ).sort("created_at", -1).to_list(20)
 
     cutoff = (now.timestamp() - RECENT_RESOLVED_HOURS * 3600)
