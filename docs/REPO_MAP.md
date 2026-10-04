@@ -816,3 +816,13 @@ listener verifier experiment: `docs/experiments/`.
 - `backend/routes/arrival_claim_guard.py`: bridge replies may say help is coming only when an authenticated staff claim/acknowledge/start receipt exists for the request.
 - `backend/scripts/close_demo_test_requests.py`: closes named demo-room test requests through the lifecycle (system actor, chained receipt, nothing deleted).
 - Test: `backend/tests/test_request_matching_origin.py`.
+
+## 2026-10-03 — Voice bridge readiness (branch `spike/voice-bridge`)
+
+- `backend/routes/voice_bridge_session.py`: Voice PE device id → room endpoint → resident (+ facility); `voice_bridge_sessions`; deterministic closing phrases; HA-retry detection.
+- `backend/routes/voice_bridge_receipts.py`: per-turn receipts (chained per session) and refusal receipts.
+- `backend/routes/voice_bridge_devices.py`: admin `GET/PUT/DELETE /api/voice-bridge/devices` (device ↔ kiosk mapping, receipts).
+- `Kiosk.voice_device_ids`, `Receipt.evidence` (models.py).
+- `integrations/home_assistant/custom_components/caoscare_conversation/bridge_client.py`: the agent's HTTP call (no HA imports).
+- `docs/VOICE_PE_BRIDGE_INSTALL.md`: installation, configuration, verification, rollback.
+- Tests: `backend/tests/test_voice_bridge_flow.py`, `backend/tests/test_voice_bridge_units.py`.

@@ -6150,3 +6150,48 @@ Approval (Michael, 2026-10-03, coordinator session): merge `chore/rescope-legacy
 - Checks after merge: `room-node/aria_wake/` present; `aria_wake.py` without `ARIA_WAKE_ENABLE_LEGACY` exits 2 with the legacy message and opens no port; no systemd unit/timer, cron entry, `deploy_caoscare.sh` or backend setup script references it; no standard frontend flow builds a `?wake=1` link (only a code comment mentions it); listener tests 5 passed; frontend wake-client tests 4 passed; AGENTS.md, CLAUDE.md, Product Baseline, ROOM_AUDIO_ARCHITECTURE and CURRENT_PRIORITY still state the standard architecture (central EliteDesk; Voice PE per apartment; no per-apartment EliteDesk; no standard-room eMeet; separate handset telephony; Aria, "Hey Aria").
 - Process disposition: the running `aria_wake.py` (PID 2833238, port 8766) was started by the earlier Nabu wake test, not by the re-scope task, and Michael asked to keep that test stack running — left running. The re-scope task left no process running.
 - Not done: main, PR #41/#42, Linode, hardware and firmware untouched.
+
+---
+
+## 2026-10-03 — Voice PE → CAOSCare bridge readiness (spike/voice-bridge)
+
+### Agent / branch
+Claude Code (Opus 5.5), coordinator assignment "VOICE PE TO CAOSCARE BRIDGE READINESS". `~/CAOSCARE-VOICEBRIDGE`, `spike/voice-bridge`, from `aa3d2f1` plus a merge of `integration/2026-09-27` `0f331b7` (current architecture docs). Not merged into integration or main; no deploy; no firmware, wake-word or Voice PE change (firmware lane). PR #41/#42, Linode untouched.
+
+### What changed
+- Identity: the bridge takes the Voice PE's Home Assistant device id (or satellite entity id), not a room endpoint id. `Kiosk.voice_device_ids` maps a device to exactly one room endpoint; room → resident; active facility → community. Admin `PUT/DELETE/GET /api/voice-bridge/devices` with a receipt per mapping change (`voice_device_mapped` / `voice_device_unmapped`, before/after).
+- Sessions: `voice_bridge_sessions` collection; one session per HA conversation id, bound to its device/room (another room's device using it → 409); closed sessions are never reused (`vb_<conv>-r2`).
+- Deterministic ending: "That'll be all", "That'll be all, Aria", "Goodbye, Aria", "I'm done", "Thank you, goodbye" (and close variants, only as the whole utterance) end the session with no model call and no workflow action; `continue_conversation: false`; `voice_session_ended` receipt.
+- Receipts: one per turn (`voice_turn`, `voice_session_ended`, `voice_turn_duplicate_ignored`), chained per session (origin → parent), with device, resident, room, facility, HA conversation id, utterance, authorization, tools, workflow objects (task id + its receipt id), session state before/after, reply, next state. Refusals (`voice_turn_refused`) for unknown devices and cross-room conversations. New optional `Receipt.evidence` field (shared model, additive).
+- Failures: per-turn time budget (18 s); provider error/timeout → spoken fallback, `failed` receipt, no new state; a request already filed in that turn is reported honestly. HA retry of the same words within 10 s → earlier answer, nothing re-run. Replies stripped to plain text.
+- Home Assistant agent: one config entry (URL + token); sends device id/satellite id; honours `continue_conversation`; HTTP call moved to `bridge_client.py` (no HA imports; timeout/404/5xx/bad JSON → spoken fallback).
+- Install guide: `docs/VOICE_PE_BRIDGE_INSTALL.md`.
+
+### Tests
+- New `tests/test_voice_bridge_flow.py` (isolated `caos_vb_test_*` DB, real routes, scripted model): menu, activities, maintenance request, nursing request, status follow-up, two-turn continuity, device/resident mapping, unknown-device and cross-room rejection, all five closing phrases + non-closing variants, new session after close, HA-retry duplicate, re-request joins the open request, receipts/provenance/chain, provider failure, timeout, failure after a filed request, no orphan state, admin mapping receipts, room isolation. New `tests/test_voice_bridge_units.py` (closing phrases, plain text, HA client success/end/timeout/errors/unknown device). 13 bridge tests pass.
+- Backend gate (port 8073, DB `caoscare_gate_vb_1003`): 251 passed, 3 failed, 14 skipped. Failures are the known baseline (iter10 `test_session_default`, iter11 `test_default_facility_weather`, iter11 `test_session_has_nine_tools_and_anchors`).
+
+### Not done / requires
+- Home Assistant: agent not installed; no STT/TTS engine; backend not reachable from the HA VM (binds 127.0.0.1; needs 192.168.122.1).
+- Physical Voice PE in a room; real-room acceptance.
+- Model choice for the bridge (gpt-4o-mini vs gpt-4.1).
+- HA's conversation id lifetime vs CAOSCare sessions left open when HA drops a conversation (no idle close yet).
+
+### Physical acceptance steps (when hardware/HA ready)
+1. Map the room's Voice PE device id to its kiosk; bridge `curl` check (install guide §8).
+2. Wake, "What's for dinner?" → real dinner; "What time is that?" → follow-up answered.
+3. "What activities are on today?"; "My sink is leaking" → maintenance request in that room, no "on its way"; "Is anyone coming?" → truthful status.
+4. Each closing phrase → Voice PE returns to wake mode, `voice_session_ended` receipt.
+5. Unmapped Voice PE → spoken "not set up" message, refusal receipt.
+6. Stop the backend mid-conversation → HA fallback speech within 25 s.
+7. Check receipts for the room: one per turn, chained, with the device id.
+
+HANDOFF CAPSULE
+- Objective:        Voice PE → HA Assist → CAOSCare bridge ready for the physical device.
+- Branch:           `spike/voice-bridge` (this commit).
+- Lane / ownership: bridge + HA agent; not firmware, wake word, Voice PE, main, integration.
+- Last proven state: simulated HA turns through real routes on an isolated DB, 2026-10-03.
+- Runtime state:    nothing new running; production unchanged.
+- Unresolved proven defects: none in the bridge; baseline iter10/iter11 tests unchanged.
+- Do NOT change:    main, PR #41/#42, Linode, firmware branches, Room 214 devices.
+- Next safe action: HA install + STT/TTS choice + backend bind address, then the physical steps above.

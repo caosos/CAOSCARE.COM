@@ -1,11 +1,16 @@
-"""Assist conversation agent that delegates every turn to CAOSCare (spike, untested in HA)."""
+"""Assist conversation agent that delegates every turn to CAOSCare.
+
+Not yet run inside Home Assistant. Written against the ConversationEntity
+API (async_process / ConversationResult with continue_conversation, HA
+2025.4+); verify against the installed HA version before use.
+"""
 from homeassistant.components import conversation
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import intent
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-FALLBACK = "I'm sorry, I can't reach CAOSCare right now. Please use your call button if you need help."
+from .bridge_client import build_payload, call_bridge
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
@@ -24,21 +29,14 @@ class CaosCareAgent(conversation.ConversationEntity):
 
     async def async_process(self, user_input: conversation.ConversationInput) -> conversation.ConversationResult:
         cfg = self.entry.data
-        payload = {"endpoint_id": cfg["endpoint_id"], "text": user_input.text,
-                   "conversation_id": user_input.conversation_id, "language": user_input.language}
-        speech, conv_id, keep_open = FALLBACK, user_input.conversation_id, False
-        try:
-            session = async_get_clientsession(self.hass)
-            async with session.post(cfg["bridge_url"], json=payload, timeout=60,
-                                    headers={"Authorization": f"Bearer {cfg['bridge_token']}"}) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    speech = data.get("response_text") or FALLBACK
-                    conv_id = data.get("conversation_id") or conv_id
-                    keep_open = bool(data.get("continue_conversation"))
-        except Exception:  # network/timeout: speak the fallback, never invent an answer
-            pass
+        payload = build_payload(user_input.text, user_input.conversation_id, user_input.language,
+                                device_id=getattr(user_input, "device_id", None),
+                                satellite_id=getattr(user_input, "satellite_id", None))
+        out = await call_bridge(async_get_clientsession(self.hass), cfg["bridge_url"],
+                                cfg["bridge_token"], payload)
         response = intent.IntentResponse(language=user_input.language)
-        response.async_set_speech(speech)
-        return conversation.ConversationResult(response=response, conversation_id=conv_id,
-                                               continue_conversation=keep_open)
+        response.async_set_speech(out["speech"])
+        # continue_conversation=False returns the Voice PE to wake-word mode.
+        return conversation.ConversationResult(response=response,
+                                               conversation_id=out["conversation_id"],
+                                               continue_conversation=out["continue_conversation"])

@@ -214,6 +214,10 @@ class Kiosk(BaseModel):
     # ended up as the public face of the product. At most one kiosk may have
     # this true at a time - enforced in routes/kiosks.py's update handler.
     public_demo: bool = False
+    # Home Assistant device ids (or satellite entity ids) of the room's
+    # voice endpoints (Voice PE). The voice bridge resolves room/resident
+    # from this mapping only; a device id belongs to at most one kiosk.
+    voice_device_ids: List[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=now_utc)
 
 
@@ -931,6 +935,7 @@ class Receipt(BaseModel):
     result_label: Optional[ResultLabel] = None
     provider_refs: List[str] = Field(default_factory=list)
     next_state: Optional[str] = None
+    evidence: Optional[dict] = None           # channel-specific result evidence (e.g. voice turn: device, utterance, tools, reply)
     created_at: datetime = Field(default_factory=now_utc)
 
 
