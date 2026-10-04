@@ -64,6 +64,50 @@ Resident asks for a room action
 → Aria reports the observed result truthfully
 ```
 
+## 2026-10-03 seven-day execution reset — through Pilot 1 target
+
+Michael's current direction is to stop expanding the per-room hardware pile
+and converge on the minimum deployable architecture while the operational
+software continues toward the **2026-10-10** target.
+
+For this seven-day window:
+
+1. **Classify and close current failures before inventing new work.** The
+   integration coordinator (Michael currently calls this coordinator
+   **Nabu**) owns the merge train, failing-test classification and checklist
+   truth. Michael reports that some tests are currently failing; no agent may
+   call them regressions, expected failures or fixed until the actual failing
+   tests and evidence are identified.
+2. **Voice / wake path is active work.** Michael reports **Claude Code 2** is
+   working on `microWakeWord`. Acceptance is not merely "keyword detected":
+   the chosen activation must work at useful distance, resist ordinary
+   sentence/name mentions and self-audio, support barge-in/continued
+   conversation, and leave evidence/receipts. Do not silently rename the
+   product assistant because a stock wake model is convenient.
+3. **Hardware purchases are frozen except what is required to power or test
+   already ordered prototype equipment.** Ordered for evaluation:
+   Home Assistant Voice Preview Edition (backordered) and Seeed XIAO Smart IR
+   Mate. No Echo fleet, per-room EliteDesk fleet, CEC adapters, extra radios,
+   speakers or other hardware are baseline purchases until bench evidence
+   justifies them.
+4. **Target room architecture is one facility server + thin room endpoint.**
+   The existing EliteDesk/eMeet rig remains a valid development and temporary
+   Pilot 1 acceptance fixture, but it is not the intended per-room fleet
+   architecture. A backordered Voice PE must not stall software acceptance
+   that can be proven on the existing rig.
+5. **Pendant integration is optional/additive for Pilot 1.** Existing
+   community pendant/call-button systems remain independent. Passively read
+   them only if easy and non-interfering; do not make them a blocker for the
+   resident voice product.
+6. **Pilot Room 1 remains the convergence test.** By the target date, prove
+   the smallest real slice that can operate without SSH babysitting: resident
+   voice → governed workflow → staff lifecycle/status truth, plus at least one
+   verified room-control path. New hardware can be substituted after it
+   passes bench acceptance.
+
+This reset does not cancel already-approved simulator or department work. It
+prevents those lanes from displacing the real Pilot 1 finish line.
+
 ## Non-negotiable demo rule
 
 **Do not publicly demonstrate a capability as working before the real resident/staff/admin workflow is actually usable and acceptance-tested.**
