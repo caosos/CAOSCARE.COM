@@ -825,3 +825,9 @@ listener verifier experiment: `docs/experiments/`.
 - `frontend/src/pages/LiveOperations.jsx`: Admin → Community → Live operations. Reads `/simulator/state`, `/simulator/runs/{id}/history`, `/receipts`, `/tasks`; polls 2 s while running. No simulator state of its own.
 - `frontend/src/components/simulator/`: `SimControls` (state, simulated time, next action, Start/Pause/Step/Resume/Stop), `SimActors`, `SimActivity` (current action, active simulated requests, failures), `SimEventStream` (run + request receipt chains), `SimReceiptTrace` (receipt → parent / canonical receipt → request → actor), `ActorBadge`.
 - `frontend/src/lib/simulator.js`: pure helpers (allowed controls, real/simulated/system badge, chain ordering by parent link, stream merge). Test: `frontend/src/lib/__tests__/simulator.test.js`.
+
+## 2026-10-04 — Demo data continuity RQ-001 (branch `pilot/rq-001-demo-continuity`)
+
+- `backend/demo_continuity.py`: catch-up for the demo room. Fixed one-hour UTC windows from `last_simulated_at` (`db.demo_continuity`, key `demo_room`) to now, each processed once (compare-and-set claim): open simulated demo requests step forward (acknowledge → start → complete), backlog above the cap is closed, and a fixed hash of the window start may raise one new request. Uses `create_resident_request` and `task_actions` only; one chained `demo_continuity_window` receipt per window.
+- `backend/routes/demo_continuity.py`: admin-only `GET /api/demo/continuity`, `POST /api/demo/continuity/catch-up`. Catch-up also runs in the background on backend startup (`server.py` lifespan) and on token issue at sign-in (`routes/auth.py::_issue_jwt`).
+- Test: `backend/tests/test_demo_continuity.py`.

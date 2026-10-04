@@ -6249,3 +6249,51 @@ HANDOFF CAPSULE
 - Product invariants that matter here: no second simulator state model; real/simulated explicit; every action traceable to origin
 - Do NOT change:    SIM-1 scheduler contract without a coordinator decision; shared lifecycle/receipt modules
 - Next safe action: coordinator review of PR #50 (incl. the Admin.jsx / adminTabGroups.js touch)
+
+---
+
+## 2026-10-04 — Agent Five: RQ-001 demo data continuity (draft PR)
+
+### Agent / branch
+Claude Code (Opus 5.5), Round 5 Agent Five. Branch `pilot/rq-001-demo-continuity` (worktree `~/CAOSCARE-DEMO-CONTINUITY`) from `integration/2026-09-27` `0b6f9db`, rebased onto `5567d3e` (SIM-2 merged). Draft PR into `integration/2026-09-27`. Not merged, not deployed; main, Linode, real rooms and the running :3000/:8092 untouched.
+
+### What changed
+- `backend/demo_continuity.py` (new): when time has passed, the demo room catches up in one-hour windows.
+  - Each open simulated demo request moves one step (acknowledge → start → complete) through `task_actions`, done by a simulated staff member of its department.
+  - Open work above 6 is closed as stale backlog, oldest first.
+  - In facility daytime, a fixed hash of the window start may raise one new request from a fixed list, through `create_resident_request`.
+  - Only tasks marked `simulated`, `simulation_scope=demo_room`, room `DEMO` are touched, and only while the demo room holds the synthetic resident alone.
+  - The window range is claimed with one compare-and-set before any work, so a refresh or a second sign-in finds nothing left to do.
+  - Catch-up waits (and records why) while a SIM-1 run is active or a live email provider key is set.
+  - Gaps longer than 72 hours fast-forward; the skipped hours are recorded in a receipt.
+- Receipts: `demo_continuity_started` (origin), one `demo_continuity_window` per window (chained, correlation = origin, provider_refs = the canonical receipts that window produced, before/after open/closed counts), `demo_continuity_fast_forward`, `demo_continuity_deferred`. Actor `sim:system:demo_continuity`, simulated-agent, synthetic.
+- `backend/routes/demo_continuity.py` (new): admin `GET /api/demo/continuity`, `POST /api/demo/continuity/catch-up`.
+- Hooks, best-effort and in the background: `server.py` lifespan (startup) and router; `routes/auth.py::_issue_jwt` (every sign-in path issues its token there).
+
+### Verified
+- `tests/test_demo_continuity.py` 11 passed, covering acceptance 1–11 plus the email-provider deferral.
+- Breaking a guard on purpose makes tests fail:
+  - removing the exactly-once claim → 3 fail;
+  - removing the demo-room scope → 3 fail;
+  - removing the backlog cap → 3 fail;
+  - removing the email guard → 1 fails.
+- Full gate (`scripts/run_backend_tests.sh`, port 8078, throwaway DB): 244 passed, 0 failed, 31 skipped. `tests/test_sim1_actor_scheduler.py` 6 passed.
+- Not verified: a browser sign-in on the running stack; a run against the shared `caoscare` DB.
+
+### Limits
+- Steps are stamped at catch-up time, not at the simulated window's time.
+- The "Demo -" 3W wing residents are not synthetic-marked, so they are out of scope.
+- Generated requests carry channel `aria_voice` and no `simulation_run_id` until SC-17.
+- The email-provider guard can be lifted once SC-16 makes simulated notifications record-only.
+
+HANDOFF CAPSULE
+- Objective:        RQ-001 demo data continuity.
+- Branch:           pilot/rq-001-demo-continuity (draft PR).
+- Lane / ownership: Agent Five. New files plus small hooks in server.py and routes/auth.py. No edits to simulation/*, task_lifecycle, resident_requests, notifications, models.
+- Last proven state: tests above, 2026-10-04.
+- Commits:          see this entry's commit.
+- Runtime state:    nothing restarted or left running; scratch DBs dropped.
+- Unresolved proven defects: none found.
+- Product invariants: simulated demo work only; one receipt per window; each window processed once.
+- Do NOT change:    real rooms; the demo-room scope filter.
+- Next safe action: rebase after SC-16/17 merges; carry `simulation_run_id`; lift the email guard if SC-16 allows.
