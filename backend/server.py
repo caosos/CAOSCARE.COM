@@ -163,6 +163,9 @@ async def lifespan(app: FastAPI):
     # Escalation schedule (independent of any simulator); CAOSCARE_ESCALATION_AUTO=0 disables.
     from routes.escalation_schedule import start_schedule, stop_schedule
     await start_schedule()
+    from routes.voice_bridge import MODEL_CONFIG as _vb_model
+    from routes.voice_bridge_config import log_selection as _log_vb_model
+    _log_vb_model(_vb_model)
     from routes.voice_bridge_session import ensure_indexes as _ensure_voice_bridge_indexes
     try:
         await _ensure_voice_bridge_indexes()

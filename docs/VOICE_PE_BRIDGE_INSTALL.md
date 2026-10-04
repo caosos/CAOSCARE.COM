@@ -35,6 +35,8 @@ CAOSCare backend (branch `spike/voice-bridge`):
 | `backend/routes/voice_bridge_receipts.py` | one receipt per turn; refusal receipts |
 | `backend/routes/voice_bridge_tools.py` | menu, schedule, staff request, request status/history, time, end call |
 | `backend/routes/voice_bridge_devices.py` | admin mapping of Voice PE devices to rooms |
+| `backend/routes/voice_bridge_config.py` | provider/model selection and validation |
+| `backend/serve.py` | backend launcher with a validated bind address |
 
 Home Assistant custom integration: copy the whole folder
 `integrations/home_assistant/custom_components/caoscare_conversation/`
@@ -48,14 +50,24 @@ Home Assistant (Samba or SSH add-on, or the File editor).
 |---|---|---|
 | `CAOSCARE_VOICE_BRIDGE_TOKEN` | yes | Shared secret Home Assistant sends as `Authorization: Bearer …`. Unset → the bridge answers 503. Generate with `python3 -c "import secrets; print(secrets.token_urlsafe(32))"`. |
 | `OPENAI_API_KEY` | yes | Already used by CAOSCare. |
-| `CAOSCARE_VOICE_BRIDGE_MODEL` | no | Text model for bridge turns. Default: `OPENAI_TEXT_MODEL` (gpt-4o-mini). The 2026-10-03 spike found gpt-4o-mini made false "on its way" claims (now removed by the arrival guard) and missed goodbyes (now handled without the model); gpt-4.1 behaved better. Choose before the pilot. |
+| `CAOSCARE_VOICE_BRIDGE_PROVIDER` | no | Default `openai` (the only provider wired). |
+| `CAOSCARE_VOICE_BRIDGE_MODEL` | no | Default `gpt-4o-mini`. Accepted: `gpt-4o-mini`, `gpt-4.1`, `gpt-4.1-mini`, `gpt-4o` (`backend/routes/voice_bridge_config.py`). Any other value disables the bridge (turns answer 503 with the reason); it never silently falls back to another model. The selection is logged at backend startup (`voice bridge model: openai/<model>` or `voice bridge disabled: …`). Live-tested on the bridge: gpt-4o-mini and gpt-4.1; in the 2026-10-03 spike gpt-4.1 behaved better (the arrival guard and deterministic goodbyes now cover gpt-4o-mini's two observed faults). Choose before the pilot. |
 | `CAOSCARE_VOICE_BRIDGE_BUDGET_S` | no | Time budget per turn, default 18 s (Home Assistant's agent gives up at 25 s). |
+| `CAOSCARE_BIND_HOST` / `CAOSCARE_BIND_PORT` | no | Used by `backend/serve.py` (below). Default `127.0.0.1` / `8000`. |
 
 **Network:** the Home Assistant VM reaches the host at `192.168.122.1`
-(libvirt NAT). A backend bound to `127.0.0.1` is **not reachable** from Home
-Assistant. Bind the backend that serves the bridge to `192.168.122.1` (or
-`0.0.0.0` with the host firewall limited to the VM network). Not yet done on
-the EliteDesk.
+(libvirt bridge `virbr0`). A backend bound to `127.0.0.1` is **not
+reachable** from Home Assistant. Start the backend that serves the bridge
+with the validated launcher:
+
+```
+cd backend && CAOSCARE_BIND_HOST=192.168.122.1 CAOSCARE_BIND_PORT=<port> .venv/bin/python serve.py
+```
+
+`serve.py` accepts only `127.0.0.1` (default), `::1` and `192.168.122.1`;
+`0.0.0.0`, `::` and any other address are refused (the process exits with
+the reason). `192.168.122.1` is reachable from the VMs on that bridge, not
+from the building network. Not yet switched on at the EliteDesk.
 
 Restart the backend after changing `.env`. On startup it creates the
 `voice_bridge_sessions` indexes.
@@ -103,7 +115,22 @@ and `ConversationResult(continue_conversation=…)` (Home Assistant 2025.4 or
 later). It has not been loaded in Home Assistant yet; check the Home Assistant
 log after step 2 for import errors.
 
-## 6. How a conversation behaves
+## 6. Who owns speech (text-to-speech)
+
+The bridge returns **text**: `response_text` (plain, no markup),
+`speech_format: "plain_text"`, `continue_conversation`, `conversation_id`,
+`session_id`, `tools_used`, `receipt_id`. It never returns audio and never
+calls a TTS service. Home Assistant's Assist pipeline speaks the text with the
+TTS engine selected for the "Aria" pipeline, local (e.g. Piper) or cloud
+(e.g. Home Assistant Cloud) — switching between them is a Home Assistant
+setting and changes nothing in CAOSCare. There is one CAOSCare conversation
+path for both.
+
+Existing CAOSCare speech paths are separate and unchanged: the room-screen
+Realtime session (speech-to-speech in the browser) and the legacy
+`/api/ai/tts` endpoint. The bridge uses neither.
+
+## 7. How a conversation behaves
 
 - Follow-up questions in the same Home Assistant conversation share one
   CAOSCare session (`vb_<conversation id>`), so "What's for dinner?" then
@@ -125,7 +152,7 @@ log after step 2 for import errors.
 - Replies are plain text (no markup), usable for TTS or for display when TTS
   is unavailable.
 
-## 7. Receipts
+## 8. Receipts
 
 Every turn writes a receipt (`related_object_type: voice_session`,
 `related_object_id: <session id>`): device, resident, room, community,
@@ -136,10 +163,11 @@ after, reply, time, parent receipt and next expected state. Requests keep
 their own lifecycle receipts. Read them:
 `GET /api/receipts?related_object_type=voice_session&room=<room>` (admin).
 
-## 8. Verification
+## 9. Verification
 
 1. Backend tests: `tests/test_voice_bridge_flow.py`,
-   `tests/test_voice_bridge_units.py`, `tests/test_voice_bridge.py`.
+   `tests/test_voice_bridge_units.py`, `tests/test_voice_bridge.py`,
+   `tests/test_voice_bridge_config.py`.
 2. Bridge by hand (no audio), after mapping a test device to a test room:
    ```
    curl -X POST http://192.168.122.1:<port>/api/voice-bridge/turn \
@@ -154,7 +182,7 @@ their own lifecycle receipts. Read them:
 4. Physical Voice PE (not yet done): see the acceptance list in
    `docs/PROJECT_STATE.md` (2026-10-03 bridge readiness entry).
 
-## 9. Rollback
+## 10. Rollback
 
 - Stop using the bridge for a room: set the Voice PE's assistant back to the
   previous pipeline (Home Assistant), or `DELETE` its device mapping.
