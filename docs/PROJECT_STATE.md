@@ -5973,3 +5973,25 @@ Backend gate 234 passed / 3 failed (baseline iter10/iter11) / 13 skipped, includ
 
 ### Not in this merge
 Agent 2's Nabu re-request fix (`bbfce3b` on `pilot/shared-core-rerequest`, based on `test/okay-nabu-voice` `5c40b90`) — awaiting review/approval.
+
+---
+
+## 2026-10-03 — Decision recorded: Aria on Home Assistant Voice PE ("Hey Aria"); Naboo superseded; eMeet role
+
+### Agent / branch
+Claude Code (Opus 5.5), coordinator, documentation only. Branch `docs/aria-voice-pe-decision` (worktree `~/CAOSCARE-DOCS-ARIA`) from `origin/integration/2026-09-27` @ `d5556ed264a3c471c8c8623e22f583cd49bbe399`. Not merged; no deploy, no hardware flashed, main / PR #41 / PR #42 / public website untouched.
+
+### Decision (Michael, 2026-10-03, given in the coordinator session)
+- The resident-facing assistant remains **Aria**. Primary custom wake phrase **"Hey Aria"**; secondary candidate for testing **"Aria"**; pronunciation **AR-ee-uh**.
+- "Hey Naboo", "Naboo", "Hey Nabu", "Okay Nabu" are not the CAOSCare product identity or an intended production wake phrase.
+- `firmware/voice-pe-naboo` @ `9dff64b833c5df96d3a2e1d0f18e5bb9e140c284` (verified on GitHub): proof complete (custom Voice PE firmware trained, compiled, recovered, flashed), preserved, superseded, not approved for product use, must not be merged into the product path.
+- `spike/voice-bridge` @ `aa3d2f104dab39e3007ba382869425aca685f8f5` (verified on GitHub): bridge spike and date-test correction complete, not merged.
+- Authorized firmware direction: `firmware/voice-pe-aria` (wake candidates "Hey Aria", "Aria"), built and evaluated by the firmware architect — not on GitHub yet when recorded.
+- Architecture: Voice PE is the primary Aria room voice endpoint; custom firmware keeps the microphones, speaker, XMOS audio processing, LEDs, controls, HA connectivity and factory recovery; Home Assistant is the device/automation layer; CAOSCare is the conversation, resident-context, memory, governance, workflow, authorization, provenance and receipt authority; the resident experiences one assistant, Aria; Home Assistant and Nabu Casa are infrastructure, not assistant identities.
+- eMeet Luna Plus: not assumed to work as an external Voice PE microphone (Voice PE has 3.5 mm audio out, no standard mic input); stays on the EliteDesk by USB; initial roles SIP/telephone/front-desk calls, conference audio, optional CAOSCare audio endpoint; test the Voice PE's own far-field microphones first; if coverage is insufficient, investigate an EliteDesk audio bridge with the eMeet without a second assistant or separate conversation history; to the resident the Voice PE and eMeet are one Aria room system.
+
+### Files updated
+`docs/ROOM_AUDIO_ARCHITECTURE.md` (update block; the eMeet-as-single-Aria-endpoint item marked superseded in place), `docs/ARIA_WAKE_WORD_ARCHITECTURE.md` (decision block), `docs/CAOSCARE_PRODUCT_BASELINE.md` §2 (endpoint + wake phrase lines, so the Baseline does not contradict the decision), `docs/CURRENT_PRIORITY.md` (decision section; room stack lines), this file. No new canonical document, so `REPO_MAP.md` unchanged.
+
+### Related runtime/branches now superseded as product direction
+`test/okay-nabu-voice` (`5c40b90`) and the local Nabu test stack (:8096, :3012, listener :8766) are test history; the assistant-name setting stays generic (default "Aria").

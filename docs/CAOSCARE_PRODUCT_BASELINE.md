@@ -48,6 +48,14 @@ Current resident-room architecture:
   (the bring-up host is `caoscare1-hp-elitedesk`, an HP EliteDesk 705 G4
   DM). It is meant to sit **hidden behind or near the resident's TV**. The
   resident does not operate or see a conventional computer.
+- **Aria room voice endpoint (Michael, 2026-10-03)** — the Home Assistant
+  **Voice Preview Edition** is the primary Aria room voice endpoint (custom
+  firmware wake phrase "Hey Aria"; "Aria" a test candidate). CAOSCare stays
+  the conversation/memory/workflow/receipt authority; Home Assistant is the
+  device layer; the resident hears one assistant, Aria. The eMeet stays on
+  the EliteDesk by USB for calls/conference and as an optional CAOSCare audio
+  endpoint. This supersedes the eMeet-as-single-Aria-endpoint line below.
+  Canonical detail: `docs/ROOM_AUDIO_ARCHITECTURE.md`.
 - **Resident audio** — an **eMeet-class conferencing speakerphone** sits
   near the resident's normal sitting/bed position and is the **single room
   audio capture + playback endpoint** for Aria's voice pipeline (one mic,
@@ -94,7 +102,9 @@ transmit, full room-automation surface, multi-room fleet.
   continuous room audio sent to a cloud service to find the wake phrase.
   **Aria is the assistant's name; the single word "Aria" is not accepted as
   the production wake phrase** (2026-09-24: "air-ee-uh" is identical to the
-  common word "area"; overnight false wakes). The wake phrase is being chosen
+  common word "area"; overnight false wakes). 2026-10-03 (Michael): production wake phrase **"Hey Aria"** on
+  the Voice PE; "Aria" alone is only a test candidate; "Nabu"/"Naboo" phrases
+  are not product identity. Earlier: the wake phrase was being chosen
   by evidence (`docs/WAKE_PHRASE_LAB.md`); none selected yet. Status:
   `docs/ARIA_WAKE_WORD_ARCHITECTURE.md`.
 
