@@ -6404,3 +6404,19 @@ The prompt (698e436) said "on the way" only when staff are actually travelling, 
 
 ### Resource / boundaries
 Wake lab PID 3013581 alive and advancing (not altered); available RAM ~8.4 GB, swap full (pre-existing) without sustained swapping. Home Assistant, Linode, main, PR #41/#42 untouched.
+
+---
+
+## 2026-10-04 — Voice PE Pilot 1 decision memo
+
+### Agent / branch
+Claude Code (Opus 5.5), coordinator, `spike/voice-bridge` from `be011a87c435eb679c025e3767ccedd5f538ffce`. Michael's instruction 2026-10-04 ("next lightweight coordination task"). Documentation only; no runtime code, firmware, tests, models or processes changed. Not merged, not deployed.
+
+### Pre-check
+No physical Voice PE acceptance-checklist assignment was outstanding (it was offered on 2026-10-04 but not assigned; Michael chose the ranking audit and prompt fixes, both delivered). Tree was clean and equal to origin.
+
+### What changed
+`docs/VOICE_PE_PILOT_DECISION_MEMO.md`: six decisions (pilot voice path, room-speaking authority, reminders/timers, audio and transcripts, speaker recognition, firmware licensing), each with verified current state, recommendation, strongest alternative, benefits, trade-offs, Pilot 1 effect, reversibility, evidence, and "MICHAEL DECISION REQUIRED". Facts verified against the repository: slice-1 announcement policy; `routes/timers.py` (unauthenticated create, any-signed-in-user delete, no receipts, no update/complete); no retention limit on conversations/receipts (only capacity samples TTL); transcripts in `db.conversations` and voice-turn receipt evidence; speaker recognition not implemented; wake-lab models research-only.
+
+### Not done
+No decision taken. Wake lab not touched; Home Assistant, Linode, main, integration and PR #41/#42 untouched.
