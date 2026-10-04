@@ -31,6 +31,9 @@ def workflow_objects(results: list) -> list:
         if isinstance(r, dict) and r.get("task_id"):
             out.append({"type": "task", "id": r["task_id"], "receipt_id": r.get("receipt_id"),
                         "tool": name, "duplicate": bool(r.get("duplicate"))})
+        elif isinstance(r, dict) and r.get("alert_id"):
+            out.append({"type": "alert", "id": r["alert_id"], "receipt_id": r.get("receipt_id"),
+                        "tool": name, "duplicate": False})
     return out
 
 

@@ -53,6 +53,8 @@ Home Assistant (Samba or SSH add-on, or the File editor).
 | `CAOSCARE_VOICE_BRIDGE_PROVIDER` | no | Default `openai` (the only provider wired). |
 | `CAOSCARE_VOICE_BRIDGE_MODEL` | no | Default `gpt-4o-mini`. Accepted: `gpt-4o-mini`, `gpt-4.1`, `gpt-4.1-mini`, `gpt-4o` (`backend/routes/voice_bridge_config.py`). Any other value disables the bridge (turns answer 503 with the reason); it never silently falls back to another model. The selection is logged at backend startup (`voice bridge model: openai/<model>` or `voice bridge disabled: …`). Live-tested on the bridge: gpt-4o-mini and gpt-4.1; in the 2026-10-03 spike gpt-4.1 behaved better (the arrival guard and deterministic goodbyes now cover gpt-4o-mini's two observed faults). Choose before the pilot. |
 | `CAOSCARE_VOICE_BRIDGE_BUDGET_S` | no | Time budget per turn, default 18 s (Home Assistant's agent gives up at 25 s). |
+| `CAOSCARE_VOICE_BRIDGE_MAX_ACTIVE` | no | Model slots per backend worker, default 16. Keep workers × slots at or below the provider's concurrency quota. |
+| `CAOSCARE_VOICE_BRIDGE_RESERVED` | no | Slots per worker only staff-help/nursing turns may use, default 4. Emergencies never wait for a slot. See `docs/reports/2026-10-04-voice-bridge-load-test.md` (80 rooms: 2 workers × 40 slots, 8 reserved). |
 | `CAOSCARE_BIND_HOST` / `CAOSCARE_BIND_PORT` | no | Used by `backend/serve.py` (below). Default `127.0.0.1` / `8000`. |
 
 **Network:** the Home Assistant VM reaches the host at `192.168.122.1`
@@ -151,6 +153,13 @@ Realtime session (speech-to-speech in the browser) and the legacy
   not answer within 25 s, the Home Assistant agent speaks its own fallback.
 - Replies are plain text (no markup), usable for TTS or for display when TTS
   is unavailable.
+
+- Emergency words ("I fell", "I can't breathe", "chest pain", "help me",
+  "emergency" …) are escalated at once through the help-event path, with no
+  model call and no wait for capacity (`voice_emergency_escalated` receipt).
+  When the bridge is at capacity, other turns are answered immediately and
+  honestly ("I'm helping a lot of people right now…") with a
+  `voice_turn_deferred` receipt; staff-help turns have reserved capacity.
 
 ## 8. Receipts
 

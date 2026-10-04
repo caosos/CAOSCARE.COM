@@ -270,6 +270,33 @@ def main():
                                                  "action_type": "voice_turn_duplicate_ignored"}))
         print("OK no orphan state changes")
 
+        # -- emergency words: escalated at once, no model call, receipt ------
+        calls_before = state["n"]
+        em = turn("I fell and I can't get up.", conv="em1").json()
+        assert em["priority_class"] == "emergency" and state["n"] == calls_before, em
+        alert = run(db.alerts.find_one({"resident_id": "res_101", "status": {"$in": ["active", "acknowledged"]}}))
+        assert alert and alert["severity"] == "emergency"
+        erc = run(receipts(related_object_id="vb_em1"))[-1]
+        assert erc["action_type"] == "voice_emergency_escalated"
+        assert erc["evidence"]["workflow_objects"][0]["id"] == alert["alert_id"]
+        assert "on the way" not in em["response_text"].lower()
+
+        # -- no capacity: lower priority answered at once, honestly, with a receipt
+        from routes.voice_bridge_admission import Admission
+        real = vb.ADMISSION
+        vb.ADMISSION = Admission(max_active=1, reserved=0)
+        run(vb.ADMISSION.acquire(5, 0.1))  # the only slot is busy
+        tasks_before = run(db.staff_tasks.count_documents({}))
+        dfr = turn("Tell me a story about the sea.", conv="busy1").json()
+        assert dfr["deferred"] is True and dfr["continue_conversation"] is True
+        drc = run(receipts(related_object_id="vb_busy1"))[-1]
+        assert drc["action_type"] == "voice_turn_deferred" and drc["status"] == "cancelled"
+        em2 = turn("Help me!", conv="busy2").json()  # emergency never waits for capacity
+        assert em2["priority_class"] == "emergency" and not em2.get("deferred")
+        assert run(db.staff_tasks.count_documents({})) == tasks_before
+        vb.ADMISSION = real
+        print("OK emergency fast path, honest deferral at capacity")
+
         # -- admin device mapping: move a device between rooms, with receipts ---
         m = c.put("/api/voice-bridge/devices/ha_dev_new", json={"kiosk_id": "kio_102"})
         assert m.status_code == 200 and m.json()["room"] == "102"

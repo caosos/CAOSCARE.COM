@@ -18,8 +18,10 @@ room claim, exactly as for the room screen and Aria voice.
 """
 import asyncio
 import hmac
+from concurrent.futures import ThreadPoolExecutor
 import json
 import os
+import random
 import re
 import time
 import uuid
@@ -34,6 +36,7 @@ from routes.arrival_claim_guard import candidate_tasks, guard_reply
 from routes.realtime_diagnostics import DiagnosticEvent, log_event
 from routes.realtime_memory_ingest import RealtimeTurnIngest, realtime_turn_ingest
 from routes.resident_conversation_context import build_resident_instructions
+from routes.voice_bridge_admission import ADMISSION, CLASS_NAMES, MAX_WAIT_S, classify
 from routes.voice_bridge_config import resolve_model
 from routes.voice_bridge_receipts import refusal_receipt, turn_receipt
 from routes.voice_bridge_session import (claim_turn, ending_phrase, open_or_get_session,
@@ -41,6 +44,11 @@ from routes.voice_bridge_session import (claim_turn, ending_phrase, open_or_get_
 from routes.voice_bridge_tools import ENDING_TOOLS, bridge_tool_schemas, run_bridge_tool
 
 router = APIRouter(prefix="/voice-bridge", tags=["voice-bridge"])
+# The provider client is blocking (requests). It gets its own threads, one per
+# admission slot, instead of asyncio's shared default pool (min(32, cpus+4)
+# threads - 12 on the EliteDesk), which load tests showed capping concurrent
+# model calls below the configured slots.
+PROVIDER_POOL = ThreadPoolExecutor(max_workers=ADMISSION.max_active, thread_name_prefix="voice-bridge-llm")
 
 MAX_TOOL_ROUNDS = 4
 HISTORY_TURNS = 20
@@ -54,6 +62,12 @@ CHANNEL_NOTE = (
 )
 FAILURE_REPLY = ("I'm having trouble right now. If you need help, please press your "
                  "call button or ask again in a moment.")
+DEFERRED_REPLY = ("I'm helping a lot of people right now and couldn't do that yet. Please ask me "
+                  "again in a minute. If you need help now, say 'I need help' or press your call button.")
+EMERGENCY_REPLY = {"paged": "A nurse has been paged. I'm right here with you.",
+                   "sent": "I've sent this to the care team as an emergency. I'm right here with you."}
+EMERGENCY_FAILED = ("I couldn't reach the care team just now. Please press your call button. "
+                    "I'm right here with you.")
 FAILURE_AFTER_REQUEST = ("I've passed your request to the staff. I'm having trouble talking "
                          "right now, so I'll stop here.")
 
@@ -109,7 +123,28 @@ async def _ingest(ident: dict, session_id: str, role: str, text: str):
         room=ident["room"], kiosk_id=ident["kiosk_id"]))
 
 
-async def _converse(ident: dict, session_id: str, text: str) -> dict:
+def _rate_limited(e: Exception) -> bool:
+    t = str(getattr(e, "detail", "") or e).lower()
+    return "429" in t or "rate limit" in t or "rate_limit" in t
+
+
+async def _provider_call(payload: dict, deadline: float) -> dict:
+    """One model call; a rate-limit refusal is retried once after a short,
+    jittered pause when the turn budget still allows a full call."""
+    loop = asyncio.get_running_loop()
+    for attempt in (1, 2):
+        remaining = deadline - time.monotonic()
+        try:
+            return await loop.run_in_executor(
+                PROVIDER_POOL, lambda: _post_openai("/chat/completions", payload, timeout=max(1, int(remaining))))
+        except Exception as e:
+            pause = 0.5 + random.random()
+            if attempt == 2 or not _rate_limited(e) or deadline - time.monotonic() - pause < 4:
+                raise
+            await asyncio.sleep(pause)
+
+
+async def _converse(ident: dict, session_id: str, text: str, budget: float = TURN_BUDGET_SECONDS) -> dict:
     """The model/tool loop. Tools run to completion once started (never
     cancelled mid-write); the time budget only stops further model calls."""
     ctx_payload = {"resident_id": ident["resident_id"], "room": ident["room"], "session_id": session_id}
@@ -117,19 +152,18 @@ async def _converse(ident: dict, session_id: str, text: str) -> dict:
     messages = [{"role": "system", "content": built["instructions"] + CHANNEL_NOTE}]
     messages += await _history(session_id)
     tools = await bridge_tool_schemas()
-    tool_ctx = {**ctx_payload, "last_user_text": text,
+    tool_ctx = {**ctx_payload, "last_user_text": text, "kiosk_id": ident["kiosk_id"],
                 "origin_authority": f"registered_endpoint:{ident['kiosk_id']}"}
     used, results, ended, reply, error = [], [], False, "", None
-    deadline = time.monotonic() + TURN_BUDGET_SECONDS
+    deadline = time.monotonic() + budget
     for _ in range(MAX_TOOL_ROUNDS + 1):
         remaining = deadline - time.monotonic()
         if remaining < 1:
             error = "turn time budget exhausted"
             break
         try:
-            resp = await asyncio.to_thread(_post_openai, "/chat/completions", {
-                "model": MODEL_CONFIG["model"], "messages": messages, "tools": tools, "tool_choice": "auto"},
-                timeout=max(1, int(remaining)))
+            payload = {"model": MODEL_CONFIG["model"], "messages": messages, "tools": tools, "tool_choice": "auto"}
+            resp = await _provider_call(payload, deadline)
             msg = resp["choices"][0]["message"]
         except Exception as e:  # provider down, timeout, malformed reply
             error = f"language model unavailable: {type(e).__name__}: {str(e)[:200]}"
@@ -221,8 +255,17 @@ async def voice_bridge_turn(data: VoiceBridgeTurn, authorization: Optional[str] 
         await _log(sid, ident["room"], "session_ended", {"reason": "resident_phrase", "channel": "voice_bridge"})
         return out
 
-    await _ingest(ident, sid, "user", text)
-    turn = await _converse(ident, sid, text)
+    priority = classify(text)
+    if priority == 1:
+        return await _emergency_turn(ident, session, conv_id, text)
+    admitted, waited = await ADMISSION.acquire(priority, MAX_WAIT_S[priority])
+    if not admitted:
+        return await _deferred_turn(ident, session, conv_id, text, priority, waited)
+    try:
+        await _ingest(ident, sid, "user", text)
+        turn = await _converse(ident, sid, text, budget=min(TURN_BUDGET_SECONDS, 22.0 - waited))
+    finally:
+        ADMISSION.release()
     reply = turn["reply"]
     await _ingest(ident, sid, "assistant", reply)
     keep_open = not turn["ended"]
@@ -234,9 +277,66 @@ async def voice_bridge_turn(data: VoiceBridgeTurn, authorization: Optional[str] 
         before=session_state(session), after=after, tools=turn["tools"], results=turn["results"],
         reply=reply, next_state="awaiting_resident" if keep_open else "idle_wake",
         status="failed" if turn["error"] else "completed", failure_reason=turn["error"],
-        extra={"ended_by": "end_call_tool"} if turn["ended"] else None)
-    out = _out(reply, conv_id, sid, keep_open, turn["tools"], r["receipt_id"])
+        extra={"priority_class": CLASS_NAMES[priority], "queue_wait_ms": round(waited * 1000),
+               **({"ended_by": "end_call_tool"} if turn["ended"] else {})})
+    out = _out(reply, conv_id, sid, keep_open, turn["tools"], r["receipt_id"],
+               priority_class=CLASS_NAMES[priority], queue_wait_ms=round(waited * 1000),
+               degraded=bool(turn["error"]))
     await record_turn(sid, r["receipt_id"], out, close=turn["ended"])
     if turn["ended"]:
         await _log(sid, ident["room"], "session_ended", {"reason": "resident_end_call", "channel": "voice_bridge"})
+    return out
+
+
+async def _emergency_turn(ident: dict, session: dict, conv_id: str, text: str) -> dict:
+    """Emergency words: escalate through the canonical help path at once -
+    no language model, no capacity wait. The reply says only what the
+    dispatch confirmed."""
+    from routes.ai_escalation import AiEscalateInput, ai_escalate
+    sid = session["session_id"]
+    await _ingest(ident, sid, "user", text)
+    error, result = None, {}
+    try:
+        result = await ai_escalate(AiEscalateInput(
+            reason=f"Resident said: {text[:200]}", severity="emergency", resident_id=ident["resident_id"],
+            kiosk_id=ident["kiosk_id"], room=ident["room"], session_id=sid))
+    except Exception as e:  # dispatch failure must still be answered and recorded
+        error = f"{type(e).__name__}: {str(e)[:200]}"
+    state = result.get("wording_state")
+    reply = EMERGENCY_REPLY.get(state, EMERGENCY_FAILED)
+    await _ingest(ident, sid, "assistant", reply)
+    tool = {"name": "call_for_help", "ok": state in EMERGENCY_REPLY}
+    res = [("call_for_help", {"alert_id": result.get("alert_id"),
+                              "receipt_id": (result.get("dispatch") or {}).get("receipt_id")})] if result else []
+    r = await turn_receipt(
+        session=session, ident=ident, ha_conversation_id=conv_id, utterance=text,
+        action_type="voice_emergency_escalated", before=session_state(session),
+        after=session_state(session, turns=session.get("turn_count", 0) + 1), tools=[tool], results=res,
+        reply=reply, next_state="staff_responding" if tool["ok"] else "resident_told_to_press_call_button",
+        status="completed" if tool["ok"] else "failed",
+        failure_reason=error or (None if tool["ok"] else f"dispatch wording_state={state}"),
+        extra={"priority_class": "emergency", "queue_wait_ms": 0, "dispatch_state": state})
+    out = _out(reply, conv_id, sid, True, [tool], r["receipt_id"], priority_class="emergency")
+    await record_turn(sid, r["receipt_id"], out)
+    return out
+
+
+async def _deferred_turn(ident: dict, session: dict, conv_id: str, text: str, priority: int,
+                         waited: float) -> dict:
+    """No model slot within this class's wait limit: answer now, say so,
+    record it. Nothing was executed."""
+    sid = session["session_id"]
+    await _ingest(ident, sid, "user", text)
+    await _ingest(ident, sid, "assistant", DEFERRED_REPLY)
+    r = await turn_receipt(
+        session=session, ident=ident, ha_conversation_id=conv_id, utterance=text,
+        action_type="voice_turn_deferred", before=session_state(session),
+        after=session_state(session, turns=session.get("turn_count", 0) + 1), tools=[], results=[],
+        reply=DEFERRED_REPLY, next_state="awaiting_resident", status="cancelled",
+        failure_reason=f"capacity: no model slot within {MAX_WAIT_S[priority]:.0f}s",
+        extra={"priority_class": CLASS_NAMES[priority], "queue_wait_ms": round(waited * 1000),
+               "admission": ADMISSION.snapshot()})
+    out = _out(DEFERRED_REPLY, conv_id, sid, True, [], r["receipt_id"], deferred=True,
+               priority_class=CLASS_NAMES[priority], queue_wait_ms=round(waited * 1000))
+    await record_turn(sid, r["receipt_id"], out)
     return out
