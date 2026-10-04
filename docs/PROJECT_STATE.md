@@ -6103,3 +6103,39 @@ Claude Code (Opus 5.5), Pilot 1 integration coordinator, `~/CAOSCARE-INTEGRATION
 - `pilot/shared-core-rerequest` `bbfce3b` is based on `test/okay-nabu-voice` (carries the okay-nabu keyword file); needs review and a clean branch.
 - SIM-1 scoped to the demo room and StaffTask lifecycle: ENGINEERING_CONTRACT gate items 7 (legacy/stale-data quarantine) and 8 (canonical escalation) are still unimplemented. Lifting that limit is Michael's decision.
 - `research/wake-phrase-funnel` is based on `main` with the firmware history; not an integration candidate as-is.
+
+---
+
+## 2026-10-04 — Agent Four (Shared Core): SC-10, SC-11, SC-12 device truth
+
+### Agent / branch
+Claude Code (Opus 5.5), Round 5 Agent Four. Branch `pilot/shared-core-device-truth` (worktree `~/CAOSCARE-LANE-DEVICE-TRUTH`) from integration `55b733e9cd1f497f38ea2229a32162eb6b958740` (the board's expected base was `0f331b7`; integration moved one coordinator docs commit, `55b733e`, before branching). Draft PR into `integration/2026-09-27`; not merged, not deployed; main, Linode, Room 214 and the running :3000/:8092 untouched.
+
+### What changed
+- **SC-10** `frontend/src/lib/realtimeLightControl.js`: every requested attribute (brightness / color / color_temp) is checked against the light's capabilities before any command. One unsupported attribute → `ok:false`, `unsupported:[…]`, "doesn't support X, so I left it as it was", nothing sent (no implicit power-on). The refusal is evidence as the session's `tool_result` event (`realtimeMessageHandler`). Supported attributes on an off light still imply power-on.
+- **SC-11** `backend/device_adapters.py`: `simulation_fields(device)` — `{}` for real transports; for `mock`, `simulated: true` + `simulation_scope` (`demo_room` when the room is `routes.demo_kiosk.DEMO_ROOM`, else `real_room`). `execute_mock` returns `verified` only for the demo room; Home Assistant returns `verified: true` explicitly. `backend/routes/devices.py::_dispatch_command`: `verified` is now what the adapter says (was: any `state` in the result ⇒ `True`); every command record carries the simulation fields. `public_room_command` receipts set `simulated` and `result_label` (`simulated` / `verified` / `unverified` / `failed`), and the event's `verification_status` uses the same label. HTTP request contract unchanged; responses gain `simulated` / `simulation_scope` for mock devices.
+- **SC-12** `frontend/src/lib/realtimeDeviceTools.js`: `toggle_tv` (power + volume), `set_tv_input` and `adjust_room_temperature` pass `ctx.session_id`; `postRoomCommand` already sends `null` when there is none.
+
+### Verified
+- Backend gate (`scripts/run_backend_tests.sh`, port 8074, fresh DB `caoscare_gate_device_truth`, no OpenAI key): **227 passed, 0 failed, 31 skipped**. New `test_device_truth.py` 8/8 — real-room mock: command/receipt/event `simulated`, not verified; demo room: verified + simulated; unsupported colour on an off light: 502, state unchanged, failed+simulated receipt; TV power/volume and thermostat record `session_id` on command and receipt; no session → `None`. Uses a throwaway `T-<uuid>` room; asserts every other room's devices and command counts unchanged. `test_demo_kiosk.py` 3/3 unchanged.
+- Frontend 33 suites / 252 tests; `CI=true` build compiles. Against the original files, the new frontend assertions fail 6/20 (3 SC-10, 3 SC-12).
+- Not verified: live voice session; no real-hardware run.
+
+### Notes
+- `realtimeClimateControl.js` (`handleAdjustRoomTemperature`) is not imported anywhere; the live thermostat path is the inline `adjust_room_temperature` in `realtimeDeviceTools.js`, which still ignores the schema's `state` / `mode` / `delta_f` and posts `kind:"thermostat"` without `device_id`. Not rewired here (behaviour change beyond SC-12).
+- Existing `device_commands` / receipts for Room 214's mock TV/thermostat keep `verified: true` (history not rewritten).
+
+### Line counts
+`device_adapters.py` 315 (was 294), `routes/devices.py` 300 (was 291), `simulated_device.py` 78, `realtimeLightControl.js` 124 (was 123), `realtimeDeviceTools.js` 322 (was 319, pre-existing over 300).
+
+HANDOFF CAPSULE
+- Objective:        SC-10/11/12 device truth.
+- Branch:           pilot/shared-core-device-truth (from 55b733e).
+- Lane / ownership: Agent Four. Touched routes/devices.py internals (shared; HTTP contract unchanged, no other active agent owns it). Did not touch demo_kiosk.py, real-room adapters' behaviour, simulator, wake word, comms.
+- Last proven state: gates above, 2026-10-04.
+- Commits:          see this entry's commit.
+- Runtime state:    nothing restarted or deployed; gate backend stopped.
+- Unresolved proven defects: dead realtimeClimateControl.js / incomplete live thermostat tool (above).
+- Product invariants: verified only on adapter-declared read-back; simulated always explicit; refused commands change nothing.
+- Do NOT change:    the /devices/public/room/{room}/command request contract.
+- Next safe action: coordinator reviews the draft PR; decide whether to wire or retire realtimeClimateControl.js.

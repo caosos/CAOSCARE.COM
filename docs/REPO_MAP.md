@@ -802,3 +802,8 @@ listener verifier experiment: `docs/experiments/`.
 - `backend/routes/task_lifecycle.py`: `check()` (exists → authority → open (SC-14 closed guard) → recorded origin) and `record_refusal()`; `transition()` uses `check()`.
 - `backend/routes/transport_task_history.py`: `ride_actor()`, `ride_authority()`, `booking_entry()` — ride steps (`transportation.py`, `transportation_assign.py`, `transportation_runs.py`) are lifecycle transitions with chained receipts.
 - Test: `backend/tests/test_transport_ride_receipts.py`.
+
+## 2026-10-04 — Device truth SC-10/11/12 (branch `pilot/shared-core-device-truth`)
+
+- `backend/device_adapters.py::simulation_fields()`: the one statement of a device's simulation truth (`simulated`, `simulation_scope` demo_room / real_room); used by `execute_mock` and every `device_commands` record. `verified` comes only from the adapter.
+- Test: `backend/tests/test_device_truth.py`; frontend `frontend/src/lib/__tests__/deviceSessionTrace.test.js`.

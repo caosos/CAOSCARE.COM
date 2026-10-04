@@ -21,6 +21,9 @@ import { nearestColorName, colorTempLabel, handleToggleLight } from "./realtimeL
 // human terms (state="on", target_f=72) so this layer translates between
 // them. Mismatch = HTTP 422 = silent failure where CAOS promises an action
 // that never ran.
+// Every room command carries the conversation's session_id (light, TV,
+// thermostat alike - SC-12) so device_commands and receipts link back to
+// the conversation; a turn with no session sends null, never a made-up id.
 async function postRoomCommand(room, action, value, kind, sessionId, deviceId) {
   const r = await fetch(`${API}/devices/public/room/${encodeURIComponent(room)}/command`, {
     method: "POST",
@@ -131,7 +134,7 @@ export async function executeDeviceTool({ name, args, ctx }) {
   if (name === "adjust_room_temperature") {
     if (!room) return { ok: false, message: "no room context — I can't reach the climate control here." };
     const targetF = Math.max(60, Math.min(85, Number(args.target_f) || 72));
-    const r = await postRoomCommand(room, "temperature", targetF, "thermostat");
+    const r = await postRoomCommand(room, "temperature", targetF, "thermostat", ctx?.session_id);
     if (!r.ok) return { ok: false, message: `couldn't reach the AC (${r.status}). I'll let the nurse know.` };
     return { ok: true, message: `set the room to ${targetF} degrees.` };
   }
@@ -147,7 +150,7 @@ export async function executeDeviceTool({ name, args, ctx }) {
     const tv = await _findOneDeviceOfKind(room, "tv");
     if (tv.ambiguous) return { ok: false, message: "this room has more than one TV — which one do you mean?" };
     if (!tv.device) return { ok: false, message: "there's no TV set up in this room yet." };
-    const r = await postRoomCommand(room, "power", args.state, "tv", undefined, tv.device.device_id);
+    const r = await postRoomCommand(room, "power", args.state, "tv", ctx?.session_id, tv.device.device_id);
     if (!r.ok) return { ok: false, message: `couldn't reach the TV (${r.status}).` };
     // Structural grounding (2026-08-30) - see VOLUME_PHRASES above. A
     // volume change is a real, audible, potentially uncomfortable action -
@@ -156,7 +159,7 @@ export async function executeDeviceTool({ name, args, ctx }) {
     const heard = (ctx?.last_user_text || "").trim();
     const volumeGrounded = args.state === "on" && typeof args.volume === "number" && VOLUME_PHRASES.test(heard);
     if (volumeGrounded) {
-      await postRoomCommand(room, "volume", Math.max(0, Math.min(100, args.volume)), "tv", undefined, tv.device.device_id);
+      await postRoomCommand(room, "volume", Math.max(0, Math.min(100, args.volume)), "tv", ctx?.session_id, tv.device.device_id);
     }
     return { ok: true, message: `turned the TV ${args.state}${volumeGrounded ? ` at volume ${args.volume}` : ""}.` };
   }
@@ -174,7 +177,7 @@ export async function executeDeviceTool({ name, args, ctx }) {
     if (!(tv.inputs || []).some((i) => i.toLowerCase() === String(args.input).toLowerCase())) {
       return { ok: false, message: `this TV doesn't have a "${args.input}" input — it has: ${(tv.inputs || []).join(", ") || "none listed"}.` };
     }
-    const r = await postRoomCommand(room, "input", args.input, "tv", undefined, tv.device_id);
+    const r = await postRoomCommand(room, "input", args.input, "tv", ctx?.session_id, tv.device_id);
     if (!r.ok) return { ok: false, message: `couldn't switch the input (${r.status}).` };
     return { ok: true, message: `switched the TV to ${args.input}.` };
   }
