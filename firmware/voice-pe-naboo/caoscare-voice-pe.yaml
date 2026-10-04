@@ -1,0 +1,42 @@
+# CAOSCare spike: Home Assistant Voice PE firmware with a custom "Naboo"
+# microWakeWord model. EVALUATION ONLY - not for residents; see README.md.
+#
+# Built on the official ESPHome source, pinned to release 26.9.0 (ESPHome
+# 2026.9.0). Nothing upstream is copied or edited: the official factory
+# config is pulled as a remote package and two additions are made around it.
+
+packages:
+  # 1) Listed BEFORE the official package so these models come first in the
+  #    merged micro_wake_word list (ESPHome appends package lists in order).
+  #    The first model is the one enabled on first boot; the stock models
+  #    that follow remain selectable in Home Assistant as the fallback.
+  caoscare_wake_words:
+    micro_wake_word:
+      models:
+        # "Hey Naboo" first = enabled on first boot (best offline results).
+        - model: models/hey_naboo.json
+          id: hey_naboo
+        # Bare "Naboo": experimental, weaker offline results; select in HA to try.
+        - model: models/naboo.json
+          id: naboo
+
+  # 2) The official Voice PE factory firmware, unchanged.
+  voice_pe:
+    url: https://github.com/esphome/home-assistant-voice-pe
+    ref: 26.9.0
+    refresh: never
+    files:
+      - home-assistant-voice.factory.yaml
+
+esphome:
+  project:
+    name: CAOSCare.Voice PE Naboo spike
+    version: 26.9.0-naboo.1
+
+# The official factory firmware offers over-the-air updates to the stock
+# firmware. Accepting one would silently remove the custom wake word, so the
+# update entity and its Beta-firmware switch are removed from this build.
+update: !remove
+dashboard_import: !remove
+switch:
+  - id: !remove beta_firmware

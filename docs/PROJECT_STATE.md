@@ -5074,3 +5074,45 @@ HANDOFF CAPSULE
 - Product invariants: wake listener OFF; no community data invented; production deploys only an approved GitHub SHA.
 - Do NOT change:    production without approval; RF bridge target (:8000) without a pendant-path decision.
 - Next safe action: Michael approves the exact main SHA for production.
+
+---
+
+## 2026-10-03 — Voice PE custom "Naboo" wake-word firmware spike (offline only)
+
+### Agent / tool
+Claude Code (Opus 5.5), isolated worktree `~/CAOSCARE-FIRMWARE`, branch `firmware/voice-pe-naboo` (off `origin/main` `880d10f`). Firmware/model lane only. No device flashed; no Home Assistant, backend, website, or production change.
+
+### What changed
+- `firmware/voice-pe-naboo/`:
+  - `caoscare-voice-pe.yaml`: the official Voice PE factory config, pinned to tag `26.9.0` (`2644f4c`) as a remote package, unedited. It adds the trained models "Hey Naboo" (default on first boot) and "Naboo" (experimental). The stock Okay Nabu, Hey Jarvis and Hey Mycroft models are still selectable. The stock-OTA `update` entity, the Beta switch and `dashboard_import` are removed.
+  - `models/`: two `.tflite` files plus v2 manifests.
+  - `training/`: data, sample, train, eval and manifest scripts, plus a local microWakeWord memory patch.
+  - `results/`: raw evaluation outputs.
+  - `README.md`: method, results, flash/recovery steps, limits.
+- `docs/REPO_MAP.md`: one line added.
+
+### What was verified
+- **Training:** microWakeWord official recipe on CPU, synthetic Piper TTS, sound-alike hard negatives added.
+- **Stock and custom compiles:** both exit 0 under ESPHome 2026.9.0. Custom build uses flash 40.8% and RAM 51.4%.
+- **Models:** 62,304 B each; TFLite-Micro arena 25,584 B.
+- **Hey Naboo @ 0.96:**
+  - DiPCo test (5.3 h): 0 FA/h, 9.7% false rejects.
+  - Held-out voices: 263/270 accepted; bare "Naboo" 0/270; sound-alikes 1/696.
+- **Naboo @ 0.67:** held-out voices 155/270 accepted; sound-alikes 27/696 — weak.
+
+### Blocked / not done
+- Nothing has been tested on a device and no real voices have been used.
+- Training data licence is non-commercial (per the microWakeWord notebook).
+- The stock sensitivity select does not adjust the custom models.
+
+HANDOFF CAPSULE
+- Objective:        Decide whether "Hey Naboo" is a viable on-device Voice PE wake word.
+- Branch:           firmware/voice-pe-naboo
+- Lane / ownership: Voice PE firmware + wake-word models only. Not backend, HA runtime, wake listener, Room 214/401, website, production.
+- Last proven state: offline eval + clean compile (above).
+- Commits:          see this entry's commit.
+- Runtime state:    nothing running; no device touched.
+- Unresolved proven defects: bare "Naboo" model weak on sound-alikes.
+- Product invariants: local on-device wake detection; stock Okay Nabu kept as fallback; no device flashed without approval.
+- Do NOT change:    any running device/HA; main/integration.
+- Next safe action: Michael approves a USB flash of one test Voice PE, then runs the device tests in the README.
