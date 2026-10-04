@@ -35,6 +35,7 @@ SECTIONS = [
     ("## What you actually run on", ("realtime_self_knowledge._system_self_knowledge", "always", "on-demand")),
     ("## What's on the kiosk screen", ("realtime_self_knowledge._system_self_knowledge", "always", "on-demand")),
     ("## What you can DO right now", ("realtime_self_knowledge._system_self_knowledge", "always", "duplication")),
+    ("## What you can do", ("companion_tool_guidance.render_capabilities", "always", "always")),
     ("## NEVER over-promise", ("realtime_self_knowledge._system_self_knowledge", "always", "duplication")),
     ("## Right now", ("realtime_companion_prompt time anchor (_facility_now)", "always", "always")),
     ("## Who you are", ("realtime_companion_prompt persona", "always", "always")),
@@ -47,7 +48,7 @@ SECTIONS = [
     ("## Memory is reference", ("realtime_companion_prompt governance", "always", "always")),
     ("## Attribution discipline", ("realtime_companion_prompt governance", "always", "always")),
     ("## When you make a mistake", ("realtime_companion_prompt governance", "always", "always")),
-    ("## Tools you can actually use", ("realtime_companion_prompt tool guidance", "always", "by-intent")),
+    ("## Tools you can actually use", ("companion_tool_guidance.render_tool_guidance", "always", "by-intent")),
     ("## How to be more than Alexa", ("realtime_companion_prompt persona", "always", "by-intent")),
     ("## Sensitive adult-life topics", ("realtime_companion_prompt persona", "always", "by-intent")),
     ("## Safety", ("realtime_companion_prompt safety", "always", "always")),
@@ -156,10 +157,17 @@ async def measure(resident_id, room, session_id) -> dict:
     from routes.resident_conversation_context import build_resident_instructions
     from routes.voice_bridge import CHANNEL_NOTE, HISTORY_TURNS, _history
     from routes.voice_bridge_tools import bridge_tool_schemas
-    built = await build_resident_instructions({"resident_id": resident_id, "room": room, "session_id": session_id})
+    from routes.realtime_tools import _build_tools
+    tools = await bridge_tool_schemas()
+    names = tuple(t["function"]["name"] for t in tools)
+    payload = {"resident_id": resident_id, "room": room, "session_id": session_id}
+    try:  # mirrors voice_bridge._converse
+        built = await build_resident_instructions(payload, tools=names, channel="voice")
+    except TypeError:  # builds before Phase A took no tool list
+        built = await build_resident_instructions(payload)
     system = built["instructions"] + CHANNEL_NOTE
     history = await _history(session_id)
-    tools = await bridge_tool_schemas()
+    contract = _contract(system, names, {t["name"] for t in await _build_tools()})
     sections = []
     for head, body in split_sections(system):
         src, inc, cls = classify(head)
@@ -175,6 +183,7 @@ async def measure(resident_id, room, session_id) -> dict:
         "system_chars": len(system), "history": {"messages": len(history), "chars": hist_chars,
                                                  "cap_messages": HISTORY_TURNS},
         "tools": {"count": len(tools), "chars": tools_chars, "per_tool": tool_rows},
+        "contract": contract,
         "sections": sections,
         "total_chars": total, "total_est_tokens": est_tokens(total),
         "layers_present": {k: built.get(k) is not None and built.get(k) != [] for k in
@@ -182,6 +191,18 @@ async def measure(resident_id, room, session_id) -> dict:
         "omitted": {"menu/activities data": "not in the prompt; fetched by get_menu / get_todays_schedule tools",
                     "receipts and provenance": "not in the prompt; written server-side by the bridge",
                     "department list": "not in the prompt; inside the request_staff_help tool schema"},
+    }
+
+
+def _contract(system: str, provided, universe) -> dict:
+    from routes import companion_prompt_contract as c
+    return {
+        "tools_exposed": list(provided),
+        "unsupported_tool_claims": c.unsupported_tool_claims(system, provided, universe),
+        "unsupported_capability_claims": c.unsupported_capability_claims(system, provided, "voice"),
+        "rule_counts": c.rule_counts(system),
+        "duplicated_instructions": c.duplicated_instructions(system),
+        "required_sections_missing": c.missing_sections(system),
     }
 
 
@@ -195,6 +216,12 @@ def render(r: dict) -> str:
                    f"{s['chars']} | {s['est_tokens']} |")
     out += ["", "| tool | chars | ~tokens |", "|---|---|---|"]
     out += [f"| {t['tool']} | {t['chars']} | {t['est_tokens']} |" for t in r["tools"]["per_tool"]]
+    k = r["contract"]
+    out += ["", f"tools exposed: {', '.join(k['tools_exposed'])}",
+            f"unsupported tool claims: {k['unsupported_tool_claims'] or 'none'}",
+            f"unsupported capability claims: {k['unsupported_capability_claims'] or 'none'}",
+            f"duplicated instructions: {len(k['duplicated_instructions'])} {k['duplicated_instructions']}",
+            f"required sections missing: {k['required_sections_missing'] or 'none'}"]
     return "\n".join(out)
 
 

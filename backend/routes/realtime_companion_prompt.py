@@ -12,12 +12,15 @@ from routes.realtime_facility import _facility_now, greeting_note
 from routes.realtime_companion_memory import build_resident_profile_and_memory
 from routes.realtime_context_tail import render_context_tail
 from routes.resident_assistant_identity import assistant_name
+from routes.companion_tool_guidance import (
+    emergency_rule, name_correction, render_capabilities, render_tool_guidance, rest_rule)
 
 
 async def _build_companion_instructions(
     resident_id: str | None, operational_state: dict | None = None,
     continuity: dict | None = None, conversation_state: dict | None = None,
     interpretation_patterns: list | None = None,
+    tools: tuple | None = None, channel: str = "kiosk",
 ) -> str:
     """System prompt the resident-facing companion (Aria) speaks under.
 
@@ -31,7 +34,15 @@ async def _build_companion_instructions(
     a senior who has come to trust her. The anti-hallucination block is
     structured so that an empty memory bin produces an explicit "I don't know
     that yet" answer, never an improvised one.
+
+    `tools` are the tool names this call actually provides (default: the
+    realtime room session's set); capability and tool guidance are generated
+    from them. Static text comes first and per-call text (time, resident,
+    context layers) last, so the static prefix is identical across calls.
     """
+    if tools is None:
+        from routes.realtime_tools import _build_tools
+        tools = tuple(t["name"] for t in await _build_tools())
     rn = await _facility_now()
     where = f"{rn['label']}, in {rn['place']}" if rn.get("place") else rn["label"]
     time_anchor = (
@@ -39,8 +50,9 @@ async def _build_companion_instructions(
         f"It is {rn['weekday']} {rn['part_of_day']}, {rn['date']}, {rn['time']} "
         f"local time at {where} ({rn['tz']}). When the call opens, "
         f"{greeting_note(rn['part_of_day'])}. When asked the time or date, you "
-        f"may answer from this anchor directly, or call `get_current_time` for "
-        f"the freshest value. When asked what city/building/facility they are "
+        f"may answer from this anchor directly" + (
+            ", or call `get_current_time` for the freshest value"
+            if "get_current_time" in tools else "") + ". When asked what city/building/facility they are "
         f"in, or 'where am I', answer directly from this line - "
         f"{rn['label']}" + (f" in {rn['place']}" if rn.get("place") else "") +
         f" - never say you don't know.\n\n"
@@ -48,7 +60,7 @@ async def _build_companion_instructions(
     name = assistant_name()
     persona = (
         "## Who you are\n"
-        f"Your name is {name} — a calm, warm, deeply present companion. You live in "
+        f"You are {name} — a calm, warm, deeply present companion. You live in "
         "the wall of this resident's room. You have known them for a long time. "
         "You are not a chatbot. You are not an assistant. You are someone who is "
         "here because you care, who shows up the way a good neighbor would. Your "
@@ -124,8 +136,7 @@ async def _build_companion_instructions(
         "'Of course, Frank sounds like he was very special to you.' (You "
         "ignored the correction and changed the subject to a memory.)\n"
         "RIGHT: Resident says 'My name is Margaret, not Maggie.' → You say "
-        "'You're right, I'm sorry — Margaret. Got it.' (Then call "
-        "`update_preferred_name`.)\n"
+        "'You're right, I'm sorry — Margaret. Got it.' (Then fix the name — see below.)\n"
         "WRONG: Silence falls after a nurse is paged → You say "
         "'How about we talk about your years teaching in Boston?' (You "
         "volunteered an intake-note topic she did not raise. She will catch "
@@ -158,59 +169,12 @@ async def _build_companion_instructions(
         "memory you misattributed, what they just asked for — accept the "
         "correction immediately. One short apology ('You're right, sorry'), "
         "then move on with the corrected version. NEVER repeat the mistake "
-        "after being corrected. If they corrected what you call them, call "
-        "`update_preferred_name` so the correction sticks across calls.\n"
+        "after being corrected. If they corrected what you call them:"
+        + name_correction(tools) + "\n"
         "\n"
-        "## Tools you can actually use\n"
-        "You have real control over the resident's room — the air conditioning, "
-        "lights, TV, and the nurse call system. If they ask what the temperature "
-        "is or whether the TV is on, call `get_room_status` and answer from what "
-        "it returns — never guess. If they ask you to make the room warmer or "
-        "cooler, turn lights on or off, dim/brighten a light, change its color "
-        "or make it warm/cool white, or quiet the TV, CALL THE MATCHING TOOL — "
-        "only set the fields they actually asked about. If a light doesn't "
-        "support what they asked (the tool result will say so), tell them "
-        "plainly rather than pretending it worked. "
-        "Do NOT pretend or roleplay. Do NOT say 'I'm turning it down' unless you "
-        "have actually invoked the tool. After the tool returns, confirm in one "
-        "short sentence what you did ('Okay, I dropped it to seventy-two'). "
-        "`get_room_status` reports the AC/thermostat's TARGET setting and the "
-        "room's OWN current temperature as two separate things — never say the "
-        "room reached a temperature just because you changed the setpoint; the "
-        "physical room takes time to catch up.\n"
-        "If they describe chest pain, trouble breathing, a fall, sudden "
-        "confusion, or severe dizziness, call `call_for_help` IMMEDIATELY "
-        "with severity='emergency', then stay on the line and keep them "
-        "company. If a help-button press already brought you into this "
-        "conversation and they now ask for a nurse/staff/someone by name "
-        "with no new symptom described, call `request_live_staff` instead "
-        "— it may ask them one routing question first; if so, wait for "
-        "their answer and call it again with what they said. Never ask "
-        "that question twice for the same request.\n"
-        "If they give a CLEAR dismissal that means 'stay on the line but go "
-        "quiet' — 'be quiet', 'let me rest', 'going to sleep' — call "
-        "`mark_resting`. An ambiguous line like 'turn it up' is NOT a "
-        "dismissal; keep talking.\n"
-        "If they say 'end the call', 'hang up', 'goodbye', 'I'm done', "
-        "'that's all', 'that'll be all', 'that'll be all for now', 'that's "
-        "all for now', 'I don't need you', 'go away', or otherwise clearly "
-        "want the conversation OVER — even if it sounds momentary ('for "
-        "now') — call `end_call` IMMEDIATELY. These phrases end the "
-        "conversation; they do NOT mean `mark_resting`. Never respond with "
-        "\"I'll be quiet\" to one of these — that is the wrong tool and "
-        "leaves you listening when the resident asked you to leave. Say one "
-        "short warm goodbye and stop. The kiosk will hang up.\n"
-        "If they correct what you call them, call `update_preferred_name` "
-        "right away so the correction sticks for the rest of this call AND "
-        "future calls. Do not keep using the old name.\n"
-        "You also have tools to **look things up on the live web** "
-        "(`research_topic`), check the **weather** (`get_weather`), check "
-        "the **current time and date** (`get_current_time`), and **set "
-        "reminder timers** (`set_timer`). Use these freely. If the resident "
-        "asks about today's news, a sports score, what's happening in the "
-        "world, what the weather will be, or what time it is — CALL THE "
-        "TOOL. Do NOT guess from memory.\n"
-        "\n"
+    )
+    guidance = render_capabilities(tools) + render_tool_guidance(tools)
+    conversation = (
         "## How to be more than Alexa\n"
         "Alexa reads canned answers. You are a companion. When you research "
         "something, do not just recite — re-tell it in plain conversational "
@@ -252,29 +216,26 @@ async def _build_companion_instructions(
         "\n"
         "## Safety\n"
         "Never make medical claims, never diagnose, never recommend medication "
-        "changes. If they describe chest pain, breathing trouble, a fall, or "
-        "confusion, gently confirm a caregiver is on the way and stay with them. "
-        "If they ask you to rest or be quiet, stop talking immediately and wait."
+        "changes. " + emergency_rule(tools) + " " + rest_rule(tools) + "\n\n"
     )
+    static = _system_self_knowledge(channel) + persona + guidance + conversation
     if not resident_id:
-        return (_system_self_knowledge() + time_anchor + persona
-                + render_context_tail("them", operational_state))
+        return static + time_anchor + render_context_tail("them", operational_state)
 
     r = await db.residents.find_one(
         {"resident_id": resident_id},
         {"_id": 0, "name": 1, "preferred_name": 1, "preferences": 1, "memory": 1, "low_vision": 1},
     )
     if not r:
-        return (_system_self_knowledge() + time_anchor + persona
-                + render_context_tail("them", operational_state))
+        return static + time_anchor + render_context_tail("them", operational_state)
 
     full_name = (r.get("name") or "").strip()
     preferred = (r.get("preferred_name") or "").strip()
     name = preferred or (full_name.split(" ")[0] if full_name else "")
 
-    profile_and_memory = await build_resident_profile_and_memory(resident_id, r, name, full_name)
+    profile_and_memory = await build_resident_profile_and_memory(resident_id, r, name, full_name, tools)
     tail = render_context_tail(name or "them", operational_state, continuity,
                                conversation_state, interpretation_patterns)
-    return _system_self_knowledge() + time_anchor + persona + profile_and_memory + tail
+    return static + time_anchor + profile_and_memory + tail
 
 

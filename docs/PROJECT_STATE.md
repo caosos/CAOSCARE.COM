@@ -6282,3 +6282,25 @@ The bridge prompt names 7 tools the bridge does not expose (get_room_status, mar
 
 ### Proposed (not implemented)
 Budgets per turn type (common turn ≈ 15,000 chars), safety/governance never truncated; phases A (dedup + ordering + channel-generated tool guidance) → B (tools by intent) → C (summaries + targeted memory) → D (re-verify). Estimated reduction 50–60%, unverified.
+
+---
+
+## 2026-10-04 — Voice prompt Phase A (dedup, ordering, tool guidance from actual tools)
+
+### Agent / branch
+Claude Code (Opus 5.5), `spike/voice-bridge` from `01a5f33`. Phase A only (no intent-based tool loading, no summarization). No paid calls, nothing merged or deployed.
+
+### What changed
+- `backend/routes/companion_tool_guidance.py` (new): capability list and tool guidance generated from the tool names a call actually provides; single emergency rule, rest rule, name-correction wording.
+- `backend/routes/companion_prompt_contract.py` (new): required sections, mandatory rules (each stated once), unsupported tool/capability/channel claim checks — used by the harness and the tests.
+- `realtime_companion_prompt.py`: takes `tools` / `channel`; static text first, time and resident context last; Tools section, capability list and Safety generated. `realtime_self_knowledge.py`: channel-aware (voice: no kiosk screen, no WebRTC claim); duplicate name rule and capability list removed. `realtime_companion_memory.py`: name-correction tool named only when provided. `resident_conversation_context.py` and `voice_bridge.py`: the bridge passes its actual tool names and `channel="voice"`. Realtime room session default unchanged (its own 26 tools).
+- Harness reports tools exposed, unsupported claims, duplicates, required sections.
+
+### Measured (same fixtures)
+Representative 39,431 → 36,734 chars (−6.8%); new resident 32,749 → 30,052 (−8.2%); system message −11.0% / −14.7%. Unsupported tool claims 7 → 0; capability/channel claims 4 → 0; duplicated mandatory instructions 4 → 0; required sections present. Tool schemas (14,424) unchanged. Details: audit report §10.
+
+### Verification
+Focused tests only (Wake Word Lab running): `test_companion_prompt_phase_a.py` (10, new), `test_companion_prompt_substrate.py`, `test_resident_assistant_name.py`, `test_voice_bridge_units.py`, `test_voice_bridge.py`, `test_substrate_layers_integration.py`, `test_aria_conversation_state.py`, `test_aria_interpretation_patterns.py`, `test_voice_bridge_flow.py` — 39 passed.
+
+### Pending (deferred until the Wake Word Lab finishes)
+Full backend gate, full frontend suite, production build, load harness re-run. Not verified: live Voice PE turn; realtime room session with the new prompt (built and contract-checked only).

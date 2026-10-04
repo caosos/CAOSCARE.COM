@@ -8,7 +8,8 @@ moments with <name>' blocks appended after the fixed persona text.
 from deps import db
 
 
-async def build_resident_profile_and_memory(resident_id: str, r: dict, name: str, full_name: str) -> str:
+async def build_resident_profile_and_memory(resident_id: str, r: dict, name: str, full_name: str,
+                                           tools=("update_preferred_name",)) -> str:
     profile_lines = []
     if name:
         # Hard name discipline. The pilot revealed Margaret↔Maggie drift; this
@@ -23,10 +24,13 @@ async def build_resident_profile_and_memory(resident_id: str, r: dict, name: str
             f"guessed, or told to you this call. If they ask 'how do you know my "
             f"name' or challenge it, say plainly it's on your profile ('it's on "
             f"your file with us' / 'that's what I have on record for you') — "
-            f"never invent a story about a specific moment they told you, and "
-            f"never call `update_preferred_name` just because you were asked how "
-            f"you know it. Only call that tool when they actually state a "
-            f"DIFFERENT name they want to be called."
+            f"never invent a story about a specific moment they told you" + (
+                ", and never call `update_preferred_name` just because you were "
+                "asked how you know it. Only call that tool when they actually "
+                "state a DIFFERENT name they want to be called."
+                if "update_preferred_name" in tools else
+                ", and never treat being asked how you know it as a request to "
+                "change it.")
         )
     if r.get("low_vision"):
         profile_lines.append(

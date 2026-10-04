@@ -844,3 +844,4 @@ listener verifier experiment: `docs/experiments/`.
 ## 2026-10-04 — Voice prompt measurement (branch `spike/voice-bridge`)
 
 - `backend/scripts/measure_voice_prompt.py`: per-section / per-tool size of the voice bridge's model request (no model call). Audit: `docs/reports/2026-10-04-voice-prompt-context-audit.md`.
+- `backend/routes/companion_tool_guidance.py` (capability + tool guidance generated from the tools a call provides), `backend/routes/companion_prompt_contract.py` (required sections / single-statement rules / unsupported-claim checks); test `backend/tests/test_companion_prompt_phase_a.py`.

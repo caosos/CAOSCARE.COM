@@ -236,3 +236,84 @@ Do not start Phase B or C before Phase A is merged and measured.
 - Tool-name cross-check: the prompt's tool references against `BRIDGE_TOOLS`.
 - No paid calls (`OPENAI_API_KEY` blanked in synthetic mode). No tests were
   run, as instructed (no suites during the Wake Word Lab).
+
+## 10. Phase A result (implemented 2026-10-04)
+
+Same harness, same fixtures. "Before" is `01a5f33`, measured by the new
+harness. Tokens are estimates (characters ÷ 4).
+
+### Before and after
+
+| Profile | Before | After | Reduction | System message before → after |
+|---|---|---|---|---|
+| Representative | 39,431 (~9,858 tok) | 36,734 (~9,184 tok) | −2,697 (−6.8%) | 24,435 → 21,738 (−11.0%) |
+| New resident | 32,749 (~8,187 tok) | 30,052 (~7,513 tok) | −2,697 (−8.2%) | 18,325 → 15,628 (−14.7%) |
+
+### Section changes (representative profile, characters)
+
+| Section | Before | After | Change |
+|---|---|---|---|
+| Kiosk screen | 775 | 0 | dropped on the voice channel |
+| What you can DO right now + NEVER over-promise | 1,483 | 0 | replaced by the generated list below |
+| What you can do (the whole list) | 0 | 1,643 | new, generated from the tools actually provided |
+| Tools you can actually use | 2,998 | 1,327 | generated; describes only tools the bridge provides |
+| What you actually run on | 1,228 | 941 | no WebRTC/Realtime claim on the voice channel |
+| About yourself | 1,034 | 924 | name rule kept once, in persona |
+| Safety | 292 | 417 | now the single home of the emergency rule and the rest rule |
+| About this person | 1,782 | 1,683 | name-correction tool mentioned only if provided |
+
+All other sections are unchanged.
+
+### Contract checks (`routes/companion_prompt_contract.py`)
+
+| Check | Before | After |
+|---|---|---|
+| Tools exposed | 11 | 11 (unchanged) |
+| Unsupported tool claims | 7 | 0 |
+| Unsupported capability/channel claims | 4 | 0 |
+| Duplicated mandatory instructions | 4 | 0 |
+| Required sections missing | 0 | 0 |
+
+- **Unsupported tool claims before:** get_room_status, get_weather,
+  mark_resting, request_live_staff, research_topic, set_timer,
+  update_preferred_name.
+- **Unsupported capability/channel claims before:** live web lookup,
+  kiosk-screen section, "The kiosk will hang up", "OpenAI Realtime API
+  (WebRTC)".
+- **Duplicated mandatory instructions before:** emergency, name not
+  negotiable, rest/quiet, name-correction tool.
+- **Required sections:** the "Before" harness reported "## What you can do"
+  as missing, but the same content existed under the old heading "What you
+  can DO right now". This is a naming difference, not a real gap.
+
+### Why the reduction is smaller than estimated
+
+The estimate in §7 was 3,000–5,000 characters; the result is 2,697.
+
+- **Tool schemas are unchanged** (14,424 characters). They are shared with
+  the realtime room session. Trimming their descriptions would change both
+  channels and the tool contract, so it is left to Phase B.
+- **The time anchor now follows all static text.** Characters before the
+  first per-call block are identical across calls: 13,723 on the voice
+  channel. Any cost or latency benefit from provider prefix caching is not
+  measured.
+
+### Kiosk (realtime room) channel
+
+It is built from the same code, with its own 26-tool set:
+
+- it still names all its tools and keeps the kiosk-screen section;
+- its capability list now also covers its menu, schedule, request and
+  transport tools;
+- it no longer claims live web lookup unless a search key is configured.
+
+### Not changed
+
+- The following text remains as before; changing it was outside Phase A:
+  - "What to do" still says "reassure them help is already on the way".
+  - "Safety" still says "gently confirm a caregiver is on the way".
+  - Both are arrival claims, which the bridge's `arrival_claim_guard`
+    rewrites in replies.
+- "Who you are" still says "You live in the wall of this resident's room".
+
+These are flagged for a later decision.

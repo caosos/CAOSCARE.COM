@@ -6,7 +6,10 @@ both speak from the same context.
 from routes.realtime_companion_prompt import _build_companion_instructions
 
 
-async def build_resident_instructions(payload: dict) -> dict:
+async def build_resident_instructions(payload: dict, tools: tuple | None = None,
+                                     channel: str = "kiosk") -> dict:
+    """`tools`: the tool names this conversation actually provides (None =
+    the realtime room session's set). `channel`: "kiosk" or "voice"."""
     # Conversation substrate Layer E: authoritative "what is actually
     # happening for this resident right now" (open event + open staff
     # requests, real lifecycle + age, current vs background). Aria speaks
@@ -54,6 +57,7 @@ async def build_resident_instructions(payload: dict) -> dict:
     instructions = await _build_companion_instructions(
         payload.get("resident_id"), operational_state=op_state, continuity=continuity,
         conversation_state=conv_state, interpretation_patterns=interpretation_patterns,
+        tools=tools, channel=channel,
     )
     return {"instructions": instructions, "op_state": op_state, "continuity": continuity,
             "conv_state": conv_state, "interpretation_patterns": interpretation_patterns}

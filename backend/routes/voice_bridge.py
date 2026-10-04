@@ -149,10 +149,12 @@ async def _converse(ident: dict, session_id: str, text: str, budget: float = TUR
     """The model/tool loop. Tools run to completion once started (never
     cancelled mid-write); the time budget only stops further model calls."""
     ctx_payload = {"resident_id": ident["resident_id"], "room": ident["room"], "session_id": session_id}
-    built = await build_resident_instructions(ctx_payload)
+    tools = await bridge_tool_schemas()
+    # The prompt describes exactly the tools this call provides.
+    built = await build_resident_instructions(
+        ctx_payload, tools=tuple(t["function"]["name"] for t in tools), channel="voice")
     messages = [{"role": "system", "content": built["instructions"] + CHANNEL_NOTE}]
     messages += await _history(session_id)
-    tools = await bridge_tool_schemas()
     tool_ctx = {**ctx_payload, "last_user_text": text, "kiosk_id": ident["kiosk_id"],
                 "origin_authority": f"registered_endpoint:{ident['kiosk_id']}"}
     used, results, ended, reply, error = [], [], False, "", None
