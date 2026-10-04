@@ -6292,3 +6292,9 @@ Pilot 1 coordinator, `integration/2026-09-27`. One merge at a time, gate between
 
 Checklist: simulator items updated with evidence (receipt chains, controls without SSH, drill-down, real/simulated distinct marked done; UI state partially — no speed control).
 Next: Agent Three SIM-3 (mixed real + simulated staffing); Agent Four SC-8 + SC-9; Agent Five RQ-001 (unblocked by SC-17) and the RQ-008 report PR.
+
+---
+
+## 2026-10-04 — Coordinator: PR #52 (RQ-001 demo continuity) reviewed — changes requested
+
+PR #52 `pilot/rq-001-demo-continuity` `90160fbe758ecd9a4036f31c70468abb08a16e96` (base `5567d3e`, before SC-16/17). Design accepted (canonical services only, demo room only, exactly-once windows, bounded backlog, chained receipts, real-data snapshots in tests). Not merged: (1) rebase onto `1118baa`; (2) generated requests must carry SC-17 provenance (source `simulator` + `simulation_run_id`), not `aria_voice` — SHARED CORE REQUEST if a run identity is needed; (3) the startup (`server.py`) and sign-in (`auth.py::_issue_jwt`) hooks must be behind a default-off setting so merging cannot change the shared `caoscare` DB's or production's demo room — enabling it is Michael's decision; (4) state whether the email guard stays now that SC-16 records simulated notifications only; (5) rerun focused tests and the gate.

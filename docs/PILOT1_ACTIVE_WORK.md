@@ -64,7 +64,7 @@ NEXT:
 | ✓ | SC-10/11/12 (Agent Four), PR #48 | `95b4df8` | **Merged at `085813e`** 2026-10-04 | Frontend device tests 4 suites / 38 passed; gate 248/3/13 (the same 3 stale tests; the 8 device-truth tests ran). `routes/devices.py` labels-only change accepted |
 | ✓ | SIM-2 Live Operations UI (Agent Three), PR #50 | `89e99a6` | **Merged at `5567d3e`** 2026-10-04 | Agent Three's browser run (scratch DB) in the PR body; frontend 34 suites / 263; gate 248/3/13 |
 | ✓ | SC-16/SC-17 (Agent Four), PR #51 | `d29f1ca` | **Merged at `895769a`** 2026-10-04 | `test_sim_provenance.py` 7 + SIM-1 6 passed; gate 255/3/13; frontend 34/263. Shared touches (models, notifications, resident_requests, task_lifecycle, transportation notification sites, one keyword in `backend/simulation/`) are the SC-16/17 sites |
-| 1 | RQ-001 Demo data continuity (Agent Five) | — | In progress | Now unblocked (SC-17 merged): rebase onto the current tip, draft PR |
+| 1 | RQ-001 Demo data continuity (Agent Five), PR #52 | `90160fb` (base `5567d3e`) | Draft; **changes requested** 2026-10-04 | Rebase onto `1118baa`; SC-17 provenance on generated requests; startup/sign-in hooks behind a default-off setting; rerun gate. Shared touches `server.py` +6, `auth.py` +4 (accepted behind the switch) |
 | 2 | SIM-3 mixed real + simulated staffing (Agent Three) | — | Assigned 2026-10-04 | Branch `pilot/sim-3-mixed-staffing` from the current tip |
 | 3 | SC-8 + SC-9 (Agent Four) | — | Assigned 2026-10-04 | Branch `pilot/shared-core-sc8-sc9` from the current tip |
 | 4 | RQ-008 audit report (Agent Five) | `39a5abf` on `docs/rq-008-storage-receipt` | No PR yet | Docs only; can merge whenever its PR opens (no overlap) |
