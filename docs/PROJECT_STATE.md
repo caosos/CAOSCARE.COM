@@ -6379,3 +6379,28 @@ No defect: weights sum to 1.0; score directions correct; all 18 conditions count
 
 ### Resource state
 Available RAM ~9.1 GB; swap full (pre-existing) without sustained swapping; wake lab PID 3013581 alive and advancing; `finalize_lab.sh` (PID 2950328) waiting. Home Assistant, Linode, main, PR #41/#42 untouched.
+
+---
+
+## 2026-10-04 — Voice-bridge reply filter: "on the way" only with movement evidence
+
+### Agent / branch
+Claude Code (Opus 5.5), coordinator, `spike/voice-bridge` from `698e436746af65ad4d269338282be7744e475e88`. Not merged, not deployed.
+
+### Michael's decision (2026-10-04)
+Do not add a new "on the way" state in this slice. Aria never says staff is on the way because a nursing or maintenance request was acknowledged, claimed, assigned or started. Created → "I've requested help."; acknowledged → acknowledged only; claimed/assigned → accepted/assigned only; started → work started only; on the way only when canonical workflow state and receipt evidence establish movement; a verified transportation departure may support en-route wording.
+
+### Prior ambiguity
+The prompt (698e436) said "on the way" only when staff are actually travelling, but `arrival_claim_guard.py` allowed any arrival wording once an authenticated `task_assigned`/`task_acknowledged`/`task_in_progress` receipt existed, and replaced a removed claim with one generic sentence.
+
+### Behaviour before → after (`backend/routes/arrival_claim_guard.py`)
+- Before: arrival wording allowed for open requests with an owner/acknowledgement/in-progress state plus an authenticated claim receipt; otherwise replaced with "Your request is recorded and waiting for a staff member to pick it up."
+- After: arrival wording allowed only when every referenced request is open, `in_progress`, on a transport run with `status: in_progress` and `departed_at`, and has an authenticated, non-failed `transportation_departed` receipt. Otherwise the sentences are removed and replaced with the true stage of the least advanced request: "I've requested help." / "Your request has been acknowledged." / "A staff member has accepted your request." / "Work on your request has started."; no open request → "I don't have anyone confirmed for that yet."
+
+### Tests and evidence
+- New `backend/tests/test_arrival_claim_guard.py` (16, throwaway DB): each stage's wording; six movement phrasings caught for started work; departed ride with authenticated receipt allowed; ride without receipt, with an unverified receipt, or only booked is refused; mixed requests use the least advanced stage; no open request; truthful replies untouched.
+- `tests/test_request_matching_origin.py` updated (an assignment no longer permits "on its way"); run against a temporary backend on port 8075 with a throwaway DB (server stopped by port afterwards).
+- Also passed: `test_voice_bridge_flow.py`, `test_voice_bridge.py`, `test_voice_bridge_units.py`, `test_companion_prompt_phase_a.py` — 27 passed together with the updated test. Throwaway databases dropped.
+
+### Resource / boundaries
+Wake lab PID 3013581 alive and advancing (not altered); available RAM ~8.4 GB, swap full (pre-existing) without sustained swapping. Home Assistant, Linode, main, PR #41/#42 untouched.

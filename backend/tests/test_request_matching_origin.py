@@ -6,8 +6,10 @@
 2. A resident request has an auditable origin: no room and no resident is
    refused; a room claim's origin receipt is labelled unverified; only a
    registered endpoint of the same room may carry registered_endpoint:<id>.
-3. A reply that says help is coming is allowed only after an authenticated
-   staff member's receipt proves the request was claimed/acknowledged.
+3. A reply that says help is coming is never allowed for a claimed or
+   assigned maintenance request (Michael 2026-10-04: no movement evidence);
+   it is replaced with the true stage. Full matrix:
+   tests/test_arrival_claim_guard.py.
 
     TEST_API_BASE=http://127.0.0.1:8070 pytest tests/test_request_matching_origin.py -q
 """
@@ -127,7 +129,7 @@ asyncio.run(main())
         assert res["authority"] == f"registered_endpoint:{kiosk}" and res["label"] == "unverified"
         assert res["codes"] == [403, 403]
 
-        # ---------- 3. arrival claims need a claim receipt ----------
+        # ---------- 3. arrival claims need movement evidence, not a claim ----------
         guard = """
 import asyncio, json
 from routes.arrival_claim_guard import guard_reply
@@ -138,14 +140,16 @@ async def main():
 asyncio.run(main())
 """
         before = _in_process(guard.format(tid=tv["task_id"]))
-        assert "on its way" not in before["a"][0] and "waiting for a staff member" in before["a"][0]
+        assert "on its way" not in before["a"][0] and "I've requested help." in before["a"][0]
         assert before["a"][1] == ["It's on its way!"]
         assert before["b"] == ["I've sent that to maintenance.", []]      # no claim made: untouched
         H = {"Authorization": "Bearer " + _ok(requests.post(f"{API}/auth/login", json={
             "email": f"{TAG}_tech@example.com", "password": pw}, timeout=5))["token"]}
         _ok(requests.post(f"{API}/tasks/{tv['task_id']}/assign", headers=H, json={"assigned_to": tech}, timeout=5))
         after = _in_process(guard.format(tid=tv["task_id"]))
-        assert after["a"] == ["I've sent that to maintenance. It's on its way!", []]   # claim receipt exists
+        # an assignment is not movement: still removed, replaced with the true stage
+        assert after["a"] == ["I've sent that to maintenance. A staff member has accepted your request.",
+                              ["It's on its way!"]]
     finally:
         await db.users.delete_one({"user_id": tech})
         await db.kiosks.delete_one({"kiosk_id": kiosk})
