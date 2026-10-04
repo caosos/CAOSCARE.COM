@@ -819,3 +819,9 @@ listener verifier experiment: `docs/experiments/`.
 
 - `backend/device_adapters.py::simulation_fields()`: the one statement of a device's simulation truth (`simulated`, `simulation_scope` demo_room / real_room); used by `execute_mock` and every `device_commands` record. `verified` comes only from the adapter.
 - Test: `backend/tests/test_device_truth.py`; frontend `frontend/src/lib/__tests__/deviceSessionTrace.test.js`.
+
+## 2026-10-04 — SIM-2 Live Operations UI (branch `pilot/sim-2-live-operations`, draft PR #50)
+
+- `frontend/src/pages/LiveOperations.jsx`: Admin → Community → Live operations. Reads `/simulator/state`, `/simulator/runs/{id}/history`, `/receipts`, `/tasks`; polls 2 s while running. No simulator state of its own.
+- `frontend/src/components/simulator/`: `SimControls` (state, simulated time, next action, Start/Pause/Step/Resume/Stop), `SimActors`, `SimActivity` (current action, active simulated requests, failures), `SimEventStream` (run + request receipt chains), `SimReceiptTrace` (receipt → parent / canonical receipt → request → actor), `ActorBadge`.
+- `frontend/src/lib/simulator.js`: pure helpers (allowed controls, real/simulated/system badge, chain ordering by parent link, stream merge). Test: `frontend/src/lib/__tests__/simulator.test.js`.
