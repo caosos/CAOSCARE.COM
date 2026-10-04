@@ -810,3 +810,7 @@ listener verifier experiment: `docs/experiments/`.
 - `backend/simulation/scheduler.py`: run state STOPPED/RUNNING/PAUSED (`db.sim_runs`), start/pause/resume/step/stop, run receipt chain (step receipts reference the canonical receipt), background tick loop.
 - `backend/routes/simulation.py`: admin-only `/api/simulator/{state,start,pause,resume,step,stop}`, `/api/simulator/runs/{id}/history`.
 - Test: `backend/tests/test_sim1_actor_scheduler.py`.
+
+## 2026-10-04 — Pilot Room 1 hardware BOM (RQ-004)
+
+- `docs/PILOT1_ROOM1_HARDWARE_INVENTORY.md`: evidence-based Pilot Room 1 BOM (owned / ordered / required / optional / do-not-buy) and the single request for missing physical facts. No purchase is authorized by it.

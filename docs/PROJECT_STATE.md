@@ -6136,3 +6136,15 @@ HANDOFF CAPSULE
 - Product invariants that matter here: same-world rule; no action without a receipt; real/simulated identity explicit; demo room only
 - Do NOT change:    shared lifecycle/receipt modules; demo kiosk behaviour; real rooms
 - Next safe action: coordinator review of PR #49 (incl. the `server.py` touch and SCR-SIM-1/2)
+
+---
+
+## 2026-10-04 — Agent Five: RQ-004 Pilot Room 1 hardware BOM refreshed onto the Voice PE architecture
+
+Claude Code (Opus 5.5), Agent Five, Round 5. Branch `pilot/rq-004-room1-bom` from `integration/2026-09-27` @ `55b733e`. Docs only. Not merged, not deployed. Replaces the PR-less draft on `agent/pilot-room1-hardware-inventory` (`d0adfbd`); its doc commit `401fb90` was cherry-picked to keep history, then rewritten.
+
+- `docs/PILOT1_ROOM1_HARDWARE_INVENTORY.md`: six-category BOM against the corrected architecture (central EliteDesk, Voice PE per room, no standard-room eMeet, separate handset telephony) and one consolidated request for Michael.
+- Read-only evidence (2026-10-04): HA VM crashed (2026-10-03 evening); RTL-SDR not enumerated after repeated USB reconnects; wired Ethernet has no cable; device registry holds only the two L535E bulbs and the Midea AC as real devices; Asterisk not installed.
+- Voice PE and XIAO Smart IR Mate orders are recorded only on unmerged `docs/2026-10-03-hardware-priority-reset`.
+- Not done: no restarts (HA VM, SDR, RF bridge are reported as blockers), no purchases, coordinator trackers not edited.
+- Next safe step: Michael answers the consolidated request in the BOM doc; ops restores the HA VM.
