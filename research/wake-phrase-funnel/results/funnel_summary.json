@@ -1,0 +1,185 @@
+{
+ "generated": 1030,
+ "benchmarks_excluded": 2,
+ "mechanical_survivors": 361,
+ "qualified_top250": 250,
+ "human_suitable_within_qualified": 116,
+ "review_list_top100": 100,
+ "weights": {
+  "common_speech_safety": 0.2,
+  "similar_name_safety": 0.1,
+  "tv_background_safety": 0.1,
+  "predicted_acoustic_distinctiveness": 0.15,
+  "senior_speakability": 0.15,
+  "memorability": 0.1,
+  "dignity_naturalness": 0.1,
+  "brand_suitability": 0.05,
+  "pronunciation_clarity": 0.05
+ },
+ "human_minimums": {
+  "dignity_naturalness": 7,
+  "memorability": 6,
+  "senior_speakability": 6,
+  "brand_suitability": 3
+ },
+ "human_max_ambiguity": 4,
+ "category_distribution": {
+  "generated": {
+   "word_name": 258,
+   "given_name": 318,
+   "role": 60,
+   "constructed": 380,
+   "brand": 6,
+   "aria": 8
+  },
+  "mechanical_survivors": {
+   "word_name": 106,
+   "role": 35,
+   "constructed": 149,
+   "given_name": 64,
+   "brand": 5,
+   "aria": 2
+  },
+  "qualified_top250": {
+   "role": 33,
+   "constructed": 127,
+   "word_name": 69,
+   "brand": 4,
+   "given_name": 15,
+   "aria": 2
+  },
+  "human_suitable": {
+   "word_name": 67,
+   "role": 27,
+   "given_name": 15,
+   "constructed": 7
+  },
+  "review_top100": {
+   "word_name": 59,
+   "role": 26,
+   "given_name": 11,
+   "constructed": 4
+  }
+ },
+ "form_distribution_review": {
+  "prefix-required": 100
+ },
+ "new_identity_in_review": 74,
+ "top_mechanical_rejection_reasons": [
+  [
+   "text collision gates failed",
+   664
+  ],
+  [
+   "too short",
+   60
+  ],
+  [
+   "common first name",
+   10
+  ],
+  [
+   "dignity",
+   9
+  ],
+  [
+   "same sound as 'hey geri'",
+   2
+  ],
+  [
+   "too long for the 1.5 s detection window",
+   1
+  ],
+  [
+   "same sound as 'hey earlene'",
+   1
+  ],
+  [
+   "same sound as 'okay savanna'",
+   1
+  ],
+  [
+   "same sound as 'hey loraine'",
+   1
+  ],
+  [
+   "same sound as 'hey tami'",
+   1
+  ],
+  [
+   "same sound as 'hey debbie'",
+   1
+  ],
+  [
+   "same sound as 'hey savanna'",
+   1
+  ],
+  [
+   "same sound as 'hey terrance'",
+   1
+  ],
+  [
+   "same sound as 'hey teena'",
+   1
+  ],
+  [
+   "same sound as 'hey christel'",
+   1
+  ],
+  [
+   "same sound as 'savanna'",
+   1
+  ]
+ ],
+ "aria_family": [
+  {
+   "written_phrase": "hey there aria",
+   "status": "REJECTED (mechanical)",
+   "rejection_reason": "text collision gates failed: G7_accent_casual_variant",
+   "total_preliminary_score": 7.525
+  },
+  {
+   "written_phrase": "okay aria",
+   "status": "REJECTED (human suitability)",
+   "rejection_reason": "brand suitability 1 < 3; pronunciation ambiguity 6 > 4",
+   "total_preliminary_score": 7.33
+  },
+  {
+   "written_phrase": "hello aria",
+   "status": "REJECTED (human suitability)",
+   "rejection_reason": "brand suitability 1 < 3; pronunciation ambiguity 6 > 4",
+   "total_preliminary_score": 7.29
+  },
+  {
+   "written_phrase": "hi aria",
+   "status": "REJECTED (mechanical)",
+   "rejection_reason": "text collision gates failed: G3_embedded_or_contains, G4_domain_names_commands, G7_accent_casual_variant",
+   "total_preliminary_score": 6.5
+  },
+  {
+   "written_phrase": "aria please",
+   "status": "REJECTED (mechanical)",
+   "rejection_reason": "text collision gates failed: G3_embedded_or_contains",
+   "total_preliminary_score": 6.225
+  },
+  {
+   "written_phrase": "aria listen",
+   "status": "REJECTED (mechanical)",
+   "rejection_reason": "text collision gates failed: G2_near_high_frequency, G3_embedded_or_contains",
+   "total_preliminary_score": 6.205
+  },
+  {
+   "written_phrase": "hey aria",
+   "status": "REJECTED (mechanical)",
+   "rejection_reason": "text collision gates failed: G3_embedded_or_contains, G4_domain_names_commands, G7_accent_casual_variant",
+   "total_preliminary_score": 5.91
+  },
+  {
+   "written_phrase": "aria",
+   "status": "REJECTED (mechanical)",
+   "rejection_reason": "text collision gates failed: G0_self_frequency, G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G7_accent_casual_variant",
+   "total_preliminary_score": 4.675
+  }
+ ],
+ "licensing": "No model trained. Any future model for these phrases inherits the lab's licensing gate."
+}

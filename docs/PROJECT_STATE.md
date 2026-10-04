@@ -5230,3 +5230,25 @@ No physical test. HA VM `caoscare-homeassistant` still down since 2026-10-03 20:
 
 ### Next safe step
 With Michael's approval: USB-flash one test Voice PE with the research factory image and run `lab/device_test/PHYSICAL_TEST_SHEET.md` (overnight false-wake soak first; then 1/2/4 m, bed, low volume, TV on, older speakers); restore stock firmware afterwards.
+
+---
+
+## 2026-10-04 — Wake-phrase funnel: 1,030 candidates → 100 for Michael's review (text stage only)
+
+### Agent / tool
+Claude Code (Opus 5.5), new worktree `~/CAOSCARE-WAKE-FUNNEL`, branch `research/wake-phrase-funnel` (from `772e216`, the completed 26-model lab; that branch not altered). No audio generated, no model trained, no firmware built or flashed.
+
+### Why
+Michael: generate at least 1,000 realistic, dignified wake names/phrases and narrow them by evidence before any more training. Hey Kookaburra is an acoustic benchmark only, not a product candidate. Aria phrases are kept as a category without special scoring. Any new personal/invented name is flagged as a second assistant identity.
+
+### What changed
+`research/wake-phrase-funnel/`: `generate.py` (deterministic, seed 20261004: Census first names, authored word-names, a syllable-grammar of invented names, role phrases, CAOSCare brand phrases, the Aria family, benchmarks; bare and prefixed forms as separate rows), `screen.py` (Wake Phrase Lab text screen, resumable), `calibrate.py` (fit to the 26-model lab's measured catch rates: R² 0.47, leave-one-out ±0.12), `score.py` + `name_likeness.py` (per-candidate fields), `funnel.py` (mechanical gates → top 250 → human-suitability rules → top 100), `render_review.py`, `lists.yaml`, `METHODOLOGY.md`. Results: `funnel_all.{json,csv}` (every candidate, every field), `rejected.csv` (with reasons), `top250_qualified.*`, `top100_review.*`, `TOP100_REVIEW.md`, `funnel_summary.json`, `calibration.json`, `screen_raw.jsonl`.
+
+### What was verified
+Generation byte-identical across two runs; all 1,032 rows screened; counts: 1,030 generated → 361 mechanical survivors → 250 qualified → 116 human-suitable → 100 review list. Most common rejection: text collision gates (664). Aria family: no phrase reached the review list (collision gates, or "okay/hello aria" on brand 1 and ambiguity 6). Benchmarks kept as reference rows only.
+
+### Limits
+Text-stage evidence and preliminary rules only; human-factor scores and trademark flags are rules for Michael's review, not judgements; no legal conclusion. 74 of the 100 would introduce a new assistant identity (flagged).
+
+### Next safe step
+Michael reviews `results/TOP100_REVIEW.md` and chooses which (if any) go to acoustic training. Nothing advances without his approval.

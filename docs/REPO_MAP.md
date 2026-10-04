@@ -713,3 +713,10 @@ listener verifier experiment: `docs/experiments/`.
 - `frontend/src/lib/roomExperience/`: `communities.js` (demo/verified data rules), `features.js` (capability catalog + honest build status), `model.js` (helpers + validator).
 - `frontend/src/components/roomExperience/`: `FloorPlanView`, `RoomFeatureConfigurator`, `ExperiencePanel` (reuses the landing video player).
 - Design + V1 notes: `docs/ROOM_BUILDER_DESIGN.md`.
+
+## 2026-10-04 — Wake-phrase funnel (`research/wake-phrase-funnel/`, branch research/wake-phrase-funnel)
+
+Text-stage research only (no audio, no training): deterministic generation of 1,030 candidate wake
+names/phrases, Wake Phrase Lab screening, calibration from the 26-model lab, a mechanical +
+human-suitability funnel, and Michael's top-100 review list. Method: `METHODOLOGY.md`; review list:
+`results/TOP100_REVIEW.md`.

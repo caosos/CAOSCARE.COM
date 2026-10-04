@@ -1,0 +1,59 @@
+# Authored inputs for the wake-phrase funnel (2026-10-04). Every list is deliberate, small and
+# reviewable. Nothing here is a judgement about a person who has one of these names.
+
+prefixes: [hey, okay, hello, hi]
+
+# Aria family: preserved as a category, scored by the same rules as everything else.
+aria_phrases:
+  - {text: aria, form: bare}
+  - {text: hey aria, form: prefix}
+  - {text: okay aria, form: prefix}
+  - {text: hello aria, form: prefix}
+  - {text: hi aria, form: prefix}
+  - {text: aria please, form: suffix}
+  - {text: aria listen, form: suffix}
+  - {text: hey there aria, form: prefix}
+
+# Real English words used as names (nature, light, virtue, place-like). Common words are expected to
+# fail the collision gates; they are generated so the funnel shows that, not filtered by hand.
+word_names: [aurora, juniper, willow, serena, celeste, meadow, harbor, haven, linden, marigold,
+  solace, lumina, sterling, everly, lavender, magnolia, rosemary, evergreen, wren, ember, sage,
+  briar, clover, laurel, primrose, sequoia, sonora, savanna, sierra, tahoe, cascade, horizon,
+  beacon, lantern, compass, anchor, summit, harmony, melody, felicity, verity, patience, prudence,
+  constance, liberty, trinity, verona, florence, geneva, savannah, cordelia, dahlia, camellia,
+  azalea, gardenia, acacia, jasmine, cypress, aspen, cedar, birch, rowan, hazel, ivory, opal,
+  coral, amber, crystal, pearl, ruby, sapphire, jade, indigo, ivy, iris, olive, autumn, dawn,
+  daylight, starling, oriole, robin, lark, sparrow, cardinal, heron, kestrel]
+
+# Functional / role phrases: no new identity (the system is addressed by its role).
+role_words: [companion, concierge, caretaker, helper, assistant, attendant, steward, butler,
+  operator, front desk, care team, care desk, nurse call, my helper, room helper, care companion,
+  house helper, home helper, good helper, room assistant]
+role_prefixes: [hey, okay, hello]
+
+# CAOSCare brand phrases (product name, not a person). "CAOS" pronounced kay-oss.
+brand_phrases:
+  - {text: hey caos, phonemes: "HH EY1 K EY1 AA2 S"}
+  - {text: okay caos, phonemes: "OW2 K EY1 K EY1 AA2 S"}
+  - {text: hello caos, phonemes: "HH AH0 L OW1 K EY1 AA2 S"}
+  - {text: caos care, phonemes: "K EY1 AA2 S K EH1 R"}
+  - {text: hey caos care, phonemes: "HH EY1 K EY1 AA2 S K EH1 R"}
+  - {text: okay caos care, phonemes: "OW2 K EY1 K EY1 AA2 S K EH1 R"}
+
+# Acoustic benchmark only - never a product candidate (Michael, 2026-10-04).
+benchmarks: [hey kookaburra, kookaburra]
+
+# Existing assistants / well-known products (agent knowledge, unverified; trademark review applies).
+known_marks: [alexa, siri, cortana, bixby, google, jarvis, mycroft, nabu, sonos, roku, echo,
+  nova, aura, ava, ivy, iris, cora, ada, lumen, clara, aria]
+
+# Dignity screen. Substrings that make a name read as a joke or an insult, or sound like one.
+embarrassing_substrings: [butt, poo, pee, fart, dick, tit, cock, cum, sex, ass, nazi, kill, dead,
+  die, dumb, fat, gay, poop, pimp, slut, whore, bitch, damn, hell, shit, crap, piss, puke, snot,
+  barf, turd, boob, nude, hump, wank, porn, rape, racist, sucks]
+# Words that read as childish, cartoonish or novelty (penalised, not banned by substring).
+childish_words: [bunny, kitty, puppy, candy, cookie, sugar, honey, muffin, cupcake, babe, baby,
+  dolly, bubbles, sunny, happy, bingo, tootsie, fluffy, sparkle, buttercup, kookaburra, wally]
+# Names with a strong public negative association (penalised for the assistant's identity).
+negative_association: [karen, adolph, adolf, lolita, jezebel, delilah, judas, cain, lucifer,
+  damien, chucky, fanny, dick, gay, candy, randy, bambi, barbie, ken]

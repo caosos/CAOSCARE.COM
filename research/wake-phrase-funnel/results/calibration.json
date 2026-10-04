@@ -1,0 +1,214 @@
+{
+ "source": "firmware/voice-pe-aria/lab results at commit 772e216 (26 trained models, synthetic evidence)",
+ "target": "matched catch rate, all simulated conditions",
+ "features": [
+  "syllables",
+  "phonemes_count",
+  "launcher",
+  "collision_margin"
+ ],
+ "coefficients": {
+  "intercept": 0.16633,
+  "syllables": 0.00319,
+  "phonemes_count": 0.01836,
+  "launcher": 0.15335,
+  "collision_margin": 0.23185
+ },
+ "r2_in_sample": 0.47,
+ "leave_one_out_mae": 0.12,
+ "reached_ambient_limit": {
+  "launcher": {
+   "reached": 7,
+   "of": 13
+  },
+  "bare": {
+   "reached": 4,
+   "of": 13
+  }
+ },
+ "reached_by_group": {
+  "bare_2syl": {
+   "reached": 0,
+   "of": 2
+  },
+  "bare_3syl": {
+   "reached": 3,
+   "of": 9
+  },
+  "bare_4syl": {
+   "reached": 1,
+   "of": 2
+  },
+  "launcher_3syl": {
+   "reached": 0,
+   "of": 2
+  },
+  "launcher_4syl": {
+   "reached": 3,
+   "of": 4
+  },
+  "launcher_5syl": {
+   "reached": 4,
+   "of": 7
+  }
+ },
+ "per_model": [
+  {
+   "id": "hey kookaburra",
+   "measured_tpr": 0.75,
+   "fitted_tpr": 0.573,
+   "reached_ambient_limit": true
+  },
+  {
+   "id": "hey callista (kuh-LISS-tuh)",
+   "measured_tpr": 0.58,
+   "fitted_tpr": 0.498,
+   "reached_ambient_limit": true
+  },
+  {
+   "id": "okay velora (veh-LOR-uh)",
+   "measured_tpr": 0.547,
+   "fitted_tpr": 0.554,
+   "reached_ambient_limit": true
+  },
+  {
+   "id": "hey aria",
+   "measured_tpr": 0.445,
+   "fitted_tpr": 0.443,
+   "reached_ambient_limit": true
+  },
+  {
+   "id": "okay aria",
+   "measured_tpr": 0.406,
+   "fitted_tpr": 0.497,
+   "reached_ambient_limit": true
+  },
+  {
+   "id": "hey sivia (SIV-ee-uh)",
+   "measured_tpr": 0.388,
+   "fitted_tpr": 0.486,
+   "reached_ambient_limit": true
+  },
+  {
+   "id": "aria",
+   "measured_tpr": 0.287,
+   "fitted_tpr": 0.249,
+   "reached_ambient_limit": true
+  },
+  {
+   "id": "zaria",
+   "measured_tpr": 0.316,
+   "fitted_tpr": 0.268,
+   "reached_ambient_limit": true
+  },
+  {
+   "id": "kookaburra",
+   "measured_tpr": 0.337,
+   "fitted_tpr": 0.359,
+   "reached_ambient_limit": true
+  },
+  {
+   "id": "hello pomona",
+   "measured_tpr": 0.247,
+   "fitted_tpr": 0.576,
+   "reached_ambient_limit": true
+  },
+  {
+   "id": "sivia (SIV-ee-uh)",
+   "measured_tpr": 0.192,
+   "fitted_tpr": 0.268,
+   "reached_ambient_limit": true
+  },
+  {
+   "id": "hello kotrubo",
+   "measured_tpr": 0.711,
+   "fitted_tpr": 0.596,
+   "reached_ambient_limit": false
+  },
+  {
+   "id": "hey kolabamo",
+   "measured_tpr": 0.71,
+   "fitted_tpr": 0.577,
+   "reached_ambient_limit": false
+  },
+  {
+   "id": "hey krysta (KRISS-tuh)",
+   "measured_tpr": 0.635,
+   "fitted_tpr": 0.485,
+   "reached_ambient_limit": false
+  },
+  {
+   "id": "sivia (SEE-vee-uh)",
+   "measured_tpr": 0.565,
+   "fitted_tpr": 0.268,
+   "reached_ambient_limit": false
+  },
+  {
+   "id": "hey sivia (SEE-vee-uh)",
+   "measured_tpr": 0.471,
+   "fitted_tpr": 0.489,
+   "reached_ambient_limit": false
+  },
+  {
+   "id": "okay lumaro",
+   "measured_tpr": 0.5,
+   "fitted_tpr": 0.549,
+   "reached_ambient_limit": false
+  },
+  {
+   "id": "hey kestra (KESS-truh)",
+   "measured_tpr": 0.44,
+   "fitted_tpr": 0.509,
+   "reached_ambient_limit": false
+  },
+  {
+   "id": "kotrubo",
+   "measured_tpr": 0.449,
+   "fitted_tpr": 0.336,
+   "reached_ambient_limit": false
+  },
+  {
+   "id": "velora (veh-LOR-uh)",
+   "measured_tpr": 0.319,
+   "fitted_tpr": 0.286,
+   "reached_ambient_limit": false
+  },
+  {
+   "id": "pomona",
+   "measured_tpr": 0.27,
+   "fitted_tpr": 0.286,
+   "reached_ambient_limit": false
+  },
+  {
+   "id": "kolabamo",
+   "measured_tpr": 0.436,
+   "fitted_tpr": 0.366,
+   "reached_ambient_limit": false
+  },
+  {
+   "id": "kestra (KESS-truh)",
+   "measured_tpr": 0.276,
+   "fitted_tpr": 0.283,
+   "reached_ambient_limit": false
+  },
+  {
+   "id": "krysta (KRISS-tuh)",
+   "measured_tpr": 0.208,
+   "fitted_tpr": 0.283,
+   "reached_ambient_limit": false
+  },
+  {
+   "id": "callista (kuh-LISS-tuh)",
+   "measured_tpr": 0.11,
+   "fitted_tpr": 0.304,
+   "reached_ambient_limit": false
+  },
+  {
+   "id": "callista (CALL-iss-tuh)",
+   "measured_tpr": 0.103,
+   "fitted_tpr": 0.311,
+   "reached_ambient_limit": false
+  }
+ ],
+ "caution": "n=26, one synthetic voice set; use only to order candidates for testing, never as a predicted real-room catch rate."
+}
