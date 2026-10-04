@@ -1,0 +1,2227 @@
+{
+ "generated_at": "2026-10-04T18:48:19.816859+00:00",
+ "python": "3.10.12",
+ "packages": {
+  "tensorflow": "2.21.0",
+  "microwakeword": "0.1.0",
+  "piper-tts": "1.3.0",
+  "piper-sample-generator": "3.2.0",
+  "torch": "2.14.1+cpu",
+  "numpy": "2.2.6",
+  "pyroomacoustics": "0.10.1",
+  "librosa": "0.11.0",
+  "tflite-micro": "0.dev20261002230103",
+  "audiomentations": "0.43.1",
+  "datasets": "3.6.0"
+ },
+ "commits": {
+  "caoscare_branch": "8248f94cd53abffce6a86442e7d395128af0021e",
+  "microWakeWord": "4665173cd35f1cff9a61e06fc427f124766c488e",
+  "microWakeWord_local_patch": "microwakeword/train.py | 41 ++++++++++++++++++++++-------------------\n 1 file changed, 22 insertions(+), 19 deletions(-)",
+  "piper-sample-generator": "2971426a55072f7d22fec416ca7800df8bd23207"
+ },
+ "config": {
+  "SEED": 20261003,
+  "TRAIN_POSITIVES_PER_FORM": 600,
+  "TRAIN_NEGATIVES_PER_PHRASE": 50,
+  "TRAIN_STEPS": 10000,
+  "LENGTH_SCALES": [
+   0.8,
+   0.9,
+   1.0,
+   1.1,
+   1.25
+  ],
+  "NOISE_SCALES": [
+   0.5,
+   0.667,
+   0.8
+  ],
+  "NOISE_WS": [
+   0.6,
+   0.8,
+   1.0
+  ],
+  "EVAL_LENGTH_SCALES": [
+   0.85,
+   1.15
+  ],
+  "CUTOFFS": [
+   0.2,
+   0.25,
+   0.3,
+   0.35,
+   0.4,
+   0.45,
+   0.5,
+   0.55,
+   0.6,
+   0.65,
+   0.7,
+   0.75,
+   0.8,
+   0.85,
+   0.9,
+   0.95,
+   0.97,
+   0.98,
+   0.99
+  ],
+  "REPORT_CUTOFF": 0.9
+ },
+ "generator": {
+  "path": "/home/caoscare-1/caoscare-firmware-work/piper-sample-generator/models/en_US-libritts_r-medium.pt",
+  "sha256": "e95ee53770bf598c354a6e6dbfc95ccb259aeeb501d35a86be8a767429ab0ff6"
+ },
+ "eval_voices": {
+  "en_GB-alan-medium.onnx": "0a309668932205e762801f1efc2736cd4b0120329622adf62be09e56339d3330",
+  "en_GB-cori-high.onnx": "470b4dd634c98f8a4850d7626ffc3dfc90774628eeef6605a6dd8f88f30a5903",
+  "en_GB-northern_english_male-medium.onnx": "57a219ae8e638873db7d18893304be5069c42868f392bb95c3ff17f0690d0689",
+  "en_GB-semaine-medium.onnx": "d6dab6f3b92db43ea3f78c7f20dc8eadb47a1f15d8a1c9d451cf3ccd201a2f66",
+  "en_GB-southern_english_female-low.onnx": "f2f37aed1b3a093476f719d1379ba0c0b1b1cf6f1ef99288e2ebf502971a07c3",
+  "en_US-amy-medium.onnx": "b3a6e47b57b8c7fbe6a0ce2518161a50f59a9cdd8a50835c02cb02bdd6206c18",
+  "en_US-arctic-medium.onnx": "483303e294947a3ec2f910ea96093d876e1640f5772e9d89e511d6c82c667286",
+  "en_US-hfc_female-medium.onnx": "914c473788fc1fa8b63ace1cdcdb44588f4ae523d3ab37df1536616835a140b7",
+  "en_US-hfc_male-medium.onnx": "d11e403a02bdf5a670c877b3dc56e0e1c8cece6fb30289586314dffdc0a78cb0",
+  "en_US-joe-medium.onnx": "58afce0321b8d9c46d7cdf9c16500cc55a793b4220212dba6b70fb788b3baf06",
+  "en_US-john-medium.onnx": "789c6c875726e627ddee93d51d8727859abe9c091c3d141591f4b83c2072e988",
+  "en_US-kristin-medium.onnx": "5849957f929cbf720c258f8458692d6103fff2f0e3d3b19c8259474bb06a18d4",
+  "en_US-kusal-medium.onnx": "438ae25bb305b2a7f6d632327d6102df25011f793e8222fa9db876e7321df8f3",
+  "en_US-l2arctic-medium.onnx": "d89f6f124bf1e7735b2179d2141b8001c3e19169d5e743ed6e35624f4c76f044",
+  "en_US-lessac-medium.onnx": "5efe09e69902187827af646e1a6e9d269dee769f9877d17b16b1b46eeaaf019f",
+  "en_US-norman-medium.onnx": "b9739443232a80a59c7d18810dd856899bf16a7964725f5ab81ea49b1351cb71",
+  "en_US-ryan-high.onnx": "b3990d7606e183ec8dbfba70a4607074f162de1a0c412e0180d1ff60bb154eca"
+ },
+ "eval_speakers": [
+  [
+   "en_US-lessac-medium",
+   null,
+   "lessac",
+   "F"
+  ],
+  [
+   "en_US-amy-medium",
+   null,
+   "amy",
+   "F"
+  ],
+  [
+   "en_US-kristin-medium",
+   null,
+   "kristin",
+   "F"
+  ],
+  [
+   "en_US-hfc_female-medium",
+   null,
+   "hfc_female",
+   "F"
+  ],
+  [
+   "en_GB-cori-high",
+   null,
+   "cori (GB)",
+   "F"
+  ],
+  [
+   "en_GB-southern_english_female-low",
+   null,
+   "southern_english_female (GB)",
+   "F"
+  ],
+  [
+   "en_US-ryan-high",
+   null,
+   "ryan",
+   "M"
+  ],
+  [
+   "en_US-joe-medium",
+   null,
+   "joe",
+   "M"
+  ],
+  [
+   "en_US-norman-medium",
+   null,
+   "norman",
+   "M"
+  ],
+  [
+   "en_US-hfc_male-medium",
+   null,
+   "hfc_male",
+   "M"
+  ],
+  [
+   "en_GB-alan-medium",
+   null,
+   "alan (GB)",
+   "M"
+  ],
+  [
+   "en_GB-northern_english_male-medium",
+   null,
+   "northern_english_male (GB)",
+   "M"
+  ],
+  [
+   "en_US-john-medium",
+   null,
+   "john",
+   "M"
+  ],
+  [
+   "en_US-kusal-medium",
+   null,
+   "kusal",
+   "M"
+  ],
+  [
+   "en_US-arctic-medium",
+   "rms",
+   "arctic rms",
+   "M"
+  ],
+  [
+   "en_US-arctic-medium",
+   "bdl",
+   "arctic bdl",
+   "M"
+  ],
+  [
+   "en_US-arctic-medium",
+   "slt",
+   "arctic slt",
+   "F"
+  ],
+  [
+   "en_US-arctic-medium",
+   "clb",
+   "arctic clb",
+   "F"
+  ],
+  [
+   "en_GB-semaine-medium",
+   "obadiah",
+   "semaine obadiah (gloomy)",
+   "M"
+  ],
+  [
+   "en_GB-semaine-medium",
+   "prudence",
+   "semaine prudence",
+   "F"
+  ],
+  [
+   "en_US-l2arctic-medium",
+   "0",
+   "l2arctic speaker 0 (accented)",
+   "?"
+  ],
+  [
+   "en_US-l2arctic-medium",
+   "5",
+   "l2arctic speaker 5 (accented)",
+   "?"
+  ],
+  [
+   "en_US-l2arctic-medium",
+   "10",
+   "l2arctic speaker 10 (accented)",
+   "?"
+  ],
+  [
+   "en_US-l2arctic-medium",
+   "17",
+   "l2arctic speaker 17 (accented)",
+   "?"
+  ]
+ ],
+ "sample_sets": {
+  "train/negatives": {
+   "files": 6000,
+   "sha256_of_file_hashes": "37745ad61855a121eed401dc124734eb63a95a3bd1cc905700cbe9fa57bc2918"
+  },
+  "train/positives/aria": {
+   "files": 1800,
+   "sha256_of_file_hashes": "f51a3f453805b14c51a7c5e053e25528bc54cbb926191551fb3d7fd8b885daa6"
+  },
+  "train/positives/callista_call_iss_tuh": {
+   "files": 1800,
+   "sha256_of_file_hashes": "f4e3f4cff24674f420d15e60bfc3ffcfd01ec85a15a5d041b8041dfa63d722f1"
+  },
+  "train/positives/callista_kuh_liss_tuh": {
+   "files": 1800,
+   "sha256_of_file_hashes": "0d934f40021151b22b525b51827218c9b0a5df6bbe390cbac26817471f3b046d"
+  },
+  "train/positives/hello_kotrubo": {
+   "files": 1800,
+   "sha256_of_file_hashes": "32cd0f35f34da7768a450b13acb8282e1a4b31174c617403949d02c7f57e96c1"
+  },
+  "train/positives/hello_pomona": {
+   "files": 1800,
+   "sha256_of_file_hashes": "a3ff736ef0bbdc52f1f9624107276f1fca145758754f880a9a591d323f4f6aaf"
+  },
+  "train/positives/hey_aria": {
+   "files": 1800,
+   "sha256_of_file_hashes": "4100e5f4def9dca1372552263aeb600c2a98cefb414fb399466d6210fd28597f"
+  },
+  "train/positives/hey_callista_kuh_liss_tuh": {
+   "files": 1800,
+   "sha256_of_file_hashes": "62d412b3d8cfc8500225c32d8b9830abdd04443b8258b97dd27e54f4a29de4f7"
+  },
+  "train/positives/hey_kestra_kess_truh": {
+   "files": 1800,
+   "sha256_of_file_hashes": "c46a0b6926c030f2c7ae65209f9e2f8b2d66cee10987f14ec04a71e88e665ff0"
+  },
+  "train/positives/hey_kolabamo": {
+   "files": 1800,
+   "sha256_of_file_hashes": "40d16961329ab55410a9d96ca07860b56a869f95f4113439f33833896c35802c"
+  },
+  "train/positives/hey_kookaburra": {
+   "files": 1800,
+   "sha256_of_file_hashes": "d95fd520ebfd24322567c60b997f5e236697ea7341ddc2cf9f3f8a0901478d7d"
+  },
+  "train/positives/hey_krysta_kriss_tuh": {
+   "files": 1800,
+   "sha256_of_file_hashes": "eb466bce3ff0843559c2d9767b6ca89862d1c1ad729831c549a8eed2315ba00b"
+  },
+  "train/positives/hey_sivia_see_vee_uh": {
+   "files": 1800,
+   "sha256_of_file_hashes": "9b9fdc83a5c54bb7226557b2751209643352b37dcedb64841d18b9c2c2bfaacb"
+  },
+  "train/positives/hey_sivia_siv_ee_uh": {
+   "files": 1800,
+   "sha256_of_file_hashes": "dceb6c6bca91ab94296285f0c5acad623b5bfd890bcb7d731a85034c568850cb"
+  },
+  "train/positives/kestra_kess_truh": {
+   "files": 1800,
+   "sha256_of_file_hashes": "2e4bbd8d524ca437325629f2dc6bf290773c0c609464eff2c30e5ff4f0d35cfc"
+  },
+  "train/positives/kolabamo": {
+   "files": 1800,
+   "sha256_of_file_hashes": "a7418fd35694d60ab614fc78376e62b46e76483a00b825674904f0225352d7af"
+  },
+  "train/positives/kookaburra": {
+   "files": 1800,
+   "sha256_of_file_hashes": "e183f120b3ae5b26a008fa99d186399887655c5983175375113cb4ea9d469cfc"
+  },
+  "train/positives/kotrubo": {
+   "files": 1800,
+   "sha256_of_file_hashes": "45e9e6b637a0dd72231d8e72bce8b7f3f326474ef00c35ed47a9e919e73413cd"
+  },
+  "train/positives/krysta_kriss_tuh": {
+   "files": 1800,
+   "sha256_of_file_hashes": "b94dfa7195e6e7077e354565904a619157ba3cfee6c3f62692417d7673f228f4"
+  },
+  "train/positives/okay_aria": {
+   "files": 1800,
+   "sha256_of_file_hashes": "e2b415e38c226d85fc81f32dbb056969184cf318e1be88810480777495296655"
+  },
+  "train/positives/okay_lumaro": {
+   "files": 1800,
+   "sha256_of_file_hashes": "c83200c54e6dc5c62675d12313d334aa26aea700d31628ef2c79c8d67c8dea26"
+  },
+  "train/positives/okay_velora_veh_lor_uh": {
+   "files": 1800,
+   "sha256_of_file_hashes": "732223a1dc36a2b94702733670f1681ab6b6c7b417dd8914cf101e2800b0dadf"
+  },
+  "train/positives/pomona": {
+   "files": 1800,
+   "sha256_of_file_hashes": "e4798ae62b7d8ea0451f0a4cdac50da47eb7e652d4b0cf4f80ffa24c98c96655"
+  },
+  "train/positives/sivia_see_vee_uh": {
+   "files": 1800,
+   "sha256_of_file_hashes": "4787b11e9c46fc2e68683ce0d27820202af5166f6e26b6f212c3be8fbbe2cf91"
+  },
+  "train/positives/sivia_siv_ee_uh": {
+   "files": 1800,
+   "sha256_of_file_hashes": "35e441f9edfcd90a125bb310b3acdb750f2e2f896faa2a54efbc319e52d35009"
+  },
+  "train/positives/velora_veh_lor_uh": {
+   "files": 1800,
+   "sha256_of_file_hashes": "0941347ebde582ae609c22228ab3a1314a3a544f67c77a6faca141cc68984e7c"
+  },
+  "train/positives/zaria": {
+   "files": 1800,
+   "sha256_of_file_hashes": "c48d302f542800cf90cfe84d38a0d5edbaa930d5ae92382360ee37663139d8a4"
+  },
+  "eval": {
+   "files": 8136,
+   "sha256_of_file_hashes": "e747c7724b7f40d36d341311666b16e200131ba6de702d9a69e25ad39f360dc1"
+  }
+ },
+ "ambient_streams": {
+  "tv_dialogue": {
+   "source": "LibriSpeech test-clean (openslr 12)",
+   "license": "CC BY 4.0",
+   "speakers": [
+    "1089",
+    "1188",
+    "121",
+    "1221",
+    "1284",
+    "1320",
+    "1580",
+    "1995",
+    "2094",
+    "2300",
+    "237",
+    "260",
+    "2830",
+    "2961",
+    "3570",
+    "3575",
+    "3729",
+    "4077",
+    "4446",
+    "4507"
+   ],
+   "note": "television dialogue PROXY - read audiobook speech",
+   "file": "tv_dialogue.wav",
+   "seconds": 10071.0,
+   "sha256": "7547a868f4ac9b2dadf70d017289d9f73fd918d2b059cbfc8fd4789f2c159087"
+  },
+  "talker_pool": {
+   "source": "LibriSpeech test-clean (openslr 12)",
+   "license": "CC BY 4.0",
+   "speakers": [
+    "4970",
+    "4992",
+    "5105",
+    "5142",
+    "5639",
+    "5683",
+    "61",
+    "672",
+    "6829",
+    "6930",
+    "7021",
+    "7127",
+    "7176",
+    "7729",
+    "8224",
+    "8230",
+    "8455",
+    "8463",
+    "8555",
+    "908"
+   ],
+   "file": "talker_pool.wav",
+   "seconds": 1800.0,
+   "sha256": "b3ba9fb26d50c81b2763019e2f87c3da7339d6f654c9c863c683adff412135ac"
+  },
+  "music": {
+   "source": "Free Music Archive fma_small via HF benjamin-paine/free-music-archive-small shard 14",
+   "license": "per track; only allow_commercial_use=1 and allow_derivatives=1 kept (codes per dataset card)",
+   "tracks": [
+    {
+     "track_id": 141590,
+     "license_code": 4,
+     "title": "Dub Mirror",
+     "artist": "Miku\u015b",
+     "url": "http://freemusicarchive.org/music/Miku/Dub_Mirror/02_Dub_Mirror"
+    },
+    {
+     "track_id": 141591,
+     "license_code": 4,
+     "title": "From Ever Since",
+     "artist": "Miku\u015b",
+     "url": "http://freemusicarchive.org/music/Miku/Dub_Mirror/03_From_Ever_Since"
+    },
+    {
+     "track_id": 141592,
+     "license_code": 4,
+     "title": "Brockley Skank",
+     "artist": "Miku\u015b",
+     "url": "http://freemusicarchive.org/music/Miku/Dub_Mirror/04_Brockley_Skank"
+    },
+    {
+     "track_id": 141593,
+     "license_code": 4,
+     "title": "Temple Ball",
+     "artist": "Miku\u015b",
+     "url": "http://freemusicarchive.org/music/Miku/Dub_Mirror/05_Temple_Ball"
+    },
+    {
+     "track_id": 141594,
+     "license_code": 4,
+     "title": "Dub For Gaza",
+     "artist": "Miku\u015b",
+     "url": "http://freemusicarchive.org/music/Miku/Dub_Mirror/dub_for_gaza"
+    },
+    {
+     "track_id": 141616,
+     "license_code": 4,
+     "title": "Born",
+     "artist": "Barbarix",
+     "url": "http://freemusicarchive.org/music/Barbarix/The_Mystics/01_Born"
+    },
+    {
+     "track_id": 141617,
+     "license_code": 4,
+     "title": "The Secret Garden",
+     "artist": "Barbarix",
+     "url": "http://freemusicarchive.org/music/Barbarix/The_Mystics/02_The_Secret_Garden"
+    },
+    {
+     "track_id": 141618,
+     "license_code": 4,
+     "title": "Madeena Luithea",
+     "artist": "Barbarix",
+     "url": "http://freemusicarchive.org/music/Barbarix/The_Mystics/03_Madeena_Luithea"
+    },
+    {
+     "track_id": 141619,
+     "license_code": 4,
+     "title": "When Night Falls",
+     "artist": "Barbarix",
+     "url": "http://freemusicarchive.org/music/Barbarix/The_Mystics/04_When_Night_Falls"
+    },
+    {
+     "track_id": 141735,
+     "license_code": 4,
+     "title": "In Tune - Remix 2 (2017 brand new!)",
+     "artist": "Kellee Maize",
+     "url": "http://freemusicarchive.org/music/Kellee_Maize/The_Remixes/In_Tune_-_Remix_2"
+    },
+    {
+     "track_id": 141873,
+     "license_code": 4,
+     "title": "Refinery",
+     "artist": "Remain",
+     "url": "http://freemusicarchive.org/music/Remain/Remain/05-remain_-_refinery-ms"
+    },
+    {
+     "track_id": 141874,
+     "license_code": 4,
+     "title": "Digimetery",
+     "artist": "Remain",
+     "url": "http://freemusicarchive.org/music/Remain/Remain/06-remain_-_digimetery-ms"
+    },
+    {
+     "track_id": 141875,
+     "license_code": 4,
+     "title": "Acoustic Unleashed",
+     "artist": "Remain",
+     "url": "http://freemusicarchive.org/music/Remain/Remain/07-remain_-_acoustic_unleashed-ms"
+    },
+    {
+     "track_id": 141876,
+     "license_code": 4,
+     "title": "Warmer",
+     "artist": "Andy G. Cohen",
+     "url": "http://freemusicarchive.org/music/Andy_G_Cohen/MUL__DIV_1198/Andy_G_Cohen_-_MULDIV_-_10_-_Warmer"
+    },
+    {
+     "track_id": 141877,
+     "license_code": 4,
+     "title": "I",
+     "artist": "Nocturnal Mayhem",
+     "url": "http://freemusicarchive.org/music/Nocturnal_Mayhem/NM/01-nocturnal_mayhem_-_i-ms"
+    },
+    {
+     "track_id": 141878,
+     "license_code": 4,
+     "title": "II",
+     "artist": "Nocturnal Mayhem",
+     "url": "http://freemusicarchive.org/music/Nocturnal_Mayhem/NM/02-nocturnal_mayhem_-_ii-ms"
+    },
+    {
+     "track_id": 141894,
+     "license_code": 4,
+     "title": "Descent",
+     "artist": "Gorevenge",
+     "url": "http://freemusicarchive.org/music/Gorevenge/Split_with_Gorevenge/01-gorevenge_-_descent-ms"
+    },
+    {
+     "track_id": 141901,
+     "license_code": 27,
+     "title": "Tinderstix and Russian River",
+     "artist": "We Is Shore Dedicated",
+     "url": "http://freemusicarchive.org/music/We_Is_Shore_Dedicated/Rainbo_Donuts_1729/02_Tinderstix_and_Russian_River"
+    },
+    {
+     "track_id": 141902,
+     "license_code": 27,
+     "title": "Hale Ze",
+     "artist": "We Is Shore Dedicated",
+     "url": "http://freemusicarchive.org/music/We_Is_Shore_Dedicated/Rainbo_Donuts_1729/03_Hale_Ze"
+    },
+    {
+     "track_id": 141903,
+     "license_code": 27,
+     "title": "Ne Ve Rew",
+     "artist": "We Is Shore Dedicated",
+     "url": "http://freemusicarchive.org/music/We_Is_Shore_Dedicated/Rainbo_Donuts_1729/01_Ne_Ve_Rew"
+    },
+    {
+     "track_id": 142078,
+     "license_code": 4,
+     "title": "OOOTHERSIDE - Best Wishes",
+     "artist": "Mike B. Fort",
+     "url": "http://freemusicarchive.org/music/Mike_BFort/OOOTHERSIDE/OOOTHERSIDE_-_Best_Wishes"
+    },
+    {
+     "track_id": 142079,
+     "license_code": 4,
+     "title": "OOOTHERSIDE - Crystal Air",
+     "artist": "Mike B. Fort",
+     "url": "http://freemusicarchive.org/music/Mike_BFort/OOOTHERSIDE/OOOTHERSIDE_-_Crystal_Air"
+    },
+    {
+     "track_id": 142080,
+     "license_code": 4,
+     "title": "OOOTHERSIDE - Liquid Paper",
+     "artist": "Mike B. Fort",
+     "url": "http://freemusicarchive.org/music/Mike_BFort/OOOTHERSIDE/OOOTHERSIDE_-_Liquid_Paper"
+    },
+    {
+     "track_id": 142081,
+     "license_code": 4,
+     "title": "OOOTHERSIDE - This Time",
+     "artist": "Mike B. Fort",
+     "url": "http://freemusicarchive.org/music/Mike_BFort/OOOTHERSIDE/OOOTHERSIDE_-_This_Time"
+    },
+    {
+     "track_id": 142082,
+     "license_code": 4,
+     "title": "no emotions",
+     "artist": "SK",
+     "url": "http://freemusicarchive.org/music/SK/none_given_1671/no_emotions_1431"
+    },
+    {
+     "track_id": 142083,
+     "license_code": 4,
+     "title": "Still Living",
+     "artist": "SK",
+     "url": "http://freemusicarchive.org/music/SK/none_given_1671/SK_-_01_-_Still_Living"
+    },
+    {
+     "track_id": 142084,
+     "license_code": 4,
+     "title": "All of me",
+     "artist": "SK",
+     "url": "http://freemusicarchive.org/music/SK/none_given_1671/SK_-_All_of_me"
+    },
+    {
+     "track_id": 142085,
+     "license_code": 4,
+     "title": "On the daily",
+     "artist": "SK",
+     "url": "http://freemusicarchive.org/music/SK/none_given_1671/SK_-_On_the_daily"
+    },
+    {
+     "track_id": 142086,
+     "license_code": 4,
+     "title": "Pennies For My Thoughts",
+     "artist": "SK",
+     "url": "http://freemusicarchive.org/music/SK/none_given_1671/SK_-_Pennies_For_My_Thoughts"
+    },
+    {
+     "track_id": 142087,
+     "license_code": 4,
+     "title": "Runnin out of time",
+     "artist": "SK",
+     "url": "http://freemusicarchive.org/music/SK/none_given_1671/SK_-_Runnin_out_of_time_1558"
+    },
+    {
+     "track_id": 142088,
+     "license_code": 4,
+     "title": "Stop and go",
+     "artist": "SK",
+     "url": "http://freemusicarchive.org/music/SK/none_given_1671/SK-_Stop_and_go_1733"
+    },
+    {
+     "track_id": 142089,
+     "license_code": 4,
+     "title": "The Statement",
+     "artist": "SK",
+     "url": "http://freemusicarchive.org/music/SK/none_given_1671/The_Statement_1376"
+    },
+    {
+     "track_id": 142091,
+     "license_code": 4,
+     "title": "WAITING FOR THAT MOMENT",
+     "artist": "SK",
+     "url": "http://freemusicarchive.org/music/SK/none_given_1671/WAITING_FOR_THAT_MOMENT_1607"
+    },
+    {
+     "track_id": 142092,
+     "license_code": 4,
+     "title": "woke up feeling blessed",
+     "artist": "SK",
+     "url": "http://freemusicarchive.org/music/SK/none_given_1671/woke_up_feeling_blessed_1199"
+    },
+    {
+     "track_id": 142093,
+     "license_code": 4,
+     "title": "Lights, it was you and I",
+     "artist": "SK",
+     "url": "http://freemusicarchive.org/music/SK/none_given_1671/SK_-_Lights_it_was_you_and_I"
+    },
+    {
+     "track_id": 142666,
+     "license_code": 4,
+     "title": "Floridian Fighting Bear",
+     "artist": "J1*",
+     "url": "http://freemusicarchive.org/music/J1/The_Longest_Short_Ends/Floridian_Fighting_Bear"
+    },
+    {
+     "track_id": 142668,
+     "license_code": 4,
+     "title": "Fox 103",
+     "artist": "J1*",
+     "url": "http://freemusicarchive.org/music/J1/The_Longest_Short_Ends/Fox_103"
+    },
+    {
+     "track_id": 142669,
+     "license_code": 4,
+     "title": "Mello Hello",
+     "artist": "J1*",
+     "url": "http://freemusicarchive.org/music/J1/The_Longest_Short_Ends/Mello_Hello_1574"
+    },
+    {
+     "track_id": 142670,
+     "license_code": 4,
+     "title": "Crispy Roses",
+     "artist": "J1*",
+     "url": "http://freemusicarchive.org/music/J1/The_Longest_Short_Ends/Crispy_Roses"
+    },
+    {
+     "track_id": 142671,
+     "license_code": 4,
+     "title": "Silverdirt",
+     "artist": "J1*",
+     "url": "http://freemusicarchive.org/music/J1/The_Longest_Short_Ends/Silverdirt"
+    },
+    {
+     "track_id": 142672,
+     "license_code": 4,
+     "title": "Fireheart",
+     "artist": "J1*",
+     "url": "http://freemusicarchive.org/music/J1/The_Longest_Short_Ends/Fireheart"
+    },
+    {
+     "track_id": 143046,
+     "license_code": 4,
+     "title": "Apollo",
+     "artist": "Mystery Mammal",
+     "url": "http://freemusicarchive.org/music/Mystery_Mammal/Wonders_Of_Modern_Technology/Apollo_1080"
+    },
+    {
+     "track_id": 143055,
+     "license_code": 4,
+     "title": "Robot Heart",
+     "artist": "Mystery Mammal",
+     "url": "http://freemusicarchive.org/music/Mystery_Mammal/Wonders_Of_Modern_Technology/Robot_Heart"
+    },
+    {
+     "track_id": 143056,
+     "license_code": 4,
+     "title": "Speeding Speech",
+     "artist": "Mystery Mammal",
+     "url": "http://freemusicarchive.org/music/Mystery_Mammal/Wonders_Of_Modern_Technology/Mystery_Mammal_-_11_-_Speeding_Speech"
+    },
+    {
+     "track_id": 143057,
+     "license_code": 4,
+     "title": "There Is Something Wrong",
+     "artist": "Mystery Mammal",
+     "url": "http://freemusicarchive.org/music/Mystery_Mammal/Wonders_Of_Modern_Technology/There_Is_Something_Wrong"
+    },
+    {
+     "track_id": 143058,
+     "license_code": 4,
+     "title": "There Is Another System",
+     "artist": "Mystery Mammal",
+     "url": "http://freemusicarchive.org/music/Mystery_Mammal/Wonders_Of_Modern_Technology/Mystery_Mammal_-_13_-_There_Is_Another_System"
+    },
+    {
+     "track_id": 143059,
+     "license_code": 4,
+     "title": "Ugh! Humans Can Join",
+     "artist": "Mystery Mammal",
+     "url": "http://freemusicarchive.org/music/Mystery_Mammal/Wonders_Of_Modern_Technology/Ugh_Humans_Can_Join"
+    },
+    {
+     "track_id": 143060,
+     "license_code": 4,
+     "title": "Wonders Of Modern Technology",
+     "artist": "Mystery Mammal",
+     "url": "http://freemusicarchive.org/music/Mystery_Mammal/Wonders_Of_Modern_Technology/Mystery_Mammal_-_15_-_Wonders_Of_Modern_Technology"
+    },
+    {
+     "track_id": 143061,
+     "license_code": 4,
+     "title": "Lonely Satellite",
+     "artist": "Mystery Mammal",
+     "url": "http://freemusicarchive.org/music/Mystery_Mammal/Wonders_Of_Modern_Technology/Lonely_Satellite"
+    },
+    {
+     "track_id": 143290,
+     "license_code": 27,
+     "title": "Keep it Real",
+     "artist": "Jules",
+     "url": "http://freemusicarchive.org/music/Jules/Keep_it_Real/Keep_it_Real"
+    },
+    {
+     "track_id": 144487,
+     "license_code": 4,
+     "title": "The Pink Metal",
+     "artist": "Dave Keifer",
+     "url": "http://freemusicarchive.org/music/Dave_Keifer/Howdy_Persephone/PINK_METAL"
+    },
+    {
+     "track_id": 144492,
+     "license_code": 4,
+     "title": "New Moon",
+     "artist": "Dave Keifer",
+     "url": "http://freemusicarchive.org/music/Dave_Keifer/Howdy_Persephone/NEW_MOON"
+    },
+    {
+     "track_id": 144587,
+     "license_code": 27,
+     "title": "All the Little Sperms",
+     "artist": "We Is Shore Dedicated",
+     "url": "http://freemusicarchive.org/music/We_Is_Shore_Dedicated/Rainbo_Donuts_1729/All_the_Little_Sperms"
+    },
+    {
+     "track_id": 144592,
+     "license_code": 4,
+     "title": "Dark Matter",
+     "artist": "Trillion Catz",
+     "url": "http://freemusicarchive.org/music/Trillion_Catz/The_Big_Numbers/01Trillion_Catz-Dark_Matter"
+    },
+    {
+     "track_id": 144733,
+     "license_code": 4,
+     "title": "With You And Icecream Flying",
+     "artist": "milky-chu",
+     "url": "http://freemusicarchive.org/music/milky-chu/Carnival_For_Edelweisss_Ensemble/With_You_And_Icecream_Flying"
+    },
+    {
+     "track_id": 144809,
+     "license_code": 4,
+     "title": "\u0427\u0442\u043e \u0445\u043e\u0447\u0435\u0448\u044c...",
+     "artist": "Kosta T",
+     "url": "http://freemusicarchive.org/music/Kosta_T/ALLBIOM/Kosta_T_-_ALLBIOM_-_08___1665"
+    },
+    {
+     "track_id": 144810,
+     "license_code": 4,
+     "title": "SickNik(",
+     "artist": "Kosta T",
+     "url": "http://freemusicarchive.org/music/Kosta_T/ALLBIOM/Kosta_T_-_ALLBIOM_-_09_SickNik_1779"
+    },
+    {
+     "track_id": 145002,
+     "license_code": 4,
+     "title": "A Dancer Stole My Heart",
+     "artist": "Finn Anderson",
+     "url": "http://freemusicarchive.org/music/Finn_Anderson/Uncharted_Lands_EP/Finn_Anderson_-_Uncharted_Lands_EP_-_04_A_Dancer_Stole_My_Heart"
+    },
+    {
+     "track_id": 145003,
+     "license_code": 4,
+     "title": "In The Gods",
+     "artist": "Finn Anderson",
+     "url": "http://freemusicarchive.org/music/Finn_Anderson/Uncharted_Lands_EP/Finn_Anderson_-_Uncharted_Lands_EP_-_03_In_The_Gods"
+    },
+    {
+     "track_id": 145004,
+     "license_code": 4,
+     "title": "Hitchcock",
+     "artist": "Finn Anderson",
+     "url": "http://freemusicarchive.org/music/Finn_Anderson/Uncharted_Lands_EP/Finn_Anderson_-_Uncharted_Lands_EP_-_02_Hitchcock"
+    },
+    {
+     "track_id": 145005,
+     "license_code": 4,
+     "title": "Uncharted Lands",
+     "artist": "Finn Anderson",
+     "url": "http://freemusicarchive.org/music/Finn_Anderson/Uncharted_Lands_EP/Finn_Anderson_-_Uncharted_Lands_EP_-_01_Uncharted_Lands"
+    },
+    {
+     "track_id": 145257,
+     "license_code": 27,
+     "title": "Not So Final Countdown",
+     "artist": "Lonely Punk",
+     "url": "http://freemusicarchive.org/music/Lonely_Punk/Instrumentals_EP/Lonely_Punk_-_04_-_Not_So_Final_Countdown"
+    },
+    {
+     "track_id": 145258,
+     "license_code": 27,
+     "title": "Left The Building",
+     "artist": "Lonely Punk",
+     "url": "http://freemusicarchive.org/music/Lonely_Punk/Instrumentals_EP/Lonely_Punk_-_03_-_Left_The_Building"
+    },
+    {
+     "track_id": 145259,
+     "license_code": 27,
+     "title": "Joika",
+     "artist": "Lonely Punk",
+     "url": "http://freemusicarchive.org/music/Lonely_Punk/Instrumentals_EP/Lonely_Punk_-_02_-_Joika"
+    },
+    {
+     "track_id": 145260,
+     "license_code": 27,
+     "title": "Easter Island",
+     "artist": "Lonely Punk",
+     "url": "http://freemusicarchive.org/music/Lonely_Punk/Instrumentals_EP/Lonely_Punk_-_01_-_Easter_Island"
+    },
+    {
+     "track_id": 145431,
+     "license_code": 4,
+     "title": "Open Cab",
+     "artist": "Fabian Measures",
+     "url": "http://freemusicarchive.org/music/Fabian_Measures/Singles_Album/Open_Cab"
+    },
+    {
+     "track_id": 145432,
+     "license_code": 4,
+     "title": "Ebb and Flow",
+     "artist": "Fabian Measures",
+     "url": "http://freemusicarchive.org/music/Fabian_Measures/Singles_Album/Ebb_and_Flow_1829"
+    },
+    {
+     "track_id": 145462,
+     "license_code": 4,
+     "title": "The Frequency",
+     "artist": "Ars Sonor",
+     "url": "http://freemusicarchive.org/music/Ars_Sonor/Tabea/02-The_Frequency"
+    },
+    {
+     "track_id": 145464,
+     "license_code": 4,
+     "title": "Tabea (Live at Galleri Bleue)",
+     "artist": "Ars Sonor",
+     "url": "http://freemusicarchive.org/music/Ars_Sonor/Tabea/04-Tabea_Live_at_Galleri_Bleue"
+    },
+    {
+     "track_id": 145549,
+     "license_code": 27,
+     "title": "Yellow Taxi under a Blue Sky",
+     "artist": "MindsEye",
+     "url": "http://freemusicarchive.org/music/MindsEye/Yellow_Taxi/MindsEye_-_Yellow_Taxi_under_a_Blue_Sky"
+    },
+    {
+     "track_id": 145607,
+     "license_code": 4,
+     "title": "The Dawn",
+     "artist": "The One They Fear",
+     "url": "http://freemusicarchive.org/music/The_One_They_Fear/Silence_Is_Consent_EP/The_One_They_Fear_-_Silence_Is_Consent_EP_-_04_The_Dawn"
+    },
+    {
+     "track_id": 145608,
+     "license_code": 4,
+     "title": "This Cursed Hope",
+     "artist": "The One They Fear",
+     "url": "http://freemusicarchive.org/music/The_One_They_Fear/Silence_Is_Consent_EP/The_One_They_Fear_-_Silence_Is_Consent_EP_-_03_This_Cursed_Hope"
+    },
+    {
+     "track_id": 145609,
+     "license_code": 4,
+     "title": "With These Flames",
+     "artist": "The One They Fear",
+     "url": "http://freemusicarchive.org/music/The_One_They_Fear/Silence_Is_Consent_EP/The_One_They_Fear_-_Silence_Is_Consent_EP_-_02_With_These_Flames"
+    },
+    {
+     "track_id": 145610,
+     "license_code": 4,
+     "title": "Wolves",
+     "artist": "The One They Fear",
+     "url": "http://freemusicarchive.org/music/The_One_They_Fear/Silence_Is_Consent_EP/The_One_They_Fear_-_Silence_Is_Consent_EP_-_01_Wolves"
+    },
+    {
+     "track_id": 145653,
+     "license_code": 27,
+     "title": "Gladiator Coin Toss",
+     "artist": "We Is Shore Dedicated",
+     "url": "http://freemusicarchive.org/music/We_Is_Shore_Dedicated/Rainbo_Donuts_1729/06_Gladiator_Coin_Toss"
+    },
+    {
+     "track_id": 145917,
+     "license_code": 4,
+     "title": "Paradigmatic (Reprise)",
+     "artist": "H-LR",
+     "url": "http://freemusicarchive.org/music/H-LR/End_of_the_Line/02-Paradigmatic_Reprise"
+    },
+    {
+     "track_id": 145918,
+     "license_code": 4,
+     "title": "SD (Ill Mix)",
+     "artist": "H-LR",
+     "url": "http://freemusicarchive.org/music/H-LR/End_of_the_Line/03-SD_Ill_Mix"
+    },
+    {
+     "track_id": 146017,
+     "license_code": 4,
+     "title": "Gulag (Minnesbilden)",
+     "artist": "Ars Sonor & Malga Kubiak",
+     "url": "http://freemusicarchive.org/music/Ars_Sonor__Malga_Kubiak/Raoul_Wallenbergs_mhet_En_Hjlte_Eller_En_Spion/01-Gulag_Minnesbilden"
+    },
+    {
+     "track_id": 146018,
+     "license_code": 4,
+     "title": "V\u00e4rldens \u00c4nde",
+     "artist": "Ars Sonor & Malga Kubiak",
+     "url": "http://freemusicarchive.org/music/Ars_Sonor__Malga_Kubiak/Raoul_Wallenbergs_mhet_En_Hjlte_Eller_En_Spion/02-Vrldens_nde"
+    },
+    {
+     "track_id": 146019,
+     "license_code": 4,
+     "title": "Den Plomberade Vagnen",
+     "artist": "Ars Sonor & Malga Kubiak",
+     "url": "http://freemusicarchive.org/music/Ars_Sonor__Malga_Kubiak/Raoul_Wallenbergs_mhet_En_Hjlte_Eller_En_Spion/03-Den_Plomberade_Vagnen"
+    },
+    {
+     "track_id": 146020,
+     "license_code": 4,
+     "title": "Arvet",
+     "artist": "Ars Sonor & Malga Kubiak",
+     "url": "http://freemusicarchive.org/music/Ars_Sonor__Malga_Kubiak/Raoul_Wallenbergs_mhet_En_Hjlte_Eller_En_Spion/04-Arvet"
+    },
+    {
+     "track_id": 147059,
+     "license_code": 3,
+     "title": "Blinkity Blank",
+     "artist": "Audio K",
+     "url": "http://freemusicarchive.org/music/Audio_K/In_My_House/Blinkity_Blank"
+    },
+    {
+     "track_id": 147126,
+     "license_code": 4,
+     "title": "Whispers",
+     "artist": "Hyson",
+     "url": "http://freemusicarchive.org/music/Hyson/Soundtrack_for_the_Weary_Vol_I/Hyson_-_Whispers"
+    },
+    {
+     "track_id": 147295,
+     "license_code": 4,
+     "title": "Meadow Siren",
+     "artist": "Greg Atkinson",
+     "url": "http://freemusicarchive.org/music/Greg_Atkinson/Meadows_and_Fords/Meadow_Siren"
+    },
+    {
+     "track_id": 147409,
+     "license_code": 4,
+     "title": "Game Boy Horror",
+     "artist": "The Zombie Dandies",
+     "url": "http://freemusicarchive.org/music/Zombie_Dandies/Dandys_Little_Monsters/The_Zombie_Dandies_-_Dandys_Little_Monsters_-_08_Game_Boy_Horror"
+    },
+    {
+     "track_id": 147412,
+     "license_code": 4,
+     "title": "Brundlefly",
+     "artist": "The Zombie Dandies",
+     "url": "http://freemusicarchive.org/music/Zombie_Dandies/Dandys_Little_Monsters/The_Zombie_Dandies_-_Dandys_Little_Monsters_-_11_Brundlefly"
+    },
+    {
+     "track_id": 147413,
+     "license_code": 4,
+     "title": "Boogeyman",
+     "artist": "The Zombie Dandies",
+     "url": "http://freemusicarchive.org/music/Zombie_Dandies/Dandys_Little_Monsters/The_Zombie_Dandies_-_Dandys_Little_Monsters_-_12_Boogeyman"
+    },
+    {
+     "track_id": 147780,
+     "license_code": 4,
+     "title": "Dimension",
+     "artist": "Creo",
+     "url": "http://freemusicarchive.org/music/Creo/Dimension/Dimension"
+    },
+    {
+     "track_id": 147956,
+     "license_code": 4,
+     "title": "Universal Libraries",
+     "artist": "Portrayal",
+     "url": "http://freemusicarchive.org/music/Portrayal/To_the_Black_Sea_1743/05_Universal_Libraries"
+    },
+    {
+     "track_id": 148028,
+     "license_code": 4,
+     "title": "Disco From The Clouds",
+     "artist": "BoyHoodBuchi",
+     "url": "http://freemusicarchive.org/music/BoyHoodBuchi/none_given_2763/Disco_From_The_Clouds"
+    },
+    {
+     "track_id": 148031,
+     "license_code": 4,
+     "title": "I",
+     "artist": "BoyHoodBuchi",
+     "url": "http://freemusicarchive.org/music/BoyHoodBuchi/none_given_2763/i_1803"
+    },
+    {
+     "track_id": 148032,
+     "license_code": 4,
+     "title": "WitchCraft",
+     "artist": "BoyHoodBuchi",
+     "url": "http://freemusicarchive.org/music/BoyHoodBuchi/none_given_2763/WitchCraft"
+    },
+    {
+     "track_id": 148186,
+     "license_code": 4,
+     "title": "Friends Of Mine",
+     "artist": "Josh Armistead",
+     "url": "http://freemusicarchive.org/music/Josh_Armistead/Redfern/Josh_Armistead_-_Redfern_-_01_Friends_Of_Mine"
+    },
+    {
+     "track_id": 148187,
+     "license_code": 4,
+     "title": "You're So Funny",
+     "artist": "Josh Armistead",
+     "url": "http://freemusicarchive.org/music/Josh_Armistead/Redfern/Josh_Armistead_-_Redfern_-_02_Youre_So_Funny"
+    },
+    {
+     "track_id": 148190,
+     "license_code": 4,
+     "title": "So F#&k'n Happy",
+     "artist": "Josh Armistead",
+     "url": "http://freemusicarchive.org/music/Josh_Armistead/Redfern/Josh_Armistead_-_Redfern_-_05_So_Fkn_Happy"
+    },
+    {
+     "track_id": 148208,
+     "license_code": 4,
+     "title": "Shellac",
+     "artist": "Josh Armistead",
+     "url": "http://freemusicarchive.org/music/Josh_Armistead/Home_Recordings_Vol1/Josh_Armistead_-_Home_Recordings_Vol_1_-_01_Shellac"
+    },
+    {
+     "track_id": 148210,
+     "license_code": 4,
+     "title": "At Sea",
+     "artist": "Josh Armistead",
+     "url": "http://freemusicarchive.org/music/Josh_Armistead/Home_Recordings_Vol1/Josh_Armistead_-_Home_Recordings_Vol_1_-_03_At_Sea"
+    },
+    {
+     "track_id": 148211,
+     "license_code": 4,
+     "title": "Summertime",
+     "artist": "Josh Armistead",
+     "url": "http://freemusicarchive.org/music/Josh_Armistead/Home_Recordings_Vol1/Josh_Armistead_-_Home_Recordings_Vol_1_-_04_Summertime"
+    },
+    {
+     "track_id": 148212,
+     "license_code": 4,
+     "title": "Like A Dog",
+     "artist": "Josh Armistead",
+     "url": "http://freemusicarchive.org/music/Josh_Armistead/Home_Recordings_Vol1/Josh_Armistead_-_Home_Recordings_Vol_1_-_05_Like_A_Dog"
+    },
+    {
+     "track_id": 148213,
+     "license_code": 4,
+     "title": "From The Sun",
+     "artist": "Josh Armistead",
+     "url": "http://freemusicarchive.org/music/Josh_Armistead/Home_Recordings_Vol1/Josh_Armistead_-_Home_Recordings_Vol_1_-_06_From_The_Sun"
+    },
+    {
+     "track_id": 148214,
+     "license_code": 4,
+     "title": "It's My Dream",
+     "artist": "Josh Armistead",
+     "url": "http://freemusicarchive.org/music/Josh_Armistead/Home_Recordings_Vol1/Josh_Armistead_-_Home_Recordings_Vol_1_-_07_Its_My_Dream"
+    },
+    {
+     "track_id": 148215,
+     "license_code": 4,
+     "title": "It's Alright",
+     "artist": "Josh Armistead",
+     "url": "http://freemusicarchive.org/music/Josh_Armistead/Home_Recordings_Vol1/Josh_Armistead_-_Home_Recordings_Vol_1_-_08_Its_Alright"
+    },
+    {
+     "track_id": 148216,
+     "license_code": 4,
+     "title": "Quiet Today",
+     "artist": "Josh Armistead",
+     "url": "http://freemusicarchive.org/music/Josh_Armistead/Home_Recordings_Vol1/Josh_Armistead_-_Home_Recordings_Vol_1_-_09_Quiet_Today"
+    },
+    {
+     "track_id": 148217,
+     "license_code": 4,
+     "title": "Casio Song",
+     "artist": "Josh Armistead",
+     "url": "http://freemusicarchive.org/music/Josh_Armistead/Home_Recordings_Vol1/Josh_Armistead_-_Home_Recordings_Vol_1_-_10_Casio_Song"
+    },
+    {
+     "track_id": 148218,
+     "license_code": 4,
+     "title": "Women 'round Town",
+     "artist": "Josh Armistead",
+     "url": "http://freemusicarchive.org/music/Josh_Armistead/Home_Recordings_Vol1/Josh_Armistead_-_Home_Recordings_Vol_1_-_11_Women_round_Town"
+    },
+    {
+     "track_id": 148231,
+     "license_code": 4,
+     "title": "Black & Gold",
+     "artist": "Josh Armistead",
+     "url": "http://freemusicarchive.org/music/Josh_Armistead/Live__3CR_Radio_-_Collingwood_Melbourne/Josh_Armistead_-_Live__3CR_Radio_-_Collingwood_Melbourne_-_04_Black__Gold"
+    },
+    {
+     "track_id": 148233,
+     "license_code": 4,
+     "title": "Hit The Drums",
+     "artist": "Josh Armistead",
+     "url": "http://freemusicarchive.org/music/Josh_Armistead/Live__3CR_Radio_-_Collingwood_Melbourne/Josh_Armistead_-_Live__3CR_Radio_-_Collingwood_Melbourne_-_06_Hit_The_Drums"
+    },
+    {
+     "track_id": 148234,
+     "license_code": 4,
+     "title": "Olympia",
+     "artist": "Josh Armistead",
+     "url": "http://freemusicarchive.org/music/Josh_Armistead/Live__3CR_Radio_-_Collingwood_Melbourne/Josh_Armistead_-_Live__3CR_Radio_-_Collingwood_Melbourne_-_07_Olympia"
+    },
+    {
+     "track_id": 148235,
+     "license_code": 4,
+     "title": "Hand of The Hunter",
+     "artist": "Josh Armistead",
+     "url": "http://freemusicarchive.org/music/Josh_Armistead/Live__3CR_Radio_-_Collingwood_Melbourne/Josh_Armistead_-_Live__3CR_Radio_-_Collingwood_Melbourne_-_08_Hand_of_The_Hunter"
+    },
+    {
+     "track_id": 149185,
+     "license_code": 4,
+     "title": "Touch You",
+     "artist": "Mike B. Fort",
+     "url": "http://freemusicarchive.org/music/Mike_BFort/Touch_You/Mike_B_Fort_-_Touch_You"
+    },
+    {
+     "track_id": 149416,
+     "license_code": 4,
+     "title": "Millitary Industrial Complex",
+     "artist": "Punk Rock Opera",
+     "url": "http://freemusicarchive.org/music/Punk_Rock_Opera/Nerve_Damage/Punk_Rock_Opera_-_The_Bad_Plants_-_Nerve_Damage_-1982-_Album_-_09_Millitary_Industrial_Complex"
+    },
+    {
+     "track_id": 149417,
+     "license_code": 4,
+     "title": "Nerve Damage",
+     "artist": "Punk Rock Opera",
+     "url": "http://freemusicarchive.org/music/Punk_Rock_Opera/Nerve_Damage/Punk_Rock_Opera_-_The_Bad_Plants_-_Nerve_Damage_-1982-_Album_-_01_Nerve_Damage"
+    },
+    {
+     "track_id": 149452,
+     "license_code": 4,
+     "title": "S3C",
+     "artist": "Unit-29A",
+     "url": "http://freemusicarchive.org/music/Unit-29A/Anthem/01-unit-29a_-_s3c-ms"
+    },
+    {
+     "track_id": 149488,
+     "license_code": 4,
+     "title": "Lost Paradise",
+     "artist": "Autumn Interlude",
+     "url": "http://freemusicarchive.org/music/Autumn_Interlude/Lost_Paradise/Autumn_Interlude_-_Lost_Paradise_-_01_Lost_Paradise"
+    },
+    {
+     "track_id": 149687,
+     "license_code": 4,
+     "title": "God's Love",
+     "artist": "K. Sparks",
+     "url": "http://freemusicarchive.org/music/K_Sparks/Diagnosis_Success/K_Sparks__Pajozo_-_Gods_Love"
+    },
+    {
+     "track_id": 149689,
+     "license_code": 4,
+     "title": "Purpose",
+     "artist": "K. Sparks",
+     "url": "http://freemusicarchive.org/music/K_Sparks/Diagnosis_Success/03_-_Purpose"
+    },
+    {
+     "track_id": 149690,
+     "license_code": 4,
+     "title": "Rock the Party",
+     "artist": "K. Sparks",
+     "url": "http://freemusicarchive.org/music/K_Sparks/Diagnosis_Success/01_-_Rock_the_Party"
+    },
+    {
+     "track_id": 149700,
+     "license_code": 27,
+     "title": "Rising Heart",
+     "artist": "Sro",
+     "url": "http://freemusicarchive.org/music/Sro/Sro_Alive/Sro_-_02_-_Rising_Heart"
+    },
+    {
+     "track_id": 149701,
+     "license_code": 27,
+     "title": "Answering M",
+     "artist": "Sro",
+     "url": "http://freemusicarchive.org/music/Sro/Sro_Alive/Sro_-_01_-_Answering_M"
+    },
+    {
+     "track_id": 149712,
+     "license_code": 4,
+     "title": "Step One",
+     "artist": "Fatal Injection",
+     "url": "http://freemusicarchive.org/music/Fatal_Injection/PSI_Different/Fatal_Injection_-_PSI_Different_-_01_Step_One"
+    },
+    {
+     "track_id": 149714,
+     "license_code": 4,
+     "title": "P.S.I. Part II (Final Step)",
+     "artist": "Fatal Injection",
+     "url": "http://freemusicarchive.org/music/Fatal_Injection/PSI_Different/Fatal_Injection_-_PSI_Different_-_03_PSI_Part_II_Final_Step"
+    }
+   ],
+   "file": "music.wav",
+   "seconds": 3600.0,
+   "sha256": "a0a55d7f7bdc032b45a45d0527ec185f3c9d1fbb7637c724579268a5fe691c0b"
+  },
+  "background": {
+   "source": "DEMAND (zenodo 1227121) ch01 of DLIVING, DKITCHEN, OMEETING, PCAFETER",
+   "license": "CC BY-SA 3.0",
+   "file": "background.wav",
+   "seconds": 1200.0,
+   "sha256": "431ee4b8febaef4cac7ababdad2d418dedb608f17290f99c13454fdfd8b2b3d7"
+  },
+  "hvac": {
+   "source": "procedural (eval_data_prep.py, seed)",
+   "license": "generated",
+   "file": "hvac.wav",
+   "seconds": 3600.0,
+   "sha256": "cbd905e85a0d67489a9192cc98456aa45ec56f56dc58ffbf25a777ab543e8175"
+  },
+  "silence": {
+   "source": "procedural near-silence (-80 dBFS)",
+   "license": "generated",
+   "file": "silence.wav",
+   "seconds": 1800.0,
+   "sha256": "d30e77d6f1476b73269fa35d00a00d99c8832c46806c5db09e1a74575b8257a3"
+  }
+ },
+ "models": {
+  "aria": {
+   "id": "aria",
+   "group": "original 15",
+   "text": "aria",
+   "pronunciation_arpabet": "AA1 R IY0 AH0",
+   "form": "bare",
+   "excluded_same_sound_negatives": [],
+   "tflite": "/home/caoscare-1/caoscare-firmware-work/runs/lab/aria/trained/tflite_stream_state_internal_quant/stream_state_internal_quant.tflite",
+   "sha256": "0aabf423f60ab42a1612042685a6d073f1d956b6720c27b3b17b23641fff05a2",
+   "bytes": 62304,
+   "training_parameters_sha256": "7fcc6f21d8ce1011b3dc365d3cdfeaf0462671f29b11f17bade09ea87ae2b800",
+   "licensing": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE",
+   "commercial_release_eligible": false,
+   "status": "evaluated",
+   "cross_check_done": true,
+   "pipeline_events": [
+    "2026-10-04T02:21:07-05:00 EVAL FAILED aria",
+    "2026-10-04T11:59:03-05:00 RETRY eval aria (identical configuration)"
+   ],
+   "failure_logs": [
+    "/home/caoscare-1/caoscare-firmware-work/lab_logs/failures/eval_aria.attempt1.log",
+    "/home/caoscare-1/caoscare-firmware-work/lab_logs/failures/eval_aria.attempt1_oom.log"
+   ],
+   "train_log": "/home/caoscare-1/caoscare-firmware-work/lab_logs/train_aria.log",
+   "train_start": "2026-10-04T06:24:04+00:00",
+   "train_finish": "2026-10-04T06:53:24+00:00",
+   "train_duration_min": 29.3,
+   "best_checkpoint": "So far the best minimization quantity is 0.000 with best maximization quantity of 86.20767%; no faph cutoff is 0.76",
+   "dipco_test_cutoffs": [
+    "Cutoff 0.86: frr=0.3111; faph=0.000",
+    "Cutoff 0.74: frr=0.2778; faph=0.187",
+    "Cutoff 0.44: frr=0.2056; faph=0.375",
+    "Cutoff 0.36: frr=0.1944; faph=0.562",
+    "Cutoff 0.35: frr=0.1944; faph=0.750",
+    "Cutoff 0.29: frr=0.1833; faph=0.937",
+    "Cutoff 0.24: frr=0.1722; faph=1.125",
+    "Cutoff 0.23: frr=0.1667; faph=1.500",
+    "Cutoff 0.22: frr=0.1611; faph=1.687",
+    "Cutoff 0.21: frr=0.1611; faph=1.875",
+    "Cutoff 0.21: frr=0.1611; faph=2.000"
+   ]
+  },
+  "hey_aria": {
+   "id": "hey aria",
+   "group": "original 15",
+   "text": "hey aria",
+   "pronunciation_arpabet": "HH EY1 AA1 R IY0 AH0",
+   "form": "launcher",
+   "excluded_same_sound_negatives": [],
+   "tflite": "/home/caoscare-1/caoscare-firmware-work/runs/lab/hey_aria/trained/tflite_stream_state_internal_quant/stream_state_internal_quant.tflite",
+   "sha256": "981d660be48098280756f9b21d6f5830842a31cbd904b62194ac8c1a61a8c4fe",
+   "bytes": 62304,
+   "training_parameters_sha256": "5aa69d6e3f7d4e06c1fcf95c98cc1aecd1431ed4441857e5e6776a59f51e1000",
+   "licensing": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE",
+   "commercial_release_eligible": false,
+   "status": "evaluated",
+   "cross_check_done": true,
+   "pipeline_events": [],
+   "failure_logs": [],
+   "train_log": "/home/caoscare-1/caoscare-firmware-work/lab_logs/train_hey_aria.log",
+   "train_start": "2026-10-04T07:21:07+00:00",
+   "train_finish": "2026-10-04T07:44:44+00:00",
+   "train_duration_min": 23.6,
+   "best_checkpoint": "So far the best minimization quantity is 0.000 with best maximization quantity of 89.68247%; no faph cutoff is 1.00",
+   "dipco_test_cutoffs": [
+    "Cutoff 1.00: frr=1.0000; faph=0.000",
+    "Cutoff 0.98: frr=0.2278; faph=0.375",
+    "Cutoff 0.95: frr=0.2000; faph=0.562",
+    "Cutoff 0.89: frr=0.1778; faph=0.750",
+    "Cutoff 0.88: frr=0.1778; faph=0.937",
+    "Cutoff 0.87: frr=0.1778; faph=1.125",
+    "Cutoff 0.65: frr=0.0944; faph=1.312",
+    "Cutoff 0.57: frr=0.0833; faph=1.500",
+    "Cutoff 0.43: frr=0.0556; faph=1.687",
+    "Cutoff 0.39: frr=0.0556; faph=1.875",
+    "Cutoff 0.39: frr=0.0556; faph=2.000"
+   ]
+  },
+  "zaria": {
+   "id": "zaria",
+   "group": "original 15",
+   "text": "zaria",
+   "pronunciation_arpabet": "Z AA1 R IY0 AH0",
+   "form": "bare",
+   "excluded_same_sound_negatives": [],
+   "tflite": "/home/caoscare-1/caoscare-firmware-work/runs/lab/zaria/trained/tflite_stream_state_internal_quant/stream_state_internal_quant.tflite",
+   "sha256": "68ab83cb24093db505ba2744ba392016d0d061c7729aba9e42ed70585dd66a98",
+   "bytes": 62304,
+   "training_parameters_sha256": "c36baf33b4c0884abdaec1112cba34d952c8dbf236efd7c66cd31fcd0e4dfae9",
+   "licensing": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE",
+   "commercial_release_eligible": false,
+   "status": "evaluated",
+   "cross_check_done": true,
+   "pipeline_events": [],
+   "failure_logs": [],
+   "train_log": "/home/caoscare-1/caoscare-firmware-work/lab_logs/train_zaria.log",
+   "train_start": "2026-10-04T07:47:41+00:00",
+   "train_finish": "2026-10-04T08:06:42+00:00",
+   "train_duration_min": 19.0,
+   "best_checkpoint": "So far the best minimization quantity is 0.000 with best maximization quantity of 91.03990%; no faph cutoff is 0.48",
+   "dipco_test_cutoffs": [
+    "Cutoff 1.00: frr=1.0000; faph=0.000",
+    "Cutoff 0.99: frr=0.3889; faph=0.187",
+    "Cutoff 0.98: frr=0.3278; faph=0.375",
+    "Cutoff 0.91: frr=0.2667; faph=0.562",
+    "Cutoff 0.75: frr=0.2111; faph=0.750",
+    "Cutoff 0.65: frr=0.1833; faph=1.125",
+    "Cutoff 0.59: frr=0.1778; faph=1.312",
+    "Cutoff 0.54: frr=0.1556; faph=1.500",
+    "Cutoff 0.35: frr=0.1056; faph=1.687",
+    "Cutoff 0.27: frr=0.0944; faph=1.875",
+    "Cutoff 0.27: frr=0.0944; faph=2.000"
+   ]
+  },
+  "okay_aria": {
+   "id": "okay aria",
+   "group": "original 15",
+   "text": "okay aria",
+   "pronunciation_arpabet": "OW2 K EY1 AA1 R IY0 AH0",
+   "form": "launcher",
+   "excluded_same_sound_negatives": [],
+   "tflite": "/home/caoscare-1/caoscare-firmware-work/runs/lab/okay_aria/trained/tflite_stream_state_internal_quant/stream_state_internal_quant.tflite",
+   "sha256": "f5ebae75793473a69fa7e163f6db633f6e2eb17a4069093e5189aab95d47d682",
+   "bytes": 62304,
+   "training_parameters_sha256": "af58439fdb0fda2242ad719bb688a85de7d378acace1160a1e908bb16b68accb",
+   "licensing": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE",
+   "commercial_release_eligible": false,
+   "status": "evaluated",
+   "cross_check_done": true,
+   "pipeline_events": [],
+   "failure_logs": [],
+   "train_log": "/home/caoscare-1/caoscare-firmware-work/lab_logs/train_okay_aria.log",
+   "train_start": "2026-10-04T08:09:37+00:00",
+   "train_finish": "2026-10-04T08:28:38+00:00",
+   "train_duration_min": 19.0,
+   "best_checkpoint": "So far the best minimization quantity is 0.000 with best maximization quantity of 94.20378%; no faph cutoff is 0.65",
+   "dipco_test_cutoffs": [
+    "Cutoff 0.83: frr=0.1278; faph=0.000",
+    "Cutoff 0.62: frr=0.0833; faph=0.187",
+    "Cutoff 0.58: frr=0.0722; faph=0.375",
+    "Cutoff 0.38: frr=0.0556; faph=0.562",
+    "Cutoff 0.33: frr=0.0556; faph=0.750",
+    "Cutoff 0.25: frr=0.0556; faph=0.937",
+    "Cutoff 0.21: frr=0.0556; faph=1.312",
+    "Cutoff 0.18: frr=0.0500; faph=1.500",
+    "Cutoff 0.17: frr=0.0500; faph=1.687",
+    "Cutoff 0.14: frr=0.0500; faph=1.875",
+    "Cutoff 0.14: frr=0.0500; faph=2.000"
+   ]
+  },
+  "kolabamo": {
+   "id": "kolabamo",
+   "group": "original 15",
+   "text": "kolabamo",
+   "pronunciation_arpabet": "K OW2 L AH0 B AA1 M OW0",
+   "form": "bare",
+   "excluded_same_sound_negatives": [],
+   "tflite": "/home/caoscare-1/caoscare-firmware-work/runs/lab/kolabamo/trained/tflite_stream_state_internal_quant/stream_state_internal_quant.tflite",
+   "sha256": "fb869f96327e4e09b74607b334a248987e33e2ca7e14417712edfd6ccec64dae",
+   "bytes": 62304,
+   "training_parameters_sha256": "9f5cff27b5a6d825a0549139a8021e18849a078e87ee6e3e60185f9b30e13cf6",
+   "licensing": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE",
+   "commercial_release_eligible": false,
+   "status": "evaluated",
+   "cross_check_done": true,
+   "pipeline_events": [],
+   "failure_logs": [],
+   "train_log": "/home/caoscare-1/caoscare-firmware-work/lab_logs/train_kolabamo.log",
+   "train_start": "2026-10-04T08:31:35+00:00",
+   "train_finish": "2026-10-04T08:50:30+00:00",
+   "train_duration_min": 18.9,
+   "best_checkpoint": "So far the best minimization quantity is 0.000 with best maximization quantity of 92.83335%; no faph cutoff is 0.99",
+   "dipco_test_cutoffs": [
+    "Cutoff 1.00: frr=1.0000; faph=0.000",
+    "Cutoff 0.99: frr=0.1833; faph=0.187",
+    "Cutoff 0.97: frr=0.1444; faph=0.375",
+    "Cutoff 0.95: frr=0.1278; faph=0.562",
+    "Cutoff 0.93: frr=0.1222; faph=0.750",
+    "Cutoff 0.90: frr=0.1056; faph=0.937",
+    "Cutoff 0.89: frr=0.1000; faph=1.500",
+    "Cutoff 0.88: frr=0.1000; faph=1.687",
+    "Cutoff 0.87: frr=0.0944; faph=1.875",
+    "Cutoff 0.86: frr=0.0944; faph=2.000"
+   ]
+  },
+  "hey_kolabamo": {
+   "id": "hey kolabamo",
+   "group": "original 15",
+   "text": "hey kolabamo",
+   "pronunciation_arpabet": "HH EY1 K OW2 L AH0 B AA1 M OW0",
+   "form": "launcher",
+   "excluded_same_sound_negatives": [],
+   "tflite": "/home/caoscare-1/caoscare-firmware-work/runs/lab/hey_kolabamo/trained/tflite_stream_state_internal_quant/stream_state_internal_quant.tflite",
+   "sha256": "aed682b754eca829b2f542d552f6fe7b3a7ec80cd733ab31c39410c2440b1817",
+   "bytes": 62304,
+   "training_parameters_sha256": "6653bd68feccca318d7003964fc811f72a0508e9026705c0079c9b81d6e60437",
+   "licensing": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE",
+   "commercial_release_eligible": false,
+   "status": "evaluated",
+   "cross_check_done": true,
+   "pipeline_events": [],
+   "failure_logs": [],
+   "train_log": "/home/caoscare-1/caoscare-firmware-work/lab_logs/train_hey_kolabamo.log",
+   "train_start": "2026-10-04T08:53:25+00:00",
+   "train_finish": "2026-10-04T09:12:31+00:00",
+   "train_duration_min": 19.1,
+   "best_checkpoint": "So far the best minimization quantity is 0.000 with best maximization quantity of 97.05675%; no faph cutoff is 0.87",
+   "dipco_test_cutoffs": [
+    "Cutoff 0.99: frr=0.0778; faph=0.000",
+    "Cutoff 0.97: frr=0.0667; faph=0.187",
+    "Cutoff 0.90: frr=0.0500; faph=0.562",
+    "Cutoff 0.87: frr=0.0500; faph=0.750",
+    "Cutoff 0.85: frr=0.0444; faph=0.937",
+    "Cutoff 0.72: frr=0.0333; faph=1.125",
+    "Cutoff 0.54: frr=0.0333; faph=1.312",
+    "Cutoff 0.40: frr=0.0333; faph=1.500",
+    "Cutoff 0.28: frr=0.0278; faph=1.687",
+    "Cutoff 0.27: frr=0.0278; faph=1.875",
+    "Cutoff 0.27: frr=0.0278; faph=2.000"
+   ]
+  },
+  "kotrubo": {
+   "id": "kotrubo",
+   "group": "original 15",
+   "text": "kotrubo",
+   "pronunciation_arpabet": "K OW0 T R UW1 B OW0",
+   "form": "bare",
+   "excluded_same_sound_negatives": [],
+   "tflite": "/home/caoscare-1/caoscare-firmware-work/runs/lab/kotrubo/trained/tflite_stream_state_internal_quant/stream_state_internal_quant.tflite",
+   "sha256": "e4f04a71320bf412d09232b267fdffd66cc08082ef20c8a16abd0146bd83a893",
+   "bytes": 62304,
+   "training_parameters_sha256": "9a2c4ab8f74662c663c27d87f458ec4804ca5c0276ac9bee719d8d6ebcd6e7c1",
+   "licensing": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE",
+   "commercial_release_eligible": false,
+   "status": "evaluated",
+   "cross_check_done": true,
+   "pipeline_events": [],
+   "failure_logs": [],
+   "train_log": "/home/caoscare-1/caoscare-firmware-work/lab_logs/train_kotrubo.log",
+   "train_start": "2026-10-04T09:15:27+00:00",
+   "train_finish": "2026-10-04T09:34:29+00:00",
+   "train_duration_min": 19.0,
+   "best_checkpoint": "So far the best minimization quantity is 0.000 with best maximization quantity of 96.40898%; no faph cutoff is 0.92",
+   "dipco_test_cutoffs": [
+    "Cutoff 1.00: frr=1.0000; faph=0.000",
+    "Cutoff 0.97: frr=0.1389; faph=0.187",
+    "Cutoff 0.93: frr=0.1222; faph=0.375",
+    "Cutoff 0.86: frr=0.0944; faph=0.562",
+    "Cutoff 0.80: frr=0.0889; faph=0.750",
+    "Cutoff 0.76: frr=0.0778; faph=0.937",
+    "Cutoff 0.73: frr=0.0778; faph=1.125",
+    "Cutoff 0.70: frr=0.0778; faph=1.312",
+    "Cutoff 0.64: frr=0.0722; faph=1.500",
+    "Cutoff 0.61: frr=0.0722; faph=1.687",
+    "Cutoff 0.59: frr=0.0722; faph=1.875",
+    "Cutoff 0.58: frr=0.0722; faph=2.000"
+   ]
+  },
+  "hello_kotrubo": {
+   "id": "hello kotrubo",
+   "group": "original 15",
+   "text": "hello kotrubo",
+   "pronunciation_arpabet": "HH AH0 L OW1 K OW0 T R UW1 B OW0",
+   "form": "launcher",
+   "excluded_same_sound_negatives": [],
+   "tflite": "/home/caoscare-1/caoscare-firmware-work/runs/lab/hello_kotrubo/trained/tflite_stream_state_internal_quant/stream_state_internal_quant.tflite",
+   "sha256": "d44bd346e02f5c7140bba9a05ddc4786429fadcb620e0cf97fd33c6c135d9715",
+   "bytes": 62304,
+   "training_parameters_sha256": "164b3fc34076a81d053bb2c30b1c5c884353f472b6b2c7c3ace9483058b87e1b",
+   "licensing": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE",
+   "commercial_release_eligible": false,
+   "status": "evaluated",
+   "cross_check_done": true,
+   "pipeline_events": [],
+   "failure_logs": [],
+   "train_log": "/home/caoscare-1/caoscare-firmware-work/lab_logs/train_hello_kotrubo.log",
+   "train_start": "2026-10-04T09:37:24+00:00",
+   "train_finish": "2026-10-04T09:56:22+00:00",
+   "train_duration_min": 19.0,
+   "best_checkpoint": "So far the best minimization quantity is 0.000 with best maximization quantity of 98.51639%; no faph cutoff is 0.99",
+   "dipco_test_cutoffs": [
+    "Cutoff 1.00: frr=1.0000; faph=0.000",
+    "Cutoff 0.98: frr=0.0500; faph=0.375",
+    "Cutoff 0.97: frr=0.0500; faph=0.562",
+    "Cutoff 0.96: frr=0.0500; faph=0.750",
+    "Cutoff 0.90: frr=0.0278; faph=1.125",
+    "Cutoff 0.82: frr=0.0167; faph=1.312",
+    "Cutoff 0.78: frr=0.0167; faph=1.875",
+    "Cutoff 0.78: frr=0.0167; faph=2.000"
+   ]
+  },
+  "kookaburra": {
+   "id": "kookaburra",
+   "group": "original 15",
+   "text": "kookaburra",
+   "pronunciation_arpabet": "K UW2 K AH0 B UH1 R AH0",
+   "form": "bare",
+   "excluded_same_sound_negatives": [],
+   "tflite": "/home/caoscare-1/caoscare-firmware-work/runs/lab/kookaburra/trained/tflite_stream_state_internal_quant/stream_state_internal_quant.tflite",
+   "sha256": "fb94a20ef7b1affd17fc3802f9ed061933f9ce7244556fca6121cb64419ffbd2",
+   "bytes": 62304,
+   "training_parameters_sha256": "307232ec904fe2de6d148730d71fd69ea1b82801d893e5e5dbdffe9c026185a5",
+   "licensing": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE",
+   "commercial_release_eligible": false,
+   "status": "evaluated",
+   "cross_check_done": true,
+   "pipeline_events": [],
+   "failure_logs": [],
+   "train_log": "/home/caoscare-1/caoscare-firmware-work/lab_logs/train_kookaburra.log",
+   "train_start": "2026-10-04T09:59:22+00:00",
+   "train_finish": "2026-10-04T10:18:20+00:00",
+   "train_duration_min": 19.0,
+   "best_checkpoint": "So far the best minimization quantity is 0.000 with best maximization quantity of 93.52045%; no faph cutoff is 0.78",
+   "dipco_test_cutoffs": [
+    "Cutoff 0.70: frr=0.0944; faph=0.000",
+    "Cutoff 0.35: frr=0.0722; faph=0.187",
+    "Cutoff 0.24: frr=0.0667; faph=0.375",
+    "Cutoff 0.23: frr=0.0667; faph=0.562",
+    "Cutoff 0.18: frr=0.0667; faph=0.750",
+    "Cutoff 0.13: frr=0.0556; faph=0.937",
+    "Cutoff 0.09: frr=0.0500; faph=1.312",
+    "Cutoff 0.08: frr=0.0500; faph=1.500",
+    "Cutoff 0.06: frr=0.0500; faph=1.687",
+    "Cutoff 0.06: frr=0.0444; faph=2.000"
+   ]
+  },
+  "hey_kookaburra": {
+   "id": "hey kookaburra",
+   "group": "original 15",
+   "text": "hey kookaburra",
+   "pronunciation_arpabet": "HH EY1 K UW2 K AH0 B UH1 R AH0",
+   "form": "launcher",
+   "excluded_same_sound_negatives": [],
+   "tflite": "/home/caoscare-1/caoscare-firmware-work/runs/lab/hey_kookaburra/trained/tflite_stream_state_internal_quant/stream_state_internal_quant.tflite",
+   "sha256": "45ff33d376add79a1ec960b270fe611591afaf72e1ed59ec7fe77f6c2eb8a21c",
+   "bytes": 62304,
+   "training_parameters_sha256": "35e75b2ab2d410e715ebe06cca8d06a2f091ef2d7916ff2375ed7777137ccd4d",
+   "licensing": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE",
+   "commercial_release_eligible": false,
+   "status": "evaluated",
+   "cross_check_done": true,
+   "pipeline_events": [],
+   "failure_logs": [],
+   "train_log": "/home/caoscare-1/caoscare-firmware-work/lab_logs/train_hey_kookaburra.log",
+   "train_start": "2026-10-04T10:21:17+00:00",
+   "train_finish": "2026-10-04T10:40:23+00:00",
+   "train_duration_min": 19.1,
+   "best_checkpoint": "So far the best minimization quantity is 0.000 with best maximization quantity of 97.40505%; no faph cutoff is 0.95",
+   "dipco_test_cutoffs": [
+    "Cutoff 0.99: frr=0.0611; faph=0.000",
+    "Cutoff 0.98: frr=0.0611; faph=0.375",
+    "Cutoff 0.96: frr=0.0611; faph=0.562",
+    "Cutoff 0.95: frr=0.0556; faph=0.750",
+    "Cutoff 0.84: frr=0.0333; faph=0.937",
+    "Cutoff 0.80: frr=0.0222; faph=1.125",
+    "Cutoff 0.77: frr=0.0222; faph=1.312",
+    "Cutoff 0.72: frr=0.0167; faph=1.500",
+    "Cutoff 0.62: frr=0.0167; faph=1.687",
+    "Cutoff 0.59: frr=0.0167; faph=1.875",
+    "Cutoff 0.58: frr=0.0167; faph=2.000"
+   ]
+  },
+  "okay_velora_veh_lor_uh": {
+   "id": "okay velora (veh-LOR-uh)",
+   "group": "original 15",
+   "text": "okay velora",
+   "pronunciation_arpabet": "OW2 K EY1 V EH0 L AO1 R AH0",
+   "form": "launcher",
+   "excluded_same_sound_negatives": [],
+   "tflite": "/home/caoscare-1/caoscare-firmware-work/runs/lab/okay_velora_veh_lor_uh/trained/tflite_stream_state_internal_quant/stream_state_internal_quant.tflite",
+   "sha256": "357898aa54e3d623e5e65f4264f50414e199fbfa3869f53b696582ccec78842c",
+   "bytes": 62304,
+   "training_parameters_sha256": "7f8de4699106b16761976ef8aae48a6e61756c1c81cb0bb58f7c3b546fb7ed13",
+   "licensing": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE",
+   "commercial_release_eligible": false,
+   "status": "evaluated",
+   "cross_check_done": true,
+   "pipeline_events": [],
+   "failure_logs": [],
+   "train_log": "/home/caoscare-1/caoscare-firmware-work/lab_logs/train_okay_velora_veh_lor_uh.log",
+   "train_start": "2026-10-04T10:43:19+00:00",
+   "train_finish": "2026-10-04T11:02:22+00:00",
+   "train_duration_min": 19.1,
+   "best_checkpoint": "So far the best minimization quantity is 0.000 with best maximization quantity of 95.99243%; no faph cutoff is 0.98",
+   "dipco_test_cutoffs": [
+    "Cutoff 0.98: frr=0.1500; faph=0.000",
+    "Cutoff 0.86: frr=0.1111; faph=0.187",
+    "Cutoff 0.79: frr=0.1056; faph=0.375",
+    "Cutoff 0.67: frr=0.0889; faph=0.562",
+    "Cutoff 0.60: frr=0.0778; faph=0.750",
+    "Cutoff 0.43: frr=0.0778; faph=0.937",
+    "Cutoff 0.36: frr=0.0667; faph=1.125",
+    "Cutoff 0.35: frr=0.0667; faph=1.312",
+    "Cutoff 0.29: frr=0.0611; faph=1.500",
+    "Cutoff 0.24: frr=0.0556; faph=1.687",
+    "Cutoff 0.18: frr=0.0556; faph=1.875",
+    "Cutoff 0.17: frr=0.0500; faph=2.000"
+   ]
+  },
+  "velora_veh_lor_uh": {
+   "id": "velora (veh-LOR-uh)",
+   "group": "original 15",
+   "text": "velora",
+   "pronunciation_arpabet": "V EH0 L AO1 R AH0",
+   "form": "bare",
+   "excluded_same_sound_negatives": [],
+   "tflite": "/home/caoscare-1/caoscare-firmware-work/runs/lab/velora_veh_lor_uh/trained/tflite_stream_state_internal_quant/stream_state_internal_quant.tflite",
+   "sha256": "2b2dd1164c6c9e344edc90876b4fcb34914cf5c4f65887385ae075b9f5184485",
+   "bytes": 62304,
+   "training_parameters_sha256": "46703835ee17d44b99f3f3cde0acd0df5bdccd9ebf6165719fb070ade27877d6",
+   "licensing": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE",
+   "commercial_release_eligible": false,
+   "status": "evaluated",
+   "cross_check_done": true,
+   "pipeline_events": [],
+   "failure_logs": [],
+   "train_log": "/home/caoscare-1/caoscare-firmware-work/lab_logs/train_velora_veh_lor_uh.log",
+   "train_start": "2026-10-04T11:05:20+00:00",
+   "train_finish": "2026-10-04T11:24:21+00:00",
+   "train_duration_min": 19.0,
+   "best_checkpoint": "So far the best minimization quantity is 0.000 with best maximization quantity of 88.39937%; no faph cutoff is 0.99",
+   "dipco_test_cutoffs": [
+    "Cutoff 1.00: frr=1.0000; faph=0.000",
+    "Cutoff 0.99: frr=0.1667; faph=0.937",
+    "Cutoff 0.97: frr=0.1500; faph=1.125",
+    "Cutoff 0.96: frr=0.1389; faph=1.500",
+    "Cutoff 0.93: frr=0.1389; faph=1.687",
+    "Cutoff 0.87: frr=0.1167; faph=1.875",
+    "Cutoff 0.86: frr=0.1111; faph=2.000"
+   ]
+  },
+  "hello_pomona": {
+   "id": "hello pomona",
+   "group": "original 15",
+   "text": "hello pomona",
+   "pronunciation_arpabet": "HH AH0 L OW1 P OW0 M OW1 N AH0",
+   "form": "launcher",
+   "excluded_same_sound_negatives": [],
+   "tflite": "/home/caoscare-1/caoscare-firmware-work/runs/lab/hello_pomona/trained/tflite_stream_state_internal_quant/stream_state_internal_quant.tflite",
+   "sha256": "400b19fd905e62409dfc64172a35d16f3c591fe49d99672a3b9486c4637c1d54",
+   "bytes": 62304,
+   "training_parameters_sha256": "244b9ae2c42812d2049a9e8df97990611b6b5e3eb15a119020aaa4ba74407fd2",
+   "licensing": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE",
+   "commercial_release_eligible": false,
+   "status": "evaluated",
+   "cross_check_done": true,
+   "pipeline_events": [],
+   "failure_logs": [],
+   "train_log": "/home/caoscare-1/caoscare-firmware-work/lab_logs/train_hello_pomona.log",
+   "train_start": "2026-10-04T11:27:16+00:00",
+   "train_finish": "2026-10-04T11:46:36+00:00",
+   "train_duration_min": 19.3,
+   "best_checkpoint": "So far the best minimization quantity is 0.000 with best maximization quantity of 90.71763%; no faph cutoff is 1.00",
+   "dipco_test_cutoffs": [
+    "Cutoff 0.87: frr=0.1722; faph=0.000",
+    "Cutoff 0.78: frr=0.1389; faph=0.187",
+    "Cutoff 0.63: frr=0.1111; faph=0.375",
+    "Cutoff 0.42: frr=0.0722; faph=0.562",
+    "Cutoff 0.38: frr=0.0722; faph=0.937",
+    "Cutoff 0.31: frr=0.0722; faph=1.125",
+    "Cutoff 0.29: frr=0.0667; faph=1.312",
+    "Cutoff 0.27: frr=0.0667; faph=1.500",
+    "Cutoff 0.25: frr=0.0500; faph=1.687",
+    "Cutoff 0.20: frr=0.0444; faph=1.875",
+    "Cutoff 0.20: frr=0.0444; faph=2.000"
+   ]
+  },
+  "pomona": {
+   "id": "pomona",
+   "group": "original 15",
+   "text": "pomona",
+   "pronunciation_arpabet": "P OW0 M OW1 N AH0",
+   "form": "bare",
+   "excluded_same_sound_negatives": [],
+   "tflite": "/home/caoscare-1/caoscare-firmware-work/runs/lab/pomona/trained/tflite_stream_state_internal_quant/stream_state_internal_quant.tflite",
+   "sha256": "d36dfcc994c9f171c56dd0492bf5353e318027675ed06a0aaceffcb09eb6cfcb",
+   "bytes": 62304,
+   "training_parameters_sha256": "8ac6884a20f82591bd5d34fa150a9b324e21360c98357e095cf6147f8aa236c7",
+   "licensing": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE",
+   "commercial_release_eligible": false,
+   "status": "evaluated",
+   "cross_check_done": true,
+   "pipeline_events": [],
+   "failure_logs": [],
+   "train_log": "/home/caoscare-1/caoscare-firmware-work/lab_logs/train_pomona.log",
+   "train_start": "2026-10-04T11:49:50+00:00",
+   "train_finish": "2026-10-04T12:09:17+00:00",
+   "train_duration_min": 19.4,
+   "best_checkpoint": "So far the best minimization quantity is 0.000 with best maximization quantity of 89.32407%; no faph cutoff is 0.99",
+   "dipco_test_cutoffs": [
+    "Cutoff 1.00: frr=1.0000; faph=0.000",
+    "Cutoff 0.96: frr=0.2056; faph=0.375",
+    "Cutoff 0.93: frr=0.2000; faph=0.562",
+    "Cutoff 0.84: frr=0.1556; faph=0.937",
+    "Cutoff 0.82: frr=0.1500; faph=1.125",
+    "Cutoff 0.72: frr=0.1000; faph=1.500",
+    "Cutoff 0.69: frr=0.1000; faph=1.687",
+    "Cutoff 0.62: frr=0.0889; faph=1.875",
+    "Cutoff 0.61: frr=0.0889; faph=2.000"
+   ]
+  },
+  "okay_lumaro": {
+   "id": "okay lumaro",
+   "group": "original 15",
+   "text": "okay lumaro",
+   "pronunciation_arpabet": "OW2 K EY1 L UW0 M AA1 R OW0",
+   "form": "launcher",
+   "excluded_same_sound_negatives": [],
+   "tflite": "/home/caoscare-1/caoscare-firmware-work/runs/lab/okay_lumaro/trained/tflite_stream_state_internal_quant/stream_state_internal_quant.tflite",
+   "sha256": "dcbfaf280474b6f504b71303ab3e2a9af49da9e99ab3c047668a73e03d0285d1",
+   "bytes": 62304,
+   "training_parameters_sha256": "8a765fd6db8d36ebc165907a08f3ce861f6dc902b97d6443cf9f8e6ef85a0b9b",
+   "licensing": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE",
+   "commercial_release_eligible": false,
+   "status": "evaluated",
+   "cross_check_done": true,
+   "pipeline_events": [],
+   "failure_logs": [],
+   "train_log": "/home/caoscare-1/caoscare-firmware-work/lab_logs/train_okay_lumaro.log",
+   "train_start": "2026-10-04T12:12:34+00:00",
+   "train_finish": "2026-10-04T12:32:02+00:00",
+   "train_duration_min": 19.5,
+   "best_checkpoint": "So far the best minimization quantity is 0.000 with best maximization quantity of 85.63312%; no faph cutoff is 1.00",
+   "dipco_test_cutoffs": [
+    "Cutoff 1.00: frr=1.0000; faph=0.000",
+    "Cutoff 0.99: frr=0.1389; faph=0.187",
+    "Cutoff 0.94: frr=0.0944; faph=0.750",
+    "Cutoff 0.90: frr=0.0889; faph=0.937",
+    "Cutoff 0.89: frr=0.0833; faph=1.125",
+    "Cutoff 0.88: frr=0.0833; faph=1.500",
+    "Cutoff 0.87: frr=0.0778; faph=1.687",
+    "Cutoff 0.85: frr=0.0722; faph=1.875",
+    "Cutoff 0.84: frr=0.0722; faph=2.000"
+   ]
+  },
+  "callista_kuh_liss_tuh": {
+   "id": "callista (kuh-LISS-tuh)",
+   "group": "supplemental (mandatory)",
+   "text": "callista",
+   "pronunciation_arpabet": "K AH0 L IH1 S T AH0",
+   "form": "bare",
+   "excluded_same_sound_negatives": [
+    "Calista"
+   ],
+   "tflite": "/home/caoscare-1/caoscare-firmware-work/runs/lab/callista_kuh_liss_tuh/trained/tflite_stream_state_internal_quant/stream_state_internal_quant.tflite",
+   "sha256": "23caea2898ca35395b53eff612071a57e07f87482d0177886d464857e9786cea",
+   "bytes": 62304,
+   "training_parameters_sha256": "f322febc56f042282d8acba34966f234c2b492558eda94c4b1b334f34c659c20",
+   "licensing": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE",
+   "commercial_release_eligible": false,
+   "status": "evaluated",
+   "cross_check_done": true,
+   "pipeline_events": [],
+   "failure_logs": [],
+   "train_log": "/home/caoscare-1/caoscare-firmware-work/lab_logs/train_callista_kuh_liss_tuh.log",
+   "train_start": "2026-10-04T12:35:41+00:00",
+   "train_finish": "2026-10-04T12:56:26+00:00",
+   "train_duration_min": 20.8,
+   "best_checkpoint": "So far the best minimization quantity is 0.000 with best maximization quantity of 93.93613%; no faph cutoff is 0.94",
+   "dipco_test_cutoffs": [
+    "Cutoff 1.00: frr=1.0000; faph=0.000",
+    "Cutoff 0.98: frr=0.1500; faph=0.375",
+    "Cutoff 0.82: frr=0.0833; faph=0.562",
+    "Cutoff 0.81: frr=0.0833; faph=0.750",
+    "Cutoff 0.76: frr=0.0778; faph=0.937",
+    "Cutoff 0.72: frr=0.0667; faph=1.312",
+    "Cutoff 0.68: frr=0.0611; faph=1.500",
+    "Cutoff 0.61: frr=0.0389; faph=1.687",
+    "Cutoff 0.58: frr=0.0389; faph=1.875",
+    "Cutoff 0.57: frr=0.0389; faph=2.000"
+   ]
+  },
+  "callista_call_iss_tuh": {
+   "id": "callista (CALL-iss-tuh)",
+   "group": "supplemental (mandatory)",
+   "text": "callista",
+   "pronunciation_arpabet": "K AO1 L IH0 S T AH0",
+   "form": "bare",
+   "excluded_same_sound_negatives": [],
+   "tflite": "/home/caoscare-1/caoscare-firmware-work/runs/lab/callista_call_iss_tuh/trained/tflite_stream_state_internal_quant/stream_state_internal_quant.tflite",
+   "sha256": "f671b6e7972e04064a7c06037516ecb23372ee1f2a3b2394cdba3bdc27c80225",
+   "bytes": 62304,
+   "training_parameters_sha256": "fc2aaf67fc93526a68e08e2fab2a749a64db50014e20c3e243730bdc1115dc2b",
+   "licensing": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE",
+   "commercial_release_eligible": false,
+   "status": "evaluated",
+   "cross_check_done": true,
+   "pipeline_events": [],
+   "failure_logs": [],
+   "train_log": "/home/caoscare-1/caoscare-firmware-work/lab_logs/train_callista_call_iss_tuh.log",
+   "train_start": "2026-10-04T12:59:47+00:00",
+   "train_finish": "2026-10-04T13:19:22+00:00",
+   "train_duration_min": 19.6,
+   "best_checkpoint": "So far the best minimization quantity is 0.000 with best maximization quantity of 95.90604%; no faph cutoff is 0.96",
+   "dipco_test_cutoffs": [
+    "Cutoff 1.00: frr=1.0000; faph=0.000",
+    "Cutoff 0.99: frr=0.2500; faph=0.187",
+    "Cutoff 0.95: frr=0.2056; faph=0.375",
+    "Cutoff 0.91: frr=0.1722; faph=0.562",
+    "Cutoff 0.85: frr=0.1444; faph=0.750",
+    "Cutoff 0.75: frr=0.1167; faph=0.937",
+    "Cutoff 0.74: frr=0.1167; faph=1.125",
+    "Cutoff 0.73: frr=0.1167; faph=1.312",
+    "Cutoff 0.55: frr=0.1000; faph=1.500",
+    "Cutoff 0.45: frr=0.0889; faph=1.875",
+    "Cutoff 0.45: frr=0.0889; faph=2.000"
+   ]
+  },
+  "hey_callista_kuh_liss_tuh": {
+   "id": "hey callista (kuh-LISS-tuh)",
+   "group": "supplemental (mandatory)",
+   "text": "hey callista",
+   "pronunciation_arpabet": "HH EY1 K AH0 L IH1 S T AH0",
+   "form": "launcher",
+   "excluded_same_sound_negatives": [],
+   "tflite": "/home/caoscare-1/caoscare-firmware-work/runs/lab/hey_callista_kuh_liss_tuh/trained/tflite_stream_state_internal_quant/stream_state_internal_quant.tflite",
+   "sha256": "f1ff21a0d35d32bb1644f536d24b9885bb7ad7b56e30669363f5e11b856f0ef9",
+   "bytes": 62304,
+   "training_parameters_sha256": "34ad817ac9afc16d3510dc06e04accca5ac97173b5f72706b4e76c8318a49816",
+   "licensing": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE",
+   "commercial_release_eligible": false,
+   "status": "evaluated",
+   "cross_check_done": true,
+   "pipeline_events": [],
+   "failure_logs": [],
+   "train_log": "/home/caoscare-1/caoscare-firmware-work/lab_logs/train_hey_callista_kuh_liss_tuh.log",
+   "train_start": "2026-10-04T13:22:46+00:00",
+   "train_finish": "2026-10-04T13:42:19+00:00",
+   "train_duration_min": 19.6,
+   "best_checkpoint": "So far the best minimization quantity is 0.000 with best maximization quantity of 98.70362%; no faph cutoff is 0.86",
+   "dipco_test_cutoffs": [
+    "Cutoff 0.97: frr=0.0778; faph=0.000",
+    "Cutoff 0.75: frr=0.0333; faph=0.187",
+    "Cutoff 0.69: frr=0.0278; faph=0.562",
+    "Cutoff 0.60: frr=0.0222; faph=0.750",
+    "Cutoff 0.55: frr=0.0222; faph=0.937",
+    "Cutoff 0.45: frr=0.0222; faph=1.125",
+    "Cutoff 0.43: frr=0.0222; faph=1.312",
+    "Cutoff 0.40: frr=0.0222; faph=1.500",
+    "Cutoff 0.39: frr=0.0222; faph=1.687",
+    "Cutoff 0.36: frr=0.0222; faph=1.875",
+    "Cutoff 0.35: frr=0.0222; faph=2.000"
+   ]
+  },
+  "kestra_kess_truh": {
+   "id": "kestra (KESS-truh)",
+   "group": "supplemental (mandatory)",
+   "text": "kestra",
+   "pronunciation_arpabet": "K EH1 S T R AH0",
+   "form": "bare",
+   "excluded_same_sound_negatives": [],
+   "tflite": "/home/caoscare-1/caoscare-firmware-work/runs/lab/kestra_kess_truh/trained/tflite_stream_state_internal_quant/stream_state_internal_quant.tflite",
+   "sha256": "962d406e188657a60dd0d52c5cf951d2507248c2351695d16fbf7d360bf7d539",
+   "bytes": 62304,
+   "training_parameters_sha256": "4c4f2616d467e9af93ce43ece25d4e2d745b14b4b27af682651d39c1608a2057",
+   "licensing": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE",
+   "commercial_release_eligible": false,
+   "status": "evaluated",
+   "cross_check_done": true,
+   "pipeline_events": [],
+   "failure_logs": [],
+   "train_log": "/home/caoscare-1/caoscare-firmware-work/lab_logs/train_kestra_kess_truh.log",
+   "train_start": "2026-10-04T13:45:40+00:00",
+   "train_finish": "2026-10-04T14:05:24+00:00",
+   "train_duration_min": 19.7,
+   "best_checkpoint": "So far the best minimization quantity is 0.000 with best maximization quantity of 98.31839%; no faph cutoff is 0.91",
+   "dipco_test_cutoffs": [
+    "Cutoff 0.83: frr=0.1167; faph=0.000",
+    "Cutoff 0.74: frr=0.0778; faph=0.187",
+    "Cutoff 0.68: frr=0.0722; faph=0.375",
+    "Cutoff 0.64: frr=0.0667; faph=0.562",
+    "Cutoff 0.40: frr=0.0500; faph=0.750",
+    "Cutoff 0.32: frr=0.0444; faph=0.937",
+    "Cutoff 0.27: frr=0.0444; faph=1.125",
+    "Cutoff 0.25: frr=0.0444; faph=1.312",
+    "Cutoff 0.16: frr=0.0389; faph=1.500",
+    "Cutoff 0.14: frr=0.0333; faph=1.687",
+    "Cutoff 0.12: frr=0.0333; faph=1.875",
+    "Cutoff 0.11: frr=0.0333; faph=2.000"
+   ]
+  },
+  "hey_kestra_kess_truh": {
+   "id": "hey kestra (KESS-truh)",
+   "group": "supplemental (mandatory)",
+   "text": "hey kestra",
+   "pronunciation_arpabet": "HH EY1 K EH1 S T R AH0",
+   "form": "launcher",
+   "excluded_same_sound_negatives": [],
+   "tflite": "/home/caoscare-1/caoscare-firmware-work/runs/lab/hey_kestra_kess_truh/trained/tflite_stream_state_internal_quant/stream_state_internal_quant.tflite",
+   "sha256": "b2bdf2ed8b12cf8c8c20dd912ad22eb6d52aa690311a3a3e2e6609eb80ca7b04",
+   "bytes": 62304,
+   "training_parameters_sha256": "9a640ca575b8e0fd5bbbbfbf79d9f826eec58a4abfb69f019b14a604c626e6a8",
+   "licensing": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE",
+   "commercial_release_eligible": false,
+   "status": "evaluated",
+   "cross_check_done": true,
+   "pipeline_events": [],
+   "failure_logs": [],
+   "train_log": "/home/caoscare-1/caoscare-firmware-work/lab_logs/train_hey_kestra_kess_truh.log",
+   "train_start": "2026-10-04T14:08:45+00:00",
+   "train_finish": "2026-10-04T14:28:21+00:00",
+   "train_duration_min": 19.6,
+   "best_checkpoint": "So far the best minimization quantity is 0.000 with best maximization quantity of 98.62710%; no faph cutoff is 0.79",
+   "dipco_test_cutoffs": [
+    "Cutoff 1.00: frr=1.0000; faph=0.000",
+    "Cutoff 0.96: frr=0.0889; faph=0.187",
+    "Cutoff 0.88: frr=0.0611; faph=0.375",
+    "Cutoff 0.80: frr=0.0444; faph=0.562",
+    "Cutoff 0.73: frr=0.0333; faph=0.750",
+    "Cutoff 0.47: frr=0.0111; faph=1.125",
+    "Cutoff 0.40: frr=0.0111; faph=1.312",
+    "Cutoff 0.35: frr=0.0111; faph=1.500",
+    "Cutoff 0.31: frr=0.0111; faph=1.687",
+    "Cutoff 0.28: frr=0.0111; faph=1.875",
+    "Cutoff 0.28: frr=0.0111; faph=2.000"
+   ]
+  },
+  "krysta_kriss_tuh": {
+   "id": "krysta (KRISS-tuh)",
+   "group": "supplemental (mandatory)",
+   "text": "krysta",
+   "pronunciation_arpabet": "K R IH1 S T AH0",
+   "form": "bare",
+   "excluded_same_sound_negatives": [
+    "Krista"
+   ],
+   "tflite": "/home/caoscare-1/caoscare-firmware-work/runs/lab/krysta_kriss_tuh/trained/tflite_stream_state_internal_quant/stream_state_internal_quant.tflite",
+   "sha256": "4e6a1d951238b982a2157de89482b52747f240db6b0b64fe48b3de3fd946f0cd",
+   "bytes": 62304,
+   "training_parameters_sha256": "6a75d2b324a4d19e582f11d91892aa3148f27dd2de974ddb08b75add896e5754",
+   "licensing": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE",
+   "commercial_release_eligible": false,
+   "status": "evaluated",
+   "cross_check_done": true,
+   "pipeline_events": [],
+   "failure_logs": [],
+   "train_log": "/home/caoscare-1/caoscare-firmware-work/lab_logs/train_krysta_kriss_tuh.log",
+   "train_start": "2026-10-04T14:31:44+00:00",
+   "train_finish": "2026-10-04T14:52:20+00:00",
+   "train_duration_min": 20.6,
+   "best_checkpoint": "So far the best minimization quantity is 0.000 with best maximization quantity of 95.15068%; no faph cutoff is 0.98",
+   "dipco_test_cutoffs": [
+    "Cutoff 1.00: frr=1.0000; faph=0.000",
+    "Cutoff 0.89: frr=0.1333; faph=0.187",
+    "Cutoff 0.83: frr=0.1111; faph=0.375",
+    "Cutoff 0.56: frr=0.0667; faph=0.562",
+    "Cutoff 0.53: frr=0.0611; faph=0.750",
+    "Cutoff 0.52: frr=0.0611; faph=0.937",
+    "Cutoff 0.48: frr=0.0611; faph=1.125",
+    "Cutoff 0.45: frr=0.0500; faph=1.687",
+    "Cutoff 0.39: frr=0.0389; faph=1.875",
+    "Cutoff 0.39: frr=0.0389; faph=2.000"
+   ]
+  },
+  "hey_krysta_kriss_tuh": {
+   "id": "hey krysta (KRISS-tuh)",
+   "group": "supplemental (mandatory)",
+   "text": "hey krysta",
+   "pronunciation_arpabet": "HH EY1 K R IH1 S T AH0",
+   "form": "launcher",
+   "excluded_same_sound_negatives": [],
+   "tflite": "/home/caoscare-1/caoscare-firmware-work/runs/lab/hey_krysta_kriss_tuh/trained/tflite_stream_state_internal_quant/stream_state_internal_quant.tflite",
+   "sha256": "ae2a0cf15277144667f00981070c6f4f24a036d22e752f052996d9550cdd359c",
+   "bytes": 62304,
+   "training_parameters_sha256": "7e8fc5a29a014b65cb116918bff83f83ccc9737b8f8f25633da5857b80f328ed",
+   "licensing": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE",
+   "commercial_release_eligible": false,
+   "status": "evaluated",
+   "cross_check_done": true,
+   "pipeline_events": [],
+   "failure_logs": [],
+   "train_log": "/home/caoscare-1/caoscare-firmware-work/lab_logs/train_hey_krysta_kriss_tuh.log",
+   "train_start": "2026-10-04T14:55:44+00:00",
+   "train_finish": "2026-10-04T15:15:19+00:00",
+   "train_duration_min": 19.6,
+   "best_checkpoint": "So far the best minimization quantity is 0.000 with best maximization quantity of 98.48011%; no faph cutoff is 0.97",
+   "dipco_test_cutoffs": [
+    "Cutoff 1.00: frr=1.0000; faph=0.000",
+    "Cutoff 0.96: frr=0.0389; faph=0.187",
+    "Cutoff 0.89: frr=0.0278; faph=0.375",
+    "Cutoff 0.60: frr=0.0167; faph=0.562",
+    "Cutoff 0.37: frr=0.0111; faph=0.750",
+    "Cutoff 0.28: frr=0.0111; faph=0.937",
+    "Cutoff 0.27: frr=0.0111; faph=1.125",
+    "Cutoff 0.08: frr=0.0000; faph=1.312",
+    "Cutoff 0.07: frr=0.0000; faph=1.687",
+    "Cutoff 0.05: frr=0.0000; faph=1.875",
+    "Cutoff 0.04: frr=0.0000; faph=2.000"
+   ]
+  },
+  "sivia_siv_ee_uh": {
+   "id": "sivia (SIV-ee-uh)",
+   "group": "supplemental (mandatory)",
+   "text": "sivia",
+   "pronunciation_arpabet": "S IH1 V IY0 AH0",
+   "form": "bare",
+   "excluded_same_sound_negatives": [],
+   "tflite": "/home/caoscare-1/caoscare-firmware-work/runs/lab/sivia_siv_ee_uh/trained/tflite_stream_state_internal_quant/stream_state_internal_quant.tflite",
+   "sha256": "fe8f94ae02499c54f2c591f0ae3f502c43fd2251fc9bc8cbb2d5eaddc83728b2",
+   "bytes": 62304,
+   "training_parameters_sha256": "2a32e12397ff48d7b024637c2537fcfaefb6db151c76bd788db9a609af8331fc",
+   "licensing": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE",
+   "commercial_release_eligible": false,
+   "status": "evaluated",
+   "cross_check_done": true,
+   "pipeline_events": [],
+   "failure_logs": [],
+   "train_log": "/home/caoscare-1/caoscare-firmware-work/lab_logs/train_sivia_siv_ee_uh.log",
+   "train_start": "2026-10-04T15:18:41+00:00",
+   "train_finish": "2026-10-04T15:38:19+00:00",
+   "train_duration_min": 19.6,
+   "best_checkpoint": "So far the best minimization quantity is 0.000 with best maximization quantity of 96.77423%; no faph cutoff is 0.85",
+   "dipco_test_cutoffs": [
+    "Cutoff 0.85: frr=0.1500; faph=0.000",
+    "Cutoff 0.81: frr=0.1444; faph=0.187",
+    "Cutoff 0.68: frr=0.1111; faph=0.375",
+    "Cutoff 0.25: frr=0.0833; faph=0.562",
+    "Cutoff 0.24: frr=0.0833; faph=0.750",
+    "Cutoff 0.14: frr=0.0778; faph=0.937",
+    "Cutoff 0.13: frr=0.0778; faph=1.312",
+    "Cutoff 0.11: frr=0.0722; faph=1.687",
+    "Cutoff 0.11: frr=0.0722; faph=2.000"
+   ]
+  },
+  "hey_sivia_siv_ee_uh": {
+   "id": "hey sivia (SIV-ee-uh)",
+   "group": "supplemental (mandatory)",
+   "text": "hey sivia",
+   "pronunciation_arpabet": "HH EY1 S IH1 V IY0 AH0",
+   "form": "launcher",
+   "excluded_same_sound_negatives": [],
+   "tflite": "/home/caoscare-1/caoscare-firmware-work/runs/lab/hey_sivia_siv_ee_uh/trained/tflite_stream_state_internal_quant/stream_state_internal_quant.tflite",
+   "sha256": "896c4e2bc6f5bcbd31858828dfb6eee4a7bbec078a74ca4254d79a31c43e8af7",
+   "bytes": 62304,
+   "training_parameters_sha256": "611edd09e431451fed2b52191adf64bb17a720dd9bfaa556f64b3c668e1de644",
+   "licensing": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE",
+   "commercial_release_eligible": false,
+   "status": "evaluated",
+   "cross_check_done": true,
+   "pipeline_events": [],
+   "failure_logs": [],
+   "train_log": "/home/caoscare-1/caoscare-firmware-work/lab_logs/train_hey_sivia_siv_ee_uh.log",
+   "train_start": "2026-10-04T15:41:42+00:00",
+   "train_finish": "2026-10-04T16:01:14+00:00",
+   "train_duration_min": 19.5,
+   "best_checkpoint": "So far the best minimization quantity is 0.000 with best maximization quantity of 98.34848%; no faph cutoff is 0.92",
+   "dipco_test_cutoffs": [
+    "Cutoff 1.00: frr=1.0000; faph=0.000",
+    "Cutoff 0.99: frr=0.0889; faph=0.187",
+    "Cutoff 0.92: frr=0.0722; faph=0.375",
+    "Cutoff 0.77: frr=0.0222; faph=0.562",
+    "Cutoff 0.70: frr=0.0222; faph=0.750",
+    "Cutoff 0.69: frr=0.0222; faph=0.937",
+    "Cutoff 0.62: frr=0.0222; faph=1.125",
+    "Cutoff 0.45: frr=0.0167; faph=1.312",
+    "Cutoff 0.44: frr=0.0167; faph=1.500",
+    "Cutoff 0.41: frr=0.0167; faph=1.687",
+    "Cutoff 0.32: frr=0.0111; faph=1.875",
+    "Cutoff 0.32: frr=0.0111; faph=2.000"
+   ]
+  },
+  "sivia_see_vee_uh": {
+   "id": "sivia (SEE-vee-uh)",
+   "group": "supplemental (mandatory)",
+   "text": "sivia",
+   "pronunciation_arpabet": "S IY1 V IY0 AH0",
+   "form": "bare",
+   "excluded_same_sound_negatives": [],
+   "tflite": "/home/caoscare-1/caoscare-firmware-work/runs/lab/sivia_see_vee_uh/trained/tflite_stream_state_internal_quant/stream_state_internal_quant.tflite",
+   "sha256": "ad140b1f3457bcb2ca9aaaeea84488d15c9e4073450f74271949d4c2d76aba8a",
+   "bytes": 62304,
+   "training_parameters_sha256": "b7e50087ac88f0533d5342f36cf27d722f75f14c73675629204e6a0dd72c1c29",
+   "licensing": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE",
+   "commercial_release_eligible": false,
+   "status": "evaluated",
+   "cross_check_done": true,
+   "pipeline_events": [],
+   "failure_logs": [],
+   "train_log": "/home/caoscare-1/caoscare-firmware-work/lab_logs/train_sivia_see_vee_uh.log",
+   "train_start": "2026-10-04T16:04:36+00:00",
+   "train_finish": "2026-10-04T16:24:09+00:00",
+   "train_duration_min": 19.6,
+   "best_checkpoint": "So far the best minimization quantity is 0.000 with best maximization quantity of 92.67426%; no faph cutoff is 1.00",
+   "dipco_test_cutoffs": [
+    "Cutoff 1.00: frr=1.0000; faph=0.000",
+    "Cutoff 0.99: frr=0.1222; faph=0.375",
+    "Cutoff 0.98: frr=0.1000; faph=0.750",
+    "Cutoff 0.97: frr=0.1000; faph=0.937",
+    "Cutoff 0.96: frr=0.0944; faph=1.125",
+    "Cutoff 0.95: frr=0.0889; faph=1.500",
+    "Cutoff 0.94: frr=0.0833; faph=1.687",
+    "Cutoff 0.93: frr=0.0833; faph=1.875",
+    "Cutoff 0.93: frr=0.0833; faph=2.000"
+   ]
+  },
+  "hey_sivia_see_vee_uh": {
+   "id": "hey sivia (SEE-vee-uh)",
+   "group": "supplemental (mandatory)",
+   "text": "hey sivia",
+   "pronunciation_arpabet": "HH EY1 S IY1 V IY0 AH0",
+   "form": "launcher",
+   "excluded_same_sound_negatives": [],
+   "tflite": "/home/caoscare-1/caoscare-firmware-work/runs/lab/hey_sivia_see_vee_uh/trained/tflite_stream_state_internal_quant/stream_state_internal_quant.tflite",
+   "sha256": "bf7b037a4d8e82e43c90a7d4e55ed6acdea5c8b7451fb01c5a575c42a1376235",
+   "bytes": 62304,
+   "training_parameters_sha256": "088f702f7b4e4959de30260bc5324d7598fa6d5173d3ad89b8095f00e277d4e3",
+   "licensing": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE",
+   "commercial_release_eligible": false,
+   "status": "evaluated",
+   "cross_check_done": true,
+   "pipeline_events": [],
+   "failure_logs": [],
+   "train_log": "/home/caoscare-1/caoscare-firmware-work/lab_logs/train_hey_sivia_see_vee_uh.log",
+   "train_start": "2026-10-04T16:27:32+00:00",
+   "train_finish": "2026-10-04T16:47:05+00:00",
+   "train_duration_min": 19.6,
+   "best_checkpoint": "So far the best minimization quantity is 0.000 with best maximization quantity of 95.60711%; no faph cutoff is 0.88",
+   "dipco_test_cutoffs": [
+    "Cutoff 0.59: frr=0.0500; faph=0.000",
+    "Cutoff 0.44: frr=0.0500; faph=0.187",
+    "Cutoff 0.24: frr=0.0389; faph=0.375",
+    "Cutoff 0.22: frr=0.0389; faph=0.562",
+    "Cutoff 0.17: frr=0.0389; faph=0.750",
+    "Cutoff 0.14: frr=0.0389; faph=0.937",
+    "Cutoff 0.13: frr=0.0333; faph=1.125",
+    "Cutoff 0.11: frr=0.0333; faph=1.312",
+    "Cutoff 0.06: frr=0.0278; faph=1.687",
+    "Cutoff 0.05: frr=0.0278; faph=1.875",
+    "Cutoff 0.04: frr=0.0278; faph=2.000"
+   ]
+  }
+ },
+ "training_data_licences": "see LICENSES.md - all models research-only"
+}

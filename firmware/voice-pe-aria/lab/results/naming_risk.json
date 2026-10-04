@@ -1,0 +1,846 @@
+{
+ "aria": {
+  "id": "aria",
+  "base_word": "aria",
+  "known_common_word": {
+   "flag": true,
+   "zipf": 3.39
+  },
+  "common_personal_name": {
+   "flag": false,
+   "census_percent": null,
+   "census_list": null
+  },
+  "resident_staff_collision": {
+   "flag": false,
+   "evidence": []
+  },
+  "product_association": "Opera's built-in browser AI assistant is named 'Aria' (agent knowledge, unverified)",
+  "pronunciation_ambiguity": {
+   "flag": true,
+   "evidence": "AR-ee-uh vs AIR-ee-uh (the latter = 'area')"
+  },
+  "spelling_ambiguity": {
+   "flag": true,
+   "other_spellings_same_or_near_sound": [
+    "Arya (different syllable count)",
+    "Area (AIR-ee-uh reading)"
+   ]
+  },
+  "near_sound_common_names": {
+   "Maria": 0.828,
+   "Daria": 0.004,
+   "Ari": null
+  },
+  "legal_review_required": "yes - no trademark or legal search performed"
+ },
+ "hey_aria": {
+  "id": "hey aria",
+  "base_word": "aria",
+  "known_common_word": {
+   "flag": true,
+   "zipf": 3.39
+  },
+  "common_personal_name": {
+   "flag": false,
+   "census_percent": null,
+   "census_list": null
+  },
+  "resident_staff_collision": {
+   "flag": false,
+   "evidence": []
+  },
+  "product_association": "Opera's built-in browser AI assistant is named 'Aria' (agent knowledge, unverified)",
+  "pronunciation_ambiguity": {
+   "flag": true,
+   "evidence": "AR-ee-uh vs AIR-ee-uh (the latter = 'area')"
+  },
+  "spelling_ambiguity": {
+   "flag": true,
+   "other_spellings_same_or_near_sound": [
+    "Arya (different syllable count)",
+    "Area (AIR-ee-uh reading)"
+   ]
+  },
+  "near_sound_common_names": {
+   "Maria": 0.828,
+   "Daria": 0.004,
+   "Ari": null
+  },
+  "legal_review_required": "yes - no trademark or legal search performed"
+ },
+ "zaria": {
+  "id": "zaria",
+  "base_word": "zaria",
+  "known_common_word": {
+   "flag": false,
+   "zipf": 2.27
+  },
+  "common_personal_name": {
+   "flag": false,
+   "census_percent": null,
+   "census_list": null
+  },
+  "resident_staff_collision": {
+   "flag": false,
+   "evidence": []
+  },
+  "product_association": "place name (city in Nigeria) (agent knowledge)",
+  "pronunciation_ambiguity": {
+   "flag": true,
+   "evidence": "ZAR-ee-uh vs ZAIR-ee-uh"
+  },
+  "spelling_ambiguity": {
+   "flag": true,
+   "other_spellings_same_or_near_sound": [
+    "Zahria",
+    "Zarya"
+   ]
+  },
+  "near_sound_common_names": {
+   "Maria": 0.828,
+   "Daria": 0.004
+  },
+  "legal_review_required": "yes - no trademark or legal search performed"
+ },
+ "okay_aria": {
+  "id": "okay aria",
+  "base_word": "aria",
+  "known_common_word": {
+   "flag": true,
+   "zipf": 3.39
+  },
+  "common_personal_name": {
+   "flag": false,
+   "census_percent": null,
+   "census_list": null
+  },
+  "resident_staff_collision": {
+   "flag": false,
+   "evidence": []
+  },
+  "product_association": "Opera's built-in browser AI assistant is named 'Aria' (agent knowledge, unverified)",
+  "pronunciation_ambiguity": {
+   "flag": true,
+   "evidence": "AR-ee-uh vs AIR-ee-uh (the latter = 'area')"
+  },
+  "spelling_ambiguity": {
+   "flag": true,
+   "other_spellings_same_or_near_sound": [
+    "Arya (different syllable count)",
+    "Area (AIR-ee-uh reading)"
+   ]
+  },
+  "near_sound_common_names": {
+   "Maria": 0.828,
+   "Daria": 0.004,
+   "Ari": null
+  },
+  "legal_review_required": "yes - no trademark or legal search performed"
+ },
+ "kolabamo": {
+  "id": "kolabamo",
+  "base_word": "kolabamo",
+  "known_common_word": {
+   "flag": false,
+   "zipf": 0.0
+  },
+  "common_personal_name": {
+   "flag": false,
+   "census_percent": null,
+   "census_list": null
+  },
+  "resident_staff_collision": {
+   "flag": false,
+   "evidence": []
+  },
+  "product_association": "none known to the agent (not searched)",
+  "pronunciation_ambiguity": {
+   "flag": false,
+   "evidence": null
+  },
+  "spelling_ambiguity": {
+   "flag": false,
+   "other_spellings_same_or_near_sound": []
+  },
+  "near_sound_common_names": {},
+  "legal_review_required": "yes - no trademark or legal search performed"
+ },
+ "hey_kolabamo": {
+  "id": "hey kolabamo",
+  "base_word": "kolabamo",
+  "known_common_word": {
+   "flag": false,
+   "zipf": 0.0
+  },
+  "common_personal_name": {
+   "flag": false,
+   "census_percent": null,
+   "census_list": null
+  },
+  "resident_staff_collision": {
+   "flag": false,
+   "evidence": []
+  },
+  "product_association": "none known to the agent (not searched)",
+  "pronunciation_ambiguity": {
+   "flag": false,
+   "evidence": null
+  },
+  "spelling_ambiguity": {
+   "flag": false,
+   "other_spellings_same_or_near_sound": []
+  },
+  "near_sound_common_names": {},
+  "legal_review_required": "yes - no trademark or legal search performed"
+ },
+ "kotrubo": {
+  "id": "kotrubo",
+  "base_word": "kotrubo",
+  "known_common_word": {
+   "flag": false,
+   "zipf": 0.0
+  },
+  "common_personal_name": {
+   "flag": false,
+   "census_percent": null,
+   "census_list": null
+  },
+  "resident_staff_collision": {
+   "flag": false,
+   "evidence": []
+  },
+  "product_association": "none known to the agent (not searched)",
+  "pronunciation_ambiguity": {
+   "flag": true,
+   "evidence": "spelling may be read differently than intended"
+  },
+  "spelling_ambiguity": {
+   "flag": false,
+   "other_spellings_same_or_near_sound": []
+  },
+  "near_sound_common_names": {},
+  "legal_review_required": "yes - no trademark or legal search performed"
+ },
+ "hello_kotrubo": {
+  "id": "hello kotrubo",
+  "base_word": "kotrubo",
+  "known_common_word": {
+   "flag": false,
+   "zipf": 0.0
+  },
+  "common_personal_name": {
+   "flag": false,
+   "census_percent": null,
+   "census_list": null
+  },
+  "resident_staff_collision": {
+   "flag": false,
+   "evidence": []
+  },
+  "product_association": "none known to the agent (not searched)",
+  "pronunciation_ambiguity": {
+   "flag": true,
+   "evidence": "spelling may be read differently than intended"
+  },
+  "spelling_ambiguity": {
+   "flag": false,
+   "other_spellings_same_or_near_sound": []
+  },
+  "near_sound_common_names": {},
+  "legal_review_required": "yes - no trademark or legal search performed"
+ },
+ "kookaburra": {
+  "id": "kookaburra",
+  "base_word": "kookaburra",
+  "known_common_word": {
+   "flag": false,
+   "zipf": 0.0
+  },
+  "common_personal_name": {
+   "flag": false,
+   "census_percent": null,
+   "census_list": null
+  },
+  "resident_staff_collision": {
+   "flag": false,
+   "evidence": []
+  },
+  "product_association": "common noun (Australian bird); used in existing brand names, e.g. sports equipment (agent knowledge, unverified)",
+  "pronunciation_ambiguity": {
+   "flag": false,
+   "evidence": null
+  },
+  "spelling_ambiguity": {
+   "flag": false,
+   "other_spellings_same_or_near_sound": []
+  },
+  "near_sound_common_names": {},
+  "legal_review_required": "yes - no trademark or legal search performed"
+ },
+ "hey_kookaburra": {
+  "id": "hey kookaburra",
+  "base_word": "kookaburra",
+  "known_common_word": {
+   "flag": false,
+   "zipf": 0.0
+  },
+  "common_personal_name": {
+   "flag": false,
+   "census_percent": null,
+   "census_list": null
+  },
+  "resident_staff_collision": {
+   "flag": false,
+   "evidence": []
+  },
+  "product_association": "common noun (Australian bird); used in existing brand names, e.g. sports equipment (agent knowledge, unverified)",
+  "pronunciation_ambiguity": {
+   "flag": false,
+   "evidence": null
+  },
+  "spelling_ambiguity": {
+   "flag": false,
+   "other_spellings_same_or_near_sound": []
+  },
+  "near_sound_common_names": {},
+  "legal_review_required": "yes - no trademark or legal search performed"
+ },
+ "okay_velora_veh_lor_uh": {
+  "id": "okay velora (veh-LOR-uh)",
+  "base_word": "velora",
+  "known_common_word": {
+   "flag": false,
+   "zipf": 0.0
+  },
+  "common_personal_name": {
+   "flag": false,
+   "census_percent": null,
+   "census_list": null
+  },
+  "resident_staff_collision": {
+   "flag": false,
+   "evidence": []
+  },
+  "product_association": "none known to the agent (not searched)",
+  "pronunciation_ambiguity": {
+   "flag": false,
+   "evidence": null
+  },
+  "spelling_ambiguity": {
+   "flag": true,
+   "other_spellings_same_or_near_sound": [
+    "Valora"
+   ]
+  },
+  "near_sound_common_names": {
+   "Laura": 0.51,
+   "Lora": 0.036
+  },
+  "legal_review_required": "yes - no trademark or legal search performed"
+ },
+ "velora_veh_lor_uh": {
+  "id": "velora (veh-LOR-uh)",
+  "base_word": "velora",
+  "known_common_word": {
+   "flag": false,
+   "zipf": 0.0
+  },
+  "common_personal_name": {
+   "flag": false,
+   "census_percent": null,
+   "census_list": null
+  },
+  "resident_staff_collision": {
+   "flag": false,
+   "evidence": []
+  },
+  "product_association": "none known to the agent (not searched)",
+  "pronunciation_ambiguity": {
+   "flag": false,
+   "evidence": null
+  },
+  "spelling_ambiguity": {
+   "flag": true,
+   "other_spellings_same_or_near_sound": [
+    "Valora"
+   ]
+  },
+  "near_sound_common_names": {
+   "Laura": 0.51,
+   "Lora": 0.036
+  },
+  "legal_review_required": "yes - no trademark or legal search performed"
+ },
+ "hello_pomona": {
+  "id": "hello pomona",
+  "base_word": "pomona",
+  "known_common_word": {
+   "flag": false,
+   "zipf": 2.89
+  },
+  "common_personal_name": {
+   "flag": false,
+   "census_percent": null,
+   "census_list": null
+  },
+  "resident_staff_collision": {
+   "flag": false,
+   "evidence": []
+  },
+  "product_association": "place name (California city, Pomona College) (agent knowledge)",
+  "pronunciation_ambiguity": {
+   "flag": false,
+   "evidence": null
+  },
+  "spelling_ambiguity": {
+   "flag": false,
+   "other_spellings_same_or_near_sound": []
+  },
+  "near_sound_common_names": {},
+  "legal_review_required": "yes - no trademark or legal search performed"
+ },
+ "pomona": {
+  "id": "pomona",
+  "base_word": "pomona",
+  "known_common_word": {
+   "flag": false,
+   "zipf": 2.89
+  },
+  "common_personal_name": {
+   "flag": false,
+   "census_percent": null,
+   "census_list": null
+  },
+  "resident_staff_collision": {
+   "flag": false,
+   "evidence": []
+  },
+  "product_association": "place name (California city, Pomona College) (agent knowledge)",
+  "pronunciation_ambiguity": {
+   "flag": false,
+   "evidence": null
+  },
+  "spelling_ambiguity": {
+   "flag": false,
+   "other_spellings_same_or_near_sound": []
+  },
+  "near_sound_common_names": {},
+  "legal_review_required": "yes - no trademark or legal search performed"
+ },
+ "okay_lumaro": {
+  "id": "okay lumaro",
+  "base_word": "lumaro",
+  "known_common_word": {
+   "flag": false,
+   "zipf": 0.0
+  },
+  "common_personal_name": {
+   "flag": false,
+   "census_percent": null,
+   "census_list": null
+  },
+  "resident_staff_collision": {
+   "flag": false,
+   "evidence": []
+  },
+  "product_association": "none known to the agent (not searched)",
+  "pronunciation_ambiguity": {
+   "flag": false,
+   "evidence": null
+  },
+  "spelling_ambiguity": {
+   "flag": false,
+   "other_spellings_same_or_near_sound": []
+  },
+  "near_sound_common_names": {},
+  "legal_review_required": "yes - no trademark or legal search performed"
+ },
+ "callista_kuh_liss_tuh": {
+  "id": "callista (kuh-LISS-tuh)",
+  "base_word": "callista",
+  "known_common_word": {
+   "flag": false,
+   "zipf": 0.0
+  },
+  "common_personal_name": {
+   "flag": false,
+   "census_percent": null,
+   "census_list": null
+  },
+  "resident_staff_collision": {
+   "flag": true,
+   "evidence": [
+    "Calista"
+   ]
+  },
+  "product_association": "none known to the agent (not searched)",
+  "pronunciation_ambiguity": {
+   "flag": true,
+   "evidence": "kuh-LISS-tuh and CALL-iss-tuh both nominated"
+  },
+  "spelling_ambiguity": {
+   "flag": true,
+   "other_spellings_same_or_near_sound": [
+    "Calista",
+    "Kallista"
+   ]
+  },
+  "near_sound_common_names": {
+   "Melissa": 0.462,
+   "Clarissa": 0.014,
+   "Calista": 0.001
+  },
+  "legal_review_required": "yes - no trademark or legal search performed"
+ },
+ "callista_call_iss_tuh": {
+  "id": "callista (CALL-iss-tuh)",
+  "base_word": "callista",
+  "known_common_word": {
+   "flag": false,
+   "zipf": 0.0
+  },
+  "common_personal_name": {
+   "flag": false,
+   "census_percent": null,
+   "census_list": null
+  },
+  "resident_staff_collision": {
+   "flag": true,
+   "evidence": [
+    "Calista"
+   ]
+  },
+  "product_association": "none known to the agent (not searched)",
+  "pronunciation_ambiguity": {
+   "flag": true,
+   "evidence": "kuh-LISS-tuh and CALL-iss-tuh both nominated"
+  },
+  "spelling_ambiguity": {
+   "flag": true,
+   "other_spellings_same_or_near_sound": [
+    "Calista",
+    "Kallista"
+   ]
+  },
+  "near_sound_common_names": {
+   "Melissa": 0.462,
+   "Clarissa": 0.014,
+   "Calista": 0.001
+  },
+  "legal_review_required": "yes - no trademark or legal search performed"
+ },
+ "hey_callista_kuh_liss_tuh": {
+  "id": "hey callista (kuh-LISS-tuh)",
+  "base_word": "callista",
+  "known_common_word": {
+   "flag": false,
+   "zipf": 0.0
+  },
+  "common_personal_name": {
+   "flag": false,
+   "census_percent": null,
+   "census_list": null
+  },
+  "resident_staff_collision": {
+   "flag": true,
+   "evidence": [
+    "Calista"
+   ]
+  },
+  "product_association": "none known to the agent (not searched)",
+  "pronunciation_ambiguity": {
+   "flag": true,
+   "evidence": "kuh-LISS-tuh and CALL-iss-tuh both nominated"
+  },
+  "spelling_ambiguity": {
+   "flag": true,
+   "other_spellings_same_or_near_sound": [
+    "Calista",
+    "Kallista"
+   ]
+  },
+  "near_sound_common_names": {
+   "Melissa": 0.462,
+   "Clarissa": 0.014,
+   "Calista": 0.001
+  },
+  "legal_review_required": "yes - no trademark or legal search performed"
+ },
+ "kestra_kess_truh": {
+  "id": "kestra (KESS-truh)",
+  "base_word": "kestra",
+  "known_common_word": {
+   "flag": false,
+   "zipf": 0.0
+  },
+  "common_personal_name": {
+   "flag": false,
+   "census_percent": null,
+   "census_list": null
+  },
+  "resident_staff_collision": {
+   "flag": false,
+   "evidence": []
+  },
+  "product_association": "Kestra is an open-source workflow-orchestration software product (agent knowledge, unverified)",
+  "pronunciation_ambiguity": {
+   "flag": false,
+   "evidence": null
+  },
+  "spelling_ambiguity": {
+   "flag": false,
+   "other_spellings_same_or_near_sound": []
+  },
+  "near_sound_common_names": {
+   "Kesha": 0.005
+  },
+  "legal_review_required": "yes - no trademark or legal search performed"
+ },
+ "hey_kestra_kess_truh": {
+  "id": "hey kestra (KESS-truh)",
+  "base_word": "kestra",
+  "known_common_word": {
+   "flag": false,
+   "zipf": 0.0
+  },
+  "common_personal_name": {
+   "flag": false,
+   "census_percent": null,
+   "census_list": null
+  },
+  "resident_staff_collision": {
+   "flag": false,
+   "evidence": []
+  },
+  "product_association": "Kestra is an open-source workflow-orchestration software product (agent knowledge, unverified)",
+  "pronunciation_ambiguity": {
+   "flag": false,
+   "evidence": null
+  },
+  "spelling_ambiguity": {
+   "flag": false,
+   "other_spellings_same_or_near_sound": []
+  },
+  "near_sound_common_names": {
+   "Kesha": 0.005
+  },
+  "legal_review_required": "yes - no trademark or legal search performed"
+ },
+ "krysta_kriss_tuh": {
+  "id": "krysta (KRISS-tuh)",
+  "base_word": "krysta",
+  "known_common_word": {
+   "flag": false,
+   "zipf": 0.0
+  },
+  "common_personal_name": {
+   "flag": false,
+   "census_percent": 0.002,
+   "census_list": "first name (% of that sex)"
+  },
+  "resident_staff_collision": {
+   "flag": true,
+   "evidence": [
+    "Krista",
+    "Christa",
+    "Krista"
+   ]
+  },
+  "product_association": "none known to the agent (not searched)",
+  "pronunciation_ambiguity": {
+   "flag": false,
+   "evidence": null
+  },
+  "spelling_ambiguity": {
+   "flag": true,
+   "other_spellings_same_or_near_sound": [
+    "Krista",
+    "Crista",
+    "Christa"
+   ]
+  },
+  "near_sound_common_names": {
+   "Chris": 0.197,
+   "Christian": 0.065,
+   "Crystal": 0.207
+  },
+  "legal_review_required": "yes - no trademark or legal search performed"
+ },
+ "hey_krysta_kriss_tuh": {
+  "id": "hey krysta (KRISS-tuh)",
+  "base_word": "krysta",
+  "known_common_word": {
+   "flag": false,
+   "zipf": 0.0
+  },
+  "common_personal_name": {
+   "flag": false,
+   "census_percent": 0.002,
+   "census_list": "first name (% of that sex)"
+  },
+  "resident_staff_collision": {
+   "flag": true,
+   "evidence": [
+    "Krista",
+    "Christa",
+    "Krista"
+   ]
+  },
+  "product_association": "none known to the agent (not searched)",
+  "pronunciation_ambiguity": {
+   "flag": false,
+   "evidence": null
+  },
+  "spelling_ambiguity": {
+   "flag": true,
+   "other_spellings_same_or_near_sound": [
+    "Krista",
+    "Crista",
+    "Christa"
+   ]
+  },
+  "near_sound_common_names": {
+   "Chris": 0.197,
+   "Christian": 0.065,
+   "Crystal": 0.207
+  },
+  "legal_review_required": "yes - no trademark or legal search performed"
+ },
+ "sivia_siv_ee_uh": {
+  "id": "sivia (SIV-ee-uh)",
+  "base_word": "sivia",
+  "known_common_word": {
+   "flag": false,
+   "zipf": 0.0
+  },
+  "common_personal_name": {
+   "flag": false,
+   "census_percent": null,
+   "census_list": null
+  },
+  "resident_staff_collision": {
+   "flag": false,
+   "evidence": []
+  },
+  "product_association": "none known to the agent (not searched)",
+  "pronunciation_ambiguity": {
+   "flag": true,
+   "evidence": "SIV-ee-uh and SEE-vee-uh both nominated"
+  },
+  "spelling_ambiguity": {
+   "flag": true,
+   "other_spellings_same_or_near_sound": [
+    "Civia"
+   ]
+  },
+  "near_sound_common_names": {
+   "Sylvia": 0.177,
+   "Olivia": 0.049,
+   "Vivian": 0.118
+  },
+  "legal_review_required": "yes - no trademark or legal search performed"
+ },
+ "hey_sivia_siv_ee_uh": {
+  "id": "hey sivia (SIV-ee-uh)",
+  "base_word": "sivia",
+  "known_common_word": {
+   "flag": false,
+   "zipf": 0.0
+  },
+  "common_personal_name": {
+   "flag": false,
+   "census_percent": null,
+   "census_list": null
+  },
+  "resident_staff_collision": {
+   "flag": false,
+   "evidence": []
+  },
+  "product_association": "none known to the agent (not searched)",
+  "pronunciation_ambiguity": {
+   "flag": true,
+   "evidence": "SIV-ee-uh and SEE-vee-uh both nominated"
+  },
+  "spelling_ambiguity": {
+   "flag": true,
+   "other_spellings_same_or_near_sound": [
+    "Civia"
+   ]
+  },
+  "near_sound_common_names": {
+   "Sylvia": 0.177,
+   "Olivia": 0.049,
+   "Vivian": 0.118
+  },
+  "legal_review_required": "yes - no trademark or legal search performed"
+ },
+ "sivia_see_vee_uh": {
+  "id": "sivia (SEE-vee-uh)",
+  "base_word": "sivia",
+  "known_common_word": {
+   "flag": false,
+   "zipf": 0.0
+  },
+  "common_personal_name": {
+   "flag": false,
+   "census_percent": null,
+   "census_list": null
+  },
+  "resident_staff_collision": {
+   "flag": false,
+   "evidence": []
+  },
+  "product_association": "none known to the agent (not searched)",
+  "pronunciation_ambiguity": {
+   "flag": true,
+   "evidence": "SIV-ee-uh and SEE-vee-uh both nominated"
+  },
+  "spelling_ambiguity": {
+   "flag": true,
+   "other_spellings_same_or_near_sound": [
+    "Civia"
+   ]
+  },
+  "near_sound_common_names": {
+   "Sylvia": 0.177,
+   "Olivia": 0.049,
+   "Vivian": 0.118
+  },
+  "legal_review_required": "yes - no trademark or legal search performed"
+ },
+ "hey_sivia_see_vee_uh": {
+  "id": "hey sivia (SEE-vee-uh)",
+  "base_word": "sivia",
+  "known_common_word": {
+   "flag": false,
+   "zipf": 0.0
+  },
+  "common_personal_name": {
+   "flag": false,
+   "census_percent": null,
+   "census_list": null
+  },
+  "resident_staff_collision": {
+   "flag": false,
+   "evidence": []
+  },
+  "product_association": "none known to the agent (not searched)",
+  "pronunciation_ambiguity": {
+   "flag": true,
+   "evidence": "SIV-ee-uh and SEE-vee-uh both nominated"
+  },
+  "spelling_ambiguity": {
+   "flag": true,
+   "other_spellings_same_or_near_sound": [
+    "Civia"
+   ]
+  },
+  "near_sound_common_names": {
+   "Sylvia": 0.177,
+   "Olivia": 0.049,
+   "Vivian": 0.118
+  },
+  "legal_review_required": "yes - no trademark or legal search performed"
+ }
+}

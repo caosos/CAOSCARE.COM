@@ -106,6 +106,12 @@ def training_negative_phrases(neighbour_phrases=()):
     return out
 
 
+# Extra held-out confusion set for the Sivia addendum (Michael, 2026-10-04). EVALUATION ONLY - the shared
+# training negatives stay identical for every model. Every model (all 26) is scored on these clips; results
+# are written to separate files so completed results are never altered.
+EXTRA_CONFUSION = ["Sylvia", "Olivia", "Siri", "Syria", "severe", "trivia", "see via", "Siva", "Shiva",
+                   "Civia", "Vivian", "hey Sylvia", "hey Olivia"]
+
 # Held-out evaluation sentences: TV / news / room conversation lines (never trained on).
 EVAL_SENTENCES = [
     "In tonight's news, the city council approved the new budget.",
@@ -156,4 +162,31 @@ def sha256(path, chunk=1 << 20):
 
 
 def load_trained_candidates():
+    """The original 15 Phase 2 candidates (select_lab.py)."""
     return json.loads((LAB / "trained_candidates.json").read_text())
+
+
+def load_supplemental_candidates():
+    """Mandatory supplemental candidates (select_supplemental.py, Michael 2026-10-04)."""
+    f = LAB / "supplemental_candidates.json"
+    return json.loads(f.read_text()) if f.exists() else []
+
+
+def load_all_candidates():
+    return load_trained_candidates() + load_supplemental_candidates()
+
+
+def load_phase1_rows():
+    """Phase 1 text-screen rows for every candidate, keyed by id: results/discovery.json plus the
+    supplemental screen (results/discovery_supplemental.json, Sivia addendum). Supplemental rows
+    never replace an original row."""
+    rows = {r["id"]: r for r in json.loads((LAB / "results/discovery.json").read_text())["rows"]}
+    extra = LAB / "results/discovery_supplemental.json"
+    if extra.exists():
+        for r in json.loads(extra.read_text())["rows"]:
+            rows.setdefault(r["id"], r)
+    return rows
+
+
+def candidate(slug):
+    return next(c for c in load_all_candidates() if c["slug"] == slug)

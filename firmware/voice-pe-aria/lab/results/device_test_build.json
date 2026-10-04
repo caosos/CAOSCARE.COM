@@ -1,0 +1,40 @@
+{
+ "finalists": [
+  {
+   "id": "hey kookaburra",
+   "model_id": "hey_kookaburra",
+   "tflite_sha256": "45ff33d376add79a1ec960b270fe611591afaf72e1ed59ec7fe77f6c2eb8a21c",
+   "cutoff": 0.99,
+   "arena": 34000,
+   "manifest_sha256": "28ff072fd0df2b1cca161124ef97a60cc99f69ccad059c91c99a63cfced0357b"
+  },
+  {
+   "id": "hey callista (kuh-LISS-tuh)",
+   "model_id": "hey_callista_kuh_liss_tuh",
+   "tflite_sha256": "f1ff21a0d35d32bb1644f536d24b9885bb7ad7b56e30669363f5e11b856f0ef9",
+   "cutoff": 0.98,
+   "arena": 34000,
+   "manifest_sha256": "6f93f13191a520eda28ca4d0aa10fa9787aeed6b8199e1840c433d9bcc834891"
+  },
+  {
+   "id": "okay velora (veh-LOR-uh)",
+   "model_id": "okay_velora_veh_lor_uh",
+   "tflite_sha256": "357898aa54e3d623e5e65f4264f50414e199fbfa3869f53b696582ccec78842c",
+   "cutoff": 0.9,
+   "arena": 34000,
+   "manifest_sha256": "0502b6cb61f517a48da151845c1ef4b0500ef3e1addd5c8eb10fd223a6cadf47"
+  }
+ ],
+ "compile_exit": 0,
+ "ram_line": "RAM:   [=====     ]  50.9% (used 174087 bytes from 341760 bytes)",
+ "flash_line": "Flash: [====      ]  39.2% (used 3187167 bytes from 8126464 bytes)",
+ "licensing": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE",
+ "firmware.factory.bin": {
+  "bytes": 3252816,
+  "sha256": "0ef26c82c62554a5738b11d233b621b5e24697104c296443af86a205e7e76304"
+ },
+ "firmware.ota.bin": {
+  "bytes": 3187280,
+  "sha256": "6d74e38e364b88b0e78787da74911738d429b881a1ccfe23ca23ab9715b4b950"
+ }
+}

@@ -21,11 +21,16 @@ per-clip seed):
 Ambient streams (false activations per hour, 2 s refractory):
   tv_dialogue (3 h), music (1 h), background (0.5 h), hvac (1 h), silence (0.5 h)
 
-usage: eval_lab.py <candidate_slug>      (research venv: venv-mww)
+usage: eval_lab.py <candidate_slug>                       (research venv: venv-mww)
+       eval_lab.py <slug> --cross-supplemental  additive run written to lab_eval_supp_cross.json:
+                                                extra confusion clips (all models) + supplemental
+                                                positives (original 15 only); lab_eval.json is
+                                                never modified
 """
 import json
 import random
 import sys
+import zlib
 import time
 from math import gcd
 from multiprocessing import Pool
@@ -34,9 +39,11 @@ import numpy as np
 import soundfile as sf
 from scipy.signal import butter, fftconvolve, lfilter, resample_poly
 
-from lab_common import CUTOFFS, EVAL_DATA, REPORT_CUTOFF, RUNS, SAMPLES, SEED, load_trained_candidates, sha256
+from lab_common import (CUTOFFS, EVAL_DATA, REPORT_CUTOFF, RUNS, SAMPLES, SEED, load_supplemental_candidates,
+                        load_trained_candidates, sha256)
 
 SR = 16000
+WORKERS = 3      # memory: ~1.4-1.8 GB per worker (TF runtime + int16 noise); 3 keeps the 14 GB host safe
 WINDOW = 5
 STRIDE_S = 0.03
 PAD_BEFORE, PAD_AFTER = 1.0, 0.8
@@ -76,7 +83,8 @@ def _init(tflite):
     _G["tflite"] = tflite
     _G["model"] = Model(tflite)
     _G["rir"] = rirs()
-    _G["noise"] = {k: load16k(EVAL_DATA / "streams" / f"{k}.wav")
+    # int16 storage (16 kHz streams): ~0.65 GB per worker instead of ~2.6 GB as float64
+    _G["noise"] = {k: sf.read(str(EVAL_DATA / "streams" / f"{k}.wav"), dtype="int16")[0]
                    for k in ("talker_pool", "music", "background", "hvac", "tv_dialogue")}
 
 
@@ -93,7 +101,7 @@ def lowpass(a, hz):
 def mix(sig, noise_key, snr_db, rng):
     n = _G["noise"][noise_key]
     start = rng.integers(0, len(n) - len(sig) - 1)
-    n = n[start:start + len(sig)]
+    n = n[start:start + len(sig)].astype(np.float64) / 32767.0
     ps, pn = np.mean(sig ** 2) + 1e-12, np.mean(n ** 2) + 1e-12
     return sig + n * np.sqrt(ps / (pn * 10 ** (snr_db / 10)))
 
@@ -160,7 +168,10 @@ def scores(a):
 
 def clip_job(job):
     path, cond = job
-    rng = np.random.default_rng((SEED + hash((path, cond))) % (2 ** 32))
+    # Deterministic per-clip seed, identical for every model and every process. (Was Python's
+    # hash(), which is salted per process: each model got different noise offsets - fixed 2026-10-04.)
+    key = f"{str(path).split('/samples/lab/eval/')[-1]}|{cond}"
+    rng = np.random.default_rng((SEED + zlib.crc32(key.encode())) % (2 ** 32))
     a = apply(load16k(path), cond, rng)
     w = scores(a)
     lat = None
@@ -175,13 +186,14 @@ def clip_job(job):
 
 
 def stream_job(name):
-    a = load16k(EVAL_DATA / "streams" / f"{name}.wav")
+    path = EVAL_DATA / "streams" / f"{name}.wav"
     chunk = 600 * SR
+    total = sf.info(str(path)).frames
     events = {c: 0 for c in CUTOFFS}
     t0 = time.time()
     frames = 0
-    for i in range(0, len(a), chunk):
-        w = scores(a[i:i + chunk])
+    for block in sf.blocks(str(path), blocksize=chunk, dtype="float64"):   # 10-min chunks, low memory
+        w = scores(block)
         frames += len(w)
         for c in CUTOFFS:
             hits = np.where(w > c)[0]
@@ -190,7 +202,7 @@ def stream_job(name):
                 if h - last >= 2.0 / STRIDE_S:
                     events[c] += 1
                     last = h
-    hours = len(a) / SR / 3600
+    hours = total / SR / 3600
     return name, {"hours": round(hours, 3), "events": events,
                   "per_hour": {c: round(n / hours, 3) for c, n in events.items()},
                   "host_ms_per_inference": round((time.time() - t0) * 1000 / max(1, frames), 4)}
@@ -207,9 +219,32 @@ def arena(tflite):
     return None
 
 
-def main(slug):
-    cands = {c["slug"]: c for c in load_trained_candidates()}
+def cross_supplemental(slug, tflite, is_original):
+    """Additive evaluation written to lab_eval_supp_cross.json (lab_eval.json is never touched):
+    - every model: the extra held-out confusion clips (eval/negatives_extra) under NEG_CONDITIONS
+    - original 15 only: the supplemental candidates' clean positives (cross-trigger)"""
+    ev = SAMPLES / "eval"
+    jobs = [(str(f), c) for f in sorted((ev / "negatives_extra").rglob("*.wav")) for c in NEG_CONDITIONS]
+    if is_original:
+        jobs += [(str(f), "clean") for c in load_supplemental_candidates()
+                 for f in sorted((ev / "positives" / c["slug"]).rglob("*.wav"))]
+    with Pool(WORKERS, initializer=_init, initargs=(tflite,)) as pool:
+        clip = pool.map(clip_job, jobs, chunksize=32)
+    out = {"candidate": slug, "tflite_sha256": sha256(tflite), "mode": "cross_supplemental",
+           "clips": [{"file": str(p).split("/samples/lab/eval/")[-1], "condition": c, "peak": round(s, 4)}
+                     for p, c, s, _ in clip]}
+    (RUNS / slug / "lab_eval_supp_cross.json").write_text(json.dumps(out))
+    print(slug, "cross-supplemental clips", len(clip))
+
+
+def main(slug, cross=False):
+    originals = {c["slug"]: c for c in load_trained_candidates()}
+    supplemental = {c["slug"]: c for c in load_supplemental_candidates()}
+    # original models keep exactly their original job list; supplemental models cross-check all 22
+    cands = {**originals, **supplemental} if slug in supplemental else originals
     tflite = str(RUNS / slug / "trained/tflite_stream_state_internal_quant/stream_state_internal_quant.tflite")
+    if cross:
+        return cross_supplemental(slug, tflite, slug in originals)
     ev = SAMPLES / "eval"
     jobs = []
     for f in sorted((ev / "positives" / slug).rglob("*.wav")):
@@ -224,7 +259,7 @@ def main(slug):
             jobs += [(str(f), c) for c in NEG_CONDITIONS]
     random.Random(SEED).shuffle(jobs)
     t0 = time.time()
-    with Pool(6, initializer=_init, initargs=(tflite,)) as pool:
+    with Pool(WORKERS, initializer=_init, initargs=(tflite,)) as pool:
         clip = pool.map(clip_job, jobs, chunksize=32)
         streams = dict(pool.map(stream_job, list(STREAMS)))
     out = {"candidate": slug, "tflite": tflite, "tflite_sha256": sha256(tflite),
@@ -238,4 +273,4 @@ def main(slug):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    main(sys.argv[1], cross="--cross-supplemental" in sys.argv)

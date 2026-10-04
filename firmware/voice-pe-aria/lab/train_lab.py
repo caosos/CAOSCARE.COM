@@ -6,6 +6,10 @@ mixednet, 10k steps) exactly as training/train_model.py, with two lab rules:
   candidate, so all models see byte-identical negatives;
 - Python / NumPy / TensorFlow seeds are fixed (lab_common.SEED) for feature
   generation and training.
+Supplemental candidates with `exclude_negatives` (a shared negative phrase with
+the SAME SOUND as the candidate, e.g. "Krista" for Krysta) get a negative set
+built by the same seeded procedure from the shared negative clips minus those
+phrase directories; this is the only deviation and is recorded per model.
 
 usage: train_lab.py <candidate_slug>     (research venv: venv-mww)
 """
@@ -18,7 +22,7 @@ import numpy as np
 import yaml
 from mmap_ninja.ragged import RaggedMmap
 
-from lab_common import RUNS, SAMPLES, SEED, TRAIN_STEPS, WORK
+from lab_common import RUNS, SAMPLES, SEED, TRAIN_STEPS, WORK, candidate
 from microwakeword.audio.augmentation import Augmentation
 from microwakeword.audio.clips import Clips
 from microwakeword.audio.spectrograms import SpectrogramGeneration
@@ -63,7 +67,23 @@ def main(slug):
     run = RUNS / slug
     run.mkdir(parents=True, exist_ok=True)
     shared_neg = RUNS / "_shared_negative_features"
-    features(SAMPLES / "train/negatives", shared_neg, 1)
+    neg_src = SAMPLES / "train/negatives"
+    excl = sorted(candidate(slug).get("exclude_negatives", []))
+    if excl:
+        names = {"".join(ch if ch.isalnum() else "_" for ch in e.lower()).strip("_")[:48] for e in excl}
+        tag = "__minus_" + "_".join(sorted(names))
+        filtered = SAMPLES / ("train/negatives" + tag)
+        filtered.mkdir(parents=True, exist_ok=True)
+        for d in neg_src.iterdir():      # real dirs of hard-linked files: pathlib glob skips symlinked dirs
+            if d.name in names:
+                continue
+            (filtered / d.name).mkdir(exist_ok=True)
+            for f in d.glob("*.wav"):
+                link = filtered / d.name / f.name
+                if not link.exists():
+                    os.link(f, link)
+        neg_src, shared_neg = filtered, RUNS / ("_shared_negative_features" + tag)
+    features(neg_src, shared_neg, 1)
     features(SAMPLES / "train/positives" / slug, run / "positive_features", 2)
     fs = [
         {"features_dir": str(run / "positive_features"), "sampling_weight": 2.0, "penalty_weight": 1.0,
@@ -81,7 +101,8 @@ def main(slug):
            "learning_rates": [0.001], "batch_size": 128, "time_mask_max_size": [0], "time_mask_count": [0],
            "freq_mask_max_size": [0], "freq_mask_count": [0], "eval_step_interval": 500,
            "clip_duration_ms": 1500, "target_minimization": 0.9, "minimization_metric": None,
-           "maximization_metric": "average_viable_recall", "seed": SEED}
+           "maximization_metric": "average_viable_recall", "seed": SEED,
+           "excluded_same_sound_negatives": excl}
     (run / "training_parameters.yaml").write_text(yaml.dump(cfg))
     os.chdir(run)
     seed_all()

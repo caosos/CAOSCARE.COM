@@ -1,10 +1,12 @@
 # Wake Word Lab — data, tool and model licensing
 
-**Bottom line:**
+**Bottom line — licensing is a hard gate (Michael, 2026-10-04):**
 - **Every model trained in this lab is RESEARCH-ONLY and is NOT commercially
   releasable.** Their negative and background training data include sets
   marked non-commercial, or with unclear rights.
-- No model here may ship in release firmware.
+- No model here may ship in release firmware, and no current binary is shipping firmware.
+- Licensing eligibility earns no ranking points. Phrase-level naming/brand risk is a separate
+  consideration (`results/naming_risk.json`), not licensing eligibility.
 - A commercial model needs the separate commercially-cleared pipeline below,
   plus legal review.
 
@@ -55,7 +57,7 @@ Each model's SHA-256 is in `RESULTS.md` and `results/provenance.json`.
 
 | Model | Commercial-release eligible? | Reason |
 |---|---|---|
-| All 15 lab models, plus the earlier `aria` / `hey_aria` and Naboo spike models | **No (research-only)** | trained with the microWakeWord negative features and FMA/AudioSet backgrounds (non-commercial / unclear rights); generator checkpoint terms unverified |
+| All 22 lab models (the original 15 + 7 supplemental), plus the earlier `aria` / `hey_aria` and Naboo spike models | **No (research-only)** | trained with the microWakeWord negative features and FMA/AudioSet backgrounds (non-commercial / unclear rights); generator checkpoint terms unverified |
 
 ## Path to a commercially releasable model (not started)
 

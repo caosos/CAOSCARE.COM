@@ -13,7 +13,7 @@ import json
 import statistics
 from collections import defaultdict
 
-from lab_common import CUTOFFS, LAB, REPORT_CUTOFF, RUNS, load_trained_candidates
+from lab_common import CUTOFFS, LAB, REPORT_CUTOFF, RUNS, load_supplemental_candidates, load_trained_candidates
 
 MATCHED_FAPH = 0.5
 AMBIENT = ["tv_dialogue", "music", "background", "hvac", "silence"]
@@ -40,7 +40,10 @@ def ambient_faph(streams, cut):
 
 
 def main():
-    cands = load_trained_candidates()
+    originals = load_trained_candidates()
+    supplemental = load_supplemental_candidates()
+    cands = originals + supplemental
+    supp_slugs = {c["slug"] for c in supplemental}
     res, conf, cross, roc = {}, defaultdict(dict), defaultdict(dict), []
     for c in cands:
         f = RUNS / c["slug"] / "lab_eval.json"
@@ -69,7 +72,8 @@ def main():
             elif parts[0] in ("negatives_trained", "negatives_heldout", "sentences"):
                 neg[(parts[0], parts[1])].append(r["peak"])
         matched = next((x for x in sorted(CUTOFFS) if ambient_faph(st, x) <= MATCHED_FAPH), max(CUTOFFS))
-        row = {"id": c["id"], "slug": c["slug"], "kind": c["kind"], "launcher": c.get("launcher"),
+        row = {"id": c["id"], "slug": c["slug"], "group": "supplemental (mandatory)" if c["slug"] in supp_slugs
+               else "original 15", "kind": c["kind"], "launcher": c.get("launcher"),
                "base": c.get("base"), "tflite_sha256": e["tflite_sha256"], "tflite_bytes": e["tflite_bytes"],
                "arena_bytes": e["arena_bytes"], "matched_cutoff": matched}
         for point, cut in (("fixed", REPORT_CUTOFF), ("matched", matched)):
@@ -96,6 +100,25 @@ def main():
             conf[f"{kind}:{phrase}"][c["slug"]] = rate(vals, row["matched_cutoff"])
         for o, vals in other.items():
             cross[c["slug"]][o] = rate(vals, row["matched_cutoff"])
+        xf = RUNS / c["slug"] / "lab_eval_supp_cross.json"     # additive cross run (separate file)
+        extra = defaultdict(list)
+        if xf.exists():
+            xo = defaultdict(list)
+            for r in json.loads(xf.read_text())["clips"]:
+                parts = r["file"].split("/")
+                if parts[0] == "positives":
+                    xo[parts[1]].append(r["peak"])
+                elif parts[0] == "negatives_extra":
+                    extra[parts[1]].append(r["peak"])
+            for o, vals in xo.items():
+                cross[c["slug"]][o] = rate(vals, row["matched_cutoff"])
+        for point, cut in (("fixed", REPORT_CUTOFF), ("matched", row["matched_cutoff"])):
+            ev = [v for vals in extra.values() for v in vals]
+            row[f"{point}_extra_confusion_false_activation_rate"] = rate(ev, cut)
+            allneg = [v for vals in neg.values() for v in vals] + ev
+            row[f"{point}_confusion_rate_incl_extra"] = rate(allneg, cut)
+        for phrase, vals in extra.items():
+            conf[f"negatives_extra:{phrase}"][c["slug"]] = rate(vals, row["matched_cutoff"])
         for cut in CUTOFFS:
             roc.append({"slug": c["slug"], "cutoff": cut, "tpr_quiet_room_2m": rate(own["room_2m"], cut),
                         "tpr_tv_on": rate(own["tv_on_2m"], cut), "tpr_all": rate(
@@ -108,7 +131,7 @@ def main():
         "condition_groups": GROUPS, "models": res, "confusion_by_phrase_at_matched_cutoff": conf,
         "cross_trigger_at_matched_cutoff": cross, "roc": roc}, indent=1))
     keys = sorted({k for r in res.values() for k in r})
-    head = ["id", "slug", "kind", "launcher", "base", "matched_cutoff"]
+    head = ["id", "slug", "group", "kind", "launcher", "base", "matched_cutoff"]
     keys = head + [k for k in keys if k not in head]
     with open(out / "phase2_summary.csv", "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=keys)

@@ -5171,3 +5171,62 @@ HANDOFF CAPSULE
 - Product invariants: local on-device wake detection; Aria identity; no device flashed without approval.
 - Do NOT change:    firmware/voice-pe-naboo branch; main; integration; Linode.
 - Next safe action: when the Voice PE arrives, USB-flash firmware.factory.bin and run the README device tests (false-wake soak first).
+
+---
+
+## 2026-10-04 — Wake Word Lab: recommend_lab.py Sivia discovery defect fixed before it ran
+
+### Agent / tool
+Claude Code (Opus 5.5), worktree `~/CAOSCARE-FIRMWARE-ARIA`, branch `firmware/voice-pe-aria` (HEAD `8248f94`, lab changes uncommitted). Coordinator's read-only audit flagged the defect.
+
+### Defect origin and evidence
+`recommend_lab.py` read Phase 1 text-screen rows only from `results/discovery.json`. The four Sivia candidates were screened later by `screen_supplemental.py` into `results/discovery_supplemental.json` (Sivia addendum). The other readers (`naming_risk.py`, `select_supplemental.py`) already merged both files; `recommend_lab.py` did not.
+Reproduced against the real manifests: 22 of 26 candidate ids had a screen row; the four Sivia ids had none, so `d1[c["id"]]` would raise KeyError as soon as a Sivia model had Phase 2 results, i.e. in the final recommendation stage. Separately, a candidate with no Phase 2 results was silently skipped (`continue`), not reported.
+
+### Correction
+- `lab_common.py`: new `load_phase1_rows()` — merges `discovery.json` and `discovery_supplemental.json` (supplemental never replaces an original row). Additive; no existing function changed.
+- `recommend_lab.py`: uses `load_all_candidates()` + `load_phase1_rows()`; stops with an explicit error if any candidate lacks a screen row; candidates without Phase 2 results are listed in a new `not_evaluated` field (plus `candidates_total`, `candidates_ranked`) and printed, never scored. Scoring, weights and selection rules unchanged.
+
+### Verification (lightweight; recommend_lab.py not run, no result file overwritten)
+`py_compile` passes. Canonical discovery: 26 candidates, no duplicate ids or slugs, 0 missing screen rows (before: 22/26; after: 26/26). All four Sivia variants and all seven Callista/Kestra/Krysta variants present.
+
+### Processes
+recommend_lab.py was not executing at the time of the fix (the finalizer runs it only after the supplemental chain completes). No process stopped, restarted, reniced or duplicated; no training or evaluation repeated. `run_supplemental.sh` (3013581) and `finalize_lab.sh` (2950328) continued throughout.
+
+---
+
+## 2026-10-04 — Wake Word Lab complete (corrected): 26 models evaluated, three physical-test finalists, research firmware compiled (not flashed)
+
+### Agent / tool
+Claude Code (Opus 5.5), worktree `~/CAOSCARE-FIRMWARE-ARIA`, branch `firmware/voice-pe-aria` (starting HEAD `8248f94cd53abffce6a86442e7d395128af0021e`). Overnight run finished 12:01 CDT; corrected re-evaluation finished 13:48 CDT. Canonical lab report: `firmware/voice-pe-aria/lab/RESULTS.md`.
+
+### Requirement
+Michael, 2026-10-03: the assistant's identity is ARIA; candidates "Hey Aria" / "Aria" (AR-ee-uh). Choose wake phrases worth physical Voice PE testing by evidence; licensing is a hard gate; naming risk reported separately; physical test is the final gate.
+
+### Candidates (26, all trained and evaluated under identical conditions)
+Original 15: aria, hey aria, zaria, okay aria, kolabamo, hey kolabamo, kotrubo, hello kotrubo, kookaburra, hey kookaburra, velora, okay velora, pomona, hello pomona, okay lumaro. Supplemental 11: callista (kuh-LISS-tuh), callista (CALL-iss-tuh), hey callista (kuh-LISS-tuh), kestra, hey kestra, krysta, hey krysta, sivia (SIV-ee-uh), hey sivia (SIV-ee-uh), sivia (SEE-vee-uh), hey sivia (SEE-vee-uh).
+
+### Defects found and corrected (no model retrained)
+1. Evaluator OOM (~01:57): float64 noise in 6 workers; Aria's first evaluation failed. Fixed (int16, 3 workers, chunked); retried once, succeeded.
+2. `recommend_lab.py` did not read the Sivia text-screen rows (`discovery_supplemental.json`) and silently skipped unevaluated candidates. Fixed before it first ran (`lab_common.load_phase1_rows()`; `not_evaluated` reported).
+3. Natural-identity substring test gave "zaria" the score reserved for "aria" (+0.3). Fixed: Zaria 6.716 → 6.411.
+4. Per-clip noise/augmentation seed used Python `hash()` (salted per process), so models heard different noise on shared clips. Fixed (crc32 of relative path + condition); all 26 evaluations and cross-checks re-run (`rerun_eval_deterministic.sh`); earlier outputs kept in `superseded_2026-10-04_salted_seed/`.
+5. Implicit tie order / invisible variant rule: explicit id tie-break; selection rules and skipped variants recorded in `recommendation.json`. Report language now labels false wakes as a simulated lab estimate.
+
+### Ranking before vs after corrections
+Scores moved ≤ 0.035 except Zaria (−0.305). Order swaps: zaria/aria (7/8), hello pomona/kookaburra (9/10). Top five unchanged: hey kookaburra 7.898, hey callista (kuh-LISS-tuh) 7.447, okay velora (veh-LOR-uh) 7.385, hey aria 7.368, hey sivia (SIV-ee-uh) 6.779 (okay aria 7.335 passed over: one finalist per base word). Physical three unchanged: hey kookaburra, hey callista (kuh-LISS-tuh), okay velora (veh-LOR-uh); matched cutoffs unchanged (0.99/0.98/0.90). Pre-correction ranking: `lab/results/superseded/`.
+
+### Evaluation evidence
+26/26 `evaluated`, cross-checked, ranked. One identical negative job set (digest `595acae420dd`) and one identical ambient stream set for all 26; same clip + condition gives byte-identical audio in separate processes; every evaluation's model hash matches its trained model. `results_md.py` regenerated `RESULTS_TABLES.md` from the final evidence.
+
+### Firmware (research, not shippable, not flashed)
+`lab/device_test/finalists-voice-pe.yaml`, ESPHome 2026.9.0, exit 0, RAM 50.9%, flash 39.2%. factory `0ef26c82c62554a5738b11d233b621b5e24697104c296443af86a205e7e76304`; ota `6d74e38e364b88b0e78787da74911738d429b881a1ccfe23ca23ab9715b4b950`; models hey_kookaburra `45ff33d3…a21c`, hey_callista `f1ff21a0…0ef9`, okay_velora `357898aa…842c` (full hashes in RESULTS.md). OTA image contains exactly the three finalist ids, no stock wake models. Weights and builds gitignored. No flashing performed.
+
+### Licensing
+Every model: RESEARCH ONLY — NOT COMMERCIALLY RELEASABLE (non-commercial training data). Product use needs retraining on commercially licensed data and naming/trademark review.
+
+### Blocked / not done
+No physical test. HA VM `caoscare-homeassistant` still down since 2026-10-03 20:19 (OOM), not restarted (out of lane).
+
+### Next safe step
+With Michael's approval: USB-flash one test Voice PE with the research factory image and run `lab/device_test/PHYSICAL_TEST_SHEET.md` (overnight false-wake soak first; then 1/2/4 m, bed, low volume, TV on, older speakers); restore stock firmware afterwards.

@@ -128,6 +128,48 @@ def scores(c, d, sp, gates_hard, consistency):
     }
 
 
+def screen_one(lab, share, near, c, seen_sound):
+    """Text-screen one expanded candidate; returns its Phase 1 row."""
+    rep = lab.inspect(c["text"], phonemes=c["phonemes"])
+    d = dimensions(rep, near)
+    judged = [e for e in rep["pronunciations"] if e["role"] != "informational"][0]
+    sp = judged["speakability"]
+    area = hostile(lab, c["text"], [tuple(c["phonemes"].split())])[0]
+    g4_hard, g4_rare = g4_policy(rep, share)
+    hard_gates = [g for g in d["failed_gates"] if g != "G4_domain_names_commands" or g4_hard]
+    dict_reading = lab.dictionary.phrase(c["text"], use_g2p=True)[0][0]
+    consistency = 10.0 if bases(" ".join(dict_reading)) == bases(c["phonemes"]) else 6.0
+    s = scores(c, d, sp, bool(hard_gates), consistency)
+    meas = s["measurable_text_stage"]
+    seconds = round(sp["phonemes"] * SEC_PER_PHONE, 2)
+    reasons = []
+    if c["kind"] == "control":
+        reasons.append("calibration control - not a product candidate")
+    if hard_gates:
+        reasons.append("text gates failed: " + ", ".join(hard_gates))
+    if seconds > MAX_SECONDS:
+        reasons.append(f"too long for the 1.5 s microWakeWord window (est. {seconds}s)")
+    key = bases(c["phonemes"])
+    if key in seen_sound:
+        reasons.append(f"same sound as '{seen_sound[key]}' (spelling variant)")
+    seen_sound.setdefault(key, c["id"])
+    return {
+        "id": c["id"], "text": c["text"], "kind": c["kind"], "base": c.get("base"),
+        "launcher": c.get("launcher"), "say": c.get("say"), "phonemes": c["phonemes"],
+        "phonemes_source": c["phonemes_source"], "dictionary_reading": " ".join(dict_reading),
+        "syllables": sp["syllables"], "phonemes_count": sp["phonemes"],
+        "distinct_consonants": sp["distinct_consonants"], "distinct_vowels": sp["distinct_vowels"],
+        "onset": sp["onset"], "max_consonant_cluster": sp["max_consonant_cluster"],
+        "est_seconds": seconds, "collision_margin": d["collision_margin"],
+        "risk_per_hour_text_proxy": d["risk_per_hour"], "self_zipf": d["self_zipf"],
+        "nearest": [f"{n['text']} ({n['distance']})" for n in d["nearest_neighbours"][:4]],
+        "area_distance": area["distance"], "gates_failed_all": d["failed_gates"],
+        "gates_failed_hard": hard_gates, "g4_rare_name_advisory": g4_rare, "scores": s,
+        "measurable_composite": round(sum(meas.values()) / len(meas), 2),
+        "subjective_composite": round(sum(s["subjective"].values()) / 3, 2),
+        "screen_rejected": bool(reasons), "reject_reasons": reasons}
+
+
 def main():
     cfg = load_config()
     lab = Lab(cfg)
@@ -136,44 +178,7 @@ def main():
     near = cfg["distance"]["near"]
     rows, seen_sound = [], {}
     for i, c in enumerate(cands, 1):
-        rep = lab.inspect(c["text"], phonemes=c["phonemes"])
-        d = dimensions(rep, near)
-        judged = [e for e in rep["pronunciations"] if e["role"] != "informational"][0]
-        sp = judged["speakability"]
-        area = hostile(lab, c["text"], [tuple(c["phonemes"].split())])[0]
-        g4_hard, g4_rare = g4_policy(rep, share)
-        hard_gates = [g for g in d["failed_gates"] if g != "G4_domain_names_commands" or g4_hard]
-        dict_reading = lab.dictionary.phrase(c["text"], use_g2p=True)[0][0]
-        consistency = 10.0 if bases(" ".join(dict_reading)) == bases(c["phonemes"]) else 6.0
-        s = scores(c, d, sp, bool(hard_gates), consistency)
-        meas = s["measurable_text_stage"]
-        seconds = round(sp["phonemes"] * SEC_PER_PHONE, 2)
-        reasons = []
-        if c["kind"] == "control":
-            reasons.append("calibration control - not a product candidate")
-        if hard_gates:
-            reasons.append("text gates failed: " + ", ".join(hard_gates))
-        if seconds > MAX_SECONDS:
-            reasons.append(f"too long for the 1.5 s microWakeWord window (est. {seconds}s)")
-        key = bases(c["phonemes"])
-        if key in seen_sound:
-            reasons.append(f"same sound as '{seen_sound[key]}' (spelling variant)")
-        seen_sound.setdefault(key, c["id"])
-        rows.append({
-            "id": c["id"], "text": c["text"], "kind": c["kind"], "base": c.get("base"),
-            "launcher": c.get("launcher"), "say": c.get("say"), "phonemes": c["phonemes"],
-            "phonemes_source": c["phonemes_source"], "dictionary_reading": " ".join(dict_reading),
-            "syllables": sp["syllables"], "phonemes_count": sp["phonemes"],
-            "distinct_consonants": sp["distinct_consonants"], "distinct_vowels": sp["distinct_vowels"],
-            "onset": sp["onset"], "max_consonant_cluster": sp["max_consonant_cluster"],
-            "est_seconds": seconds, "collision_margin": d["collision_margin"],
-            "risk_per_hour_text_proxy": d["risk_per_hour"], "self_zipf": d["self_zipf"],
-            "nearest": [f"{n['text']} ({n['distance']})" for n in d["nearest_neighbours"][:4]],
-            "area_distance": area["distance"], "gates_failed_all": d["failed_gates"],
-            "gates_failed_hard": hard_gates, "g4_rare_name_advisory": g4_rare, "scores": s,
-            "measurable_composite": round(sum(meas.values()) / len(meas), 2),
-            "subjective_composite": round(sum(s["subjective"].values()) / 3, 2),
-            "screen_rejected": bool(reasons), "reject_reasons": reasons})
+        rows.append(screen_one(lab, share, near, c, seen_sound))
         if i % 50 == 0:
             print(f"  screened {i}/{len(cands)}", flush=True)
     rows.sort(key=lambda r: (r["screen_rejected"], -r["measurable_composite"], -r["subjective_composite"]))

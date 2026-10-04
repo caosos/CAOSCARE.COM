@@ -10,7 +10,7 @@
 
 Training generator: Piper LibriTTS-R multi-speaker (.pt, piper-sample-generator).
 Run with the research venv (venv-mww). Output under ~/caoscare-firmware-work/samples/lab.
-usage: gen_lab.py negatives|positives|eval
+usage: gen_lab.py negatives|positives|eval|extra_confusion [trained|supplemental]
 """
 import json
 import sys
@@ -20,10 +20,12 @@ import zlib
 import numpy as np
 import torch
 
-from lab_common import (EVAL_LENGTH_SCALES, EVAL_SENTENCES, EVAL_SPEAKERS, FORMS, GEN_PT, LENGTH_SCALES,
+from lab_common import (EVAL_LENGTH_SCALES, EVAL_SENTENCES, EVAL_SPEAKERS, EXTRA_CONFUSION, FORMS, GEN_PT, LENGTH_SCALES,
                         NOISE_SCALES, NOISE_WS, SAMPLES, SEED, TRAIN_NEGATIVES_PER_PHRASE,
-                        TRAIN_POSITIVES_PER_FORM, VOICES, ipa_phrase, load_trained_candidates,
-                        training_negative_phrases)
+                        TRAIN_POSITIVES_PER_FORM, VOICES, ipa_phrase, load_supplemental_candidates,
+                        load_trained_candidates, training_negative_phrases)
+
+WHICH = sys.argv[2] if len(sys.argv) > 2 else "trained"   # "trained" (original 15) | "supplemental"
 
 sys.path.insert(0, str(GEN_PT.parents[1]))
 from piper_sample_generator.__main__ import generate_samples  # noqa: E402
@@ -59,8 +61,12 @@ def negatives():
     print("negatives:", len(phrases), "phrases")
 
 
+def cand_list():
+    return load_supplemental_candidates() if WHICH == "supplemental" else load_trained_candidates()
+
+
 def positives():
-    for c in load_trained_candidates():
+    for c in cand_list():
         for form in FORMS:
             ipa = ipa_phrase(c["arpa_words"], form)
             gen_pt(ipa, SAMPLES / "train/positives" / c["slug"] / form, TRAIN_POSITIVES_PER_FORM, True,
@@ -98,7 +104,7 @@ def synth_onnx(voice_name, speaker, text, out_path, length_scale, phonemes=False
 
 def eval_set():
     """Every clip is (set, item, speaker, length) - identical for all models."""
-    cands = load_trained_candidates()
+    cands = cand_list()
     nb = json.loads((SAMPLES.parent.parent / "lab_neighbours.json").read_text())
     jobs = []
     for c in cands:
@@ -107,12 +113,13 @@ def eval_set():
         for alt in c.get("alt_pronunciations", []):   # pronunciation-sensitivity diagnostics
             jobs.append(("pronunciation/" + c["slug"] + "/" + slug(alt["label"]),
                          ipa_phrase(alt["arpa_words"], "intended"), True))
-    for p in training_negative_phrases(nb["train"]):
-        jobs.append(("negatives_trained/" + slug(p), p, False))
-    for p in nb["eval"]:
-        jobs.append(("negatives_heldout/" + slug(p), p, False))
-    for s in EVAL_SENTENCES:
-        jobs.append(("sentences/" + slug(s), s, False))
+    if WHICH != "supplemental":   # shared negatives/sentences already exist; supplemental adds positives only
+        for p in training_negative_phrases(nb["train"]):
+            jobs.append(("negatives_trained/" + slug(p), p, False))
+        for p in nb["eval"]:
+            jobs.append(("negatives_heldout/" + slug(p), p, False))
+        for s in EVAL_SENTENCES:
+            jobs.append(("sentences/" + slug(s), s, False))
     base = SAMPLES / "eval"
     total = 0
     for rel, text, ph in jobs:
@@ -127,5 +134,20 @@ def eval_set():
     print("eval clips:", total)
 
 
+def extra_confusion():
+    """Held-out extra confusion clips (eval/negatives_extra/<phrase>), same 24 speakers, length 1.0."""
+    n = 0
+    for p in EXTRA_CONFUSION:
+        d = SAMPLES / "eval/negatives_extra" / slug(p)
+        d.mkdir(parents=True, exist_ok=True)
+        for voice, spk, label, _sex in EVAL_SPEAKERS:
+            f = d / f"{slug(label)}__ls1.0.wav"
+            if not f.exists():
+                synth_onnx(voice, spk, p, f, 1.0, False)
+            n += 1
+    print("extra confusion clips:", n)
+
+
 if __name__ == "__main__":
-    {"negatives": negatives, "positives": positives, "eval": eval_set}[sys.argv[1]]()
+    {"negatives": negatives, "positives": positives, "eval": eval_set,
+     "extra_confusion": extra_confusion}[sys.argv[1]]()

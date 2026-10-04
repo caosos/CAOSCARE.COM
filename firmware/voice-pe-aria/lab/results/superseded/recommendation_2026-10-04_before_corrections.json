@@ -1,0 +1,1997 @@
+{
+ "weights": {
+  "true_wake": 0.3,
+  "false_wake": 0.3,
+  "older_resident": 0.2,
+  "memorability": 0.1,
+  "natural_identity": 0.1
+ },
+ "licensing_gate": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE (training data includes non-commercial material)",
+ "candidates_total": 26,
+ "candidates_ranked": 26,
+ "not_evaluated": [],
+ "ranked": [
+  {
+   "id": "hey kookaburra",
+   "slug": "hey_kookaburra",
+   "group": "original 15",
+   "base": "kookaburra",
+   "launcher": "hey",
+   "scores": {
+    "true_wake": 7.48,
+    "false_wake": 9.91,
+    "older_resident": 8.34,
+    "memorability": 8,
+    "natural_identity": 2
+   },
+   "balanced": 7.885,
+   "matched_tpr": 0.7477,
+   "confusion_rate": 0.0018,
+   "ambient_faph": 0.355,
+   "matched_cutoff": 0.99,
+   "licensing_gate": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE (training data includes non-commercial material)",
+   "commercial_release_eligible": false,
+   "human_factors_judgements": [
+    "memorability",
+    "natural_identity"
+   ],
+   "naming_brand_risk": {
+    "id": "hey kookaburra",
+    "base_word": "kookaburra",
+    "known_common_word": {
+     "flag": false,
+     "zipf": 0.0
+    },
+    "common_personal_name": {
+     "flag": false,
+     "census_percent": null,
+     "census_list": null
+    },
+    "resident_staff_collision": {
+     "flag": false,
+     "evidence": []
+    },
+    "product_association": "common noun (Australian bird); used in existing brand names, e.g. sports equipment (agent knowledge, unverified)",
+    "pronunciation_ambiguity": {
+     "flag": false,
+     "evidence": null
+    },
+    "spelling_ambiguity": {
+     "flag": false,
+     "other_spellings_same_or_near_sound": []
+    },
+    "near_sound_common_names": {},
+    "legal_review_required": "yes - no trademark or legal search performed"
+   },
+   "phase1_text_screen": "passed"
+  },
+  {
+   "id": "hey callista (kuh-LISS-tuh)",
+   "slug": "hey_callista_kuh_liss_tuh",
+   "group": "supplemental (mandatory)",
+   "base": "callista",
+   "launcher": "hey",
+   "scores": {
+    "true_wake": 5.71,
+    "false_wake": 9.87,
+    "older_resident": 6.69,
+    "memorability": 7,
+    "natural_identity": 7
+   },
+   "balanced": 7.412,
+   "matched_tpr": 0.5706,
+   "confusion_rate": 0.0027,
+   "ambient_faph": 0.355,
+   "matched_cutoff": 0.98,
+   "licensing_gate": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE (training data includes non-commercial material)",
+   "commercial_release_eligible": false,
+   "human_factors_judgements": [
+    "memorability",
+    "natural_identity"
+   ],
+   "naming_brand_risk": {
+    "id": "hey callista (kuh-LISS-tuh)",
+    "base_word": "callista",
+    "known_common_word": {
+     "flag": false,
+     "zipf": 0.0
+    },
+    "common_personal_name": {
+     "flag": false,
+     "census_percent": null,
+     "census_list": null
+    },
+    "resident_staff_collision": {
+     "flag": true,
+     "evidence": [
+      "Calista"
+     ]
+    },
+    "product_association": "none known to the agent (not searched)",
+    "pronunciation_ambiguity": {
+     "flag": true,
+     "evidence": "kuh-LISS-tuh and CALL-iss-tuh both nominated"
+    },
+    "spelling_ambiguity": {
+     "flag": true,
+     "other_spellings_same_or_near_sound": [
+      "Calista",
+      "Kallista"
+     ]
+    },
+    "near_sound_common_names": {
+     "Melissa": 0.462,
+     "Clarissa": 0.014,
+     "Calista": 0.001
+    },
+    "legal_review_required": "yes - no trademark or legal search performed"
+   },
+   "phase1_text_screen": "text gates failed: G4_domain_names_commands"
+  },
+  {
+   "id": "okay velora (veh-LOR-uh)",
+   "slug": "okay_velora_veh_lor_uh",
+   "group": "original 15",
+   "base": "velora",
+   "launcher": "okay",
+   "scores": {
+    "true_wake": 5.52,
+    "false_wake": 9.77,
+    "older_resident": 7.08,
+    "memorability": 7,
+    "natural_identity": 7
+   },
+   "balanced": 7.403,
+   "matched_tpr": 0.5517,
+   "confusion_rate": 0.0046,
+   "ambient_faph": 0.355,
+   "matched_cutoff": 0.9,
+   "licensing_gate": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE (training data includes non-commercial material)",
+   "commercial_release_eligible": false,
+   "human_factors_judgements": [
+    "memorability",
+    "natural_identity"
+   ],
+   "naming_brand_risk": {
+    "id": "okay velora (veh-LOR-uh)",
+    "base_word": "velora",
+    "known_common_word": {
+     "flag": false,
+     "zipf": 0.0
+    },
+    "common_personal_name": {
+     "flag": false,
+     "census_percent": null,
+     "census_list": null
+    },
+    "resident_staff_collision": {
+     "flag": false,
+     "evidence": []
+    },
+    "product_association": "none known to the agent (not searched)",
+    "pronunciation_ambiguity": {
+     "flag": false,
+     "evidence": null
+    },
+    "spelling_ambiguity": {
+     "flag": true,
+     "other_spellings_same_or_near_sound": [
+      "Valora"
+     ]
+    },
+    "near_sound_common_names": {
+     "Laura": 0.51,
+     "Lora": 0.036
+    },
+    "legal_review_required": "yes - no trademark or legal search performed"
+   },
+   "phase1_text_screen": "passed"
+  },
+  {
+   "id": "hey aria",
+   "slug": "hey_aria",
+   "group": "original 15",
+   "base": "aria",
+   "launcher": "hey",
+   "scores": {
+    "true_wake": 4.43,
+    "false_wake": 9.22,
+    "older_resident": 6.39,
+    "memorability": 10,
+    "natural_identity": 10
+   },
+   "balanced": 7.373,
+   "matched_tpr": 0.4429,
+   "confusion_rate": 0.0156,
+   "ambient_faph": 0.355,
+   "matched_cutoff": 0.9,
+   "licensing_gate": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE (training data includes non-commercial material)",
+   "commercial_release_eligible": false,
+   "human_factors_judgements": [
+    "memorability",
+    "natural_identity"
+   ],
+   "naming_brand_risk": {
+    "id": "hey aria",
+    "base_word": "aria",
+    "known_common_word": {
+     "flag": true,
+     "zipf": 3.39
+    },
+    "common_personal_name": {
+     "flag": false,
+     "census_percent": null,
+     "census_list": null
+    },
+    "resident_staff_collision": {
+     "flag": false,
+     "evidence": []
+    },
+    "product_association": "Opera's built-in browser AI assistant is named 'Aria' (agent knowledge, unverified)",
+    "pronunciation_ambiguity": {
+     "flag": true,
+     "evidence": "AR-ee-uh vs AIR-ee-uh (the latter = 'area')"
+    },
+    "spelling_ambiguity": {
+     "flag": true,
+     "other_spellings_same_or_near_sound": [
+      "Arya (different syllable count)",
+      "Area (AIR-ee-uh reading)"
+     ]
+    },
+    "near_sound_common_names": {
+     "Maria": 0.828,
+     "Daria": 0.004,
+     "Ari": null
+    },
+    "legal_review_required": "yes - no trademark or legal search performed"
+   },
+   "phase1_text_screen": "text gates failed: G3_embedded_or_contains, G4_domain_names_commands, G7_accent_casual_variant"
+  },
+  {
+   "id": "okay aria",
+   "slug": "okay_aria",
+   "group": "original 15",
+   "base": "aria",
+   "launcher": "okay",
+   "scores": {
+    "true_wake": 4.03,
+    "false_wake": 9.72,
+    "older_resident": 6.03,
+    "memorability": 10,
+    "natural_identity": 10
+   },
+   "balanced": 7.331,
+   "matched_tpr": 0.4028,
+   "confusion_rate": 0.0056,
+   "ambient_faph": 0.355,
+   "matched_cutoff": 0.9,
+   "licensing_gate": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE (training data includes non-commercial material)",
+   "commercial_release_eligible": false,
+   "human_factors_judgements": [
+    "memorability",
+    "natural_identity"
+   ],
+   "naming_brand_risk": {
+    "id": "okay aria",
+    "base_word": "aria",
+    "known_common_word": {
+     "flag": true,
+     "zipf": 3.39
+    },
+    "common_personal_name": {
+     "flag": false,
+     "census_percent": null,
+     "census_list": null
+    },
+    "resident_staff_collision": {
+     "flag": false,
+     "evidence": []
+    },
+    "product_association": "Opera's built-in browser AI assistant is named 'Aria' (agent knowledge, unverified)",
+    "pronunciation_ambiguity": {
+     "flag": true,
+     "evidence": "AR-ee-uh vs AIR-ee-uh (the latter = 'area')"
+    },
+    "spelling_ambiguity": {
+     "flag": true,
+     "other_spellings_same_or_near_sound": [
+      "Arya (different syllable count)",
+      "Area (AIR-ee-uh reading)"
+     ]
+    },
+    "near_sound_common_names": {
+     "Maria": 0.828,
+     "Daria": 0.004,
+     "Ari": null
+    },
+    "legal_review_required": "yes - no trademark or legal search performed"
+   },
+   "phase1_text_screen": "passed"
+  },
+  {
+   "id": "hey sivia (SIV-ee-uh)",
+   "slug": "hey_sivia_siv_ee_uh",
+   "group": "supplemental (mandatory)",
+   "base": "sivia",
+   "launcher": "hey",
+   "scores": {
+    "true_wake": 3.88,
+    "false_wake": 9.92,
+    "older_resident": 6.25,
+    "memorability": 7,
+    "natural_identity": 7
+   },
+   "balanced": 6.79,
+   "matched_tpr": 0.3877,
+   "confusion_rate": 0.0016,
+   "ambient_faph": 0.0,
+   "matched_cutoff": 0.99,
+   "licensing_gate": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE (training data includes non-commercial material)",
+   "commercial_release_eligible": false,
+   "human_factors_judgements": [
+    "memorability",
+    "natural_identity"
+   ],
+   "naming_brand_risk": {
+    "id": "hey sivia (SIV-ee-uh)",
+    "base_word": "sivia",
+    "known_common_word": {
+     "flag": false,
+     "zipf": 0.0
+    },
+    "common_personal_name": {
+     "flag": false,
+     "census_percent": null,
+     "census_list": null
+    },
+    "resident_staff_collision": {
+     "flag": false,
+     "evidence": []
+    },
+    "product_association": "none known to the agent (not searched)",
+    "pronunciation_ambiguity": {
+     "flag": true,
+     "evidence": "SIV-ee-uh and SEE-vee-uh both nominated"
+    },
+    "spelling_ambiguity": {
+     "flag": true,
+     "other_spellings_same_or_near_sound": [
+      "Civia"
+     ]
+    },
+    "near_sound_common_names": {
+     "Sylvia": 0.177,
+     "Olivia": 0.049,
+     "Vivian": 0.118
+    },
+    "legal_review_required": "yes - no trademark or legal search performed"
+   },
+   "phase1_text_screen": "passed"
+  },
+  {
+   "id": "zaria",
+   "slug": "zaria",
+   "group": "original 15",
+   "base": "zaria",
+   "launcher": null,
+   "scores": {
+    "true_wake": 3.19,
+    "false_wake": 9.51,
+    "older_resident": 5.53,
+    "memorability": 8,
+    "natural_identity": 10
+   },
+   "balanced": 6.716,
+   "matched_tpr": 0.3194,
+   "confusion_rate": 0.0098,
+   "ambient_faph": 0.355,
+   "matched_cutoff": 0.55,
+   "licensing_gate": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE (training data includes non-commercial material)",
+   "commercial_release_eligible": false,
+   "human_factors_judgements": [
+    "memorability",
+    "natural_identity"
+   ],
+   "naming_brand_risk": {
+    "id": "zaria",
+    "base_word": "zaria",
+    "known_common_word": {
+     "flag": false,
+     "zipf": 2.27
+    },
+    "common_personal_name": {
+     "flag": false,
+     "census_percent": null,
+     "census_list": null
+    },
+    "resident_staff_collision": {
+     "flag": false,
+     "evidence": []
+    },
+    "product_association": "place name (city in Nigeria) (agent knowledge)",
+    "pronunciation_ambiguity": {
+     "flag": true,
+     "evidence": "ZAR-ee-uh vs ZAIR-ee-uh"
+    },
+    "spelling_ambiguity": {
+     "flag": true,
+     "other_spellings_same_or_near_sound": [
+      "Zahria",
+      "Zarya"
+     ]
+    },
+    "near_sound_common_names": {
+     "Maria": 0.828,
+     "Daria": 0.004
+    },
+    "legal_review_required": "yes - no trademark or legal search performed"
+   },
+   "phase1_text_screen": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary, G7_accent_casual_variant"
+  },
+  {
+   "id": "aria",
+   "slug": "aria",
+   "group": "original 15",
+   "base": "aria",
+   "launcher": null,
+   "scores": {
+    "true_wake": 2.85,
+    "false_wake": 9.03,
+    "older_resident": 5.45,
+    "memorability": 10,
+    "natural_identity": 10
+   },
+   "balanced": 6.654,
+   "matched_tpr": 0.2847,
+   "confusion_rate": 0.0195,
+   "ambient_faph": 0.355,
+   "matched_cutoff": 0.6,
+   "licensing_gate": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE (training data includes non-commercial material)",
+   "commercial_release_eligible": false,
+   "human_factors_judgements": [
+    "memorability",
+    "natural_identity"
+   ],
+   "naming_brand_risk": {
+    "id": "aria",
+    "base_word": "aria",
+    "known_common_word": {
+     "flag": true,
+     "zipf": 3.39
+    },
+    "common_personal_name": {
+     "flag": false,
+     "census_percent": null,
+     "census_list": null
+    },
+    "resident_staff_collision": {
+     "flag": false,
+     "evidence": []
+    },
+    "product_association": "Opera's built-in browser AI assistant is named 'Aria' (agent knowledge, unverified)",
+    "pronunciation_ambiguity": {
+     "flag": true,
+     "evidence": "AR-ee-uh vs AIR-ee-uh (the latter = 'area')"
+    },
+    "spelling_ambiguity": {
+     "flag": true,
+     "other_spellings_same_or_near_sound": [
+      "Arya (different syllable count)",
+      "Area (AIR-ee-uh reading)"
+     ]
+    },
+    "near_sound_common_names": {
+     "Maria": 0.828,
+     "Daria": 0.004,
+     "Ari": null
+    },
+    "legal_review_required": "yes - no trademark or legal search performed"
+   },
+   "phase1_text_screen": "text gates failed: G0_self_frequency, G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G7_accent_casual_variant"
+  },
+  {
+   "id": "hello pomona",
+   "slug": "hello_pomona",
+   "group": "original 15",
+   "base": "pomona",
+   "launcher": "hello",
+   "scores": {
+    "true_wake": 2.54,
+    "false_wake": 9.83,
+    "older_resident": 5.14,
+    "memorability": 7,
+    "natural_identity": 7
+   },
+   "balanced": 6.139,
+   "matched_tpr": 0.2539,
+   "confusion_rate": 0.0034,
+   "ambient_faph": 0.355,
+   "matched_cutoff": 0.5,
+   "licensing_gate": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE (training data includes non-commercial material)",
+   "commercial_release_eligible": false,
+   "human_factors_judgements": [
+    "memorability",
+    "natural_identity"
+   ],
+   "naming_brand_risk": {
+    "id": "hello pomona",
+    "base_word": "pomona",
+    "known_common_word": {
+     "flag": false,
+     "zipf": 2.89
+    },
+    "common_personal_name": {
+     "flag": false,
+     "census_percent": null,
+     "census_list": null
+    },
+    "resident_staff_collision": {
+     "flag": false,
+     "evidence": []
+    },
+    "product_association": "place name (California city, Pomona College) (agent knowledge)",
+    "pronunciation_ambiguity": {
+     "flag": false,
+     "evidence": null
+    },
+    "spelling_ambiguity": {
+     "flag": false,
+     "other_spellings_same_or_near_sound": []
+    },
+    "near_sound_common_names": {},
+    "legal_review_required": "yes - no trademark or legal search performed"
+   },
+   "phase1_text_screen": "passed"
+  },
+  {
+   "id": "kookaburra",
+   "slug": "kookaburra",
+   "group": "original 15",
+   "base": "kookaburra",
+   "launcher": null,
+   "scores": {
+    "true_wake": 3.38,
+    "false_wake": 9.92,
+    "older_resident": 5.68,
+    "memorability": 8,
+    "natural_identity": 2
+   },
+   "balanced": 6.126,
+   "matched_tpr": 0.3376,
+   "confusion_rate": 0.0017,
+   "ambient_faph": 0.355,
+   "matched_cutoff": 0.97,
+   "licensing_gate": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE (training data includes non-commercial material)",
+   "commercial_release_eligible": false,
+   "human_factors_judgements": [
+    "memorability",
+    "natural_identity"
+   ],
+   "naming_brand_risk": {
+    "id": "kookaburra",
+    "base_word": "kookaburra",
+    "known_common_word": {
+     "flag": false,
+     "zipf": 0.0
+    },
+    "common_personal_name": {
+     "flag": false,
+     "census_percent": null,
+     "census_list": null
+    },
+    "resident_staff_collision": {
+     "flag": false,
+     "evidence": []
+    },
+    "product_association": "common noun (Australian bird); used in existing brand names, e.g. sports equipment (agent knowledge, unverified)",
+    "pronunciation_ambiguity": {
+     "flag": false,
+     "evidence": null
+    },
+    "spelling_ambiguity": {
+     "flag": false,
+     "other_spellings_same_or_near_sound": []
+    },
+    "near_sound_common_names": {},
+    "legal_review_required": "yes - no trademark or legal search performed"
+   },
+   "phase1_text_screen": "passed"
+  },
+  {
+   "id": "sivia (SIV-ee-uh)",
+   "slug": "sivia_siv_ee_uh",
+   "group": "supplemental (mandatory)",
+   "base": "sivia",
+   "launcher": null,
+   "scores": {
+    "true_wake": 1.89,
+    "false_wake": 9.85,
+    "older_resident": 4.55,
+    "memorability": 8,
+    "natural_identity": 7
+   },
+   "balanced": 5.932,
+   "matched_tpr": 0.189,
+   "confusion_rate": 0.003,
+   "ambient_faph": 0.355,
+   "matched_cutoff": 0.97,
+   "licensing_gate": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE (training data includes non-commercial material)",
+   "commercial_release_eligible": false,
+   "human_factors_judgements": [
+    "memorability",
+    "natural_identity"
+   ],
+   "naming_brand_risk": {
+    "id": "sivia (SIV-ee-uh)",
+    "base_word": "sivia",
+    "known_common_word": {
+     "flag": false,
+     "zipf": 0.0
+    },
+    "common_personal_name": {
+     "flag": false,
+     "census_percent": null,
+     "census_list": null
+    },
+    "resident_staff_collision": {
+     "flag": false,
+     "evidence": []
+    },
+    "product_association": "none known to the agent (not searched)",
+    "pronunciation_ambiguity": {
+     "flag": true,
+     "evidence": "SIV-ee-uh and SEE-vee-uh both nominated"
+    },
+    "spelling_ambiguity": {
+     "flag": true,
+     "other_spellings_same_or_near_sound": [
+      "Civia"
+     ]
+    },
+    "near_sound_common_names": {
+     "Sylvia": 0.177,
+     "Olivia": 0.049,
+     "Vivian": 0.118
+    },
+    "legal_review_required": "yes - no trademark or legal search performed"
+   },
+   "phase1_text_screen": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary"
+  },
+  {
+   "id": "hello kotrubo",
+   "slug": "hello_kotrubo",
+   "group": "original 15",
+   "base": "kotrubo",
+   "launcher": "hello",
+   "scores": {
+    "true_wake": 7.15,
+    "false_wake": 0.0,
+    "older_resident": 8.04,
+    "memorability": 7,
+    "natural_identity": 4
+   },
+   "balanced": 4.853,
+   "matched_tpr": 0.7153,
+   "confusion_rate": 0.0019,
+   "ambient_faph": 1.066,
+   "matched_cutoff": 0.99,
+   "licensing_gate": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE (training data includes non-commercial material)",
+   "commercial_release_eligible": false,
+   "human_factors_judgements": [
+    "memorability",
+    "natural_identity"
+   ],
+   "naming_brand_risk": {
+    "id": "hello kotrubo",
+    "base_word": "kotrubo",
+    "known_common_word": {
+     "flag": false,
+     "zipf": 0.0
+    },
+    "common_personal_name": {
+     "flag": false,
+     "census_percent": null,
+     "census_list": null
+    },
+    "resident_staff_collision": {
+     "flag": false,
+     "evidence": []
+    },
+    "product_association": "none known to the agent (not searched)",
+    "pronunciation_ambiguity": {
+     "flag": true,
+     "evidence": "spelling may be read differently than intended"
+    },
+    "spelling_ambiguity": {
+     "flag": false,
+     "other_spellings_same_or_near_sound": []
+    },
+    "near_sound_common_names": {},
+    "legal_review_required": "yes - no trademark or legal search performed"
+   },
+   "phase1_text_screen": "passed"
+  },
+  {
+   "id": "hey kolabamo",
+   "slug": "hey_kolabamo",
+   "group": "original 15",
+   "base": "kolabamo",
+   "launcher": "hey",
+   "scores": {
+    "true_wake": 7.0,
+    "false_wake": 0.0,
+    "older_resident": 7.99,
+    "memorability": 7,
+    "natural_identity": 4
+   },
+   "balanced": 4.798,
+   "matched_tpr": 0.7002,
+   "confusion_rate": 0.0019,
+   "ambient_faph": 0.533,
+   "matched_cutoff": 0.99,
+   "licensing_gate": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE (training data includes non-commercial material)",
+   "commercial_release_eligible": false,
+   "human_factors_judgements": [
+    "memorability",
+    "natural_identity"
+   ],
+   "naming_brand_risk": {
+    "id": "hey kolabamo",
+    "base_word": "kolabamo",
+    "known_common_word": {
+     "flag": false,
+     "zipf": 0.0
+    },
+    "common_personal_name": {
+     "flag": false,
+     "census_percent": null,
+     "census_list": null
+    },
+    "resident_staff_collision": {
+     "flag": false,
+     "evidence": []
+    },
+    "product_association": "none known to the agent (not searched)",
+    "pronunciation_ambiguity": {
+     "flag": false,
+     "evidence": null
+    },
+    "spelling_ambiguity": {
+     "flag": false,
+     "other_spellings_same_or_near_sound": []
+    },
+    "near_sound_common_names": {},
+    "legal_review_required": "yes - no trademark or legal search performed"
+   },
+   "phase1_text_screen": "passed"
+  },
+  {
+   "id": "hey krysta (KRISS-tuh)",
+   "slug": "hey_krysta_kriss_tuh",
+   "group": "supplemental (mandatory)",
+   "base": "krysta",
+   "launcher": "hey",
+   "scores": {
+    "true_wake": 6.37,
+    "false_wake": 0.0,
+    "older_resident": 7.21,
+    "memorability": 7,
+    "natural_identity": 7
+   },
+   "balanced": 4.753,
+   "matched_tpr": 0.6366,
+   "confusion_rate": 0.0019,
+   "ambient_faph": 0.888,
+   "matched_cutoff": 0.99,
+   "licensing_gate": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE (training data includes non-commercial material)",
+   "commercial_release_eligible": false,
+   "human_factors_judgements": [
+    "memorability",
+    "natural_identity"
+   ],
+   "naming_brand_risk": {
+    "id": "hey krysta (KRISS-tuh)",
+    "base_word": "krysta",
+    "known_common_word": {
+     "flag": false,
+     "zipf": 0.0
+    },
+    "common_personal_name": {
+     "flag": false,
+     "census_percent": 0.002,
+     "census_list": "first name (% of that sex)"
+    },
+    "resident_staff_collision": {
+     "flag": true,
+     "evidence": [
+      "Krista",
+      "Christa",
+      "Krista"
+     ]
+    },
+    "product_association": "none known to the agent (not searched)",
+    "pronunciation_ambiguity": {
+     "flag": false,
+     "evidence": null
+    },
+    "spelling_ambiguity": {
+     "flag": true,
+     "other_spellings_same_or_near_sound": [
+      "Krista",
+      "Crista",
+      "Christa"
+     ]
+    },
+    "near_sound_common_names": {
+     "Chris": 0.197,
+     "Christian": 0.065,
+     "Crystal": 0.207
+    },
+    "legal_review_required": "yes - no trademark or legal search performed"
+   },
+   "phase1_text_screen": "text gates failed: G4_domain_names_commands, G6_clipped_boundary"
+  },
+  {
+   "id": "sivia (SEE-vee-uh)",
+   "slug": "sivia_see_vee_uh",
+   "group": "supplemental (mandatory)",
+   "base": "sivia",
+   "launcher": null,
+   "scores": {
+    "true_wake": 5.66,
+    "false_wake": 0.0,
+    "older_resident": 7.11,
+    "memorability": 8,
+    "natural_identity": 7
+   },
+   "balanced": 4.62,
+   "matched_tpr": 0.566,
+   "confusion_rate": 0.0164,
+   "ambient_faph": 1.953,
+   "matched_cutoff": 0.99,
+   "licensing_gate": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE (training data includes non-commercial material)",
+   "commercial_release_eligible": false,
+   "human_factors_judgements": [
+    "memorability",
+    "natural_identity"
+   ],
+   "naming_brand_risk": {
+    "id": "sivia (SEE-vee-uh)",
+    "base_word": "sivia",
+    "known_common_word": {
+     "flag": false,
+     "zipf": 0.0
+    },
+    "common_personal_name": {
+     "flag": false,
+     "census_percent": null,
+     "census_list": null
+    },
+    "resident_staff_collision": {
+     "flag": false,
+     "evidence": []
+    },
+    "product_association": "none known to the agent (not searched)",
+    "pronunciation_ambiguity": {
+     "flag": true,
+     "evidence": "SIV-ee-uh and SEE-vee-uh both nominated"
+    },
+    "spelling_ambiguity": {
+     "flag": true,
+     "other_spellings_same_or_near_sound": [
+      "Civia"
+     ]
+    },
+    "near_sound_common_names": {
+     "Sylvia": 0.177,
+     "Olivia": 0.049,
+     "Vivian": 0.118
+    },
+    "legal_review_required": "yes - no trademark or legal search performed"
+   },
+   "phase1_text_screen": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary"
+  },
+  {
+   "id": "hey sivia (SEE-vee-uh)",
+   "slug": "hey_sivia_see_vee_uh",
+   "group": "supplemental (mandatory)",
+   "base": "sivia",
+   "launcher": "hey",
+   "scores": {
+    "true_wake": 4.79,
+    "false_wake": 0.0,
+    "older_resident": 6.86,
+    "memorability": 7,
+    "natural_identity": 7
+   },
+   "balanced": 4.209,
+   "matched_tpr": 0.4788,
+   "confusion_rate": 0.0033,
+   "ambient_faph": 0.533,
+   "matched_cutoff": 0.99,
+   "licensing_gate": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE (training data includes non-commercial material)",
+   "commercial_release_eligible": false,
+   "human_factors_judgements": [
+    "memorability",
+    "natural_identity"
+   ],
+   "naming_brand_risk": {
+    "id": "hey sivia (SEE-vee-uh)",
+    "base_word": "sivia",
+    "known_common_word": {
+     "flag": false,
+     "zipf": 0.0
+    },
+    "common_personal_name": {
+     "flag": false,
+     "census_percent": null,
+     "census_list": null
+    },
+    "resident_staff_collision": {
+     "flag": false,
+     "evidence": []
+    },
+    "product_association": "none known to the agent (not searched)",
+    "pronunciation_ambiguity": {
+     "flag": true,
+     "evidence": "SIV-ee-uh and SEE-vee-uh both nominated"
+    },
+    "spelling_ambiguity": {
+     "flag": true,
+     "other_spellings_same_or_near_sound": [
+      "Civia"
+     ]
+    },
+    "near_sound_common_names": {
+     "Sylvia": 0.177,
+     "Olivia": 0.049,
+     "Vivian": 0.118
+    },
+    "legal_review_required": "yes - no trademark or legal search performed"
+   },
+   "phase1_text_screen": "passed"
+  },
+  {
+   "id": "okay lumaro",
+   "slug": "okay_lumaro",
+   "group": "original 15",
+   "base": "lumaro",
+   "launcher": "okay",
+   "scores": {
+    "true_wake": 4.99,
+    "false_wake": 0.0,
+    "older_resident": 6.74,
+    "memorability": 8,
+    "natural_identity": 4
+   },
+   "balanced": 4.045,
+   "matched_tpr": 0.4988,
+   "confusion_rate": 0.0028,
+   "ambient_faph": 1.243,
+   "matched_cutoff": 0.99,
+   "licensing_gate": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE (training data includes non-commercial material)",
+   "commercial_release_eligible": false,
+   "human_factors_judgements": [
+    "memorability",
+    "natural_identity"
+   ],
+   "naming_brand_risk": {
+    "id": "okay lumaro",
+    "base_word": "lumaro",
+    "known_common_word": {
+     "flag": false,
+     "zipf": 0.0
+    },
+    "common_personal_name": {
+     "flag": false,
+     "census_percent": null,
+     "census_list": null
+    },
+    "resident_staff_collision": {
+     "flag": false,
+     "evidence": []
+    },
+    "product_association": "none known to the agent (not searched)",
+    "pronunciation_ambiguity": {
+     "flag": false,
+     "evidence": null
+    },
+    "spelling_ambiguity": {
+     "flag": false,
+     "other_spellings_same_or_near_sound": []
+    },
+    "near_sound_common_names": {},
+    "legal_review_required": "yes - no trademark or legal search performed"
+   },
+   "phase1_text_screen": "passed"
+  },
+  {
+   "id": "hey kestra (KESS-truh)",
+   "slug": "hey_kestra_kess_truh",
+   "group": "supplemental (mandatory)",
+   "base": "kestra",
+   "launcher": "hey",
+   "scores": {
+    "true_wake": 4.38,
+    "false_wake": 0.0,
+    "older_resident": 5.89,
+    "memorability": 7,
+    "natural_identity": 7
+   },
+   "balanced": 3.892,
+   "matched_tpr": 0.4379,
+   "confusion_rate": 0.0004,
+   "ambient_faph": 1.776,
+   "matched_cutoff": 0.99,
+   "licensing_gate": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE (training data includes non-commercial material)",
+   "commercial_release_eligible": false,
+   "human_factors_judgements": [
+    "memorability",
+    "natural_identity"
+   ],
+   "naming_brand_risk": {
+    "id": "hey kestra (KESS-truh)",
+    "base_word": "kestra",
+    "known_common_word": {
+     "flag": false,
+     "zipf": 0.0
+    },
+    "common_personal_name": {
+     "flag": false,
+     "census_percent": null,
+     "census_list": null
+    },
+    "resident_staff_collision": {
+     "flag": false,
+     "evidence": []
+    },
+    "product_association": "Kestra is an open-source workflow-orchestration software product (agent knowledge, unverified)",
+    "pronunciation_ambiguity": {
+     "flag": false,
+     "evidence": null
+    },
+    "spelling_ambiguity": {
+     "flag": false,
+     "other_spellings_same_or_near_sound": []
+    },
+    "near_sound_common_names": {
+     "Kesha": 0.005
+    },
+    "legal_review_required": "yes - no trademark or legal search performed"
+   },
+   "phase1_text_screen": "text gates failed: G7_accent_casual_variant"
+  },
+  {
+   "id": "kotrubo",
+   "slug": "kotrubo",
+   "group": "original 15",
+   "base": "kotrubo",
+   "launcher": null,
+   "scores": {
+    "true_wake": 4.55,
+    "false_wake": 0.0,
+    "older_resident": 6.66,
+    "memorability": 6,
+    "natural_identity": 4
+   },
+   "balanced": 3.697,
+   "matched_tpr": 0.4552,
+   "confusion_rate": 0.0009,
+   "ambient_faph": 1.953,
+   "matched_cutoff": 0.99,
+   "licensing_gate": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE (training data includes non-commercial material)",
+   "commercial_release_eligible": false,
+   "human_factors_judgements": [
+    "memorability",
+    "natural_identity"
+   ],
+   "naming_brand_risk": {
+    "id": "kotrubo",
+    "base_word": "kotrubo",
+    "known_common_word": {
+     "flag": false,
+     "zipf": 0.0
+    },
+    "common_personal_name": {
+     "flag": false,
+     "census_percent": null,
+     "census_list": null
+    },
+    "resident_staff_collision": {
+     "flag": false,
+     "evidence": []
+    },
+    "product_association": "none known to the agent (not searched)",
+    "pronunciation_ambiguity": {
+     "flag": true,
+     "evidence": "spelling may be read differently than intended"
+    },
+    "spelling_ambiguity": {
+     "flag": false,
+     "other_spellings_same_or_near_sound": []
+    },
+    "near_sound_common_names": {},
+    "legal_review_required": "yes - no trademark or legal search performed"
+   },
+   "phase1_text_screen": "passed"
+  },
+  {
+   "id": "velora (veh-LOR-uh)",
+   "slug": "velora_veh_lor_uh",
+   "group": "original 15",
+   "base": "velora",
+   "launcher": null,
+   "scores": {
+    "true_wake": 3.2,
+    "false_wake": 0.0,
+    "older_resident": 5.79,
+    "memorability": 8,
+    "natural_identity": 7
+   },
+   "balanced": 3.618,
+   "matched_tpr": 0.3202,
+   "confusion_rate": 0.0121,
+   "ambient_faph": 1.243,
+   "matched_cutoff": 0.99,
+   "licensing_gate": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE (training data includes non-commercial material)",
+   "commercial_release_eligible": false,
+   "human_factors_judgements": [
+    "memorability",
+    "natural_identity"
+   ],
+   "naming_brand_risk": {
+    "id": "velora (veh-LOR-uh)",
+    "base_word": "velora",
+    "known_common_word": {
+     "flag": false,
+     "zipf": 0.0
+    },
+    "common_personal_name": {
+     "flag": false,
+     "census_percent": null,
+     "census_list": null
+    },
+    "resident_staff_collision": {
+     "flag": false,
+     "evidence": []
+    },
+    "product_association": "none known to the agent (not searched)",
+    "pronunciation_ambiguity": {
+     "flag": false,
+     "evidence": null
+    },
+    "spelling_ambiguity": {
+     "flag": true,
+     "other_spellings_same_or_near_sound": [
+      "Valora"
+     ]
+    },
+    "near_sound_common_names": {
+     "Laura": 0.51,
+     "Lora": 0.036
+    },
+    "legal_review_required": "yes - no trademark or legal search performed"
+   },
+   "phase1_text_screen": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary, G7_accent_casual_variant"
+  },
+  {
+   "id": "pomona",
+   "slug": "pomona",
+   "group": "original 15",
+   "base": "pomona",
+   "launcher": null,
+   "scores": {
+    "true_wake": 2.72,
+    "false_wake": 0.0,
+    "older_resident": 5.76,
+    "memorability": 8,
+    "natural_identity": 7
+   },
+   "balanced": 3.468,
+   "matched_tpr": 0.2716,
+   "confusion_rate": 0.003,
+   "ambient_faph": 1.243,
+   "matched_cutoff": 0.99,
+   "licensing_gate": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE (training data includes non-commercial material)",
+   "commercial_release_eligible": false,
+   "human_factors_judgements": [
+    "memorability",
+    "natural_identity"
+   ],
+   "naming_brand_risk": {
+    "id": "pomona",
+    "base_word": "pomona",
+    "known_common_word": {
+     "flag": false,
+     "zipf": 2.89
+    },
+    "common_personal_name": {
+     "flag": false,
+     "census_percent": null,
+     "census_list": null
+    },
+    "resident_staff_collision": {
+     "flag": false,
+     "evidence": []
+    },
+    "product_association": "place name (California city, Pomona College) (agent knowledge)",
+    "pronunciation_ambiguity": {
+     "flag": false,
+     "evidence": null
+    },
+    "spelling_ambiguity": {
+     "flag": false,
+     "other_spellings_same_or_near_sound": []
+    },
+    "near_sound_common_names": {},
+    "legal_review_required": "yes - no trademark or legal search performed"
+   },
+   "phase1_text_screen": "text gates failed: G7_accent_casual_variant"
+  },
+  {
+   "id": "kolabamo",
+   "slug": "kolabamo",
+   "group": "original 15",
+   "base": "kolabamo",
+   "launcher": null,
+   "scores": {
+    "true_wake": 4.36,
+    "false_wake": 0.0,
+    "older_resident": 6.63,
+    "memorability": 4,
+    "natural_identity": 4
+   },
+   "balanced": 3.434,
+   "matched_tpr": 0.4363,
+   "confusion_rate": 0.0027,
+   "ambient_faph": 1.243,
+   "matched_cutoff": 0.99,
+   "licensing_gate": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE (training data includes non-commercial material)",
+   "commercial_release_eligible": false,
+   "human_factors_judgements": [
+    "memorability",
+    "natural_identity"
+   ],
+   "naming_brand_risk": {
+    "id": "kolabamo",
+    "base_word": "kolabamo",
+    "known_common_word": {
+     "flag": false,
+     "zipf": 0.0
+    },
+    "common_personal_name": {
+     "flag": false,
+     "census_percent": null,
+     "census_list": null
+    },
+    "resident_staff_collision": {
+     "flag": false,
+     "evidence": []
+    },
+    "product_association": "none known to the agent (not searched)",
+    "pronunciation_ambiguity": {
+     "flag": false,
+     "evidence": null
+    },
+    "spelling_ambiguity": {
+     "flag": false,
+     "other_spellings_same_or_near_sound": []
+    },
+    "near_sound_common_names": {},
+    "legal_review_required": "yes - no trademark or legal search performed"
+   },
+   "phase1_text_screen": "passed"
+  },
+  {
+   "id": "kestra (KESS-truh)",
+   "slug": "kestra_kess_truh",
+   "group": "supplemental (mandatory)",
+   "base": "kestra",
+   "launcher": null,
+   "scores": {
+    "true_wake": 2.72,
+    "false_wake": 0.0,
+    "older_resident": 4.07,
+    "memorability": 8,
+    "natural_identity": 7
+   },
+   "balanced": 3.13,
+   "matched_tpr": 0.2724,
+   "confusion_rate": 0.0011,
+   "ambient_faph": 1.066,
+   "matched_cutoff": 0.99,
+   "licensing_gate": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE (training data includes non-commercial material)",
+   "commercial_release_eligible": false,
+   "human_factors_judgements": [
+    "memorability",
+    "natural_identity"
+   ],
+   "naming_brand_risk": {
+    "id": "kestra (KESS-truh)",
+    "base_word": "kestra",
+    "known_common_word": {
+     "flag": false,
+     "zipf": 0.0
+    },
+    "common_personal_name": {
+     "flag": false,
+     "census_percent": null,
+     "census_list": null
+    },
+    "resident_staff_collision": {
+     "flag": false,
+     "evidence": []
+    },
+    "product_association": "Kestra is an open-source workflow-orchestration software product (agent knowledge, unverified)",
+    "pronunciation_ambiguity": {
+     "flag": false,
+     "evidence": null
+    },
+    "spelling_ambiguity": {
+     "flag": false,
+     "other_spellings_same_or_near_sound": []
+    },
+    "near_sound_common_names": {
+     "Kesha": 0.005
+    },
+    "legal_review_required": "yes - no trademark or legal search performed"
+   },
+   "phase1_text_screen": "text gates failed: G3_embedded_or_contains, G4_domain_names_commands"
+  },
+  {
+   "id": "krysta (KRISS-tuh)",
+   "slug": "krysta_kriss_tuh",
+   "group": "supplemental (mandatory)",
+   "base": "krysta",
+   "launcher": null,
+   "scores": {
+    "true_wake": 2.03,
+    "false_wake": 0.0,
+    "older_resident": 3.48,
+    "memorability": 8,
+    "natural_identity": 7
+   },
+   "balanced": 2.805,
+   "matched_tpr": 0.2025,
+   "confusion_rate": 0.0041,
+   "ambient_faph": 1.421,
+   "matched_cutoff": 0.99,
+   "licensing_gate": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE (training data includes non-commercial material)",
+   "commercial_release_eligible": false,
+   "human_factors_judgements": [
+    "memorability",
+    "natural_identity"
+   ],
+   "naming_brand_risk": {
+    "id": "krysta (KRISS-tuh)",
+    "base_word": "krysta",
+    "known_common_word": {
+     "flag": false,
+     "zipf": 0.0
+    },
+    "common_personal_name": {
+     "flag": false,
+     "census_percent": 0.002,
+     "census_list": "first name (% of that sex)"
+    },
+    "resident_staff_collision": {
+     "flag": true,
+     "evidence": [
+      "Krista",
+      "Christa",
+      "Krista"
+     ]
+    },
+    "product_association": "none known to the agent (not searched)",
+    "pronunciation_ambiguity": {
+     "flag": false,
+     "evidence": null
+    },
+    "spelling_ambiguity": {
+     "flag": true,
+     "other_spellings_same_or_near_sound": [
+      "Krista",
+      "Crista",
+      "Christa"
+     ]
+    },
+    "near_sound_common_names": {
+     "Chris": 0.197,
+     "Christian": 0.065,
+     "Crystal": 0.207
+    },
+    "legal_review_required": "yes - no trademark or legal search performed"
+   },
+   "phase1_text_screen": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary"
+  },
+  {
+   "id": "callista (kuh-LISS-tuh)",
+   "slug": "callista_kuh_liss_tuh",
+   "group": "supplemental (mandatory)",
+   "base": "callista",
+   "launcher": null,
+   "scores": {
+    "true_wake": 1.11,
+    "false_wake": 0.0,
+    "older_resident": 3.63,
+    "memorability": 8,
+    "natural_identity": 7
+   },
+   "balanced": 2.559,
+   "matched_tpr": 0.1107,
+   "confusion_rate": 0.0022,
+   "ambient_faph": 1.421,
+   "matched_cutoff": 0.99,
+   "licensing_gate": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE (training data includes non-commercial material)",
+   "commercial_release_eligible": false,
+   "human_factors_judgements": [
+    "memorability",
+    "natural_identity"
+   ],
+   "naming_brand_risk": {
+    "id": "callista (kuh-LISS-tuh)",
+    "base_word": "callista",
+    "known_common_word": {
+     "flag": false,
+     "zipf": 0.0
+    },
+    "common_personal_name": {
+     "flag": false,
+     "census_percent": null,
+     "census_list": null
+    },
+    "resident_staff_collision": {
+     "flag": true,
+     "evidence": [
+      "Calista"
+     ]
+    },
+    "product_association": "none known to the agent (not searched)",
+    "pronunciation_ambiguity": {
+     "flag": true,
+     "evidence": "kuh-LISS-tuh and CALL-iss-tuh both nominated"
+    },
+    "spelling_ambiguity": {
+     "flag": true,
+     "other_spellings_same_or_near_sound": [
+      "Calista",
+      "Kallista"
+     ]
+    },
+    "near_sound_common_names": {
+     "Melissa": 0.462,
+     "Clarissa": 0.014,
+     "Calista": 0.001
+    },
+    "legal_review_required": "yes - no trademark or legal search performed"
+   },
+   "phase1_text_screen": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary"
+  },
+  {
+   "id": "callista (CALL-iss-tuh)",
+   "slug": "callista_call_iss_tuh",
+   "group": "supplemental (mandatory)",
+   "base": "callista",
+   "launcher": null,
+   "scores": {
+    "true_wake": 1.0,
+    "false_wake": 0.0,
+    "older_resident": 3.24,
+    "memorability": 8,
+    "natural_identity": 7
+   },
+   "balanced": 2.448,
+   "matched_tpr": 0.0999,
+   "confusion_rate": 0.0004,
+   "ambient_faph": 0.888,
+   "matched_cutoff": 0.99,
+   "licensing_gate": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE (training data includes non-commercial material)",
+   "commercial_release_eligible": false,
+   "human_factors_judgements": [
+    "memorability",
+    "natural_identity"
+   ],
+   "naming_brand_risk": {
+    "id": "callista (CALL-iss-tuh)",
+    "base_word": "callista",
+    "known_common_word": {
+     "flag": false,
+     "zipf": 0.0
+    },
+    "common_personal_name": {
+     "flag": false,
+     "census_percent": null,
+     "census_list": null
+    },
+    "resident_staff_collision": {
+     "flag": true,
+     "evidence": [
+      "Calista"
+     ]
+    },
+    "product_association": "none known to the agent (not searched)",
+    "pronunciation_ambiguity": {
+     "flag": true,
+     "evidence": "kuh-LISS-tuh and CALL-iss-tuh both nominated"
+    },
+    "spelling_ambiguity": {
+     "flag": true,
+     "other_spellings_same_or_near_sound": [
+      "Calista",
+      "Kallista"
+     ]
+    },
+    "near_sound_common_names": {
+     "Melissa": 0.462,
+     "Clarissa": 0.014,
+     "Calista": 0.001
+    },
+    "legal_review_required": "yes - no trademark or legal search performed"
+   },
+   "phase1_text_screen": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary"
+  }
+ ],
+ "five_finalists": [
+  "hey kookaburra",
+  "hey callista (kuh-LISS-tuh)",
+  "okay velora (veh-LOR-uh)",
+  "hey aria",
+  "hey sivia (SIV-ee-uh)"
+ ],
+ "physical_test_three": [
+  "hey kookaburra",
+  "hey callista (kuh-LISS-tuh)",
+  "okay velora (veh-LOR-uh)"
+ ],
+ "natural_name_rule": null,
+ "bare_vs_launcher": {
+  "kookaburra": [
+   {
+    "id": "hey kookaburra",
+    "launcher": "hey",
+    "matched_tpr": 0.7477,
+    "confusion_rate": 0.0018,
+    "ambient_faph": 0.355,
+    "tpr_tv_on": 0.4375,
+    "tpr_low_volume": 0.9062
+   },
+   {
+    "id": "kookaburra",
+    "launcher": null,
+    "matched_tpr": 0.3376,
+    "confusion_rate": 0.0017,
+    "ambient_faph": 0.355,
+    "tpr_tv_on": 0.1042,
+    "tpr_low_volume": 0.5035
+   }
+  ],
+  "callista": [
+   {
+    "id": "hey callista (kuh-LISS-tuh)",
+    "launcher": "hey",
+    "matched_tpr": 0.5706,
+    "confusion_rate": 0.0027,
+    "ambient_faph": 0.355,
+    "tpr_tv_on": 0.3611,
+    "tpr_low_volume": 0.684
+   },
+   {
+    "id": "callista (kuh-LISS-tuh)",
+    "launcher": null,
+    "matched_tpr": 0.1107,
+    "confusion_rate": 0.0022,
+    "ambient_faph": 1.421,
+    "tpr_tv_on": 0.0278,
+    "tpr_low_volume": 0.1667
+   },
+   {
+    "id": "callista (CALL-iss-tuh)",
+    "launcher": null,
+    "matched_tpr": 0.0999,
+    "confusion_rate": 0.0004,
+    "ambient_faph": 0.888,
+    "tpr_tv_on": 0.0278,
+    "tpr_low_volume": 0.184
+   }
+  ],
+  "velora": [
+   {
+    "id": "okay velora (veh-LOR-uh)",
+    "launcher": "okay",
+    "matched_tpr": 0.5517,
+    "confusion_rate": 0.0046,
+    "ambient_faph": 0.355,
+    "tpr_tv_on": 0.2778,
+    "tpr_low_volume": 0.7049
+   },
+   {
+    "id": "velora (veh-LOR-uh)",
+    "launcher": null,
+    "matched_tpr": 0.3202,
+    "confusion_rate": 0.0121,
+    "ambient_faph": 1.243,
+    "tpr_tv_on": 0.0833,
+    "tpr_low_volume": 0.4688
+   }
+  ],
+  "aria": [
+   {
+    "id": "hey aria",
+    "launcher": "hey",
+    "matched_tpr": 0.4429,
+    "confusion_rate": 0.0156,
+    "ambient_faph": 0.355,
+    "tpr_tv_on": 0.2014,
+    "tpr_low_volume": 0.5729
+   },
+   {
+    "id": "okay aria",
+    "launcher": "okay",
+    "matched_tpr": 0.4028,
+    "confusion_rate": 0.0056,
+    "ambient_faph": 0.355,
+    "tpr_tv_on": 0.1667,
+    "tpr_low_volume": 0.6042
+   },
+   {
+    "id": "aria",
+    "launcher": null,
+    "matched_tpr": 0.2847,
+    "confusion_rate": 0.0195,
+    "ambient_faph": 0.355,
+    "tpr_tv_on": 0.0417,
+    "tpr_low_volume": 0.4479
+   }
+  ],
+  "sivia": [
+   {
+    "id": "hey sivia (SIV-ee-uh)",
+    "launcher": "hey",
+    "matched_tpr": 0.3877,
+    "confusion_rate": 0.0016,
+    "ambient_faph": 0.0,
+    "tpr_tv_on": 0.1389,
+    "tpr_low_volume": 0.6215
+   },
+   {
+    "id": "sivia (SIV-ee-uh)",
+    "launcher": null,
+    "matched_tpr": 0.189,
+    "confusion_rate": 0.003,
+    "ambient_faph": 0.355,
+    "tpr_tv_on": 0.0347,
+    "tpr_low_volume": 0.375
+   },
+   {
+    "id": "sivia (SEE-vee-uh)",
+    "launcher": null,
+    "matched_tpr": 0.566,
+    "confusion_rate": 0.0164,
+    "ambient_faph": 1.953,
+    "tpr_tv_on": 0.25,
+    "tpr_low_volume": 0.7153
+   },
+   {
+    "id": "hey sivia (SEE-vee-uh)",
+    "launcher": "hey",
+    "matched_tpr": 0.4788,
+    "confusion_rate": 0.0033,
+    "ambient_faph": 0.533,
+    "tpr_tv_on": 0.1597,
+    "tpr_low_volume": 0.6806
+   }
+  ],
+  "pomona": [
+   {
+    "id": "hello pomona",
+    "launcher": "hello",
+    "matched_tpr": 0.2539,
+    "confusion_rate": 0.0034,
+    "ambient_faph": 0.355,
+    "tpr_tv_on": 0.0694,
+    "tpr_low_volume": 0.4514
+   },
+   {
+    "id": "pomona",
+    "launcher": null,
+    "matched_tpr": 0.2716,
+    "confusion_rate": 0.003,
+    "ambient_faph": 1.243,
+    "tpr_tv_on": 0.0625,
+    "tpr_low_volume": 0.4722
+   }
+  ],
+  "kotrubo": [
+   {
+    "id": "hello kotrubo",
+    "launcher": "hello",
+    "matched_tpr": 0.7153,
+    "confusion_rate": 0.0019,
+    "ambient_faph": 1.066,
+    "tpr_tv_on": 0.375,
+    "tpr_low_volume": 0.8507
+   },
+   {
+    "id": "kotrubo",
+    "launcher": null,
+    "matched_tpr": 0.4552,
+    "confusion_rate": 0.0009,
+    "ambient_faph": 1.953,
+    "tpr_tv_on": 0.1667,
+    "tpr_low_volume": 0.7326
+   }
+  ],
+  "kolabamo": [
+   {
+    "id": "hey kolabamo",
+    "launcher": "hey",
+    "matched_tpr": 0.7002,
+    "confusion_rate": 0.0019,
+    "ambient_faph": 0.533,
+    "tpr_tv_on": 0.3958,
+    "tpr_low_volume": 0.8264
+   },
+   {
+    "id": "kolabamo",
+    "launcher": null,
+    "matched_tpr": 0.4363,
+    "confusion_rate": 0.0027,
+    "ambient_faph": 1.243,
+    "tpr_tv_on": 0.1319,
+    "tpr_low_volume": 0.6736
+   }
+  ],
+  "krysta": [
+   {
+    "id": "hey krysta (KRISS-tuh)",
+    "launcher": "hey",
+    "matched_tpr": 0.6366,
+    "confusion_rate": 0.0019,
+    "ambient_faph": 0.888,
+    "tpr_tv_on": 0.4236,
+    "tpr_low_volume": 0.7951
+   },
+   {
+    "id": "krysta (KRISS-tuh)",
+    "launcher": null,
+    "matched_tpr": 0.2025,
+    "confusion_rate": 0.0041,
+    "ambient_faph": 1.421,
+    "tpr_tv_on": 0.0903,
+    "tpr_low_volume": 0.2743
+   }
+  ],
+  "kestra": [
+   {
+    "id": "hey kestra (KESS-truh)",
+    "launcher": "hey",
+    "matched_tpr": 0.4379,
+    "confusion_rate": 0.0004,
+    "ambient_faph": 1.776,
+    "tpr_tv_on": 0.1875,
+    "tpr_low_volume": 0.6215
+   },
+   {
+    "id": "kestra (KESS-truh)",
+    "launcher": null,
+    "matched_tpr": 0.2724,
+    "confusion_rate": 0.0011,
+    "ambient_faph": 1.066,
+    "tpr_tv_on": 0.1111,
+    "tpr_low_volume": 0.4514
+   }
+  ]
+ },
+ "text_screen_vs_acoustic": [
+  {
+   "id": "hey kookaburra",
+   "phase1_text_screen": "passed",
+   "matched_tpr": 0.7477,
+   "confusion_rate": 0.0018,
+   "ambient_faph": 0.355,
+   "balanced": 7.885
+  },
+  {
+   "id": "hey callista (kuh-LISS-tuh)",
+   "phase1_text_screen": "text gates failed: G4_domain_names_commands",
+   "matched_tpr": 0.5706,
+   "confusion_rate": 0.0027,
+   "ambient_faph": 0.355,
+   "balanced": 7.412
+  },
+  {
+   "id": "okay velora (veh-LOR-uh)",
+   "phase1_text_screen": "passed",
+   "matched_tpr": 0.5517,
+   "confusion_rate": 0.0046,
+   "ambient_faph": 0.355,
+   "balanced": 7.403
+  },
+  {
+   "id": "hey aria",
+   "phase1_text_screen": "text gates failed: G3_embedded_or_contains, G4_domain_names_commands, G7_accent_casual_variant",
+   "matched_tpr": 0.4429,
+   "confusion_rate": 0.0156,
+   "ambient_faph": 0.355,
+   "balanced": 7.373
+  },
+  {
+   "id": "okay aria",
+   "phase1_text_screen": "passed",
+   "matched_tpr": 0.4028,
+   "confusion_rate": 0.0056,
+   "ambient_faph": 0.355,
+   "balanced": 7.331
+  },
+  {
+   "id": "hey sivia (SIV-ee-uh)",
+   "phase1_text_screen": "passed",
+   "matched_tpr": 0.3877,
+   "confusion_rate": 0.0016,
+   "ambient_faph": 0.0,
+   "balanced": 6.79
+  },
+  {
+   "id": "zaria",
+   "phase1_text_screen": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary, G7_accent_casual_variant",
+   "matched_tpr": 0.3194,
+   "confusion_rate": 0.0098,
+   "ambient_faph": 0.355,
+   "balanced": 6.716
+  },
+  {
+   "id": "aria",
+   "phase1_text_screen": "text gates failed: G0_self_frequency, G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G7_accent_casual_variant",
+   "matched_tpr": 0.2847,
+   "confusion_rate": 0.0195,
+   "ambient_faph": 0.355,
+   "balanced": 6.654
+  },
+  {
+   "id": "hello pomona",
+   "phase1_text_screen": "passed",
+   "matched_tpr": 0.2539,
+   "confusion_rate": 0.0034,
+   "ambient_faph": 0.355,
+   "balanced": 6.139
+  },
+  {
+   "id": "kookaburra",
+   "phase1_text_screen": "passed",
+   "matched_tpr": 0.3376,
+   "confusion_rate": 0.0017,
+   "ambient_faph": 0.355,
+   "balanced": 6.126
+  },
+  {
+   "id": "sivia (SIV-ee-uh)",
+   "phase1_text_screen": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary",
+   "matched_tpr": 0.189,
+   "confusion_rate": 0.003,
+   "ambient_faph": 0.355,
+   "balanced": 5.932
+  },
+  {
+   "id": "hello kotrubo",
+   "phase1_text_screen": "passed",
+   "matched_tpr": 0.7153,
+   "confusion_rate": 0.0019,
+   "ambient_faph": 1.066,
+   "balanced": 4.853
+  },
+  {
+   "id": "hey kolabamo",
+   "phase1_text_screen": "passed",
+   "matched_tpr": 0.7002,
+   "confusion_rate": 0.0019,
+   "ambient_faph": 0.533,
+   "balanced": 4.798
+  },
+  {
+   "id": "hey krysta (KRISS-tuh)",
+   "phase1_text_screen": "text gates failed: G4_domain_names_commands, G6_clipped_boundary",
+   "matched_tpr": 0.6366,
+   "confusion_rate": 0.0019,
+   "ambient_faph": 0.888,
+   "balanced": 4.753
+  },
+  {
+   "id": "sivia (SEE-vee-uh)",
+   "phase1_text_screen": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary",
+   "matched_tpr": 0.566,
+   "confusion_rate": 0.0164,
+   "ambient_faph": 1.953,
+   "balanced": 4.62
+  },
+  {
+   "id": "hey sivia (SEE-vee-uh)",
+   "phase1_text_screen": "passed",
+   "matched_tpr": 0.4788,
+   "confusion_rate": 0.0033,
+   "ambient_faph": 0.533,
+   "balanced": 4.209
+  },
+  {
+   "id": "okay lumaro",
+   "phase1_text_screen": "passed",
+   "matched_tpr": 0.4988,
+   "confusion_rate": 0.0028,
+   "ambient_faph": 1.243,
+   "balanced": 4.045
+  },
+  {
+   "id": "hey kestra (KESS-truh)",
+   "phase1_text_screen": "text gates failed: G7_accent_casual_variant",
+   "matched_tpr": 0.4379,
+   "confusion_rate": 0.0004,
+   "ambient_faph": 1.776,
+   "balanced": 3.892
+  },
+  {
+   "id": "kotrubo",
+   "phase1_text_screen": "passed",
+   "matched_tpr": 0.4552,
+   "confusion_rate": 0.0009,
+   "ambient_faph": 1.953,
+   "balanced": 3.697
+  },
+  {
+   "id": "velora (veh-LOR-uh)",
+   "phase1_text_screen": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary, G7_accent_casual_variant",
+   "matched_tpr": 0.3202,
+   "confusion_rate": 0.0121,
+   "ambient_faph": 1.243,
+   "balanced": 3.618
+  },
+  {
+   "id": "pomona",
+   "phase1_text_screen": "text gates failed: G7_accent_casual_variant",
+   "matched_tpr": 0.2716,
+   "confusion_rate": 0.003,
+   "ambient_faph": 1.243,
+   "balanced": 3.468
+  },
+  {
+   "id": "kolabamo",
+   "phase1_text_screen": "passed",
+   "matched_tpr": 0.4363,
+   "confusion_rate": 0.0027,
+   "ambient_faph": 1.243,
+   "balanced": 3.434
+  },
+  {
+   "id": "kestra (KESS-truh)",
+   "phase1_text_screen": "text gates failed: G3_embedded_or_contains, G4_domain_names_commands",
+   "matched_tpr": 0.2724,
+   "confusion_rate": 0.0011,
+   "ambient_faph": 1.066,
+   "balanced": 3.13
+  },
+  {
+   "id": "krysta (KRISS-tuh)",
+   "phase1_text_screen": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary",
+   "matched_tpr": 0.2025,
+   "confusion_rate": 0.0041,
+   "ambient_faph": 1.421,
+   "balanced": 2.805
+  },
+  {
+   "id": "callista (kuh-LISS-tuh)",
+   "phase1_text_screen": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary",
+   "matched_tpr": 0.1107,
+   "confusion_rate": 0.0022,
+   "ambient_faph": 1.421,
+   "balanced": 2.559
+  },
+  {
+   "id": "callista (CALL-iss-tuh)",
+   "phase1_text_screen": "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary",
+   "matched_tpr": 0.0999,
+   "confusion_rate": 0.0004,
+   "ambient_faph": 0.888,
+   "balanced": 2.448
+  }
+ ],
+ "note": "Synthetic evidence only. The final wake phrase is chosen from physical Voice PE tests."
+}

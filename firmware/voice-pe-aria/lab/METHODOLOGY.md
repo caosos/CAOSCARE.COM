@@ -128,6 +128,17 @@ Configuration lives in `lab_common.py`; the code is `gen_lab.py`,
 - the evaluation clips, conditions, ambient streams, cutoffs and detection
   rule.
 
+**Evaluation determinism (corrected 2026-10-04).** Every model is evaluated on
+the same clip files, and each (clip, condition) pair gets the same noise
+segment and augmentation draws: the per-clip seed is
+`SEED + crc32("<path relative to samples/lab/eval>|<condition>")`. The
+ambient streams are fixed files scored without randomness. The first full run
+used Python's `hash()` for this seed; `hash()` is salted per process, so each
+model received different noise offsets and augmentation draws. All 26
+evaluations and cross-checks were re-run with the deterministic seed (no
+retraining, `rerun_eval_deterministic.sh`); the earlier outputs are kept in
+each run's `superseded_2026-10-04_salted_seed/` folder.
+
 **Positives** are synthesised from each candidate's **exact phonemes** with
 the LibriTTS-R generator, in three forms:
 - careful: all vowels full;
@@ -201,15 +212,101 @@ to 0.99 is stored.
 - host inference time per step (no device measurement possible);
 - detection latency from the end of speech.
 
-## Phase 3 — finalists
+## Phase 3 — finalists (`recommend_lab.py`, revised 2026-10-04)
 
-Five finalists, then the three for physical Voice PE testing, chosen from
-measured Phase 2 results at the matched operating point:
-- first, true-positive rate across all conditions, TV-on and low-volume;
-- then confusion false-activation rate and ambient false activations per
-  hour;
-- subjective scores and older-resident usability break ties, and are reported
-  separately.
+**Licensing is a hard gate, not a score.** Every current model was trained
+with non-commercial material. Each one is therefore:
+- **RESEARCH ONLY**;
+- **NOT COMMERCIALLY RELEASABLE**;
+- given no ranking points for licensing;
+- never presented as shipping firmware.
+
+**Weighted score (0–10).** Weights were fixed before results. Every raw factor
+value is reported so Michael can re-weight later.
+
+| Factor | Weight | Type |
+|---|---|---|
+| true-wake performance (matched-point TPR, all conditions) | 0.30 | acoustic, measured |
+| false-wake performance (confusion false-activation rate at the matched point; 0 if the model can't reach ≤ 0.5 ambient false activations per hour) | 0.30 | acoustic, measured |
+| older-resident usability: 0.7 × measured TPR on the resident conditions + 0.3 × Phase 1 text score | 0.20 | measured + text |
+| memorability | 0.10 | **human-factors judgement** |
+| natural assistant identity | 0.10 | **human-factors judgement** |
+
+**Naming / brand risk is a separate flag set** (`naming_risk.py` →
+`results/naming_risk.json`). It is never scored, and never presented as
+licensing eligibility. It records:
+- known common word, with Zipf evidence;
+- common personal name (US Census share);
+- likely resident/staff name collision;
+- existing assistant or product association (only associations known to the
+  agent, marked unverified);
+- pronunciation ambiguity;
+- spelling ambiguity;
+- "legal review required: yes" for every candidate.
+
+No trademark or legal conclusion is drawn.
+
+**Selection:**
+- Ranking is by weighted score; an exact tie is broken by candidate id
+  (alphabetical), so the order is deterministic.
+- The five finalists are the top five by weighted score, at most one variant
+  per base word. Launcher forms and pronunciation variants of one word compete
+  only with each other, so they cannot crowd a different word off the list;
+  the variants passed over are listed in `recommendation.json`
+  (`skipped_same_base_before_five_filled`).
+- Natural-identity points: 10 only when the base word is "aria" itself (the
+  assistant's name); a name that merely contains "aria" (Zaria) scores as a
+  name (7). Corrected 2026-10-04 — the first ranking used a substring test.
+- The three physical-test finalists are the top three of those five. At least
+  one must be a memorable natural name (memorability ≥ 8), if any such model
+  meets minimum acoustics: matched TPR ≥ 0.6, confusion rate ≤ 0.1 and ≤ 0.5
+  ambient false activations per hour.
+
+**Supplemental mandatory candidates** (Michael, 2026-10-04): Callista
+(kuh-LISS-tuh and CALL-iss-tuh), Hey Callista, Kestra, Hey Kestra, Krysta,
+Hey Krysta.
+- Trained and evaluated with the identical procedure and reported beside the
+  original 15.
+- The original 15's results are never rewritten; their cross-check on the
+  supplemental speech goes to a separate file.
+- **The only deviation:** a shared negative phrase with exactly the same sound
+  as the candidate ("Calista" for Callista kuh-LISS-tuh, "Krista" for Krysta)
+  is excluded from that candidate's negatives. Training the same sound as both
+  positive and negative is a contradiction, not a test. Recorded in each
+  model's `training_parameters.yaml`.
+
+**Sivia addendum** (2026-10-04). "Candidate nominated by Michael for
+mandatory acoustic evaluation."
+
+Four models are trained with the identical procedure:
+- Sivia (SIV-ee-uh)
+- Hey Sivia (SIV-ee-uh)
+- Sivia (SEE-vee-uh)
+- Hey Sivia (SEE-vee-uh)
+
+**Text screen:** done for documentation only (`screen_supplemental.py` →
+`results/discovery_supplemental.json`; Phase 1 results are not rerun). It
+cannot eliminate a candidate.
+
+**Pronunciation identity** is tested before any consolidation
+(`pronunciation_identity.py` → `results/pronunciation_identity.json`):
+- matched-seed pairs, DTW-aligned MFCC distance;
+- compared with take-to-take variation;
+- one-sided Wilcoxon test.
+
+The two pronunciations are kept separate unless proven identical. They are
+not identical: the phoneme inputs differ.
+
+**Extra held-out confusion set** (`lab_common.EXTRA_CONFUSION`):
+- Words: Sylvia, Olivia, Siri, Syria, severe, trivia, "see via", Siva, Shiva,
+  Civia, Vivian, "hey Sylvia", "hey Olivia".
+- Clips: the same 24 speakers.
+- Used for **evaluation only**, so the shared training negatives stay identical.
+- **Every** model (original 15 and all supplemental) is scored on it, in the
+  additive file `lab_eval_supp_cross.json`. The recommendation's false-wake
+  factor uses the combined confusion rate for every model alike.
+- Civia is the same sound as Sivia (SIV-ee-uh), so it is expected to trigger
+  that model by definition.
 
 ## Limits (apply to every number here)
 

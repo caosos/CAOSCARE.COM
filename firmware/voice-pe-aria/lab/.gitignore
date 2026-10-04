@@ -1,2 +1,4 @@
 __pycache__/
 device_test/runs/
+device_test/models/
+device_test/.esphome/

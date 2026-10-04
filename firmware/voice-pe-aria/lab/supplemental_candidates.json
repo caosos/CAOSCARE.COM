@@ -1,0 +1,332 @@
+[
+ {
+  "id": "callista (kuh-LISS-tuh)",
+  "text": "callista",
+  "slug": "callista_kuh_liss_tuh",
+  "kind": "nominated",
+  "base": null,
+  "launcher": null,
+  "phonemes": "K AH0 L IH1 S T AH0",
+  "arpa_words": [
+   "K AH0 L IH1 S T AH0"
+  ],
+  "phase1_rank": 376,
+  "phase1_measurable": 4.9,
+  "phase1_subjective": 8.0,
+  "group": "supplemental (mandatory)",
+  "note": null,
+  "advance_reason": "mandatory acoustic test (Michael correction 2026-10-04); text screen: text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary",
+  "text_screen_nearest": [
+   "Calista (0.0)",
+   "calista (0.0)",
+   "least a (0.03)",
+   "leased a (0.03)"
+  ],
+  "text_screen_failed_gates": [
+   "G2_near_high_frequency",
+   "G3_embedded_or_contains",
+   "G4_domain_names_commands",
+   "G6_clipped_boundary"
+  ],
+  "exclude_negatives": [
+   "Calista"
+  ]
+ },
+ {
+  "id": "callista (CALL-iss-tuh)",
+  "text": "callista",
+  "slug": "callista_call_iss_tuh",
+  "kind": "nominated",
+  "base": null,
+  "launcher": null,
+  "phonemes": "K AO1 L IH0 S T AH0",
+  "arpa_words": [
+   "K AO1 L IH0 S T AH0"
+  ],
+  "phase1_rank": 373,
+  "phase1_measurable": 4.96,
+  "phase1_subjective": 8.0,
+  "group": "supplemental (mandatory)",
+  "note": null,
+  "advance_reason": "mandatory acoustic test (Michael correction 2026-10-04); text screen: text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary",
+  "text_screen_nearest": [
+   "least a (0.03)",
+   "leased a (0.03)",
+   "lift a (0.048)",
+   "tallest of (0.05)"
+  ],
+  "text_screen_failed_gates": [
+   "G2_near_high_frequency",
+   "G3_embedded_or_contains",
+   "G4_domain_names_commands",
+   "G6_clipped_boundary"
+  ],
+  "exclude_negatives": []
+ },
+ {
+  "id": "hey callista (kuh-LISS-tuh)",
+  "text": "hey callista",
+  "slug": "hey_callista_kuh_liss_tuh",
+  "kind": "launcher",
+  "base": "callista (kuh-LISS-tuh)",
+  "launcher": "hey",
+  "phonemes": "HH EY1 K AH0 L IH1 S T AH0",
+  "arpa_words": [
+   "HH EY1",
+   "K AH0 L IH1 S T AH0"
+  ],
+  "phase1_rank": 305,
+  "phase1_measurable": 6.29,
+  "phase1_subjective": 7.33,
+  "group": "supplemental (mandatory)",
+  "note": null,
+  "advance_reason": "mandatory acoustic test (Michael correction 2026-10-04); text screen: text gates failed: G4_domain_names_commands",
+  "text_screen_nearest": [
+   "calista (0.0)",
+   "cyclist (0.1188)",
+   "make a list (0.125)",
+   "take a little (0.125)"
+  ],
+  "text_screen_failed_gates": [
+   "G4_domain_names_commands"
+  ],
+  "exclude_negatives": []
+ },
+ {
+  "id": "kestra (KESS-truh)",
+  "text": "kestra",
+  "slug": "kestra_kess_truh",
+  "kind": "nominated",
+  "base": null,
+  "launcher": null,
+  "phonemes": "K EH1 S T R AH0",
+  "arpa_words": [
+   "K EH1 S T R AH0"
+  ],
+  "phase1_rank": 368,
+  "phase1_measurable": 5.04,
+  "phase1_subjective": 7.33,
+  "group": "supplemental (mandatory)",
+  "note": null,
+  "advance_reason": "mandatory acoustic test (Michael correction 2026-10-04); text screen: text gates failed: G3_embedded_or_contains, G4_domain_names_commands",
+  "text_screen_nearest": [
+   "Kestrel (0.0)",
+   "orchestral (0.0)",
+   "astra (0.04)",
+   "orchestra (0.05)"
+  ],
+  "text_screen_failed_gates": [
+   "G3_embedded_or_contains",
+   "G4_domain_names_commands"
+  ],
+  "exclude_negatives": []
+ },
+ {
+  "id": "hey kestra (KESS-truh)",
+  "text": "hey kestra",
+  "slug": "hey_kestra_kess_truh",
+  "kind": "launcher",
+  "base": "kestra (KESS-truh)",
+  "launcher": "hey",
+  "phonemes": "HH EY1 K EH1 S T R AH0",
+  "arpa_words": [
+   "HH EY1",
+   "K EH1 S T R AH0"
+  ],
+  "phase1_rank": 282,
+  "phase1_measurable": 6.61,
+  "phase1_subjective": 6.67,
+  "group": "supplemental (mandatory)",
+  "note": null,
+  "advance_reason": "mandatory acoustic test (Michael correction 2026-10-04); text screen: text gates failed: G7_accent_casual_variant",
+  "text_screen_nearest": [
+   "castro (0.1417)",
+   "kissed the (0.17)",
+   "cast the (0.17)",
+   "kester (0.1833)"
+  ],
+  "text_screen_failed_gates": [
+   "G7_accent_casual_variant"
+  ],
+  "exclude_negatives": []
+ },
+ {
+  "id": "krysta (KRISS-tuh)",
+  "text": "krysta",
+  "slug": "krysta_kriss_tuh",
+  "kind": "nominated",
+  "base": null,
+  "launcher": null,
+  "phonemes": "K R IH1 S T AH0",
+  "arpa_words": [
+   "K R IH1 S T AH0"
+  ],
+  "phase1_rank": 392,
+  "phase1_measurable": 4.3,
+  "phase1_subjective": 8.0,
+  "group": "supplemental (mandatory)",
+  "note": null,
+  "advance_reason": "mandatory acoustic test (Michael correction 2026-10-04); text screen: text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary",
+  "text_screen_nearest": [
+   "crystal (0.0)",
+   "Krista (0.0)",
+   "Crystal (0.0)",
+   "christopher (0.0)"
+  ],
+  "text_screen_failed_gates": [
+   "G2_near_high_frequency",
+   "G3_embedded_or_contains",
+   "G4_domain_names_commands",
+   "G6_clipped_boundary"
+  ],
+  "exclude_negatives": [
+   "Krista"
+  ]
+ },
+ {
+  "id": "hey krysta (KRISS-tuh)",
+  "text": "hey krysta",
+  "slug": "hey_krysta_kriss_tuh",
+  "kind": "launcher",
+  "base": "krysta (KRISS-tuh)",
+  "launcher": "hey",
+  "phonemes": "HH EY1 K R IH1 S T AH0",
+  "arpa_words": [
+   "HH EY1",
+   "K R IH1 S T AH0"
+  ],
+  "phase1_rank": 335,
+  "phase1_measurable": 5.69,
+  "phase1_subjective": 7.33,
+  "group": "supplemental (mandatory)",
+  "note": null,
+  "advance_reason": "mandatory acoustic test (Michael correction 2026-10-04); text screen: text gates failed: G4_domain_names_commands, G6_clipped_boundary",
+  "text_screen_nearest": [
+   "rest a (0.04)",
+   "risk a (0.07)",
+   "a crystal (0.0929)",
+   "arista (0.1)"
+  ],
+  "text_screen_failed_gates": [
+   "G4_domain_names_commands",
+   "G6_clipped_boundary"
+  ],
+  "exclude_negatives": []
+ },
+ {
+  "id": "sivia (SIV-ee-uh)",
+  "text": "sivia",
+  "slug": "sivia_siv_ee_uh",
+  "kind": "nominated",
+  "base": null,
+  "launcher": null,
+  "phonemes": "S IH1 V IY0 AH0",
+  "arpa_words": [
+   "S IH1 V IY0 AH0"
+  ],
+  "phase1_rank": null,
+  "phase1_measurable": 5.21,
+  "phase1_subjective": 8.0,
+  "group": "supplemental (mandatory)",
+  "note": "Candidate nominated by Michael for mandatory acoustic evaluation.",
+  "advance_reason": "Candidate nominated by Michael for mandatory acoustic evaluation.; text screen: text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary",
+  "text_screen_nearest": [
+   "via (0.0)",
+   "lascivious (0.0)",
+   "cv (0.0375)",
+   "cheviot (0.064)"
+  ],
+  "text_screen_failed_gates": [
+   "G2_near_high_frequency",
+   "G3_embedded_or_contains",
+   "G4_domain_names_commands",
+   "G6_clipped_boundary"
+  ],
+  "exclude_negatives": []
+ },
+ {
+  "id": "hey sivia (SIV-ee-uh)",
+  "text": "hey sivia",
+  "slug": "hey_sivia_siv_ee_uh",
+  "kind": "launcher",
+  "base": "sivia (SIV-ee-uh)",
+  "launcher": "hey",
+  "phonemes": "HH EY1 S IH1 V IY0 AH0",
+  "arpa_words": [
+   "HH EY1",
+   "S IH1 V IY0 AH0"
+  ],
+  "phase1_rank": null,
+  "phase1_measurable": 8.16,
+  "phase1_subjective": 7.33,
+  "group": "supplemental (mandatory)",
+  "note": "Candidate nominated by Michael for mandatory acoustic evaluation.",
+  "advance_reason": "Candidate nominated by Michael for mandatory acoustic evaluation.; text screen: passed",
+  "text_screen_nearest": [
+   "heavy a (0.11)",
+   "artemisiifolia (0.1333)",
+   "cv (0.15)",
+   "sylvia (0.1667)"
+  ],
+  "text_screen_failed_gates": [],
+  "exclude_negatives": []
+ },
+ {
+  "id": "sivia (SEE-vee-uh)",
+  "text": "sivia",
+  "slug": "sivia_see_vee_uh",
+  "kind": "nominated",
+  "base": null,
+  "launcher": null,
+  "phonemes": "S IY1 V IY0 AH0",
+  "arpa_words": [
+   "S IY1 V IY0 AH0"
+  ],
+  "phase1_rank": null,
+  "phase1_measurable": 4.51,
+  "phase1_subjective": 8.0,
+  "group": "supplemental (mandatory)",
+  "note": "Candidate nominated by Michael for mandatory acoustic evaluation.",
+  "advance_reason": "Candidate nominated by Michael for mandatory acoustic evaluation.; text screen: text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary",
+  "text_screen_nearest": [
+   "via (0.0)",
+   "cv (0.0)",
+   "lascivious (0.03)",
+   "cesium (0.048)"
+  ],
+  "text_screen_failed_gates": [
+   "G2_near_high_frequency",
+   "G3_embedded_or_contains",
+   "G4_domain_names_commands",
+   "G6_clipped_boundary"
+  ],
+  "exclude_negatives": []
+ },
+ {
+  "id": "hey sivia (SEE-vee-uh)",
+  "text": "hey sivia",
+  "slug": "hey_sivia_see_vee_uh",
+  "kind": "launcher",
+  "base": "sivia (SEE-vee-uh)",
+  "launcher": "hey",
+  "phonemes": "HH EY1 S IY1 V IY0 AH0",
+  "arpa_words": [
+   "HH EY1",
+   "S IY1 V IY0 AH0"
+  ],
+  "phase1_rank": null,
+  "phase1_measurable": 8.03,
+  "phase1_subjective": 7.33,
+  "group": "supplemental (mandatory)",
+  "note": "Candidate nominated by Michael for mandatory acoustic evaluation.",
+  "advance_reason": "Candidate nominated by Michael for mandatory acoustic evaluation.; text screen: passed",
+  "text_screen_nearest": [
+   "cv (0.12)",
+   "heavy a (0.13)",
+   "lascivious (0.1333)",
+   "tv a (0.14)"
+  ],
+  "text_screen_failed_gates": [],
+  "exclude_negatives": []
+ }
+]

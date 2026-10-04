@@ -1,0 +1,275 @@
+{
+ "label": "TEXT STAGE, DOCUMENTATION ONLY - these candidates are acoustically tested regardless",
+ "rows": [
+  {
+   "id": "sivia (SIV-ee-uh)",
+   "text": "sivia",
+   "kind": "nominated",
+   "base": null,
+   "launcher": null,
+   "say": "SIV-ee-uh",
+   "phonemes": "S IH1 V IY0 AH0",
+   "phonemes_source": "intended (screen_supplemental.py)",
+   "dictionary_reading": "S IH1 V IY0 AH0",
+   "syllables": 3,
+   "phonemes_count": 5,
+   "distinct_consonants": 2,
+   "distinct_vowels": 3,
+   "onset": "fricative",
+   "max_consonant_cluster": 1,
+   "est_seconds": 0.43,
+   "collision_margin": 0.0,
+   "risk_per_hour_text_proxy": 0.3548,
+   "self_zipf": 0.0,
+   "nearest": [
+    "via (0.0)",
+    "lascivious (0.0)",
+    "cv (0.0375)",
+    "cheviot (0.064)"
+   ],
+   "area_distance": 0.228,
+   "gates_failed_all": [
+    "G2_near_high_frequency",
+    "G3_embedded_or_contains",
+    "G4_domain_names_commands",
+    "G6_clipped_boundary"
+   ],
+   "gates_failed_hard": [
+    "G2_near_high_frequency",
+    "G3_embedded_or_contains",
+    "G4_domain_names_commands",
+    "G6_clipped_boundary"
+   ],
+   "g4_rare_name_advisory": [],
+   "scores": {
+    "measurable_text_stage": {
+     "acoustic_distinctiveness": 0.0,
+     "conversational_rarity": 8.0,
+     "television_rarity": 1.5,
+     "older_resident_pronunciation": 9.0,
+     "resistance_to_shortened_pronunciation": 6,
+     "false_wake_resistance": 2.0,
+     "pronunciation_consistency": 10.0
+    },
+    "pending_phase2": {
+     "quiet_room_detection": null,
+     "television_on_detection": null,
+     "soft_voice_detection": null,
+     "missed_wake": null,
+     "false_positive": null
+    },
+    "subjective": {
+     "memorability": 8,
+     "branding_suitability": 8,
+     "emotional_friendliness": 8
+    }
+   },
+   "measurable_composite": 5.21,
+   "subjective_composite": 8.0,
+   "screen_rejected": true,
+   "reject_reasons": [
+    "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary"
+   ],
+   "note": "Candidate nominated by Michael for mandatory acoustic evaluation.",
+   "rank": null
+  },
+  {
+   "id": "hey sivia (SIV-ee-uh)",
+   "text": "hey sivia",
+   "kind": "launcher",
+   "base": "sivia (SIV-ee-uh)",
+   "launcher": "hey",
+   "say": "hey SIV-ee-uh",
+   "phonemes": "HH EY1 S IH1 V IY0 AH0",
+   "phonemes_source": "intended (screen_supplemental.py)",
+   "dictionary_reading": "HH EY1 S IH1 V IY0 AH0",
+   "syllables": 4,
+   "phonemes_count": 7,
+   "distinct_consonants": 3,
+   "distinct_vowels": 4,
+   "onset": "fricative",
+   "max_consonant_cluster": 1,
+   "est_seconds": 0.6,
+   "collision_margin": 0.11,
+   "risk_per_hour_text_proxy": 0.0091,
+   "self_zipf": 0.0,
+   "nearest": [
+    "heavy a (0.11)",
+    "artemisiifolia (0.1333)",
+    "cv (0.15)",
+    "sylvia (0.1667)"
+   ],
+   "area_distance": 0.0,
+   "gates_failed_all": [],
+   "gates_failed_hard": [],
+   "g4_rare_name_advisory": [],
+   "scores": {
+    "measurable_text_stage": {
+     "acoustic_distinctiveness": 4.4,
+     "conversational_rarity": 10.0,
+     "television_rarity": 6.7,
+     "older_resident_pronunciation": 9.0,
+     "resistance_to_shortened_pronunciation": 10.0,
+     "false_wake_resistance": 7.0,
+     "pronunciation_consistency": 10.0
+    },
+    "pending_phase2": {
+     "quiet_room_detection": null,
+     "television_on_detection": null,
+     "soft_voice_detection": null,
+     "missed_wake": null,
+     "false_positive": null
+    },
+    "subjective": {
+     "memorability": 7,
+     "branding_suitability": 6,
+     "emotional_friendliness": 9
+    }
+   },
+   "measurable_composite": 8.16,
+   "subjective_composite": 7.33,
+   "screen_rejected": false,
+   "reject_reasons": [],
+   "note": "Candidate nominated by Michael for mandatory acoustic evaluation.",
+   "rank": null
+  },
+  {
+   "id": "sivia (SEE-vee-uh)",
+   "text": "sivia",
+   "kind": "nominated",
+   "base": null,
+   "launcher": null,
+   "say": "SEE-vee-uh",
+   "phonemes": "S IY1 V IY0 AH0",
+   "phonemes_source": "intended (screen_supplemental.py)",
+   "dictionary_reading": "S IH1 V IY0 AH0",
+   "syllables": 3,
+   "phonemes_count": 5,
+   "distinct_consonants": 2,
+   "distinct_vowels": 2,
+   "onset": "fricative",
+   "max_consonant_cluster": 1,
+   "est_seconds": 0.43,
+   "collision_margin": 0.0,
+   "risk_per_hour_text_proxy": 0.6646,
+   "self_zipf": 0.0,
+   "nearest": [
+    "via (0.0)",
+    "cv (0.0)",
+    "lascivious (0.03)",
+    "cesium (0.048)"
+   ],
+   "area_distance": 0.248,
+   "gates_failed_all": [
+    "G2_near_high_frequency",
+    "G3_embedded_or_contains",
+    "G4_domain_names_commands",
+    "G6_clipped_boundary"
+   ],
+   "gates_failed_hard": [
+    "G2_near_high_frequency",
+    "G3_embedded_or_contains",
+    "G4_domain_names_commands",
+    "G6_clipped_boundary"
+   ],
+   "g4_rare_name_advisory": [
+    "cythia (0.003%)",
+    "vivien (0.002%)",
+    "vivienne (0.002%)",
+    "basilia (0.001%)",
+    "jesenia (0.002%)"
+   ],
+   "scores": {
+    "measurable_text_stage": {
+     "acoustic_distinctiveness": 0.0,
+     "conversational_rarity": 8.0,
+     "television_rarity": 0.6,
+     "older_resident_pronunciation": 9.0,
+     "resistance_to_shortened_pronunciation": 6,
+     "false_wake_resistance": 2.0,
+     "pronunciation_consistency": 6.0
+    },
+    "pending_phase2": {
+     "quiet_room_detection": null,
+     "television_on_detection": null,
+     "soft_voice_detection": null,
+     "missed_wake": null,
+     "false_positive": null
+    },
+    "subjective": {
+     "memorability": 8,
+     "branding_suitability": 8,
+     "emotional_friendliness": 8
+    }
+   },
+   "measurable_composite": 4.51,
+   "subjective_composite": 8.0,
+   "screen_rejected": true,
+   "reject_reasons": [
+    "text gates failed: G2_near_high_frequency, G3_embedded_or_contains, G4_domain_names_commands, G6_clipped_boundary"
+   ],
+   "note": "Candidate nominated by Michael for mandatory acoustic evaluation.",
+   "rank": null
+  },
+  {
+   "id": "hey sivia (SEE-vee-uh)",
+   "text": "hey sivia",
+   "kind": "launcher",
+   "base": "sivia (SEE-vee-uh)",
+   "launcher": "hey",
+   "say": "hey SEE-vee-uh",
+   "phonemes": "HH EY1 S IY1 V IY0 AH0",
+   "phonemes_source": "intended (screen_supplemental.py)",
+   "dictionary_reading": "HH EY1 S IH1 V IY0 AH0",
+   "syllables": 4,
+   "phonemes_count": 7,
+   "distinct_consonants": 3,
+   "distinct_vowels": 3,
+   "onset": "fricative",
+   "max_consonant_cluster": 1,
+   "est_seconds": 0.6,
+   "collision_margin": 0.12,
+   "risk_per_hour_text_proxy": 0.0016,
+   "self_zipf": 0.0,
+   "nearest": [
+    "cv (0.12)",
+    "heavy a (0.13)",
+    "lascivious (0.1333)",
+    "tv a (0.14)"
+   ],
+   "area_distance": 0.0,
+   "gates_failed_all": [],
+   "gates_failed_hard": [],
+   "g4_rare_name_advisory": [],
+   "scores": {
+    "measurable_text_stage": {
+     "acoustic_distinctiveness": 4.8,
+     "conversational_rarity": 10.0,
+     "television_rarity": 8.6,
+     "older_resident_pronunciation": 9.0,
+     "resistance_to_shortened_pronunciation": 10.0,
+     "false_wake_resistance": 7.8,
+     "pronunciation_consistency": 6.0
+    },
+    "pending_phase2": {
+     "quiet_room_detection": null,
+     "television_on_detection": null,
+     "soft_voice_detection": null,
+     "missed_wake": null,
+     "false_positive": null
+    },
+    "subjective": {
+     "memorability": 7,
+     "branding_suitability": 6,
+     "emotional_friendliness": 9
+    }
+   },
+   "measurable_composite": 8.03,
+   "subjective_composite": 7.33,
+   "screen_rejected": false,
+   "reject_reasons": [],
+   "note": "Candidate nominated by Michael for mandatory acoustic evaluation.",
+   "rank": null
+  }
+ ]
+}

@@ -1,0 +1,30 @@
+{
+ "sivia": {
+  "pronunciation_a": "S IH1 V IY0 AH0",
+  "pronunciation_b": "S IY1 V IY0 AH0",
+  "ipa_a": "s\u02c8\u026avi\u0259",
+  "ipa_b": "s\u02c8i\u02d0vi\u0259",
+  "phoneme_inputs_identical": false,
+  "between_mean": 55.142,
+  "within_mean": 51.262,
+  "between_over_within": 1.076,
+  "n_pairs": 20,
+  "pairs_between_gt_within": 14,
+  "wilcoxon_p_between_gt_within": 0.07145309448242188,
+  "conclusion": "phoneme inputs differ but the audio difference is NOT distinguishable from take-to-take variation at p<0.05 - still trained separately (not proven identical); expect similar models"
+ },
+ "callista": {
+  "pronunciation_a": "K AH0 L IH1 S T AH0",
+  "pronunciation_b": "K AO1 L IH0 S T AH0",
+  "ipa_a": "k\u0259l\u02c8\u026ast\u0259",
+  "ipa_b": "k\u02c8\u0254\u02d0l\u026ast\u0259",
+  "phoneme_inputs_identical": false,
+  "between_mean": 66.734,
+  "within_mean": 54.899,
+  "between_over_within": 1.216,
+  "n_pairs": 20,
+  "pairs_between_gt_within": 16,
+  "wilcoxon_p_between_gt_within": 4.100799560546875e-05,
+  "conclusion": "phoneme inputs differ and the audio difference is statistically significant - keep separate"
+ }
+}
