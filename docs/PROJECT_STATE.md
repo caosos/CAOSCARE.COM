@@ -5973,3 +5973,36 @@ Backend gate 234 passed / 3 failed (baseline iter10/iter11) / 13 skipped, includ
 
 ### Not in this merge
 Agent 2's Nabu re-request fix (`bbfce3b` on `pilot/shared-core-rerequest`, based on `test/okay-nabu-voice` `5c40b90`) — awaiting review/approval.
+
+---
+
+## 2026-10-03 — Voice PE → CAOSCare voice bridge (integration spike)
+
+### Agent / branch
+Claude Code (Opus 5.5), `~/CAOSCARE-VOICEBRIDGE`, branch `spike/voice-bridge` from `integration/2026-09-27` `d5556ed` (verified clean, = origin) plus a merge of `test/okay-nabu-voice` `5c40b90` (configurable assistant name). Claude 2's `bbfce3b` deliberately excluded. Not merged, not deployed; main, PR #41/#42, website and hardware untouched.
+
+### Finding: what the existing API supports
+- Resident realtime voice is browser WebRTC straight to OpenAI; the resident tools run in browser JavaScript and call CAOSCare endpoints. There was no server-side conversation-turn interface a Home Assistant agent could call.
+- Legacy `/api/ai/chat` (retired 2026-08-09) has its own persona and no tools — not reused.
+- The workflow services themselves are callable in-process (`create_resident_request(data, user=None)`, `menu.public_today`, `schedule.public_today`, `resident_request_status/history`), so the missing interface was only the turn endpoint + a server-side tool executor. Built as a bounded spike.
+
+### What was built
+- `POST /api/voice-bridge/turn` `{endpoint_id, text, conversation_id}` → `{response_text, conversation_id, session_id, continue_conversation, tools_used}`. Bridge credential `CAOSCARE_VOICE_BRIDGE_TOKEN` (503 if unset, 401 if wrong); room resolved server-side from a registered Kiosk endpoint (404 if unknown); session id `vb_<conversation_id>`; user and assistant turns written through the existing `realtime_turn_ingest` (same conversation store, same memory extraction); instructions from `build_resident_instructions()` (extracted from the realtime mint so both use one assembly) plus a short spoken-channel note; up to 4 tool rounds; tool calls/results logged to `realtime_diagnostics`.
+- Tools (schemas from `_build_tools()`): get_menu, get_todays_schedule, request_staff_help, check_request_status, check_request_history, get_current_time, end_call — each calling the canonical service. Requests go through `create_resident_request` as `aria_voice`, identity basis unverified room claim, with the resident's actual words.
+- HA custom conversation agent skeleton in `integrations/home_assistant/custom_components/caoscare_conversation/` — compiles; **not installed or tested in Home Assistant**.
+
+### Speech path
+This is Home Assistant's **staged** path (wake word → HA STT → text → CAOSCare → text → HA TTS). It does **not** preserve the realtime speech-to-speech session (no barge-in, no realtime voice, no audio-level turn-taking).
+
+### Synthetic transcript tests (spike backend :8099 on the shared local DB, demo room endpoint `kio_67f409214f27`, name Nabu)
+- Run 1 (`vb_spike1003a`, gpt-4o-mini): menu → real dinner items (get_menu); activities → today's real schedule; "fresh towels" → `task_d3debfa2a6c5` (housekeeping, resident's exact words, session-linked) with origin receipt `rcpt_12d273479c23` (`resident_request_created`, unverified_room_claim, public_resident_bus); follow-up "Has anyone seen my towel request yet?" in the same session → "still open … no one has picked it up yet" (check_request_status); "What's your name?" → "I'm Nabu."; 12 turns stored; all tool calls logged.
+- **Defects with gpt-4o-mini:** after filing a request it said "It's on its way!" (false arrival claim) — still did so after the tool result was given explicit "no one has picked it up yet" wording; the goodbye did not call end_call.
+- Run 3 (`vb_spike1003c`, `OPENAI_TEXT_MODEL=gpt-4.1`): truthful ("still waiting to be picked up"), accurate status follow-up, goodbye → end_call → `continue_conversation: false`. Still added a soft "they'll come take a look".
+- Existing CAOSCare limit surfaced: "TV remote stopped working" was merged into the open maintenance sink request (category-level dedup, not content-aware).
+- Test requests left open in room DEMO (towels, bathroom help, sink re-ask); demo room only.
+
+### Tests
+`test_voice_bridge.py` (credential, session id, tool schemas) + name/prompt-substrate tests: 12 passed. Backend gate on the spike: 239 passed, 4 failed (iter10/iter11 ×3 baseline; `test_ops_overview` — pre-existing intermittent failure (failed at `1d02630`, passed at `268963c`); an isolated re-run on the spike timed out, so it is not re-verified here; the spike changes no ops-overview code), 14 skipped.
+
+### Not done / blockers
+No Voice PE on hand (nothing flashed). HA has no STT/TTS engine and no Wyoming/ESPHome integration; the agent is not installed. Text model must be chosen (gpt-4o-mini made false arrival claims). Room-endpoint ↔ device mapping and how the Voice PE relates to the one-eMeet-per-room rule are undecided. Same-breath "Okay Nabu, my sink is leaking" not testable until the device (HA passes the post-wake STT text, so it should survive on this path).

@@ -802,3 +802,12 @@ listener verifier experiment: `docs/experiments/`.
 - `backend/routes/task_lifecycle.py`: `check()` (exists → authority → open (SC-14 closed guard) → recorded origin) and `record_refusal()`; `transition()` uses `check()`.
 - `backend/routes/transport_task_history.py`: `ride_actor()`, `ride_authority()`, `booking_entry()` — ride steps (`transportation.py`, `transportation_assign.py`, `transportation_runs.py`) are lifecycle transitions with chained receipts.
 - Test: `backend/tests/test_transport_ride_receipts.py`.
+
+## 2026-10-03 — Voice bridge spike (branch `spike/voice-bridge`, not merged)
+
+- `backend/routes/voice_bridge.py`: `POST /api/voice-bridge/turn` — one resident conversation turn as text for a Home Assistant conversation agent (bridge credential `CAOSCARE_VOICE_BRIDGE_TOKEN`; room from a registered Kiosk endpoint; turns in the existing conversation store).
+- `backend/routes/voice_bridge_tools.py`: server-side executor for a bounded resident tool set (menu, schedule, request, request status/history, time, end call) calling the canonical services; schemas taken from the realtime tool list.
+- `backend/routes/resident_conversation_context.py`: `build_resident_instructions()` — the one assembly of resident instructions (layers B/C/E, interpretation patterns), used by the realtime mint and the bridge.
+- `backend/routes/resident_assistant_identity.py`: `CAOSCARE_RESIDENT_ASSISTANT_NAME` (default Aria) — the resident-facing assistant name (from `test/okay-nabu-voice`).
+- `integrations/home_assistant/custom_components/caoscare_conversation/`: Assist conversation agent skeleton (not installed, not tested in HA).
+- Tests: `backend/tests/test_voice_bridge.py`, `backend/tests/test_resident_assistant_name.py`.

@@ -74,6 +74,7 @@ from routes import capabilities as capability_routes  # noqa: E402
 from routes import aria_memory as aria_memory_routes  # noqa: E402
 from routes import receipts as receipt_routes  # noqa: E402
 from routes import realtime_diagnostics as realtime_diagnostics_routes  # noqa: E402
+from routes import voice_bridge as voice_bridge_routes  # noqa: E402
 from routes import resident_conversations as resident_conversations_routes  # noqa: E402
 from routes import admin_assistant as admin_assistant_routes  # noqa: E402
 from routes import events as event_routes  # noqa: E402
@@ -214,6 +215,7 @@ api.include_router(capability_routes.router)
 api.include_router(aria_memory_routes.router)
 api.include_router(receipt_routes.router)
 api.include_router(realtime_diagnostics_routes.router)
+api.include_router(voice_bridge_routes.router)
 api.include_router(resident_conversations_routes.router)
 api.include_router(admin_assistant_routes.router)
 api.include_router(event_routes.router)
