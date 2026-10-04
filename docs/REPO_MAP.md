@@ -819,3 +819,9 @@ listener verifier experiment: `docs/experiments/`.
 
 - `backend/device_adapters.py::simulation_fields()`: the one statement of a device's simulation truth (`simulated`, `simulation_scope` demo_room / real_room); used by `execute_mock` and every `device_commands` record. `verified` comes only from the adapter.
 - Test: `backend/tests/test_device_truth.py`; frontend `frontend/src/lib/__tests__/deviceSessionTrace.test.js`.
+
+## 2026-10-04 — SC-16 / SC-17 simulator notifications + provenance (branch `pilot/shared-core-sim-provenance`)
+
+- `backend/routes/notifications.py::simulation_of()` + `send_email`/`send_sms`/`notify_department(simulation=)`: a simulated task's notifications are recorded `status: "simulated"` and never reach a provider.
+- `create_resident_request(..., simulation_run_id=)`: in-process simulator provenance on the canonical request (`source: "simulator"`, run id on the task and every receipt via `task_lifecycle._run_link`). `models.RESIDENT_ORIGIN_SOURCES`: the one list of resident-originated sources.
+- Test: `backend/tests/test_sim_provenance.py`.

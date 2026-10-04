@@ -77,8 +77,6 @@ class ResidentRequestInput(BaseModel):
     summary: str
     priority: TaskPriority = "normal"
     source: str = "aria_voice"  # "aria_voice" | "kiosk_button" | "front_desk" (auth required for front_desk)
-    # There is deliberately no simulation_run_id here: simulator provenance is
-    # never taken from a request body (SC-17) - see create_resident_request.
     conversation_session_id: Optional[str] = None
 
 
@@ -114,11 +112,9 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
     auditable trail of how many times it's been asked - the signal he
     uses to decide whether to bump priority.
 
-    `simulation_run_id` (SC-17) is for the in-process operations simulator
-    only - never reachable from HTTP. It must name a real simulator run and a
-    synthetic resident; the request is then recorded with source and channel
-    "simulator" and the run id on the task and every receipt, and its
-    notifications are simulated, never delivered (SC-16)."""
+    `simulation_run_id` (SC-17): in-process simulator only, never from a
+    request body. Needs a real run and a synthetic resident; records source/
+    channel "simulator" + the run id; notifications stay simulated (SC-16)."""
     visibility_role = await _resolve_visibility_role(data.category)
     if not visibility_role:
         raise HTTPException(status_code=400, detail=f"Unsupported request category: {data.category}")
@@ -153,8 +149,7 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
     if rejection:
         raise HTTPException(status_code=422, detail={"needs_clarification": True, "field": "summary", "reason": rejection})
 
-    # A run's requests only ever dedup within that run; everything else
-    # (real residents, demo-kiosk asks) never lands on a run's request.
+    # A run's requests dedup only within that run (SC-17).
     dup_q: dict = {"category": data.category, "status": {"$in": OPEN_TASK_STATUSES},
                    "simulation_run_id": simulation_run_id}
     if data.resident_id:
