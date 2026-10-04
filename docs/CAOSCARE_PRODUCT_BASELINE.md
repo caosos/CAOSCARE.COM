@@ -41,62 +41,79 @@ built** (see §6).
 specialized, docked, or wall-mounted resident tablet as the primary room
 interface is **obsolete** (`HISTORICAL / SUPERSEDED`).
 
-Current resident-room architecture:
+Current resident-room architecture / product direction (Michael, 2026-10-03):
 
-- **Room node** — a local CAOSCare computer per resident room. Current
-  proven hardware baseline: an **HP EliteDesk-class small-form-factor PC**
-  (the bring-up host is `caoscare1-hp-elitedesk`, an HP EliteDesk 705 G4
-  DM). It is meant to sit **hidden behind or near the resident's TV**. The
-  resident does not operate or see a conventional computer.
-- **Resident audio** — an **eMeet-class conferencing speakerphone** sits
-  near the resident's normal sitting/bed position and is the **single room
-  audio capture + playback endpoint** for Aria's voice pipeline (one mic,
-  one speaker per room). See `docs/ROOM_AUDIO_ARCHITECTURE.md` for the
-  full AEC reasoning — that document is canonical for room audio.
-- **TV** — remains the resident's normal television, and may also be used
-  as a CAOSCare **visual output surface** when appropriate. TV audio is
-  intended to eventually route through the same eMeet path so one AEC path
-  owns both Aria and TV playback; the TV's own speakers are muted whenever
-  CAOSCare owns TV audio.
-- **Handset** — a corded/wireless handset held at the ear remains the
-  guaranteed-duplex fallback audio surface.
-- **Room-node integrations** — the room node *may include or integrate*, as
-  the product develops: an RF receiver/transmitter covering a **wide range
-  of frequency devices** (existing pendant / call-button / sensor
-  infrastructure across the common sub-GHz bands — e.g. 315 / 319.5 / 433 /
-  868 / 915 MHz — not a single fixed frequency), infrared control, Zigbee,
-  Z-Wave or other local protocols, networking, communications integrations
-  such as Twilio, and additional room-automation interfaces. The existing
-  Android RF-bridge process (`android-bridge/`) is the current RF-decode
-  path and is being **consolidated into the room node** — treat "bridge
-  tablet" in older material as "the room node's RF receiver process".
+- **One facility/building brain, not one general-purpose PC per resident room.**
+  The target fleet architecture centralizes CAOSCare services on a
+  facility-local server (EliteDesk-class or equivalent): CAOSCare service
+  layer, Home Assistant integration, database/state, routing, speech/AI
+  services where applicable, receipts/provenance, and operator/admin
+  services.
+- **Thin in-room voice endpoint.** A resident room should contain only the
+  hardware that physically needs to be near the resident. The active
+  prototype candidate is the **Home Assistant Voice Preview Edition**:
+  microphone array, speaker, local-capable wake-word endpoint, Wi-Fi and
+  room audio interface. One unit has been ordered for bench evaluation
+  (CloudFree; backordered as of 2026-10-03). It is **not accepted hardware
+  until physical CAOSCare tests pass**.
+- **Room-local IR only where needed.** The active prototype candidate is a
+  **Seeed Studio XIAO Smart IR Mate**, ordered 2026-10-03, for learning and
+  transmitting TV/PTAC/fan remote codes over a network-controlled path.
+  TV control order is: native local IP/API control first; HDMI-CEC when it
+  gives a useful deterministic path; IR as the universal legacy fallback.
+- **Shared building device networks.** Lights, blinds/window coverings,
+  thermostats, outlets and sensors should normally use shared
+  Zigbee/Thread/Matter/Z-Wave/BLE/IP infrastructure rather than a radio
+  dongle or computer in every room. Distributed radio coordinators/proxies
+  are allowed where physical coverage requires them; distributed radio is
+  not a second server.
+- **Music/audio.** The room voice endpoint may handle spoken responses.
+  Better music playback may use the endpoint's audio output or another
+  room speaker if physical testing shows the built-in speaker is
+  insufficient.
+- **Existing facility pendant/call-button systems remain independent.**
+  CAOSCare may passively ingest an existing event stream or RF transmission
+  when that is easy, approved and non-interfering, but pendant integration
+  is not a core dependency of the resident voice product or Pilot 1.
+- **Existing EliteDesk + eMeet + TV room rig is retained as proven
+  development/acceptance hardware, not the target per-room fleet design.**
+  It may be used temporarily to keep Pilot 1 software and real-room
+  acceptance moving while the thin-endpoint prototype is unavailable or
+  still under test. Do not infer from that temporary use that every room
+  should receive an EliteDesk.
 
-**Proven vs planned must always be distinguished.** Proven today: EliteDesk
-host + Nooelec SDR + rtl_433 RF decode + real paired Lifeline/Interlogix
-pendants + OpenAI Realtime voice through a room audio endpoint + resident
-voice control of real Home Assistant-backed lights with read-back
-verification (2026-09-05) + the local wake-word mechanism (listener → page →
-existing session) at close range, Room 214, 2026-09-23 — with "Aria" as the
-test phrase, which is **not** accepted for production (see below and
-`docs/ARIA_WAKE_WORD_ARCHITECTURE.md`). Planned / partial: far-field
-wake reliability, TV audio into the CAOSCare AEC path, IR/Zigbee/Z-Wave
-transmit, full room-automation surface, multi-room fleet.
+**Proven vs planned must always be distinguished.** Proven today on the
+existing development rig: EliteDesk host + Nooelec SDR + rtl_433 RF decode +
+real paired Lifeline/Interlogix pendants + OpenAI Realtime voice through a
+room audio endpoint + resident voice control of real Home Assistant-backed
+lights with read-back verification (2026-09-05) + the local wake-word
+mechanism (listener → page → existing session) at close range, Room 214,
+2026-09-23. Newly ordered but **not yet physically accepted**: Voice PE and
+XIAO Smart IR Mate. Planned / partial: dependable far-field wake behaviour,
+thin-endpoint CAOSCare integration, TV control strategy acceptance, IR
+learning/control acceptance, shared multi-room radio coverage, and a
+repeatable room-install BOM.
 
 ### Resident activation paths
 
-- **Pendant / RF** — the resident safety system. Opens a resident
-  assistance event (`Alert`) through `record_resident_activation()`. It is
-  **not** replaced or changed by voice activation.
+- **Existing pendant / call-button system** — remains a parallel facility
+  safety system and is not replaced by CAOSCare voice. Passive observation or
+  integration is optional and must not interfere with the building's current
+  path. It is not required for Pilot 1 core acceptance.
 - **Room screen** — "Call for help" / "I just want to talk" buttons.
 - **Voice (spoken wake phrase)** — local on-device wake detection starts a
   conversation-only session (no resident event). Requirement: natural voice
   activation without touching anything; detection must stay local — no
   continuous room audio sent to a cloud service to find the wake phrase.
-  **Aria is the assistant's name; the single word "Aria" is not accepted as
-  the production wake phrase** (2026-09-24: "air-ee-uh" is identical to the
-  common word "area"; overnight false wakes). The wake phrase is being chosen
-  by evidence (`docs/WAKE_PHRASE_LAB.md`); none selected yet. Status:
-  `docs/ARIA_WAKE_WORD_ARCHITECTURE.md`.
+  The durable assistant-name decision is **not changed by a hardware
+  prototype alone**. "Aria" remains the current product name in the repo until
+  Michael explicitly finalizes a rename. The single word "Aria" is not
+  accepted as the production wake phrase (2026-09-24: "air-ee-uh" is
+  identical to the common word "area"; overnight false wakes). Voice PE ships
+  with supported wake models such as "Hey Jarvis"; using one for a prototype
+  does not silently rename the product. The production activation phrase and
+  utterance-boundary behaviour must be selected by evidence
+  (`docs/WAKE_PHRASE_LAB.md`, `docs/ARIA_WAKE_WORD_ARCHITECTURE.md`).
 
 ### Room-control boundary — Home Assistant (Michael-directed, 2026-09-23)
 

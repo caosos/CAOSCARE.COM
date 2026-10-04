@@ -5973,3 +5973,99 @@ Backend gate 234 passed / 3 failed (baseline iter10/iter11) / 13 skipped, includ
 
 ### Not in this merge
 Agent 2's Nabu re-request fix (`bbfce3b` on `pilot/shared-core-rerequest`, based on `test/okay-nabu-voice` `5c40b90`) — awaiting review/approval.
+
+
+---
+
+## 2026-10-03 — Hardware architecture + Pilot 1 priority reconciliation
+
+**Agent/tool used:** ChatGPT (GPT-5.6 Sol) with Michael's explicit product direction  
+**Branch/ref:** `docs/2026-10-03-hardware-priority-reset`, based on `integration/2026-09-27`  
+**Change type:** documentation / architecture / execution-priority reconciliation only; no runtime code, no Linode deploy, no `main` merge
+
+### What changed
+
+- Reconciled the durable resident-room architecture away from a target
+  EliteDesk-class computer in every room. Current target direction is **one
+  facility/building server + thin in-room voice endpoints + room-local
+  adapters only where physical proximity is required**.
+- Preserved the existing EliteDesk + eMeet + Room 214 stack as **proven
+  development / temporary Pilot 1 acceptance hardware**, not the intended
+  fleet standard.
+- Recorded the two prototype devices Michael has ordered:
+  - **Home Assistant Voice Preview Edition** — CloudFree order; backordered as
+    of 2026-10-03; physical CAOSCare acceptance not yet performed.
+  - **Seeed Studio XIAO Smart IR Mate** — RobotShop order; physical CAOSCare
+    acceptance not yet performed.
+- Recorded the room-control strategy: native local TV/device IP control first;
+  HDMI-CEC where it adds a useful deterministic path; room-local IR fallback.
+  Building-wide smart lights/blinds/window coverings/thermostats/sensors
+  should use shared Zigbee/Thread/Matter/Z-Wave/BLE/IP infrastructure as
+  required rather than a per-room dongle pile.
+- Changed pendant integration from a Pilot 1 core dependency to an
+  **optional/additive** integration. Existing facility pendant/call-button
+  systems remain independent and must not be interfered with; passive read is
+  allowed only if easy, approved and non-interfering.
+- Added a seven-day execution reset through the existing **2026-10-10 Pilot 1
+  target**: classify current failures first, keep operational loops moving,
+  run wake/microWakeWord work in parallel, freeze speculative hardware
+  purchases, and converge on Pilot Room 1.
+- Updated the execution checklist, active-work map, ready queue and recovery
+  checkpoint to reflect the hardware reset.
+- Recorded Michael-reported current agent activity:
+  - **Nabu** = coordinator/orchestration name in the active session.
+  - **Claude Code 2** = working on `microWakeWord`.
+  - Some tests are currently failing, but the exact failures/ownership/cause
+    are not yet evidenced here; no checklist status was credited from that
+    report alone.
+- Did **not** finalize an Aria → Jarvis rename. The repository continues to
+  use Aria until Michael explicitly finalizes a product-name change. A stock
+  Voice PE wake model such as "Hey Jarvis" is a prototype mechanism, not by
+  itself a product-identity decision.
+
+### What was verified
+
+- Read the live GitHub `integration/2026-09-27` versions of `AGENTS.md`,
+  Product Baseline, Current Priority, Pilot 1 checklist, Active Work, Ready
+  Queue, Recovery Checkpoint, Build/Node status context before writing.
+- Last explicitly recorded accepted integration code SHA in the Pilot 1 docs
+  is `268963c` (SC-14/SC-15, 2026-10-03). The coordinator must still verify
+  the actual branch tip immediately before any merge.
+- Documentation changes are isolated on this branch; **no runtime behavior is
+  claimed changed** and no production action was taken.
+
+### Blocked / unknown
+
+- Voice PE and XIAO IR Mate have not arrived / been physically acceptance-tested.
+- Voice PE power supply/cable purchase is not recorded as complete.
+- Exact pilot-room thermostat, TV and smart-plug models/protocols remain to be
+  inventoried.
+- Current failing tests reported by Michael have not yet been classified from
+  actual test output.
+- Thin-endpoint wake-word behaviour, self-wake resistance, sentence/name
+  false-wake behaviour, far-field performance, IR learning/control and music
+  playback remain physical acceptance work.
+
+### Next safe step
+
+1. Nabu/integration coordinator reviews this documentation lane against the
+   current integration tip and merges it only if non-conflicting.
+2. Coordinator captures the actual failing-test output and assigns each
+   failure to an owner before starting lower-priority work.
+3. Claude Code 2 continues the bounded `microWakeWord` lane and reports
+   branch/commit/test evidence.
+4. Hardware lane waits for the ordered devices; when available, bench-test
+   Voice PE + XIAO IR Mate before buying more room hardware.
+
+### HANDOFF CAPSULE
+
+- **Objective:** converge Pilot 1 on a minimal deployable room architecture and accepted operational loops by 2026-10-10.
+- **Branch:** `docs/2026-10-03-hardware-priority-reset`.
+- **Lane / ownership:** documentation reconciliation only; do not modify runtime code or deploy.
+- **Last proven state:** existing EliteDesk/eMeet/HA light-control rig remains proven; new Voice PE/IR Mate path is ordered but unproven.
+- **Commits:** see branch history for this documentation work.
+- **Runtime state:** not changed or re-verified by this documentation lane.
+- **Unresolved proven defects:** preserve existing checklist defects; current newly reported test failures are unclassified, not yet proven regressions.
+- **Product invariants that matter here:** centralize intelligence; thin room endpoint target; Home Assistant is integration layer, not CAOSCare's brain; no action without receipt/provenance; existing pendant system is not to be interfered with.
+- **Do NOT change:** `main`, Linode, production, active worker code lanes, or product assistant name based only on a stock wake phrase.
+- **Next safe action:** coordinator review + failing-test classification; then one bounded integration step.

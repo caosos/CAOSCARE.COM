@@ -4,9 +4,9 @@ Target: 2026-10-10
 Goal: USABLE Pilot 1 product, not merely a website/demo
 
 Current integration branch: `integration/2026-09-27` (GitHub `caosos/CAOSCARE.COM`)
-Current integration SHA: the tip of `origin/integration/2026-09-27`. Code state `239324a` (Shared Core SC-1..SC-7, Maintenance and Demo kiosk merged, 2026-10-02); later commits are documentation only.
+Current integration SHA: the tip of `origin/integration/2026-09-27`. Last explicitly recorded accepted code state: `268963c` (SC-14/SC-15 integrated, 2026-10-03). Verify the live tip before every merge.
 Current localhost:3000 source: `~/CAOSCARE-INTEGRATION/frontend` (systemd user service `caoscare-frontend-dev.service`, `/api` proxied to :8092)
-Last verified: 2026-10-02
+Last verified: 2026-10-03 (documentation reconciliation; runtime details still require live verification)
 Coordinator: Claude Code session in `~/CAOSCARE-INTEGRATION` on the EliteDesk (`caoscare1-hp-elitedesk`)
 Production/Linode SHA: `d7ff96a4e4d1f4f253929377d7f386ee4b1cac6a` (read on the host 2026-09-28; public bundle `main.7a1fa061.js`)
 Production deployment status: unchanged since 2026-09-27; none of the Pilot 1 integration work is deployed
@@ -137,11 +137,15 @@ Test after each: backend gate (`backend/scripts/run_backend_tests.sh`), frontend
 - Demo data stays strictly separate from real resident data.
 - **Not yet assigned to a lane.**
 
-**Room hardware.** Michael has a wireless thermostat, wireless light bulbs and wireless smart plugs.
+**Room hardware — architecture reset 2026-10-03.**
 
-- Still needed: the exact model/protocol inventory, IR hardware for the pilot TV, dependable audio and wake phrase, and RF pendant listening as a secondary, additive path only.
-- The facility's existing pendant/call-button behaviour must never be interfered with.
-- Pendant presses are often restroom assistance, but never assume every press is.
+- Target fleet direction: **one facility/building server + thin in-room voice endpoint + room-local control adapters only where physically required**. Do not plan an EliteDesk/dongle pile in every room.
+- Existing EliteDesk + eMeet + Room 214 hardware remains the proven development/temporary Pilot 1 acceptance rig; it is not the intended per-room fleet standard.
+- Ordered for prototype evaluation: **Home Assistant Voice Preview Edition** (CloudFree, backordered) and **Seeed Studio XIAO Smart IR Mate** (RobotShop). Neither is accepted until physical CAOSCare testing passes.
+- TV/control strategy: native local IP/API first; CEC when useful; IR fallback through the room-local IR controller.
+- Smart lights, blinds/window coverings, thermostat and sensors should use shared building Zigbee/Thread/Matter/Z-Wave/BLE/IP infrastructure where appropriate rather than per-room general-purpose computers.
+- Pendant integration is **optional/additive**, not a Pilot 1 core dependency. The facility's existing pendant/call-button behaviour must never be interfered with. Passive read/ingest is allowed only when easy, approved and non-interfering.
+- Still needed: exact pilot-room TV/thermostat/smart-plug models and protocols, Voice PE power/cable, IR Mate power plan, building-radio requirements actually needed by those devices, dependable wake/voice acceptance, and the calling BOM.
 
 **Calling (Pilot 1 decisions).**
 

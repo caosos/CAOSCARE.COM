@@ -3,11 +3,31 @@
 Target: 2026-10-10
 
 Integration branch: `integration/2026-09-27`
-Integration SHA: `239324a` (last code state; Shared Core SC-1..SC-7, Maintenance and Demo kiosk merged). Workers branch from the current tip of `origin/integration/2026-09-27`.
+Integration SHA: current tip of `origin/integration/2026-09-27`; last explicitly recorded accepted code SHA is `268963c` (SC-14/SC-15 integrated 2026-10-03). Workers must verify the current tip before branching or merging.
 Coordinator: the Claude Code session in the protected integration checkout `~/CAOSCARE-INTEGRATION` on the EliteDesk
-Last updated: 2026-09-28
+Last updated: 2026-10-03
 Recovery snapshot: [`PILOT1_RECOVERY_CHECKPOINT.md`](PILOT1_RECOVERY_CHECKPOINT.md)  
 Ready queue: [`PILOT1_READY_QUEUE.md`](PILOT1_READY_QUEUE.md)
+
+## 2026-10-03 live coordination note
+
+Michael reports the current working arrangement as:
+
+- **Nabu** — coordinator/orchestration name in the active session.
+- **Claude Code 2** — working on `microWakeWord`.
+- **Tests** — some tests are currently failing; exact failing tests, whether
+  they are expected or regressions, and the owning lane are **not yet
+  established in durable evidence**. The coordinator must classify them from
+  actual test output before changing checklist status.
+- **Hardware** — Voice PE and XIAO Smart IR Mate are ordered for a thin-room
+  endpoint prototype. Hardware acceptance is waiting on arrival; software
+  work that can be proven on the existing EliteDesk/eMeet rig should continue.
+- **Pendant** — no longer a Pilot 1 core dependency. Existing facility
+  pendant/call-button systems stay independent; passive read is optional.
+
+This note records Michael-reported current coordination state. A worker's
+self-report is not completion evidence; branch/commit/test/runtime receipts
+remain required.
 
 This is the short-lived coordination map for parallel Pilot 1 work.
 [`PILOT1_EXECUTION_CHECKLIST.md`](PILOT1_EXECUTION_CHECKLIST.md) remains the authoritative tracker; only the coordinator marks checklist items `[x]`, after accepted integration.
