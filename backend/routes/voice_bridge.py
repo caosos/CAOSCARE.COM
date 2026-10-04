@@ -28,6 +28,7 @@ from pydantic import BaseModel, Field
 
 from deps import db
 from routes.ai import OPENAI_TEXT_MODEL, _post_openai
+from routes.arrival_claim_guard import candidate_tasks, guard_reply
 from routes.realtime_diagnostics import DiagnosticEvent, log_event
 from routes.realtime_memory_ingest import RealtimeTurnIngest, realtime_turn_ingest
 from routes.resident_conversation_context import build_resident_instructions
@@ -105,8 +106,9 @@ async def voice_bridge_turn(data: VoiceBridgeTurn, authorization: Optional[str] 
     messages = [{"role": "system", "content": built["instructions"] + CHANNEL_NOTE}]
     messages += await _history(session_id)
     tools = await bridge_tool_schemas()
-    tool_ctx = {**ctx_payload, "last_user_text": text}
-    used, ended, reply = [], False, ""
+    tool_ctx = {**ctx_payload, "last_user_text": text,
+                "origin_authority": f"registered_endpoint:{data.endpoint_id}"}
+    used, results, ended, reply = [], [], False, ""
 
     for _ in range(MAX_TOOL_ROUNDS + 1):
         resp = await asyncio.to_thread(_post_openai, "/chat/completions", {
@@ -128,11 +130,15 @@ async def voice_bridge_turn(data: VoiceBridgeTurn, authorization: Optional[str] 
             result = await run_bridge_tool(name, args, tool_ctx)
             await _log(session_id, room, "tool_result", {"name": name, "result": result})
             used.append(name)
+            results.append(result)
             ended = ended or (name in ENDING_TOOLS and result.get("ok"))
             messages.append({"role": "tool", "tool_call_id": call["id"],
                              "content": json.dumps(result, default=str)})
     if not reply:
         reply = "I'm sorry, I couldn't finish that just now."
+    reply, removed = await guard_reply(reply, await candidate_tasks(results, resident_id))
+    if removed:
+        await _log(session_id, room, "reply_guarded", {"removed": removed, "reason": "arrival_claim_without_claim_receipt"})
 
     await realtime_turn_ingest(RealtimeTurnIngest(
         resident_id=resident_id, session_id=session_id, role="assistant", text=reply,

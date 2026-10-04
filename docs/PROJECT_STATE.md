@@ -6006,3 +6006,27 @@ This is Home Assistant's **staged** path (wake word → HA STT → text → CAOS
 
 ### Not done / blockers
 No Voice PE on hand (nothing flashed). HA has no STT/TTS engine and no Wyoming/ESPHome integration; the agent is not installed. Text model must be chosen (gpt-4o-mini made false arrival claims). Room-endpoint ↔ device mapping and how the Voice PE relates to the one-eMeet-per-room rule are undecided. Same-breath "Okay Nabu, my sink is leaking" not testable until the device (HA passes the post-wake STT text, so it should survive on this path).
+
+---
+
+## 2026-10-03 — Voice bridge spike: fixes for the spike report
+
+### Agent / branch
+Claude Code (Opus 5.5), `~/CAOSCARE-VOICEBRIDGE`, `spike/voice-bridge` from `30cb7de`. Not merged, not deployed; main, PR #41/#42, Home Assistant and hardware untouched.
+
+### Changes
+1. **Arrival claims:** `arrival_claim_guard.py` — a bridge reply that says help is coming/on its way is spoken only when every request it can refer to is open and has an authenticated staff `task_assigned`/`task_acknowledged`/`task_in_progress` (or `transportation_departed`) receipt; otherwise those sentences are replaced with "Your request is recorded and waiting for a staff member to pick it up." (logged as `reply_guarded`). The request tool result now states "No one has picked it up yet".
+2. **Unrelated requests merged:** `request_matching.py` — a repeat ask joins an open same-category request only on shared content words; a content-free re-ask ("is anyone coming?", "ask them again") joins the newest open request; otherwise a new request.
+3. **Origin authority:** room-claim origin and re-ask receipts are labelled `result_label: unverified` (synthetic actors `simulated`; authenticated/system `verified`) via `task_lifecycle.result_label_for`. A room-screen/voice request with no room and no resident is refused (422). `resident_request_origin.room_claim_authority`: `public_resident_bus` is only the unauthenticated room surface (cannot claim/start/complete — `authority_for` needs an authenticated user); the bridge records `registered_endpoint:<kiosk_id>`, accepted only for a registered endpoint of the same room (403 otherwise).
+4. **Cleanup:** `scripts/setup_demo_room.py` re-run (demo resident now `synthetic: true`, so future demo-room work is marked simulated). The five open demo-room test requests (unmarked, so DEMO RESET leaves them) closed with `scripts/close_demo_test_requests.py` through `task_actions.skip` by `system:test_data_cleanup`: `task_34e30d6acfd6`→`rcpt_8e932ce7bec5`, `task_d3debfa2a6c5`→`rcpt_cbdd8f9d34f7`, `task_35cf9fbbdfb4`→`rcpt_4b8bba3729f5`, `task_8153585fb4c8`→`rcpt_37bd81102cce`, `task_28bdc94feeb7`→`rcpt_d7cd3f7c8d30` (each chained to its origin; earlier receipts kept; nothing deleted). Open demo-room requests: 0. Rooms 401/214 unchanged (184/284 device commands, Room 401's 6 open requests).
+
+### Verification
+- `test_request_matching_origin.py` (new) + `test_voice_bridge.py`: 6 passed — sink re-ask joins the sink request; TV remote is a new task with nothing written to the sink; content-free re-ask joins the newest; origin `public_resident_bus` + `unverified`; no room/resident → 422; `registered_endpoint` accepted for the same room, 403 for an unknown endpoint and for a staff authority; guard rewrites "It's on its way!" before a claim and allows it after an authenticated assignment.
+- Live bridge (`gpt-4o-mini`, `vb_spike1003d`): "stuck window" → new task, reply "pending, and no one has picked it up yet"; "Is somebody coming?" → truthful; TV remote → new task `task_28bdc94feeb7` (not merged); origin receipts `registered_endpoint:kio_67f409214f27`, `unverified`.
+- Full backend gate: **242 passed, 4 failed, 13 skipped** (skips: unseeded rooms / real hardware). Failures, all present at the integration tip and not caused by this work:
+  - `iter10_test.py::TestRealtimeSession::test_session_default` and `iter11_test.py::TestRealtimeSession::test_session_has_nine_tools_and_anchors` — hardcode the old 9-tool resident session; it has 26 tools.
+  - `iter11_test.py::TestWeather::test_default_facility_weather` — expects label "the facility"; this machine's `.env` sets `FACILITY_LABEL` to "the EliteDesk node".
+  - `test_ops_overview.py::test_ops_overview` — test bug: seeds `requested_for_date` as UTC yesterday, the code compares against the facility-local date (America/Chicago); between 00:00 UTC and local midnight they are the same date, so nothing is "past" (reproduced: facility today 2026-10-03 = seeded date 2026-10-03). Not changed (outside this task).
+
+### Not changed
+gpt-4o-mini still did not call end_call on "goodbye" (not in this fix list). Realtime room-screen replies are not passed through the arrival guard (bridge only).

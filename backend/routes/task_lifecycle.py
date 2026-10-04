@@ -107,6 +107,13 @@ def _receipt_context(task: dict, actor: ActorContext) -> dict:
             "assigned_role": task.get("visibility_role")}
 
 
+def result_label_for(actor: ActorContext) -> str:
+    """How much the receipt's actor is known (D4): a room claim is
+    unverified, a demo actor simulated, an authenticated or system actor
+    verified."""
+    return {"unverified_room_claim": "unverified", "synthetic": "simulated"}.get(actor.identity_basis, "verified")
+
+
 async def record_origin(task: dict, actor: ActorContext, *, action_type: str, authority: str,
                         provider_refs: Optional[list] = None) -> dict:
     """The first receipt of a request's chain. Its id is the workflow id."""
@@ -115,7 +122,7 @@ async def record_origin(task: dict, actor: ActorContext, *, action_type: str, au
         action_type=action_type, related_object_type="task", related_object_id=task["task_id"],
         assigned_user=task.get("assigned_to"), status="created", receipt_id=rid,
         provenance={**actor.receipt_fields(), "authority": authority, "correlation_id": rid,
-                    "after_state": state_of(task), "result_label": "verified",
+                    "after_state": state_of(task), "result_label": result_label_for(actor),
                     "provider_refs": list(provider_refs or []), "next_state": next_state(task)},
         **_receipt_context(task, actor))
 
@@ -194,7 +201,7 @@ async def transition(task_id: str, actor: ActorContext, user: Optional[dict], *,
                     "parent_receipt_id": (head or {}).get("receipt_id"),
                     "correlation_id": correlation,
                     "before_state": state_of(task), "after_state": state_of(after),
-                    "result_label": "verified", "provider_refs": list(provider_refs or []),
+                    "result_label": result_label_for(actor), "provider_refs": list(provider_refs or []),
                     "next_state": next_state(after)},
         **_receipt_context(after, actor))
     return after, receipt

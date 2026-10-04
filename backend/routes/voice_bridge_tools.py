@@ -60,7 +60,7 @@ async def run_bridge_tool(name: str, args: dict, ctx: dict) -> dict:
             conversation_session_id=ctx.get("session_id"),
         )
         try:
-            res = await create_resident_request(data)
+            res = await create_resident_request(data, origin_authority=ctx.get("origin_authority"))
         except HTTPException as e:
             return {"ok": False, "status": e.status_code, "detail": e.detail}
         if res.get("duplicate"):

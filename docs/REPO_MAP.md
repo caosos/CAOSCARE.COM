@@ -811,3 +811,8 @@ listener verifier experiment: `docs/experiments/`.
 - `backend/routes/resident_assistant_identity.py`: `CAOSCARE_RESIDENT_ASSISTANT_NAME` (default Aria) — the resident-facing assistant name (from `test/okay-nabu-voice`).
 - `integrations/home_assistant/custom_components/caoscare_conversation/`: Assist conversation agent skeleton (not installed, not tested in HA).
 - Tests: `backend/tests/test_voice_bridge.py`, `backend/tests/test_resident_assistant_name.py`.
+- `backend/routes/request_matching.py`: a repeat resident ask joins an open request only when it is about the same thing (content-word overlap; a content-free re-ask joins the newest open request).
+- `backend/routes/resident_request_origin.py`: allowed authorities for a room claim (`public_resident_bus` for the unauthenticated room surface; `registered_endpoint:<kiosk_id>` for an authenticated bridge caller of the same room).
+- `backend/routes/arrival_claim_guard.py`: bridge replies may say help is coming only when an authenticated staff claim/acknowledge/start receipt exists for the request.
+- `backend/scripts/close_demo_test_requests.py`: closes named demo-room test requests through the lifecycle (system actor, chained receipt, nothing deleted).
+- Test: `backend/tests/test_request_matching_origin.py`.

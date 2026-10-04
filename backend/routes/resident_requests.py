@@ -25,6 +25,8 @@ from routes.departments import get_active_departments
 from routes.facility_local_time import facility_tz as _facility_tz, facility_local as _facility_local
 from routes.tasks import _resolve_denorms
 from routes.aria_request_status import request_status_view
+from routes.request_matching import match_open_request
+from routes.resident_request_origin import room_claim_authority
 from operational_provenance import reject_unconfirmed_time
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -80,7 +82,8 @@ class ResidentRequestInput(BaseModel):
     conversation_session_id: Optional[str] = None
 
 
-async def create_resident_request(data: ResidentRequestInput, *, user: Optional[dict] = None) -> dict:
+async def create_resident_request(data: ResidentRequestInput, *, user: Optional[dict] = None,
+                                  origin_authority: Optional[str] = None) -> dict:
     """Public (no auth) for "aria_voice"/"kiosk_button" - same trust model
     as /alerts and the other resident-facing endpoints called from the
     kiosk during a live call. Creates a real StaffTask (so it appears in
@@ -120,8 +123,10 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
         actor, authority = actor_from_user(user, channel="front_desk"), "front_desk_entry"
     elif data.source in ("aria_voice", "kiosk_button"):
         # The room is known; who spoke is a claim, not a verified identity (D3).
+        if not (data.resident_id or data.room):
+            raise HTTPException(status_code=422, detail="A resident request needs the room or resident it came from")
         actor = actor_resident_claim(data.resident_id, data.room, data.source, synthetic=bool(marker))
-        authority = "public_resident_bus"
+        authority = await room_claim_authority(data.room, origin_authority)
     else:
         raise HTTPException(status_code=400, detail="Invalid source")
     # 2026-08-23 (real, confirmed bug - Chauncey/Room 304): a fabricated
@@ -143,8 +148,11 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
     else:
         dup_q = None  # nothing to dedup against (no resident/room on either side)
 
-    existing = await db.staff_tasks.find_one(dup_q, {"_id": 0}, sort=[("created_at", -1)]) if dup_q else None
     words = data.resident_words or data.summary
+    # Same category is not enough: a repeat ask joins an open request only
+    # when it is about the same thing (request_matching.py).
+    open_same = await db.staff_tasks.find(dup_q, {"_id": 0}).sort("created_at", -1).to_list(20) if dup_q else []
+    existing = match_open_request(words, open_same)
     if existing:
         # The repeat ask is a state change on the open request, so it goes
         # through the lifecycle (chained receipt). A legacy request with no
@@ -176,7 +184,7 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
         # open request was about the lamp. Returning the existing ticket's own
         # summary lets the model describe it honestly instead of assuming it
         # matches what was just asked.
-        same_issue = (existing.get("resident_words") or "").strip().lower() == (data.resident_words or data.summary or "").strip().lower()
+        same_issue = True   # matched on content, not just category
         count = existing.get("re_request_count", 0)
         asked = times_asked({"re_request_count": count})
         await notify_department(
