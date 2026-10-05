@@ -6496,3 +6496,11 @@ HANDOFF CAPSULE
 ## 2026-10-04 — Coordinator: SIM-3 (PR #56) integrated
 
 PR #56 `pilot/sim-3-mixed-staffing` `ff9465a062a828db1ce07a00aeb52e5eb3f507d9` (base `b6bf661`) → merge `c276a2bbbe9cd10a281f219c0507cb026153efb6`. Simulator lane files only (`backend/simulation/*`, `routes/simulation.py`, simulator UI); shared lifecycle/receipt/request modules called, not edited. PROJECT_STATE conflict resolved keeping both sides. On the merge: `test_sim3_mixed_staffing.py`, SIM-1, `test_sim_provenance.py`, `test_demo_continuity.py` — 31 passed (RQ-001 still works with the changed roster/scheduler); gate 272 passed / 4 failed (3 known stale + `test_ops_overview` date window, 01:23 UTC) / 13 skipped, skip set unchanged; frontend 34 suites / 267. PR MERGED. Checklist: the three mixed-staffing items moved to in progress (built and tested with a real test user; acceptance by Michael himself pending). Follow-up to Agent Three: scenario-aware `latest_run()` (not in #56), then SIM-4 Nursing. SIM-1's start refusal while a live email key is set is left in place (redundant after SC-16; revisit with RQ-005).
+
+---
+
+## 2026-10-05 — Coordinator: Round 5 board updated; Michael ran the simulator from Live Operations
+
+Michael's "ROUND 5 — AGENT ONE / COORDINATOR" at tip `72fe52b306b2421cbbc3876ea3969e31b31addd1`.
+- Board set to the current assignments: Agent 2 (Claude Two) one-model Okay Sequoia training-method A/B; Agent 3 scenario-aware `latest_run()` then SIM-4 Nursing; Agent 4 SC-8 + SC-9; Agent 5 RQ-008 report + Phase 2 deletion proposal only; Agent 6 stale gate test fixes only.
+- Michael opened the integrated Live Operations UI on the EliteDesk and started simulator runs. Verified read-only in the shared `caoscare` DB: `simrun_d0ea805fa522` (sink_leak, 01:23:40 UTC, started_by MICHAEL CHAMBERS / owner / authenticated / staff_ui; STOPPED at cursor 6) and `simrun_4b9a3f2c415d` (01:28:25 UTC, RUNNING at cursor 4). Served by :8092 from `~/CAOSCARE-INTEGRATION/backend` (process started 2026-10-04 20:22 CDT). Checklist evidence updated.
