@@ -43,8 +43,25 @@ export const ACTOR_BADGE = {
   simulated: { label: "SIMULATED", className: "bg-caos-amber/20 text-[#8B5A20] border border-caos-amber" },
   real: { label: "REAL", className: "bg-caos-forest text-white" },
   system: { label: "SYSTEM", className: "bg-caos-mute/15 text-caos-mute border border-caos-line" },
+  unassigned: { label: "UNASSIGNED", className: "bg-white text-caos-mute border border-dashed border-caos-mute" },
   unknown: { label: "UNKNOWN", className: "bg-caos-terracotta/15 text-caos-terracotta border border-caos-terracotta" },
 };
+
+// SIM-3: who holds a staff role in this run (cast entry's filled_by, set by
+// the server). A role with no holder record is held by its simulated actor.
+export function roleFill(entry) {
+  const f = entry?.filled_by || { mode: "simulated" };
+  if (f.mode === "real") return { kind: "real", name: f.name || f.user_id, userId: f.user_id };
+  if (f.mode === "unassigned") return { kind: "unassigned", name: null };
+  return { kind: "simulated", name: entry?.name };
+}
+
+// The "waiting for" line when the next step's role is not simulated.
+export function waitingText(waitingOn) {
+  if (!waitingOn) return null;
+  if (waitingOn.mode === "real") return `waiting for REAL ${waitingOn.name || waitingOn.user_id} to work it in the normal staff UI`;
+  return "waiting: nobody holds this role";
+}
 
 // Order one receipt chain by its parent links (exact), falling back to
 // created_at for anything outside the links. Same-millisecond receipts
@@ -80,9 +97,9 @@ export function mergeStream(runChain, requestChain) {
   return out.reverse();
 }
 
-const STEP_TYPES = ["sim_step_executed", "sim_step_failed", "sim_step_refused"];
+const STEP_TYPES = ["sim_step_executed", "sim_step_observed", "sim_step_failed", "sim_step_refused"];
 
-// The latest scheduled step the run recorded (executed, failed or refused).
+// The latest scheduled step the run recorded (executed, observed, failed or refused).
 export function currentAction(runChain) {
   const steps = orderChain(runChain).filter((r) => STEP_TYPES.includes(r.action_type));
   return steps.length ? steps[steps.length - 1] : null;

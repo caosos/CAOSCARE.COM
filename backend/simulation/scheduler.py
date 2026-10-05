@@ -17,6 +17,13 @@ Mongo is a standalone server (no transactions), as in task_lifecycle: the
 canonical action is written first and the run's step receipt right after.
 Controls and steps are serialised by one in-process lock; this backend runs
 as a single process.
+
+SIM-3 (mixed staffing): a staff role can be handed to a real signed-in user
+(assign_role). Before each staff step the scheduler reads the canonical task:
+an outcome already recorded (by anyone) is observed, citing that receipt; a
+role held by a simulated actor acts; a role held by a real user, or nobody,
+waits and nothing is recorded for it. The scheduler never acts as a real
+user.
 """
 import asyncio
 import os
@@ -29,7 +36,8 @@ from models import now_utc, uid
 from routes import notifications
 from routes.actor_context import ActorContext, actor_system
 from routes.receipts import create_receipt
-from simulation import roster, scenario
+from routes.task_lifecycle import load
+from simulation import roster, scenario, staffing
 
 RUNNING, PAUSED, STOPPED = "RUNNING", "PAUSED", "STOPPED"
 ACTIVE = (RUNNING, PAUSED)
@@ -48,9 +56,14 @@ def _scheduler() -> ActorContext:
     return actor_system("simulator")
 
 
+def _staff_roles(cast: dict) -> list:
+    return [k for k, v in (cast or {}).items() if v.get("role") != "resident"]
+
+
 def _snap(run: dict) -> dict:
     return {"state": run["state"], "cursor": run["cursor"], "sim_minute": run["sim_minute"],
-            "task_id": (run.get("workflow") or {}).get("task_id")}
+            "task_id": (run.get("workflow") or {}).get("task_id"),
+            "roles": {k: staffing.fill_of(run.get("cast") or {}, k) for k in _staff_roles(run.get("cast"))}}
 
 
 def _next_state(run: dict) -> str:
@@ -104,7 +117,35 @@ async def _refuse_start(operator: ActorContext, authority: str, reason: str) -> 
     raise SimulatorError(409, f"Simulator not started: {reason}. The attempt was recorded.")
 
 
-async def start(operator: ActorContext, authority: str) -> dict:
+async def _apply_role(run: dict, operator: ActorContext, authority: str, role_key: str,
+                      mode: str, user_id: Optional[str]) -> dict:
+    if role_key not in _staff_roles(run.get("cast")):
+        raise SimulatorError(404, f"No staff role {role_key} in this run")
+    try:
+        holder = await staffing.resolve_holder(run["cast"][role_key], mode, user_id)
+    except staffing.StaffingError as e:
+        raise SimulatorError(400, str(e))
+    before = _snap(run)
+    run["cast"][role_key]["filled_by"] = holder
+    await _save(run, cast=run["cast"])
+    who = f" ({holder.get('name') or holder.get('user_id')})" if mode == "real" else ""
+    await _record(run, operator, authority, "sim_role_assigned", before=before,
+                  result=f"{role_key}: {before['roles'].get(role_key, {}).get('mode')} -> {mode}{who}")
+    return run
+
+
+async def assign_role(operator: ActorContext, authority: str, role_key: str, mode: str,
+                      user_id: Optional[str] = None) -> dict:
+    """Hand a staff role to a real user, return it to its simulated actor, or
+    leave it unassigned. Only on an active run; receipted on the run chain."""
+    async with _lock:
+        run = await active_run()
+        if not run:
+            raise SimulatorError(409, "No active simulation run.")
+        return await _apply_role(run, operator, authority, role_key, mode, user_id)
+
+
+async def start(operator: ActorContext, authority: str, roles: Optional[dict] = None) -> dict:
     async with _lock:
         if await active_run():
             raise SimulatorError(409, "A simulation run is already active; stop it first.")
@@ -117,6 +158,13 @@ async def start(operator: ActorContext, authority: str) -> dict:
             cast = await roster.resolve_cast()
         except roster.IdentityConflict as e:
             await _refuse_start(operator, authority, f"identity conflict: {e}")
+        for role_key, spec in (roles or {}).items():      # validate before anything is written
+            if role_key not in _staff_roles(cast):
+                raise SimulatorError(404, f"No staff role {role_key}")
+            try:
+                await staffing.resolve_holder(cast[role_key], spec.get("mode", "simulated"), spec.get("user_id"))
+            except staffing.StaffingError as e:
+                raise SimulatorError(400, str(e))
         now = now_utc().isoformat()
         run = {"run_id": uid("simrun"), "scenario": scenario.SCENARIO_ID, "state": RUNNING,
                "cursor": 0, "sim_minute": 0, "workflow": {}, "cast": cast, "started_by": operator.receipt_fields(),
@@ -126,6 +174,9 @@ async def start(operator: ActorContext, authority: str) -> dict:
         await _record(run, operator, authority, "sim_run_started", receipt_id=origin_id, status="created",
                       before={"state": STOPPED}, result=f"scenario {run['scenario']} started")
         await _save(run, origin_receipt_id=origin_id)
+        for role_key, spec in (roles or {}).items():
+            await _apply_role(run, operator, authority, role_key, spec.get("mode", "simulated"),
+                              spec.get("user_id"))
         return run
 
 
@@ -180,6 +231,22 @@ async def _execute_next(run: dict, actor: ActorContext, authority: str) -> dict:
         await _save(run, state=STOPPED)
         await _record(run, actor, authority, "sim_run_completed", before=before, result="scenario finished")
         return {"executed": False, "run": run}
+    staff_step = nxt["actor"] in _staff_roles(run["cast"])
+    task_id = (run.get("workflow") or {}).get("task_id")
+    if staff_step and task_id:
+        task = await load(task_id)
+        if staffing.step_satisfied(nxt, task):
+            rec = await staffing.satisfying_receipt(nxt, task_id) or {}
+            who = rec.get("actor_name") or rec.get("actor_id") or "unknown"
+            kind = "REAL" if rec.get("actor_type") == "real-human" else (rec.get("actor_type") or "?").upper()
+            return await _advance(run, nxt, before, actor, authority, "sim_step_observed",
+                                  f"step {nxt['index']}: {nxt['actor']} {nxt['action']} already recorded by "
+                                  f"{kind} {who} ({rec.get('action_type')})", rec.get("receipt_id"), task_id)
+    fill = staffing.fill_of(run["cast"], nxt["actor"])
+    if staff_step and fill["mode"] != "simulated":
+        # A real holder acts through the normal staff UI; nothing is recorded
+        # or done on their behalf. The run waits.
+        return {"executed": False, "waiting": {"role": nxt["actor"], **fill}, "run": run, "step": nxt}
     if not roster.on_shift(nxt["actor"], nxt["at"]):
         await _save(run, state=PAUSED)
         await _record(run, actor, authority, "sim_step_refused", before=before, status="failed",
@@ -193,19 +260,28 @@ async def _execute_next(run: dict, actor: ActorContext, authority: str) -> dict:
         await _record(run, actor, authority, "sim_step_failed", before=before, status="failed",
                       failure_reason=f"step {nxt['index']} {nxt['action']}: {reason}; run paused")
         return {"executed": False, "run": run, "error": str(reason)}
+    return await _advance(run, nxt, before, actor, authority, "sim_step_executed",
+                          f"step {nxt['index']}: {nxt['actor']} {out['result']}", out.get("receipt_id"),
+                          out.get("task_id"), workflow=out.get("workflow"))
+
+
+async def _advance(run: dict, nxt: dict, before: dict, actor: ActorContext, authority: str,
+                   action_type: str, result: str, canonical_id: Optional[str], task_id: Optional[str],
+                   workflow: Optional[dict] = None) -> dict:
+    """Move past a step that was executed or observed, citing the canonical
+    receipt that recorded it; finish the run after the last step."""
     await _save(run, cursor=run["cursor"] + 1, sim_minute=nxt["at"],
-                workflow=out.get("workflow") or run.get("workflow") or {})
-    receipt = await _record(
-        run, actor, authority, "sim_step_executed", before=before,
-        result=f"step {nxt['index']}: {nxt['actor']} {out['result']}",
-        refs=[out["receipt_id"]] if out.get("receipt_id") else [])
+                workflow=workflow or run.get("workflow") or {})
+    receipt = await _record(run, actor, authority, action_type, before=before, result=result,
+                            refs=[canonical_id] if canonical_id else [])
     if run["cursor"] >= len(scenario.STEPS):
         done_before = _snap(run)
         await _save(run, state=STOPPED)
         await _record(run, _scheduler(), f"sim_run:{run['run_id']}", "sim_run_completed",
                       before=done_before, result="scenario finished")
-    return {"executed": True, "run": run, "step": nxt, "step_receipt_id": receipt["receipt_id"],
-            "canonical_receipt_id": out.get("receipt_id"), "task_id": out.get("task_id")}
+    return {"executed": action_type == "sim_step_executed", "observed": action_type == "sim_step_observed",
+            "run": run, "step": nxt, "step_receipt_id": receipt["receipt_id"],
+            "canonical_receipt_id": canonical_id, "task_id": task_id}
 
 
 async def _loop(run_id: str, interval: float) -> None:
@@ -239,7 +315,16 @@ async def view(run: Optional[dict] = None) -> dict:
             "steps_total": len(scenario.STEPS), "workflow": run.get("workflow") or {},
             "origin_receipt_id": run.get("origin_receipt_id"), "last_receipt_id": run.get("last_receipt_id"),
             "started_by": run.get("started_by"), "loop_alive": loop_alive(run["run_id"]),
-            "cast": run.get("cast")}
+            "cast": run.get("cast"), "waiting_on": _waiting_on(run)}
+
+
+def _waiting_on(run: dict) -> Optional[dict]:
+    """The role the next step belongs to, when no simulated actor holds it."""
+    step = scenario.describe(run["cursor"]) if run["state"] != STOPPED else None
+    if not step or step["actor"] not in _staff_roles(run.get("cast")):
+        return None
+    fill = staffing.fill_of(run["cast"], step["actor"])
+    return None if fill["mode"] == "simulated" else {"role": step["actor"], **fill}
 
 
 async def history(run_id: str) -> dict:

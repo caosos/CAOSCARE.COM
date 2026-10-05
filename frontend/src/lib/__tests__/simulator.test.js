@@ -1,5 +1,5 @@
 import {
-  actorKind, allowedControls, activeSimRequests, canonicalRefOf, castEntryFor, currentAction,
+  actorKind, allowedControls, roleFill, waitingText, activeSimRequests, canonicalRefOf, castEntryFor, currentAction,
   describeStep, failures, mergeStream, orderChain, simClock,
 } from "../simulator";
 
@@ -85,5 +85,26 @@ describe("requests, cast, clock", () => {
     expect(simClock(25)).toBe("T+25 min");
     expect(simClock(85)).toBe("T+1 h 25 min");
     expect(describeStep({ actor: "maintenance_tech", action: "raise_request", at: 0 })).toBe("maintenance tech: raise request at T+0 min");
+  });
+});
+
+describe("SIM-3 role holder", () => {
+  test("a role with no holder record is simulated", () => {
+    expect(roleFill({ name: "SIM - Tech" })).toEqual({ kind: "simulated", name: "SIM - Tech" });
+  });
+  test("real and unassigned holders", () => {
+    expect(roleFill({ filled_by: { mode: "real", user_id: "u1", name: "Michael" } }))
+      .toEqual({ kind: "real", name: "Michael", userId: "u1" });
+    expect(roleFill({ filled_by: { mode: "unassigned" } }).kind).toBe("unassigned");
+  });
+  test("waiting text names the real holder", () => {
+    expect(waitingText(null)).toBeNull();
+    expect(waitingText({ mode: "real", name: "Michael" })).toMatch(/REAL Michael/);
+    expect(waitingText({ mode: "unassigned" })).toMatch(/nobody/);
+  });
+  test("an observed step counts as the current action", () => {
+    const run = [{ receipt_id: "s", parent_receipt_id: null, created_at: "1", action_type: "sim_run_started" },
+      { receipt_id: "o", parent_receipt_id: "s", created_at: "2", action_type: "sim_step_observed" }];
+    expect(currentAction(run).receipt_id).toBe("o");
   });
 });
