@@ -18,10 +18,10 @@ import hashlib
 import os
 import json
 import httpx
-from fastapi import APIRouter, HTTPException, Request, Body
+from fastapi import APIRouter, HTTPException, Request, Body, Depends
 from fastapi.responses import JSONResponse
 
-from deps import db
+from deps import db, require_owner
 from routes.aria_memory import build_aria_context_block
 from routes.realtime_room_lease import claim_or_reuse_room_lease
 from routes.capabilities import get_capability_summary
@@ -161,15 +161,23 @@ async def _build_aria_instructions(owner_user_id: str) -> str:
 
 
 @router.post("/aria-session")
-async def create_aria_session(payload: dict = Body(default={})):
+async def create_aria_session(payload: dict = Body(default={}), user=Depends(require_owner)):
     """Mint an ephemeral OpenAI Realtime session token for Aria — Michael's
     own assistant session, distinct from the resident-facing /session above.
-    Accepts optional {voice, owner_user_id}."""
+    Accepts optional {voice}.
+
+    Owner only (2026-10-05 security fix): the instructions embed the owner's
+    private memory (build_aria_context_block), so the owner is taken from the
+    authenticated user, never from the request body. A body owner_user_id
+    naming anyone else is refused."""
+    claimed = payload.get("owner_user_id")
+    if claimed and claimed != user["user_id"]:
+        raise HTTPException(status_code=403, detail="owner_user_id does not match the signed-in owner")
+    owner_user_id = user["user_id"]
     key = _require_openai_key()
     voice = (payload.get("voice") or DEFAULT_VOICE).lower()
     if voice not in ALLOWED_VOICES:
         voice = DEFAULT_VOICE
-    owner_user_id = payload.get("owner_user_id") or ""
     instructions = await _build_aria_instructions(owner_user_id)
     session_config = {
         "type": "realtime",
