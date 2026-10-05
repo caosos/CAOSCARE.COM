@@ -5271,3 +5271,19 @@ Every model RESEARCH ONLY — NOT COMMERCIALLY RELEASABLE; weights kept out of g
 
 ### Next safe step
 Michael chooses: (A) a second batch of ≤ 8 with the same method, or (B) a separately reported method change (TV-dialogue-style hard negatives in training) retesting Okay Sequoia and the best batch-1 phrases. Not started. The physical-test set stays hey kookaburra, hey callista, okay velora.
+
+---
+
+## 2026-10-04 — Wake training-method A/B (Okay Sequoia + TV-dialogue-style hard negatives): FAIL, stopped
+
+### Agent / tool
+Claude Code (Opus 5.5), worktree `~/CAOSCARE-WAKE-FUNNEL`, branch `research/wake-phrase-funnel` (plan `027e153`). Product wake phrase remains Hey Aria.
+
+### What changed
+One model, `okay_sequoia_tvneg`: identical to batch-1 Okay Sequoia plus 13.7 h (7,450 utterances) of MLCommons People's Speech (clean validation 00000–00001, pinned revision, CC-BY/CC-BY-SA) as hard negatives at the generic-speech weight. `report_methodtest.py`; results `firmware/voice-pe-aria/lab/results/method_test/`; write-up `research/wake-phrase-funnel/method_test/RESULT.md`.
+
+### What was verified
+Before → after at matched threshold 0.99: catch 68.1% → 65.1%, TV-on 51.4% → 44.4%, older-voice 28.5% → 24.3%, wrong-word 0.10% → 0.03%, simulated false wakes 2.13 → 1.07/h. FAIL on false wakes (target ≤ 0.5/h). Evaluation audio digests identical before/after; same 26,784 evaluation jobs as the control; prior results unchanged.
+
+### Blocked / next
+Stopped per the stop rule. No further phrase or model started. Michael decides whether to pre-register a stronger method test; Hey Aria / Hey Sivia wait on that decision.

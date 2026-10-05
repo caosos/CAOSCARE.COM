@@ -1,0 +1,13 @@
+{
+ "source": "MLCommons/peoples_speech",
+ "revision": "f10597c5d3d3a63f8b6827701297c3afdf178272",
+ "licence": "CC-BY / CC-BY-SA family (dataset card)",
+ "shards": {
+  "clean/validation-00000-of-00005.parquet": "b0e3dadd6f2d3dd8061155c1bcba18511c23ccfdf2f5c7dcd60bfbb9f9685d21",
+  "clean/validation-00001-of-00005.parquet": "2108fc6a1bb3904272b5b366164b8d311bf73764343b8904c1c0d0b6c0860e1a"
+ },
+ "excluded_sequoia": [],
+ "clips": 7450,
+ "seconds": 49311.532999999705,
+ "hours": 13.7
+}

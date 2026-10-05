@@ -1,0 +1,89 @@
+{
+ "target": {
+  "ambient_faph_max": 0.5,
+  "tpr_all_min": 0.63,
+  "tpr_tv_on_min": 0.42,
+  "confusion_max": 0.005
+ },
+ "control": {
+  "slug": "okay_sequoia",
+  "threshold": 0.99,
+  "catch_all": 0.6809,
+  "catch_tv_on": 0.5139,
+  "catch_older_sim": 0.2847,
+  "catch_low_volume": 0.8681,
+  "wrong_word_rate": 0.001,
+  "false_wakes_per_hour": 2.131,
+  "false_wakes_per_hour_by_stream": {
+   "tv_dialogue": 4.289,
+   "music": 0.0,
+   "background": 0.0,
+   "hvac": 0.0,
+   "silence": 0.0
+  },
+  "catch_forms": {
+   "careful": 0.8125,
+   "intended": 0.875,
+   "casual": 0.9375
+  },
+  "fixed_0_90": {
+   "catch_all": 0.7504,
+   "false_wakes_per_hour": 4.617
+  },
+  "model_sha256": "d2732b2e7c995e67e8fc74f52b907f21c1a3743329796e521c80b458d4f7b1d2",
+  "lab_eval_sha256": "e57c47587da9c5cc92f6975db61f3bce28fae263f3688e1f8d84b7f33e9f8b5f",
+  "checks": {
+   "false_wakes": false,
+   "catch": true,
+   "tv_catch": true,
+   "wrong_word": true
+  },
+  "passes": false
+ },
+ "experiment": {
+  "slug": "okay_sequoia_tvneg",
+  "threshold": 0.99,
+  "catch_all": 0.6505,
+  "catch_tv_on": 0.4444,
+  "catch_older_sim": 0.2431,
+  "catch_low_volume": 0.8507,
+  "wrong_word_rate": 0.0003,
+  "false_wakes_per_hour": 1.066,
+  "false_wakes_per_hour_by_stream": {
+   "tv_dialogue": 2.144,
+   "music": 0.0,
+   "background": 0.0,
+   "hvac": 0.0,
+   "silence": 0.0
+  },
+  "catch_forms": {
+   "careful": 0.75,
+   "intended": 0.8542,
+   "casual": 0.9375
+  },
+  "fixed_0_90": {
+   "catch_all": 0.7184,
+   "false_wakes_per_hour": 2.486
+  },
+  "model_sha256": "64bc87afaa5d7712dd73be8e88938c625155e4017e2c52cd68b0940f21d14b15",
+  "lab_eval_sha256": "3dbe4e8d97ab012349d4b2c07ce60e0f872aa216fd6440277b396c0582073bad",
+  "checks": {
+   "false_wakes": false,
+   "catch": true,
+   "tv_catch": true,
+   "wrong_word": true
+  },
+  "passes": false
+ },
+ "result": "FAIL",
+ "same_eval_jobs": true,
+ "eval_jobs": 26784,
+ "same_ambient_hours": {
+  "tv_dialogue": true,
+  "music": true,
+  "background": true,
+  "hvac": true,
+  "silence": true
+ },
+ "licensing": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE"
+}

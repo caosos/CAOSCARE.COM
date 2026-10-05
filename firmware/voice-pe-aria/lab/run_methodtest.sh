@@ -15,7 +15,9 @@ step() { local n=$1; shift
   "$@" > "$LOGS/methodtest_$n.log" 2>&1 && return 0
   echo "$(date -Is) FAILED $n" >> "$LOG"; return 1; }
 echo "$(date -Is) START" >> "$LOG"
-until [ -f "$HN/clean/validation-00001-of-00005.parquet" ] && ! pgrep -f "hardneg_peoples_speech.*fetch.py|python fetch.py" >/dev/null; do sleep 30; done
+for f in validation-00000-of-00005 validation-00001-of-00005; do   # both pinned shards must be present
+  [ -f "$HN/clean/$f.parquet" ] || { echo "$(date -Is) FAILED missing shard $f" >> "$LOG"; exit 1; }
+done
 [ -f "$HN/features/testing/wakeword_mmap" ] || [ -d "$HN/features/testing/wakeword_mmap" ] || step prep $PY "$HN/prep.py" || exit 1
 echo "$(date -Is) HARD NEGATIVES READY" >> "$LOG"
 step train $PY train_lab.py $S || exit 1
