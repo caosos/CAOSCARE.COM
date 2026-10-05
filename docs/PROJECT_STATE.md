@@ -6578,3 +6578,9 @@ New companion report `docs/reports/2026-10-05-rf-bridge-log-audit.md`; item H of
 - R2: stop the growth — restore the SDR, restart under a journald-managed user service, and/or a backoff fix in the RF lane.
 - R3: remove the old file once no process holds it.
 - Retention: archive kept ≥90 days / until the Pilot 1 review; 14 days or 500 MB going forward.
+
+---
+
+## 2026-10-05 — Coordinator: stale-gate test fixes (PR #60) integrated
+
+PR #60 `tests/stale-gate-fixes` `70f3b68c9d21cc600068bb20273b6bf4cc663057` (Agent Six, base `72fe52b`) → merge `69f1490`. Tests only: `iter10_test.py`, `iter11_test.py` (26-tool session, `value` key, configured `FACILITY_LABEL`), `test_ops_overview.py` (yesterday from the facility-local date). Gate on the merge: 277 passed, **0 failed**, 14 skipped (same skips as before). Production code unchanged. Queue: PR #59 (SC-8/SC-9) waits for Agent Four's posted gate evidence; PR #58 (RQ-008) needs a refresh by Agent Five.

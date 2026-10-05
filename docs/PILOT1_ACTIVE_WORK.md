@@ -73,11 +73,11 @@ NEXT:
 | ✓ | SIM-3 mixed real + simulated staffing (Agent Three), PR #56 | `ff9465a` | **Merged at `c276a2b`** 2026-10-04 | Focused 31 passed (SIM-3/SIM-1/SC-16-17/RQ-001); gate 272/4/13 (known 4); frontend 34/267; Agent Three's browser run in the PR |
 | ✓ | Scenario-aware `latest_run()`/`view` (Agent Three), PR #57 | `9c3c4bf` | **Merged at `737df76`** 2026-10-05 | Focused 33 passed; gate 273/4/14 (known 4; new skip: `test_sim_latest_run_scenario.py:85` skips when the DB already holds simulator runs — make it self-contained); frontend 34/268 |
 | 2 | SIM-4 Nursing scenario (Agent Three) | — | Assigned | Branch `pilot/sim-4-nursing` from the tip; include the self-contained latest-run test |
-| 3 | SC-8 + SC-9 (Agent Four, resumed) | — | Assigned 2026-10-04 | Branch `pilot/shared-core-sc8-sc9` from the tip |
+| 3 | SC-8 + SC-9 (Agent Four), PR #59 | `eb5b7be` | PR open; Agent Four's gate running | Review when Agent Four posts final test evidence |
 | — | **Michael decision:** HA host reboot test; P1 qemu OOM protection, P2 crash-restart timer, P3 memory caps for heavy builds (`docs/HA_VM_RECOVERY.md`) | — | Awaiting Michael | Agent Four applies only what Michael approves, with receipts |
 | ✓ | RQ-009 Pilot Room hearing/handset requirements (Agent Six), PR #54 | `536ed68` | **Merged at `cf0ac00bba1ea18a0b67cec9b3c1cd13d6acce8b`** 2026-10-04 (docs only) | Gate unchanged (known failures only) |
-| 5 | RQ-008 audit report (Agent Five) | `39a5abf` on `docs/rq-008-storage-receipt` | No PR yet | Docs only |
-| 4 | Test-only fixes for the stale gate failures (Agent Six) | from `f36351c` (iter10/iter11) and `aa3d2f1` (`test_ops_overview`) on `spike/voice-bridge` | Assigned 2026-10-04 | Branch `tests/stale-gate-fixes` from the tip; tests only; gate must show 0 failed |
+| 5 | RQ-008 audit report (Agent Five), PR #58 | `6ac8164` | Not mergeable against the tip | Agent Five refreshes onto the tip; docs only; no deletions without Michael |
+| ✓ | Test-only fixes for the stale gate failures (Agent Six), PR #60 | `70f3b68` | **Merged at `69f1490`** 2026-10-05 | Tests only (iter10, iter11, test_ops_overview). Gate 277 passed / **0 failed** / 14 skipped (skips unchanged) |
 | — | PR #45 `docs/2026-10-03-hardware-priority-reset` | `41b544c` | Draft, conflicting | Owner refreshes; the BOM cites it as unmerged |
 | — | `pilot/shared-core-rerequest` | `bbfce3b` | No PR | Michael's review; clean branch without the Nabu test path |
 | — | `docs/care-app-audit-2026-10-03` | `6b15e5e` | No PR | Owner opens a draft PR if it should land |
