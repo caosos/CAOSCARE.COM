@@ -850,3 +850,10 @@ listener verifier experiment: `docs/experiments/`.
 - `backend/routes/simulation.py`: `POST /simulator/start` (optional `roles`), `POST /simulator/roles/{key}`, `GET /simulator/roles/{key}/candidates` (admin only).
 - `frontend/src/components/simulator/SimRoleControl.jsx`: hand a role to a real staff member / return to simulated / leave unassigned. `SimActors` shows SIMULATED / REAL / UNASSIGNED per role.
 - Test: `backend/tests/test_sim3_mixed_staffing.py`.
+
+## 2026-10-05 — SIM-4 Nursing scenario (branch `pilot/sim-4-nursing`)
+
+- `backend/simulation/scenario.py::SCENARIOS`: scenario registry (`sink_leak`, `nursing_assist`); a run's `scenario` field selects steps, request category/priority/words and staff roles. `GET /simulator/scenarios`; `POST /simulator/start` takes `scenario`.
+- `backend/simulation/roster.py::STAFF_ROLES`: maintenance tech and nurse (`sim:staff:nursing-1`, shared with demo continuity); `resolve_cast(staff_keys)`.
+- Live Operations: scenario picker in `SimControls`.
+- Test: `backend/tests/test_sim4_nursing.py`.

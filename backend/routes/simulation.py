@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from deps import require_admin
-from simulation import scheduler, staffing
+from simulation import scenario, scheduler, staffing
 from routes.actor_context import actor_from_user
 
 router = APIRouter(prefix="/simulator", tags=["simulator"])
@@ -23,6 +23,7 @@ class RoleFill(BaseModel):
 
 class StartBody(BaseModel):
     roles: Dict[str, RoleFill] = {}
+    scenario: Optional[str] = None  # scenario id (GET /simulator/scenarios); default sink_leak
 
 
 def _operator(user: dict):
@@ -34,6 +35,12 @@ async def simulator_state(user=Depends(require_admin)):
     return await scheduler.view()
 
 
+@router.get("/scenarios")
+async def simulator_scenarios(user=Depends(require_admin)):
+    """The scenarios the simulator can run. Read-only."""
+    return scenario.catalog()
+
+
 @router.get("/runs/{run_id}/history")
 async def simulator_history(run_id: str, user=Depends(require_admin)):
     return await scheduler.history(run_id)
@@ -42,7 +49,7 @@ async def simulator_history(run_id: str, user=Depends(require_admin)):
 @router.post("/start")
 async def simulator_start(body: Optional[StartBody] = None, user=Depends(require_admin)):
     roles = {k: v.model_dump() for k, v in (body.roles if body else {}).items()}
-    run = await scheduler.start(*_operator(user), roles=roles)
+    run = await scheduler.start(*_operator(user), roles=roles, scenario_id=body.scenario if body else None)
     scheduler.ensure_loop(run["run_id"])
     return await scheduler.view(run)
 
