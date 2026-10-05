@@ -6557,3 +6557,24 @@ Coordinator review. SIM-4 Nursing: read-only preparation until this merges.
 ## 2026-10-05 — Coordinator: scenario-aware simulator latest run (PR #57) integrated
 
 PR #57 `pilot/sim-latest-run-scenario` `9c3c4bf6ce67ed46374b1363078312d556f40cc5` (base `5d13cd1`) → merge `737df76`. Simulator lane only: `scheduler.active_run/latest_run/view` scoped to `scenario.SCENARIO_IDS`; Live Operations lists only the current run's requests (`simulation_run_id`); `demo_continuity.py` unchanged. On the merge: `test_sim_latest_run_scenario.py` + SIM-3 + SIM-1 + SC-16/17 + RQ-001 — 33 passed; gate 273 passed / 4 failed (3 known stale + `test_ops_overview`, 01:56 UTC) / 14 skipped — one new skip, `test_sim_latest_run_scenario.py:85` ("scratch DB already holds Operations Simulator runs"), which runs in isolation but not in the gate (asked Agent Three to make it self-contained); frontend 34 suites / 268. PR MERGED. The live run `simrun_4b9a3f2c415d` on :8092 is unaffected until that backend is restarted (it is a sink_leak run, so it stays the current run after a restart).
+
+---
+
+## 2026-10-05 — Agent Five: RQ-008 RF bridge log audit (read-only, docs only)
+
+### Agent / branch
+Claude Code (Opus 5.5), Agent Five. `docs/rq-008-storage-receipt`, refreshed by merging integration `3912072` (docs conflict only, both histories kept); PR #58 is mergeable. Nothing was truncated, deleted, restarted, reconfigured or installed.
+
+### Findings
+New companion report `docs/reports/2026-10-05-rf-bridge-log-audit.md`; item H of the storage audit now points to it.
+- The bridge (`caos_rf_bridge.py`) was started by hand on 2026-09-06; it is not a service, and logrotate doesn't know about it.
+- It writes stdout and stderr to an agent scratch file in `/tmp`, without append mode. The file was 2.64 GB at 02:04 UTC and is growing **3.97 GB/day** (measured).
+- Cause: since ~2026-10-04 11:22 UTC the SDR is missing, and `rtl_433` is respawned with no delay (3.57 M spawns).
+- The first ~78 MB holds 3,552 decodes; about 61 of them are not in MongoDB `rf_events`.
+- The bridge has no SIGHUP handler (SIGHUP would kill it). A reboot clears `/tmp`.
+
+### Plan (needs Michael's approval)
+- R1: archive with gzip (~13 MB).
+- R2: stop the growth — restore the SDR, restart under a journald-managed user service, and/or a backoff fix in the RF lane.
+- R3: remove the old file once no process holds it.
+- Retention: archive kept ≥90 days / until the Pilot 1 review; 14 days or 500 MB going forward.
