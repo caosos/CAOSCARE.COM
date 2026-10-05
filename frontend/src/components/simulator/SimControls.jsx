@@ -12,7 +12,7 @@ const STATE_CLASS = {
 
 // Run state, simulated time, next scheduled action and the five controls.
 // Buttons follow what the scheduler accepts; the server stays the authority.
-export default function SimControls({ state, busy, onControl }) {
+export default function SimControls({ state, busy, onControl, scenarios = [], scenario, onScenario }) {
   const s = state?.state || "STOPPED";
   const can = allowedControls(s);
   const btn = (key, label, Icon, extra = {}) => (
@@ -26,6 +26,9 @@ export default function SimControls({ state, busy, onControl }) {
       <div className="flex flex-wrap items-center gap-3 mb-3">
         <span className={`rounded-full px-3 py-1 text-xs font-bold tracking-widest ${STATE_CLASS[s]}`} data-testid="sim-state">{s}</span>
         <span className="text-sm text-caos-mute">Simulated time <b className="text-caos-ink" data-testid="sim-clock">{simClock(state?.sim_minute)}</b></span>
+        {state?.run_id && state?.scenario_label && (
+          <span className="text-sm font-semibold text-caos-forest" data-testid="sim-scenario">{state.scenario_label}</span>
+        )}
         {state?.run_id && (
           <span className="text-xs text-caos-mute">
             Step {state.cursor} of {state.steps_total} · run <span className="font-mono">{state.run_id}</span>
@@ -34,6 +37,13 @@ export default function SimControls({ state, busy, onControl }) {
         )}
       </div>
       <div className="flex flex-wrap gap-2 mb-3">
+        {scenarios.length > 1 && (
+          <select value={scenario || ""} onChange={(e) => onScenario?.(e.target.value)} disabled={busy || !can.start}
+                  className="h-9 min-w-0 rounded border border-caos-line bg-white px-2 text-sm" aria-label="Scenario"
+                  data-testid="sim-scenario-pick">
+            {scenarios.map((sc) => <option key={sc.id} value={sc.id}>{sc.label}</option>)}
+          </select>
+        )}
         {btn("start", "Start", Play, { className: "bg-caos-forest" })}
         {btn("pause", "Pause", Pause)}
         {btn("step", "Step", StepForward)}

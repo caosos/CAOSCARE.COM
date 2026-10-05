@@ -6507,6 +6507,30 @@ Michael's "ROUND 5 — AGENT ONE / COORDINATOR" at tip `72fe52b306b2421cbbc3876e
 
 ---
 
+## 2026-10-05 — Agent Five: RQ-008 storage audit finalized with Phase 2 proposal (docs only)
+
+### Agent / branch
+Claude Code (Opus 5.5), Round 5 Agent Five. `docs/rq-008-storage-receipt`, refreshed by merging integration `81a4f92`. Documentation only. **Nothing deleted** this block; all measurements are read-only.
+
+### What changed
+`docs/reports/2026-10-04-elitedesk-storage-audit.md`:
+- Original state, the Phase 1 result (8.03 GB), and a re-measurement on 2026-10-05.
+- Current consumers, active and protected wake-lab data, evidence-protected files, and the worktree classes.
+- A Phase 2 proposal with exact commands, size estimates, risks and prerequisites, in four buckets:
+  - SAFE AFTER WAKE TEST ~1.9G;
+  - NEEDS CLAUDE TWO APPROVAL ~71G (mostly finished candidates' `positive_features`, ~52G);
+  - NEEDS MICHAEL APPROVAL ~12.6G;
+  - DO NOT TOUCH.
+
+### Findings
+- Free space fell from 72.55 GB after Phase 1 to 51.04 GB, mainly wake-lab runs (+13G) and a new hard-negative set (5.6G).
+- The RF bridge log is 2.6 GB and growing about 4 GB/day. It is held open without append mode, so truncating it alone is not a clean fix.
+
+### Next safe step
+Claude Two and Michael approve or decline the Phase 2 items. Nothing runs before that.
+
+---
+
 ## 2026-10-05 — Simulator: scenario-aware latest/active run (Agent Three)
 
 ### Agent / branch
@@ -6536,9 +6560,75 @@ PR #57 `pilot/sim-latest-run-scenario` `9c3c4bf6ce67ed46374b1363078312d556f40cc5
 
 ---
 
+## 2026-10-05 — Agent Five: RQ-008 RF bridge log audit (read-only, docs only)
+
+### Agent / branch
+Claude Code (Opus 5.5), Agent Five. `docs/rq-008-storage-receipt`, refreshed by merging integration `3912072` (docs conflict only, both histories kept); PR #58 is mergeable. Nothing was truncated, deleted, restarted, reconfigured or installed.
+
+### Findings
+New companion report `docs/reports/2026-10-05-rf-bridge-log-audit.md`; item H of the storage audit now points to it.
+- The bridge (`caos_rf_bridge.py`) was started by hand on 2026-09-06; it is not a service, and logrotate doesn't know about it.
+- It writes stdout and stderr to an agent scratch file in `/tmp`, without append mode. The file was 2.64 GB at 02:04 UTC and is growing **3.97 GB/day** (measured).
+- Cause: since ~2026-10-04 11:22 UTC the SDR is missing, and `rtl_433` is respawned with no delay (3.57 M spawns).
+- The first ~78 MB holds 3,552 decodes; about 61 of them are not in MongoDB `rf_events`.
+- The bridge has no SIGHUP handler (SIGHUP would kill it). A reboot clears `/tmp`.
+
+### Plan (needs Michael's approval)
+- R1: archive with gzip (~13 MB).
+- R2: stop the growth — restore the SDR, restart under a journald-managed user service, and/or a backoff fix in the RF lane.
+- R3: remove the old file once no process holds it.
+- Retention: archive kept ≥90 days / until the Pilot 1 review; 14 days or 500 MB going forward.
+
+---
+
 ## 2026-10-05 — Coordinator: stale-gate test fixes (PR #60) integrated
 
 PR #60 `tests/stale-gate-fixes` `70f3b68c9d21cc600068bb20273b6bf4cc663057` (Agent Six, base `72fe52b`) → merge `69f1490`. Tests only: `iter10_test.py`, `iter11_test.py` (26-tool session, `value` key, configured `FACILITY_LABEL`), `test_ops_overview.py` (yesterday from the facility-local date). Gate on the merge: 277 passed, **0 failed**, 14 skipped (same skips as before). Production code unchanged. Queue: PR #59 (SC-8/SC-9) waits for Agent Four's posted gate evidence; PR #58 (RQ-008) needs a refresh by Agent Five.
+
+---
+
+## 2026-10-05 — SIM-4 Nursing (Agent Three)
+
+### Agent / branch
+Claude Code (Opus 5.5), Round 5 Agent Three. Branch `pilot/sim-4-nursing` from integration `3912072`, rebased onto `a42973d` (PR #60 stale-gate fixes). Draft PR into `integration/2026-09-27`. Not merged; no deploy; no runtime service, main, Linode or hardware touched.
+
+### What changed
+- Scenario `nursing_assist`: the demo room's simulated resident says "I need help going to the bathroom." → `create_resident_request(category="nursing", priority="high")` → nurse role acknowledges / starts / notes / completes via `task_actions` → resident checks status via `resident_request_history`.
+- One registry `scenario.SCENARIOS`; the run's `scenario` field drives steps, cast, request and follow-up. `roster.STAFF_ROLES` adds the nurse (`sim:staff:nursing-1`, "SIM - Nursing staff" — the same identity demo continuity uses). SIM-3 hand-off works unchanged for the nurse role.
+- API: `POST /simulator/start {scenario}`, `GET /simulator/scenarios`. Live Operations: scenario picker; run's scenario label shown.
+- Shared files untouched (lifecycle, receipts, actor context, resident requests, models, server.py, demo_continuity.py). No alert/escalation/pendant change. Demo room only.
+
+### Verified
+- `tests/test_sim4_nursing.py` 3/3, covering acceptance 1–12: simulated nurse runs the whole scenario (task `nursing`/`visibility_role nursing`/high/simulated; sim nurse receipts with `actor_department nursing`; origin chain + run id on every receipt; resident told "SIM - Nursing staff"); real nurse takeover over HTTP (waits, no receipts; visible to nursing not maintenance; maintenance staff start → 403; real assign/start/note/complete with authenticated real-human receipts; simulator observes citing them; follow-up names her; run STOPPED); one task per run; with a live email key and a provider spy, notifications are `simulated` and zero provider calls; unknown scenario 404; maintenance user refused for the nurse role. Mutation: scenario using the maintenance actor for nurse steps → 2 failures.
+- SIM-1 6, SIM-3 4, latest-run 1+1 skip, provenance 7, demo continuity 14: pass.
+- Full gate after the rebase (port 8071, scratch DB): 263 passed, **0 failed**, 31 skipped. Frontend 34 suites / 268 tests; build compiles.
+- Coordinator follow-up from PR #57: `test_sim_latest_run_scenario.py::test_only_a_continuity_run_means_no_simulator_run` is now self-contained (scopes the simulator to a test-only scenario id instead of skipping when the scratch DB already holds simulator runs); it runs in the gate.
+- Browser (headless Chrome/CDP, scratch DB, 3 s tick, FACILITY_TZ Chicago): (A) picked "Nursing: help to the bathroom", run executed every step as SIM - Nursing staff to STOPPED, follow-up "taken care of by SIM - Nursing staff". (B) nurse role handed to "Nora (test RN)" → run waited; Nora's `/staff` "Nursing requests" queue showed the request; she clicked Claim, Start, Note (dialog), Complete (dialog) in the real UI; the run observed each step as "already recorded by REAL Nora (test RN)" and the follow-up named her; STOPPED. One nursing task per run, notifications all `simulated`; no console errors. Scratch DBs dropped.
+
+### Line counts (before → after)
+`scenario.py` 125→166, `roster.py` 79→91, `scheduler.py` 353→359, `routes/simulation.py` 90→97, `SimControls.jsx` 52→62, `LiveOperations.jsx` 101→111, `test_sim4_nursing.py` 263 (new).
+
+### Notes
+- `scheduler.py` is at 359 lines (inside the 300–400 band); the next growth should extract (e.g. role assignment).
+- The SIM-1 refusal to start while a live email key is set is unchanged (coordinator/Michael decision).
+
+### Next safe step
+Coordinator review of the draft PR.
+
+---
+
+## 2026-10-05 — Coordinator: PR #61, #62, #58 integrated (one at a time)
+
+Claude Code (Opus 5.5), coordinator, `integration/2026-09-27` from `a42973d`. No main merge, no Linode deploy, no deletion, no host reboot.
+
+- **PR #61** `docs/rq-002-readiness-audit` `c8add05266dd14a9ec2d8c742ddc3458e3263151` (Agent Six) → `92beeec`. Docs only. Its finding §7(a) was verified in source. `POST /api/realtime/aria-session` (`routes/realtime.py:163`) has no auth dependency, and it builds instructions from the request body's `owner_user_id` through `build_aria_context_block`, which reads that owner's `db.aria_memories`. Not tested against a live site. Fix assigned to Agent Six as a high-priority security PR.
+- **PR #62** `pilot/sim-4-nursing` `928c7bbe998759c577f3ad307bdf4bb062331bd7` (Agent Three) → `7446cc7`, clean merge. Simulator lane only: scenario registry with `nursing_assist`; the simulated nurse `sim:staff:nursing-1` is the same identity demo continuity uses; notifications stay simulated. Results on the merge:
+  - focused simulator tests: 36 passed;
+  - gate: 280 passed / 0 failed / 14 skipped (the latest-run skip is gone; the new `iter8_test.py` skip is OpenAI returning 0 extractions);
+  - frontend: 34 suites / 268 tests; build compiled.
+  **SIM-4 Nursing accepted.**
+- **PR #58** `docs/rq-008-storage-receipt` `8be5fb020843cabe9dfadbc7db7cbda52539a583` (Agent Five) → `57f71ce`. Docs only (storage audit + RF bridge log audit). Phase 2 deletions are proposals only and are **not authorized**; they await Michael.
+- Queue: RQ-002 WAITING (security fix + Aria governance decision); RQ-003 READY and the priority for the next acceptance loop; RQ-008 Phase 2 awaiting Michael. Agent Four refreshes PR #59 once onto this receipt's tip.
 
 ---
 
