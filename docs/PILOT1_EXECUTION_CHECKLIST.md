@@ -67,9 +67,9 @@ Acceptance:
 - [x] One simulated staff actor can accept/progress/complete it through canonical lifecycle services (SIM-1, integrated at `1126d8c`; `test_sim1_actor_scheduler.py` 6 passed and gate 240/3/13 on the merge, 2026-10-04)
 - [x] Receipt drill-down traces origin, actor, authority, execution, resulting state and evidence (SIM-2 merged at `5567d3e`: Agent Three's browser run on a scratch DB + coordinator frontend 34/263, gate 248/3/13)
 - [x] Real and simulated actors are visibly and structurally distinct (SIM-2 merged at `5567d3e`: Agent Three's browser run on a scratch DB + coordinator frontend 34/263, gate 248/3/13); requests carry source `simulator` + `simulation_run_id` (SC-17 merged at `895769a`: `test_sim_provenance.py` 7 passed, gate 255/3/13)
-- [ ] Michael can be scheduled as a real worker into a role normally occupied by a simulated agent
-- [ ] Michael can claim/complete simulated-origin work through the normal staff UI
-- [ ] Simulator observes Michael's real receipt/state change and continues from that state
+- [~] Michael can be scheduled as a real worker into a role normally occupied by a simulated agent — built and tested with a real test user (SIM-3 merged at `c276a2b`: `test_sim3_mixed_staffing.py` + related 31 passed, gate 272/4/13; Agent Three's browser run with a real test user in PR #56); acceptance by Michael himself pending
+- [~] Michael can claim/complete simulated-origin work through the normal staff UI — built and tested with a real test user (SIM-3 merged at `c276a2b`: `test_sim3_mixed_staffing.py` + related 31 passed, gate 272/4/13; Agent Three's browser run with a real test user in PR #56); acceptance by Michael himself pending
+- [~] Simulator observes Michael's real receipt/state change and continues from that state — built and tested with a real test user (SIM-3 merged at `c276a2b`: `test_sim3_mixed_staffing.py` + related 31 passed, gate 272/4/13; Agent Three's browser run with a real test user in PR #56); acceptance by Michael himself pending
 - [x] Pause/stop prevents new simulated actions without erasing history (SIM-1, integrated at `1126d8c`; `test_sim1_actor_scheduler.py` 6 passed and gate 240/3/13 on the merge, 2026-10-04)
 - [ ] Simulation reset cannot touch real resident/staff data
 - [ ] Completion claims require system evidence, not only agent text

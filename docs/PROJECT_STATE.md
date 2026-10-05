@@ -6490,3 +6490,9 @@ HANDOFF CAPSULE
 - Product invariants that matter here: the simulator never acts as a real person; a real action carries his own authenticated provenance; nothing is fabricated when no one acts; same canonical world.
 - Do NOT change:    shared lifecycle/receipt modules; the run never writes task receipts itself.
 - Next safe action: coordinator review of the draft PR.
+
+---
+
+## 2026-10-04 — Coordinator: SIM-3 (PR #56) integrated
+
+PR #56 `pilot/sim-3-mixed-staffing` `ff9465a062a828db1ce07a00aeb52e5eb3f507d9` (base `b6bf661`) → merge `c276a2bbbe9cd10a281f219c0507cb026153efb6`. Simulator lane files only (`backend/simulation/*`, `routes/simulation.py`, simulator UI); shared lifecycle/receipt/request modules called, not edited. PROJECT_STATE conflict resolved keeping both sides. On the merge: `test_sim3_mixed_staffing.py`, SIM-1, `test_sim_provenance.py`, `test_demo_continuity.py` — 31 passed (RQ-001 still works with the changed roster/scheduler); gate 272 passed / 4 failed (3 known stale + `test_ops_overview` date window, 01:23 UTC) / 13 skipped, skip set unchanged; frontend 34 suites / 267. PR MERGED. Checklist: the three mixed-staffing items moved to in progress (built and tested with a real test user; acceptance by Michael himself pending). Follow-up to Agent Three: scenario-aware `latest_run()` (not in #56), then SIM-4 Nursing. SIM-1's start refusal while a live email key is set is left in place (redundant after SC-16; revisit with RQ-005).
