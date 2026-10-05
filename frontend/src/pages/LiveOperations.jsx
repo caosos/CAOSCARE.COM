@@ -21,6 +21,15 @@ export default function LiveOperations() {
   const [busy, setBusy] = useState(false);
   const [trace, setTrace] = useState(null);
   const [requestId, setRequestId] = useState(null);
+  const [scenarios, setScenarios] = useState([]);
+  const [scenario, setScenario] = useState("");
+
+  useEffect(() => {
+    api.get("/simulator/scenarios").then(({ data }) => {
+      setScenarios(data);
+      setScenario((cur) => cur || data[0]?.id || "");
+    }).catch(() => setScenarios([]));
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -49,7 +58,7 @@ export default function LiveOperations() {
   const control = async (action) => {
     setBusy(true);
     try {
-      await api.post(`/simulator/${action}`);
+      await api.post(`/simulator/${action}`, action === "start" && scenario ? { scenario } : undefined);
     } catch (err) {
       toast.error(err?.response?.data?.detail || `Could not ${action} the simulator`);
     } finally {
@@ -75,7 +84,8 @@ export default function LiveOperations() {
           the normal staff screens. Every action has a receipt you can trace back to where it started.
         </p>
       </div>
-      <SimControls state={state} busy={busy} onControl={control} />
+      <SimControls state={state} busy={busy} onControl={control}
+                   scenarios={scenarios} scenario={scenario} onScenario={setScenario} />
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4 min-w-0">
           <SimActors cast={cast} startedBy={state?.started_by} onChanged={load}

@@ -69,7 +69,7 @@ def _snap(run: dict) -> dict:
 def _next_state(run: dict) -> str:
     if run["state"] == STOPPED:
         return "stopped"
-    step = scenario.describe(run["cursor"])
+    step = scenario.describe(run["cursor"], run.get("scenario"))
     nxt = f"step {step['index']}: {step['actor']} {step['action']} at minute {step['at']}" if step else "end"
     return f"{run['state'].lower()}; next {nxt}"
 
@@ -157,7 +157,11 @@ async def assign_role(operator: ActorContext, authority: str, role_key: str, mod
         return await _apply_role(run, operator, authority, role_key, mode, user_id)
 
 
-async def start(operator: ActorContext, authority: str, roles: Optional[dict] = None) -> dict:
+async def start(operator: ActorContext, authority: str, roles: Optional[dict] = None,
+                scenario_id: Optional[str] = None) -> dict:
+    scenario_id = scenario_id or scenario.SCENARIO_ID
+    if scenario_id not in scenario.SCENARIOS:
+        raise SimulatorError(404, f"Unknown scenario {scenario_id}")
     async with _lock:
         if await active_run():
             raise SimulatorError(409, "A simulation run is already active; stop it first.")
@@ -167,7 +171,7 @@ async def start(operator: ActorContext, authority: str, roles: Optional[dict] = 
             await _refuse_start(operator, authority, "a live email provider is configured and "
                                 "department notifications cannot yet mark simulated requests")
         try:
-            cast = await roster.resolve_cast()
+            cast = await roster.resolve_cast(scenario.spec(scenario_id)["staff_roles"])
         except roster.IdentityConflict as e:
             await _refuse_start(operator, authority, f"identity conflict: {e}")
         for role_key, spec in (roles or {}).items():      # validate before anything is written
@@ -178,7 +182,7 @@ async def start(operator: ActorContext, authority: str, roles: Optional[dict] = 
             except staffing.StaffingError as e:
                 raise SimulatorError(400, str(e))
         now = now_utc().isoformat()
-        run = {"run_id": uid("simrun"), "scenario": scenario.SCENARIO_ID, "state": RUNNING,
+        run = {"run_id": uid("simrun"), "scenario": scenario_id, "state": RUNNING,
                "cursor": 0, "sim_minute": 0, "workflow": {}, "cast": cast, "started_by": operator.receipt_fields(),
                "origin_receipt_id": None, "last_receipt_id": None, "created_at": now, "updated_at": now}
         await db.sim_runs.insert_one(dict(run))
@@ -238,7 +242,7 @@ async def tick(run_id: Optional[str] = None) -> Optional[dict]:
 
 async def _execute_next(run: dict, actor: ActorContext, authority: str) -> dict:
     before = _snap(run)
-    nxt = scenario.describe(run["cursor"])
+    nxt = scenario.describe(run["cursor"], run["scenario"])
     if not nxt:
         await _save(run, state=STOPPED)
         await _record(run, actor, authority, "sim_run_completed", before=before, result="scenario finished")
@@ -265,7 +269,8 @@ async def _execute_next(run: dict, actor: ActorContext, authority: str) -> dict:
                       failure_reason=f"{nxt['actor']} is off shift at minute {nxt['at']}; run paused")
         return {"executed": False, "run": run}
     try:
-        out = await scenario.execute(nxt, run.get("workflow") or {}, run["cast"], run_id=run["run_id"])
+        out = await scenario.execute(nxt, run.get("workflow") or {}, run["cast"], run_id=run["run_id"],
+                                     scenario_id=run["scenario"])
     except Exception as e:     # a canonical refusal (HTTPException) or a guard
         reason = getattr(e, "detail", None) or str(e)
         await _save(run, state=PAUSED)
@@ -286,7 +291,7 @@ async def _advance(run: dict, nxt: dict, before: dict, actor: ActorContext, auth
                 workflow=workflow or run.get("workflow") or {})
     receipt = await _record(run, actor, authority, action_type, before=before, result=result,
                             refs=[canonical_id] if canonical_id else [])
-    if run["cursor"] >= len(scenario.STEPS):
+    if run["cursor"] >= len(scenario.steps_for(run["scenario"])):
         done_before = _snap(run)
         await _save(run, state=STOPPED)
         await _record(run, _scheduler(), f"sim_run:{run['run_id']}", "sim_run_completed",
@@ -321,11 +326,12 @@ async def view(run: Optional[dict] = None) -> dict:
     if not is_ops_run(run):
         run = await latest_run()
     if not run:
-        return {"state": STOPPED, "run_id": None, "steps_total": len(scenario.STEPS)}
+        return {"state": STOPPED, "run_id": None, "steps_total": len(scenario.STEPS), "scenario": None}
     return {"state": run["state"], "run_id": run["run_id"], "scenario": run["scenario"],
             "cursor": run["cursor"], "sim_minute": run["sim_minute"],
-            "next_step": scenario.describe(run["cursor"]) if run["state"] != STOPPED else None,
-            "steps_total": len(scenario.STEPS), "workflow": run.get("workflow") or {},
+            "scenario_label": scenario.spec(run["scenario"])["label"],
+            "next_step": scenario.describe(run["cursor"], run["scenario"]) if run["state"] != STOPPED else None,
+            "steps_total": len(scenario.steps_for(run["scenario"])), "workflow": run.get("workflow") or {},
             "origin_receipt_id": run.get("origin_receipt_id"), "last_receipt_id": run.get("last_receipt_id"),
             "started_by": run.get("started_by"), "loop_alive": loop_alive(run["run_id"]),
             "cast": run.get("cast"), "waiting_on": _waiting_on(run)}
@@ -333,7 +339,7 @@ async def view(run: Optional[dict] = None) -> dict:
 
 def _waiting_on(run: dict) -> Optional[dict]:
     """The role the next step belongs to, when no simulated actor holds it."""
-    step = scenario.describe(run["cursor"]) if run["state"] != STOPPED else None
+    step = scenario.describe(run["cursor"], run["scenario"]) if run["state"] != STOPPED else None
     if not step or step["actor"] not in _staff_roles(run.get("cast")):
         return None
     fill = staffing.fill_of(run["cast"], step["actor"])

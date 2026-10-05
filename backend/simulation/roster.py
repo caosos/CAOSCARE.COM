@@ -30,34 +30,46 @@ STAFF = {
     "name": "SIM - Maintenance Tech 1", "role": "staff", "department": "maintenance",
     "shift": {"start_minute": 0, "end_minute": 480},   # simulation-clock minutes
 }
+# SIM-4. Same `sim:` id and name demo continuity uses for its simulated
+# nursing staff (demo_continuity.staff_for), so the demo room has one
+# simulated nurse identity, not two.
+NURSE = {
+    "key": "nurse", "actor_id": "sim:staff:nursing-1",
+    "name": "SIM - Nursing staff", "role": "staff", "department": "nursing",
+    "shift": {"start_minute": 0, "end_minute": 480},
+}
+STAFF_ROLES = {STAFF["key"]: STAFF, NURSE["key"]: NURSE}
 
 
 class IdentityConflict(Exception):
     """The simulated cast cannot be resolved without touching a real identity."""
 
 
-def staff_actor() -> ActorContext:
-    return ActorContext(actor_id=STAFF["actor_id"], actor_type="simulated-agent",
-                        identity_basis="synthetic", channel="simulator", name=STAFF["name"],
-                        role=STAFF["role"], department=STAFF["department"], simulated=True)
+def staff_actor(key: str = STAFF["key"]) -> ActorContext:
+    s = STAFF_ROLES[key]
+    return ActorContext(actor_id=s["actor_id"], actor_type="simulated-agent",
+                        identity_basis="synthetic", channel="simulator", name=s["name"],
+                        role=s["role"], department=s["department"], simulated=True)
 
 
-def staff_profile() -> dict:
+def staff_profile(key: str = STAFF["key"]) -> dict:
     """The role/department the lifecycle authorizes the simulated staff
     member against. Built here, never read from a request or from db.users."""
-    return {"user_id": STAFF["actor_id"], "name": STAFF["name"], "role": STAFF["role"],
-            "department": STAFF["department"], "simulated": True}
+    s = STAFF_ROLES[key]
+    return {"user_id": s["actor_id"], "name": s["name"], "role": s["role"],
+            "department": s["department"], "simulated": True}
 
 
 def on_shift(actor_key: str, sim_minute: int) -> bool:
-    if actor_key != STAFF["key"]:
+    if actor_key not in STAFF_ROLES:
         return True     # residents have no shift
-    shift = STAFF["shift"]
+    shift = STAFF_ROLES[actor_key]["shift"]
     return shift["start_minute"] <= sim_minute < shift["end_minute"]
 
 
-async def resolve_cast() -> dict:
-    """The simulated actors for one run, checked against real identities."""
+async def resolve_cast(staff_keys: tuple = (STAFF["key"],)) -> dict:
+    """The simulated actors for one run, checked against real identities.
+    `staff_keys`: the staff roles the run's scenario needs."""
     in_room = await db.residents.find({"room": DEMO_ROOM}, {"_id": 0}).to_list(20)
     if not in_room:
         raise IdentityConflict(f"no resident in demo room {DEMO_ROOM}; run backend/scripts/setup_demo_room.py")
@@ -66,14 +78,14 @@ async def resolve_cast() -> dict:
         raise IdentityConflict(f"demo room {DEMO_ROOM} holds a non-synthetic resident ({', '.join(real)})")
     if len(in_room) > 1:
         raise IdentityConflict(f"demo room {DEMO_ROOM} holds {len(in_room)} residents; expected one")
-    if await db.users.find_one({"user_id": STAFF["actor_id"]}, {"_id": 1}):
-        raise IdentityConflict(f"a real user record uses the simulated id {STAFF['actor_id']}")
     res = in_room[0]
-    return {
-        "resident": {"key": "resident", "actor_id": res["resident_id"], "name": res.get("name"),
-                     "role": "resident", "room": DEMO_ROOM, "simulated": True},
-        "maintenance_tech": {"key": STAFF["key"], "actor_id": STAFF["actor_id"], "name": STAFF["name"],
-                             "role": STAFF["role"], "department": STAFF["department"],
-                             "shift": STAFF["shift"], "simulated": True,
-                             "filled_by": {"mode": "simulated"}},
-    }
+    cast = {"resident": {"key": "resident", "actor_id": res["resident_id"], "name": res.get("name"),
+                         "role": "resident", "room": DEMO_ROOM, "simulated": True}}
+    for key in staff_keys:
+        s = STAFF_ROLES[key]
+        if await db.users.find_one({"user_id": s["actor_id"]}, {"_id": 1}):
+            raise IdentityConflict(f"a real user record uses the simulated id {s['actor_id']}")
+        cast[key] = {"key": key, "actor_id": s["actor_id"], "name": s["name"], "role": s["role"],
+                     "department": s["department"], "shift": s["shift"], "simulated": True,
+                     "filled_by": {"mode": "simulated"}}
+    return cast

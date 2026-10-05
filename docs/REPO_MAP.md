@@ -851,6 +851,13 @@ listener verifier experiment: `docs/experiments/`.
 - `frontend/src/components/simulator/SimRoleControl.jsx`: hand a role to a real staff member / return to simulated / leave unassigned. `SimActors` shows SIMULATED / REAL / UNASSIGNED per role.
 - Test: `backend/tests/test_sim3_mixed_staffing.py`.
 
+## 2026-10-05 — SIM-4 Nursing scenario (branch `pilot/sim-4-nursing`)
+
+- `backend/simulation/scenario.py::SCENARIOS`: scenario registry (`sink_leak`, `nursing_assist`); a run's `scenario` field selects steps, request category/priority/words and staff roles. `GET /simulator/scenarios`; `POST /simulator/start` takes `scenario`.
+- `backend/simulation/roster.py::STAFF_ROLES`: maintenance tech and nurse (`sim:staff:nursing-1`, shared with demo continuity); `resolve_cast(staff_keys)`.
+- Live Operations: scenario picker in `SimControls`.
+- Test: `backend/tests/test_sim4_nursing.py`.
+
 ## 2026-10-05 — SC-8 notification links / SC-9 department labels (branch `pilot/shared-core-sc8-sc9`)
 
 - `backend/routes/notifications.py::task_notice()`: the one builder of `notify_department()` arguments for a request (task link, receipt id, simulation context). `notify_department()` requires `related_object_type` / `related_object_id`.
