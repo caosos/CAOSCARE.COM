@@ -241,9 +241,12 @@ def main(slug, cross=False):
     originals = {c["slug"]: c for c in load_trained_candidates()}
     supplemental = {c["slug"]: c for c in load_supplemental_candidates()}
     batch = {c["slug"]: c for c in load_batch_candidates()}
+    method = {c["slug"]: c for c in load_batch_candidates("methodtest")}
+    # a method-test model is evaluated exactly as the model it is compared with (eval_as)
+    pos = method[slug]["eval_as"] if slug in method else slug
     # original models keep exactly their original job list; supplemental models cross-check all 26;
     # batch models (Round 5) cross-check all 26 plus their own batch
-    if slug in batch:
+    if slug in batch or slug in method:
         cands = {**originals, **supplemental, **batch}
     else:
         cands = {**originals, **supplemental} if slug in supplemental else originals
@@ -252,12 +255,12 @@ def main(slug, cross=False):
         return cross_supplemental(slug, tflite, slug in originals)
     ev = SAMPLES / "eval"
     jobs = []
-    for f in sorted((ev / "positives" / slug).rglob("*.wav")):
+    for f in sorted((ev / "positives" / pos).rglob("*.wav")):
         jobs += [(str(f), c) for c in POS_CONDITIONS]
     for other in cands:
-        if other != slug:
+        if other != pos:
             jobs += [(str(f), "clean") for f in sorted((ev / "positives" / other).rglob("*.wav"))]
-    for f in sorted((ev / "pronunciation" / slug).rglob("*.wav")) if (ev / "pronunciation" / slug).exists() else []:
+    for f in sorted((ev / "pronunciation" / pos).rglob("*.wav")) if (ev / "pronunciation" / pos).exists() else []:
         jobs += [(str(f), c) for c in ("clean", "room_2m")]
     for sub in ("negatives_trained", "negatives_heldout", "sentences"):
         for f in sorted((ev / sub).rglob("*.wav")):

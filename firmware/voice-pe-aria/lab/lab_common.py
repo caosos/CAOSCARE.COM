@@ -196,4 +196,5 @@ def load_batch_candidates(name="batch1"):
 
 
 def candidate(slug):
-    return next(c for c in load_all_candidates() + load_batch_candidates() if c["slug"] == slug)
+    return next(c for c in load_all_candidates() + load_batch_candidates() + load_batch_candidates("methodtest")
+                if c["slug"] == slug)

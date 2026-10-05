@@ -1,0 +1,36 @@
+[
+ {
+  "id": "okay sequoia (+TV-dialogue hard negatives)",
+  "text": "okay sequoia",
+  "slug": "okay_sequoia_tvneg",
+  "kind": "word_name",
+  "base": "sequoia",
+  "launcher": "okay",
+  "phonemes": "OW2 K EY1 S IH0 K W OY1 AH0",
+  "arpa_words": [
+   "OW2 K EY1",
+   "S IH0 K W OY1 AH0"
+  ],
+  "pronunciation_note": null,
+  "funnel_phonemes": "OW2 K EY1 S IH0 K W OY1 AH0",
+  "group": "methodtest",
+  "funnel_rank": 11,
+  "funnel_total_preliminary_score": 8.27,
+  "identity_flag": "NEW ASSISTANT IDENTITY - would replace or sit beside ARIA; Michael's decision",
+  "selection_reason": "controlled method A/B: identical to batch-1 okay_sequoia except one added hard-negative training set (research/wake-phrase-funnel/method_test/PLAN_RECEIPT.md)",
+  "funnel_senior_speakability": 7,
+  "funnel_memorability": 9,
+  "funnel_dignity": 7,
+  "positives_from": "okay_sequoia",
+  "eval_as": "okay_sequoia",
+  "extra_negatives": [
+   {
+    "features_dir": "data/hardneg_peoples_speech/features",
+    "sampling_weight": 10.0,
+    "penalty_weight": 1.0,
+    "truncation_strategy": "random",
+    "source": "MLCommons/peoples_speech clean validation 00000-00001 @ f10597c5d3d3a63f8b6827701297c3afdf178272"
+   }
+  ]
+ }
+]

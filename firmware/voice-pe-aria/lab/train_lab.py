@@ -84,7 +84,9 @@ def main(slug):
                     os.link(f, link)
         neg_src, shared_neg = filtered, RUNS / ("_shared_negative_features" + tag)
     features(neg_src, shared_neg, 1)
-    features(SAMPLES / "train/positives" / slug, run / "positive_features", 2)
+    cand = candidate(slug)
+    # method tests (methodtest_candidates.json) reuse another run's positive clips unchanged
+    features(SAMPLES / "train/positives" / cand.get("positives_from", slug), run / "positive_features", 2)
     fs = [
         {"features_dir": str(run / "positive_features"), "sampling_weight": 2.0, "penalty_weight": 1.0,
          "truth": True, "truncation_strategy": "truncate_start", "type": "mmap"},
@@ -93,6 +95,9 @@ def main(slug):
         *[{"features_dir": str(D / "negative_datasets" / n), "sampling_weight": w, "penalty_weight": 1.0,
            "truth": False, "truncation_strategy": "random", "type": "mmap"}
           for n, w in (("speech", 10.0), ("dinner_party", 10.0), ("no_speech", 5.0))],
+        *[{"features_dir": str(WORK / x["features_dir"]), "sampling_weight": x["sampling_weight"],
+           "penalty_weight": x["penalty_weight"], "truth": False, "truncation_strategy": x["truncation_strategy"],
+           "type": "mmap"} for x in cand.get("extra_negatives", [])],
         {"features_dir": str(D / "negative_datasets/dinner_party_eval"), "sampling_weight": 0.0,
          "penalty_weight": 1.0, "truth": False, "truncation_strategy": "split", "type": "mmap"},
     ]
@@ -102,7 +107,8 @@ def main(slug):
            "freq_mask_max_size": [0], "freq_mask_count": [0], "eval_step_interval": 500,
            "clip_duration_ms": 1500, "target_minimization": 0.9, "minimization_metric": None,
            "maximization_metric": "average_viable_recall", "seed": SEED,
-           "excluded_same_sound_negatives": excl}
+           "excluded_same_sound_negatives": excl, "extra_negatives": cand.get("extra_negatives", []),
+           "positives_from": cand.get("positives_from", slug)}
     (run / "training_parameters.yaml").write_text(yaml.dump(cfg))
     os.chdir(run)
     seed_all()

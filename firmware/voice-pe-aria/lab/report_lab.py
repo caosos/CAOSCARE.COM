@@ -61,7 +61,7 @@ def main(cands=None, out=None):
         other = defaultdict(list)
         for r in e["clips"]:
             parts = r["file"].split("/")
-            if parts[0] == "positives" and parts[1] == c["slug"]:
+            if parts[0] == "positives" and parts[1] == c.get("eval_as", c["slug"]):
                 own[r["condition"]].append(r["peak"])
                 if r["condition"] == "clean":
                     forms[parts[2]].append(r["peak"])
