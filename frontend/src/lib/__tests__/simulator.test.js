@@ -78,6 +78,13 @@ describe("requests, cast, clock", () => {
     ];
     expect(activeSimRequests(tasks).map((t) => t.task_id)).toEqual(["a", "d"]);
   });
+  test("only the current run's requests, not other simulated work in the room", () => {
+    const tasks = [
+      { task_id: "ops", simulated: true, status: "pending", simulation_run_id: "simrun_ops" },
+      { task_id: "cont", simulated: true, status: "pending", simulation_run_id: "simrun_continuity" },
+    ];
+    expect(activeSimRequests(tasks, "simrun_ops").map((t) => t.task_id)).toEqual(["ops"]);
+  });
   test("cast lookup and clock/step text", () => {
     const cast = { resident: { actor_id: "res_1" }, maintenance_tech: { actor_id: "sim:staff:maintenance-1" } };
     expect(castEntryFor(cast, "sim:staff:maintenance-1")).toBe(cast.maintenance_tech);

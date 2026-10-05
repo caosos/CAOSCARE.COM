@@ -100,12 +100,24 @@ async def _save(run: dict, **fields) -> None:
     await db.sim_runs.update_one({"run_id": run["run_id"]}, {"$set": {**fields, "updated_at": now_utc().isoformat()}})
 
 
+def _ops_scope() -> dict:
+    """Only Operations Simulator runs. db.sim_runs also holds runs other
+    writers register (RQ-001 demo continuity, always STOPPED); those keep
+    their history but are never the simulator's current or latest run."""
+    return {"scenario": {"$in": list(scenario.SCENARIO_IDS)}}
+
+
+def is_ops_run(run: Optional[dict]) -> bool:
+    return bool(run) and run.get("scenario") in scenario.SCENARIO_IDS
+
+
 async def active_run() -> Optional[dict]:
-    return await db.sim_runs.find_one({"state": {"$in": list(ACTIVE)}}, {"_id": 0}, sort=[("created_at", -1)])
+    return await db.sim_runs.find_one({**_ops_scope(), "state": {"$in": list(ACTIVE)}}, {"_id": 0},
+                                      sort=[("created_at", -1)])
 
 
 async def latest_run() -> Optional[dict]:
-    return await db.sim_runs.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
+    return await db.sim_runs.find_one(_ops_scope(), {"_id": 0}, sort=[("created_at", -1)])
 
 
 async def _refuse_start(operator: ActorContext, authority: str, reason: str) -> None:
@@ -306,7 +318,8 @@ def loop_alive(run_id: str) -> bool:
 
 
 async def view(run: Optional[dict] = None) -> dict:
-    run = run or await latest_run()
+    if not is_ops_run(run):
+        run = await latest_run()
     if not run:
         return {"state": STOPPED, "run_id": None, "steps_total": len(scenario.STEPS)}
     return {"state": run["state"], "run_id": run["run_id"], "scenario": run["scenario"],
