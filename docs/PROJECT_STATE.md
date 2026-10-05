@@ -6539,10 +6539,13 @@ PR #57 `pilot/sim-latest-run-scenario` `9c3c4bf6ce67ed46374b1363078312d556f40cc5
 ## 2026-10-05 — Coordinator: stale-gate test fixes (PR #60) integrated
 
 PR #60 `tests/stale-gate-fixes` `70f3b68c9d21cc600068bb20273b6bf4cc663057` (Agent Six, base `72fe52b`) → merge `69f1490`. Tests only: `iter10_test.py`, `iter11_test.py` (26-tool session, `value` key, configured `FACILITY_LABEL`), `test_ops_overview.py` (yesterday from the facility-local date). Gate on the merge: 277 passed, **0 failed**, 14 skipped (same skips as before). Production code unchanged. Queue: PR #59 (SC-8/SC-9) waits for Agent Four's posted gate evidence; PR #58 (RQ-008) needs a refresh by Agent Five.
+
+---
+
 ## 2026-10-05 — SIM-4 Nursing (Agent Three)
 
 ### Agent / branch
-Claude Code (Opus 5.5), Round 5 Agent Three. Branch `pilot/sim-4-nursing` from integration `3912072`. Draft PR into `integration/2026-09-27`. Not merged; no deploy; no runtime service, main, Linode or hardware touched.
+Claude Code (Opus 5.5), Round 5 Agent Three. Branch `pilot/sim-4-nursing` from integration `3912072`, rebased onto `a42973d` (PR #60 stale-gate fixes). Draft PR into `integration/2026-09-27`. Not merged; no deploy; no runtime service, main, Linode or hardware touched.
 
 ### What changed
 - Scenario `nursing_assist`: the demo room's simulated resident says "I need help going to the bathroom." → `create_resident_request(category="nursing", priority="high")` → nurse role acknowledges / starts / notes / completes via `task_actions` → resident checks status via `resident_request_history`.
@@ -6553,7 +6556,8 @@ Claude Code (Opus 5.5), Round 5 Agent Three. Branch `pilot/sim-4-nursing` from i
 ### Verified
 - `tests/test_sim4_nursing.py` 3/3, covering acceptance 1–12: simulated nurse runs the whole scenario (task `nursing`/`visibility_role nursing`/high/simulated; sim nurse receipts with `actor_department nursing`; origin chain + run id on every receipt; resident told "SIM - Nursing staff"); real nurse takeover over HTTP (waits, no receipts; visible to nursing not maintenance; maintenance staff start → 403; real assign/start/note/complete with authenticated real-human receipts; simulator observes citing them; follow-up names her; run STOPPED); one task per run; with a live email key and a provider spy, notifications are `simulated` and zero provider calls; unknown scenario 404; maintenance user refused for the nurse role. Mutation: scenario using the maintenance actor for nurse steps → 2 failures.
 - SIM-1 6, SIM-3 4, latest-run 1+1 skip, provenance 7, demo continuity 14: pass.
-- Full gate (port 8071, scratch DB): 261 passed, 1 failed (`test_ops_overview`, known 00:00 UTC–local-midnight failure), 32 skipped. Frontend 34 suites / 268 tests; build compiles.
+- Full gate after the rebase (port 8071, scratch DB): 263 passed, **0 failed**, 31 skipped. Frontend 34 suites / 268 tests; build compiles.
+- Coordinator follow-up from PR #57: `test_sim_latest_run_scenario.py::test_only_a_continuity_run_means_no_simulator_run` is now self-contained (scopes the simulator to a test-only scenario id instead of skipping when the scratch DB already holds simulator runs); it runs in the gate.
 - Browser (headless Chrome/CDP, scratch DB, 3 s tick, FACILITY_TZ Chicago): (A) picked "Nursing: help to the bathroom", run executed every step as SIM - Nursing staff to STOPPED, follow-up "taken care of by SIM - Nursing staff". (B) nurse role handed to "Nora (test RN)" → run waited; Nora's `/staff` "Nursing requests" queue showed the request; she clicked Claim, Start, Note (dialog), Complete (dialog) in the real UI; the run observed each step as "already recorded by REAL Nora (test RN)" and the follow-up named her; STOPPED. One nursing task per run, notifications all `simulated`; no console errors. Scratch DBs dropped.
 
 ### Line counts (before → after)

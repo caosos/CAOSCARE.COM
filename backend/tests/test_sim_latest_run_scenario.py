@@ -77,12 +77,10 @@ def test_continuity_run_is_never_the_simulator_run():
     assert run(db.sim_runs.count_documents({"run_id": {"$regex": f"^simrun_{TAG}"}})) == 2
 
 
-def test_only_a_continuity_run_means_no_simulator_run():
-    run(db.sim_runs.delete_many({"scenario": {"$in": list(scenario.SCENARIO_IDS)},
-                                 "run_id": {"$regex": f"^simrun_{TAG}"}}))
-    others = run(db.sim_runs.count_documents(scheduler._ops_scope()))
-    if others:
-        pytest.skip("scratch DB already holds Operations Simulator runs")
+def test_only_a_continuity_run_means_no_simulator_run(monkeypatch):
+    # Self-contained: scope the simulator to a scenario id only this test
+    # uses, so runs already in the scratch DB cannot affect it.
+    monkeypatch.setattr(scenario, "SCENARIO_IDS", (f"only_{TAG}",))
     run(db.sim_runs.insert_one(_run_doc("cont2", CONTINUITY, scheduler.STOPPED, "2999-06-01T00:00:00+00:00")))
     assert run(scheduler.latest_run()) is None
     v = run(scheduler.view())
