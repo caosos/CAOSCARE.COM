@@ -6533,3 +6533,9 @@ Coordinator review. SIM-4 Nursing: read-only preparation until this merges.
 ## 2026-10-05 — Coordinator: scenario-aware simulator latest run (PR #57) integrated
 
 PR #57 `pilot/sim-latest-run-scenario` `9c3c4bf6ce67ed46374b1363078312d556f40cc5` (base `5d13cd1`) → merge `737df76`. Simulator lane only: `scheduler.active_run/latest_run/view` scoped to `scenario.SCENARIO_IDS`; Live Operations lists only the current run's requests (`simulation_run_id`); `demo_continuity.py` unchanged. On the merge: `test_sim_latest_run_scenario.py` + SIM-3 + SIM-1 + SC-16/17 + RQ-001 — 33 passed; gate 273 passed / 4 failed (3 known stale + `test_ops_overview`, 01:56 UTC) / 14 skipped — one new skip, `test_sim_latest_run_scenario.py:85` ("scratch DB already holds Operations Simulator runs"), which runs in isolation but not in the gate (asked Agent Three to make it self-contained); frontend 34 suites / 268. PR MERGED. The live run `simrun_4b9a3f2c415d` on :8092 is unaffected until that backend is restarted (it is a sink_leak run, so it stays the current run after a restart).
+
+---
+
+## 2026-10-05 — Coordinator: stale-gate test fixes (PR #60) integrated
+
+PR #60 `tests/stale-gate-fixes` `70f3b68c9d21cc600068bb20273b6bf4cc663057` (Agent Six, base `72fe52b`) → merge `69f1490`. Tests only: `iter10_test.py`, `iter11_test.py` (26-tool session, `value` key, configured `FACILITY_LABEL`), `test_ops_overview.py` (yesterday from the facility-local date). Gate on the merge: 277 passed, **0 failed**, 14 skipped (same skips as before). Production code unchanged. Queue: PR #59 (SC-8/SC-9) waits for Agent Four's posted gate evidence; PR #58 (RQ-008) needs a refresh by Agent Five.
