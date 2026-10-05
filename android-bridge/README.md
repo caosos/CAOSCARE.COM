@@ -88,3 +88,35 @@ Requires Android Studio Hedgehog+ and targets Android 9+ (API 28). Uses [usb-ser
 ## Testing without hardware
 
 Use `adb` to push sample JSON through a USB-TTY loopback, or use the **Simulate press** button in the Admin → Pendants tab of the CAOS Care web app.
+
+---
+
+## Python RF bridge (`caos_rf_bridge.py`)
+
+The SDR bridge used on the EliteDesk: runs `rtl_433` on the configured bands
+and posts decoded presses to the backend. Three files, deployed together:
+
+| File | Role |
+|---|---|
+| `caos_rf_bridge.py` | Entry point: config, backend calls, capture polling, `on_record` |
+| `sdr_control.py` | Spawns `rtl_433`, reads its JSON, stall watchdog, USB reset of the SDR |
+| `rf_restart_policy.py` | When to respawn `rtl_433` and what to log |
+
+**Restart backoff.** A run counts as healthy if `rtl_433` stayed up at least
+30 s (`CAOS_HEALTHY_RUN_SECONDS`) or decoded a record. After a healthy run the
+next spawn is immediate, so the 90 s stall watchdog (`CAOS_WATCHDOG_SECONDS`)
+behaves as before. After a failed run (e.g. no SDR plugged in: `rtl_433`
+exits within a second with "No supported devices found.") the bridge waits
+1, 2, 5, 10, 30, then 60 s between spawns. SIGINT/SIGTERM end a wait at once.
+
+**Logging while failing.** The first failure is logged in full (spawn line,
+`rtl_433` output, reason). Repeats of the same failure print one status line
+every 300 s (`CAOS_RESTART_STATUS_SECONDS`); a different failure is logged in
+full again; recovery prints one line. Before this, a missing SDR respawned
+`rtl_433` about 40 times a second and wrote about 4 GB of log a day.
+
+**Tests:** `python -m pytest android-bridge/tests` (needs `pytest` and
+`requests`; uses stand-in `rtl_433` scripts, no SDR or backend).
+
+**Service template:** `caos-rf-bridge.service.example` is a systemd user unit
+that logs to the journal. It is not installed anywhere.

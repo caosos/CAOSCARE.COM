@@ -1,0 +1,40 @@
+# TEMPLATE ONLY - not installed on any host. Installing it on the EliteDesk
+# replaces the hand-started bridge process and needs Michael's approval.
+#
+# systemd user unit for the Python RF bridge (caos_rf_bridge.py). Output goes
+# to the journal, which rotates and caps its own size, instead of a file.
+#
+# Install (after approval):
+#   cp android-bridge/caos-rf-bridge.service.example ~/.config/systemd/user/caos-rf-bridge.service
+#   # create ~/.config/caos-bridge.env with:
+#   #   CAOS_API_URL=http://127.0.0.1:<backend port>
+#   #   CAOS_KIOSK_ID=<kiosk id that owns the SDR>
+#   #   CAOS_BANDS=319.5
+#   #   CAOS_RF_SECRET=<optional HMAC secret>
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now caos-rf-bridge.service
+#   journalctl --user -u caos-rf-bridge -f
+#
+# The bridge backs off on its own when rtl_433 fails (no SDR: 1-2-5-10-30-60 s),
+# so systemd only restarts it if the Python process itself dies.
+
+[Unit]
+Description=CAOSCare RF bridge (rtl_433 -> CAOSCare backend)
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/CAOSCARE.COM
+EnvironmentFile=%h/.config/caos-bridge.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 android-bridge/caos_rf_bridge.py
+Restart=on-failure
+RestartSec=10
+KillSignal=SIGTERM
+TimeoutStopSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=caos-rf-bridge
+
+[Install]
+WantedBy=default.target

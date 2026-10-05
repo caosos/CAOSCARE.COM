@@ -850,3 +850,10 @@ listener verifier experiment: `docs/experiments/`.
 - `backend/routes/simulation.py`: `POST /simulator/start` (optional `roles`), `POST /simulator/roles/{key}`, `GET /simulator/roles/{key}/candidates` (admin only).
 - `frontend/src/components/simulator/SimRoleControl.jsx`: hand a role to a real staff member / return to simulated / leave unassigned. `SimActors` shows SIMULATED / REAL / UNASSIGNED per role.
 - Test: `backend/tests/test_sim3_mixed_staffing.py`.
+
+## 2026-10-05 — RF bridge restart backoff (branch `fix/rf-bridge-restart-backoff`)
+
+- `android-bridge/rf_restart_policy.py`: when to respawn `rtl_433` (healthy = up ≥30 s or decoded a record → immediate; failed → 1/2/5/10/30/60 s backoff) and what to log while it keeps failing (once in full, then a status line every 300 s, one recovery line). `RunOutput` holds back a failing run's output.
+- `android-bridge/sdr_control.py`: `rtl_433` spawn/read loop, stall watchdog and SDR USB reset, moved out of `caos_rf_bridge.py` unchanged apart from returning a `RunResult` and honouring a stop event.
+- `android-bridge/caos-rf-bridge.service.example`: systemd user unit template (journal logging). Not installed.
+- Tests: `android-bridge/tests/test_restart_backoff.py`.

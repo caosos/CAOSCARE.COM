@@ -6539,3 +6539,51 @@ PR #57 `pilot/sim-latest-run-scenario` `9c3c4bf6ce67ed46374b1363078312d556f40cc5
 ## 2026-10-05 — Coordinator: stale-gate test fixes (PR #60) integrated
 
 PR #60 `tests/stale-gate-fixes` `70f3b68c9d21cc600068bb20273b6bf4cc663057` (Agent Six, base `72fe52b`) → merge `69f1490`. Tests only: `iter10_test.py`, `iter11_test.py` (26-tool session, `value` key, configured `FACILITY_LABEL`), `test_ops_overview.py` (yesterday from the facility-local date). Gate on the merge: 277 passed, **0 failed**, 14 skipped (same skips as before). Production code unchanged. Queue: PR #59 (SC-8/SC-9) waits for Agent Four's posted gate evidence; PR #58 (RQ-008) needs a refresh by Agent Five.
+
+---
+
+## 2026-10-05 — RF bridge restart backoff (Agent Five, draft PR)
+
+### Agent / branch
+Claude Code (Opus 5.5), Round 5 Agent Five. Branch `fix/rf-bridge-restart-backoff` (worktree `~/CAOSCARE-RF-BACKOFF`) from integration `92beeec`. Draft PR into `integration/2026-09-27`. Software only: the running bridge (pid 522046), its log, host services and the SDR were not touched; nothing deployed.
+
+### Defect
+With no SDR plugged in, `rtl_433` prints its banner, "No supported devices found." and exits with code 2. `main()` respawned it immediately, forever: 3.57 M spawns since 2026-10-04 11:22 UTC, about 4 GB of log a day (`docs/reports/2026-10-05-rf-bridge-log-audit.md`). Reproduced against the old script with a stand-in `rtl_433`: 2,026 spawns and 392 KB of output in 4 s.
+
+### What changed
+- `android-bridge/rf_restart_policy.py` (new, 156 lines): `RunResult`, `RestartSupervisor`, `RunOutput`, `run_forever`.
+  - A run is healthy if it stayed up ≥30 s or decoded a record. After a healthy run the respawn is immediate, so a watchdog restart (90 s of silence) is unchanged.
+  - After a failed run the bridge waits 1, 2, 5, 10, 30, then 60 s. A missing binary or other startup error goes through the same backoff (was a fixed 15 s / 5 s sleep).
+  - Logging: the first failure is printed in full. The same failure again prints one status line every 300 s. A different failure is printed in full. Recovery prints one line.
+- `android-bridge/sdr_control.py` (new, 246 lines): `run_rtl433`, `usb_reset_sdr` and their config, moved out of `caos_rf_bridge.py` (538 → 361 lines), as the oversized-files audit proposed.
+  - `run_rtl433` now returns a `RunResult`, stops when the stop event is set, and holds back its output while the supervisor is quiet.
+  - It now processes JSON lines written just before `rtl_433` exits (before, the loop broke on exit without reading them).
+  - Watchdog steps (terminate, 0.5 s, USB reset, 2 s) are unchanged; the waits are now interruptible.
+- `caos_rf_bridge.py::main`: SIGINT/SIGTERM set a stop event, from a helper thread (setting an Event inside the handler can deadlock); every wait is `stop.wait()`; it prints "shutting down" and exits 0.
+- `android-bridge/caos-rf-bridge.service.example`: systemd user unit template with journal logging; passes `systemd-analyze --user verify`; not installed. README section for the Python bridge.
+
+### Verified
+- `android-bridge/tests/test_restart_backoff.py`: 15 passed (`~/CAOSCARE-INTEGRATION/backend/.venv/bin/python -m pytest android-bridge/tests`).
+  - Backoff sequence and the 60 s cap; healthy runs reset it; a watchdog restart stays immediate; quiet/verbose switching.
+  - 1,000 failed spawns produce one full failure log and ~199 status lines.
+  - Shutdown ends a 60 s wait in < 0.5 s; a running `rtl_433` is stopped in < 3 s.
+  - The stall watchdog still kills `rtl_433` and resets the SDR.
+  - Decoded records reach `on_record` and are posted to `/api/rf/event`.
+  - End to end: the real script with a no-SDR stand-in spawned 3 times in 4 s, printed the banner once, and exited 0 within 2 s of SIGTERM.
+- Not verified: a run with the real SDR plugged in (the SDR is not enumerated on the host).
+
+### Open
+- The running bridge keeps the old code and keeps writing ~4 GB/day until someone restarts it on this code. Restarting it, and the log cleanup (R1–R3 in the RF log audit), need Michael's approval.
+- `poll_loop` still logs one line every 2 s while the backend is unreachable (~43 k lines/day); not changed here.
+
+HANDOFF CAPSULE
+- Objective:        Stop the RF bridge restart/log storm when no SDR is present.
+- Branch:           fix/rf-bridge-restart-backoff (draft PR into integration).
+- Lane / ownership: Agent Five; android-bridge/ only plus doc entries.
+- Last proven state: tests above, 2026-10-05.
+- Commits:          see this entry's commit.
+- Runtime state:    nothing started, stopped or restarted; pid 522046 still runs the old code.
+- Unresolved proven defects: the running process (old code); poll_loop error logging.
+- Product invariants: pendant decoding unchanged; never hide that rtl_433 is failing; no tight respawn loop.
+- Do NOT change:    the running bridge, its log, host services, the SDR — without Michael.
+- Next safe action: coordinator review; Michael decides when to restart the bridge on this code (or move it to the service template).
