@@ -6312,3 +6312,30 @@ Michael's instruction 2026-10-04. Added RQ-009 to `docs/PILOT1_READY_QUEUE.md` (
 Michael's "ROUND 5 — COORDINATOR RESUME". Tip before: `e89bc51b48e95425d1c6cc6b9f66178bf8eeeef6`.
 - PR #53 `research/hearing-assistance-audio` `449c841aae0551110943e918e0217e3259f02f8c` → merge `ee8057efc50cd0fdd4795657f65d10b114d7ef91`. Docs only (one new file, `docs/HEARING_ASSISTANCE_PERSONAL_AUDIO_ARCHITECTURE.md`); consistent with `ROOM_AUDIO_ARCHITECTURE.md`; proposals marked not built. REPO_MAP pointer added here. Gate on the merge (port 8077, throwaway DB): 254 passed / 4 failed / 13 skipped — the 3 known stale tests plus `test_ops_overview`, which fails between 00:00 UTC and local midnight (run at 00:57 UTC = 19:57 Chicago; the test seeds "yesterday" in UTC while the code compares facility-local dates). Not a regression (no code changed); fix exists as `aa3d2f1` on `spike/voice-bridge`. PR MERGED.
 - Assignments: Agent Five refreshes PR #52 (SC-17 run id, SC-16 email holdoff, default-off hooks, rerun); Agent Three SIM-3; Agent Four reprioritised to the Pilot blocker HA VM recovery/autostart (audit + design first, no qcow2 destruction, no Linode; SC-8/SC-9 paused); Claude Two one-model training-method A/B (Okay Sequoia + TV-dialogue-style hard negatives, evaluation byte-identical to batch 1); Agent Six Pilot Room hearing hardware requirement matrix (docs only).
+
+---
+
+## 2026-10-04 — Agent Four: Home Assistant VM recovered (Pilot blocker)
+
+### Agent / branch
+Claude Code (Opus 5.5), Round 5 Agent Four. Branch `ops/ha-vm-recovery` from integration `81a4f92`. Docs only in the repo; host actions were start/stop/restart of the existing domain. Not merged, not deployed; Linode untouched.
+
+### What happened / what was done
+- Root cause (kernel journal): host-wide OOM on 2026-10-03 20:19:36 CDT killed the HA VM's qemu process (largest process, no OOM protection) during a native build. Autostart cannot restart a killed domain; it only runs at host boot.
+- Audit + design committed first (`4d19963`, `docs/HA_VM_RECOVERY.md`). Then started the existing VM; no XML, qcow2, network, firewall or HA config change.
+- Verified: HA RUNNING, 8123 answers, CAOSCare `ha_health()` connected (68 entities); HA core restart and VM graceful shutdown/start both kept all 68 entity ids and 14 config entries; no SSH needed. Receipts R1–R8 in the doc.
+
+### Open (needs Michael)
+- Host-reboot test of autostart (not done; reboot needs approval).
+- OOM recovery: P1 qemu OOM protection (libvirt hook), P2 crash-only restart timer, P3 memory caps for heavy builds. Not applied.
+- Swap still full (2 GiB) from the OOM period.
+
+HANDOFF CAPSULE
+- Objective:        HA VM starts after reboot and recovers without SSH.
+- Branch:           ops/ha-vm-recovery
+- Lane / ownership: Agent Four; `caoscare-homeassistant` domain + `docs/HA_VM_RECOVERY.md`. No CAOSCare code.
+- Last proven state: R3–R7, 2026-10-04 20:02–20:06 CDT.
+- Runtime state:    VM running; :8092 backend connected to HA.
+- Unresolved proven defects: no automatic recovery after an OOM kill; Midea AC entity unavailable (pre-existing).
+- Do NOT change:    qcow2, domain definition, Linode.
+- Next safe action: Michael approves (or not) P1/P2 and a host-reboot test.

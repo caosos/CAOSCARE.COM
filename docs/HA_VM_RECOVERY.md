@@ -100,4 +100,67 @@ failure that happened. Evidence-based proposals, smallest first:
   OOM came from host pressure, not from the VM's allocation.
 
 ## 3. Receipts
-(appended below as each step runs)
+
+All times CDT, 2026-10-04. Commands run as `caoscare-1` via
+`virsh -c qemu:///system`. No domain XML, qcow2, network, firewall or
+Home Assistant configuration was changed. Design committed first (`4d19963`).
+
+**R1 — pre-start state (20:01:08).** `domstate --reason`: `shut off
+(crashed)`; autostart `enable`; 4 GiB / 2 vCPU. qcow2 9 023 062 016 bytes,
+mtime 2026-10-03 20:19:28, sha256 prefix `88f62da3c548840c`. Host: 9.1 GiB
+available, swap 2040/2047 MiB used.
+
+**R2 — start existing VM (20:01:58).** `virsh start caoscare-homeassistant`
+→ `running (booted)`. Autostart unchanged (`enable`).
+
+**R3 — HA operational (20:02:48–20:02:55).** `GET :8123/manifest.json` 200
+~50 s after start. With the CAOSCare `HA_TOKEN` (not printed):
+`/api/config` state `RUNNING`, version 2026.7.4, 166 components, tz
+America/Chicago; 68 entities. Room 214 entities present:
+`light.smart_multicolor_bulb` off, `light.smart_multicolor_bulb_2` on,
+`climate.bedroom_midea_ac` unavailable (unavailable since 2026-09-05; not
+changed by this work). No device command was sent.
+
+**R4 — CAOSCare reaches HA.** `device_adapters.ha_health()` from
+`~/CAOSCARE-INTEGRATION/backend` with its own `.env`:
+`{'status': 'connected', 'base_url': 'http://192.168.122.137:8123',
+'entity_count': 68}`. :8092 `/api/health` ok.
+
+**R5 — baseline.** 68 entity ids and 14 config entries (analytics, backup,
+go2rtc, google_translate, hassio, matter, media_extractor, met, 2×
+mobile_app, mqtt, radio_browser, shopping_list, sun) saved for comparison.
+
+**R6 — HA core restart (20:03:17).** `POST
+/api/services/homeassistant/restart` returned 504 (HA drops the request
+while restarting). Logbook confirms the restart: stopped 01:03:18Z, started
+01:03:43Z. After restart: `RUNNING`; entity ids and config entries identical
+to R5.
+
+**R7 — VM graceful shutdown + start (20:04:25–20:06:10).** Checked first: 0
+active Aria leases, 0 device commands in the last 10 min. `virsh shutdown`
+→ `shut off (shutdown)` in 20 s (graceful, not crash); `virsh start`;
+:8123 200 at 20:05:28 (~41 s). `RUNNING`; entity ids and config entries
+identical to R5; both bulbs reporting state; `ha_health()` connected, 68
+entities. No SSH or console needed for either restart.
+
+**R8 — host after tests (20:06).** 6.8 GiB available; swap 2047/2047 MiB
+used (still full from the 10-03 OOM period; not reclaimed). LAN DNAT/
+MASQUERADE rules for 8123 still present (host rules, untouched).
+
+## 4. Acceptance status
+
+| Criterion | Status |
+|---|---|
+| Existing VM boots, HA reachable | **Done** (R2, R3) |
+| CAOSCare can connect | **Done** (R4) |
+| Restart does not destroy config | **Done** (R6, R7) |
+| Normal restart without SSH | **Done** (R6, R7) |
+| Host keeps resources for CAOSCare | **Done for now** (R8: 6.8 GiB free; swap full — see P1–P3) |
+| VM starts after an EliteDesk reboot | **Not tested** — autostart `enable` is configured; proof needs a host reboot, which needs Michael's approval |
+| Recovers from another OOM kill without SSH | **Not done** — needs approval of P1/P2 (host changes) |
+| Receipt of exact config changes | **Done** — no configuration was changed; only start/stop/restart actions (R1–R7) |
+
+Known host-reboot loss (unchanged, recorded 2026-08-02/09-05): the 8123
+DNAT/MASQUERADE rules and the in-VM IPv6 address for the Midea AC are
+runtime-only. CAOSCare uses 192.168.122.137 directly and is unaffected; LAN
+phone/browser access to `192.168.1.151:8123` would need the rules restored.
