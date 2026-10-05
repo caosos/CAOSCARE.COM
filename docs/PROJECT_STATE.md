@@ -6528,3 +6528,32 @@ Claude Code (Opus 5.5), Round 5 Agent Five. `docs/rq-008-storage-receipt`, refre
 
 ### Next safe step
 Claude Two and Michael approve or decline the Phase 2 items. Nothing runs before that.
+
+---
+
+## 2026-10-05 — Simulator: scenario-aware latest/active run (Agent Three)
+
+### Agent / branch
+Claude Code (Opus 5.5), Round 5 Agent Three. Branch `pilot/sim-latest-run-scenario` from integration `5d13cd1` (directive named `72fe52b`; the one commit between is coordinator docs). Draft PR into `integration/2026-09-27`. Not merged, not deployed.
+
+### What changed
+- `scenario.SCENARIO_IDS`: the scenarios the Operations Simulator drives (today `sink_leak`).
+- `scheduler.latest_run()` / `active_run()` filter `db.sim_runs` to those scenarios; `view()` falls back to the latest simulator run if handed any other scenario's run. RQ-001's `demo_continuity` run is therefore never the simulator's latest or current run. `history(run_id)` unchanged, so every run's history stays readable. No new state.
+- Live Operations' "Active simulated requests" shows only the current run's requests (`simulation_run_id`), not demo-continuity requests in the same room.
+
+### Verified
+- New `tests/test_sim_latest_run_scenario.py` 2/2 (a newer continuity run is not picked by latest_run/view; view(continuity run) still shows the simulator run; an active continuity run is not the active simulator run; its history is intact; only a continuity run → no simulator run). Against the old scheduler both fail (latest_run returned the continuity run).
+- SIM-1 6, SIM-3 4, SC-16/17 provenance 7, RQ-001 demo continuity 14: all pass.
+- Full gate (port 8071, scratch DB): 258 passed, 1 failed (`test_ops_overview`, known 00:00 UTC–local-midnight failure), 32 skipped. Frontend 34 suites / 268 tests; build compiles.
+
+### Line counts (before → after)
+`scheduler.py` 340→353, `scenario.py` 121→125, `simulator.js` 131→135, `LiveOperations.jsx` 101→101, `simulator.test.js` 110→117, `test_sim_latest_run_scenario.py` 89 (new).
+
+### Next safe step
+Coordinator review. SIM-4 Nursing: read-only preparation until this merges.
+
+---
+
+## 2026-10-05 — Coordinator: scenario-aware simulator latest run (PR #57) integrated
+
+PR #57 `pilot/sim-latest-run-scenario` `9c3c4bf6ce67ed46374b1363078312d556f40cc5` (base `5d13cd1`) → merge `737df76`. Simulator lane only: `scheduler.active_run/latest_run/view` scoped to `scenario.SCENARIO_IDS`; Live Operations lists only the current run's requests (`simulation_run_id`); `demo_continuity.py` unchanged. On the merge: `test_sim_latest_run_scenario.py` + SIM-3 + SIM-1 + SC-16/17 + RQ-001 — 33 passed; gate 273 passed / 4 failed (3 known stale + `test_ops_overview`, 01:56 UTC) / 14 skipped — one new skip, `test_sim_latest_run_scenario.py:85` ("scratch DB already holds Operations Simulator runs"), which runs in isolation but not in the gate (asked Agent Three to make it self-contained); frontend 34 suites / 268. PR MERGED. The live run `simrun_4b9a3f2c415d` on :8092 is unaffected until that backend is restarted (it is a sink_leak run, so it stays the current run after a restart).

@@ -27,6 +27,10 @@ from routes.task_lifecycle import chain_head, load
 from simulation import roster, staffing
 
 SCENARIO_ID = "sink_leak"
+# Scenarios the Operations Simulator scheduler drives. Other writers of
+# db.sim_runs (e.g. RQ-001 demo continuity) register runs under their own
+# scenario id; the scheduler never treats those as its runs.
+SCENARIO_IDS = (SCENARIO_ID,)
 SINK_WORDS = "The bathroom sink in my room keeps dripping."
 
 STEPS = [
