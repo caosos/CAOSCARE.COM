@@ -30,17 +30,28 @@ receipt. Each processed window adds one `demo_continuity_window` receipt
 Exactly-once: the window range is claimed with one compare-and-set on
 `last_simulated_at` before any work, so a second refresh or a concurrent
 sign-in finds nothing left to process. Catch-up defers (and records why)
-while a SIM-1 run is active, or a live email provider is configured.
+while a SIM-1 run is active.
+
+Simulator provenance (SC-17): continuity is one registered simulation run
+(`db.sim_runs`, scenario `demo_continuity`, state STOPPED so the SIM-1
+scheduler never acts on it). Generated requests are raised with that
+`simulation_run_id`, so they carry source/channel "simulator", and their
+notifications are recorded as simulated and never reach a provider (SC-16).
+
+Startup and sign-in catch-up are off unless CAOSCARE_DEMO_CONTINUITY_AUTO is
+set (Michael's decision per environment); the admin endpoint always works.
 """
 import asyncio
 import hashlib
+import logging
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from zoneinfo import ZoneInfo
 
 from deps import db
 from models import now_utc, uid
-from routes import notifications, task_actions
+from routes import task_actions
 from routes.actor_context import ActorContext
 from routes.demo_kiosk import DEMO_ROOM
 from routes.facility_local_time import facility_tz
@@ -50,6 +61,8 @@ from routes.resident_requests import ResidentRequestInput, create_resident_reque
 from simulation import roster, scheduler
 
 STATE_KEY = "demo_room"
+RUN_SCENARIO = "demo_continuity"
+AUTO_ENV = "CAOSCARE_DEMO_CONTINUITY_AUTO"   # default off: startup/sign-in hooks do nothing
 WINDOW = timedelta(hours=1)
 MAX_WINDOWS = 72            # a longer gap fast-forwards to the last 72 hours
 ADVANCE_PER_WINDOW = 10
@@ -157,6 +170,7 @@ async def _record(st: dict, action_type: str, *, before: dict, after: dict, resu
         action_type=action_type, related_object_type="demo_continuity", related_object_id=STATE_KEY,
         room=DEMO_ROOM, status=status, result=result, failure_reason=failure_reason,
         provenance={**_ACTOR.receipt_fields(), "authority": _AUTHORITY,
+                    "simulation_run_id": st.get("simulation_run_id"),
                     "parent_receipt_id": st.get("last_receipt_id") if chain else None,
                     "correlation_id": st.get("origin_receipt_id") if chain else None,
                     "before_state": before, "after_state": after,
@@ -167,6 +181,31 @@ async def _record(st: dict, action_type: str, *, before: dict, after: dict, resu
         await db.demo_continuity.update_one({"key": STATE_KEY},
                                             {"$set": {"last_receipt_id": receipt["receipt_id"]}})
     return receipt
+
+
+async def _ensure_run(st: dict, cast: dict) -> str:
+    """Continuity's simulation run (SC-17 needs a registered run id). Created
+    once per continuity record, STOPPED so the SIM-1 scheduler never ticks it;
+    its run chain is the continuity receipt chain (origin_receipt_id)."""
+    if st.get("simulation_run_id"):
+        return st["simulation_run_id"]
+    run_id = uid("simrun")
+    res = await db.demo_continuity.update_one(
+        {"key": STATE_KEY, "simulation_run_id": {"$exists": False}}, {"$set": {"simulation_run_id": run_id}})
+    if not res.modified_count:
+        st.update(await get_state())
+        return st["simulation_run_id"]
+    now = now_utc().isoformat()
+    await db.sim_runs.insert_one({
+        "run_id": run_id, "scenario": RUN_SCENARIO, "state": scheduler.STOPPED, "cursor": 0, "sim_minute": 0,
+        "workflow": {}, "cast": cast, "started_by": _ACTOR.receipt_fields(),
+        "origin_receipt_id": st["origin_receipt_id"], "last_receipt_id": st.get("last_receipt_id"),
+        "created_at": now, "updated_at": now})
+    st["simulation_run_id"] = run_id
+    await _record(st, "demo_continuity_run_registered", before={"simulation_run_id": None},
+                  after={"simulation_run_id": run_id, "state": scheduler.STOPPED},
+                  result=f"demo continuity registered as simulation run {run_id}")
+    return run_id
 
 
 async def _open_tasks() -> list:
@@ -197,7 +236,7 @@ async def _advance(task: dict, refs: list) -> Optional[str]:
     return step
 
 
-async def _process_window(start: datetime, cast: dict, tz: str, generated: dict) -> dict:
+async def _process_window(start: datetime, cast: dict, tz: str, generated: dict, run_id: str) -> dict:
     end = start + WINDOW
     refs, out = [], {"window_start": start.isoformat(), "advanced": [], "closed_backlog": [], "generated": None}
     open_tasks = await _open_tasks()
@@ -231,7 +270,7 @@ async def _process_window(start: datetime, cast: dict, tz: str, generated: dict)
             r = cast["resident"]
             made = await create_resident_request(ResidentRequestInput(
                 category=category, resident_id=r["actor_id"], room=r["room"],
-                resident_words=words, summary=words, source=roster.RESIDENT_CHANNEL))
+                resident_words=words, summary=words), simulation_run_id=run_id)
             refs.append(made["receipt_id"])
             generated[made["task_id"]] = start
             out["generated"] = {"task_id": made["task_id"], "category": category}
@@ -259,8 +298,6 @@ async def catch_up(now: Optional[datetime] = None, trigger: str = "manual") -> d
         reason = None
         if await scheduler.active_run():
             reason = "a SIM-1 simulation run is active"
-        elif notifications.RESEND_KEY:
-            reason = "a live email provider is configured; simulated requests would send real mail"
         else:
             try:
                 cast = await roster.resolve_cast()
@@ -271,6 +308,7 @@ async def catch_up(now: Optional[datetime] = None, trigger: str = "manual") -> d
                           after={"last_simulated_at": last.isoformat()}, status="failed",
                           result=f"catch-up ({trigger}) deferred", failure_reason=reason, chain=False)
             return {"status": "deferred", "reason": reason, "windows": 0}
+        run_id = await _ensure_run(st, cast)
         # Claim the whole range before doing any work: exactly-once.
         claimed = await db.demo_continuity.find_one_and_update(
             {"key": STATE_KEY, "last_simulated_at": st["last_simulated_at"]},
@@ -291,7 +329,7 @@ async def catch_up(now: Optional[datetime] = None, trigger: str = "manual") -> d
         w = first
         while w < target:
             before = await _counts()
-            out = await _process_window(w, cast, tz, generated)
+            out = await _process_window(w, cast, tz, generated, run_id)
             after = await _counts()
             await _record(st, "demo_continuity_window",
                           before={**before, "window_start": w.isoformat()},
@@ -303,17 +341,26 @@ async def catch_up(now: Optional[datetime] = None, trigger: str = "manual") -> d
             windows.append(out)
             w += WINDOW
         await db.demo_continuity.update_one({"key": STATE_KEY}, {"$inc": {"windows_processed": len(windows)}})
-        return {"status": "caught_up", "windows": len(windows), "skipped_hours": skipped,
+        await db.sim_runs.update_one({"run_id": run_id}, {"$set": {
+            "last_receipt_id": st.get("last_receipt_id"), "updated_at": now_utc().isoformat()}})
+        return {"status": "caught_up", "windows": len(windows), "skipped_hours": skipped, "simulation_run_id": run_id,
                 "last_simulated_at": target.isoformat(), "detail": windows, **await _counts()}
 
 
+def auto_enabled() -> bool:
+    return os.environ.get(AUTO_ENV, "").strip().lower() in ("1", "true", "yes")
+
+
 def catch_up_in_background(trigger: str) -> None:
-    """Fire-and-forget for sign-in/startup. Never blocks or fails the caller."""
+    """Fire-and-forget for sign-in/startup, only when AUTO_ENV is on. Never
+    blocks or fails the caller."""
+    if not auto_enabled():
+        return
+
     async def _run():
         try:
             await catch_up(trigger=trigger)
         except Exception as e:   # noqa: BLE001 - continuity must never break sign-in
-            import logging
             logging.warning(f"demo continuity catch-up ({trigger}) failed: {e}")
     try:
         asyncio.get_running_loop().create_task(_run())

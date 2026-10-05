@@ -8,7 +8,9 @@ Acceptance (one test each, in order):
   4 the same window never twice        10 every change explicitly simulated
   5 completed old work goes to history 11 receipts and provenance exist
   6 unresolved work stays bounded
-plus: a live email provider defers catch-up (recorded, nothing processed).
+plus: SC-17 run id on generated work, no provider side effects (SC-16) with a
+live-looking email key set for the whole module, startup/sign-in hooks off by
+default.
 
 In-process and DB-direct (no backend server). Windows are driven by an
 explicit `now`, so the run is reproducible. Refuses the live `caoscare` DB.
@@ -18,6 +20,7 @@ explicit `now`, so the run is reproducible. Refuses the live `caoscare` DB.
 """
 import asyncio
 import os
+import httpx
 import sys
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -41,7 +44,8 @@ TAG = f"rq001_{uuid.uuid4().hex[:8]}"
 REAL_ROOM = f"R-{TAG}"
 REAL_RES = f"res_{TAG}"
 ANCHOR = datetime(2031, 3, 4, 0, 0, tzinfo=timezone.utc)   # fixed: reproducible windows
-CTX = {}
+CTX = {"provider_calls": 0}
+EMAIL_DEPTS = ("maintenance", "housekeeping", "kitchen")
 
 
 def run(coro):
@@ -56,6 +60,7 @@ async def _fresh():
     """Scratch-DB reset of RQ-001 state only: the continuity record and
     the demo room's tasks (plus their receipts). Real-room data is kept."""
     ids = [t["task_id"] for t in await _demo_tasks()]
+    await db.notifications.delete_many({"task_id": {"$in": ids}})
     await db.staff_tasks.delete_many({"room": DEMO_ROOM})
     await db.receipts.delete_many({"related_object_id": {"$in": ids + [continuity.STATE_KEY]}})
     await db.demo_continuity.delete_many({})
@@ -76,9 +81,20 @@ async def _window_receipts() -> list:
                                   {"_id": 0}).sort("created_at", 1).to_list(1000)
 
 
+async def _fake_post(self, url, *a, **k):   # a provider call is a test failure
+    CTX["provider_calls"] += 1
+    raise AssertionError(f"provider called: {url}")
+
+
 async def _setup():
-    notifications.RESEND_KEY = None
+    # Live-looking provider key for the whole module: SC-16 must keep every
+    # simulated notification away from the provider.
+    CTX["orig_key"], CTX["orig_post"] = notifications.RESEND_KEY, httpx.AsyncClient.post
+    notifications.RESEND_KEY = "re_fake_live_key_for_test"
+    httpx.AsyncClient.post = _fake_post
     await seed_default_departments()
+    for slug in EMAIL_DEPTS:
+        await db.departments.update_one({"slug": slug}, {"$set": {"contact_email": f"{slug}@{TAG}.invalid"}})
     await ensure_demo_room()
     demo = await db.residents.find_one({"room": DEMO_ROOM}, {"_id": 0})
     CTX["demo_resident"] = demo["resident_id"]
@@ -91,6 +107,9 @@ async def _setup():
     await create_resident_request(ResidentRequestInput(
         category="maintenance", resident_id=REAL_RES, room=REAL_ROOM,
         resident_words="The heater in my room is making a noise.", summary="Heater noise"))
+    # Control: the real request DID go to the (patched) provider, so the patch
+    # detects a real send. Count only what happens after this point.
+    CTX["control_calls"], CTX["provider_calls"] = CTX["provider_calls"], 0
     await _fresh()
 
 
@@ -114,7 +133,11 @@ def teardown_module(_):
         await db.staff_tasks.delete_many({"room": REAL_ROOM})
         await db.receipts.delete_many({"related_object_id": {"$in": real}})
         await db.departments.delete_many({"slug": {"$regex": f"^{TAG}"}})
+        await db.departments.update_many({"slug": {"$in": list(EMAIL_DEPTS)}}, {"$unset": {"contact_email": ""}})
+        await db.sim_runs.delete_many({"scenario": continuity.RUN_SCENARIO})
     run(_clean())
+    notifications.RESEND_KEY = CTX["orig_key"]
+    httpx.AsyncClient.post = CTX["orig_post"]
 
 
 def test_1_initial_continuity_timestamp():
@@ -201,8 +224,10 @@ def test_7_generated_work_plausible_and_deterministic():
     made = [t for t in run(_demo_tasks()) if t.get("resident_words") in {w for _, w in continuity.CATALOGUE}]
     assert made, "30 simulated hours should have produced at least one new request"
     catalogue = dict((w, c) for c, w in continuity.CATALOGUE)
+    run_id = run(continuity.get_state())["simulation_run_id"]
     for t in made:
         assert t["category"] == catalogue[t["resident_words"]]
+        assert t["source"] == "simulator" and t["simulation_run_id"] == run_id   # SC-17
         assert t["room"] == DEMO_ROOM and t["resident_id"] == CTX["demo_resident"]
         assert t["simulated"] is True and t["simulation_scope"] == "demo_room"
     # Which windows raise a request is a fixed rule of the window start.
@@ -229,7 +254,8 @@ def test_11_receipts_and_provenance():
     st = run(continuity.get_state())
     windows = run(_window_receipts())
     assert windows
-    ids = {st["origin_receipt_id"]} | {r["receipt_id"] for r in windows}
+    chain = run(db.receipts.find({"correlation_id": st["origin_receipt_id"]}, {"_id": 0}).to_list(2000))
+    ids = {r["receipt_id"] for r in chain}
     for r in windows:
         assert r["correlation_id"] == st["origin_receipt_id"]
         assert r["parent_receipt_id"] in ids
@@ -243,14 +269,54 @@ def test_11_receipts_and_provenance():
     assert st["last_receipt_id"] == windows[-1]["receipt_id"]
 
 
-def test_live_email_provider_defers_and_records():
+def test_12_simulation_run_registered_and_linked():
+    st = run(continuity.get_state())
+    run_doc = run(db.sim_runs.find_one({"run_id": st["simulation_run_id"]}, {"_id": 0}))
+    assert run_doc["scenario"] == continuity.RUN_SCENARIO and run_doc["state"] == "STOPPED"
+    assert run_doc["origin_receipt_id"] == st["origin_receipt_id"]
+    assert run(db.sim_runs.find_one({"state": {"$in": ["RUNNING", "PAUSED"]}})) is None   # never schedulable
+    for r in run(_window_receipts()):
+        assert r["simulation_run_id"] == st["simulation_run_id"]
+    for t in run(_demo_tasks(simulation_run_id=st["simulation_run_id"])):   # receipts on generated work
+        for r in run(db.receipts.find({"related_object_type": "task", "related_object_id": t["task_id"]},
+                                      {"_id": 0}).to_list(50)):
+            assert r["simulation_run_id"] == st["simulation_run_id"]
+
+
+def test_13_no_real_provider_side_effects():
+    assert CTX["control_calls"] >= 1      # the real request reached the provider path
+    assert CTX["provider_calls"] == 0     # no simulated request did
+    ids = {t["task_id"]: t for t in run(_demo_tasks())}
+    sent = run(db.notifications.find({"task_id": {"$in": list(ids)}}, {"_id": 0}).to_list(500))
+    assert sent, "department emails were configured, so simulated notifications must be recorded"
+    for n in sent:
+        assert n["status"] == "simulated" and n["simulated"] is True
+        assert n["simulation_run_id"] == ids[n["task_id"]].get("simulation_run_id")
+    assert run(db.notifications.count_documents({"task_id": {"$in": list(ids)},
+                                                 "status": {"$in": ["sent", "failed", "queued"]}})) == 0
+
+
+def test_14_startup_and_sign_in_hooks_off_by_default():
+    os.environ.pop(continuity.AUTO_ENV, None)
+    assert continuity.auto_enabled() is False
+    before = run(continuity.get_state())
+    async def _hook():
+        continuity.catch_up_in_background("sign_in")   # would catch up a long gap if it ran
+        await asyncio.sleep(0.3)
+    run(_hook())
+    assert run(continuity.get_state()) == before
+
+
+def test_15_sim1_run_defers_and_records():
     last = run(continuity.get_state())["last_simulated_at"]
-    notifications.RESEND_KEY = "re_live_key_for_test"
+    rid = f"simrun_{TAG}"
+    run(db.sim_runs.insert_one({"run_id": rid, "scenario": "sink_leak", "state": "RUNNING",
+                                "created_at": "2000-01-01T00:00:00+00:00"}))
     try:
         out = run(continuity.catch_up(now=ANCHOR + timedelta(hours=40)))
     finally:
-        notifications.RESEND_KEY = None
-    assert out["status"] == "deferred" and "email" in out["reason"]
+        run(db.sim_runs.delete_many({"run_id": rid}))
+    assert out["status"] == "deferred" and "SIM-1" in out["reason"]
     assert run(continuity.get_state())["last_simulated_at"] == last
     rec = run(db.receipts.find_one({"action_type": "demo_continuity_deferred"}, {"_id": 0}))
     assert rec and rec["status"] == "failed" and rec["simulated"] is True

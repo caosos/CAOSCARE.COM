@@ -132,8 +132,8 @@ async def lifespan(app: FastAPI):
         await _ensure_continuity_indexes()
     except Exception as e:
         logging.warning(f"continuity index setup skipped: {e}")
-    # RQ-001: the demo room catches up on the hours nobody was signed in.
-    # Background only; never blocks startup.
+    # RQ-001: demo room catch-up. Background only; does nothing unless
+    # CAOSCARE_DEMO_CONTINUITY_AUTO is set.
     from demo_continuity import catch_up_in_background
     catch_up_in_background("startup")
     yield

@@ -6363,3 +6363,50 @@ Michael's instruction 2026-10-04. Added RQ-009 to `docs/PILOT1_READY_QUEUE.md` (
 Michael's "ROUND 5 — COORDINATOR RESUME". Tip before: `e89bc51b48e95425d1c6cc6b9f66178bf8eeeef6`.
 - PR #53 `research/hearing-assistance-audio` `449c841aae0551110943e918e0217e3259f02f8c` → merge `ee8057efc50cd0fdd4795657f65d10b114d7ef91`. Docs only (one new file, `docs/HEARING_ASSISTANCE_PERSONAL_AUDIO_ARCHITECTURE.md`); consistent with `ROOM_AUDIO_ARCHITECTURE.md`; proposals marked not built. REPO_MAP pointer added here. Gate on the merge (port 8077, throwaway DB): 254 passed / 4 failed / 13 skipped — the 3 known stale tests plus `test_ops_overview`, which fails between 00:00 UTC and local midnight (run at 00:57 UTC = 19:57 Chicago; the test seeds "yesterday" in UTC while the code compares facility-local dates). Not a regression (no code changed); fix exists as `aa3d2f1` on `spike/voice-bridge`. PR MERGED.
 - Assignments: Agent Five refreshes PR #52 (SC-17 run id, SC-16 email holdoff, default-off hooks, rerun); Agent Three SIM-3; Agent Four reprioritised to the Pilot blocker HA VM recovery/autostart (audit + design first, no qcow2 destruction, no Linode; SC-8/SC-9 paused); Claude Two one-model training-method A/B (Okay Sequoia + TV-dialogue-style hard negatives, evaluation byte-identical to batch 1); Agent Six Pilot Room hearing hardware requirement matrix (docs only).
+
+---
+
+## 2026-10-04 — Agent Five: RQ-001 refreshed onto SC-16/SC-17 (PR #52)
+
+### Agent / branch
+Claude Code (Opus 5.5), Round 5 Agent Five. `pilot/rq-001-demo-continuity`: merged `integration/2026-09-27` `81a4f92` in (merge commit, no force-push). Conflicts were only in `PROJECT_STATE.md` / `REPO_MAP.md`; both sides were kept. Not merged, not deployed.
+
+### What changed (coordinator review items 1–5)
+- **SC-17:**
+  - Continuity is one registered simulation run in `db.sim_runs`: scenario `demo_continuity`, state `STOPPED`, so the SIM-1 scheduler never acts on it.
+  - Its origin is the continuity origin receipt; it is created once, with a `demo_continuity_run_registered` receipt.
+  - Generated requests go through `create_resident_request(..., simulation_run_id=...)`, so they get source `simulator` and the run id.
+  - Window receipts carry the run id too.
+- **SC-16:** the email-provider holdoff is removed. Simulated requests' notifications are recorded as `simulated` and never reach a provider; that is now SC-16's job, with no duplicate guard here.
+- **Default-off hooks:** the startup (`server.py`) and sign-in (`auth.py::_issue_jwt`) hooks do nothing unless `CAOSCARE_DEMO_CONTINUITY_AUTO` is set. The admin endpoint always works.
+- **Auth hook rechecked:** there is no existing success-login hook (`log_event` in auth is throttle failures only), and every sign-in path calls `_issue_jwt`. `auth.py` stays at +4 lines.
+
+### Verified
+- `tests/test_demo_continuity.py`: 14 passed.
+  - The whole module runs with a live-looking email key, department contact emails set, and the provider HTTP call patched to count.
+  - Control: the real resident's request did reach the provider path.
+  - Simulated requests caused 0 provider calls; all their notifications are `simulated` and carry the task's run id.
+- Breaking a guard on purpose makes tests fail:
+  - no run id → 1 fails;
+  - hooks always on → 1 fails;
+  - no exactly-once claim → 3 fail;
+  - no demo scope → 4 fail;
+  - no cap → 4 fail.
+- Gate (`run_backend_tests.sh`, port 8078): 253 passed / 1 failed / 31 skipped. The failure is `test_ops_overview` (past-requested-date). The integration tip `81a4f92` fails the same test on its own (239 passed / 1 failed).
+
+### Limits
+- A newer continuity run doc can become SIM-2's "latest run": `scheduler.latest_run()` does not filter by scenario. SHARED CORE REQUEST for Agent Three.
+- With the switch on, a seed script that issues a token would also start a catch-up in its own process.
+- Earlier limits stand: steps carry catch-up time, not window time; the 3W wing is out of scope; gaps over 72 h fast-forward.
+
+HANDOFF CAPSULE
+- Objective:        RQ-001 on the SC-16/17 contract.
+- Branch:           pilot/rq-001-demo-continuity (draft PR #52).
+- Lane / ownership: Agent Five; new files plus hooks in server.py (+6) and auth.py (+4). No edits to simulation/*, resident_requests, notifications, task_lifecycle, models.
+- Last proven state: tests and gate above, 2026-10-04.
+- Commits:          see this entry's commit.
+- Runtime state:    nothing started; scratch DBs dropped.
+- Unresolved proven defects: none in RQ-001; test_ops_overview fails on integration too.
+- Product invariants: demo-only; one receipt per window; no provider side effects from simulated work.
+- Do NOT change:    the default-off switch without Michael's decision.
+- Next safe action: coordinator review; Michael decides whether to set CAOSCARE_DEMO_CONTINUITY_AUTO on any environment.
