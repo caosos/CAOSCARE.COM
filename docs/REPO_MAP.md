@@ -834,3 +834,4 @@ listener verifier experiment: `docs/experiments/`.
 ## 2026-10-04 — Hearing assistance / personal audio (RQ-009)
 
 - `docs/HEARING_ASSISTANCE_PERSONAL_AUDIO_ARCHITECTURE.md`: research — hearing aids as an optional personal output; room microphone stays the input; CAOSCare never pairs to hearing aids; proposals not built; unknowns needing physical tests.
+- `docs/PILOT_HEARING_AUDIO_REQUIREMENTS.md`: Pilot Room hearing/handset procurement and acceptance requirements (FCC wireline HAC, volume, ATA, phone-as-Bluetooth-owner rule, capability classes, physical test matrix, one-page procurement gate; UNKNOWN never counts as PASS).
