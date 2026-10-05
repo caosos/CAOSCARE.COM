@@ -6614,3 +6614,18 @@ Claude Code (Opus 5.5), Round 5 Agent Three. Branch `pilot/sim-4-nursing` from i
 
 ### Next safe step
 Coordinator review of the draft PR.
+
+---
+
+## 2026-10-05 — Coordinator: PR #61, #62, #58 integrated (one at a time)
+
+Claude Code (Opus 5.5), coordinator, `integration/2026-09-27` from `a42973d`. No main merge, no Linode deploy, no deletion, no host reboot.
+
+- **PR #61** `docs/rq-002-readiness-audit` `c8add05266dd14a9ec2d8c742ddc3458e3263151` (Agent Six) → `92beeec`. Docs only. Its finding §7(a) was verified in source. `POST /api/realtime/aria-session` (`routes/realtime.py:163`) has no auth dependency, and it builds instructions from the request body's `owner_user_id` through `build_aria_context_block`, which reads that owner's `db.aria_memories`. Not tested against a live site. Fix assigned to Agent Six as a high-priority security PR.
+- **PR #62** `pilot/sim-4-nursing` `928c7bbe998759c577f3ad307bdf4bb062331bd7` (Agent Three) → `7446cc7`, clean merge. Simulator lane only: scenario registry with `nursing_assist`; the simulated nurse `sim:staff:nursing-1` is the same identity demo continuity uses; notifications stay simulated. Results on the merge:
+  - focused simulator tests: 36 passed;
+  - gate: 280 passed / 0 failed / 14 skipped (the latest-run skip is gone; the new `iter8_test.py` skip is OpenAI returning 0 extractions);
+  - frontend: 34 suites / 268 tests; build compiled.
+  **SIM-4 Nursing accepted.**
+- **PR #58** `docs/rq-008-storage-receipt` `8be5fb020843cabe9dfadbc7db7cbda52539a583` (Agent Five) → `57f71ce`. Docs only (storage audit + RF bridge log audit). Phase 2 deletions are proposals only and are **not authorized**; they await Michael.
+- Queue: RQ-002 WAITING (security fix + Aria governance decision); RQ-003 READY and the priority for the next acceptance loop; RQ-008 Phase 2 awaiting Michael. Agent Four refreshes PR #59 once onto this receipt's tip.
