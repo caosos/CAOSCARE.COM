@@ -6504,3 +6504,27 @@ PR #56 `pilot/sim-3-mixed-staffing` `ff9465a062a828db1ce07a00aeb52e5eb3f507d9` (
 Michael's "ROUND 5 — AGENT ONE / COORDINATOR" at tip `72fe52b306b2421cbbc3876ea3969e31b31addd1`.
 - Board set to the current assignments: Agent 2 (Claude Two) one-model Okay Sequoia training-method A/B; Agent 3 scenario-aware `latest_run()` then SIM-4 Nursing; Agent 4 SC-8 + SC-9; Agent 5 RQ-008 report + Phase 2 deletion proposal only; Agent 6 stale gate test fixes only.
 - Michael opened the integrated Live Operations UI on the EliteDesk and started simulator runs. Verified read-only in the shared `caoscare` DB: `simrun_d0ea805fa522` (sink_leak, 01:23:40 UTC, started_by MICHAEL CHAMBERS / owner / authenticated / staff_ui; STOPPED at cursor 6) and `simrun_4b9a3f2c415d` (01:28:25 UTC, RUNNING at cursor 4). Served by :8092 from `~/CAOSCARE-INTEGRATION/backend` (process started 2026-10-04 20:22 CDT). Checklist evidence updated.
+
+---
+
+## 2026-10-05 — Agent Five: RQ-008 storage audit finalized with Phase 2 proposal (docs only)
+
+### Agent / branch
+Claude Code (Opus 5.5), Round 5 Agent Five. `docs/rq-008-storage-receipt`, refreshed by merging integration `81a4f92`. Documentation only. **Nothing deleted** this block; all measurements are read-only.
+
+### What changed
+`docs/reports/2026-10-04-elitedesk-storage-audit.md`:
+- Original state, the Phase 1 result (8.03 GB), and a re-measurement on 2026-10-05.
+- Current consumers, active and protected wake-lab data, evidence-protected files, and the worktree classes.
+- A Phase 2 proposal with exact commands, size estimates, risks and prerequisites, in four buckets:
+  - SAFE AFTER WAKE TEST ~1.9G;
+  - NEEDS CLAUDE TWO APPROVAL ~71G (mostly finished candidates' `positive_features`, ~52G);
+  - NEEDS MICHAEL APPROVAL ~12.6G;
+  - DO NOT TOUCH.
+
+### Findings
+- Free space fell from 72.55 GB after Phase 1 to 51.04 GB, mainly wake-lab runs (+13G) and a new hard-negative set (5.6G).
+- The RF bridge log is 2.6 GB and growing about 4 GB/day. It is held open without append mode, so truncating it alone is not a clean fix.
+
+### Next safe step
+Claude Two and Michael approve or decline the Phase 2 items. Nothing runs before that.
