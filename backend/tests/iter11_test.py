@@ -89,9 +89,11 @@ class TestWeather:
         # silently served Pennsylvania-area weather for a facility actually
         # in Conway, Arkansas). This test environment has no facility
         # record configured at all, so the honest, documented generic
-        # fallback (DEFAULT_LABEL) is the CORRECT current result, not a
-        # regression.
-        assert body["label"] == "the facility", body["label"]
+        # fallback (DEFAULT_LABEL = FACILITY_LABEL or "the facility") is the
+        # CORRECT current result, not a regression.
+        # The generic fallback is configurable (FACILITY_LABEL); compare with
+        # the configured value rather than assuming it is unset.
+        assert body["label"] == _configured_facility()[0], body["label"]
         # Narrative is a single human sentence ending with a period
         narrative = body["narrative"]
         assert isinstance(narrative, str) and narrative.strip().endswith("."), narrative
@@ -178,7 +180,32 @@ class TestTimers:
         assert d2.status_code == 404
 
 
-# ---------- Realtime session — 9 tools + time anchor + storyteller block ----------
+# ---------- Realtime session — tools + time anchor + storyteller block ----------
+from tests.iter10_test import CURRENT_RESIDENT_TOOLS  # noqa: E402
+
+
+def _configured_facility():
+    """What the backend falls back to with no db.facilities record (the gate's
+    fresh database has none): FACILITY_LABEL / FACILITY_TZ from the same
+    environment and backend/.env the gate's backend loads
+    (routes/realtime_facility.py, 2026-08-25 facility fix).
+
+    Resolved the way the backend process resolves it - server.py calls
+    load_dotenv(backend/.env) without override, so a variable already in the
+    environment wins over the file - instead of importing
+    routes.realtime_facility here, whose module-level constants depend on
+    whether something in this pytest process loaded backend/.env first."""
+    from pathlib import Path
+    from dotenv import dotenv_values
+    file_env = dotenv_values(Path(__file__).resolve().parents[1] / ".env")
+
+    def _get(key):
+        return os.environ[key] if key in os.environ else file_env.get(key)
+
+    return (_get("FACILITY_LABEL") or "the facility",
+            _get("FACILITY_TZ") or "America/New_York")
+
+
 class TestRealtimeSession:
     REQ_TOOLS = {
         "adjust_room_temperature", "toggle_light", "toggle_tv", "call_for_help",
@@ -193,11 +220,12 @@ class TestRealtimeSession:
         assert "_caos" in body
         caos = body["_caos"]
 
-        # Exactly 9 tools, names match
+        # The nine 2026-08 tools stay; the full set is the current contract.
         tools = caos.get("tools") or []
         names = {t.get("name") for t in tools}
-        assert len(tools) == 9, f"expected 9 tools, got {len(tools)}: {names}"
-        assert names == self.REQ_TOOLS, f"tool names mismatch: {names ^ self.REQ_TOOLS}"
+        assert len(tools) == len(names), "duplicate tool names"
+        assert self.REQ_TOOLS <= names, f"missing: {self.REQ_TOOLS - names}"
+        assert names == CURRENT_RESIDENT_TOOLS, f"tools changed: {names ^ CURRENT_RESIDENT_TOOLS}"
 
         # Instructions
         instr = caos.get("instructions") or ""
@@ -209,13 +237,15 @@ class TestRealtimeSession:
         assert "get_weather" in instr, "missing get_weather guidance"
         assert "get_current_time" in instr, "missing get_current_time guidance"
         assert "set_timer" in instr, "missing set_timer guidance"
-        # Time anchor mentions facility label
-        assert "Lancaster, PA" in instr, "facility label missing from time anchor"
+        # Time anchor mentions the facility label ("Lancaster, PA" was the
+        # hardcoded default removed by the 2026-08-25 facility fix)
+        label, tz = _configured_facility()
+        assert label in instr, "facility label missing from time anchor"
 
         # context blob
         ctx = caos.get("context") or {}
-        assert ctx.get("facility_label") == "Lancaster, PA"
-        assert ctx.get("facility_tz") == "America/New_York"
+        assert ctx.get("facility_label") == label
+        assert ctx.get("facility_tz") == tz
 
     def test_set_timer_tool_schema(self, s, skip_if_openai_unavailable):
         r = s.post(f"{API}/realtime/session", json={}, timeout=30)

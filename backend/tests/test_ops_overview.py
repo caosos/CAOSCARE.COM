@@ -13,7 +13,7 @@ import asyncio
 import os
 import sys
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import bcrypt
 import pytest
@@ -46,6 +46,12 @@ async def _run():
     db = AsyncIOMotorClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]
 
     now = datetime.now(timezone.utc)
+    # requested_for_date is a facility-local calendar date and the overview
+    # compares it with the facility-local today (FACILITY_TZ). Seeding
+    # "yesterday" from the UTC date made it equal to the facility's today
+    # between 00:00 UTC and local midnight, so the test failed every evening.
+    from routes.realtime_facility import today_facility_date
+    facility_yesterday = (date.fromisoformat(today_facility_date()) - timedelta(days=1)).isoformat()
     pw = "ops-admin-pw-123"
     admin_id = uid("user")
     admin_email = f"{TAG}_admin@example.com"
@@ -74,7 +80,7 @@ async def _run():
     t_done = task(title=f"{TAG} hk done", category="housekeeping", visibility_role="housekeeping",
                   status="completed", completed_at=_iso(now), completed_by_name="Ann")
     t_ride = task(title=f"{TAG} ride", category="transportation", visibility_role="transportation",
-                  source="aria_voice", requested_for_date=(now - timedelta(days=1)).strftime("%Y-%m-%d"))
+                  source="aria_voice", requested_for_date=facility_yesterday)
     t_gen = task(title=f"{TAG} general unassigned")
     await db.staff_tasks.insert_many([t_old, t_overdue, t_done, t_ride, t_gen])
 

@@ -71,7 +71,27 @@ class TestAuthRegressions:
 
 
 # ----- Realtime session -----
+# The resident realtime session's tool set as of 2026-10-03 (routes/realtime_tools.py
+# _build_tools). It grew in reviewed commits: 4878047 resident request bus
+# (request_staff_help, check_request_status), fa6b7ac transportation and
+# menu/schedule tools, 8045b12 get_room_status / set_tv_input /
+# set_magnification, d6cb486 + 234d8ff request_live_staff, 3951ef6
+# check_request_history, 12cf89c confirm_interpretation_pattern. A change
+# to this set should be a deliberate edit here, not a silent drift.
+CURRENT_RESIDENT_TOOLS = {
+    "adjust_room_temperature", "toggle_light", "toggle_tv", "set_tv_input", "get_room_status",
+    "set_magnification", "call_for_help", "request_live_staff", "mark_resting", "end_call",
+    "get_current_time", "get_weather", "research_topic", "set_timer", "update_preferred_name",
+    "get_menu", "get_todays_schedule", "request_staff_help", "check_request_status",
+    "check_request_history", "request_transportation", "check_transportation_availability",
+    "check_transportation_status", "change_transportation_request", "cancel_transportation_request",
+    "confirm_interpretation_pattern",
+}
+
+
 class TestRealtimeSession:
+    # The original five device/safety tools stay required; the full set is
+    # checked exactly against CURRENT_RESIDENT_TOOLS.
     REQ_TOOLS = {"adjust_room_temperature", "toggle_light", "toggle_tv", "call_for_help", "mark_resting"}
 
     def test_session_default(self, s, skip_if_openai_unavailable):
@@ -87,7 +107,8 @@ class TestRealtimeSession:
         # Tools
         assert "tools" in caos and isinstance(caos["tools"], list)
         names = {t.get("name") for t in caos["tools"]}
-        assert names == self.REQ_TOOLS, f"tools mismatch: {names}"
+        assert self.REQ_TOOLS <= names, f"required tools missing: {self.REQ_TOOLS - names}"
+        assert names == CURRENT_RESIDENT_TOOLS, f"tools changed: {names ^ CURRENT_RESIDENT_TOOLS}"
         # tool_choice
         assert caos.get("tool_choice") == "auto"
         # turn_detection
@@ -104,10 +125,13 @@ class TestRealtimeSession:
         ctx = caos.get("context") or {}
         assert "resident_id" in ctx and "kiosk_id" in ctx and "room" in ctx
         assert ctx["resident_id"] is None  # echoed back
-        # client_secret usable for WebRTC
-        cs = body.get("client_secret") or {}
-        assert isinstance(cs, dict) and cs.get("value"), "missing client_secret.value ephemeral key"
-        assert isinstance(cs["value"], str) and len(cs["value"]) > 10
+        # Ephemeral key usable for WebRTC. The GA /realtime/client_secrets
+        # response (passed through by the backend) carries it top-level as
+        # `value`; the old beta shape `client_secret.value` is gone (fixed in
+        # the client 2026-08-02, frontend/src/lib/realtimeConnection.js
+        # reads `session.value || session.client_secret.value`).
+        key = body.get("value") or (body.get("client_secret") or {}).get("value")
+        assert isinstance(key, str) and len(key) > 10, "missing ephemeral key `value`"
 
     def test_session_with_resident_with_memories(self, s, seeded_resident, admin_client):
         rid = seeded_resident["resident_id"]
