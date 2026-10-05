@@ -6304,3 +6304,11 @@ PR #52 `pilot/rq-001-demo-continuity` `90160fbe758ecd9a4036f31c70468abb08a16e96`
 ## 2026-10-04 — Coordinator: RQ-009 Hearing Assistance / Personal Audio Compatibility assigned to Agent Six
 
 Michael's instruction 2026-10-04. Added RQ-009 to `docs/PILOT1_READY_QUEUE.md` (ASSIGNED, Agent Six) and to the Round 5 board and merge queue in `docs/PILOT1_ACTIVE_WORK.md`. Scope: research/docs only on an isolated branch (`research/rq-009-hearing-assistance`), deliverable `docs/research/RQ-009_HEARING_ASSISTANCE_PERSONAL_AUDIO.md`, draft PR into integration; no heavy compute, no code/firmware/shared-file ownership. Docs only; nothing merged or deployed.
+
+---
+
+## 2026-10-04 — Coordinator: RQ-009 research (PR #53) integrated; Round 5 reassignments
+
+Michael's "ROUND 5 — COORDINATOR RESUME". Tip before: `e89bc51b48e95425d1c6cc6b9f66178bf8eeeef6`.
+- PR #53 `research/hearing-assistance-audio` `449c841aae0551110943e918e0217e3259f02f8c` → merge `ee8057efc50cd0fdd4795657f65d10b114d7ef91`. Docs only (one new file, `docs/HEARING_ASSISTANCE_PERSONAL_AUDIO_ARCHITECTURE.md`); consistent with `ROOM_AUDIO_ARCHITECTURE.md`; proposals marked not built. REPO_MAP pointer added here. Gate on the merge (port 8077, throwaway DB): 254 passed / 4 failed / 13 skipped — the 3 known stale tests plus `test_ops_overview`, which fails between 00:00 UTC and local midnight (run at 00:57 UTC = 19:57 Chicago; the test seeds "yesterday" in UTC while the code compares facility-local dates). Not a regression (no code changed); fix exists as `aa3d2f1` on `spike/voice-bridge`. PR MERGED.
+- Assignments: Agent Five refreshes PR #52 (SC-17 run id, SC-16 email holdoff, default-off hooks, rerun); Agent Three SIM-3; Agent Four reprioritised to the Pilot blocker HA VM recovery/autostart (audit + design first, no qcow2 destruction, no Linode; SC-8/SC-9 paused); Claude Two one-model training-method A/B (Okay Sequoia + TV-dialogue-style hard negatives, evaluation byte-identical to batch 1); Agent Six Pilot Room hearing hardware requirement matrix (docs only).

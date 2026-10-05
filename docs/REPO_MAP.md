@@ -830,3 +830,7 @@ listener verifier experiment: `docs/experiments/`.
 - `backend/routes/notifications.py::simulation_of()` + `send_email`/`send_sms`/`notify_department(simulation=)`: a simulated task's notifications are recorded `status: "simulated"` and never reach a provider.
 - `create_resident_request(..., simulation_run_id=)`: in-process simulator provenance on the canonical request (`source: "simulator"`, run id on the task and every receipt via `task_lifecycle._run_link`). `models.RESIDENT_ORIGIN_SOURCES`: the one list of resident-originated sources.
 - Test: `backend/tests/test_sim_provenance.py`.
+
+## 2026-10-04 — Hearing assistance / personal audio (RQ-009)
+
+- `docs/HEARING_ASSISTANCE_PERSONAL_AUDIO_ARCHITECTURE.md`: research — hearing aids as an optional personal output; room microphone stays the input; CAOSCare never pairs to hearing aids; proposals not built; unknowns needing physical tests.
