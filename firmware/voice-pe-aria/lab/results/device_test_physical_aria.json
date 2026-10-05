@@ -1,0 +1,42 @@
+{
+ "finalists": [
+  {
+   "id": "hey aria",
+   "model_id": "hey_aria",
+   "tflite_sha256": "981d660be48098280756f9b21d6f5830842a31cbd904b62194ac8c1a61a8c4fe",
+   "cutoff": 0.9,
+   "arena": 34000,
+   "manifest_sha256": "cdbdc1638ec5c6780f59490770656499151304d370f81b00d097170ca1d18dc2"
+  },
+  {
+   "id": "hey sivia (SIV-ee-uh)",
+   "model_id": "hey_sivia_siv_ee_uh",
+   "tflite_sha256": "896c4e2bc6f5bcbd31858828dfb6eee4a7bbec078a74ca4254d79a31c43e8af7",
+   "cutoff": 0.99,
+   "arena": 34000,
+   "manifest_sha256": "2ddbb61d6778e2f0e1963832c70cc93eba3cce2b35bf51723ad7a29753e3d2d8"
+  },
+  {
+   "id": "hey callista (kuh-LISS-tuh)",
+   "model_id": "hey_callista_kuh_liss_tuh",
+   "tflite_sha256": "f1ff21a0d35d32bb1644f536d24b9885bb7ad7b56e30669363f5e11b856f0ef9",
+   "cutoff": 0.98,
+   "arena": 34000,
+   "manifest_sha256": "6f93f13191a520eda28ca4d0aa10fa9787aeed6b8199e1840c433d9bcc834891"
+  }
+ ],
+ "compile_exit": 0,
+ "ram_line": "RAM:   [=====     ]  50.9% (used 174087 bytes from 341760 bytes)",
+ "flash_line": "Flash: [====      ]  39.2% (used 3187179 bytes from 8126464 bytes)",
+ "licensing": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE",
+ "firmware.factory.bin": {
+  "bytes": 3252832,
+  "sha256": "a885d3ef9d6733353f3624ca1dd951867f7dc29cf0131230af848af9f42ec8da"
+ },
+ "firmware.ota.bin": {
+  "bytes": 3187296,
+  "sha256": "92778bad2f86b27940cfed4d2bee124d69c9b40f86d318ac0823b6ce9e9be399"
+ },
+ "set": "physical_aria",
+ "yaml": "device_test/physical_aria/physical_aria-voice-pe.yaml"
+}

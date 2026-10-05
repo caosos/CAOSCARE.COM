@@ -1,0 +1,88 @@
+# RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE. Wake Word Lab physical-test build. Not shipping firmware.
+# CAOSCare spike: Home Assistant Voice PE firmware with custom ARIA wake
+# words ("Hey Aria", "Aria" - pronounced AR-ee-uh). EVALUATION ONLY - not
+# for residents until the device tests in README.md pass.
+#
+# Built on the official ESPHome source, pinned to release 26.9.0 (ESPHome
+# 2026.9.0). Nothing upstream is copied or edited: the official factory
+# config is pulled as a remote package and the changes below are made
+# around it. Hardware drivers, microphones, XMOS audio path, speaker,
+# buttons, LEDs, mute, timers, the "stop" word, Home Assistant API and
+# Improv provisioning all come unchanged from the official package.
+
+packages:
+  # 1) Listed BEFORE the official package so these models come first in the
+  #    merged micro_wake_word list (ESPHome appends package lists in order).
+  #    The first model is the one enabled on first boot.
+  caoscare_wake_words:
+    micro_wake_word:
+      models:
+        # Physical-test research models (research only); first = enabled on first boot.
+        - model: models/hey_aria.json
+          id: hey_aria
+        - model: models/hey_sivia_siv_ee_uh.json
+          id: hey_sivia_siv_ee_uh
+        - model: models/hey_callista_kuh_liss_tuh.json
+          id: hey_callista_kuh_liss_tuh
+
+  # 2) The official Voice PE factory firmware, unchanged.
+  voice_pe:
+    url: https://github.com/esphome/home-assistant-voice-pe
+    ref: 26.9.0
+    refresh: never
+    files:
+      - home-assistant-voice.factory.yaml
+
+esphome:
+  project:
+    name: CAOSCare.Voice PE wake-word finalists (research)
+    version: 26.9.0-lab.physical_aria
+
+# The stock wake words are not CAOSCare product wake words; remove them.
+# The internal "stop" model and VAD stay (timer / announcement stop).
+micro_wake_word:
+  models:
+    - id: !remove okay_nabu
+    - id: !remove hey_jarvis
+    - id: !remove hey_mycroft
+
+# The stock sensitivity select sets cutoffs on the removed stock models by id,
+# so it is replaced by one with the same name that tunes the Aria models.
+# Cutoffs come from the offline evaluation (README.md, results/).
+select:
+  - id: !remove wake_word_sensitivity
+  - platform: template
+    name: "Wake word sensitivity"
+    id: caoscare_wake_word_sensitivity
+    optimistic: true
+    initial_option: Slightly sensitive
+    restore_value: true
+    entity_category: config
+    options:
+      - Slightly sensitive
+      - Moderately sensitive
+      - Very sensitive
+    on_value:
+      # Slightly = each model's matched-point cutoff; -0.10 / -0.20 for the others
+      lambda: |-
+        if (x == "Slightly sensitive") {
+          id(hey_aria).set_probability_cutoff(230);  // 0.90
+          id(hey_sivia_siv_ee_uh).set_probability_cutoff(252);  // 0.99
+          id(hey_callista_kuh_liss_tuh).set_probability_cutoff(250);  // 0.98
+        } else if (x == "Moderately sensitive") {
+          id(hey_aria).set_probability_cutoff(204);  // 0.80
+          id(hey_sivia_siv_ee_uh).set_probability_cutoff(227);  // 0.89
+          id(hey_callista_kuh_liss_tuh).set_probability_cutoff(224);  // 0.88
+        } else if (x == "Very sensitive") {
+          id(hey_aria).set_probability_cutoff(178);  // 0.70
+          id(hey_sivia_siv_ee_uh).set_probability_cutoff(201);  // 0.79
+          id(hey_callista_kuh_liss_tuh).set_probability_cutoff(199);  // 0.78
+        }
+
+# The official factory firmware offers over-the-air updates to the stock
+# firmware. Accepting one would silently remove the Aria wake words, so the
+# update entity and its Beta-firmware switch are removed from this build.
+update: !remove
+dashboard_import: !remove
+switch:
+  - id: !remove beta_firmware

@@ -5287,3 +5287,19 @@ Before → after at matched threshold 0.99: catch 68.1% → 65.1%, TV-on 51.4% �
 
 ### Blocked / next
 Stopped per the stop rule. No further phrase or model started. Michael decides whether to pre-register a stronger method test; Hey Aria / Hey Sivia wait on that decision.
+
+---
+
+## 2026-10-05 — Physical wake test package (research build): Hey Aria / Hey Sivia / Hey Callista — compiled, NOT flashed
+
+### Agent / tool
+Claude Code (Opus 5.5), worktree `~/CAOSCARE-WAKE-FUNNEL`, branch `research/wake-phrase-funnel`. Product wake phrase remains Hey Aria. The hard-negative method test failed (previous entry); no training was run for this package.
+
+### What changed
+`build_device_test.py` can now build a named research set into its own folder without overwriting the original three-finalist build. New set `device_test/physical_aria/`: existing models (not retrained) Hey Aria (cutoff 0.90, on at first boot), Hey Sivia SIV-ee-uh (0.99), Hey Callista kuh-LISS-tuh (0.98, acoustic benchmark); three sensitivity levels (matched, −0.10, −0.20). Hey Kookaburra excluded. Added `PHYSICAL_ACCEPTANCE_PROTOCOL.md` and `PHYSICAL_ACCEPTANCE_RECORD.csv` for Michael.
+
+### What was verified
+ESPHome 2026.9.0 compile exit 0; RAM 50.9% (174,087 B), flash 39.2% (3,187,179 B). factory `a885d3ef9d6733353f3624ca1dd951867f7dc29cf0131230af848af9f42ec8da`, ota `92778bad2f86b27940cfed4d2bee124d69c9b40f86d318ac0823b6ce9e9be399` (re-checked with sha256sum). Model SHA-256: hey_aria `981d660b…c4fe`, hey_sivia `896c4e2b…8af7`, hey_callista `f1ff21a0…0ef9`, matching the lab's evaluated models. OTA image contains only these three ids (no kookaburra, velora or stock wake words). Full record `results/device_test_physical_aria.json`.
+
+### Blocked / next
+Flashing needs Michael's separate authorization. Then run the protocol (1/2/4 m, facing away, bed/seated, TV low/normal/dialogue-heavy, casual, soft, repeated attempts, wrong-phrase list, overnight/TV/daytime soaks). Every model RESEARCH ONLY — NOT COMMERCIALLY RELEASABLE.
