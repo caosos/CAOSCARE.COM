@@ -48,21 +48,23 @@ async def _require_simulated(task_id: str) -> None:
         raise RuntimeError(f"request {task_id} is not simulated; a simulated actor will not act on it")
 
 
-async def _raise_request(step: dict, workflow: dict, cast: dict) -> dict:
-    """The simulated resident speaks through the same public request bus a
+async def _raise_request(step: dict, workflow: dict, cast: dict, run_id: Optional[str] = None) -> dict:
+    """The simulated resident speaks through the same canonical request bus a
     real resident's Aria call uses. The synthetic resident record makes the
-    actor and the task simulated (task_lifecycle.simulation_marker)."""
+    actor and the task simulated (task_lifecycle.simulation_marker); the run
+    id records the request as simulator-raised, on this run (SC-17)."""
     r = cast["resident"]
     out = await create_resident_request(ResidentRequestInput(
         category="maintenance", resident_id=r["actor_id"], room=r["room"],
-        resident_words=SINK_WORDS, summary=SINK_WORDS, source=roster.RESIDENT_CHANNEL))
+        resident_words=SINK_WORDS, summary=SINK_WORDS, source=roster.RESIDENT_CHANNEL),
+        simulation_run_id=run_id)
     await _require_simulated(out["task_id"])
     return {"task_id": out["task_id"], "receipt_id": out["receipt_id"],
             "result": "re-request on an open request" if out.get("duplicate") else "request created",
             "workflow": {"task_id": out["task_id"], "origin_receipt_id": out["receipt_id"]}}
 
 
-async def _staff_action(step: dict, workflow: dict, cast: dict) -> dict:
+async def _staff_action(step: dict, workflow: dict, cast: dict, run_id: Optional[str] = None) -> dict:
     task_id = workflow.get("task_id")
     if not task_id:
         raise RuntimeError("no simulated request to act on yet")
@@ -89,7 +91,7 @@ _HANDLERS = {"raise_request": _raise_request, "acknowledge": _staff_action, "sta
              "note": _staff_action, "complete": _staff_action}
 
 
-async def execute(step: dict, workflow: dict, cast: dict) -> dict:
+async def execute(step: dict, workflow: dict, cast: dict, run_id: Optional[str] = None) -> dict:
     """Run one step through its canonical service. Raises on refusal or
     failure (the canonical refusal is itself recorded by the lifecycle)."""
-    return await _HANDLERS[step["action"]](step, workflow, cast)
+    return await _HANDLERS[step["action"]](step, workflow, cast, run_id=run_id)

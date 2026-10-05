@@ -18,6 +18,28 @@ RESEND_KEY = os.environ.get("RESEND_API_KEY", "")
 RESEND_FROM = os.environ.get("RESEND_FROM_EMAIL", "onboarding@resend.dev")
 
 
+SIMULATED_RESPONSE = "simulated request - recorded only, never sent to a provider"
+
+
+def simulation_of(task: Optional[dict], receipt_id: Optional[str] = None) -> Optional[dict]:
+    """The simulation context a notification about `task` must carry, or None
+    for real work. The task's own server-set marker decides; never a caller."""
+    if not task or not task.get("simulated"):
+        return None
+    return {"simulated": True, "simulation_scope": task.get("simulation_scope"),
+            "simulation_run_id": task.get("simulation_run_id"), "task_id": task.get("task_id"),
+            "receipt_id": receipt_id}
+
+
+async def _record_simulated(doc: dict, simulation: dict) -> dict:
+    """SC-16: a simulated request's notification is evidence, not a delivery.
+    It is recorded with status "simulated" and its task/receipt/run linkage,
+    and never handed to Twilio/Resend, whatever keys are configured."""
+    doc.update(simulation, status="simulated", provider_response=SIMULATED_RESPONSE)
+    doc["created_at"] = doc["created_at"].isoformat()
+    return await _log_notification(doc)
+
+
 async def _log_notification(doc: dict) -> dict:
     doc.setdefault("created_at", now_utc().isoformat())
     await db.notifications.insert_one(doc)
@@ -25,7 +47,8 @@ async def _log_notification(doc: dict) -> dict:
     return doc
 
 
-async def send_sms(to: str, body: str, *, alert_id: str | None = None, resident_id: str | None = None) -> dict:
+async def send_sms(to: str, body: str, *, alert_id: str | None = None, resident_id: str | None = None,
+                   simulation: Optional[dict] = None) -> dict:
     """Send SMS via Twilio if configured; otherwise log only."""
     n = Notification(
         channel="sms",
@@ -35,6 +58,8 @@ async def send_sms(to: str, body: str, *, alert_id: str | None = None, resident_
         resident_id=resident_id,
     )
     doc = n.model_dump()
+    if simulation:
+        return await _record_simulated(doc, simulation)
     if not (TWILIO_SID and TWILIO_TOKEN and TWILIO_FROM):
         doc["status"] = "logged"
         doc["provider_response"] = "Twilio not configured — logged only (ready to activate when keys are provided)"
@@ -56,7 +81,8 @@ async def send_sms(to: str, body: str, *, alert_id: str | None = None, resident_
     return await _log_notification(doc)
 
 
-async def send_email(to: str, subject: str, body: str, *, alert_id: str | None = None, resident_id: str | None = None) -> dict:
+async def send_email(to: str, subject: str, body: str, *, alert_id: str | None = None, resident_id: str | None = None,
+                     simulation: Optional[dict] = None) -> dict:
     n = Notification(
         channel="email",
         to=to,
@@ -66,6 +92,8 @@ async def send_email(to: str, subject: str, body: str, *, alert_id: str | None =
         resident_id=resident_id,
     )
     doc = n.model_dump()
+    if simulation:
+        return await _record_simulated(doc, simulation)
     if not RESEND_KEY:
         doc["status"] = "logged"
         doc["provider_response"] = "Resend not configured — logged only (ready to activate when keys are provided)"
@@ -87,7 +115,8 @@ async def send_email(to: str, subject: str, body: str, *, alert_id: str | None =
     return await _log_notification(doc)
 
 
-async def notify_department(visibility_role: str, subject: str, body: str) -> None:
+async def notify_department(visibility_role: str, subject: str, body: str, *,
+                            simulation: Optional[dict] = None) -> None:
     """Email a department. Three-tier fallback, in order:
     1. The department's own Department.contact_email, if set - for a
        department that's a shared inbox (e.g. kitchen@facility) rather
@@ -100,10 +129,11 @@ async def notify_department(visibility_role: str, subject: str, body: str) -> No
     send_email() already degrades gracefully to a logged-only record when
     no provider key is configured - this never blocks the caller. Shared
     by resident_requests.py, tasks.py, and transportation.py - one
-    notification path, not one per lane."""
+    notification path, not one per lane. `simulation` (simulation_of(task))
+    makes every record "simulated" and stops it reaching a provider (SC-16)."""
     dept = await db.departments.find_one({"slug": visibility_role}, {"_id": 0, "contact_email": 1})
     if dept and dept.get("contact_email"):
-        await send_email(dept["contact_email"], subject, body)
+        await send_email(dept["contact_email"], subject, body, simulation=simulation)
         return
     recipients = await db.users.find(
         {"department": visibility_role}, {"_id": 0, "email": 1}
@@ -114,7 +144,7 @@ async def notify_department(visibility_role: str, subject: str, body: str) -> No
         ).to_list(50)
     for u in recipients:
         if u.get("email"):
-            await send_email(u["email"], subject, body)
+            await send_email(u["email"], subject, body, simulation=simulation)
 
 
 async def notify_family_for_alert(alert: dict):

@@ -831,3 +831,13 @@ listener verifier experiment: `docs/experiments/`.
 - `backend/demo_continuity.py`: catch-up for the demo room. Fixed one-hour UTC windows from `last_simulated_at` (`db.demo_continuity`, key `demo_room`) to now, each processed once (compare-and-set claim): open simulated demo requests step forward (acknowledge → start → complete), backlog above the cap is closed, and a fixed hash of the window start may raise one new request. Uses `create_resident_request` and `task_actions` only; one chained `demo_continuity_window` receipt per window.
 - `backend/routes/demo_continuity.py`: admin-only `GET /api/demo/continuity`, `POST /api/demo/continuity/catch-up`. Catch-up also runs in the background on backend startup (`server.py` lifespan) and on token issue at sign-in (`routes/auth.py::_issue_jwt`).
 - Test: `backend/tests/test_demo_continuity.py`.
+
+## 2026-10-04 — SC-16 / SC-17 simulator notifications + provenance (branch `pilot/shared-core-sim-provenance`)
+
+- `backend/routes/notifications.py::simulation_of()` + `send_email`/`send_sms`/`notify_department(simulation=)`: a simulated task's notifications are recorded `status: "simulated"` and never reach a provider.
+- `create_resident_request(..., simulation_run_id=)`: in-process simulator provenance on the canonical request (`source: "simulator"`, run id on the task and every receipt via `task_lifecycle._run_link`). `models.RESIDENT_ORIGIN_SOURCES`: the one list of resident-originated sources.
+- Test: `backend/tests/test_sim_provenance.py`.
+
+## 2026-10-04 — Hearing assistance / personal audio (RQ-009)
+
+- `docs/HEARING_ASSISTANCE_PERSONAL_AUDIO_ARCHITECTURE.md`: research — hearing aids as an optional personal output; room microphone stays the input; CAOSCare never pairs to hearing aids; proposals not built; unknowns needing physical tests.

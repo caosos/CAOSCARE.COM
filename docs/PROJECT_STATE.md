@@ -6297,3 +6297,69 @@ HANDOFF CAPSULE
 - Product invariants: simulated demo work only; one receipt per window; each window processed once.
 - Do NOT change:    real rooms; the demo-room scope filter.
 - Next safe action: rebase after SC-16/17 merges; carry `simulation_run_id`; lift the email guard if SC-16 allows.
+
+---
+
+
+## 2026-10-04 — Agent Four (Shared Core): SC-16 simulated notifications, SC-17 simulator provenance
+
+### Agent / branch
+Claude Code (Opus 5.5), Round 5 Agent Four. Branch `pilot/shared-core-sim-provenance` (worktree `~/CAOSCARE-LANE-SIM-PROVENANCE`) from integration `0b6f9dbd` (PR #48 merged at `085813e`). Draft PR into `integration/2026-09-27`; not merged, not deployed; main, Linode, Room 214, :3000/:8092 untouched.
+
+### What changed
+- **SC-16** `routes/notifications.py`: `simulation_of(task, receipt_id)` gives the simulation context from the task's own server-set marker (None for real work). `send_email` / `send_sms` take `simulation=`; with it they never call Resend/Twilio (even with keys configured) and record the notification as `status: "simulated"` with `simulated`, `simulation_scope`, `simulation_run_id`, `task_id`, `receipt_id`. `notify_department(..., simulation=)` passes it through. Every department-notification call site for requests passes it: resident request (new + repeat), transportation request / change / cancel / staff assign. A synthetic resident's demo-kiosk ask is simulated too. `NotificationStatus` gains `"simulated"`; `Notification` gains the linkage fields.
+- **SC-17** `create_resident_request(data, *, user=None, simulation_run_id=None)`: the run id is an in-process keyword only (not on `ResidentRequestInput`, so a request body can never set it). It must name a real `db.sim_runs` run and a synthetic resident, otherwise 400 and nothing written. With it, the task is the same canonical StaffTask with `source: "simulator"` and `simulation_run_id`; the origin actor's channel is `simulator`, authority `simulation_run`. A body that claims `source: "simulator"` is still "Invalid source". A run's requests dedup only within that run (demo-kiosk and real requests never land on a run's request). `task_lifecycle._run_link` puts `simulation_run_id` on every receipt of the chain (origin, transitions, refusals); `_SOURCE_BY_CHANNEL` maps `simulator`. `TaskSource` gains `"simulator"`; `RESIDENT_ORIGIN_SOURCES` (models) is the one list of resident-originated sources, used by the Aria status lookups (`resident_requests._scope_query`, `aria_operational_state`) so the synthetic resident's simulated requests stay visible to the same world. UI label "Simulator (simulated)".
+- **SIM-1 call site (Agent Three's files, flagged in the PR):** `scheduler._execute_next` passes `run_id`; `scenario.execute` / `_raise_request` pass `simulation_run_id`. No other scheduler/scenario change. SIM-1's own refuse-to-start-with-a-live-email-key guard is left as is (lifting it is Agent Three's/Michael's call).
+
+### Verified
+- Backend gate (`run_backend_tests.sh`, port 8075, fresh DB, no OpenAI key): **240 passed, 0 failed, 31 skipped** (233 + 7 new). New `test_sim_provenance.py` 7/7; SIM-1 6/6; demo kiosk, shared-core, SIM-0, ride receipts pass.
+- Mutation check: disabling the provider guard, the run-scoped dedup, the synthetic-resident check, or the receipt run link each fails its test.
+- Tests run with live provider keys monkeypatched on and `httpx.AsyncClient` replaced by a spy: zero provider calls for simulated work; the real request's email reaches the (spy) provider as `sent`.
+- Frontend 33 suites / 252 tests; `CI=true` build compiles.
+
+### Line counts (before → after)
+`notifications.py` 209→239, `resident_requests.py` 382→400 (at the ~400 signal; comments trimmed to stay there), `task_lifecycle.py` 212→222, `transportation.py` 299→302, `transportation_assign.py` 123→124, `aria_operational_state.py` 201→201, `scenario.py` 95→97, `scheduler.py` 255→255, `requestDisplay.js` 53→54, `models.py` +15 (fields/literals).
+
+HANDOFF CAPSULE
+- Objective:        SC-16 / SC-17.
+- Branch:           pilot/shared-core-sim-provenance (from 0b6f9db).
+- Lane / ownership: Agent Four, Shared Core (notifications, resident_requests, task_lifecycle, models). One-keyword call-site change in Agent Three's backend/simulation/ (flagged).
+- Last proven state: gates above, 2026-10-04.
+- Commits:          see this entry's commit.
+- Runtime state:    nothing restarted or deployed.
+- Unresolved proven defects: none new. `resident_requests.py` sits at 400 lines; next growth should extract.
+- Product invariants: one canonical request model; simulated work never reaches a real provider; simulator provenance only server-side; real requests unchanged.
+- Do NOT change:    simulator provenance from request bodies; provider calls without the simulation check.
+- Next safe action: coordinator review; Agent Three decides whether SIM-1 can drop its live-email-key refusal.
+
+---
+
+## 2026-10-04 — Coordinator: SIM-2 (PR #50) and SC-16/SC-17 (PR #51) integrated
+
+Pilot 1 coordinator, `integration/2026-09-27`. One merge at a time, gate between. Not merged to main, not deployed; HA, Linode, PR #41/#42 untouched; Claude Two's batch not touched.
+
+1. PR #50 `pilot/sim-2-live-operations` `89e99a68ea36f3ad6603cd61ab26e94655c9a205` → merge `5567d3e61efcf125829e2b57a2bb44986572c5af`. Code review passed at `c05dc48`; after the rebase the only code change was `min-w-0` (phone width) in `LiveOperations.jsx`. Browser acceptance evidence (Agent Three, PR body: headless Chrome, real admin login, scratch DB; start/pause/step/resume/stop; receipt → request → actor trace with SIMULATED/REAL badges; no console errors; 390 px). PROJECT_STATE conflict resolved keeping both sides. On the merge: frontend 34 suites / 263 tests; backend gate 248/3/13 (the known stale tests). MERGED.
+2. PR #51 `pilot/shared-core-sim-provenance` `d29f1cafd8a167a8dd9162cb173470cf672b71c0` → merge `895769ae77567ef2b590061f4160710449717942`. Reviewed: SC-16 — `notifications.simulation_of(task)` from the task's own marker; simulated notifications recorded `status: simulated`, never handed to Twilio/Resend; SC-17 — `TaskSource` `simulator`, `simulation_run_id` on StaffTask and on every receipt of its chain (`task_lifecycle._run_link`), set in-process only; real requests unchanged. Log conflicts resolved keeping both sides. On the merge: `test_sim_provenance.py` + SIM-1 13 passed; gate 255/3/13 (+7); frontend 34/263. MERGED.
+
+Checklist: simulator items updated with evidence (receipt chains, controls without SSH, drill-down, real/simulated distinct marked done; UI state partially — no speed control).
+Next: Agent Three SIM-3 (mixed real + simulated staffing); Agent Four SC-8 + SC-9; Agent Five RQ-001 (unblocked by SC-17) and the RQ-008 report PR.
+
+---
+
+## 2026-10-04 — Coordinator: PR #52 (RQ-001 demo continuity) reviewed — changes requested
+
+PR #52 `pilot/rq-001-demo-continuity` `90160fbe758ecd9a4036f31c70468abb08a16e96` (base `5567d3e`, before SC-16/17). Design accepted (canonical services only, demo room only, exactly-once windows, bounded backlog, chained receipts, real-data snapshots in tests). Not merged: (1) rebase onto `1118baa`; (2) generated requests must carry SC-17 provenance (source `simulator` + `simulation_run_id`), not `aria_voice` — SHARED CORE REQUEST if a run identity is needed; (3) the startup (`server.py`) and sign-in (`auth.py::_issue_jwt`) hooks must be behind a default-off setting so merging cannot change the shared `caoscare` DB's or production's demo room — enabling it is Michael's decision; (4) state whether the email guard stays now that SC-16 records simulated notifications only; (5) rerun focused tests and the gate.
+
+---
+
+## 2026-10-04 — Coordinator: RQ-009 Hearing Assistance / Personal Audio Compatibility assigned to Agent Six
+
+Michael's instruction 2026-10-04. Added RQ-009 to `docs/PILOT1_READY_QUEUE.md` (ASSIGNED, Agent Six) and to the Round 5 board and merge queue in `docs/PILOT1_ACTIVE_WORK.md`. Scope: research/docs only on an isolated branch (`research/rq-009-hearing-assistance`), deliverable `docs/research/RQ-009_HEARING_ASSISTANCE_PERSONAL_AUDIO.md`, draft PR into integration; no heavy compute, no code/firmware/shared-file ownership. Docs only; nothing merged or deployed.
+
+---
+
+## 2026-10-04 — Coordinator: RQ-009 research (PR #53) integrated; Round 5 reassignments
+
+Michael's "ROUND 5 — COORDINATOR RESUME". Tip before: `e89bc51b48e95425d1c6cc6b9f66178bf8eeeef6`.
+- PR #53 `research/hearing-assistance-audio` `449c841aae0551110943e918e0217e3259f02f8c` → merge `ee8057efc50cd0fdd4795657f65d10b114d7ef91`. Docs only (one new file, `docs/HEARING_ASSISTANCE_PERSONAL_AUDIO_ARCHITECTURE.md`); consistent with `ROOM_AUDIO_ARCHITECTURE.md`; proposals marked not built. REPO_MAP pointer added here. Gate on the merge (port 8077, throwaway DB): 254 passed / 4 failed / 13 skipped — the 3 known stale tests plus `test_ops_overview`, which fails between 00:00 UTC and local midnight (run at 00:57 UTC = 19:57 Chicago; the test seeds "yesterday" in UTC while the code compares facility-local dates). Not a regression (no code changed); fix exists as `aa3d2f1` on `spike/voice-bridge`. PR MERGED.
+- Assignments: Agent Five refreshes PR #52 (SC-17 run id, SC-16 email holdoff, default-off hooks, rerun); Agent Three SIM-3; Agent Four reprioritised to the Pilot blocker HA VM recovery/autostart (audit + design first, no qcow2 destruction, no Linode; SC-8/SC-9 paused); Claude Two one-model training-method A/B (Okay Sequoia + TV-dialogue-style hard negatives, evaluation byte-identical to batch 1); Agent Six Pilot Room hearing hardware requirement matrix (docs only).

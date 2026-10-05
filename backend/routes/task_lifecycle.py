@@ -36,7 +36,7 @@ from routes.task_history import update_task_with_history
 STATE_KEYS = ("status", "assigned_to", "acknowledged_by", "started_at", "completed_at",
               "requested_for_date", "requested_for_time_label")
 _SOURCE_BY_CHANNEL = {"staff_ui": "staff", "front_desk": "front_desk", "system": "system",
-                      "aria_voice": "aria_voice", "kiosk_button": "kiosk_button"}
+                      "aria_voice": "aria_voice", "kiosk_button": "kiosk_button", "simulator": "simulator"}
 
 
 class LifecycleError(HTTPException):
@@ -100,6 +100,11 @@ async def load(task_id: str) -> dict:
     return task
 
 
+def _run_link(task: dict) -> dict:
+    """SC-17: every receipt on a simulator-raised request names its run."""
+    return {"simulation_run_id": task["simulation_run_id"]} if task.get("simulation_run_id") else {}
+
+
 def _receipt_context(task: dict, actor: ActorContext) -> dict:
     return {"source": _SOURCE_BY_CHANNEL.get(actor.channel, "system"),
             "resident_id": task.get("resident_id"), "room": task.get("room"),
@@ -114,7 +119,7 @@ async def record_origin(task: dict, actor: ActorContext, *, action_type: str, au
     return await create_receipt(
         action_type=action_type, related_object_type="task", related_object_id=task["task_id"],
         assigned_user=task.get("assigned_to"), status="created", receipt_id=rid,
-        provenance={**actor.receipt_fields(), "authority": authority, "correlation_id": rid,
+        provenance={**actor.receipt_fields(), **_run_link(task), "authority": authority, "correlation_id": rid,
                     "after_state": state_of(task), "result_label": "verified",
                     "provider_refs": list(provider_refs or []), "next_state": next_state(task)},
         **_receipt_context(task, actor))
@@ -130,7 +135,7 @@ async def record_refusal(task: dict, actor: ActorContext, authority: Optional[st
     await create_receipt(
         action_type=f"task_{action}_refused", related_object_type="task", related_object_id=task["task_id"],
         status="failed", failure_reason=reason,
-        provenance={**actor.receipt_fields(), "authority": authority, "before_state": state_of(task),
+        provenance={**actor.receipt_fields(), **_run_link(task), "authority": authority, "before_state": state_of(task),
                     "after_state": state_of(task), "result_label": "failed"},
         **_receipt_context(task, actor))
 
@@ -190,7 +195,7 @@ async def transition(task_id: str, actor: ActorContext, user: Optional[dict], *,
         action_type=action_type, related_object_type="task", related_object_id=task_id,
         assigned_user=after.get("assigned_to"), status=status, result=result,
         failure_reason=failure_reason, receipt_id=rid,
-        provenance={**actor.receipt_fields(), "authority": auth,
+        provenance={**actor.receipt_fields(), **_run_link(after), "authority": auth,
                     "parent_receipt_id": (head or {}).get("receipt_id"),
                     "correlation_id": correlation,
                     "before_state": state_of(task), "after_state": state_of(after),
@@ -200,13 +205,18 @@ async def transition(task_id: str, actor: ActorContext, user: Optional[dict], *,
     return after, receipt
 
 
-async def simulation_marker(resident_id: Optional[str]) -> dict:
+async def simulation_marker(resident_id: Optional[str], simulation_run_id: Optional[str] = None) -> dict:
     """StaffTask simulation provenance (ENGINEERING_CONTRACT decision 4), read
     only from the server-side resident record - never from a request body.
-    A synthetic (demo) resident's work is marked so DEMO RESET can find it."""
+    A synthetic (demo) resident's work is marked so DEMO RESET can find it.
+    `simulation_run_id` comes only from an in-process simulator caller (SC-17)
+    and is recorded only on a synthetic resident's work."""
     if not resident_id:
         return {}
     r = await db.residents.find_one({"resident_id": resident_id}, {"_id": 0, "synthetic": 1})
     if r and r.get("synthetic"):
-        return {"simulated": True, "simulation_scope": "demo_room"}
+        marker = {"simulated": True, "simulation_scope": "demo_room"}
+        if simulation_run_id:
+            marker["simulation_run_id"] = simulation_run_id
+        return marker
     return {}

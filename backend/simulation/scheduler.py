@@ -186,7 +186,7 @@ async def _execute_next(run: dict, actor: ActorContext, authority: str) -> dict:
                       failure_reason=f"{nxt['actor']} is off shift at minute {nxt['at']}; run paused")
         return {"executed": False, "run": run}
     try:
-        out = await scenario.execute(nxt, run.get("workflow") or {}, run["cast"])
+        out = await scenario.execute(nxt, run.get("workflow") or {}, run["cast"], run_id=run["run_id"])
     except Exception as e:     # a canonical refusal (HTTPException) or a guard
         reason = getattr(e, "detail", None) or str(e)
         await _save(run, state=PAUSED)
