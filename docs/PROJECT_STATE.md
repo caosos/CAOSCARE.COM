@@ -6507,6 +6507,30 @@ Michael's "ROUND 5 — AGENT ONE / COORDINATOR" at tip `72fe52b306b2421cbbc3876e
 
 ---
 
+## 2026-10-05 — Agent Five: RQ-008 storage audit finalized with Phase 2 proposal (docs only)
+
+### Agent / branch
+Claude Code (Opus 5.5), Round 5 Agent Five. `docs/rq-008-storage-receipt`, refreshed by merging integration `81a4f92`. Documentation only. **Nothing deleted** this block; all measurements are read-only.
+
+### What changed
+`docs/reports/2026-10-04-elitedesk-storage-audit.md`:
+- Original state, the Phase 1 result (8.03 GB), and a re-measurement on 2026-10-05.
+- Current consumers, active and protected wake-lab data, evidence-protected files, and the worktree classes.
+- A Phase 2 proposal with exact commands, size estimates, risks and prerequisites, in four buckets:
+  - SAFE AFTER WAKE TEST ~1.9G;
+  - NEEDS CLAUDE TWO APPROVAL ~71G (mostly finished candidates' `positive_features`, ~52G);
+  - NEEDS MICHAEL APPROVAL ~12.6G;
+  - DO NOT TOUCH.
+
+### Findings
+- Free space fell from 72.55 GB after Phase 1 to 51.04 GB, mainly wake-lab runs (+13G) and a new hard-negative set (5.6G).
+- The RF bridge log is 2.6 GB and growing about 4 GB/day. It is held open without append mode, so truncating it alone is not a clean fix.
+
+### Next safe step
+Claude Two and Michael approve or decline the Phase 2 items. Nothing runs before that.
+
+---
+
 ## 2026-10-05 — Simulator: scenario-aware latest/active run (Agent Three)
 
 ### Agent / branch
@@ -6533,6 +6557,27 @@ Coordinator review. SIM-4 Nursing: read-only preparation until this merges.
 ## 2026-10-05 — Coordinator: scenario-aware simulator latest run (PR #57) integrated
 
 PR #57 `pilot/sim-latest-run-scenario` `9c3c4bf6ce67ed46374b1363078312d556f40cc5` (base `5d13cd1`) → merge `737df76`. Simulator lane only: `scheduler.active_run/latest_run/view` scoped to `scenario.SCENARIO_IDS`; Live Operations lists only the current run's requests (`simulation_run_id`); `demo_continuity.py` unchanged. On the merge: `test_sim_latest_run_scenario.py` + SIM-3 + SIM-1 + SC-16/17 + RQ-001 — 33 passed; gate 273 passed / 4 failed (3 known stale + `test_ops_overview`, 01:56 UTC) / 14 skipped — one new skip, `test_sim_latest_run_scenario.py:85` ("scratch DB already holds Operations Simulator runs"), which runs in isolation but not in the gate (asked Agent Three to make it self-contained); frontend 34 suites / 268. PR MERGED. The live run `simrun_4b9a3f2c415d` on :8092 is unaffected until that backend is restarted (it is a sink_leak run, so it stays the current run after a restart).
+
+---
+
+## 2026-10-05 — Agent Five: RQ-008 RF bridge log audit (read-only, docs only)
+
+### Agent / branch
+Claude Code (Opus 5.5), Agent Five. `docs/rq-008-storage-receipt`, refreshed by merging integration `3912072` (docs conflict only, both histories kept); PR #58 is mergeable. Nothing was truncated, deleted, restarted, reconfigured or installed.
+
+### Findings
+New companion report `docs/reports/2026-10-05-rf-bridge-log-audit.md`; item H of the storage audit now points to it.
+- The bridge (`caos_rf_bridge.py`) was started by hand on 2026-09-06; it is not a service, and logrotate doesn't know about it.
+- It writes stdout and stderr to an agent scratch file in `/tmp`, without append mode. The file was 2.64 GB at 02:04 UTC and is growing **3.97 GB/day** (measured).
+- Cause: since ~2026-10-04 11:22 UTC the SDR is missing, and `rtl_433` is respawned with no delay (3.57 M spawns).
+- The first ~78 MB holds 3,552 decodes; about 61 of them are not in MongoDB `rf_events`.
+- The bridge has no SIGHUP handler (SIGHUP would kill it). A reboot clears `/tmp`.
+
+### Plan (needs Michael's approval)
+- R1: archive with gzip (~13 MB).
+- R2: stop the growth — restore the SDR, restart under a journald-managed user service, and/or a backoff fix in the RF lane.
+- R3: remove the old file once no process holds it.
+- Retention: archive kept ≥90 days / until the Pilot 1 review; 14 days or 500 MB going forward.
 
 ---
 
