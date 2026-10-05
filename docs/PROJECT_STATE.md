@@ -6319,3 +6319,43 @@ Michael's "ROUND 5 — COORDINATOR RESUME". Tip before: `e89bc51b48e95425d1c6cc6
 
 - PR #54 `research/pilot-hearing-requirements` `536ed6881f443283e85d2255260a8be55e254710` (base `81a4f92`) → merge `cf0ac00bba1ea18a0b67cec9b3c1cd13d6acce8b`. Docs only (`docs/PILOT_HEARING_AUDIO_REQUIREMENTS.md`): model fields left blank, UNKNOWN never counts as PASS, FAIL/UNKNOWN on a MUST blocks purchase. REPO_MAP pointer added. Gate on the merge 253/4/14, rerun with skip reasons 254/4/13 with the same skip set as the 2026-10-04 SC-10 gate — the one passed→skipped shift was transient. The 4 failures are the 3 known stale tests and `test_ops_overview` (UTC-vs-local date window, run at 01:07 UTC). PR MERGED.
 - Agent Six's next bounded task: port the existing test-only fixes (`f36351c` iter10/iter11, `aa3d2f1` `test_ops_overview`) from `spike/voice-bridge` onto `tests/stale-gate-fixes` from the tip; tests only; acceptance = gate with 0 failed.
+
+---
+
+## 2026-10-05 — SIM-3 mixed real + simulated staffing (Agent Three)
+
+### Agent / branch
+Claude Code (Opus 5.5), Round 5 Agent Three. Branch `pilot/sim-3-mixed-staffing` (worktree `~/CAOSCARE-SIM3`) from integration `81a4f92`, rebased onto `b6bf661` (docs-only change in between). Draft PR into `integration/2026-09-27`. Not merged; no deploy; no runtime service, main, Linode or hardware touched.
+
+### What changed
+- A staff role in a run is held by its simulated actor, a real signed-in staff member, or nobody (`cast[role].filled_by`). Before each staff step the scheduler reads the canonical task. If the step is already done, whoever did it, it records `sim_step_observed` citing the canonical receipt and moves on. Otherwise only a simulated holder acts; a real or empty role waits with no receipt and no action. The scenario refuses to act for a role that is not simulated.
+- New resident step `check_status` reads the normal resident status (`resident_request_history`) and cites the request's latest receipt.
+- Admin-only: `POST /simulator/start` takes optional `roles`; `POST /simulator/roles/{key}` changes the holder (`sim_role_assigned` receipt; the user must exist, have a staff role and act for the role's department; `sim:` ids refused); `GET /simulator/roles/{key}/candidates`.
+- Live operations: SIMULATED / REAL / UNASSIGNED per role, the hand-off control, and what the run is waiting for.
+- No new request/task model; canonical services (`task_lifecycle`, `task_actions`, `actor_context`, `receipts`, `resident_requests`, `models`) unchanged; `server.py` unchanged.
+
+### Verified
+- `tests/test_sim3_mixed_staffing.py` 4 passed (with SIM-1 and SC-16/17 provenance tests: 17 passed). All 10 SIM-3 test items covered: simulated role runs normally; hand-off to a real user; the request reaches him in `/api/tasks`; his claim/start/note/complete go through the normal routes; his receipts are authenticated / real human / staff_ui; the simulator observes each step and cites his receipts, then continues (`check_status` names him) to STOPPED; run receipts come only from the admin or `system:simulator`, never from him; returning the role to simulated resumes simulated work; one task per run. Mutation check: removing the waiting guard, the scenario guard or the observe path each fails tests.
+- Full backend gate (`run_backend_tests.sh`, port 8071, scratch DB): 243 passed, 1 failed (`test_ops_overview`, fails between 00:00 UTC and local midnight; unrelated), 31 skipped.
+- Frontend 34 suites / 267 tests; `CI=true` build compiles.
+- Browser (headless Chrome over CDP, scratch DB, 3 s tick): role shown SIMULATED → handed to "Michael (test)" with the control → REAL, "normally SIM - Maintenance Tech 1"; the run waited ("waiting for REAL Michael (test) to work it in the normal staff UI"); his `/workspace` showed the sink request; his claim/start/note/complete (normal routes) → the run observed each step, the resident status step named him, the run reached STOPPED; no console errors. Scratch DBs dropped; processes stopped.
+
+### Notes
+- The resident status time in the scratch browser run was an hour ahead of Chicago because that run had no `FACILITY_TZ` / facility record (environment default), not SIM-3.
+- `scheduler.start` still holds the SIM-1 "SHARED CORE REQUEST" comment and refusal while a live email key is set; SC-16 has since merged. Left unchanged (Agent Three/Michael decision whether to drop it).
+- Scope stays the demo room until Michael lifts the ENGINEERING_CONTRACT gate (items 7, 8).
+
+### Line counts (before → after)
+`scheduler.py` 255→340, `scenario.py` 97→121, `roster.py` 78→79, `staffing.py` 95 (new), `routes/simulation.py` 57→90, `test_sim3_mixed_staffing.py` 252 (new); `simulator.js` 114→131, `SimActors.jsx` 36→54, `SimRoleControl.jsx` 66 (new), `SimControls.jsx` 49→52, `ActorBadge.jsx` 13→14, `LiveOperations.jsx` 95→101, `simulator.test.js` 89→110.
+
+HANDOFF CAPSULE
+- Objective:        SIM-3 mixed real + simulated staffing; next is the simulator lane's next RQ item.
+- Branch:           `pilot/sim-3-mixed-staffing` (draft PR into integration)
+- Lane / ownership: `backend/simulation/`, `backend/routes/simulation.py`, `backend/tests/test_sim3_*.py`, `frontend/src/components/simulator/`, `frontend/src/lib/simulator.js`, `LiveOperations.jsx`; must not edit shared lifecycle/receipt/request modules.
+- Last proven state:tests, gate and browser run above, 2026-10-05.
+- Commits:          SIM-3 code commit + this docs commit (SHAs in the PR).
+- Runtime state:    nothing left running.
+- Unresolved proven defects: none in SIM-3.
+- Product invariants that matter here: the simulator never acts as a real person; a real action carries his own authenticated provenance; nothing is fabricated when no one acts; same canonical world.
+- Do NOT change:    shared lifecycle/receipt modules; the run never writes task receipts itself.
+- Next safe action: coordinator review of the draft PR.

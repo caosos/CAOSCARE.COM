@@ -835,3 +835,11 @@ listener verifier experiment: `docs/experiments/`.
 
 - `docs/HEARING_ASSISTANCE_PERSONAL_AUDIO_ARCHITECTURE.md`: research — hearing aids as an optional personal output; room microphone stays the input; CAOSCare never pairs to hearing aids; proposals not built; unknowns needing physical tests.
 - `docs/PILOT_HEARING_AUDIO_REQUIREMENTS.md`: Pilot Room hearing/handset procurement and acceptance requirements (FCC wireline HAC, volume, ATA, phone-as-Bluetooth-owner rule, capability classes, physical test matrix, one-page procurement gate; UNKNOWN never counts as PASS).
+
+## 2026-10-04 — SIM-3 mixed real + simulated staffing (branch `pilot/sim-3-mixed-staffing`)
+
+- `backend/simulation/staffing.py`: who holds a staff role (`cast[role].filled_by`: simulated / real / unassigned), whether the canonical task already shows a step's outcome, the canonical receipt that recorded it, real-holder validation (`acts_for`), hand-off candidates.
+- `backend/simulation/scheduler.py`: observes steps already done in the canonical task (`sim_step_observed`, cites the canonical receipt); waits with no receipt while a real or empty role holds the step; `assign_role` (`sim_role_assigned`); `view.waiting_on`.
+- `backend/routes/simulation.py`: `POST /simulator/start` (optional `roles`), `POST /simulator/roles/{key}`, `GET /simulator/roles/{key}/candidates` (admin only).
+- `frontend/src/components/simulator/SimRoleControl.jsx`: hand a role to a real staff member / return to simulated / leave unassigned. `SimActors` shows SIMULATED / REAL / UNASSIGNED per role.
+- Test: `backend/tests/test_sim3_mixed_staffing.py`.
