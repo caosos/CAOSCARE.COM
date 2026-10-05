@@ -23,7 +23,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
 from deps import db, require_front_desk_or_admin
-from routes.notifications import notify_department, simulation_of
+from routes.notifications import notify_department, task_notice
 from transportation_engine import find_or_create_run, to_minutes
 from routes import task_lifecycle
 from routes.task_history import task_event
@@ -116,7 +116,7 @@ async def assign_transport_request(task_id: str, data: AssignInput, user=Depends
         "transportation", "CAOS Care: transportation assigned by staff",
         f"ASSIGNED — {task['requested_for_date']} at {run['depart_time']}\n"
         f"Purpose: {task.get('description')}\nRoom: {task.get('room') or 'unknown'}",
-        simulation=simulation_of(task, receipt["receipt_id"]),
+        **task_notice(task, receipt["receipt_id"]),
     )
     return {
         "booked": True, "receipt_id": receipt["receipt_id"], "shared": booking["shared"],

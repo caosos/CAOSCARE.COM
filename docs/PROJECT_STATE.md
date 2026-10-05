@@ -6496,3 +6496,37 @@ HANDOFF CAPSULE
 ## 2026-10-04 — Coordinator: SIM-3 (PR #56) integrated
 
 PR #56 `pilot/sim-3-mixed-staffing` `ff9465a062a828db1ce07a00aeb52e5eb3f507d9` (base `b6bf661`) → merge `c276a2bbbe9cd10a281f219c0507cb026153efb6`. Simulator lane files only (`backend/simulation/*`, `routes/simulation.py`, simulator UI); shared lifecycle/receipt/request modules called, not edited. PROJECT_STATE conflict resolved keeping both sides. On the merge: `test_sim3_mixed_staffing.py`, SIM-1, `test_sim_provenance.py`, `test_demo_continuity.py` — 31 passed (RQ-001 still works with the changed roster/scheduler); gate 272 passed / 4 failed (3 known stale + `test_ops_overview` date window, 01:23 UTC) / 13 skipped, skip set unchanged; frontend 34 suites / 267. PR MERGED. Checklist: the three mixed-staffing items moved to in progress (built and tested with a real test user; acceptance by Michael himself pending). Follow-up to Agent Three: scenario-aware `latest_run()` (not in #56), then SIM-4 Nursing. SIM-1's start refusal while a live email key is set is left in place (redundant after SC-16; revisit with RQ-005).
+
+---
+
+## 2026-10-05 — Agent Four (Shared Core): SC-8 notification links, SC-9 department labels
+
+### Agent / branch
+Claude Code (Opus 5.5), Round 5 Agent Four. Branch `pilot/shared-core-sc8-sc9` (worktree `~/CAOSCARE-SC8-SC9`) from integration `72fe52b`. Draft PR into `integration/2026-09-27`; not merged, not deployed; main, Linode, :3000/:8092 untouched.
+
+### What changed
+- **SC-8** `Notification` gains `related_object_type` / `related_object_id`. `notify_department()` now requires both (keyword-only, no default) and takes `receipt_id`; every record it writes (real or simulated) carries the task link and the receipt id. New `notifications.task_notice(task, receipt_id)` builds those plus the SC-16 simulation context in one place; all six request call sites use it (resident request new + repeat; ride request, change, cancel; staff assign). Dead `tasks.py::_notify_department` (and its unused `send_email` import) removed.
+- `pilot/communications` `aa10645` was read, not merged: its intent (link fields on the record, passed through `notify_department`) is the same; its delivery-fallback/provider-id work is Lane F's and is not part of this change.
+- **SC-9** new `GET /api/departments/labels` (any signed-in user; read-only; returns only `{slug, label}`). `DepartmentWorkspace.jsx` reads it instead of the admin-only `GET /departments`, so the heading shows "Nursing / Care" / "Maintenance" instead of the slug. All department changes and the full list stay admin-only.
+
+### Verified
+- New `test_sc8_notification_links.py` 4/4 (live-looking email key, provider call counted): a real request and its repeat produce two notifications, each linked to the task and to its own receipt, both sent; ride request + cancel linked the same way; a simulated (demo room) request's notifications are linked, `simulated`, zero provider calls; `notify_department` without the link raises. Mutation (link dropped): 3 fail.
+- New `test_sc9_department_labels.py` (HTTP): nursing staff → "Nursing / Care", maintenance staff → "Maintenance"; only slug + label returned; signed-out → 401; staff GET/POST/PATCH/DELETE `/departments` → 403, nothing created; front desk request categories unchanged; admin full list unchanged.
+- `test_sim_provenance.py` (SC-16/17) 7/7.
+- Full gate (`run_backend_tests.sh`, port 8079, fresh DB): 262 passed, 1 failed, 31 skipped. The failure is `test_ops_overview`, which fails between 00:00 UTC and local midnight (run at 01:57 UTC); unrelated.
+- Frontend 34 suites / 267 tests; `CI=true` build compiles.
+
+### Line counts (before → after)
+`notifications.py` 239→255, `resident_requests.py` 400→400, `transportation.py` 302→302, `transportation_assign.py` 124→124, `tasks.py` 183→161, `departments.py` 120→129, `DepartmentWorkspace.jsx` 225→225, `models.py` +5 (fields).
+
+HANDOFF CAPSULE
+- Objective:        SC-8 + SC-9.
+- Branch:           pilot/shared-core-sc8-sc9 (from 72fe52b).
+- Lane / ownership: Agent Four, Shared Core (notifications, departments). Did not touch simulator, comms delivery code, Aria voice.
+- Last proven state: tests above, 2026-10-05.
+- Commits:          see this entry's commit.
+- Runtime state:    nothing restarted or deployed; scratch DBs dropped.
+- Unresolved proven defects: none new.
+- Product invariants: every request notification traces to its task and receipt; simulated work never reaches a provider; department changes admin-only.
+- Do NOT change:    notify_department's required link arguments.
+- Next safe action: coordinator review of the draft PR.

@@ -13,7 +13,6 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends
 from models import StaffTask, StaffTaskCreate, StaffTaskUpdate
 from deps import db, get_current_user
-from routes.notifications import send_email
 from routes import task_actions, task_lifecycle
 from routes.actor_context import actor_from_user
 from routes.task_lifecycle import record_origin, simulation_marker
@@ -42,27 +41,6 @@ async def _resolve_denorms(data: dict) -> dict:
             if not data.get("room"):
                 data["room"] = r.get("room")
     return data
-
-
-async def _notify_department(visibility_role: str, subject: str, body: str) -> None:
-    """Email everyone in the target department. Reuses the existing staff
-    account directory (User.email) as the one source of truth for who's in
-    a department, instead of inventing a separate department-contacts list
-    Michael would have to type in by hand. If nobody has that department
-    set yet (true for a brand-new facility), falls back to admin/owner so
-    a request is never silently un-notified. send_email() itself already
-    degrades gracefully to a logged-only record when no provider key is
-    configured - this never blocks the caller."""
-    recipients = await db.users.find(
-        {"department": visibility_role}, {"_id": 0, "email": 1}
-    ).to_list(50)
-    if not recipients:
-        recipients = await db.users.find(
-            {"role": {"$in": ["admin", "owner"]}}, {"_id": 0, "email": 1}
-        ).to_list(50)
-    for u in recipients:
-        if u.get("email"):
-            await send_email(u["email"], subject, body)
 
 
 # ================= TASKS =================

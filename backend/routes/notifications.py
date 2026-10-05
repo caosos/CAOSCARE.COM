@@ -31,6 +31,14 @@ def simulation_of(task: Optional[dict], receipt_id: Optional[str] = None) -> Opt
             "receipt_id": receipt_id}
 
 
+def task_notice(task: dict, receipt_id: Optional[str]) -> dict:
+    """Keyword arguments for notify_department() about one request: the
+    task link and receipt (SC-8) plus its simulation context (SC-16).
+    One builder, so every call site links notifications the same way."""
+    return {"related_object_type": "task", "related_object_id": task["task_id"],
+            "receipt_id": receipt_id, "simulation": simulation_of(task, receipt_id)}
+
+
 async def _record_simulated(doc: dict, simulation: dict) -> dict:
     """SC-16: a simulated request's notification is evidence, not a delivery.
     It is recorded with status "simulated" and its task/receipt/run linkage,
@@ -48,7 +56,7 @@ async def _log_notification(doc: dict) -> dict:
 
 
 async def send_sms(to: str, body: str, *, alert_id: str | None = None, resident_id: str | None = None,
-                   simulation: Optional[dict] = None) -> dict:
+                   simulation: Optional[dict] = None, link: Optional[dict] = None) -> dict:
     """Send SMS via Twilio if configured; otherwise log only."""
     n = Notification(
         channel="sms",
@@ -58,6 +66,7 @@ async def send_sms(to: str, body: str, *, alert_id: str | None = None, resident_
         resident_id=resident_id,
     )
     doc = n.model_dump()
+    doc.update({k: v for k, v in (link or {}).items() if v is not None})
     if simulation:
         return await _record_simulated(doc, simulation)
     if not (TWILIO_SID and TWILIO_TOKEN and TWILIO_FROM):
@@ -82,7 +91,7 @@ async def send_sms(to: str, body: str, *, alert_id: str | None = None, resident_
 
 
 async def send_email(to: str, subject: str, body: str, *, alert_id: str | None = None, resident_id: str | None = None,
-                     simulation: Optional[dict] = None) -> dict:
+                     simulation: Optional[dict] = None, link: Optional[dict] = None) -> dict:
     n = Notification(
         channel="email",
         to=to,
@@ -92,6 +101,7 @@ async def send_email(to: str, subject: str, body: str, *, alert_id: str | None =
         resident_id=resident_id,
     )
     doc = n.model_dump()
+    doc.update({k: v for k, v in (link or {}).items() if v is not None})
     if simulation:
         return await _record_simulated(doc, simulation)
     if not RESEND_KEY:
@@ -116,6 +126,8 @@ async def send_email(to: str, subject: str, body: str, *, alert_id: str | None =
 
 
 async def notify_department(visibility_role: str, subject: str, body: str, *,
+                            related_object_type: str, related_object_id: str,
+                            receipt_id: Optional[str] = None,
                             simulation: Optional[dict] = None) -> None:
     """Email a department. Three-tier fallback, in order:
     1. The department's own Department.contact_email, if set - for a
@@ -130,10 +142,14 @@ async def notify_department(visibility_role: str, subject: str, body: str, *,
     no provider key is configured - this never blocks the caller. Shared
     by resident_requests.py, tasks.py, and transportation.py - one
     notification path, not one per lane. `simulation` (simulation_of(task))
-    makes every record "simulated" and stops it reaching a provider (SC-16)."""
+    makes every record "simulated" and stops it reaching a provider (SC-16).
+    SC-8: related_object_type/id (required) and receipt_id go on every
+    record, so each delivery traces back to the exact request and receipt."""
+    link = {"related_object_type": related_object_type, "related_object_id": related_object_id,
+            "receipt_id": receipt_id}
     dept = await db.departments.find_one({"slug": visibility_role}, {"_id": 0, "contact_email": 1})
     if dept and dept.get("contact_email"):
-        await send_email(dept["contact_email"], subject, body, simulation=simulation)
+        await send_email(dept["contact_email"], subject, body, simulation=simulation, link=link)
         return
     recipients = await db.users.find(
         {"department": visibility_role}, {"_id": 0, "email": 1}
@@ -144,7 +160,7 @@ async def notify_department(visibility_role: str, subject: str, body: str, *,
         ).to_list(50)
     for u in recipients:
         if u.get("email"):
-            await send_email(u["email"], subject, body, simulation=simulation)
+            await send_email(u["email"], subject, body, simulation=simulation, link=link)
 
 
 async def notify_family_for_alert(alert: dict):

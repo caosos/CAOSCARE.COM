@@ -12,7 +12,7 @@ import { toast } from "sonner";
 // Blueprint section 5: "Each department must be clickable and open a real
 // department workspace." First pass, reusing the existing staff_tasks/
 // resident-request-bus data via GET /tasks?visibility_role=<slug> - the
-// same field routes.py's _notify_department() already treats as "who a
+// same field routes/notifications.py's notify_department() already treats as "who a
 // department's work belongs to" (routes/departments.py, routes/tasks.py).
 // No parallel data model - deliberately.
 //

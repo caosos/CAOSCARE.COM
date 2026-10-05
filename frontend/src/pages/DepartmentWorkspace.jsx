@@ -63,7 +63,7 @@ export default function DepartmentWorkspace() {
   };
 
   useEffect(() => {
-    api.get("/departments").then(({ data }) => setDepartments(data)).catch(() => {});
+    api.get("/departments/labels").then(({ data }) => setDepartments(data)).catch(() => {});
   }, []);
   useEffect(() => {
     fetchTasks();

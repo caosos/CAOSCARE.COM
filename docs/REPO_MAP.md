@@ -850,3 +850,9 @@ listener verifier experiment: `docs/experiments/`.
 - `backend/routes/simulation.py`: `POST /simulator/start` (optional `roles`), `POST /simulator/roles/{key}`, `GET /simulator/roles/{key}/candidates` (admin only).
 - `frontend/src/components/simulator/SimRoleControl.jsx`: hand a role to a real staff member / return to simulated / leave unassigned. `SimActors` shows SIMULATED / REAL / UNASSIGNED per role.
 - Test: `backend/tests/test_sim3_mixed_staffing.py`.
+
+## 2026-10-05 — SC-8 notification links / SC-9 department labels (branch `pilot/shared-core-sc8-sc9`)
+
+- `backend/routes/notifications.py::task_notice()`: the one builder of `notify_department()` arguments for a request (task link, receipt id, simulation context). `notify_department()` requires `related_object_type` / `related_object_id`.
+- `backend/routes/departments.py`: `GET /api/departments/labels` — read-only `{slug, label}` for any signed-in user; used by `frontend/src/pages/DepartmentWorkspace.jsx`.
+- Tests: `backend/tests/test_sc8_notification_links.py`, `backend/tests/test_sc9_department_labels.py`.
