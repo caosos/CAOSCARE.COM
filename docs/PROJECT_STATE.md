@@ -5252,3 +5252,22 @@ Text-stage evidence and preliminary rules only; human-factor scores and trademar
 
 ### Next safe step
 Michael reviews `results/TOP100_REVIEW.md` and chooses which (if any) go to acoustic training. Nothing advances without his approval.
+
+---
+
+## 2026-10-04 — Wake acoustic batch 1 (Round 5): 8 funnel phrases trained/evaluated; 0 pass the pre-registered rule
+
+### Agent / tool
+Claude Code (Opus 5.5), worktree `~/CAOSCARE-WAKE-FUNNEL`, branch `research/wake-phrase-funnel`; draft PR #46 (RESEARCH / NOT FOR MERGE) → integration/2026-09-27.
+
+### What changed
+Stage A `1f7d3df`: 8 phrases selected from the funnel's top 100 for coverage (okay verona, okay evergreen, okay juniper, okay sequoia, hey thomasina, hello home helper, hey care companion, hey nevina); receipt `research/wake-phrase-funnel/batch1/SELECTION_RECEIPT.md` with the decision rule fixed before results. Lab code gained a separate batch candidate set; the 26-model report regenerates byte-identical. Stage B: all 8 generated, trained, evaluated, cross-checked (15:06–19:10 CDT, 0 retries, 0 failures); results `firmware/voice-pe-aria/lab/results/batch1/`, write-up `research/wake-phrase-funnel/batch1/RESULTS.md`.
+
+### What was verified
+0 of 8 met the rule (ambient ≤ 0.5/h, catch ≥ 63%, TV-on ≥ 42%, wrong-word ≤ 0.5%). 6 of 8 could not reach the simulated ambient limit even at cutoff 0.99, all from the TV-dialogue stream, despite near-perfect text TV-safety scores. Okay Sequoia caught best (68%, TV 51%, 0.10% wrong-word) but had 2.1 false wakes/h. Okay Verona and Hey Nevina stay quiet but catch 44–51%. Benchmarks unchanged.
+
+### Licensing
+Every model RESEARCH ONLY — NOT COMMERCIALLY RELEASABLE; weights kept out of git; nothing flashed.
+
+### Next safe step
+Michael chooses: (A) a second batch of ≤ 8 with the same method, or (B) a separately reported method change (TV-dialogue-style hard negatives in training) retesting Okay Sequoia and the best batch-1 phrases. Not started. The physical-test set stays hey kookaburra, hey callista, okay velora.

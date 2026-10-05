@@ -1,0 +1,383 @@
+{
+ "batch": "batch1",
+ "rule": {
+  "ambient_faph_max": 0.5,
+  "tpr_all_min": 0.63,
+  "tpr_tv_on_min": 0.42,
+  "confusion_max": 0.005
+ },
+ "decision": "Recommend a second batch of at most 8 (not started automatically)",
+ "passed": [],
+ "rows": [
+  {
+   "id": "okay verona",
+   "slug": "okay_verona",
+   "kind": "word_name",
+   "identity_flag": "NEW ASSISTANT IDENTITY - would replace or sit beside ARIA; Michael's decision",
+   "status": "evaluated",
+   "scores": {
+    "true_wake": 4.44,
+    "false_wake": 9.92,
+    "older_resident": 6.29,
+    "memorability": 9,
+    "natural_identity": 7
+   },
+   "weighted": 7.166,
+   "matched_cutoff": 0.85,
+   "tpr_all": 0.4441,
+   "tpr_tv_on": 0.1736,
+   "tpr_low_volume": 0.6319,
+   "tpr_older_sim": 0.2014,
+   "tpr_raspy_sim": 0.5139,
+   "tpr_dentures_sim": 0.6319,
+   "tpr_forms": {
+    "careful": 0.6458,
+    "intended": 0.6667,
+    "casual": 0.6458
+   },
+   "confusion_rate": 0.0016,
+   "ambient_faph": 0.178,
+   "checks": {
+    "ambient_ok": true,
+    "tpr_all_ok": false,
+    "tv_on_ok": false,
+    "confusion_ok": true
+   },
+   "clearly_outperforms": false
+  },
+  {
+   "id": "hey nevina",
+   "slug": "hey_nevina",
+   "kind": "constructed",
+   "identity_flag": "NEW ASSISTANT IDENTITY - would replace or sit beside ARIA; Michael's decision",
+   "status": "evaluated",
+   "scores": {
+    "true_wake": 5.06,
+    "false_wake": 9.82,
+    "older_resident": 7.39,
+    "memorability": 7,
+    "natural_identity": 4
+   },
+   "weighted": 7.042,
+   "matched_cutoff": 0.95,
+   "tpr_all": 0.5062,
+   "tpr_tv_on": 0.1528,
+   "tpr_low_volume": 0.75,
+   "tpr_older_sim": 0.1736,
+   "tpr_raspy_sim": 0.6597,
+   "tpr_dentures_sim": 0.7639,
+   "tpr_forms": {
+    "careful": 0.7708,
+    "intended": 0.7292,
+    "casual": 0.7708
+   },
+   "confusion_rate": 0.0037,
+   "ambient_faph": 0.355,
+   "checks": {
+    "ambient_ok": true,
+    "tpr_all_ok": false,
+    "tv_on_ok": false,
+    "confusion_ok": true
+   },
+   "clearly_outperforms": false
+  },
+  {
+   "id": "okay sequoia",
+   "slug": "okay_sequoia",
+   "kind": "word_name",
+   "identity_flag": "NEW ASSISTANT IDENTITY - would replace or sit beside ARIA; Michael's decision",
+   "status": "evaluated",
+   "scores": {
+    "true_wake": 6.81,
+    "false_wake": 0.0,
+    "older_resident": 7.3,
+    "memorability": 9,
+    "natural_identity": 7
+   },
+   "weighted": 5.103,
+   "matched_cutoff": 0.99,
+   "tpr_all": 0.6809,
+   "tpr_tv_on": 0.5139,
+   "tpr_low_volume": 0.8681,
+   "tpr_older_sim": 0.2847,
+   "tpr_raspy_sim": 0.8056,
+   "tpr_dentures_sim": 0.875,
+   "tpr_forms": {
+    "careful": 0.8125,
+    "intended": 0.875,
+    "casual": 0.9375
+   },
+   "confusion_rate": 0.001,
+   "ambient_faph": 2.131,
+   "checks": {
+    "ambient_ok": false,
+    "tpr_all_ok": true,
+    "tv_on_ok": true,
+    "confusion_ok": true
+   },
+   "clearly_outperforms": false
+  },
+  {
+   "id": "okay juniper",
+   "slug": "okay_juniper",
+   "kind": "word_name",
+   "identity_flag": "NEW ASSISTANT IDENTITY - would replace or sit beside ARIA; Michael's decision",
+   "status": "evaluated",
+   "scores": {
+    "true_wake": 5.95,
+    "false_wake": 0.0,
+    "older_resident": 7.33,
+    "memorability": 9,
+    "natural_identity": 7
+   },
+   "weighted": 4.851,
+   "matched_cutoff": 0.99,
+   "tpr_all": 0.5945,
+   "tpr_tv_on": 0.2292,
+   "tpr_low_volume": 0.8646,
+   "tpr_older_sim": 0.0417,
+   "tpr_raspy_sim": 0.8472,
+   "tpr_dentures_sim": 0.875,
+   "tpr_forms": {
+    "careful": 0.8125,
+    "intended": 0.8333,
+    "casual": 0.9167
+   },
+   "confusion_rate": 0.0035,
+   "ambient_faph": 4.44,
+   "checks": {
+    "ambient_ok": false,
+    "tpr_all_ok": false,
+    "tv_on_ok": false,
+    "confusion_ok": true
+   },
+   "clearly_outperforms": false
+  },
+  {
+   "id": "hey thomasina",
+   "slug": "hey_thomasina",
+   "kind": "given_name",
+   "identity_flag": "NEW ASSISTANT IDENTITY - would replace or sit beside ARIA; Michael's decision",
+   "status": "evaluated",
+   "scores": {
+    "true_wake": 5.22,
+    "false_wake": 0.0,
+    "older_resident": 6.9,
+    "memorability": 9,
+    "natural_identity": 7
+   },
+   "weighted": 4.546,
+   "matched_cutoff": 0.99,
+   "tpr_all": 0.522,
+   "tpr_tv_on": 0.3611,
+   "tpr_low_volume": 0.6806,
+   "tpr_older_sim": 0.1597,
+   "tpr_raspy_sim": 0.6458,
+   "tpr_dentures_sim": 0.7014,
+   "tpr_forms": {
+    "careful": 0.75,
+    "intended": 0.6667,
+    "casual": 0.6667
+   },
+   "confusion_rate": 0.0007,
+   "ambient_faph": 1.598,
+   "checks": {
+    "ambient_ok": false,
+    "tpr_all_ok": false,
+    "tv_on_ok": false,
+    "confusion_ok": true
+   },
+   "clearly_outperforms": false
+  },
+  {
+   "id": "hey care companion",
+   "slug": "hey_care_companion",
+   "kind": "role",
+   "identity_flag": "no new identity (functional)",
+   "status": "evaluated",
+   "scores": {
+    "true_wake": 4.57,
+    "false_wake": 0.0,
+    "older_resident": 6.5,
+    "memorability": 7,
+    "natural_identity": 7
+   },
+   "weighted": 4.071,
+   "matched_cutoff": 0.99,
+   "tpr_all": 0.4572,
+   "tpr_tv_on": 0.1458,
+   "tpr_low_volume": 0.7049,
+   "tpr_older_sim": 0.0486,
+   "tpr_raspy_sim": 0.6528,
+   "tpr_dentures_sim": 0.7014,
+   "tpr_forms": {
+    "careful": 0.6458,
+    "intended": 0.7708,
+    "casual": 0.6875
+   },
+   "confusion_rate": 0.0012,
+   "ambient_faph": 1.776,
+   "checks": {
+    "ambient_ok": false,
+    "tpr_all_ok": false,
+    "tv_on_ok": false,
+    "confusion_ok": true
+   },
+   "clearly_outperforms": false
+  },
+  {
+   "id": "hello home helper",
+   "slug": "hello_home_helper",
+   "kind": "role",
+   "identity_flag": "no new identity (functional)",
+   "status": "evaluated",
+   "scores": {
+    "true_wake": 4.09,
+    "false_wake": 0.0,
+    "older_resident": 5.72,
+    "memorability": 7,
+    "natural_identity": 7
+   },
+   "weighted": 3.771,
+   "matched_cutoff": 0.99,
+   "tpr_all": 0.409,
+   "tpr_tv_on": 0.2361,
+   "tpr_low_volume": 0.5312,
+   "tpr_older_sim": 0.1042,
+   "tpr_raspy_sim": 0.4861,
+   "tpr_dentures_sim": 0.5625,
+   "tpr_forms": {
+    "careful": 0.5833,
+    "intended": 0.4792,
+    "casual": 0.5208
+   },
+   "confusion_rate": 0.0002,
+   "ambient_faph": 0.533,
+   "checks": {
+    "ambient_ok": false,
+    "tpr_all_ok": false,
+    "tv_on_ok": false,
+    "confusion_ok": true
+   },
+   "clearly_outperforms": false
+  },
+  {
+   "id": "okay evergreen",
+   "slug": "okay_evergreen",
+   "kind": "word_name",
+   "identity_flag": "NEW ASSISTANT IDENTITY - would replace or sit beside ARIA; Michael's decision",
+   "status": "evaluated",
+   "scores": {
+    "true_wake": 3.61,
+    "false_wake": 0.0,
+    "older_resident": 5.29,
+    "memorability": 9,
+    "natural_identity": 7
+   },
+   "weighted": 3.741,
+   "matched_cutoff": 0.99,
+   "tpr_all": 0.3607,
+   "tpr_tv_on": 0.0903,
+   "tpr_low_volume": 0.5208,
+   "tpr_older_sim": 0.0069,
+   "tpr_raspy_sim": 0.4861,
+   "tpr_dentures_sim": 0.5278,
+   "tpr_forms": {
+    "careful": 0.4583,
+    "intended": 0.5625,
+    "casual": 0.5625
+   },
+   "confusion_rate": 0.0007,
+   "ambient_faph": 0.888,
+   "checks": {
+    "ambient_ok": false,
+    "tpr_all_ok": false,
+    "tv_on_ok": false,
+    "confusion_ok": true
+   },
+   "clearly_outperforms": false
+  }
+ ],
+ "benchmarks": [
+  {
+   "id": "hey kookaburra",
+   "slug": "hey_kookaburra",
+   "weighted_lab": 7.898,
+   "matched_cutoff": 0.99,
+   "tpr_all": 0.7504,
+   "tpr_tv_on": 0.5069,
+   "tpr_low_volume": 0.9062,
+   "confusion_rate": 0.0016,
+   "ambient_faph": 0.355
+  },
+  {
+   "id": "hey callista (kuh-LISS-tuh)",
+   "slug": "hey_callista_kuh_liss_tuh",
+   "weighted_lab": 7.447,
+   "matched_cutoff": 0.98,
+   "tpr_all": 0.5802,
+   "tpr_tv_on": 0.4236,
+   "tpr_low_volume": 0.684,
+   "confusion_rate": 0.0022,
+   "ambient_faph": 0.355
+  },
+  {
+   "id": "okay velora (veh-LOR-uh)",
+   "slug": "okay_velora_veh_lor_uh",
+   "weighted_lab": 7.385,
+   "matched_cutoff": 0.9,
+   "tpr_all": 0.5475,
+   "tpr_tv_on": 0.2639,
+   "tpr_low_volume": 0.7049,
+   "confusion_rate": 0.0049,
+   "ambient_faph": 0.355
+  },
+  {
+   "id": "hey aria",
+   "slug": "hey_aria",
+   "weighted_lab": 7.368,
+   "matched_cutoff": 0.9,
+   "tpr_all": 0.4448,
+   "tpr_tv_on": 0.1389,
+   "tpr_low_volume": 0.5729,
+   "confusion_rate": 0.0163,
+   "ambient_faph": 0.355
+  }
+ ],
+ "worst_cross_trigger_per_batch_model": {
+  "okay_verona": [
+   "okay_lumaro",
+   0.1597
+  ],
+  "okay_evergreen": [
+   "okay_aria",
+   0.0139
+  ],
+  "okay_juniper": [
+   "hello_kotrubo",
+   0.0278
+  ],
+  "okay_sequoia": [
+   "okay_juniper",
+   0.0278
+  ],
+  "hey_thomasina": [
+   "hey_callista_kuh_liss_tuh",
+   0.1875
+  ],
+  "hello_home_helper": [
+   "hello_pomona",
+   0.0833
+  ],
+  "hey_care_companion": [
+   "okay_lumaro",
+   0.1528
+  ],
+  "hey_nevina": [
+   "kolabamo",
+   0.0486
+  ]
+ },
+ "scoring_note": "recommend_lab weights; text inputs from the funnel for batch phrases; role phrase natural identity = 7 (reported addition)",
+ "licensing": "RESEARCH ONLY - NOT COMMERCIALLY RELEASABLE"
+}
