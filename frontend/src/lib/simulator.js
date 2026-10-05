@@ -115,8 +115,12 @@ export function canonicalRefOf(receipt) {
 }
 
 // Open requests from the canonical task list, simulated work only.
-export function activeSimRequests(tasks) {
-  return (tasks || []).filter((t) => t.simulated && !["completed", "skipped"].includes(t.status));
+// Open requests raised by this run. A run's requests carry its
+// simulation_run_id; other simulated work in the demo room (e.g. demo
+// continuity) belongs to a different run and is not shown here.
+export function activeSimRequests(tasks, runId) {
+  return (tasks || []).filter((t) => t.simulated && !["completed", "skipped"].includes(t.status)
+    && (!runId || t.simulation_run_id === runId));
 }
 
 // The cast entry (from the run) that matches a receipt's actor, if any.

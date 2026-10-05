@@ -62,7 +62,7 @@ export default function LiveOperations() {
   const stream = useMemo(() => mergeStream(runChain, history?.request_chain), [history]); // eslint-disable-line react-hooks/exhaustive-deps
   const current = useMemo(() => currentAction(runChain), [history]); // eslint-disable-line react-hooks/exhaustive-deps
   const failed = useMemo(() => failures(runChain, refused), [history, refused]); // eslint-disable-line react-hooks/exhaustive-deps
-  const requests = useMemo(() => activeSimRequests(tasks), [tasks]);
+  const requests = useMemo(() => activeSimRequests(tasks, state?.run_id), [tasks, state?.run_id]);
   const cast = state?.cast;
 
   return (
