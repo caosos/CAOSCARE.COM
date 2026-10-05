@@ -6438,3 +6438,15 @@ HANDOFF CAPSULE
 - Product invariants: demo-only; one receipt per window; no provider side effects from simulated work.
 - Do NOT change:    the default-off switch without Michael's decision.
 - Next safe action: coordinator review; Michael decides whether to set CAOSCARE_DEMO_CONTINUITY_AUTO on any environment.
+
+---
+
+## 2026-10-04 — Coordinator: HA VM recovery audit (PR #55) and RQ-001 demo continuity (PR #52) integrated
+
+Pilot 1 coordinator, `integration/2026-09-27`; one merge at a time. Not merged to main, not deployed; Linode, PR #41/#42 untouched.
+
+1. PR #55 `ops/ha-vm-recovery` `3d80011bb2774ee24eb4f34291121d3314038d8b` → merge `c4381421acec2121279ef9065a0fccda1d8dc953`. Docs only (`docs/HA_VM_RECOVERY.md` + log). Root cause recorded: host-wide OOM 2026-10-03 20:19:36 CDT killed the VM's qemu; autostart only applies at host boot. Agent Four committed the design first (`4d19963`), then started the existing VM and tested HA core restart and a graceful VM shutdown/start (no Aria lease, no recent device command); no XML/qcow2/network/HA config change; receipts R1–R8. Coordinator read-only check: domain `running`, autostart `enable`, 4 GiB / 2 vCPU, :8123 → 200, no OOM since 19:00. Open, needs Michael: host reboot test; P1 qemu OOM protection hook, P2 crash-only restart timer, P3 memory caps for heavy builds. PR MERGED. (Docs only; code unchanged from the previous gate.)
+2. PR #52 `pilot/rq-001-demo-continuity` `797961fb4ecec079032f3b76563fb3995eee9e15` → merge `5bc1f8c50ba2bcb9618529d69b94b672b123f553`. All five review items addressed: refreshed; SC-17 provenance via a registered STOPPED `demo_continuity` run in `sim_runs` (generated requests source `simulator` + run id); SC-16 holdoff removed; startup/sign-in hooks do nothing unless `CAOSCARE_DEMO_CONTINUITY_AUTO` is set (Michael decides where); admin endpoint explicit. Log conflicts resolved keeping both sides. On the merge: `test_demo_continuity.py` + SIM-1 + `test_sim_provenance.py` 27 passed; gate 268 passed / 4 failed (3 known stale + `test_ops_overview` date window, 01:16 UTC) / 13 skipped, skip set unchanged. PR MERGED.
+   - Coupling noted: `scheduler.latest_run()`/`view` return the newest run of any scenario, so after a continuity catch-up Live Operations would show the continuity run. Assigned to Agent Three within SIM-3 (scenario-aware `latest_run`).
+
+Next: Agent Four resumes SC-8 + SC-9; Agent Five finishes RQ-008 (report PR + Phase 2 list); Agent Three SIM-3 (+ scenario-aware latest run); Agent Six stale-gate test fixes; Claude Two wake A/B.
