@@ -6165,3 +6165,342 @@ PR #48 `pilot/shared-core-device-truth` `aa5ec95`: conflicts only in `PROJECT_ST
 
 ### Tracker updates
 RQ-008 (storage + obsolete worktree cleanup) added: read-only audit assigned to Agent Five; deletion only from a Michael-approved list after heavy jobs finish. SCR-SIM-1/2 numbered SC-16/SC-17, assigned to Agent Four after #48. SIM-2 assigned to Agent Three. Checklist: SIM-1 items marked with evidence. Runtime findings from the BOM recorded on the board (HA VM shut off/crashed since ~2026-10-03 20:19 CDT; RTL-SDR not enumerated; RF bridge posting to a stale backend) — not acted on.
+
+## 2026-10-04 — Agent Four (Shared Core): SC-10, SC-11, SC-12 device truth
+
+### Agent / branch
+Claude Code (Opus 5.5), Round 5 Agent Four. Branch `pilot/shared-core-device-truth` (worktree `~/CAOSCARE-LANE-DEVICE-TRUTH`) from integration `55b733e9cd1f497f38ea2229a32162eb6b958740` (the board's expected base was `0f331b7`; integration moved one coordinator docs commit, `55b733e`, before branching). Draft PR into `integration/2026-09-27`; not merged, not deployed; main, Linode, Room 214 and the running :3000/:8092 untouched.
+
+### What changed
+- **SC-10** `frontend/src/lib/realtimeLightControl.js`: every requested attribute (brightness / color / color_temp) is checked against the light's capabilities before any command. One unsupported attribute → `ok:false`, `unsupported:[…]`, "doesn't support X, so I left it as it was", nothing sent (no implicit power-on). The refusal is evidence as the session's `tool_result` event (`realtimeMessageHandler`). Supported attributes on an off light still imply power-on.
+- **SC-11** `backend/device_adapters.py`: `simulation_fields(device)` — `{}` for real transports; for `mock`, `simulated: true` + `simulation_scope` (`demo_room` when the room is `routes.demo_kiosk.DEMO_ROOM`, else `real_room`). `execute_mock` returns `verified` only for the demo room; Home Assistant returns `verified: true` explicitly. `backend/routes/devices.py::_dispatch_command`: `verified` is now what the adapter says (was: any `state` in the result ⇒ `True`); every command record carries the simulation fields. `public_room_command` receipts set `simulated` and `result_label` (`simulated` / `verified` / `unverified` / `failed`), and the event's `verification_status` uses the same label. HTTP request contract unchanged; responses gain `simulated` / `simulation_scope` for mock devices.
+- **SC-12** `frontend/src/lib/realtimeDeviceTools.js`: `toggle_tv` (power + volume), `set_tv_input` and `adjust_room_temperature` pass `ctx.session_id`; `postRoomCommand` already sends `null` when there is none.
+
+### Verified
+- Backend gate (`scripts/run_backend_tests.sh`, port 8074, fresh DB `caoscare_gate_device_truth`, no OpenAI key): **227 passed, 0 failed, 31 skipped**. New `test_device_truth.py` 8/8 — real-room mock: command/receipt/event `simulated`, not verified; demo room: verified + simulated; unsupported colour on an off light: 502, state unchanged, failed+simulated receipt; TV power/volume and thermostat record `session_id` on command and receipt; no session → `None`. Uses a throwaway `T-<uuid>` room; asserts every other room's devices and command counts unchanged. `test_demo_kiosk.py` 3/3 unchanged.
+- Frontend 33 suites / 252 tests; `CI=true` build compiles. Against the original files, the new frontend assertions fail 6/20 (3 SC-10, 3 SC-12).
+- Not verified: live voice session; no real-hardware run.
+
+### Notes
+- `realtimeClimateControl.js` (`handleAdjustRoomTemperature`) is not imported anywhere; the live thermostat path is the inline `adjust_room_temperature` in `realtimeDeviceTools.js`, which still ignores the schema's `state` / `mode` / `delta_f` and posts `kind:"thermostat"` without `device_id`. Not rewired here (behaviour change beyond SC-12).
+- Existing `device_commands` / receipts for Room 214's mock TV/thermostat keep `verified: true` (history not rewritten).
+
+### Line counts
+`device_adapters.py` 315 (was 294), `routes/devices.py` 300 (was 291), `simulated_device.py` 78, `realtimeLightControl.js` 124 (was 123), `realtimeDeviceTools.js` 322 (was 319, pre-existing over 300).
+
+HANDOFF CAPSULE
+- Objective:        SC-10/11/12 device truth.
+- Branch:           pilot/shared-core-device-truth (from 55b733e).
+- Lane / ownership: Agent Four. Touched routes/devices.py internals (shared; HTTP contract unchanged, no other active agent owns it). Did not touch demo_kiosk.py, real-room adapters' behaviour, simulator, wake word, comms.
+- Last proven state: gates above, 2026-10-04.
+- Commits:          see this entry's commit.
+- Runtime state:    nothing restarted or deployed; gate backend stopped.
+- Unresolved proven defects: dead realtimeClimateControl.js / incomplete live thermostat tool (above).
+- Product invariants: verified only on adapter-declared read-back; simulated always explicit; refused commands change nothing.
+- Do NOT change:    the /devices/public/room/{room}/command request contract.
+- Next safe action: coordinator reviews the draft PR; decide whether to wire or retire realtimeClimateControl.js.
+
+---
+
+## 2026-10-04 — Coordinator: Shared Core SC-10/11/12 (PR #48) integrated
+
+### Agent / branch
+Claude Code (Opus 5.5), Pilot 1 coordinator, `integration/2026-09-27`. Michael's "PR #48 IS READY". Not merged to main, not deployed; HA, Linode, PR #41/#42 untouched; Claude Two's batch not touched.
+
+### Merge
+PR #48 `pilot/shared-core-device-truth` `95b4df87a056d8a4a852e8a82b98f1d969286d94` (refreshed; merge base = tip `f35d8ee`) → merge `085813eebdc7970716c1d1b4f8eafa1aedcc9078`. Reviewed: SC-10 (`realtimeLightControl.js`: unsupported attribute refuses the whole request before anything is sent), SC-11 (`device_adapters.execute_mock`/`simulation_fields`: mock always simulated, verified only in room `DEMO`; `routes/devices.py` labels only, route/body unchanged), SC-12 (TV/thermostat commands carry `session_id`). Import check OK (new `routes.demo_kiosk` import in `device_adapters`). Tests on the merge: frontend `toggleLightControl`, `deviceSessionTrace`, `toggleTvVolumeGuard`, `demoKiosk` — 4 suites / 38 passed; backend gate (port 8077, throwaway DB) 248 passed / 3 failed (the known stale iter10/iter11 tests) / 13 skipped — previous 240 + 8 device-truth tests, which ran. PR shows MERGED.
+
+### Assignments
+- Agent Four: SC-16 (simulated requests never send real notifications or provider side effects) + SC-17 (explicit simulator provenance and `simulation_run_id` on canonical requests, no second model), fresh branch from the new tip.
+- Agent Three: SIM-2 from the current tip (no SIM-2 branch on GitHub yet).
+- RQ-008: Agent Five's audit (`docs/rq-008-storage-receipt` `39a5abf`) reports Phase 1 cache cleanup already executed (npm/yarn/pip caches, 7 disabled snap revisions via `sudo snap remove`; 8.03 GB; no firmware/lab/dataset/worktree/VM/log touched). The coordinator assignment had been read-only; it is within Michael's "safe cache cleanup first". No further deletion while Claude Two's batch runs; later phases need sign-off. Agent Five to open a draft PR for the report.
+
+---
+
+## 2026-10-04 — Coordinator: PR #50 (SIM-2) reviewed; RQ-001 assigned to Agent Five
+
+Michael's "KEEP THE TRAIN MOVING". Tip `0b6f9db`.
+- PR #50 `pilot/sim-2-live-operations` `c05dc488c889279b1a296ff0b0d2228f2cc5253d` (base `f35d8ee`), code review passed: frontend only; shared touches `adminTabGroups.js` +1, `Admin.jsx` +2; state from `/simulator/*`, receipts and `/tasks` only (no second state or request model); requests open in the existing `RequestDetailDialog`; real/simulated from receipt fields via one helper; controls post to `/simulator/{action}`. Not merged — waiting for Agent Three's browser acceptance evidence.
+- Agent Four: WIP `8c72b4b` on `pilot/shared-core-sim-provenance` (base `0b6f9db`), no PR; no file overlap with #50; touches `backend/simulation/` as the SC-17 call site. Merge order #50 → SC-16/17 → RQ-001.
+- Agent Five: RQ-001 Demo data continuity assigned (new files only; demo room only; depends on SC-17 `simulation_run_id`, so it rebases and opens its PR after SC-16/17 merges). RQ-008 audit report still needs a draft PR.
+## 2026-10-04 — SIM-2 Live Operations UI, first slice (Agent Three, draft PR #50)
+
+### Agent / branch
+Claude Code (Opus 5.5), Round 5 Agent Three. Branch `pilot/sim-2-live-operations` (worktree `~/CAOSCARE-SIM2`) from `f35d8ee` (SIM-1 merged), rebased onto `0b6f9db`. Draft PR #50 into `integration/2026-09-27`. Board name was `pilot/sim-2-live-ops`; Michael's directive named `pilot/sim-2-live-operations`, which is used. Not merged; no deploy; no runtime service, main, Linode or hardware touched.
+
+### What changed
+Frontend only. New Admin → Community → Live operations tab: run state, simulated time, next action, Start / Pause / Step / Resume / Stop, actors with real/simulated badges, current action, active simulated request, failures, merged receipt stream, and a receipt trace (actor, authority, before/after, parent receipt, the canonical receipt a simulator step references, the request via the existing `RequestDetailDialog`). Every value comes from the SIM-1 API and the canonical `/receipts` and `/tasks` endpoints; no simulator state is kept in the frontend; requests use `requestDisplay`. Shared files: `adminTabGroups.js` +1, `Admin.jsx` +2.
+
+### Verified
+- Frontend 34 suites / 263 tests (new `simulator.test.js`); `CI=true` build compiles.
+- Browser (headless Chrome over CDP, real admin login, scratch DB, backend from this branch with a 3 s tick): start → RUNNING, loop advanced; pause held 7 s; step +1 and stayed PAUSED; trace walked request receipt → origin → request dialog, and simulator step → canonical `task_acknowledged` receipt; resume ticked after 3.0 s (UI shows it within the 2 s poll); stop froze the run; no console errors. A run with departments missing showed the failed step in Current action and Failures. A phone-width overflow (612 px at 390) was found and fixed. Scratch DB dropped afterwards.
+
+### Limits
+No speed control (backend `SIM_TICK_SECONDS`). The request dialog shows source "Aria voice" for simulated requests (SC-17). The request dialog's action buttons act as the real signed-in operator (SIM-3 direction).
+
+HANDOFF CAPSULE
+- Objective:        SIM-2 Live Operations UI; next is SIM-3 (real + simulated staffing)
+- Branch:           `pilot/sim-2-live-operations` (draft PR #50)
+- Lane / ownership: `frontend/src/pages/LiveOperations.jsx`, `frontend/src/components/simulator/`, `frontend/src/lib/simulator.js` + test; must not edit shared lifecycle/receipt modules
+- Last proven state:tests 34/263, build, browser run above
+- Commits:          `c05dc48`, phone fix, this docs commit (SHAs after rebase in the PR)
+- Runtime state:    nothing left running
+- Unresolved proven defects: none in SIM-2; SC-16/SC-17 open (Agent Four)
+- Product invariants that matter here: no second simulator state model; real/simulated explicit; every action traceable to origin
+- Do NOT change:    SIM-1 scheduler contract without a coordinator decision; shared lifecycle/receipt modules
+- Next safe action: coordinator review of PR #50 (incl. the Admin.jsx / adminTabGroups.js touch)
+
+---
+
+## 2026-10-04 — Agent Five: RQ-001 demo data continuity (draft PR)
+
+### Agent / branch
+Claude Code (Opus 5.5), Round 5 Agent Five. Branch `pilot/rq-001-demo-continuity` (worktree `~/CAOSCARE-DEMO-CONTINUITY`) from `integration/2026-09-27` `0b6f9db`, rebased onto `5567d3e` (SIM-2 merged). Draft PR into `integration/2026-09-27`. Not merged, not deployed; main, Linode, real rooms and the running :3000/:8092 untouched.
+
+### What changed
+- `backend/demo_continuity.py` (new): when time has passed, the demo room catches up in one-hour windows.
+  - Each open simulated demo request moves one step (acknowledge → start → complete) through `task_actions`, done by a simulated staff member of its department.
+  - Open work above 6 is closed as stale backlog, oldest first.
+  - In facility daytime, a fixed hash of the window start may raise one new request from a fixed list, through `create_resident_request`.
+  - Only tasks marked `simulated`, `simulation_scope=demo_room`, room `DEMO` are touched, and only while the demo room holds the synthetic resident alone.
+  - The window range is claimed with one compare-and-set before any work, so a refresh or a second sign-in finds nothing left to do.
+  - Catch-up waits (and records why) while a SIM-1 run is active or a live email provider key is set.
+  - Gaps longer than 72 hours fast-forward; the skipped hours are recorded in a receipt.
+- Receipts: `demo_continuity_started` (origin), one `demo_continuity_window` per window (chained, correlation = origin, provider_refs = the canonical receipts that window produced, before/after open/closed counts), `demo_continuity_fast_forward`, `demo_continuity_deferred`. Actor `sim:system:demo_continuity`, simulated-agent, synthetic.
+- `backend/routes/demo_continuity.py` (new): admin `GET /api/demo/continuity`, `POST /api/demo/continuity/catch-up`.
+- Hooks, best-effort and in the background: `server.py` lifespan (startup) and router; `routes/auth.py::_issue_jwt` (every sign-in path issues its token there).
+
+### Verified
+- `tests/test_demo_continuity.py` 11 passed, covering acceptance 1–11 plus the email-provider deferral.
+- Breaking a guard on purpose makes tests fail:
+  - removing the exactly-once claim → 3 fail;
+  - removing the demo-room scope → 3 fail;
+  - removing the backlog cap → 3 fail;
+  - removing the email guard → 1 fails.
+- Full gate (`scripts/run_backend_tests.sh`, port 8078, throwaway DB): 244 passed, 0 failed, 31 skipped. `tests/test_sim1_actor_scheduler.py` 6 passed.
+- Not verified: a browser sign-in on the running stack; a run against the shared `caoscare` DB.
+
+### Limits
+- Steps are stamped at catch-up time, not at the simulated window's time.
+- The "Demo -" 3W wing residents are not synthetic-marked, so they are out of scope.
+- Generated requests carry channel `aria_voice` and no `simulation_run_id` until SC-17.
+- The email-provider guard can be lifted once SC-16 makes simulated notifications record-only.
+
+HANDOFF CAPSULE
+- Objective:        RQ-001 demo data continuity.
+- Branch:           pilot/rq-001-demo-continuity (draft PR).
+- Lane / ownership: Agent Five. New files plus small hooks in server.py and routes/auth.py. No edits to simulation/*, task_lifecycle, resident_requests, notifications, models.
+- Last proven state: tests above, 2026-10-04.
+- Commits:          see this entry's commit.
+- Runtime state:    nothing restarted or left running; scratch DBs dropped.
+- Unresolved proven defects: none found.
+- Product invariants: simulated demo work only; one receipt per window; each window processed once.
+- Do NOT change:    real rooms; the demo-room scope filter.
+- Next safe action: rebase after SC-16/17 merges; carry `simulation_run_id`; lift the email guard if SC-16 allows.
+
+---
+
+
+## 2026-10-04 — Agent Four (Shared Core): SC-16 simulated notifications, SC-17 simulator provenance
+
+### Agent / branch
+Claude Code (Opus 5.5), Round 5 Agent Four. Branch `pilot/shared-core-sim-provenance` (worktree `~/CAOSCARE-LANE-SIM-PROVENANCE`) from integration `0b6f9dbd` (PR #48 merged at `085813e`). Draft PR into `integration/2026-09-27`; not merged, not deployed; main, Linode, Room 214, :3000/:8092 untouched.
+
+### What changed
+- **SC-16** `routes/notifications.py`: `simulation_of(task, receipt_id)` gives the simulation context from the task's own server-set marker (None for real work). `send_email` / `send_sms` take `simulation=`; with it they never call Resend/Twilio (even with keys configured) and record the notification as `status: "simulated"` with `simulated`, `simulation_scope`, `simulation_run_id`, `task_id`, `receipt_id`. `notify_department(..., simulation=)` passes it through. Every department-notification call site for requests passes it: resident request (new + repeat), transportation request / change / cancel / staff assign. A synthetic resident's demo-kiosk ask is simulated too. `NotificationStatus` gains `"simulated"`; `Notification` gains the linkage fields.
+- **SC-17** `create_resident_request(data, *, user=None, simulation_run_id=None)`: the run id is an in-process keyword only (not on `ResidentRequestInput`, so a request body can never set it). It must name a real `db.sim_runs` run and a synthetic resident, otherwise 400 and nothing written. With it, the task is the same canonical StaffTask with `source: "simulator"` and `simulation_run_id`; the origin actor's channel is `simulator`, authority `simulation_run`. A body that claims `source: "simulator"` is still "Invalid source". A run's requests dedup only within that run (demo-kiosk and real requests never land on a run's request). `task_lifecycle._run_link` puts `simulation_run_id` on every receipt of the chain (origin, transitions, refusals); `_SOURCE_BY_CHANNEL` maps `simulator`. `TaskSource` gains `"simulator"`; `RESIDENT_ORIGIN_SOURCES` (models) is the one list of resident-originated sources, used by the Aria status lookups (`resident_requests._scope_query`, `aria_operational_state`) so the synthetic resident's simulated requests stay visible to the same world. UI label "Simulator (simulated)".
+- **SIM-1 call site (Agent Three's files, flagged in the PR):** `scheduler._execute_next` passes `run_id`; `scenario.execute` / `_raise_request` pass `simulation_run_id`. No other scheduler/scenario change. SIM-1's own refuse-to-start-with-a-live-email-key guard is left as is (lifting it is Agent Three's/Michael's call).
+
+### Verified
+- Backend gate (`run_backend_tests.sh`, port 8075, fresh DB, no OpenAI key): **240 passed, 0 failed, 31 skipped** (233 + 7 new). New `test_sim_provenance.py` 7/7; SIM-1 6/6; demo kiosk, shared-core, SIM-0, ride receipts pass.
+- Mutation check: disabling the provider guard, the run-scoped dedup, the synthetic-resident check, or the receipt run link each fails its test.
+- Tests run with live provider keys monkeypatched on and `httpx.AsyncClient` replaced by a spy: zero provider calls for simulated work; the real request's email reaches the (spy) provider as `sent`.
+- Frontend 33 suites / 252 tests; `CI=true` build compiles.
+
+### Line counts (before → after)
+`notifications.py` 209→239, `resident_requests.py` 382→400 (at the ~400 signal; comments trimmed to stay there), `task_lifecycle.py` 212→222, `transportation.py` 299→302, `transportation_assign.py` 123→124, `aria_operational_state.py` 201→201, `scenario.py` 95→97, `scheduler.py` 255→255, `requestDisplay.js` 53→54, `models.py` +15 (fields/literals).
+
+HANDOFF CAPSULE
+- Objective:        SC-16 / SC-17.
+- Branch:           pilot/shared-core-sim-provenance (from 0b6f9db).
+- Lane / ownership: Agent Four, Shared Core (notifications, resident_requests, task_lifecycle, models). One-keyword call-site change in Agent Three's backend/simulation/ (flagged).
+- Last proven state: gates above, 2026-10-04.
+- Commits:          see this entry's commit.
+- Runtime state:    nothing restarted or deployed.
+- Unresolved proven defects: none new. `resident_requests.py` sits at 400 lines; next growth should extract.
+- Product invariants: one canonical request model; simulated work never reaches a real provider; simulator provenance only server-side; real requests unchanged.
+- Do NOT change:    simulator provenance from request bodies; provider calls without the simulation check.
+- Next safe action: coordinator review; Agent Three decides whether SIM-1 can drop its live-email-key refusal.
+
+---
+
+## 2026-10-04 — Coordinator: SIM-2 (PR #50) and SC-16/SC-17 (PR #51) integrated
+
+Pilot 1 coordinator, `integration/2026-09-27`. One merge at a time, gate between. Not merged to main, not deployed; HA, Linode, PR #41/#42 untouched; Claude Two's batch not touched.
+
+1. PR #50 `pilot/sim-2-live-operations` `89e99a68ea36f3ad6603cd61ab26e94655c9a205` → merge `5567d3e61efcf125829e2b57a2bb44986572c5af`. Code review passed at `c05dc48`; after the rebase the only code change was `min-w-0` (phone width) in `LiveOperations.jsx`. Browser acceptance evidence (Agent Three, PR body: headless Chrome, real admin login, scratch DB; start/pause/step/resume/stop; receipt → request → actor trace with SIMULATED/REAL badges; no console errors; 390 px). PROJECT_STATE conflict resolved keeping both sides. On the merge: frontend 34 suites / 263 tests; backend gate 248/3/13 (the known stale tests). MERGED.
+2. PR #51 `pilot/shared-core-sim-provenance` `d29f1cafd8a167a8dd9162cb173470cf672b71c0` → merge `895769ae77567ef2b590061f4160710449717942`. Reviewed: SC-16 — `notifications.simulation_of(task)` from the task's own marker; simulated notifications recorded `status: simulated`, never handed to Twilio/Resend; SC-17 — `TaskSource` `simulator`, `simulation_run_id` on StaffTask and on every receipt of its chain (`task_lifecycle._run_link`), set in-process only; real requests unchanged. Log conflicts resolved keeping both sides. On the merge: `test_sim_provenance.py` + SIM-1 13 passed; gate 255/3/13 (+7); frontend 34/263. MERGED.
+
+Checklist: simulator items updated with evidence (receipt chains, controls without SSH, drill-down, real/simulated distinct marked done; UI state partially — no speed control).
+Next: Agent Three SIM-3 (mixed real + simulated staffing); Agent Four SC-8 + SC-9; Agent Five RQ-001 (unblocked by SC-17) and the RQ-008 report PR.
+
+---
+
+## 2026-10-04 — Coordinator: PR #52 (RQ-001 demo continuity) reviewed — changes requested
+
+PR #52 `pilot/rq-001-demo-continuity` `90160fbe758ecd9a4036f31c70468abb08a16e96` (base `5567d3e`, before SC-16/17). Design accepted (canonical services only, demo room only, exactly-once windows, bounded backlog, chained receipts, real-data snapshots in tests). Not merged: (1) rebase onto `1118baa`; (2) generated requests must carry SC-17 provenance (source `simulator` + `simulation_run_id`), not `aria_voice` — SHARED CORE REQUEST if a run identity is needed; (3) the startup (`server.py`) and sign-in (`auth.py::_issue_jwt`) hooks must be behind a default-off setting so merging cannot change the shared `caoscare` DB's or production's demo room — enabling it is Michael's decision; (4) state whether the email guard stays now that SC-16 records simulated notifications only; (5) rerun focused tests and the gate.
+
+---
+
+## 2026-10-04 — Coordinator: RQ-009 Hearing Assistance / Personal Audio Compatibility assigned to Agent Six
+
+Michael's instruction 2026-10-04. Added RQ-009 to `docs/PILOT1_READY_QUEUE.md` (ASSIGNED, Agent Six) and to the Round 5 board and merge queue in `docs/PILOT1_ACTIVE_WORK.md`. Scope: research/docs only on an isolated branch (`research/rq-009-hearing-assistance`), deliverable `docs/research/RQ-009_HEARING_ASSISTANCE_PERSONAL_AUDIO.md`, draft PR into integration; no heavy compute, no code/firmware/shared-file ownership. Docs only; nothing merged or deployed.
+
+---
+
+## 2026-10-04 — Coordinator: RQ-009 research (PR #53) integrated; Round 5 reassignments
+
+Michael's "ROUND 5 — COORDINATOR RESUME". Tip before: `e89bc51b48e95425d1c6cc6b9f66178bf8eeeef6`.
+- PR #53 `research/hearing-assistance-audio` `449c841aae0551110943e918e0217e3259f02f8c` → merge `ee8057efc50cd0fdd4795657f65d10b114d7ef91`. Docs only (one new file, `docs/HEARING_ASSISTANCE_PERSONAL_AUDIO_ARCHITECTURE.md`); consistent with `ROOM_AUDIO_ARCHITECTURE.md`; proposals marked not built. REPO_MAP pointer added here. Gate on the merge (port 8077, throwaway DB): 254 passed / 4 failed / 13 skipped — the 3 known stale tests plus `test_ops_overview`, which fails between 00:00 UTC and local midnight (run at 00:57 UTC = 19:57 Chicago; the test seeds "yesterday" in UTC while the code compares facility-local dates). Not a regression (no code changed); fix exists as `aa3d2f1` on `spike/voice-bridge`. PR MERGED.
+- Assignments: Agent Five refreshes PR #52 (SC-17 run id, SC-16 email holdoff, default-off hooks, rerun); Agent Three SIM-3; Agent Four reprioritised to the Pilot blocker HA VM recovery/autostart (audit + design first, no qcow2 destruction, no Linode; SC-8/SC-9 paused); Claude Two one-model training-method A/B (Okay Sequoia + TV-dialogue-style hard negatives, evaluation byte-identical to batch 1); Agent Six Pilot Room hearing hardware requirement matrix (docs only).
+
+---
+
+## 2026-10-04 — Coordinator: Pilot hearing & handset requirements (PR #54) integrated; Agent Six → test-only stale-gate fixes
+
+- PR #54 `research/pilot-hearing-requirements` `536ed6881f443283e85d2255260a8be55e254710` (base `81a4f92`) → merge `cf0ac00bba1ea18a0b67cec9b3c1cd13d6acce8b`. Docs only (`docs/PILOT_HEARING_AUDIO_REQUIREMENTS.md`): model fields left blank, UNKNOWN never counts as PASS, FAIL/UNKNOWN on a MUST blocks purchase. REPO_MAP pointer added. Gate on the merge 253/4/14, rerun with skip reasons 254/4/13 with the same skip set as the 2026-10-04 SC-10 gate — the one passed→skipped shift was transient. The 4 failures are the 3 known stale tests and `test_ops_overview` (UTC-vs-local date window, run at 01:07 UTC). PR MERGED.
+- Agent Six's next bounded task: port the existing test-only fixes (`f36351c` iter10/iter11, `aa3d2f1` `test_ops_overview`) from `spike/voice-bridge` onto `tests/stale-gate-fixes` from the tip; tests only; acceptance = gate with 0 failed.
+## 2026-10-04 — Agent Four: Home Assistant VM recovered (Pilot blocker)
+
+### Agent / branch
+Claude Code (Opus 5.5), Round 5 Agent Four. Branch `ops/ha-vm-recovery` from integration `81a4f92`. Docs only in the repo; host actions were start/stop/restart of the existing domain. Not merged, not deployed; Linode untouched.
+
+### What happened / what was done
+- Root cause (kernel journal): host-wide OOM on 2026-10-03 20:19:36 CDT killed the HA VM's qemu process (largest process, no OOM protection) during a native build. Autostart cannot restart a killed domain; it only runs at host boot.
+- Audit + design committed first (`4d19963`, `docs/HA_VM_RECOVERY.md`). Then started the existing VM; no XML, qcow2, network, firewall or HA config change.
+- Verified: HA RUNNING, 8123 answers, CAOSCare `ha_health()` connected (68 entities); HA core restart and VM graceful shutdown/start both kept all 68 entity ids and 14 config entries; no SSH needed. Receipts R1–R8 in the doc.
+
+### Open (needs Michael)
+- Host-reboot test of autostart (not done; reboot needs approval).
+- OOM recovery: P1 qemu OOM protection (libvirt hook), P2 crash-only restart timer, P3 memory caps for heavy builds. Not applied.
+- Swap still full (2 GiB) from the OOM period.
+
+HANDOFF CAPSULE
+- Objective:        HA VM starts after reboot and recovers without SSH.
+- Branch:           ops/ha-vm-recovery
+- Lane / ownership: Agent Four; `caoscare-homeassistant` domain + `docs/HA_VM_RECOVERY.md`. No CAOSCare code.
+- Last proven state: R3–R7, 2026-10-04 20:02–20:06 CDT.
+- Runtime state:    VM running; :8092 backend connected to HA.
+- Unresolved proven defects: no automatic recovery after an OOM kill; Midea AC entity unavailable (pre-existing).
+- Do NOT change:    qcow2, domain definition, Linode.
+- Next safe action: Michael approves (or not) P1/P2 and a host-reboot test.
+## 2026-10-04 — Agent Five: RQ-001 refreshed onto SC-16/SC-17 (PR #52)
+
+### Agent / branch
+Claude Code (Opus 5.5), Round 5 Agent Five. `pilot/rq-001-demo-continuity`: merged `integration/2026-09-27` `81a4f92` in (merge commit, no force-push). Conflicts were only in `PROJECT_STATE.md` / `REPO_MAP.md`; both sides were kept. Not merged, not deployed.
+
+### What changed (coordinator review items 1–5)
+- **SC-17:**
+  - Continuity is one registered simulation run in `db.sim_runs`: scenario `demo_continuity`, state `STOPPED`, so the SIM-1 scheduler never acts on it.
+  - Its origin is the continuity origin receipt; it is created once, with a `demo_continuity_run_registered` receipt.
+  - Generated requests go through `create_resident_request(..., simulation_run_id=...)`, so they get source `simulator` and the run id.
+  - Window receipts carry the run id too.
+- **SC-16:** the email-provider holdoff is removed. Simulated requests' notifications are recorded as `simulated` and never reach a provider; that is now SC-16's job, with no duplicate guard here.
+- **Default-off hooks:** the startup (`server.py`) and sign-in (`auth.py::_issue_jwt`) hooks do nothing unless `CAOSCARE_DEMO_CONTINUITY_AUTO` is set. The admin endpoint always works.
+- **Auth hook rechecked:** there is no existing success-login hook (`log_event` in auth is throttle failures only), and every sign-in path calls `_issue_jwt`. `auth.py` stays at +4 lines.
+
+### Verified
+- `tests/test_demo_continuity.py`: 14 passed.
+  - The whole module runs with a live-looking email key, department contact emails set, and the provider HTTP call patched to count.
+  - Control: the real resident's request did reach the provider path.
+  - Simulated requests caused 0 provider calls; all their notifications are `simulated` and carry the task's run id.
+- Breaking a guard on purpose makes tests fail:
+  - no run id → 1 fails;
+  - hooks always on → 1 fails;
+  - no exactly-once claim → 3 fail;
+  - no demo scope → 4 fail;
+  - no cap → 4 fail.
+- Gate (`run_backend_tests.sh`, port 8078): 253 passed / 1 failed / 31 skipped. The failure is `test_ops_overview` (past-requested-date). The integration tip `81a4f92` fails the same test on its own (239 passed / 1 failed).
+
+### Limits
+- A newer continuity run doc can become SIM-2's "latest run": `scheduler.latest_run()` does not filter by scenario. SHARED CORE REQUEST for Agent Three.
+- With the switch on, a seed script that issues a token would also start a catch-up in its own process.
+- Earlier limits stand: steps carry catch-up time, not window time; the 3W wing is out of scope; gaps over 72 h fast-forward.
+
+HANDOFF CAPSULE
+- Objective:        RQ-001 on the SC-16/17 contract.
+- Branch:           pilot/rq-001-demo-continuity (draft PR #52).
+- Lane / ownership: Agent Five; new files plus hooks in server.py (+6) and auth.py (+4). No edits to simulation/*, resident_requests, notifications, task_lifecycle, models.
+- Last proven state: tests and gate above, 2026-10-04.
+- Commits:          see this entry's commit.
+- Runtime state:    nothing started; scratch DBs dropped.
+- Unresolved proven defects: none in RQ-001; test_ops_overview fails on integration too.
+- Product invariants: demo-only; one receipt per window; no provider side effects from simulated work.
+- Do NOT change:    the default-off switch without Michael's decision.
+- Next safe action: coordinator review; Michael decides whether to set CAOSCARE_DEMO_CONTINUITY_AUTO on any environment.
+
+---
+
+## 2026-10-04 — Coordinator: HA VM recovery audit (PR #55) and RQ-001 demo continuity (PR #52) integrated
+
+Pilot 1 coordinator, `integration/2026-09-27`; one merge at a time. Not merged to main, not deployed; Linode, PR #41/#42 untouched.
+
+1. PR #55 `ops/ha-vm-recovery` `3d80011bb2774ee24eb4f34291121d3314038d8b` → merge `c4381421acec2121279ef9065a0fccda1d8dc953`. Docs only (`docs/HA_VM_RECOVERY.md` + log). Root cause recorded: host-wide OOM 2026-10-03 20:19:36 CDT killed the VM's qemu; autostart only applies at host boot. Agent Four committed the design first (`4d19963`), then started the existing VM and tested HA core restart and a graceful VM shutdown/start (no Aria lease, no recent device command); no XML/qcow2/network/HA config change; receipts R1–R8. Coordinator read-only check: domain `running`, autostart `enable`, 4 GiB / 2 vCPU, :8123 → 200, no OOM since 19:00. Open, needs Michael: host reboot test; P1 qemu OOM protection hook, P2 crash-only restart timer, P3 memory caps for heavy builds. PR MERGED. (Docs only; code unchanged from the previous gate.)
+2. PR #52 `pilot/rq-001-demo-continuity` `797961fb4ecec079032f3b76563fb3995eee9e15` → merge `5bc1f8c50ba2bcb9618529d69b94b672b123f553`. All five review items addressed: refreshed; SC-17 provenance via a registered STOPPED `demo_continuity` run in `sim_runs` (generated requests source `simulator` + run id); SC-16 holdoff removed; startup/sign-in hooks do nothing unless `CAOSCARE_DEMO_CONTINUITY_AUTO` is set (Michael decides where); admin endpoint explicit. Log conflicts resolved keeping both sides. On the merge: `test_demo_continuity.py` + SIM-1 + `test_sim_provenance.py` 27 passed; gate 268 passed / 4 failed (3 known stale + `test_ops_overview` date window, 01:16 UTC) / 13 skipped, skip set unchanged. PR MERGED.
+   - Coupling noted: `scheduler.latest_run()`/`view` return the newest run of any scenario, so after a continuity catch-up Live Operations would show the continuity run. Assigned to Agent Three within SIM-3 (scenario-aware `latest_run`).
+
+Next: Agent Four resumes SC-8 + SC-9; Agent Five finishes RQ-008 (report PR + Phase 2 list); Agent Three SIM-3 (+ scenario-aware latest run); Agent Six stale-gate test fixes; Claude Two wake A/B.
+
+---
+
+## 2026-10-05 — SIM-3 mixed real + simulated staffing (Agent Three)
+
+### Agent / branch
+Claude Code (Opus 5.5), Round 5 Agent Three. Branch `pilot/sim-3-mixed-staffing` (worktree `~/CAOSCARE-SIM3`) from integration `81a4f92`, rebased onto `b6bf661` (docs-only change in between). Draft PR into `integration/2026-09-27`. Not merged; no deploy; no runtime service, main, Linode or hardware touched.
+
+### What changed
+- A staff role in a run is held by its simulated actor, a real signed-in staff member, or nobody (`cast[role].filled_by`). Before each staff step the scheduler reads the canonical task. If the step is already done, whoever did it, it records `sim_step_observed` citing the canonical receipt and moves on. Otherwise only a simulated holder acts; a real or empty role waits with no receipt and no action. The scenario refuses to act for a role that is not simulated.
+- New resident step `check_status` reads the normal resident status (`resident_request_history`) and cites the request's latest receipt.
+- Admin-only: `POST /simulator/start` takes optional `roles`; `POST /simulator/roles/{key}` changes the holder (`sim_role_assigned` receipt; the user must exist, have a staff role and act for the role's department; `sim:` ids refused); `GET /simulator/roles/{key}/candidates`.
+- Live operations: SIMULATED / REAL / UNASSIGNED per role, the hand-off control, and what the run is waiting for.
+- No new request/task model; canonical services (`task_lifecycle`, `task_actions`, `actor_context`, `receipts`, `resident_requests`, `models`) unchanged; `server.py` unchanged.
+
+### Verified
+- `tests/test_sim3_mixed_staffing.py` 4 passed (with SIM-1 and SC-16/17 provenance tests: 17 passed). All 10 SIM-3 test items covered: simulated role runs normally; hand-off to a real user; the request reaches him in `/api/tasks`; his claim/start/note/complete go through the normal routes; his receipts are authenticated / real human / staff_ui; the simulator observes each step and cites his receipts, then continues (`check_status` names him) to STOPPED; run receipts come only from the admin or `system:simulator`, never from him; returning the role to simulated resumes simulated work; one task per run. Mutation check: removing the waiting guard, the scenario guard or the observe path each fails tests.
+- Full backend gate (`run_backend_tests.sh`, port 8071, scratch DB): 243 passed, 1 failed (`test_ops_overview`, fails between 00:00 UTC and local midnight; unrelated), 31 skipped.
+- Frontend 34 suites / 267 tests; `CI=true` build compiles.
+- Browser (headless Chrome over CDP, scratch DB, 3 s tick): role shown SIMULATED → handed to "Michael (test)" with the control → REAL, "normally SIM - Maintenance Tech 1"; the run waited ("waiting for REAL Michael (test) to work it in the normal staff UI"); his `/workspace` showed the sink request; his claim/start/note/complete (normal routes) → the run observed each step, the resident status step named him, the run reached STOPPED; no console errors. Scratch DBs dropped; processes stopped.
+
+### Notes
+- The resident status time in the scratch browser run was an hour ahead of Chicago because that run had no `FACILITY_TZ` / facility record (environment default), not SIM-3.
+- `scheduler.start` still holds the SIM-1 "SHARED CORE REQUEST" comment and refusal while a live email key is set; SC-16 has since merged. Left unchanged (Agent Three/Michael decision whether to drop it).
+- Scope stays the demo room until Michael lifts the ENGINEERING_CONTRACT gate (items 7, 8).
+
+### Line counts (before → after)
+`scheduler.py` 255→340, `scenario.py` 97→121, `roster.py` 78→79, `staffing.py` 95 (new), `routes/simulation.py` 57→90, `test_sim3_mixed_staffing.py` 252 (new); `simulator.js` 114→131, `SimActors.jsx` 36→54, `SimRoleControl.jsx` 66 (new), `SimControls.jsx` 49→52, `ActorBadge.jsx` 13→14, `LiveOperations.jsx` 95→101, `simulator.test.js` 89→110.
+
+HANDOFF CAPSULE
+- Objective:        SIM-3 mixed real + simulated staffing; next is the simulator lane's next RQ item.
+- Branch:           `pilot/sim-3-mixed-staffing` (draft PR into integration)
+- Lane / ownership: `backend/simulation/`, `backend/routes/simulation.py`, `backend/tests/test_sim3_*.py`, `frontend/src/components/simulator/`, `frontend/src/lib/simulator.js`, `LiveOperations.jsx`; must not edit shared lifecycle/receipt/request modules.
+- Last proven state:tests, gate and browser run above, 2026-10-05.
+- Commits:          SIM-3 code commit + this docs commit (SHAs in the PR).
+- Runtime state:    nothing left running.
+- Unresolved proven defects: none in SIM-3.
+- Product invariants that matter here: the simulator never acts as a real person; a real action carries his own authenticated provenance; nothing is fabricated when no one acts; same canonical world.
+- Do NOT change:    shared lifecycle/receipt modules; the run never writes task receipts itself.
+- Next safe action: coordinator review of the draft PR.
+
+---
+
+## 2026-10-04 — Coordinator: SIM-3 (PR #56) integrated
+
+PR #56 `pilot/sim-3-mixed-staffing` `ff9465a062a828db1ce07a00aeb52e5eb3f507d9` (base `b6bf661`) → merge `c276a2bbbe9cd10a281f219c0507cb026153efb6`. Simulator lane files only (`backend/simulation/*`, `routes/simulation.py`, simulator UI); shared lifecycle/receipt/request modules called, not edited. PROJECT_STATE conflict resolved keeping both sides. On the merge: `test_sim3_mixed_staffing.py`, SIM-1, `test_sim_provenance.py`, `test_demo_continuity.py` — 31 passed (RQ-001 still works with the changed roster/scheduler); gate 272 passed / 4 failed (3 known stale + `test_ops_overview` date window, 01:23 UTC) / 13 skipped, skip set unchanged; frontend 34 suites / 267. PR MERGED. Checklist: the three mixed-staffing items moved to in progress (built and tested with a real test user; acceptance by Michael himself pending). Follow-up to Agent Three: scenario-aware `latest_run()` (not in #56), then SIM-4 Nursing. SIM-1's start refusal while a live email key is set is left in place (redundant after SC-16; revisit with RQ-005).
+
+---
+
+## 2026-10-05 — Coordinator: Round 5 board updated; Michael ran the simulator from Live Operations
+
+Michael's "ROUND 5 — AGENT ONE / COORDINATOR" at tip `72fe52b306b2421cbbc3876ea3969e31b31addd1`.
+- Board set to the current assignments: Agent 2 (Claude Two) one-model Okay Sequoia training-method A/B; Agent 3 scenario-aware `latest_run()` then SIM-4 Nursing; Agent 4 SC-8 + SC-9; Agent 5 RQ-008 report + Phase 2 deletion proposal only; Agent 6 stale gate test fixes only.
+- Michael opened the integrated Live Operations UI on the EliteDesk and started simulator runs. Verified read-only in the shared `caoscare` DB: `simrun_d0ea805fa522` (sink_leak, 01:23:40 UTC, started_by MICHAEL CHAMBERS / owner / authenticated / staff_ui; STOPPED at cursor 6) and `simrun_4b9a3f2c415d` (01:28:25 UTC, RUNNING at cursor 4). Served by :8092 from `~/CAOSCARE-INTEGRATION/backend` (process started 2026-10-04 20:22 CDT). Checklist evidence updated.

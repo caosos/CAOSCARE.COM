@@ -9,8 +9,10 @@ can't do: an unsupported action or an out-of-range value raises, so the
 command fails and Aria cannot claim it worked.
 
 Pure function - no database, no network. devices.py persists the returned
-state; because it comes back as a read-back ("state"), the command is
-recorded as verified against the simulator.
+state. The mock adapter (device_adapters.execute_mock) records the command
+as simulated everywhere, and as verified against the simulator only in the
+demo-only room: a mock device in a real resident room is scaffolding, never
+proof that anything physical happened (SC-11).
 """
 
 

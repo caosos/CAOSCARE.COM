@@ -90,6 +90,10 @@ def _issue_jwt(user_id: str) -> str:
         "exp": datetime.now(timezone.utc) + timedelta(days=JWT_EXPIRE_DAYS),
         "iat": datetime.now(timezone.utc),
     }
+    # Every sign-in path issues a token here: demo room catch-up (RQ-001).
+    # Background, never blocking; does nothing unless CAOSCARE_DEMO_CONTINUITY_AUTO.
+    from demo_continuity import catch_up_in_background
+    catch_up_in_background("sign_in")
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGO)
 
 

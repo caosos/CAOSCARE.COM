@@ -92,6 +92,7 @@ from routes import aria_conversation_state as aria_conversation_state_routes  # 
 from routes import aria_interpretation_patterns as aria_interpretation_patterns_routes  # noqa: E402
 from routes import aria_turn_taking as aria_turn_taking_routes  # noqa: E402
 from routes import simulation as simulation_routes  # noqa: E402
+from routes import demo_continuity as demo_continuity_routes  # noqa: E402
 from seed import demo_seed_enabled, seed  # noqa: E402
 
 
@@ -131,6 +132,10 @@ async def lifespan(app: FastAPI):
         await _ensure_continuity_indexes()
     except Exception as e:
         logging.warning(f"continuity index setup skipped: {e}")
+    # RQ-001: demo room catch-up. Background only; does nothing unless
+    # CAOSCARE_DEMO_CONTINUITY_AUTO is set.
+    from demo_continuity import catch_up_in_background
+    catch_up_in_background("startup")
     yield
 
 
@@ -233,6 +238,7 @@ api.include_router(aria_conversation_state_routes.router)
 api.include_router(aria_interpretation_patterns_routes.router)
 api.include_router(aria_turn_taking_routes.router)
 api.include_router(simulation_routes.router)
+api.include_router(demo_continuity_routes.router)
 
 app.include_router(api)
 

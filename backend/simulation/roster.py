@@ -74,5 +74,6 @@ async def resolve_cast() -> dict:
                      "role": "resident", "room": DEMO_ROOM, "simulated": True},
         "maintenance_tech": {"key": STAFF["key"], "actor_id": STAFF["actor_id"], "name": STAFF["name"],
                              "role": STAFF["role"], "department": STAFF["department"],
-                             "shift": STAFF["shift"], "simulated": True},
+                             "shift": STAFF["shift"], "simulated": True,
+                             "filled_by": {"mode": "simulated"}},
     }

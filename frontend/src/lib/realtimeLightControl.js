@@ -76,6 +76,19 @@ export async function handleToggleLight(room, args, ctx, postRoomCommand) {
   // light off" in the single-light case every other room still has.
   const name = lights.length > 1 ? `${lightShortName(light, room).split(" ")[0]} light` : "light";
 
+  // SC-10: check every requested attribute against the light's declared
+  // capabilities BEFORE anything is sent. One unsupported attribute refuses
+  // the whole request and changes nothing - an off light asked to "go
+  // green" stays off, and the result says plainly why (ok:false, so Aria
+  // cannot imply success; the refusal is logged as this tool's result).
+  const unsupported = [];
+  if ((args.brightness != null || args.brightness_delta != null) && !caps.includes("brightness")) unsupported.push("brightness");
+  if (args.color && !caps.includes("color")) unsupported.push("color");
+  if (args.color_temp && !caps.includes("color_temp")) unsupported.push("color temperature");
+  if (unsupported.length) {
+    return { ok: false, unsupported, message: `this ${name} doesn't support ${unsupported.join(" or ")}, so I left it as it was.` };
+  }
+
   // A color/brightness/color_temp request with no explicit state implies
   // turning it on ONLY if it isn't already on - asking "make it green"
   // about an off light plainly means "and turn it on", but asking it about
@@ -91,32 +104,20 @@ export async function handleToggleLight(room, args, ctx, postRoomCommand) {
 
   const done = [];
   if (args.brightness != null || args.brightness_delta != null) {
-    if (!caps.includes("brightness")) {
-      done.push("this light doesn't support brightness");
-    } else {
-      const current = typeof light.state?.brightness === "number" ? light.state.brightness : 100;
-      const target = args.brightness != null
-        ? Math.max(1, Math.min(100, Math.round(args.brightness)))
-        : Math.max(1, Math.min(100, current + Math.round(args.brightness_delta)));
-      const r = await postRoomCommand(room, "brightness", target, "light", sessionId, deviceId);
-      done.push(r.ok ? `brightness ${target} percent` : `couldn't set brightness (${r.status})`);
-    }
+    const current = typeof light.state?.brightness === "number" ? light.state.brightness : 100;
+    const target = args.brightness != null
+      ? Math.max(1, Math.min(100, Math.round(args.brightness)))
+      : Math.max(1, Math.min(100, current + Math.round(args.brightness_delta)));
+    const r = await postRoomCommand(room, "brightness", target, "light", sessionId, deviceId);
+    done.push(r.ok ? `brightness ${target} percent` : `couldn't set brightness (${r.status})`);
   }
   if (args.color) {
-    if (!caps.includes("color")) {
-      done.push("this light doesn't support color");
-    } else {
-      const r = await postRoomCommand(room, "color", NAMED_COLORS[args.color], "light", sessionId, deviceId);
-      done.push(r.ok ? args.color : `couldn't set the color (${r.status})`);
-    }
+    const r = await postRoomCommand(room, "color", NAMED_COLORS[args.color], "light", sessionId, deviceId);
+    done.push(r.ok ? args.color : `couldn't set the color (${r.status})`);
   }
   if (args.color_temp) {
-    if (!caps.includes("color_temp")) {
-      done.push("this light doesn't support color temperature");
-    } else {
-      const r = await postRoomCommand(room, "color_temp", COLOR_TEMP_KELVIN[args.color_temp], "light", sessionId, deviceId);
-      done.push(r.ok ? `${args.color_temp} white` : `couldn't set the color temperature (${r.status})`);
-    }
+    const r = await postRoomCommand(room, "color_temp", COLOR_TEMP_KELVIN[args.color_temp], "light", sessionId, deviceId);
+    done.push(r.ok ? `${args.color_temp} white` : `couldn't set the color temperature (${r.status})`);
   }
   if (!done.length) return { ok: true, message: `turned the ${name} on.` };
   return { ok: true, message: `set the ${name} to ${done.join(", ")}.` };

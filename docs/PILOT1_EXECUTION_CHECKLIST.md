@@ -5,7 +5,7 @@ Target: 2026-10-10
 Current phase: PHASE 3 — Real staff operational workflows (focus: operational completion)
 Current active task: Round 5 parallel lanes (see `PILOT1_ACTIVE_WORK.md` Round 5 board: SIM-1 demo-room-only, SC-10/11/12, RQ-004). Earlier: Michael decides the simulator gate (escalation decision 8, stale-alert policy decision 7, or a demo-room-only SIM-1); Agent 2's Nabu re-request fix `bbfce3b` awaits review; then Community services `d95c4d6` (SC-14/SC-15 integrated at `268963c`, 2026-10-03)
 Current integration branch: `integration/2026-09-27`
-Current integration SHA: `42ac6f3` (tip, 2026-10-04; last code state `1126d8c` — SIM-1)
+Current integration SHA: `895769a`+ (2026-10-04; last code state `895769a` — SC-16/17)
 Last updated: 2026-10-04 (Round 5 board)
 Last updated by: Claude Code (Opus 5.5), EliteDesk
 
@@ -60,16 +60,16 @@ Hard law: **No action without a receipt. No receipt without provenance.** The si
 
 Acceptance:
 
-- [~] Every simulator action has an origin-linked durable receipt/event — run and request receipt chains (SIM-1, integrated at `1126d8c`; `test_sim1_actor_scheduler.py` 6 passed and gate 240/3/13 on the merge, 2026-10-04); simulated requests still carry channel `aria_voice` and no `simulation_run_id` (SC-17)
-- [ ] Live simulator UI shows RUNNING / PAUSED / STOPPED, simulation time/speed and current actors
-- [~] Operator can Start, Pause, Step one event, Resume and Stop without SSH — admin API `/api/simulator/*` (SIM-1, integrated at `1126d8c`; `test_sim1_actor_scheduler.py` 6 passed and gate 240/3/13 on the merge, 2026-10-04); UI is SIM-2
+- [x] Every simulator action has an origin-linked durable receipt/event — run and request receipt chains (SIM-1 `1126d8c`); simulator channel and `simulation_run_id` on every receipt (SC-17 merged at `895769a`: `test_sim_provenance.py` 7 passed, gate 255/3/13); simulated notifications recorded, never sent (SC-16)
+- [~] Live simulator UI shows RUNNING / PAUSED / STOPPED, simulation time/speed and current actors — state, simulated time and actors shown (SIM-2 merged at `5567d3e`: Agent Three's browser run on a scratch DB + coordinator frontend 34/263, gate 248/3/13); no speed control yet
+- [x] Operator can Start, Pause, Step one event, Resume and Stop without SSH — Admin → Community → Live operations (SIM-2 merged at `5567d3e`: Agent Three's browser run on a scratch DB + coordinator frontend 34/263, gate 248/3/13); Michael opened Live Operations on the EliteDesk and started runs himself 2026-10-05 (`simrun_d0ea805fa522`, `simrun_4b9a3f2c415d`)
 - [x] One simulated resident can create a canonical request (SIM-1, integrated at `1126d8c`; `test_sim1_actor_scheduler.py` 6 passed and gate 240/3/13 on the merge, 2026-10-04)
 - [x] One simulated staff actor can accept/progress/complete it through canonical lifecycle services (SIM-1, integrated at `1126d8c`; `test_sim1_actor_scheduler.py` 6 passed and gate 240/3/13 on the merge, 2026-10-04)
-- [ ] Receipt drill-down traces origin, actor, authority, execution, resulting state and evidence
-- [ ] Real and simulated actors are visibly and structurally distinct
-- [ ] Michael can be scheduled as a real worker into a role normally occupied by a simulated agent
-- [ ] Michael can claim/complete simulated-origin work through the normal staff UI
-- [ ] Simulator observes Michael's real receipt/state change and continues from that state
+- [x] Receipt drill-down traces origin, actor, authority, execution, resulting state and evidence (SIM-2 merged at `5567d3e`: Agent Three's browser run on a scratch DB + coordinator frontend 34/263, gate 248/3/13)
+- [x] Real and simulated actors are visibly and structurally distinct (SIM-2 merged at `5567d3e`: Agent Three's browser run on a scratch DB + coordinator frontend 34/263, gate 248/3/13); requests carry source `simulator` + `simulation_run_id` (SC-17 merged at `895769a`: `test_sim_provenance.py` 7 passed, gate 255/3/13)
+- [~] Michael can be scheduled as a real worker into a role normally occupied by a simulated agent — built and tested with a real test user (SIM-3 merged at `c276a2b`: `test_sim3_mixed_staffing.py` + related 31 passed, gate 272/4/13; Agent Three's browser run with a real test user in PR #56); acceptance by Michael himself pending
+- [~] Michael can claim/complete simulated-origin work through the normal staff UI — built and tested with a real test user (SIM-3 merged at `c276a2b`: `test_sim3_mixed_staffing.py` + related 31 passed, gate 272/4/13; Agent Three's browser run with a real test user in PR #56); acceptance by Michael himself pending
+- [~] Simulator observes Michael's real receipt/state change and continues from that state — built and tested with a real test user (SIM-3 merged at `c276a2b`: `test_sim3_mixed_staffing.py` + related 31 passed, gate 272/4/13; Agent Three's browser run with a real test user in PR #56); acceptance by Michael himself pending
 - [x] Pause/stop prevents new simulated actions without erasing history (SIM-1, integrated at `1126d8c`; `test_sim1_actor_scheduler.py` 6 passed and gate 240/3/13 on the merge, 2026-10-04)
 - [ ] Simulation reset cannot touch real resident/staff data
 - [ ] Completion claims require system evidence, not only agent text

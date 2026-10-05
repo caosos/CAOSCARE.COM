@@ -814,3 +814,39 @@ listener verifier experiment: `docs/experiments/`.
 ## 2026-10-04 — Pilot Room 1 hardware BOM (RQ-004)
 
 - `docs/PILOT1_ROOM1_HARDWARE_INVENTORY.md`: evidence-based Pilot Room 1 BOM (owned / ordered / required / optional / do-not-buy) and the single request for missing physical facts. No purchase is authorized by it.
+
+## 2026-10-04 — Device truth SC-10/11/12 (branch `pilot/shared-core-device-truth`)
+
+- `backend/device_adapters.py::simulation_fields()`: the one statement of a device's simulation truth (`simulated`, `simulation_scope` demo_room / real_room); used by `execute_mock` and every `device_commands` record. `verified` comes only from the adapter.
+- Test: `backend/tests/test_device_truth.py`; frontend `frontend/src/lib/__tests__/deviceSessionTrace.test.js`.
+
+## 2026-10-04 — SIM-2 Live Operations UI (branch `pilot/sim-2-live-operations`, draft PR #50)
+
+- `frontend/src/pages/LiveOperations.jsx`: Admin → Community → Live operations. Reads `/simulator/state`, `/simulator/runs/{id}/history`, `/receipts`, `/tasks`; polls 2 s while running. No simulator state of its own.
+- `frontend/src/components/simulator/`: `SimControls` (state, simulated time, next action, Start/Pause/Step/Resume/Stop), `SimActors`, `SimActivity` (current action, active simulated requests, failures), `SimEventStream` (run + request receipt chains), `SimReceiptTrace` (receipt → parent / canonical receipt → request → actor), `ActorBadge`.
+- `frontend/src/lib/simulator.js`: pure helpers (allowed controls, real/simulated/system badge, chain ordering by parent link, stream merge). Test: `frontend/src/lib/__tests__/simulator.test.js`.
+
+## 2026-10-04 — Demo data continuity RQ-001 (branch `pilot/rq-001-demo-continuity`)
+
+- `backend/demo_continuity.py`: catch-up for the demo room. Fixed one-hour UTC windows from `last_simulated_at` (`db.demo_continuity`, key `demo_room`) to now, each processed once (compare-and-set claim): open simulated demo requests step forward (acknowledge → start → complete), backlog above the cap is closed, and a fixed hash of the window start may raise one new request. Uses `create_resident_request` and `task_actions` only; one chained `demo_continuity_window` receipt per window.
+- `backend/routes/demo_continuity.py`: admin-only `GET /api/demo/continuity`, `POST /api/demo/continuity/catch-up`. Catch-up also runs in the background on backend startup (`server.py` lifespan) and on token issue at sign-in (`routes/auth.py::_issue_jwt`), only when `CAOSCARE_DEMO_CONTINUITY_AUTO` is set (default off). Generated requests carry the continuity run's `simulation_run_id` (one `db.sim_runs` doc, scenario `demo_continuity`, STOPPED).
+- Test: `backend/tests/test_demo_continuity.py`.
+
+## 2026-10-04 — SC-16 / SC-17 simulator notifications + provenance (branch `pilot/shared-core-sim-provenance`)
+
+- `backend/routes/notifications.py::simulation_of()` + `send_email`/`send_sms`/`notify_department(simulation=)`: a simulated task's notifications are recorded `status: "simulated"` and never reach a provider.
+- `create_resident_request(..., simulation_run_id=)`: in-process simulator provenance on the canonical request (`source: "simulator"`, run id on the task and every receipt via `task_lifecycle._run_link`). `models.RESIDENT_ORIGIN_SOURCES`: the one list of resident-originated sources.
+- Test: `backend/tests/test_sim_provenance.py`.
+
+## 2026-10-04 — Hearing assistance / personal audio (RQ-009)
+
+- `docs/HEARING_ASSISTANCE_PERSONAL_AUDIO_ARCHITECTURE.md`: research — hearing aids as an optional personal output; room microphone stays the input; CAOSCare never pairs to hearing aids; proposals not built; unknowns needing physical tests.
+- `docs/PILOT_HEARING_AUDIO_REQUIREMENTS.md`: Pilot Room hearing/handset procurement and acceptance requirements (FCC wireline HAC, volume, ATA, phone-as-Bluetooth-owner rule, capability classes, physical test matrix, one-page procurement gate; UNKNOWN never counts as PASS).
+
+## 2026-10-04 — SIM-3 mixed real + simulated staffing (branch `pilot/sim-3-mixed-staffing`)
+
+- `backend/simulation/staffing.py`: who holds a staff role (`cast[role].filled_by`: simulated / real / unassigned), whether the canonical task already shows a step's outcome, the canonical receipt that recorded it, real-holder validation (`acts_for`), hand-off candidates.
+- `backend/simulation/scheduler.py`: observes steps already done in the canonical task (`sim_step_observed`, cites the canonical receipt); waits with no receipt while a real or empty role holds the step; `assign_role` (`sim_role_assigned`); `view.waiting_on`.
+- `backend/routes/simulation.py`: `POST /simulator/start` (optional `roles`), `POST /simulator/roles/{key}`, `GET /simulator/roles/{key}/candidates` (admin only).
+- `frontend/src/components/simulator/SimRoleControl.jsx`: hand a role to a real staff member / return to simulated / leave unassigned. `SimActors` shows SIMULATED / REAL / UNASSIGNED per role.
+- Test: `backend/tests/test_sim3_mixed_staffing.py`.
