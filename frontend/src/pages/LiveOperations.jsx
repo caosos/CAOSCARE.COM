@@ -71,14 +71,20 @@ export default function LiveOperations() {
         <h2 className="font-display text-2xl text-caos-forest">Live operations</h2>
         <p className="text-sm text-caos-mute">
           The Operations Simulator, demo room only. Simulated actors act through the same request and task
-          services as real staff; every action has a receipt you can trace back to where it started.
+          services as real staff; a staff role can be handed to a real person, who then works the request in
+          the normal staff screens. Every action has a receipt you can trace back to where it started.
         </p>
       </div>
       <SimControls state={state} busy={busy} onControl={control} />
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4 min-w-0">
-          <SimActors cast={cast} startedBy={state?.started_by}
-                     onSelect={(a) => { const r = stream.find((x) => x.actor_id === a.actor_id); if (r) setTrace(r); }} />
+          <SimActors cast={cast} startedBy={state?.started_by} onChanged={load}
+                     active={state?.state === SIM_STATES.RUNNING || state?.state === SIM_STATES.PAUSED}
+                     onSelect={(a) => {
+                       const id = a.filled_by?.mode === "real" ? a.filled_by.user_id : a.actor_id;
+                       const r = stream.find((x) => x.actor_id === id);
+                       if (r) setTrace(r);
+                     }} />
           <SimActivity current={current} requests={requests} failed={failed}
                        onOpenReceipt={setTrace} onOpenRequest={setRequestId} />
         </div>

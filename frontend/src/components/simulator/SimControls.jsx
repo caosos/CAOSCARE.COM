@@ -2,7 +2,7 @@ import React from "react";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { Play, Pause, StepForward, Square, RotateCw } from "lucide-react";
-import { allowedControls, describeStep, simClock } from "../../lib/simulator";
+import { allowedControls, describeStep, simClock, waitingText } from "../../lib/simulator";
 
 const STATE_CLASS = {
   RUNNING: "bg-caos-moss/20 text-caos-forest border border-caos-moss",
@@ -43,6 +43,9 @@ export default function SimControls({ state, busy, onControl }) {
       <div className="text-sm" data-testid="sim-next-step">
         <span className="text-caos-mute">Next scheduled action: </span>
         {state?.next_step ? describeStep(state.next_step) : <span className="italic text-caos-mute">none ({s === "STOPPED" ? "stopped" : "scenario finished"})</span>}
+        {waitingText(state?.waiting_on) && (
+          <span className="ml-2 font-semibold text-caos-forest" data-testid="sim-waiting">— {waitingText(state.waiting_on)}</span>
+        )}
       </div>
     </Card>
   );
