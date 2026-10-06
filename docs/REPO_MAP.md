@@ -869,3 +869,10 @@ listener verifier experiment: `docs/experiments/`.
 - `android-bridge/sdr_control.py`: `rtl_433` spawn/read loop, stall watchdog and SDR USB reset, moved out of `caos_rf_bridge.py` unchanged apart from returning a `RunResult` and honouring a stop event.
 - `android-bridge/caos-rf-bridge.service.example`: systemd user unit template (journal logging). Not installed.
 - Tests: `android-bridge/tests/test_restart_backoff.py`.
+
+## 2026-10-06 — Backend test gate port/log isolation (branch `tests/gate-port-isolation`)
+
+- `backend/scripts/run_backend_tests.sh`: refuses a port already in use (before any side effect); one log file per run (`CAOSCARE_TEST_LOG` to override); passes a run id to the backend and to pytest; re-checks after pytest that the same backend served the run.
+- `backend/scripts/gate_wait_healthy.py`: waits until `/api/health` is ok and echoes this run's `gate_run_id`; fails fast if the backend exited or a different server answers. Standard library only.
+- `backend/server.py` `/api/health`: adds `gate_run_id` only when `CAOSCARE_TEST_HOOKS` and `CAOSCARE_TEST_GATE_RUN_ID` are set.
+- Tests: `backend/tests/test_gate_script_isolation.py`. Details: `docs/BACKEND_TEST_GATE.md`.

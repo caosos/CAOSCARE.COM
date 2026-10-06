@@ -6813,3 +6813,55 @@ Assignments (relayed as PR comments; Agent Five's on #63):
 - Control plane builder: #67 backend slice + owner-only `/admin?tab=agent-operations`, mock adapter only, disabled by default.
 
 Not authorized: Linode, reboot, flashing, storage deletion, Phase 2.
+## 2026-10-06 — Agent Four: backend test gate port/log isolation
+
+### Agent / branch
+Claude Code (Opus 5.5), Round 5 Agent Four. Branch `tests/gate-port-isolation` (worktree `~/CAOSCARE-GATE-ISOLATION`) from integration `7136734`. Draft PR into `integration/2026-09-27`; not merged, not deployed. No running service touched.
+
+### Defect
+During the SC-8/SC-9 gate (2026-10-05) two gates shared a port: the second gate's backend could not bind, the `curl` health check was answered by the other gate's backend, and pytest ran against a server with a different database (29, then 23 false failures: 401 logins, 404 on `/demo/reset` and `/rf/event`). All runs also wrote one shared log, `/tmp/caoscare_backend_test_gate.log`.
+
+### What changed
+- `backend/scripts/run_backend_tests.sh`:
+  - prints a run id and a per-run log path (`mktemp`; `CAOSCARE_TEST_LOG` overrides);
+  - refuses a port that already accepts connections, before dropping the database or starting the backend;
+  - starts the backend with `CAOSCARE_TEST_GATE_RUN_ID`;
+  - waits through the new helper;
+  - after pytest, checks the same backend is still serving; if not, exits 1 even when pytest passed. Otherwise it exits with pytest's status.
+- `backend/scripts/gate_wait_healthy.py` (new): healthy = backend process alive and `/api/health` ok with this run's `gate_run_id`; a server with no id or another id fails at once (exit 4), a dead backend fails at once (exit 3), timeout exit 5.
+- `backend/server.py` `/api/health`: adds `gate_run_id` only when `CAOSCARE_TEST_HOOKS` and `CAOSCARE_TEST_GATE_RUN_ID` are both set.
+- Unchanged: the command, defaults (port 8070, database), the existing overrides, pytest arguments.
+- `docs/BACKEND_TEST_GATE.md`: new section.
+
+### Verified
+- `tests/test_gate_script_isolation.py`: 10 passed + 1 skipped when run alone (the live-backend check skips outside the gate).
+  - It uses stub `mongosh` and a stub backend Python, so it never drops a database or starts a backend.
+  - Against the previous script, the occupied-port and per-run-log tests fail. That script dropped the database, started the backend and ran pytest against a dummy server holding the port; the stubs recorded each call.
+- Full gate (`CAOSCARE_TEST_PORT=8076`, `CAOSCARE_TEST_DB=caoscare_gate_port_isolation`, OpenAI and Home Assistant blanked): **287 passed, 0 failed, 31 skipped**.
+  - The in-gate check `test_gate_backend_is_this_run` ran and passed.
+  - The backend log went to its own file; port 8076 was free afterwards.
+- Live collision:
+  - gate A ran on 8077;
+  - while it was in pytest, gate B was started on 8077 with another database;
+  - B exited 1 with "already in use", and its database was never created;
+  - A finished 13 passed, exit 0.
+- Scratch database dropped.
+
+### Not done / limits
+- Two concurrent gates on different ports but the same `CAOSCARE_TEST_DB` would still drop each other's database. The doc says to use a separate database; the script does not detect it.
+- A run refused for a busy port leaves its empty log file behind.
+
+### Line counts
+`run_backend_tests.sh` 78→112, `gate_wait_healthy.py` 81 (new), `server.py` 256→261, `test_gate_script_isolation.py` 189 (new).
+
+HANDOFF CAPSULE
+- Objective:        A test gate whose result always comes from its own backend.
+- Branch:           tests/gate-port-isolation (from 7136734).
+- Lane / ownership: Agent Four; gate script, wait helper, `/api/health` (test-hook-only field), gate doc.
+- Last proven state: gate and live collision above, 2026-10-06.
+- Commits:          see this entry's commit.
+- Runtime state:    nothing left running; :8092 and other services untouched.
+- Unresolved proven defects: same-database concurrent gates (documented, not detected).
+- Product invariants: production `/api/health` unchanged unless test hooks are on.
+- Do NOT change:    the health check back to "any server that answers".
+- Next safe action: coordinator review of the draft PR.
