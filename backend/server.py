@@ -153,9 +153,14 @@ async def root():
 async def health():
     try:
         await db.command("ping")
-        return {"ok": True, "db": "up"}
+        body = {"ok": True, "db": "up"}
     except Exception as e:
-        return {"ok": False, "db": str(e)}
+        body = {"ok": False, "db": str(e)}
+    # Backend test gate only: echo the gate run's nonce so the gate can prove
+    # the server answering on its port is the one it started.
+    if os.environ.get("CAOSCARE_TEST_HOOKS") and os.environ.get("CAOSCARE_TEST_GATE_RUN_ID"):
+        body["gate_run_id"] = os.environ["CAOSCARE_TEST_GATE_RUN_ID"]
+    return body
 
 
 api.include_router(auth_routes.router)
