@@ -14,7 +14,7 @@ import { createInactivityTimer } from "./realtimeInactivityTimer";
 import { createTypedTurnState, markResponseRequested } from "./realtimeTypedTurn";
 export async function connectRealtimeVoice({
   attemptRef, voice, residentId, kioskId, room, alertId, activationId, sessionEndpoint,
-  sessionPayload, triggerSource, onEndCall, pcRef, dcRef, localStreamRef,
+  sessionPayload, sessionAuth, triggerSource, onEndCall, pcRef, dcRef, localStreamRef,
   audioElRef, leaseHeartbeatRef, leaseRoomRef, startGenRef, sessionIdRef,
   ctxRef, endReasonLoggedRef, lifecycleCleanupRef, assistantSpeakingRef,
   turnSuspectRef, greetingCreateResponseOffRef, restingRef, firstSpeechHeardRef,
@@ -55,9 +55,14 @@ export async function connectRealtimeVoice({
         activation_id: activationId, session_id: sid,
         data: { trigger_source: triggerSource || "manual_kiosk" },
       });
+      // sessionAuth: owner-only endpoints (/realtime/aria-session) need the
+      // signed-in user's token; the public resident path sends none.
+      const sessionHeaders = { "Content-Type": "application/json" };
+      const authToken = sessionAuth ? localStorage.getItem("caos_token") : null;
+      if (authToken) sessionHeaders.Authorization = `Bearer ${authToken}`;
       const sessionRes = await fetch(`${API}${sessionEndpoint}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: sessionHeaders,
         body: JSON.stringify(
           sessionPayload || {
             voice,

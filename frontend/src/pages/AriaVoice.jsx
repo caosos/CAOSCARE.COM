@@ -73,7 +73,9 @@ export default function AriaVoice() {
   const { status, error, transcript, start, stop, audioElRef } = useRealtimeVoice({
     voice: "sage",
     sessionEndpoint: "/realtime/aria-session",
-    sessionPayload: { voice: "sage", owner_user_id: user?.user_id || null },
+    // The backend derives the owner from the signed-in user (owner only).
+    sessionPayload: { voice: "sage" },
+    sessionAuth: true,
   });
   const localAudioElRef = useRef(null);
   const [threadsRefreshKey, setThreadsRefreshKey] = useState(0);

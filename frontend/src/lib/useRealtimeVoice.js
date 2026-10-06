@@ -30,7 +30,7 @@ const REASON_TO_ARIA_EVENT = {
 
 export function useRealtimeVoice({
   voice = "shimmer", residentId, kioskId, room, onEndCall,
-  sessionEndpoint = "/realtime/session", sessionPayload, triggerSource, alertId, activationId,
+  sessionEndpoint = "/realtime/session", sessionPayload, sessionAuth = false, triggerSource, alertId, activationId,
 } = {}) {
   const attemptRef = useRef(null);
   const pcRef = useRef(null);
@@ -181,7 +181,7 @@ export function useRealtimeVoice({
 
   const start = useCallback(() => connectRealtimeVoice({
     attemptRef, voice, residentId, kioskId, room, alertId, activationId, sessionEndpoint,
-  sessionPayload, triggerSource, onEndCall, pcRef, dcRef, localStreamRef,
+  sessionPayload, sessionAuth, triggerSource, onEndCall, pcRef, dcRef, localStreamRef,
   audioElRef, leaseHeartbeatRef, leaseRoomRef, startGenRef, sessionIdRef,
   ctxRef, endReasonLoggedRef, lifecycleCleanupRef, assistantSpeakingRef,
   turnSuspectRef, greetingCreateResponseOffRef, restingRef, firstSpeechHeardRef,
@@ -189,7 +189,7 @@ export function useRealtimeVoice({
   setStatus, setError, setMicLabel, setResting, setTranscript,
   stop, releaseLease, postAriaEvent, startAwaitingAnswerTimer, logSessionEnded, typedTurnRef
   }), [voice, residentId, kioskId, room, alertId, activationId, sessionEndpoint,
-    sessionPayload, triggerSource, onEndCall, stop, postAriaEvent, logSessionEnded, startAwaitingAnswerTimer]);
+    sessionPayload, sessionAuth, triggerSource, onEndCall, stop, postAriaEvent, logSessionEnded, startAwaitingAnswerTimer]);
 
   // Typed input into this same live session (realtimeTypedTurn.js).
   // Returns false when there is no open session to type into.
