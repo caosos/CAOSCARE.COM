@@ -6885,3 +6885,27 @@ Claude Code (Opus 5.5), Round 5 Agent Three. Branch `pilot/sim-4-maintenance` fr
 
 ### Next safe step
 Coordinator review of the draft PR.
+
+---
+
+## 2026-10-06 — Coordinator (remote block): #68, #66, #65 integrated; follow-on assignments
+
+One at a time; the gate on every merge ran with `OPENAI_API_KEY=` blank (no provider calls).
+- **#68** gate isolation (Agent Four), `347e342554bcc86923c86b00b98a9491cbff4edd` → `4d413ef`.
+  - Refuses a busy port before any side effect; `/api/health` echoes a per-run nonce only under the gate's test env vars; checks its own backend again after pytest; one log per run.
+  - Gate (the new gate itself, port 8077) 287/0/31; `test_gate_script_isolation.py` 11 passed.
+  - Live evidence: a later run on 8077 was refused because Agent Four's own gate backend (PID 598315) held the port.
+- **#66** SIM-4 Maintenance (Agent Three), `c0d2b3e0401d9960b80a4bf48b625a964c94731c` → `577b35c`.
+  - Reuses `sink_leak`; only words and labels changed, plus the new test (owner takeover, truthful status at every stage).
+  - Gate (port 8078) 289/0/31; focused simulator set 38 passed. **SIM-4 Maintenance accepted** at the automated level.
+- **#65** security follow-up docs (Agent Six), `fb7f2ddf1f96424ed22cf180602928fd044e64b6` → `7972446`.
+  - B3 verified in source: `GET /api/residents/public/by-kiosk/{id}` returns every resident field, including medical notes, without auth; `GET /api/kiosks` is public, so ids can be enumerated. Production `d7ff96a` has it too.
+- **Claude Two:** Voice PE package verified independently (`sha256sum -c`: 9/9 OK; sheet in `16e4e98` with the do-not-flash marking). Accepted as operator-ready; flashing needs Michael.
+
+Assignments:
+- Agent Six: B3 fix only (allowlist projection in `resident_by_kiosk`), `security/by-kiosk-resident-allowlist`. `/kiosks` and B1/B2/A await decisions.
+- Agent Three: `pilot/sim-loop-resume` (re-create the scheduler loop for RUNNING runs at startup; `scheduler.py` + one lifespan call in `server.py`).
+- Claude Two: RQ-003 live Nursing runbook (docs only).
+- Agent Four: done, awaiting assignment.
+
+The live :8092 still runs `7136734`; not restarted (no approval for this block).
