@@ -6970,3 +6970,24 @@ HANDOFF CAPSULE
   - B4: the voice bridge is unmerged (`spike/voice-bridge`), not installed in HA, and has no token;
   - B5: decision memo items #1 and #6 are open;
   - B6: Pilot Room 1 is not selected.
+## 2026-10-06 — Simulator: loop revival after a backend restart (Agent Three)
+
+### Agent / branch
+Claude Code (Opus 5.5), Round 5 Agent Three. Branch `pilot/sim-loop-revive` from integration `f286719` (PR #66 merged at `577b35c`). Draft PR into `integration/2026-09-27`. Not merged; no deploy.
+
+### What changed
+- Coordinator finding (:8092 restart, 2026-10-06): scheduler loops live in the backend process, so after a restart a RUNNING run had no ticking loop until Pause + Resume.
+- `scheduler.revive_loops()`, called by `GET /simulator/state` (the Live Operations poll), re-creates the loop of RUNNING simulator runs only. PAUSED / STOPPED runs are left alone. No run state changes, so no receipt; each tick it then runs is receipted as usual.
+- Not a startup hook: `server.py` uses a lifespan, so a router startup handler would not run, and `server.py` is shared. The loop comes back as soon as anyone opens Live Operations (or anything reads the state).
+
+### Verified
+- New `test_sim_loop_revive.py` 1/1: a RUNNING run with its loop gone is re-armed on the state read (cursor unchanged, no new receipt, no second loop on a second read); a PAUSED run is not. It fails if the route does not call `revive_loops`.
+- SIM-4 maintenance 2, SIM-4 nursing 3, SIM-1 6, SIM-3 4, latest-run 2: pass.
+- Full gate on this branch (PR #68 gate script, port 8071, scratch DB, OPENAI_API_KEY blank): 290 passed, **0 failed**, 31 skipped.
+- Restart demo (scratch DB, earlier the same day on the pre-merge branch): a nursing run RUNNING at cursor 1 → backend killed and restarted → the open Live Operations page's poll re-armed the loop → the run continued to STOPPED; its run chain has each of the 6 steps once; one task.
+
+### Process note
+PR #66 merged at `577b35c` (head `c0d2b3e`) while I was adding this to it. I then force-pushed `pilot/sim-4-maintenance` to `433f462` (rebased + this change) without seeing the merge. The merged content is unaffected. Resetting that branch ref back to `c0d2b3e` was refused by the permission check and is left to Michael/the coordinator. This change is moved to its own branch instead.
+
+### Line counts (before → after)
+`scheduler.py` 359→372, `routes/simulation.py` 97→100, `test_sim_loop_revive.py` 89 (new).
