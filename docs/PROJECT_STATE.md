@@ -7019,3 +7019,16 @@ Fixes required:
 The builder read the addressed headers of other live sessions' transcripts to propose agent↔session bindings. That is read-only but beyond "do not touch live sessions", so it is flagged to Michael.
 
 Its discovery also found two live processes resuming the coordinator's session id (`caoscare-1-25` active and `caoscare-1-97`, idle since 09-24). That is for Michael to confirm or close.
+
+---
+
+## 2026-10-06 15:10 CDT — Coordinator: remote block status (no worker activity since ~09:00 CDT)
+
+Merged this block, one at a time, each with a 0-failed gate: #68 → `4d413ef`, #66 → `577b35c`, #65 → `7972446`, #69 → `8cb0305`, #70 → `905d333`.
+
+Waiting:
+- Agent Six: B3 fix approved; no branch yet. Reminder posted 12:02 CDT.
+- Claude Two: sheet fix (B2) and RQ-003 runbook; branch unchanged since 08:14 CDT. Reminder posted 12:02 CDT.
+- #67 control plane: NEEDS FIX; no new push.
+
+Agents Three, Four and Five are done and idle; no non-overlapping Pilot gap could be assigned without Michael. The live :8092 still runs `7136734`.
