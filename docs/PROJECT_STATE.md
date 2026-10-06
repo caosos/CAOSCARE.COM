@@ -6661,3 +6661,13 @@ HANDOFF CAPSULE
 - Product invariants: every request notification traces to its task and receipt; simulated work never reaches a provider; department changes admin-only.
 - Do NOT change:    notify_department's required link arguments.
 - Next safe action: coordinator review of the draft PR.
+
+---
+
+## 2026-10-05 — Agent Control Plane: design only (new lane)
+
+Claude Code (Opus 5.5), new bounded lane. Worktree `~/CAOSCARE-AGENT-CONTROL`, branch `pilot/agent-control-plane` from integration `31f5c03`. Docs only; no code, no deploy, no running session touched.
+
+- `docs/CAOSCARE_AGENT_CONTROL_PLANE.md`: owner-only Agent operations tab, command queue with a receipt per step, adapter interface (mock → read-only Claude session status → tmux → Agent SDK), security model, tests, smallest slice, collision analysis.
+- Findings (read-only): tmux not installed; Claude workers run in plain terminals; Claude Code's local session registry (`~/.claude/sessions/*.json`) gives name/idle-busy/last update; its key files and sockets were not read; no machine-readable agent→session mapping exists.
+- Next safe step: Michael answers §14 of the design; implementation waits for authorization.
