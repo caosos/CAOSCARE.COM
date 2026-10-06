@@ -869,3 +869,8 @@ listener verifier experiment: `docs/experiments/`.
 - `android-bridge/sdr_control.py`: `rtl_433` spawn/read loop, stall watchdog and SDR USB reset, moved out of `caos_rf_bridge.py` unchanged apart from returning a `RunResult` and honouring a stop event.
 - `android-bridge/caos-rf-bridge.service.example`: systemd user unit template (journal logging). Not installed.
 - Tests: `android-bridge/tests/test_restart_backoff.py`.
+
+## 2026-10-06 — SIM-4 Maintenance (branch `pilot/sim-4-maintenance`)
+
+- `backend/simulation/scenario.py` `sink_leak` ("Maintenance: leaking sink") is the Maintenance scenario; resident words "The bathroom sink keeps leaking."
+- Test: `backend/tests/test_sim4_maintenance.py` (owner takeover, staged status truth, dedup, no provider calls).
