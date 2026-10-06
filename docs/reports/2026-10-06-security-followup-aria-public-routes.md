@@ -2,188 +2,201 @@
 
 **Auditor:** Agent Six (Claude Code, Opus 5.5).
 **Ref inspected:** `integration/2026-09-27` @ `7136734`, which already includes PR #64 (the `/realtime/aria-session` fix).
-**Production source:** `d7ff96a`. Each finding below states whether it is also present there.
+**Production source:** `d7ff96a`. **Every item below is also present there.**
 **Date:** 2026-10-06.
-**Method:** code inspection only. Nothing was edited, no live endpoint was probed, and no test was run against production.
-**Follows:** RQ-002 audit (#61) and security fix #64.
+**Method:** code inspection only (`git show` / `git grep` on the refs). Nothing was edited, no live endpoint was probed, and no test was run against production.
+**Follows:** the RQ-002 audit (#61) and fix #64.
 
-| Item | Route(s) | Severity | Blocks Pilot 1? |
+**Scope:**
+- Item **A** is `/aria/conversation-turn`.
+- Item **B** (public resident context) is split into:
+  - **B1**, read routes;
+  - **B2**, the one public write route that feeds Aria's instructions;
+  - **B3**, the public resident-lookup chain that supplies the resident id the others need. B3 turned out to be the most severe exposure.
+
+## Summary
+
+| Item | Route(s) | Severity | Pilot 1 blocker |
 |---|---|---|---|
-| A | `POST /api/aria/conversation-turn` | **Low–Medium** | No (cheap to fix with A-fix) |
-| B1 | Public resident context reads | **High** | **Yes** |
-| B2 | `POST /api/aria/interpretation-patterns/confirm` | **High** | **Yes** |
-| C | `GET /api/residents/public/by-kiosk/{id}` + `GET /api/kiosks` (found during B) | **Critical** | **Yes** |
+| A | `POST /api/aria/conversation-turn` | Low–Medium | **No** |
+| B1 | `GET /api/aria/continuity`, `/operational-state`, `/conversation-state`, `/interpretation-patterns`, `/interpretation-patterns/match` | High | **Yes** |
+| B2 | `POST /api/aria/interpretation-patterns/confirm` | High | **Yes** |
+| B3 | `GET /api/residents/public/by-kiosk/{kiosk_id}` + `GET /api/kiosks` | Critical | **Yes** |
 
-**Ranking:** C is the most urgent (medical notes readable without login). B2 and B1 come next. A last.
+**Recommended fix order** (each a separate isolated fix, awaiting coordinator approval): **B3 → B1 → B2 → A**.
 
 ---
 
 ## A. `/aria/conversation-turn` — tampering
 
-**Route and files:**
-- `backend/routes/aria_memory.py::ingest_conversation_turn` (`AriaConversationTurnIngest`: `owner_user_id`, `session_id`, `role`, `content`).
-- Caller: `frontend/src/lib/realtimeMessageHandler.js` (~line 124), only when the session context carries `owner_user_id` (the owner `/aria` build).
-- Present in production `d7ff96a`.
+**1. Threat.** An unauthenticated caller writes fabricated turns into the owner's Aria conversation history, or floods the collection.
 
-**Auth model:** none. No dependency and no token check. The owner id comes from the body.
+**2. Exact route / files.**
+- `POST /api/aria/conversation-turn`, served by `backend/routes/aria_memory.py::ingest_conversation_turn` (model `AriaConversationTurnIngest` in the same file).
+- Legitimate caller: `frontend/src/lib/realtimeMessageHandler.js` (~line 124), only in the `ownerId` branch, i.e. the owner `/aria` build.
+- Readers: `GET /api/aria/conversation-threads/{owner_user_id}` and `.../{session_id}` (same file); UI in `frontend/src/pages/AriaVoice.jsx` "Past conversations".
 
-**Data exposed or changeable:**
-- **Write only.** Anyone can insert turns with any `role` and any `content` (no length limit) under any `owner_user_id` and `session_id` into `db.aria_conversations`.
-- The only readers are the owner-only viewer routes in the same file: `GET /aria/conversation-threads/{owner_user_id}` and `.../{session_id}` (both `require_owner`), shown on the `/aria` page under "Past conversations".
-- `git grep aria_conversations` finds no other reader. These turns do **not** feed Aria's instructions, operator memory (`db.aria_memories`) or any extraction. So there is **no model or prompt influence and no disclosure.**
+**3. Current auth model.**
+- None: no dependency and no token check.
+- `owner_user_id`, `session_id`, `role` and `content` all come from the request body.
+- The readers are `require_owner`.
 
-**Exploit preconditions:**
-- Network reach to the API.
-- To land in the real owner's viewer, the owner's `user_id`. User ids are opaque (`user_<hex>`), are not secret by design, and before #64 could be learned through `/aria-session`.
-- With any random id, the attacker can still write unbounded junk: storage and denial-of-service by volume. No rate limit exists (`git grep ratelimit` finds only `family_portal.py`).
+**4. Data exposed / mutable.**
+- **Mutable:** `db.aria_conversations`. Any number of documents under any `owner_user_id`, with any `role` string and any `content` (no length limit).
+- **Exposed:** nothing; the route only writes.
+- **Not reachable from here:** `git grep aria_conversations` shows the only readers are the two owner-only viewer routes. These turns do not feed Aria's instructions, operator memory (`db.aria_memories`) or any extraction.
 
-**Severity: Low–Medium.** Integrity of the owner's own transcript history, plus storage abuse. No confidentiality impact. No resident impact.
+**5. Exploit preconditions.**
+- Network access to the API.
+- To land in the real owner's viewer, the owner's `user_id`. It is opaque (`user_<hex>`) but not treated as a secret, and before #64 it could be learned from `/aria-session`.
+- Flooding needs no id at all. There is no rate limit; the only limiter in the backend is in `family_portal.py`.
 
-**Smallest safe fix:**
-- `ingest_conversation_turn(data, user=Depends(require_owner))`. Store `owner_user_id = user["user_id"]`; refuse a body id that names someone else (same pattern as #64).
-- Add `max_length` on `content` (e.g. 4000) and restrict `role` to `{"user", "assistant"}`.
-- Frontend: the owner-turn `fetch` in `realtimeMessageHandler.js` must send the signed-in token. Reuse #64's `sessionAuth` opt-in (thread it through `ctxRef` / the connection), or add an `Authorization` header only in the `ownerId` branch.
-- Resident turns are unaffected; they go to `/memory/realtime-turn`.
+**6. Severity: Low–Medium.** Integrity of the owner's own transcript history and storage abuse. No confidentiality impact, no model influence, no resident impact.
 
-**Tests:**
-- Anonymous → 401 and nothing stored.
-- Staff/admin → 403.
-- Owner → stored under the authenticated id.
-- A forged body id → 403.
-- Oversize content → 422.
-- Bad role → 422.
-- In-process with a scratch DB, like `test_realtime_aria_session_auth.py`.
+**7. Smallest safe fix.**
+- Backend: `ingest_conversation_turn(data, user=Depends(require_owner))`; store `owner_user_id = user["user_id"]`; refuse a body `owner_user_id` that names anyone else (403), as in #64.
+- Validation: `content` max length (e.g. 4000), and `role` restricted to `{"user", "assistant"}`.
+- Frontend: the owner-branch `fetch` in `realtimeMessageHandler.js` must send the signed-in token. Reuse #64's `sessionAuth` opt-in, or add the header only in that branch.
+- Resident turns use `/memory/realtime-turn` and are unaffected.
 
-**Blocks Pilot 1:** No. The owner build is not part of the resident pilot. Fixing it alongside #64's follow-up costs little.
+**8. Pilot 1 blocker: No.** The owner build is not part of the resident pilot.
 
----
-
-## B1. Public resident context reads
-
-**Routes and files:**
-- `GET /api/aria/continuity` (`aria_continuity.py`)
-- `GET /api/aria/operational-state` (`aria_operational_state.py`)
-- `GET /api/aria/conversation-state` (`aria_conversation_state.py`)
-- `GET /api/aria/interpretation-patterns` and `GET .../match` (`aria_interpretation_patterns.py`)
-- All present in production `d7ff96a`.
-
-**Auth model:** none. The docstrings call them "Public … same trust model as the other resident-facing realtime endpoints … Inspection/debug surface."
-- **No frontend code calls any of these GET routes.** `git grep` over `frontend/src` finds no caller.
-- The session mint (`realtime_resident_session.py::_mint`) calls the underlying `resolve_*` / `list_patterns` functions **in-process**, not over HTTP.
-- So these HTTP routes exist only for inspection.
-
-**Data exposed:**
-
-| Route | Input needed | What it returns |
-|---|---|---|
-| continuity | `resident_id` | Up to 3 prior sessions from the last 18 h: the resident's own lines **verbatim** and trimmed Aria lines, plus how each session ended |
-| operational-state | `resident_id` **or just `room`** | Open alerts and requests: what they're about (from `resident_stated_reason` / `resident_words` / description), lifecycle, age, and **staff names** (`handled_by`) |
-| conversation-state | `resident_id` + `session_id` | Request references and state for one session |
-| interpretation-patterns / match | `resident_id` | Confirmed heard → understood pairs (speech habits, language learning) |
-
-**Exploit preconditions:** network reach, plus:
-- a room number, which is guessable (e.g. `214`);
-- or a `resident_id`, which takes **no guessing**: public `GET /api/kiosks` lists every kiosk with its room, and public `GET /api/residents/public/by-kiosk/{kiosk_id}` returns the room's resident (item C).
-- So every resident can be enumerated without a login.
-
-**Severity: High.** A resident's private words and care requests can be read over the internet, in a senior-care product.
-
-**Smallest safe fix:**
-- Add `Depends(require_admin)` to these five GET routes, or remove them. Nothing outside debugging uses them, and the mint path is in-process and unaffected.
-- Update `tests/test_aria_operational_state.py::test_operational_state_http_endpoint`, which currently calls the route without auth over HTTP.
-
-**Tests:**
-- For each route: anonymous → 401, staff → 403, admin → 200.
-- A resident session mint still contains the continuity / operational / interpretation blocks (assert on `_caos.instructions`, with OpenAI mocked as in #64).
-
-**Blocks Pilot 1: Yes.** Real residents' words and requests would be readable without a login.
+**9. Tests needed.** In-process, scratch DB, OpenAI not involved:
+- anonymous → 401 and nothing stored;
+- staff → 403; admin → 403;
+- owner → stored under the authenticated id even when the body names another id (or 403 on a mismatch, per the chosen contract);
+- `content` over the limit → 422; `role` not allowed → 422;
+- the owner thread viewer still lists the stored turns;
+- frontend: the owner-branch turn upload carries `Authorization`, and the resident branch does not.
 
 ---
 
-## B2. `POST /api/aria/interpretation-patterns/confirm` — poisoning a resident's Aria instructions
+## B1. Public resident context — read routes
 
-**Route and files:**
-- `aria_interpretation_patterns.py::confirm_interpretation_pattern` → `record_pattern(ConfirmInterpretationInput)`.
-- Caller: the kiosk browser's `confirm_interpretation_pattern` tool, `frontend/src/lib/realtimeOperationsTools.js` (~line 266).
-- Present in production `d7ff96a`.
+**1. Threat.** Anyone on the internet reads a resident's recent words to Aria, their open care requests and alerts, and their speech patterns.
 
-**Auth model:** none. It takes `resident_id` from the body, and `source` (`resident_confirmed` / `staff_entered` / `inferred`) is also taken from the body.
+**2. Exact route / files.**
+- `GET /api/aria/continuity`: `backend/routes/aria_continuity.py::continuity` → `resolve_continuity`.
+- `GET /api/aria/operational-state`: `backend/routes/aria_operational_state.py::operational_state` → `resolve_operational_state`.
+- `GET /api/aria/conversation-state`: `backend/routes/aria_conversation_state.py::conversation_state` → `resolve_conversation_state`.
+- `GET /api/aria/interpretation-patterns` and `GET /api/aria/interpretation-patterns/match`: `backend/routes/aria_interpretation_patterns.py` → `list_patterns` / `find_matching_patterns`.
+- **Legitimate use:** none over HTTP. `git grep` over `frontend/src` finds no caller. The resident session mint (`backend/routes/realtime_resident_session.py::_mint`) calls the `resolve_*` / `list_patterns` functions **in-process**.
 
-**Data changeable:**
-- Anyone can create or overwrite up to `MAX_PATTERNS_IN_CONTEXT` (15) patterns for any resident.
+**3. Current auth model.** None. Each docstring says "Public … same trust model as the other resident-facing realtime endpoints … inspection/debug surface". Scoping is only by query parameters.
+
+**4. Data exposed / mutable.** Exposed (read only):
+
+| Route | What it returns |
+|---|---|
+| continuity | Up to 3 prior sessions from the last 18 h: the resident's own lines **verbatim** and trimmed Aria lines, plus how each session ended |
+| operational-state | Every open alert and request for the resident **or room**: what it is about (`resident_stated_reason` / `resident_words` / description), lifecycle, age, and the **names of staff** handling it |
+| conversation-state | Request references and state for one session |
+| interpretation-patterns / match | The resident's confirmed heard → understood pairs (speech habits, language learning) |
+
+**5. Exploit preconditions.**
+- Network access, plus:
+  - a **room number** for operational-state (guessable, e.g. `214`);
+  - or a **`resident_id`**, which needs no guessing: public `GET /api/kiosks` lists every kiosk with its room, and public `GET /api/residents/public/by-kiosk/{kiosk_id}` returns the resident (B3).
+- conversation-state also needs a `session_id`, which is not listed publicly.
+
+**6. Severity: High.** Resident conversation content and care requests readable without login, internet-facing, in a senior-care product.
+
+**7. Smallest safe fix.**
+- Add `Depends(require_admin)` to the five GET routes, or remove them.
+- The mint path is in-process and unaffected.
+- Update `backend/tests/test_aria_operational_state.py::test_operational_state_http_endpoint`, which calls the route without auth.
+
+**8. Pilot 1 blocker: Yes.** Real residents' words and requests would be public.
+
+**9. Tests needed.**
+- For each of the five routes: anonymous → 401, staff → 403, admin → 200 with the same body as before.
+- A resident session mint (OpenAI mocked, as in #64) still includes the continuity, operational-state and interpretation blocks in `_caos.instructions`.
+- The updated HTTP endpoint test passes when authenticated.
+
+---
+
+## B2. Public resident context — `interpretation-patterns/confirm` (write into Aria's instructions)
+
+**1. Threat.** Anyone creates or overwrites "confirmed" speech patterns for any resident. Those patterns are inserted into that resident's Aria instructions, so this is prompt injection and misunderstanding planted into a vulnerable resident's assistant.
+
+**2. Exact route / files.**
+- `POST /api/aria/interpretation-patterns/confirm`: `backend/routes/aria_interpretation_patterns.py::confirm_interpretation_pattern` → `record_pattern` (model `ConfirmInterpretationInput`).
+- Legitimate caller: `frontend/src/lib/realtimeOperationsTools.js` (~line 266), the kiosk's `confirm_interpretation_pattern` Aria tool.
+- Into the prompt: `realtime_resident_session.py::_mint` → `list_patterns` → `realtime_context_tail.py` → `render_interpretation_block`, under "## What you've learned about how {name} talks — These are CONFIRMED person-specific patterns".
+
+**3. Current auth model.** None. The kiosk is not logged in. `resident_id` and `source` (`resident_confirmed` / `staff_entered` / `inferred`) are both taken from the body.
+
+**4. Data exposed / mutable.**
+- **Mutable:** `db.interpretation_patterns` for any resident. New patterns can be created, and an existing pattern's `understood_as` can be changed (it is recorded as a "correction").
 - `heard_as`, `understood_as` and `meaning` have no length or content limits.
-- `_mint` loads these patterns (`list_patterns`) and `render_interpretation_block` writes them into that resident's **Aria instructions** under "CONFIRMED person-specific patterns".
-- **This is a direct prompt-injection path into a vulnerable resident's assistant.** It can make Aria misunderstand ("help" heard as something else) or carry instruction-like text, and the forged `source` makes it look staff-entered.
+- Up to 15 patterns reach the prompt.
+- **Exposed:** the response echoes the stored pattern.
 
-**Exploit preconditions:** network reach plus a `resident_id`, obtainable through C.
+**5. Exploit preconditions.**
+- Network access plus a `resident_id` (B3 provides it).
+- Takes effect at that resident's **next** Aria session.
 
-**Severity: High.** Integrity of resident-facing safety behaviour.
+**6. Severity: High.** Integrity of resident-facing safety behaviour. Aria could be steered to mis-hear requests for help, or follow instruction-like text, and the forged `source` makes it look staff-entered.
 
-**Smallest safe fix:** the kiosk is not logged in, so a plain auth gate would break the legitimate tool. The fix is to **ground the write in a live session**:
-1. The request must carry the `session_id` of an **active Aria room lease** (`resident_aria_leases`) for that same resident's room.
-2. `heard_as` must appear in a **recent resident turn of that session** in `db.conversations`. This is the same grounding technique as the TSB-001 / `update_preferred_name` guards.
-3. `source` is set on the server (`resident_confirmed` for this path); the body cannot set it.
-4. Length limits (e.g. 200 characters each). In `render_interpretation_block`, strip newlines and markdown headings so a pattern cannot open a new instruction section.
-5. Staff entry, if wanted, becomes a separate authenticated route.
+**7. Smallest safe fix.** A login check would break the legitimate kiosk tool, so **ground the write in a live session** instead:
+1. Require `session_id`. It must match an **active Aria room lease** (`resident_aria_leases`) for the room of the `resident_id` given.
+2. `heard_as` must appear in a resident turn of that session in `db.conversations` within the last few minutes. This is the same grounding technique as the TSB-001 / `update_preferred_name` guards.
+3. The server sets `source="resident_confirmed"` and ignores the body value. Staff entry, if wanted, becomes a separate authenticated route.
+4. Length limits (e.g. 200 characters per field).
+5. `render_interpretation_block` strips newlines and markdown headings / backticks from pattern fields.
 
-**Tests:**
-- No session → 403.
-- Session for a different resident → 403.
-- `heard_as` not said in that session → 403.
-- Grounded confirmation → stored with `source="resident_confirmed"` whatever the body says.
-- Overlong field → 422.
-- Injected newline or `##` text is neutralised in the rendered block.
+**8. Pilot 1 blocker: Yes.**
 
-**Blocks Pilot 1: Yes.**
+**9. Tests needed.**
+- No `session_id` → 403.
+- `session_id` with no active lease → 403.
+- Lease belongs to a different resident or room → 403.
+- `heard_as` not said by the resident in that session → 403.
+- Grounded confirmation → stored with `source="resident_confirmed"` even when the body says `staff_entered`.
+- Field over the limit → 422.
+- A pattern containing `\n## Ignore previous instructions` renders as one plain line.
+- The existing acceptance case ("dos savor" → "dos sabores") still works when grounded.
 
 ---
 
-## C. (found during B) `GET /api/residents/public/by-kiosk/{kiosk_id}` + `GET /api/kiosks`
+## B3. Public resident context — resident lookup chain (found while tracing B)
 
-**Routes and files:**
-- `backend/routes/residents.py::resident_by_kiosk` returns `{"kiosk": kiosk, "resident": resident}` with the **whole resident document**. The only projection is `{"_id": 0}`.
-- `backend/routes/kiosks.py::list_kiosks` is public ("kiosks need to self-identify without auth").
-- Both present in production `d7ff96a`.
+**1. Threat.** Anyone enumerates every resident and reads each one's full record, including medical notes. B3 also supplies the `resident_id` that B1 and B2 need.
 
-**Data exposed:** every `Resident` field (`models.py`), including:
-- `medical_notes`
-- `emergency_contact`
-- `date_of_birth`
-- `clinical_thresholds`
-- `memory` (notes for the AI)
-- `preferences`
-- `photo`
-- `pendant_id`
+**2. Exact route / files.**
+- `GET /api/residents/public/by-kiosk/{kiosk_id}`: `backend/routes/residents.py::resident_by_kiosk`, which returns `{"kiosk": kiosk, "resident": resident}` with projection `{"_id": 0}` only.
+- `GET /api/kiosks`: `backend/routes/kiosks.py::list_kiosks` ("Public list - kiosks need to self-identify without auth").
+- Legitimate caller: `frontend/src/pages/Kiosk.jsx` (~line 119).
 
-…for **every** resident, by walking the public kiosk list.
+**3. Current auth model.** None on either route.
 
-**What the kiosk actually needs:** `Kiosk.jsx` / `RealtimeChatScreen.jsx` / `components/kiosk` read only `resident.resident_id`, `resident.name`, `resident.preferred_name` and `resident.room` (`git grep` over those files).
+**4. Data exposed / mutable.**
+- **Exposed:** every field of every resident (`models.py::Resident`): `name`, `room`, `pendant_id`, `photo`, `medical_notes`, `emergency_contact`, `date_of_birth`, `participation_level`, `preferences`, `memory` (notes for the AI), `preferred_name`, `clinical_thresholds`, `synthetic`, `created_at`. Plus each kiosk record.
+- **Not mutable** through these routes.
+- **What the kiosk actually reads:** only `resident_id`, `name`, `preferred_name` and `room` (`git grep` over `Kiosk.jsx`, `RealtimeChatScreen.jsx`, `components/kiosk`).
 
-**Severity: Critical.** Health-related personal information, unauthenticated, with enumeration of every resident.
+**5. Exploit preconditions.** Network access only. Call `GET /api/kiosks`, then `by-kiosk` for each id.
 
-**Smallest safe fix:**
+**6. Severity: Critical.** Health-related personal information for every resident, unauthenticated, enumerable.
+
+**7. Smallest safe fix.**
 - An allowlist projection in `resident_by_kiosk`: `resident_id`, `name`, `preferred_name`, `room`, `participation_level`, `synthetic`.
-- Keep the `kiosk` object as is, or trim it as well.
-- Separately decide whether `GET /api/kiosks` needs to stay public. The kiosk only needs its own record, not the list.
+- Optionally trim the returned `kiosk` object as well.
+- Separate decision: whether `GET /api/kiosks` should stay public. A kiosk needs only its own record.
 
-**Tests:**
-- The response contains none of `medical_notes`, `emergency_contact`, `date_of_birth`, `clinical_thresholds`, `memory`, `preferences`, `photo`, `pendant_id`, and does contain the four fields the kiosk uses.
-- The kiosk page still loads a resident (the existing frontend tests plus one route test).
+**8. Pilot 1 blocker: Yes.**
 
-**Blocks Pilot 1: Yes.**
+**9. Tests needed.**
+- The `by-kiosk` response contains none of `medical_notes`, `emergency_contact`, `date_of_birth`, `clinical_thresholds`, `memory`, `preferences`, `photo`, `pendant_id`, and does contain the four fields the kiosk uses.
+- Unknown kiosk → 404 (unchanged).
+- The kiosk page still resolves its resident (existing frontend tests + one route test).
+- If `/kiosks` is changed: an anonymous list is refused or reduced, and the kiosk's own lookup still works.
 
 ---
 
 ## Related, not assessed in depth
 
-- `POST /api/memory/realtime-turn` (resident turn ingest) is public by the same kiosk model. It writes `db.conversations` (which continuity reads) and triggers memory extraction into `db.memories` (which goes into the resident prompt). That is a second write path into a resident's context. Recommend reviewing it together with B2's session-grounding approach.
-- The structural fix for all of B and C is a **kiosk device credential**. `routes/device_auth.py` and the `DEVICE_AUTH_REQUIRED` setting exist; that is longer-term work.
+- `POST /api/memory/realtime-turn` (resident turn ingest) is public by the same kiosk model. It writes `db.conversations`, which B1's continuity reads, and triggers memory extraction into `db.memories`, which goes into the resident prompt. This is a second public write path into a resident's context. Review it with B2's session-grounding approach.
+- The structural fix for all of B is a **kiosk device credential** (`backend/routes/device_auth.py` and the `DEVICE_AUTH_REQUIRED` setting exist). That is longer-term work, not a smallest fix.
 
-## Recommended order (each a separate, isolated fix awaiting coordinator authorization)
-
-1. **C:** a one-function projection allowlist. Smallest change, largest exposure.
-2. **B1:** admin-gate the five GET inspection routes.
-3. **B2:** session-grounded confirm write + render sanitising.
-4. **A:** owner-only turn ingest + owner turn POST sends the token.
-
-All four exist in production `d7ff96a`. Deploying any fix needs Michael's release approval.
+All items exist in production `d7ff96a`. Deploying any fix needs Michael's release approval.
