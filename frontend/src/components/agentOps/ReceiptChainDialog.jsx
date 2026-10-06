@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { api } from "../../lib/api";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
 import { humanizeAction } from "../../lib/activityLog";
 import { orderChain, receiptTrust } from "../../lib/agentOps";
 import { fmtTime } from "../../lib/simulator";
@@ -31,7 +31,10 @@ export default function ReceiptChainDialog({ commandId, onClose }) {
   return (
     <Dialog open={!!commandId} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto" data-testid="receipt-chain">
-        <DialogHeader><DialogTitle className="font-display">Receipt chain</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle className="font-display">Receipt chain</DialogTitle>
+          <DialogDescription className="sr-only">Every receipt for this command, origin first.</DialogDescription>
+        </DialogHeader>
         {data && (
           <p className="text-xs text-caos-mute -mt-2 mb-2 break-words">
             <span className="font-mono">{data.command.command_id}</span> → {data.command.target_agent_id}:

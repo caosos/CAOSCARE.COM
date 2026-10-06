@@ -338,3 +338,123 @@ gate on this branch (port 8079, throwaway DB, no OpenAI key): 277 passed,
   recorded for the contract).
 - PROJECT_STATE / REPO_MAP entries: left to the coordinator at merge, per the
   "do not edit shared Pilot 1 files" constraint for this lane.
+
+## 16. Agent Operations page + read-only discovery — as built (2026-10-06)
+
+Decisions applied (Michael, via the coordinator, 2026-10-06): owner only; no tmux; the six real agents
+stay OFFLINE/UNKNOWN until verified; command delivery stays mock-only.
+
+**Frontend (new files only, not mounted):** `pages/AgentOperations.jsx`; `components/agentOps/`
+(`AgentTable`, `CommandComposer`, `CommandHistory`, `ReceiptChainDialog`, `LiveSessionsPanel`,
+`StatusBadge`); `lib/agentOps.js` (+ test). It shows each agent's id/name, role, status, current task,
+branch, last activity and last receipt, plus recent commands with replies. Controls: choose an agent,
+enter a command, submit, inspect the receipt chain, refresh. Unknown values show UNKNOWN, and an agent
+that is not bound to an adapter cannot be sent anything. Receipt ordering reuses `lib/simulator.js`'s
+`orderChain`.
+
+**Read-only discovery:** `backend/agent_control/discovery.py` + `GET /agent-control/sessions` (owner only).
+- It reads Claude Code's own registry `~/.claude/sessions/*.json` (allow-listed fields only) and `/proc/<pid>`.
+- It reads the git branch only when the session's start directory is a checkout.
+- It never reads `*.key` files, sockets or transcripts, and never writes to or signals a process.
+- The registry's `procStart` must equal `/proc/<pid>/stat` start time, so a reused pid is not mistaken for the session.
+- When two live processes resume one session id, the page says so.
+
+**Browser check (headless Chrome, isolated stack: mount patch applied in a scratch worktree, backend
+:8098, frontend :3014, scratch DB; all stopped and dropped afterwards):**
+- The owner saw 7 agents: six OFFLINE/UNKNOWN, and the mock ONLINE + SIMULATED.
+- A command to the mock was sent; the history showed ACKNOWLEDGED and the mock's reply.
+- The receipt chain showed issued VERIFIED → delivered SIMULATED → acknowledged SIMULATED, with parent links and before/after states.
+- With an unbound agent selected, Send was disabled and a "not connected" notice was shown.
+- At 390 px there was no page overflow.
+- The admin role saw neither the tab nor the page.
+- The 8 live sessions were listed read-only.
+
+### Live-session discovery (EliteDesk, 2026-10-06 ~13:45 UTC, read-only)
+
+| Session name | PID | Parent | Terminal | Start dir | Registry status | Session id |
+|---|---|---|---|---|---|---|
+| caoscare-1-25 | 1428211 | bash ← sshd | pts/2 | `~` | busy, updated 10-06 13:39 | db41a1a3 (shared, see below) |
+| caoscare-1-97 | 1426225 | bash ← gnome-terminal | pts/4 | `~` | idle since 09-24 02:05 | db41a1a3 (shared) |
+| caoscare-1-47 | 2756816 | bash ← sshd | pts/6 | `~` | idle/busy | a07db747 |
+| caoscare-1-09 | 1101750 | bash ← sshd | pts/5 | `~` | busy | 7ae6de5a |
+| caoscare-1-e8 | 1111848 | bash ← sshd | pts/3 | `~` | idle/busy | 8452c511 |
+| caoscare-1-56 | 1142000 | bash ← sshd | pts/0 | `~` | idle/busy | 499b28e8 |
+| caoscare-1-72 | 2019301 | bash ← sshd | pts/7 | `~` | idle | a6322cc5 |
+| caoscare-integration-2f | 1580469 | bash ← sshd | pts/8 | `~/CAOSCARE-INTEGRATION` | busy | 900513e7 (this lane) |
+
+Findings:
+- Each process has a stable key: `pid:procStart`, verified against `/proc`. The **session id is not
+  unique**: two live processes (`caoscare-1-25`, `caoscare-1-97`) both run `claude --resume db41a1a3…`.
+  The session *name* is derived by Claude Code and lasts as long as the process. A binding must
+  therefore be `pid:procStart` + name, re-checked before every delivery; never the session id alone.
+- **Branch / worktree are not discoverable at runtime.** Every agent session starts in `~` and moves
+  between worktrees through its own commands, so branch stays UNKNOWN. The Pilot 1 board lists
+  branches, but that is documentation, not runtime proof.
+- Most sessions are reached over SSH from Michael's laptop; one is a desktop terminal.
+
+### Proposed binding map (NOT applied — registry unchanged)
+
+Evidence: Claude Code's registry links each process to a session id; that session's transcript
+(`~/.claude/projects/-home-caoscare-1/<session id>.jsonl`) holds Michael's directives addressed to one
+agent ("CARE APP ROUND 5 — AGENT FOUR …"). Only the addressed headers were checked; no other transcript
+content was read or copied.
+
+| Agent | Proposed session | Evidence | Confidence |
+|---|---|---|---|
+| claude-1-coordinator | caoscare-1-25 (pid 1428211, pts/2) | "AGENT ONE / COORDINATOR", latest "COORDINATOR — REMOTE WORK BLOCK" 10-06 13:39 = this process's last update | PROVEN by directive + activity time; **caveat:** stale twin caoscare-1-97 (pid 1426225, idle since 09-24) on the same session id — Michael should confirm or close it |
+| claude-2-wake | caoscare-1-47 (pid 2756816, pts/6) | "AGENT TWO — WAKE MODEL METHOD TEST", "PHYSICAL WAKE TEST PACKAGE" | PROVEN by directive |
+| claude-3-simulator | caoscare-1-09 (pid 1101750, pts/5) | "AGENT THREE — SIM-4 …" | PROVEN by directive |
+| claude-4-shared-core | caoscare-1-e8 (pid 1111848, pts/3) | "AGENT FOUR — FINALIZE SC-8 / SC-9" | PROVEN by directive |
+| claude-5-hardware-rf | caoscare-1-56 (pid 1142000, pts/0) | "AGENT FIVE — RF BRIDGE RUNAWAY HARDENING" | PROVEN by directive |
+| claude-6-security | caoscare-1-72 (pid 2019301, pts/7) | "AGENT SIX — REALTIME OWNER CONTEXT SECURITY" | PROVEN by directive |
+
+Branch, current task: UNKNOWN for all, until an agent reports them.
+
+## 17. Live command delivery — adapter comparison
+
+| Path | Works for the EXISTING sessions without restarting them? | Risk | Verdict |
+|---|---|---|---|
+| **tmux** (`send-keys` / `paste-buffer`) | No. A session must be started inside tmux, and none is (tmux isn't installed). | Typing into an interactive TUI races with permission prompts and approvals; output only by screen scraping | Later, for new workers only; not primary |
+| **PTY / process control** (TIOCSTI, writing to `/dev/pts/N`, ptrace / reptyr) | No. `dev.tty.legacy_tiocsti = 0` (kernel blocks input injection); writing to a pts writes *output*, not input; ptrace/reptyr hijack the process | High: can corrupt a live worker | **Rejected** |
+| **Claude Agent SDK** | No. It starts its own managed agent processes; `--resume` of a session that is open interactively makes two writers on one transcript (already seen: db41a1a3) | Low for new workers | **Recommended for new workers** (structured messages, real session ids, no scraping) |
+| **Claude Code peer messaging** (the documented `ListAgents` / `SendMessage` tools between local sessions) | **Yes.** Every live session already advertises it (`peerProtocol: 1`). The message arrives as a normal incoming message; the recipient acts under its own permissions | Low; no keystroke injection, no restart. The relay must forward verbatim (checked by hash); the reply is a self-report (unverified) | **Recommended for the existing sessions** |
+| **Remote MCP / terminal connector** | Only via one of the above | Adds a network surface | Later, as the Aria/ChatGPT access layer over the control API, not as a delivery path |
+
+**Recommendation for the existing live sessions: a peer-message relay adapter.**
+```
+Owner → POST /agent-control/commands (receipt: issued)
+  → command queued for a binding of kind "peer_relay"
+  → relay: a dedicated new Claude Code session (started by Michael, its own worktree, no repo write work)
+      polls GET /agent-control/relay/next   (relay credential, owner-issued, revocable)
+      re-checks the binding: name + pid:procStart still alive in discovery
+      SendMessage(to=<bound session name>, message=<instruction verbatim>)
+      POST /agent-control/relay/{command_id}/delivered {sha256(text), tool result}   (receipt: delivered)
+  → the agent replies to the relay via SendMessage
+      POST /agent-control/relay/{command_id}/reply {text}   (receipt: acknowledged/completed, UNVERIFIED)
+```
+The CAOSCare backend never reads Claude Code's keys or sockets. Only a Claude Code session uses its own
+documented tool. The relay is an LLM in the loop, so its instructions forbid rewording, and the
+delivery receipt carries a hash of the exact text it sent, compared against the queued instruction.
+
+## 18. Exact next step before ONE real Claude can receive a command
+
+1. **Michael confirms one binding.** Suggested first target: `claude-6-security` → `caoscare-1-72`
+   (idle, bounded lane). Also: confirm that `caoscare-1-97` (stale twin of the coordinator) can be closed.
+2. **Coordinator applies SCR-ACP-1/2.** The patch `docs/patches/agent-control-mount.patch` (server.py +2,
+   Admin.jsx +2, adminTabGroups.js +4/−1) was checked in a scratch worktree. Then set
+   `CAOSCARE_AGENT_CONTROL_ENABLED=1` on the EliteDesk backend only and restart it (never Linode).
+3. **Authorize the `peer_relay` adapter slice.** It needs `relay/next`, `relay/{id}/delivered`, `relay/{id}/reply`;
+   a relay credential; and binding-time liveness re-check with `pid:procStart`. Tests use mock discovery.
+4. **Michael starts one relay Claude session.** It is a new process, so no existing session is touched.
+5. **Send one harmless command:** "Reply with your agent id and current branch." Accept only if all four
+   hold: issued, delivered (hash matches), and reply receipts exist; the reply text matches what the agent
+   shows in its own terminal.
+
+Until step 3 is authorized, no live session receives anything.
+
+## 19. Updated shared-core requests
+
+- **SCR-ACP-1/2** — apply `docs/patches/agent-control-mount.patch` (exact diff, 3 files).
+- **SCR-ACP-3** — Receipt `related_object_type` values `agent_command` / `agent` (no model change).
+- **SCR-ACP-4** — EliteDesk-only env `CAOSCARE_AGENT_CONTROL_ENABLED=1` (and later
+  `CAOSCARE_CLAUDE_SESSIONS_DIR` if the backend ever runs as another user). Never set on Linode.
