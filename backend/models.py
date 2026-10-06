@@ -539,6 +539,11 @@ class Notification(BaseModel):
     simulation_run_id: Optional[str] = None
     task_id: Optional[str] = None
     receipt_id: Optional[str] = None
+    # SC-8: what this notification is about (e.g. "task" + its task_id), so
+    # delivery history traces back to the exact request. Set for real and
+    # simulated notifications alike.
+    related_object_type: Optional[str] = None
+    related_object_id: Optional[str] = None
     created_at: datetime = Field(default_factory=now_utc)
 
 

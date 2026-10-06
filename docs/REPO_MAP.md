@@ -857,3 +857,9 @@ listener verifier experiment: `docs/experiments/`.
 - `backend/simulation/roster.py::STAFF_ROLES`: maintenance tech and nurse (`sim:staff:nursing-1`, shared with demo continuity); `resolve_cast(staff_keys)`.
 - Live Operations: scenario picker in `SimControls`.
 - Test: `backend/tests/test_sim4_nursing.py`.
+
+## 2026-10-05 — SC-8 notification links / SC-9 department labels (branch `pilot/shared-core-sc8-sc9`)
+
+- `backend/routes/notifications.py::task_notice()`: the one builder of `notify_department()` arguments for a request (task link, receipt id, simulation context). `notify_department()` requires `related_object_type` / `related_object_id`.
+- `backend/routes/departments.py`: `GET /api/departments/labels` — read-only `{slug, label}` for any signed-in user; used by `frontend/src/pages/DepartmentWorkspace.jsx`.
+- Tests: `backend/tests/test_sc8_notification_links.py`, `backend/tests/test_sc9_department_labels.py`.

@@ -20,7 +20,7 @@ from routes import task_lifecycle
 from routes.actor_context import actor_from_user, actor_resident_claim
 from routes.task_history import task_event, latest_note_at, times_asked
 from routes.task_lifecycle import simulation_marker
-from routes.notifications import notify_department, simulation_of
+from routes.notifications import notify_department, task_notice
 from routes.departments import get_active_departments
 from routes.facility_local_time import facility_tz as _facility_tz, facility_local as _facility_local
 from routes.tasks import _resolve_denorms
@@ -202,7 +202,7 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
             f"Room: {data.room or 'unknown'}\n"
             f"Original request: {existing['created_at']}\n"
             f"This still hasn't been closed out.",
-            simulation=simulation_of(existing, receipt["receipt_id"]),
+            **task_notice(existing, receipt["receipt_id"]),
         )
         # Speak the duplicate from Layer E's lifecycle vocabulary + real age,
         # so it cannot contradict "What's actually happening right now".
@@ -244,7 +244,7 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
         visibility_role,
         f"CAOS Care: new {data.category} request",
         f"{data.summary}\nRoom: {data.room or 'unknown'}\nPriority: {data.priority}",
-        simulation=simulation_of(doc, receipt["receipt_id"]),
+        **task_notice(doc, receipt["receipt_id"]),
     )
     return {"task_id": doc["task_id"], "receipt_id": receipt["receipt_id"], "status": doc["status"], "duplicate": False}
 

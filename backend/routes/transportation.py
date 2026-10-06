@@ -20,7 +20,7 @@ from pydantic import BaseModel
 
 from models import StaffTask, TaskPriority, now_utc
 from deps import db
-from routes.notifications import notify_department, simulation_of
+from routes.notifications import notify_department, task_notice
 from routes.tasks import _resolve_denorms
 from routes import task_lifecycle
 from routes.task_history import task_event
@@ -198,7 +198,7 @@ async def submit_transport_request(
     if run:
         doc["transport_run_id"] = run["run_id"]
     await notify_department("transportation", f"CAOS Care: transportation {'booked' if run else 'requested'}", _booking_notify_body(doc, run),
-                            simulation=simulation_of(doc, receipt["receipt_id"]))
+                            **task_notice(doc, receipt["receipt_id"]))
 
     return {
         "task_id": doc["task_id"], "receipt_id": receipt["receipt_id"], "status": doc["status"],
@@ -260,7 +260,7 @@ async def change_request(
         status="created", result=f"Changed to {when}",
         build=lambda t, rid: (patch, [task_event(field, text=text, **who(ra, rid))]))
     await notify_department("transportation", "CAOS Care: transportation request changed", _booking_notify_body(updated, new_run),
-                            simulation=simulation_of(updated, receipt["receipt_id"]))
+                            **task_notice(updated, receipt["receipt_id"]))
     return {
         "task_id": task_id, "receipt_id": receipt["receipt_id"], "status": updated["status"],
         "booked": bool(new_run), "shared": booking["shared"],
@@ -286,7 +286,7 @@ async def cancel_request(task_id: str, *, source: str, actor: Optional[dict] = N
         "transportation", "CAOS Care: transportation request cancelled",
         f"Cancelled — was {existing['requested_for_date']}\nPurpose: {existing['description']}\nRoom: {existing.get('room') or 'unknown'}"
         + (f"\nReason: {reason}" if reason else ""),
-        simulation=simulation_of(existing, receipt["receipt_id"]),
+        **task_notice(existing, receipt["receipt_id"]),
     )
     return {"task_id": task_id, "receipt_id": receipt["receipt_id"], "status": "skipped"}
 

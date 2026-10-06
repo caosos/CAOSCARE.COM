@@ -16,7 +16,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends
 
 from models import Department, DepartmentCreate, DepartmentUpdate, now_utc
-from deps import db, require_admin
+from deps import db, require_admin, get_current_user
 
 router = APIRouter(prefix="/departments", tags=["departments"])
 
@@ -74,6 +74,15 @@ async def get_active_departments() -> list[dict]:
     (existing records that already point at it are untouched)."""
     items = await db.departments.find({"active": True}, {"_id": 0, "slug": 1, "label": 1}).sort("label", 1).to_list(100)
     return items
+
+
+@router.get("/labels")
+async def department_labels(user=Depends(get_current_user)):
+    """SC-9: read-only {slug, label} for every department (active or not),
+    for any signed-in user, so a department workspace can show "Nursing"
+    instead of "nursing". No contact emails, no ids, no mutation - the full
+    list and every change stay admin-only below."""
+    return await db.departments.find({}, {"_id": 0, "slug": 1, "label": 1}).sort("label", 1).to_list(100)
 
 
 @router.get("")
