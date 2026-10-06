@@ -311,12 +311,17 @@ def test_15_sim1_run_defers_and_records():
     last = run(continuity.get_state())["last_simulated_at"]
     rid = f"simrun_{TAG}"
     run(db.sim_runs.insert_one({"run_id": rid, "scenario": "sink_leak", "state": "RUNNING",
-                                "created_at": "2000-01-01T00:00:00+00:00"}))
+                                "created_at": "2000-01-01T00:00:00+00:00",
+                                "cast": {"resident": {"filled_by": None},
+                                         "maintenance_tech": {"filled_by": {"mode": "real", "name": "Carl (test)"}}}}))
     try:
         out = run(continuity.catch_up(now=ANCHOR + timedelta(hours=40)))
     finally:
         run(db.sim_runs.delete_many({"run_id": rid}))
-    assert out["status"] == "deferred" and "SIM-1" in out["reason"]
+    # The deferral names the blocking run and who holds it.
+    assert out["status"] == "deferred" and out["blocking_run_id"] == rid
+    assert rid in out["reason"] and "maintenance_tech held by Carl (test)" in out["reason"]
     assert run(continuity.get_state())["last_simulated_at"] == last
     rec = run(db.receipts.find_one({"action_type": "demo_continuity_deferred"}, {"_id": 0}))
     assert rec and rec["status"] == "failed" and rec["simulated"] is True
+    assert rid in rec["failure_reason"]
