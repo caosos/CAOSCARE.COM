@@ -863,3 +863,9 @@ listener verifier experiment: `docs/experiments/`.
 - `backend/routes/notifications.py::task_notice()`: the one builder of `notify_department()` arguments for a request (task link, receipt id, simulation context). `notify_department()` requires `related_object_type` / `related_object_id`.
 - `backend/routes/departments.py`: `GET /api/departments/labels` — read-only `{slug, label}` for any signed-in user; used by `frontend/src/pages/DepartmentWorkspace.jsx`.
 - Tests: `backend/tests/test_sc8_notification_links.py`, `backend/tests/test_sc9_department_labels.py`.
+## 2026-10-05 — RF bridge restart backoff (branch `fix/rf-bridge-restart-backoff`)
+
+- `android-bridge/rf_restart_policy.py`: when to respawn `rtl_433` (healthy = up ≥30 s or decoded a record → immediate; failed → 1/2/5/10/30/60 s backoff) and what to log while it keeps failing (once in full, then a status line every 300 s, one recovery line). `RunOutput` holds back a failing run's output.
+- `android-bridge/sdr_control.py`: `rtl_433` spawn/read loop, stall watchdog and SDR USB reset, moved out of `caos_rf_bridge.py` unchanged apart from returning a `RunResult` and honouring a stop event.
+- `android-bridge/caos-rf-bridge.service.example`: systemd user unit template (journal logging). Not installed.
+- Tests: `android-bridge/tests/test_restart_backoff.py`.
