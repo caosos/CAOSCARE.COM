@@ -6763,3 +6763,30 @@ Runtime observations (read-only):
 - A restart on the tip needs Michael's go-ahead.
 
 RQ-003 (live Nursing voice) remains the next real acceptance loop.
+
+---
+
+## 2026-10-06 — Coordinator: :8092 restarted on integration tip (Michael-approved)
+
+Approval: Michael, 2026-10-06 ("YES — restart the :8092 backend on the current integration tip now").
+- **Before.**
+  - Checkout `~/CAOSCARE-INTEGRATION` was clean at `1d722af9f0a553266873dadb89a555b3fe26d69f` (= origin).
+  - 0 active Aria leases, so no resident session was interrupted.
+  - Old PID 1400509 (started 2026-10-04 20:22, pre-#57) was stopped by its port's PID.
+- **After.**
+  - New PID 219235: `.venv/bin/python3 -m uvicorn server:app --host 0.0.0.0 --port 8092` from `backend/`, log `/tmp/room214_backend_1d722af.log`, startup clean.
+  - `/api/health` → `{"ok":true,"db":"up"}`.
+  - The OpenAPI schema lists `/api/simulator/scenarios` (#62) and `/api/departments/labels` (#59).
+- **`/realtime/aria-session` checks (live :8092, refusal paths only, so no OpenAI call):**
+  - anonymous → 401;
+  - anonymous naming the owner → 401;
+  - signed-in staff → 403;
+  - signed-in owner with a forged `owner_user_id` → 403.
+  - No private context appeared in any response.
+  - The owner's successful session path was not exercised, because it mints a real OpenAI session. It is to be checked when Michael opens `/aria`.
+- **Simulator after the restart.**
+  - `simrun_4b9a3f2c415d` (sink_leak) is RUNNING with cursor 4/6, sim minute 25.
+  - Next step: `maintenance_tech complete`, waiting on a real user (Demo - Carl Boone, SIM-3 takeover). It is waiting on that person to complete the task, not stalled by a defect.
+  - `loop_alive: false`: nothing re-creates the scheduler loop on startup, so a RUNNING run has no ticking loop after any backend restart until someone presses Resume or Step.
+  - Run left untouched. Finding filed for Agent Three's lane.
+- Not done: Linode, reboot, deletion.
