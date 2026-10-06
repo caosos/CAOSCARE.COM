@@ -14,7 +14,7 @@ import os
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from deps import require_owner
-from agent_control import commands, registry
+from agent_control import commands, discovery, registry
 from agent_control.models import CommandInput
 
 
@@ -62,3 +62,10 @@ async def get_command(command_id: str, user: dict = Depends(require_enabled_owne
     if not cmd:
         raise HTTPException(status_code=404, detail="Unknown command")
     return {"command": cmd, "receipts": await commands.receipt_chain(cmd)}
+
+
+@router.get("/sessions")
+async def get_sessions(user: dict = Depends(require_enabled_owner)):
+    """Read-only list of Claude Code sessions on this host. Does not bind
+    them to agents and cannot send them anything."""
+    return {"sessions": discovery.discover(), "read_only": True}

@@ -191,3 +191,11 @@ def test_no_route_takes_a_target_path_or_shell():
     fields = set(routes.CommandInput.model_fields)
     assert fields == {"client_command_id", "target_agent_id", "instruction",
                       "parent_command_id", "based_on_integration_sha"}
+
+
+def test_sessions_endpoint_owner_only_read_only(tmp_path, monkeypatch):
+    monkeypatch.setenv("CAOSCARE_CLAUDE_SESSIONS_DIR", str(tmp_path))
+    assert run(call("GET", "/sessions")).status_code == 401
+    assert run(call("GET", "/sessions", "admin")).status_code == 403
+    r = run(call("GET", "/sessions", "owner"))
+    assert r.status_code == 200 and r.json() == {"sessions": [], "read_only": True}
