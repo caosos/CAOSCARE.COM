@@ -74,8 +74,14 @@ NEXT:
 | ✓ | Scenario-aware `latest_run()`/`view` (Agent Three), PR #57 | `9c3c4bf` | **Merged at `737df76`** 2026-10-05 | Focused 33 passed; gate 273/4/14 (known 4; new skip: `test_sim_latest_run_scenario.py:85` skips when the DB already holds simulator runs — make it self-contained); frontend 34/268 |
 | ✓ | RQ-002 Ask Aria readiness/security audit (Agent Six), PR #61 | `c8add05` | **Merged at `92beeec`** 2026-10-05 (docs) | Finding §7(a) verified in source: `/realtime/aria-session` unauthenticated, reads `owner_user_id` from the body → owner memory. Fix assigned to Agent Six (security PR, high priority) |
 | ✓ | SIM-4 Nursing scenario (Agent Three), PR #62 | `928c7bb` | **Merged at `7446cc7`** 2026-10-05 — **accepted** | Focused 36 passed; gate 280/0/14 (latest-run skip gone; new `iter8` skip is an OpenAI-output skip); frontend 34/268; build ok |
-| 1 | SC-8 + SC-9 (Agent Four), PR #59 | `eb5b7be` | Conflicting with the tip | Agent Four refreshes ONCE onto the tip in this receipt, reruns the gate, posts evidence; then coordinator review |
-| 2 | `/realtime/aria-session` owner-memory exposure fix (Agent Six) | — | Assigned 2026-10-05, HIGH PRIORITY | Review immediately when the PR arrives |
+| ✓ | SC-8 + SC-9 (Agent Four), PR #59 | `86aa8b9` | **Merged at `31f5c03`** 2026-10-05 | Scratch gate 286/0/13; on merge (OpenAI blanked) 268/0/31; focused 12; frontend 34/268 |
+| ✓ | `/realtime/aria-session` owner-only fix (Agent Six), PR #64 | `f0e9901` | **Merged at `6c784d2`** 2026-10-05 | 8 auth tests (OpenAI mocked); gate 276/0/31; frontend 34/268. Live owner browser session not yet verified |
+| ✓ | RF bridge rtl_433 restart backoff (Agent Five), PR #63 | `034ceade` | **Merged at `2b199a2`** 2026-10-05 | Bridge tests 15 (stub rtl_433, USB reset mocked); gate 276/0/31. Live bridge (PID 522046, ~/CAOSCARE.COM) untouched |
+| 1 | SIM-4 Maintenance (Agent Three) | `pilot/sim-4-maintenance` from `21d291f` | Assigned 2026-10-05 | Draft PR; demo room only; no provider side effects |
+| 2 | Gate port/log collision — design only (Agent Four) | — | Assigned 2026-10-05 | Implementation waits for coordinator non-overlap confirmation |
+| — | Wake physical package operator sheet (Claude Two) | PR #46 branch | Assigned 2026-10-05 | Docs only; NOT AUTHORIZED TO FLASH |
+| — | RF backend-unreachable log storm — read-only proposal (Agent Five) | — | Assigned 2026-10-05 | Live bridge untouched |
+| — | Security follow-up inventory A/B — read-only (Agent Six) | — | Assigned 2026-10-05 | No implementation |
 | — | **Michael decision:** HA host reboot test; P1 qemu OOM protection, P2 crash-restart timer, P3 memory caps for heavy builds (`docs/HA_VM_RECOVERY.md`) | — | Awaiting Michael | Agent Four applies only what Michael approves, with receipts |
 | ✓ | RQ-009 Pilot Room hearing/handset requirements (Agent Six), PR #54 | `536ed68` | **Merged at `cf0ac00bba1ea18a0b67cec9b3c1cd13d6acce8b`** 2026-10-04 (docs only) | Gate unchanged (known failures only) |
 | ✓ | RQ-008 storage + RF bridge log audit (Agent Five), PR #58 | `8be5fb0` | **Merged at `57f71ce`** 2026-10-05 (docs) | Phase 2 deletions NOT authorized; awaiting Michael |

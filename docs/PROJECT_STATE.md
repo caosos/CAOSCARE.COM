@@ -6708,3 +6708,33 @@ HANDOFF CAPSULE
 - Product invariants: pendant decoding unchanged; never hide that rtl_433 is failing; no tight respawn loop.
 - Do NOT change:    the running bridge, its log, host services, the SDR — without Michael.
 - Next safe action: coordinator review; Michael decides when to restart the bridge on this code (or move it to the service template).
+
+---
+
+## 2026-10-05 (night) — Coordinator: PR #59, #64, #63 integrated; night-shift assignments
+
+Claude Code (Opus 5.5), coordinator, `integration/2026-09-27` from `21d291f`. No main merge, no Linode, no deletion of project files, no reboot, no restarts, no flashing, no RF runtime change.
+
+Each PR got an explicit review (MERGEABLE) on GitHub before merging, and a scratch-merge test run in an isolated worktree (removed afterwards).
+- **#59** SC-8/SC-9 (Agent Four), `86aa8b901821bb6e47ca35d06c18f42a7af42aea` → `31f5c03`.
+  - All 6 `notify_department` callers pass the task link + receipt; dead `tasks._notify_department` removed; `/departments/labels` read-only.
+  - Scratch gate 286/0/13; on the merge 268/0/31 (OpenAI blanked); focused 12; frontend 34/268.
+- **#64** `/realtime/aria-session` owner-only (Agent Six), `f0e9901abba480b906bacccad22352da97966661` → `6c784d2`.
+  - `require_owner`; owner taken from the signed-in user; a foreign `owner_user_id` → 403.
+  - 8 auth tests with OpenAI mocked; gate 276/0/31; frontend 34/268.
+  - Live owner session not verified.
+- **#63** RF restart backoff (Agent Five), `034ceade2b6466e55036bb448c7a5e6f58faf4ac` → `2b199a2`.
+  - Logs union-merged; moved code keeps `-M level`, the 90 s watchdog and the USB reset.
+  - Bridge tests 15 (stub rtl_433); gate 276/0/31.
+  - The live bridge PID 522046 runs from `~/CAOSCARE.COM` and was not touched.
+
+**Incidents (recorded, no data or service impact found):**
+1. Scratch-worktree setup: `backend/.venv` is a tracked symlink to `~/CAOSCARE.COM/backend/.venv`, so `ln -s` resolved into the real venv. It failed on an existing entry, and my `rm -f` then removed that pre-existing `.venv` entry inside `~/CAOSCARE.COM/backend/.venv/`. `rm -f` (no `-r`) can only remove a file or symlink, most likely a self-referential symlink. Its exact target was not captured, so it was not recreated. Verified: the venv imports `fastapi`/`motor`, and no running service was affected.
+2. The two scratch gates for #59 and #64 ran with `backend/.env`'s real `OPENAI_API_KEY` loaded, so the older iter8/iter10/iter11 tests likely made a small number of real OpenAI calls (ephemeral session mints, a memory extraction). Every gate from then on ran with `OPENAI_API_KEY=` (those tests skip). No email/SMS keys are configured; Home Assistant was blanked.
+
+**Assigned:**
+- Agent Three: SIM-4 Maintenance, `pilot/sim-4-maintenance` from exactly `21d291f`.
+- Agent Four: gate port/log collision, read-only design.
+- Claude Two: wake physical package operator sheet, NOT AUTHORIZED TO FLASH.
+- Agent Five: RF backend-unreachable log storm, read-only proposal.
+- Agent Six: security follow-up inventory (A `/aria/conversation-turn`, B public continuity/state), read-only.
