@@ -6790,3 +6790,26 @@ Approval: Michael, 2026-10-06 ("YES — restart the :8092 backend on the current
   - `loop_alive: false`: nothing re-creates the scheduler loop on startup, so a RUNNING run has no ticking loop after any backend restart until someone presses Resume or Step.
   - Run left untouched. Finding filed for Agent Three's lane.
 - Not done: Linode, reboot, deletion.
+
+---
+
+## 2026-10-06 — Coordinator: remote work block assignments
+
+Michael away; integration `7136734e5e31aab7ba89182110419d62ea42b8a0`. Open PRs at the start (head, base):
+- #66 SIM-4 Maintenance: `c0d2b3e`, base has the tip.
+- #67 Agent Control Plane: `93bf8dc`, base `31f5c03`, must merge the tip.
+- #68 gate isolation: `347e342`, base has the tip.
+- #65 security follow-up docs: `dfdbf0f`, base has the tip.
+- #46 wake research: `16e4e98`, research, not for merge.
+
+Overlap check: no shared non-log files. #68 and #67 will both touch `backend/server.py`, in separate hunks (`/api/health` vs router registration); noted on both PRs.
+
+Assignments (relayed as PR comments; Agent Five's on #63):
+- Agent Three: finish #66.
+- Agent Four: finish #68 with the three proofs.
+- Agent Six: finish #65; at most one fix proposal, no code without approval.
+- Claude Two: operator sheet only.
+- Agent Five: RQ-001 in `demo_continuity.py` only, otherwise a post-#66 plan.
+- Control plane builder: #67 backend slice + owner-only `/admin?tab=agent-operations`, mock adapter only, disabled by default.
+
+Not authorized: Linode, reboot, flashing, storage deletion, Phase 2.
