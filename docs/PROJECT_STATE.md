@@ -6909,3 +6909,51 @@ Assignments:
 - Agent Four: done, awaiting assignment.
 
 The live :8092 still runs `7136734`; not restarted (no approval for this block).
+
+---
+
+## 2026-10-06 — RQ-001 follow-up: continuity names the run that blocks it (Agent Five, draft PR)
+
+### Agent / branch
+Claude Code (Opus 5.5), Agent Five. Branch `pilot/rq-001-continuity-followup` from integration `c6c2cc5`. Draft PR into `integration/2026-09-27`. Only `backend/demo_continuity.py` and its test changed; no simulator file touched; nothing deployed.
+
+### Status found
+- **Integrated:** PR #52 at `5bc1f8c`.
+- **Not stale:** the continuity, SIM-4 nursing and latest-run tests pass on the tip. PR #66 does not touch continuity.
+- **Never run on the EliteDesk.** In the shared `caoscare` DB there is no continuity state, run or receipt, for two reasons:
+  - `CAOSCARE_DEMO_CONTINUITY_AUTO` is unset (Michael's decision).
+  - Operations Simulator run `simrun_4b9a3f2c415d` (sink_leak) has been RUNNING since 2026-10-05 01:28 UTC. Its maintenance role is held by real user "Demo - Carl Boone", and it waits for him. Continuity correctly defers while a run is active.
+- The run's in-process tick loop is not restarted after a backend restart (:8092 restarted 2026-10-06 08:11), so the run will not observe the real user finishing (Agent Three's area).
+
+### What changed
+- `demo_continuity.blocking_run_reason()`: a deferral now names the blocking run (id, scenario, state) and any role a real person holds, e.g. "Operations Simulator run simrun_4b9a3f2c415d (sink_leak, RUNNING) is active in the demo room; maintenance_tech held by Demo - Carl Boone; finish or stop it in Live Operations".
+- The catch-up response adds `blocking_run_id`. The same text goes into the `demo_continuity_deferred` receipt. Before, it said only "a SIM-1 simulation run is active".
+- `demo_continuity.py` 368 → 381 lines.
+
+### Verified
+- `test_demo_continuity.py` (14) + SIM-4 nursing + latest-run: 19 passed (scratch DB, dropped).
+- Gate (`run_backend_tests.sh`, port 8079, scratch DB, no OpenAI key): 287 passed, 0 failed, 31 skipped.
+- The new message was built from the real blocking run document, read-only.
+
+### Post-#66 continuation plan (needs Agent Three's files or Michael)
+1. **Agent Three, `backend/simulation/scheduler.py`** (+ `server.py` lifespan hook):
+   - On backend startup, resume the tick loop for RUNNING runs, or mark them as interrupted.
+   - Test: `backend/tests/test_sim_restart_resume.py`. A RUNNING run waiting on a real holder → simulate a restart → the real user completes → the run observes it and finishes.
+2. **Michael:**
+   - Finish (as Carl Boone) or stop `simrun_4b9a3f2c415d` from Live Operations.
+   - Decide whether to set `CAOSCARE_DEMO_CONTINUITY_AUTO=1` in the EliteDesk backend `.env`.
+3. **Agent Five, after 1–2:**
+   - Run one catch-up via `POST /api/demo/continuity/catch-up`.
+   - Check `demo_continuity_window` receipts, open-work cap, no real-room writes.
+4. **Shared Core request (not started):** a lifecycle timestamp override, so catch-up steps carry their window's time instead of catch-up time (`task_lifecycle.py`).
+5. **Not planned yet:** an admin UI for continuity state (frontend); marking the `Demo -` 3W wing synthetic.
+
+HANDOFF CAPSULE
+- Objective:        RQ-001 demo continuity running on the EliteDesk demo room.
+- Branch:           pilot/rq-001-continuity-followup (draft PR).
+- Lane / ownership: Agent Five; backend/demo_continuity.py + its test only.
+- Last proven state: tests and gate above, 2026-10-06.
+- Runtime state:    nothing started; simrun_4b9a3f2c415d left as is.
+- Unresolved proven defects: simulator tick loop not resumed after a restart (Agent Three).
+- Do NOT change:    backend/simulation/*; the auto switch without Michael.
+- Next safe action: plan steps 1–2, then step 3.

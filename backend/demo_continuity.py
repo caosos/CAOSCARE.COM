@@ -126,6 +126,18 @@ async def _staff(task: dict) -> Optional[tuple]:
     return actor, profile
 
 
+def blocking_run_reason(run: dict) -> str:
+    """Why catch-up waits: names the Operations Simulator run holding the demo
+    room and any role a real person holds, so the operator knows what to
+    finish or stop in Live Operations."""
+    real = [f"{key} held by {(r.get('filled_by') or {}).get('name') or 'a real user'}"
+            for key, r in (run.get("cast") or {}).items()
+            if isinstance(r, dict) and (r.get("filled_by") or {}).get("mode") == "real"]
+    held = f"; {', '.join(real)}" if real else ""
+    return (f"Operations Simulator run {run.get('run_id')} ({run.get('scenario')}, {run.get('state')}) "
+            f"is active in the demo room{held}; finish or stop it in Live Operations")
+
+
 def _demo_scope() -> dict:
     return {"simulated": True, "simulation_scope": "demo_room", "room": DEMO_ROOM}
 
@@ -295,9 +307,9 @@ async def catch_up(now: Optional[datetime] = None, trigger: str = "manual") -> d
         target = _floor(now)
         if target <= last:
             return {"status": "up_to_date", "windows": 0, "last_simulated_at": st["last_simulated_at"]}
-        reason = None
-        if await scheduler.active_run():
-            reason = "a SIM-1 simulation run is active"
+        reason, blocking = None, await scheduler.active_run()
+        if blocking:
+            reason = blocking_run_reason(blocking)
         else:
             try:
                 cast = await roster.resolve_cast()
@@ -307,7 +319,8 @@ async def catch_up(now: Optional[datetime] = None, trigger: str = "manual") -> d
             await _record(st, "demo_continuity_deferred", before={"last_simulated_at": last.isoformat()},
                           after={"last_simulated_at": last.isoformat()}, status="failed",
                           result=f"catch-up ({trigger}) deferred", failure_reason=reason, chain=False)
-            return {"status": "deferred", "reason": reason, "windows": 0}
+            return {"status": "deferred", "reason": reason, "windows": 0,
+                    "blocking_run_id": blocking.get("run_id") if blocking else None}
         run_id = await _ensure_run(st, cast)
         # Claim the whole range before doing any work: exactly-once.
         claimed = await db.demo_continuity.find_one_and_update(
