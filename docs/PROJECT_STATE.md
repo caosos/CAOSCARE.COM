@@ -6865,3 +6865,23 @@ HANDOFF CAPSULE
 - Product invariants: production `/api/health` unchanged unless test hooks are on.
 - Do NOT change:    the health check back to "any server that answers".
 - Next safe action: coordinator review of the draft PR.
+## 2026-10-06 — SIM-4 Maintenance (Agent Three)
+
+### Agent / branch
+Claude Code (Opus 5.5), Round 5 Agent Three. Branch `pilot/sim-4-maintenance` from integration `1d722af` (PR #62 merged). Draft PR into `integration/2026-09-27`. Not merged; no deploy; no runtime service, main, Linode or hardware touched.
+
+### What changed
+- No second maintenance scenario: the existing `sink_leak` is the Maintenance flow. Resident words now "The bathroom sink keeps leaking." (Michael's wording), label "Maintenance: leaking sink"; scenario id unchanged.
+- New `backend/tests/test_sim4_maintenance.py`. No scheduler, roster, route, frontend or shared-file change.
+
+### Verified
+- `test_sim4_maintenance.py` 2/2: simulated tech end to end (one maintenance task, sim-tech receipts with `actor_department maintenance`, origin chain + run id on every receipt, resident told "SIM - Maintenance Tech 1", STOPPED); a repeat resident ask in the same run attaches to the same task; with a live email key set after start and a provider spy, notifications are `simulated`, zero provider calls. Owner takeover (role owner, no department, like real Michael): candidates include him, not nursing staff; the run waits with no receipts; resident status is checked at each stage — "no one has picked it up yet" → "Michael (test owner) has taken it on — work hasn't started yet" → "… is working on it now. Latest note (…): …" → nothing open, history "taken care of by Michael (test owner)" — and never "on the way"/"coming"; nursing staff cannot see or start it (403); his receipts are authenticated real-human via staff_ui; the simulator observes each step citing them and finishes. Mutation: removing the scheduler's wait-for-real-holder guard fails the takeover test.
+- SIM-4 nursing 3, SIM-1 6, SIM-3 4, latest-run 2, provenance 7, demo continuity 14, SC-8 links 4: pass.
+- Full gate (port 8071, scratch DB): 278 passed, **0 failed**, 31 skipped. Frontend 34 suites / 268 tests.
+- Browser (headless Chrome/CDP, scratch DB, 3 s tick): as an owner, picked "Maintenance: leaking sink" in Live operations, started, handed the maintenance role to himself (REAL, "normally SIM - Maintenance Tech 1"); run waited "for REAL Michael (test owner)"; in Admin → Community → Maintenance he clicked Claim, Start, Note, Complete; resident status after each step matched the wording above; run observed each step as "already recorded by REAL Michael (test owner)" and finished; one task, notifications `simulated`, request receipts resident (synthetic) then four authenticated real-human; no console errors. Scratch DBs dropped.
+
+### Line counts (before → after)
+`scenario.py` 166→166 (wording only); `test_sim4_maintenance.py` 272 (new).
+
+### Next safe step
+Coordinator review of the draft PR.
