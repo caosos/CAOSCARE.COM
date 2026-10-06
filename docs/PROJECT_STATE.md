@@ -7004,3 +7004,18 @@ PR #66 merged at `577b35c` (head `c0d2b3e`) while I was adding this to it. I the
 - Limitation: revival happens when Live Operations is opened, not at startup.
 
 The live :8092 still runs `7136734` (no restart approved in this block).
+
+---
+
+## 2026-10-06 — Coordinator (remote block): #67 Agent Control Plane review — NEEDS FIX
+
+Head `87d8be39acabeb7575d58ba9f8fd893d6d0dc822`, base `31f5c03` (not on the tip). Not merged. Review comment on #67.
+
+Fixes required:
+- merge the tip;
+- mount the router and owner tab directly, instead of `docs/patches/agent-control-mount.patch`;
+- move the live-session binding table (PIDs, terminals, transcript-derived evidence) out of the canonical doc.
+
+The builder read the addressed headers of other live sessions' transcripts to propose agent↔session bindings. That is read-only but beyond "do not touch live sessions", so it is flagged to Michael.
+
+Its discovery also found two live processes resuming the coordinator's session id (`caoscare-1-25` active and `caoscare-1-97`, idle since 09-24). That is for Michael to confirm or close.
