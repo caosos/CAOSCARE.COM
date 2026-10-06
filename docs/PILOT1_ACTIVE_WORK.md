@@ -77,11 +77,12 @@ NEXT:
 | ✓ | SC-8 + SC-9 (Agent Four), PR #59 | `86aa8b9` | **Merged at `31f5c03`** 2026-10-05 | Scratch gate 286/0/13; on merge (OpenAI blanked) 268/0/31; focused 12; frontend 34/268 |
 | ✓ | `/realtime/aria-session` owner-only fix (Agent Six), PR #64 | `f0e9901` | **Merged at `6c784d2`** 2026-10-05 | 8 auth tests (OpenAI mocked); gate 276/0/31; frontend 34/268. Live owner browser session not yet verified |
 | ✓ | RF bridge rtl_433 restart backoff (Agent Five), PR #63 | `034ceade` | **Merged at `2b199a2`** 2026-10-05 | Bridge tests 15 (stub rtl_433, USB reset mocked); gate 276/0/31. Live bridge (PID 522046, ~/CAOSCARE.COM) untouched |
-| 1 | SIM-4 Maintenance (Agent Three) | `pilot/sim-4-maintenance` from `21d291f` | Assigned 2026-10-05 | Draft PR; demo room only; no provider side effects |
-| 2 | Gate port/log collision — design only (Agent Four) | — | Assigned 2026-10-05 | Implementation waits for coordinator non-overlap confirmation |
-| — | Wake physical package operator sheet (Claude Two) | PR #46 branch | Assigned 2026-10-05 | Docs only; NOT AUTHORIZED TO FLASH |
-| — | RF backend-unreachable log storm — read-only proposal (Agent Five) | — | Assigned 2026-10-05 | Live bridge untouched |
-| — | Security follow-up inventory A/B — read-only (Agent Six) | — | Assigned 2026-10-05 | No implementation |
+| 1 | SIM-4 Maintenance (Agent Three) | `pilot/sim-4-maintenance` from `eb84515` | Assigned 2026-10-06 (base updated) | Owns backend/simulation/*, routes/simulation.py, simulator UI; draft PR |
+| 2 | Gate port/log isolation fix (Agent Four) | `tests/gate-port-isolation` from `eb84515` | Assigned 2026-10-06, implementation authorized | Owns backend/scripts/run_backend_tests.sh; interface unchanged; draft PR |
+| — | Voice PE physical test package, operator-ready (Claude Two) | PR #46 branch / docs PR | Assigned 2026-10-06 | Docs only; NOT AUTHORIZED TO FLASH; no retraining |
+| — | RF backend-unreachable log storm (Agent Five) | — | PARKED 2026-10-06 (not a Pilot 1 gap today) | — |
+| 3 | RQ-001 demo continuity status + smallest remaining work (Agent Five) | `pilot/rq-001-continuity-followup` if implemented | Assigned 2026-10-06 | Owns backend/demo_continuity.py + its tests only; stop if backend/simulation/* needed |
+| — | Security follow-up A/B — read-only (Agent Six) | — | Confirmed 2026-10-06 | Coding only after coordinator approval |
 | — | **Michael decision:** HA host reboot test; P1 qemu OOM protection, P2 crash-restart timer, P3 memory caps for heavy builds (`docs/HA_VM_RECOVERY.md`) | — | Awaiting Michael | Agent Four applies only what Michael approves, with receipts |
 | ✓ | RQ-009 Pilot Room hearing/handset requirements (Agent Six), PR #54 | `536ed68` | **Merged at `cf0ac00bba1ea18a0b67cec9b3c1cd13d6acce8b`** 2026-10-04 (docs only) | Gate unchanged (known failures only) |
 | ✓ | RQ-008 storage + RF bridge log audit (Agent Five), PR #58 | `8be5fb0` | **Merged at `57f71ce`** 2026-10-05 (docs) | Phase 2 deletions NOT authorized; awaiting Michael |

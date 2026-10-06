@@ -6738,3 +6738,28 @@ Each PR got an explicit review (MERGEABLE) on GitHub before merging, and a scrat
 - Claude Two: wake physical package operator sheet, NOT AUTHORIZED TO FLASH.
 - Agent Five: RF backend-unreachable log storm, read-only proposal.
 - Agent Six: security follow-up inventory (A `/aria/conversation-turn`, B public continuity/state), read-only.
+
+---
+
+## 2026-10-06 — Coordinator: morning assignments
+
+Integration `eb8451593e1d4aaa0b728869fdcf00f012f8a9e7` (= origin). No agent replies or new branches overnight. Assignments posted as GitHub comments:
+- **Claude Two:** Voice PE physical test package, operator-ready (#46). Not authorized to flash.
+- **Agent Three:** SIM-4 Maintenance, `pilot/sim-4-maintenance` from `eb84515` (#62).
+- **Agent Four:** gate port/log isolation fix, `tests/gate-port-isolation` (#59).
+- **Agent Five:** RQ-001 status and smallest remaining work (#63); the RF log-storm task is parked.
+- **Agent Six:** security A/B, read-only (#64).
+
+File ownership is split so no two agents edit the same files:
+- Agent Three: `backend/simulation/*`.
+- Agent Five: `backend/demo_continuity.py`.
+- Agent Four: `run_backend_tests.sh`.
+
+Agent control plane builder: separate lane; no GitHub channel identified, so its constraints are relayed through Michael.
+
+Runtime observations (read-only):
+- :8092 (PID 1400509, started 2026-10-04 20:22) listens on `0.0.0.0` and still runs pre-#57 code. It therefore still has the unauthenticated `/realtime/aria-session` fixed in #64.
+- `simrun_4b9a3f2c415d` is RUNNING with cursor 4 but has not updated since 2026-10-05 01:28 UTC.
+- A restart on the tip needs Michael's go-ahead.
+
+RQ-003 (live Nursing voice) remains the next real acceptance loop.
