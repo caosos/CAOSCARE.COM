@@ -32,6 +32,9 @@ def _operator(user: dict):
 
 @router.get("/state")
 async def simulator_state(user=Depends(require_admin)):
+    # Loops live in this process; after a backend restart a RUNNING run has
+    # none until it is re-created here (no server.py startup hook needed).
+    await scheduler.revive_loops()
     return await scheduler.view()
 
 
