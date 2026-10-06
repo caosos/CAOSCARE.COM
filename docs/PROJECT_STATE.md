@@ -5303,3 +5303,19 @@ ESPHome 2026.9.0 compile exit 0; RAM 50.9% (174,087 B), flash 39.2% (3,187,179 B
 
 ### Blocked / next
 Flashing needs Michael's separate authorization. Then run the protocol (1/2/4 m, facing away, bed/seated, TV low/normal/dialogue-heavy, casual, soft, repeated attempts, wrong-phrase list, overnight/TV/daytime soaks). Every model RESEARCH ONLY — NOT COMMERCIALLY RELEASABLE.
+
+---
+
+## 2026-10-06 — Voice PE physical test package: operator sheet completed (no training, no flashing)
+
+### Agent / tool
+Claude Code (Opus 5.5), branch `research/wake-phrase-funnel`. Product wake phrase remains Hey Aria.
+
+### What changed
+`device_test/physical_aria/PHYSICAL_ACCEPTANCE_PROTOCOL.md` rewritten as a step-by-step operator sheet: exact wake phrases and pronunciations, artifact paths and SHA-256, the later flash procedure (hash check, firmware backup with esptool, write, verify), logging with `device_harness.py` over USB, the full test sequence, soaks, record sheet, rollback/recovery, and pass/fail criteria fixed before testing. Ready-to-flash copies staged outside git at `~/caoscare-firmware-work/artifacts/voice-pe-physical_aria/` with `SHA256SUMS` (copy of the sums committed beside the sheet).
+
+### What was verified
+`sha256sum -c SHA256SUMS` OK for both images, the config and all model files; factory `a885d3ef…8da`, ota `92778bad…399`, unchanged from the compiled build. ESPHome 2026.9.0 / esptool 5.3.1 present in `venv-esphome`; target esp32s3, 16 MB flash (backup command reads 0x1000000).
+
+### Blocked / next
+Flashing needs Michael's authorization. Note: `caoscare-1` is not in `dialout`; the sheet gives the two options (sudo, or add to the group). Research only — not commercially releasable.
