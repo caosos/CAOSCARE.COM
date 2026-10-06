@@ -863,7 +863,3 @@ listener verifier experiment: `docs/experiments/`.
 - `backend/routes/notifications.py::task_notice()`: the one builder of `notify_department()` arguments for a request (task link, receipt id, simulation context). `notify_department()` requires `related_object_type` / `related_object_id`.
 - `backend/routes/departments.py`: `GET /api/departments/labels` — read-only `{slug, label}` for any signed-in user; used by `frontend/src/pages/DepartmentWorkspace.jsx`.
 - Tests: `backend/tests/test_sc8_notification_links.py`, `backend/tests/test_sc9_department_labels.py`.
-
-## 2026-10-05 — Agent Control Plane (design, branch `pilot/agent-control-plane`)
-
-- `docs/CAOSCARE_AGENT_CONTROL_PLANE.md`: design for supervising local Claude workers from an owner-only admin tab. Nothing built yet.

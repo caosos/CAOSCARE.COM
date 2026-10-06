@@ -1,8 +1,9 @@
 # CAOSCare Agent Control Plane — design (Phase 1)
 
-**Status: DESIGN ONLY.** Nothing in this document is built. Written
-2026-10-05 on `pilot/agent-control-plane` from `integration/2026-09-27`
-`31f5c03`. Implementation waits for Michael's authorization.
+**Status: design + first backend slice (mock agent only).** Branch
+`pilot/agent-control-plane` from `integration/2026-09-27` `31f5c03`. The
+slice is tested in-process but **not mounted** in `server.py` (shared file) —
+see §15. No live Claude session is touched.
 
 ## 1. Goal
 
@@ -294,3 +295,46 @@ Only append-only log files can conflict; resolved by keeping both sides.
 3. Phase 2: install tmux and start a disposable test worker?
 4. Remote access route (Tailscale vs Linode relay) — later.
 5. Which Claude session is which agent (session_ref binding)?
+
+## 15. First slice — as built (2026-10-06)
+
+Chain proven: registered test agent `claude-test-mock` (mock adapter) → one
+command → `agent_command_issued` (owner, authenticated, verified) →
+`agent_command_delivered` (system, simulated) → `agent_command_acknowledged`
+(agent self-report, simulated, never verified). Receipts chain by
+`parent_receipt_id`, share one `correlation_id`, before = previous after;
+`status_log` entries carry their receipt ids.
+
+Files (all new, this lane only):
+```
+backend/agent_control/__init__.py, models.py, registry.py, commands.py
+backend/agent_control/adapters/__init__.py, base.py, mock.py
+backend/routes/agent_control.py          (router, not mounted)
+backend/tests/test_agent_control.py      (in-process app, scratch DB)
+```
+Built: `GET /agents`, `GET /agents/{id}`, `POST /commands`, `GET /commands`,
+`GET /commands/{id}` (with receipt chain). Not built yet: binding changes,
+owner complete/cancel, events, rate limit, frontend tab.
+
+Tests: `test_agent_control.py` 9 passed (access control incl. admin/staff/
+front desk 403, flag off → 404, unbound agents offline with UNKNOWN fields,
+the receipt chain, replay 409 + refusal receipt, unknown/unbound target
+refusal receipts, instruction validation, delivery failure receipt, no route
+takes a target/path/shell). Mutation check: breaking the self-report label,
+owner check, feature flag or replay index each fails one test. Full backend
+gate on this branch (port 8079, throwaway DB, no OpenAI key): 277 passed,
+0 failed, 31 skipped.
+
+### Shared-core requests (this lane does not edit shared files)
+
+- **SCR-ACP-1** — mount the router: `backend/server.py` +2 lines
+  (`from routes import agent_control as agent_control_routes`;
+  `api.include_router(agent_control_routes.router)`). Safe everywhere because
+  every route is 404 unless `CAOSCARE_AGENT_CONTROL_ENABLED` is set.
+- **SCR-ACP-2** — admin tab (after the frontend page exists): `Admin.jsx` +2,
+  `adminTabGroups.js` +1 inside the owner-only group.
+- **SCR-ACP-3** — Receipt `related_object_type` gains the values
+  `agent_command` / `agent` (free-text field today; no model change needed,
+  recorded for the contract).
+- PROJECT_STATE / REPO_MAP entries: left to the coordinator at merge, per the
+  "do not edit shared Pilot 1 files" constraint for this lane.
