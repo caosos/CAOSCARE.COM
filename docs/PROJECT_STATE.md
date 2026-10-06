@@ -6991,3 +6991,16 @@ PR #66 merged at `577b35c` (head `c0d2b3e`) while I was adding this to it. I the
 
 ### Line counts (before → after)
 `scheduler.py` 359→372, `routes/simulation.py` 97→100, `test_sim_loop_revive.py` 89 (new).
+
+---
+
+## 2026-10-06 — Coordinator (remote block): #70 integrated
+
+**#70** simulator loop revive (Agent Three), `ccf115162d83665be6517a2867da26920644a1e4` → `905d333` (PROJECT_STATE union).
+- `scheduler.revive_loops()` runs on admin GET `/simulator/state`.
+- It re-creates the loop only for RUNNING runs, writes no receipt, and leaves PAUSED runs alone.
+- A step held by a real user still waits.
+- Gate (port 8078, OpenAI blanked) 290/0/31; focused simulator 32 passed.
+- Limitation: revival happens when Live Operations is opened, not at startup.
+
+The live :8092 still runs `7136734` (no restart approved in this block).
