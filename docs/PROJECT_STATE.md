@@ -6957,3 +6957,16 @@ HANDOFF CAPSULE
 - Unresolved proven defects: simulator tick loop not resumed after a restart (Agent Three).
 - Do NOT change:    backend/simulation/*; the auto switch without Michael.
 - Next safe action: plan steps 1–2, then step 3.
+
+---
+
+## 2026-10-06 — Coordinator (remote block): #69 integrated; Voice PE readiness findings
+
+- **#69** RQ-001 continuity deferral (Agent Five), `64727e4e2ddf970be1a486ad6dd95b544cd47b4c` → `8cb0305` (clean). `demo_continuity.py` + test only; the deferral reason/receipt name the blocking simulator run and real role-holders. Gate (port 8078, OpenAI blanked) 289/0/31; focused 21 passed. RQ-001 is integrated and working; auto catch-up stays off (Michael's decision).
+- **Claude Two** read-only Voice PE integration check (on #46): **not physical-test ready**. Blockers:
+  - B1: Voice PE hardware has not arrived, and its power supply hasn't been bought;
+  - B2: wake detection runs only while HA is connected. No ESPHome device is in HA, and the operator sheet doesn't say this. The docs fix is approved in Claude Two's lane;
+  - B3: HA has no STT engine;
+  - B4: the voice bridge is unmerged (`spike/voice-bridge`), not installed in HA, and has no token;
+  - B5: decision memo items #1 and #6 are open;
+  - B6: Pilot Room 1 is not selected.
