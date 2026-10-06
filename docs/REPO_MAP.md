@@ -876,3 +876,7 @@ listener verifier experiment: `docs/experiments/`.
 - `backend/scripts/gate_wait_healthy.py`: waits until `/api/health` is ok and echoes this run's `gate_run_id`; fails fast if the backend exited or a different server answers. Standard library only.
 - `backend/server.py` `/api/health`: adds `gate_run_id` only when `CAOSCARE_TEST_HOOKS` and `CAOSCARE_TEST_GATE_RUN_ID` are set.
 - Tests: `backend/tests/test_gate_script_isolation.py`. Details: `docs/BACKEND_TEST_GATE.md`.
+## 2026-10-06 — SIM-4 Maintenance (branch `pilot/sim-4-maintenance`)
+
+- `backend/simulation/scenario.py` `sink_leak` ("Maintenance: leaking sink") is the Maintenance scenario; resident words "The bathroom sink keeps leaking."
+- Test: `backend/tests/test_sim4_maintenance.py` (owner takeover, staged status truth, dedup, no provider calls).
