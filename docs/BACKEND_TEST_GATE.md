@@ -7,10 +7,12 @@ cd backend
 ./scripts/run_backend_tests.sh
 ```
 
-That's it. It drops a scratch test database, starts a fresh backend
-process against it (with `CAOSCARE_TEST_HOOKS=1` and demo seed on), waits
-for `/api/health`, runs `pytest tests/` with the required environment set
-on the pytest process itself too, and tears the backend down when done.
+That's it. It refuses to run if the test port is already in use, drops a
+scratch test database, starts a fresh backend process against it (with
+`CAOSCARE_TEST_HOOKS=1` and demo seed on), waits until `/api/health`
+answers with this run's id, runs `pytest tests/` with the required
+environment set on the pytest process itself too, checks the same backend
+is still serving afterwards, and tears the backend down when done.
 Any extra arguments are passed straight through to `pytest` (e.g.
 `./scripts/run_backend_tests.sh -k rf_semantics`, or `-m real_hardware` to
 opt into the hardware-touching tests it excludes by default).
@@ -28,6 +30,65 @@ they do not fail, and nothing else is silently skipped alongside them.
 **Current status (2026-09-13, deterministic across repeated fresh runs):
 0 failed, 0 errors.** Every skip and deselection is documented below or
 in `pytest.ini`.
+
+## Port, health and log isolation (2026-10-06)
+
+**Defect.** Two gates running at once on the same port (the default 8070,
+or a port another agent picked) gave false results. The second gate's
+backend could not bind, but its `curl /api/health` check was answered by
+the first gate's backend, so pytest ran against a server using a different
+database: logins returned 401 and `/demo/reset`, `/rf/event` returned 404.
+Every run also wrote the same `/tmp/caoscare_backend_test_gate.log`.
+
+**What the script does now** (`scripts/run_backend_tests.sh`):
+
+- Each run gets an id (`Gate run <id>`, printed first) and its own backend
+  log (`Backend log: <path>`, a new `mktemp` file under `$TMPDIR` or
+  `/tmp`). `CAOSCARE_TEST_LOG=<path>` chooses the path instead.
+- Before any side effect (database drop, backend start), it checks whether
+  anything accepts connections on `127.0.0.1:$CAOSCARE_TEST_PORT`. If so,
+  it exits 1 with `Port <n> on 127.0.0.1 is already in use`.
+- The backend is started with `CAOSCARE_TEST_GATE_RUN_ID=<id>`.
+  `/api/health` adds `"gate_run_id"` to its body only when both
+  `CAOSCARE_TEST_HOOKS` and that variable are set, so production never
+  returns it.
+- `scripts/gate_wait_healthy.py` waits until `/api/health` is ok and echoes
+  this run's id. It fails at once if the backend process has exited (e.g.
+  it could not bind) or if a server answers with no id or another id; it
+  never accepts someone else's backend. This also covers a port taken in
+  the moment between the check and the bind.
+- After pytest the same check runs again. If this run's backend is gone or
+  replaced, the run exits 1 ("results are not trustworthy") even if pytest
+  passed; otherwise the script exits with pytest's own status.
+- The pytest process gets `CAOSCARE_TEST_GATE_RUN_ID` too, and
+  `test_gate_script_isolation.py::test_gate_backend_is_this_run` checks the
+  backend every test talks to is this run's (it skips outside the gate).
+
+**Unchanged:** the command, default port 8070, default database, the
+`CAOSCARE_TEST_PORT` / `CAOSCARE_TEST_DB` / `CAOSCARE_TEST_VENV_PY`
+overrides, and arguments passed through to pytest.
+
+**Still the operator's job:** two concurrent gates must use different
+`CAOSCARE_TEST_DB` names too. The script drops its database at start, so a
+second gate on a free port but the same database would drop the first
+gate's database. The port check does not detect that.
+
+**Regression tests** (`tests/test_gate_script_isolation.py`, no side
+effects: throwaway HTTP servers on free ports, stub `mongosh` and stub
+backend Python that only record they were called):
+
+- a healthy-looking server already on the port makes the script exit
+  non-zero before "Dropping", with neither stub invoked;
+- two runs get different log files and run ids;
+- the wait helper rejects a server with no id or another id, accepts the
+  matching id, keeps waiting while the matching backend reports
+  `ok: false`, times out when nothing listens, and fails fast when the
+  backend process has exited (reaped or not), even if another server
+  answers;
+- `/api/health` echoes the id only under `CAOSCARE_TEST_HOOKS`.
+
+Against the previous script the first two tests fail: it dropped the
+database, started the backend and ran pytest against the occupied port.
 
 ## What "trustworthy" means here
 
@@ -218,6 +279,12 @@ behavior was changed to satisfy any of them.
 - `backend/tests/test_admin_login_lockout.py` - new, in-process
   expiry/reset-audit tests (see Lockout decision above).
 - `backend/scripts/run_backend_tests.sh` - the canonical command.
+- `backend/scripts/gate_wait_healthy.py` - waits for this run's backend
+  (process alive + matching `gate_run_id`).
+- `backend/server.py` - `/api/health` echoes `gate_run_id` under the gate's
+  test hooks only.
+- `backend/tests/test_gate_script_isolation.py` - port/health/log isolation
+  regression tests.
 - `backend/tests/iter9_test.py` - `OWNER_EMAIL` isolation fix,
   `dorothy_id` fixture, the lockout state-machine tests above.
 - `backend/tests/backend_test.py`, `iter5_test.py`, `iter6_test.py`,

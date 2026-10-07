@@ -45,14 +45,15 @@ import hashlib
 import hmac
 import json
 import os
-import shlex
 import signal
-import subprocess
 import sys
 import threading
 import time
 import uuid
 from typing import Optional
+
+from rf_restart_policy import RestartSupervisor, RunResult, run_forever
+from sdr_control import RTL_433_BIN, run_rtl433
 
 try:
     import requests
@@ -65,19 +66,7 @@ API_URL = os.environ.get("CAOS_API_URL", "").rstrip("/")
 KIOSK_ID = os.environ.get("CAOS_KIOSK_ID", "")
 RF_SECRET = os.environ.get("CAOS_RF_SECRET", "").encode() if os.environ.get("CAOS_RF_SECRET") else None
 DEFAULT_BANDS_MHZ = [float(x) for x in os.environ.get("CAOS_BANDS", "315,319,433.92,868,915").split(",")]
-RTL_433_BIN = os.environ.get("RTL_433", "rtl_433")
 POLL_INTERVAL = 2.0
-
-# Watchdog — when only one resident's pendant lives on this kiosk, real
-# transmissions are sparse (a press here, a press there). But the SDR's
-# kernel-driven sample stream should NEVER be silent: rtl_433 emits
-# stderr heartbeats and we sample noise constantly. If we haven't seen
-# ANY stderr/stdout activity for this long, the SDR has hung — usually
-# USB autosuspend, occasionally PLL drift on long runs. We tear rtl_433
-# down and respawn. The pilot transcript captured this exact failure
-# mode at the ~6-minute mark; this watchdog is the fix.
-WATCHDOG_STALL_SECONDS = float(os.environ.get("CAOS_WATCHDOG_SECONDS", "90"))
-HEARTBEAT_INTERVAL_SECONDS = 60.0  # log "alive" every minute so admins know the daemon hasn't crashed
 
 
 def _sign(body: bytes) -> Optional[str]:
@@ -263,185 +252,6 @@ def fingerprint_from_rtl433(record: dict, default_freq_mhz: Optional[float] = No
     }
 
 
-def _usb_reset_sdr() -> bool:
-    """Software-reset the Nooelec via the Linux USBDEVFS_RESET ioctl.
-
-    When rtl_433 stalls (PLL drift, autosuspend leak, USB endpoint hang),
-    a physical unplug/replug fixes it instantly — but that requires a human
-    in the room. This issues the same hardware reset the kernel performs on
-    replug, *programmatically*, so a 24/7 deployed kiosk recovers without
-    anyone touching it. Returns True on success, False if we couldn't reset
-    (e.g. no SDR plugged in, permissions denied).
-
-    Used by the watchdog when it detects a stall before respawning rtl_433."""
-    if not sys.platform.startswith("linux"):
-        return False
-    try:
-        import fcntl
-        # USBDEVFS_RESET ioctl number = 0x5514 (from <linux/usbdevice_fs.h>)
-        USBDEVFS_RESET = 0x5514
-        # Find the Nooelec by USB ID. 0bda:2838 is the Realtek RTL2838 chip
-        # used in every NESDR variant we support.
-        for entry in os.listdir("/sys/bus/usb/devices"):
-            path = f"/sys/bus/usb/devices/{entry}"
-            try:
-                with open(f"{path}/idVendor") as f:
-                    vid = f.read().strip()
-                with open(f"{path}/idProduct") as f:
-                    pid = f.read().strip()
-            except FileNotFoundError:
-                continue
-            if vid == "0bda" and pid == "2838":
-                # Resolve to /dev/bus/usb/BUS/DEV — the device file we ioctl
-                with open(f"{path}/busnum") as f:
-                    busnum = int(f.read().strip())
-                with open(f"{path}/devnum") as f:
-                    devnum = int(f.read().strip())
-                dev_path = f"/dev/bus/usb/{busnum:03d}/{devnum:03d}"
-                try:
-                    fd = os.open(dev_path, os.O_WRONLY)
-                except PermissionError:
-                    print("[rf-bridge] USB reset needs permission — try running with sudo, or add yourself to the plugdev group", file=sys.stderr, flush=True)
-                    return False
-                try:
-                    fcntl.ioctl(fd, USBDEVFS_RESET, 0)
-                    print(f"[rf-bridge] USB reset issued to SDR at {dev_path}", flush=True)
-                    return True
-                finally:
-                    os.close(fd)
-        print("[rf-bridge] USB reset: no Nooelec (0bda:2838) currently enumerated", file=sys.stderr, flush=True)
-        return False
-    except Exception as e:
-        print(f"[rf-bridge] USB reset failed: {e}", file=sys.stderr, flush=True)
-        return False
-
-
-def run_rtl433(bands_mhz: list[float], on_record):
-    """Spawn rtl_433 across `bands_mhz` and call `on_record(record_dict)`
-    for every parsed JSON line. Blocks until the subprocess exits, the
-    watchdog detects a stall, or on_record() raises.
-
-    Stall detection: rtl_433 normally writes stderr lines (sample-rate,
-    block-size, occasional warnings) every few seconds even when no RF
-    is being captured. If both stdout AND stderr are silent for
-    WATCHDOG_STALL_SECONDS, the SDR has hung — kill the process so the
-    outer main() loop respawns it. This recovers from USB autosuspend
-    automatically (the respawn re-opens the device, waking it up)."""
-    # "-M level" is what actually makes rtl_433 report per-record signal
-    # strength (rssi/snr/noise, dB) - without it every record's "rssi" key
-    # is simply absent, which is why pairing/events always showed rssi as
-    # null despite the fingerprint schema having a field for it
-    # (2026-09-06, real "I want signal strength as pairing data" request).
-    cmd = [RTL_433_BIN, "-F", "json", "-M", "utc", "-M", "level"]
-    for b in bands_mhz:
-        cmd += ["-f", f"{b:.3f}M"]
-    print(f"[rf-bridge] spawning: {shlex.join(cmd)}", flush=True)
-    proc = subprocess.Popen(
-        cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        bufsize=1,  # line-buffered — events stream as they happen, not in chunks
-    )
-
-    # Activity tracking: any line on either stream resets the clock.
-    last_activity = [time.monotonic()]
-    last_heartbeat = [time.monotonic()]
-
-    def _stderr_drain():
-        # rtl_433 talks to us on stderr (PLL warnings, "Allocating buffers",
-        # "Found tuner", etc.). Print EVERYTHING — admins need to see startup
-        # messages to know rtl_433 actually launched cleanly. Without this,
-        # a stuck SDR or libusb error shows as "no output at all" which is
-        # impossible to debug.
-        try:
-            for line in proc.stderr:
-                last_activity[0] = time.monotonic()
-                line = line.rstrip()
-                if line:
-                    print(f"[rtl_433] {line}", file=sys.stderr, flush=True)
-        except Exception:
-            pass
-
-    threading.Thread(target=_stderr_drain, daemon=True).start()
-
-    try:
-        while True:
-            # Use the stdout pipe with a small read timeout so we can poll
-            # the watchdog. select() on a subprocess pipe is portable on Linux.
-            import select
-            if proc.poll() is not None:
-                # Process exited on its own — let the outer loop respawn
-                break
-            ready, _, _ = select.select([proc.stdout], [], [], 1.0)
-            now = time.monotonic()
-
-            # Heartbeat — proves to admins that the daemon is alive even
-            # when the resident hasn't pressed the pendant for hours
-            if now - last_heartbeat[0] >= HEARTBEAT_INTERVAL_SECONDS:
-                print(f"[rf-bridge] heartbeat — listening on {','.join(f'{b}M' for b in bands_mhz)}", flush=True)
-                last_heartbeat[0] = now
-
-            # Stall watchdog — SDR went silent, kill it so the outer loop respawns.
-            # Before respawning, issue a USB reset to the Nooelec so the
-            # restart starts from a clean hardware state. This eliminates
-            # the manual "unplug/replug" recovery step a human used to do.
-            if now - last_activity[0] > WATCHDOG_STALL_SECONDS:
-                print(
-                    f"[rf-bridge] WATCHDOG: rtl_433 silent for {WATCHDOG_STALL_SECONDS:.0f}s "
-                    "— issuing USB reset and restarting...",
-                    file=sys.stderr,
-                    flush=True,
-                )
-                # Tear down rtl_433 first so it releases the SDR handle,
-                # otherwise the USB reset will fail with -EBUSY.
-                try:
-                    proc.terminate()
-                    proc.wait(timeout=2)
-                except Exception:
-                    try:
-                        proc.kill()
-                    except Exception:
-                        pass
-                # Small grace period for the kernel to release the device
-                time.sleep(0.5)
-                _usb_reset_sdr()
-                # Another grace period for the SDR to enumerate cleanly
-                time.sleep(2.0)
-                break
-
-            if not ready:
-                continue
-            line = proc.stdout.readline()
-            if not line:
-                # EOF — process is closing
-                break
-            last_activity[0] = now
-            line = line.strip()
-            if not line or not line.startswith("{"):
-                continue
-            try:
-                rec = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            try:
-                on_record(rec)
-            except StopIteration:
-                break
-    finally:
-        try:
-            proc.terminate()
-        except Exception:
-            pass
-        try:
-            proc.wait(timeout=2)
-        except Exception:
-            try:
-                proc.kill()
-            except Exception:
-                pass
-
-
 # ---------------------------------------------------------------------------
 # Two modes of operation:
 #
@@ -458,6 +268,9 @@ _state = {
     "active_capture": None,    # dict from /bridge/.../pending (or None)
     "shutdown": False,
 }
+# Set by SIGINT/SIGTERM. Every wait in the spawn loop is stop.wait(...), so
+# shutdown interrupts a restart backoff at once instead of sleeping it out.
+_stop = threading.Event()
 
 
 def poll_loop():
@@ -517,21 +330,31 @@ def main():
 
     def _shutdown(signum, frame):
         _state["shutdown"] = True
+        # Set the event from a helper thread: Event.set() takes a lock the
+        # interrupted main thread may be holding inside Event.wait(), so
+        # calling it directly in the handler could deadlock.
+        threading.Thread(target=_stop.set, daemon=True).start()
     signal.signal(signal.SIGINT, _shutdown)
     signal.signal(signal.SIGTERM, _shutdown)
 
     threading.Thread(target=poll_loop, daemon=True).start()
     print(f"[rf-bridge] kiosk={KIOSK_ID} bands={DEFAULT_BANDS_MHZ} api={API_URL}", flush=True)
 
-    while not _state["shutdown"]:
+    def _run_once(verbose: bool) -> RunResult:
         try:
-            run_rtl433(DEFAULT_BANDS_MHZ, on_record)
+            return run_rtl433(DEFAULT_BANDS_MHZ, on_record, stop=_stop, verbose=verbose)
         except FileNotFoundError:
-            print(f"[rf-bridge] rtl_433 binary not found ({RTL_433_BIN}). Install with `apt install rtl-433` (Linux) or via Termux.", file=sys.stderr)
-            time.sleep(15)
+            return RunResult.failed(
+                f"rtl_433 binary not found ({RTL_433_BIN}). Install with `apt install rtl-433` "
+                "(Linux) or via Termux.")
         except Exception as e:
-            print(f"[rf-bridge] rtl_433 err: {e}", file=sys.stderr, flush=True)
-            time.sleep(5)
+            return RunResult.failed(f"rtl_433 err: {e}")
+
+    # A failed or short-lived rtl_433 (e.g. no SDR plugged in) is respawned
+    # with a 1-2-5-10-30-60 s backoff, not in a tight loop (rf_restart_policy.py).
+    supervisor = RestartSupervisor(log=lambda m: print(m, file=sys.stderr, flush=True))
+    run_forever(_run_once, _stop, supervisor)
+    print("[rf-bridge] shutting down", flush=True)
 
 
 if __name__ == "__main__":

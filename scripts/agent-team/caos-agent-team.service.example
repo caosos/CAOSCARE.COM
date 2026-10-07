@@ -1,0 +1,14 @@
+[Unit]
+Description=CAOSCare persistent Claude agent team
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Environment=CAOSCARE_ROOT=%h/CAOSCARE-INTEGRATION
+ExecStart=/bin/bash -lc '%h/CAOSCARE-INTEGRATION/scripts/caos-agent-team recover'
+# Intentionally no ExecStop: stopping the unit must not silently kill active workers.
+
+[Install]
+WantedBy=default.target

@@ -3,7 +3,7 @@ executed through a canonical CAOSCare service. Nothing here writes a task
 or a task receipt itself.
 
 Scenario "sink_leak" (SIM-1 acceptance, docs/CAOSCARE_OPERATIONS_SIMULATOR.md §9):
-  minute 0   simulated resident reports a dripping sink
+  minute 0   simulated resident reports a leaking sink
              -> resident_requests.create_resident_request (normal request bus)
   minute 5   simulated maintenance tech acknowledges -> task_actions.acknowledge
   minute 10  starts (claims it)                      -> task_actions.start
@@ -32,7 +32,7 @@ from routes.task_lifecycle import chain_head, load
 from simulation import roster, staffing
 
 SCENARIO_ID = "sink_leak"       # the default scenario
-SINK_WORDS = "The bathroom sink in my room keeps dripping."
+SINK_WORDS = "The bathroom sink keeps leaking."
 NURSING_WORDS = "I need help going to the bathroom."
 
 STEPS = [
@@ -40,9 +40,9 @@ STEPS = [
     {"at": 5, "actor": "maintenance_tech", "action": "acknowledge"},
     {"at": 10, "actor": "maintenance_tech", "action": "start"},
     {"at": 25, "actor": "maintenance_tech", "action": "note",
-     "text": "Simulated: washer in the cold tap is worn; replacing it."},
+     "text": "Simulated: worn washer under the sink; replacing it."},
     {"at": 40, "actor": "maintenance_tech", "action": "complete",
-     "text": "Simulated: replaced the washer, no more dripping."},
+     "text": "Simulated: replaced the washer, no more leaking."},
     {"at": 50, "actor": "resident", "action": "check_status"},
 ]
 
@@ -60,7 +60,7 @@ NURSING_STEPS = [
 # picks the department); priority follows the request_staff_help contract
 # (bathroom help is nursing, high).
 SCENARIOS = {
-    SCENARIO_ID: {"label": "Maintenance: dripping sink", "category": "maintenance", "priority": "normal",
+    SCENARIO_ID: {"label": "Maintenance: leaking sink", "category": "maintenance", "priority": "normal",
                   "words": SINK_WORDS, "staff_roles": ("maintenance_tech",), "steps": STEPS},
     "nursing_assist": {"label": "Nursing: help to the bathroom", "category": "nursing", "priority": "high",
                        "words": NURSING_WORDS, "staff_roles": ("nurse",), "steps": NURSING_STEPS},

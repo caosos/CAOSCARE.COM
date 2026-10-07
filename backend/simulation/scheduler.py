@@ -322,6 +322,19 @@ def loop_alive(run_id: str) -> bool:
     return bool(task and not task.done())
 
 
+async def revive_loops() -> list:
+    """A RUNNING run whose loop is gone (e.g. after a backend restart: loops
+    live in this process) gets its loop back. Changes no run state, so it
+    writes no receipt; each tick it then runs is receipted as usual. PAUSED
+    and STOPPED runs are left alone."""
+    revived = []
+    async for run in db.sim_runs.find({**_ops_scope(), "state": RUNNING}, {"_id": 0, "run_id": 1}):
+        if not loop_alive(run["run_id"]):
+            ensure_loop(run["run_id"])
+            revived.append(run["run_id"])
+    return revived
+
+
 async def view(run: Optional[dict] = None) -> dict:
     if not is_ops_run(run):
         run = await latest_run()

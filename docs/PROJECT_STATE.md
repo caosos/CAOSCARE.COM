@@ -6661,3 +6661,387 @@ HANDOFF CAPSULE
 - Product invariants: every request notification traces to its task and receipt; simulated work never reaches a provider; department changes admin-only.
 - Do NOT change:    notify_department's required link arguments.
 - Next safe action: coordinator review of the draft PR.
+---
+
+## 2026-10-05 — RF bridge restart backoff (Agent Five, draft PR)
+
+### Agent / branch
+Claude Code (Opus 5.5), Round 5 Agent Five. Branch `fix/rf-bridge-restart-backoff` (worktree `~/CAOSCARE-RF-BACKOFF`) from integration `92beeec`. Draft PR into `integration/2026-09-27`. Software only: the running bridge (pid 522046), its log, host services and the SDR were not touched; nothing deployed.
+
+### Defect
+With no SDR plugged in, `rtl_433` prints its banner, "No supported devices found." and exits with code 2. `main()` respawned it immediately, forever: 3.57 M spawns since 2026-10-04 11:22 UTC, about 4 GB of log a day (`docs/reports/2026-10-05-rf-bridge-log-audit.md`). Reproduced against the old script with a stand-in `rtl_433`: 2,026 spawns and 392 KB of output in 4 s.
+
+### What changed
+- `android-bridge/rf_restart_policy.py` (new, 156 lines): `RunResult`, `RestartSupervisor`, `RunOutput`, `run_forever`.
+  - A run is healthy if it stayed up ≥30 s or decoded a record. After a healthy run the respawn is immediate, so a watchdog restart (90 s of silence) is unchanged.
+  - After a failed run the bridge waits 1, 2, 5, 10, 30, then 60 s. A missing binary or other startup error goes through the same backoff (was a fixed 15 s / 5 s sleep).
+  - Logging: the first failure is printed in full. The same failure again prints one status line every 300 s. A different failure is printed in full. Recovery prints one line.
+- `android-bridge/sdr_control.py` (new, 246 lines): `run_rtl433`, `usb_reset_sdr` and their config, moved out of `caos_rf_bridge.py` (538 → 361 lines), as the oversized-files audit proposed.
+  - `run_rtl433` now returns a `RunResult`, stops when the stop event is set, and holds back its output while the supervisor is quiet.
+  - It now processes JSON lines written just before `rtl_433` exits (before, the loop broke on exit without reading them).
+  - Watchdog steps (terminate, 0.5 s, USB reset, 2 s) are unchanged; the waits are now interruptible.
+- `caos_rf_bridge.py::main`: SIGINT/SIGTERM set a stop event, from a helper thread (setting an Event inside the handler can deadlock); every wait is `stop.wait()`; it prints "shutting down" and exits 0.
+- `android-bridge/caos-rf-bridge.service.example`: systemd user unit template with journal logging; passes `systemd-analyze --user verify`; not installed. README section for the Python bridge.
+
+### Verified
+- `android-bridge/tests/test_restart_backoff.py`: 15 passed (`~/CAOSCARE-INTEGRATION/backend/.venv/bin/python -m pytest android-bridge/tests`).
+  - Backoff sequence and the 60 s cap; healthy runs reset it; a watchdog restart stays immediate; quiet/verbose switching.
+  - 1,000 failed spawns produce one full failure log and ~199 status lines.
+  - Shutdown ends a 60 s wait in < 0.5 s; a running `rtl_433` is stopped in < 3 s.
+  - The stall watchdog still kills `rtl_433` and resets the SDR.
+  - Decoded records reach `on_record` and are posted to `/api/rf/event`.
+  - End to end: the real script with a no-SDR stand-in spawned 3 times in 4 s, printed the banner once, and exited 0 within 2 s of SIGTERM.
+- Not verified: a run with the real SDR plugged in (the SDR is not enumerated on the host).
+
+### Open
+- The running bridge keeps the old code and keeps writing ~4 GB/day until someone restarts it on this code. Restarting it, and the log cleanup (R1–R3 in the RF log audit), need Michael's approval.
+- `poll_loop` still logs one line every 2 s while the backend is unreachable (~43 k lines/day); not changed here.
+
+HANDOFF CAPSULE
+- Objective:        Stop the RF bridge restart/log storm when no SDR is present.
+- Branch:           fix/rf-bridge-restart-backoff (draft PR into integration).
+- Lane / ownership: Agent Five; android-bridge/ only plus doc entries.
+- Last proven state: tests above, 2026-10-05.
+- Commits:          see this entry's commit.
+- Runtime state:    nothing started, stopped or restarted; pid 522046 still runs the old code.
+- Unresolved proven defects: the running process (old code); poll_loop error logging.
+- Product invariants: pendant decoding unchanged; never hide that rtl_433 is failing; no tight respawn loop.
+- Do NOT change:    the running bridge, its log, host services, the SDR — without Michael.
+- Next safe action: coordinator review; Michael decides when to restart the bridge on this code (or move it to the service template).
+
+---
+
+## 2026-10-05 (night) — Coordinator: PR #59, #64, #63 integrated; night-shift assignments
+
+Claude Code (Opus 5.5), coordinator, `integration/2026-09-27` from `21d291f`. No main merge, no Linode, no deletion of project files, no reboot, no restarts, no flashing, no RF runtime change.
+
+Each PR got an explicit review (MERGEABLE) on GitHub before merging, and a scratch-merge test run in an isolated worktree (removed afterwards).
+- **#59** SC-8/SC-9 (Agent Four), `86aa8b901821bb6e47ca35d06c18f42a7af42aea` → `31f5c03`.
+  - All 6 `notify_department` callers pass the task link + receipt; dead `tasks._notify_department` removed; `/departments/labels` read-only.
+  - Scratch gate 286/0/13; on the merge 268/0/31 (OpenAI blanked); focused 12; frontend 34/268.
+- **#64** `/realtime/aria-session` owner-only (Agent Six), `f0e9901abba480b906bacccad22352da97966661` → `6c784d2`.
+  - `require_owner`; owner taken from the signed-in user; a foreign `owner_user_id` → 403.
+  - 8 auth tests with OpenAI mocked; gate 276/0/31; frontend 34/268.
+  - Live owner session not verified.
+- **#63** RF restart backoff (Agent Five), `034ceade2b6466e55036bb448c7a5e6f58faf4ac` → `2b199a2`.
+  - Logs union-merged; moved code keeps `-M level`, the 90 s watchdog and the USB reset.
+  - Bridge tests 15 (stub rtl_433); gate 276/0/31.
+  - The live bridge PID 522046 runs from `~/CAOSCARE.COM` and was not touched.
+
+**Incidents (recorded, no data or service impact found):**
+1. Scratch-worktree setup: `backend/.venv` is a tracked symlink to `~/CAOSCARE.COM/backend/.venv`, so `ln -s` resolved into the real venv. It failed on an existing entry, and my `rm -f` then removed that pre-existing `.venv` entry inside `~/CAOSCARE.COM/backend/.venv/`. `rm -f` (no `-r`) can only remove a file or symlink, most likely a self-referential symlink. Its exact target was not captured, so it was not recreated. Verified: the venv imports `fastapi`/`motor`, and no running service was affected.
+2. The two scratch gates for #59 and #64 ran with `backend/.env`'s real `OPENAI_API_KEY` loaded, so the older iter8/iter10/iter11 tests likely made a small number of real OpenAI calls (ephemeral session mints, a memory extraction). Every gate from then on ran with `OPENAI_API_KEY=` (those tests skip). No email/SMS keys are configured; Home Assistant was blanked.
+
+**Assigned:**
+- Agent Three: SIM-4 Maintenance, `pilot/sim-4-maintenance` from exactly `21d291f`.
+- Agent Four: gate port/log collision, read-only design.
+- Claude Two: wake physical package operator sheet, NOT AUTHORIZED TO FLASH.
+- Agent Five: RF backend-unreachable log storm, read-only proposal.
+- Agent Six: security follow-up inventory (A `/aria/conversation-turn`, B public continuity/state), read-only.
+
+---
+
+## 2026-10-06 — Coordinator: morning assignments
+
+Integration `eb8451593e1d4aaa0b728869fdcf00f012f8a9e7` (= origin). No agent replies or new branches overnight. Assignments posted as GitHub comments:
+- **Claude Two:** Voice PE physical test package, operator-ready (#46). Not authorized to flash.
+- **Agent Three:** SIM-4 Maintenance, `pilot/sim-4-maintenance` from `eb84515` (#62).
+- **Agent Four:** gate port/log isolation fix, `tests/gate-port-isolation` (#59).
+- **Agent Five:** RQ-001 status and smallest remaining work (#63); the RF log-storm task is parked.
+- **Agent Six:** security A/B, read-only (#64).
+
+File ownership is split so no two agents edit the same files:
+- Agent Three: `backend/simulation/*`.
+- Agent Five: `backend/demo_continuity.py`.
+- Agent Four: `run_backend_tests.sh`.
+
+Agent control plane builder: separate lane; no GitHub channel identified, so its constraints are relayed through Michael.
+
+Runtime observations (read-only):
+- :8092 (PID 1400509, started 2026-10-04 20:22) listens on `0.0.0.0` and still runs pre-#57 code. It therefore still has the unauthenticated `/realtime/aria-session` fixed in #64.
+- `simrun_4b9a3f2c415d` is RUNNING with cursor 4 but has not updated since 2026-10-05 01:28 UTC.
+- A restart on the tip needs Michael's go-ahead.
+
+RQ-003 (live Nursing voice) remains the next real acceptance loop.
+
+---
+
+## 2026-10-06 — Coordinator: :8092 restarted on integration tip (Michael-approved)
+
+Approval: Michael, 2026-10-06 ("YES — restart the :8092 backend on the current integration tip now").
+- **Before.**
+  - Checkout `~/CAOSCARE-INTEGRATION` was clean at `1d722af9f0a553266873dadb89a555b3fe26d69f` (= origin).
+  - 0 active Aria leases, so no resident session was interrupted.
+  - Old PID 1400509 (started 2026-10-04 20:22, pre-#57) was stopped by its port's PID.
+- **After.**
+  - New PID 219235: `.venv/bin/python3 -m uvicorn server:app --host 0.0.0.0 --port 8092` from `backend/`, log `/tmp/room214_backend_1d722af.log`, startup clean.
+  - `/api/health` → `{"ok":true,"db":"up"}`.
+  - The OpenAPI schema lists `/api/simulator/scenarios` (#62) and `/api/departments/labels` (#59).
+- **`/realtime/aria-session` checks (live :8092, refusal paths only, so no OpenAI call):**
+  - anonymous → 401;
+  - anonymous naming the owner → 401;
+  - signed-in staff → 403;
+  - signed-in owner with a forged `owner_user_id` → 403.
+  - No private context appeared in any response.
+  - The owner's successful session path was not exercised, because it mints a real OpenAI session. It is to be checked when Michael opens `/aria`.
+- **Simulator after the restart.**
+  - `simrun_4b9a3f2c415d` (sink_leak) is RUNNING with cursor 4/6, sim minute 25.
+  - Next step: `maintenance_tech complete`, waiting on a real user (Demo - Carl Boone, SIM-3 takeover). It is waiting on that person to complete the task, not stalled by a defect.
+  - `loop_alive: false`: nothing re-creates the scheduler loop on startup, so a RUNNING run has no ticking loop after any backend restart until someone presses Resume or Step.
+  - Run left untouched. Finding filed for Agent Three's lane.
+- Not done: Linode, reboot, deletion.
+
+---
+
+## 2026-10-06 — Coordinator: remote work block assignments
+
+Michael away; integration `7136734e5e31aab7ba89182110419d62ea42b8a0`. Open PRs at the start (head, base):
+- #66 SIM-4 Maintenance: `c0d2b3e`, base has the tip.
+- #67 Agent Control Plane: `93bf8dc`, base `31f5c03`, must merge the tip.
+- #68 gate isolation: `347e342`, base has the tip.
+- #65 security follow-up docs: `dfdbf0f`, base has the tip.
+- #46 wake research: `16e4e98`, research, not for merge.
+
+Overlap check: no shared non-log files. #68 and #67 will both touch `backend/server.py`, in separate hunks (`/api/health` vs router registration); noted on both PRs.
+
+Assignments (relayed as PR comments; Agent Five's on #63):
+- Agent Three: finish #66.
+- Agent Four: finish #68 with the three proofs.
+- Agent Six: finish #65; at most one fix proposal, no code without approval.
+- Claude Two: operator sheet only.
+- Agent Five: RQ-001 in `demo_continuity.py` only, otherwise a post-#66 plan.
+- Control plane builder: #67 backend slice + owner-only `/admin?tab=agent-operations`, mock adapter only, disabled by default.
+
+Not authorized: Linode, reboot, flashing, storage deletion, Phase 2.
+## 2026-10-06 — Agent Four: backend test gate port/log isolation
+
+### Agent / branch
+Claude Code (Opus 5.5), Round 5 Agent Four. Branch `tests/gate-port-isolation` (worktree `~/CAOSCARE-GATE-ISOLATION`) from integration `7136734`. Draft PR into `integration/2026-09-27`; not merged, not deployed. No running service touched.
+
+### Defect
+During the SC-8/SC-9 gate (2026-10-05) two gates shared a port: the second gate's backend could not bind, the `curl` health check was answered by the other gate's backend, and pytest ran against a server with a different database (29, then 23 false failures: 401 logins, 404 on `/demo/reset` and `/rf/event`). All runs also wrote one shared log, `/tmp/caoscare_backend_test_gate.log`.
+
+### What changed
+- `backend/scripts/run_backend_tests.sh`:
+  - prints a run id and a per-run log path (`mktemp`; `CAOSCARE_TEST_LOG` overrides);
+  - refuses a port that already accepts connections, before dropping the database or starting the backend;
+  - starts the backend with `CAOSCARE_TEST_GATE_RUN_ID`;
+  - waits through the new helper;
+  - after pytest, checks the same backend is still serving; if not, exits 1 even when pytest passed. Otherwise it exits with pytest's status.
+- `backend/scripts/gate_wait_healthy.py` (new): healthy = backend process alive and `/api/health` ok with this run's `gate_run_id`; a server with no id or another id fails at once (exit 4), a dead backend fails at once (exit 3), timeout exit 5.
+- `backend/server.py` `/api/health`: adds `gate_run_id` only when `CAOSCARE_TEST_HOOKS` and `CAOSCARE_TEST_GATE_RUN_ID` are both set.
+- Unchanged: the command, defaults (port 8070, database), the existing overrides, pytest arguments.
+- `docs/BACKEND_TEST_GATE.md`: new section.
+
+### Verified
+- `tests/test_gate_script_isolation.py`: 10 passed + 1 skipped when run alone (the live-backend check skips outside the gate).
+  - It uses stub `mongosh` and a stub backend Python, so it never drops a database or starts a backend.
+  - Against the previous script, the occupied-port and per-run-log tests fail. That script dropped the database, started the backend and ran pytest against a dummy server holding the port; the stubs recorded each call.
+- Full gate (`CAOSCARE_TEST_PORT=8076`, `CAOSCARE_TEST_DB=caoscare_gate_port_isolation`, OpenAI and Home Assistant blanked): **287 passed, 0 failed, 31 skipped**.
+  - The in-gate check `test_gate_backend_is_this_run` ran and passed.
+  - The backend log went to its own file; port 8076 was free afterwards.
+- Live collision:
+  - gate A ran on 8077;
+  - while it was in pytest, gate B was started on 8077 with another database;
+  - B exited 1 with "already in use", and its database was never created;
+  - A finished 13 passed, exit 0.
+- Scratch database dropped.
+
+### Not done / limits
+- Two concurrent gates on different ports but the same `CAOSCARE_TEST_DB` would still drop each other's database. The doc says to use a separate database; the script does not detect it.
+- A run refused for a busy port leaves its empty log file behind.
+
+### Line counts
+`run_backend_tests.sh` 78→112, `gate_wait_healthy.py` 81 (new), `server.py` 256→261, `test_gate_script_isolation.py` 189 (new).
+
+HANDOFF CAPSULE
+- Objective:        A test gate whose result always comes from its own backend.
+- Branch:           tests/gate-port-isolation (from 7136734).
+- Lane / ownership: Agent Four; gate script, wait helper, `/api/health` (test-hook-only field), gate doc.
+- Last proven state: gate and live collision above, 2026-10-06.
+- Commits:          see this entry's commit.
+- Runtime state:    nothing left running; :8092 and other services untouched.
+- Unresolved proven defects: same-database concurrent gates (documented, not detected).
+- Product invariants: production `/api/health` unchanged unless test hooks are on.
+- Do NOT change:    the health check back to "any server that answers".
+- Next safe action: coordinator review of the draft PR.
+## 2026-10-06 — SIM-4 Maintenance (Agent Three)
+
+### Agent / branch
+Claude Code (Opus 5.5), Round 5 Agent Three. Branch `pilot/sim-4-maintenance` from integration `1d722af` (PR #62 merged). Draft PR into `integration/2026-09-27`. Not merged; no deploy; no runtime service, main, Linode or hardware touched.
+
+### What changed
+- No second maintenance scenario: the existing `sink_leak` is the Maintenance flow. Resident words now "The bathroom sink keeps leaking." (Michael's wording), label "Maintenance: leaking sink"; scenario id unchanged.
+- New `backend/tests/test_sim4_maintenance.py`. No scheduler, roster, route, frontend or shared-file change.
+
+### Verified
+- `test_sim4_maintenance.py` 2/2: simulated tech end to end (one maintenance task, sim-tech receipts with `actor_department maintenance`, origin chain + run id on every receipt, resident told "SIM - Maintenance Tech 1", STOPPED); a repeat resident ask in the same run attaches to the same task; with a live email key set after start and a provider spy, notifications are `simulated`, zero provider calls. Owner takeover (role owner, no department, like real Michael): candidates include him, not nursing staff; the run waits with no receipts; resident status is checked at each stage — "no one has picked it up yet" → "Michael (test owner) has taken it on — work hasn't started yet" → "… is working on it now. Latest note (…): …" → nothing open, history "taken care of by Michael (test owner)" — and never "on the way"/"coming"; nursing staff cannot see or start it (403); his receipts are authenticated real-human via staff_ui; the simulator observes each step citing them and finishes. Mutation: removing the scheduler's wait-for-real-holder guard fails the takeover test.
+- SIM-4 nursing 3, SIM-1 6, SIM-3 4, latest-run 2, provenance 7, demo continuity 14, SC-8 links 4: pass.
+- Full gate (port 8071, scratch DB): 278 passed, **0 failed**, 31 skipped. Frontend 34 suites / 268 tests.
+- Browser (headless Chrome/CDP, scratch DB, 3 s tick): as an owner, picked "Maintenance: leaking sink" in Live operations, started, handed the maintenance role to himself (REAL, "normally SIM - Maintenance Tech 1"); run waited "for REAL Michael (test owner)"; in Admin → Community → Maintenance he clicked Claim, Start, Note, Complete; resident status after each step matched the wording above; run observed each step as "already recorded by REAL Michael (test owner)" and finished; one task, notifications `simulated`, request receipts resident (synthetic) then four authenticated real-human; no console errors. Scratch DBs dropped.
+
+### Line counts (before → after)
+`scenario.py` 166→166 (wording only); `test_sim4_maintenance.py` 272 (new).
+
+### Next safe step
+Coordinator review of the draft PR.
+
+---
+
+## 2026-10-06 — Coordinator (remote block): #68, #66, #65 integrated; follow-on assignments
+
+One at a time; the gate on every merge ran with `OPENAI_API_KEY=` blank (no provider calls).
+- **#68** gate isolation (Agent Four), `347e342554bcc86923c86b00b98a9491cbff4edd` → `4d413ef`.
+  - Refuses a busy port before any side effect; `/api/health` echoes a per-run nonce only under the gate's test env vars; checks its own backend again after pytest; one log per run.
+  - Gate (the new gate itself, port 8077) 287/0/31; `test_gate_script_isolation.py` 11 passed.
+  - Live evidence: a later run on 8077 was refused because Agent Four's own gate backend (PID 598315) held the port.
+- **#66** SIM-4 Maintenance (Agent Three), `c0d2b3e0401d9960b80a4bf48b625a964c94731c` → `577b35c`.
+  - Reuses `sink_leak`; only words and labels changed, plus the new test (owner takeover, truthful status at every stage).
+  - Gate (port 8078) 289/0/31; focused simulator set 38 passed. **SIM-4 Maintenance accepted** at the automated level.
+- **#65** security follow-up docs (Agent Six), `fb7f2ddf1f96424ed22cf180602928fd044e64b6` → `7972446`.
+  - B3 verified in source: `GET /api/residents/public/by-kiosk/{id}` returns every resident field, including medical notes, without auth; `GET /api/kiosks` is public, so ids can be enumerated. Production `d7ff96a` has it too.
+- **Claude Two:** Voice PE package verified independently (`sha256sum -c`: 9/9 OK; sheet in `16e4e98` with the do-not-flash marking). Accepted as operator-ready; flashing needs Michael.
+
+Assignments:
+- Agent Six: B3 fix only (allowlist projection in `resident_by_kiosk`), `security/by-kiosk-resident-allowlist`. `/kiosks` and B1/B2/A await decisions.
+- Agent Three: `pilot/sim-loop-resume` (re-create the scheduler loop for RUNNING runs at startup; `scheduler.py` + one lifespan call in `server.py`).
+- Claude Two: RQ-003 live Nursing runbook (docs only).
+- Agent Four: done, awaiting assignment.
+
+The live :8092 still runs `7136734`; not restarted (no approval for this block).
+
+---
+
+## 2026-10-06 — RQ-001 follow-up: continuity names the run that blocks it (Agent Five, draft PR)
+
+### Agent / branch
+Claude Code (Opus 5.5), Agent Five. Branch `pilot/rq-001-continuity-followup` from integration `c6c2cc5`. Draft PR into `integration/2026-09-27`. Only `backend/demo_continuity.py` and its test changed; no simulator file touched; nothing deployed.
+
+### Status found
+- **Integrated:** PR #52 at `5bc1f8c`.
+- **Not stale:** the continuity, SIM-4 nursing and latest-run tests pass on the tip. PR #66 does not touch continuity.
+- **Never run on the EliteDesk.** In the shared `caoscare` DB there is no continuity state, run or receipt, for two reasons:
+  - `CAOSCARE_DEMO_CONTINUITY_AUTO` is unset (Michael's decision).
+  - Operations Simulator run `simrun_4b9a3f2c415d` (sink_leak) has been RUNNING since 2026-10-05 01:28 UTC. Its maintenance role is held by real user "Demo - Carl Boone", and it waits for him. Continuity correctly defers while a run is active.
+- The run's in-process tick loop is not restarted after a backend restart (:8092 restarted 2026-10-06 08:11), so the run will not observe the real user finishing (Agent Three's area).
+
+### What changed
+- `demo_continuity.blocking_run_reason()`: a deferral now names the blocking run (id, scenario, state) and any role a real person holds, e.g. "Operations Simulator run simrun_4b9a3f2c415d (sink_leak, RUNNING) is active in the demo room; maintenance_tech held by Demo - Carl Boone; finish or stop it in Live Operations".
+- The catch-up response adds `blocking_run_id`. The same text goes into the `demo_continuity_deferred` receipt. Before, it said only "a SIM-1 simulation run is active".
+- `demo_continuity.py` 368 → 381 lines.
+
+### Verified
+- `test_demo_continuity.py` (14) + SIM-4 nursing + latest-run: 19 passed (scratch DB, dropped).
+- Gate (`run_backend_tests.sh`, port 8079, scratch DB, no OpenAI key): 287 passed, 0 failed, 31 skipped.
+- The new message was built from the real blocking run document, read-only.
+
+### Post-#66 continuation plan (needs Agent Three's files or Michael)
+1. **Agent Three, `backend/simulation/scheduler.py`** (+ `server.py` lifespan hook):
+   - On backend startup, resume the tick loop for RUNNING runs, or mark them as interrupted.
+   - Test: `backend/tests/test_sim_restart_resume.py`. A RUNNING run waiting on a real holder → simulate a restart → the real user completes → the run observes it and finishes.
+2. **Michael:**
+   - Finish (as Carl Boone) or stop `simrun_4b9a3f2c415d` from Live Operations.
+   - Decide whether to set `CAOSCARE_DEMO_CONTINUITY_AUTO=1` in the EliteDesk backend `.env`.
+3. **Agent Five, after 1–2:**
+   - Run one catch-up via `POST /api/demo/continuity/catch-up`.
+   - Check `demo_continuity_window` receipts, open-work cap, no real-room writes.
+4. **Shared Core request (not started):** a lifecycle timestamp override, so catch-up steps carry their window's time instead of catch-up time (`task_lifecycle.py`).
+5. **Not planned yet:** an admin UI for continuity state (frontend); marking the `Demo -` 3W wing synthetic.
+
+HANDOFF CAPSULE
+- Objective:        RQ-001 demo continuity running on the EliteDesk demo room.
+- Branch:           pilot/rq-001-continuity-followup (draft PR).
+- Lane / ownership: Agent Five; backend/demo_continuity.py + its test only.
+- Last proven state: tests and gate above, 2026-10-06.
+- Runtime state:    nothing started; simrun_4b9a3f2c415d left as is.
+- Unresolved proven defects: simulator tick loop not resumed after a restart (Agent Three).
+- Do NOT change:    backend/simulation/*; the auto switch without Michael.
+- Next safe action: plan steps 1–2, then step 3.
+
+---
+
+## 2026-10-06 — Coordinator (remote block): #69 integrated; Voice PE readiness findings
+
+- **#69** RQ-001 continuity deferral (Agent Five), `64727e4e2ddf970be1a486ad6dd95b544cd47b4c` → `8cb0305` (clean). `demo_continuity.py` + test only; the deferral reason/receipt name the blocking simulator run and real role-holders. Gate (port 8078, OpenAI blanked) 289/0/31; focused 21 passed. RQ-001 is integrated and working; auto catch-up stays off (Michael's decision).
+- **Claude Two** read-only Voice PE integration check (on #46): **not physical-test ready**. Blockers:
+  - B1: Voice PE hardware has not arrived, and its power supply hasn't been bought;
+  - B2: wake detection runs only while HA is connected. No ESPHome device is in HA, and the operator sheet doesn't say this. The docs fix is approved in Claude Two's lane;
+  - B3: HA has no STT engine;
+  - B4: the voice bridge is unmerged (`spike/voice-bridge`), not installed in HA, and has no token;
+  - B5: decision memo items #1 and #6 are open;
+  - B6: Pilot Room 1 is not selected.
+## 2026-10-06 — Simulator: loop revival after a backend restart (Agent Three)
+
+### Agent / branch
+Claude Code (Opus 5.5), Round 5 Agent Three. Branch `pilot/sim-loop-revive` from integration `f286719` (PR #66 merged at `577b35c`). Draft PR into `integration/2026-09-27`. Not merged; no deploy.
+
+### What changed
+- Coordinator finding (:8092 restart, 2026-10-06): scheduler loops live in the backend process, so after a restart a RUNNING run had no ticking loop until Pause + Resume.
+- `scheduler.revive_loops()`, called by `GET /simulator/state` (the Live Operations poll), re-creates the loop of RUNNING simulator runs only. PAUSED / STOPPED runs are left alone. No run state changes, so no receipt; each tick it then runs is receipted as usual.
+- Not a startup hook: `server.py` uses a lifespan, so a router startup handler would not run, and `server.py` is shared. The loop comes back as soon as anyone opens Live Operations (or anything reads the state).
+
+### Verified
+- New `test_sim_loop_revive.py` 1/1: a RUNNING run with its loop gone is re-armed on the state read (cursor unchanged, no new receipt, no second loop on a second read); a PAUSED run is not. It fails if the route does not call `revive_loops`.
+- SIM-4 maintenance 2, SIM-4 nursing 3, SIM-1 6, SIM-3 4, latest-run 2: pass.
+- Full gate on this branch (PR #68 gate script, port 8071, scratch DB, OPENAI_API_KEY blank): 290 passed, **0 failed**, 31 skipped.
+- Restart demo (scratch DB, earlier the same day on the pre-merge branch): a nursing run RUNNING at cursor 1 → backend killed and restarted → the open Live Operations page's poll re-armed the loop → the run continued to STOPPED; its run chain has each of the 6 steps once; one task.
+
+### Process note
+PR #66 merged at `577b35c` (head `c0d2b3e`) while I was adding this to it. I then force-pushed `pilot/sim-4-maintenance` to `433f462` (rebased + this change) without seeing the merge. The merged content is unaffected. Resetting that branch ref back to `c0d2b3e` was refused by the permission check and is left to Michael/the coordinator. This change is moved to its own branch instead.
+
+### Line counts (before → after)
+`scheduler.py` 359→372, `routes/simulation.py` 97→100, `test_sim_loop_revive.py` 89 (new).
+
+---
+
+## 2026-10-06 — Coordinator (remote block): #70 integrated
+
+**#70** simulator loop revive (Agent Three), `ccf115162d83665be6517a2867da26920644a1e4` → `905d333` (PROJECT_STATE union).
+- `scheduler.revive_loops()` runs on admin GET `/simulator/state`.
+- It re-creates the loop only for RUNNING runs, writes no receipt, and leaves PAUSED runs alone.
+- A step held by a real user still waits.
+- Gate (port 8078, OpenAI blanked) 290/0/31; focused simulator 32 passed.
+- Limitation: revival happens when Live Operations is opened, not at startup.
+
+The live :8092 still runs `7136734` (no restart approved in this block).
+
+---
+
+## 2026-10-06 — Coordinator (remote block): #67 Agent Control Plane review — NEEDS FIX
+
+Head `87d8be39acabeb7575d58ba9f8fd893d6d0dc822`, base `31f5c03` (not on the tip). Not merged. Review comment on #67.
+
+Fixes required:
+- merge the tip;
+- mount the router and owner tab directly, instead of `docs/patches/agent-control-mount.patch`;
+- move the live-session binding table (PIDs, terminals, transcript-derived evidence) out of the canonical doc.
+
+The builder read the addressed headers of other live sessions' transcripts to propose agent↔session bindings. That is read-only but beyond "do not touch live sessions", so it is flagged to Michael.
+
+Its discovery also found two live processes resuming the coordinator's session id (`caoscare-1-25` active and `caoscare-1-97`, idle since 09-24). That is for Michael to confirm or close.
+
+---
+
+## 2026-10-06 15:10 CDT — Coordinator: remote block status (no worker activity since ~09:00 CDT)
+
+Merged this block, one at a time, each with a 0-failed gate: #68 → `4d413ef`, #66 → `577b35c`, #65 → `7972446`, #69 → `8cb0305`, #70 → `905d333`.
+
+Waiting:
+- Agent Six: B3 fix approved; no branch yet. Reminder posted 12:02 CDT.
+- Claude Two: sheet fix (B2) and RQ-003 runbook; branch unchanged since 08:14 CDT. Reminder posted 12:02 CDT.
+- #67 control plane: NEEDS FIX; no new push.
+
+Agents Three, Four and Five are done and idle; no non-overlapping Pilot gap could be assigned without Michael. The live :8092 still runs `7136734`.
+
+
+---
+
+## 2026-10-07 — Autonomous Agent 1 foreman / persistent-team setup (PR #67 branch)
+
+- **Agent/tool:** ChatGPT + GitHub connector, acting on Michael's explicit autonomous-team directive.
+- **Branch/ref:** `pilot/agent-control-plane`, merged forward from `integration/2026-09-27` head `31b230b4632982a940d7c179b769ee01b04ddde7`; no production deployment.
+- **Audit first:** `docs/reports/2026-10-07-autonomous-agent-team-audit.md` was committed before structural changes.
+- **What changed:** extended the existing Agent Control Plane rather than creating another one; mounted its owner-only router/Admin surface behind `CAOSCARE_AGENT_CONTROL_ENABLED`; replaced the side mount patch with direct source changes; added the Agent 1 foreman contract, worker-status contract, tmux team launcher, bootstrap prompts and reboot-recovery runbook; RQ-010 records the work in the existing Pilot queue.
+- **Truth boundary:** repository-side setup is committed; this GitHub connector cannot inspect/start EliteDesk processes. Dedicated tmux sessions are **not claimed running** until host evidence is recorded.
+- **Governance:** no Linode/main deployment; no existing live Claude process hijacked; no protected PR merged; no agent self-report accepted as proof.
+- **Next safe action:** run the branch tests/gate and coordinator review on #67; then on the EliteDesk verify/install tmux and start the dedicated team; record tmux/SSH-disconnect evidence before calling RQ-010 runtime-complete.

@@ -1,6 +1,6 @@
 # CAOSCare Agent Control Plane — design (Phase 1)
 
-**Status: design + first backend slice (mock agent only).** Branch
+**Status: active control-plane branch — mock command slice + owner UI + read-only discovery + autonomous foreman/persistence scaffolding. Live worker delivery remains unverified until EliteDesk acceptance.** Branch
 `pilot/agent-control-plane` from `integration/2026-09-27` `31f5c03`. The
 slice is tested in-process but **not mounted** in `server.py` (shared file) —
 see §15. No live Claude session is touched.
@@ -369,46 +369,11 @@ that is not bound to an adapter cannot be sent anything. Receipt ordering reuses
 - The admin role saw neither the tab nor the page.
 - The 8 live sessions were listed read-only.
 
-### Live-session discovery (EliteDesk, 2026-10-06 ~13:45 UTC, read-only)
+### Runtime snapshot discipline
 
-| Session name | PID | Parent | Terminal | Start dir | Registry status | Session id |
-|---|---|---|---|---|---|---|
-| caoscare-1-25 | 1428211 | bash ← sshd | pts/2 | `~` | busy, updated 10-06 13:39 | db41a1a3 (shared, see below) |
-| caoscare-1-97 | 1426225 | bash ← gnome-terminal | pts/4 | `~` | idle since 09-24 02:05 | db41a1a3 (shared) |
-| caoscare-1-47 | 2756816 | bash ← sshd | pts/6 | `~` | idle/busy | a07db747 |
-| caoscare-1-09 | 1101750 | bash ← sshd | pts/5 | `~` | busy | 7ae6de5a |
-| caoscare-1-e8 | 1111848 | bash ← sshd | pts/3 | `~` | idle/busy | 8452c511 |
-| caoscare-1-56 | 1142000 | bash ← sshd | pts/0 | `~` | idle/busy | 499b28e8 |
-| caoscare-1-72 | 2019301 | bash ← sshd | pts/7 | `~` | idle | a6322cc5 |
-| caoscare-integration-2f | 1580469 | bash ← sshd | pts/8 | `~/CAOSCARE-INTEGRATION` | busy | 900513e7 (this lane) |
+Live PIDs, PTYs, Claude session names and proposed bindings are **runtime evidence**, not canonical design. They belong in dated PROJECT_STATE entries or PR comments and must be re-read from the host before use. The discovery method remains: allow-listed Claude registry fields plus /proc liveness; never keys, sockets or transcripts.
 
-Findings:
-- Each process has a stable key: `pid:procStart`, verified against `/proc`. The **session id is not
-  unique**: two live processes (`caoscare-1-25`, `caoscare-1-97`) both run `claude --resume db41a1a3…`.
-  The session *name* is derived by Claude Code and lasts as long as the process. A binding must
-  therefore be `pid:procStart` + name, re-checked before every delivery; never the session id alone.
-- **Branch / worktree are not discoverable at runtime.** Every agent session starts in `~` and moves
-  between worktrees through its own commands, so branch stays UNKNOWN. The Pilot 1 board lists
-  branches, but that is documentation, not runtime proof.
-- Most sessions are reached over SSH from Michael's laptop; one is a desktop terminal.
-
-### Proposed binding map (NOT applied — registry unchanged)
-
-Evidence: Claude Code's registry links each process to a session id; that session's transcript
-(`~/.claude/projects/-home-caoscare-1/<session id>.jsonl`) holds Michael's directives addressed to one
-agent ("CARE APP ROUND 5 — AGENT FOUR …"). Only the addressed headers were checked; no other transcript
-content was read or copied.
-
-| Agent | Proposed session | Evidence | Confidence |
-|---|---|---|---|
-| claude-1-coordinator | caoscare-1-25 (pid 1428211, pts/2) | "AGENT ONE / COORDINATOR", latest "COORDINATOR — REMOTE WORK BLOCK" 10-06 13:39 = this process's last update | PROVEN by directive + activity time; **caveat:** stale twin caoscare-1-97 (pid 1426225, idle since 09-24) on the same session id — Michael should confirm or close it |
-| claude-2-wake | caoscare-1-47 (pid 2756816, pts/6) | "AGENT TWO — WAKE MODEL METHOD TEST", "PHYSICAL WAKE TEST PACKAGE" | PROVEN by directive |
-| claude-3-simulator | caoscare-1-09 (pid 1101750, pts/5) | "AGENT THREE — SIM-4 …" | PROVEN by directive |
-| claude-4-shared-core | caoscare-1-e8 (pid 1111848, pts/3) | "AGENT FOUR — FINALIZE SC-8 / SC-9" | PROVEN by directive |
-| claude-5-hardware-rf | caoscare-1-56 (pid 1142000, pts/0) | "AGENT FIVE — RF BRIDGE RUNAWAY HARDENING" | PROVEN by directive |
-| claude-6-security | caoscare-1-72 (pid 2019301, pts/7) | "AGENT SIX — REALTIME OWNER CONTEXT SECURITY" | PROVEN by directive |
-
-Branch, current task: UNKNOWN for all, until an agent reports them.
+The 2026-10-06 host snapshot was intentionally removed from this design document during the 2026-10-07 foreman upgrade. Do not infer a current binding from historical PID/session data.
 
 ## 17. Live command delivery — adapter comparison
 
@@ -458,3 +423,14 @@ Until step 3 is authorized, no live session receives anything.
 - **SCR-ACP-3** — Receipt `related_object_type` values `agent_command` / `agent` (no model change).
 - **SCR-ACP-4** — EliteDesk-only env `CAOSCARE_AGENT_CONTROL_ENABLED=1` (and later
   `CAOSCARE_CLAUDE_SESSIONS_DIR` if the backend ever runs as another user). Never set on Linode.
+
+
+## 20. 2026-10-07 autonomous foreman directive
+
+Michael authorized the persistent-team operating model in `docs/CAOSCARE_AGENT_FOREMAN.md`.
+
+This **extends** the existing control plane; it does not create a second queue. The authoritative work sources remain `PILOT1_READY_QUEUE.md`, `PILOT1_ACTIVE_WORK.md`, `PILOT1_EXECUTION_CHECKLIST.md` and `PROJECT_STATE.md`.
+
+New dedicated Claude sessions may be launched under tmux using `scripts/caos-agent-team`. Existing historical interactive sessions are not hijacked or injected into. The dedicated team is expected to survive SSH disconnects; reboot recovery is documented and requires host-side prerequisites.
+
+The Agent Operations API/UI remains owner-only and EliteDesk-only. Production/Linode stays disabled. The foreman loop may coordinate workers and queue state, but external deployments, spending, resident/customer contact and protected merges remain separately governed.

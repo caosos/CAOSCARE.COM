@@ -863,3 +863,33 @@ listener verifier experiment: `docs/experiments/`.
 - `backend/routes/notifications.py::task_notice()`: the one builder of `notify_department()` arguments for a request (task link, receipt id, simulation context). `notify_department()` requires `related_object_type` / `related_object_id`.
 - `backend/routes/departments.py`: `GET /api/departments/labels` — read-only `{slug, label}` for any signed-in user; used by `frontend/src/pages/DepartmentWorkspace.jsx`.
 - Tests: `backend/tests/test_sc8_notification_links.py`, `backend/tests/test_sc9_department_labels.py`.
+## 2026-10-05 — RF bridge restart backoff (branch `fix/rf-bridge-restart-backoff`)
+
+- `android-bridge/rf_restart_policy.py`: when to respawn `rtl_433` (healthy = up ≥30 s or decoded a record → immediate; failed → 1/2/5/10/30/60 s backoff) and what to log while it keeps failing (once in full, then a status line every 300 s, one recovery line). `RunOutput` holds back a failing run's output.
+- `android-bridge/sdr_control.py`: `rtl_433` spawn/read loop, stall watchdog and SDR USB reset, moved out of `caos_rf_bridge.py` unchanged apart from returning a `RunResult` and honouring a stop event.
+- `android-bridge/caos-rf-bridge.service.example`: systemd user unit template (journal logging). Not installed.
+- Tests: `android-bridge/tests/test_restart_backoff.py`.
+
+## 2026-10-06 — Backend test gate port/log isolation (branch `tests/gate-port-isolation`)
+
+- `backend/scripts/run_backend_tests.sh`: refuses a port already in use (before any side effect); one log file per run (`CAOSCARE_TEST_LOG` to override); passes a run id to the backend and to pytest; re-checks after pytest that the same backend served the run.
+- `backend/scripts/gate_wait_healthy.py`: waits until `/api/health` is ok and echoes this run's `gate_run_id`; fails fast if the backend exited or a different server answers. Standard library only.
+- `backend/server.py` `/api/health`: adds `gate_run_id` only when `CAOSCARE_TEST_HOOKS` and `CAOSCARE_TEST_GATE_RUN_ID` are set.
+- Tests: `backend/tests/test_gate_script_isolation.py`. Details: `docs/BACKEND_TEST_GATE.md`.
+## 2026-10-06 — SIM-4 Maintenance (branch `pilot/sim-4-maintenance`)
+
+- `backend/simulation/scenario.py` `sink_leak` ("Maintenance: leaking sink") is the Maintenance scenario; resident words "The bathroom sink keeps leaking."
+- Test: `backend/tests/test_sim4_maintenance.py` (owner takeover, staged status truth, dedup, no provider calls).
+
+
+## Autonomous agent-team coordination (2026-10-07, PR #67 branch)
+
+- `docs/CAOSCARE_AGENT_CONTROL_PLANE.md` — owner-only Agent Operations/control-plane design and implementation state.
+- `docs/CAOSCARE_AGENT_FOREMAN.md` — Agent 1 dispatch/integration loop and worker continue-after-finish contract.
+- `docs/CAOSCARE_AGENT_TEAM_RUNBOOK.md` — EliteDesk tmux persistence, SSH-disconnect and reboot recovery acceptance.
+- `docs/status/AGENT_STATUS_TEMPLATE.md` — branch-local worker status contract.
+- `docs/agent-prompts/{COORDINATOR_BOOTSTRAP,WORKER_BOOTSTRAP}.md` — startup prompts for dedicated team sessions.
+- `scripts/caos-agent-team` — start/status/attach/recover/nudge helper for dedicated tmux sessions.
+- `scripts/agent-team/caos-agent-team.service.example` — optional user-systemd reboot recovery unit.
+- `backend/agent_control/`, `backend/routes/agent_control.py` — control-plane backend.
+- `frontend/src/pages/AgentOperations.jsx`, `frontend/src/components/agentOps/`, `frontend/src/lib/agentOps.js` — owner Agent Operations surface.

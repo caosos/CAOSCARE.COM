@@ -78,7 +78,10 @@ export function tabGroups(residents, staff, kiosks, zones, user) {
       ? [{
           id: "facility",
           label: "Facility setup",
-          tabs: [{ value: "facilities", label: "Facilities" }],
+          tabs: [
+            { value: "facilities", label: "Facilities" },
+            { value: "agent-operations", label: "Agent operations" },
+          ],
         }]
       : []),
   ];
