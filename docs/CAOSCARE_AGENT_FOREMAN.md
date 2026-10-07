@@ -89,11 +89,11 @@ A claim identifies task ID, agent, branch/worktree, base integration SHA, start 
 
 Persistent **tmux session identity is separate from task worktree identity**.
 
-All dedicated agents may start in the protected integration checkout for reading only. A worker must create or enter a bounded task worktree/branch before modifying code. Never let multiple workers edit the same checkout.
+Agent 1 owns the protected integration checkout. Agents 2–6 start in **separate persistent worker worktrees** created by `scripts/caos-agent-team` under `~/caoscare-agent-worktrees/agent-XX`. One worker, one worktree; never let two workers edit the same checkout.
 
-Worker task branches start from current `origin/integration/2026-09-27` unless the queue explicitly names another base. Reuse an existing appropriate branch rather than duplicate it.
+The persistent worker branch is only a safe starting point. Before modifying code for an assigned task, the worker verifies a clean tree and creates or switches to the bounded task branch named by the queue, based on current `origin/integration/2026-09-27` unless the queue explicitly names another base. Reuse an existing appropriate task branch rather than duplicate it.
 
-Agent 1 owns the integration checkout and coordination/integration operations. Workers do not self-merge.
+Agent 1 alone performs integration/coordination work in the integration checkout. Workers do not self-merge.
 
 ## Persistent sessions
 

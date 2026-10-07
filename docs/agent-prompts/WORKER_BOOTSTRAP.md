@@ -12,7 +12,9 @@ FIRST:
 7. Read docs/CAOSCARE_AGENT_FOREMAN.md.
 8. Fetch origin and verify the current integration head.
 
-You start in the protected integration checkout for reading only. Before modifying code, create or enter the exact bounded task branch/worktree assigned to your lane. Do not edit the protected integration checkout.
+Your Claude process starts in your own isolated persistent worker worktree. Verify `pwd`, `git status`, `git branch --show-current` and the current integration SHA before work. Do not edit Agent 1's protected integration checkout.
+
+Before modifying code for a claimed task, require a clean worktree and create or switch to the exact bounded task branch named by the queue, based on current `origin/integration/2026-09-27` unless the queue specifies another base.
 
 WORK LOOP:
 - claim the highest-priority compatible READY/ASSIGNED task;

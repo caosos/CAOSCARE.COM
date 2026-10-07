@@ -28,6 +28,10 @@ git pull --ff-only
 ./scripts/caos-agent-team check
 ./scripts/caos-agent-team start-all
 ./scripts/caos-agent-team status
+
+# start-all creates isolated worker worktrees automatically:
+# ~/caoscare-agent-worktrees/agent-02 ... agent-06
+# Agent 01 alone uses ~/CAOSCARE-INTEGRATION
 ```
 
 Attach to Agent 1:

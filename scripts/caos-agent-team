@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT="${CAOSCARE_ROOT:-$HOME/CAOSCARE-INTEGRATION}"
+WORKTREE_ROOT="${CAOS_AGENT_WORKTREE_ROOT:-$HOME/caoscare-agent-worktrees}"
 PREFIX="${CAOS_AGENT_SESSION_PREFIX:-caos-agent}"
 COUNT="${CAOS_AGENT_COUNT:-6}"
 BOOT_DELAY="${CAOS_AGENT_BOOT_DELAY:-3}"
@@ -14,6 +15,8 @@ WORKER_PROMPT="$REPO_DIR/docs/agent-prompts/WORKER_BOOTSTRAP.md"
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 note() { printf '%s\n' "$*"; }
 session_name() { printf '%s-%02d' "$PREFIX" "$1"; }
+worker_branch() { printf 'agent-team/%02d-worker' "$1"; }
+worker_path() { printf '%s/agent-%02d' "$WORKTREE_ROOT" "$1"; }
 
 role_for() {
   case "$1" in
@@ -37,6 +40,34 @@ require_host() {
   [[ "$remote" == *"caosos/CAOSCARE.COM"* ]] || die "origin is not caosos/CAOSCARE.COM: $remote"
 }
 
+ensure_worker_worktree() {
+  local n="$1" path branch
+  if [[ "$n" -eq 1 ]]; then
+    printf '%s\n' "$ROOT"
+    return 0
+  fi
+
+  path="$(worker_path "$n")"
+  branch="$(worker_branch "$n")"
+  mkdir -p "$WORKTREE_ROOT"
+
+  if git -C "$path" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    printf '%s\n' "$path"
+    return 0
+  fi
+  [[ ! -e "$path" || -z "$(ls -A "$path" 2>/dev/null || true)" ]] || die "worker path exists but is not a git worktree: $path"
+
+  git -C "$ROOT" fetch -q origin
+  if git -C "$ROOT" show-ref --verify --quiet "refs/heads/$branch"; then
+    git -C "$ROOT" worktree add "$path" "$branch" >/dev/null
+  elif git -C "$ROOT" show-ref --verify --quiet "refs/remotes/origin/$branch"; then
+    git -C "$ROOT" worktree add -b "$branch" "$path" "origin/$branch" >/dev/null
+  else
+    git -C "$ROOT" worktree add -b "$branch" "$path" "origin/integration/2026-09-27" >/dev/null
+  fi
+  printf '%s\n' "$path"
+}
+
 render_prompt() {
   local n="$1" out="$2"
   if [[ "$n" -eq 1 ]]; then
@@ -55,15 +86,17 @@ paste_exact() {
 }
 
 start_one() {
-  local n="$1" session tmp
+  local n="$1" session tmp workdir
   require_host
   session="$(session_name "$n")"
   if tmux has-session -t "$session" 2>/dev/null; then
     note "$session already exists"
     return 0
   fi
-  note "starting $session — $(role_for "$n")"
-  tmux new-session -d -s "$session" -c "$ROOT" "$CLAUDE_BIN"
+
+  workdir="$(ensure_worker_worktree "$n")"
+  note "starting $session — $(role_for "$n") — $workdir"
+  tmux new-session -d -s "$session" -c "$workdir" "$CLAUDE_BIN"
   sleep "$BOOT_DELAY"
   tmp="$(mktemp)"
   render_prompt "$n" "$tmp"
@@ -79,6 +112,7 @@ start_all() {
 status() {
   require_host
   note "CAOSCare root: $ROOT"
+  note "Worker worktree root: $WORKTREE_ROOT"
   note "Integration ref:"
   git -C "$ROOT" fetch -q origin integration/2026-09-27 || true
   git -C "$ROOT" rev-parse --short origin/integration/2026-09-27 2>/dev/null || true
@@ -142,6 +176,8 @@ Usage:
   scripts/caos-agent-team nudge-all
 
 Detach without stopping an agent: Ctrl-b, then d.
+
+Workers 02-06 use isolated worktrees under ~/caoscare-agent-worktrees by default.
 EOF
 }
 
