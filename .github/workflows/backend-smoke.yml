@@ -5,12 +5,14 @@ on:
     paths:
       - "backend/**"
       - ".github/workflows/backend-smoke.yml"
+      - "scripts/caos-agent-team"
   push:
     branches:
       - main
     paths:
       - "backend/**"
       - ".github/workflows/backend-smoke.yml"
+      - "scripts/caos-agent-team"
 
 jobs:
   backend-smoke:
@@ -26,6 +28,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Validate persistent agent-team launcher
+        run: |
+          bash -n scripts/caos-agent-team
+          ./scripts/caos-agent-team --help
 
       - name: Set up Python
         uses: actions/setup-python@v5
