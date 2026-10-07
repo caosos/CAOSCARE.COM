@@ -47,6 +47,16 @@ Created: 2026-09-28
 10. Michael can override ordering at any time.
 11. Idle is better than destructive parallelism.
 
+## RQ-010 — Autonomous Agent 1 foreman / persistent team
+
+- **Priority:** P0 coordination infrastructure.
+- **Intended lane:** Coordinator + Agent Control Plane.
+- **Dependencies:** extend PR #67; preserve the existing queue/active/checklist authority; host must have tmux for runtime acceptance.
+- **Definition of done:** owner-only Agent Operations is mounted behind its feature flag; dedicated tmux sessions survive SSH disconnect; every worker publishes branch-local status; Agent 1 reconciles READY/ACTIVE/dependencies and assigns the next compatible task; at least two non-overlapping workers finish with tests/receipt/commit/push and continue without Michael relaying instructions; reboot recovery is proven; no Linode deployment.
+- **Safe-to-start:** Michael explicitly authorized setup on 2026-10-07. Existing historical Claude sessions are not hijacked; dedicated sessions are new.
+- **Status:** ASSIGNED — repo/control-plane implementation on PR #67; EliteDesk runtime acceptance still requires host execution/evidence.
+- **Receipt expectation:** audit report + control-plane/foreman commit + host tmux/status evidence + worker receipts + coordinator integration receipt.
+
 ## Seeded queue
 
 | ID | Priority | Task | Intended lane | Dependencies | Exact definition of done | Safe-to-start condition | Status | Originating Michael decision / requirement | Resulting branch / SHA |

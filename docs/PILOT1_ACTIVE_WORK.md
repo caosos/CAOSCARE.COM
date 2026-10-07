@@ -28,6 +28,16 @@ No two agents independently redesign the same shared contract.
 
 ---
 
+## Autonomous-team transition — 2026-10-07
+
+Michael authorized RQ-010: make Agent 1 a permanent foreman and move dedicated workers to persistent tmux sessions. This extends the existing six-agent/control-plane topology rather than replacing it.
+
+**Repository state:** PR #67 / `pilot/agent-control-plane` owns the implementation. The existing Pilot queue/checklist remain authoritative.
+
+**Runtime truth:** GitHub alone cannot prove current EliteDesk process/tmux state. Until host acceptance is recorded, do **not** claim the dedicated sessions are running. The expected sessions are `caos-agent-01` through `caos-agent-06`; `scripts/caos-agent-team status` is the host evidence command.
+
+**Agent 1 current coordination objective:** finish #67 review fixes, establish the persistent foreman loop, then keep approved compatible work flowing from this board/queue without Michael acting as messenger.
+
 ## Round 5 live board (2026-10-04, Michael: parallel execution; all six agents active)
 
 Current assignments (2026-10-05, Michael): Agent 2 (Claude Two) wake training-method A/B, one-model Okay Sequoia · Agent 3 scenario-aware `latest_run()` fix, then SIM-4 Nursing · Agent 4 SC-8 + SC-9 · Agent 5 RQ-008 storage report + Phase 2 deletion proposal only · Agent 6 stale integration-gate test fixes only. Coordinator watches all lanes, merges one PR at a time, gates each merge and posts the new tip to the affected worker.

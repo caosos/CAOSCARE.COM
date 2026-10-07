@@ -7032,3 +7032,16 @@ Waiting:
 - #67 control plane: NEEDS FIX; no new push.
 
 Agents Three, Four and Five are done and idle; no non-overlapping Pilot gap could be assigned without Michael. The live :8092 still runs `7136734`.
+
+
+---
+
+## 2026-10-07 — Autonomous Agent 1 foreman / persistent-team setup (PR #67 branch)
+
+- **Agent/tool:** ChatGPT + GitHub connector, acting on Michael's explicit autonomous-team directive.
+- **Branch/ref:** `pilot/agent-control-plane`, merged forward from `integration/2026-09-27` head `31b230b4632982a940d7c179b769ee01b04ddde7`; no production deployment.
+- **Audit first:** `docs/reports/2026-10-07-autonomous-agent-team-audit.md` was committed before structural changes.
+- **What changed:** extended the existing Agent Control Plane rather than creating another one; mounted its owner-only router/Admin surface behind `CAOSCARE_AGENT_CONTROL_ENABLED`; replaced the side mount patch with direct source changes; added the Agent 1 foreman contract, worker-status contract, tmux team launcher, bootstrap prompts and reboot-recovery runbook; RQ-010 records the work in the existing Pilot queue.
+- **Truth boundary:** repository-side setup is committed; this GitHub connector cannot inspect/start EliteDesk processes. Dedicated tmux sessions are **not claimed running** until host evidence is recorded.
+- **Governance:** no Linode/main deployment; no existing live Claude process hijacked; no protected PR merged; no agent self-report accepted as proof.
+- **Next safe action:** run the branch tests/gate and coordinator review on #67; then on the EliteDesk verify/install tmux and start the dedicated team; record tmux/SSH-disconnect evidence before calling RQ-010 runtime-complete.

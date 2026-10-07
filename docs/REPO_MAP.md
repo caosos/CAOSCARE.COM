@@ -880,3 +880,16 @@ listener verifier experiment: `docs/experiments/`.
 
 - `backend/simulation/scenario.py` `sink_leak` ("Maintenance: leaking sink") is the Maintenance scenario; resident words "The bathroom sink keeps leaking."
 - Test: `backend/tests/test_sim4_maintenance.py` (owner takeover, staged status truth, dedup, no provider calls).
+
+
+## Autonomous agent-team coordination (2026-10-07, PR #67 branch)
+
+- `docs/CAOSCARE_AGENT_CONTROL_PLANE.md` — owner-only Agent Operations/control-plane design and implementation state.
+- `docs/CAOSCARE_AGENT_FOREMAN.md` — Agent 1 dispatch/integration loop and worker continue-after-finish contract.
+- `docs/CAOSCARE_AGENT_TEAM_RUNBOOK.md` — EliteDesk tmux persistence, SSH-disconnect and reboot recovery acceptance.
+- `docs/status/AGENT_STATUS_TEMPLATE.md` — branch-local worker status contract.
+- `docs/agent-prompts/{COORDINATOR_BOOTSTRAP,WORKER_BOOTSTRAP}.md` — startup prompts for dedicated team sessions.
+- `scripts/caos-agent-team` — start/status/attach/recover/nudge helper for dedicated tmux sessions.
+- `scripts/agent-team/caos-agent-team.service.example` — optional user-systemd reboot recovery unit.
+- `backend/agent_control/`, `backend/routes/agent_control.py` — control-plane backend.
+- `frontend/src/pages/AgentOperations.jsx`, `frontend/src/components/agentOps/`, `frontend/src/lib/agentOps.js` — owner Agent Operations surface.

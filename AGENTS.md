@@ -181,6 +181,21 @@ For code, when code exists:
 9. add receipts / logs / checks where appropriate
 10. before finishing any coding task, report the line counts of every created or materially modified production-code file
 
+## Autonomous Agent 1 foreman loop
+
+When `docs/CAOSCARE_AGENT_FOREMAN.md` is present on the current execution branch, it is the mandatory coordination contract for persistent Claude workers. It **extends** the existing Pilot 1 queue/active/checklist files; it never replaces them.
+
+- Agent 1 is the permanent coordinator / foreman.
+- GitHub committed/pushed state is the communication bus.
+- A worker that finishes a task must test, receipt, commit, push, update branch-local status, inspect the existing READY queue and continue with the next compatible task when available.
+- A blocked worker records the blocker and takes another compatible READY task when available.
+- Agent 1 continuously reconciles worker status, dependencies, test/integration failures, READY work and ACTIVE work; it must not passively WAIT while useful approved work exists.
+- Agent 1 resolves reversible technical questions and escalates only true owner/product decisions.
+- No worker self-merges into integration; integration remains one reviewed branch/PR at a time with gates between merges.
+- Persistent tmux sessions are runtime transport only. They do not replace receipts, provenance, queue state, branches or tests.
+
+Read `docs/CAOSCARE_AGENT_FOREMAN.md` and `docs/CAOSCARE_AGENT_TEAM_RUNBOOK.md` before starting or recovering the persistent team.
+
 ## Branch hygiene
 
 - Use one branch per bounded work lane; do not create a second branch when the current task already has an appropriate branch.

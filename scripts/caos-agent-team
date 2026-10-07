@@ -1,0 +1,200 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="${CAOSCARE_ROOT:-$HOME/CAOSCARE-INTEGRATION}"
+WORKTREE_ROOT="${CAOS_AGENT_WORKTREE_ROOT:-$HOME/caoscare-agent-worktrees}"
+PREFIX="${CAOS_AGENT_SESSION_PREFIX:-caos-agent}"
+COUNT="${CAOS_AGENT_COUNT:-6}"
+BOOT_DELAY="${CAOS_AGENT_BOOT_DELAY:-3}"
+CLAUDE_BIN="${CLAUDE_BIN:-$(command -v claude || true)}"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+COORD_PROMPT="$REPO_DIR/docs/agent-prompts/COORDINATOR_BOOTSTRAP.md"
+WORKER_PROMPT="$REPO_DIR/docs/agent-prompts/WORKER_BOOTSTRAP.md"
+
+die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
+note() { printf '%s\n' "$*"; }
+session_name() { printf '%s-%02d' "$PREFIX" "$1"; }
+worker_branch() { printf 'agent-team/%02d-worker' "$1"; }
+worker_path() { printf '%s/agent-%02d' "$WORKTREE_ROOT" "$1"; }
+
+role_for() {
+  case "$1" in
+    1) printf '%s' 'Coordinator / integration / release gate' ;;
+    2) printf '%s' 'Resident voice / wake / Aria / room voice endpoint' ;;
+    3) printf '%s' 'Operations Simulator / scenario / integration QA' ;;
+    4) printf '%s' 'Shared Core / state / receipts / provenance / lifecycle' ;;
+    5) printf '%s' 'Home Assistant / devices / room control / RF / hardware' ;;
+    6) printf '%s' 'Security / operator surfaces / communications / cross-cutting hardening' ;;
+    *) printf '%s' 'Unassigned compatibility lane' ;;
+  esac
+}
+
+require_host() {
+  command -v git >/dev/null || die "git is not installed"
+  command -v tmux >/dev/null || die "tmux is not installed. On Ubuntu/Debian: sudo apt-get update && sudo apt-get install tmux"
+  [[ -n "$CLAUDE_BIN" && -x "$CLAUDE_BIN" ]] || die "Claude Code not found; set CLAUDE_BIN to the native claude executable"
+  git -C "$ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "CAOSCARE_ROOT is not a git worktree: $ROOT"
+  local remote
+  remote="$(git -C "$ROOT" remote get-url origin 2>/dev/null || true)"
+  [[ "$remote" == *"caosos/CAOSCARE.COM"* ]] || die "origin is not caosos/CAOSCARE.COM: $remote"
+}
+
+ensure_worker_worktree() {
+  local n="$1" path branch
+  if [[ "$n" -eq 1 ]]; then
+    printf '%s\n' "$ROOT"
+    return 0
+  fi
+
+  path="$(worker_path "$n")"
+  branch="$(worker_branch "$n")"
+  mkdir -p "$WORKTREE_ROOT"
+
+  if git -C "$path" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    printf '%s\n' "$path"
+    return 0
+  fi
+  [[ ! -e "$path" || -z "$(ls -A "$path" 2>/dev/null || true)" ]] || die "worker path exists but is not a git worktree: $path"
+
+  git -C "$ROOT" fetch -q origin
+  if git -C "$ROOT" show-ref --verify --quiet "refs/heads/$branch"; then
+    git -C "$ROOT" worktree add "$path" "$branch" >/dev/null
+  elif git -C "$ROOT" show-ref --verify --quiet "refs/remotes/origin/$branch"; then
+    git -C "$ROOT" worktree add -b "$branch" "$path" "origin/$branch" >/dev/null
+  else
+    git -C "$ROOT" worktree add -b "$branch" "$path" "origin/integration/2026-09-27" >/dev/null
+  fi
+  printf '%s\n' "$path"
+}
+
+render_prompt() {
+  local n="$1" out="$2"
+  if [[ "$n" -eq 1 ]]; then
+    cp "$COORD_PROMPT" "$out"
+  else
+    sed -e "s/{{AGENT_NUM}}/$(printf '%02d' "$n")/g" -e "s|{{ROLE}}|$(role_for "$n")|g" "$WORKER_PROMPT" > "$out"
+  fi
+}
+
+paste_exact() {
+  local session="$1" file="$2" buffer="bootstrap-$session-$$"
+  tmux load-buffer -b "$buffer" "$file"
+  tmux paste-buffer -p -b "$buffer" -t "$session"
+  tmux delete-buffer -b "$buffer" >/dev/null 2>&1 || true
+  tmux send-keys -t "$session" Enter
+}
+
+start_one() {
+  local n="$1" session tmp workdir
+  require_host
+  session="$(session_name "$n")"
+  if tmux has-session -t "$session" 2>/dev/null; then
+    note "$session already exists"
+    return 0
+  fi
+
+  workdir="$(ensure_worker_worktree "$n")"
+  note "starting $session — $(role_for "$n") — $workdir"
+  tmux new-session -d -s "$session" -c "$workdir" "$CLAUDE_BIN"
+  sleep "$BOOT_DELAY"
+  tmp="$(mktemp)"
+  render_prompt "$n" "$tmp"
+  paste_exact "$session" "$tmp"
+  rm -f "$tmp"
+}
+
+start_all() {
+  local n
+  for n in $(seq 1 "$COUNT"); do start_one "$n"; done
+}
+
+status() {
+  require_host
+  note "CAOSCare root: $ROOT"
+  note "Worker worktree root: $WORKTREE_ROOT"
+  note "Integration ref:"
+  git -C "$ROOT" fetch -q origin integration/2026-09-27 || true
+  git -C "$ROOT" rev-parse --short origin/integration/2026-09-27 2>/dev/null || true
+  note ""
+  note "Dedicated tmux sessions:"
+  tmux list-sessions -F '#{session_name} attached=#{session_attached}' 2>/dev/null | grep "^${PREFIX}-" || note "(none)"
+  note ""
+  note "Git worktrees:"
+  git -C "$ROOT" worktree list
+}
+
+attach_one() {
+  local n="$1"
+  require_host
+  exec tmux attach-session -t "$(session_name "$n")"
+}
+
+stop_one() {
+  local n="$1" s
+  require_host
+  s="$(session_name "$n")"
+  tmux has-session -t "$s" 2>/dev/null || die "$s is not running"
+  tmux kill-session -t "$s"
+  note "stopped $s"
+}
+
+nudge_one() {
+  local n="$1"; shift
+  local s msg tmp
+  require_host
+  s="$(session_name "$n")"
+  tmux has-session -t "$s" 2>/dev/null || die "$s is not running"
+  msg="${*:-QUEUE UPDATED. Fetch origin, read docs/PILOT1_READY_QUEUE.md and docs/PILOT1_ACTIVE_WORK.md, then continue the foreman/worker loop from durable repo state.}"
+  tmp="$(mktemp)"
+  printf '%s\n' "$msg" > "$tmp"
+  paste_exact "$s" "$tmp"
+  rm -f "$tmp"
+  note "nudged $s"
+}
+
+nudge_all() {
+  local n
+  for n in $(seq 1 "$COUNT"); do
+    if tmux has-session -t "$(session_name "$n")" 2>/dev/null; then
+      nudge_one "$n"
+    fi
+  done
+}
+
+usage() {
+  cat <<'EOF'
+Usage:
+  scripts/caos-agent-team check
+  scripts/caos-agent-team start <1-6>
+  scripts/caos-agent-team start-all
+  scripts/caos-agent-team recover
+  scripts/caos-agent-team status
+  scripts/caos-agent-team attach <1-6>
+  scripts/caos-agent-team stop <1-6>
+  scripts/caos-agent-team nudge <1-6> [message]
+  scripts/caos-agent-team nudge-all
+
+Detach without stopping an agent: Ctrl-b, then d.
+
+Workers 02-06 use isolated worktrees under ~/caoscare-agent-worktrees by default.
+EOF
+}
+
+cmd="${1:-}"
+case "$cmd" in
+  check) require_host; note "host prerequisites look usable" ;;
+  start) [[ "${2:-}" =~ ^[1-6]$ ]] || die "agent number 1-6 required"; start_one "$2" ;;
+  start-all|recover) start_all ;;
+  status) status ;;
+  attach) [[ "${2:-}" =~ ^[1-6]$ ]] || die "agent number 1-6 required"; attach_one "$2" ;;
+  stop) [[ "${2:-}" =~ ^[1-6]$ ]] || die "agent number 1-6 required"; stop_one "$2" ;;
+  nudge)
+    [[ "${2:-}" =~ ^[1-6]$ ]] || die "agent number 1-6 required"
+    n="$2"; shift 2
+    nudge_one "$n" "$@"
+    ;;
+  nudge-all) nudge_all ;;
+  -h|--help|help|"") usage ;;
+  *) usage; die "unknown command: $cmd" ;;
+esac

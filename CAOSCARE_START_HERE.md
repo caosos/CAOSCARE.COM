@@ -42,6 +42,7 @@ Immediately after repository-wide hydration, read in this order:
 4. **`docs/PILOT1_ACTIVE_WORK.md`** — the parallel-work ownership map. Identify your lane, branch/worktree, owned files and shared dependencies. Shared contracts change only through the Shared Core lane.
 5. **`docs/PILOT1_READY_QUEUE.md`** — approved bounded future work. Know whether your job is ACTIVE, READY, WAITING, BLOCKED, DONE, or PARKED. Idle workers never invent busywork.
 6. **`docs/PILOT1_RECOVERY_CHECKPOINT.md`** — the recovery snapshot: pipeline, lane tips, shared-core status, Michael's decisions, standard acceptance tests, runtime, next integration order.
+7. **`docs/CAOSCARE_AGENT_FOREMAN.md`** — when the persistent team is active, Agent 1/worker claim-finish-continue behavior and recovery rules.
 
 The Pilot 1 files live on the **`integration/2026-09-27`** branch. If they are missing from the checkout or branch you fetched (for example `main`), read them from `origin/integration/2026-09-27`.
 

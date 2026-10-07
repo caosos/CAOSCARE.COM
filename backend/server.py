@@ -92,6 +92,7 @@ from routes import aria_conversation_state as aria_conversation_state_routes  # 
 from routes import aria_interpretation_patterns as aria_interpretation_patterns_routes  # noqa: E402
 from routes import aria_turn_taking as aria_turn_taking_routes  # noqa: E402
 from routes import simulation as simulation_routes  # noqa: E402
+from routes import agent_control as agent_control_routes  # noqa: E402
 from routes import demo_continuity as demo_continuity_routes  # noqa: E402
 from seed import demo_seed_enabled, seed  # noqa: E402
 
@@ -243,6 +244,7 @@ api.include_router(aria_conversation_state_routes.router)
 api.include_router(aria_interpretation_patterns_routes.router)
 api.include_router(aria_turn_taking_routes.router)
 api.include_router(simulation_routes.router)
+api.include_router(agent_control_routes.router)
 api.include_router(demo_continuity_routes.router)
 
 app.include_router(api)
