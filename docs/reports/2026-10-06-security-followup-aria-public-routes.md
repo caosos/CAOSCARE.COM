@@ -231,3 +231,20 @@ It is still public and unauthenticated, and it takes `resident_id`, `session_id`
 - The structural fix for all of B is a **kiosk device credential** (`backend/routes/device_auth.py` and the `DEVICE_AUTH_REQUIRED` setting exist). That is longer-term work, not a smallest fix.
 
 All items exist in production `d7ff96a`. Deploying any fix needs Michael's release approval.
+
+---
+
+## RQ-035 — public kiosk listing trimmed (PARTIAL, 2026-10-08)
+
+`GET /api/kiosks` now returns full rows only to a signed-in owner/admin. Anyone else (no sign-in, bad token, or staff/front desk/nurse) gets `kiosk_id` + `room` only. `GET /api/kiosks/public-demo`, `GET /api/kiosks/{id}/active-emergency` and `GET /api/residents/public/by-kiosk/{id}` are unchanged. Writes (POST/PUT/PATCH/DELETE) already required sign-in.
+
+**Consumer inventory (grep of backend, frontend, android-*, scripts, tests):**
+- Signed-in admin screens, via `api` (which sends the bearer token): `Admin.jsx` (feeds `KiosksTab`, `ResidentsTab`, `ResidentFormDialog`), `InstallKioskWizard.jsx` (admin-only route), `RFPairingTab.jsx`, `DeviceStatusCard.jsx` (also shown on the staff dashboard; a non-admin now sees no `status`, so its "kiosks online" count equals the kiosk count). No change needed.
+- Unauthenticated room screen (`Kiosk.jsx`): does not call the list. It uses `/kiosks/public-demo`, `/residents/public/by-kiosk/{id}` and `/kiosks/{id}/active-emergency`.
+- In-process: Admin Aria executor (`admin_assistant_executor.py`) called the route function; it now calls `kiosks.all_kiosks()` (no HTTP, unchanged data).
+- No consumer in android-*, scripts or room-node.
+- Tests that read `is_central`/`zone` from the list (`iter5_test.py`, `iter7_test.py`) now send admin headers; others only use `kiosk_id`/`room`.
+
+**Still open:** `by-kiosk/{id}` returns resident name + room for any kiosk id, and ids are still readable from the trimmed list, so names remain enumerable by anyone who can reach the API. The structural fix is a per-kiosk device credential (`device_auth.py`, packet P2 option 3), needed before a room is reachable from outside the community network.
+
+Tests: `backend/tests/test_rq035_kiosk_list.py`.

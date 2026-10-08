@@ -100,7 +100,7 @@ class TestPanicPress:
 # ---------- Kiosk active-emergency (central vs zonal) ----------
 class TestActiveEmergency:
     def test_no_alert_returns_null(self, admin_headers):
-        kiosks = requests.get(f"{API}/kiosks").json()
+        kiosks = requests.get(f"{API}/kiosks", headers=admin_headers).json()
         # pick a non-central kiosk in a zone with no active emergency
         non_central = next((k for k in kiosks if not k.get("is_central")), None)
         assert non_central is not None
@@ -115,7 +115,7 @@ class TestActiveEmergency:
         assert "alert" in body and body["alert"] is None
 
     def test_central_kiosk_sees_any_facility_emergency(self, admin_headers):
-        kiosks = requests.get(f"{API}/kiosks").json()
+        kiosks = requests.get(f"{API}/kiosks", headers=admin_headers).json()
         central = next((k for k in kiosks if k.get("is_central")), None)
         assert central is not None, "Central Nurse Station not seeded"
         non_central = next((k for k in kiosks if not k.get("is_central")), None)

@@ -1,17 +1,35 @@
 """Kiosks + Zones CRUD."""
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from models import Kiosk, KioskCreate, KioskUpdate, Zone, ZoneCreate
 from deps import db, get_current_user
+
+# What a caller who is not an admin/owner may see of each kiosk (RQ-035,
+# packet P2): enough to identify a room, nothing else.
+PUBLIC_KIOSK_FIELDS = ("kiosk_id", "room")
 
 router = APIRouter(tags=["kiosks"])
 
 
 # Kiosks ---------------------------------
+async def all_kiosks():
+    """Full kiosk rows, no access check - for in-process callers only
+    (Admin Aria's executor). HTTP callers go through list_kiosks."""
+    return await db.kiosks.find({}, {"_id": 0}).sort("room", 1).to_list(1000)
+
+
 @router.get("/kiosks")
-async def list_kiosks():
-    """Public list - kiosks need to self-identify without auth."""
-    items = await db.kiosks.find({}, {"_id": 0}).sort("room", 1).to_list(1000)
-    return items
+async def list_kiosks(request: Request):
+    """Owner/admin (bearer token or session): full rows. Anyone else,
+    including no sign-in: only kiosk_id + room. Room screens do not use this
+    list (they use /kiosks/public-demo or their own id in the URL)."""
+    items = await all_kiosks()
+    try:
+        user = await get_current_user(request)
+    except HTTPException:
+        user = None
+    if user and user.get("role") in ("owner", "admin"):
+        return items
+    return [{f: k.get(f) for f in PUBLIC_KIOSK_FIELDS} for k in items]
 
 
 @router.get("/kiosks/public-demo")

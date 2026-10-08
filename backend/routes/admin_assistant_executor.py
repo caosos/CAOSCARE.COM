@@ -40,7 +40,7 @@ async def _call(fn, *args, **kwargs) -> dict:
 async def get_setup_status(admin_user: dict, args: dict) -> dict:
     facilities = await db.facilities.find({}, {"_id": 0}).to_list(50)
     residents = await residents_routes.list_residents(user=admin_user)
-    kiosks = await kiosks_routes.list_kiosks()
+    kiosks = await kiosks_routes.all_kiosks()
     devices = await devices_routes.list_devices(user=admin_user)
     ha = await ha_health()
 
@@ -130,7 +130,7 @@ async def assign_resident_to_room(admin_user: dict, args: dict) -> dict:
 
 
 async def list_rooms(admin_user: dict, args: dict) -> dict:
-    kiosks = await kiosks_routes.list_kiosks()
+    kiosks = await kiosks_routes.all_kiosks()
     residents = await residents_routes.list_residents(user=admin_user)
     devices = await devices_routes.list_devices(user=admin_user)
     rooms = []

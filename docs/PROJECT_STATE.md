@@ -7806,3 +7806,24 @@ HANDOFF CAPSULE
 - Runtime state:    nothing restarted or deployed.
 - Unresolved: model behavior (confirm date first) needs a live typed rerun; hazard filing after the resident answers is still model-driven.
 - Next safe action: coordinator review; typed rerun of "the fifth".
+## 2026-10-08 — RQ-035: public kiosk list trimmed to kiosk_id + room
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-035-kiosk-list-trim` from integration `b1299f7`. Draft PR into `integration/2026-09-27`. Not merged, not deployed; no service restarted; gate on port 8107 / throwaway DB `caoscare_gate_rq035`.
+
+### What changed
+- `GET /api/kiosks`: owner/admin (bearer or session) get full rows; everyone else gets `kiosk_id` + `room`. New `all_kiosks()` for in-process callers (Admin Aria executor).
+- Consumers checked (inventory in the security report): all full-row users are signed-in admin screens using `api`; the room screen never uses the list. No frontend change.
+- Tests: new `test_rq035_kiosk_list.py` (anonymous/staff trimmed, admin full, bad token anonymous, demo resolver / by-kiosk / active-emergency unchanged); `iter5`/`iter7` now send admin headers.
+
+### Verified
+Gate: 370 passed, 0 failed, 31 skipped (baseline 368). Frontend 42 suites / 327 tests; `CI=true yarn build` compiles. Line counts: `kiosks.py` 160, `test_rq035_kiosk_list.py` 88, `admin_assistant_executor.py` 262.
+
+HANDOFF CAPSULE
+- Objective:        RQ-035 trim the public kiosk list (packet P2 option 1).
+- Branch:           bounded/rq-035-kiosk-list-trim (draft PR).
+- Lane / ownership: kiosks.py, admin_assistant_executor.py (one call), tests, security report.
+- Last proven state: gate and frontend above, 2026-10-08.
+- Runtime state:    nothing restarted; :8092 serves the old list until restarted.
+- Unresolved: names enumerable via by-kiosk (needs per-kiosk device credential, P2 option 3).
+- Next safe action: coordinator review.
