@@ -77,7 +77,7 @@ def _menu_checks(K, HK):
     # meals stay. Flagged needs_review because breakfast/lunch are absent.
     r = requests.post(f"{API}/menu/ingest/paste", headers=K, json={"service_date": D1, "raw_text": f"Dinner: {TAG} meatloaf"}, timeout=5)
     fix = r.json()
-    assert fix["parse_status"] == "needs_review"
+    assert fix["parse_status"] == "parsed"
     assert requests.post(f"{API}/menu/uploads/{fix['upload_id']}/approve", headers=K, timeout=5).status_code == 200
     assert [i["item_name"] for i in _public_menu(D1, "dinner")] == [f"{TAG} meatloaf"]
     assert len(_public_menu(D1, "breakfast")) == 2 and len(_public_menu(D1, "lunch")) == 1

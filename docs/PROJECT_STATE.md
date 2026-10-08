@@ -7697,3 +7697,30 @@ HANDOFF CAPSULE
 - Runtime state:    nothing left running; :3000/:8092 untouched.
 - Unresolved proven defects: D1-D6.
 - Next safe action: coordinator assigns shared-Aria fixes (D1, D2, D3, D5, D6); Michael runs the spoken equivalent.
+
+---
+
+## 2026-10-08 — Menu paste parser cosmetics (Desktop-Agent bounded worker)
+
+### Agent / branch
+Desktop-Agent bounded worker (Sonnet 5.5), branch `agent/fix-the-three-parked-menu-paste--c2e594` from integration `0c08240`. Local commit only; not pushed, not merged, not deployed.
+
+### What changed
+`_parse_menu_email` in `backend/routes/menu_ingest.py` (parked item 3 of `docs/reports/2026-10-08-lane-d-f-browser-acceptance.md`):
+- A trailing "." on a dish is stripped.
+- A mid-line "Vegetarian:" separates items; the dish after it gets `description: "Vegetarian"` (MenuItem has no tag field; `create_menu_upload` now passes the description through).
+- "No section found for: …" is only emitted for a meal the text mentions but no section could be read; a lunch/dinner-only paste is `parsed` with no note.
+- `test_community_services.py` encoded the old behaviour (a dinner-only correction expected `needs_review`); it now expects `parsed`. No other assertion changed.
+- New `backend/tests/test_menu_parser_cosmetics.py` (3 tests).
+
+### Verified
+Gate (`bin/run_tests.sh`, port 8100): 356 passed, 31 skipped, 13 deselected, 0 failed. `menu_ingest.py` 232 lines.
+
+HANDOFF CAPSULE
+- Objective:        Fix three menu paste parser cosmetics.
+- Branch:           agent/fix-the-three-parked-menu-paste--c2e594
+- Lane / ownership: menu_ingest.py parser and its tests only.
+- Last proven state: gate above, 2026-10-08.
+- Runtime state:    nothing restarted.
+- Unresolved proven defects: none found.
+- Next safe action: Michael may ignore or review the draft.

@@ -32,6 +32,7 @@ _SECTION_RE = re.compile(
     r"(breakfast|lunch|dinner|supper)\s*:?\s*\n?(.*?)(?=\n\s*(?:breakfast|lunch|dinner|supper)\s*:|\Z)",
     re.IGNORECASE | re.DOTALL,
 )
+_VEG_RE = re.compile(r"\bvegetarian\s*:", re.IGNORECASE)
 _MEAL_ALIASES = {"breakfast": "breakfast", "lunch": "lunch", "dinner": "dinner", "supper": "dinner"}
 
 
@@ -46,13 +47,21 @@ def _parse_menu_email(raw_text: str) -> tuple[list[dict], str, Optional[str]]:
         found_meals.add(meal)
         body = m.group(2).strip()
         # Split on newlines or commas, drop empties/whitespace-only lines.
+        # A mid-line "Vegetarian:" also separates; the dish after it is tagged
+        # in `description` (MenuItem has no dedicated tag field).
         for raw_line in re.split(r"[\n,]", body):
-            name = raw_line.strip(" \t-*•").strip()
-            if name:
-                items.append({"meal_period": meal, "item_name": name})
+            for k, part in enumerate(_VEG_RE.split(raw_line)):
+                name = part.strip(" \t-*•").strip().rstrip(".").strip()
+                if name:
+                    it = {"meal_period": meal, "item_name": name}
+                    if k:
+                        it["description"] = "Vegetarian"
+                    items.append(it)
     if not found_meals:
         return [], "needs_review", "Could not find Breakfast/Lunch/Dinner section headers in the email body."
-    missing = {"breakfast", "lunch", "dinner"} - found_meals
+    # Only warn about meals the text mentions but no section could be read.
+    missing = {m for m in {"breakfast", "lunch", "dinner"} - found_meals
+               if re.search(rf"\b{m}\b", raw_text, re.IGNORECASE)}
     if missing:
         return items, "needs_review", f"No section found for: {', '.join(sorted(missing))}."
     return items, "parsed", None
@@ -93,6 +102,7 @@ async def create_menu_upload(
     for it in parsed_items:
         mi = MenuItem(
             date=service_date, meal_period=it["meal_period"], item_name=it["item_name"],
+            description=it.get("description", ""),
             source=source, upload_id=upload_doc["upload_id"],
         )
         mi_doc = mi.model_dump()
