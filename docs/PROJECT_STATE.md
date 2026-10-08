@@ -7460,3 +7460,31 @@ HANDOFF CAPSULE
 - Runtime state:    nothing left running.
 - Unresolved: observations in the report (shared-ride pickup time, timeline wording); no real drivers/vehicles configured anywhere.
 - Next safe action: coordinator review; Michael supplies real drivers, hours and vehicle seats.
+
+---
+
+## 2026-10-08 — RQ-022: escalation + Staff/Admin overview browser acceptance (bounded worker)
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-022-escalation-accept` from integration `a90c9f8`. Draft PR into `integration/2026-09-27`; not merged, not deployed; `:3000`/`:8092` untouched.
+
+### What was done
+Isolated stack (throwaway DB copied from `caoscare_public_demo`, backend `:8093`, frontend `:3015`, schedule every 5 s, rule 20/40 s, providers blank). Full evidence in `docs/reports/2026-10-08-escalation-ops-browser-acceptance.md`.
+- Passed: unanswered help alerts escalate to level 2 then 3 on the background schedule with no manual tick, one appended `alert_escalated` receipt per level; acknowledging stops escalation; `/alerts/feed` (and stats, overview) write nothing; nursing and maintenance request lifecycles through `/staff` and `/workspace` give a full timeline and consistent counts in the Admin overview, department tabs and Ops reports; no overflow at 390 px.
+- Fixed (tiny, with test): the Operations overview did not show the escalation level; it now says "escalated to level N". `ops_overview.py` +2 lines, `test_ops_overview.py`.
+- Reported: Daily exceptions rows have no escalation level; a nurse sees an inert "Admin" button on `/staff`.
+
+### Verified
+Gate (`CAOSCARE_TEST_PORT=8094 CAOSCARE_TEST_DB=caoscare_gate_rq022`, OpenAI/HA blank): 312 passed, 0 failed, 31 skipped. Throwaway DBs dropped; servers stopped.
+
+### Line counts
+`ops_overview.py` 257 (was 255), `test_ops_overview.py` 203 (was 202).
+
+HANDOFF CAPSULE
+- Objective:        RQ-022 escalation and ops overview acceptance.
+- Branch:           bounded/rq-022-escalation-accept (draft PR).
+- Lane / ownership: acceptance plus one reason-text line in ops_overview.py.
+- Last proven state: report above, 2026-10-08.
+- Runtime state:    nothing left running; :8092 not restarted (the schedule starts only after Michael restarts it).
+- Unresolved proven defects: report items 2-3.
+- Next safe action: coordinator review; Michael restarts :8092 to run the schedule live.
