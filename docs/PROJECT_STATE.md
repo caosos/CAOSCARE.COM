@@ -7322,3 +7322,26 @@ HANDOFF CAPSULE
 - Runtime state:    nothing restarted.
 - Unresolved: none.
 - Next safe action: coordinator review.
+## 2026-10-08 — RQ-017: Michael action runbook (docs only)
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-017-michael-runbook` from integration `3ebd54f`. Draft PR into `integration/2026-09-27`. Docs only; nothing started, stopped, restarted, deployed or deleted.
+
+### What changed
+- New `docs/MICHAEL_ACTION_RUNBOOK.md`: the NEEDS MICHAEL list as ordered steps and yes/no decisions (start :8092, RQ-003 nursing voice script, hardware facts, drivers/vehicles, security B1/B2/A/kiosks, HA VM reboot/OOM options, demo continuity switch, release approval format, RQ-008 Phase 2 format, small decisions). One link line each in `docs/PILOT1_READY_QUEUE.md` and `START_HERE.md`.
+
+### Verified (read-only)
+- Cited routes, files, env var, scripts, tab values, lease staleness (45 s) and demo accounts exist in the repo/DB. Unverifiable items are marked UNVERIFIED in the runbook.
+- Live findings recorded in it: nothing listens on :8092 (so localhost:3000 API calls fail); the only lease row (room 214) is 14 h stale; no `caos_rf_bridge` process and the RF log file is gone; the HA VM's qemu started 13 s after the 2026-10-07 host boot, i.e. autostart already worked on a real reboot; 0 drivers/vehicles in the DB.
+
+### Not done
+No P1/P2 OOM hook or timer files exist to run; the runbook says a worker writes them on YES. Production SHA was not re-read.
+
+HANDOFF CAPSULE
+- Objective:        RQ-017 Michael runbook.
+- Branch:           bounded/rq-017-michael-runbook (draft PR).
+- Lane / ownership: Docs only.
+- Last proven state: read-only checks above, 2026-10-08 ~00:55 CDT.
+- Runtime state:    nothing changed; :8092 is down.
+- Unresolved proven defects: none found in docs.
+- Next safe action: Michael answers runbook items 1 and 2 first.
