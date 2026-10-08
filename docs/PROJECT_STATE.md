@@ -7294,3 +7294,31 @@ HANDOFF CAPSULE
 - Runtime state:    nothing left running.
 - Unresolved proven defects: see report items 2-4.
 - Next safe action: shared-core owner fixes item 2; Michael decides RQ-005 provider config.
+
+---
+
+## 2026-10-08 — RQ-016: request room from resident record; Activities default department
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-016-request-room` from integration `3ebd54f`. Draft PR into `integration/2026-09-27`. Not merged, not deployed; no service restarted.
+
+### What changed
+- `create_resident_request`: when `resident_id` is given and `room` is omitted, the room is taken from the resident record (stored on the task, used in notification text instead of "Room: unknown"). A supplied room is kept as given.
+- `departments.py`: `activities` / "Activities" added to the defaults, and `seed_default_departments` adds it to already-seeded communities if missing (idempotent). `roleHome.js` and `service_content_access.py` already map `activities`.
+- Test: `backend/tests/test_rq016_request_room.py` (3).
+
+### Verified
+Gate (`CAOSCARE_TEST_PORT=8089 CAOSCARE_TEST_DB=caoscare_gate_rq016`, OpenAI/HA blank): 298 passed, 0 failed, 31 skipped (baseline 295).
+Line counts: `departments.py` 135, `resident_requests.py` 406 (+6; was 400, pre-existing at the signal), test 74.
+
+### Note
+If a community deleted its Activities department on purpose, startup re-adds it (deactivate instead).
+
+HANDOFF CAPSULE
+- Objective:        RQ-016 room fill + Activities department.
+- Branch:           bounded/rq-016-request-room (draft PR).
+- Lane / ownership: resident_requests.py, departments.py only.
+- Last proven state: gate above.
+- Runtime state:    nothing restarted.
+- Unresolved: none.
+- Next safe action: coordinator review.

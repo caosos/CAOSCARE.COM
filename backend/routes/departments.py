@@ -34,6 +34,7 @@ DEFAULT_DEPARTMENTS = [
     ("transportation", "Transportation"),
     ("kitchen", "Kitchen"),
     ("administration", "Administration"),
+    ("activities", "Activities"),
 ]
 
 
@@ -55,6 +56,12 @@ async def seed_default_departments() -> None:
             doc = dept.model_dump()
             doc["created_at"] = doc["created_at"].isoformat()
             await db.departments.insert_one(doc)
+    # Communities that were seeded before "activities" joined the defaults
+    # would otherwise have no Activities workspace; add just that one row.
+    if not await db.departments.find_one({"slug": "activities"}, {"_id": 1}):
+        doc = Department(slug="activities", label="Activities").model_dump()
+        doc["created_at"] = doc["created_at"].isoformat()
+        await db.departments.insert_one(doc)
     await db.departments.update_one(
         {"slug": "nursing", "label": "Nursing"}, {"$set": {"label": "Nursing / Care"}}
     )
