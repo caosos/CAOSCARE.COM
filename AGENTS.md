@@ -229,6 +229,21 @@ Agents may never use self-report (for example, "done") as proof of completion. C
 
 The canonical simulator/receipt requirements are in `docs/CAOSCARE_OPERATIONS_SIMULATOR.md`.
 
+## Continuous-progress operating rule
+
+Michael's standing operating preference is continuous useful progress.
+
+- Never idle merely because the previous task ended while approved useful work remains.
+- Prefer a working, testable implementation over prolonged speculative design when the next safe implementation step is known.
+- Use the most economical capable model for each bounded task; escalate only when complexity, failure, risk, or cross-system reasoning justifies it.
+- Optimize for output, not agent count: use only enough concurrent bounded workers to increase throughput without wasting quota or creating merge/conflict overhead.
+- When a queue runs dry, the coordinator derives the next bounded task from the current acceptance gap, verified defect, integration gap, test failure, Pilot 1 blocker, or operator-usability gap. Do not create cosmetic busywork.
+- If one task is blocked, continue other compatible approved work.
+- Stop only for a genuine Michael decision, unavailable external credential/resource, safety/governance boundary, provider quota, or a hard dependency no other useful work can bypass.
+- Every worker remains bounded: one task, tests/evidence, commit/receipt/handoff, then exit. The coordinator keeps momentum and launches the next worker.
+
+Operating goal: **maximum useful progress per dollar/token/hour, with continuous motion and reversible iteration.**
+
 ## Non-negotiable
 
 CAOS Care must be built as a governed assistive care platform with human oversight, privacy controls, receipts, safety boundaries, and operational usefulness.
