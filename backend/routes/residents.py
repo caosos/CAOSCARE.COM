@@ -99,13 +99,20 @@ async def update_preferred_name(resident_id: str, body: dict):
     return {"ok": True, "preferred_name": name}
 
 
+# Unauthenticated: only what the room screen displays or sends back. Never
+# medical notes, contacts, DOB, preferences, memory or thresholds (B3).
+PUBLIC_KIOSK_RESIDENT_FIELDS = ("resident_id", "name", "preferred_name", "room")
+
+
 @router.get("/public/by-kiosk/{kiosk_id}")
 async def resident_by_kiosk(kiosk_id: str):
     """Public endpoint used by kiosks to look up the resident tied to their room."""
     kiosk = await db.kiosks.find_one({"kiosk_id": kiosk_id}, {"_id": 0})
     if not kiosk:
         raise HTTPException(status_code=404, detail="Kiosk not found")
-    resident = await db.residents.find_one({"room": kiosk["room"]}, {"_id": 0})
+    resident = await db.residents.find_one(
+        {"room": kiosk["room"]}, {"_id": 0, **{f: 1 for f in PUBLIC_KIOSK_RESIDENT_FIELDS}}
+    )
     return {"kiosk": kiosk, "resident": resident}
 
 
