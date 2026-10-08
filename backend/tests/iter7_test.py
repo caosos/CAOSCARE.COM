@@ -196,8 +196,8 @@ class TestKioskActiveEmergency:
     same room."""
 
     @pytest.fixture(scope="class")
-    def central_kiosk_id(self):
-        r = requests.get(f"{API}/kiosks", timeout=15)
+    def central_kiosk_id(self, admin_token):
+        r = requests.get(f"{API}/kiosks", headers=_h(admin_token), timeout=15)
         r.raise_for_status()
         kiosks = r.json()
         central = next((k for k in kiosks if k.get("is_central") or k.get("room") == "NS-01"), None)
@@ -243,10 +243,10 @@ class TestKioskActiveEmergency:
         # at least surface SOME auto_voice alert within the 5-min window.
         assert a["severity"] in ("assist", "emergency")
 
-    def test_room_kiosk_picks_up_its_own_assist_press(self, fresh_pendant):
+    def test_room_kiosk_picks_up_its_own_assist_press(self, fresh_pendant, admin_token):
         """The kiosk in the pendant's room must also pick up the alert via room match."""
         # kiosk_id for room 108 is kio_ce314eefa978
-        kiosks = requests.get(f"{API}/kiosks", timeout=15).json()
+        kiosks = requests.get(f"{API}/kiosks", headers=_h(admin_token), timeout=15).json()
         room_kiosk = next(k for k in kiosks if k.get("room") == "108")
 
         got = requests.get(f"{API}/kiosks/{room_kiosk['kiosk_id']}/active-emergency", timeout=15)
