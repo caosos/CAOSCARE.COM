@@ -54,7 +54,7 @@ WEEKLY_CAVEATS = [
 DAILY_COLUMNS = [
     "kind", "ref_type", "ref_id", "title", "department_slug", "department_label",
     "room", "resident_id", "resident_name", "owner", "status", "priority",
-    "severity", "opened_at", "age_hours", "due_at", "overdue", "reason", "result", "receipt_id",
+    "severity", "escalation_level", "opened_at", "age_hours", "due_at", "overdue", "reason", "result", "receipt_id",
 ]
 WEEKLY_COLUMNS = [
     "department_slug", "department_label", "created", "completed", "still_open",
@@ -113,12 +113,14 @@ async def daily_exceptions(
 
     def push(kind, ref_type, ref_id, *, rank, title, dept_slug, dept_lbl, reason, opened_at,
              room=None, resident_id=None, resident_name=None, owner=None, status=None,
-             priority=None, severity=None, due_at=None, overdue=False, result=None, receipt_id=None):
+             priority=None, severity=None, due_at=None, overdue=False, result=None, receipt_id=None,
+             escalation_level=None):
         rows.append({
             "kind": kind, "ref_type": ref_type, "ref_id": ref_id, "title": title,
             "department_slug": dept_slug, "department_label": dept_lbl, "room": room,
             "resident_id": resident_id, "resident_name": resident_name, "owner": owner,
             "status": status, "priority": priority, "severity": severity,
+            "escalation_level": escalation_level,
             "opened_at": opened_at, "age_hours": round((age_seconds(opened_at, now) or 0) / 3600, 1),
             "due_at": due_at, "overdue": overdue, "reason": reason, "result": result,
             "receipt_id": receipt_id, "_rank": rank, "_ts": parse_dt(opened_at) or EPOCH,
@@ -154,6 +156,9 @@ async def daily_exceptions(
     for a in open_alerts:
         stale = (age_seconds(a.get("created_at"), now) or 0) > STALE_HOURS * 3600
         reason = "Unacknowledged" if a.get("status") == "active" else "Acknowledged, unresolved"
+        level = int(a.get("escalation_level") or 0)
+        if level > 0:
+            reason += f", escalated to level {level}"
         if stale:
             reason += " (open >72h - likely stale test data)"
         push("open_assistance_event", "alert", a.get("alert_id"), rank=6 if stale else 0,
@@ -161,7 +166,8 @@ async def daily_exceptions(
              dept_lbl="Care / Nursing", reason=reason, opened_at=a.get("created_at"),
              room=a.get("room"), resident_id=a.get("resident_id"),
              resident_name=a.get("resident_name"), severity=a.get("severity"),
-             status=a.get("status"), owner=a.get("acknowledged_by"))
+             status=a.get("status"), owner=a.get("acknowledged_by"),
+             escalation_level=level)
 
     for r in failed_receipts:
         slug = r.get("assigned_role") or "all_staff"

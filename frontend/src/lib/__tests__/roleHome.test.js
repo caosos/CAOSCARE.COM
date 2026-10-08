@@ -1,4 +1,4 @@
-import { roleHomePath, roleHomeLabel, workspaceLabel, departmentWorkspaceLabel } from "../roleHome";
+import { roleHomePath, roleHomeLabel, workspaceLabel, departmentWorkspaceLabel, canOpenAdmin } from "../roleHome";
 
 describe("roleHomePath", () => {
   test("owner and admin go to /admin regardless of department", () => {
@@ -56,4 +56,12 @@ describe("roleHomeLabel", () => {
     expect(roleHomeLabel({ role: "staff", department: "nursing" })).toBe("Continue to dashboard");
     expect(roleHomeLabel({ role: "staff" })).toBe("Continue to dashboard");
   });
+});
+
+test("Admin button on /staff is for owner/admin only", () => {
+  expect(canOpenAdmin({ role: "owner" })).toBe(true);
+  expect(canOpenAdmin({ role: "admin" })).toBe(true);
+  expect(canOpenAdmin({ role: "staff", department: "nursing" })).toBe(false);
+  expect(canOpenAdmin({ role: "front_desk" })).toBe(false);
+  expect(canOpenAdmin(null)).toBe(false);
 });

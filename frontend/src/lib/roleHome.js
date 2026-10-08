@@ -64,3 +64,9 @@ export function departmentWorkspaceLabel(slug) {
   if (slug === "administration") return "Admin command centre";
   return "General staff board";
 }
+
+// The /staff board's Admin button leads to /admin, which only owner/admin can
+// use. Anyone else would click a button that bounces them back.
+export function canOpenAdmin(user) {
+  return user?.role === "owner" || user?.role === "admin";
+}
