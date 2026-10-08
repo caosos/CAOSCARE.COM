@@ -35,10 +35,11 @@ test("returns undefined for tool names it doesn't own", async () => {
   expect(r).toBeUndefined();
 });
 
-test("no alert_id: graceful message, no network call", async () => {
+test("no alert_id: no live line is touched; the ask is filed instead (RQ-031)", async () => {
   const r = await executeCareTool({ name: "request_live_staff", args: {}, ctx: ctx("get me a nurse now", { alert_id: undefined }) });
-  expect(r.ok).toBe(false);
-  expect(global.fetch).not.toHaveBeenCalled();
+  expect(ringCalls()).toHaveLength(0);
+  expect(r.rang).toBe(false);
+  expect(r.message).not.toMatch(/getting someone/i);
 });
 
 test.each([

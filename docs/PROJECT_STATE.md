@@ -7697,3 +7697,33 @@ HANDOFF CAPSULE
 - Runtime state:    nothing left running; :3000/:8092 untouched.
 - Unresolved proven defects: D1-D6.
 - Next safe action: coordinator assigns shared-Aria fixes (D1, D2, D3, D5, D6); Michael runs the spoken equivalent.
+
+---
+
+## 2026-10-08 — RQ-031: Aria prompt/tool truth (D1, D3, D4 from RQ-030)
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-031-aria-truth` from integration `51e12db`. Draft PR into `integration/2026-09-27`. Not merged, not deployed; no service restarted; no live provider called.
+
+### What changed
+- **D1** `frontend/src/lib/realtimeCareControl.js`: when `request_live_staff` cannot use the live line (no open event, or the ring request fails), the ask is filed through `request_staff_help` (nursing; `high` priority when the resident's words say now/help/need a nurse, else normal) and the spoken result says only that a nursing request was sent and that nothing established anyone has seen it or is on the way. If filing also fails the result is `ok:false` and says nothing was sent. A failed ring no longer returns "getting someone for you". `request_live_staff` tool description now forbids arrival wording after a failed or filed-instead result.
+- **D3** persona (`realtime_companion_prompt.py`), `request_staff_help` description and `realtime_self_knowledge.py`: Aria has no camera and cannot see; she asks what is on the floor and files hazards/fall risks as a staff request using the resident's description.
+- **D4** same files: executive director / administrator / manager / front desk asks go to `request_staff_help` with `category=front_desk` (alias to administration), the resident's words, and "a message was sent" (no call connecting).
+- Not touched: `resident_requests.py`, `realtimeOperationsTools.js`.
+
+### Verified
+- Backend gate (port 8103, DB `caoscare_gate_rq031`, OpenAI/HA blank): 357 passed, 0 failed, 31 skipped (baseline 353; +4 in `test_rq031_aria_truth_text.py`).
+- Frontend: 41 suites / 319 tests (baseline 314; new `liveLineFallback.test.js`, 5); `CI=true yarn build` compiles. `liveLineRouting.test.js` updated: it asserted the old no-alert behavior (ok:false, nothing filed), which was the defect.
+- Not verified: live spoken or typed run with OpenAI.
+
+### Line counts
+`realtimeCareControl.js` 113 (was 75), `realtime_companion_prompt.py` 288 (was 278), `realtime_tools_operations.py` 311 (was 298; data-only tool schemas), `realtime_tools.py` 252, `realtime_self_knowledge.py` 117, tests 51 and 70.
+
+HANDOFF CAPSULE
+- Objective:        RQ-031 D1, D3, D4.
+- Branch:           bounded/rq-031-aria-truth (draft PR).
+- Lane / ownership: care-control client tool, tool/persona text.
+- Last proven state: gate and frontend above, 2026-10-08.
+- Runtime state:    nothing restarted; :8092 serves the old text until restarted.
+- Unresolved: prompt text is not behavior-proven without a live model run; D2/D5/D6 belong to another worker.
+- Next safe action: coordinator review; typed/spoken re-run of the RQ-030 phrases.
