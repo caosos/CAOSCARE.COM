@@ -62,9 +62,15 @@ function classifyUserTurn({ overlapped, text, lastAssistantText, tinyStreak }) {
   return { suspect: true, reason: "uncertain_fragment" };
 }
 
+// Context handed to the operations tools. It must carry last_user_text, or
+// request_staff_help cannot store the resident's own words (RQ-033).
+export function opsToolContext(ctx) {
+  return { room: ctx?.room, residentId: ctx?.resident_id, sessionId: ctx?.session_id, turnSuspect: ctx?.turn_suspect, turnSuspectReason: ctx?.turn_suspect_reason, last_user_text: ctx?.last_user_text };
+}
+
 async function executeTool({ name, args, ctx }) {
   try {
-    const opsCtx = { room: ctx?.room, residentId: ctx?.resident_id, sessionId: ctx?.session_id, turnSuspect: ctx?.turn_suspect, turnSuspectReason: ctx?.turn_suspect_reason };
+    const opsCtx = opsToolContext(ctx);
     for (const dispatch of [() => executeOperationsTool({ name, args, ctx: opsCtx }), () => executeDeviceTool({ name, args, ctx }), () => executeDisplayTool({ name, args }), () => executeCareTool({ name, args, ctx })]) {
       const result = await dispatch();
       if (result) return result;

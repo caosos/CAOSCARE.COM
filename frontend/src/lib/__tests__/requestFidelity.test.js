@@ -1,4 +1,5 @@
 import { executeOperationsTool } from "../realtimeOperationsTools";
+import { opsToolContext } from "../realtimeMessageHandler";
 import { literalResidentWords, openRequestsMessage } from "../requestOverview";
 
 const json = (body, status = 200) => ({ ok: status < 400, status, json: async () => body });
@@ -69,4 +70,10 @@ test("check_request_status with a category keeps the single-category path", asyn
   global.fetch = jest.fn(async (url) => { urls.push(url); return json({ found: false }); });
   await executeOperationsTool({ name: "check_request_status", args: { category: "nursing" }, ctx: { residentId: "r1" } });
   expect(urls[0]).toMatch(/resident-request\/status\?.*category=nursing/);
+});
+
+test("RQ-033: the operations tool context carries the resident's last words", () => {
+  const ctx = opsToolContext({ room: "DEMO", resident_id: "r1", session_id: "s1", last_user_text: "My sink is leaking." });
+  expect(ctx.last_user_text).toBe("My sink is leaking.");
+  expect(literalResidentWords(ctx)).toBe("My sink is leaking.");
 });
