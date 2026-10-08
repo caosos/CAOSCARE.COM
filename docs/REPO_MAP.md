@@ -896,3 +896,8 @@ listener verifier experiment: `docs/experiments/`.
 - `frontend/src/pages/CommunicationsTab.jsx` + `EmailInboundPanel.jsx` (Admin → Email & notifications), `frontend/src/lib/notificationDelivery.js` (status vocabulary).
 - `docs/PILOT1_COMMUNICATIONS.md`: config vs code gaps, setup steps, acceptance tests, proposed phone architecture and open decisions.
 - Calling (2026-09-27, Michael's D1-D8): `telephony/asterisk/` (Asterisk 18 PJSIP/dialplan/ARI config; secrets in git-ignored `*_local.conf`), `backend/models_calls.py` (CallSession, PhoneEndpoint), `routes/call_lifecycle.py` (forward-only state + receipts), `routes/asterisk_ari_events.py` (ARI events -> state; listener when `ASTERISK_ARI_URL` set), `routes/telephony_local.py` (dialplan-only dial-target), `routes/telephony_endpoints.py`, `routes/phone_aria.py` + `phone_aria_sideband.py` + `phone_aria_tools.py` (OpenAI Realtime SIP), `frontend/src/pages/PhoneCallsPanel.jsx` (Admin -> Phones & calls).
+
+## 2026-10-08 — "Hey Aria" EliteDesk home wake endpoint (RQ-036)
+
+- `room-node/aria_wake/`: `detector.py` (shared spotter/`StreamDetector`), `aria_wake.py` (listener; phrase "Hey Aria", off unless `ARIA_WAKE_ENABLE=1`), `eval_offline.py` + `eval_results_2026-10-08.json` (offline evaluation through the real detector), `wake_stats.py` (log tally + miss/false marks), `ctl.sh` + `systemd/` (always-on user units, not installed by the repo).
+- Runbook: `docs/reports/2026-10-08-room214-wake-physical-runbook.md`. Tests: `room-node/aria_wake/test_aria_wake.py`, `frontend/src/lib/__tests__/useWakeWord.test.js`.
