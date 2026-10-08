@@ -7345,3 +7345,31 @@ HANDOFF CAPSULE
 - Runtime state:    nothing changed; :8092 is down.
 - Unresolved proven defects: none found in docs.
 - Next safe action: Michael answers runbook items 1 and 2 first.
+
+---
+
+## 2026-10-08 — RQ-019: stale resident-room and pendant copy corrected (frontend only)
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-019-copy-truth` from integration `221547e`. Draft PR into `integration/2026-09-27`. Not merged, not deployed; no backend change.
+
+### What changed (wording only)
+- `Kiosk.jsx`: "Your call goes to the staff screen, and I'll stay with you." → "Pressing it sends an alert to the staff screen." The microphone hint already said "this screen" (no tablet wording left).
+- `RFPairingTab.jsx`: removed "any 315/319/433/868/915 MHz pendant works" and the "frequency-flexible" claim. It now says the receiver listens on those bands, only a 319.5 MHz Interlogix-style pendant is paired and tested end to end, and other pendants need testing. The listening prompt says the same.
+- `FamilyPortal.jsx`: "Staff are with them or on the way." → "Staff have been alerted and the calls are still open."
+- `DevicesTab.jsx`, `Blueprint.jsx`: "resident's tablet" / "Room kiosk (tablet)" → room / software screen. Staff-side "bridge tablet" wording was left (a separate device-lane terminology item).
+
+### Verified
+Frontend: 37 suites / 284 tests pass (no test asserted the old wording); `CI=true yarn build` compiles. Not verified in a browser.
+
+### Line counts
+`Kiosk.jsx` 661, `RFPairingTab.jsx` 434, `Blueprint.jsx` 588 (all pre-existing oversized, not enlarged), `FamilyPortal.jsx` 205, `DevicesTab.jsx` 210.
+
+HANDOFF CAPSULE
+- Objective:        RQ-019 stale-copy fixes.
+- Branch:           bounded/rq-019-copy-truth (draft PR).
+- Lane / ownership: frontend copy only.
+- Last proven state: tests and build above, 2026-10-08.
+- Runtime state:    nothing started or restarted.
+- Unresolved: PendantsTab/DevicesTab still describe a "bridge tablet" executor (device lane).
+- Next safe action: coordinator review.

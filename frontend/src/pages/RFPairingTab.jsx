@@ -63,13 +63,11 @@ export default function RFPairingTab() {
         <div>
           <h2 className="font-display text-3xl text-caos-forest">Pendants</h2>
           <p className="text-caos-mute text-sm mt-1">
-            Sub-GHz buttons paired to residents. Vendor-agnostic — any 315/319/433/868/915 MHz pendant works.
+            Sub-GHz buttons paired to residents. The receiver listens on 315, 319, 433.92, 868 and 915 MHz, but only a 319.5 MHz Interlogix-style pendant has been paired and tested end to end. Other pendants need testing before they are relied on.
           </p>
           <p className="text-caos-mute text-xs mt-1">
-            Frequency-flexible by design: the RF bridge isn't hardcoded to one band or vendor — it
-            tunes to whatever the attached receiver supports (verified up to ~1.7 GHz with the
-            Nooelec NESDR SMArt v5 / RTL2832U + R820T hardware in use here). A different receiver
-            changes the reachable range, not the software.
+            Decoding uses rtl_433 with the attached Nooelec NESDR SMArt v5 receiver. A different
+            receiver changes the reachable range; a pendant that rtl_433 does not decode cannot be paired.
           </p>
         </div>
         <div className="flex items-center gap-2 overflow-x-auto max-w-full">
@@ -287,7 +285,7 @@ function AddPendantDialog({ open, onClose, residents, kiosks }) {
           <div className="py-8 text-center space-y-3">
             <Loader2 className="w-10 h-10 animate-spin text-caos-forest mx-auto" />
             <p className="font-display text-2xl text-caos-forest">Press the pendant now</p>
-            <p className="text-caos-mute text-sm">You have 10 seconds. We're listening on 315, 319, 433, 868, and 915 MHz.</p>
+            <p className="text-caos-mute text-sm">You have 10 seconds. We're listening on 315, 319, 433.92, 868 and 915 MHz; only 319.5 MHz pendants are proven.</p>
           </div>
         )}
         {step === "captured" && capture?.captured && (

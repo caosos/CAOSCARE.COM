@@ -79,7 +79,7 @@ export default function DevicesTab({ residents }) {
         <div>
           <h2 className="font-display text-xl font-medium text-caos-forest">Smart-room devices</h2>
           <p className="text-caos-mute text-sm mt-1 max-w-2xl">
-            Lights, fans, heaters, TVs, locks — anything the resident's tablet can reach over BLE / WiFi / RF / IR / Zigbee / Matter.
+            Lights, fans, heaters, TVs, locks — anything the room can reach over BLE / WiFi / RF / IR / Zigbee / Matter.
             Commands queue to the room's bridge tablet, which executes them locally.
           </p>
         </div>
