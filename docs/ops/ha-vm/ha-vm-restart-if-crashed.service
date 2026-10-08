@@ -1,0 +1,9 @@
+# PROPOSAL - not installed. Install path: /etc/systemd/system/ha-vm-restart-if-crashed.service
+[Unit]
+Description=Start the Home Assistant VM if libvirt reports it crashed
+After=libvirtd.service
+Wants=libvirtd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ha-vm-restart-if-crashed.sh
