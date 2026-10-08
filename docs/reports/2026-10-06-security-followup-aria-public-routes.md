@@ -39,7 +39,7 @@
 - **A.** `POST /aria/conversation-turn` now uses `require_owner`, stores under the signed-in owner, and answers 403 if the body names a different `owner_user_id`. `role` is `user` or `assistant`, `content` is at most 4000 characters. The owner `/aria` caller now sends the bearer token.
 - **Tests.** `backend/tests/test_rq025_aria_route_auth.py` (anonymous 401, staff 403, admin/owner 200; every B2 refusal; foreign owner 403) and `frontend/src/lib/__tests__/confirmInterpretationSession.test.js`.
 
-### Assessment: `POST /api/memory/realtime-turn` (not changed)
+### Assessment: `POST /api/memory/realtime-turn` (RESOLVED by RQ-028, see below)
 
 It is still public and unauthenticated, and it takes `resident_id`, `session_id`, `role`, `text` and the `trusted` flag from the body. Three consequences:
 1. Anyone who knows a `resident_id` can write fake resident turns into `db.conversations`. Those can reach the continuity block in that resident's next prompt.
@@ -47,6 +47,14 @@ It is still public and unauthenticated, and it takes `resident_id`, `session_id`
 3. The caller can set `trusted: true`, so the existing echo guard is not a security control.
 
 **Recommendation: yes, it needs the same treatment** (a separate change, since the kiosk uses it on every turn): require a live lease for that `resident_id` + `session_id`, with a short grace period after release so the final turns are not lost. Add length limits on `text`. Longer term, use a kiosk device credential for all of these routes.
+
+**RESOLVED (RQ-028, 2026-10-08).** `routes/realtime_memory_ingest.py`:
+- The HTTP route accepts a turn only when a live Aria room lease exists for that `resident_id` + `session_id` (same check and `STALE_SECONDS` as RQ-025's interpretation confirm), or that session's lease was released within 60 s (`RELEASE_GRACE_SECONDS`, read from the `released` lease event) so the last turns are not lost. Otherwise 403 and nothing stored.
+- `text` max 4000, ids max 100 and non-empty, `role` only user/assistant (422 otherwise).
+- `trusted` stays an echo-quality signal only. The server cannot verify it. It is reachable only by a caller that already passes the lease gate, so it cannot widen who may write; it was never made a security control.
+- The telephone sideband calls the new in-process `store_turn()` (it has a call record, not a room lease). The kiosk and demo-kiosk typed turns share the same `postTurn` and the live lease, so they are unchanged. The owner `/aria` path uses `/aria/conversation-turn`.
+- Residual: a caller who knows both a live `resident_id` and `session_id` can still write during that session. A kiosk device credential is the longer-term fix.
+- Tests: `backend/tests/test_rq028_memory_turn_auth.py`.
 
 ---
 
