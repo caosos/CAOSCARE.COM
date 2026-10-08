@@ -7650,3 +7650,26 @@ HANDOFF CAPSULE
 - Runtime state:    nothing restarted; :8092 still serves the old route until restarted.
 - Unresolved: `test_reports` timing flake with the escalation loop; kiosk device credential.
 - Next safe action: coordinator review.
+
+---
+
+## 2026-10-08 — RQ-030: Resident Aria typed-input acceptance, Phase 5 operational loops (docs only)
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-030-aria-typed-acceptance` from integration `874284f`. Draft PR into `integration/2026-09-27`. Not merged, no deploy. No code changed, so no backend gate run.
+
+### What was done
+Isolated stack (throwaway DB `caoscare_rq030` copied from `caoscare_public_demo`, backend :8101, frontend :3016, HA/Resend/Twilio blank, OpenAI key via process environment only), headless Chrome on `/kiosk/demo`, 5 Realtime sessions, the 8 phrases typed into the same session as voice. **Typed input is not spoken audio.** Full table and transcripts: `docs/reports/2026-10-08-aria-typed-phase5-acceptance.md`. DB dropped, servers stopped.
+
+### Findings
+- Works: bathroom → nursing/high task with receipt; sink → maintenance; transport request → front desk, "no confirmed time"; after a real nurse acknowledged and started, "Did anybody see my request?" was answered truthfully.
+- Defects (all in shared Aria prompt/tool/dedup code, reported not edited): D1 "on their way" said when `request_live_staff` failed and nothing was acknowledged; D2 smell request deduplicated into the sink task, its wording stored nowhere, Aria said "noted along with the sink leak"; D3 "I can see something on the floor… plastic container" (no camera, no request filed); D4 "executive director" files nothing; D5 "the fifth" accepted as 2026-10-05 (past); D6 `resident_words` is the model's summary, not the resident's literal words.
+
+HANDOFF CAPSULE
+- Objective:        RQ-030 typed Phase 5 acceptance.
+- Branch:           bounded/rq-030-aria-typed-acceptance (draft PR).
+- Lane / ownership: acceptance report only.
+- Last proven state: report above, 2026-10-08.
+- Runtime state:    nothing left running; :3000/:8092 untouched.
+- Unresolved proven defects: D1-D6.
+- Next safe action: coordinator assigns shared-Aria fixes (D1, D2, D3, D5, D6); Michael runs the spoken equivalent.
