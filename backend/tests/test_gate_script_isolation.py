@@ -187,3 +187,9 @@ def test_gate_backend_is_this_run():
         pytest.skip("only meaningful inside scripts/run_backend_tests.sh")
     with urllib.request.urlopen(f"{base}/api/health", timeout=5) as r:
         assert json.loads(r.read()).get("gate_run_id") == run_id
+
+
+def test_gate_script_turns_background_escalation_off_by_default():
+    """RQ-029: the background escalation loop must not race tests that seed alerts."""
+    src = open(GATE).read()
+    assert 'CAOSCARE_ESCALATION_AUTO="${CAOSCARE_ESCALATION_AUTO:-0}"' in src
