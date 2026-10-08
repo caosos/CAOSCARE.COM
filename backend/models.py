@@ -207,6 +207,10 @@ class Kiosk(BaseModel):
     mac_address: Optional[str] = None
     status: Literal["online", "offline"] = "online"
     is_central: bool = False  # central station listens for ANY resident's emergency, not just its zone
+    # RQ-037: optional pin to one resident (admin-set). When set, the screen's
+    # identity is this resident rather than the room's registered resident;
+    # `room` still keys devices and the room's session lease.
+    resident_id: Optional[str] = None
     # 2026-09-01: the ONLY thing /kiosk/demo (the public, logged-out demo
     # entry point) is allowed to resolve to. Previously that route fetched
     # GET /kiosks and took kiosks[0] - database insertion/sort order, not a
@@ -224,6 +228,7 @@ class KioskCreate(BaseModel):
     mac_address: Optional[str] = None
     is_central: bool = False
     public_demo: bool = False
+    resident_id: Optional[str] = None
 
 
 class KioskUpdate(BaseModel):
@@ -234,6 +239,7 @@ class KioskUpdate(BaseModel):
     status: Optional[Literal["online", "offline"]] = None
     is_central: Optional[bool] = None
     public_demo: Optional[bool] = None
+    resident_id: Optional[str] = None  # "" or null unpins
 
 
 class Zone(BaseModel):

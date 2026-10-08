@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from models import AlertCreate, AlertClose, now_utc
 from deps import db, get_current_user
 from routes.resident_activation import record_resident_activation
+from routes.kiosk_identity import resident_for_kiosk
 from routes.ops_overview_util import STALE_ALERT_HOURS
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
@@ -45,7 +46,12 @@ async def create_alert(data: AlertCreate):
             zone = kiosk.get("zone")
 
     rid = data.resident_id
-    if not rid and room:
+    if not rid and kiosk:
+        r = await resident_for_kiosk(kiosk)
+        if r:
+            rid = r["resident_id"]
+            resident_name = r["name"]
+    elif not rid and room:
         r = await db.residents.find_one({"room": room}, {"_id": 0})
         if r:
             rid = r["resident_id"]
