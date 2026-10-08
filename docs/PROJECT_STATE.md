@@ -7752,3 +7752,29 @@ HANDOFF CAPSULE
 - Runtime state:    nothing restarted or deployed.
 - Unresolved: D1, D3, D4 (prompt/tool descriptions, another worker); tool description for `check_request_status` does not yet say that omitting category covers all departments.
 - Next safe action: coordinator review.
+
+---
+
+## 2026-10-08 — RQ-033: Resident Aria typed rerun after RQ-031/RQ-032
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-033-aria-typed-rerun` from integration `360d7f7`. Draft PR into `integration/2026-09-27`. Not merged, not deployed; :3000/:8092 untouched.
+
+### What was done
+Isolated stack (throwaway DB `caoscare_rq033`, backend :8105, frontend :3017, providers blank, OpenAI key via process env only), 7 Realtime sessions, the RQ-030 phrases typed into `/kiosk/demo`. Typed input is not spoken audio. Report: `docs/reports/2026-10-08-aria-typed-phase5-rerun.md`.
+- D1, D2, D3 (no sight claim), D4 and all-category status: fixed.
+- D5: backend guard verified by direct call; the model avoids a past date but assumes the month silently (N2).
+- D6: RQ-032's fix did not work in the real path (`opsToolContext` dropped `last_user_text`; `resident_words` null in 5 of 6 tasks). One-line fix plus test; verified live.
+
+### Verified
+Frontend 42 suites / 327 tests. DB dropped, servers stopped. Backend untouched (no gate run).
+
+HANDOFF CAPSULE
+- Objective:        RQ-033 verification rerun.
+- Branch:           bounded/rq-033-aria-typed-rerun (draft PR).
+- Lane / ownership: acceptance report plus a one-line context fix in realtimeMessageHandler.js.
+- Last proven state: report above, 2026-10-08.
+- Runtime state:    nothing left running.
+- Unresolved: N2 (month assumed), N3 (transport resident_words is the purpose), hazard filing after the resident answers, spoken run.
+- Next safe action: coordinator review; Michael runs the spoken equivalent.
+
