@@ -1,0 +1,27 @@
+# EliteDesk home wake endpoint - the Room page in headless Chrome, so the page side
+# of the wake protocol is always running with no desktop session.
+[Unit]
+StartLimitIntervalSec=0
+Description=Aria room page for the wake endpoint (headless Chrome)
+After=aria-wake.service
+Wants=aria-wake.service
+
+[Service]
+Type=simple
+EnvironmentFile=%h/.config/aria-wake/aria-wake.env
+# Wait (indefinitely) for the CAOSCare frontend to answer before opening the page.
+TimeoutStartSec=infinity
+ExecStartPre=/bin/sh -c 'until curl -fsS -o /dev/null "$ARIA_WAKE_FRONTEND"; do sleep 3; done'
+# --use-fake-ui-for-media-stream grants the microphone without a prompt;
+# no --mute-audio (Aria must be heard); the audio source/sink come from
+# PULSE_SOURCE / PULSE_SINK in the env file.
+ExecStart=@CHROME@ --headless=new --no-first-run --no-default-browser-check \
+  --user-data-dir=%h/.cache/aria-wake-chrome \
+  --use-fake-ui-for-media-stream --autoplay-policy=no-user-gesture-required \
+  --remote-allow-origins=* --disable-features=Translate \
+  "${ARIA_WAKE_PAGE_URL}"
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

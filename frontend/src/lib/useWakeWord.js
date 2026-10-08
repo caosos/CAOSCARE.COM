@@ -1,8 +1,7 @@
 /**
- * Legacy development/fallback Aria voice endpoint. Not standard apartment hardware.
- * Connects the room page to the legacy local "Aria" wake-word detector and keeps
- * it in step with the page's own call state:
- *   idle        -> detector listens for "Aria"
+ * Connects the room page to a wake endpoint (EliteDesk home endpoint today;
+ * Voice PE later, same protocol) and keeps it in step with the page's own call state:
+ *   idle        -> detector listens for the wake phrase ("Hey Aria")
  *   any call    -> detector suppressed (Aria's own voice can't re-trigger it)
  * A wake while idle calls onWake(), which starts the existing Realtime
  * conversation path with trigger_source "wake_word" - no resident event is

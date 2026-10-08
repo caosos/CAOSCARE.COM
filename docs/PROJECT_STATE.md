@@ -7827,3 +7827,42 @@ HANDOFF CAPSULE
 - Runtime state:    nothing restarted; :8092 serves the old list until restarted.
 - Unresolved: names enumerable via by-kiosk (needs per-kiosk device credential, P2 option 3).
 - Next safe action: coordinator review.
+
+---
+
+## 2026-10-08 — RQ-036: "Hey Aria" EliteDesk home wake endpoint (offline-proven; microphone test pending)
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-036-home-wake-endpoint` from integration `f622991`. Draft PR into `integration/2026-09-27`. Not merged, not deployed; :3000/:8092 untouched; nothing installed or started; no sudo; no OpenAI call; no backend change (gate not required).
+
+### What changed
+- `room-node/aria_wake/`: phrase is now **"Hey Aria"** (`keywords.txt` = `▁HE Y ▁A RI A @HEY_ARIA`, threshold 0.15 as the lab found). The listener refuses to start with a single-word ARIA keywords file unless `ARIA_WAKE_ALLOW_SINGLE_WORD=1`, and logs phrase/threshold/score/model at start. Relabelled "EliteDesk home endpoint; additional endpoint with the same protocol as the Voice PE; not standard apartment hardware"; enable with `ARIA_WAKE_ENABLE=1` (old `ARIA_WAKE_ENABLE_LEGACY=1` still works); the retirement condition is unchanged.
+- `detector.py` (new, 112 lines): spotter, `SilenceReset`, `StreamDetector`, extracted from `aria_wake.py` (258 → 235 lines) so the listener and the offline evaluation run the same code.
+- `eval_offline.py` (192): rebuilds the lab's synthetic audio from its cache (never calls an API) and runs it through `StreamDetector`; `eval_results_2026-10-08.json` holds the numbers (no audio).
+- `wake_stats.py` (169): summary of the listener's JSON log plus `mark miss|false|note` into a local JSONL.
+- `ctl.sh` + `systemd/` (not installed): listener unit (`Restart=on-failure`), headless-Chrome Room-page unit (`--headless=new`, fake-UI media, autoplay allowed, Pulse source/sink from `~/.config/aria-wake/aria-wake.env`), `test-audio-access`, install/status/logs/uninstall.
+- Page side: `useWakeWord.js` / `wakeWordClient.js` / `Kiosk.jsx` only had comments changed (endpoint-neutral wording); new `useWakeWord.test.js` (5 tests) mounts the real hook.
+- `docs/reports/2026-10-08-room214-wake-physical-runbook.md`; README: proven vs unproven, offline table.
+
+### What was verified
+- Offline, real listener detector, synthetic audio (README table): "Hey Aria" 629/924 true wakes (68%; far 39%, TV 28%), 8/952 adversarial false (only "hey area"/"hay area"/"hey Ari"), 0 false wakes in 5.62 h of read speech; old single "Aria": 675/924, 63/952 adversarial, 0 in 5.62 h (the lab's block-framed run saw 2, 0.36/h; stream framing, not a real difference). Hey Aria and adversarial counts equal the lab's report exactly.
+- Tests: listener `pytest` 8 passed; frontend 43 suites / 335 tests; `CI=true yarn build` compiles; `systemd-analyze verify` on the generated units shows no key errors.
+- Host: Chrome 155 present; Xvfb not installed (not needed with headless-new); PulseAudio shows only a null sink for `caoscare-1`.
+
+### Not verified (needs the microphone)
+Capture from the eMeet, headless Chrome using the eMeet for input and output, real far-field recall, real false-wake rate with TV and talk, the always-on units, the full loop with the real lamps.
+
+### Blocker
+`caoscare-1` is not in group `audio` (ALSA ACLs only for `michaelos`). Michael runs `sudo usermod -aG audio caoscare-1` and re-logs in; then follow the runbook.
+
+### Line counts
+`aria_wake.py` 235, `detector.py` 112, `eval_offline.py` 192, `wake_stats.py` 169, `test_aria_wake.py` 100, `ctl.sh` 71, `useWakeWord.test.js` 97; README 177 and the runbook are docs.
+
+HANDOFF CAPSULE
+- Objective:        Always-listening "Hey Aria" Aria on this EliteDesk (RQ-036).
+- Branch:           bounded/rq-036-home-wake-endpoint (draft PR).
+- Lane / ownership: room-node/aria_wake, wake page-side comments/tests. Did not touch backend identity/resident code (RQ-037).
+- Last proven state: offline eval + tests above, 2026-10-08.
+- Runtime state:    nothing installed or running.
+- Unresolved: microphone access; headless audio path unverified; far-field/TV recall weak offline.
+- Next safe action: Michael runs the sudo command, then the runbook; tally with wake_stats.py.

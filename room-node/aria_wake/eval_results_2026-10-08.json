@@ -1,0 +1,134 @@
+{
+  "source_run": "hey aria",
+  "label": "SYNTHETIC audio through the real listener detector; not a substitute for Room 214 / eMeet testing",
+  "threshold": 0.15,
+  "missing_cached_clips": 0,
+  "soak_hours": 5.622,
+  "detectors": {
+    "hey_aria": {
+      "true_wakes": [
+        629,
+        924
+      ],
+      "true_wakes_by_condition": {
+        "clean": [
+          123,
+          132
+        ],
+        "far_reverb": [
+          52,
+          132
+        ],
+        "fast_1.15x": [
+          121,
+          132
+        ],
+        "noise_snr10": [
+          107,
+          132
+        ],
+        "quiet_-20dB": [
+          85,
+          132
+        ],
+        "slow_0.85x": [
+          104,
+          132
+        ],
+        "tv_speech_snr5": [
+          37,
+          132
+        ]
+      },
+      "adversarial_false_wakes": [
+        8,
+        952
+      ],
+      "adversarial_lines_that_woke": {
+        "hey area": 4,
+        "hay area": 3,
+        "hey Ari": 1
+      },
+      "soak_false_wakes": 0,
+      "soak_false_per_hour": 0.0,
+      "soak_events": []
+    },
+    "aria_single_word": {
+      "true_wakes": [
+        675,
+        924
+      ],
+      "true_wakes_by_condition": {
+        "clean": [
+          118,
+          132
+        ],
+        "far_reverb": [
+          39,
+          132
+        ],
+        "fast_1.15x": [
+          124,
+          132
+        ],
+        "noise_snr10": [
+          122,
+          132
+        ],
+        "quiet_-20dB": [
+          92,
+          132
+        ],
+        "slow_0.85x": [
+          114,
+          132
+        ],
+        "tv_speech_snr5": [
+          66,
+          132
+        ]
+      },
+      "adversarial_false_wakes": [
+        63,
+        952
+      ],
+      "adversarial_lines_that_woke": {
+        "Did you see bay area today?": 7,
+        "Did you see gray area today?": 4,
+        "ari are you awake": 4,
+        "Did you see a gray area today?": 3,
+        "Did you see home area today?": 3,
+        "beneficiary of": 3,
+        "gray area": 3,
+        "hey area": 3,
+        "hey, how are ya": 3,
+        "hey, it's really hilarious": 3,
+        "the area": 3,
+        "Did you see grey area today?": 2,
+        "I left it in beneficiary of.": 2,
+        "bay area": 2,
+        "feria": 2,
+        "Did you see same area today?": 1,
+        "Did you see the area today?": 1,
+        "I left it in gray area.": 1,
+        "I left it in grey area.": 1,
+        "I left it in safe area.": 1,
+        "I left it in same area.": 1,
+        "I left it in the area.": 1,
+        "I left it in whole area.": 1,
+        "a gray area": 1,
+        "hay area": 1,
+        "safe area": 1,
+        "same area": 1,
+        "that area": 1,
+        "the bay area": 1,
+        "the beneficiary of": 1,
+        "whole area": 1
+      },
+      "soak_false_wakes": 0,
+      "soak_false_per_hour": 0.0,
+      "soak_events": []
+    }
+  },
+  "seconds": 1816.9
+}

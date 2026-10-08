@@ -1,24 +1,28 @@
-"""Local "Aria" wake-word listener for a CAOSCare room endpoint.
+"""Local "Hey Aria" wake-word listener - EliteDesk home endpoint.
 
-Legacy development/fallback Aria voice endpoint. Not standard apartment hardware.
-The standard apartment voice endpoint is the Home Assistant Voice PE
-(docs/ROOM_AUDIO_ARCHITECTURE.md, Michael 2026-10-03). Kept for development
-before the Voice PE, synthetic/microphone testing, emergency fallback if Voice
-PE acceptance fails, and comparison testing. Disabled by default: it only
-starts with ARIA_WAKE_ENABLE_LEGACY=1. May only be considered for removal after Voice PE real-room acceptance proves wake accuracy, conversation continuity, response playback and deterministic session ending.
+An ADDITIONAL Aria voice endpoint on the EliteDesk, speaking the same
+detector->page protocol the Home Assistant Voice PE endpoint will use. Not
+standard apartment hardware: the standard apartment design (Michael,
+2026-10-03) is one central EliteDesk server with a Voice PE per apartment
+(docs/ROOM_AUDIO_ARCHITECTURE.md). Disabled by default: it only starts with
+ARIA_WAKE_ENABLE=1 (alias ARIA_WAKE_ENABLE_LEGACY=1). It may only be
+considered for removal after Voice PE real-room acceptance proves wake
+accuracy, conversation continuity, response playback and deterministic
+session ending.
+
+Phrase: "Hey Aria". The single word "Aria" is NOT accepted as the production
+wake phrase (it sounds like "area"; docs/WAKE_PHRASE_LAB.md) and the
+listener refuses to start with a single-word ARIA keyword file unless
+ARIA_WAKE_ALLOW_SINGLE_WORD=1 (comparison testing only).
 
 A trigger, not a conversation participant (docs/ARIA_WAKE_WORD_ARCHITECTURE.md).
-It reads the room's existing audio capture endpoint (the eMeet, via the
-PulseAudio default source - a shared, non-exclusive tap), runs an on-device
-keyword spotter, and tells the room page over a localhost-only WebSocket
-that "Aria" was heard. The page then starts the existing Realtime session
-through its normal path. Nothing here claims leases, mints sessions, calls
-OpenAI, stores audio, or transcribes speech.
-
-Engine: sherpa-onnx open-vocabulary keyword spotting (Apache-2.0) - chosen
-because no usable pretrained openWakeWord "Aria" model exists yet and this
-needs no training. It runs natively on Android too (sherpa-onnx's own KWS
-AAR), so the protocol below is the portable part, not this Python file.
+It reads the room's audio capture endpoint (the eMeet, via PulseAudio - a
+shared, non-exclusive tap), runs the on-device keyword spotter in detector.py,
+and tells the room page over a localhost-only WebSocket that the phrase was
+heard. The page then starts the existing Realtime session through its normal
+path. Nothing here claims leases, mints sessions, calls OpenAI, stores audio,
+or transcribes speech. Every event is one JSON line on stdout (see
+wake_stats.py).
 
 Protocol (JSON text frames, ws://127.0.0.1:<port>):
   server -> page  {"type":"hello", ...detector info}
@@ -39,22 +43,22 @@ import uuid
 from datetime import datetime, timezone
 
 import numpy as np
-import sherpa_onnx
 import websockets
+
+from detector import (CHUNK, DEFAULT_KEYWORDS, DEFAULT_SCORE, DEFAULT_THRESHOLD, SAMPLE_RATE,  # noqa: F401
+                      SilenceReset, StreamDetector, build_spotter, keyword_labels, spot)
 
 HOST = "127.0.0.1"  # never bind beyond this machine
 PORT = int(os.environ.get("ARIA_WAKE_PORT", "8765"))
 ORIGINS = [o.strip() for o in os.environ.get(
     "ARIA_WAKE_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",") if o.strip()]
 MODEL_DIR = os.environ.get("ARIA_WAKE_MODEL_DIR", os.path.join(os.path.dirname(__file__), "model"))
-KEYWORDS_FILE = os.environ.get("ARIA_WAKE_KEYWORDS", os.path.join(os.path.dirname(__file__), "keywords.txt"))
-KEYWORDS_SCORE = float(os.environ.get("ARIA_WAKE_KEYWORDS_SCORE", "1.0"))
-KEYWORDS_THRESHOLD = float(os.environ.get("ARIA_WAKE_KEYWORDS_THRESHOLD", "0.15"))
+KEYWORDS_FILE = os.environ.get("ARIA_WAKE_KEYWORDS", DEFAULT_KEYWORDS)
+KEYWORDS_SCORE = float(os.environ.get("ARIA_WAKE_KEYWORDS_SCORE", str(DEFAULT_SCORE)))
+KEYWORDS_THRESHOLD = float(os.environ.get("ARIA_WAKE_KEYWORDS_THRESHOLD", str(DEFAULT_THRESHOLD)))
 SOURCE = os.environ.get("ARIA_WAKE_SOURCE", "")  # PulseAudio source; empty = system default
 PENDING_WAKE_TIMEOUT_S = 20   # page never confirmed a conversation -> resume listening
 RESUME_COOLDOWN_S = 1.5       # ignore the tail of Aria's last words after a session ends
-SAMPLE_RATE = 16000
-CHUNK = 1600                  # 100 ms
 
 
 def now_iso():
@@ -70,58 +74,6 @@ def resolve_source():
         return SOURCE
     out = subprocess.run(["pactl", "get-default-source"], capture_output=True, text=True)
     return out.stdout.strip() or "@DEFAULT_SOURCE@"
-
-
-def build_spotter():
-    m = MODEL_DIR
-    return sherpa_onnx.KeywordSpotter(
-        tokens=f"{m}/tokens.txt",
-        encoder=f"{m}/encoder-epoch-12-avg-2-chunk-16-left-64.int8.onnx",
-        decoder=f"{m}/decoder-epoch-12-avg-2-chunk-16-left-64.int8.onnx",
-        joiner=f"{m}/joiner-epoch-12-avg-2-chunk-16-left-64.int8.onnx",
-        keywords_file=KEYWORDS_FILE, num_threads=1, provider="cpu",
-        keywords_score=KEYWORDS_SCORE, keywords_threshold=KEYWORDS_THRESHOLD,
-    )
-
-
-def spot(spotter, stream, samples):
-    """Feed one chunk; return the keyword if it completed in this chunk."""
-    stream.accept_waveform(SAMPLE_RATE, samples)
-    while spotter.is_ready(stream):
-        spotter.decode_stream(stream)
-        kw = spotter.get_result(stream)
-        if kw:
-            spotter.reset_stream(stream)
-            return kw
-    return None
-
-
-class SilenceReset:
-    """Signals a spotter-stream reset after a pause that follows speech.
-
-    Measured 2026-09-23 on synthetic "Aria" clips: one never-reset stream
-    fed continuous room audio drifts (22/30 detected vs 26-27/30 when each
-    utterance starts fresh), so the stream is cleared at natural pauses.
-    Energy only - no speech content is kept or inspected."""
-
-    QUIET_CHUNKS = 8  # 0.8 s of quiet after speech
-
-    def __init__(self):
-        self.floor = None
-        self.heard_speech = False
-        self.quiet = 0
-
-    def update(self, samples):
-        rms = float(np.sqrt(np.mean(samples * samples)) + 1e-9)
-        self.floor = rms if self.floor is None or rms < self.floor else self.floor * 0.999 + rms * 0.001
-        if rms > max(self.floor * 3.0, 0.003):
-            self.heard_speech, self.quiet = True, 0
-            return False
-        self.quiet += 1
-        if self.heard_speech and self.quiet >= self.QUIET_CHUNKS:
-            self.heard_speech = False
-            return True
-        return False
 
 
 class WakeState:
@@ -158,7 +110,7 @@ class Server:
 
     def info(self):
         return {"detector": "sherpa-onnx-kws", "model": os.path.basename(os.path.abspath(MODEL_DIR)),
-                "keywords_score": KEYWORDS_SCORE, "keywords_threshold": KEYWORDS_THRESHOLD,
+                "phrase": phrase_text(keyword_labels(KEYWORDS_FILE)), "keywords_file": os.path.basename(KEYWORDS_FILE), "keywords_score": KEYWORDS_SCORE, "keywords_threshold": KEYWORDS_THRESHOLD,
                 "audio_input_device": self.device, "sample_rate": SAMPLE_RATE}
 
     async def broadcast(self, msg):
@@ -208,14 +160,12 @@ class Server:
         asyncio.run_coroutine_threadsafe(self.broadcast(wake), self.loop)
 
     def audio_loop(self):
-        spotter = build_spotter()
-        stream = spotter.create_stream()
+        det = StreamDetector(build_spotter(MODEL_DIR, KEYWORDS_FILE, KEYWORDS_THRESHOLD, KEYWORDS_SCORE))
         cmd = ["parec", "--raw", "--format=s16le", f"--rate={SAMPLE_RATE}", "--channels=1",
                "--latency-msec=100", f"--device={self.device}"]
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
         log("capture_started", device=self.device, cmd=" ".join(cmd))
         nbytes = CHUNK * 2
-        silence = SilenceReset()
         while True:
             buf = proc.stdout.read(nbytes)
             if not buf:
@@ -223,13 +173,10 @@ class Server:
                 os._exit(1)  # let the service manager restart us; never run deaf
             if self.state.reset_stream:
                 self.state.reset_stream = False
-                spotter.reset_stream(stream)
-            samples = np.frombuffer(buf, dtype=np.int16).astype(np.float32) / 32768.0
-            kw = spot(spotter, stream, samples)
+                det.reset()
+            kw = det.feed(np.frombuffer(buf, dtype=np.int16).astype(np.float32) / 32768.0)
             if kw:
                 self.on_detect(kw)
-            elif silence.update(samples):
-                spotter.reset_stream(stream)
 
     async def run(self):
         self.loop = asyncio.get_running_loop()
@@ -239,19 +186,49 @@ class Server:
             await asyncio.Future()
 
 
-ENABLE_ENV = "ARIA_WAKE_ENABLE_LEGACY"
+ENABLE_ENV = "ARIA_WAKE_ENABLE"
+ENABLE_ENV_ALIAS = "ARIA_WAKE_ENABLE_LEGACY"   # earlier name, still honoured
+SINGLE_WORD_ENV = "ARIA_WAKE_ALLOW_SINGLE_WORD"
 
 
-def legacy_enabled(env=None) -> bool:
+def phrase_text(labels):
+    """'HEY_ARIA' -> 'Hey Aria' (for logs and the hello frame)."""
+    return " / ".join(l.replace("_", " ").title() for l in labels)
+
+
+def endpoint_enabled(env=None) -> bool:
     """Off unless explicitly enabled - never part of standard room provisioning."""
-    return (env if env is not None else os.environ).get(ENABLE_ENV) == "1"
+    e = env if env is not None else os.environ
+    return e.get(ENABLE_ENV) == "1" or e.get(ENABLE_ENV_ALIAS) == "1"
+
+
+legacy_enabled = endpoint_enabled   # kept for older callers
+
+
+def phrase_problem(labels, env=None):
+    """None if the keyword file is acceptable, else why the listener must not start."""
+    e = env if env is not None else os.environ
+    if not labels:
+        return "keywords file has no phrase"
+    if any(l.upper() == "ARIA" or l.upper().startswith("ARIA_") for l in labels) and e.get(SINGLE_WORD_ENV) != "1":
+        return ('single-word "Aria" is not an accepted wake phrase (sounds like "area"); '
+                f"use \"Hey Aria\" or set {SINGLE_WORD_ENV}=1 for comparison testing")
+    return None
 
 
 if __name__ == "__main__":
-    if not legacy_enabled():
-        print(f"aria_wake: legacy development/fallback endpoint, disabled by default; "
+    if not endpoint_enabled():
+        print(f"aria_wake: EliteDesk home wake endpoint, disabled by default; "
               f"set {ENABLE_ENV}=1 to run it (see README.md).", file=sys.stderr)
         sys.exit(2)
+    labels = keyword_labels(KEYWORDS_FILE)
+    problem = phrase_problem(labels)
+    if problem:
+        log("refused_to_start", reason=problem, keywords_file=KEYWORDS_FILE)
+        print(f"aria_wake: {problem}", file=sys.stderr)
+        sys.exit(2)
+    log("starting", phrase=phrase_text(labels), labels=labels, keywords_file=KEYWORDS_FILE, threshold=KEYWORDS_THRESHOLD,
+        score=KEYWORDS_SCORE, model_dir=MODEL_DIR, origins=ORIGINS)
     try:
         asyncio.run(Server(resolve_source()).run())
     except KeyboardInterrupt:

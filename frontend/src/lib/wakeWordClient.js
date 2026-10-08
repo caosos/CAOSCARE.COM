@@ -1,10 +1,10 @@
 /**
- * Legacy development/fallback Aria voice endpoint. Not standard apartment hardware.
- * The standard apartment endpoint is the Home Assistant Voice PE; this is
- * the room-page side of the legacy local "Aria" wake-word protocol
- * (room-node/aria_wake/aria_wake.py). The detector is endpoint-specific
- * (a Python process on the EliteDesk today, a native service on an Android
- * endpoint later); this WebSocket contract is the portable part.
+ * Room-page side of the wake-endpoint protocol, endpoint-neutral. Today's
+ * detector is the EliteDesk home endpoint (room-node/aria_wake/aria_wake.py,
+ * phrase "Hey Aria"; not standard apartment hardware). The Voice PE, or an
+ * Android service, would speak the same contract: it only needs to send
+ * hello / wake / listening and read the page's state messages. Nothing here
+ * depends on which detector or phrase is in use.
  *
  *   detector -> page  hello | wake | listening (return-to-wake ack)
  *   page -> detector  { type: "state", state: "conversation" | "listening", reason }
