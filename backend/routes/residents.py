@@ -4,6 +4,7 @@ from typing import List
 from models import Resident, ResidentCreate
 from deps import db, get_current_user
 from routes.receipts import create_receipt
+from routes.kiosk_identity import resident_for_kiosk
 
 router = APIRouter(prefix="/residents", tags=["residents"])
 
@@ -110,9 +111,7 @@ async def resident_by_kiosk(kiosk_id: str):
     kiosk = await db.kiosks.find_one({"kiosk_id": kiosk_id}, {"_id": 0})
     if not kiosk:
         raise HTTPException(status_code=404, detail="Kiosk not found")
-    resident = await db.residents.find_one(
-        {"room": kiosk["room"]}, {"_id": 0, **{f: 1 for f in PUBLIC_KIOSK_RESIDENT_FIELDS}}
-    )
+    resident = await resident_for_kiosk(kiosk, {f: 1 for f in PUBLIC_KIOSK_RESIDENT_FIELDS})
     return {"kiosk": kiosk, "resident": resident}
 
 

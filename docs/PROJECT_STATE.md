@@ -7827,3 +7827,31 @@ HANDOFF CAPSULE
 - Runtime state:    nothing restarted; :8092 serves the old list until restarted.
 - Unresolved: names enumerable via by-kiosk (needs per-kiosk device credential, P2 option 3).
 - Next safe action: coordinator review.
+
+---
+
+## 2026-10-08 — RQ-037: Room 214 home test identity (kiosk resident pin)
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-037-home-test-identity` from integration `f622991`. Draft PR into `integration/2026-09-27`. Not merged, not deployed; nothing run against the shared `caoscare` DB; no service restarted.
+
+### What changed
+- `Kiosk.resident_id` (optional pin). `routes/kiosk_identity.py::resident_for_kiosk` is the one resolver: pinned resident, else the room's resident; a pin to a missing resident resolves to nobody.
+- Used by `GET /residents/public/by-kiosk/{id}` (still 4 fields) and `POST /alerts` (kiosk id only). `GET /kiosks/{id}/active-emergency` on a pinned kiosk returns only the pinned resident's alerts.
+- `POST/PUT/PATCH /kiosks` are admin-only (were any signed-in user); a pin must name an existing resident.
+- `backend/scripts/setup_home_test_identity.py` (`--dry-run`, `--revert`, `--kiosk-id`): creates "Michael Chambers (Room 214 home test)", room label `214-HOME`, pins `kio_dc8c06a19608`; idempotent; receipt per pin/unpin. `docs/ROOM_214_HOME_TEST_IDENTITY.md`.
+- Audit: other room-string resident lookups (`telephony_endpoints.resident_for_room`, `demo_kiosk`, `simulation/roster`) left unchanged; request/status/history/continuity/state/memory/lease already key on `resident_id` first. Device commands and the lease stay keyed by room `214`.
+
+### Verified
+Gate (port 8109, DB `caoscare_gate_rq037`, OpenAI/HA blank): 384 passed, 0 failed, 31 skipped (baseline 378; +6 in `test_rq037_home_test_identity.py`: 4-field pinned lookup and unpinned unchanged, admin-only/valid pin, alert + request go to the pinned resident with Helen's counts at 0, other resident's alert does not launch a pinned kiosk, room-keyed device command and lease still work, script idempotent with revert and Helen's record unchanged). Frontend untouched. Not verified: a live session mint (needs OpenAI).
+
+Line counts: `kiosks.py` 177, `kiosk_identity.py` 21, `alerts.py` 363 (pre-existing over 300, +6), `residents.py` 120, script 89, test 212.
+
+HANDOFF CAPSULE
+- Objective:        Michael's own Room 214 test identity without polluting Helen.
+- Branch:           bounded/rq-037-home-test-identity (draft PR).
+- Lane / ownership: kiosk pin, by-kiosk/alerts/active-emergency, kiosk admin guard, setup script.
+- Last proven state: gate above, 2026-10-08.
+- Runtime state:    nothing restarted; :8092 needs a restart after merge, then Michael runs the script.
+- Unresolved: Helen's existing history stays; phone endpoints by room still map to Helen.
+- Next safe action: coordinator review and merge; run the script with --dry-run first.

@@ -1,7 +1,7 @@
 """Kiosks + Zones CRUD."""
 from fastapi import APIRouter, HTTPException, Depends, Request
 from models import Kiosk, KioskCreate, KioskUpdate, Zone, ZoneCreate
-from deps import db, get_current_user
+from deps import db, get_current_user, require_admin
 
 # What a caller who is not an admin/owner may see of each kiosk (RQ-035,
 # packet P2): enough to identify a room, nothing else.
@@ -75,6 +75,12 @@ async def active_emergency_for_kiosk(kiosk_id: str):
         "status": {"$in": ["active", "acknowledged"]},
         "activation_consumed_at": None,
     }
+    pinned = kiosk.get("resident_id")
+    if pinned:
+        # A pinned kiosk speaks for one resident only (RQ-037): another
+        # resident's event in the same room (e.g. the room's own pendant)
+        # must not start a session under the pinned identity.
+        q["resident_id"] = pinned
     if not kiosk.get("is_central"):
         # A room endpoint must never activate another room's resident.
         # Null/empty zones are not routing identities. Zone-only kiosks
@@ -90,8 +96,15 @@ async def active_emergency_for_kiosk(kiosk_id: str):
     return {"kiosk_is_central": bool(kiosk.get("is_central")), "alert": alert}
 
 
+async def _check_pin(resident_id):
+    """A pin must name a real resident (RQ-037)."""
+    if resident_id and not await db.residents.find_one({"resident_id": resident_id}, {"_id": 1}):
+        raise HTTPException(status_code=404, detail="Pinned resident not found")
+
+
 @router.post("/kiosks")
-async def create_kiosk(data: KioskCreate, user=Depends(get_current_user)):
+async def create_kiosk(data: KioskCreate, user=Depends(require_admin)):
+    await _check_pin(data.resident_id)
     k = Kiosk(**data.model_dump())
     doc = k.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
@@ -101,7 +114,8 @@ async def create_kiosk(data: KioskCreate, user=Depends(get_current_user)):
 
 
 @router.put("/kiosks/{kiosk_id}")
-async def update_kiosk(kiosk_id: str, data: KioskCreate, user=Depends(get_current_user)):
+async def update_kiosk(kiosk_id: str, data: KioskCreate, user=Depends(require_admin)):
+    await _check_pin(data.resident_id)
     r = await db.kiosks.update_one({"kiosk_id": kiosk_id}, {"$set": data.model_dump()})
     if r.matched_count == 0:
         raise HTTPException(status_code=404, detail="Kiosk not found")
@@ -110,7 +124,7 @@ async def update_kiosk(kiosk_id: str, data: KioskCreate, user=Depends(get_curren
 
 
 @router.patch("/kiosks/{kiosk_id}")
-async def patch_kiosk(kiosk_id: str, data: KioskUpdate, user=Depends(get_current_user)):
+async def patch_kiosk(kiosk_id: str, data: KioskUpdate, user=Depends(require_admin)):
     """Partial update - added for the public-demo toggle (a per-row admin
     action, not a full re-submit of every field). Enforces at most one
     public_demo kiosk: setting it true on this kiosk clears it on every
@@ -122,6 +136,9 @@ async def patch_kiosk(kiosk_id: str, data: KioskUpdate, user=Depends(get_current
     existing = await db.kiosks.find_one({"kiosk_id": kiosk_id}, {"_id": 0})
     if not existing:
         raise HTTPException(status_code=404, detail="Kiosk not found")
+    if "resident_id" in updates:
+        updates["resident_id"] = updates["resident_id"] or None
+        await _check_pin(updates["resident_id"])
     if updates.get("public_demo") is True:
         await db.kiosks.update_many({"kiosk_id": {"$ne": kiosk_id}}, {"$set": {"public_demo": False}})
     await db.kiosks.update_one({"kiosk_id": kiosk_id}, {"$set": updates})
