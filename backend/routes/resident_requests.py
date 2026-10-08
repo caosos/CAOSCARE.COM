@@ -118,6 +118,12 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
     visibility_role = await _resolve_visibility_role(data.category)
     if not visibility_role:
         raise HTTPException(status_code=400, detail=f"Unsupported request category: {data.category}")
+    if data.resident_id and not data.room:
+        # Room comes from the resident record when the caller omits it; a
+        # supplied room is kept as given.
+        rec = await db.residents.find_one({"resident_id": data.resident_id}, {"_id": 0, "room": 1})
+        if rec and rec.get("room"):
+            data = data.model_copy(update={"room": rec["room"]})
     marker = await simulation_marker(data.resident_id, simulation_run_id)
     source = data.source
     if simulation_run_id:
