@@ -7596,3 +7596,32 @@ HANDOFF CAPSULE
 - Runtime state:    nothing started, installed or changed.
 - Unresolved: production-side checks (UNVERIFIED items); Michael's decisions on release, escalation day-one setting, setup_demo_room, P1/P2 install.
 - Next safe action: Michael reviews; if approved, a person with production access runs the §8.4 inspection.
+
+---
+
+## 2026-10-08 — Desktop-Agent project package added (`.agentproject/project.yaml`)
+
+### Agent / branch
+Desktop-Agent bounded worker (Claude Sonnet 5.5), branch `agent/add-the-desktop-agent-project-pa-81d202` from integration `9f7f5c2`. Not pushed, not merged, not deployed.
+
+### What changed
+- New `.agentproject/project.yaml`: a pointer file for the Desktop-Agent control plane (github.com/caosos/Desktop-Agent). It names the start-here file, `AGENTS.md`, ready queue, this file, the engineering contract, the backend test gate command and env, shared-contract paths and never-read paths. It copies no project truth.
+- `docs/REPO_MAP.md`: one-paragraph "Agent project package" entry.
+
+### Verified
+Test gate (`run_tests.sh`, port 8100, throwaway DB): 338 passed, 31 skipped, 13 deselected, 0 failed.
+
+### Note
+`shared_contract_paths` lists `backend/actor_context.py` as specified, but the file in this repo is `backend/routes/actor_context.py`; the listed path does not exist. Left as given; the owner should correct the pointer.
+
+HANDOFF CAPSULE
+- Objective:        Desktop-Agent Stage 1: CAOSCare carries its own project package.
+- Branch:           agent/add-the-desktop-agent-project-pa-81d202
+- Lane / ownership: `.agentproject/*`, docs/REPO_MAP.md, docs/PROJECT_STATE.md only.
+- Last proven state: gate above, 2026-10-08.
+- Commits:          see branch tip.
+- Runtime state:    nothing started or changed.
+- Unresolved proven defects: `backend/actor_context.py` pointer path does not exist (real: `backend/routes/actor_context.py`).
+- Product invariants: pointer file only; project truth stays in the named files.
+- Do NOT change:    shared contract files.
+- Next safe action: control plane verifies; fix the actor_context pointer.

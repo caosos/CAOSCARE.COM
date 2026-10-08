@@ -74,6 +74,10 @@ tools/wakelab/                                 Wake Phrase Lab - research toolin
 .emergent/                                     Emergent-generated summary/metadata surface
 ```
 
+## Agent project package
+
+`.agentproject/project.yaml` is the project package consumed by the Desktop-Agent control plane (github.com/caosos/Desktop-Agent). It is a pointer file, not a copy of project truth: it names this repo's start-here file, `AGENTS.md`, the Pilot 1 ready queue, `docs/PROJECT_STATE.md`, the engineering contract, the backend test gate command and environment, the shared-contract paths workers must not edit, and the files they must never read. The named files stay authoritative; update the pointers only if those files move.
+
 ## CCE-lite trust-layer map
 
 Primary proposal:

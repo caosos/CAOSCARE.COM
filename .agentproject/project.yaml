@@ -1,0 +1,28 @@
+# Consumed by the Desktop-Agent control plane (github.com/caosos/Desktop-Agent).
+# This is a POINTER file, not a copy of project truth: every value below
+# names an existing file in this repository, which remains authoritative.
+# Do not duplicate their contents here.
+name: caoscare
+integration_branch: integration/2026-09-27
+start_here: CAOSCARE_START_HERE.md
+agents_file: AGENTS.md
+ready_queue: docs/PILOT1_READY_QUEUE.md
+current_state: docs/PROJECT_STATE.md
+acceptance: docs/ENGINEERING_CONTRACT.md
+test_command: backend/scripts/run_backend_tests.sh
+test_env:
+  CAOSCARE_TEST_PORT: '{port}'
+  CAOSCARE_TEST_DB: 'caoscare_gate_{task_id}'
+  OPENAI_API_KEY: ''
+  HA_BASE_URL: ''
+  HA_TOKEN: ''
+shared_contract_paths:
+  - backend/models.py
+  - backend/server.py
+  - backend/routes/receipts.py
+  - backend/actor_context.py
+never_read:
+  - .env
+  - backend/.env
+  - frontend/.env
+  - "**/credentials*"
