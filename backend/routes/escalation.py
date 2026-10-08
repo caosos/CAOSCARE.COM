@@ -1,11 +1,9 @@
 """Auto-escalation + memory sanitize.
 
-Two background-style tasks exposed as endpoints (so cron / k8s CronJob /
-the user can fire them on demand). The escalation tick polls active alerts
-and bumps their severity / fires notifications when staff hasn't ack'd in
-time. The sanitize task scrubs PII from archived conversation turns.
+Escalation rule CRUD, an on-demand escalation tick (logic and schedule live
+in routes/escalation_tick.py) and the PII sanitize task for archived
+conversation turns.
 """
-from datetime import datetime, timezone
 import re
 import logging
 
@@ -13,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from deps import db, require_admin, require_owner
 from models import EscalationRule, now_utc
+from routes.escalation_tick import run_tick
 
 router = APIRouter(prefix="/escalation", tags=["escalation"])
 log = logging.getLogger(__name__)
@@ -55,95 +54,9 @@ async def upsert_rule(rule: EscalationRule, user=Depends(require_admin)):
 
 @router.post("/tick")
 async def tick(user=Depends(require_admin)):
-    """Run one escalation pass over all active alerts. Idempotent — alerts
-    that have already been escalated to a level past the rule's threshold
-    are skipped. Fire from a cron every 30s in production, or hit it
-    manually for testing."""
-    now = datetime.now(timezone.utc)
-    rules_cur = db.escalation_rules.find({}, {"_id": 0})
-    rules_by_fac: dict = {}
-    async for r in rules_cur:
-        rules_by_fac[r.get("facility_id")] = r
-    default_rule = EscalationRule().model_dump()
-
-    active = await db.alerts.find(
-        {"status": {"$in": ["open", "active", "acknowledged", "escalated"]}},
-        {"_id": 0},
-    ).to_list(1000)
-
-    actions = {"escalated_to_2": 0, "escalated_to_3": 0, "skipped": 0, "examined": len(active)}
-    for a in active:
-        rule = rules_by_fac.get(a.get("facility_id"), default_rule)
-        if not rule.get("enabled", True):
-            actions["skipped"] += 1
-            continue
-        # Already at level 3? Nothing to do.
-        if a.get("escalation_level", 1) >= 3:
-            actions["skipped"] += 1
-            continue
-        created = a.get("created_at")
-        if isinstance(created, str):
-            created = datetime.fromisoformat(created.replace("Z", "+00:00"))
-        if created is None:
-            continue
-        elapsed = (now - created.replace(tzinfo=timezone.utc) if created.tzinfo is None else now - created).total_seconds()
-
-        # Skip if staff already acknowledged
-        if a.get("acknowledged_at"):
-            actions["skipped"] += 1
-            continue
-
-        new_level = a.get("escalation_level", 1)
-        if elapsed >= rule.get("level_3_seconds", 150) and new_level < 3:
-            new_level = 3
-            actions["escalated_to_3"] += 1
-        elif elapsed >= rule.get("level_2_seconds", 90) and new_level < 2:
-            new_level = 2
-            actions["escalated_to_2"] += 1
-
-        if new_level > a.get("escalation_level", 1):
-            event = {
-                "type": "escalation",
-                "level": new_level,
-                "at": now.isoformat(),
-                "rule_id": rule.get("facility_id") or "default",
-            }
-            await db.alerts.update_one(
-                {"alert_id": a["alert_id"]},
-                {
-                    "$set": {"escalation_level": new_level, "status": "escalated"},
-                    "$push": {"timeline": event},
-                },
-            )
-            # Hook for SMS/email — gracefully no-op when keys absent
-            try:
-                if new_level >= 3 and rule.get("notify_oncall_phone"):
-                    await _try_sms(rule["notify_oncall_phone"], a)
-                if new_level >= 2 and rule.get("notify_supervisor_phone"):
-                    await _try_sms(rule["notify_supervisor_phone"], a)
-            except Exception as e:
-                log.warning(f"escalation notify failed: {e}")
-
-    return actions
-
-
-async def _try_sms(to_phone: str, alert: dict):
-    """Best-effort SMS — uses Twilio if creds in env, otherwise just logs.
-    Real Twilio integration plugs in here once the user provides keys."""
-    sid = __import__("os").environ.get("TWILIO_ACCOUNT_SID")
-    token = __import__("os").environ.get("TWILIO_AUTH_TOKEN")
-    from_phone = __import__("os").environ.get("TWILIO_FROM_PHONE")
-    if not (sid and token and from_phone):
-        log.info(f"[escalation] would SMS {to_phone}: alert {alert.get('alert_id')} (Twilio not configured)")
-        return
-    # Lazy import — only when we actually have keys
-    try:
-        from twilio.rest import Client  # type: ignore
-        client = Client(sid, token)
-        body = f"CAOS Care escalation: {alert.get('severity', 'alert')} in room {alert.get('room', '?')}. Open the dashboard."
-        client.messages.create(to=to_phone, from_=from_phone, body=body)
-    except Exception as e:
-        log.warning(f"twilio send failed: {e}")
+    """Run one escalation pass now. The same function the backend schedule
+    runs (routes/escalation_tick.py) - the only escalation authority."""
+    return await run_tick()
 
 
 # ---------------- Memory sanitize (owner-only) ----------------

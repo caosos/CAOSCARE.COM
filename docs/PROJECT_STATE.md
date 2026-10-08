@@ -7345,3 +7345,35 @@ HANDOFF CAPSULE
 - Runtime state:    nothing changed; :8092 is down.
 - Unresolved proven defects: none found in docs.
 - Next safe action: Michael answers runbook items 1 and 2 first.
+
+---
+
+## 2026-10-08 — RQ-018: one escalation authority (ENGINEERING_CONTRACT decision 8)
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-018-escalation` from integration `221547e`. Draft PR into `integration/2026-09-27`. Not merged, not deployed; no service restarted; throwaway gate DB `caoscare_gate_rq018`, port 8089.
+
+### What changed
+- New `routes/escalation_tick.py`: `run_tick()` is the only code that raises `escalation_level` (thresholds from `EscalationRule`). It skips acknowledged, resolved and stale (> `STALE_ALERT_HOURS`) alerts. The level change is one atomic conditional update, so concurrent ticks escalate once per level. Each change appends a NEW `alert_escalated` receipt (actor `system:escalation`, authority = rule, thresholds, before/after level). `status`, `aria_state`, `live_line_state` are not touched.
+- `escalation.py`: `POST /escalation/tick` now calls `run_tick()`; old inline logic and `_try_sms` moved into the new module.
+- `alerts.py::alerts_feed`: no longer computes or writes escalation; read-only. Acknowledge also accepts legacy `escalated` rows; the feed lists them.
+- `models.py`: `AlertStatus` declares `escalated` (legacy rows). The tick no longer writes it.
+- `server.py` lifespan: background loop (`CAOSCARE_ESCALATION_INTERVAL`, default 30 s; `CAOSCARE_ESCALATION_AUTO=0` disables). No simulator import.
+
+### Verified
+Gate (`CAOSCARE_TEST_PORT=8089 CAOSCARE_TEST_DB=caoscare_gate_rq018`, OpenAI/HA blank): 304 passed, 0 failed, 31 skipped (baseline 298; +6 in `test_rq018_escalation.py`).
+
+### Line counts
+`escalation_tick.py` 158 (new), `escalation.py` 106 (was 193), `alerts.py` 357 (was 383), `server.py` 282, `test_rq018_escalation.py` 144 (new).
+
+### Notes
+The feed no longer shows lazy level-1 at 60 s; levels now move only on a tick (2 at 90 s, 3 at 150 s by default). Live :8092 not restarted, so the schedule runs only after a restart.
+
+HANDOFF CAPSULE
+- Objective:        RQ-018 sole escalation authority.
+- Branch:           bounded/rq-018-escalation (draft PR).
+- Lane / ownership: escalation.py, alerts.py (feed/acknowledge only), models AlertStatus, server lifespan.
+- Last proven state: gate above, 2026-10-08.
+- Runtime state:    nothing restarted.
+- Unresolved: no live check of the schedule on a running backend.
+- Next safe action: coordinator review and merge; restart :8092 to start the schedule.

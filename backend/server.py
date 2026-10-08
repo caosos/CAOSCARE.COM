@@ -145,9 +145,15 @@ async def lifespan(app: FastAPI):
     import asyncio
     from routes.asterisk_ari_events import run_ari_listener, ari_ws_url
     ari_task = asyncio.create_task(run_ari_listener()) if ari_ws_url() else None
+    # Escalation schedule (independent of any simulator); CAOSCARE_ESCALATION_AUTO=0 disables.
+    from routes.escalation_tick import auto_interval_seconds, run_escalation_loop
+    esc_interval = auto_interval_seconds()
+    esc_task = asyncio.create_task(run_escalation_loop(esc_interval)) if esc_interval else None
     yield
     if ari_task:
         ari_task.cancel()
+    if esc_task:
+        esc_task.cancel()
 
 
 app = FastAPI(title="CAOS Care", lifespan=lifespan)

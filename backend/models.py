@@ -259,7 +259,9 @@ class ZoneCreate(BaseModel):
 
 # ---------- Alerts ----------
 AlertSeverity = Literal["emergency", "assist", "comfort"]
-AlertStatus = Literal["active", "acknowledged", "resolved"]
+# "escalated" is declared only for legacy rows written by the old tick; the
+# escalation tick no longer writes it (level lives in escalation_level).
+AlertStatus = Literal["active", "acknowledged", "resolved", "escalated"]
 AlertCategory = Literal[
     "bathroom", "fall", "pain", "medication", "confusion",
     "loneliness", "comfort", "mobility", "other",
