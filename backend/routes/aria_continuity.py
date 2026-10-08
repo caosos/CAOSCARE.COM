@@ -22,9 +22,9 @@ conversations were.
 """
 from typing import Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
-from deps import db
+from deps import db, require_admin
 from routes.aria_time import age_phrase, parse_dt
 
 router = APIRouter(prefix="/aria", tags=["realtime"])
@@ -201,10 +201,10 @@ async def continuity(
     resident_id: Optional[str] = None,
     current_session_id: Optional[str] = None,
     room: Optional[str] = None,
+    user=Depends(require_admin),
 ):
-    """Public — resident/room-scoped, same trust model as the other
-    resident-facing realtime endpoints. Inspection/debug surface for the
-    continuity package the session mint assembles."""
+    """Admin-only inspection (RQ-025; was public) of the continuity package
+    the session mint assembles in-process."""
     state = await resolve_continuity(resident_id, current_session_id, room)
     # drop the raw rows from the wire view
     return {"has_continuity": state["has_continuity"],

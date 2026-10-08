@@ -11,9 +11,9 @@ Two stores, same shape as resident memory:
   db.aria_memories        — discrete standing facts / episodic session notes.
   db.aria_voice_sessions  — session summaries/receipts. No raw audio, ever.
 """
-from typing import Optional
+from typing import Literal, Optional
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from deps import db, require_owner
 from models import (
@@ -141,18 +141,22 @@ async def list_sessions(owner_user_id: str, user=Depends(require_owner)):
 # already accepted there. Text only, never audio.
 
 class AriaConversationTurnIngest(BaseModel):
-    owner_user_id: str
-    session_id: str
-    role: str
-    content: str
+    owner_user_id: Optional[str] = None   # optional; if given it must be the signed-in owner
+    session_id: str = Field(max_length=120)
+    role: Literal["user", "assistant"]
+    content: str = Field(max_length=4000)
 
 
 @router.post("/conversation-turn")
-async def ingest_conversation_turn(data: AriaConversationTurnIngest):
-    if not data.owner_user_id or not data.content.strip():
+async def ingest_conversation_turn(data: AriaConversationTurnIngest, user=Depends(require_owner)):
+    """Owner-only (RQ-025; was public). The turn is stored under the
+    signed-in owner; a body that names another owner is refused."""
+    if data.owner_user_id and data.owner_user_id != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Cannot write another owner's conversation")
+    if not data.content.strip():
         return {"ok": False, "saved": False}
     await db.aria_conversations.insert_one({
-        "owner_user_id": data.owner_user_id,
+        "owner_user_id": user["user_id"],
         "session_id": data.session_id or "unknown",
         "role": data.role,
         "content": data.content.strip(),

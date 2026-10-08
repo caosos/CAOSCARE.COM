@@ -23,9 +23,9 @@ Read-only. No lifecycle transitions happen here — that stays in
 """
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
-from deps import db
+from deps import db, require_admin
 from models import RESIDENT_ORIGIN_SOURCES, now_utc
 from routes.aria_time import age_phrase as _age_label, parse_dt as _parse
 
@@ -193,9 +193,8 @@ async def operational_state(
     resident_id: Optional[str] = None,
     room: Optional[str] = None,
     alert_id: Optional[str] = None,
+    user=Depends(require_admin),
 ):
-    """Public — same trust model as the other resident-facing realtime
-    endpoints (kiosk-local, scoped to one resident or one room, never a
-    global query). Lets the kiosk/Aria answer 'is anyone coming', 'when did
-    I ask', 'was that handled' from real state."""
+    """Admin-only inspection (RQ-025; was public). The session mint calls
+    resolve_operational_state() in-process, so no kiosk needs this route."""
     return await resolve_operational_state(resident_id, room, alert_id)

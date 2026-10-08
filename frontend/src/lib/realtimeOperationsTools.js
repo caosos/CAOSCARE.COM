@@ -264,9 +264,10 @@ export async function executeOperationsTool({ name, args, ctx }) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        resident_id: residentId, heard_as: args.heard_as, understood_as: args.understood_as,
+        resident_id: residentId, session_id: sessionId || "",
+        heard_as: args.heard_as, understood_as: args.understood_as,
         meaning: args.meaning || null, language: args.language || null,
-        category: args.category || null, source: "resident_confirmed",
+        category: args.category || null,
       }),
     });
     if (!r.ok) return { ok: true, message: "noted for this call." };

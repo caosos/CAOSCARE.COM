@@ -121,9 +121,11 @@ export function createRealtimeHandlers({
       }).catch(() => {});
     } else if (ownerId) {
       // Aria's own (operator) sessions - same immediate per-turn pattern.
+      // Owner-only endpoint (RQ-025): send the signed-in owner's token.
+      const token = localStorage.getItem("caos_token");
       fetch(`${API}/aria/conversation-turn`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ owner_user_id: ownerId, session_id: sessionIdRef.current, role, content: text }),
       }).catch(() => {});
     }

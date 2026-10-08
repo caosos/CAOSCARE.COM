@@ -150,14 +150,12 @@ def test_operational_state_empty_means_no_workflow():
 
 
 def test_operational_state_http_endpoint():
-    """Thin wrapper over resolve_operational_state(). Skips if the shared
-    dev backend hasn't been reloaded since this route was added (no reload
-    flag on that process)."""
+    """The route exists and is admin-only since RQ-025 (the authenticated
+    200 body is covered in test_rq025_aria_route_auth.py). Skips if the
+    shared dev backend hasn't been reloaded since the route was added."""
     _skip_if_down()
     r = requests.get(f"{API}/aria/operational-state",
                      params={"room": f"optest_{uuid.uuid4().hex[:6]}"}, timeout=5)
     if r.status_code == 404:
         pytest.skip("backend not reloaded since /aria/operational-state was added")
-    r.raise_for_status()
-    body = r.json()
-    assert "speak_guidance" in body and body["has_open_work"] is False
+    assert r.status_code == 401

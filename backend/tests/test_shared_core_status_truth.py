@@ -61,8 +61,9 @@ def _status(room):
     return _ok(requests.get(f"{API}/tasks/resident-request/status", params={"room": room}, timeout=5))
 
 
-def _layer_e_lifecycle(room, task_id):
-    st = _ok(requests.get(f"{API}/aria/operational-state", params={"room": room}, timeout=5))
+def _layer_e_lifecycle(room, task_id, headers):
+    # admin-only since RQ-025
+    st = _ok(requests.get(f"{API}/aria/operational-state", params={"room": room}, headers=headers, timeout=5))
     items = [i for i in st["current"] + st["background"] if i.get("ref") == task_id]
     return items[0]["lifecycle"] if items else None
 
@@ -97,7 +98,7 @@ async def _run():
         s = _status(room)
         assert s["lifecycle"] == "acknowledged" and s["acknowledged"] is True
         assert PICKED_UP not in s["spoken"] and names["nurse"] in s["spoken"]
-        assert _layer_e_lifecycle(room, nt) == "acknowledged"        # Layer E agrees
+        assert _layer_e_lifecycle(room, nt, H["admin"]) == "acknowledged"        # Layer E agrees
 
         again = _ask(room, "nursing", "is anyone coming?")
         assert again["duplicate"] and again["re_request_count"] == 1 and again["times_asked"] == 2

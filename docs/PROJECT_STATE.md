@@ -7539,3 +7539,32 @@ HANDOFF CAPSULE
 - Runtime state:    nothing restarted or deployed.
 - Unresolved: none.
 - Next safe action: coordinator review.
+
+---
+
+## 2026-10-08 — RQ-025: aria public-route security (B1, B2, A)
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-025-security-b1-b2-a` from integration `2a2d569`. Draft PR into `integration/2026-09-27`. Not merged, not deployed; no service restarted; gate on port 8097 / throwaway DB `caoscare_gate_rq025`.
+
+### What changed
+- B1: the five public `GET /api/aria/` read routes are admin-only (no HTTP caller existed; the mint reads them in-process).
+- B2: `POST /aria/interpretation-patterns/confirm` needs a live lease for the session and resident and the resident's own trusted turn containing the heard phrase; server-set `source`; field length limits; the prompt rendering strips newlines and markup. The kiosk tool now sends `session_id`.
+- A: `POST /aria/conversation-turn` is owner-only, stores under the signed-in owner (403 for a foreign `owner_user_id`), `role` limited to user/assistant, `content` at most 4000; the owner `/aria` caller sends the token.
+- `/memory/realtime-turn` assessed, not changed: it needs the same session grounding (details in the report).
+- Report updated: `docs/reports/2026-10-06-security-followup-aria-public-routes.md` (RESOLVED section).
+
+### Verified
+Gate: 338 passed, 0 failed, 31 skipped (baseline 314; +24 new `test_rq025_aria_route_auth.py`, all in the gate). Frontend 40 suites / 314 tests (baseline 312); `CI=true yarn build` compiles. Not verified: a live kiosk or owner-page run.
+
+### Line counts
+`aria_interpretation_patterns.py` 243, `aria_memory.py` 192, `aria_continuity.py` 212, `aria_operational_state.py` 200, `aria_conversation_state.py` 208, `realtimeMessageHandler.js` 360 (pre-existing over 300, +3), `realtimeOperationsTools.js` 278, new tests 232 and 36.
+
+HANDOFF CAPSULE
+- Objective:        RQ-025 security fixes B1, B2, A.
+- Branch:           bounded/rq-025-security-b1-b2-a (draft PR).
+- Lane / ownership: aria_* routes, two frontend call sites, tests, report.
+- Last proven state: gate and frontend above, 2026-10-08.
+- Runtime state:    nothing restarted or deployed; :8092 still serves the old routes until restarted.
+- Unresolved: /memory/realtime-turn (recommended next); public GET /api/kiosks.
+- Next safe action: coordinator review; Michael approves a release.
