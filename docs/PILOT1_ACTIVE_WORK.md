@@ -1,5 +1,7 @@
 # CAOSCare Pilot 1 Active Work
 
+> **RECONCILIATION REQUIRED (2026-10-07):** The Round 5 live board below contains stale long-lived-agent assignments mixed with later merged work. Do not use an old ASSIGNED/Active label as launch authority. Before autonomous dispatch, follow `docs/COORDINATION_RECONCILIATION_2026-10-07.md`, reconcile against current integration HEAD + PROJECT_STATE, then rewrite this board as queue-owned bounded work.
+
 Target: 2026-10-10
 
 Integration branch: `integration/2026-09-27`
