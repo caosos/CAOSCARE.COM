@@ -7891,3 +7891,30 @@ HANDOFF CAPSULE
 - Runtime state:    nothing installed or running.
 - Unresolved: microphone access; headless audio path unverified; far-field/TV recall weak offline.
 - Next safe action: Michael runs the sudo command, then the runbook; tally with wake_stats.py.
+
+---
+
+## 2026-10-08 — RQ-038: end-call grounding, hang-up timing, light ambiguity loop
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-038-end-call-fixes` from integration tip `f733031`. Draft PR into `integration/2026-09-27`. Not merged, not deployed; no service touched. Evidence: Michael's Room 214 physical test 2026-10-08 16:04–16:12 CDT (sessions rt_cszwju9z, rt_lgjc64m9, rt_he1r0xrd, rt_4dv97qaw; read from the incident brief, not re-queried).
+
+### What changed
+- **End phrases:** `frontend/src/lib/endingPhrases.js` (new) holds the widened list (that will be all / that'll be it / that is all / we're done / end the call|conversation|chat / end it / hang up / stop talking|the call / bye / goodbye / good night / see you / talk to you later / thanks, that's it …). Unrelated utterances still refuse. A short "yes/yeah/please/sure/go ahead/do it/that's right" right after a refusal grounds the end; a bare "no" clears it. After two refusals the third returns a final `ok:false` telling the model not to ask again. State is per session id. The `turn_suspect` guard is unchanged and still runs first.
+- **Hang-up timing:** `frontend/src/lib/endCallHangup.js` (new) replaces the fixed 2.5 s timer in `realtimeMessageHandler.js`: after `end_call` ok, close 400 ms after the goodbye's `output_audio_buffer.stopped/.cleared`; close if no audio starts within 3 s of the goodbye response finishing; 7 s maximum.
+- **Light loop:** an ambiguous `toggle_light` now returns `{ok:false, ambiguous:true, choices:[…]}` with a message to ask which light. The same refusal is returned locally (no network) until a new resident utterance arrives, per session. `toggle_light` gets an optional `device` argument (exact label or device_id); the tool description says an ambiguity refusal means ask, then call again with `device`.
+
+### Verified
+Frontend: 45 suites / 376 tests (baseline 335); `CI=true yarn build` compiles. New tests: `endingPhrases.test.js`, `endCallHangup.test.js`, additions to `toggleLightControl.test.js`. Backend change is tool-schema text and one optional property only; the backend gate was not run. Not verified: a live spoken session.
+
+### Line counts
+`endingPhrases.js` 79, `endCallHangup.js` 41, `realtimeLightControl.js` 147, `realtimeDeviceTools.js` 325 (was 326, over 300 pre-existing), `realtimeMessageHandler.js` 376 (was 366; pre-existing over 300, +10 wiring, logic extracted to the new module).
+
+HANDOFF CAPSULE
+- Objective:        RQ-038 end-call and light-loop fixes.
+- Branch:           bounded/rq-038-end-call-fixes (draft PR).
+- Lane / ownership: realtime end-call grounding, hang-up timing, toggle_light ambiguity.
+- Last proven state: frontend tests and build above, 2026-10-08.
+- Runtime state:    nothing restarted or deployed.
+- Unresolved: live spoken verification; TV ambiguity has the same retry risk (not changed).
+- Next safe action: coordinator review; Michael retests "That will be all for now" and "turn the light on".

@@ -26,6 +26,7 @@ import { executeDisplayTool } from "./realtimeDisplayTools";
 import { executeCareTool, ringLiveLineOnSilence } from "./realtimeCareControl";
 import { logRealtimeEvent, transcriptionConfidence, LOW_CONFIDENCE_THRESHOLD } from "./realtimeDiagnostics";
 import { reenableAutoResponse, createGreetingResponseGate } from "./realtimeAutoResponseGate";
+import { createHangupScheduler } from "./endCallHangup";
 import { createTurnGroundingTracker } from "./realtimeTurnGrounding";
 import { typedTurnFromMessage, TYPED_TURN_CLASS, onTypedEcho, onTypedResponseCreated, onTypedResponseDone } from "./realtimeTypedTurn";
 
@@ -104,6 +105,13 @@ export function createRealtimeHandlers({
   let lastSpeechSegmentMs = null;
   let lastPlaybackStoppedAt = null;
   const greetingGate = createGreetingResponseGate({ send, caos, greetingCreateResponseOffRef });
+  let endCallKind = "resident_end_call";
+  const hangup = createHangupScheduler({ // waits for the goodbye audio (endCallHangup.js)
+    onClose: () => {
+      try { stop(endCallKind); } catch {}
+      try { onEndCall?.(); } catch {}
+    },
+  });
   const turnGrounding = createTurnGroundingTracker(); // see realtimeTurnGrounding.js
   const typedItemsSeen = new Set(); // typed-turn echoes, once each (realtimeTypedTurn.js)
 
@@ -184,10 +192,8 @@ export function createRealtimeHandlers({
       // triggering turn was flagged suspect.
       send({ type: "response.create" });
       if (result.ok) {
-        setTimeout(() => {
-          try { stop(fn.name === "end_call" ? "resident_end_call" : "resident_end_conversation"); } catch {}
-          try { onEndCall?.(); } catch {}
-        }, 2500);
+        endCallKind = fn.name === "end_call" ? "resident_end_call" : "resident_end_conversation";
+        hangup.arm();
       }
     } else {
       // Ask the model to speak its short confirmation, drawing on the tool result.
@@ -257,6 +263,7 @@ export function createRealtimeHandlers({
     if (msg.type === "output_audio_buffer.started") {
       assistantSpeakingRef.current = true;
       greetingGate.onAudioStarted();
+      hangup.onAudioStarted();
       speech("aria_start");       // Aria speaking -> cancel any pending inactivity window
       // Logged standalone (2026-08-24) - was only folded into other events.
       logRealtimeEvent(sessionIdRef.current, "output_audio_buffer_started", {});
@@ -271,6 +278,7 @@ export function createRealtimeHandlers({
       // Re-enable normal auto-response once the forced greeting's own audio
       // has ACTUALLY finished playing - see realtimeAutoResponseGate.js.
       greetingGate.onAudioStopped();
+      hangup.onAudioStopped();
     }
     if (msg.type === "response.done" && typedTurnRef?.current) onTypedResponseDone(typedTurnRef.current, send, msg.response);
     if (msg.type === "response.done") {
@@ -279,9 +287,11 @@ export function createRealtimeHandlers({
       // Fallback for a greeting that completed with no audio at all - see
       // createGreetingResponseGate's docstring in realtimeAutoResponseGate.js.
       greetingGate.onResponseDone();
+      hangup.onResponseDone();
     }
     if (msg.type === "response.created" && typedTurnRef?.current) onTypedResponseCreated(typedTurnRef.current);
     if (msg.type === "response.created") {
+      hangup.onResponseCreated();
       logRealtimeEvent(sessionIdRef.current, "response_created", { responseId: msg.response?.id });
     }
     const typed = typedTurnFromMessage(msg);
