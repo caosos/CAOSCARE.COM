@@ -1,0 +1,11 @@
+# PROPOSAL - not installed. Install path: /etc/systemd/system/ha-vm-restart-if-crashed.timer
+[Unit]
+Description=Check once a minute whether the Home Assistant VM crashed
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=1min
+AccuracySec=10s
+
+[Install]
+WantedBy=timers.target

@@ -7568,3 +7568,31 @@ HANDOFF CAPSULE
 - Runtime state:    nothing restarted or deployed; :8092 still serves the old routes until restarted.
 - Unresolved: /memory/realtime-turn (recommended next); public GET /api/kiosks.
 - Next safe action: coordinator review; Michael approves a release.
+## 2026-10-08 — RQ-026: release-readiness analysis + HA VM P1/P2 proposal files (docs/ops only)
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-026-release-ha-prep` from integration `2a2d569`. Draft PR into `integration/2026-09-27`. Docs and proposal files only; no code or tests changed; nothing installed, deployed or restarted; no ssh, no production access.
+
+### What changed
+- `docs/RELEASE_READINESS_2026-10-08.md`: read-only analysis of releasing the integration tip to production. Findings:
+  - `origin/main` (`880d10f`) is an ancestor of the tip (223 commits ahead), so the merge is a fast-forward. A scratch-worktree `git merge --no-commit` was conflict-free and aborted.
+  - The deploy script requires the SHA to be on `origin/main`; the script is unchanged since `d7ff96a`.
+  - No new required env var. New optional ones: `CAOSCARE_ESCALATION_AUTO` (default on), `CAOSCARE_ESCALATION_INTERVAL`, `CAOSCARE_DEMO_CONTINUITY_AUTO` (default off), telephony/ARI/OpenAI webhook names.
+  - One new pip dependency (`websockets>=14.0`); no frontend dependency change.
+  - Startup side effects: Activities department row, a `conversations` index, the escalation loop. Lazy unique partial index on `alerts.open_event_key` and unique index on leases.
+  - From code, alerts older than 72 h are skipped by escalation; unacknowledged alerts younger than 72 h are escalated to level 3 within minutes. `CAOSCARE_ESCALATION_AUTO=0` disables the loop.
+  - `POST /api/demo/reset` is public but refuses (409) unless the demo kiosk is in room `DEMO`; the release also closes the by-kiosk and aria-session exposures.
+  - Pre-deploy checklist and post-deploy smoke tests are in the document. Everything needing production access is marked UNVERIFIED.
+- `docs/ops/ha-vm/`: proposed (not installed) files for `docs/HA_VM_RECOVERY.md` P1/P2 — libvirt qemu hook (`oom_score_adj` -800), crash-only restart script with timer/service (state must be `shut off (crashed)`, 5-minute spacing, memory guard), and a README with install, verify and uninstall steps. `bash -n` passes on both scripts. Only `virsh domstate` was run (`running`).
+
+### Not done
+Nothing installed or enabled; hook behaviour on this libvirt version and the crash test are UNVERIFIED. No production fact was checked.
+
+HANDOFF CAPSULE
+- Objective:        RQ-026 release analysis + HA VM P1/P2 proposal.
+- Branch:           bounded/rq-026-release-ha-prep (draft PR).
+- Lane / ownership: docs/ops only.
+- Last proven state: merge test and source reads above, 2026-10-08.
+- Runtime state:    nothing started, installed or changed.
+- Unresolved: production-side checks (UNVERIFIED items); Michael's decisions on release, escalation day-one setting, setup_demo_room, P1/P2 install.
+- Next safe action: Michael reviews; if approved, a person with production access runs the §8.4 inspection.
