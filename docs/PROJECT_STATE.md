@@ -7235,3 +7235,36 @@ HANDOFF CAPSULE
 - Runtime state:    nothing started or restarted.
 - Unresolved: SIM-1 live-email-key start guard still in place; CM-1 open (after RQ-011).
 - Next safe action: coordinator review and merge.
+
+---
+
+## 2026-10-08 — RQ-014: CM-1 inbound-activities link + receipts for menu/schedule content changes
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/cm1-receipts` from integration `4d39d4b`. Draft PR into `integration/2026-09-27`. Not merged, not deployed; no service restarted; throwaway gate DB `caoscare_gate_cm1` on port 8087.
+
+### What changed
+- **CM-1:** `email_inbound.py` activities lane now sets `linked_object_id` to the `ingest_id` returned by `create_schedule_items()` (type stays `schedule_items`). Before it stored `None`.
+- **Content receipts:** new `routes/content_receipts.py` (`record_content_change`, built on the existing `create_receipt`). Every menu and schedule content change writes one receipt: actor from the authenticated user (or the named `system:inbound_email` process, channel `email`), authority (`acts_for:<dept>` / `admin_override:<role>` / `system:inbound_email`), before/after summary, and the ingest/upload id. Receipts chain per object (parent + shared workflow id).
+  - Menu: item create, edit, publish (single-item approve or edit+publish), delete; upload (paste / dev-test / email) and upload approval; each dish replaced by an approval gets its own `superseded` receipt.
+  - Schedule: item create, edit, publish, delete; calendar batch upload and batch publish; each row replaced by a newer calendar gets its own `superseded` receipt.
+  - Reads and refused/404 changes write nothing.
+- No shared contract changed (Receipt model, `create_receipt`, `task_lifecycle` untouched). Receipts record staff content changes, not task state.
+
+### Verified
+- Gate (`CAOSCARE_TEST_PORT=8087 CAOSCARE_TEST_DB=caoscare_gate_cm1 OPENAI_API_KEY= HA_BASE_URL= HA_TOKEN= backend/scripts/run_backend_tests.sh`): **295 passed, 0 failed, 31 skipped** (tip baseline 294).
+- New `tests/test_content_receipts.py` (HTTP, kitchen + activities staff): reads write none; a receipt per change with actor/authority/before/after/ingest id and chain; wrong-department 403 and missing-item 404 write none.
+- `test_email_inbound.py` asserts the CM-1 link and the email-process receipt.
+- Frontend untouched, no frontend tests run.
+
+### Line counts
+`content_receipts.py` 98 (new), `menu.py` 150, `menu_ingest.py` 222, `schedule.py` 196, `schedule_ingest.py` 232, `email_inbound.py` 289, `test_content_receipts.py` 150 (new).
+
+HANDOFF CAPSULE
+- Objective:        CM-1 and receipts for menu/schedule content changes (RQ-014).
+- Branch:           bounded/cm1-receipts (draft PR).
+- Lane / ownership: community-services content routes plus the new receipt helper; no shared lifecycle/receipt contract edits.
+- Last proven state: gate above, 2026-10-08.
+- Runtime state:    nothing restarted or deployed.
+- Unresolved: receipts are written after the change (no multi-document transaction); a failed receipt write would leave the change without one.
+- Next safe action: coordinator review and merge.

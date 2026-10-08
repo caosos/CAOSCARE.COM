@@ -13,6 +13,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from models import ScheduleItem, ScheduleItemCreate, ScheduleItemUpdate, now_utc
 from deps import db, get_current_user
 from routes.realtime_facility import today_facility_date
+from routes.content_receipts import record_content_change, staff_actor, summarize
 from routes.service_content_access import SCHEDULE_DEPARTMENTS, require_content_editor
 
 router = APIRouter(prefix="/schedule", tags=["schedule"])
@@ -85,6 +86,9 @@ async def create_schedule_item(data: ScheduleItemCreate, user=Depends(get_curren
         doc[k] = doc[k].isoformat()
     await db.schedule_items.insert_one(doc)
     doc.pop("_id", None)
+    await record_content_change(kind="schedule", action="created", object_type="schedule_item",
+                                object_id=doc["schedule_id"], actor=staff_actor(user),
+                                after=summarize("schedule", doc))
     return doc
 
 
@@ -99,7 +103,11 @@ async def update_schedule_item(schedule_id: str, data: ScheduleItemUpdate, user=
     patch = {k: v for k, v in data.model_dump(exclude_none=True).items()}
     patch["updated_at"] = now_utc().isoformat()
     await db.schedule_items.update_one({"schedule_id": schedule_id}, {"$set": patch})
-    return _iso(await _get(schedule_id))
+    updated = await _get(schedule_id)
+    await record_content_change(kind="schedule", action="edited", object_type="schedule_item",
+                                object_id=schedule_id, actor=staff_actor(user), ingest_id=updated.get("ingest_id"),
+                                before=summarize("schedule", existing), after=summarize("schedule", updated))
+    return _iso(updated)
 
 
 @router.post("/{schedule_id}/publish")
@@ -112,7 +120,11 @@ async def publish_schedule_item(schedule_id: str, user=Depends(get_current_user)
     await db.schedule_items.update_one({"schedule_id": schedule_id}, {"$set": {
         "status": "published", "published_by": user["user_id"], "published_at": now_iso, "updated_at": now_iso,
     }})
-    return _iso(await _get(schedule_id))
+    updated = await _get(schedule_id)
+    await record_content_change(kind="schedule", action="published", object_type="schedule_item",
+                                object_id=schedule_id, actor=staff_actor(user), ingest_id=updated.get("ingest_id"),
+                                before=summarize("schedule", existing), after=summarize("schedule", updated))
+    return _iso(updated)
 
 
 @router.post("/batches/{ingest_id}/publish")
@@ -128,15 +140,27 @@ async def publish_batch(ingest_id: str, user=Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="No unpublished entries for this calendar")
     now_iso = now_utc().isoformat()
     dates = sorted({d["date"] for d in drafts})
+    replace_q = {"date": {"$in": dates}, "ingest_id": {"$nin": [None, ingest_id]},
+                 "status": {"$nin": _NOT_LIVE}}
+    old_rows = await db.schedule_items.find(replace_q, {"_id": 0}).to_list(500)
     replaced = await db.schedule_items.update_many(
-        {"date": {"$in": dates}, "ingest_id": {"$nin": [None, ingest_id]},
-         "status": {"$nin": _NOT_LIVE}},
-        {"$set": {"status": "superseded", "updated_at": now_iso}},
+        replace_q, {"$set": {"status": "superseded", "updated_at": now_iso}},
     )
     await db.schedule_items.update_many(
         {"ingest_id": ingest_id, "status": "draft"},
         {"$set": {"status": "published", "published_by": user["user_id"], "published_at": now_iso, "updated_at": now_iso}},
     )
+    actor = staff_actor(user)
+    await record_content_change(
+        kind="schedule", action="published", object_type="schedule_batch", object_id=ingest_id,
+        actor=actor, ingest_id=ingest_id, before={"status": "draft", "item_count": len(drafts)},
+        after={"status": "published", "dates": dates, "published_count": len(drafts),
+               "superseded_schedule_ids": [o["schedule_id"] for o in old_rows]})
+    for old in old_rows:
+        await record_content_change(
+            kind="schedule", action="superseded", object_type="schedule_item", object_id=old["schedule_id"],
+            actor=actor, ingest_id=ingest_id, before=summarize("schedule", old),
+            after={"status": "superseded", "replaced_by_ingest": ingest_id})
     return {"ingest_id": ingest_id, "published_count": len(drafts), "dates": dates,
             "replaced_count": replaced.modified_count}
 
@@ -144,9 +168,13 @@ async def publish_batch(ingest_id: str, user=Depends(get_current_user)):
 @router.delete("/{schedule_id}")
 async def delete_schedule_item(schedule_id: str, user=Depends(get_current_user)):
     require_content_editor(user, SCHEDULE_DEPARTMENTS)
+    existing = await db.schedule_items.find_one({"schedule_id": schedule_id}, {"_id": 0})
     r = await db.schedule_items.delete_one({"schedule_id": schedule_id})
     if r.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Schedule item not found")
+    await record_content_change(kind="schedule", action="deleted", object_type="schedule_item",
+                                object_id=schedule_id, actor=staff_actor(user),
+                                ingest_id=(existing or {}).get("ingest_id"), before=summarize("schedule", existing))
     return {"ok": True}
 
 

@@ -22,6 +22,8 @@ from fastapi import APIRouter, HTTPException, Depends
 
 from models import MenuItem, MenuUpload, now_utc
 from deps import db, get_current_user
+from routes.actor_context import ActorContext
+from routes.content_receipts import inbound_email_actor, record_content_change, staff_actor
 from routes.service_content_access import MENU_DEPARTMENTS, require_content_editor
 
 router = APIRouter(prefix="/menu", tags=["menu"])
@@ -59,6 +61,7 @@ def _parse_menu_email(raw_text: str) -> tuple[list[dict], str, Optional[str]]:
 async def create_menu_upload(
     *, raw_text: str, service_date: str, source: str,
     source_ref: Optional[str] = None, created_by: Optional[str] = None,
+    actor: Optional[ActorContext] = None,
 ) -> dict:
     """The one internal ingestion function for a menu email, real or
     dev-test - parses raw_text, creates the MenuUpload + its draft
@@ -67,7 +70,11 @@ async def create_menu_upload(
     supplies) - the parsing/creation logic never branches on it.
     Items stay draft/needs_review until a staff member approves the
     upload via POST /menu/uploads/{id}/approve - a real inbound email
-    can never publish directly to the public menu on its own."""
+    can never publish directly to the public menu on its own.
+
+    Writes one receipt for the batch. `actor` is the signed-in user's
+    context; without one (the inbound-email process) the receipt names that
+    process."""
     parsed_items, parse_status, parse_notes = _parse_menu_email(raw_text)
 
     upload = MenuUpload(
@@ -97,6 +104,11 @@ async def create_menu_upload(
     upload_doc["item_ids"] = item_ids
     await db.menu_uploads.insert_one(dict(upload_doc))
     upload_doc.pop("_id", None)
+    await record_content_change(
+        kind="menu", action="uploaded", object_type="menu_upload", object_id=upload_doc["upload_id"],
+        actor=actor or inbound_email_actor(), ingest_id=upload_doc["upload_id"],
+        after={"status": upload_doc.get("status"), "service_date": service_date, "source": source,
+               "item_count": len(item_ids), "parse_status": parse_status})
     return upload_doc
 
 
@@ -119,7 +131,7 @@ async def ingest_dev_test(body: dict, user=Depends(get_current_user)):
 
     return await create_menu_upload(
         raw_text=raw_text, service_date=service_date, source="email_dev_test",
-        source_ref=body.get("source_ref"), created_by=user["user_id"],
+        source_ref=body.get("source_ref"), created_by=user["user_id"], actor=staff_actor(user),
     )
 
 
@@ -135,6 +147,7 @@ async def ingest_paste(body: dict, user=Depends(get_current_user)):
         raise HTTPException(status_code=400, detail="service_date and raw_text are required")
     return await create_menu_upload(
         raw_text=raw_text, service_date=service_date, source="staff_paste", created_by=user["user_id"],
+        actor=staff_actor(user),
     )
 
 
@@ -171,22 +184,21 @@ async def approve_upload(upload_id: str, user=Depends(get_current_user)):
     if not upload:
         raise HTTPException(status_code=404, detail="Upload not found")
     now_iso = now_utc().isoformat()
-
     meal_periods = set(
         i["meal_period"] for i in await db.menu_items.find(
             {"menu_id": {"$in": upload.get("item_ids", [])}}, {"_id": 0, "meal_period": 1}
         ).to_list(200)
     )
+    superseded_ids: list = []
     if meal_periods:
-        await db.menu_items.update_many(
-            {
-                "date": upload["service_date"],
-                "meal_period": {"$in": list(meal_periods)},
-                "status": "approved",
-                "menu_id": {"$nin": upload.get("item_ids", [])},
-            },
-            {"$set": {"status": "superseded", "updated_at": now_iso}},
-        )
+        replace_q = {
+            "date": upload["service_date"],
+            "meal_period": {"$in": list(meal_periods)},
+            "status": "approved",
+            "menu_id": {"$nin": upload.get("item_ids", [])},
+        }
+        superseded_ids = [i["menu_id"] for i in await db.menu_items.find(replace_q, {"_id": 0, "menu_id": 1}).to_list(200)]
+        await db.menu_items.update_many(replace_q, {"$set": {"status": "superseded", "updated_at": now_iso}})
 
     await db.menu_uploads.update_one(
         {"upload_id": upload_id},
@@ -196,4 +208,15 @@ async def approve_upload(upload_id: str, user=Depends(get_current_user)):
         {"menu_id": {"$in": upload.get("item_ids", [])}},
         {"$set": {"status": "approved", "approved_by": user["user_id"], "approved_at": now_iso, "updated_at": now_iso}},
     )
+    await record_content_change(
+        kind="menu", action="published", object_type="menu_upload", object_id=upload_id,
+        actor=staff_actor(user), ingest_id=upload_id,
+        before={"status": upload.get("status")},
+        after={"status": "approved", "published_item_count": len(upload.get("item_ids", [])),
+               "superseded_item_ids": superseded_ids})
+    for old_id in superseded_ids:
+        await record_content_change(
+            kind="menu", action="superseded", object_type="menu_item", object_id=old_id,
+            actor=staff_actor(user), ingest_id=upload_id,
+            before={"status": "approved"}, after={"status": "superseded", "replaced_by_upload": upload_id})
     return await db.menu_uploads.find_one({"upload_id": upload_id}, {"_id": 0})

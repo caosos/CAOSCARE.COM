@@ -1201,7 +1201,7 @@ class InboundEmailMessage(BaseModel):
     status: InboundEmailStatus = "received"
     parse_status: Optional[str] = None           # mirrors the created MenuUpload/schedule batch's own parse result
     parse_notes: Optional[str] = None
-    linked_object_type: Optional[str] = None     # "menu_upload" | "schedule_items"
+    linked_object_type: Optional[str] = None     # "menu_upload" (id=upload_id) | "schedule_items" (id=ingest_id)
     linked_object_id: Optional[str] = None
     error_message: Optional[str] = None
     created_at: datetime = Field(default_factory=now_utc)
