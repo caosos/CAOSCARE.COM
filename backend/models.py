@@ -519,7 +519,7 @@ class Insight(BaseModel):
 
 
 # ---------- Notifications ----------
-NotificationChannel = Literal["sms", "email", "pager", "inapp"]
+NotificationChannel = Literal["sms", "email", "pager", "inapp", "voice"]
 # Delivery truth, weakest to strongest claim (routes/notification_delivery.py):
 #   logged    - no provider configured; recorded here only, nothing left CAOSCare
 #   failed    - provider rejected it, the call errored, or no recipient existed

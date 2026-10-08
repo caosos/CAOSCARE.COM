@@ -111,7 +111,7 @@ async def live_line_ring(alert_id: str):
         },
     )
     try:
-        await try_call_on_call_phone(existing.get("room"), existing.get("resident_name"))
+        await try_call_on_call_phone(existing)
     except Exception as e:
         import logging
         logging.getLogger(__name__).warning(f"live-line call attempt failed for {alert_id}: {e}")

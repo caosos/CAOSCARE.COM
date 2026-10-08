@@ -13,6 +13,7 @@ does not decide recipients.
 """
 import os
 from typing import Optional
+from xml.sax.saxutils import escape as xml_escape
 
 import httpx
 
@@ -55,7 +56,8 @@ def provider_config() -> dict:
         "resend_from": os.environ.get("RESEND_FROM_EMAIL", "onboarding@resend.dev"),
         "twilio_sid": sid,
         "twilio_token": token,
-        "twilio_from": os.environ.get("TWILIO_FROM_NUMBER", ""),
+        # TWILIO_FROM_PHONE is the older name some deployments set; accepted as an alias.
+        "twilio_from": os.environ.get("TWILIO_FROM_NUMBER") or os.environ.get("TWILIO_FROM_PHONE", ""),
     }
 
 
@@ -105,21 +107,16 @@ async def send_email(to: str, subject: str, body: str, *, simulation: Optional[d
     return await _save(doc)
 
 
-async def send_sms(to: str, body: str, *, simulation: Optional[dict] = None, **context) -> dict:
+async def _twilio_post(doc: dict, path: str, data: dict) -> dict:
+    """Hand one request to Twilio's REST API (httpx; no twilio package) and
+    set doc status from what actually happened. Caller has checked config."""
     cfg = provider_config()
-    doc = Notification(channel="sms", to=to, body=body[:1500], **context).model_dump()
-    if simulation:
-        return await _save(_simulated(doc, simulation))
-    if not (cfg["twilio_sid"] and cfg["twilio_token"] and cfg["twilio_from"]):
-        doc["status"] = "logged"
-        doc["provider_response"] = "Twilio not configured - recorded only, not sent"
-        return await _save(doc)
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(
-                f"https://api.twilio.com/2010-04-01/Accounts/{cfg['twilio_sid']}/Messages.json",
+                f"https://api.twilio.com/2010-04-01/Accounts/{cfg['twilio_sid']}/{path}",
                 auth=(cfg["twilio_sid"], cfg["twilio_token"]),
-                data={"From": cfg["twilio_from"], "To": to, "Body": body[:1500]},
+                data={"From": cfg["twilio_from"], **data},
             )
         doc["status"] = "sent" if resp.status_code < 300 else "failed"
         doc["provider_response"] = resp.text[:500]
@@ -129,6 +126,99 @@ async def send_sms(to: str, body: str, *, simulation: Optional[dict] = None, **c
         doc["status"] = "failed"
         doc["provider_response"] = f"exception: {e}"
     return await _save(doc)
+
+
+def _twilio_ready(cfg: dict) -> bool:
+    return bool(cfg["twilio_sid"] and cfg["twilio_token"] and cfg["twilio_from"])
+
+
+async def send_sms(to: str, body: str, *, simulation: Optional[dict] = None, **context) -> dict:
+    cfg = provider_config()
+    doc = Notification(channel="sms", to=to, body=body[:1500], **context).model_dump()
+    if simulation:
+        return await _save(_simulated(doc, simulation))
+    if not _twilio_ready(cfg):
+        doc["status"] = "logged"
+        doc["provider_response"] = "Twilio not configured - recorded only, not sent"
+        return await _save(doc)
+    return await _twilio_post(doc, "Messages.json", {"To": to, "Body": body[:1500]})
+
+
+async def place_call(to: str, message: str, *, simulation: Optional[dict] = None, **context) -> dict:
+    """One outbound Twilio voice call that speaks `message`. Same recording
+    rules as send_sms: logged without a provider, sent only when Twilio
+    accepted the call (not that anyone answered), failed otherwise."""
+    cfg = provider_config()
+    doc = Notification(channel="voice", to=to, body=message[:500], **context).model_dump()
+    if simulation:
+        return await _save(_simulated(doc, simulation))
+    if not _twilio_ready(cfg):
+        doc["status"] = "logged"
+        doc["provider_response"] = "Twilio not configured - recorded only, not called"
+        return await _save(doc)
+    twiml = f"<Response><Say>{xml_escape(message[:500])}</Say></Response>"
+    return await _twilio_post(doc, "Calls.json", {"To": to, "Twiml": twiml})
+
+
+_RESULT_LABEL = {"sent": "unverified", "logged": "unverified", "failed": "failed", "simulated": "simulated"}
+
+
+async def notify_alert_phone(kind: str, to: str, message: str, alert: dict, *,
+                             actor_id: str, authority: str, simulation: Optional[dict] = None) -> dict:
+    """SMS ("sms") or voice call ("call") about one alert, with its receipt.
+
+    Used by the escalation tick and the live-line request, so both go through
+    the one provider path above. The notification record is linked to the
+    alert; the receipt (a NEW one per attempt) names the actor and authority
+    and cites the notification. Provider acceptance is "unverified" - it
+    does not prove the phone rang or the text arrived."""
+    from routes.receipts import create_receipt  # lazy: receipts imports models only, avoid cycles
+    link = dict(alert_id=alert.get("alert_id"), resident_id=alert.get("resident_id"),
+                related_object_type="alert", related_object_id=alert.get("alert_id"))
+    if kind == "call":
+        note = await place_call(to, message, simulation=simulation, **link)
+    else:
+        note = await send_sms(to, message, simulation=simulation, **link)
+    status = note["status"]
+    receipt = await create_receipt(
+        action_type=f"alert_{kind}_attempt",
+        related_object_type="alert",
+        related_object_id=alert.get("alert_id"),
+        source="system",
+        resident_id=alert.get("resident_id"),
+        room=alert.get("room"),
+        zone=alert.get("zone"),
+        status="failed" if status == "failed" else "completed",
+        result=f"{kind} to {to}: {status}",
+        failure_reason=note.get("provider_response") if status == "failed" else None,
+        provenance={
+            "actor_id": actor_id, "actor_type": "system", "actor_name": actor_id,
+            "authority": authority, "channel": kind,
+            "simulated": bool(simulation),
+            "simulation_run_id": (simulation or {}).get("simulation_run_id"),
+            "after_state": {"notification_id": note["notification_id"], "notification_status": status},
+            "result_label": _RESULT_LABEL.get(status, "unverified"),
+            "provider_refs": [r for r in (note.get("provider_message_id"),) if r],
+            "next_state": "awaiting_staff_acknowledgement",
+        },
+    )
+    await db.notifications.update_one({"notification_id": note["notification_id"]},
+                                      {"$set": {"receipt_id": receipt["receipt_id"]}})
+    note["receipt_id"] = receipt["receipt_id"]
+    return note
+
+
+async def alert_provenance_flag(alert: dict) -> Optional[dict]:
+    """SC-16 for alerts: an alert is simulated if it says so or belongs to a
+    synthetic resident (server-set marker); never decided by a caller."""
+    synthetic = bool(alert.get("simulated"))
+    if not synthetic and alert.get("resident_id"):
+        r = await db.residents.find_one({"resident_id": alert["resident_id"]}, {"_id": 0, "synthetic": 1})
+        synthetic = bool(r and r.get("synthetic"))
+    if not synthetic:
+        return None
+    return {"simulated": True, "simulation_scope": alert.get("simulation_scope") or "demo_room",
+            "simulation_run_id": alert.get("simulation_run_id")}
 
 
 async def apply_resend_delivery_event(event_type: str, data: dict, occurred_at: Optional[str]) -> dict:

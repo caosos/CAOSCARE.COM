@@ -252,23 +252,21 @@ async def _pattern_footnote(resident_id: str) -> Optional[str]:
         return None
 
 
-async def try_call_on_call_phone(room: Optional[str], resident_name: Optional[str]) -> None:
-    """Best-effort Twilio VOICE call - same no-op-without-credentials shape
-    as routes/escalation.py::_try_sms. Real ringing plugs in here once
-    Twilio credentials exist; until then this only logs what it would do."""
-    sid = os.environ.get("TWILIO_ACCOUNT_SID")
-    token = os.environ.get("TWILIO_AUTH_TOKEN")
-    from_phone = os.environ.get("TWILIO_FROM_PHONE")
+async def try_call_on_call_phone(alert: dict) -> Optional[dict]:
+    """Voice call to the facility on-call phone when a resident wants staff
+    now. Goes through routes/notification_delivery (Twilio REST via httpx):
+    recorded and receipted either way; "logged" when Twilio is not
+    configured, never claimed as made. Returns the notification, or None
+    when the facility has no on-call phone."""
+    from routes.notification_delivery import alert_provenance_flag, notify_alert_phone
     facility = await db.facilities.find_one({}, {"_id": 0, "on_call_phone": 1})
     to_phone = facility.get("on_call_phone") if facility else None
-    who = resident_name or "A resident"
-    if not (sid and token and from_phone and to_phone):
-        log.info(f"[live-line] would call {to_phone}: {who} in room {room} wants someone now (Twilio not configured)")
-        return
-    try:
-        from twilio.rest import Client  # type: ignore
-        client = Client(sid, token)
-        twiml = f"<Response><Say>{who} in room {room} is asking for help now. Please check the CAOS Care dashboard.</Say></Response>"
-        client.calls.create(to=to_phone, from_=from_phone, twiml=twiml)
-    except Exception as e:
-        log.warning(f"twilio call failed: {e}")
+    if not to_phone:
+        log.info("[live-line] no on-call phone configured for alert %s", alert.get("alert_id"))
+        return None
+    who = alert.get("resident_name") or "A resident"
+    message = (f"{who} in room {alert.get('room')} is asking for help now. "
+               "Please check the CAOS Care dashboard.")
+    return await notify_alert_phone(
+        "call", to_phone, message, alert, actor_id="system:live_line",
+        authority="resident_requested_staff", simulation=await alert_provenance_flag(alert))

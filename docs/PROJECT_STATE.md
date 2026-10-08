@@ -7596,3 +7596,32 @@ HANDOFF CAPSULE
 - Runtime state:    nothing started, installed or changed.
 - Unresolved: production-side checks (UNVERIFIED items); Michael's decisions on release, escalation day-one setting, setup_demo_room, P1/P2 install.
 - Next safe action: Michael reviews; if approved, a person with production access runs the §8.4 inspection.
+
+---
+
+## 2026-10-08 — RQ-027: one Twilio path (escalation SMS + on-call call)
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-027-twilio-one-path` from integration tip `40b9a48`. Draft PR into `integration/2026-09-27`. Not merged, not deployed; no real SMS/call sent (provider spy); gate on port 8098 / throwaway DB `caoscare_gate_rq027`.
+
+### What changed
+- `routes/notification_delivery.py` is the only Twilio code: one config (`TWILIO_FROM_NUMBER`, `TWILIO_FROM_PHONE` accepted as alias), one REST helper over httpx, `send_sms`, new `place_call` (voice, `Calls.json`), and `notify_alert_phone()` which records a `db.notifications` row linked to the alert (`related_object_type/id`) and appends a receipt (`alert_sms_attempt` / `alert_call_attempt`, actor + authority, provider sid in `provider_refs`).
+- Truth: no provider = `logged`; Twilio accepts = `sent` with result label `unverified` (acceptance does not prove delivery or an answer); rejection/exception = `failed`.
+- SC-16: an alert is simulated if it says so or its resident is `synthetic`; then the record is `simulated` and nothing reaches Twilio.
+- `escalation_tick._try_sms` and `resident_activation.try_call_on_call_phone` now use it (the `twilio` package import is gone; it was never in requirements). `try_call_on_call_phone` takes the alert dict; its one caller (`alert_lifecycle_events.live_line_ring`) updated. Escalation timing and levels are untouched (level 2 supervisor, level 3 on-call, as before).
+- `NotificationChannel` gains `voice`.
+
+### Verified
+New `tests/test_rq027_twilio_one_path.py` (5): level 2/3 SMS, on-call call + alias, no provider = logged, provider failure = failed, simulated suppression, no `twilio` import. Full gate and frontend: see PR body.
+
+### Line counts
+`notification_delivery.py` 246 (was 156), `escalation_tick.py` 153, `resident_activation.py` 272, test 191. Gate 344 passed, 0 failed, 31 skipped; frontend 40 suites / 314 tests; build compiles.
+
+HANDOFF CAPSULE
+- Objective:        RQ-027 consolidate Twilio.
+- Branch:           bounded/rq-027-twilio-one-path (draft PR).
+- Lane / ownership: notification_delivery, escalation_tick (send only), resident_activation (call only).
+- Last proven state: tests above, 2026-10-08.
+- Runtime state:    nothing restarted or deployed.
+- Unresolved: no live Twilio account test; call status callbacks (answered/not) are not tracked.
+- Next safe action: coordinator review.
