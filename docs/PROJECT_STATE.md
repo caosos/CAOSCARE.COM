@@ -7040,3 +7040,21 @@ Agents Three, Four and Five are done and idle; no non-overlapping Pilot gap coul
 - The two bounded workers launched at 22:13 CDT (`bounded/sim4-maintenance`, `bounded/gate-port-isolation`) targeted work already integrated (#66 SIM-4 Maintenance `577b35c`, #68 gate isolation `4d413ef`). Both were stopped before producing changes (worktrees clean, nothing pushed).
 - **B3** (`docs/reports/2026-10-06-security-followup-aria-public-routes.md`): `GET /api/residents/public/by-kiosk/{kiosk_id}` is unauthenticated and returned the whole resident document (medical notes, emergency contact, DOB, memory). Now returns only `resident_id`, `name`, `preferred_name`, `room` (what Kiosk.jsx uses). Branch `security/by-kiosk-resident-allowlist`; new `test_by_kiosk_allowlist.py`. Gate (port 8083, scratch DB, OpenAI/HA blank): 291 passed, 0 failed, 31 skipped. Running :8092 is not restarted, so it still exposes the old shape until restarted (needs Michael's go-ahead). Production `d7ff96a` also has the old shape; no deploy.
 - Still open: B1/B2/A and public `GET /api/kiosks` enumeration await Michael's decisions; #67 control plane needs-fix; RQ-003 needs Michael at a room screen.
+
+---
+
+## 2026-10-07 — Coordination reconciliation (coordinator)
+
+Per `docs/COORDINATION_RECONCILIATION_2026-10-07.md`. Integration tip before this commit: `b860390`. Docs only; no worker running, nothing deployed or restarted.
+- Every non-DONE item in ACTIVE_WORK / READY_QUEUE / CHECKLIST classified against merge history (`git merge-base --is-ancestor` on each branch). Result is the "RECONCILED STATE" table in `PILOT1_READY_QUEUE.md`: DONE (RQ-001, 007, 009, SIM-1..4, SC-1..17), NEEDS MICHAEL (11 items listed there), BLOCKED (RQ-005), WAITING (RQ-002, 006), PARKED (rerequest, spikes, #45, #41/#42/#23).
+- Long-lived agent ownership removed from planning; tasks belong to the queue.
+- Two integrations found unfinished and still READY: `pilot/community-services` `d95c4d6` (Lane D) and `pilot/communications` `0978bb1` (Lane F), each 167 commits behind the tip. New queue rows RQ-011, RQ-012.
+- #67 fixed the earlier review items (router mounted, patch file removed); its persistent-session runtime conflicts with the bounded-worker rule, so adoption is Michael's decision (RQ-010).
+- `tests/gate-port-isolation` branch is superseded (the merged #68 came from another branch).
+
+HANDOFF CAPSULE
+- Objective:        USABLE Pilot 1 by 2026-10-10.
+- Branch:           integration/2026-09-27
+- Last proven state: gate 291 passed / 0 failed / 31 skipped at B3 (`d2cd439`), 2026-10-07.
+- Runtime state:    :3000/:8092 as in ACTIVE_WORK; no workers.
+- Next safe action: launch bounded workers for RQ-011 and RQ-012 (rebase onto tip, lane tests, draft PR); merge one at a time with the gate between.
