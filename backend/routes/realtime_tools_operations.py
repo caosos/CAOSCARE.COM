@@ -201,13 +201,18 @@ def _build_operations_tools(request_categories: list[str] | None = None) -> list
                 "at 9:30' put '9:30 appointment' in requested_for_time_label and "
                 "leave start_time empty - the front desk picks the pickup time. "
                 "Only pass start_time when the resident chose a pickup time that "
-                "check_transportation_availability showed as open."
+                "check_transportation_availability showed as open. "
+                "DATES: if the resident gives only a day of the month ('the "
+                "fifth', 'the first') you do NOT know the month - say the full "
+                "date back with weekday and month ('Monday, November 5th - is "
+                "that right?') and wait for a yes BEFORE calling this. Never "
+                "silently choose the month."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "purpose": {"type": "string", "description": "e.g. 'pharmacy pickup', 'doctor appointment', 'grocery shopping'."},
-                    "requested_for_date": {"type": "string", "description": "YYYY-MM-DD, resolved from what the resident said."},
+                    "requested_for_date": {"type": "string", "description": "YYYY-MM-DD, resolved from what the resident said and confirmed back to them with weekday and month."},
                     "requested_for_time_label": {"type": "string", "description": "The time as the resident said it, e.g. 'around 10' or 'after lunch'."},
                     "start_time": {"type": "string", "description": "Exact pickup 'HH:MM' 24h, only if the resident chose an open pickup time from check_transportation_availability. Never an appointment time."}
                 },
@@ -238,7 +243,7 @@ def _build_operations_tools(request_categories: list[str] | None = None) -> list
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "requested_for_date": {"type": "string", "description": "New YYYY-MM-DD."},
+                    "requested_for_date": {"type": "string", "description": "New YYYY-MM-DD; if they gave only a day of the month, confirm the full date (weekday and month) with them first."},
                     "requested_for_time_label": {"type": "string", "description": "New time as the resident said it."},
                     "start_time": {"type": "string", "description": "Exact 'HH:00' if a specific open slot was confirmed."}
                 },

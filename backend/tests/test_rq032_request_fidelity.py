@@ -25,6 +25,8 @@ from routes.resident_requests import ResidentRequestInput, create_resident_reque
 from routes.transportation import TransportRequestInput, create_transport_request  # noqa: E402
 from routes.transportation_voice_context import TransportChangeByContextInput, change_my_transport_request  # noqa: E402
 
+from datetime import date as _d, timedelta as _td  # noqa: E402
+NEAR = (_d.today() + _td(days=10)).isoformat()
 TAG = f"rq032_{uuid.uuid4().hex[:8]}"
 RID = f"{TAG}_res"
 
@@ -96,7 +98,7 @@ def test_merge_picks_the_matching_request_not_just_the_newest():
 
 # ---- D5 ----
 def test_past_date_is_asked_about():
-    assert reject_past_date("2999-01-01") is None
+    assert reject_past_date(NEAR) is None
     assert reject_past_date("not a date") is None
     past = reject_past_date("2000-01-05")
     assert past["needs_clarification"] and past["field"] == "requested_for_date" and "already passed" in past["ask"]
@@ -110,7 +112,7 @@ def test_transport_request_with_past_date_is_refused_and_nothing_filed():
     assert e.value.status_code == 422 and e.value.detail["field"] == "requested_for_date"
     assert run(db.staff_tasks.count_documents({"resident_id": RID, "category": "transportation"})) == 0
     ok = run(create_transport_request(TransportRequestInput(
-        resident_id=RID, purpose="doctor", requested_for_date="2999-01-05")))
+        resident_id=RID, purpose="doctor", requested_for_date=NEAR)))
     assert ok["duplicate"] is False
 
 
@@ -141,7 +143,7 @@ def test_open_status_covers_every_category_and_excludes_closed_and_excluded():
     c = _req("call about my bill", "I want to ask about my bill", category="front_desk")
     run(db.staff_tasks.update_one({"task_id": c["task_id"]}, {"$set": {"status": "completed"}}))
     ride = run(create_transport_request(TransportRequestInput(
-        resident_id=RID, purpose="pharmacy", requested_for_date="2999-01-05")))
+        resident_id=RID, purpose="pharmacy", requested_for_date=NEAR)))
     got = run(resident_requests_open(resident_id=RID))
     cats = {r["category"]: r for r in got["requests"]}
     assert set(cats) == {"maintenance", "nursing", "transportation"}

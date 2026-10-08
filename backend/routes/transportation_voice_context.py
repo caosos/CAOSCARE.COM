@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from deps import db
-from operational_provenance import reject_past_date
+from operational_provenance import reject_far_date, reject_past_date
 from routes.transportation import (
     OPEN_TASK_STATUSES, TransportChangeInput, change_transport_request, cancel_transport_request,
 )
@@ -60,7 +60,7 @@ async def change_my_transport_request(data: TransportChangeByContextInput):
     """Voice-path entry point - resolves the request by resident/room/
     session context (what Aria actually has) instead of a task_id, then
     delegates to the same change logic /request/{task_id}/change uses."""
-    if past := reject_past_date(data.requested_for_date):
+    if past := reject_past_date(data.requested_for_date) or reject_far_date(data.requested_for_date):
         raise HTTPException(status_code=422, detail=past)
     existing = await _find_open_request(data.resident_id, data.room, data.conversation_session_id)
     return await change_transport_request(existing["task_id"], TransportChangeInput(**data.model_dump(exclude={"resident_id", "room", "conversation_session_id"})))

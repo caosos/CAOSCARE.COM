@@ -77,3 +77,39 @@ test("RQ-033: the operations tool context carries the resident's last words", ()
   expect(ctx.last_user_text).toBe("My sink is leaking.");
   expect(literalResidentWords(ctx)).toBe("My sink is leaking.");
 });
+
+test("request_transportation sends the literal utterance apart from the purpose (N3)", async () => {
+  let sent;
+  global.fetch = jest.fn(async (url, opts) => { sent = JSON.parse(opts.body); return json({ booked: false, duplicate: false }); });
+  await executeOperationsTool({
+    name: "request_transportation",
+    args: { purpose: "appointment", requested_for_date: "2026-10-20" },
+    ctx: { room: "1", residentId: "r1", sessionId: "s1", last_user_text: "I need a ride to my eye doctor on the twentieth." },
+  });
+  expect(sent.purpose).toBe("appointment");
+  expect(sent.resident_words).toBe("I need a ride to my eye doctor on the twentieth.");
+});
+
+test("a far-date refusal asks for the month as the backend wrote it (N2)", async () => {
+  global.fetch = jest.fn(async () => json({ detail: { needs_clarification: true, ask: "Just to be sure - you mean Friday, December 5? Which month do you mean?" } }, 422));
+  const out = await executeOperationsTool({
+    name: "request_transportation",
+    args: { purpose: "doctor", requested_for_date: "2026-12-05" },
+    ctx: { room: "1", residentId: "r1", sessionId: "s1" },
+  });
+  expect(out.ok).toBe(false);
+  expect(out.message).toMatch(/Which month do you mean/);
+});
+
+test("a described hazard keeps the resident's words and routes to maintenance (D3)", async () => {
+  let sent;
+  global.fetch = jest.fn(async (url, opts) => { sent = JSON.parse(opts.body); return json({ status: "pending", task_id: "t2" }); });
+  await executeOperationsTool({
+    name: "request_staff_help",
+    args: { category: "maintenance", summary: "water on the floor" },
+    ctx: { room: "1", residentId: "r1", sessionId: "s1", last_user_text: "There is water on the floor by my bed." },
+  });
+  expect(sent.category).toBe("maintenance");
+  expect(sent.resident_words).toBe("There is water on the floor by my bed.");
+  expect(sent.summary).toBe("water on the floor");
+});

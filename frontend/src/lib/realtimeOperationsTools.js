@@ -189,6 +189,7 @@ export async function executeOperationsTool({ name, args, ctx }) {
         start_time: args.start_time || null,
         source: "aria_voice",
         conversation_session_id: sessionId || null,
+        resident_words: literalResidentWords(ctx),  // N3: literal utterance, separate from purpose
       }),
     });
     if (!r.ok) {

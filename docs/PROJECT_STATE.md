@@ -7778,3 +7778,31 @@ HANDOFF CAPSULE
 - Unresolved: N2 (month assumed), N3 (transport resident_words is the purpose), hazard filing after the resident answers, spoken run.
 - Next safe action: coordinator review; Michael runs the spoken equivalent.
 
+
+---
+
+## 2026-10-08 — RQ-034: day-of-month dates confirmed, transport literal words (N2, N3, D3)
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-034-date-month-transport-words` from integration `9fe4b48`. Draft PR into `integration/2026-09-27`. Not merged, not deployed; no service restarted; no OpenAI call.
+
+### What changed
+- **N2:** `request_transportation` / change-ride tool text and one companion-prompt line: with only a day of the month ("the fifth") Aria says the full date back (weekday and month) and waits for a yes before filing. Server backstop `operational_provenance.reject_far_date` (> 45 days ahead → 422 `needs_clarification` with an ask for the month) on `POST /transportation/request` and `/request/change-mine`, beside the existing past-date guard. The server cannot prove which month the resident said; the 45-day limit is the only proof-free backstop.
+- **N3:** `TransportRequestInput.resident_words`; stored as the task's `resident_words` (public sources), no longer the purpose. The frontend sends `literalResidentWords(ctx)` (RQ-033 plumbing).
+- **D3:** tests only — a described hazard filed via `request_staff_help` keeps the resident's words and routes to maintenance (tool schema allows maintenance and nursing).
+- Existing transport tests used fixed 2031 dates through the public path; they now use computed near dates (weekday-correct).
+
+### Verified
+Gate (port 8106, DB `caoscare_gate_rq034`, OpenAI/HA blank): 376 passed, 0 failed, 31 skipped (baseline 368; +8 in `test_rq034_date_month_words.py`). Frontend 42 suites / 330 tests (baseline 327; +3); `CI=true yarn build` compiles. Not verified: a live typed or spoken run — whether the model actually confirms the date first is prompt behavior only.
+
+### Line counts
+`transportation.py` 303 (was 302), `realtime_tools_operations.py` 319 (was 314, data-only schemas), `realtime_companion_prompt.py` 291 (was 288), `realtimeOperationsTools.js` 293 (was 292), `operational_provenance.py` 93 (was 71).
+
+HANDOFF CAPSULE
+- Objective:        RQ-034 N2, N3, D3.
+- Branch:           bounded/rq-034-date-month-transport-words (draft PR).
+- Lane / ownership: transport request guard/storage, tool/persona text, tests.
+- Last proven state: gate and frontend above, 2026-10-08.
+- Runtime state:    nothing restarted or deployed.
+- Unresolved: model behavior (confirm date first) needs a live typed rerun; hazard filing after the resident answers is still model-driven.
+- Next safe action: coordinator review; typed rerun of "the fifth".
