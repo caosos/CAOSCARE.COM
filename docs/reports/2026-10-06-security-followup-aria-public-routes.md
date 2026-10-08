@@ -27,6 +27,29 @@
 
 ---
 
+## RESOLVED 2026-10-08 (RQ-025): B1, B2, A — branch `bounded/rq-025-security-b1-b2-a`
+
+(B3 was fixed earlier. Production `d7ff96a` is unchanged; deploy needs Michael's approval.)
+
+- **B1.** The five GET routes (`continuity`, `operational-state`, `conversation-state`, `interpretation-patterns`, `interpretation-patterns/match`) now use `require_admin`. `grep` over `frontend/` and `backend/` found no browser or kiosk code calling them over HTTP; the session mint uses the `resolve_*` / `list_patterns` functions in-process. Only two tests called them over HTTP; both were updated.
+- **B2.** `POST /aria/interpretation-patterns/confirm` now requires `session_id`, and answers 403 unless:
+  - an active, non-stale lease (`resident_aria_leases`) exists for that session **and** that resident; and
+  - the resident's own trusted `user` turn in that session, within the last 15 minutes, contains `heard_as` (normalized match).
+  `source` is always set to `resident_confirmed` by the server. `heard_as` / `understood_as` are limited to 200 characters, `meaning` to 300, `language` to 16, `category` to 40 (422 beyond). Rendering of patterns into the prompt is one plain line with `#`, backticks, quotes and newlines removed. The kiosk tool (`realtimeOperationsTools.js`) now sends `session_id` and no `source`. Limit: the resident's turn is saved by a fire-and-forget call, so a confirmation made immediately after the utterance can be refused if the turn has not been saved yet; the tool then says "noted for this call."
+- **A.** `POST /aria/conversation-turn` now uses `require_owner`, stores under the signed-in owner, and answers 403 if the body names a different `owner_user_id`. `role` is `user` or `assistant`, `content` is at most 4000 characters. The owner `/aria` caller now sends the bearer token.
+- **Tests.** `backend/tests/test_rq025_aria_route_auth.py` (anonymous 401, staff 403, admin/owner 200; every B2 refusal; foreign owner 403) and `frontend/src/lib/__tests__/confirmInterpretationSession.test.js`.
+
+### Assessment: `POST /api/memory/realtime-turn` (not changed)
+
+It is still public and unauthenticated, and it takes `resident_id`, `session_id`, `role`, `text` and the `trusted` flag from the body. Three consequences:
+1. Anyone who knows a `resident_id` can write fake resident turns into `db.conversations`. Those can reach the continuity block in that resident's next prompt.
+2. A forged assistant turn triggers memory extraction into `db.memories`, which also reaches the prompt.
+3. The caller can set `trusted: true`, so the existing echo guard is not a security control.
+
+**Recommendation: yes, it needs the same treatment** (a separate change, since the kiosk uses it on every turn): require a live lease for that `resident_id` + `session_id`, with a short grace period after release so the final turns are not lost. Add length limits on `text`. Longer term, use a kiosk device credential for all of these routes.
+
+---
+
 ## A. `/aria/conversation-turn` — tampering
 
 **1. Threat.** An unauthenticated caller writes fabricated turns into the owner's Aria conversation history, or floods the collection.

@@ -27,9 +27,9 @@ Read-only. No lifecycle transitions happen here — those stay in
 """
 from typing import Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
-from deps import db
+from deps import db, require_admin
 from routes.aria_time import age_phrase as _age_label, parse_dt as _parse
 from routes.aria_operational_state import task_lifecycle
 
@@ -199,9 +199,10 @@ def render_conversation_state_block(cs: Optional[dict], operational_state: Optio
 
 
 @router.get("/conversation-state")
-async def conversation_state(resident_id: Optional[str] = None, session_id: Optional[str] = None):
-    """Public — same trust model as the other resident-facing realtime
-    inspection endpoints (kiosk-local, scoped to one resident + one session).
+async def conversation_state(resident_id: Optional[str] = None, session_id: Optional[str] = None,
+                             user=Depends(require_admin)):
+    """Admin-only inspection (RQ-025; was public). The session mint calls
+    resolve_conversation_state() in-process, so no kiosk needs this route.
     Lets a call verify what Aria believes this specific session has already
     done without guessing from the raw transcript."""
     return await resolve_conversation_state(resident_id, session_id)
