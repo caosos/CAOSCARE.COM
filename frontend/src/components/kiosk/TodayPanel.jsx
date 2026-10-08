@@ -53,6 +53,8 @@ export default function TodayPanel({ pollMs = 60000 }) {
     return () => { stop = true; clearInterval(t); };
   }, [pollMs]);
 
+  // The public endpoint returns only published, resident-facing rows,
+  // already in clock order (routes/schedule.py::public_today).
   const notices = schedule.filter((i) => i.category === "facility_note");
   const activities = schedule.filter((i) => i.category !== "facility_note");
   // Every meal present today, in a fixed, understandable order - not just
@@ -70,8 +72,8 @@ export default function TodayPanel({ pollMs = 60000 }) {
           <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-caos-forest mb-2">
             <Megaphone className="w-4 h-4" /> Announcements
           </p>
-          {notices.map((n) => (
-            <p key={n.title} className="text-sm text-caos-ink/90 leading-snug">
+          {notices.map((n, idx) => (
+            <p key={`${idx}-${n.title}`} className="text-sm text-caos-ink/90 leading-snug">
               {n.time_label && <span className="font-semibold">{n.time_label}: </span>}
               {n.title}{n.description ? ` — ${n.description}` : ""}
             </p>
@@ -84,8 +86,8 @@ export default function TodayPanel({ pollMs = 60000 }) {
             <CalendarDays className="w-4 h-4" /> Today's activities
           </p>
           <ul className="space-y-1">
-            {activities.map((a) => (
-              <li key={a.title} className="text-sm text-caos-ink/90">
+            {activities.map((a, idx) => (
+              <li key={`${idx}-${a.title}`} className="text-sm text-caos-ink/90">
                 {a.time_label && <span className="font-semibold">{a.time_label}: </span>}{a.title}
               </li>
             ))}

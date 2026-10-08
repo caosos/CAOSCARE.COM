@@ -12,7 +12,7 @@ describe("roleHomePath", () => {
   });
 
   test("operational departments route a plain staff user to /workspace", () => {
-    for (const dept of ["maintenance", "housekeeping", "transportation", "kitchen"]) {
+    for (const dept of ["maintenance", "housekeeping", "transportation", "kitchen", "activities"]) {
       expect(roleHomePath({ role: "staff", department: dept })).toBe("/workspace");
     }
   });

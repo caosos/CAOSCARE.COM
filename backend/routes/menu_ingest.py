@@ -22,6 +22,7 @@ from fastapi import APIRouter, HTTPException, Depends
 
 from models import MenuItem, MenuUpload, now_utc
 from deps import db, get_current_user
+from routes.service_content_access import MENU_DEPARTMENTS, require_content_editor
 
 router = APIRouter(prefix="/menu", tags=["menu"])
 
@@ -110,8 +111,7 @@ async def ingest_dev_test(body: dict, user=Depends(get_current_user)):
     itself (an explicit "Date: YYYY-MM-DD" line in the body, falling back
     to the facility's own today) before calling the same
     create_menu_upload() this endpoint calls."""
-    if user.get("role") not in ("admin", "owner", "staff"):
-        raise HTTPException(status_code=403, detail="Staff required")
+    require_content_editor(user, MENU_DEPARTMENTS)
     service_date = body.get("service_date")
     raw_text = (body.get("raw_text") or "")[:8000]
     if not service_date or not raw_text.strip():
@@ -123,8 +123,25 @@ async def ingest_dev_test(body: dict, user=Depends(get_current_user)):
     )
 
 
+@router.post("/ingest/paste")
+async def ingest_paste(body: dict, user=Depends(get_current_user)):
+    """Kitchen staff paste the day's menu text (the menu screen's "Paste a
+    menu"). Same parser and draft batch as an emailed menu - only the
+    provenance differs (source="staff_paste"). Body: {service_date, raw_text}."""
+    require_content_editor(user, MENU_DEPARTMENTS)
+    service_date = body.get("service_date")
+    raw_text = (body.get("raw_text") or "")[:8000]
+    if not service_date or not raw_text.strip():
+        raise HTTPException(status_code=400, detail="service_date and raw_text are required")
+    return await create_menu_upload(
+        raw_text=raw_text, service_date=service_date, source="staff_paste", created_by=user["user_id"],
+    )
+
+
 @router.get("/uploads")
 async def list_uploads(service_date: Optional[str] = None, user=Depends(get_current_user)):
+    if user.get("role") not in ("admin", "owner", "staff"):
+        raise HTTPException(status_code=403, detail="Staff required")
     q: dict = {}
     if service_date:
         q["service_date"] = service_date
@@ -149,8 +166,7 @@ async def approve_upload(upload_id: str, user=Depends(get_current_user)):
     and corrected menu side by side. Scoped to whole-upload batches only -
     a single manual edit via /menu/{menu_id}/approve does NOT trigger this,
     since that's fixing one dish, not replacing the day's whole meal."""
-    if user.get("role") not in ("admin", "owner", "staff"):
-        raise HTTPException(status_code=403, detail="Staff required")
+    require_content_editor(user, MENU_DEPARTMENTS)
     upload = await db.menu_uploads.find_one({"upload_id": upload_id}, {"_id": 0})
     if not upload:
         raise HTTPException(status_code=404, detail="Upload not found")

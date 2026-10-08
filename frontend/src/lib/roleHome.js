@@ -17,6 +17,9 @@ const WORKSPACE_DEPARTMENTS = new Set([
   "housekeeping",
   "transportation",
   "kitchen",
+  // Not seeded by default; an admin adds it (Departments tab) when a
+  // community has an activities coordinator. See CommunityServicesWorkspace.
+  "activities",
 ]);
 
 export function roleHomePath(user) {

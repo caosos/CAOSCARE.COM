@@ -2,25 +2,14 @@
 the domain model" adapter boundary as backend/routes/menu_ingest.py, applied
 to the resident-programs/activities calendar instead of the daily menu.
 
-No real mailbox is configured yet (matching menu_ingest.py's own state), so
-this exposes a dev-test ingestion endpoint that takes a raw email BODY
-exactly the way a real inbound-email adapter eventually would. Swapping the
-dev-test trigger for a real IMAP/webhook listener later is a transport
-change only - the parsing logic below does not move.
-
-IMPORTANT ARCHITECTURAL DIFFERENCE FROM menu_ingest.py, BY DESIGN:
-MenuItem/MenuUpload have a draft -> approved status field and a batch
-approve endpoint; ScheduleItem (backend/models.py) does NOT have any
-status/approval concept - it is plain staff-entered CRUD (see
-backend/routes/schedule.py). Inventing a draft/approve pipeline for
-schedule items that the schema doesn't support would be a bigger, riskier
-change than "add an email front-end for existing CRUD," so this module does
-NOT do that. Parsed activities are created directly as live ScheduleItem
-rows (source="email_dev_test") in one step, gated by the same staff/admin/
-owner auth check POST /schedule already uses. There is no
-/schedule/ingest/uploads or /approve endpoint here - if that gap ever
-becomes a real problem (e.g. staff want to review before publishing), it
-needs a schema change to ScheduleItem first, not a workaround here.
+REVIEW GATE: parsed activities are created as DRAFT ScheduleItem rows
+sharing one `ingest_id`, and reach residents/Aria only when staff publish
+that batch (POST /schedule/batches/{ingest_id}/publish, schedule.py). A
+mis-parsed or wrong calendar therefore never goes live on its own - the
+same stance the menu lane takes. Triggers: the real inbound-email webhook
+(email_inbound.py), staff pasting a calendar (POST /schedule/ingest/paste),
+and the dev-test endpoint the seed scripts use - all call
+create_schedule_items(); only the provenance `source` differs.
 
 EXPECTED EMAIL FORMAT (dev-test convention, designed for this module):
 A weekly (or multi-day) activities calendar email body. Each day starts
@@ -65,8 +54,9 @@ import re
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends
 
-from models import ScheduleItem, ScheduleCategory
+from models import ScheduleItem, ScheduleCategory, uid
 from deps import db, get_current_user
+from routes.service_content_access import SCHEDULE_DEPARTMENTS, require_content_editor
 
 router = APIRouter(prefix="/schedule/ingest", tags=["schedule"])
 
@@ -144,8 +134,8 @@ async def create_schedule_items(
     created_by: Optional[str] = None,
 ) -> dict:
     """The one internal ingestion function for an activities/schedule
-    email, real or dev-test - parses raw_text and creates the live
-    ScheduleItem rows it finds. `source` is provenance only
+    calendar (emailed, pasted or dev-test) - parses raw_text and creates
+    DRAFT ScheduleItem rows sharing one ingest_id. `source` is provenance only
     ("email_dev_test" | "email" | anything else a future caller
     supplies). Raises 422 if no day header is found at all (see module
     docstring) - the caller decides how to represent that (the dev-test
@@ -163,12 +153,13 @@ async def create_schedule_items(
             ),
         )
 
+    ingest_id = uid("sched_ingest")
     created = []
     for it in parsed_items:
         si = ScheduleItem(
             date=it["date"], time_label=it["time_label"], title=it["title"],
-            description=it["description"], category=it["category"],
-            source=source, source_ref=source_ref, created_by=created_by,
+            description=it["description"], category=it["category"], status="draft",
+            source=source, source_ref=source_ref, ingest_id=ingest_id, created_by=created_by,
         )
         doc = si.model_dump()
         doc["created_at"] = doc["created_at"].isoformat()
@@ -178,6 +169,8 @@ async def create_schedule_items(
         created.append(doc)
 
     return {
+        "ingest_id": ingest_id,
+        "status": "draft",
         "source": source,
         "source_ref": source_ref,
         "created_count": len(created),
@@ -196,12 +189,10 @@ async def ingest_dev_test(body: dict, user=Depends(get_current_user)):
     itself, not a single top-level field, since one email here typically
     covers a whole week.
 
-    No draft/approve step (see module docstring) - parsed activities are
-    created directly as live ScheduleItem rows, same auth gate as
-    POST /schedule. The real inbound-email webhook (email_inbound.py)
-    calls the same create_schedule_items() this endpoint calls."""
-    if user.get("role") not in ("admin", "owner", "staff"):
-        raise HTTPException(status_code=403, detail="Staff required")
+    Rows are drafts until the batch is published (see module docstring).
+    The real inbound-email webhook (email_inbound.py) calls the same
+    create_schedule_items() this endpoint calls."""
+    require_content_editor(user, SCHEDULE_DEPARTMENTS)
     raw_text = (body.get("raw_text") or "")[:16000]
     if not raw_text.strip():
         raise HTTPException(status_code=400, detail="raw_text is required")
@@ -210,3 +201,15 @@ async def ingest_dev_test(body: dict, user=Depends(get_current_user)):
         raw_text=raw_text, source="email_dev_test",
         source_ref=body.get("source_ref"), created_by=user["user_id"],
     )
+
+
+@router.post("/paste")
+async def ingest_paste(body: dict, user=Depends(get_current_user)):
+    """Activities staff paste a weekly calendar (the schedule screen's
+    "Paste a calendar"). Same parser and draft batch as an emailed
+    calendar; source="staff_paste". Body: {raw_text}."""
+    require_content_editor(user, SCHEDULE_DEPARTMENTS)
+    raw_text = (body.get("raw_text") or "")[:16000]
+    if not raw_text.strip():
+        raise HTTPException(status_code=400, detail="raw_text is required")
+    return await create_schedule_items(raw_text=raw_text, source="staff_paste", created_by=user["user_id"])

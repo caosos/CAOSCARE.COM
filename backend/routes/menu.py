@@ -1,8 +1,8 @@
-"""Menu lane (Terminal 8, lane 2) - same read pattern as the schedule lane,
-plus a non-negotiable approval gate. Staff-entered for now; an email
-ingestion adapter (kitchen sends the daily menu, this parses to a draft)
-is future work that slots into the same "draft" status with no pipeline
-change - see docs/TERMINAL_8_OPERATIONAL_LAYER.md.
+"""Menu lane - staff-entered items plus emailed/pasted menus
+(menu_ingest.py), all behind one approval gate. Drafts are visible only
+to staff; residents and Aria read published ("approved") items only.
+Kitchen or Administration staff and admins may change the menu
+(service_content_access.py).
 
 The gate is the point: Aria must never read a draft item. A resident with
 a dietary restriction or diabetes acting on a wrong "we're having X" is a
@@ -14,6 +14,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from models import MenuItem, MenuItemCreate, MenuItemUpdate, now_utc
 from deps import db, get_current_user
 from routes.realtime_facility import today_facility_date
+from routes.service_content_access import MENU_DEPARTMENTS, require_content_editor
 
 router = APIRouter(prefix="/menu", tags=["menu"])
 
@@ -38,8 +39,7 @@ async def list_menu(date: Optional[str] = None, status: Optional[str] = None, us
 
 @router.post("")
 async def create_menu_item(data: MenuItemCreate, user=Depends(get_current_user)):
-    if user.get("role") not in ("admin", "owner", "staff"):
-        raise HTTPException(status_code=403, detail="Staff required")
+    require_content_editor(user, MENU_DEPARTMENTS)
     item = MenuItem(**data.model_dump(), created_by=user["user_id"])
     doc = item.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
@@ -51,16 +51,25 @@ async def create_menu_item(data: MenuItemCreate, user=Depends(get_current_user))
 
 @router.patch("/{menu_id}")
 async def update_menu_item(menu_id: str, data: MenuItemUpdate, user=Depends(get_current_user)):
-    """Editing an already-approved item drops it back to draft - an edit is
-    new, unreviewed content until someone approves it again."""
-    if user.get("role") not in ("admin", "owner", "staff"):
-        raise HTTPException(status_code=403, detail="Staff required")
+    """A correction. Editing an already-approved item drops it back to
+    draft - an edit is new, unreviewed content - unless the editor
+    publishes it in the same action (`publish: true`), in which case the
+    editor is the reviewer and the corrected item stays live. A replaced
+    (superseded) item is history and cannot be edited back to life."""
+    require_content_editor(user, MENU_DEPARTMENTS)
     existing = await db.menu_items.find_one({"menu_id": menu_id}, {"_id": 0})
     if not existing:
         raise HTTPException(status_code=404, detail="Menu item not found")
-    patch = {k: v for k, v in data.model_dump(exclude_none=True).items()}
-    patch["updated_at"] = now_utc().isoformat()
-    if existing["status"] == "approved":
+    if existing["status"] == "superseded":
+        raise HTTPException(status_code=409, detail="This item was replaced by a newer menu; edit the current item instead")
+    fields = data.model_dump(exclude_none=True)
+    publish = fields.pop("publish", False)
+    patch = dict(fields)
+    now_iso = now_utc().isoformat()
+    patch["updated_at"] = now_iso
+    if publish:
+        patch.update(status="approved", approved_by=user["user_id"], approved_at=now_iso)
+    elif existing["status"] == "approved":
         patch["status"] = "draft"
         patch["approved_by"] = None
         patch["approved_at"] = None
@@ -70,11 +79,14 @@ async def update_menu_item(menu_id: str, data: MenuItemUpdate, user=Depends(get_
 
 @router.post("/{menu_id}/approve")
 async def approve_menu_item(menu_id: str, user=Depends(get_current_user)):
-    if user.get("role") not in ("admin", "owner", "staff"):
-        raise HTTPException(status_code=403, detail="Staff required")
+    require_content_editor(user, MENU_DEPARTMENTS)
     existing = await db.menu_items.find_one({"menu_id": menu_id}, {"_id": 0})
     if not existing:
         raise HTTPException(status_code=404, detail="Menu item not found")
+    if existing["status"] == "superseded":
+        # Re-approving a replaced dish would put the old and the corrected
+        # menu in front of residents side by side.
+        raise HTTPException(status_code=409, detail="This item was replaced by a newer menu and cannot be published again")
     patch = {
         "status": "approved",
         "approved_by": user["user_id"],
@@ -87,8 +99,7 @@ async def approve_menu_item(menu_id: str, user=Depends(get_current_user)):
 
 @router.delete("/{menu_id}")
 async def delete_menu_item(menu_id: str, user=Depends(get_current_user)):
-    if user.get("role") not in ("admin", "owner", "staff"):
-        raise HTTPException(status_code=403, detail="Staff required")
+    require_content_editor(user, MENU_DEPARTMENTS)
     r = await db.menu_items.delete_one({"menu_id": menu_id})
     if r.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Menu item not found")

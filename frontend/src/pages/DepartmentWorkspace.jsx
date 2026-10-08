@@ -10,6 +10,8 @@ import { toast } from "sonner";
 import { MyTasksCard } from "./TasksTab";
 import MaintenanceWorkspace from "./MaintenanceWorkspace";
 import TransportationCalendar from "./TransportationCalendar";
+import CommunityServicesWorkspace from "./CommunityServicesWorkspace";
+import { SERVICES_DEPARTMENTS } from "../lib/communityServices";
 
 // One shared operational workspace, rendered per the signed-in staff
 // member's Department (User.department -> Department.slug). It reuses the
@@ -47,7 +49,8 @@ export default function DepartmentWorkspace() {
   const dept = user?.department || null;
   const deptLabel = useMemo(() => {
     const d = departments.find((x) => x.slug === dept);
-    return d ? d.label : dept;
+    // GET /departments is admin-only, so department staff fall back to the slug.
+    return d ? d.label : dept && dept.charAt(0).toUpperCase() + dept.slice(1);
   }, [departments, dept]);
 
   const fetchTasks = async () => {
@@ -128,10 +131,12 @@ export default function DepartmentWorkspace() {
           </Card>
         )}
 
-        {/* Maintenance gets the full work-order workspace; every other
-            department gets the generic department queue below. Same
-            StaffTask data either way. */}
+        {/* Maintenance gets the full work-order workspace; housekeeping,
+            kitchen and activities the community-services workspace; every
+            other department the generic queue below. Same StaffTask data
+            either way. */}
         {dept === "maintenance" && <MaintenanceWorkspace />}
+        {SERVICES_DEPARTMENTS.includes(dept) && <CommunityServicesWorkspace department={dept} />}
 
         {/* Transportation works from the ride calendar: Departed / Ride
             completed update the ride and every rider's request together. */}
@@ -142,7 +147,7 @@ export default function DepartmentWorkspace() {
           </div>
         )}
 
-        {dept && dept !== "maintenance" && dept !== "transportation" && (
+        {dept && dept !== "maintenance" && dept !== "transportation" && !SERVICES_DEPARTMENTS.includes(dept) && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <section className="lg:col-span-2">
               <div className="flex items-center justify-between mb-3">
