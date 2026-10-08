@@ -14,6 +14,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from models import MenuItem, MenuItemCreate, MenuItemUpdate, now_utc
 from deps import db, get_current_user
 from routes.realtime_facility import today_facility_date
+from routes.content_receipts import record_content_change, staff_actor, summarize
 from routes.service_content_access import MENU_DEPARTMENTS, require_content_editor
 
 router = APIRouter(prefix="/menu", tags=["menu"])
@@ -46,6 +47,8 @@ async def create_menu_item(data: MenuItemCreate, user=Depends(get_current_user))
     doc["updated_at"] = doc["updated_at"].isoformat()
     await db.menu_items.insert_one(doc)
     doc.pop("_id", None)
+    await record_content_change(kind="menu", action="created", object_type="menu_item", object_id=doc["menu_id"],
+                                actor=staff_actor(user), after=summarize("menu", doc))
     return doc
 
 
@@ -74,7 +77,12 @@ async def update_menu_item(menu_id: str, data: MenuItemUpdate, user=Depends(get_
         patch["approved_by"] = None
         patch["approved_at"] = None
     await db.menu_items.update_one({"menu_id": menu_id}, {"$set": patch})
-    return _iso(await db.menu_items.find_one({"menu_id": menu_id}, {"_id": 0}))
+    updated = await db.menu_items.find_one({"menu_id": menu_id}, {"_id": 0})
+    await record_content_change(
+        kind="menu", action="published" if publish else "edited", object_type="menu_item", object_id=menu_id,
+        actor=staff_actor(user), before=summarize("menu", existing), after=summarize("menu", updated),
+        ingest_id=updated.get("upload_id"))
+    return _iso(updated)
 
 
 @router.post("/{menu_id}/approve")
@@ -94,15 +102,24 @@ async def approve_menu_item(menu_id: str, user=Depends(get_current_user)):
         "updated_at": now_utc().isoformat(),
     }
     await db.menu_items.update_one({"menu_id": menu_id}, {"$set": patch})
-    return _iso(await db.menu_items.find_one({"menu_id": menu_id}, {"_id": 0}))
+    updated = await db.menu_items.find_one({"menu_id": menu_id}, {"_id": 0})
+    await record_content_change(
+        kind="menu", action="published", object_type="menu_item", object_id=menu_id,
+        actor=staff_actor(user), before=summarize("menu", existing), after=summarize("menu", updated),
+        ingest_id=updated.get("upload_id"))
+    return _iso(updated)
 
 
 @router.delete("/{menu_id}")
 async def delete_menu_item(menu_id: str, user=Depends(get_current_user)):
     require_content_editor(user, MENU_DEPARTMENTS)
+    existing = await db.menu_items.find_one({"menu_id": menu_id}, {"_id": 0})
     r = await db.menu_items.delete_one({"menu_id": menu_id})
     if r.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Menu item not found")
+    await record_content_change(kind="menu", action="deleted", object_type="menu_item", object_id=menu_id,
+                                actor=staff_actor(user), before=summarize("menu", existing),
+                                ingest_id=(existing or {}).get("upload_id"))
     return {"ok": True}
 
 

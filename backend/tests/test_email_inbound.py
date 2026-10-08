@@ -176,6 +176,15 @@ async def run():
         sched = await db.schedule_items.find({"source": "email"}, {"_id": 0}).to_list(20)
         assert len(sched) == 2
         assert all(s["source_ref"] == r5["inbound_id"] for s in sched)
+        # CM-1: the inbound record links to the draft batch, not to nothing.
+        ingest_id = sched[0]["ingest_id"]
+        assert ingest_id and all(s["ingest_id"] == ingest_id for s in sched)
+        assert r5["linked_object_type"] == "schedule_items" and r5["linked_object_id"] == ingest_id
+        stored5 = await db.inbound_emails.find_one({"inbound_id": r5["inbound_id"]}, {"_id": 0})
+        assert stored5["linked_object_id"] == ingest_id
+        # RQ-014: the emailed batch also has a receipt naming the email process.
+        rc = await db.receipts.find_one({"related_object_type": "schedule_batch", "related_object_id": ingest_id}, {"_id": 0})
+        assert rc and rc["actor_id"] == "system:inbound_email" and rc["channel"] == "email"
 
         # 6) Bad signature -> 401, nothing recorded for this email_id.
         eid5 = f"email_{uuid.uuid4().hex[:8]}"

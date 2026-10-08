@@ -56,6 +56,8 @@ from fastapi import APIRouter, HTTPException, Depends
 
 from models import ScheduleItem, ScheduleCategory, uid
 from deps import db, get_current_user
+from routes.actor_context import ActorContext
+from routes.content_receipts import inbound_email_actor, record_content_change, staff_actor
 from routes.service_content_access import SCHEDULE_DEPARTMENTS, require_content_editor
 
 router = APIRouter(prefix="/schedule/ingest", tags=["schedule"])
@@ -131,7 +133,7 @@ def _parse_schedule_email(raw_text: str) -> tuple[list[dict], list[str], list[st
 
 async def create_schedule_items(
     *, raw_text: str, source: str, source_ref: Optional[str] = None,
-    created_by: Optional[str] = None,
+    created_by: Optional[str] = None, actor: Optional[ActorContext] = None,
 ) -> dict:
     """The one internal ingestion function for an activities/schedule
     calendar (emailed, pasted or dev-test) - parses raw_text and creates
@@ -168,6 +170,11 @@ async def create_schedule_items(
         doc.pop("_id", None)
         created.append(doc)
 
+    await record_content_change(
+        kind="schedule", action="uploaded", object_type="schedule_batch", object_id=ingest_id,
+        actor=actor or inbound_email_actor(), ingest_id=ingest_id,
+        after={"status": "draft", "source": source, "item_count": len(created),
+               "dates": sorted({c["date"] for c in created})})
     return {
         "ingest_id": ingest_id,
         "status": "draft",
@@ -199,7 +206,7 @@ async def ingest_dev_test(body: dict, user=Depends(get_current_user)):
 
     return await create_schedule_items(
         raw_text=raw_text, source="email_dev_test",
-        source_ref=body.get("source_ref"), created_by=user["user_id"],
+        source_ref=body.get("source_ref"), created_by=user["user_id"], actor=staff_actor(user),
     )
 
 
@@ -212,4 +219,5 @@ async def ingest_paste(body: dict, user=Depends(get_current_user)):
     raw_text = (body.get("raw_text") or "")[:16000]
     if not raw_text.strip():
         raise HTTPException(status_code=400, detail="raw_text is required")
-    return await create_schedule_items(raw_text=raw_text, source="staff_paste", created_by=user["user_id"])
+    return await create_schedule_items(raw_text=raw_text, source="staff_paste",
+                                       created_by=user["user_id"], actor=staff_actor(user))

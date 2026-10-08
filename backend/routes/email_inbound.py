@@ -254,7 +254,7 @@ async def resend_inbound_webhook(request: Request):
             result = await create_schedule_items(
                 raw_text=text_body, source="email", source_ref=inbound_id, created_by=None,
             )
-            linked_type, linked_id = "schedule_items", None
+            linked_type, linked_id = "schedule_items", result["ingest_id"]  # id = the batch (ingest_id)
             parse_status = "parsed" if result["created_count"] else "needs_review"
             parse_notes = "; ".join(result.get("notes") or []) or None
             if result.get("skipped_lines"):
