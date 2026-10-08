@@ -7650,3 +7650,30 @@ HANDOFF CAPSULE
 - Runtime state:    nothing restarted; :8092 still serves the old route until restarted.
 - Unresolved: `test_reports` timing flake with the escalation loop; kiosk device credential.
 - Next safe action: coordinator review.
+
+---
+
+## 2026-10-08 — RQ-029: gate determinism (escalation loop off in the gate)
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-029-gate-determinism` from integration tip `874284f`. Draft PR into `integration/2026-09-27`. Not merged, not deployed; no service restarted.
+
+### Cause
+`test_reports.py` seeds alerts (one at level 2, one two hours old and unacknowledged) and asserts their levels. The gate backend ran the RQ-018 escalation loop (default on, 30 s); a tick between seed and read raised the levels (3 instead of 2). Timing dependent, so a rerun passed. Code read only; not forced to fail on demand.
+
+### Change
+- `run_backend_tests.sh` starts the backend with `CAOSCARE_ESCALATION_AUTO=0` (override by exporting `=1`). Tests needing escalation already call `run_tick` in-process (`test_rq018_escalation.py`, `test_rq027_twilio_one_path.py`).
+- New test in `test_gate_script_isolation.py` checks the script sets it. `docs/BACKEND_TEST_GATE.md` updated.
+- Other time/background dependence: grepped escalation uses only; no other background loop interacts with gate tests. No further flakiness proven.
+
+### Verified
+Gate run 3 times (port 8113, DB `caoscare_gate_rq029`, OpenAI/HA blank): 353 passed / 0 failed / 31 skipped each time. Port 8100 was occupied by another process, so the gate (correctly) refused it; 8113 used instead.
+Line counts: `run_backend_tests.sh` 117, `test_gate_script_isolation.py` 195.
+
+HANDOFF CAPSULE
+- Objective:        RQ-029 deterministic gate.
+- Branch:           bounded/rq-029-gate-determinism (draft PR).
+- Lane / ownership: gate script, gate doc, one test.
+- Last proven state: 3 consecutive green gates, 2026-10-08.
+- Runtime state:    nothing left running.
+- Unresolved: none found.

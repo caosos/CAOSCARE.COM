@@ -291,3 +291,21 @@ behavior was changed to satisfy any of them.
   `iter8_test.py`, `iter10_test.py`, `iter11_test.py` -
   `skip_if_openai_unavailable` applied at each confirmed OpenAI-dependent
   call site, plus the five legacy-test updates above.
+
+## Background escalation loop is off in the gate (RQ-029, 2026-10-08)
+
+**Flake:** `test_reports.py` seeds an alert at `escalation_level: 2` and
+another that is two hours old and unacknowledged, then asserts the first is
+level 2 and the second is level 0. The gate's backend ran the RQ-018 background
+escalation loop (`CAOSCARE_ESCALATION_AUTO`, default on, every 30 s). If a tick
+landed between the seed and the read, it raised those alerts (level 3 instead
+of 2, level 1+ instead of 0). Whether it landed depended on timing, so a
+rerun passed.
+
+**Fix:** `run_backend_tests.sh` starts the gate backend with
+`CAOSCARE_ESCALATION_AUTO=0` (override by exporting `CAOSCARE_ESCALATION_AUTO=1`).
+Tests that need escalation already do not depend on the live loop:
+`test_rq018_escalation.py` and `test_rq027_twilio_one_path.py` call
+`routes.escalation_tick.run_tick` in-process, and the loop's on/off switch is
+unit-tested by setting the env var in the test. A new test in
+`test_gate_script_isolation.py` checks the script sets it.

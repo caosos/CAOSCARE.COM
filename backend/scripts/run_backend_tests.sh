@@ -14,6 +14,11 @@
 #   - CAOSCARE_TEST_HOOKS=1 on that backend, so the one test that needs the
 #     documented simulated-failure hook (test_ai_escalation.py) actually
 #     exercises it instead of silently taking the real-acceptance branch
+#   - the background escalation loop OFF (CAOSCARE_ESCALATION_AUTO=0) so it
+#     cannot raise escalation_level on alerts that tests create and assert on;
+#     tests that need escalation call routes.escalation_tick.run_tick directly
+#     (or the admin /escalation/tick). Override by exporting
+#     CAOSCARE_ESCALATION_AUTO=1 before running.
 #   - MONGO_URL / DB_NAME / JWT_SECRET set identically on both the backend
 #     process and the pytest process itself (conftest.py fails fast with a
 #     clear message if these are missing from the pytest side)
@@ -64,9 +69,10 @@ fi
 echo "==> Dropping test database '$DB_NAME' for a fresh run"
 mongosh --quiet --eval "db.getSiblingDB('$DB_NAME').dropDatabase()" >/dev/null
 
-echo "==> Starting backend on 127.0.0.1:$PORT (CAOSCARE_TEST_HOOKS=1, demo seed on)"
+echo "==> Starting backend on 127.0.0.1:$PORT (CAOSCARE_TEST_HOOKS=1, demo seed on, escalation loop off)"
 MONGO_URL="$MONGO_URL" DB_NAME="$DB_NAME" JWT_SECRET="$JWT_SECRET" \
   CAOSCARE_ENABLE_DEMO_SEED=true CAOSCARE_TEST_HOOKS=1 \
+  CAOSCARE_ESCALATION_AUTO="${CAOSCARE_ESCALATION_AUTO:-0}" \
   CAOSCARE_TEST_GATE_RUN_ID="$GATE_RUN_ID" \
   CORS_ORIGINS="http://localhost:3000" \
   "$VENV_PY" -m uvicorn server:app --host 127.0.0.1 --port "$PORT" \
