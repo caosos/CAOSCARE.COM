@@ -544,7 +544,7 @@ export default function Kiosk() {
             </h1>
             <p className="kiosk-prompt mt-6 text-2xl md:text-3xl text-caos-ink/80 leading-snug">
               If you need help, press the big red button.<br />
-              Your call goes to the staff screen, and I'll stay with you.
+              Pressing it sends an alert to the staff screen.
             </p>
 
             <button

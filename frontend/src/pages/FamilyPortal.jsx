@@ -113,7 +113,7 @@ export default function FamilyPortal() {
             </div>
             <p className="font-display text-4xl mt-2 text-caos-forest">{data.active_now}</p>
             <p className="text-caos-mute text-sm mt-1">
-              {data.active_now === 0 ? "All clear." : "Staff are with them or on the way."}
+              {data.active_now === 0 ? "All clear." : "Staff have been alerted and the calls are still open."}
             </p>
           </Card>
           <Card className="p-6 border-caos-line bg-white caos-fade-in caos-delay-300">

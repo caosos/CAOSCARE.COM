@@ -450,7 +450,7 @@ function BulletinRow({ m, onUpdate, onArchive }) {
 
 function HardwareStack() {
   const layers = [
-    { icon: Cpu, title: "Room kiosk (tablet)", body: "The companion orb. Continuous voice loop, barge-in VAD, TV auto-mute, [REST] sleep tag, configured speech service voices.", testid: "hw-kiosk" },
+    { icon: Cpu, title: "Room kiosk (software screen)", body: "The companion orb. Continuous voice loop, barge-in VAD, TV auto-mute, [REST] sleep tag, configured speech service voices.", testid: "hw-kiosk" },
     { icon: Radio, title: "900 MHz pendants", body: "Philips Lifeline-style buttons. Android bridge + RTL-SDR decodes presses, POSTs /api/pendants/event with zone + battery.", testid: "hw-pendants" },
     { icon: Watch, title: "Wearables", body: "Smartwatches, earbuds, BLE beacons. Fall, heart-rate, and inactivity signals can support staff-reviewed care thresholds per resident.", testid: "hw-wearables" },
     { icon: Glasses, title: "AI-vision glasses (Vuzix M400)", body: "For visually impaired residents. Assistive scene description, wayfinding support, and human-confirmed medication-label assistance.", testid: "hw-vision" },
@@ -461,7 +461,7 @@ function HardwareStack() {
       icon={Radio}
       eyebrow="Hardware"
       title="The physical stack."
-      subtitle="Every layer hangs off the Kiosk tablet. One hub per room."
+      subtitle="Every layer hangs off the room kiosk screen. One hub per room."
       testid="blueprint-hardware"
     >
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
