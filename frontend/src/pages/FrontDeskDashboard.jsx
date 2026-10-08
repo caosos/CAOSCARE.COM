@@ -71,7 +71,7 @@ export default function FrontDeskDashboard() {
         {tab === "requests" && (
           <DepartmentQueue key={reloadKey} department="administration" title="Front desk requests" adminMode />
         )}
-        {tab === "transport" && <TransportationCalendar key={reloadKey} />}
+        {tab === "transport" && <TransportationCalendar refreshKey={reloadKey} />}
         {tab === "residents" && (
           <FrontDeskResidentDirectory reloadKey={reloadKey} onNewRequest={setRequestFor} onNewRide={setRideFor} />
         )}

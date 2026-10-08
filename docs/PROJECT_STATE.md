@@ -7402,3 +7402,32 @@ HANDOFF CAPSULE
 - Runtime state:    nothing started or restarted.
 - Unresolved: PendantsTab/DevicesTab still describe a "bridge tablet" executor (device lane).
 - Next safe action: coordinator review.
+
+---
+
+## 2026-10-08 — RQ-020: Transportation lifecycle browser acceptance (bounded worker)
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-020-transport-accept` from integration `90a5d7d`. Draft PR into `integration/2026-09-27`; not merged, not deployed; `:3000`/`:8092` untouched.
+
+### What was done
+Isolated stack (throwaway DB copied from `caoscare_public_demo`, backend `:8090`, frontend `:3014`, provider keys blank, headless Chrome). Drivers (one with hours, one flex) and vehicles created in Admin; Aria's request/status/change/cancel tools run with the unchanged `realtimeOperationsTools.js`; front desk, transportation staff and owner exercised in the browser: pending, assign, shared ride, change, cancel with reason, depart, complete, history, per-step receipt chains, phone width. Evidence and observations: `docs/reports/2026-10-08-transportation-browser-acceptance.md`.
+
+### Fixed (tiny, with tests)
+- Front desk page-header "New ride" remounted the calendar and reset it to today; now refreshes in place (`refreshKey`).
+- Assign refusal message grammar ("No a free driver and vehicle for …").
+
+### Verified
+Gate 305 passed / 0 failed / 31 skipped; frontend 38 suites / 285 tests; build compiles. Throwaway DBs dropped; servers and headless Chrome stopped.
+
+### Line counts
+`transportation_assign.py` 124, `TransportationCalendar.jsx` 128, `FrontDeskDashboard.jsx` 87 (tests: 76 and 36).
+
+HANDOFF CAPSULE
+- Objective:        RQ-020 transportation browser acceptance.
+- Branch:           bounded/rq-020-transport-accept (draft PR).
+- Lane / ownership: acceptance plus two small fixes in transportation files.
+- Last proven state: report above, 2026-10-08.
+- Runtime state:    nothing left running.
+- Unresolved: observations in the report (shared-ride pickup time, timeline wording); no real drivers/vehicles configured anywhere.
+- Next safe action: coordinator review; Michael supplies real drivers, hours and vehicle seats.

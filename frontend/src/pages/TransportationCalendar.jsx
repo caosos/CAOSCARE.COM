@@ -55,7 +55,9 @@ function PendingCard({ p, canBook, onAssigned, onCancel, onHistory }) {
   );
 }
 
-export default function TransportationCalendar() {
+// refreshKey: a parent bumps it to reload the data without remounting, so the
+// day/week the staff member is looking at is not reset to today.
+export default function TransportationCalendar({ refreshKey = 0 }) {
   const { user } = useAuth();
   const canBook = ["owner", "admin", "front_desk"].includes(user?.role);
   const canOperate = canBook || (user?.role === "staff" && user?.department === "transportation");
@@ -75,7 +77,7 @@ export default function TransportationCalendar() {
       toast.error("Could not load transportation calendar");
     }
   };
-  useEffect(() => { fetchCalendar(); }, [date, view]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchCalendar(); }, [date, view, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const step = view === "week" ? 7 : 1;
   const withDay = (day) => (r) => ({ ...r, requested_for_date: r.requested_for_date || day.date });
