@@ -76,8 +76,22 @@ export function transportStatusMessage(data) {
   if (data.booked && data.run) {
     const who = [data.run.driver_name && `driver ${data.run.driver_name}`, data.run.vehicle_name].filter(Boolean).join(", ");
     if (data.run.status === "in_progress") return `${what} on ${day} has been marked departed by staff (pickup was ${data.run.depart_time}).`;
-    return `confirmed - ${what}: pickup at ${data.run.depart_time} on ${day}${who ? ` (${who})` : ""}.`;
+    return `confirmed - ${what}: ${data.run.shared ? `your ride shares the ${data.run.depart_time} pickup` : `pickup at ${data.run.depart_time}`} on ${day}${who ? ` (${who})` : ""}.`;
   }
   if (data.booked) return `booked for ${data.slot?.start_time} on ${day}.`;
   return `still waiting - ${what} is requested for ${day}${data.requested_for_time_label ? ` (${data.requested_for_time_label})` : ""}, no confirmed pickup time yet; the front desk coordinates it.`;
+}
+
+// What Aria says right after a ride request/change is booked. A rider who
+// joins a shared run gets the run's pickup time, which may differ from the
+// time staff or the resident asked for - so say it is the run's pickup,
+// never that it is the requested time.
+export function rideBookedMessage(data, { askedTime = null, changed = false } = {}) {
+  const pickup = data.run.depart_time;
+  const day = data.run.date;
+  if (data.shared) {
+    const differs = askedTime && askedTime !== pickup ? ` (you asked for ${askedTime}; the vehicle leaves at ${pickup})` : "";
+    return `${changed ? "changed and confirmed" : "confirmed"} - your ride shares the ${pickup} pickup on ${day} with another resident${differs}.`;
+  }
+  return `${changed ? "changed and confirmed" : "confirmed"} - ${changed ? "pickup" : "your ride is booked for"} ${pickup} on ${day}.`;
 }
