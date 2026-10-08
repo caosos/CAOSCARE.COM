@@ -7122,3 +7122,34 @@ HANDOFF CAPSULE
 - Product invariants: residents and Aria read only published content; staff-only notes never reach residents; nothing emailed or pasted goes live without review.
 - Do NOT change:    the inbound email adapter (Lane F); the shared request model (Lane E).
 - Next safe action: coordinator reviews and merges this branch into integration, then Michael asks Aria about dinner and today's activities in Room 214.
+
+---
+
+## 2026-10-07 — RQ-011: Lane D (community services) merged into `bounded/rq-011`
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-011` from integration `da5803f`; merged `origin/pilot/community-services` `d95c4d6`. Draft PR into `integration/2026-09-27`; not merged to integration, no deploy.
+
+### What changed
+- Merge of Lane D: Kitchen/Activities/Housekeeping workspaces (`CommunityServicesWorkspace`), menu paste intake/review, schedule draft batches, `service_content_access.py`.
+- Conflicts: log docs (both sides kept); `PILOT1_ACTIVE_WORK.md` (tip's lane/SC tables kept, Lane D row updated); `realtimeOperationsTools.js` (both imports); `DepartmentWorkspace.jsx` (transportation calendar branch plus services branch; generic queue excluded for services departments).
+- One test updated: `test_community_services.py` expected "Someone is working on it now"; since SC-4 the status names the owner and the latest note, so it now asserts "is working on it now" plus the note text.
+
+### Verified
+- Backend gate (port 8084, throwaway DB, OpenAI/HA blank): 292 passed, 0 failed, 31 skipped (tip baseline 291; +1 lane test).
+- Frontend: 35 suites / 277 tests; `CI=true yarn build` compiles.
+- Not verified: browser walkthrough of the kitchen/activities/housekeeping workspaces.
+
+### Findings
+- Housekeeping/Kitchen/Activities requests use the shared `DepartmentQueue` over the canonical task routes, so they already go through `task_lifecycle` receipts. Menu and schedule content edits (`menu.py`, `schedule.py`, ingest) write their collections directly with no receipts; neither does the tip. Not changed here: SHARED CORE REQUEST (content-edit receipts) if Michael wants the receipt law extended to menu/schedule content.
+- Line counts: `schedule.py` 173, `menu.py` 128, `schedule_ingest.py` 215, `menu_ingest.py` 199, `DepartmentWorkspace.jsx` 230, `MenuTab.jsx` 140, `ScheduleTab.jsx` 131, `realtimeOperationsTools.js` 276. `models.py` is 1693 (pre-existing oversized; lane added ~15 field lines, no extraction possible in scope).
+
+HANDOFF CAPSULE
+- Objective:        Integrate Lane D (RQ-011).
+- Branch:           bounded/rq-011 (draft PR).
+- Lane / ownership: Lane D files only plus conflict resolution in the shared files above.
+- Last proven state: gates above, 2026-10-07.
+- Runtime state:    nothing restarted; gate backend stopped.
+- Unresolved proven defects: none found; CM-1 still open (Lane F).
+- Do NOT change:    shared lifecycle/receipt contracts.
+- Next safe action: coordinator reviews draft PR, then RQ-012.

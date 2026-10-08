@@ -171,7 +171,7 @@ def _housekeeping_checks(HK, K, hk_user_id):
     assert requests.post(f"{API}/tasks/{tid}/start", headers=HK, timeout=5).json()["status"] == "in_progress"
     assert requests.patch(f"{API}/tasks/{tid}", headers=HK, json={"notes": "On my way with towels"}, timeout=5).status_code == 200
     status = requests.get(f"{API}/tasks/resident-request/status", params={"room": ROOM}, timeout=5).json()
-    assert "Someone is working on it now" in status["spoken"]
+    assert "is working on it now" in status["spoken"] and "On my way with towels" in status["spoken"]
 
     r = requests.post(f"{API}/tasks/{tid}/complete", headers=HK, json={"notes": "Delivered 4 towels"}, timeout=5)
     assert r.status_code == 200 and r.json()["status"] == "completed"
