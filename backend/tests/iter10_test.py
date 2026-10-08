@@ -79,7 +79,7 @@ class TestAuthRegressions:
 # check_request_history, 12cf89c confirm_interpretation_pattern. A change
 # to this set should be a deliberate edit here, not a silent drift.
 CURRENT_RESIDENT_TOOLS = {
-    "adjust_room_temperature", "toggle_light", "toggle_tv", "set_tv_input", "get_room_status",
+    "adjust_room_temperature", "toggle_light", "toggle_tv", "set_tv_input", "adjust_tv_volume", "set_tv_channel", "set_blinds", "get_room_status",
     "set_magnification", "call_for_help", "request_live_staff", "mark_resting", "end_call",
     "get_current_time", "get_weather", "research_topic", "set_timer", "update_preferred_name",
     "get_menu", "get_todays_schedule", "request_staff_help", "check_request_status",

@@ -13,6 +13,7 @@ import { Mic, X, Volume2, AlertCircle } from "lucide-react";
 import { useRealtimeVoice } from "../lib/useRealtimeVoice";
 import CopyTranscriptButton from "../components/CopyTranscriptButton";
 import DemoRoomVisual from "../components/kiosk/demo/DemoRoomVisual";
+import DemoStaffChips from "../components/kiosk/demo/DemoStaffChips";
 import { DemoTypedInput, DemoResetButton } from "../components/kiosk/demo/DemoControls";
 
 export default function RealtimeChatScreen({
@@ -148,6 +149,7 @@ export default function RealtimeChatScreen({
       {demo && (
         <div className="mt-4 space-y-3" data-testid="demo-call-panel">
           <DemoRoomVisual room={kiosk?.room || resident?.room} compact />
+          <DemoStaffChips room={kiosk?.room || resident?.room} />
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex-1 min-w-[16rem]"><DemoTypedInput onSend={(t) => sendText(t)} /></div>
             <DemoResetButton />

@@ -173,6 +173,6 @@ def test_resident_session_unchanged_public_and_unauthenticated():
     r = _post("/api/realtime/session", {})
     assert r.status_code == 200, r.text
     caos = r.json()["_caos"]
-    assert len(caos["tools"]) == 26
+    assert len(caos["tools"]) == 29  # 26 + adjust_tv_volume, set_tv_channel, set_blinds (RQ-021)
     assert "owner_user_id" not in (caos.get("context") or {})
     _no_private_memory(r)

@@ -49,3 +49,18 @@ export function demoRoomCaption(view) {
     : view.blinds.position >= 100 ? "Blinds open" : `Blinds ${view.blinds.position}% open`);
   return parts;
 }
+
+// "Staff notified" chips for the demo room visual. Derived only from the
+// resident's real open requests (GET /tasks/resident-request/mine - the same
+// StaffTask records the Requests panel and Aria's status answers use); the
+// wording follows the request's actual stage and never promises that anyone
+// is on the way. Closed requests produce no chip.
+export function staffNotifiedChips(requests) {
+  return (requests || [])
+    .filter((t) => t && t.is_open !== false && (t.status === "pending" || t.status === "in_progress"))
+    .map((t) => {
+      const stage = t.status === "in_progress" ? "Staff are working on it"
+        : t.acknowledged ? "Staff have seen it" : "Staff notified";
+      return { id: t.task_id, label: `${stage}: ${t.what_for || t.category || "request"}`, stage };
+    });
+}
