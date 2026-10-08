@@ -2,7 +2,7 @@ import { deliveryStatus, routeLabel, inboundStatus } from "../notificationDelive
 
 describe("notification delivery truth", () => {
   test("only 'delivered' claims delivery", () => {
-    for (const s of ["logged", "failed", "sent", "delayed", "bounced", "complained", "queued"]) {
+    for (const s of ["logged", "failed", "sent", "delayed", "bounced", "complained", "queued", "simulated"]) {
       expect(deliveryStatus(s).delivered).toBe(false);
     }
     expect(deliveryStatus("delivered").delivered).toBe(true);
@@ -11,6 +11,10 @@ describe("notification delivery truth", () => {
   test("logged is never presented as sent", () => {
     expect(deliveryStatus("logged").label).toMatch(/not sent/i);
     expect(deliveryStatus("sent").label).not.toMatch(/delivered/i);
+  });
+
+  test("simulated has a human label and is never presented as sent", () => {
+    expect(deliveryStatus("simulated").label).toMatch(/simulated.*not sent/i);
   });
 
   test("unknown values degrade honestly", () => {
