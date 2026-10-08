@@ -98,11 +98,11 @@ async def assign_transport_request(task_id: str, data: AssignInput, user=Depends
     )
     run = booking["run"]
     if not run:
-        chosen = " the chosen driver/vehicle" if (data.driver_id or data.vehicle_id) else " a free driver and vehicle"
+        unavailable = "The chosen driver/vehicle is not" if (data.driver_id or data.vehicle_id) else "No free driver and vehicle is"
         return {
             "booked": False, "reason": "no_availability",
             "message": (
-                f"No{chosen} for {data.start_time} on {task['requested_for_date']} - "
+                f"{unavailable} available for {data.start_time} on {task['requested_for_date']} - "
                 "already committed to another run in that window, or outside the driver's working hours."
             ),
         }
