@@ -9,6 +9,7 @@ const STATUS = {
   bounced: { label: "Bounced", tone: "text-caos-terracotta", delivered: false },
   complained: { label: "Marked as spam", tone: "text-caos-terracotta", delivered: false },
   delivered: { label: "Delivered", tone: "text-caos-moss", delivered: true },
+  simulated: { label: "Simulated - not sent to anyone", tone: "text-caos-mute", delivered: false },
   queued: { label: "Queued (legacy)", tone: "text-caos-mute", delivered: false },
 };
 

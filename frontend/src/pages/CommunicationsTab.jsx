@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { deliveryStatus, routeLabel } from "../lib/notificationDelivery";
 import EmailInboundPanel from "./EmailInboundPanel";
 
-const STATUS_FILTERS = ["all", "logged", "sent", "delivered", "failed", "bounced", "delayed"];
+const STATUS_FILTERS = ["all", "logged", "simulated", "sent", "delivered", "failed", "bounced", "delayed"];
 
 // Outbound provider status, a test send, and the delivery log for every
 // notification CAOSCare attempted (department, family, test). Statuses come

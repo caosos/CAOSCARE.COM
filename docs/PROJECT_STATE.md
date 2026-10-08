@@ -7235,3 +7235,32 @@ HANDOFF CAPSULE
 - Runtime state:    nothing started or restarted.
 - Unresolved: SIM-1 live-email-key start guard still in place; CM-1 open (after RQ-011).
 - Next safe action: coordinator review and merge.
+
+---
+
+## 2026-10-08 — RQ-015: Lane D + Lane F browser acceptance (bounded worker)
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/accept-d-f` from integration `4d39d4b`. Draft PR into `integration/2026-09-27`; not merged, no deploy.
+
+### What was done
+Isolated stack (throwaway DB copied from `caoscare_public_demo`, backend `:8088`, frontend `:3013`, provider keys blank), headless Chrome as demo Kitchen, Activities and Housekeeping staff and the demo owner. Evidence and defect list: `docs/reports/2026-10-08-lane-d-f-browser-acceptance.md`.
+- Works: Kitchen menu paste → draft (not public) → publish → correction/draft-again; Activities calendar paste → draft (not public) → publish in clock order, staff-hours hidden; Housekeeping acknowledge/claim/start/note/complete/history with truthful resident status at each step; Communications tab shows `logged` as "Recorded only - not sent" and simulated demo notifications; no overflow at 390 px; no console errors.
+- Fixed (tiny, with test): the `simulated` notification status had no label or filter.
+- Reported: "Room: unknown" in notifications when a request has a resident id but no room (shared request service); menu paste parser cosmetics (another worker's file); Activities department not seeded.
+
+### Verified
+Frontend `notificationDelivery.test.js` and `communityServices.test.js` pass (13 tests); full frontend suite and build below.
+Not tested: real email/provider delivery, telephony, a spoken Aria question.
+
+### Cleanup
+Throwaway DB dropped; backend `:8088` and frontend `:3013` stopped.
+
+HANDOFF CAPSULE
+- Objective:        Browser acceptance of integrated Lane D and Lane F.
+- Branch:           bounded/accept-d-f (draft PR).
+- Lane / ownership: Acceptance only; one tiny frontend label fix.
+- Last proven state: report above, 2026-10-08.
+- Runtime state:    nothing left running.
+- Unresolved proven defects: see report items 2-4.
+- Next safe action: shared-core owner fixes item 2; Michael decides RQ-005 provider config.
