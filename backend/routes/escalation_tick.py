@@ -22,6 +22,7 @@ from datetime import datetime, timezone
 from deps import db
 from models import EscalationRule
 from routes.ops_overview_util import alert_is_stale, parse_dt
+from routes.notification_delivery import alert_provenance_flag, notify_alert_phone
 from routes.receipts import create_receipt
 
 log = logging.getLogger(__name__)
@@ -122,28 +123,22 @@ async def run_tick(now: datetime | None = None) -> dict:
         try:
             await _record(a, rule, current, target, now)
             if target >= 3 and rule.get("notify_oncall_phone"):
-                await _try_sms(rule["notify_oncall_phone"], a)
+                await _try_sms(rule["notify_oncall_phone"], a, target, rule)
             if target >= 2 and rule.get("notify_supervisor_phone"):
-                await _try_sms(rule["notify_supervisor_phone"], a)
+                await _try_sms(rule["notify_supervisor_phone"], a, target, rule)
         except Exception as e:
             log.warning("escalation side effect failed for %s: %s", a.get("alert_id"), e)
     return out
 
 
-async def _try_sms(to_phone: str, alert: dict):
-    """Best-effort SMS - Twilio if configured, otherwise just logs."""
-    sid = os.environ.get("TWILIO_ACCOUNT_SID")
-    token = os.environ.get("TWILIO_AUTH_TOKEN")
-    from_phone = os.environ.get("TWILIO_FROM_PHONE")
-    if not (sid and token and from_phone):
-        log.info("[escalation] would SMS %s: alert %s (Twilio not configured)", to_phone, alert.get("alert_id"))
-        return
-    try:
-        from twilio.rest import Client  # type: ignore
-        body = f"CAOS Care escalation: {alert.get('severity', 'alert')} in room {alert.get('room', '?')}. Open the dashboard."
-        Client(sid, token).messages.create(to=to_phone, from_=from_phone, body=body)
-    except Exception as e:
-        log.warning("twilio send failed: %s", e)
+async def _try_sms(to_phone: str, alert: dict, level: int, rule: dict):
+    """SMS through the one provider path; recorded and receipted either way."""
+    body = (f"CAOS Care escalation: {alert.get('severity', 'alert')} in room "
+            f"{alert.get('room', '?')}. Open the dashboard.")
+    await notify_alert_phone(
+        "sms", to_phone, body, alert, actor_id=ACTOR_ID,
+        authority=f"escalation_rule:{rule.get('facility_id') or 'default'}:level_{level}",
+        simulation=await alert_provenance_flag(alert))
 
 
 async def run_escalation_loop(interval: int) -> None:
