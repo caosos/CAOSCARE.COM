@@ -30,7 +30,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 TAG = f"trr_{uuid.uuid4().hex[:8]}"
 PW = "trr-pw-12345678"
-DAY1, DAY2, DAY3 = "2031-04-07", "2031-04-08", "2031-04-09"
+from datetime import date as _date, timedelta as _td
+_BASE = _date.today() + _td(days=((0 - _date.today().weekday()) % 7) + 7)
+DAY1, DAY2, DAY3 = ((_BASE + _td(days=i)).isoformat() for i in range(3))
 
 
 def _backend_up() -> bool:

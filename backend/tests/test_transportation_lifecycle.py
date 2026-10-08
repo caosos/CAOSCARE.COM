@@ -25,7 +25,9 @@ API = f"{BASE_URL}/api"
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 TAG = f"trlc_{uuid.uuid4().hex[:8]}"
-MON, TUE, WED = "2031-03-03", "2031-03-04", "2031-03-05"   # 2031-03-03 is a Monday
+from datetime import date as _date, timedelta as _td
+_BASE = _date.today() + _td(days=((0 - _date.today().weekday()) % 7) + 7)   # a Monday 7-13 days ahead (inside the far-date guard)
+MON, TUE, WED = ((_BASE + _td(days=i)).isoformat() for i in range(3))
 PW = "test-pw-123456"
 
 

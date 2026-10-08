@@ -15,7 +15,8 @@ API = f"{BASE_URL}/api"
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 TAG = f"rq23_{uuid.uuid4().hex[:8]}"
 PW = "rq23-pw-12345678"
-DAY = "2031-05-12"
+from datetime import date as _date, timedelta as _td
+DAY = (_date.today() + _td(days=((0 - _date.today().weekday()) % 7) + 7)).isoformat()
 
 
 def _backend_up() -> bool:

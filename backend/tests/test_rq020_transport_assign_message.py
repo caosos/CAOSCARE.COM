@@ -18,7 +18,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 TAG = f"rq020_{uuid.uuid4().hex[:8]}"
 PW = "rq020-pw-12345678"
-SATURDAY = "2031-04-12"
+from datetime import date as _date, timedelta as _td
+SATURDAY = (_date.today() + _td(days=((5 - _date.today().weekday()) % 7) + 7)).isoformat()
 
 
 def _ok(r):

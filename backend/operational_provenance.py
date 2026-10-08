@@ -12,7 +12,7 @@ per Michael's explicit instruction that a syntactically valid tool call
 must not be trusted just because it parses.
 """
 import re
-from datetime import date
+from datetime import date, timedelta
 from typing import Optional
 
 from deps import db
@@ -68,4 +68,26 @@ def reject_past_date(requested_date: Optional[str]) -> Optional[dict]:
         "needs_clarification": True, "field": "requested_for_date",
         "reason": f"{day.isoformat()} has already passed (today is {today})",
         "ask": f"That date, {day.strftime('%B')} {day.day}, has already passed. Which date and month do you mean?",
+    }
+
+
+FAR_DATE_DAYS = 45
+
+
+def reject_far_date(requested_date: Optional[str]) -> Optional[dict]:
+    """RQ-034 / N2: a day-of-month alone ("the fifth") makes the model pick
+    a month, which the server cannot prove the resident chose. A date more
+    than FAR_DATE_DAYS ahead is therefore asked about, not filed. Returns the
+    needs_clarification detail or None (unparseable left to the caller)."""
+    try:
+        day = date.fromisoformat((requested_date or "")[:10])
+    except ValueError:
+        return None
+    today = date.fromisoformat(today_facility_date())
+    if day <= today + timedelta(days=FAR_DATE_DAYS):
+        return None
+    return {
+        "needs_clarification": True, "field": "requested_for_date",
+        "reason": f"{day.isoformat()} is more than {FAR_DATE_DAYS} days ahead (today is {today.isoformat()})",
+        "ask": f"Just to be sure - you mean {day.strftime('%A, %B')} {day.day}? Which month do you mean?",
     }

@@ -28,7 +28,7 @@ from routes.transport_task_history import booking_entry, close_events, ride_acto
 from routes.realtime_facility import today_facility_date
 from routes.transportation_legacy_slots import DEFAULT_SLOT_HOURS, release_legacy_slot
 from transportation_engine import find_or_create_run, release_task_from_run, get_scheduling_config, to_minutes, find_free_resource_pair
-from operational_provenance import reject_past_date, reject_unconfirmed_time
+from operational_provenance import reject_far_date, reject_past_date, reject_unconfirmed_time
 
 router = APIRouter(prefix="/transportation", tags=["transportation"])
 
@@ -66,6 +66,7 @@ class TransportRequestInput(BaseModel):
     priority: TaskPriority = "normal"
     source: str = "aria_voice"
     conversation_session_id: Optional[str] = None
+    resident_words: Optional[str] = None        # RQ-034: the resident's literal utterance, separate from purpose
 
 
 # Sources the public (unauthenticated) request path may claim. A request
@@ -94,7 +95,7 @@ async def create_transport_request(data: TransportRequestInput):
     if data.source not in PUBLIC_SOURCES:
         raise HTTPException(status_code=403, detail="Staff-entered requests use /transportation/staff/request")
     # Same guard as /tasks/resident-request; a past date is asked about (D5).
-    if past := reject_past_date(data.requested_for_date):
+    if past := reject_past_date(data.requested_for_date) or reject_far_date(data.requested_for_date):
         raise HTTPException(status_code=422, detail=past)
     rejection = await reject_unconfirmed_time(
         f"{data.purpose} {data.requested_for_time_label or ''}",
@@ -163,7 +164,7 @@ async def submit_transport_request(
         "visibility_role": "transportation",
         "resident_id": data.resident_id,
         "room": data.room,
-        "resident_words": data.purpose if data.source in PUBLIC_SOURCES else None,
+        "resident_words": (data.resident_words or "").strip()[:500] or None if data.source in PUBLIC_SOURCES else None,
         "conversation_session_id": data.conversation_session_id,
         "requested_for_date": data.requested_for_date,
         "requested_for_time_label": data.requested_for_time_label,
