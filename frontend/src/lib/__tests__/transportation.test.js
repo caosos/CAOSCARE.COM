@@ -103,3 +103,47 @@ describe("ride history on the shared timeline", () => {
     ]);
   });
 });
+
+import { rideBookedMessage, transportStatusMessage } from "../transportation";
+import { buildRequestTimeline } from "../requestHistory";
+
+describe("shared ride wording", () => {
+  const run = { date: "2031-05-12", depart_time: "09:00" };
+  test("a shared ride says it shares the run's pickup, and notes the asked time", () => {
+    const m = rideBookedMessage({ run, shared: true }, { askedTime: "09:15" });
+    expect(m).toContain("shares the 09:00 pickup");
+    expect(m).toContain("you asked for 09:15");
+    expect(m).not.toContain("booked for");
+  });
+  test("an unshared ride keeps the plain wording", () => {
+    expect(rideBookedMessage({ run, shared: false })).toBe("confirmed - your ride is booked for 09:00 on 2031-05-12.");
+  });
+  test("a change uses the same shared wording", () => {
+    expect(rideBookedMessage({ run, shared: true }, { changed: true })).toMatch(/^changed and confirmed - your ride shares the 09:00 pickup/);
+  });
+  test("status says shared pickup", () => {
+    const m = transportStatusMessage({ found: true, status: "pending", booked: true, run: { ...run, status: "confirmed", shared: true } });
+    expect(m).toContain("shares the 09:00 pickup");
+  });
+});
+
+describe("ride timeline labels", () => {
+  const ride = { task_id: "t", category: "transportation", created_at: "2031-05-12T08:00:00Z", status: "skipped",
+    event_log: [
+      { at: "2031-05-12T08:05:00Z", field: "assigned_to", to: "u1", by: "u1", by_name: "Pete", to_name: "Pete" },
+      { at: "2031-05-12T08:06:00Z", field: "status", from: "pending", to: "in_progress", by: "u1", by_name: "Pete" },
+      { at: "2031-05-12T08:07:00Z", field: "status", from: "in_progress", to: "skipped", by: "u1", by_name: "Pete" },
+    ] };
+  test("departed and cancelled read as rides, not generic steps", () => {
+    const labels = buildRequestTimeline(ride).map((e) => e.label);
+    expect(labels).toContain("Driver: Pete");
+    expect(labels).toContain("Departed by Pete");
+    expect(labels).toContain("Cancelled by Pete");
+    expect(labels.join()).not.toMatch(/Skipped|Started|Claimed/);
+  });
+  test("other departments keep the generic labels", () => {
+    const labels = buildRequestTimeline({ ...ride, category: "nursing" }).map((e) => e.label);
+    expect(labels).toContain("Skipped by Pete");
+    expect(labels).toContain("Started by Pete");
+  });
+});

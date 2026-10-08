@@ -11,12 +11,21 @@ const STATUS_LABEL = {
   pending: "Reopened",
 };
 
+// Departments whose steps are not best described by the generic wording.
+// Keyed by task.category; the event fields and data are unchanged.
+const CATEGORY_LABELS = {
+  transportation: {
+    status: { in_progress: "Departed", completed: "Ride completed", skipped: "Cancelled" },
+    claimed: "Driver",
+  },
+};
+
 const by = (e) => (e.by_name ? ` by ${e.by_name}` : "");
 
 function describe(e, task) {
   switch (e.field) {
     case "status": {
-      let label = `${STATUS_LABEL[e.to] || `Status: ${String(e.to).replace(/_/g, " ")}`}${by(e)}`;
+      let label = `${(CATEGORY_LABELS[task.category]?.status || {})[e.to] || STATUS_LABEL[e.to] || `Status: ${String(e.to).replace(/_/g, " ")}`}${by(e)}`;
       if (e.to === "completed" && task.duration_minutes) label += ` · ${task.duration_minutes} min`;
       return { label };
     }
@@ -24,7 +33,10 @@ function describe(e, task) {
       return { label: `Acknowledged${by(e)}` };
     case "assigned_to":
       if (!e.to) return { label: `Unassigned${by(e)}` };
-      if (e.to === e.by) return { label: `Claimed${by(e)}` };
+      if (e.to === e.by) {
+        const driver = CATEGORY_LABELS[task.category]?.claimed;
+        return { label: driver ? `${driver}: ${e.to_name || e.by_name || "staff"}` : `Claimed${by(e)}` };
+      }
       return { label: `Assigned to ${e.to_name || "staff"}${by(e)}` };
     case "note":
       return { label: `Note${by(e)}`, text: e.text, kind: "note" };
@@ -61,7 +73,7 @@ export function buildRequestTimeline(task) {
   if (closed && task.completed_at && !logged((e) => e.field === "status" && e.to === task.status)) {
     const who = task.completed_by_name ? ` by ${task.completed_by_name}` : "";
     const mins = task.status === "completed" && task.duration_minutes ? ` · ${task.duration_minutes} min` : "";
-    events.push({ at: task.completed_at, label: `${STATUS_LABEL[task.status]}${who}${mins}` });
+    events.push({ at: task.completed_at, label: `${(CATEGORY_LABELS[task.category]?.status || {})[task.status] || STATUS_LABEL[task.status]}${who}${mins}` });
   }
   return events.sort((a, b) => new Date(a.at || 0) - new Date(b.at || 0));
 }

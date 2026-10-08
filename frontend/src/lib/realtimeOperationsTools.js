@@ -7,7 +7,7 @@
  * anything else so the caller can fall through to its own dispatch.
  */
 import { API } from "./api";
-import { transportStatusMessage } from "./transportation";
+import { transportStatusMessage, rideBookedMessage } from "./transportation";
 import { menuToolMessage, scheduleToolMessage } from "./communityServices";
 
 // 2026-08-23: the backend rejects an operational mutation (422 +
@@ -188,8 +188,7 @@ export async function executeOperationsTool({ name, args, ctx }) {
     if (!data.booked) {
       return { ok: true, message: `request submitted for ${args.requested_for_date} - the front desk needs to coordinate the time, no confirmed time yet.` };
     }
-    const sharedNote = data.shared ? " you'll be riding with another resident on the same trip." : "";
-    return { ok: true, message: `confirmed - your ride is booked for ${data.run.depart_time} on ${args.requested_for_date}.${sharedNote}` };
+    return { ok: true, message: rideBookedMessage(data, { askedTime: args.start_time }) };
   }
 
   if (name === "check_transportation_status") {
@@ -221,7 +220,7 @@ export async function executeOperationsTool({ name, args, ctx }) {
     return {
       ok: true,
       message: data.booked
-        ? `changed and confirmed - pickup at ${data.run.depart_time} on ${data.run.date}.`
+        ? rideBookedMessage(data, { askedTime: args.start_time, changed: true })
         : `changed to ${args.requested_for_date} - no confirmed time yet.`,
     };
   }
@@ -233,6 +232,8 @@ export async function executeOperationsTool({ name, args, ctx }) {
       body: JSON.stringify({ resident_id: residentId || null, room: room || null, conversation_session_id: sessionId || null }),
     });
     if (!r.ok) return { ok: false, message: `couldn't cancel that (${r.status}).` };
+    const cancelled = await r.json().catch(() => ({}));
+    if (cancelled.already_cancelled) return { ok: true, message: "that ride is already cancelled." };
     return { ok: true, message: "cancelled." };
   }
 

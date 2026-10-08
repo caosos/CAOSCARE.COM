@@ -7460,3 +7460,31 @@ HANDOFF CAPSULE
 - Runtime state:    nothing left running.
 - Unresolved: observations in the report (shared-ride pickup time, timeline wording); no real drivers/vehicles configured anywhere.
 - Next safe action: coordinator review; Michael supplies real drivers, hours and vehicle seats.
+
+---
+
+## 2026-10-08 — RQ-023: transportation polish (bounded worker)
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-023-transport-polish` from integration `375cdd8`. Draft PR into `integration/2026-09-27`. Not merged, not deployed; gate on port 8095 / throwaway DB `caoscare_gate_rq023`.
+
+### What changed
+- **Re-cancel:** `POST /transportation/request/cancel-mine` with no open ride but a latest ride already cancelled now returns 200 `{already_cancelled: true}`; Aria says "that ride is already cancelled." No ride at all is still 404.
+- **Shared ride wording:** the status endpoint's `run` gains `shared`. New `rideBookedMessage()` / status text say "your ride shares the 09:00 pickup" and, when the asked time differs, "you asked for 09:15; the vehicle leaves at 09:00". Booking logic unchanged.
+- **Timeline labels:** `requestHistory.js` has a generic per-category label map; for `transportation`, status entries read Departed / Ride completed / Cancelled and the driver claim reads "Driver: <name>". Other departments unchanged.
+- **"My tasks today" for drivers: NOT done.** Rides are assigned to a staff user only when departed, and `TransportDriver` has no link to a `User`, so "today's rides for the signed-in driver" cannot be derived without a new user-to-driver link (data-model change). Reported, not guessed.
+
+### Verified
+Gate: 314 passed, 0 failed, 31 skipped (baseline 313; +1 `test_rq023_transport_polish.py`). Frontend: 39 suites / 311 tests (baseline 305); `CI=true yarn build` compiles. Not verified: browser or spoken run.
+
+### Line counts
+`transportation_voice_context.py` 119, `transportation.js` 99, `requestHistory.js` 87, `realtimeOperationsTools.js` 277, test 79.
+
+HANDOFF CAPSULE
+- Objective:        RQ-023 transportation polish.
+- Branch:           bounded/rq-023-transport-polish (draft PR).
+- Lane / ownership: transportation voice-context route, transportation.js, generic label map in requestHistory.js.
+- Last proven state: gate and frontend above, 2026-10-08.
+- Runtime state:    nothing restarted or deployed.
+- Unresolved: driver "my rides today" needs a user-to-driver link (decision).
+- Next safe action: coordinator review.

@@ -35,6 +35,19 @@ async def _find_open_request(resident_id: Optional[str], room: Optional[str], co
     return task
 
 
+async def _latest_transport_task(data) -> Optional[dict]:
+    q: dict = {"category": "transportation"}
+    if data.resident_id:
+        q["resident_id"] = data.resident_id
+    elif data.room:
+        q["room"] = data.room
+    elif data.conversation_session_id:
+        q["conversation_session_id"] = data.conversation_session_id
+    else:
+        return None
+    return await db.staff_tasks.find_one(q, {"_id": 0}, sort=[("created_at", -1)])
+
+
 class TransportChangeByContextInput(TransportChangeInput):
     resident_id: Optional[str] = None
     room: Optional[str] = None
@@ -58,7 +71,16 @@ class TransportCancelByContextInput(BaseModel):
 
 @router.post("/request/cancel-mine")
 async def cancel_my_transport_request(data: TransportCancelByContextInput):
-    existing = await _find_open_request(data.resident_id, data.room, data.conversation_session_id)
+    try:
+        existing = await _find_open_request(data.resident_id, data.room, data.conversation_session_id)
+    except HTTPException as e:
+        if e.status_code != 404:
+            raise
+        # Nothing open: say so truthfully if the latest ride is already cancelled.
+        last = await _latest_transport_task(data)
+        if last and last["status"] == "skipped":
+            return {"task_id": last["task_id"], "status": "skipped", "already_cancelled": True}
+        raise
     return await cancel_transport_request(existing["task_id"])
 
 
@@ -96,6 +118,7 @@ async def transport_request_status(
                 "date": run["date"], "depart_time": run["depart_time"], "status": run["status"],
                 "departed_at": run.get("departed_at"), "completed_at": run.get("completed_at"),
                 "driver_name": (driver or {}).get("name"), "vehicle_name": (vehicle or {}).get("name"),
+                "shared": len(run.get("resident_task_ids", [])) > 1,
             }
     elif task.get("transport_slot_id"):
         slot = await db.transport_slots.find_one({"slot_id": task["transport_slot_id"]}, {"_id": 0, "start_time": 1, "end_time": 1})
