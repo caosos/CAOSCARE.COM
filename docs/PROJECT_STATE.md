@@ -7513,3 +7513,29 @@ HANDOFF CAPSULE
 - Runtime state:    nothing restarted or deployed.
 - Unresolved: driver "my rides today" needs a user-to-driver link (decision).
 - Next safe action: coordinator review.
+
+---
+
+## 2026-10-08 — RQ-024: daily-exceptions escalation level; Admin button only for owner/admin
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-024-ops-polish` from integration `2301b06`. Draft PR into `integration/2026-09-27`. Not merged, not deployed; no service restarted.
+
+### What changed
+- `reports.py` daily exceptions: assistance-event rows carry `escalation_level` (read from the alert, never written) and the reason adds ", escalated to level N" when above 0. The CSV has the same column. Test extended in `test_reports.py` (JSON and CSV).
+- `/staff` (`StaffDashboard.jsx`): the Admin button shows only when `canOpenAdmin(user)` (owner/admin, new in `roleHome.js`). Other roles cannot use `/admin`, so hiding is the truthful fix. Test in `roleHome.test.js`.
+
+### Verified
+Gate (port 8096, throwaway DB): 314 passed, 0 failed, 31 skipped. Frontend 39 suites / 312 tests; `CI=true yarn build` compiles. Not browser-checked.
+
+### Line counts
+`reports.py` 270 (was 263), `StaffDashboard.jsx` 389 (was 387, pre-existing large; +2 net), `roleHome.js` 62.
+
+HANDOFF CAPSULE
+- Objective:        RQ-024 two small defects.
+- Branch:           bounded/rq-024-ops-polish (draft PR).
+- Lane / ownership: reports.py, StaffDashboard.jsx, roleHome.js.
+- Last proven state: gate and frontend above, 2026-10-08.
+- Runtime state:    nothing restarted or deployed.
+- Unresolved: none.
+- Next safe action: coordinator review.

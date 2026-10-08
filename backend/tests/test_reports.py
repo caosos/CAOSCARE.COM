@@ -102,6 +102,10 @@ async def _run():
              "resident_name": f"{TAG} res", "room": f"{TAG}-9", "triggered_by": "kiosk_button",
              "created_at": _iso(now - timedelta(hours=2))}
     await db.alerts.insert_one(a_open)
+    a_esc = {"alert_id": uid("alert"), "status": "active", "severity": "assist", "escalation_level": 2,
+             "resident_name": f"{TAG} esc", "room": f"{TAG}-8", "triggered_by": "kiosk_button",
+             "created_at": _iso(now - timedelta(hours=1))}
+    await db.alerts.insert_one(a_esc)
 
     try:
         A = _login(f"{TAG}_admin@example.com", pw)
@@ -124,8 +128,17 @@ async def _run():
         rq = by_ref[t_rereq["task_id"]]
         assert rq["kind"] == "re_requested_open" and rq["department_slug"] == "nursing"
         assert by_ref[a_open["alert_id"]]["ref_type"] == "alert" and by_ref[a_open["alert_id"]]["kind"] == "open_assistance_event"
+        esc = by_ref[a_esc["alert_id"]]
+        assert esc["escalation_level"] == 2 and "escalated to level 2" in esc["reason"]
+        assert by_ref[a_open["alert_id"]]["escalation_level"] == 0
+        assert "escalated" not in by_ref[a_open["alert_id"]]["reason"]
         fa = by_ref[r_failed["receipt_id"]]
         assert fa["ref_type"] == "receipt" and fa["kind"] == "failed_action" and fa["department_slug"] == "maintenance"
+
+        ccsv = {r["ref_id"]: r for r in csv.DictReader(io.StringIO(
+            requests.get(f"{API}/reports/daily-exceptions", headers=A, params={"format": "csv"}, timeout=15).text))}
+        assert ccsv[a_esc["alert_id"]]["escalation_level"] == "2"
+        assert "escalated to level 2" in ccsv[a_esc["alert_id"]]["reason"]
 
         # department filter
         m = requests.get(f"{API}/reports/daily-exceptions", headers=A, params={"department": "maintenance"}, timeout=15).json()
@@ -189,7 +202,7 @@ async def _run():
     finally:
         await db.staff_tasks.delete_many({"room": {"$regex": f"^{TAG}"}})
         await db.receipts.delete_many({"$or": [{"room": {"$regex": f"^{TAG}"}}, {"receipt_id": r_failed["receipt_id"]}]})
-        await db.alerts.delete_many({"alert_id": a_open["alert_id"]})
+        await db.alerts.delete_many({"alert_id": {"$in": [a_open["alert_id"], a_esc["alert_id"]]}})
         await db.users.delete_many({"email": {"$regex": f"^{TAG}_"}})
 
 

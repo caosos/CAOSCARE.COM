@@ -1,3 +1,4 @@
+import { canOpenAdmin } from "../lib/roleHome";
 import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../lib/auth";
@@ -131,11 +132,13 @@ export default function StaffDashboard() {
             <span className="text-caos-mute text-sm whitespace-nowrap">· Staff Dashboard</span>
           </div>
           <div className="flex items-center gap-3 overflow-x-auto max-w-full">
-            <Link to="/admin" data-testid="nav-admin">
-              <Button variant="outline" className="border-2 h-10 rounded-full">
-                <Shield className="w-4 h-4 mr-2" /> Admin
-              </Button>
-            </Link>
+            {canOpenAdmin(user) && (
+              <Link to="/admin" data-testid="nav-admin">
+                <Button variant="outline" className="border-2 h-10 rounded-full">
+                  <Shield className="w-4 h-4 mr-2" /> Admin
+                </Button>
+              </Link>
+            )}
             <span className="text-sm text-caos-mute hidden md:block" data-testid="staff-user-name">
               {user?.name}{user?.role !== "admin" && <span className="ml-1 text-xs uppercase tracking-wider">({user?.role})</span>}
             </span>
