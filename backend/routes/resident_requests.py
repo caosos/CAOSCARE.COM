@@ -25,6 +25,7 @@ from routes.departments import get_active_departments
 from routes.facility_local_time import facility_tz as _facility_tz, facility_local as _facility_local
 from routes.tasks import _resolve_denorms
 from routes.aria_request_status import request_status_view
+from routes.resident_request_dedup import find_same_issue
 from operational_provenance import reject_unconfirmed_time
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -165,7 +166,9 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
     else:
         dup_q = None  # nothing to dedup against (no resident/room on either side)
 
-    existing = await db.staff_tasks.find_one(dup_q, {"_id": 0}, sort=[("created_at", -1)]) if dup_q else None
+    # RQ-032 / D2: merge only into an open request that is clearly the same
+    # issue; a different issue in the same department gets its own request.
+    existing = await find_same_issue(dup_q, data.summary, data.resident_words)
     words = data.resident_words or data.summary
     if existing:
         # The repeat ask is a state change on the open request, so it goes
@@ -187,18 +190,9 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
             existing = None
 
     if existing:
-        # 2026-08-27 (real, confirmed bug - Room 401/Ellie): the old response
-        # only said "duplicate" with no description of what the EXISTING open
-        # ticket is actually about. When a resident's second, unrelated issue
-        # in the same category (e.g. AC too warm) landed on top of an older
-        # open one (e.g. a flickering reading lamp) - same dedup key is
-        # category+resident, not the actual problem - Aria had no way to
-        # know the two were different and told the resident "there's already
-        # a maintenance request in progress for the AC", which was false: the
-        # open request was about the lamp. Returning the existing ticket's own
-        # summary lets the model describe it honestly instead of assuming it
-        # matches what was just asked.
-        same_issue = (existing.get("resident_words") or "").strip().lower() == (data.resident_words or data.summary or "").strip().lower()
+        # Only a clearly-same issue reaches here (find_same_issue), so this is
+        # the same request again, and Aria can say so.
+        same_issue = True
         count = existing.get("re_request_count", 0)
         asked = times_asked({"re_request_count": count})
         await notify_department(

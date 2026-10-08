@@ -12,9 +12,11 @@ per Michael's explicit instruction that a syntactically valid tool call
 must not be trusted just because it parses.
 """
 import re
+from datetime import date
 from typing import Optional
 
 from deps import db
+from routes.realtime_facility import today_facility_date
 
 _TIME_CLAIM_RE = re.compile(
     r"\b(\d{1,2}(:\d{2})?\s*(am|pm|a\.m\.|p\.m\.|o'?clock)|noon|midnight)\b",
@@ -47,3 +49,23 @@ async def reject_unconfirmed_time(
         if claim in _normalize(turn.get("text")):
             return None
     return f"a specific time ('{match.group(0).strip()}') was included but the resident never stated it this conversation"
+
+
+def reject_past_date(requested_date: Optional[str]) -> Optional[dict]:
+    """RQ-032 / D5: a spoken date that resolves to a day before today
+    (facility-local) is not accepted silently - "the fifth" said on the 8th
+    is ambiguous (a past 5th, or next month's?). Returns the
+    needs_clarification detail (with the question to ask), or None. An
+    unparseable value is left to the caller's own validation."""
+    try:
+        day = date.fromisoformat((requested_date or "")[:10])
+    except ValueError:
+        return None
+    today = today_facility_date()
+    if day >= date.fromisoformat(today):
+        return None
+    return {
+        "needs_clarification": True, "field": "requested_for_date",
+        "reason": f"{day.isoformat()} has already passed (today is {today})",
+        "ask": f"That date, {day.strftime('%B')} {day.day}, has already passed. Which date and month do you mean?",
+    }
