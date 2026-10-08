@@ -103,7 +103,12 @@ async def _build_tools() -> list[dict]:
                 "instead. Calling this may ask the resident one routing question "
                 "('someone in the room right now, or talk to me until they get "
                 "here?') - if so, wait for their next reply and call this again with "
-                "what they said. Never ask that question twice for the same request."
+                "what they said. Never ask that question twice for the same request. "
+                "If the result says ok=false or that nothing could be reached, "
+                "say only what the result says (e.g. a nursing request was sent "
+                "instead, or nothing was sent). NEVER say someone is coming, on "
+                "the way, or aware of it after a failed or filed-instead result - "
+                "no tool result has established that."
             ),
             "parameters": {"type": "object", "properties": {}, "additionalProperties": False}
         },

@@ -12,6 +12,7 @@
  * specifies, asked once, resolved by what the resident actually says.
  */
 import { API } from "./api";
+import { executeOperationsTool } from "./realtimeOperationsTools";
 
 const IMMEDIATE_PHRASES = /\b(now|right now|hurt|fell|fallen|can'?t breathe|help me|emergency|please hurry|need (someone|help) now)\b/i;
 const COMPANIONABLE_PHRASES = /\b(lonely|dinner|company|can wait|no rush|not urgent|just (want(ed)?|wanted) to talk|talk to you)\b/i;
@@ -22,9 +23,48 @@ const COMPANIONABLE_PHRASES = /\b(lonely|dinner|company|can wait|no rush|not urg
 // genuinely new event gets a new alert_id this Set has never seen.
 const askedAlertIds = new Set();
 
+// True only when the backend accepted the ring. A failed or unreachable ring
+// must never be reported to the resident as "getting someone".
 async function ringLiveLine(alertId) {
-  if (!alertId) return;
-  await fetch(`${API}/alerts/${encodeURIComponent(alertId)}/live-line/ring`, { method: "POST" }).catch(() => {});
+  if (!alertId) return false;
+  try {
+    const r = await fetch(`${API}/alerts/${encodeURIComponent(alertId)}/live-line/ring`, { method: "POST" });
+    return !!r && r.ok !== false;
+  } catch {
+    return false;
+  }
+}
+
+// RQ-031 (D1): when the live line cannot be used, the resident's ask must
+// not be dropped. File the same ask as an ordinary nursing request and say
+// ONLY what the system did - never that anyone is aware, coming, or on the
+// way, because nothing established that.
+const NEEDS_NOW = /\b(now|right now|hurt|fell|fallen|can'?t breathe|help me|emergency|please hurry|need (a nurse|someone|help))\b/i;
+const NO_ARRIVAL = "I can't tell you that anyone has seen it or is on the way yet.";
+
+async function fileInsteadOfLiveLine(ctx, heard) {
+  const result = await executeOperationsTool({
+    name: "request_staff_help",
+    args: {
+      category: "nursing",
+      summary: heard || "Resident asked for a nurse or staff member.",
+      priority: NEEDS_NOW.test(heard) ? "high" : "normal",
+    },
+    ctx: {
+      room: ctx?.room, residentId: ctx?.resident_id, sessionId: ctx?.session_id,
+      turnSuspect: ctx?.turn_suspect, turnSuspectReason: ctx?.turn_suspect_reason,
+    },
+  });
+  if (result?.ok) {
+    return {
+      ok: true, filed: true, rang: false, task_id: result.task_id,
+      message: `I couldn't reach staff on the live line, so I sent a nursing request instead. ${NO_ARRIVAL}`,
+    };
+  }
+  return {
+    ok: false, filed: false, rang: false,
+    message: `${result?.message || "I couldn't send that request."} Nothing was sent to staff. Please use the call button. ${NO_ARRIVAL}`,
+  };
 }
 
 // Called from realtimeMessageHandler.js when the routing-question silence
@@ -37,13 +77,11 @@ export async function ringLiveLineOnSilence(alertId) {
 export async function executeCareTool({ name, args, ctx }) {
   if (name !== "request_live_staff") return undefined;
   const alertId = ctx?.alert_id;
-  if (!alertId) {
-    return { ok: false, message: "I don't have a way to reach staff directly from here right now." };
-  }
   const heard = (ctx?.last_user_text || "").trim();
+  if (!alertId) return fileInsteadOfLiveLine(ctx, heard);
 
   if (IMMEDIATE_PHRASES.test(heard)) {
-    await ringLiveLine(alertId);
+    if (!(await ringLiveLine(alertId))) return fileInsteadOfLiveLine(ctx, heard);
     return { ok: true, message: "Okay, I'm getting someone for you right now.", rang: true };
   }
   if (COMPANIONABLE_PHRASES.test(heard)) {
@@ -60,7 +98,7 @@ export async function executeCareTool({ name, args, ctx }) {
   // repeat unclear turn is treated the same as silence would be: err
   // toward ringing rather than asking again.
   if (askedAlertIds.has(alertId)) {
-    await ringLiveLine(alertId);
+    if (!(await ringLiveLine(alertId))) return fileInsteadOfLiveLine(ctx, heard);
     return { ok: true, message: "Okay, I'm getting someone for you right now.", rang: true };
   }
   askedAlertIds.add(alertId);
