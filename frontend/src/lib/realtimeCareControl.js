@@ -53,6 +53,7 @@ async function fileInsteadOfLiveLine(ctx, heard) {
     ctx: {
       room: ctx?.room, residentId: ctx?.resident_id, sessionId: ctx?.session_id,
       turnSuspect: ctx?.turn_suspect, turnSuspectReason: ctx?.turn_suspect_reason,
+      last_user_text: ctx?.last_user_text,
     },
   });
   if (result?.ok) {

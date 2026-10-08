@@ -87,7 +87,10 @@ def _build_operations_tools(request_categories: list[str] | None = None) -> list
             "type": "function",
             "name": "check_request_status",
             "description": (
-                "The resident's CURRENT (still-open) staff request. Use when they "
+                "The resident's CURRENT (still-open) staff request(s). Leave "
+                "`category` out for a general 'did anybody see my request' - it "
+                "then answers for every open request across departments; pass a "
+                "category only when they name one. Use when they "
                 "ask 'did the nurse see my message', 'is anyone coming for the "
                 "light', 'what did I call maintenance about', 'when are they "
                 "coming'. This returns ONLY a request that is genuinely still "
