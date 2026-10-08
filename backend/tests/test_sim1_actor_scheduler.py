@@ -71,7 +71,7 @@ async def _reset():
 
 @pytest.fixture(autouse=True)
 def clean(monkeypatch):
-    monkeypatch.setattr(notifications, "RESEND_KEY", "")
+    monkeypatch.setenv("RESEND_API_KEY", "")
     run(_reset())
     yield
     run(_reset())
@@ -306,7 +306,7 @@ def test_sim1_real_and_simulated_identity_cannot_be_confused():
 
 def test_sim1_refuses_start_with_live_email_provider(monkeypatch):
     async def go():
-        monkeypatch.setattr(notifications, "RESEND_KEY", "re_live_key")
+        monkeypatch.setenv("RESEND_API_KEY", "re_live_key")
         with pytest.raises(scheduler.SimulatorError) as e:
             await scheduler.start(*operator())
         assert "email provider" in e.value.detail

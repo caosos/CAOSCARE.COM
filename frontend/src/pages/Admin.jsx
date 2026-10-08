@@ -15,6 +15,8 @@ import EscalationTab from "./EscalationTab";
 import Roadmap from "./Roadmap";
 import Insights from "./Insights";
 import FamilyTab from "./FamilyTab";
+import CommunicationsTab from "./CommunicationsTab";
+import PhoneCallsPanel from "./PhoneCallsPanel";
 import WearablesTab from "./WearablesTab";
 import DeviceTokensTab from "./DeviceTokensTab";
 import DevicesTab from "./DevicesTab";
@@ -187,6 +189,8 @@ export default function Admin() {
           <TabsContent value="kiosks" className="mt-6"><KiosksTab kiosks={kiosks} zones={zones} onChange={fetchAll} /></TabsContent>
           <TabsContent value="zones" className="mt-6"><ZonesTab zones={zones} onChange={fetchAll} /></TabsContent>
           <TabsContent value="family" className="mt-6"><FamilyTab residents={residents} /></TabsContent>
+          <TabsContent value="communications" className="mt-6"><CommunicationsTab /></TabsContent>
+          <TabsContent value="phones" className="mt-6"><PhoneCallsPanel /></TabsContent>
           <TabsContent value="tokens" className="mt-6"><DeviceTokensTab /></TabsContent>
           <TabsContent value="insights" className="mt-6"><Insights /></TabsContent>
           <TabsContent value="audit" className="mt-6"><AuditTab /></TabsContent>

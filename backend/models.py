@@ -518,8 +518,15 @@ class Insight(BaseModel):
 
 # ---------- Notifications ----------
 NotificationChannel = Literal["sms", "email", "pager", "inapp"]
-# "simulated": produced for a simulated request; never handed to a provider (SC-16).
-NotificationStatus = Literal["queued", "sent", "failed", "logged", "simulated"]
+# Delivery truth, weakest to strongest claim (routes/notification_delivery.py):
+#   logged    - no provider configured; recorded here only, nothing left CAOSCare
+#   failed    - provider rejected it, the call errored, or no recipient existed
+#   sent      - provider ACCEPTED it for delivery (not proof it arrived)
+#   delayed / bounced / complained / delivered - reported later by the
+#               provider's delivery webhook against provider_message_id
+#   queued    - legacy value, not written by current code
+#   simulated - produced for a simulated request; never handed to a provider (SC-16)
+NotificationStatus = Literal["queued", "sent", "delayed", "delivered", "bounced", "complained", "failed", "logged", "simulated"]
 
 
 class Notification(BaseModel):
@@ -544,6 +551,10 @@ class Notification(BaseModel):
     # simulated notifications alike.
     related_object_type: Optional[str] = None
     related_object_id: Optional[str] = None
+    provider_message_id: Optional[str] = None   # provider's id (Resend email id), keys delivery webhooks
+    department: Optional[str] = None            # department slug for notify_department() fan-out
+    route: Optional[str] = None                 # "department_contact" | "department_staff" | "admin_fallback"
+    delivery_events: List[dict] = Field(default_factory=list)  # provider webhook history
     created_at: datetime = Field(default_factory=now_utc)
 
 
@@ -564,6 +575,7 @@ class FamilyContact(BaseModel):
     email: Optional[str] = ""
     phone: Optional[str] = ""
     notify_on: List[Literal["emergency", "assist", "wander", "daily_summary"]] = Field(default_factory=lambda: ["emergency", "wander"])
+    allow_calls: bool = False   # resident may ask Aria to phone this contact (off until staff approve)
     portal_token: str = Field(default_factory=lambda: uid("ptok"))   # magic-link token for family portal
     created_at: datetime = Field(default_factory=now_utc)
 
@@ -575,6 +587,11 @@ class FamilyContactCreate(BaseModel):
     email: Optional[str] = ""
     phone: Optional[str] = ""
     notify_on: List[Literal["emergency", "assist", "wander", "daily_summary"]] = Field(default_factory=lambda: ["emergency", "wander"])
+    allow_calls: bool = False
+
+
+class FamilyContactCallApproval(BaseModel):
+    allow_calls: bool
 
 
 # ---------- Wearable devices (P3) ----------

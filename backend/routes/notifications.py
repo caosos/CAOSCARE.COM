@@ -1,24 +1,16 @@
-"""NotificationService - logs every notification; real providers activate when keys are set."""
-import os
-from typing import Optional, List
-from datetime import datetime, timezone
+"""Notification routing - who gets told about what. Provider delivery and
+delivery truth live in routes/notification_delivery.py; send_email/send_sms
+are re-exported here because existing callers import them from this module."""
+from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends
 
-from models import Notification, NotificationTest, FamilyContact, FamilyContactCreate, now_utc
-from deps import db, get_current_user
+from models import NotificationTest, FamilyContact, FamilyContactCreate, FamilyContactCallApproval, now_utc
+from deps import db, get_current_user, require_admin
+from routes.notification_delivery import (  # noqa: F401 - send_* re-exported
+    send_email, send_sms, record_undeliverable, provider_config, _save as _log_notification,
+)
 
 router = APIRouter(tags=["notifications"])
-
-
-# Feature flags - flip these by adding keys to backend/.env
-TWILIO_SID = os.environ.get("TWILIO_ACCOUNT_SID", "")
-TWILIO_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN", "")
-TWILIO_FROM = os.environ.get("TWILIO_FROM_NUMBER", "")
-RESEND_KEY = os.environ.get("RESEND_API_KEY", "")
-RESEND_FROM = os.environ.get("RESEND_FROM_EMAIL", "onboarding@resend.dev")
-
-
-SIMULATED_RESPONSE = "simulated request - recorded only, never sent to a provider"
 
 
 def simulation_of(task: Optional[dict], receipt_id: Optional[str] = None) -> Optional[dict]:
@@ -39,128 +31,50 @@ def task_notice(task: dict, receipt_id: Optional[str]) -> dict:
             "receipt_id": receipt_id, "simulation": simulation_of(task, receipt_id)}
 
 
-async def _record_simulated(doc: dict, simulation: dict) -> dict:
-    """SC-16: a simulated request's notification is evidence, not a delivery.
-    It is recorded with status "simulated" and its task/receipt/run linkage,
-    and never handed to Twilio/Resend, whatever keys are configured."""
-    doc.update(simulation, status="simulated", provider_response=SIMULATED_RESPONSE)
-    doc["created_at"] = doc["created_at"].isoformat()
-    return await _log_notification(doc)
-
-
-async def _log_notification(doc: dict) -> dict:
-    doc.setdefault("created_at", now_utc().isoformat())
-    await db.notifications.insert_one(doc)
-    doc.pop("_id", None)
-    return doc
-
-
-async def send_sms(to: str, body: str, *, alert_id: str | None = None, resident_id: str | None = None,
-                   simulation: Optional[dict] = None, link: Optional[dict] = None) -> dict:
-    """Send SMS via Twilio if configured; otherwise log only."""
-    n = Notification(
-        channel="sms",
-        to=to,
-        body=body[:1500],
-        alert_id=alert_id,
-        resident_id=resident_id,
-    )
-    doc = n.model_dump()
-    doc.update({k: v for k, v in (link or {}).items() if v is not None})
-    if simulation:
-        return await _record_simulated(doc, simulation)
-    if not (TWILIO_SID and TWILIO_TOKEN and TWILIO_FROM):
-        doc["status"] = "logged"
-        doc["provider_response"] = "Twilio not configured — logged only (ready to activate when keys are provided)"
-        doc["created_at"] = doc["created_at"].isoformat()
-        return await _log_notification(doc)
-    try:
-        import httpx
-        resp = await httpx.AsyncClient(timeout=10).post(
-            f"https://api.twilio.com/2010-04-01/Accounts/{TWILIO_SID}/Messages.json",
-            auth=(TWILIO_SID, TWILIO_TOKEN),
-            data={"From": TWILIO_FROM, "To": to, "Body": body[:1500]},
-        )
-        doc["status"] = "sent" if resp.status_code < 300 else "failed"
-        doc["provider_response"] = resp.text[:500]
-    except Exception as e:
-        doc["status"] = "failed"
-        doc["provider_response"] = f"exception: {e}"
-    doc["created_at"] = doc["created_at"].isoformat()
-    return await _log_notification(doc)
-
-
-async def send_email(to: str, subject: str, body: str, *, alert_id: str | None = None, resident_id: str | None = None,
-                     simulation: Optional[dict] = None, link: Optional[dict] = None) -> dict:
-    n = Notification(
-        channel="email",
-        to=to,
-        subject=subject,
-        body=body[:4000],
-        alert_id=alert_id,
-        resident_id=resident_id,
-    )
-    doc = n.model_dump()
-    doc.update({k: v for k, v in (link or {}).items() if v is not None})
-    if simulation:
-        return await _record_simulated(doc, simulation)
-    if not RESEND_KEY:
-        doc["status"] = "logged"
-        doc["provider_response"] = "Resend not configured — logged only (ready to activate when keys are provided)"
-        doc["created_at"] = doc["created_at"].isoformat()
-        return await _log_notification(doc)
-    try:
-        import httpx
-        resp = await httpx.AsyncClient(timeout=10).post(
-            "https://api.resend.com/emails",
-            headers={"Authorization": f"Bearer {RESEND_KEY}"},
-            json={"from": RESEND_FROM, "to": [to], "subject": subject, "text": body},
-        )
-        doc["status"] = "sent" if resp.status_code < 300 else "failed"
-        doc["provider_response"] = resp.text[:500]
-    except Exception as e:
-        doc["status"] = "failed"
-        doc["provider_response"] = f"exception: {e}"
-    doc["created_at"] = doc["created_at"].isoformat()
-    return await _log_notification(doc)
-
-
 async def notify_department(visibility_role: str, subject: str, body: str, *,
                             related_object_type: str, related_object_id: str,
                             receipt_id: Optional[str] = None,
-                            simulation: Optional[dict] = None) -> None:
-    """Email a department. Three-tier fallback, in order:
-    1. The department's own Department.contact_email, if set - for a
-       department that's a shared inbox (e.g. kitchen@facility) rather
-       than individual staff logins.
-    2. Every staff User whose .department matches this slug - the
-       original mechanism, still the default for departments with real
-       staff accounts.
-    3. admin/owner - so a request is never silently un-notified, even for
-       a brand-new department nobody's been assigned to yet.
-    send_email() already degrades gracefully to a logged-only record when
-    no provider key is configured - this never blocks the caller. Shared
-    by resident_requests.py, tasks.py, and transportation.py - one
-    notification path, not one per lane. `simulation` (simulation_of(task))
-    makes every record "simulated" and stops it reaching a provider (SC-16).
+                            simulation: Optional[dict] = None) -> list[dict]:
+    """Email a department and return every notification record produced.
+    Routes, in order, falling through when a tier has no address OR every
+    send in it failed at the provider:
+    1. the department's own Department.contact_email (a shared inbox);
+    2. every staff User whose .department matches this slug;
+    3. admin/owner, so a request is never silently un-notified.
+    "logged" (no provider configured) is not a failure to fall through on -
+    it would be logged identically at every tier. If no tier has any
+    address, one failed record says so. Shared by resident_requests.py,
+    tasks.py, and transportation*.py - one notification path, not one per
+    lane.
     SC-8: related_object_type/id (required) and receipt_id go on every
-    record, so each delivery traces back to the exact request and receipt."""
-    link = {"related_object_type": related_object_type, "related_object_id": related_object_id,
-            "receipt_id": receipt_id}
+    record, so each delivery traces back to the exact request and receipt.
+    SC-16: `simulation` (simulation_of(task)) makes every record
+    "simulated" and stops it reaching a provider."""
+    ctx = {"department": visibility_role, "related_object_type": related_object_type,
+           "related_object_id": related_object_id, "receipt_id": receipt_id}
     dept = await db.departments.find_one({"slug": visibility_role}, {"_id": 0, "contact_email": 1})
-    if dept and dept.get("contact_email"):
-        await send_email(dept["contact_email"], subject, body, simulation=simulation, link=link)
-        return
-    recipients = await db.users.find(
-        {"department": visibility_role}, {"_id": 0, "email": 1}
-    ).to_list(50)
-    if not recipients:
-        recipients = await db.users.find(
-            {"role": {"$in": ["admin", "owner"]}}, {"_id": 0, "email": 1}
-        ).to_list(50)
-    for u in recipients:
-        if u.get("email"):
-            await send_email(u["email"], subject, body, simulation=simulation, link=link)
+    staff = await db.users.find({"department": visibility_role}, {"_id": 0, "email": 1}).to_list(50)
+    admins = await db.users.find({"role": {"$in": ["admin", "owner"]}}, {"_id": 0, "email": 1}).to_list(50)
+    tiers = [
+        ("department_contact", [dept.get("contact_email")] if dept else []),
+        ("department_staff", [u.get("email") for u in staff]),
+        ("admin_fallback", [u.get("email") for u in admins]),
+    ]
+    records: list[dict] = []
+    for route, addrs in tiers:
+        addrs = list(dict.fromkeys(a for a in addrs if a))
+        if not addrs:
+            continue
+        tier = [await send_email(a, subject, body, route=route, simulation=simulation, **ctx)
+                for a in addrs]
+        records.extend(tier)
+        if any(r["status"] != "failed" for r in tier):
+            return records
+    if not records:
+        records.append(await record_undeliverable(
+            "email", f"No email address for department '{visibility_role}', its staff, or any admin/owner",
+            simulation=simulation, **ctx))
+    return records
 
 
 async def notify_family_for_alert(alert: dict):
@@ -193,9 +107,12 @@ async def notify_family_for_alert(alert: dict):
 
 # -------- API routes --------
 @router.get("/notifications")
-async def list_notifications(limit: int = 50, user=Depends(get_current_user)):
-    items = await db.notifications.find({}, {"_id": 0}).sort("created_at", -1).to_list(limit)
-    return items
+async def list_notifications(limit: int = 50, related_object_id: Optional[str] = None,
+                             department: Optional[str] = None, status: Optional[str] = None,
+                             user=Depends(get_current_user)):
+    q = {k: v for k, v in (("related_object_id", related_object_id), ("department", department),
+                           ("status", status)) if v}
+    return await db.notifications.find(q, {"_id": 0}).sort("created_at", -1).to_list(min(limit, 500))
 
 
 @router.post("/notifications/test")
@@ -218,11 +135,13 @@ async def notifications_test(data: NotificationTest, user=Depends(get_current_us
 
 @router.get("/notifications/status")
 async def notifications_status(user=Depends(get_current_user)):
+    cfg = provider_config()
+    twilio = bool(cfg["twilio_sid"] and cfg["twilio_token"] and cfg["twilio_from"])
     return {
-        "twilio_configured": bool(TWILIO_SID and TWILIO_TOKEN and TWILIO_FROM),
-        "resend_configured": bool(RESEND_KEY),
-        "twilio_from": TWILIO_FROM if (TWILIO_SID and TWILIO_TOKEN) else None,
-        "resend_from": RESEND_FROM if RESEND_KEY else None,
+        "twilio_configured": twilio,
+        "resend_configured": bool(cfg["resend_key"]),
+        "twilio_from": cfg["twilio_from"] if twilio else None,
+        "resend_from": cfg["resend_from"] if cfg["resend_key"] else None,
     }
 
 
@@ -245,6 +164,16 @@ async def create_family(data: FamilyContactCreate, user=Depends(get_current_user
     await db.family_contacts.insert_one(doc)
     doc.pop("_id", None)
     return doc
+
+
+@router.patch("/family-contacts/{contact_id}/calls")
+async def set_family_call_approval(contact_id: str, data: FamilyContactCallApproval, user=Depends(require_admin)):
+    """Staff approve (or withdraw) a contact for resident-initiated calls.
+    Aria can only call approved contacts, using the number on file."""
+    r = await db.family_contacts.update_one({"contact_id": contact_id}, {"$set": {"allow_calls": data.allow_calls}})
+    if r.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Contact not found")
+    return {"ok": True, "allow_calls": data.allow_calls}
 
 
 @router.delete("/family-contacts/{contact_id}")

@@ -78,7 +78,7 @@ async def _reset():
 
 @pytest.fixture(autouse=True)
 def clean(monkeypatch):
-    monkeypatch.setattr(notifications, "RESEND_KEY", "")
+    monkeypatch.setenv("RESEND_API_KEY", "")
     run(_reset())
     yield
     run(db.users.delete_many({"user_id": {"$regex": f"^{TAG}"}}))

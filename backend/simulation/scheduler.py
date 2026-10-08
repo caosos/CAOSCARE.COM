@@ -165,7 +165,7 @@ async def start(operator: ActorContext, authority: str, roles: Optional[dict] = 
     async with _lock:
         if await active_run():
             raise SimulatorError(409, "A simulation run is already active; stop it first.")
-        if notifications.RESEND_KEY:
+        if notifications.provider_config()["resend_key"]:
             # SHARED CORE REQUEST: department notifications do not yet mark a
             # simulated request, so a live email provider would send real mail.
             await _refuse_start(operator, authority, "a live email provider is configured and "

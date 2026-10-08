@@ -55,7 +55,7 @@ async def _reset():
 
 @pytest.fixture(autouse=True)
 def clean(monkeypatch):
-    monkeypatch.setattr(notifications, "RESEND_KEY", "")
+    monkeypatch.setenv("RESEND_API_KEY", "")
     monkeypatch.setattr(scheduler, "TICK_SECONDS", 3600)   # revived loop must not tick during the test
     run(_reset())
     yield

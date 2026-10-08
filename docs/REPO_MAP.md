@@ -888,3 +888,11 @@ listener verifier experiment: `docs/experiments/`.
 - `frontend/src/pages/{MenuItemDialog,MenuUploadsPanel,ScheduleItemDialog,ScheduleReviewPanel}.jsx`: split out of `MenuTab.jsx` / `ScheduleTab.jsx`.
 - `frontend/src/lib/communityServices.js`: status views and Aria's menu/schedule result text (shared by the staff screens and `realtimeOperationsTools.js`).
 - Test: `backend/tests/test_community_services.py`.
+## 2026-09-27 — Communications lane (branch pilot/communications)
+
+- `backend/routes/notification_delivery.py`: the one outbound provider module (Resend email, Twilio SMS); one `db.notifications` record per attempt with truthful status; `apply_resend_delivery_event()` records Resend delivery events.
+- `backend/routes/notifications.py`: routing only — `notify_department()` tiered fallback (department inbox → department staff → admin), family alert fan-out, `/notifications` API (filter by `related_object_id`/`department`/`status`).
+- `backend/routes/email_inbound.py`: non-`email.received` Resend events go to delivery status, never ingested as mail.
+- `frontend/src/pages/CommunicationsTab.jsx` + `EmailInboundPanel.jsx` (Admin → Email & notifications), `frontend/src/lib/notificationDelivery.js` (status vocabulary).
+- `docs/PILOT1_COMMUNICATIONS.md`: config vs code gaps, setup steps, acceptance tests, proposed phone architecture and open decisions.
+- Calling (2026-09-27, Michael's D1-D8): `telephony/asterisk/` (Asterisk 18 PJSIP/dialplan/ARI config; secrets in git-ignored `*_local.conf`), `backend/models_calls.py` (CallSession, PhoneEndpoint), `routes/call_lifecycle.py` (forward-only state + receipts), `routes/asterisk_ari_events.py` (ARI events -> state; listener when `ASTERISK_ARI_URL` set), `routes/telephony_local.py` (dialplan-only dial-target), `routes/telephony_endpoints.py`, `routes/phone_aria.py` + `phone_aria_sideband.py` + `phone_aria_tools.py` (OpenAI Realtime SIP), `frontend/src/pages/PhoneCallsPanel.jsx` (Admin -> Phones & calls).
