@@ -7,18 +7,17 @@ Simulates the activities coordinator emailing in two consecutive weekly
 calendars (14 days total, starting today) as raw email bodies, POSTed to
 POST /schedule/ingest/dev-test (backend/routes/schedule_ingest.py) exactly
 as a real inbound-email adapter eventually would deliver them. Each
-ScheduleItem this produces is real, varied, live data - not placeholder
-copy-pasted per day - and lands via the real parse -> create path, not a
-direct DB write, so it's also a live acceptance test of the ingestion
-endpoint itself.
+ScheduleItem this produces is real, varied data - not placeholder
+copy-pasted per day - and lands via the real parse -> draft -> publish
+path, not a direct DB write, so it's also a live acceptance test of the
+ingestion and publish endpoints.
 
 Run with: python3 scripts/seed_schedule_two_weeks.py
 (Only works once schedule_ingest_routes.router is registered in server.py
 and the backend has been restarted - see the TODO in server.py.)
 
-Idempotent per day: schedule_ingest.py's dev-test endpoint has no
-draft/approve or dedup concept of its own (see that module's docstring -
-ScheduleItem is plain CRUD), so re-running this script naively would
+Idempotent per day: schedule_ingest.py has no dedup of its own, so
+re-running this script naively would
 create duplicate rows every time. Before building either week's email,
 this script checks db.schedule_items for each target date and drops any
 date that already has at least one item (real staff entry OR a prior run
@@ -141,8 +140,7 @@ async def _already_populated_offsets(all_offsets: list[int]) -> set[int]:
     """Returns the subset of offsets whose target date already has at
     least one ScheduleItem (any source) - real staff entry or a prior run
     of this same script. Those dates are left untouched, never
-    superseded or duplicated - ScheduleItem has no draft/approve or
-    upsert concept of its own (see schedule_ingest.py's own docstring)."""
+    superseded or duplicated."""
     dates = [day(o) for o in all_offsets]
     existing = await db.schedule_items.distinct("date", {"date": {"$in": dates}})
     existing_set = set(existing)
@@ -176,6 +174,8 @@ async def main():
             })
             r1.raise_for_status()
             res1 = r1.json()
+            # Ingested calendars are drafts until published (schedule_ingest.py).
+            (await c.post(f"/schedule/batches/{res1['ingest_id']}/publish")).raise_for_status()
             print(f"  created_count={res1['created_count']} skipped_lines={res1['skipped_lines']} notes={res1['notes']}")
         else:
             print("=== Week 1: every date already populated, nothing to send ===")
@@ -190,6 +190,8 @@ async def main():
             })
             r2.raise_for_status()
             res2 = r2.json()
+            # Ingested calendars are drafts until published (schedule_ingest.py).
+            (await c.post(f"/schedule/batches/{res2['ingest_id']}/publish")).raise_for_status()
             print(f"  created_count={res2['created_count']} skipped_lines={res2['skipped_lines']} notes={res2['notes']}")
         else:
             print("\n=== Week 2: every date already populated, nothing to send ===")

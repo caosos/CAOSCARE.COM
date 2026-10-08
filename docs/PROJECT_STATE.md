@@ -7058,3 +7058,67 @@ HANDOFF CAPSULE
 - Last proven state: gate 291 passed / 0 failed / 31 skipped at B3 (`d2cd439`), 2026-10-07.
 - Runtime state:    :3000/:8092 as in ACTIVE_WORK; no workers.
 - Next safe action: launch bounded workers for RQ-011 and RQ-012 (rebase onto tip, lane tests, draft PR); merge one at a time with the gate between.
+## 2026-09-27 — Lane D (Dining / Activities / Housekeeping): community-services workflows
+
+### Agent / tool
+Claude Code (Opus 5.5), EliteDesk, worktree `~/CAOSCARE-LANE-SERVICES`, branch `pilot/community-services` from integration SHA `e9373d5`. Lane work only: not merged into integration or main, not deployed.
+
+### What changed
+**Dining / menu**
+- Kitchen staff get a real workspace: `/workspace` for a Kitchen user shows "Dining requests" (shared `DepartmentQueue`) plus a Menu tab (the same `MenuTab` admins use).
+- Menu intake: new `POST /menu/ingest/paste` (source `staff_paste`), which uses the same parser and draft batch as an emailed menu. The dev-test endpoint is kept for the seed scripts.
+- Review: "Menus received" lists each emailed or pasted batch for the date, with its items, parse warnings and original text. Publishing a batch replaces earlier published items for the same meals (existing rule).
+- Corrections: an item can be edited and published in one step (`PATCH /menu/{id}` with `publish: true`), or saved as a draft, which takes it off the residents' menu until it is approved. A replaced (`superseded`) item can no longer be re-published or edited (409), because that would show the old and corrected dish side by side. It now shows as "Replaced" instead of "draft".
+- Access: only Kitchen or Administration staff, and admins, can change the menu (`service_content_access.py`). Previously any staff member could.
+- Aria: an empty `get_menu` result no longer says "let me check and get back to you", because nothing was sent. It now says so honestly and offers to ask the kitchen through `request_staff_help`. Results include each dish's description.
+
+**Activities / schedule**
+- `ScheduleItem` gains `status` (draft / published / superseded), `ingest_id`, `published_by`, `published_at`. Rows stored before this have no status and count as published.
+- Emailed and pasted calendars (`POST /schedule/ingest/paste`, and the inbound webhook through `create_schedule_items`) now arrive as one draft batch. Staff publish the batch (`POST /schedule/batches/{ingest_id}/publish`) or a single row. Publishing a newer calendar replaces the earlier emailed/pasted rows for the same dates, never staff-typed rows. Previously a pasted or emailed calendar went live to residents immediately with no review.
+- The public read (room screen and Aria) returns published, resident-facing rows only, in clock order. Two defects fixed: string sort put "10:00 AM" before "9:30 AM", and `staff_hours` rows ("two aides overnight") were shown to residents.
+- The staff screen gets editing, a review queue, "Paste a calendar", and per-row status. An Activities department is supported (`roleHome` + workspace), but it is not seeded; an admin adds it in Departments.
+- Aria: `get_todays_schedule` takes an optional `date` ("what's on tomorrow") and includes where each activity is.
+- `seed_schedule_two_weeks.py` publishes each batch it ingests.
+
+**Housekeeping**
+- Housekeeping staff get the shared `DepartmentQueue` (acknowledge, claim/assign, start, note, complete with notes, history) in place of the generic Ack/Start/Done list. Admin has a Housekeeping tab.
+
+**Resident Today view**
+- React keys no longer collide; the panel relies on the server's clock order.
+
+### What was verified
+- Backend: new `tests/test_community_services.py` (menu, schedule and housekeeping acceptance through the real HTTP API as Kitchen/Activities/Housekeeping staff) passes, along with `test_email_inbound.py`. Full canonical gate on an isolated port and DB: the only failure is `test_ops_overview` (`past_requested_date_open`), which also fails on untouched `e9373d5`.
+- Frontend: 31/31 suites, 213/213 tests (new `communityServices.test.js`; `roleHome.test.js` extended). The `CI=true` production build compiles.
+- Browser (headless Chrome driving an isolated stack: frontend `:3011` → backend `:8095` → DB `caoscare_lane_services_demo`; no real data), desktop 1440 and phone 390:
+  - Kitchen: publishing a pasted menu makes it public; a correction shows on the public menu immediately.
+  - Activities: a pasted calendar is not public until published, then appears in clock order with no staff note.
+  - Housekeeping: a real resident request is acknowledged, claimed, started, noted, completed and shown in History. Aria's status text changes from "no one has picked it up yet" to "Someone is working on it now" to history.
+  - Room screen: the Today panel shows activities in clock order and all three meals.
+  - Every table row action is on-screen at 360/390 px. No page overflow and no console errors.
+- Not verified: a live spoken Aria menu or schedule question, and a real inbound email (Phase 4, not configured).
+
+### Incident
+My first browser runs used Chrome debugging port 9333, which another Claude session's headless Chrome already held. My runs attached to that browser and navigated its page. The driver now uses port 0 and reads the port from its own profile folder. I did not touch the other session's process.
+
+### Shared core / communications requests
+SC-1 and SC-2 (receipt overwritten in place; notes overwritten) confirmed on housekeeping as well. New: SC-3 (`GET /departments` is admin-only, so staff workspace headings show the slug) and CM-1 (link inbound activities emails to their `ingest_id`). See `docs/PILOT1_ACTIVE_WORK.md`.
+
+### Checklist evidence (for the coordinator; workers do not mark `[x]`)
+- Kitchen: menu intake (paste; email adapter code unchanged), review, publish, and "corrections propagate" have browser and API evidence. Resident lookup through Aria: tool code and unit tests only; a live voice test is still needed.
+- Activities: schedule intake, publish and the resident Today view have browser evidence. Aria lookup: tool code and unit tests only.
+- Housekeeping: request, queue, assignment, progress and completion have browser evidence. Receipt/history works but has the same SC-1/SC-2 gaps as nursing.
+
+### Migration / config
+No data migration: schedule rows without `status` read as published. To use the Activities workspace, add an `activities` department in Admin → Departments and assign staff to it. Menu/schedule editing now requires the Kitchen/Activities/Administration department or an admin role; check existing staff who edit menus.
+
+HANDOFF CAPSULE
+- Objective:        Pilot 1 community services: dining, activities, housekeeping usable by staff without developer help.
+- Branch:           pilot/community-services (from e9373d5).
+- Lane / ownership: Lane D. Did not change `email_inbound.py`, `DepartmentQueue.jsx`, `RequestHistoryDialog.jsx`, the receipts or the task model.
+- Last proven state: backend acceptance test, frontend suite and build, and browser acceptance above.
+- Commits:          see this entry's commit.
+- Runtime state:    lane demo backend :8095 and frontend :3011 (both stopped at handoff). Shared :3000 and :8092 untouched.
+- Unresolved proven defects: SC-1, SC-2 (shared); SC-3; CM-1; pre-existing `test_ops_overview` failure.
+- Product invariants: residents and Aria read only published content; staff-only notes never reach residents; nothing emailed or pasted goes live without review.
+- Do NOT change:    the inbound email adapter (Lane F); the shared request model (Lane E).
+- Next safe action: coordinator reviews and merges this branch into integration, then Michael asks Aria about dinner and today's activities in Room 214.

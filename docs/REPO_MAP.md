@@ -880,3 +880,11 @@ listener verifier experiment: `docs/experiments/`.
 
 - `backend/simulation/scenario.py` `sink_leak` ("Maintenance: leaking sink") is the Maintenance scenario; resident words "The bathroom sink keeps leaking."
 - Test: `backend/tests/test_sim4_maintenance.py` (owner takeover, staged status truth, dedup, no provider calls).
+## 2026-09-27 — Community services (Lane D, branch pilot/community-services)
+
+- `backend/routes/service_content_access.py`: who may change the menu (Kitchen/Administration/admin) and the schedule (Activities/Administration/admin).
+- `backend/routes/schedule.py`: schedule draft → published → superseded, batch publish, clock-order public read without staff notes. `schedule_ingest.py` creates draft batches (`ingest_id`) and adds `/schedule/ingest/paste`. `menu_ingest.py` adds `/menu/ingest/paste`.
+- `frontend/src/pages/CommunityServicesWorkspace.jsx`: Housekeeping / Kitchen / Activities staff workspace (request queue plus Menu or Schedule).
+- `frontend/src/pages/{MenuItemDialog,MenuUploadsPanel,ScheduleItemDialog,ScheduleReviewPanel}.jsx`: split out of `MenuTab.jsx` / `ScheduleTab.jsx`.
+- `frontend/src/lib/communityServices.js`: status views and Aria's menu/schedule result text (shared by the staff screens and `realtimeOperationsTools.js`).
+- Test: `backend/tests/test_community_services.py`.
