@@ -7596,3 +7596,32 @@ HANDOFF CAPSULE
 - Runtime state:    nothing started, installed or changed.
 - Unresolved: production-side checks (UNVERIFIED items); Michael's decisions on release, escalation day-one setting, setup_demo_room, P1/P2 install.
 - Next safe action: Michael reviews; if approved, a person with production access runs the §8.4 inspection.
+
+---
+
+## 2026-10-08 — RQ-028: `/memory/realtime-turn` requires a live session
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-028-memory-turn-auth` from integration tip `40b9a48`. Draft PR into `integration/2026-09-27`. Not merged, not deployed; no service restarted.
+
+### What changed
+- `POST /api/memory/realtime-turn` now requires a live Aria room lease for the body's `resident_id` + `session_id`, or a release of that session within 60 s; else 403 and nothing stored. Text limited to 4000 characters, `role` user/assistant, ids non-empty and length-limited (422).
+- `trusted` is unchanged as an echo-quality signal and is not a security control (documented in code and report).
+- Persistence moved to `store_turn()`; the telephone sideband calls it in-process (no room lease on calls).
+- Report `docs/reports/2026-10-06-security-followup-aria-public-routes.md` has a RESOLVED note.
+
+### Verified
+- Gate (`CAOSCARE_TEST_PORT=8099 CAOSCARE_TEST_DB=caoscare_gate_rq028`, OpenAI/HA blank): 346 passed, 0 failed, 31 skipped (baseline 338; +8 in `test_rq028_memory_turn_auth.py`: no lease, wrong resident/session, stale lease, live lease, grace then expiry, limits, trusted flag no bypass, phone path). One earlier run had a single `test_reports` failure (escalation level 3 vs 2, timing against the background escalation loop); the rerun passed. Not caused by this change.
+- Frontend untouched (kiosk caller and typed-turn path read, unchanged); frontend gate not rerun.
+
+### Line counts
+`realtime_memory_ingest.py` 136, `phone_aria_sideband.py` 114, test 127.
+
+HANDOFF CAPSULE
+- Objective:        RQ-028 session-grounded turn ingest.
+- Branch:           bounded/rq-028-memory-turn-auth (draft PR).
+- Lane / ownership: realtime_memory_ingest.py, phone sideband call site, tests, report.
+- Last proven state: gate above, 2026-10-08.
+- Runtime state:    nothing restarted; :8092 still serves the old route until restarted.
+- Unresolved: `test_reports` timing flake with the escalation loop; kiosk device credential.
+- Next safe action: coordinator review.

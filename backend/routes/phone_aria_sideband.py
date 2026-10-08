@@ -37,9 +37,9 @@ async def _default_connect(openai_call_id: str):
 async def _save_turn(call: dict, role: str, text: str) -> None:
     if not call.get("resident_id") or not (text or "").strip():
         return
-    from routes.realtime_memory_ingest import RealtimeTurnIngest, realtime_turn_ingest
+    from routes.realtime_memory_ingest import RealtimeTurnIngest, store_turn
     try:
-        await realtime_turn_ingest(RealtimeTurnIngest(
+        await store_turn(RealtimeTurnIngest(
             resident_id=call["resident_id"], session_id=call["conversation_session_id"],
             role=role, text=text, room=call.get("room")))
     except Exception as e:
