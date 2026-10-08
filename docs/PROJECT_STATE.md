@@ -7032,3 +7032,11 @@ Waiting:
 - #67 control plane: NEEDS FIX; no new push.
 
 Agents Three, Four and Five are done and idle; no non-overlapping Pilot gap could be assigned without Michael. The live :8092 still runs `7136734`.
+
+---
+
+## 2026-10-07 — Coordinator: B3 public resident-lookup allowlist integrated; stale workers stopped
+
+- The two bounded workers launched at 22:13 CDT (`bounded/sim4-maintenance`, `bounded/gate-port-isolation`) targeted work already integrated (#66 SIM-4 Maintenance `577b35c`, #68 gate isolation `4d413ef`). Both were stopped before producing changes (worktrees clean, nothing pushed).
+- **B3** (`docs/reports/2026-10-06-security-followup-aria-public-routes.md`): `GET /api/residents/public/by-kiosk/{kiosk_id}` is unauthenticated and returned the whole resident document (medical notes, emergency contact, DOB, memory). Now returns only `resident_id`, `name`, `preferred_name`, `room` (what Kiosk.jsx uses). Branch `security/by-kiosk-resident-allowlist`; new `test_by_kiosk_allowlist.py`. Gate (port 8083, scratch DB, OpenAI/HA blank): 291 passed, 0 failed, 31 skipped. Running :8092 is not restarted, so it still exposes the old shape until restarted (needs Michael's go-ahead). Production `d7ff96a` also has the old shape; no deploy.
+- Still open: B1/B2/A and public `GET /api/kiosks` enumeration await Michael's decisions; #67 control plane needs-fix; RQ-003 needs Michael at a room screen.
