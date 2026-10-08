@@ -211,6 +211,8 @@ async def operations_overview(
             reason = "Unacknowledged emergency" if a.get("severity") == "emergency" else "Unacknowledged assistance call"
         else:
             tier, reason = 4, "Acknowledged, not yet resolved"
+        if (a.get("escalation_level") or 0) >= 2:  # raised only by routes/escalation_tick.py
+            reason += f" - escalated to level {a['escalation_level']}"
         if stale:
             tier = 7  # demote likely-stale test rows to the bottom, still visible
             reason += " (open >72h - likely stale test data)"

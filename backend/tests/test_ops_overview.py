@@ -86,7 +86,7 @@ async def _run():
 
     # --- alerts (inserted directly; read-only from the endpoint's POV) ----
     a_emerg = {"alert_id": uid("alert"), "status": "active", "severity": "emergency",
-               "resident_name": f"{TAG} Rez", "room": f"{TAG}-9", "triggered_by": "kiosk_button",
+               "resident_name": f"{TAG} Rez", "room": f"{TAG}-9", "triggered_by": "kiosk_button", "escalation_level": 3,
                "created_at": _iso(now - timedelta(minutes=10))}
     a_ack = {"alert_id": uid("alert"), "status": "acknowledged", "severity": "assist",
              "resident_name": f"{TAG} Rez2", "room": f"{TAG}-8", "acknowledged_by": "Nurse Kim",
@@ -132,6 +132,7 @@ async def _run():
         assert d["attention"][0]["severity"] == "emergency", d["attention"][0]
         em = by_ref.get(a_emerg["alert_id"])
         assert em and em["tier"] == 0 and em["kind"] == "assistance", em
+        assert "escalated to level 3" in em["reason"], em  # RQ-022: tick level is visible here
         ov_row = by_ref.get(t_overdue["task_id"])
         assert ov_row and ov_row["tier"] == 2 and ov_row["reason"].startswith("Overdue by"), ov_row
         ride_row = by_ref.get(t_ride["task_id"])
