@@ -91,3 +91,5 @@ Reconciled per `docs/COORDINATION_RECONCILIATION_2026-10-07.md`. **Ownership rul
 **NEXT TWO (no Michael needed, non-overlapping):** (1) **RQ-011** Lane D integration; (2) **RQ-012** Lane F integration. Overlap check: D owns kitchen/activities/housekeeping UI, `menu_*`, `schedule_*`, `ScheduleTab`; F owns notification delivery, Communications tab, `telephony/`, `email_inbound.py`. Shared files to watch: `backend/server.py` (router lines) and the log docs only. Merge order: RQ-011, gate, then RQ-012, gate.
 
 No queued task is running as of this reconciliation. Workers launch only after this tracker is committed.
+
+**Update 2026-10-08 (coordinator):** RQ-011 (#88) and RQ-012 (#89) merged into integration; gate 294 passed / 0 failed / 31 skipped, frontend 283. Two fresh bounded workers launched 00:17 CDT: **RQ-014** (CM-1 inbound-activities link + receipts for menu/schedule content changes; branch `bounded/cm1-receipts`) and **RQ-015** (browser acceptance of Lane D/F UIs on an isolated stack, report-first; branch `bounded/accept-d-f`). They share no files (RQ-015 may not edit menu*/schedule*/email_inbound). Merge one at a time, gate between.
