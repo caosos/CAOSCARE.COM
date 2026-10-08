@@ -19,7 +19,7 @@ afterEach(() => { delete global.fetch; });
 
 test("check_request_status hits /status and says 'no open request' when found:false", async () => {
   mockJson(200, { found: false, scope: "current" });
-  const r = await call("check_request_status");
+  const r = await call("check_request_status", { category: "maintenance" });
   expect(global.fetch.mock.calls[0][0]).toMatch(/\/tasks\/resident-request\/status\?/);
   expect(r.ok).toBe(true);
   expect(r.message).toMatch(/no open request/i);
@@ -37,7 +37,7 @@ test("check_request_status reports lifecycle labels from the backend, verbatim",
     started_at: { iso: "x", local: "y", label: "today at 2:40 PM" },
     completed_at: null, last_re_requested_at: { iso: "x", local: "y", label: "today at 2:25 PM" },
   });
-  const r = await call("check_request_status");
+  const r = await call("check_request_status", { category: "maintenance" });
   expect(r.message).toContain("broken blind");
   expect(r.message).toContain("asked today at 2:17 PM");
   expect(r.message).toContain("acknowledged today at 2:31 PM");
@@ -58,7 +58,7 @@ test("SC-3/SC-5: Aria forwards the backend's owner + timed note and never contra
     created: { label: "today at 7:00 PM" }, acknowledged_at: null, started_at: null,
     completed_at: null, last_re_requested_at: { label: "today at 7:30 PM" },
   });
-  const r = await call("check_request_status");
+  const r = await call("check_request_status", { category: "maintenance" });
   expect(r.message).toContain("Tech Bo has taken it on");
   expect(r.message).toContain("today at 8:33 PM");
   expect(r.message).toContain("asked 2 times in all");
@@ -103,7 +103,7 @@ test("a null lifecycle time is simply omitted, never rendered as a made-up time"
     created: { label: "today at 9:03 AM" },
     acknowledged_at: null, started_at: null, completed_at: null, last_re_requested_at: null,
   });
-  const r = await call("check_request_status");
+  const r = await call("check_request_status", { category: "maintenance" });
   expect(r.message).toContain("asked today at 9:03 AM");
   // no fabricated lifecycle time for the fields that are null
   expect(r.message).not.toMatch(/acknowledged \w+ at \d/i);

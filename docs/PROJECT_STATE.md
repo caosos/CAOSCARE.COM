@@ -7727,3 +7727,28 @@ HANDOFF CAPSULE
 - Runtime state:    nothing restarted; :8092 serves the old text until restarted.
 - Unresolved: prompt text is not behavior-proven without a live model run; D2/D5/D6 belong to another worker.
 - Next safe action: coordinator review; typed/spoken re-run of the RQ-030 phrases.
+## 2026-10-08 — RQ-032: request fidelity (D2, D5, D6) and status breadth
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-032-request-fidelity` from integration `51e12db`. Draft PR into `integration/2026-09-27`. Not merged, not deployed; no service restarted; no provider called (in-process tests).
+
+### What changed
+- **D2 content-aware dedup:** `backend/request_similarity.py` (deterministic: filler removed, light stemming, equal sets or Jaccard >= 0.5 or >= 2 shared words covering 75% of the smaller set; no model) and `routes/resident_request_dedup.py`. A repeat merges only into an open request in the same department that is clearly the same issue (best match, not just the newest); a different issue gets its own request. The merged repeat's wording is kept in the `re_request` history entry; `re_request_count` / `times_asked` unchanged. `same_issue` is now always true when a duplicate is returned, so Aria says "same request" only for a real repeat.
+- **D5 past dates:** `operational_provenance.reject_past_date()` (facility-local today). `POST /transportation/request` and `/request/change-mine` return 422 `needs_clarification` with `ask` ("That date, October 5, has already passed. Which date and month do you mean?") before anything is filed. The frontend speaks the backend's `ask` as written.
+- **D6 literal words:** `requestOverview.literalResidentWords(ctx)` sends the resident's last utterance (`ctx.last_user_text`, 3+ words) as `resident_words`; `summary` stays separate. With no literal, `resident_words` is null instead of the model's summary.
+- **Status breadth:** `GET /tasks/resident-request/open` (`routes/resident_request_overview.py`) returns every open request with the existing resident-safe view; `check_request_status` with no category speaks all of them plus the ride (from the transportation status view) in one answer. With a category the old path is unchanged.
+
+### Verified
+New `tests/test_rq032_request_fidelity.py` 11 passed; `requestFidelity.test.js` 7 passed. Gate (port 8104, throwaway DB): 364 passed, 0 failed, 31 skipped (baseline 353). Frontend 41 suites / 321 tests; `CI=true yarn build` compiles. Three existing tests changed to match the new rule: two repeat asks used unrelated wording ("is anyone coming?", a legacy title) and now use the same issue's words; `requestStatusHistory.test.js` passes a category to keep the single-category path. Not verified: a live spoken session.
+
+### Line counts
+`resident_requests.py` 400 (was 406), `transportation.py` 302 (unchanged), `realtimeOperationsTools.js` 292 (was 278; pre-existing under 300, +14 for the overview branch), new files under 100 lines.
+
+HANDOFF CAPSULE
+- Objective:        RQ-032 request fidelity.
+- Branch:           bounded/rq-032-request-fidelity (draft PR).
+- Lane / ownership: resident_requests dedup, transportation date guard, realtimeOperationsTools.js, new overview route.
+- Last proven state: tests above, 2026-10-08.
+- Runtime state:    nothing restarted or deployed.
+- Unresolved: D1, D3, D4 (prompt/tool descriptions, another worker); tool description for `check_request_status` does not yet say that omitting category covers all departments.
+- Next safe action: coordinator review.

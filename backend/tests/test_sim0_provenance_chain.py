@@ -174,7 +174,7 @@ async def _run():
         lroom = f"{TAG}-L"
         lt = uid("task")
         await db.staff_tasks.insert_one({
-            "task_id": lt, "title": "legacy leak", "category": "maintenance", "status": "pending",
+            "task_id": lt, "title": "sink in the kitchenette leaking", "category": "maintenance", "status": "pending",
             "visibility_role": "maintenance", "room": lroom, "priority": "normal", "source": "aria_voice",
             "notes": "", "re_request_count": 0, "created_at": now_utc().isoformat()})
         before_t = await task(lt)

@@ -9,6 +9,7 @@
 import { API } from "./api";
 import { transportStatusMessage, rideBookedMessage } from "./transportation";
 import { menuToolMessage, scheduleToolMessage } from "./communityServices";
+import { literalResidentWords, openRequestsMessage } from "./requestOverview";
 
 // 2026-08-23: the backend rejects an operational mutation (422 +
 // needs_clarification) when a free-text field claims a fact - so far only
@@ -22,6 +23,8 @@ async function needsClarificationMessage(r) {
   try {
     const body = await r.json();
     const reason = body?.detail?.reason;
+    // A backend-written question (e.g. a past date) is asked as-is.
+    if (body?.detail?.needs_clarification && body.detail.ask) return `${body.detail.ask}`;
     if (body?.detail?.needs_clarification && reason) {
       return `I don't have that confirmed - ${reason}. Could you tell me the actual time?`;
     }
@@ -61,7 +64,7 @@ export async function executeOperationsTool({ name, args, ctx }) {
         category: args.category,
         resident_id: residentId || null,
         room: room || null,
-        resident_words: args.summary || null,
+        resident_words: literalResidentWords(ctx),  // the resident's own sentence, not the model's summary
         summary: args.summary || "Resident request",
         priority: args.priority || "normal",
         source: "aria_voice",
@@ -96,6 +99,17 @@ export async function executeOperationsTool({ name, args, ctx }) {
     else if (room) qs.set("room", room);
     else qs.set("conversation_session_id", sessionId || "");
     if (args.category) qs.set("category", args.category);
+    if (!history && !args.category) {
+      // No category = "any of my requests": every open one, each with its own state.
+      const oq = new URLSearchParams(qs);
+      oq.set("exclude_category", "transportation");
+      const [ro, rr] = await Promise.all([
+        fetch(`${API}/tasks/resident-request/open?${oq.toString()}`),
+        fetch(`${API}/transportation/request/status?${qs.toString()}`),
+      ]);
+      if (!ro.ok) return { ok: false, message: `couldn't check that (${ro.status}).` };
+      return { ok: true, message: openRequestsMessage(await ro.json(), rr.ok ? await rr.json() : null) };
+    }
     const path = history ? "history" : "status";
     const r = await fetch(`${API}/tasks/resident-request/${path}?${qs.toString()}`);
     if (!r.ok) return { ok: false, message: `couldn't check that (${r.status}).` };

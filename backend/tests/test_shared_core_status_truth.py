@@ -100,7 +100,7 @@ async def _run():
         assert PICKED_UP not in s["spoken"] and names["nurse"] in s["spoken"]
         assert _layer_e_lifecycle(room, nt, H["admin"]) == "acknowledged"        # Layer E agrees
 
-        again = _ask(room, "nursing", "is anyone coming?")
+        again = _ask(room, "nursing", "I still need help going to the bathroom")
         assert again["duplicate"] and again["re_request_count"] == 1 and again["times_asked"] == 2
         assert PICKED_UP not in again["spoken"]
         assert _status(room)["times_asked"] == 2
