@@ -61,12 +61,21 @@ class ProviderSpy:
     def __init__(self, *a, **k):
         pass
 
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *a):
+        return False
+
     async def post(self, url, **kw):
         ProviderSpy.calls.append(url)
 
         class R:
             status_code = 200
             text = '{"id":"provider-accepted"}'
+
+            def json(self):
+                return {"id": "accepted"}
         return R()
 
 
@@ -103,10 +112,10 @@ def env(monkeypatch):
     ProviderSpy.calls = []
     monkeypatch.setattr(httpx, "AsyncClient", ProviderSpy)
     # Live provider keys: anything not stopped by SC-16 would be "sent".
-    monkeypatch.setattr(notifications, "RESEND_KEY", "re_live_key_for_test")
-    monkeypatch.setattr(notifications, "TWILIO_SID", "AC_test")
-    monkeypatch.setattr(notifications, "TWILIO_TOKEN", "tok")
-    monkeypatch.setattr(notifications, "TWILIO_FROM", "+15550000000")
+    monkeypatch.setenv("RESEND_API_KEY", "re_live_key_for_test")
+    monkeypatch.setenv("TWILIO_ACCOUNT_SID", "AC_test")
+    monkeypatch.setenv("TWILIO_AUTH_TOKEN", "tok")
+    monkeypatch.setenv("TWILIO_FROM_NUMBER", "+15550000000")
     run(_setup())
     yield
     run(_clean())

@@ -41,6 +41,10 @@ from routes import menu as menu_routes  # noqa: E402
 from routes import menu_ingest as menu_ingest_routes  # noqa: E402
 from routes import schedule_ingest as schedule_ingest_routes  # noqa: E402
 from routes import email_inbound as email_inbound_routes  # noqa: E402
+from routes import call_lifecycle as call_lifecycle_routes  # noqa: E402
+from routes import telephony_endpoints as telephony_endpoint_routes  # noqa: E402
+from routes import telephony_local as telephony_local_routes  # noqa: E402
+from routes import phone_aria as phone_aria_routes  # noqa: E402
 from routes import email_inbound_allowlist as email_inbound_allowlist_routes  # noqa: E402
 from routes import transportation as transportation_routes  # noqa: E402
 from routes import transportation_report as transportation_report_routes  # noqa: E402
@@ -136,7 +140,14 @@ async def lifespan(app: FastAPI):
     # CAOSCARE_DEMO_CONTINUITY_AUTO is set.
     from demo_continuity import catch_up_in_background
     catch_up_in_background("startup")
+    # Phone call-state truth: Asterisk ARI events. No-op unless
+    # ASTERISK_ARI_URL/USER/PASSWORD are configured.
+    import asyncio
+    from routes.asterisk_ari_events import run_ari_listener, ari_ws_url
+    ari_task = asyncio.create_task(run_ari_listener()) if ari_ws_url() else None
     yield
+    if ari_task:
+        ari_task.cancel()
 
 
 app = FastAPI(title="CAOS Care", lifespan=lifespan)
@@ -177,6 +188,10 @@ api.include_router(pendant_routes.router)
 api.include_router(roadmap_routes.router)
 api.include_router(insight_routes.router)
 api.include_router(notification_routes.router)
+api.include_router(call_lifecycle_routes.router)
+api.include_router(telephony_endpoint_routes.router)
+api.include_router(telephony_local_routes.router)
+api.include_router(phone_aria_routes.router)
 api.include_router(wearable_routes.router)
 api.include_router(device_auth_routes.router)
 api.include_router(family_portal_routes.router)

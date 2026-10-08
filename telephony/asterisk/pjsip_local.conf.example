@@ -1,0 +1,74 @@
+; Copy to pjsip_local.conf and fill in. NEVER commit the filled copy.
+
+; NAT (EliteDesk behind the community router)
+; [transport-udp]
+; local_net=192.168.1.0/24
+; external_media_address=<public IP>
+; external_signaling_address=<public IP>
+
+; TLS for the OpenAI trunk
+; [transport-tls]
+; ca_list_file=/etc/ssl/certs/ca-certificates.crt
+
+; ---------- one block set per pilot room handset (ATA port) ----------
+[214](room-handset)
+auth=214
+aors=214
+callerid="Room 214" <214>
+; The room's own DID, registered with the trunk provider's E911 service at
+; the dispatchable address INCLUDING the room ("... Apt 214"). Used as the
+; caller ID for 911 and outside calls.
+set_var=ROOM_DID=+1XXXXXXXXXX
+set_var=ROOM=214
+
+[214](phone-auth)
+username=214
+password=CHANGE_ME_LONG_RANDOM
+
+[214](phone-aor)
+
+; ---------- front desk SIP phone ----------
+[200](front-desk-phone)
+auth=200
+aors=200
+callerid="Front Desk" <200>
+
+[200](phone-auth)
+username=200
+password=CHANGE_ME_LONG_RANDOM
+
+[200](phone-aor)
+
+; ---------- SIP trunk (provider TBD - see docs/PILOT1_COMMUNICATIONS.md) ----------
+; Registration-based credentials work behind NAT without inbound port forwards.
+[trunk-auth]
+type=auth
+auth_type=userpass
+username=TRUNK_USERNAME
+password=TRUNK_PASSWORD
+
+[trunk]
+type=registration
+outbound_auth=trunk-auth
+server_uri=sip:TRUNK_HOST
+client_uri=sip:TRUNK_USERNAME@TRUNK_HOST
+retry_interval=60
+
+[trunk]
+type=aor
+contact=sip:TRUNK_HOST
+
+[trunk]
+type=endpoint
+context=from-trunk
+disallow=all
+allow=ulaw
+outbound_auth=trunk-auth
+aors=trunk
+from_domain=TRUNK_HOST
+direct_media=no
+
+[trunk]
+type=identify
+endpoint=trunk
+match=TRUNK_HOST

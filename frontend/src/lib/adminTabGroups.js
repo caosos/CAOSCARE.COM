@@ -48,6 +48,8 @@ export function tabGroups(residents, staff, kiosks, zones, user) {
         { value: "transportation", label: "Transportation" },
         { value: "transport-calendar", label: "Transport calendar" },
         { value: "transport-resources", label: "Transport resources" },
+        { value: "communications", label: "Email & notifications" },
+        { value: "phones", label: "Phones & calls" },
       ],
     },
     {
@@ -90,6 +92,9 @@ export function tabGroups(residents, staff, kiosks, zones, user) {
 export const TAB_ALIASES = {
   users: "staff",
   pendants: "rf",
+  email: "communications",
+  notifications: "communications",
+  calls: "phones",
   "resident-search": "residents",
 };
 

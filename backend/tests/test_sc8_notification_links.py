@@ -45,12 +45,21 @@ class ProviderSpy:
     def __init__(self, *a, **k):
         pass
 
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *a):
+        return False
+
     async def post(self, url, **kw):
         ProviderSpy.calls.append(url)
 
         class R:
             status_code = 200
             text = '{"id":"accepted"}'
+
+            def json(self):
+                return {"id": "accepted"}
         return R()
 
 
@@ -81,7 +90,7 @@ def env(monkeypatch):
     import httpx
     ProviderSpy.calls = []
     monkeypatch.setattr(httpx, "AsyncClient", ProviderSpy)
-    monkeypatch.setattr(notifications, "RESEND_KEY", "re_live_key_for_test")
+    monkeypatch.setenv("RESEND_API_KEY", "re_live_key_for_test")
     run(_setup())
     yield
     run(_clean())

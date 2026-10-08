@@ -89,8 +89,8 @@ async def _fake_post(self, url, *a, **k):   # a provider call is a test failure
 async def _setup():
     # Live-looking provider key for the whole module: SC-16 must keep every
     # simulated notification away from the provider.
-    CTX["orig_key"], CTX["orig_post"] = notifications.RESEND_KEY, httpx.AsyncClient.post
-    notifications.RESEND_KEY = "re_fake_live_key_for_test"
+    CTX["orig_key"], CTX["orig_post"] = os.environ.get("RESEND_API_KEY"), httpx.AsyncClient.post
+    os.environ["RESEND_API_KEY"] = "re_fake_live_key_for_test"
     httpx.AsyncClient.post = _fake_post
     await seed_default_departments()
     for slug in EMAIL_DEPTS:
@@ -136,7 +136,10 @@ def teardown_module(_):
         await db.departments.update_many({"slug": {"$in": list(EMAIL_DEPTS)}}, {"$unset": {"contact_email": ""}})
         await db.sim_runs.delete_many({"scenario": continuity.RUN_SCENARIO})
     run(_clean())
-    notifications.RESEND_KEY = CTX["orig_key"]
+    if CTX["orig_key"] is None:
+        os.environ.pop("RESEND_API_KEY", None)
+    else:
+        os.environ["RESEND_API_KEY"] = CTX["orig_key"]
     httpx.AsyncClient.post = CTX["orig_post"]
 
 

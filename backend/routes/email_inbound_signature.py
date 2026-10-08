@@ -1,4 +1,5 @@
-"""Resend webhook signature verification (Svix format).
+"""Webhook signature verification (Standard Webhooks / Svix format) -
+Resend inbound email and OpenAI Realtime SIP calls.
 
 Resend delivers webhooks through Svix, not a bespoke scheme - three headers
 (svix-id, svix-timestamp, svix-signature) plus a whsec_-prefixed secret.
@@ -46,6 +47,18 @@ def verify_resend_webhook(
     """Raises WebhookVerificationError if the request is not a genuine,
     fresh Resend webhook delivery signed with `secret`. Returns None (no
     value) on success - callers only need to know it didn't raise."""
+    verify_standard_webhook(secret=secret, msg_id=svix_id, timestamp=svix_timestamp,
+                            signature=svix_signature, body=body, now=now)
+
+
+def verify_standard_webhook(
+    *, secret: str, msg_id: Optional[str], timestamp: Optional[str],
+    signature: Optional[str], body: bytes, now: Optional[float] = None,
+) -> None:
+    """Standard Webhooks verification (the scheme Svix implements). Used by
+    Resend (svix-* headers) and OpenAI (webhook-id / webhook-timestamp /
+    webhook-signature) - one implementation for both."""
+    svix_id, svix_timestamp, svix_signature = msg_id, timestamp, signature
     if not (svix_id and svix_timestamp and svix_signature):
         raise WebhookVerificationError("missing svix-id/svix-timestamp/svix-signature headers")
     try:

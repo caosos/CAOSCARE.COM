@@ -93,7 +93,7 @@ async def _reset():
 
 @pytest.fixture(autouse=True)
 def clean(monkeypatch):
-    monkeypatch.setattr(notifications, "RESEND_KEY", "")
+    monkeypatch.setenv("RESEND_API_KEY", "")
     run(_reset())
     yield
     run(_reset())
@@ -147,7 +147,7 @@ def test_simulated_nurse_processes_the_nursing_request(monkeypatch):
         import httpx as hx
         ProviderSpy.calls = []
         monkeypatch.setattr(hx, "AsyncClient", ProviderSpy)
-        monkeypatch.setattr(notifications, "RESEND_KEY", "re_live_key_for_test")
+        monkeypatch.setenv("RESEND_API_KEY", "re_live_key_for_test")
 
         outs = []
         while (o := await scheduler.tick()) is not None:

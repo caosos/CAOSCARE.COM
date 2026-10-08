@@ -95,7 +95,7 @@ async def _reset():
 
 @pytest.fixture(autouse=True)
 def clean(monkeypatch):
-    monkeypatch.setattr(notifications, "RESEND_KEY", "")
+    monkeypatch.setenv("RESEND_API_KEY", "")
     run(_reset())
     yield
     run(_reset())
@@ -152,7 +152,7 @@ def test_simulated_tech_works_the_leak(monkeypatch):
         import httpx as hx
         ProviderSpy.calls = []
         monkeypatch.setattr(hx, "AsyncClient", ProviderSpy)
-        monkeypatch.setattr(notifications, "RESEND_KEY", "re_live_key_for_test")
+        monkeypatch.setenv("RESEND_API_KEY", "re_live_key_for_test")
 
         first = await scheduler.tick()                            # resident raises the request
         tid = first["task_id"]
