@@ -182,3 +182,43 @@ test("'turn the light off' with two lights and no distinguishing word asks for c
   const posts = global.fetch.mock.calls.filter(([u]) => String(u).includes("/command"));
   expect(posts).toHaveLength(0);
 });
+
+// RQ-038: light retry storm (session rt_lgjc64m9: 16 refused calls in 8 s).
+describe("ambiguity refusal does not loop", () => {
+  const { resetLightAmbiguity } = require("../realtimeLightControl");
+  beforeEach(() => resetLightAmbiguity());
+  const call = (args, text, sid = "rt_amb") =>
+    executeDeviceTool({ name: "toggle_light", args, ctx: ctx({ session_id: sid, last_user_text: text }) });
+
+  test("structured refusal; the same utterance is refused locally without the network", async () => {
+    mockFetchMulti([DESK, OVERHEAD]);
+    const first = await call({ state: "on" }, "turn the light on");
+    expect(first).toMatchObject({ ok: false, ambiguous: true, choices: ["desk lamp", "overhead light"] });
+    const calls = global.fetch.mock.calls.length;
+    for (let i = 0; i < 5; i++) {
+      const again = await call({ state: "on" }, "turn the light on");
+      expect(again.ambiguous).toBe(true);
+    }
+    expect(global.fetch.mock.calls.length).toBe(calls);
+  });
+
+  test("a new utterance naming the light goes through (by words, or by device argument)", async () => {
+    mockFetchMulti([DESK, OVERHEAD]);
+    await call({ state: "on" }, "turn the light on");
+    const r = await call({ state: "on", device: "Overhead Light" }, "the overhead one");
+    expect(r.ok).toBe(true);
+    const posts = global.fetch.mock.calls.filter(([u]) => String(u).includes("/command"));
+    expect(JSON.parse(posts[0][1].body).device_id).toBe("dev_overhead");
+    await call({ state: "on" }, "turn the light on");
+    const byId = await call({ state: "off", device: "dev_desk" }, "desk lamp please");
+    expect(byId.ok).toBe(true);
+  });
+
+  test("another session is not blocked by this one's refusal", async () => {
+    mockFetchMulti([DESK, OVERHEAD]);
+    await call({ state: "on" }, "turn the light on", "rt_a");
+    const other = await call({ state: "on" }, "turn the light on", "rt_b");
+    expect(other.ambiguous).toBe(true);
+    expect(global.fetch.mock.calls.filter(([u]) => String(u).includes("by-room")).length).toBe(2);
+  });
+});

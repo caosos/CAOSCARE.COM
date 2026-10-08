@@ -77,7 +77,11 @@ def _build_device_tools() -> list[dict]:
                 "or brightness; 'turn it off' should set only state. Setting color, "
                 "color_temp, or brightness without state implies turning it on. Not "
                 "every light supports every field - if the result says a field "
-                "isn't supported, tell the resident plainly rather than pretending."
+                "isn't supported, tell the resident plainly rather than pretending. "
+                "If the result says ambiguous (more than one light in the room), do NOT "
+                "call again yet: ASK the resident which light (the choices are listed), "
+                "wait for their answer, then call again with device set to the exact "
+                "choice or device_id. Never repeat the same call without a new answer."
             ),
             "parameters": {
                 "type": "object",
@@ -103,6 +107,10 @@ def _build_device_tools() -> list[dict]:
                         "type": "string",
                         "enum": ["red", "orange", "yellow", "green", "blue", "purple", "pink", "white"],
                         "description": "Optional named color, e.g. 'make it green' or 'make it blue'."
+                    },
+                    "device": {
+                        "type": "string",
+                        "description": "Which light, only when the room has more than one: its exact label or device_id (from an ambiguous result's choices)."
                     },
                     "color_temp": {
                         "type": "string",

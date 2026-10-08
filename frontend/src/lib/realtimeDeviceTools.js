@@ -12,6 +12,7 @@
  * phantom transcript. A false transcript must never silently become a
  * durable profile fact.
  */
+import { checkEnding } from "./endingPhrases";
 import { API } from "./api";
 import { nearestColorName, colorTempLabel, handleToggleLight } from "./realtimeLightControl";
 import { VOLUME_PHRASES, ROOM_CONTROL_TOOLS, executeRoomControlTool } from "./realtimeRoomControls";
@@ -48,7 +49,7 @@ const CONSEQUENTIAL_DEVICE_TOOLS = new Set(["adjust_room_temperature", "toggle_l
 // traceable to the resident's own words matching a real dismissal/ending
 // phrase, not fire on an ambiguous or negatively-phrased turn.
 const RESTING_PHRASES = /\b(be quiet|quiet down|let me rest|resting|give me\s*(some\s*)?space|don'?t talk|going to sleep|i'?m\s*(going to |gonna\s*)?sleep|take a nap|napping|i'?m tired|leave me alone|need\s*(some\s*)?(space|quiet))\b/i;
-const ENDING_PHRASES = /\b(end the call|end (this |our )?conversation|hang up|good\s*bye|that'?s all( for now)?|that'?ll be all( for now)?|i'?m done|don'?t need you|go away)\b/i;
+// ENDING_PHRASES + the follow-up/refusal-limit rules live in endingPhrases.js (RQ-038).
 
 // 2026-08-30 (real live incident): "Hello Lab" (a garbled, nonsense
 // transcript) led the model to call toggle_tv(volume=11) - the 11 wasn't
@@ -313,10 +314,8 @@ export async function executeDeviceTool({ name, args, ctx }) {
     // Structural grounding (2026-08-30) - see ENDING_PHRASES above. A real
     // live session ended on the transcript "It's gonna find me." - nothing
     // about that utterance supports ending the call.
-    const heard = (ctx?.last_user_text || "").trim();
-    if (!heard || !ENDING_PHRASES.test(heard)) {
-      return { ok: false, message: "Sorry, I want to make sure — did you want to end our conversation?" };
-    }
+    const grounded = checkEnding(ctx?.session_id, (ctx?.last_user_text || "").trim());
+    if (!grounded.ok) return grounded;
     // The actual hang-up happens in the calling layer (handleFunctionCall)
     // because it needs access to the peer connection. Returning here just
     // gives the model its short verbal goodbye to speak.
