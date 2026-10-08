@@ -121,46 +121,20 @@ async def list_alerts(
 
 @router.get("/feed")
 async def alerts_feed(user=Depends(get_current_user)):
-    """Active + recently acknowledged for live staff dashboard, with lazy escalation."""
+    """Active + recently acknowledged for live staff dashboard. Read-only."""
     items = (
         await db.alerts.find(
-            {"status": {"$in": ["active", "acknowledged"]}},
+            {"status": {"$in": ["active", "acknowledged", "escalated"]}},
             {"_id": 0},
         )
         .sort("created_at", -1)
         .to_list(200)
     )
-    # Escalation thresholds (seconds since created, while still active)
-    ESCALATION = [
-        (60, 1),   # after 1 min unacked -> level 1
-        (180, 2),  # after 3 min unacked -> level 2 (supervisor)
-        (420, 3),  # after 7 min unacked -> level 3 (code)
-    ]
-    now_ts = datetime.now(timezone.utc)
-
+    # Read-only: escalation_level is set only by routes/escalation_tick.py.
     for it in items:
         it["created_at"] = _iso(it.get("created_at"))
         it["acknowledged_at"] = _iso(it.get("acknowledged_at"))
         it["resolved_at"] = _iso(it.get("resolved_at"))
-
-        if it.get("status") == "active":
-            try:
-                created = datetime.fromisoformat(it["created_at"])
-            except Exception:
-                continue
-            if created.tzinfo is None:
-                created = created.replace(tzinfo=timezone.utc)
-            age = (now_ts - created).total_seconds()
-            new_level = 0
-            for threshold, level in ESCALATION:
-                if age >= threshold:
-                    new_level = level
-            if new_level > (it.get("escalation_level") or 0):
-                it["escalation_level"] = new_level
-                await db.alerts.update_one(
-                    {"alert_id": it["alert_id"]},
-                    {"$set": {"escalation_level": new_level}},
-                )
     return items
 
 
@@ -179,7 +153,7 @@ async def acknowledge(alert_id: str, user=Depends(get_current_user)):
         except Exception:
             pass
     r = await db.alerts.update_one(
-        {"alert_id": alert_id, "status": "active"},
+        {"alert_id": alert_id, "status": {"$in": ["active", "escalated"]}},
         {"$set": update},
     )
     if r.matched_count == 0:
