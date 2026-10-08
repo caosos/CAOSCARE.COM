@@ -7402,3 +7402,35 @@ HANDOFF CAPSULE
 - Runtime state:    nothing started or restarted.
 - Unresolved: PendantsTab/DevicesTab still describe a "bridge tablet" executor (device lane).
 - Next safe action: coordinator review.
+
+---
+
+## 2026-10-08 — RQ-021: demo kiosk blinds tool, TV channel/volume step, staff-notified chip
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-021-demo-gaps` from integration `46a0980`. Draft PR into `integration/2026-09-27`. Not merged, not deployed; no service restarted; throwaway gate DB `caoscare_gate_rq021`, port 8092 (gate only).
+
+### What changed
+- **Tools (Aria):** `set_blinds` (open / close / set percent), `set_tv_channel`, `adjust_tv_volume` (up/down step) in `backend/routes/realtime_device_tools.py`. `toggle_tv` text now points channel/step requests at them.
+- **Frontend dispatch:** new `frontend/src/lib/realtimeRoomControls.js`. All three go through the same `POST /devices/public/room/{room}/command` path as lights and TV, with the conversation `session_id` and the exact `device_id`.
+  - Grounding: no command unless the resident's own words support it (blinds/shade/curtain word; the word "channel" plus the number actually said, digits or spoken; a volume cue). Suspect turns refused (added to the consequential-tool set).
+  - Truth: the spoken result is built from the state the backend read back; an answer with no state is a failure; a missing capability or device is reported and nothing is sent; "(simulated device)" is added when the backend says simulated. A TV that is off is turned on first for a channel request and the answer says so; a volume step on an off TV is refused.
+  - `VOLUME_PHRASES` moved into that module (shared); `realtimeDeviceTools.js` only dispatches.
+- **Backend:** no adapter or route change. `simulated_device` already validates `position`, `channel`, `volume`; the demo reset baseline already includes blinds and the TV channel. Receipts already label simulated (SC-11). New test covers it.
+- **Staff-notified chip:** `DemoStaffChips.jsx` (idle demo panel and in-call panel) reads `GET /tasks/resident-request/mine?room=`; `demoRoom.staffNotifiedChips()` words it by real stage (Staff notified / Staff have seen it / Staff are working on it); closed requests and empty lists render nothing; never promises arrival. No call-front-desk visual.
+- Tests updated for the new tool count: `iter10_test.py` tool set, `test_realtime_aria_session_auth.py` (26 → 29).
+
+### Verified
+See gate and frontend counts in the PR body. Not verified: a live spoken session, a browser walkthrough of the chip.
+
+### Line counts
+`realtimeRoomControls.js` 137 (new), `realtimeDeviceTools.js` 326 (was 322; pre-existing over 300, only a dispatch hook added), `demoRoom.js` +16, `DemoStaffChips.jsx` 36 (new), `realtime_device_tools.py` 228 (was 166), `RealtimeChatScreen.jsx` +2.
+
+HANDOFF CAPSULE
+- Objective:        RQ-021 demo kiosk open items (blinds, channel/volume, staff chip).
+- Branch:           bounded/rq-021-demo-gaps (draft PR).
+- Lane / ownership: device tool schemas, new room-controls module, demo panel chip. HA adapters, real rooms, shared lifecycle untouched.
+- Last proven state: tests above, 2026-10-08.
+- Runtime state:    nothing restarted or deployed.
+- Unresolved: no live voice or browser acceptance; the Aria tool prompt guidance for the three new tools is in the tool descriptions only.
+- Next safe action: coordinator review; Michael tries "open the blinds", "channel 11", "turn it up" on /kiosk/demo.

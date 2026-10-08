@@ -1,5 +1,6 @@
 import React from "react";
 import DemoRoomVisual from "./DemoRoomVisual";
+import DemoStaffChips from "./DemoStaffChips";
 import { DemoTypedInput, DemoResetButton } from "./DemoControls";
 
 // Idle-screen block of the public demo kiosk: the live room picture, a way
@@ -17,6 +18,7 @@ export default function DemoKioskPanel({ room, onStartTyped }) {
         after Aria's command. These are simulated devices; nothing here controls a real room.
       </p>
       <DemoRoomVisual room={room} />
+      <DemoStaffChips room={room} />
       <DemoTypedInput onSend={onStartTyped} />
     </section>
   );

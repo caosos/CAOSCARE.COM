@@ -117,9 +117,10 @@ def _build_device_tools() -> list[dict]:
             "type": "function",
             "name": "toggle_tv",
             "description": (
-                "Turn the resident's TV on or off, change channel, or adjust volume. "
+                "Turn the resident's TV on or off, or set an exact volume. "
                 "If the resident asks for quiet or to mute the TV, use action='off' "
-                "or set volume to 0."
+                "or set volume to 0. For 'a little louder/quieter' use adjust_tv_volume; "
+                "for a channel use set_tv_channel."
             ),
             "parameters": {
                 "type": "object",
@@ -137,6 +138,67 @@ def _build_device_tools() -> list[dict]:
                     }
                 },
                 "required": ["state"],
+                "additionalProperties": False
+            }
+        },
+        {
+            "type": "function",
+            "name": "adjust_tv_volume",
+            "description": (
+                "Turn the TV volume up or down by a step when the resident says "
+                "'turn it up', 'a bit quieter', 'louder'. Only call this when they "
+                "actually asked about volume or loudness. For an exact level they "
+                "named, use toggle_tv with volume instead."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "direction": {"type": "string", "enum": ["up", "down"]},
+                    "amount": {
+                        "type": "integer", "minimum": 1, "maximum": 50,
+                        "description": "Optional step in volume points (default 10)."
+                    }
+                },
+                "required": ["direction"],
+                "additionalProperties": False
+            }
+        },
+        {
+            "type": "function",
+            "name": "set_tv_channel",
+            "description": (
+                "Change the TV to a channel number the resident said ('put on "
+                "channel 11'). Use the number they said; never guess one. If the "
+                "result says the TV has no channel control, tell them plainly."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "channel": {"type": "integer", "minimum": 1, "maximum": 999}
+                },
+                "required": ["channel"],
+                "additionalProperties": False
+            }
+        },
+        {
+            "type": "function",
+            "name": "set_blinds",
+            "description": (
+                "Open, close, or set the room's blinds when the resident asks about "
+                "blinds, shades or curtains. action='open' = fully open, 'close' = "
+                "fully closed, 'set' = a percent open (0 closed - 100 open). If the "
+                "result says the room has no blinds, say so plainly."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {"type": "string", "enum": ["open", "close", "set"]},
+                    "percent": {
+                        "type": "integer", "minimum": 0, "maximum": 100,
+                        "description": "Required when action='set': how far open."
+                    }
+                },
+                "required": ["action"],
                 "additionalProperties": False
             }
         },

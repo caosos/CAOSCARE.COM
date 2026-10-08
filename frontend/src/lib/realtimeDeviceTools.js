@@ -14,6 +14,7 @@
  */
 import { API } from "./api";
 import { nearestColorName, colorTempLabel, handleToggleLight } from "./realtimeLightControl";
+import { VOLUME_PHRASES, ROOM_CONTROL_TOOLS, executeRoomControlTool } from "./realtimeRoomControls";
 
 // IMPORTANT: the backend `/devices/.../command` endpoint validates `action`
 // against a strict enum (power | brightness | temperature | fan_speed |
@@ -35,7 +36,7 @@ async function postRoomCommand(room, action, value, kind, sessionId, deviceId) {
 
 // Real, if reversible, room-state changes - gated the same way as staff
 // requests so a noise-hallucinated turn can't move them either.
-const CONSEQUENTIAL_DEVICE_TOOLS = new Set(["adjust_room_temperature", "toggle_light", "toggle_tv", "set_timer", "set_tv_input"]);
+const CONSEQUENTIAL_DEVICE_TOOLS = new Set(["adjust_room_temperature", "toggle_light", "toggle_tv", "set_timer", "set_tv_input", ...ROOM_CONTROL_TOOLS]);
 
 // 2026-08-30 (real live incident): mark_resting fired on "No, I can't." -
 // a resident PROTESTING being left alone - and end_call fired on "It's
@@ -57,7 +58,7 @@ const ENDING_PHRASES = /\b(end the call|end (this |our )?conversation|hang up|go
 // ENDING_PHRASES this isn't a fixed vocabulary - a resident can request
 // any volume level in many ways - so this only requires the word "volume"
 // (or an unambiguous loud/quiet/mute cue) to appear, not a specific phrase.
-const VOLUME_PHRASES = /\b(volume|loud(er|ness)?|quiet(er)?|turn\s*(it|the\s*(tv|sound))?\s*(up|down)|mute|unmute)\b/i;
+// VOLUME_PHRASES lives in realtimeRoomControls.js (shared with adjust_tv_volume).
 
 // One human-readable sentence per device, driven entirely by that device's
 // OWN declared capabilities/state - not a hardcoded thermostat/TV special
@@ -95,7 +96,7 @@ export function describeDevice(d) {
 // climate do. Fails closed on ambiguity rather than guessing, matching
 // the backend's own "more than one <kind> device... pass device_id"
 // behavior (2026-09-06 kiosk multi-light bug and its generic fix).
-async function _findOneDeviceOfKind(room, kind) {
+export async function _findOneDeviceOfKind(room, kind) {
   const listR = await fetch(`${API}/devices/public/by-room/${encodeURIComponent(room)}`);
   const list = listR.ok ? await listR.json() : [];
   const matches = list.filter((d) => d.kind === kind && d.online !== false);
@@ -162,6 +163,9 @@ export async function executeDeviceTool({ name, args, ctx }) {
       await postRoomCommand(room, "volume", Math.max(0, Math.min(100, args.volume)), "tv", ctx?.session_id, tv.device.device_id);
     }
     return { ok: true, message: `turned the TV ${args.state}${volumeGrounded ? ` at volume ${args.volume}` : ""}.` };
+  }
+  if (ROOM_CONTROL_TOOLS.has(name)) {
+    return executeRoomControlTool(name, args, ctx, { postRoomCommand, findOneOfKind: _findOneDeviceOfKind });
   }
   if (name === "set_tv_input") {
     if (!room) return { ok: false, message: "no room context — I can't reach the TV here." };
