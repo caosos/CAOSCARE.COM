@@ -8217,3 +8217,20 @@ HANDOFF CAPSULE
 - Runtime state:    nothing started or left running; scratch DB `caoscare_gate_rq051` may remain (gate drops it at next run).
 - Unresolved: gaps 1-3 are cheap offline tests worth assigning next (handler wiring replay, research label, alert receipts).
 - Next safe action: coordinator review; assign gaps 1-3.
+
+---
+
+## 2026-10-09 — RQ-054: audio-turn triage (owner item da-c2adf66033)
+
+Coordinator, branch `bounded/rq-054-turn-audit` merged to integration. Report: `docs/reports/2026-10-09-audio-turn-triage.md`. Event-only; no setting, wake threshold, Room 214 service or deploy changed.
+- Findings (session `rt_26qaw8y3_1791579663276`): capture is not quiet (peak -8..-14 dBFS, floor about -85 dBFS, source 100%); server turn ends match raw mic ends within 0.07-0.24 s; the assistant only answers after the VAD closes a turn (10-20 ms later), so it is VAD timing, not social interjection. In turn 1 the raw mic shows speech resuming 0.45 s before the server committed, which the server never registered (no `speech_started` for 5.9 s). Cause not yet separable (browser echo cancel/noise suppression vs Realtime far_field/VAD threshold).
+- Added: `scripts/turn_audit/turn_audit.py` (+4 tests), `frontend/src/lib/micLevelTelemetry.js` (+4 tests; off unless built with `REACT_APP_MIC_LEVEL_TELEMETRY=1`). Frontend 51 suites / 423 tests; build compiles. Backend untouched (gate not run).
+- Recommendation: no VAD hold or gain change; enable the telemetry on the next page rebuild and run the owner test in the report section 5.
+
+HANDOFF CAPSULE
+- Objective:        RQ-054 explain Aria cutting in before the owner finishes.
+- Branch:           integration/2026-09-27 (merged from bounded/rq-054-turn-audit)
+- Last proven state: tests and build above, 2026-10-09.
+- Runtime state:    nothing restarted; live Room 214 page does not have the telemetry until `ctl.sh rebuild` with the flag.
+- Unresolved: why raw speech resumed inside the hold was not registered by the server (needs processed-track levels).
+- Next safe action: owner rebuilds the page with the flag (no live lease) and runs the 5-minute test.
