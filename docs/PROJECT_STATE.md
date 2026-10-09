@@ -8250,3 +8250,25 @@ HANDOFF CAPSULE
 - Runtime state:    nothing restarted; the live page needs `ctl.sh rebuild` to pick this up.
 - Unresolved: speech-to-text language detection on short commands (owner choice: pin English); real WebRTC disconnect not covered offline.
 - Next safe action: owner rebuilds the page (no live lease) and runs the two-minute test in the report section 4.
+
+---
+
+## 2026-10-09 — PAUSED_BY_OWNER: CAOSCare development stopped (owner order, #117 item da-95e095aaaf)
+
+Owner order 2026-10-09 evening CDT: shut down CAOSCare app development and the Desktop-Agent for now. This is a pause of DEVELOPMENT only; nothing was stopped, restarted or changed in live room operations. Deal Sniffer is a separate project and was not touched.
+
+**OUTSTANDING KNOWN DEFECT (live Room 214): "Goodbye / End the call" can still be refused.** The live Room page is the old build (`main.6c585537.js`, built 2026-10-08 23:07 CDT) and does NOT contain the end-call fix. The fix is code-only on integration (`60dfb80` RQ-055, `cf7ece2` RQ-056) and is **not deployed**. Owner decision needed later: one-time authorization to rebuild the Room page; steps and rollback in `docs/ROOM_PAGE_REBUILD_RUNBOOK.md`. Evidence: `docs/reports/2026-10-09-room214-call-forensics-1823.md`, `docs/reports/2026-10-09-end-call-control.md`.
+
+- Last pushed ref: `integration/2026-09-27` (see git log; docs-only after `cf7ece2`). Production Linode still `d7ff96a`, untouched.
+- All open queue items are PAUSED_BY_OWNER (not done): owner-gated list in `docs/MICHAEL_DECISION_PACKETS.md` and `docs/OWNER_APPROVALS_RESEARCH_AND_AB.md`; open code items: Aria says "I'll end the call now" before a refused tool call; optional `REACT_APP_TRANSCRIPTION_HINT`; `REACT_APP_MIC_LEVEL_TELEMETRY` test; claim interrupter stays OFF.
+- Stopped: no workers, no tmux worker windows, no scheduled jobs (CronList empty). Left in place, untouched: Room 214 `aria-wake.service`, `aria-wake-page.service`, `aria-wake-kiosk.service` (all active), backend :8092, Home Assistant, devices, wake threshold 0.05 / 1.5, STT settings.
+- Stale worktrees/branches under `~/CAOSCARE-BOUNDED` and others are kept as-is (nothing deleted).
+- Automatic GitHub wake: it is run by Desktop-Agent (`scripts/owner_intake/heartbeat_probe.py` is only read by it), so it is paused from Desktop-Agent's side, not from any room service.
+- Resume: owner says resume on #117; read this entry, `docs/PILOT1_READY_QUEUE.md`, then start with the Room page rebuild authorization.
+
+HANDOFF CAPSULE
+- Objective:        none active (PAUSED_BY_OWNER).
+- Runtime state:    Room 214 services active and unchanged; no leases live at pause time.
+- Unresolved proven defects: live end-call refusal (fix not loaded).
+- Do NOT change:    Room 214 services, live page, STT, wake settings, Deal Sniffer.
+- Next safe action: owner decides whether to authorize the Room page rebuild.
