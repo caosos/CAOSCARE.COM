@@ -1,0 +1,8 @@
+[Unit]
+Description=CAOSCare owner instruction intake (one bounded poll)
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/CAOSCARE-INTEGRATION
+ExecStart=/usr/bin/python3 scripts/owner_intake/poll.py
+# Optional: Environment=CAOS_INTAKE_NUDGE_TMUX=session:window

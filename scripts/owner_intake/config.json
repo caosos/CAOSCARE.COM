@@ -1,0 +1,9 @@
+{
+  "repo": "caosos/CAOSCARE.COM",
+  "issues": [117],
+  "label": "owner-instruction",
+  "max_items_per_run": 50,
+  "max_gh_calls_per_run": 10,
+  "trusted_associations": ["OWNER", "MEMBER", "COLLABORATOR"],
+  "min_post_interval_seconds": 20
+}

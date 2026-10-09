@@ -7948,3 +7948,30 @@ HANDOFF CAPSULE
 - Runtime state:    nothing restarted or deployed.
 - Unresolved: live behavior of the model with the new descriptions.
 - Next safe action: coordinator review; Michael retests with two TVs/lights if available.
+
+---
+
+## 2026-10-08 — RQ-042: owner instruction intake (issue #117 delivery requirement)
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-042-owner-intake` from `c5847c6`. Draft PR into `integration/2026-09-27`. Not merged; nothing installed or started; no GitHub comment posted; no backend change.
+
+### What changed
+- `scripts/owner_intake/poll.py` (stdlib + `gh` via subprocess): polls issue 117 and open `owner-instruction` issues; durable idempotent inbox (`inbox.jsonl`, `cursor.json`, `receipts.jsonl`) in `~/.local/state/caoscare-intake/`; `--replay`, `show`, `status ... --post` (deduped, rate-limited, coordinator marker `<!-- caos:coordinator -->`), optional `--auto-ack` and tmux nudge (both default off). Only OWNER/MEMBER/COLLABORATOR comments are actionable.
+- systemd user timer/service templates (5 min), not installed. `docs/OWNER_INTAKE.md`.
+- No existing Desktop-Agent / mission-control inbox convention found; schema documented for them.
+
+### Verified
+`scripts/owner_intake/tests` 8 passed with a stub `gh` (ingest once, restart/dedup, cursor + `since`, coordinator marker skipped, untrusted skipped, gh failure keeps cursor + backoff, item cap, status post dedup, missing tmux pane). Not verified against live GitHub or a real timer run.
+
+### Line counts
+`poll.py` 288, `test_poll.py` 133.
+
+HANDOFF CAPSULE
+- Objective:        Reliable owner-comment intake for the coordinator host.
+- Branch:           bounded/rq-042-owner-intake (draft PR).
+- Lane / ownership: scripts/owner_intake, docs/OWNER_INTAKE.md.
+- Last proven state: tests above, 2026-10-08.
+- Runtime state:    nothing installed or running.
+- Unresolved: timer install and tmux target are the coordinator's/Michael's decision; live gh run untested.
+- Next safe action: coordinator reviews, installs the timer, runs `poll.py` once and `poll.py --replay`.
