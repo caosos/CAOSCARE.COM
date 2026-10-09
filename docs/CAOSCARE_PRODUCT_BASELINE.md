@@ -231,6 +231,20 @@ lane to change Aria's code.
 
 ---
 
+## 5a. Resident-facing intelligence policy (owner, 2026-10-09; issue #117 item da-ad38a0ba6d)
+
+**For CAOSCare, resident experience, factual accuracy, responsiveness and reliable tools come before minimizing model or search spend.** The "least-expensive-capable model / verified work per dollar" rules the owner set for the Desktop-Agent and Deal Sniffer development platforms do **not** apply to CAOSCare's resident-facing intelligence. Residents are not expected to make constant fresh-web requests, so the per-search price difference is expected to be negligible.
+
+- **Evaluation order** for the resident-facing model and search workflow: quality, then latency, then reliability, then cost. Avoid unnecessary vendors and complexity; prefer the chosen model provider's native capabilities over signing up for and maintaining separate services.
+- **Verify before claiming.** Native capability is claimed only after the exact API/tool compatibility is confirmed. Checked 2026-10-09 (docs): the Realtime API session accepts **function** and **MCP** tools; OpenAI's built-in `web_search` is a **Responses API** tool, and a community thread (2025-10-12) reports it "doesn't work yet" inside Realtime. So the practical native path is: keep Aria's `research_topic` as a Realtime **function tool** whose backend calls the Responses API with `{"type":"web_search"}` using the same OpenAI key, and returns the annotations (URLs/titles) as citations. Exact models, pricing and limits are **not** recorded here: look them up on the provider's current pages when implementing.
+- **Truthfulness is unchanged:** for current information, provide actual verified live sources; when unavailable, say so. Never state that a lookup was done or that staff were notified unless the tool result proves it (see the Aria information principle above and the 2026-10-08 audit).
+- **Execution stays with trusted systems.** Room control, real calls, staff notification and audited actions are tied to actual systems and receipts; a model answer alone cannot execute them.
+- **What this does NOT authorize:** starting paid API calls, provisioning credentials, raising a budget, deploying to the pilot, or changing live Room 214 settings. Each needs a separate explicit owner decision. Wake settings (0.05 / 1.5) are unaffected.
+
+**Next implementation and gate (not started):** RQ-047 - `research_topic` backend uses the Responses API web search (same vendor/key), returns citations and a `live: true` flag only when it genuinely searched; stubbed tests (no paid calls) for live/non-live/failure; a single owner-approved live smoke call and budget confirmation before enabling it on Room 214. Until then research stays non-live and Aria says so.
+
+---
+
 ## 6. Priority order and future direction
 
 **Current active priority: make the RESIDENT MODULE reliable first** —
