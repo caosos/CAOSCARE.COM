@@ -7918,3 +7918,33 @@ HANDOFF CAPSULE
 - Runtime state:    nothing restarted or deployed.
 - Unresolved: live spoken verification; TV ambiguity has the same retry risk (not changed).
 - Next safe action: coordinator review; Michael retests "That will be all for now" and "turn the light on".
+
+---
+
+## 2026-10-08 — RQ-040: shared device-ambiguity guard; end_call description tightened
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-040-ambiguity-and-end-calls` from integration `2b5566c`. Draft PR into `integration/2026-09-27`. Not merged, not deployed; no service touched; no OpenAI call.
+
+### What changed
+- **Shared ambiguity guard:** new `frontend/src/lib/deviceAmbiguity.js` generalises RQ-038's light-only guard. For `toggle_tv`, `set_tv_input`, `adjust_tv_volume`, `set_tv_channel`, `set_blinds`, `adjust_room_temperature` (and `toggle_light`, now on the same code) a room with several matching devices returns `{ok:false, ambiguous:true, choices}` once, sends nothing, and the same resident utterance is refused locally (no network) until a new utterance arrives. Per session and per tool. The model can name the device (`device`: label, short label or device_id), or the resident's words can.
+- The old `_findOneDeviceOfKind` is replaced by `findDeviceGuarded`; `adjust_room_temperature` now looks up its thermostat and sends `device_id` (falls back to the previous kind-only post when the room has none).
+- **Tool schemas** (`realtime_device_tools.py`): those six tools get an optional `device` property and the "ASK which one, don't repeat the call" text.
+- **end_call** (`realtime_tools.py`): description now says call it ONLY after goodbye / that will be all / end the call or equivalent; never for statements about the test, the wake word or thanks alone; after a refusal do not call again until the resident answers. The RQ-038 phrase guard is unchanged.
+
+### Verified
+- Backend schema tests `test_rq040_tool_descriptions.py` 2 passed. Gate (port 8110, throwaway DB): 386 passed, 0 failed, 31 skipped (baseline 384; +2).
+- Frontend: 46 suites / 389 tests (baseline 376; new `deviceAmbiguity.test.js`); `CI=true yarn build` compiles.
+- Not verified: a live typed/spoken session; whether the model obeys the new wording.
+
+### Line counts
+`deviceAmbiguity.js` 81 (new), `realtimeDeviceTools.js` 315 (was 325), `realtimeRoomControls.js` 138, `realtimeLightControl.js` 116 (was 147), `realtime_device_tools.py` 266 (was 228), `realtime_tools.py` 256.
+
+HANDOFF CAPSULE
+- Objective:        RQ-040 ambiguity retry loop for all device tools; end_call description.
+- Branch:           bounded/rq-040-ambiguity-and-end-calls (draft PR).
+- Lane / ownership: frontend device tool dispatch, tool schema text.
+- Last proven state: tests above, 2026-10-08.
+- Runtime state:    nothing restarted or deployed.
+- Unresolved: live behavior of the model with the new descriptions.
+- Next safe action: coordinator review; Michael retests with two TVs/lights if available.
