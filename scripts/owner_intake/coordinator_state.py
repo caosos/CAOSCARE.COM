@@ -53,7 +53,7 @@ def state() -> dict:
         "heartbeat": heartbeat_probe.probe(),
         "event_wake": {
             "status": "VERIFIED",
-            "evidence": "idle session woke on a Desktop-Agent peer message and ACKed: da-46a126825e delivered 2026-10-09T02:49:45Z, ACK 02:50:01Z (session idle since ~02:24Z)",
+            "evidence": "idle session woke on a Desktop-Agent peer message and ACKed twice: da-46a126825e delivered 2026-10-09T02:49:45Z / ACK 02:50:01Z; da-0cf0297adf delivered 02:58:01Z / ACK 02:58:06Z (turn ended 02:57:4x, idle in between)",
         },
         "periodic_wake": {
             "status": "UNVERIFIED",

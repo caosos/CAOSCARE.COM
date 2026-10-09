@@ -53,3 +53,12 @@ Limit: it can only reach a live session. If no Claude session is running, the he
 | ACKNOWLEDGED (`ACK da-a7402413a7`, marker first) | 02:51:58 (5 s after delivery) | comment + `receiver.py` ledger rows (`received`, `status ACK posted`) |
 | ACTED | n/a | dummy, no action taken |
 Not exercised by this test: the delivery was received mid-turn (queued to the next tool round); an idle-wake was observed earlier the same evening (items da-46a126825e and the backfill items began new turns). The heartbeat probe exists and returns IDLE now, but **Desktop-Agent has not yet wired it** to send `DA-HEARTBEAT`; until it does, "wake for queued READY work" is not verified.
+
+## Idle-wake re-proof (dummy test 2, 2026-10-08 21:57-21:58 CDT)
+The coordinator posted a labelled DUMMY, ended its turn (idle), and did nothing else:
+| Step | Time (UTC) | Gap |
+|---|---|---|
+| POSTED (comment 6073325841) | 02:57:37 | n/a |
+| DELIVERED (peer message to `caoscare-integration-b2`, DELIVERED comment 02:58:02) | 02:58:01 | +24 s |
+| New Claude turn started by the message, ACK `da-0cf0297adf` posted | 02:58:06 | +5 s after delivery |
+Verdict: **event wake of an idle CAOSCare coordinator is VERIFIED** (two independent items: da-46a126825e +16 s and da-0cf0297adf +5 s from delivery to ACK). **Periodic (heartbeat) wake remains UNVERIFIED** until Desktop-Agent schedules `heartbeat_probe.py`. No care request, no action, no service touched.
