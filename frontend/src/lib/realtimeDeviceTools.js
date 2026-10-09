@@ -15,6 +15,7 @@
 import { checkEnding } from "./endingPhrases";
 import { API } from "./api";
 import { nearestColorName, colorTempLabel, handleToggleLight } from "./realtimeLightControl";
+import { findDeviceGuarded } from "./deviceAmbiguity";
 import { VOLUME_PHRASES, ROOM_CONTROL_TOOLS, executeRoomControlTool } from "./realtimeRoomControls";
 
 // IMPORTANT: the backend `/devices/.../command` endpoint validates `action`
@@ -92,19 +93,6 @@ export function describeDevice(d) {
   return `the ${name} is ${bits.join(", ")}`;
 }
 
-// Generic lookup-before-command helper for tools (TV, etc.) that don't
-// have their own per-kind disambiguation module the way lights and
-// climate do. Fails closed on ambiguity rather than guessing, matching
-// the backend's own "more than one <kind> device... pass device_id"
-// behavior (2026-09-06 kiosk multi-light bug and its generic fix).
-export async function _findOneDeviceOfKind(room, kind) {
-  const listR = await fetch(`${API}/devices/public/by-room/${encodeURIComponent(room)}`);
-  const list = listR.ok ? await listR.json() : [];
-  const matches = list.filter((d) => d.kind === kind && d.online !== false);
-  if (matches.length > 1) return { device: null, ambiguous: true };
-  return { device: matches[0] || null, ambiguous: false };
-}
-
 // 2026-08-23: "echo_like" (short, resembles Aria's own speech) genuinely
 // suggests mishearing - ask to repeat. Other suspect reasons (a short but
 // non-echoing fragment) are less about mishearing and more about wanting
@@ -136,7 +124,9 @@ export async function executeDeviceTool({ name, args, ctx }) {
   if (name === "adjust_room_temperature") {
     if (!room) return { ok: false, message: "no room context — I can't reach the climate control here." };
     const targetF = Math.max(60, Math.min(85, Number(args.target_f) || 72));
-    const r = await postRoomCommand(room, "temperature", targetF, "thermostat", ctx?.session_id);
+    const found = await findDeviceGuarded({ room, kind: "thermostat", noun: "thermostat", tool: name, args, ctx });
+    if (found.fail) return found.fail;
+    const r = await postRoomCommand(room, "temperature", targetF, "thermostat", ctx?.session_id, found.device?.device_id);
     if (!r.ok) return { ok: false, message: `couldn't reach the AC (${r.status}). I'll let the nurse know.` };
     return { ok: true, message: `set the room to ${targetF} degrees.` };
   }
@@ -149,8 +139,8 @@ export async function executeDeviceTool({ name, args, ctx }) {
     // Same lookup-before-command shape as toggle_light (2026-09-06 kiosk
     // multi-light bug) - a room with more than one TV must fail closed on
     // an honest ambiguity message, not guess by posting `kind` alone.
-    const tv = await _findOneDeviceOfKind(room, "tv");
-    if (tv.ambiguous) return { ok: false, message: "this room has more than one TV — which one do you mean?" };
+    const tv = await findDeviceGuarded({ room, kind: "tv", noun: "TV", tool: name, args, ctx });
+    if (tv.fail) return tv.fail;
     if (!tv.device) return { ok: false, message: "there's no TV set up in this room yet." };
     const r = await postRoomCommand(room, "power", args.state, "tv", ctx?.session_id, tv.device.device_id);
     if (!r.ok) return { ok: false, message: `couldn't reach the TV (${r.status}).` };
@@ -166,12 +156,12 @@ export async function executeDeviceTool({ name, args, ctx }) {
     return { ok: true, message: `turned the TV ${args.state}${volumeGrounded ? ` at volume ${args.volume}` : ""}.` };
   }
   if (ROOM_CONTROL_TOOLS.has(name)) {
-    return executeRoomControlTool(name, args, ctx, { postRoomCommand, findOneOfKind: _findOneDeviceOfKind });
+    return executeRoomControlTool(name, args, ctx, { postRoomCommand });
   }
   if (name === "set_tv_input") {
     if (!room) return { ok: false, message: "no room context — I can't reach the TV here." };
-    const tvLookup = await _findOneDeviceOfKind(room, "tv");
-    if (tvLookup.ambiguous) return { ok: false, message: "this room has more than one TV — which one do you mean?" };
+    const tvLookup = await findDeviceGuarded({ room, kind: "tv", noun: "TV", tool: name, args, ctx });
+    if (tvLookup.fail) return tvLookup.fail;
     const tv = tvLookup.device;
     // Verify the device actually declares this input before calling -
     // per the tool's own instruction, a device that doesn't support it

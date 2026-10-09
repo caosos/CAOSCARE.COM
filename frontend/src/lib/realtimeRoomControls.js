@@ -9,6 +9,7 @@
  *  - the spoken result comes from the state the backend read back, never
  *    from what was requested, and says "simulated" when the backend says so.
  */
+import { findDeviceGuarded } from "./deviceAmbiguity";
 
 // A volume request has many valid forms, so this only requires a volume cue.
 export const VOLUME_PHRASES = /\b(volume|loud(er|ness)?|quiet(er)?|turn\s*(it|the\s*(tv|sound))?\s*(up|down)|mute|unmute)\b/i;
@@ -52,9 +53,9 @@ async function sendCommand(deps, room, action, value, kind, ctx, device) {
   return { data };
 }
 
-async function findDevice(deps, room, kind, noun) {
-  const f = await deps.findOneOfKind(room, kind);
-  if (f.ambiguous) return { fail: { ok: false, message: `this room has more than one ${noun} — which one do you mean?` } };
+async function findDevice(tool, args, ctx, room, kind, noun) {
+  const f = await findDeviceGuarded({ room, kind, noun, tool, args, ctx });
+  if (f.fail) return { fail: f.fail };
   if (!f.device) return { fail: { ok: false, message: `there's no ${noun} set up in this room.` } };
   return { device: f.device };
 }
@@ -70,7 +71,7 @@ async function setBlinds({ args, ctx, deps }) {
   else if (args.action === "close") target = 0;
   else if (typeof args.percent === "number") target = Math.max(0, Math.min(100, Math.round(args.percent)));
   else return { ok: false, message: "how far open would you like the blinds?" };
-  const found = await findDevice(deps, room, "blinds", "blinds");
+  const found = await findDevice("set_blinds", args, ctx, room, "blinds", "blinds");
   if (found.fail) return found.fail;
   if (!(found.device.capabilities || []).includes("position")) {
     return { ok: false, message: "these blinds can't be moved from here." };
@@ -82,10 +83,10 @@ async function setBlinds({ args, ctx, deps }) {
   return { ok: true, message: `the blinds are now ${words}${labelOf(res.data)}.` };
 }
 
-async function tvDevice(deps, ctx, capability) {
+async function tvDevice(tool, args, ctx, capability) {
   const room = ctx?.room;
   if (!room) return { fail: { ok: false, message: "no room context — I can't reach the TV here." } };
-  const found = await findDevice(deps, room, "tv", "TV");
+  const found = await findDevice(tool, args, ctx, room, "tv", "TV");
   if (found.fail) return found;
   if (!(found.device.capabilities || []).includes(capability)) {
     return { fail: { ok: false, message: `this TV doesn't have ${capability} control.` } };
@@ -99,7 +100,7 @@ async function setTvChannel({ args, ctx, deps }) {
   if (!heard || !CHANNEL_WORD.test(heard) || !numbersIn(heard).has(channel)) {
     return { ok: false, message: "Which channel would you like?" };
   }
-  const tv = await tvDevice(deps, ctx, "channel");
+  const tv = await tvDevice("set_tv_channel", args, ctx, "channel");
   if (tv.fail) return tv.fail;
   let poweredOn = false;
   if (tv.device.state?.power !== "on") {
@@ -116,7 +117,7 @@ async function adjustTvVolume({ args, ctx, deps }) {
   if (!VOLUME_PHRASES.test(heardText(ctx))) {
     return { ok: false, message: "Just to make sure — did you want the TV volume changed?" };
   }
-  const tv = await tvDevice(deps, ctx, "volume");
+  const tv = await tvDevice("adjust_tv_volume", args, ctx, "volume");
   if (tv.fail) return tv.fail;
   if (tv.device.state?.power !== "on") return { ok: false, message: "the TV is off right now, so there's no volume to change." };
   const current = typeof tv.device.state?.volume === "number" ? tv.device.state.volume : 20;
@@ -130,7 +131,7 @@ async function adjustTvVolume({ args, ctx, deps }) {
 const HANDLERS = { set_blinds: setBlinds, set_tv_channel: setTvChannel, adjust_tv_volume: adjustTvVolume };
 export const ROOM_CONTROL_TOOLS = new Set(Object.keys(HANDLERS));
 
-// deps = { postRoomCommand, findOneOfKind } from realtimeDeviceTools.js
+// deps = { postRoomCommand } from realtimeDeviceTools.js
 export function executeRoomControlTool(name, args, ctx, deps) {
   const h = HANDLERS[name];
   return h ? h({ args: args || {}, ctx, deps }) : undefined;

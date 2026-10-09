@@ -37,10 +37,15 @@ def _build_device_tools() -> list[dict]:
                 "temperature without state implies turning it on. Real devices vary in "
                 "which modes they support - if the result says a mode or field isn't "
                 "supported, tell the resident plainly rather than pretending it worked."
+                " If the result says ambiguous (more than one in the room), do NOT call again yet: ASK the resident which one (the choices are listed), wait for their answer, then call again with device set to the exact choice. Never repeat the same call without a new answer."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
+                    "device": {
+                        "type": "string",
+                        "description": "Which one, only when the room has more than one of this device: its exact label or device_id (from an ambiguous result's choices)."
+                    },
                     "state": {
                         "type": "string",
                         "enum": ["on", "off"],
@@ -129,10 +134,15 @@ def _build_device_tools() -> list[dict]:
                 "If the resident asks for quiet or to mute the TV, use action='off' "
                 "or set volume to 0. For 'a little louder/quieter' use adjust_tv_volume; "
                 "for a channel use set_tv_channel."
+                " If the result says ambiguous (more than one in the room), do NOT call again yet: ASK the resident which one (the choices are listed), wait for their answer, then call again with device set to the exact choice. Never repeat the same call without a new answer."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
+                    "device": {
+                        "type": "string",
+                        "description": "Which one, only when the room has more than one of this device: its exact label or device_id (from an ambiguous result's choices)."
+                    },
                     "state": {
                         "type": "string",
                         "enum": ["on", "off"],
@@ -157,10 +167,15 @@ def _build_device_tools() -> list[dict]:
                 "'turn it up', 'a bit quieter', 'louder'. Only call this when they "
                 "actually asked about volume or loudness. For an exact level they "
                 "named, use toggle_tv with volume instead."
+                " If the result says ambiguous (more than one in the room), do NOT call again yet: ASK the resident which one (the choices are listed), wait for their answer, then call again with device set to the exact choice. Never repeat the same call without a new answer."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
+                    "device": {
+                        "type": "string",
+                        "description": "Which one, only when the room has more than one of this device: its exact label or device_id (from an ambiguous result's choices)."
+                    },
                     "direction": {"type": "string", "enum": ["up", "down"]},
                     "amount": {
                         "type": "integer", "minimum": 1, "maximum": 50,
@@ -178,10 +193,15 @@ def _build_device_tools() -> list[dict]:
                 "Change the TV to a channel number the resident said ('put on "
                 "channel 11'). Use the number they said; never guess one. If the "
                 "result says the TV has no channel control, tell them plainly."
+                " If the result says ambiguous (more than one in the room), do NOT call again yet: ASK the resident which one (the choices are listed), wait for their answer, then call again with device set to the exact choice. Never repeat the same call without a new answer."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
+                    "device": {
+                        "type": "string",
+                        "description": "Which one, only when the room has more than one of this device: its exact label or device_id (from an ambiguous result's choices)."
+                    },
                     "channel": {"type": "integer", "minimum": 1, "maximum": 999}
                 },
                 "required": ["channel"],
@@ -196,10 +216,15 @@ def _build_device_tools() -> list[dict]:
                 "blinds, shades or curtains. action='open' = fully open, 'close' = "
                 "fully closed, 'set' = a percent open (0 closed - 100 open). If the "
                 "result says the room has no blinds, say so plainly."
+                " If the result says ambiguous (more than one in the room), do NOT call again yet: ASK the resident which one (the choices are listed), wait for their answer, then call again with device set to the exact choice. Never repeat the same call without a new answer."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
+                    "device": {
+                        "type": "string",
+                        "description": "Which one, only when the room has more than one of this device: its exact label or device_id (from an ambiguous result's choices)."
+                    },
                     "action": {"type": "string", "enum": ["open", "close", "set"]},
                     "percent": {
                         "type": "integer", "minimum": 0, "maximum": 100,
@@ -220,10 +245,15 @@ def _build_device_tools() -> list[dict]:
                 "matching option in its inputs list - if the device doesn't list "
                 "that input, tell the resident plainly it isn't available rather "
                 "than calling this and letting it fail silently."
+                " If the result says ambiguous (more than one in the room), do NOT call again yet: ASK the resident which one (the choices are listed), wait for their answer, then call again with device set to the exact choice. Never repeat the same call without a new answer."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
+                    "device": {
+                        "type": "string",
+                        "description": "Which one, only when the room has more than one of this device: its exact label or device_id (from an ambiguous result's choices)."
+                    },
                     "input": {
                         "type": "string",
                         "description": "The exact input name as listed in the device's own `inputs`, e.g. 'HDMI 2'."

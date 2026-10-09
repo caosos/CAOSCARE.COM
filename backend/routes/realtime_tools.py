@@ -228,12 +228,16 @@ async def _build_tools() -> list[dict]:
             "type": "function",
             "name": "end_call",
             "description": (
-                "End the voice call and hang up. Call this whenever the resident says "
-                "'end the call', 'hang up', 'goodbye', 'I'm done', 'that's all', or "
-                "otherwise clearly wants the conversation OVER (different from "
-                "`mark_resting`, which just goes quiet but stays connected). After "
-                "calling, say one short warm goodbye and then stop talking — the kiosk "
-                "will tear down the connection."
+                "End the voice call and hang up. Call this ONLY when the resident has "
+                "just said goodbye, 'that will be all', 'end the call/conversation', "
+                "'hang up', 'I'm done' or an equivalent - an explicit wish that the "
+                "conversation be OVER (different from `mark_resting`, which just goes "
+                "quiet but stays connected). NEVER call it for a statement about the "
+                "test, the wake word or how well you work, for a question, or for "
+                "thanks alone. If the result is a refusal or a question, do NOT call it "
+                "again until the resident has answered. After a successful call, say one "
+                "short warm goodbye and then stop talking — the kiosk will tear down the "
+                "connection."
             ),
             "parameters": {
                 "type": "object",

@@ -7,6 +7,7 @@
  * and a future non-Matter light both go through the exact same path.
  */
 import { API } from "./api";
+import { priorAmbiguity, recordAmbiguity, clearAmbiguity, pickDevice, shortLabel, resetDeviceAmbiguity } from "./deviceAmbiguity";
 
 // Color vocabulary shared both directions: naming a color for a command
 // (toggle_light's `color` arg -> RGB the adapter sends to the real device)
@@ -35,48 +36,20 @@ export function colorTempLabel(kelvin) {
   return kelvin <= 3200 ? "warm white" : kelvin <= 5000 ? "neutral white" : "cool white";
 }
 
-// Rooms can now hold more than one light (Room 214's desk + overhead
-// bulbs) - disambiguate the same way climate does, by matching the
-// resident's own words against each light's distinguishing name rather
-// than a fixed vocabulary, so this stays generic to whatever labels a
-// room's devices actually have.
-function lightShortName(d, room) {
-  return (room ? d.label.replace(`Room ${room} `, "") : d.label).toLowerCase();
-}
-function pickLight(candidates, heard, room, device) {
-  if (candidates.length <= 1) return { device: candidates[0], ambiguous: false };
-  // RQ-038: after asking which light, the model may name it (device_id or label).
-  const named = String(device || "").trim().toLowerCase();
-  if (named) {
-    const hit = candidates.filter((d) => d.device_id.toLowerCase() === named || d.label.toLowerCase() === named || lightShortName(d, room) === named);
-    if (hit.length === 1) return { device: hit[0], ambiguous: false };
-  }
-  const lower = heard.toLowerCase();
-  const matches = candidates.filter((d) => lower.includes(lightShortName(d, room).split(" ")[0]));
-  if (matches.length === 1) return { device: matches[0], ambiguous: false };
-  return { device: null, ambiguous: true };
-}
+// Rooms can hold more than one light (Room 214's desk + overhead bulbs):
+// disambiguation and the no-retry-loop refusal are the shared guard in
+// deviceAmbiguity.js (RQ-040), so every device tool behaves the same way.
+const TOOL = "toggle_light";
+export function resetLightAmbiguity() { resetDeviceAmbiguity(); }
 
 // `postRoomCommand` is passed in from realtimeDeviceTools.js (the one
 // place every tool posts device commands through) rather than duplicated
 // here, so there is exactly one network call site to reason about.
-// RQ-038: an ambiguity refusal is remembered per session with the resident
-// utterance it answered; the same utterance gets the same refusal locally
-// (no network) until a new utterance arrives. Stops the 16-calls-in-8-s loop.
-const ambiguityRefusals = new Map();
-export function resetLightAmbiguity() { ambiguityRefusals.clear(); }
-function ambiguousResult(choices) {
-  return {
-    ok: false, ambiguous: true, choices,
-    message: `this room has more than one light — did you mean the ${choices.join(" or the ")}? Ask the resident which one, then call again with device set to the exact choice.`,
-  };
-}
-
 export async function handleToggleLight(room, args, ctx, postRoomCommand) {
   const sessionId = ctx?.session_id;
   const heardNow = (ctx?.last_user_text || "").trim();
-  const prior = ambiguityRefusals.get(sessionId || "_");
-  if (prior && prior.text === heardNow) return ambiguousResult(prior.choices);
+  const prior = priorAmbiguity(ctx, TOOL);
+  if (prior) return prior;
   const hasAny = args.state || args.brightness != null || args.brightness_delta != null || args.color || args.color_temp;
   if (!hasAny) return { ok: false, message: "I didn't catch what you'd like me to change about the light." };
 
@@ -85,19 +58,15 @@ export async function handleToggleLight(room, args, ctx, postRoomCommand) {
   const lights = list.filter((d) => d.kind === "light" && d.online !== false);
   if (!lights.length) return { ok: false, message: "there's no light set up in this room yet." };
 
-  const { device: light, ambiguous } = pickLight(lights, heardNow, room, args.device);
-  if (ambiguous) {
-    const choices = lights.map((d) => lightShortName(d, room));
-    ambiguityRefusals.set(sessionId || "_", { text: heardNow, choices });
-    return ambiguousResult(choices);
-  }
-  ambiguityRefusals.delete(sessionId || "_");
+  const light = lights.length === 1 ? lights[0] : pickDevice(lights, args.device, heardNow, room);
+  if (!light) return recordAmbiguity(ctx, TOOL, "light", lights.map((d) => shortLabel(d, room)));
+  clearAmbiguity(ctx, TOOL);
   const deviceId = light.device_id;
   const caps = light.capabilities || [];
   // Only name the light in speech when there's more than one to tell
   // apart - "turned the light off" reads better than "turned the desk
   // light off" in the single-light case every other room still has.
-  const name = lights.length > 1 ? `${lightShortName(light, room).split(" ")[0]} light` : "light";
+  const name = lights.length > 1 ? `${shortLabel(light, room).split(" ")[0]} light` : "light";
 
   // SC-10: check every requested attribute against the light's declared
   // capabilities BEFORE anything is sent. One unsupported attribute refuses
