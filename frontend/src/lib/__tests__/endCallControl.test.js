@@ -111,7 +111,7 @@ test("Aria's own goodbye coming back through the speaker (echo) does not end the
   expect(onEndCall).not.toHaveBeenCalled();
 });
 
-test("quoted, hypothetical, negated or 'keep talking' phrases never end the call", async () => {
+test("FALSE-POSITIVE TEST (quoted sentence / meta statement / question - NOT the rule for Goodbye): these do not end the call", async () => {
   for (const t of ['When I say "goodbye" you stop.', "Can you end the call?", "Don't hang up.", "Please keep talking.", "Say goodbye to my wife for me."]) await said(t);
   expect(closed()).toEqual({ track: false, pc: false, dc: false });
   expect(onEndCall).not.toHaveBeenCalled();
@@ -133,7 +133,27 @@ test("transcript lost (foreign-language gibberish): the model's second end_call 
   expect(onEndCall).toHaveBeenCalledTimes(1);
 });
 
-test("a single unexplained end_call is still questioned (no phantom hang-ups)", async () => {
+test("standalone Goodbye, End the call and Go away each end the call immediately", async () => {
+  for (const phrase of ["Goodbye.", "End the call.", "Go away."]) {
+    await act(async () => { api.stop("test_reset"); });
+    await act(async () => { await api.start(); });
+    onEndCall.mockClear();
+    await said(phrase);
+    expect(onEndCall).toHaveBeenCalledTimes(1);
+    expect(closed().track).toBe(true);
+  }
+});
+
+test("model end_call on an out-of-script transcript (Korean/Arabic mis-detection) is granted on the FIRST attempt", async () => {
+  await said("안녕하세요.");
+  await toolCall("end_call", 1);
+  expect(logged("end_call_corroborated")[0][2].meta.via).toBe("out_of_script_transcript");
+  await settle(7000);
+  expect(closed().track).toBe(true);
+  expect(onEndCall).toHaveBeenCalledTimes(1);
+});
+
+test("a single end_call on a Latin-script transcript that says nothing about ending is still questioned (no phantom hang-ups)", async () => {
   await said("Das sind keine.");
   await toolCall("end_call", 1);
   await settle(8000);

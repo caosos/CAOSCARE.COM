@@ -33,10 +33,17 @@ Backend untouched (gate not run).
 
 ## 4. What still needs the owner
 * Rebuild the Room page (`ctl.sh rebuild`, no live lease) to get any of this; nothing changed in the running page.
-* One live test, about two minutes: say "Aria, end the call", then "Hey Aria" again and say "goodbye", then say "when I say goodbye you stop" (must NOT end). Also try the pinned-English build if you want the root fix.
+* One short live acceptance (RQ-056 wording): say "Hey Aria", talk a few seconds, then say "Goodbye" - the call must end immediately (repeat once with "End the call"). Then "Hey Aria" must start a fresh call. Optional false-positive check, clearly not the Goodbye rule: the meta sentence "when I say goodbye, you should stop" is an explanation and does not hang up.
+* The English pin is NOT recommended (it breaks Spanish practice). RQ-056 added a language-preserving alternative instead, see section 6.
 * Not covered offline: a real WebRTC disconnect, and the speech-to-text behaviour itself.
 
 ## 5. If it ever happens again (no deployment needed)
 * On the call screen the **End call** button (top right of the live screen) calls the same `stop()` locally; it works even if the server or the model is unreachable.
 * Turn the microphone off at the speakerphone itself if it has a mute switch (not verified here).
 * `systemctl --user stop aria-wake.service` stops listening for "Hey Aria" until restarted.
+
+## 6. Language-preserving additions (RQ-056, owner correction 2026-10-09 23:26Z)
+Semantics, plainly: a standalone, directly addressed "Goodbye", "End the call" or "Go away" ends the call. The quoted/meta sentences in the tests are **false-positive guards**, not the rule for Goodbye.
+* **First-attempt grant for mis-detected text:** when the model asks to end and the transcript is in a script that cannot be this household's speech (Arabic, Korean, Japanese, Hindi ... or empty), the first `end_call` is granted. Latin-script mis-detections (Lithuanian, German, Turkish seen in the trace) still need the second attempt, because Spanish lives in the same script.
+* **Optional vocabulary hint** (`REACT_APP_TRANSCRIPTION_HINT=1`, off by default): the documented `prompt` field of the transcription config (max 1024 characters) biases recognition toward short commands without pinning a language. Not yet proven to help; if enabled, compare `user_transcript` events for short commands before and after. Turning it on needs a rebuild and one live check.
+* Spanish: "adiós", "hasta luego", "chao", "buenas noches" also end the call locally. No language is pinned.
