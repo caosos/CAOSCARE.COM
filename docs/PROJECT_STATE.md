@@ -8022,3 +8022,30 @@ HANDOFF CAPSULE
 - Lane / ownership: room-node/aria_wake only plus docs.
 - Runtime state:    nothing installed or restarted.
 - Cutover: see PR body.
+
+---
+
+## 2026-10-08 — RQ-046: claim guards and non-live research label (frontend)
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-046-claim-guards` from integration `2159b1f`. Draft PR into `integration/2026-09-27`. Not merged, not deployed; no service touched; backend untouched (RQ-045 adds `live`).
+
+### What changed (from audit rt_dc5h0fi1)
+- `researchShape.js`: a `/research` result that is not live (`live !== true`, source not perplexity, or no citations; a missing `live` counts as false) is returned to the model as "NOT A LIVE LOOKUP: … general knowledge only and may be out of date or wrong: <answer>". Live path unchanged. `realtimeDeviceTools.js` calls it.
+- `claimGuard.js`, wired in `realtimeMessageHandler.js` like the farewell watch: after each response, logs `unsupported_action_claim`, `unsupported_fresh_fact_claim` (weather) or `unsupported_lookup_claim` when the text claims it with no matching ok tool result this turn (action tool call in the same response also counts). Log only; never blocks or acts.
+- `farewellWatch.js`: false positive fixed — an ok end_call within 15 s before the goodbye response satisfies the watch (`noteEndCallOk`, called by the handler).
+
+### Verified
+Frontend 48 suites / 403 tests (baseline 395; new `claimGuard.test.js` from the audit's sanitized excerpts); `CI=true yarn build` compiles. Not verified: live session; backend gate not run (no backend change).
+
+### Line counts
+`claimGuard.js` 60 (new), `researchShape.js` 18 (new), `realtimeDeviceTools.js` 321 (+1, pre-existing over 300), `realtimeMessageHandler.js` 387 (+7, pre-existing over 300; logic is in the new module), `farewellWatch.js` 36.
+
+HANDOFF CAPSULE
+- Objective:        RQ-046 frontend claim guards.
+- Branch:           bounded/rq-046-claim-guards (draft PR).
+- Lane / ownership: frontend lib only.
+- Last proven state: tests and build above, 2026-10-08.
+- Runtime state:    nothing restarted; Room 214 page needs `ctl.sh rebuild` after merge.
+- Unresolved: prompt/tool-description honesty (backend, RQ-045); detection is regex, logging only.
+- Next safe action: coordinator review.

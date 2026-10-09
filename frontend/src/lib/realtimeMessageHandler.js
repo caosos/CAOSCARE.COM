@@ -25,6 +25,7 @@ import { executeDeviceTool } from "./realtimeDeviceTools";
 import { executeDisplayTool } from "./realtimeDisplayTools";
 import { executeCareTool, ringLiveLineOnSilence } from "./realtimeCareControl";
 import { createFarewellWatch } from "./farewellWatch";
+import { createClaimGuard } from "./claimGuard";
 import { logRealtimeEvent, transcriptionConfidence, LOW_CONFIDENCE_THRESHOLD } from "./realtimeDiagnostics";
 import { reenableAutoResponse, createGreetingResponseGate } from "./realtimeAutoResponseGate";
 import { createHangupScheduler } from "./endCallHangup";
@@ -115,6 +116,7 @@ export function createRealtimeHandlers({
   });
   const turnGrounding = createTurnGroundingTracker(); // see realtimeTurnGrounding.js
   const farewellWatch = createFarewellWatch((type, d) => logRealtimeEvent(sessionIdRef.current, type, d));
+  const claimGuard = createClaimGuard((type, d) => logRealtimeEvent(sessionIdRef.current, type, d));
   const typedItemsSeen = new Set(); // typed-turn echoes, once each (realtimeTypedTurn.js)
 
   // Saves one turn immediately, independently - no pairing, no waiting on
@@ -155,6 +157,8 @@ export function createRealtimeHandlers({
     const cls = await turnGrounding.waitForGroundedTurn();
     const result = await executeTool({ name: fn.name, args: parsed, ctx: { ...ctxRef.current, turn_suspect: cls.suspect, turn_suspect_reason: cls.reason, last_user_text: cls.text || "" } });
     logRealtimeEvent(sessionIdRef.current, "tool_result", { meta: { name: fn.name, result } });
+    claimGuard.onToolResult(fn.name, result);
+    if ((fn.name === "end_call" || fn.name === "end_conversation") && result?.ok) farewellWatch.noteEndCallOk();
     if (myGen !== startGenRef.current) return;
     // Tell the model what happened. The output goes onto the conversation
     // as a `function_call_output` item, then we ask the model to respond.
@@ -232,6 +236,7 @@ export function createRealtimeHandlers({
       // classifyUserTurn() above, applied once the transcript resolves.
       turnSuspectRef.current = assistantSpeakingRef.current;
       lastSpeechStartedAt = Date.now();
+      claimGuard.onUserTurn();
       speech("resident_start");   // resident speaking -> cancel any pending inactivity window
       logRealtimeEvent(sessionIdRef.current, "speech_started", { assistantSpeaking: assistantSpeakingRef.current });
       // Level 1 invite-silence timer (useRealtimeVoice.js) needs to know
@@ -291,6 +296,7 @@ export function createRealtimeHandlers({
       greetingGate.onResponseDone();
       hangup.onResponseDone();
       farewellWatch.onResponseDone(msg.response);
+      claimGuard.onResponseDone(msg.response);
     }
     if (msg.type === "response.created" && typedTurnRef?.current) onTypedResponseCreated(typedTurnRef.current);
     if (msg.type === "response.created") {
@@ -349,6 +355,7 @@ export function createRealtimeHandlers({
       setTranscript((t) => [...t, { role: "assistant", text: aiText, ts: Date.now() }]);
       logRealtimeEvent(sessionIdRef.current, "assistant_transcript", { text: aiText });
       farewellWatch.onAssistantTranscript(aiText);
+      claimGuard.onAssistantTranscript(aiText);
       lastAssistantText = aiText; // for classifyUserTurn()'s echo-resemblance check
       // Saved immediately and independently - see the matching comment on
       // the user-transcript handler above for why pairing was removed.
