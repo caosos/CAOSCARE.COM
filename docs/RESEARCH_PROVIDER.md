@@ -23,6 +23,10 @@ Set `CAOSCARE_RESEARCH_PROVIDER=openai_web_search` and `OPENAI_RESEARCH_MODEL=<m
 ## Rollback
 Set `CAOSCARE_RESEARCH_PROVIDER=none` (or unset it) and restart the backend.
 
-## Before enabling on Room 214 (coordinator note, 2026-10-09)
-- `POST /api/research` is a PUBLIC endpoint by design (kiosk tool dispatch). With a paid web-search provider enabled, anyone who can reach the API could spend money. Before enabling: require a live Aria lease for the calling room/resident (as done for `/memory/realtime-turn`), plus a per-room rate limit. Not built yet.
-- Owner decisions still required: which `OPENAI_RESEARCH_MODEL`, one approved smoke call and its spend, then the live switch (set `CAOSCARE_RESEARCH_PROVIDER=openai_web_search`, `OPENAI_RESEARCH_MODEL`, restart with no live lease; rollback: set provider `none`).
+## Access guard and rate limit (RQ-049)
+- With `openai_web_search` enabled, `POST /api/research` requires `resident_id` + `session_id` of a live Aria room lease (same check as `/memory/realtime-turn`, shared in `routes/session_grounding.py`, with a 60 s grace after release) OR a valid owner token (the owner `/aria` build). Otherwise HTTP 403 and no provider call. With provider `none` there is no guard.
+- In-memory rate limit per room (owner: per user) `CAOSCARE_RESEARCH_RATE_PER_MIN` (default 6) -> HTTP 429. Counters reset on restart.
+- Every denial writes a `research_lookup` event (status failed, reason). The frontend turns 403/429 into "I can't look that up right now."
+
+## Owner decisions still required (coordinator note, 2026-10-09)
+- Which `OPENAI_RESEARCH_MODEL`, one approved smoke call and its spend, then the live switch (set `CAOSCARE_RESEARCH_PROVIDER=openai_web_search`, `OPENAI_RESEARCH_MODEL`, restart with no live lease; rollback: set provider `none`).

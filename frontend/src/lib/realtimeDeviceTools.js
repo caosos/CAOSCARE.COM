@@ -244,11 +244,16 @@ export async function executeDeviceTool({ name, args, ctx }) {
     return { ok: true, message: w.narrative || `${w.temperature_f}° and ${w.condition}.` };
   }
   if (name === "research_topic") {
+    let token = null;
+    try { token = localStorage.getItem("caos_token"); } catch { /* no storage */ }
     const r = await fetch(`${API}/research`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question: args.question || "" }),
+      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ question: args.question || "", resident_id: residentId || null, session_id: ctx?.session_id || null }),
     });
+    if (r.status === 403 || r.status === 429) {
+      return { ok: false, message: "I can't look that up right now." };
+    }
     if (!r.ok) return { ok: false, message: `couldn't reach the research service (${r.status}).` };
     const j = await r.json();
     return shapeResearchResult(j);

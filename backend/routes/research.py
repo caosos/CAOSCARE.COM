@@ -18,8 +18,9 @@ Every call records a CaosEvent (question hash and length only, never the
 question text; provider, model, live, citation count, outcome). Spoken
 delivery: short, conversational, no bullet points, no markdown.
 
-Endpoint is PUBLIC by design - the tool dispatcher calls it from the kiosk
-during a live conversation (unchanged).
+Endpoint is reachable without login (the kiosk tool dispatcher calls it), but
+when a paid provider is enabled it requires a live Aria session or an owner
+token and is rate limited - see routes/research_guard.py (RQ-049).
 """
 import os
 import hashlib
@@ -27,11 +28,12 @@ import logging
 import time
 from typing import List, Optional
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 from routes.events import log_event
 from routes.realtime_truth_rules import live_research_enabled
 from routes import research_openai_search as oas
+from routes import research_guard
 
 router = APIRouter(prefix="/research", tags=["research"])
 logger = logging.getLogger(__name__)
@@ -43,6 +45,8 @@ OPENAI_API_BASE = os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1")
 
 class ResearchInput(BaseModel):
     question: str = Field(..., min_length=2, max_length=500)
+    resident_id: Optional[str] = Field(default=None, max_length=100)
+    session_id: Optional[str] = Field(default=None, max_length=100)
 
 
 class ResearchOutput(BaseModel):
@@ -156,7 +160,9 @@ async def research_topic(question: str) -> ResearchOutput:
 
 
 @router.post("", response_model=ResearchOutput)
-async def research_endpoint(data: ResearchInput) -> ResearchOutput:
+async def research_endpoint(data: ResearchInput, request: Request) -> ResearchOutput:
     if not data.question.strip():
         raise HTTPException(status_code=400, detail="Empty question")
+    # RQ-049: paid provider -> live session (or owner) required, rate limited.
+    await research_guard.enforce(request, data.resident_id, data.session_id)
     return await research_topic(data.question.strip())
