@@ -10,6 +10,7 @@ import { attachLifecycleDiagnostics } from "./realtimeLifecycleDiagnostics";
 import { buildSessionUpdate } from "./realtimeSessionUpdate";
 import { createLeaseWatchdog } from "./realtimeLeaseWatchdog";
 import { createInactivityTimer } from "./realtimeInactivityTimer";
+import { startMicLevelTelemetry } from "./micLevelTelemetry";
 
 import { createTypedTurnState, markResponseRequested } from "./realtimeTypedTurn";
 export async function connectRealtimeVoice({
@@ -147,6 +148,7 @@ export async function connectRealtimeVoice({
         }
         setMicLabel(track?.label || null);
       } catch { /* diagnostic only - never let this affect the call */ }
+      startMicLevelTelemetry(stream, (type, o) => logRealtimeEvent(sessionIdRef.current, type, o));
 
       if (!current()) throw new Error("canceled");
       pc = new RTCPeerConnection();
