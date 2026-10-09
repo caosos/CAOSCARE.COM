@@ -6,7 +6,7 @@
  * further server events and tool calls, so nothing can resurrect the call.
  * A new conversation needs a new handler: a deliberate new wake or UI start.
  */
-import { createEndCorroboration } from "./endIntent";
+import { createEndCorroboration, transcriptIsOutOfScript, turnMayEnd } from "./endIntent";
 
 export function createEndController({ send, stop, onEndCall, log }) {
   let ended = false;
@@ -23,9 +23,11 @@ export function createEndController({ send, stop, onEndCall, log }) {
       try { onEndCall?.(); } catch { /* ditto */ }
     },
     /** The model asked to end twice on usable turns but the transcript never said so: grant the second. */
-    corroborate(reason) {
-      if (!corroboration.onRefusedAttempt(reason)) return null;
-      log("end_call_corroborated", { meta: { reason } });
+    corroborate(reason, heardText) {
+      // First attempt is enough when the transcript is out of script: the audio-native model heard an ending and the text is a mis-detection.
+      const outOfScript = turnMayEnd(reason) && transcriptIsOutOfScript(heardText);
+      if (!corroboration.onRefusedAttempt(reason) && !outOfScript) return null;
+      log("end_call_corroborated", { meta: { reason, via: outOfScript ? "out_of_script_transcript" : "second_attempt" } });
       return { ok: true, message: "goodbye for now. I'm right here when you call.", corroborated: true };
     },
   };

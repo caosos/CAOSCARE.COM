@@ -165,7 +165,7 @@ export function createRealtimeHandlers({
     const isEnd = fn.name === "end_call" || fn.name === "end_conversation";
     // The model heard an ending the transcript lost (RQ-055): its second
     // end request in a row is granted instead of asking "are you sure?" again.
-    if (isEnd && !result?.ok) result = endCtl.corroborate(cls.reason) || result;
+    if (isEnd && !result?.ok) result = endCtl.corroborate(cls.reason, cls.text) || result;
     if (endCtl.ended) return;
     logRealtimeEvent(sessionIdRef.current, "tool_result", { meta: { name: fn.name, result } });
     claimGuard.onToolResult(fn.name, result);

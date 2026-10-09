@@ -20,7 +20,7 @@ const CORE = [
   /^end (the |this |our |that )?(call|conversation|chat)$/,
   /^end it$/, /^hang up( the phone)?$/, /^stop (talking|the call|listening)$/,
   /^good\s?bye( now)?$/, /^bye( bye)?$/, /^good\s?night$/, /^go away$/, /^leave me alone$/,
-  /^adi[oó]s$/, /^hasta luego$/,
+  /^adi[oó]s$/, /^hasta luego$/, /^chao$/, /^buenas noches$/,
   /^that(?:'|’)?s all$/, /^that(?:'|’)?ll be all$/, /^that will be all$/, /^that is all$/,
   /^we(?:'|’)?re done$/, /^we are done$/, /^i(?:'|’)?m done$/, /^i am done$/, /^i(?:'|’)?m done here$/,
   /^shut (it|this|that) off$/, /^turn (it|this|yourself) off$/, /^(please )?stop$/,
@@ -64,4 +64,17 @@ export function createEndCorroboration(now = Date.now) {
     },
     reset() { attempts = []; },
   };
+}
+
+/**
+ * True when a transcript is clearly NOT something said in this home (English
+ * or Spanish practice): it contains letters but none in the Latin script
+ * (Arabic, Korean, Japanese, Hindi ... - the 2026-10-09 mis-detections), or it
+ * is empty. Used only to decide whether the model's end_call can be trusted
+ * on its first attempt; the transcript text is never acted on itself.
+ */
+export function transcriptIsOutOfScript(text) {
+  const t = (text || "").trim();
+  if (!t) return true;
+  return /\p{L}/u.test(t) && !/\p{Script=Latin}/u.test(t);
 }
