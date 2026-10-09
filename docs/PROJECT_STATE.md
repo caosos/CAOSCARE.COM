@@ -7974,3 +7974,24 @@ HANDOFF CAPSULE
 - Runtime state:    nothing restarted or deployed.
 - Unresolved: live behavior; no auto hang-up on a stray farewell (by design).
 - Next safe action: coordinator review; count farewell_without_end_call events after deploy.
+## 2026-10-08 — RQ-042 (revised scope): owner intake receiving side
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-042-owner-intake`. Draft PR #119. Not merged; no GitHub comment posted.
+
+### What changed
+Scope change from the coordinator: Desktop-Agent owns polling, `da-<hex>` ids and DELIVERED comments. The earlier poller, timer/systemd units and nudge were removed. Now only `scripts/owner_intake/receiver.py`: `received`, `status ... [--post]` (one comment, body `<!-- caos:coordinator -->` then `STATUS item_id note`, deduped by (item_id, status) from the ledger), `list [--open]`; append-only ledger. `docs/OWNER_INTAKE.md` rewritten (split, format, peer messages arrive at next tool round so the issue comment is the durable record, ~20-25 min re-read fallback).
+
+### Verified
+`scripts/owner_intake/tests` 5 passed with a stub `gh` (receipt once, comment format, dedupe, failed post retried, post-after-unposted-status once, list --open). Not run against live GitHub.
+
+### Line counts
+`receiver.py` 130, `test_receiver.py` 67.
+
+HANDOFF CAPSULE
+- Objective:        CAOSCare-side acknowledgement of delivered owner items.
+- Branch:           bounded/rq-042-owner-intake (draft PR #119).
+- Lane / ownership: scripts/owner_intake, docs/OWNER_INTAKE.md.
+- Last proven state: tests above.
+- Runtime state:    nothing installed or running.
+- Next safe action: coordinator reviews; first real use: `receiver.py received/status` on a Desktop-Agent item.
