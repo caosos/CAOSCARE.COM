@@ -8071,3 +8071,39 @@ HANDOFF CAPSULE
 - Runtime state:    nothing restarted; Room 214 page needs `ctl.sh rebuild` after merge.
 - Unresolved: prompt/tool-description honesty (backend, RQ-045); detection is regex, logging only.
 - Next safe action: coordinator review.
+
+---
+
+## 2026-10-09 — RQ-048: offline realtime model A/B harness (no paid calls)
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-048-model-ab-harness` from integration-line tip `f106e50`. Draft PR into `integration/2026-09-27`. Not merged, not deployed; no running service, Room 214 setting, credential or provider touched. Issue #117 build order da-562a97a33c.
+
+### What changed
+New `scripts/model_ab/` (stdlib + existing backend venv; no frontend or `research.py` change):
+- `scenarios.json`: the proposal's 8 scenarios, typed turns + machine-checkable criteria over events we already log. `scorer.py` / `events.py`: checks and export loader (JSONL or read-only Mongo).
+- `report.py` + `prices.json`: per-model summary, usage/cost, proposal section 5 gates. Prices hold only the proposal's figures marked "re-verify"; a missing price gives cost unknown, never a guess.
+- `stub_realtime.py` + `stub_script.json` + `run.py`: `--dry-run` drives typed turns over HTTP against a local 127.0.0.1 stub (`stub-good` / `stub-bad`). `--live` refuses without `CAOSCARE_AB_APPROVED`, `--budget-usd` (<= 5) and env-only `OPENAI_API_KEY`, prints the cap, and stops (live driver not implemented).
+- `config_check.py`: prints every field of the mint config and `session.update` (real backend constants plus the real `realtimeSessionUpdate.js` via node, empty stand-in DB) and a chars/4 token estimate (labelled estimate; ~12.4k tokens at session start, 29 tools).
+- `backend/tests/test_model_ab_harness.py` (19 tests); `scripts/model_ab/README.md` quotes the approval gate.
+
+### Verified
+- New tests: 19 passed. Dry run: stub-good passes 8/8 scenarios, stub-bad 0/8; decision gate keeps the baseline.
+- Backend gate result: see the PR body.
+- Not verified: anything about a real model; the `response.done` usage shape against a live response.
+
+### Findings / limits
+- Usage is not logged by the client today (`response_done` carries only the id); real cost measurement needs a one-line frontend change (not made here).
+- The real claim guard flags the bare word "weather", so honest S8 refusals can register as `unsupported_fresh_fact_claim`; review S8 transcripts by hand.
+
+### Line counts
+All new files under 160 lines (largest: `scorer.py` 135, `config_check.py` 129, test file 155).
+
+HANDOFF CAPSULE
+- Objective:        Free offline harness for the model A/B (RQ-048).
+- Branch:           bounded/rq-048-model-ab-harness (draft PR).
+- Lane / ownership: scripts/model_ab, one backend test, this entry. No shared contracts touched.
+- Last proven state: 19 harness tests pass, dry-run plumbing, 2026-10-09.
+- Runtime state:    nothing started or left running.
+- Unresolved: usage logging; live driver deliberately absent; owner approval gate unmet.
+- Next safe action: coordinator review; owner decides the paid test (proposal section 7).
