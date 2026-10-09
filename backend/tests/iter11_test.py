@@ -49,14 +49,14 @@ class TestResearch:
     def test_research_haiku_uses_openai_fallback_or_503(self, s):
         r = s.post(f"{API}/research", json={"question": "what is a haiku"}, timeout=60)
         if r.status_code == 503:
-            assert "PERPLEXITY_API_KEY or OPENAI_API_KEY" in r.text
+            assert "CAOSCARE_RESEARCH_PROVIDER" in r.text
             return
         assert r.status_code == 200, r.text
         body = r.json()
         # Required fields
         assert "answer" in body and "citations" in body and "source" in body
         assert isinstance(body["citations"], list)
-        assert body["source"] in {"perplexity", "openai"}, f"unexpected source={body['source']} (full: {body})"
+        assert body["source"] in {"openai_web_search", "openai"}, f"unexpected source={body['source']} (full: {body})"
         # Non-empty answer
         assert isinstance(body["answer"], str) and len(body["answer"].strip()) > 10, body
 

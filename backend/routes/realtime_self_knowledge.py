@@ -15,8 +15,8 @@ def _system_self_knowledge() -> str:
     facts here, not improvisation. Update this block whenever the brand,
     capability set, or platform changes.
 
-    Capability claims are GROUNDED IN ACTUAL ENV CONFIG — if PERPLEXITY_API_KEY
-    isn't set, we don't claim 'live news'. Promising something CAOS can't
+    Capability claims are GROUNDED IN ACTUAL ENV CONFIG — if live research
+    (CAOSCARE_RESEARCH_PROVIDER=openai_web_search) isn't configured, we don't claim 'live news'. Promising something CAOS can't
     deliver is the worst possible trust failure: the resident will catch it
     and stop believing anything we say. Better to say 'I have what I learned
     in training' and let the resident be pleasantly surprised when more turns
@@ -25,7 +25,7 @@ def _system_self_knowledge() -> str:
         research_line = (
             "  • Look up LIVE current information — today's news, sports scores, "
             "stock prices, recipes, prayers, history, biographies — with real "
-            "sources. (Perplexity Sonar is connected.)\n"
+            "sources. (Web search with cited sources is connected.)\n"
         )
     else:
         research_line = (

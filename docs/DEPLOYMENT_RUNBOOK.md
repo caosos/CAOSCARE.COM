@@ -111,7 +111,7 @@ OPENAI_API_KEY=<approved-openai-key-if-ai-routes-are-used>
 OPENAI_TEXT_MODEL=gpt-4o-mini
 OPENAI_REALTIME_MODEL=gpt-realtime
 OPENAI_VOICE=sage
-PERPLEXITY_API_KEY=<approved-perplexity-key-if-live-research-is-used>
+CAOSCARE_RESEARCH_PROVIDER=none   # openai_web_search + OPENAI_RESEARCH_MODEL only by owner decision (docs/RESEARCH_PROVIDER.md)
 ```
 
 Backend AI, realtime, and research routes no longer require an Emergent key for import/startup. Missing provider keys should make provider-specific endpoints return HTTP 503 instead of blocking app import.

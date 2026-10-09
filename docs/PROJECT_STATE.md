@@ -8071,3 +8071,35 @@ HANDOFF CAPSULE
 - Runtime state:    nothing restarted; Room 214 page needs `ctl.sh rebuild` after merge.
 - Unresolved: prompt/tool-description honesty (backend, RQ-045); detection is regex, logging only.
 - Next safe action: coordinator review.
+
+---
+
+## 2026-10-09 — RQ-047: research backend on OpenAI Responses API web search (off by default)
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-047-responses-web-search` from `f106e50`. Draft PR into `integration/2026-09-27`. Not merged, not deployed, not enabled anywhere; no provider called (httpx stubbed); running services untouched.
+
+### What changed
+- New `routes/research_openai_search.py`: `POST {OPENAI_API_BASE}/responses` with `tools:[{"type":"web_search"}]`, `tool_choice: required`; parses `web_search_call` items and `url_citation` annotations (deduplicated).
+- `routes/research.py`: provider chosen by `CAOSCARE_RESEARCH_PROVIDER` (`none` default | `openai_web_search`); `OPENAI_RESEARCH_MODEL` required, no default model; optional `OPENAI_RESEARCH_TIMEOUT`, `OPENAI_RESEARCH_REASONING_EFFORT`. Perplexity removed. `live` true only with at least one search call AND one citation; else `live:false` + `note`. Not configured / model missing -> 503; HTTP error, timeout, malformed -> 502 (no fallback, no invented text). `ResearchOutput` adds `citations_detail`, `note`, `provenance` (model, response id, search call count, retrieved_at); `citations` stays a URL list.
+- `realtime_truth_rules.live_research_enabled()` = provider + key + model all set (one source of truth); self-knowledge text no longer names Perplexity.
+- Receipt: each call writes a `research_lookup` CaosEvent (question sha256 prefix and length only, provider, model, live, citation count, outcome, error code).
+- Frontend `researchShape.js`: live only if `live===true`, source `openai_web_search`, citations present; passes `citations_detail`.
+- Docs: `docs/RESEARCH_PROVIDER.md` (config, behaviour, enabling, rollback: `CAOSCARE_RESEARCH_PROVIDER=none` + restart), `.env.example`, runbook, BUILD_STATUS.
+
+### Verified
+- New `test_rq047_openai_web_search.py` (mocked provider): live with citations, searched-no-citations, no-search, 429/500/timeout/bad JSON/malformed/empty -> 502, 503 unconfigured, missing model, wording flips with `live_research_enabled`, receipt content. `test_rq045`, `iter11` updated.
+- Gate (port 8113, DB `caoscare_gate_rq047`, OpenAI/HA blank): 407 passed, 0 failed, 31 skipped. Frontend 48 suites / 404 tests; `CI=true yarn build` compiles.
+- NOT verified: a live provider call (owner-gated); the model name and whether `tool_choice: required` is accepted by the chosen model.
+
+### Line counts
+`research.py` 162, `research_openai_search.py` 130, `realtime_truth_rules.py` 69, `researchShape.js` 18, test 165.
+
+HANDOFF CAPSULE
+- Objective:        RQ-047 real research backend, off by default.
+- Branch:           bounded/rq-047-responses-web-search (draft PR).
+- Lane / ownership: research route, truth rules, researchShape.js, docs.
+- Last proven state: tests above, 2026-10-09.
+- Runtime state:    nothing restarted or enabled.
+- Unresolved: owner must choose OPENAI_RESEARCH_MODEL, approve one live smoke call and budget, then set the env and restart (no live lease).
+- Do NOT change:    enable on Room 214 without that decision.

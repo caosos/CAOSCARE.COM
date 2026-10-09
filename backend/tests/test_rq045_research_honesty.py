@@ -16,9 +16,11 @@ from routes.realtime_self_knowledge import _system_self_knowledge
 
 def _set_live(monkeypatch, on):
     if on:
-        monkeypatch.setenv("PERPLEXITY_API_KEY", "test-key")
+        monkeypatch.setenv("CAOSCARE_RESEARCH_PROVIDER", "openai_web_search")
+        monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+        monkeypatch.setenv("OPENAI_RESEARCH_MODEL", "test-model")
     else:
-        monkeypatch.delenv("PERPLEXITY_API_KEY", raising=False)
+        monkeypatch.delenv("CAOSCARE_RESEARCH_PROVIDER", raising=False)
 
 
 def test_text_without_live_provider(monkeypatch):
@@ -56,6 +58,7 @@ def test_built_tool_schema_follows_provider(monkeypatch):
 
 class _Resp:
     def __init__(self, data): self._d = data
+    status_code = 200
     def raise_for_status(self): pass
     def json(self): return self._d
 
@@ -65,14 +68,14 @@ class _Client:
     async def __aenter__(self): return self
     async def __aexit__(self, *a): return False
     async def post(self, url, json=None, headers=None):
-        return _Resp({"choices": [{"message": {"content": "an answer"}}], "citations": ["http://x"]})
+        return _Resp({"choices": [{"message": {"content": "an answer"}}]})
 
 
-def test_endpoint_live_flag(monkeypatch):
+def test_endpoint_not_live_without_provider(monkeypatch):
     monkeypatch.setattr(research.httpx, "AsyncClient", _Client)
-    _set_live(monkeypatch, True)
-    out = asyncio.run(research.research_topic("who won"))
-    assert out.source == "perplexity" and out.live is True
+
+    async def _noop(**k): return {}
+    monkeypatch.setattr(research, "log_event", _noop)
     _set_live(monkeypatch, False)
     monkeypatch.setattr(research, "OPENAI_API_KEY", "k")
     out = asyncio.run(research.research_topic("who won"))
