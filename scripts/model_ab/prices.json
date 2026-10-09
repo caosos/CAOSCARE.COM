@@ -1,0 +1,14 @@
+{
+  "_comment": "Per-1M-token USD prices. ONLY the figures recorded in docs/reports/2026-10-09-realtime-model-ab-proposal.md section 1 are present, each marked source: provider docs 2026-10-09, re-verify. Nothing else is invented; a missing number makes cost 'unknown' rather than guessed. Re-check the provider pricing page before relying on any value.",
+  "source": "provider docs 2026-10-09, re-verify",
+  "models": {
+    "gpt-realtime": {
+      "text_in": 4, "text_out": 16, "audio_in": 32, "audio_out": 64,
+      "cached_text_in": 0.4, "cached_audio_in": 0.4
+    },
+    "gpt-realtime-2.1-mini": {
+      "text_in": 0.6, "text_out": 2.4, "audio_in": 10, "audio_out": 20,
+      "cached_text_in": 0.06, "cached_audio_in": 0.3
+    }
+  }
+}
