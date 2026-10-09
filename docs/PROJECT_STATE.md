@@ -8167,3 +8167,31 @@ HANDOFF CAPSULE
 - Runtime state:    nothing restarted or deployed.
 - Unresolved: owner decisions (model, smoke call, budget, switch).
 - Next safe action: coordinator review.
+
+---
+
+## 2026-10-09 — RQ-050: claim enforcement feasibility and fail-closed interrupter (offline)
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-050-claim-enforcement` from `2f0e581`. Draft PR into `integration/2026-09-27`. Not merged, not deployed; no provider called; no service touched.
+
+### Finding
+Gating a false sentence before it is heard is not feasible without buffering all audio (real diagnostics: median 4.6 s, p90 9.9 s of playback per response) or replacing the realtime voice. Report: `docs/reports/2026-10-09-claim-enforcement-feasibility.md`.
+
+### What changed
+- `frontend/src/lib/claimInterrupter.js` (new, 125 lines): `REACT_APP_CLAIM_INTERRUPTER` off (default) / shadow / on. On a complete unsupported claim sentence: `response.cancel`, `output_audio_buffer.clear`, one corrective `response.create`. Never in-flight tools, emergency/live-line tools, questions/conditionals; once per turn.
+- `verifiedConfirmationEvent()`: in mode "on" the post-tool `response.create` carries the verified message.
+- `realtimeMessageHandler.js` wired (387 to 397 lines; pre-existing over 300, wiring only). Default behaviour unchanged.
+- Queue: RQ-051/052/053 added.
+
+### Verified
+Frontend 50 suites / 419 tests (new 11); `CI=true yarn build` compiles. Backend not touched (gate not run). Not verified: live behaviour, real leaked audio (shadow run needed).
+
+HANDOFF CAPSULE
+- Objective:        RQ-050 enforce or honestly bound claim detection.
+- Branch:           bounded/rq-050-claim-enforcement (draft PR).
+- Lane / ownership: frontend realtime lib only.
+- Last proven state: tests and build above, 2026-10-09.
+- Runtime state:    nothing restarted; flag unset.
+- Unresolved: leaked-audio measurement (RQ-051/052).
+- Next safe action: coordinator review; owner approves a shadow run.
