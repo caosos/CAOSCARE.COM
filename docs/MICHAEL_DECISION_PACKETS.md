@@ -96,3 +96,6 @@ Facts used here were read from the repo on 2026-10-08. Anything needing producti
 | d | RQ-002 Global Ask Aria governance (same Aria, page-aware, permission-scoped) | Approve in principle after P1; a worker can start once B1/B2 are merged |
 | e | `pilot/shared-core-rerequest`, `docs/care-app-audit-2026-10-03`, PR #45 | Archive (close) unless you want specific items |
 | f | Voice PE flashing | Wait for arrival; the package is on PR #46 and says do not flash |
+
+## P12. Research + model A/B approvals (consolidated, 2026-10-09)
+See `docs/OWNER_APPROVALS_RESEARCH_AND_AB.md`: one table (A model choice, B one smoke call, C live research switch, D model A/B, E Room 214 voice model) and one paste-ready approval line. Everything is built and tested offline; nothing paid or enabled.
