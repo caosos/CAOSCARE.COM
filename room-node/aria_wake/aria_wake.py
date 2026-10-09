@@ -45,6 +45,7 @@ from datetime import datetime, timezone
 import numpy as np
 import websockets
 
+from levels import LevelTracker
 from detector import (CHUNK, DEFAULT_KEYWORDS, DEFAULT_SCORE, DEFAULT_THRESHOLD, SAMPLE_RATE,  # noqa: F401
                       SilenceReset, StreamDetector, build_spotter, keyword_labels, spot)
 
@@ -56,6 +57,7 @@ MODEL_DIR = os.environ.get("ARIA_WAKE_MODEL_DIR", os.path.join(os.path.dirname(_
 KEYWORDS_FILE = os.environ.get("ARIA_WAKE_KEYWORDS", DEFAULT_KEYWORDS)
 KEYWORDS_SCORE = float(os.environ.get("ARIA_WAKE_KEYWORDS_SCORE", str(DEFAULT_SCORE)))
 KEYWORDS_THRESHOLD = float(os.environ.get("ARIA_WAKE_KEYWORDS_THRESHOLD", str(DEFAULT_THRESHOLD)))
+GAIN_DB = float(os.environ.get("ARIA_WAKE_GAIN_DB", "0"))   # input boost before the detector (default none)
 SOURCE = os.environ.get("ARIA_WAKE_SOURCE", "")  # PulseAudio source; empty = system default
 PENDING_WAKE_TIMEOUT_S = 20   # page never confirmed a conversation -> resume listening
 RESUME_COOLDOWN_S = 1.5       # ignore the tail of Aria's last words after a session ends
@@ -110,7 +112,7 @@ class Server:
 
     def info(self):
         return {"detector": "sherpa-onnx-kws", "model": os.path.basename(os.path.abspath(MODEL_DIR)),
-                "phrase": phrase_text(keyword_labels(KEYWORDS_FILE)), "keywords_file": os.path.basename(KEYWORDS_FILE), "keywords_score": KEYWORDS_SCORE, "keywords_threshold": KEYWORDS_THRESHOLD,
+                "phrase": phrase_text(keyword_labels(KEYWORDS_FILE)), "keywords_file": os.path.basename(KEYWORDS_FILE), "keywords_score": KEYWORDS_SCORE, "keywords_threshold": KEYWORDS_THRESHOLD, "gain_db": GAIN_DB,
                 "audio_input_device": self.device, "sample_rate": SAMPLE_RATE}
 
     async def broadcast(self, msg):
@@ -160,7 +162,8 @@ class Server:
         asyncio.run_coroutine_threadsafe(self.broadcast(wake), self.loop)
 
     def audio_loop(self):
-        det = StreamDetector(build_spotter(MODEL_DIR, KEYWORDS_FILE, KEYWORDS_THRESHOLD, KEYWORDS_SCORE))
+        det = StreamDetector(build_spotter(MODEL_DIR, KEYWORDS_FILE, KEYWORDS_THRESHOLD, KEYWORDS_SCORE), GAIN_DB)
+        levels = LevelTracker(GAIN_DB)
         cmd = ["parec", "--raw", "--format=s16le", f"--rate={SAMPLE_RATE}", "--channels=1",
                "--latency-msec=100", f"--device={self.device}"]
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
@@ -174,9 +177,14 @@ class Server:
             if self.state.reset_stream:
                 self.state.reset_stream = False
                 det.reset()
-            kw = det.feed(np.frombuffer(buf, dtype=np.int16).astype(np.float32) / 32768.0)
+            samples = np.frombuffer(buf, dtype=np.int16).astype(np.float32) / 32768.0
+            kw = det.feed(samples)
+            seg = levels.update(samples, self.state.mode)   # raw level, before gain; numbers only
             if kw:
+                levels.note_detection(suppressed=self.state.mode != "listening")
                 self.on_detect(kw)
+            if seg:
+                log("audio_level", **seg)
 
     async def run(self):
         self.loop = asyncio.get_running_loop()
@@ -228,7 +236,7 @@ if __name__ == "__main__":
         print(f"aria_wake: {problem}", file=sys.stderr)
         sys.exit(2)
     log("starting", phrase=phrase_text(labels), labels=labels, keywords_file=KEYWORDS_FILE, threshold=KEYWORDS_THRESHOLD,
-        score=KEYWORDS_SCORE, model_dir=MODEL_DIR, origins=ORIGINS)
+        score=KEYWORDS_SCORE, gain_db=GAIN_DB, model_dir=MODEL_DIR, origins=ORIGINS)
     try:
         asyncio.run(Server(resolve_source()).run())
     except KeyboardInterrupt:

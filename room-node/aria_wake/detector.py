@@ -43,6 +43,13 @@ def build_spotter(model_dir, keywords_file=DEFAULT_KEYWORDS, threshold=DEFAULT_T
     )
 
 
+def apply_gain(samples, gain_db):
+    """Scale float samples by gain_db and hard-limit to [-1, 1] so a boost can never wrap or overflow."""
+    if not gain_db:
+        return samples
+    return np.clip(samples * np.float32(10.0 ** (gain_db / 20.0)), -1.0, 1.0)
+
+
 def spot(spotter, stream, samples):
     """Feed one chunk; return the keyword if it completed in this chunk."""
     stream.accept_waveform(SAMPLE_RATE, samples)
@@ -85,11 +92,12 @@ class SilenceReset:
 
 class StreamDetector:
     """One audio stream through the spotter, exactly as the live listener runs it:
-    100 ms chunks, reset after a detection, reset at a pause that follows speech.
+    100 ms chunks, optional input gain (clipped), reset after a detection, reset at a pause that follows speech.
     The listener (aria_wake.py) and eval_offline.py both use this class."""
 
-    def __init__(self, spotter):
+    def __init__(self, spotter, gain_db=0.0):
         self.spotter = spotter
+        self.gain_db = gain_db
         self.stream = spotter.create_stream()
         self.silence = SilenceReset()
 
@@ -98,6 +106,7 @@ class StreamDetector:
 
     def feed(self, samples):
         """One chunk of float32 mono 16 kHz samples; returns the keyword label if it fired."""
+        samples = apply_gain(samples, self.gain_db)
         kw = spot(self.spotter, self.stream, samples)
         if not kw and self.silence.update(samples):
             self.reset()

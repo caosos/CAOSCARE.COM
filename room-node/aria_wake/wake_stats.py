@@ -18,6 +18,9 @@ What the log can and cannot say:
   suppressed          a detection while a conversation/pending wake was running
                       (Aria's own speech or the resident talking) - NOT acted on
   no_client           detected, but no room page was connected, so nothing happened
+  audio_level         one line per active-speech segment: peak/mean level (dBFS, raw input
+                      before ARIA_WAKE_GAIN_DB), noise floor, detections inside it. Used to
+                      tell a quiet attempt (level) from a loud one the detector missed.
 Which Realtime session a wake became is in the backend's activation events
 (wake_word_session_bound, admin timeline) - not reconstructed here.
 """
@@ -49,7 +52,7 @@ def read_jsonl(fh):
 def summarize(events, marks, since=None):
     s = {"wakes": 0, "confirmed": 0, "unconfirmed": 0, "no_client": 0, "suppressed": 0,
          "suppressed_by_mode": {}, "sessions": 0, "confirm_latency_s": [], "session_s": [],
-         "capture_restarts": 0, "refused_to_start": 0, "first": None, "last": None, "phrases": set()}
+         "capture_restarts": 0, "refused_to_start": 0, "segments": [], "first": None, "last": None, "phrases": set()}
     pending = None       # (wake time) awaiting page confirmation
     conv_start = None
     wake_times = []
@@ -86,6 +89,10 @@ def summarize(events, marks, since=None):
                 s["sessions"] += 1
                 s["session_s"].append((t - conv_start).total_seconds())
                 conv_start = None
+        elif ev == "audio_level":
+            s["segments"].append({"t": t, **{k: e.get(k) for k in (
+                "duration_s", "speech_frames", "peak_dbfs", "mean_dbfs", "noise_floor_dbfs", "gain_db",
+                "detections", "mode", "clipped_frames")}})
         elif ev == "capture_started":
             s["capture_restarts"] += 1
         elif ev == "refused_to_start":
@@ -99,7 +106,49 @@ def summarize(events, marks, since=None):
         if r["kind"] == "false" and any(0 <= (t - w).total_seconds() <= 30 for w in wake_times):
             m["false_matched_to_wake"] += 1
     s["marks"] = m
+    s["levels"] = level_summary(s["segments"], [r for r in marks if r["kind"] == "miss"
+                                                and not (since and parse_ts(r["at"]) < since)])
     return s
+
+
+def pctile(xs, p):
+    xs = sorted(xs)
+    return round(xs[min(len(xs) - 1, int(p / 100 * len(xs)))], 1) if xs else None
+
+
+def level_summary(segments, miss_marks, window_s=20.0):
+    """Active-speech segments split by outcome, plus the segments right before each miss mark."""
+    listening = [g for g in segments if g["mode"] == "listening"]
+    hit = [g for g in listening if g["detections"]]
+    nohit = [g for g in listening if not g["detections"]]
+    out = {"segments": len(segments), "listening": len(listening), "detected": len(hit), "undetected": len(nohit),
+           "clipped_segments": sum(1 for g in segments if g.get("clipped_frames")),
+           "peak_detected_p10_p50_p90": [pctile([g["peak_dbfs"] for g in hit], p) for p in (10, 50, 90)],
+           "peak_undetected_p10_p50_p90": [pctile([g["peak_dbfs"] for g in nohit], p) for p in (10, 50, 90)],
+           "misses": []}
+    for r in miss_marks:
+        t = parse_ts(r["at"])
+        near = [g for g in listening if 0 <= (t - g["t"]).total_seconds() <= window_s]
+        out["misses"].append({"at": r["at"], "note": r.get("note", ""), "segments_before": [
+            {"seconds_before": round((t - g["t"]).total_seconds(), 1), "duration_s": g["duration_s"],
+             "peak_dbfs": g["peak_dbfs"], "mean_dbfs": g["mean_dbfs"], "noise_floor_dbfs": g["noise_floor_dbfs"],
+             "detected": bool(g["detections"])} for g in near]})
+    return out
+
+
+def render_levels(lv):
+    if not lv["segments"]:
+        return ["audio levels: no audio_level events in the log (listener older than RQ-039, or no speech heard)"]
+    d, u = lv["peak_detected_p10_p50_p90"], lv["peak_undetected_p10_p50_p90"]
+    lines = [f"audio levels (raw input, dBFS): {lv['segments']} speech segments, {lv['listening']} while listening "
+             f"({lv['detected']} with a detection, {lv['undetected']} without), {lv['clipped_segments']} touched full scale",
+             f"  peak p10/p50/p90 - segments that woke: {d}   without a wake: {u}"]
+    for m in lv["misses"]:
+        lines.append(f"  miss mark {m['at']} {m['note']}: " + (
+            "; ".join(f"{g['seconds_before']} s before: {g['duration_s']} s, peak {g['peak_dbfs']}, mean {g['mean_dbfs']}, "
+                      f"floor {g['noise_floor_dbfs']}, {'woke' if g['detected'] else 'no wake'}" for g in m["segments_before"])
+            or "no speech segment logged in the 20 s before (the room was silent or the log is missing)"))
+    return lines
 
 
 def avg(xs):
@@ -118,6 +167,7 @@ def render(s, hours=None):
              f"capture (re)starts: {s['capture_restarts']}   refused to start: {s['refused_to_start']}",
              f"MARKED by Michael: miss={s['marks']['miss']}  false wake={s['marks']['false']} "
              f"(of which within 30 s after a logged wake: {s['marks']['false_matched_to_wake']})  notes={s['marks']['note']}"]
+    lines += render_levels(s["levels"])
     if hours:
         lines.append(f"false wakes per hour of ambient test: {s['marks']['false'] / hours:.2f} over {hours} h")
     return "\n".join(lines)
