@@ -8234,3 +8234,19 @@ HANDOFF CAPSULE
 - Runtime state:    nothing restarted; live Room 214 page does not have the telemetry until `ctl.sh rebuild` with the flag.
 - Unresolved: why raw speech resumed inside the hold was not registered by the server (needs processed-track levels).
 - Next safe action: owner rebuilds the page with the flag (no live lease) and runs the 5-minute test.
+
+---
+
+## 2026-10-09 — RQ-055: "end the call" must stop Aria (owner P0 da-5fa8c9ef00)
+
+Coordinator, frontend only. Report: `docs/reports/2026-10-09-end-call-control.md`. No live setting, wake threshold, service or deploy changed.
+- Cause (session `rt_t07bct8g_1791586152450`): the model called `end_call` on every attempt, but speech-to-text wrote the short English commands as Lithuanian/Arabic/Korean/Hindi, so the transcript guard refused 12 genuine requests; the "stop asking after two" rule made it worse.
+- Fix: local explicit end intent (`endIntent.js`), model-corroborated second `end_call` granted, one-way idempotent ENDING state with `response.cancel` + real `stop()` (`endController.js`); optional build-time English pin `REACT_APP_TRANSCRIPTION_LANGUAGE` (off).
+- Tests: frontend 54 suites / 468; the new tests drive the real hook + handler and assert tracks, peer and channel closed; four mutation checks fail as they should, including audit F2/F4 wiring. `realtimeMessageHandler.js` 411 lines (pre-existing over 300; end logic extracted to `endController.js`).
+
+HANDOFF CAPSULE
+- Objective:        RQ-055 reliable owner dismissal.
+- Branch:           integration/2026-09-27 (merged from bounded/rq-055-end-control)
+- Runtime state:    nothing restarted; the live page needs `ctl.sh rebuild` to pick this up.
+- Unresolved: speech-to-text language detection on short commands (owner choice: pin English); real WebRTC disconnect not covered offline.
+- Next safe action: owner rebuilds the page (no live lease) and runs the two-minute test in the report section 4.

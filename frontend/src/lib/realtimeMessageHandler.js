@@ -30,6 +30,8 @@ import { createClaimInterrupter, claimInterrupterMode, verifiedConfirmationEvent
 import { logRealtimeEvent, transcriptionConfidence, LOW_CONFIDENCE_THRESHOLD } from "./realtimeDiagnostics";
 import { reenableAutoResponse, createGreetingResponseGate } from "./realtimeAutoResponseGate";
 import { createHangupScheduler } from "./endCallHangup";
+import { classifyEndIntent, turnMayEnd } from "./endIntent";
+import { createEndController } from "./endController";
 import { createTurnGroundingTracker } from "./realtimeTurnGrounding";
 import { typedTurnFromMessage, TYPED_TURN_CLASS, onTypedEcho, onTypedResponseCreated, onTypedResponseDone } from "./realtimeTypedTurn";
 
@@ -109,11 +111,10 @@ export function createRealtimeHandlers({
   let lastPlaybackStoppedAt = null;
   const greetingGate = createGreetingResponseGate({ send, caos, greetingCreateResponseOffRef });
   let endCallKind = "resident_end_call";
+  // RQ-055 ending state machine (endController.js): after endNow() every later event is ignored.
+  const endCtl = createEndController({ send, stop, onEndCall, log: (type, d) => logRealtimeEvent(sessionIdRef.current, type, d) });
   const hangup = createHangupScheduler({ // waits for the goodbye audio (endCallHangup.js)
-    onClose: () => {
-      try { stop(endCallKind); } catch {}
-      try { onEndCall?.(); } catch {}
-    },
+    onClose: () => endCtl.endNow(endCallKind, "end_call_tool"),
   });
   const turnGrounding = createTurnGroundingTracker(); // see realtimeTurnGrounding.js
   const farewellWatch = createFarewellWatch((type, d) => logRealtimeEvent(sessionIdRef.current, type, d));
@@ -154,12 +155,18 @@ export function createRealtimeHandlers({
 
   // Helper: dispatch a tool call coming from the model
   const handleFunctionCall = async (fn) => {
+    if (endCtl.ended) return;
     let parsed = {};
     try { parsed = fn.arguments ? JSON.parse(fn.arguments) : {}; } catch {}
     logRealtimeEvent(sessionIdRef.current, "tool_call", { meta: { name: fn.name, args: parsed } });
     claimInterrupter.onToolStart(fn.name);
     const cls = await turnGrounding.waitForGroundedTurn();
-    const result = await executeTool({ name: fn.name, args: parsed, ctx: { ...ctxRef.current, turn_suspect: cls.suspect, turn_suspect_reason: cls.reason, last_user_text: cls.text || "" } });
+    let result = await executeTool({ name: fn.name, args: parsed, ctx: { ...ctxRef.current, turn_suspect: cls.suspect, turn_suspect_reason: cls.reason, last_user_text: cls.text || "" } });
+    const isEnd = fn.name === "end_call" || fn.name === "end_conversation";
+    // The model heard an ending the transcript lost (RQ-055): its second
+    // end request in a row is granted instead of asking "are you sure?" again.
+    if (isEnd && !result?.ok) result = endCtl.corroborate(cls.reason) || result;
+    if (endCtl.ended) return;
     logRealtimeEvent(sessionIdRef.current, "tool_result", { meta: { name: fn.name, result } });
     claimGuard.onToolResult(fn.name, result);
     claimInterrupter.onToolResult(fn.name, result);
@@ -224,7 +231,7 @@ export function createRealtimeHandlers({
   };
 
   const onMessage = (ev) => {
-    if (myGen !== startGenRef.current) return;
+    if (myGen !== startGenRef.current || endCtl.ended) return;
     let msg;
     try { msg = JSON.parse(ev.data); } catch { return; }
 
@@ -341,14 +348,21 @@ export function createRealtimeHandlers({
       // ever persisted. Every real turn is now durably saved the moment
       // it's known, independent of whatever arrives next.
       postTurn("user", userText, msg.item_id, !cls.suspect);
+      const endIntent = classifyEndIntent(userText);
       logRealtimeEvent(sessionIdRef.current, "user_transcript", {
         text: userText, assistantSpeaking: cls.suspect,
         meta: {
           confidence, low_confidence: lowConfidence, turn_class_reason: cls.reason,
           speech_segment_ms: lastSpeechSegmentMs,
           ms_since_assistant_stopped: lastPlaybackStoppedAt ? Date.now() - lastPlaybackStoppedAt : null,
+          end_intent: endIntent,
         },
       });
+      // RQ-055: a clear spoken ending ends the call here, without asking the
+      // model to choose a tool. Echo of Aria's own words never ends it.
+      if (endIntent === "explicit" && turnMayEnd(cls.reason)) {
+        endCtl.endNow("resident_end_call", "transcript", { turn_class_reason: cls.reason });
+      }
     }
     // FIXED 2026-08-09 (real, confirmed bug): the current Realtime API
     // emits this as response.output_audio_transcript.done, not

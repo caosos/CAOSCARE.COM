@@ -60,7 +60,11 @@ export function buildSessionUpdate({ caos, voice }) {
           // recognition even when the resident speaks Spanish or switches
           // mid-sentence (Michael's "dos savor" case). Omitting the hint
           // lets the model auto-detect the spoken language per turn instead.
-          transcription: { model: "gpt-4o-transcribe" },
+          // RQ-055 (owner decision, OFF by default): build the page with
+          // REACT_APP_TRANSCRIPTION_LANGUAGE=en to pin recognition to English.
+          // Evidence: Room 214 rt_t07bct8g, short English commands such as
+          // "end the call" were written as Lithuanian/Arabic/Korean/Hindi text.
+          transcription: { model: "gpt-4o-transcribe", ...(process.env.REACT_APP_TRANSCRIPTION_LANGUAGE ? { language: process.env.REACT_APP_TRANSCRIPTION_LANGUAGE } : {}) },
           ...(caos.noise_reduction ? { noise_reduction: caos.noise_reduction } : {}),
           ...(caos.turn_detection ? { turn_detection: { ...caos.turn_detection, create_response: false } } : {}),
         },
