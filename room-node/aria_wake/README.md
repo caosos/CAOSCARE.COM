@@ -171,6 +171,34 @@ framing, not a real gap between the phrases. Read speech is calmer than a room w
 conversation, so 0/h on the soak is NOT a prediction of the real false-wake rate; the
 2026-09-24 single-word wakes came from live background speech. The physical soak decides.
 
+## Threshold / score sweep (2026-10-08, SYNTHETIC audio through the real detector)
+
+`eval_sweep.py` runs the lab's positives (924 clips: clean, quiet -20 dB, far reverb, noise SNR 10, TV speech SNR 5, slow, fast), 952 adversarial phrases and 5.6 h of LibriSpeech soak through the same `StreamDetector` the listener uses. Gain 0 only; the +6/+10 dB gain runs were not completed (the soak-inclusive run was too slow on this host and was stopped), so `ARIA_WAKE_GAIN_DB` is provided but **unevaluated**. Synthetic voices and read speech: not a substitute for Room 214.
+
+| threshold | score | hits /924 | far-field /132 | quiet /132 | TV speech /132 | adversarial false /952 | soak false wakes (5.6 h) |
+|---|---|---|---|---|---|---|---|
+| 0.05 | 1.0 | 647 (70%) | 63 | 86 | 38 | 8 | 0 |
+| 0.05 | 1.5 | 693 (75%) | 74 | 89 | 51 | 12 | 0 | **(live since 2026-10-08 18:04)**
+| 0.05 | 2.0 | 700 (76%) | 77 | 90 | 53 | 13 | 0 |
+| 0.08 | 1.0 | 647 (70%) | 63 | 86 | 38 | 8 | 0 |
+| 0.08 | 1.5 | 688 (74%) | 72 | 89 | 50 | 12 | 0 |
+| 0.08 | 2.0 | 673 (73%) | 69 | 90 | 52 | 12 | 0 |
+| 0.1 | 1.0 | 644 (70%) | 60 | 86 | 38 | 8 | 0 |
+| 0.1 | 1.5 | 668 (72%) | 62 | 89 | 49 | 12 | 0 |
+| 0.1 | 2.0 | 655 (71%) | 62 | 89 | 50 | 11 | 0 |
+| 0.12 | 1.0 | 640 (69%) | 57 | 86 | 38 | 8 | 0 |
+| 0.12 | 1.5 | 652 (71%) | 56 | 87 | 49 | 11 | 0 |
+| 0.12 | 2.0 | 617 (67%) | 51 | 77 | 48 | 8 | 0 |
+| 0.15 | 1.0 | 629 (68%) | 52 | 85 | 37 | 8 | 0 | (previous)
+| 0.15 | 1.5 | 615 (67%) | 40 | 83 | 46 | 9 | 0 |
+| 0.15 | 2.0 | 557 (60%) | 34 | 71 | 42 | 5 | 0 |
+
+Rule applied: recall must improve materially, soak false wakes <= 0.2 per hour, adversarial false wakes <= 2x the previous setting (8 -> 16). 0.05 / 1.5 gives 75% vs 68%, far-field 74 vs 52, 12 adversarial false (all `hey area`/`hay area`/`hey Ari` class), 0 soak false wakes. 0.05 / 2.0 gives 76% but 13 adversarial false. The listener reads these from `ARIA_WAKE_KEYWORDS_THRESHOLD` / `ARIA_WAKE_KEYWORDS_SCORE`; the live values are set in `~/.config/aria-wake/aria-wake.env`, not in code defaults (defaults remain 0.15 / 1.0).
+
+## Level logging
+
+The listener emits one `audio_level` JSON line per active-speech segment (peak/mean dBFS, speech frames, noise floor, gain in force, detections inside the segment, mode). Numbers only; no samples are kept. The sherpa-onnx result has no per-keyword score (checked, v1.13.8), so a near-miss cannot be scored; the level tells a quiet attempt from a loud one. `wake_stats.py summary` includes them.
+
 ## Tests
 
 `.venv/bin/python -m pytest test_aria_wake.py` (state machine + silence reset;
