@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "updated_at": "2026-10-09T02:55:00Z",
+  "updated_by": "caoscare coordinator (integration/2026-09-27)",
+  "ready_unblocked": [],
+  "workers": [],
+  "questions": [],
+  "waiting_owner": [
+    "real drivers/vehicles/hours", "hardware facts (Pilot Room 1)", "email provider/domain/addresses",
+    "telephony accounts/hardware", "storage cleanup Phase 2", "HA host protections", "release/deploy approval",
+    "PR #67 adoption", "security B-list decisions"
+  ],
+  "note": "Kept current by the coordinator at every state change. ready_unblocked = approved bounded work with no owner dependency; the heartbeat probe wakes the coordinator only when it, workers, questions or unacknowledged intake items need attention."
+}

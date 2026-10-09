@@ -25,3 +25,22 @@ ACK <item_id> <note>
 
 ## Tests
 `~/CAOSCARE-INTEGRATION/backend/.venv/bin/python3 -m pytest scripts/owner_intake` (stub `gh`, no network).
+
+## Delivery states, observed (2026-10-08 evening, truthful distinction)
+| State | Meaning | Proof |
+|---|---|---|
+| POSTED | Michael's text is on GitHub | the issue comment itself |
+| DELIVERED | Desktop-Agent polled it, assigned `da-<hex>` and handed it to this session as a Claude Code peer message; it also posts a DELIVERED comment | the DELIVERED comment + its receipt |
+| ACKNOWLEDGED | the coordinator posted `ACK <item_id>` (marker line first) | the ACK comment + `receiver.py` ledger row |
+| ACTED | a status `WORKING/BLOCKED/DONE <item_id>` with the evidence | that comment + commit/receipt it cites |
+
+- A new GitHub comment alone does **not** start a Claude turn: nothing in GitHub reaches the CLI. Only Desktop-Agent's peer message does.
+- Observed here: when the session is **idle** at its prompt, a peer message starts a processing turn by itself (this heartbeat item, da-46a126825e, and the earlier backfill items did exactly that). When the session is **mid-turn**, it is queued and read at the next tool round. If the session is not running at all, nothing is delivered; the issue comment remains the durable record.
+
+## Heartbeat (RQ-044): bounded and LLM-free
+Desktop-Agent is the single central monitor; CAOSCare adds no poller. To wake the coordinator only when there is something to read:
+1. The coordinator keeps `docs/status/COORDINATOR_STATUS.json` current at every state change (`ready_unblocked`, `workers`, `questions`, `waiting_owner`).
+2. On its own schedule Desktop-Agent runs `python3 scripts/owner_intake/heartbeat_probe.py` (stdlib only, no network, no model, no posting) and gets `{"verdict": "WAKE"|"IDLE", "reasons": [...]}`.
+3. IDLE: it does nothing (cost zero). WAKE: it sends one peer message `DA-HEARTBEAT reasons=...` to the coordinator session; the coordinator reads the reasons, acts or answers, and ACKs through the normal comment.
+WAKE reasons: ready unblocked work or an open question in the status file; a listed worker's worktree untouched for 45 min; an intake item received but not ACKed for 30 min. Everything else is IDLE. It cannot interrupt Room 214 (it never touches the services, the leases or any audio) and installs nothing on the host.
+Limit: it can only reach a live session. If no Claude session is running, the heartbeat has no one to wake; the verdict is still logged by Desktop-Agent and the next owner/operator start reads the status file.
