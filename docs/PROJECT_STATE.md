@@ -7961,7 +7961,7 @@ Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-041-end-call-suspec
 - **(b)** `end_call` tool description and the companion persona now say: never say goodbye/goodnight to end an exchange unless calling `end_call` in the same turn; if unsure, ask. New `farewellWatch.js` logs `farewell_without_end_call` (realtime diagnostics) when an assistant transcript contains a farewell and the response has no end_call/end_conversation call. Observability only; no auto hang-up.
 
 ### Verified
-Frontend 47 suites / 395 tests (baseline 389; +3 farewell, +3 guard); `CI=true yarn build` compiles. Backend gate (port 8111, DB `caoscare_gate_rq041`): see PR body; +1 schema test. Not verified: live spoken run; whether the model obeys the new wording.
+Frontend 47 suites / 395 tests (baseline 389; +3 farewell, +3 guard); `CI=true yarn build` compiles. Backend gate (port 8111, DB `caoscare_gate_rq041`): 387 passed, 0 failed, 31 skipped (+1 schema test). Not verified: live spoken run; whether the model obeys the new wording.
 
 ### Line counts
 `realtimeMessageHandler.js` 380 (was 376, pre-existing over 300; logic extracted to `farewellWatch.js` 26), `realtimeDeviceTools.js` 320 (was 315, pre-existing over 300), `realtime_tools.py` 259, `realtime_companion_prompt.py` 293.

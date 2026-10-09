@@ -45,8 +45,7 @@ def test_end_call_description_is_restricted():
 
 
 def test_rq041_end_call_forbids_unprompted_farewell():
-    from routes.realtime_tools import _build_tools
-    d = {t["name"]: t for t in _build_tools()}["end_call"]["description"]
+    d = _end_call()["description"]
     assert "NEVER say goodbye or goodnight" in d
     assert "same turn" in d
     from routes.realtime_companion_prompt import _build_companion_instructions  # noqa: F401
