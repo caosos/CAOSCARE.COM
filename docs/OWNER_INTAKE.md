@@ -44,3 +44,12 @@ Desktop-Agent is the single central monitor; CAOSCare adds no poller. To wake th
 3. IDLE: it does nothing (cost zero). WAKE: it sends one peer message `DA-HEARTBEAT reasons=...` to the coordinator session; the coordinator reads the reasons, acts or answers, and ACKs through the normal comment.
 WAKE reasons: ready unblocked work or an open question in the status file; a listed worker's worktree untouched for 45 min; an intake item received but not ACKed for 30 min. Everything else is IDLE. It cannot interrupt Room 214 (it never touches the services, the leases or any audio) and installs nothing on the host.
 Limit: it can only reach a live session. If no Claude session is running, the heartbeat has no one to wake; the verdict is still logged by Desktop-Agent and the next owner/operator start reads the status file.
+
+## End-to-end proof (dummy test, 2026-10-08 21:50-21:52 CDT)
+| Step | Time (UTC) | Evidence |
+|---|---|---|
+| POSTED (labelled DUMMY, no care request) | 02:50:58 | comment 6073255443 |
+| DELIVERED (Desktop-Agent peer message + DELIVERED comment) | 02:51:53 (55 s) | DELIVERED comment names the live session; the peer message reached this session at its next tool round |
+| ACKNOWLEDGED (`ACK da-a7402413a7`, marker first) | 02:51:58 (5 s after delivery) | comment + `receiver.py` ledger rows (`received`, `status ACK posted`) |
+| ACTED | n/a | dummy, no action taken |
+Not exercised by this test: the delivery was received mid-turn (queued to the next tool round); an idle-wake was observed earlier the same evening (items da-46a126825e and the backfill items began new turns). The heartbeat probe exists and returns IDLE now, but **Desktop-Agent has not yet wired it** to send `DA-HEARTBEAT`; until it does, "wake for queued READY work" is not verified.
