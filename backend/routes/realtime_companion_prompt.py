@@ -11,6 +11,7 @@ from routes.realtime_self_knowledge import _system_self_knowledge
 from routes.realtime_facility import _facility_now, greeting_note
 from routes.realtime_companion_memory import build_resident_profile_and_memory
 from routes.realtime_context_tail import render_context_tail
+from routes.realtime_truth_rules import research_prompt_line, TRUTH_INVARIANTS
 
 
 async def _build_companion_instructions(
@@ -216,13 +217,8 @@ async def _build_companion_instructions(
         "If they correct what you call them, call `update_preferred_name` "
         "right away so the correction sticks for the rest of this call AND "
         "future calls. Do not keep using the old name.\n"
-        "You also have tools to **look things up on the live web** "
-        "(`research_topic`), check the **weather** (`get_weather`), check "
-        "the **current time and date** (`get_current_time`), and **set "
-        "reminder timers** (`set_timer`). Use these freely. If the resident "
-        "asks about today's news, a sports score, what's happening in the "
-        "world, what the weather will be, or what time it is — CALL THE "
-        "TOOL. Do NOT guess from memory.\n"
+        + research_prompt_line()
+        + TRUTH_INVARIANTS +
         "\n"
         "## How to be more than Alexa\n"
         "Alexa reads canned answers. You are a companion. When you research "

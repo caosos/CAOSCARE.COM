@@ -15,6 +15,7 @@ from routes.realtime_device_tools import _build_device_tools
 from routes.realtime_display_tools import _build_display_tools
 from routes.realtime_interpretation_tools import _build_interpretation_tools
 from routes.resident_requests import get_request_categories
+from routes.realtime_truth_rules import research_tool_description
 
 
 async def _build_tools() -> list[dict]:
@@ -155,13 +156,7 @@ async def _build_tools() -> list[dict]:
         {
             "type": "function",
             "name": "research_topic",
-            "description": (
-                "Look up real-world information on the live web — current events, news, "
-                "sports scores, history, recipes, prayers, biographies, anything. Use "
-                "freely whenever the resident asks a factual question you cannot answer "
-                "from memory. After getting the result, read it aloud naturally — do "
-                "NOT just dump the text. Speak like a friend who just read about it."
-            ),
+            "description": research_tool_description(),
             "parameters": {
                 "type": "object",
                 "properties": {

@@ -3,7 +3,7 @@ say about the platform itself). Split out of realtime_tools.py so neither
 file crowds the 400-line code-file cap - see that file for the sibling
 _build_tools() tool-schema catalog.
 """
-import os
+from routes.realtime_truth_rules import live_research_enabled
 
 
 def _system_self_knowledge() -> str:
@@ -21,8 +21,7 @@ def _system_self_knowledge() -> str:
     and stop believing anything we say. Better to say 'I have what I learned
     in training' and let the resident be pleasantly surprised when more turns
     on later, than to over-promise and apologize."""
-    perplexity_live = bool(os.environ.get("PERPLEXITY_API_KEY", "").strip())
-    if perplexity_live:
+    if live_research_enabled():
         research_line = (
             "  • Look up LIVE current information — today's news, sports scores, "
             "stock prices, recipes, prayers, history, biographies — with real "

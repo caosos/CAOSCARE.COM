@@ -20,11 +20,11 @@ from typing import List
 import httpx
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
+from routes.realtime_truth_rules import live_research_enabled
 
 router = APIRouter(prefix="/research", tags=["research"])
 logger = logging.getLogger(__name__)
 
-PERPLEXITY_API_KEY = os.environ.get("PERPLEXITY_API_KEY", "").strip()
 PERPLEXITY_ENDPOINT = "https://api.perplexity.ai/chat/completions"
 PERPLEXITY_MODEL = "sonar"   # fast, cost-effective; "sonar-pro" for deeper retrieval
 
@@ -41,6 +41,7 @@ class ResearchOutput(BaseModel):
     answer: str
     citations: List[str] = Field(default_factory=list)
     source: str   # "perplexity" | "openai" | "none"
+    live: bool = False   # True only when answered by the live provider
 
 
 SYSTEM_PROMPT = (
@@ -64,7 +65,7 @@ async def _ask_perplexity(question: str) -> ResearchOutput:
         "temperature": 0.4,
     }
     headers = {
-        "Authorization": f"Bearer {PERPLEXITY_API_KEY}",
+        "Authorization": f"Bearer {os.environ.get('PERPLEXITY_API_KEY', '').strip()}",
         "Content-Type": "application/json",
     }
     async with httpx.AsyncClient(timeout=25.0) as client:
@@ -73,7 +74,7 @@ async def _ask_perplexity(question: str) -> ResearchOutput:
         data = r.json()
     text = (data.get("choices") or [{}])[0].get("message", {}).get("content", "").strip()
     citations = data.get("citations") or []
-    return ResearchOutput(answer=text, citations=citations, source="perplexity")
+    return ResearchOutput(answer=text, citations=citations, source="perplexity", live=True)
 
 
 async def _ask_openai(question: str) -> ResearchOutput:
@@ -98,13 +99,13 @@ async def _ask_openai(question: str) -> ResearchOutput:
         r.raise_for_status()
         data = r.json()
     text = (data.get("choices") or [{}])[0].get("message", {}).get("content", "").strip()
-    return ResearchOutput(answer=text, citations=[], source="openai")
+    return ResearchOutput(answer=text, citations=[], source="openai", live=False)
 
 
 async def research_topic(question: str) -> ResearchOutput:
     """Entry point used by the AI tool dispatcher. Tries Perplexity first
     for live sources, then OpenAI for non-live fallback answers."""
-    if PERPLEXITY_API_KEY:
+    if live_research_enabled():
         try:
             return await _ask_perplexity(question)
         except httpx.HTTPStatusError as e:
