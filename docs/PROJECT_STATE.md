@@ -7965,7 +7965,7 @@ Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-042-owner-intake` f
 `scripts/owner_intake/tests` 8 passed with a stub `gh` (ingest once, restart/dedup, cursor + `since`, coordinator marker skipped, untrusted skipped, gh failure keeps cursor + backoff, item cap, status post dedup, missing tmux pane). Not verified against live GitHub or a real timer run.
 
 ### Line counts
-`poll.py` 288, `test_poll.py` 133.
+`poll.py` 318 (single cohesive script, inside the 300-400 band), `test_poll.py` 146.
 
 HANDOFF CAPSULE
 - Objective:        Reliable owner-comment intake for the coordinator host.
