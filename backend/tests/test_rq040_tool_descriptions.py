@@ -42,3 +42,13 @@ def test_end_call_description_is_restricted():
     assert "NEVER call it for a statement about the test, the wake word" in d
     assert "thanks alone" in d
     assert "do NOT call it again until the resident has answered" in d
+
+
+def test_rq041_end_call_forbids_unprompted_farewell():
+    d = _end_call()["description"]
+    assert "NEVER say goodbye or goodnight" in d
+    assert "same turn" in d
+    from routes.realtime_companion_prompt import _build_companion_instructions  # noqa: F401
+    import inspect, routes.realtime_companion_prompt as m
+    src = inspect.getsource(m).replace('"\n        "', "")  # join adjacent string literals
+    assert "same turn as `end_call`" in src

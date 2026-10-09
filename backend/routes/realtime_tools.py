@@ -235,7 +235,10 @@ async def _build_tools() -> list[dict]:
                 "quiet but stays connected). NEVER call it for a statement about the "
                 "test, the wake word or how well you work, for a question, or for "
                 "thanks alone. If the result is a refusal or a question, do NOT call it "
-                "again until the resident has answered. After a successful call, say one "
+                "again until the resident has answered. NEVER say goodbye or goodnight to "
+                "end an exchange unless you are calling this tool in the same turn; if "
+                "you are unsure the resident wants to end, ask instead of saying "
+                "goodbye. After a successful call, say one "
                 "short warm goodbye and then stop talking — the kiosk will tear down the "
                 "connection."
             ),

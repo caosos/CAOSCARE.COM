@@ -24,6 +24,7 @@ import { executeOperationsTool } from "./realtimeOperationsTools";
 import { executeDeviceTool } from "./realtimeDeviceTools";
 import { executeDisplayTool } from "./realtimeDisplayTools";
 import { executeCareTool, ringLiveLineOnSilence } from "./realtimeCareControl";
+import { createFarewellWatch } from "./farewellWatch";
 import { logRealtimeEvent, transcriptionConfidence, LOW_CONFIDENCE_THRESHOLD } from "./realtimeDiagnostics";
 import { reenableAutoResponse, createGreetingResponseGate } from "./realtimeAutoResponseGate";
 import { createHangupScheduler } from "./endCallHangup";
@@ -113,6 +114,7 @@ export function createRealtimeHandlers({
     },
   });
   const turnGrounding = createTurnGroundingTracker(); // see realtimeTurnGrounding.js
+  const farewellWatch = createFarewellWatch((type, d) => logRealtimeEvent(sessionIdRef.current, type, d));
   const typedItemsSeen = new Set(); // typed-turn echoes, once each (realtimeTypedTurn.js)
 
   // Saves one turn immediately, independently - no pairing, no waiting on
@@ -288,6 +290,7 @@ export function createRealtimeHandlers({
       // createGreetingResponseGate's docstring in realtimeAutoResponseGate.js.
       greetingGate.onResponseDone();
       hangup.onResponseDone();
+      farewellWatch.onResponseDone(msg.response);
     }
     if (msg.type === "response.created" && typedTurnRef?.current) onTypedResponseCreated(typedTurnRef.current);
     if (msg.type === "response.created") {
@@ -345,6 +348,7 @@ export function createRealtimeHandlers({
       const aiText = msg.transcript || "";
       setTranscript((t) => [...t, { role: "assistant", text: aiText, ts: Date.now() }]);
       logRealtimeEvent(sessionIdRef.current, "assistant_transcript", { text: aiText });
+      farewellWatch.onAssistantTranscript(aiText);
       lastAssistantText = aiText; // for classifyUserTurn()'s echo-resemblance check
       // Saved immediately and independently - see the matching comment on
       // the user-transcript handler above for why pairing was removed.
