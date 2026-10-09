@@ -241,6 +241,8 @@ lane to change Aria's code.
 - **Execution stays with trusted systems.** Room control, real calls, staff notification and audited actions are tied to actual systems and receipts; a model answer alone cannot execute them.
 - **What this does NOT authorize:** starting paid API calls, provisioning credentials, raising a budget, deploying to the pilot, or changing live Room 214 settings. Each needs a separate explicit owner decision. Wake settings (0.05 / 1.5) are unaffected.
 
+- **Refinement (owner, 2026-10-09, item da-6b2a1321d1):** the resident voice model is chosen as the **least expensive, low-latency model that demonstrably passes the quality/reliability criteria** - not a frontier/reasoning model by default; CAOSCare is principally a voice companion and a trustworthy router to existing tools. Current default `gpt-realtime` (`OPENAI_REALTIME_MODEL`); candidate `gpt-realtime-2.1-mini`. Text-only models (e.g. `gpt-4o-mini`) cannot replace the voice model without changing the voice architecture but already serve the text routes. A/B plan and the exact paid-test approval gate: `docs/reports/2026-10-09-realtime-model-ab-proposal.md`. No paid test and no model change without the separate owner decisions listed there.
+
 **Next implementation and gate (not started):** RQ-047 - `research_topic` backend uses the Responses API web search (same vendor/key), returns citations and a `live: true` flag only when it genuinely searched; stubbed tests (no paid calls) for live/non-live/failure; a single owner-approved live smoke call and budget confirmation before enabling it on Room 214. Until then research stays non-live and Aria says so.
 
 ---
