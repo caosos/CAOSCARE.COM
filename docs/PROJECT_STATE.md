@@ -8014,7 +8014,7 @@ Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-043-built-room-page
 - Not verified: the wake WebSocket handshake from the built page (stub backend returns no resident, so the page does not start the wake client); units not installed or started; guard refusal path with a live lease not exercised.
 
 ### Line counts
-`serve_built.js` 84, `ctl.sh` 109, `serve_built.test.js` 47.
+`serve_built.js` 76, `ctl.sh` 114, `serve_built.test.js` 43.
 
 HANDOFF CAPSULE
 - Objective:        Room page immune to dev-server hot reload.
