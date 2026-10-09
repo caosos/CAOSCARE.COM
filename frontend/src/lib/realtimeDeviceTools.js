@@ -12,7 +12,7 @@
  * phantom transcript. A false transcript must never silently become a
  * durable profile fact.
  */
-import { checkEnding } from "./endingPhrases";
+import { checkEnding, ENDING_PHRASES } from "./endingPhrases";
 import { API } from "./api";
 import { nearestColorName, colorTempLabel, handleToggleLight } from "./realtimeLightControl";
 import { findDeviceGuarded } from "./deviceAmbiguity";
@@ -298,7 +298,12 @@ export async function executeDeviceTool({ name, args, ctx }) {
     // natural confirmation instead of silent compliance -
     // handleFunctionCall (realtimeMessageHandler.js) only tears down the
     // connection when ok:true comes back from here.
-    if (ctx?.turn_suspect) {
+    // RQ-041: a turn flagged only "uncertain_fragment" (short speech that
+    // overlapped Aria and does NOT resemble her own words) is accepted when
+    // its words are an explicit ending ("Goodnight, goodbye."). echo_like /
+    // repeated_tiny_fragments stay refused - the 2026-08-22 phantom "and".
+    const heardEnding = ctx?.turn_suspect_reason === "uncertain_fragment" && ENDING_PHRASES.test((ctx?.last_user_text || "").trim());
+    if (ctx?.turn_suspect && !heardEnding) {
       return { ok: false, message: "Just to double-check — did you want me to end our conversation?" };
     }
     // Structural grounding (2026-08-30) - see ENDING_PHRASES above. A real

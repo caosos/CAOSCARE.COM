@@ -90,3 +90,22 @@ test("missing last_user_text does not fire either tool", async () => {
   expect(rest.ok).toBe(false);
   expect(end.ok).toBe(false);
 });
+
+// RQ-041 (Room 214 2026-10-08, rt_zu1x1e37): "Goodnight, goodbye." spoken over Aria was
+// classed uncertain_fragment and wrongly refused.
+test("RQ-041: uncertain_fragment turn with an explicit ending is accepted", async () => {
+  const r = await executeDeviceTool({ name: "end_call", args: {}, ctx: ctx("Goodnight, goodbye.", { session_id: "rq041a", turn_suspect: true, turn_suspect_reason: "uncertain_fragment" }) });
+  expect(r.ok).toBe(true);
+});
+
+test("RQ-041: uncertain_fragment turn that is not an ending is still refused", async () => {
+  const r = await executeDeviceTool({ name: "end_call", args: {}, ctx: ctx("and", { session_id: "rq041b", turn_suspect: true, turn_suspect_reason: "uncertain_fragment" }) });
+  expect(r.ok).toBe(false);
+});
+
+test("RQ-041: echo_like and repeated_tiny_fragments turns stay refused even with ending words", async () => {
+  for (const reason of ["echo_like", "repeated_tiny_fragments"]) {
+    const r = await executeDeviceTool({ name: "end_call", args: {}, ctx: ctx("goodbye", { session_id: "rq041c" + reason, turn_suspect: true, turn_suspect_reason: reason }) });
+    expect(r.ok).toBe(false);
+  }
+});

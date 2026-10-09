@@ -7948,3 +7948,29 @@ HANDOFF CAPSULE
 - Runtime state:    nothing restarted or deployed.
 - Unresolved: live behavior of the model with the new descriptions.
 - Next safe action: coordinator review; Michael retests with two TVs/lights if available.
+
+---
+
+## 2026-10-08 — RQ-041: end_call after a short overlapped goodbye; farewell-without-end_call counter
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-041-end-call-suspect` from integration `c5847c6`. Draft PR into `integration/2026-09-27`. Not merged, not deployed; no service touched; no OpenAI call.
+
+### What changed (evidence: Room 214 session rt_zu1x1e37_1791507983715, issue #117)
+- **(a)** `realtimeDeviceTools.js` end_call guard: a turn flagged only `uncertain_fragment` whose text matches `ENDING_PHRASES` ("Goodnight, goodbye." spoken over Aria) is accepted. `echo_like` and `repeated_tiny_fragments` stay refused (2026-08-22 phantom "and" protection); the phrase/refusal-limit grounding (`checkEnding`) still runs.
+- **(b)** `end_call` tool description and the companion persona now say: never say goodbye/goodnight to end an exchange unless calling `end_call` in the same turn; if unsure, ask. New `farewellWatch.js` logs `farewell_without_end_call` (realtime diagnostics) when an assistant transcript contains a farewell and the response has no end_call/end_conversation call. Observability only; no auto hang-up.
+
+### Verified
+Frontend 47 suites / 395 tests (baseline 389; +3 farewell, +3 guard); `CI=true yarn build` compiles. Backend gate (port 8111, DB `caoscare_gate_rq041`): see PR body; +1 schema test. Not verified: live spoken run; whether the model obeys the new wording.
+
+### Line counts
+`realtimeMessageHandler.js` 380 (was 376, pre-existing over 300; logic extracted to `farewellWatch.js` 26), `realtimeDeviceTools.js` 320 (was 315, pre-existing over 300), `realtime_tools.py` 259, `realtime_companion_prompt.py` 293.
+
+HANDOFF CAPSULE
+- Objective:        RQ-041 end_call fixes.
+- Branch:           bounded/rq-041-end-call-suspect (draft PR).
+- Lane / ownership: end_call guard, tool/persona text, diagnostics counter.
+- Last proven state: tests above, 2026-10-08.
+- Runtime state:    nothing restarted or deployed.
+- Unresolved: live behavior; no auto hang-up on a stray farewell (by design).
+- Next safe action: coordinator review; count farewell_without_end_call events after deploy.
