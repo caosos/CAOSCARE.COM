@@ -3,8 +3,9 @@
 [Unit]
 StartLimitIntervalSec=0
 Description=Aria room page for the wake endpoint (headless Chrome)
-After=aria-wake.service
+After=aria-wake.service aria-wake-page.service
 Wants=aria-wake.service
+Requires=aria-wake-page.service
 
 [Service]
 Type=simple

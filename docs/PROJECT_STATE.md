@@ -7995,3 +7995,30 @@ HANDOFF CAPSULE
 - Last proven state: tests above.
 - Runtime state:    nothing installed or running.
 - Next safe action: coordinator reviews; first real use: `receiver.py received/status` on a Desktop-Agent item.
+
+---
+
+## 2026-10-08 — RQ-043: wake Room page served from a production build
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-043-built-room-page` from integration `8721716`. Draft PR into `integration/2026-09-27`. Not merged, not deployed; running services, `~/.config/aria-wake/aria-wake.env`, :3000 and :8092 untouched.
+
+### What changed
+- `room-node/aria_wake/serve_built.js` (no npm deps): serves a build dir with SPA fallback and proxies `/api/*` (websocket upgrade included) to the backend.
+- `ctl.sh`: `rebuild` (builds into `~/.cache/aria-wake/build` with `REACT_APP_BACKEND_URL=http://localhost:$ARIA_WAKE_PAGE_PORT`, then swaps), `restart-page`; `install` creates `aria-wake-page.service` and the kiosk unit now requires it. `rebuild`, `restart-page` and `restart` refuse while a room lease is live (mongosh query, 45 s; `--force` overrides).
+- Env example: page URL on :3002, `ARIA_WAKE_ORIGINS` must include :3002. README and runbook updated with the rule "frontend merges do not affect the live page until `ctl.sh rebuild`".
+
+### Verified
+- `node --test serve_built.test.js` passes (static, SPA fallback, traversal, /api proxy incl. query, swap picked up, 502 when backend down).
+- Real `ctl.sh rebuild` built a bundle with API base `localhost:3092` (scratch cache/port); live-call guard ran against real Mongo (read-only) and found 0 live leases. Headless Chrome loaded the built Room page and its API calls reached a stub backend through the proxy.
+- Not verified: the wake WebSocket handshake from the built page (stub backend returns no resident, so the page does not start the wake client); units not installed or started; guard refusal path with a live lease not exercised.
+
+### Line counts
+`serve_built.js` 76, `ctl.sh` 114, `serve_built.test.js` 43.
+
+HANDOFF CAPSULE
+- Objective:        Room page immune to dev-server hot reload.
+- Branch:           bounded/rq-043-built-room-page (draft PR).
+- Lane / ownership: room-node/aria_wake only plus docs.
+- Runtime state:    nothing installed or restarted.
+- Cutover: see PR body.

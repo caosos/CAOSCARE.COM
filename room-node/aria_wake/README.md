@@ -73,7 +73,8 @@ ARIA_WAKE_ENABLE=1 .venv/bin/python aria_wake.py   # JSON-lines log on stdout
 
 Env: `ARIA_WAKE_SOURCE` (PulseAudio source; default = system default source),
 `ARIA_WAKE_PORT` (8765), `ARIA_WAKE_ORIGINS` (allowed page origins; default
-`http://localhost:3000,http://127.0.0.1:3000`), `ARIA_WAKE_MODEL_DIR`.
+`http://localhost:3000,http://127.0.0.1:3000`; the always-on page is served on
+`:3002`, so set `ARIA_WAKE_ORIGINS=http://localhost:3002,http://127.0.0.1:3002` in `aria-wake.env`), `ARIA_WAKE_MODEL_DIR`.
 
 Enable it on the room page per endpoint: `/kiosk/<kiosk_id>?wake=1`
 (or `?wake=ws://127.0.0.1:<port>`). Without the parameter the page never
@@ -203,3 +204,17 @@ The listener emits one `audio_level` JSON line per active-speech segment (peak/m
 
 `.venv/bin/python -m pytest test_aria_wake.py` (state machine + silence reset;
 no model or audio device needed).
+
+## Room page is a production build (RQ-043)
+
+The always-on headless Chrome opens a **production build** served by `serve_built.js`
+(`aria-wake-page.service`, port `ARIA_WAKE_PAGE_PORT`, default 3002; `/api/*` is proxied to
+`ARIA_WAKE_BACKEND`, default `http://127.0.0.1:8092`). It is NOT the CRA dev server, so a git
+merge that changes `frontend/src` no longer hot-reloads and remounts a live call.
+
+**Rule: frontend merges do not reach the live wake page until `ctl.sh rebuild`.**
+`ctl.sh rebuild [--force]` builds into `~/.cache/aria-wake/build` (same-origin API
+`http://localhost:3002`), then swaps the directory; the server reads files per request, so no
+restart is needed. `rebuild`, `restart-page` and `restart` refuse while a room lease is live
+(`resident_aria_leases` active/activating, seen within 45 s; asked via `mongosh`, no HTTP read
+endpoint exists) and need `--force` if Mongo cannot be read. Test: `node --test serve_built.test.js`.
