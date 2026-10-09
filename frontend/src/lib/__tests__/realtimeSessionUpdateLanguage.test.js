@@ -59,3 +59,13 @@ test("noise_reduction and turn_detection still pass through unaffected", () => {
   expect(input.noise_reduction).toEqual({ type: "far_field" });
   expect(input.turn_detection).toEqual({ type: "server_vad", threshold: 0.5, create_response: false });
 });
+
+test("an explicit build-time language pin is passed through; default stays unpinned", () => {
+  process.env.REACT_APP_TRANSCRIPTION_LANGUAGE = "en";
+  try {
+    expect(build().session.audio.input.transcription.language).toBe("en");
+  } finally {
+    delete process.env.REACT_APP_TRANSCRIPTION_LANGUAGE;
+  }
+  expect(build().session.audio.input.transcription).not.toHaveProperty("language");
+});
