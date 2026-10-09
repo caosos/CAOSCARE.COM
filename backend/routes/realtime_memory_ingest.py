@@ -7,7 +7,6 @@ than duplicating extraction logic - this file only decides when to call it
 and what to pass.
 """
 import asyncio
-from datetime import timedelta
 from typing import Optional, Literal
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -15,11 +14,8 @@ from pydantic import BaseModel, Field
 from deps import db
 from models import now_utc
 from routes.memory import extract_and_store_memories
-from routes.realtime_room_lease import STALE_SECONDS
+from routes.session_grounding import find_live_session, RELEASE_GRACE_SECONDS  # noqa: F401
 
-# RQ-028: how long after a session's lease is released its last turns are
-# still accepted (the final assistant turn often lands just after release).
-RELEASE_GRACE_SECONDS = 60
 MAX_TURN_CHARS = 4000
 
 router = APIRouter(prefix="/memory", tags=["memory-realtime-ingest"])
@@ -62,21 +58,9 @@ class RealtimeTurnIngest(BaseModel):
 
 async def _session_grounding_error(data: "RealtimeTurnIngest") -> Optional[str]:
     """None if the turn belongs to a live Aria session for this resident
-    (or one released within RELEASE_GRACE_SECONDS); otherwise why not."""
-    now = now_utc()
-    live = await db.resident_aria_leases.find_one({
-        "session_id": data.session_id, "resident_id": data.resident_id,
-        "status": {"$in": ["activating", "active"]},
-        "last_seen_at": {"$gte": (now - timedelta(seconds=STALE_SECONDS)).isoformat()},
-    })
-    if live:
-        return None
-    released = await db.resident_aria_lease_events.find_one({
-        "event": "released", "lease.session_id": data.session_id,
-        "lease.resident_id": data.resident_id,
-        "at": {"$gte": (now - timedelta(seconds=RELEASE_GRACE_SECONDS)).isoformat()},
-    })
-    return None if released else "no live session for this resident"
+    (or one released within the grace); otherwise why not."""
+    found = await find_live_session(data.resident_id, data.session_id)
+    return None if found else "no live session for this resident"
 
 
 @router.post("/realtime-turn")

@@ -8136,3 +8136,34 @@ HANDOFF CAPSULE
 - Runtime state:    nothing started or left running.
 - Unresolved: usage logging; live driver deliberately absent; owner approval gate unmet.
 - Next safe action: coordinator review; owner decides the paid test (proposal section 7).
+
+---
+
+## 2026-10-09 — RQ-049: research endpoint access guard and rate limit
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-049-research-guard` from integration `d775928`. Draft PR into `integration/2026-09-27`. Not merged, not deployed; no paid call (provider mocked); no service touched.
+
+### What changed
+- New `routes/session_grounding.py::find_live_session()`: the live-lease + 60 s release-grace check, extracted from `realtime_memory_ingest.py` (RQ-028) and now shared by it and `/research`.
+- New `routes/research_guard.py`: when the provider is `openai_web_search`, `POST /research` needs `resident_id` + `session_id` of a live room lease, or an owner token (owner `/aria`); else 403 and no provider call. In-memory limit per room (owner per user), `CAOSCARE_RESEARCH_RATE_PER_MIN` default 6, then 429 with a spoken-safe message. Every denial logs a `research_lookup` event (failed, reason). Provider `none`: no guard (length limit unchanged).
+- Frontend `research_topic` dispatch sends `resident_id`, `session_id` and the owner token when present; 403/429 become `ok:false` "I can't look that up right now." (no answer invented).
+- `docs/RESEARCH_PROVIDER.md`: "not built" note replaced with the guard description.
+
+### Verified
+Gate (port 8114, DB `caoscare_gate_rq049`, OpenAI/HA blank): 432 passed, 0 failed, 31 skipped (baseline 426; +6 `test_rq049_research_guard.py`: no lease 403 and no provider call, live lease, grace then expiry, owner token (staff refused), 429 on the N+1th, provider none unaffected). Frontend 49 suites / 408 tests (baseline 404; +4); `CI=true yarn build` compiles. Not verified: live kiosk run.
+
+### Line counts
+`research.py` 168, `research_guard.py` 78 (new), `session_grounding.py` 35 (new), `realtime_memory_ingest.py` 120 (was 136), `realtimeDeviceTools.js` 326 (was 321, pre-existing over 300; +5).
+
+### Limits
+Rate limit is per backend process and resets on restart. A caller with a live lease can still use up to the per-room limit.
+
+HANDOFF CAPSULE
+- Objective:        RQ-049 guard before enabling paid research.
+- Branch:           bounded/rq-049-research-guard (draft PR).
+- Lane / ownership: research route/guard, shared grounding helper, research dispatch.
+- Last proven state: gate and frontend above, 2026-10-09.
+- Runtime state:    nothing restarted or deployed.
+- Unresolved: owner decisions (model, smoke call, budget, switch).
+- Next safe action: coordinator review.
