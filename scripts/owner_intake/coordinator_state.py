@@ -56,8 +56,8 @@ def state() -> dict:
             "evidence": "idle session woke on a Desktop-Agent peer message and ACKed twice: da-46a126825e delivered 2026-10-09T02:49:45Z / ACK 02:50:01Z; da-0cf0297adf delivered 02:58:01Z / ACK 02:58:06Z (turn ended 02:57:4x, idle in between)",
         },
         "periodic_wake": {
-            "status": "UNVERIFIED",
-            "evidence": "heartbeat_probe.py exists and returns IDLE/WAKE; Desktop-Agent has not yet scheduled it or sent DA-HEARTBEAT",
+            "status": "VERIFIED",
+            "evidence": "probe WAKE at 2026-10-09T03:02:13Z (dummy question); Desktop-Agent sent DA-HEARTBEAT 03:06:27Z; idle session ACKed hb-20261009T030627Z 03:06:38Z",
         },
         "accepts_messages": True,
         "scheduled_self_checks": "stopped (coordinator runs none while idle; wake is event-driven)",

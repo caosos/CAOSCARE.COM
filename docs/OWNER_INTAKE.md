@@ -62,3 +62,11 @@ The coordinator posted a labelled DUMMY, ended its turn (idle), and did nothing 
 | DELIVERED (peer message to `caoscare-integration-b2`, DELIVERED comment 02:58:02) | 02:58:01 | +24 s |
 | New Claude turn started by the message, ACK `da-0cf0297adf` posted | 02:58:06 | +5 s after delivery |
 Verdict: **event wake of an idle CAOSCare coordinator is VERIFIED** (two independent items: da-46a126825e +16 s and da-0cf0297adf +5 s from delivery to ACK). **Periodic (heartbeat) wake remains UNVERIFIED** until Desktop-Agent schedules `heartbeat_probe.py`. No care request, no action, no service touched.
+
+## Periodic (heartbeat) wake proof (2026-10-08 22:02-22:07 CDT)
+| Step | Time (UTC) | Evidence |
+|---|---|---|
+| Coordinator writes a labelled dummy open question into `docs/status/COORDINATOR_STATUS.json`; probe returns WAKE ("1 open question(s)") | 03:02:13 | local file edit (not committed), `heartbeat_probe.py` output |
+| Desktop-Agent watchdog (runs the probe every 120 s) detects WAKE and sends ONE `DA-HEARTBEAT reasons=[...]` peer message to the idle session | 03:06:27 (+4 min 14 s) | peer message "sent at 22:06:27 CDT" |
+| Session woke from idle, ACKed `hb-20261009T030627Z`, restored the status file (probe IDLE), posted DONE | 03:06:38 (+11 s) | #117 comments + `receiver.py` ledger rows |
+Verdict: **periodic heartbeat wake is VERIFIED for CAOSCare** (probe -> Desktop-Agent watchdog -> idle session -> ACK). Cost model: the probe is a local stdlib script; an IDLE verdict sends nothing and spends nothing; one message per WAKE (at most once per 30 min per Desktop-Agent). Nothing was changed on the host or in Room 214; the dummy question was cleared immediately.
