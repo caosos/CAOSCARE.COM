@@ -1,32 +1,40 @@
-"""Research router — live web research for the Realtime AI tool dispatcher.
+"""Research router - web research for the Realtime AI tool dispatcher.
 
-Strategy:
-  - If PERPLEXITY_API_KEY is set, use Perplexity Sonar for live web answers
-    with citations.
-  - If Perplexity is unavailable and OPENAI_API_KEY is set, use OpenAI for
-    general answers without live-source claims.
-  - If no supported provider key is configured, return HTTP 503.
-  - In every case, the response is shaped for spoken delivery: short,
-    conversational, no bullet points, no markdown.
+Provider is chosen explicitly by CAOSCARE_RESEARCH_PROVIDER:
+  - "openai_web_search": OpenAI Responses API with the native web_search tool
+    (same OPENAI_API_KEY; OPENAI_RESEARCH_MODEL is REQUIRED, no default model;
+    optional OPENAI_RESEARCH_TIMEOUT seconds and OPENAI_RESEARCH_REASONING_EFFORT).
+    `live` is true only when the response really contains a web_search_call
+    AND a url_citation. Misconfiguration -> HTTP 503; provider HTTP error,
+    timeout or malformed response -> HTTP 502. A model-only answer is never
+    returned as live and there is no silent fallback.
+  - "none" / unset (default): no live research. If OPENAI_API_KEY is set a
+    plain model answers from general knowledge with live=False, else 503.
 
-Endpoint is PUBLIC by design — the tool dispatcher in `useRealtimeVoice.js`
-calls it directly from the kiosk during a live conversation. It is
-intentionally rate-light to keep latency under the 4-5 second budget that
-feels acceptable in a voice exchange.
+ROLLBACK: set CAOSCARE_RESEARCH_PROVIDER=none (or unset it) and restart the
+backend. See docs/RESEARCH_PROVIDER.md.
+
+Every call records a CaosEvent (question hash and length only, never the
+question text; provider, model, live, citation count, outcome). Spoken
+delivery: short, conversational, no bullet points, no markdown.
+
+Endpoint is PUBLIC by design - the tool dispatcher calls it from the kiosk
+during a live conversation (unchanged).
 """
 import os
+import hashlib
 import logging
-from typing import List
+import time
+from typing import List, Optional
 import httpx
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
+from routes.events import log_event
 from routes.realtime_truth_rules import live_research_enabled
+from routes import research_openai_search as oas
 
 router = APIRouter(prefix="/research", tags=["research"])
 logger = logging.getLogger(__name__)
-
-PERPLEXITY_ENDPOINT = "https://api.perplexity.ai/chat/completions"
-PERPLEXITY_MODEL = "sonar"   # fast, cost-effective; "sonar-pro" for deeper retrieval
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
 OPENAI_TEXT_MODEL = os.environ.get("OPENAI_TEXT_MODEL", "gpt-4o-mini").strip() or "gpt-4o-mini"
@@ -39,9 +47,12 @@ class ResearchInput(BaseModel):
 
 class ResearchOutput(BaseModel):
     answer: str
-    citations: List[str] = Field(default_factory=list)
-    source: str   # "perplexity" | "openai" | "none"
-    live: bool = False   # True only when answered by the live provider
+    citations: List[str] = Field(default_factory=list)   # URLs (existing contract)
+    citations_detail: List[dict] = Field(default_factory=list)  # [{url, title}]
+    source: str   # "openai_web_search" | "openai" | "none"
+    live: bool = False   # True only with a real web_search_call AND a url_citation
+    note: Optional[str] = None
+    provenance: Optional[dict] = None   # model, response_id, search_call_count, retrieved_at
 
 
 SYSTEM_PROMPT = (
@@ -49,32 +60,24 @@ SYSTEM_PROMPT = (
     "room. Answer the resident's question in 2-4 short conversational sentences "
     "they can listen to comfortably. Plain language. No bullet points, no "
     "headings, no markdown. If you cite a source, just mention it naturally "
-    "('according to the AP') rather than printing a URL. If you do not know "
-    "or are not certain, say so honestly — never invent."
+    "('according to the AP') rather than printing a URL. If the sources "
+    "disagree, say you are not certain. If you do not know "
+    "or are not certain, say so honestly - never invent."
 )
 
 
-async def _ask_perplexity(question: str) -> ResearchOutput:
-    payload = {
-        "model": PERPLEXITY_MODEL,
-        "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": question},
-        ],
-        "max_tokens": 400,
-        "temperature": 0.4,
-    }
-    headers = {
-        "Authorization": f"Bearer {os.environ.get('PERPLEXITY_API_KEY', '').strip()}",
-        "Content-Type": "application/json",
-    }
-    async with httpx.AsyncClient(timeout=25.0) as client:
-        r = await client.post(PERPLEXITY_ENDPOINT, json=payload, headers=headers)
-        r.raise_for_status()
-        data = r.json()
-    text = (data.get("choices") or [{}])[0].get("message", {}).get("content", "").strip()
-    citations = data.get("citations") or []
-    return ResearchOutput(answer=text, citations=citations, source="perplexity", live=True)
+async def _ask_openai_web_search(question: str) -> ResearchOutput:
+    p = await oas.ask(question, SYSTEM_PROMPT)
+    cites = p["citations"]
+    live = p["search_calls"] >= 1 and len(cites) >= 1
+    note = None
+    if not live:
+        note = ("The provider ran no web search." if p["search_calls"] == 0
+                else "The web search returned no citable sources.") + \
+               " Treat the answer as general knowledge, not a live lookup."
+    return ResearchOutput(answer=p["answer"], citations=[c["url"] for c in cites],
+                          citations_detail=cites, source=oas.SOURCE, live=live,
+                          note=note, provenance=p["provenance"])
 
 
 async def _ask_openai(question: str) -> ResearchOutput:
@@ -102,16 +105,15 @@ async def _ask_openai(question: str) -> ResearchOutput:
     return ResearchOutput(answer=text, citations=[], source="openai", live=False)
 
 
-async def research_topic(question: str) -> ResearchOutput:
-    """Entry point used by the AI tool dispatcher. Tries Perplexity first
-    for live sources, then OpenAI for non-live fallback answers."""
-    if live_research_enabled():
+async def _run(question: str) -> ResearchOutput:
+    if oas.provider_name() == oas.SOURCE:
+        problem = oas.config_problem()
+        if problem:
+            raise HTTPException(status_code=503, detail=f"Research provider openai_web_search is not configured: {problem}")
         try:
-            return await _ask_perplexity(question)
-        except httpx.HTTPStatusError as e:
-            logger.warning(f"Perplexity HTTP {e.response.status_code}; trying OpenAI fallback")
-        except Exception as e:
-            logger.warning(f"Perplexity error: {e}; trying OpenAI fallback")
+            return await _ask_openai_web_search(question)
+        except oas.ResearchProviderError as e:
+            raise HTTPException(status_code=e.status, detail=e.detail)
     if OPENAI_API_KEY:
         try:
             return await _ask_openai(question)
@@ -121,8 +123,36 @@ async def research_topic(question: str) -> ResearchOutput:
             logger.warning(f"OpenAI research error: {e}")
     raise HTTPException(
         status_code=503,
-        detail="Research is unavailable; configure PERPLEXITY_API_KEY or OPENAI_API_KEY.",
+        detail="Research is unavailable; set CAOSCARE_RESEARCH_PROVIDER=openai_web_search "
+               "(with OPENAI_API_KEY and OPENAI_RESEARCH_MODEL) or OPENAI_API_KEY for general answers.",
     )
+
+
+async def research_topic(question: str) -> ResearchOutput:
+    """Entry point used by the AI tool dispatcher; records one event per call."""
+    started = time.monotonic()
+    meta = {"provider": oas.provider_name(), "live_enabled": live_research_enabled(),
+            "model": oas.search_model() or None,
+            "question_sha256": hashlib.sha256(question.encode()).hexdigest()[:16],
+            "question_length": len(question)}
+    try:
+        out = await _run(question)
+    except HTTPException as e:
+        await log_event(event_type="research_lookup", source="resident_aria", target_type="tool",
+                        action="research_topic", status="failed", error_code=str(e.status_code),
+                        error_message=str(e.detail)[:200], metadata={**meta, "live": False},
+                        duration_ms=(time.monotonic() - started) * 1000)
+        raise
+    prov = out.provenance or {}
+    await log_event(event_type="research_lookup", source="resident_aria", target_type="tool",
+                    action="research_topic", status="succeeded",
+                    verification_status="verified" if out.live else "unverified",
+                    metadata={**meta, "live": out.live, "result_source": out.source,
+                              "citation_count": len(out.citations),
+                              "search_call_count": prov.get("search_call_count"),
+                              "response_id": prov.get("response_id")},
+                    duration_ms=(time.monotonic() - started) * 1000)
+    return out
 
 
 @router.post("", response_model=ResearchOutput)

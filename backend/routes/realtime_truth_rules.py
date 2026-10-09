@@ -5,12 +5,13 @@ provider is configured) and holds the wording that depends on it, plus the
 short invariants for fresh facts and action sentences. The tool schema,
 the companion prompt and the self-knowledge block all read from here.
 """
-import os
 
 
 def live_research_enabled() -> bool:
-    """True only when a live provider (Perplexity) is configured."""
-    return bool(os.environ.get("PERPLEXITY_API_KEY", "").strip())
+    """True only when CAOSCARE_RESEARCH_PROVIDER=openai_web_search AND
+    OPENAI_API_KEY AND OPENAI_RESEARCH_MODEL are all set (RQ-047)."""
+    from routes.research_openai_search import search_configured
+    return search_configured()
 
 
 def research_tool_description() -> str:

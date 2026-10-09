@@ -33,7 +33,7 @@ test("weather claim needs get_weather this turn", () => {
 test("lookup claim needs a live research result", () => {
   const a = mk(); a.g.onToolResult("research_topic", shapeResearchResult({ answer: "x", source: "openai" }));
   expect(run(a.g, "I did check the internet, but I couldn't find anything.")).toEqual(["unsupported_lookup_claim"]);
-  const b = mk(); b.g.onToolResult("research_topic", shapeResearchResult({ answer: "x", source: "perplexity", live: true, citations: ["u"] }));
+  const b = mk(); b.g.onToolResult("research_topic", shapeResearchResult({ answer: "x", source: "openai_web_search", live: true, citations: ["u"] }));
   expect(run(b.g, "I looked it up and here it is.")).toEqual([]);
 });
 test("plain speech is not flagged", () => {
@@ -44,9 +44,9 @@ test("research shaping", () => {
   const r = shapeResearchResult({ answer: "Maybe.", source: "openai", citations: [] });
   expect(r.live).toBe(false);
   expect(r.message).toBe(NOT_LIVE_PREFIX + "Maybe.");
-  expect(shapeResearchResult({ answer: "A", source: "perplexity", citations: ["u"] }).live).toBe(false); // live missing
-  const ok = shapeResearchResult({ answer: "A", source: "perplexity", live: true, citations: ["u"] });
-  expect(ok).toEqual({ ok: true, live: true, message: "A", source: "perplexity", citations: ["u"] });
+  expect(shapeResearchResult({ answer: "A", source: "openai_web_search", citations: ["u"] }).live).toBe(false); // live missing
+  const ok = shapeResearchResult({ answer: "A", source: "openai_web_search", live: true, citations: ["u"] });
+  expect(ok).toEqual({ ok: true, live: true, message: "A", source: "openai_web_search", citations: ["u"], citations_detail: [] });
 });
 
 test("farewell after an ok end_call (audit sequence) is not flagged; without end_call it is", () => {
@@ -63,4 +63,20 @@ test("farewell after an ok end_call (audit sequence) is not flagged; without end
   w3.noteEndCallOk(); t += 20000;
   w3.onAssistantTranscript("Goodbye.");
   expect(w3.onResponseDone({ output: [] })).toBe(true);
+});
+
+test("RQ-047 research shaping: live only with live flag, source and citations", () => {
+  const live = shapeResearchResult({ answer: "A", source: "openai_web_search", live: true, citations: ["u"], citations_detail: [{ url: "u", title: "T" }] });
+  expect(live.live).toBe(true);
+  expect(live.citations_detail).toEqual([{ url: "u", title: "T" }]);
+  // searched but no citations, flag false, or old perplexity source: not live
+  for (const j of [
+    { answer: "A", source: "openai_web_search", live: true, citations: [] },
+    { answer: "A", source: "openai_web_search", live: false, citations: ["u"], note: "n" },
+    { answer: "A", source: "perplexity", live: true, citations: ["u"] },
+  ]) {
+    const r = shapeResearchResult(j);
+    expect(r.live).toBe(false);
+    expect(r.message.startsWith(NOT_LIVE_PREFIX)).toBe(true);
+  }
 });

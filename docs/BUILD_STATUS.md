@@ -165,7 +165,7 @@ DB_NAME=caoscare
 JWT_SECRET=replace-with-long-random-secret
 ```
 
-Optional values documented in `backend/.env.example` include CORS, public API URL, OpenAI models/voice, Perplexity, Twilio, Resend, facility defaults, device auth, receipt signing settings, and `CAOSCARE_ENABLE_DEMO_SEED=false`. Backend AI, realtime, and research routes no longer require an Emergent key for import/startup. If `OPENAI_API_KEY` or `PERPLEXITY_API_KEY` is absent for an endpoint that needs it, that endpoint should return HTTP 503 instead of crashing app import.
+Optional values documented in `backend/.env.example` include CORS, public API URL, OpenAI models/voice, research provider (`CAOSCARE_RESEARCH_PROVIDER`), Twilio, Resend, facility defaults, device auth, receipt signing settings, and `CAOSCARE_ENABLE_DEMO_SEED=false`. Backend AI, realtime, and research routes no longer require an Emergent key for import/startup. If `OPENAI_API_KEY` or `PERPLEXITY_API_KEY` is absent for an endpoint that needs it, that endpoint should return HTTP 503 instead of crashing app import.
 
 Demo seed is disabled by default. Known demo credentials must not be enabled in production. Local/demo environments may opt in with `CAOSCARE_ENABLE_DEMO_SEED=true`. First real owner creation now has a manual one-time bootstrap path through `backend/scripts/bootstrap_owner.py` using `CAOSCARE_BOOTSTRAP_OWNER_EMAIL`, `CAOSCARE_BOOTSTRAP_OWNER_NAME`, and `CAOSCARE_BOOTSTRAP_OWNER_PASSWORD` after backend env is configured and MongoDB is reachable.
 
