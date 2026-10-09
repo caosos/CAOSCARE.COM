@@ -17,6 +17,7 @@ import { API } from "./api";
 import { nearestColorName, colorTempLabel, handleToggleLight } from "./realtimeLightControl";
 import { findDeviceGuarded } from "./deviceAmbiguity";
 import { VOLUME_PHRASES, ROOM_CONTROL_TOOLS, executeRoomControlTool } from "./realtimeRoomControls";
+import { shapeResearchResult } from "./researchShape";
 
 // IMPORTANT: the backend `/devices/.../command` endpoint validates `action`
 // against a strict enum (power | brightness | temperature | fan_speed |
@@ -250,7 +251,7 @@ export async function executeDeviceTool({ name, args, ctx }) {
     });
     if (!r.ok) return { ok: false, message: `couldn't reach the research service (${r.status}).` };
     const j = await r.json();
-    return { ok: true, message: j.answer || "I didn't find anything useful on that.", source: j.source, citations: j.citations || [] };
+    return shapeResearchResult(j);
   }
   if (name === "set_timer") {
     const minutes = Math.max(0.1, Math.min(720, Number(args.minutes) || 5));
