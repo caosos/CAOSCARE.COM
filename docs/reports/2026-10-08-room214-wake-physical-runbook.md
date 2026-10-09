@@ -133,3 +133,12 @@ admin activation timeline (`wake_word_session_bound`), not in this tally.
 Headless Chrome opening the eMeet through PulseAudio, Aria's voice being audible from it, real
 far-field pickup of "Hey Aria", real false-wake rate with TV audio, and the whole loop with real
 lights. These are exactly what steps 3-6 measure.
+
+
+## Update (RQ-043): the Room page is a production build
+
+The headless page now loads `http://localhost:3002/kiosk/<id>?wake=1` from `aria-wake-page.service`
+(a built copy of `frontend/`, with `/api` proxied to the backend), not the dev server on :3000.
+Frontend merges do **not** change the live page until you run `room-node/aria_wake/ctl.sh rebuild`
+(refuses during a live call; `--force` overrides). Add
+`ARIA_WAKE_ORIGINS=http://localhost:3002,http://127.0.0.1:3002` to `~/.config/aria-wake/aria-wake.env`.

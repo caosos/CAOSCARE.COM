@@ -1,0 +1,16 @@
+# EliteDesk home wake endpoint - static server for the Room page production build.
+# Installed by ctl.sh (paths filled in). Independent of the CRA dev server.
+[Unit]
+StartLimitIntervalSec=0
+Description=Aria Room page (production build) for the wake endpoint
+
+[Service]
+Type=simple
+EnvironmentFile=%h/.config/aria-wake/aria-wake.env
+Environment=ARIA_WAKE_BUILD_DIR=%h/.cache/aria-wake/build
+ExecStart=@NODE@ @DIR@/serve_built.js
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target
