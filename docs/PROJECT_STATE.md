@@ -8195,3 +8195,25 @@ HANDOFF CAPSULE
 - Runtime state:    nothing restarted; flag unset.
 - Unresolved: leaked-audio measurement (RQ-051/052).
 - Next safe action: coordinator review; owner approves a shadow run.
+## 2026-10-09 — RQ-051: test reality audit (docs only)
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-051-test-reality-audit` from integration `2f0e581`. Draft PR into `integration/2026-09-27`. Docs only; no production code changed; no provider, service, credential or deploy touched.
+
+### What was done
+Ran the full backend gate (port 8115, DB `caoscare_gate_rq051`, OpenAI/HA blank): 432 passed / 0 failed / 31 skipped. Frontend: 49 suites / 408 tests. Classified each RQ-045/047/048/049, receipt, lifecycle and voice-path test (real Mongo + FastAPI / direct call / mocked provider / self-asserting stub) and ran 18 mutation spot-checks (production broken in the worktree, reverted). Report: `docs/reports/2026-10-09-test-reality-audit.md`.
+
+### Findings
+- 13 of 18 mutations caught. Not caught: `claimGuard` / `farewellWatch` wiring removed from `realtimeMessageHandler.js` (3), research dispatch not applying `shapeResearchResult` (1), `update_receipt_status` made a no-op (alert close/page-outcome receipts untested).
+- The claim guards only log; nothing prevents an unsupported sentence.
+- The real `/realtime/session` mint tests are skipped without an OpenAI key; no test checks provider acceptance of `session.update`.
+- Ten prioritised gaps, each with an offline next step, are in the report.
+
+HANDOFF CAPSULE
+- Objective:        RQ-051 honest map of what the tests prove.
+- Branch:           bounded/rq-051-test-reality-audit (draft PR).
+- Lane / ownership: docs only.
+- Last proven state: gate 432/0/31 and frontend 408, mutation table in the report, 2026-10-09.
+- Runtime state:    nothing started or left running; scratch DB `caoscare_gate_rq051` may remain (gate drops it at next run).
+- Unresolved: gaps 1-3 are cheap offline tests worth assigning next (handler wiring replay, research label, alert receipts).
+- Next safe action: coordinator review; assign gaps 1-3.
