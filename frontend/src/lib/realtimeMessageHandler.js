@@ -26,6 +26,7 @@ import { executeDisplayTool } from "./realtimeDisplayTools";
 import { executeCareTool, ringLiveLineOnSilence } from "./realtimeCareControl";
 import { createFarewellWatch } from "./farewellWatch";
 import { createClaimGuard } from "./claimGuard";
+import { createClaimInterrupter, claimInterrupterMode, verifiedConfirmationEvent } from "./claimInterrupter";
 import { logRealtimeEvent, transcriptionConfidence, LOW_CONFIDENCE_THRESHOLD } from "./realtimeDiagnostics";
 import { reenableAutoResponse, createGreetingResponseGate } from "./realtimeAutoResponseGate";
 import { createHangupScheduler } from "./endCallHangup";
@@ -117,6 +118,8 @@ export function createRealtimeHandlers({
   const turnGrounding = createTurnGroundingTracker(); // see realtimeTurnGrounding.js
   const farewellWatch = createFarewellWatch((type, d) => logRealtimeEvent(sessionIdRef.current, type, d));
   const claimGuard = createClaimGuard((type, d) => logRealtimeEvent(sessionIdRef.current, type, d));
+  const claimMode = claimInterrupterMode(); // RQ-050: "off" by default; see claimInterrupter.js
+  const claimInterrupter = createClaimInterrupter({ send, mode: claimMode, log: (type, d) => logRealtimeEvent(sessionIdRef.current, type, d) });
   const typedItemsSeen = new Set(); // typed-turn echoes, once each (realtimeTypedTurn.js)
 
   // Saves one turn immediately, independently - no pairing, no waiting on
@@ -154,10 +157,12 @@ export function createRealtimeHandlers({
     let parsed = {};
     try { parsed = fn.arguments ? JSON.parse(fn.arguments) : {}; } catch {}
     logRealtimeEvent(sessionIdRef.current, "tool_call", { meta: { name: fn.name, args: parsed } });
+    claimInterrupter.onToolStart(fn.name);
     const cls = await turnGrounding.waitForGroundedTurn();
     const result = await executeTool({ name: fn.name, args: parsed, ctx: { ...ctxRef.current, turn_suspect: cls.suspect, turn_suspect_reason: cls.reason, last_user_text: cls.text || "" } });
     logRealtimeEvent(sessionIdRef.current, "tool_result", { meta: { name: fn.name, result } });
     claimGuard.onToolResult(fn.name, result);
+    claimInterrupter.onToolResult(fn.name, result);
     if ((fn.name === "end_call" || fn.name === "end_conversation") && result?.ok) farewellWatch.noteEndCallOk();
     if (myGen !== startGenRef.current) return;
     // Tell the model what happened. The output goes onto the conversation
@@ -203,7 +208,8 @@ export function createRealtimeHandlers({
       }
     } else {
       // Ask the model to speak its short confirmation, drawing on the tool result.
-      send({ type: "response.create" });
+      // RQ-050 (mode "on"): carry the verified message instead of letting it improvise.
+      send((claimMode === "on" && verifiedConfirmationEvent(fn.name, result)) || { type: "response.create" });
       // Level 1 live-line routing question (2026-09-06): the resident was
       // just asked "someone in the room now, or talk to me?" - the
       // directive treats silence/no answer as "now." Armed here rather
@@ -237,6 +243,7 @@ export function createRealtimeHandlers({
       turnSuspectRef.current = assistantSpeakingRef.current;
       lastSpeechStartedAt = Date.now();
       claimGuard.onUserTurn();
+      claimInterrupter.onUserTurn();
       speech("resident_start");   // resident speaking -> cancel any pending inactivity window
       logRealtimeEvent(sessionIdRef.current, "speech_started", { assistantSpeaking: assistantSpeakingRef.current });
       // Level 1 invite-silence timer (useRealtimeVoice.js) needs to know
@@ -297,10 +304,12 @@ export function createRealtimeHandlers({
       hangup.onResponseDone();
       farewellWatch.onResponseDone(msg.response);
       claimGuard.onResponseDone(msg.response);
+      claimInterrupter.onResponseDone(msg.response);
     }
     if (msg.type === "response.created" && typedTurnRef?.current) onTypedResponseCreated(typedTurnRef.current);
     if (msg.type === "response.created") {
       hangup.onResponseCreated();
+      claimInterrupter.onResponseCreated(msg.response?.id);
       logRealtimeEvent(sessionIdRef.current, "response_created", { responseId: msg.response?.id });
     }
     const typed = typedTurnFromMessage(msg);
@@ -350,6 +359,7 @@ export function createRealtimeHandlers({
     // "assistant" entries being added). Found via a full real WebRTC
     // connection test that logged every actual event type/name OpenAI
     // sent, not by guessing.
+    if (msg.type === "response.output_audio_transcript.delta") claimInterrupter.onTranscriptDelta(msg);
     if (msg.type === "response.output_audio_transcript.done") {
       const aiText = msg.transcript || "";
       setTranscript((t) => [...t, { role: "assistant", text: aiText, ts: Date.now() }]);
