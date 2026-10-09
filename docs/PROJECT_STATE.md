@@ -7951,27 +7951,24 @@ HANDOFF CAPSULE
 
 ---
 
-## 2026-10-08 — RQ-042: owner instruction intake (issue #117 delivery requirement)
+## 2026-10-08 — RQ-042 (revised scope): owner intake receiving side
 
 ### Agent / branch
-Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-042-owner-intake` from `c5847c6`. Draft PR into `integration/2026-09-27`. Not merged; nothing installed or started; no GitHub comment posted; no backend change.
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-042-owner-intake`. Draft PR #119. Not merged; no GitHub comment posted.
 
 ### What changed
-- `scripts/owner_intake/poll.py` (stdlib + `gh` via subprocess): polls issue 117 and open `owner-instruction` issues; durable idempotent inbox (`inbox.jsonl`, `cursor.json`, `receipts.jsonl`) in `~/.local/state/caoscare-intake/`; `--replay`, `show`, `status ... --post` (deduped, rate-limited, coordinator marker `<!-- caos:coordinator -->`), optional `--auto-ack` and tmux nudge (both default off). Only OWNER/MEMBER/COLLABORATOR comments are actionable.
-- systemd user timer/service templates (5 min), not installed. `docs/OWNER_INTAKE.md`.
-- No existing Desktop-Agent / mission-control inbox convention found; schema documented for them.
+Scope change from the coordinator: Desktop-Agent owns polling, `da-<hex>` ids and DELIVERED comments. The earlier poller, timer/systemd units and nudge were removed. Now only `scripts/owner_intake/receiver.py`: `received`, `status ... [--post]` (one comment, body `<!-- caos:coordinator -->` then `STATUS item_id note`, deduped by (item_id, status) from the ledger), `list [--open]`; append-only ledger. `docs/OWNER_INTAKE.md` rewritten (split, format, peer messages arrive at next tool round so the issue comment is the durable record, ~20-25 min re-read fallback).
 
 ### Verified
-`scripts/owner_intake/tests` 8 passed with a stub `gh` (ingest once, restart/dedup, cursor + `since`, coordinator marker skipped, untrusted skipped, gh failure keeps cursor + backoff, item cap, status post dedup, missing tmux pane). Not verified against live GitHub or a real timer run.
+`scripts/owner_intake/tests` 5 passed with a stub `gh` (receipt once, comment format, dedupe, failed post retried, post-after-unposted-status once, list --open). Not run against live GitHub.
 
 ### Line counts
-`poll.py` 318 (single cohesive script, inside the 300-400 band), `test_poll.py` 146.
+`receiver.py` 130, `test_receiver.py` 67.
 
 HANDOFF CAPSULE
-- Objective:        Reliable owner-comment intake for the coordinator host.
-- Branch:           bounded/rq-042-owner-intake (draft PR).
+- Objective:        CAOSCare-side acknowledgement of delivered owner items.
+- Branch:           bounded/rq-042-owner-intake (draft PR #119).
 - Lane / ownership: scripts/owner_intake, docs/OWNER_INTAKE.md.
-- Last proven state: tests above, 2026-10-08.
+- Last proven state: tests above.
 - Runtime state:    nothing installed or running.
-- Unresolved: timer install and tmux target are the coordinator's/Michael's decision; live gh run untested.
-- Next safe action: coordinator reviews, installs the timer, runs `poll.py` once and `poll.py --replay`.
+- Next safe action: coordinator reviews; first real use: `receiver.py received/status` on a Desktop-Agent item.
