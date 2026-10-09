@@ -8022,3 +8022,28 @@ HANDOFF CAPSULE
 - Lane / ownership: room-node/aria_wake only plus docs.
 - Runtime state:    nothing installed or restarted.
 - Cutover: see PR body.
+
+---
+
+## 2026-10-08 — RQ-045: research honesty and tool-proven claims (backend/prompts)
+
+### Agent / branch
+Claude Code (Sonnet 5.5), bounded worker. Branch `bounded/rq-045-research-honesty` from integration `2159b1f`. Draft PR into `integration/2026-09-27`. Not merged, not deployed; no service touched; httpx stubbed.
+
+### What changed (from `docs/reports/2026-10-08-aria-untrue-claims-audit.md`)
+- New `routes/realtime_truth_rules.py`: `live_research_enabled()` (one check of `PERPLEXITY_API_KEY`), the research tool description and prompt line for both states, and `TRUTH_INVARIANTS`. `realtime_tools.py`, `realtime_companion_prompt.py`, `realtime_self_knowledge.py` and `research.py` all use it.
+- Without a live provider the tool and prompt say: no internet, general knowledge only (may be out of date or wrong), say you cannot look it up, never say "I looked it up / checked the internet".
+- `ResearchOutput.live`: true only for the Perplexity path; false for the OpenAI fallback.
+- Prompt invariants: weather only from `get_weather`, time/date from `get_current_time`, current facts need a same-turn tool result; never say you told/notified/sent anything unless `request_staff_help` (or the relevant tool) was called and returned ok; unsupported requests (e.g. music) → say so and ask before filing.
+
+### Verified
+New `tests/test_rq045_research_honesty.py` (6). Gate (port 8112, DB `caoscare_gate_rq045`): 393 passed, 0 failed, 31 skipped. Not verified: live model behavior.
+
+### Line counts
+`research.py` 130, `realtime_tools.py` 253, `realtime_companion_prompt.py` see PR, `realtime_truth_rules.py` 75 (new).
+
+HANDOFF CAPSULE
+- Objective:        RQ-045 backend/prompt honesty (RQ-046 frontend is separate).
+- Branch:           bounded/rq-045-research-honesty (draft PR).
+- Runtime state:    nothing restarted; live session keeps old text until restart.
+- Unresolved: dispatcher still returns ok:true without a not-live marker (frontend, RQ-046); farewell watcher false positive.
