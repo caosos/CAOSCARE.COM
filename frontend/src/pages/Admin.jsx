@@ -30,6 +30,7 @@ import MenuTab from "./MenuTab";
 import TransportationTab from "./TransportationTab";
 import TransportationCalendar from "./TransportationCalendar";
 import TransportResourcesTab from "./TransportResourcesTab";
+import TransportLog from "./TransportLog";
 import DepartmentsTab from "./DepartmentsTab";
 import ResidentsTab from "./ResidentsTab";
 import StaffTab from "./StaffTab";
@@ -181,6 +182,7 @@ export default function Admin() {
           <TabsContent value="menu" className="mt-6"><MenuTab /></TabsContent>
           <TabsContent value="transportation" className="mt-6"><TransportationTab /></TabsContent>
           <TabsContent value="transport-calendar" className="mt-6"><TransportationCalendar /></TabsContent>
+          <TabsContent value="transport-log" className="mt-6"><TransportLog /></TabsContent>
           <TabsContent value="transport-resources" className="mt-6"><TransportResourcesTab /></TabsContent>
           <TabsContent value="departments" className="mt-6"><DepartmentsTab /></TabsContent>
           <TabsContent value="meds" className="mt-6"><MedicationsTab residents={residents} /></TabsContent>

@@ -4,6 +4,7 @@ import { useAuth } from "../lib/auth";
 import { Button } from "../components/ui/button";
 import { LogOut, Plus, Bus } from "lucide-react";
 import TransportationCalendar from "./TransportationCalendar";
+import TransportLog from "./TransportLog";
 import RequestsBoard from "./RequestsBoard";
 import DepartmentQueue from "./DepartmentQueue";
 import FrontDeskRequestForm from "../components/FrontDeskRequestForm";
@@ -20,6 +21,7 @@ import TransportRideForm from "../components/TransportRideForm";
 const TABS = [
   ["requests", "Front desk requests"],
   ["transport", "Transportation"],
+  ["ridelog", "Ride log"],
   ["residents", "Residents"],
   ["all", "All requests"],
 ];
@@ -72,6 +74,7 @@ export default function FrontDeskDashboard() {
           <DepartmentQueue key={reloadKey} department="administration" title="Front desk requests" adminMode />
         )}
         {tab === "transport" && <TransportationCalendar refreshKey={reloadKey} />}
+        {tab === "ridelog" && <TransportLog />}
         {tab === "residents" && (
           <FrontDeskResidentDirectory reloadKey={reloadKey} onNewRequest={setRequestFor} onNewRide={setRideFor} />
         )}

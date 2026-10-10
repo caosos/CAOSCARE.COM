@@ -51,6 +51,7 @@ from routes import transportation as transportation_routes  # noqa: E402
 from routes import transportation_report as transportation_report_routes  # noqa: E402
 from routes import transportation_resources as transportation_resources_routes  # noqa: E402
 from routes import transportation_calendar as transportation_calendar_routes  # noqa: E402
+from routes import transportation_log as transportation_log_routes  # noqa: E402
 from routes import transportation_legacy_slots as transportation_legacy_slots_routes  # noqa: E402
 from routes import transportation_voice_context as transportation_voice_context_routes  # noqa: E402
 from routes import transportation_assign as transportation_assign_routes  # noqa: E402
@@ -220,6 +221,7 @@ api.include_router(transportation_routes.router)
 api.include_router(transportation_report_routes.router)
 api.include_router(transportation_resources_routes.router)
 api.include_router(transportation_calendar_routes.router)
+api.include_router(transportation_log_routes.router)
 api.include_router(transportation_legacy_slots_routes.router)
 api.include_router(transportation_voice_context_routes.router)
 api.include_router(transportation_assign_routes.router)

@@ -48,6 +48,7 @@ export function tabGroups(residents, staff, kiosks, zones, user) {
         { value: "menu", label: "Menu" },
         { value: "transportation", label: "Transportation" },
         { value: "transport-calendar", label: "Transport calendar" },
+        { value: "transport-log", label: "Ride log" },
         { value: "transport-resources", label: "Transport resources" },
         { value: "communications", label: "Email & notifications" },
         { value: "phones", label: "Phones & calls" },
