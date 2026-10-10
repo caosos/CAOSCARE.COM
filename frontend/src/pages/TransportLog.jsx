@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { api, API } from "../lib/api";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -7,7 +7,7 @@ import { Badge } from "../components/ui/badge";
 import { Download } from "lucide-react";
 import { toast } from "sonner";
 import RequestHistoryDialog from "./RequestHistoryDialog";
-import { LOG_STATUSES, LOG_STATUS_LABEL, LOG_STATUS_TONE, logQuery, pickupLabel } from "../lib/rideLog";
+import { LOG_STATUSES, LOG_STATUS_LABEL, LOG_STATUS_TONE, logQuery, pickupLabel, latestOnly } from "../lib/rideLog";
 
 function ymd(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
 
@@ -17,9 +17,15 @@ export default function TransportLog() {
   const [data, setData] = useState(null);
   const [hist, setHist] = useState(null);
 
+  const seq = useRef(latestOnly());
   const load = useCallback(async () => {
-    try { setData((await api.get(`/transportation/log?${logQuery(f)}`)).data); }
-    catch (e) { toast.error(e?.response?.data?.detail || "Could not load the ride log"); }
+    const mine = seq.current.next();   // only the newest request may update the screen (an older, slower reply must not overwrite it)
+    try {
+      const res = (await api.get(`/transportation/log?${logQuery(f)}`)).data;
+      if (seq.current.isCurrent(mine)) setData(res);
+    } catch (e) {
+      if (seq.current.isCurrent(mine)) { setData(null); toast.error(e?.response?.data?.detail || "Could not load the ride log"); }
+    }
   }, [f]);
   useEffect(() => { load(); }, [load]);
 
@@ -36,7 +42,7 @@ export default function TransportLog() {
   return (
     <Card className="border-caos-line p-4 sm:p-6" data-testid="transport-log-root">
       <h2 className="font-display text-xl font-medium text-caos-forest">Ride log</h2>
-      <p className="text-caos-mute text-sm mt-1 mb-4">Every ride in the range, any outcome: who asked, who drove, what happened. Click a row for its full history.</p>
+      <p className="text-caos-mute text-sm mt-1 mb-4">Rides in the range, any outcome: who asked, who drove, what happened. Click a row for its full history. If the list is cut off, it says so.</p>
       <div className="flex flex-wrap gap-2 items-center mb-3">
         <Input type="date" value={f.from} onChange={(e) => setF({ ...f, from: e.target.value })} className="w-auto" data-testid="log-from" />
         <Input type="date" value={f.to} onChange={(e) => setF({ ...f, to: e.target.value })} className="w-auto" data-testid="log-to" />
@@ -53,6 +59,7 @@ export default function TransportLog() {
           {LOG_STATUSES.map((s) => <Badge key={s} className={LOG_STATUS_TONE[s]}>{LOG_STATUS_LABEL[s]} {data.counts[s]}</Badge>)}
         </div>
       )}
+      {data?.truncated && <p className="text-sm text-caos-terracotta mb-2" data-testid="log-truncated">{data.truncated_note}</p>}
       {data && data.rows.length === 0 && <p className="text-caos-mute text-sm">No rides in this range.</p>}
       <div className="grid gap-2">
         {(data?.rows || []).map((r) => (

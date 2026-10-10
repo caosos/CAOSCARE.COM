@@ -8,3 +8,11 @@ test("every backend status has a label; pickup label handles none", () => {
   expect(pickupLabel({})).toBe("-");
   expect(pickupLabel({ pickup_date: "2031-03-10", pickup_time: "08:30" })).toBe("2031-03-10 08:30");
 });
+
+import { latestOnly } from "../rideLog";
+test("latestOnly: an older request is never current once a newer one started", () => {
+  const g = latestOnly();
+  const a = g.next(); const b = g.next();
+  expect(g.isCurrent(a)).toBe(false);
+  expect(g.isCurrent(b)).toBe(true);
+});

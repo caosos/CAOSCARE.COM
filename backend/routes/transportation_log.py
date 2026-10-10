@@ -6,7 +6,7 @@ week, who drove, which were cancelled and why"). Same access as the calendar. CS
 """
 import csv
 import io
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Optional
 from zoneinfo import ZoneInfo
 
@@ -20,6 +20,20 @@ from routes.transportation_runs import require_transport_operator
 router = APIRouter(prefix="/transportation", tags=["transportation-log"])
 
 MAX_DAYS = 93
+MAX_ROWS = 5000   # fetch cap; if more match, the response says truncated (never silently partial)
+_FORMULA_START = ("=", "+", "-", "@", "\t", "\r", "\n")
+
+
+def csv_safe(v):
+    """Spreadsheet formula neutralization (CSV injection): a cell that a spreadsheet would treat as a
+    formula (or that starts with a control character) gets a leading apostrophe. Readable text is kept."""
+    if v is None:
+        return ""
+    t = str(v)
+    t = "".join(ch for ch in t if ch in "\t\r\n" or ord(ch) >= 32)   # drop other control characters
+    if t.startswith(_FORMULA_START) or t.lstrip().startswith(_FORMULA_START):
+        return "'" + t
+    return t
 COLUMNS = ["task_id", "requested_at", "resident_name", "room", "purpose", "appointment_date", "appointment_time",
            "status", "pickup_date", "pickup_time", "driver", "vehicle", "source", "requested_by",
            "closed_at", "last_note", "times_asked", "receipt_count"]
@@ -76,12 +90,16 @@ async def ride_log(
     user=Depends(require_transport_operator),
 ):
     today = today_facility_date()
-    end = date_to or today
-    start = date_from or (datetime.fromisoformat(end) - timedelta(days=6)).strftime("%Y-%m-%d")
-    try:
-        span = (datetime.fromisoformat(end) - datetime.fromisoformat(start)).days
-    except ValueError:
-        raise HTTPException(status_code=422, detail="from/to must be YYYY-MM-DD")
+
+    def _d(v, name):
+        try:
+            return date.fromisoformat(v)
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=422, detail=f"'{name}' must be YYYY-MM-DD")
+    end_d = _d(date_to, "to") if date_to else date.fromisoformat(today)
+    start_d = _d(date_from, "from") if date_from else end_d - timedelta(days=6)
+    end, start = end_d.isoformat(), start_d.isoformat()
+    span = (end_d - start_d).days
     if span < 0:
         raise HTTPException(status_code=422, detail="'from' is after 'to'")
     if span > MAX_DAYS:
@@ -89,9 +107,17 @@ async def ride_log(
     if status and status not in STATUSES:
         raise HTTPException(status_code=422, detail=f"status must be one of {', '.join(STATUSES)}")
 
-    tasks = await db.staff_tasks.find({"category": "transportation"}, {"_id": 0}).to_list(5000)
-    # A ride belongs to the range by its appointment date, else the day it was requested.
-    tasks = [t for t in tasks if start <= (t.get("requested_for_date") or _local_date(t.get("created_at")) or "") <= end]
+    # A ride belongs to the range by its appointment date, else the day it was requested. Narrow in
+    # the database (created_at is stored UTC, so pad a day each side), then filter exactly in Python.
+    pad_lo = (start_d - timedelta(days=1)).isoformat()
+    pad_hi = (end_d + timedelta(days=2)).isoformat()
+    query = {"category": "transportation", "$or": [
+        {"requested_for_date": {"$gte": start, "$lte": end}},
+        {"requested_for_date": {"$in": [None, ""]}, "created_at": {"$gte": pad_lo, "$lt": pad_hi}},
+    ]}
+    found = await db.staff_tasks.find(query, {"_id": 0}).sort("created_at", -1).to_list(MAX_ROWS + 1)
+    truncated = len(found) > MAX_ROWS
+    tasks = [t for t in found[:MAX_ROWS] if start <= (t.get("requested_for_date") or _local_date(t.get("created_at")) or "") <= end]
     run_ids = {t["transport_run_id"] for t in tasks if t.get("transport_run_id")}
     runs = {r["run_id"]: r for r in await db.transport_runs.find({"run_id": {"$in": list(run_ids)}}, {"_id": 0}).to_list(2000)} if run_ids else {}
     drivers = {d["driver_id"]: d["name"] for d in await db.transport_drivers.find({}, {"_id": 0}).to_list(500)}
@@ -131,8 +157,10 @@ async def ride_log(
         w = csv.DictWriter(buf, fieldnames=COLUMNS, extrasaction="ignore")
         w.writeheader()
         for r in rows:
-            w.writerow({c: ("" if r.get(c) is None else r.get(c)) for c in COLUMNS})
+            w.writerow({c: csv_safe(r.get(c)) for c in COLUMNS})
         return StreamingResponse(iter([buf.getvalue()]), media_type="text/csv",
-                                 headers={"Content-Disposition": f'attachment; filename="rides-{start}-to-{end}.csv"'})
+                                 headers={"Content-Disposition": f'attachment; filename="rides-{start}-to-{end}.csv"',
+                                          **({"X-Truncated": "true"} if truncated else {})})
     counts = {s: sum(1 for r in rows if r["status"] == s) for s in STATUSES}
-    return {"from": start, "to": end, "total": len(rows), "counts": counts, "rows": rows}
+    return {"from": start, "to": end, "total": len(rows), "counts": counts, "truncated": truncated,
+            "truncated_note": (f"More than {MAX_ROWS} rides matched; narrow the range. This list is incomplete." if truncated else None), "rows": rows}
