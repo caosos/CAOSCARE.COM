@@ -61,7 +61,7 @@ def _parse_menu_email(raw_text: str) -> tuple[list[dict], str, Optional[str]]:
 async def create_menu_upload(
     *, raw_text: str, service_date: str, source: str,
     source_ref: Optional[str] = None, created_by: Optional[str] = None,
-    actor: Optional[ActorContext] = None,
+    actor: Optional[ActorContext] = None, upload_id: Optional[str] = None,
 ) -> dict:
     """The one internal ingestion function for a menu email, real or
     dev-test - parses raw_text, creates the MenuUpload + its draft
@@ -77,7 +77,22 @@ async def create_menu_upload(
     process."""
     parsed_items, parse_status, parse_notes = _parse_menu_email(raw_text)
 
+    if upload_id:
+        # Caller-supplied stable id (the inbound email retry path): reconcile instead of creating a second batch.
+        done = await db.menu_uploads.find_one({"upload_id": upload_id}, {"_id": 0})
+        if done:
+            if not await db.receipts.find_one({"related_object_type": "menu_upload", "related_object_id": upload_id}):
+                await record_content_change(
+                    kind="menu", action="uploaded", object_type="menu_upload", object_id=upload_id,
+                    actor=actor or inbound_email_actor(), ingest_id=upload_id,
+                    after={"status": done.get("status"), "service_date": service_date, "source": source,
+                           "item_count": len(done.get("item_ids") or []), "parse_status": done.get("parse_status")})
+            return done
+        # Half-written earlier attempt (items without their upload): remove only this id's own draft rows.
+        await db.menu_items.delete_many({"upload_id": upload_id, "status": {"$in": ["draft", None]}})
+
     upload = MenuUpload(
+        **({"upload_id": upload_id} if upload_id else {}),
         source=source,
         source_ref=source_ref,
         raw_text=raw_text,
@@ -90,6 +105,7 @@ async def create_menu_upload(
     upload_doc["created_at"] = upload_doc["created_at"].isoformat()
 
     item_ids = []
+    item_docs = []
     for it in parsed_items:
         mi = MenuItem(
             date=service_date, meal_period=it["meal_period"], item_name=it["item_name"],
@@ -98,8 +114,10 @@ async def create_menu_upload(
         mi_doc = mi.model_dump()
         mi_doc["created_at"] = mi_doc["created_at"].isoformat()
         mi_doc["updated_at"] = mi_doc["updated_at"].isoformat()
-        await db.menu_items.insert_one(mi_doc)
+        item_docs.append(mi_doc)
         item_ids.append(mi_doc["menu_id"])
+    if item_docs:
+        await db.menu_items.insert_many([dict(d) for d in item_docs])
 
     upload_doc["item_ids"] = item_ids
     await db.menu_uploads.insert_one(dict(upload_doc))

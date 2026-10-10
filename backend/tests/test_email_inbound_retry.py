@@ -38,7 +38,7 @@ async def run():
         {"entry_id": "a1", "lane": "menu", "pattern": "chef@thefacility.com", "active": True, "created_at": "now"},
         {"entry_id": "a2", "lane": "activities", "pattern": "@thefacility.com", "active": True, "created_at": "now"}])
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://localhost") as c:
+    async with AsyncClient(transport=ASGITransport(app=app, raise_app_exceptions=False), base_url="http://localhost") as c:
         async def post(eid, frm="chef@thefacility.com", to="menu@inbound.caoscare.com"):
             body = json.dumps({"type": "email.received", "created_at": "2026-09-19T12:00:00.000Z",
                                "data": {"email_id": eid, "from": frm, "to": [to], "subject": "x", "attachments": []}}).encode()
@@ -46,6 +46,20 @@ async def run():
             sig = "v1," + base64.b64encode(hmac.new(base64.b64decode(SECRET[6:]), f"{sid}.{ts}.".encode() + body, hashlib.sha256).digest()).decode()
             return await c.post("/email/inbound/resend", content=body, headers={
                 "content-type": "application/json", "svix-id": sid, "svix-timestamp": ts, "svix-signature": sig})
+
+        # 0) required uniqueness unavailable -> fail closed (503), nothing written; legacy duplicates are never altered
+        eid0 = "email_legacy_dup"
+        await db.inbound_emails.insert_many([{"inbound_id": f"legacy{i}", "provider_message_id": eid0, "status": "routed", "from_address": "x@y.z", "to_addresses": []} for i in range(2)])
+        state["bodies"][eid0] = {"text": MENU, "html": ""}
+        r = await post("email_other_1")
+        assert r.status_code == 503 and "manual migration" in r.text, (r.status_code, r.text)
+        assert await db.inbound_emails.count_documents({"provider_message_id": eid0}) == 2   # legacy rows untouched
+        assert await db.inbound_emails.count_documents({"provider_message_id": "email_other_1"}) == 0
+        assert email_inbound._index_ready is False   # not remembered as ready
+        await db.inbound_emails.delete_many({"provider_message_id": eid0})   # the "manual migration"
+        state["bodies"]["email_other_1"] = {"text": MENU, "html": ""}
+        assert (await post("email_other_1")).json()["status"] == "routed" and email_inbound._index_ready is True
+        await db.menu_uploads.delete_many({}); await db.menu_items.delete_many({})
 
         def eid(): return f"email_{uuid.uuid4().hex[:8]}"
         async def uploads(): return await db.menu_uploads.count_documents({})
@@ -112,8 +126,69 @@ async def run():
         before = await uploads()
         rs = await asyncio.gather(*[post(e7) for _ in range(4)]); state["delay"] = 0.0
         assert await db.inbound_emails.count_documents({"provider_message_id": e7}) == 1
-        assert sum(1 for x in rs if x.status_code == 200 and x.json()["status"] == "routed") <= 1
-        assert await uploads() - before <= 1
+        kinds = sorted(x.json()["status"] for x in rs if x.status_code == 200)
+        assert kinds.count("routed") == 1 and kinds.count("duplicate") == 3 and len(kinds) == 4, kinds
+        assert await uploads() - before == 1 and state["calls"][e7] == 1
+        assert len([r for r in await receipts((await db.inbound_emails.find_one({"provider_message_id": e7}))["inbound_id"]) if r == "inbound_email.routed"]) == 1
+
+        # 8) crash AFTER the domain output exists but BEFORE the inbound row is finalized: reclaim reconciles, one output
+        real_record = email_inbound._record_outcome
+        crash = {"on": True}
+        async def flaky(inbound_id, **patch):
+            if crash["on"] and patch.get("status") == "routed":
+                crash["on"] = False
+                raise RuntimeError("simulated crash before finalization")
+            return await real_record(inbound_id, **patch)
+        email_inbound._record_outcome = flaky
+        for lane_to, frm, body, kind in [
+            ("menu@inbound.caoscare.com", "chef@thefacility.com", MENU.replace("2026-09-25", "2026-10-01"), "menu"),
+            ("activities@inbound.caoscare.com", "programs@thefacility.com", "Monday 2026-09-28:\n10:00 AM Chair Yoga - Sunroom\n2:00 PM Bingo [activity]\n", "act")]:
+            crash["on"] = True
+            e8 = eid(); state["bodies"][e8] = {"text": body, "html": ""}
+            assert (await post(e8, frm=frm, to=lane_to)).status_code == 500
+            row = await db.inbound_emails.find_one({"provider_message_id": e8}, {"_id": 0}); iid = row["inbound_id"]
+            assert row["status"] == "received"   # never finalized
+            if kind == "menu":
+                assert await db.menu_uploads.count_documents({"source_ref": iid}) == 1
+            else:
+                assert await db.schedule_items.count_documents({"source_ref": iid}) == 2
+            assert (await post(e8, frm=frm, to=lane_to)).json()["status"] == "duplicate"   # fresh in-flight claim blocks a second run
+            await db.inbound_emails.update_one({"provider_message_id": e8}, {"$set": {"retry_started_at": "2000-01-01T00:00:00+00:00"}})
+            r = await post(e8, frm=frm, to=lane_to); assert r.status_code == 200 and r.json()["status"] == "routed", r.text
+            assert r.json()["inbound_id"] == iid
+            if kind == "menu":
+                assert await db.menu_uploads.count_documents({"source_ref": iid}) == 1
+                up = await db.menu_uploads.find_one({"source_ref": iid}, {"_id": 0})
+                assert await db.menu_items.count_documents({"upload_id": up["upload_id"]}) == 6
+                assert r.json()["linked_object_id"] == up["upload_id"]
+                ro, rt = up["upload_id"], "menu_upload"
+            else:
+                assert await db.schedule_items.count_documents({"source_ref": iid}) == 2
+                assert r.json()["linked_object_id"] == (await db.schedule_items.find_one({"source_ref": iid}))["ingest_id"]
+                ro, rt = r.json()["linked_object_id"], "schedule_batch"
+            assert await db.receipts.count_documents({"related_object_type": rt, "related_object_id": ro}) == 1   # content receipt not repeated
+            assert (await receipts(iid)).count("inbound_email.routed") == 1
+            assert (await post(e8, frm=frm, to=lane_to)).json()["status"] == "duplicate"
+        # 8b) output written but its content receipt lost in the crash: reconcile adds exactly the missing receipt
+        e9 = eid(); state["bodies"][e9] = {"text": MENU.replace("2026-09-25", "2026-10-02"), "html": ""}
+        crash["on"] = True
+        assert (await post(e9)).status_code == 500
+        iid9 = (await db.inbound_emails.find_one({"provider_message_id": e9}))["inbound_id"]
+        await db.receipts.delete_many({"related_object_type": "menu_upload", "related_object_id": f"mupload_{iid9}"})
+        await db.inbound_emails.update_one({"provider_message_id": e9}, {"$set": {"retry_started_at": "2000-01-01T00:00:00+00:00"}})
+        assert (await post(e9)).json()["status"] == "routed"
+        assert await db.receipts.count_documents({"related_object_type": "menu_upload", "related_object_id": f"mupload_{iid9}"}) == 1
+        assert await db.menu_uploads.count_documents({"source_ref": iid9}) == 1
+        # 8c) half-written menu (items but no upload) is repaired without duplicates
+        e10 = eid(); state["bodies"][e10] = {"text": MENU.replace("2026-09-25", "2026-10-03"), "html": ""}
+        crash["on"] = True
+        assert (await post(e10)).status_code == 500
+        iid10 = (await db.inbound_emails.find_one({"provider_message_id": e10}))["inbound_id"]
+        await db.menu_uploads.delete_many({"upload_id": f"mupload_{iid10}"})   # simulate upload doc never written
+        await db.inbound_emails.update_one({"provider_message_id": e10}, {"$set": {"retry_started_at": "2000-01-01T00:00:00+00:00"}})
+        assert (await post(e10)).json()["status"] == "routed"
+        assert await db.menu_items.count_documents({"upload_id": f"mupload_{iid10}"}) == 6
+        email_inbound._record_outcome = real_record
     print("OK")
     await db.client.drop_database(os.environ["DB_NAME"])
 

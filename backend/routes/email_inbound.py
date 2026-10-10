@@ -122,8 +122,10 @@ def _extract_service_date(text_body: str) -> str:
     return m.group(1) if m else today_facility_date()
 
 
-async def _save_message(msg: InboundEmailMessage) -> dict:
+async def _save_message(msg: InboundEmailMessage, in_flight: bool = False) -> dict:
     doc = msg.model_dump()
+    if in_flight:   # lets a crashed first attempt be reclaimed after the stale window, like a crashed retry
+        doc["retry_started_at"] = now_utc().isoformat()
     for k in ("received_at", "created_at"):
         if doc.get(k) is not None:
             doc[k] = doc[k].isoformat()
@@ -137,27 +139,33 @@ _index_ready = False
 
 
 async def _ensure_unique_index() -> None:
-    """The docstring's "unique on provider_message_id" was never enforced. Best effort, once per process: if old
-    duplicate rows block the index, dedup still works through the lookup and the DuplicateKeyError path just stays idle."""
+    """Exactly-once ingestion rests on a unique index over provider_message_id (the docstring always said so; it was
+    never created). Fail closed: if it cannot be created, answer 503 so the provider retries later, and say why. Legacy
+    rows are never deleted or edited to force the index; a duplicate-key conflict is a migration for a person."""
     global _index_ready
     if _index_ready:
         return
     try:
         await db.inbound_emails.create_index("provider_message_id", unique=True)
-    except Exception:
-        pass
+    except Exception as e:
+        raise HTTPException(
+            status_code=503,
+            detail=("Inbound email is paused: the unique index on inbound_emails.provider_message_id is unavailable "
+                    f"({type(e).__name__}). If legacy duplicate rows exist they need a manual migration; nothing was changed."),
+        ) from e
     _index_ready = True
 
 
 async def _claim_retry(provider_message_id: str) -> Optional[dict]:
     """Atomically take the one retry of an inbound email whose body fetch failed. Returns the row, or None when the
-    email is not retryable or another delivery already holds the claim. A claim abandoned by a crash (status
-    "retrying" for over 5 minutes) can be taken again."""
+    email is not retryable or another delivery already holds the claim. A claim abandoned by a crash (an in-flight
+    attempt, first or retry, older than 5 minutes) can be taken again."""
     now = now_utc()
     stale = (now - timedelta(seconds=RETRY_CLAIM_STALE_SECONDS)).isoformat()
     return await db.inbound_emails.find_one_and_update(
         {"provider_message_id": provider_message_id,
-         "$or": [{"retryable": True}, {"status": "retrying", "retry_started_at": {"$lt": stale}}]},
+         "$or": [{"retryable": True},
+                 {"status": {"$in": ["retrying", "received"]}, "retry_started_at": {"$lt": stale}}]},
         {"$set": {"retryable": False, "status": "retrying", "retry_started_at": now.isoformat()}},
         projection={"_id": 0}, return_document=True)
 
@@ -251,7 +259,7 @@ async def resend_inbound_webhook(request: Request):
             ],
         )
         try:
-            saved = await _save_message(msg)
+            saved = await _save_message(msg, in_flight=True)
         except DuplicateKeyError:   # two first deliveries at once: the other one owns this email
             other = await db.inbound_emails.find_one({"provider_message_id": provider_message_id}, {"_id": 0})
             return {"ok": True, "status": "duplicate", "inbound_id": (other or {}).get("inbound_id")}
@@ -292,13 +300,14 @@ async def resend_inbound_webhook(request: Request):
             service_date = _extract_service_date(text_body)
             result = await create_menu_upload(
                 raw_text=text_body, service_date=service_date, source="email",
-                source_ref=inbound_id, created_by=None,
+                source_ref=inbound_id, created_by=None, upload_id=f"mupload_{inbound_id}",
             )
             linked_type, linked_id = "menu_upload", result["upload_id"]
             parse_status, parse_notes = result.get("parse_status"), result.get("parse_notes")
         else:  # "activities"
             result = await create_schedule_items(
                 raw_text=text_body, source="email", source_ref=inbound_id, created_by=None,
+                ingest_id=f"sched_ingest_{inbound_id}",
             )
             linked_type, linked_id = "schedule_items", result["ingest_id"]  # id = the batch (ingest_id)
             parse_status = "parsed" if result["created_count"] else "needs_review"

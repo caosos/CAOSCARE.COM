@@ -133,7 +133,7 @@ def _parse_schedule_email(raw_text: str) -> tuple[list[dict], list[str], list[st
 
 async def create_schedule_items(
     *, raw_text: str, source: str, source_ref: Optional[str] = None,
-    created_by: Optional[str] = None, actor: Optional[ActorContext] = None,
+    created_by: Optional[str] = None, actor: Optional[ActorContext] = None, ingest_id: Optional[str] = None,
 ) -> dict:
     """The one internal ingestion function for an activities/schedule
     calendar (emailed, pasted or dev-test) - parses raw_text and creates
@@ -155,9 +155,11 @@ async def create_schedule_items(
             ),
         )
 
-    ingest_id = uid("sched_ingest")
-    created = []
-    for it in parsed_items:
+    ingest_id = ingest_id or uid("sched_ingest")
+    # Caller-supplied stable id (the inbound email retry path): rows already written for it are reused, never repeated.
+    created = await db.schedule_items.find({"ingest_id": ingest_id}, {"_id": 0}).to_list(2000)
+    docs = []
+    for it in ([] if created else parsed_items):
         si = ScheduleItem(
             date=it["date"], time_label=it["time_label"], title=it["title"],
             description=it["description"], category=it["category"], status="draft",
@@ -166,15 +168,17 @@ async def create_schedule_items(
         doc = si.model_dump()
         doc["created_at"] = doc["created_at"].isoformat()
         doc["updated_at"] = doc["updated_at"].isoformat()
-        await db.schedule_items.insert_one(doc)
-        doc.pop("_id", None)
-        created.append(doc)
+        docs.append(doc)
+    if docs:
+        await db.schedule_items.insert_many([dict(d) for d in docs])
+        created = docs
 
-    await record_content_change(
-        kind="schedule", action="uploaded", object_type="schedule_batch", object_id=ingest_id,
-        actor=actor or inbound_email_actor(), ingest_id=ingest_id,
-        after={"status": "draft", "source": source, "item_count": len(created),
-               "dates": sorted({c["date"] for c in created})})
+    if not await db.receipts.find_one({"related_object_type": "schedule_batch", "related_object_id": ingest_id}):
+        await record_content_change(
+            kind="schedule", action="uploaded", object_type="schedule_batch", object_id=ingest_id,
+            actor=actor or inbound_email_actor(), ingest_id=ingest_id,
+            after={"status": "draft", "source": source, "item_count": len(created),
+                   "dates": sorted({c["date"] for c in created})})
     return {
         "ingest_id": ingest_id,
         "status": "draft",
