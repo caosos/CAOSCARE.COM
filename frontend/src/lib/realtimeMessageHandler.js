@@ -114,7 +114,7 @@ export function createRealtimeHandlers({
   // RQ-055 ending state machine (endController.js): after endNow() every later event is ignored.
   const endCtl = createEndController({ send, stop, onEndCall, log: (type, d) => logRealtimeEvent(sessionIdRef.current, type, d) });
   const hangup = createHangupScheduler({ // waits for the goodbye audio (endCallHangup.js)
-    onClose: () => endCtl.endNow(endCallKind, "end_call_tool"),
+    onClose: () => endCtl.finish(endCallKind, "end_call_tool"),
   });
   const turnGrounding = createTurnGroundingTracker(); // see realtimeTurnGrounding.js
   const farewellWatch = createFarewellWatch((type, d) => logRealtimeEvent(sessionIdRef.current, type, d));
@@ -236,7 +236,7 @@ export function createRealtimeHandlers({
     let msg;
     try { msg = JSON.parse(ev.data); } catch { return; }
     // ENDING: only the goodbye's own audio/response events matter (they time the hang-up); nothing else may restart the call.
-    if (endCtl.ending && !/^(output_audio_buffer\.|response\.(created|done))/.test(msg.type || "")) return;
+    if (endCtl.ending && !/^(output_audio_buffer\.|response\.(created|done|output_audio_transcript\.done))/.test(msg.type || "")) return;
 
     if (msg.type === "input_audio_buffer.speech_started") {
       setStatus("listening");
@@ -285,6 +285,7 @@ export function createRealtimeHandlers({
     // they do NOT exist on plain WebSocket, which is why this was missed
     // before) and track actual playback lifecycle, not generation.
     if (msg.type === "output_audio_buffer.started") {
+      endCtl.noteAudioStarted();
       assistantSpeakingRef.current = true;
       greetingGate.onAudioStarted();
       hangup.onAudioStarted();
@@ -311,6 +312,7 @@ export function createRealtimeHandlers({
       // Fallback for a greeting that completed with no audio at all - see
       // createGreetingResponseGate's docstring in realtimeAutoResponseGate.js.
       greetingGate.onResponseDone();
+      endCtl.noteResponseDone();
       hangup.onResponseDone();
       farewellWatch.onResponseDone(msg.response);
       claimGuard.onResponseDone(msg.response);
@@ -318,6 +320,7 @@ export function createRealtimeHandlers({
     }
     if (msg.type === "response.created" && typedTurnRef?.current) onTypedResponseCreated(typedTurnRef.current);
     if (msg.type === "response.created") {
+      endCtl.noteResponseCreated();
       hangup.onResponseCreated();
       claimInterrupter.onResponseCreated(msg.response?.id);
       logRealtimeEvent(sessionIdRef.current, "response_created", { responseId: msg.response?.id });
@@ -365,6 +368,7 @@ export function createRealtimeHandlers({
       // model to choose a tool. Echo of Aria's own words never ends it.
       if (endIntent === "explicit" && turnMayEnd(cls.reason) && endCtl.beginEnding("transcript", { turn_class_reason: cls.reason })) {
         endCallKind = "resident_end_call";
+        farewellWatch.noteEndCallOk();   // the goodbye that follows is intended
         hangup.arm();   // closes after the goodbye audio finishes (endCallHangup.js)
       }
     }

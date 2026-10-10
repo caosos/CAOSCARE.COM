@@ -81,7 +81,7 @@ test("a clear spoken ending is ACKNOWLEDGED aloud, then closes channel, peer and
   await said("Aria. Goodbye. End the call.");
   const bye = mockConn.sent.find((m) => m.type === "response.create");
   expect(bye.response.instructions).toMatch(/goodbye/i);                          // an audible goodbye is requested
-  expect(types()).toEqual(expect.arrayContaining(["response.cancel", "output_audio_buffer.clear"]));
+  expect(types()).toContain("output_audio_buffer.clear");                         // nothing in flight, so nothing to cancel
   expect(closed()).toEqual({ track: false, pc: false, dc: false });               // not cut off before it is heard
   const before = mockConn.sent.length;
   await toolCall("request_staff_help");                                           // ignored while ending
@@ -201,4 +201,49 @@ test("after an ended call a deliberate new start works, and the old connection s
   expect(api.transcript.at(-1).text).toBe("Hello Aria, how are you?");
   await act(async () => { oldHandler({ data: JSON.stringify({ type: "conversation.item.input_audio_transcription.completed", transcript: "Goodbye." }) }); });
   expect(onEndCall).toHaveBeenCalledTimes(1);
+});
+
+test("a reply already in flight when 'Goodbye' is heard is cancelled first; the goodbye is requested only after it finishes (the 01:00:50 silent case)", async () => {
+  await msg({ type: "response.created", response: { id: "r_auto" } });        // server auto-reply to the utterance
+  await said("Goodbye.");
+  expect(types()).toContain("response.cancel");
+  expect(types()).not.toContain("response.create");                          // must not collide with the live reply
+  await msg({ type: "response.done", response: { id: "r_auto" } });
+  expect(mockConn.sent.filter((m) => m.type === "response.create")).toHaveLength(1);
+  await finishGoodbye();
+  expect(closed().track).toBe(true);
+  expect(logged("call_closed")[0][2].meta.goodbye_audio_played).toBe(true);
+});
+
+test("a goodbye response that produced no audio is retried once", async () => {
+  await said("Goodbye.");
+  await msg({ type: "response.created", response: { id: "r1" } });
+  await msg({ type: "response.done", response: { id: "r1" } });               // no output_audio_buffer.started
+  expect(mockConn.sent.filter((m) => m.type === "response.create")).toHaveLength(2);
+  await finishGoodbye();
+  expect(onEndCall).toHaveBeenCalledTimes(1);
+});
+
+test("if no goodbye audio ever plays, a local spoken 'Goodbye.' is used before closing", async () => {
+  const spoken = [];
+  window.speechSynthesis = { speak: (u) => { spoken.push(u.text); setTimeout(() => u.onend && u.onend(), 300); } };
+  global.SpeechSynthesisUtterance = function (t) { this.text = t; };
+  try {
+    await said("End the call.");
+    await settle(7000);                                                       // model produced nothing: ceiling reached
+    expect(spoken).toEqual(["Goodbye."]);
+    await settle(400);
+    expect(closed().track).toBe(true);
+    const meta = logged("call_closed")[0][2].meta;
+    expect(meta.local_fallback_used).toBe(true);
+    expect(meta.goodbye_audio_played).toBe(false);
+  } finally { delete window.speechSynthesis; delete global.SpeechSynthesisUtterance; }
+});
+
+test("the goodbye transcript is still recorded while closing", async () => {
+  await said("Goodbye.");
+  await msg({ type: "response.output_audio_transcript.done", transcript: "Goodbye, I'm right here when you call." });
+  expect(logged("assistant_transcript")).toHaveLength(1);
+  expect(logged("farewell_without_end_call")).toHaveLength(0);
+  await finishGoodbye();
 });
