@@ -24,6 +24,7 @@ LAUNCH=("$PY" -m uvicorn server:app --host 0.0.0.0 --port)
 
 [ -x "$PY" ] || fail "interpreter missing: $PY"
 [ -f "$BACKEND/server.py" ] || fail "no server.py in $BACKEND"
+[ -f "$BACKEND/.env" ] || fail "no $BACKEND/.env (server.py loads it; recovery would lack configuration)"
 (cd "$BACKEND" && "$PY" -c "import server" >/dev/null 2>&1) || fail "import server failed with $PY"
 guard() {
   local L R
@@ -65,7 +66,8 @@ echo "preflight ok: sha=$SHA leases=0 recent=0 old_pid=${OLD_PID:-none} old_log=
 [ "${1:-}" = "--check" ] && exit 0
 printf 'time=%s sha=%s old_pid=%s old_cmd=%s old_cwd=%s old_log=%s\n' "$(date -u +%FT%TZ)" "$SHA" "${OLD_PID:-none}" "${OLD_CMD:-}" "${OLD_CWD:-}" "${OLD_LOG:-}" >"$STATE"
 
-RECOVER="MANUAL recovery (no automatic rollback): git -C $ROOT worktree add /tmp/rollback_${PRIOR_SHA:-prior} ${PRIOR_SHA:-<prior-sha>} && cd /tmp/rollback_${PRIOR_SHA:-prior}/backend && ${LAUNCH[*]} $PORT  (prior log ${OLD_LOG:-none}; state $STATE)"
+RB="/tmp/rollback_${PRIOR_SHA:-prior}"
+RECOVER="MANUAL recovery (no automatic rollback; .env is symlinked, never copied): git -C $ROOT worktree add $RB ${PRIOR_SHA:-<prior-sha>} && ln -s $BACKEND/.env $RB/backend/.env && cd $RB/backend && ${LAUNCH[*]} $PORT  (prior log ${OLD_LOG:-none}; state $STATE)"
 guard "pre-stop refresh"
 if [ -n "$OLD_PID" ]; then
   kill "$OLD_PID"; for _ in $(seq 1 30); do kill -0 "$OLD_PID" 2>/dev/null || break; sleep 0.5; done

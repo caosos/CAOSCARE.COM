@@ -32,6 +32,8 @@ def box(tmp_path):
             break
     root = tmp_path / "repo"; (root / "scripts").mkdir(parents=True); (root / "backend").mkdir()
     (root / "backend" / "server.py").write_text("")
+    (root / ".gitignore").write_text(".env\n")
+    (root / "backend" / ".env").write_text("SECRET_SENTINEL=do-not-print\n")
     g = lambda *a: subprocess.run(["git", "-C", str(root), *a], check=True, capture_output=True)
     g("init", "-q"); g("add", "-A"); g("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "base")
     sha = subprocess.run(["git", "-C", str(root), "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip()
@@ -164,7 +166,7 @@ def test_guard_is_refreshed_right_before_the_stop(box):
 def test_post_stop_start_failure_reports_manual_recovery(box):
     old = start_old(box)
     r = run(box, STUB_FAIL_REAL=box["port"])
-    assert r.returncode == 3 and "MANUAL recovery (no automatic rollback)" in r.stderr and box["sha"] in r.stderr
+    assert r.returncode == 3 and "MANUAL recovery (no automatic rollback" in r.stderr and box["sha"] in r.stderr
     old.wait(timeout=10)
 
 
@@ -181,3 +183,28 @@ def test_unidentifiable_prior_runtime_fails_before_stop(box):
     box["procs"].append(p); threading.Thread(target=p.wait, daemon=True).start(); time.sleep(1.5)
     r = run(box)
     assert r.returncode == 2 and "known-good prior" in r.stderr and alive(p)
+
+
+def test_printed_recovery_is_executable_and_keeps_config_without_leaking(box):
+    old = start_old(box)
+    r = run(box, STUB_FAIL_REAL=box["port"])
+    assert r.returncode == 3
+    assert "do-not-print" not in r.stdout + r.stderr
+    line = next(l for l in r.stderr.splitlines() if l.startswith("RESTART FAILED"))
+    cmd = line.split("MANUAL recovery (no automatic rollback; .env is symlinked, never copied): ")[1].split("  (prior log")[0]
+    rb = f"/tmp/rollback_{box['sha']}"
+    shutil.rmtree(rb, ignore_errors=True); subprocess.run(["git", "-C", str(box["root"]), "worktree", "prune"])
+    assert not os.path.exists(rb)
+    p = subprocess.Popen(["bash", "-c", cmd], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env={**os.environ, "PATH": box["env_extra"]["PATH"]})
+    box["procs"].append(p)
+    try:
+        for _ in range(40):
+            if socket.socket().connect_ex(("127.0.0.1", box["port"])) == 0:
+                break
+            time.sleep(0.5)
+        assert socket.socket().connect_ex(("127.0.0.1", box["port"])) == 0, "recovery did not bring the service back"
+        envp = Path(rb) / "backend" / ".env"
+        assert envp.is_symlink() and envp.read_text() == (box["root"] / "backend" / ".env").read_text()
+    finally:
+        p.kill(); subprocess.run(["pkill", "-f", f"--port {box['port']}"])
+        subprocess.run(["git", "-C", str(box["root"]), "worktree", "remove", "--force", rb], capture_output=True)
