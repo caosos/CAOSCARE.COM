@@ -8414,3 +8414,8 @@ Limits: a simulated signed webhook proves the status logic only, not that Resend
 
 ## 2026-10-10 — EmailInboundPanel loading/failure truth (da-61edb8f45c)
 `bdb1573` plus report `docs/reports/2026-10-10-email-inbound-panel-truth.md` and screenshots under `docs/reports/assets/2026-10-10-email-inbound/`. A failed or forbidden read of the approved-sender list or the inbound log is no longer shown as "no approved senders" / "no inbound email"; loading, error, empty, loaded and stale-after-failed-refresh are distinct, with Retry. 8 mounted fixtures (old panel fails all), frontend 63 suites / 533, build compiled, isolated browser check incl. the `reconciliation_required` status. No backend change or restart, no provider, no live rebuild, no deploy.
+
+---
+
+## 2026-10-10 — CommunicationsTab loading/failure truth (da-c90537f56a)
+`27b410e` + report/evidence/checklist reconcile `c1145f0`. Provider status and delivery log settle independently (loading/error/ok/stale, per-filter key, Retry); a failed read is no longer "not configured" / "No notifications.", and a failed filter change no longer shows the previous filter's rows. 10 mounted tests (9 fail on the old component), frontend 64 suites / 543, build compiled, isolated browser check with injected read failures incl. 390 px. Report `docs/reports/2026-10-10-communications-tab-truth.md`. `PILOT1_EXECUTION_CHECKLIST.md` header corrected (was `b860390`, RQ-011/012 as current); Phase 4 contact/delivery/fallback items set to [~] with evidence, none [x]. No backend change or restart, no provider, no voice, no deploy.
