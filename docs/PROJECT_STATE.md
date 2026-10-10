@@ -8319,3 +8319,8 @@ Evidence: session `rt_3ctpadu5_1791588223558` (2026-10-09 18:24 CDT): Aria said 
 ## 2026-10-10 — Guarded dev-backend restart script (owner: restarts of the EliteDesk dev backend need no approval)
 Michael (via #117 da-8f2504be1f): the EliteDesk Care App is his development system; routine backend restarts need no approval. Incident: my first restart stopped :8092 then failed to relaunch (nonexistent `backend/.venv`), ~6 min down; restored 03:38:05Z at `fc18f33`, pid 3289344, health ok, RQ-059 wording loaded, listener unchanged.
 Permanent fix: `scripts/restart_dev_backend.sh` — fixed interpreter, fixed port 8092, only option `--check`; no env/arg can redirect it. Preflight before stopping: interpreter, `import server`, 0 leases, no call activity in 60 s; non-zero exit and `RESTART FAILED` if the new backend is not healthy. `--check` passes (exit 0, also with `CAOSCARE_DEV_PORT=9999` ignored). The local allow rule `Bash(scripts/restart_dev_backend.sh)` is Michael's one-time setting; a guarded restart through the normal worker path is NOT yet proven. No Linode/production.
+
+---
+
+## 2026-10-10 — Test-reality gap 3 closed: alert receipts are append-only (RQ-052b)
+`backend/tests/test_alert_receipts_append_only.py` (3 tests, in-process, scratch DB): alert close-out appends `alert_completed` and the first receipt is unchanged; failed page appends `alert_failed`, a later accept a third receipt; an object with no receipt gets none invented. Mutation check: with `update_receipt_status` made a no-op, 2 of 3 fail. No production code changed; nothing restarted.
