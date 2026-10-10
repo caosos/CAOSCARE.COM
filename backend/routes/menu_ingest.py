@@ -88,8 +88,6 @@ async def create_menu_upload(
                     after={"status": done.get("status"), "service_date": service_date, "source": source,
                            "item_count": len(done.get("item_ids") or []), "parse_status": done.get("parse_status")})
             return done
-        # Half-written earlier attempt (items without their upload): remove only this id's own draft rows.
-        await db.menu_items.delete_many({"upload_id": upload_id, "status": {"$in": ["draft", None]}})
 
     upload = MenuUpload(
         **({"upload_id": upload_id} if upload_id else {}),
@@ -108,6 +106,7 @@ async def create_menu_upload(
     item_docs = []
     for it in parsed_items:
         mi = MenuItem(
+            **({"menu_id": f"{upload_id}_{len(item_docs)}"} if upload_id else {}),
             date=service_date, meal_period=it["meal_period"], item_name=it["item_name"],
             source=source, upload_id=upload_doc["upload_id"],
         )
@@ -117,7 +116,14 @@ async def create_menu_upload(
         item_docs.append(mi_doc)
         item_ids.append(mi_doc["menu_id"])
     if item_docs:
-        await db.menu_items.insert_many([dict(d) for d in item_docs])
+        if upload_id:
+            # Items interrupted part-way: write only the ones not already there (deterministic ids); never delete.
+            have = {r["menu_id"] async for r in db.menu_items.find({"upload_id": upload_id}, {"_id": 0, "menu_id": 1})}
+            item_docs_to_write = [d for d in item_docs if d["menu_id"] not in have]
+        else:
+            item_docs_to_write = item_docs
+        if item_docs_to_write:
+            await db.menu_items.insert_many([dict(d) for d in item_docs_to_write])
 
     upload_doc["item_ids"] = item_ids
     await db.menu_uploads.insert_one(dict(upload_doc))

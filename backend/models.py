@@ -1186,7 +1186,7 @@ class MenuUpload(BaseModel):
 # what happened to it," never as a second copy of the menu/schedule domain.
 InboundEmailStatus = Literal[
     "received", "duplicate", "unrecognized_recipient", "quarantined",
-    "routed", "error",
+    "routed", "error", "reconciliation_required",
 ]
 
 

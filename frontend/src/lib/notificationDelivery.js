@@ -34,6 +34,8 @@ const INBOUND = {
   unrecognized_recipient: { label: "Unknown address", tone: "text-caos-mute" },
   error: { label: "Error", tone: "text-caos-terracotta" },
   received: { label: "Received", tone: "text-caos-mute" },
+  retrying: { label: "Processing", tone: "text-caos-mute" },
+  reconciliation_required: { label: "Needs a person - output could not be proven complete", tone: "text-caos-terracotta" },
 };
 
 export function inboundStatus(status) {

@@ -131,6 +131,10 @@ def _parse_schedule_email(raw_text: str) -> tuple[list[dict], list[str], list[st
     return items, skipped_lines, notes
 
 
+class ReconciliationRequired(Exception):
+    """Output for a stable ingest id exists but cannot be proven complete; a person must look. Never auto-resolved."""
+
+
 async def create_schedule_items(
     *, raw_text: str, source: str, source_ref: Optional[str] = None,
     created_by: Optional[str] = None, actor: Optional[ActorContext] = None, ingest_id: Optional[str] = None,
@@ -155,12 +159,12 @@ async def create_schedule_items(
             ),
         )
 
+    stable = bool(ingest_id)
     ingest_id = ingest_id or uid("sched_ingest")
-    # Caller-supplied stable id (the inbound email retry path): rows already written for it are reused, never repeated.
-    created = await db.schedule_items.find({"ingest_id": ingest_id}, {"_id": 0}).to_list(2000)
-    docs = []
-    for it in ([] if created else parsed_items):
+    expected = []
+    for n, it in enumerate(parsed_items):
         si = ScheduleItem(
+            **({"schedule_id": f"{ingest_id}_{n}"} if stable else {}),
             date=it["date"], time_label=it["time_label"], title=it["title"],
             description=it["description"], category=it["category"], status="draft",
             source=source, source_ref=source_ref, ingest_id=ingest_id, created_by=created_by,
@@ -168,10 +172,27 @@ async def create_schedule_items(
         doc = si.model_dump()
         doc["created_at"] = doc["created_at"].isoformat()
         doc["updated_at"] = doc["updated_at"].isoformat()
-        docs.append(doc)
-    if docs:
-        await db.schedule_items.insert_many([dict(d) for d in docs])
-        created = docs
+        expected.append(doc)
+    if stable:
+        # Retry path with a caller-supplied stable id: every row has a deterministic id, so a batch interrupted
+        # part-way is completed by inserting ONLY the missing rows. Rows already written are never touched, deleted
+        # or replayed. Anything else under this ingest_id (rows we cannot account for) is held for a person.
+        have = {r["schedule_id"] async for r in db.schedule_items.find({"ingest_id": ingest_id}, {"_id": 0, "schedule_id": 1})}
+        want = {d["schedule_id"] for d in expected}
+        if have - want:
+            raise ReconciliationRequired(
+                f"{len(have - want)} unexpected row(s) already exist under {ingest_id}; refusing to guess")
+        missing = [d for d in expected if d["schedule_id"] not in have]
+        if missing:
+            await db.schedule_items.insert_many([dict(d) for d in missing])
+        total = await db.schedule_items.count_documents({"ingest_id": ingest_id})
+        if total != len(expected):
+            raise ReconciliationRequired(f"batch {ingest_id} has {total} rows, expected {len(expected)}")
+        created = await db.schedule_items.find({"ingest_id": ingest_id}, {"_id": 0}).to_list(2000)
+    else:
+        if expected:
+            await db.schedule_items.insert_many([dict(d) for d in expected])
+        created = expected
 
     if not await db.receipts.find_one({"related_object_type": "schedule_batch", "related_object_id": ingest_id}):
         await record_content_change(

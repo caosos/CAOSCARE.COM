@@ -39,7 +39,7 @@ from models import InboundEmailMessage, now_utc
 from routes.email_inbound_signature import verify_resend_webhook, WebhookVerificationError
 from routes.email_inbound_allowlist import check_sender_allowed
 from routes.menu_ingest import create_menu_upload
-from routes.schedule_ingest import create_schedule_items
+from routes.schedule_ingest import create_schedule_items, ReconciliationRequired
 from routes.realtime_facility import today_facility_date
 from routes.receipts import create_receipt
 from routes.notification_delivery import apply_resend_delivery_event
@@ -135,6 +135,19 @@ async def _save_message(msg: InboundEmailMessage, in_flight: bool = False) -> di
 
 
 RETRY_CLAIM_STALE_SECONDS = 300
+IN_FLIGHT_STATUSES = ("received", "retrying")
+
+
+def _already_handled(row: Optional[dict]) -> dict:
+    """Answer for a delivery whose email already has a row and could not be claimed. A TERMINAL row (routed, quarantined,
+    unrecognized, permanent error, needs-a-person) is a true duplicate: 200, nothing more will happen. A row that is
+    still in flight is NOT done - the attempt holding it may yet fail or crash, and a 200 would tell the provider to
+    stop retrying. Answer 409 (retryable) so Resend delivers again; by then the row is terminal (duplicate), failed
+    (retried) or stale (reclaimed)."""
+    if row and row.get("status") in IN_FLIGHT_STATUSES and row.get("retry_started_at"):
+        raise HTTPException(status_code=409, detail="in_progress: this email is being processed; retry later",
+                            headers={"Retry-After": "60"})
+    return {"ok": True, "status": "duplicate", "inbound_id": (row or {}).get("inbound_id")}
 _index_ready = False
 
 
@@ -230,7 +243,7 @@ async def resend_inbound_webhook(request: Request):
         # unrecognized recipient) are never retryable.
         claimed = await _claim_retry(provider_message_id)
         if not claimed:
-            return {"ok": True, "status": "duplicate", "inbound_id": existing["inbound_id"]}
+            return _already_handled(await db.inbound_emails.find_one({"provider_message_id": provider_message_id}, {"_id": 0}) or existing)
         inbound_id = claimed["inbound_id"]
         from_address = claimed.get("from_address") or ""
         to_addresses = claimed.get("to_addresses") or []
@@ -261,8 +274,7 @@ async def resend_inbound_webhook(request: Request):
         try:
             saved = await _save_message(msg, in_flight=True)
         except DuplicateKeyError:   # two first deliveries at once: the other one owns this email
-            other = await db.inbound_emails.find_one({"provider_message_id": provider_message_id}, {"_id": 0})
-            return {"ok": True, "status": "duplicate", "inbound_id": (other or {}).get("inbound_id")}
+            return _already_handled(await db.inbound_emails.find_one({"provider_message_id": provider_message_id}, {"_id": 0}))
         inbound_id = saved["inbound_id"]
 
     lane = _resolve_lane(to_addresses)
@@ -315,6 +327,11 @@ async def resend_inbound_webhook(request: Request):
             if result.get("skipped_lines"):
                 parse_notes = (parse_notes + "; " if parse_notes else "") + \
                     f"{len(result['skipped_lines'])} line(s) skipped - see skipped_lines."
+    except ReconciliationRequired as e:
+        # Output exists but is not provably complete: hold for a person. Not retryable, nothing deleted or replayed.
+        await _record_outcome(inbound_id, status="reconciliation_required", routed_lane=lane, sender_trust="approved",
+                               error_message=str(e))
+        return {"ok": True, "status": "reconciliation_required", "inbound_id": inbound_id, "detail": str(e)}
     except HTTPException as e:
         # A malformed real email (e.g. no day headers at all) - permanent,
         # a retry from Resend would not fix it. Record and ack (200), do

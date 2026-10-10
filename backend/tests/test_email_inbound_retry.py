@@ -95,8 +95,8 @@ async def run():
         state["fail"].discard(e3); state["delay"] = 0.2
         rs = await asyncio.gather(*[post(e3) for _ in range(6)])
         state["delay"] = 0.0
-        kinds = sorted(x.json()["status"] for x in rs)
-        assert kinds.count("routed") == 1 and kinds.count("duplicate") == 5, kinds
+        kinds = sorted(str(x.json()["status"] if x.status_code == 200 else x.status_code) for x in rs)
+        assert kinds.count("routed") == 1 and kinds.count("409") == 5, kinds   # in-flight is retryable, not a "duplicate"
         assert await uploads() == 3 and state["calls"][e3] == 2
 
         # 4) permanent parse error is acknowledged and NOT retried
@@ -117,7 +117,7 @@ async def run():
         assert (await post(e6)).status_code == 502
         await db.inbound_emails.update_one({"provider_message_id": e6}, {"$set": {"retryable": False, "status": "retrying", "retry_started_at": email_inbound.now_utc().isoformat()}})
         state["fail"].discard(e6)
-        assert (await post(e6)).json()["status"] == "duplicate"
+        assert (await post(e6)).status_code == 409   # fresh in-flight claim: retryable, not a duplicate
         await db.inbound_emails.update_one({"provider_message_id": e6}, {"$set": {"retry_started_at": "2000-01-01T00:00:00+00:00"}})
         assert (await post(e6)).json()["status"] == "routed"
 
@@ -126,8 +126,8 @@ async def run():
         before = await uploads()
         rs = await asyncio.gather(*[post(e7) for _ in range(4)]); state["delay"] = 0.0
         assert await db.inbound_emails.count_documents({"provider_message_id": e7}) == 1
-        kinds = sorted(x.json()["status"] for x in rs if x.status_code == 200)
-        assert kinds.count("routed") == 1 and kinds.count("duplicate") == 3 and len(kinds) == 4, kinds
+        kinds = sorted(str(x.json()["status"] if x.status_code == 200 else x.status_code) for x in rs)
+        assert kinds.count("routed") == 1 and kinds.count("409") == 3 and len(kinds) == 4, kinds
         assert await uploads() - before == 1 and state["calls"][e7] == 1
         assert len([r for r in await receipts((await db.inbound_emails.find_one({"provider_message_id": e7}))["inbound_id"]) if r == "inbound_email.routed"]) == 1
 
@@ -152,7 +152,8 @@ async def run():
                 assert await db.menu_uploads.count_documents({"source_ref": iid}) == 1
             else:
                 assert await db.schedule_items.count_documents({"source_ref": iid}) == 2
-            assert (await post(e8, frm=frm, to=lane_to)).json()["status"] == "duplicate"   # fresh in-flight claim blocks a second run
+            blocked = await post(e8, frm=frm, to=lane_to)   # fresh in-flight claim blocks a second run, retryably
+            assert blocked.status_code == 409 and "in_progress" in blocked.text
             await db.inbound_emails.update_one({"provider_message_id": e8}, {"$set": {"retry_started_at": "2000-01-01T00:00:00+00:00"}})
             r = await post(e8, frm=frm, to=lane_to); assert r.status_code == 200 and r.json()["status"] == "routed", r.text
             assert r.json()["inbound_id"] == iid
@@ -189,6 +190,64 @@ async def run():
         assert (await post(e10)).json()["status"] == "routed"
         assert await db.menu_items.count_documents({"upload_id": f"mupload_{iid10}"}) == 6
         email_inbound._record_outcome = real_record
+
+        # 9) crash after ONE of TWO activities was inserted: retry completes only the missing row, no replay, no deletion
+        from routes import schedule_ingest
+        real_db = schedule_ingest.db
+        class Coll:
+            def __init__(self, c): self.c = c
+            async def insert_many(self, docs, *a, **k):
+                await self.c.insert_one(dict(docs[0])); raise RuntimeError("simulated crash after the first row")
+            def __getattr__(self, n): return getattr(self.c, n)
+        class DBProxy:
+            schedule_items = Coll(real_db.schedule_items)
+            def __getattr__(self, n): return getattr(real_db, n)
+        TWO = "Monday 2026-09-28:\n10:00 AM Chair Yoga - Sunroom\n2:00 PM Bingo [activity]\n"
+        e9a = eid(); state["bodies"][e9a] = {"text": TWO, "html": ""}
+        schedule_ingest.db = DBProxy()
+        assert (await post(e9a, frm="programs@thefacility.com", to="activities@inbound.caoscare.com")).status_code == 500
+        schedule_ingest.db = real_db
+        iid = (await db.inbound_emails.find_one({"provider_message_id": e9a}))["inbound_id"]; ing = f"sched_ingest_{iid}"
+        first = await db.schedule_items.find({"ingest_id": ing}, {"_id": 0}).to_list(10)
+        assert [r["schedule_id"] for r in first] == [f"{ing}_0"]
+        await db.inbound_emails.update_one({"provider_message_id": e9a}, {"$set": {"retry_started_at": "2000-01-01T00:00:00+00:00"}})
+        r = await post(e9a, frm="programs@thefacility.com", to="activities@inbound.caoscare.com")
+        assert r.status_code == 200 and r.json()["status"] == "routed" and r.json()["inbound_id"] == iid, r.text
+        rows = await db.schedule_items.find({"ingest_id": ing}, {"_id": 0}).sort("schedule_id", 1).to_list(10)
+        assert [x["schedule_id"] for x in rows] == [f"{ing}_0", f"{ing}_1"]
+        assert rows[0] == first[0]   # the earlier row is byte-identical: not replaced, not rewritten
+        assert {x["title"] for x in rows} == {"Chair Yoga", "Bingo"}
+        assert await db.receipts.count_documents({"related_object_type": "schedule_batch", "related_object_id": ing}) == 1
+        assert (await receipts(iid)).count("inbound_email.routed") == 1
+
+        # 9b) rows we cannot account for -> hold for a person (not routed), nothing deleted, final
+        e9b = eid(); state["bodies"][e9b] = {"text": TWO, "html": ""}
+        crash["on"] = True; email_inbound._record_outcome = flaky
+        assert (await post(e9b, frm="programs@thefacility.com", to="activities@inbound.caoscare.com")).status_code == 500
+        email_inbound._record_outcome = real_record
+        iidb = (await db.inbound_emails.find_one({"provider_message_id": e9b}))["inbound_id"]; ingb = f"sched_ingest_{iidb}"
+        await db.schedule_items.insert_one({"schedule_id": "stray_row", "ingest_id": ingb, "date": "2026-09-28", "title": "Mystery", "status": "draft"})
+        await db.inbound_emails.update_one({"provider_message_id": e9b}, {"$set": {"retry_started_at": "2000-01-01T00:00:00+00:00"}})
+        r = await post(e9b, frm="programs@thefacility.com", to="activities@inbound.caoscare.com")
+        assert r.status_code == 200 and r.json()["status"] == "reconciliation_required", r.text
+        row = await db.inbound_emails.find_one({"provider_message_id": e9b}, {"_id": 0})
+        assert row["status"] == "reconciliation_required" and not row.get("retryable") and not row.get("linked_object_id")
+        assert await db.schedule_items.count_documents({"ingest_id": ingb}) == 3   # 2 written before the hold + stray, none deleted
+        assert (await post(e9b, frm="programs@thefacility.com", to="activities@inbound.caoscare.com")).json()["status"] == "duplicate"
+        assert "inbound_email.routed" not in await receipts(iidb)
+
+        # 10) an early concurrent delivery during a slow attempt that then FAILS: not a 200 "duplicate"; the later retry recovers
+        e10x = eid(); state["bodies"][e10x] = {"text": MENU.replace("2026-09-25", "2026-10-04"), "html": ""}; state["fail"].add(e10x)
+        state["delay"] = 0.4
+        orig = asyncio.create_task(post(e10x)); await asyncio.sleep(0.15)
+        early = await post(e10x)
+        assert early.status_code == 409 and "in_progress" in early.text and early.headers.get("retry-after") == "60"
+        first = await orig; state["delay"] = 0.0
+        assert first.status_code == 502
+        state["fail"].discard(e10x)
+        rr = await post(e10x); assert rr.status_code == 200 and rr.json()["status"] == "routed", rr.text
+        assert await db.menu_uploads.count_documents({"source_ref": rr.json()["inbound_id"]}) == 1
+        assert (await post(e10x)).json()["status"] == "duplicate"   # terminal success -> true duplicate
     print("OK")
     await db.client.drop_database(os.environ["DB_NAME"])
 
