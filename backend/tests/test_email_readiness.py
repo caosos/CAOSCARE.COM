@@ -45,9 +45,10 @@ def test_nothing_configured_lists_every_gap_and_leaks_nothing(monkeypatch):
     monkeypatch.setenv("RESEND_API_KEY", "re_SECRETVALUE")
     monkeypatch.delenv("RESEND_API_KEY")
     r = get(f"{TAG}_a"); body = r.json()
-    assert r.status_code == 200 and body["ready"] is False
+    assert r.status_code == 200 and "ready" not in body
     ok = {c["id"]: c["ok"] for c in body["checks"]}
-    assert ok["resend_key"] is False and ok["sending_domain"] is False and ok["webhook_secret"] is False
+    assert ok["resend_key"] is False and ok["sender_address"] is False and ok["webhook_secret"] is False
+    assert body["configuration_complete"] is False and body["verified"] is False
     assert any(d["slug"] == f"{TAG}_dep" for d in body["departments_missing_inbox"])
 
 
@@ -59,7 +60,12 @@ def test_configured_values_turn_checks_green_without_printing_them(monkeypatch):
                                         {"entry_id": f"{TAG}_x", "lane": "activities", "pattern": "@a.example", "active": False}]))
     r = get(f"{TAG}_a"); body = r.json()
     ok = {c["id"]: c["ok"] for c in body["checks"]}
-    assert ok["resend_key"] and ok["sending_domain"] and ok["webhook_secret"]
+    assert ok["resend_key"] and ok["sender_address"] and ok["webhook_secret"]
+    # configured is not verified: domain verification and webhook reachability stay UNKNOWN and never ok
+    st = {c["id"]: c["state"] for c in body["checks"]}
+    assert st["sending_domain_verified"] == "unknown" and st["webhook_reachable"] == "unknown"
+    assert ok["sending_domain_verified"] is False and ok["webhook_reachable"] is False
+    assert body["verified"] is False and set(body["unverified_items"]) == {"sending_domain_verified", "webhook_reachable"}
     assert ok["inbound_menu_sender"] is True and ok["inbound_activities_sender"] is False   # inactive entry does not count
     assert "SECRETVALUE" not in r.text and "facility.example" not in r.text
 
@@ -67,3 +73,16 @@ def test_configured_values_turn_checks_green_without_printing_them(monkeypatch):
 def test_admin_only():
     assert get().status_code == 401
     assert get(f"{TAG}_s").status_code == 403
+
+
+@pytest.mark.parametrize("raw,state", [
+    ("", "missing"), ("   ", "missing"), ("onboarding@resend.dev", "default"), ("Care <onboarding@resend.dev>", "default"),
+    ("not-an-address", "invalid"), ("a@b", "invalid"), ("<>", "invalid"), ("two words@x.example", "invalid"),
+    ("care@facility.example", "configured"), ("CAOSCare <care@facility.example>", "configured")])
+def test_sender_values(monkeypatch, raw, state):
+    monkeypatch.setenv("RESEND_API_KEY", "re_x"); monkeypatch.setenv("RESEND_WEBHOOK_SECRET", "whsec_x")
+    monkeypatch.setenv("RESEND_FROM_EMAIL", raw)
+    body = get(f"{TAG}_a").json()
+    c = {x["id"]: x for x in body["checks"]}["sender_address"]
+    assert c["state"] == state and c["ok"] is (state == "configured")
+    assert body["verified"] is False   # a good sender never makes the whole thing "verified"
