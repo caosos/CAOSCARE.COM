@@ -17,6 +17,8 @@ const STATUS_FILTERS = ["all", "logged", "simulated", "sent", "delivered", "fail
 // Outbound provider status, a test send, and the delivery log for every
 // notification CAOSCare attempted (department, family, test). Statuses come
 // from lib/notificationDelivery so "recorded only" is never shown as sent.
+import EmailReadiness from "../components/EmailReadiness";
+
 export default function CommunicationsTab() {
   const [status, setStatus] = useState(null);
   const [notifs, setNotifs] = useState([]);
@@ -50,6 +52,7 @@ export default function CommunicationsTab() {
 
   return (
     <div className="space-y-6" data-testid="communications-panel">
+      <EmailReadiness />
       <Card className="border-caos-line p-5">
         <div className="flex justify-between items-center flex-wrap gap-2 mb-3">
           <h3 className="font-display text-lg font-medium text-caos-forest">Providers</h3>
