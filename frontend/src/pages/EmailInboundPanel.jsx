@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { latestOnly } from "../lib/latestOnly";
 import { api } from "../lib/api";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -12,21 +13,54 @@ import { inboundStatus, INBOUND_LANES } from "../lib/notificationDelivery";
 // Inbound email: who may publish to the menu/activities by email (the
 // allowlist, fail-closed per lane), and what happened to every email that
 // arrived. Reads/writes /email/allowlist and /email/inbound/messages.
+const FRESH = { state: "loading", data: [], at: null, stale: false };
+
+// One read's truth: loading, error (never loaded), ok (loaded), or ok+stale (a later refresh failed, so the data
+// shown is from the last good load, not current). An empty list is only ever asserted from a successful read.
+function settle(prev, result) {
+  if (result.status === "fulfilled") return { state: "ok", data: result.value.data || [], at: new Date(), stale: false };
+  if (prev.at) return { ...prev, stale: true };
+  return { state: "error", data: [], at: null, stale: false };
+}
+
+function ReadNotice({ what, src, onRetry }) {
+  if (src.state === "loading") return <p className="text-sm text-caos-mute" data-testid={`${what}-loading`}>Loading…</p>;
+  if (src.state === "error") {
+    return (
+      <p className="text-sm text-caos-terracotta" data-testid={`${what}-error`}>
+        Could not load this. Nothing is known about it right now.{" "}
+        <button type="button" className="underline font-semibold" onClick={onRetry} data-testid={`${what}-retry`}>Retry</button>
+      </p>
+    );
+  }
+  if (src.stale) {
+    return (
+      <p className="text-xs text-caos-terracotta mb-2" data-testid={`${what}-stale`}>
+        Could not refresh. Showing the last successful load{src.at ? ` (${src.at.toLocaleTimeString()})` : ""}; it may be out of date.{" "}
+        <button type="button" className="underline font-semibold" onClick={onRetry} data-testid={`${what}-retry`}>Retry</button>
+      </p>
+    );
+  }
+  return null;
+}
+
 export default function EmailInboundPanel() {
-  const [entries, setEntries] = useState([]);
-  const [messages, setMessages] = useState([]);
+  const [allow, setAllow] = useState(FRESH);
+  const [msgs, setMsgs] = useState(FRESH);
   const [form, setForm] = useState({ lane: "menu", pattern: "", label: "" });
+  const guard = useRef(latestOnly());
+  useEffect(() => { const g = guard.current; return () => g.invalidate(); }, []);
 
   const load = async () => {
-    try {
-      const [a, m] = await Promise.all([api.get("/email/allowlist"), api.get("/email/inbound/messages?limit=50")]);
-      setEntries(a.data);
-      setMessages(m.data);
-    } catch {
-      toast.error("Could not load inbound email");
-    }
+    const mine = guard.current.next();   // only the newest load may update the screen; a closed panel drops late replies
+    const [a, m] = await Promise.allSettled([api.get("/email/allowlist"), api.get("/email/inbound/messages?limit=50")]);
+    if (!guard.current.isCurrent(mine)) return;
+    setAllow((p) => settle(p, a));
+    setMsgs((p) => settle(p, m));
+    if (a.status === "rejected" || m.status === "rejected") toast.error("Could not load inbound email");
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const entries = allow.data, messages = msgs.data;
 
   const add = async (e) => {
     e.preventDefault();
@@ -41,9 +75,13 @@ export default function EmailInboundPanel() {
   };
 
   const remove = async (id) => {
-    await api.delete(`/email/allowlist/${id}`);
-    toast.success("Sender disabled");
-    load();
+    try {
+      await api.delete(`/email/allowlist/${id}`);
+      toast.success("Sender disabled");
+      load();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Could not disable sender");
+    }
   };
 
   const active = entries.filter((e) => e.active);
@@ -68,13 +106,14 @@ export default function EmailInboundPanel() {
             value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} />
           <Button type="submit" className="bg-caos-forest rounded-full"><Plus className="w-4 h-4 mr-1" /> Approve</Button>
         </form>
-        <div className="space-y-2">
+        <ReadNotice what="allowlist" src={allow} onRetry={load} />
+        {allow.state === "ok" && <div className="space-y-2">
           {INBOUND_LANES.map((lane) => {
             const rows = active.filter((e) => e.lane === lane.value);
             return (
               <div key={lane.value}>
                 <p className="text-sm font-semibold text-caos-forest">{lane.label}</p>
-                {rows.length === 0 && <p className="text-xs text-caos-terracotta">No approved senders - all email quarantined.</p>}
+                {rows.length === 0 && <p className="text-xs text-caos-terracotta" data-testid={`allowlist-empty-${lane.value}`}>No approved senders{allow.stale ? " as of the last successful load" : ""} - all email quarantined.</p>}
                 {rows.map((e) => (
                   <div key={e.entry_id} className="flex items-center gap-2 text-sm py-1">
                     <span className="font-mono">{e.pattern}</span>
@@ -87,12 +126,13 @@ export default function EmailInboundPanel() {
               </div>
             );
           })}
-        </div>
+        </div>}
       </Card>
 
       <Card className="border-caos-line p-5">
         <h3 className="font-display text-lg font-medium text-caos-forest mb-3">Inbound email received</h3>
-        <div className="space-y-2" data-testid="inbound-log">
+        <ReadNotice what="inbound" src={msgs} onRetry={load} />
+        {msgs.state === "ok" && <div className="space-y-2" data-testid="inbound-log">
           {messages.map((m) => {
             const s = inboundStatus(m.status);
             return (
@@ -111,8 +151,8 @@ export default function EmailInboundPanel() {
               </div>
             );
           })}
-          {messages.length === 0 && <p className="text-caos-mute text-sm">No inbound email has been received.</p>}
-        </div>
+          {messages.length === 0 && <p className="text-caos-mute text-sm" data-testid="inbound-empty">No inbound email has been received{msgs.stale ? " as of the last successful load" : ""}.</p>}
+        </div>}
       </Card>
     </div>
   );
