@@ -26,6 +26,7 @@ import { executeDisplayTool } from "./realtimeDisplayTools";
 import { executeCareTool, ringLiveLineOnSilence } from "./realtimeCareControl";
 import { createFarewellWatch } from "./farewellWatch";
 import { createClaimGuard } from "./claimGuard";
+import { createDeltaLead } from "./deltaLead";
 import { createClaimInterrupter, claimInterrupterMode, verifiedConfirmationEvent } from "./claimInterrupter";
 import { logRealtimeEvent, transcriptionConfidence, LOW_CONFIDENCE_THRESHOLD } from "./realtimeDiagnostics";
 import { reenableAutoResponse, createGreetingResponseGate } from "./realtimeAutoResponseGate";
@@ -118,6 +119,7 @@ export function createRealtimeHandlers({
   });
   const turnGrounding = createTurnGroundingTracker(); // see realtimeTurnGrounding.js
   const farewellWatch = createFarewellWatch((type, d) => logRealtimeEvent(sessionIdRef.current, type, d));
+  const deltaLead = createDeltaLead((type, d) => logRealtimeEvent(sessionIdRef.current, type, d));
   const claimGuard = createClaimGuard((type, d) => logRealtimeEvent(sessionIdRef.current, type, d));
   const claimMode = claimInterrupterMode(); // RQ-050: "off" by default; see claimInterrupter.js
   const claimInterrupter = createClaimInterrupter({ send, mode: claimMode, log: (type, d) => logRealtimeEvent(sessionIdRef.current, type, d) });
@@ -285,6 +287,7 @@ export function createRealtimeHandlers({
     // they do NOT exist on plain WebSocket, which is why this was missed
     // before) and track actual playback lifecycle, not generation.
     if (msg.type === "output_audio_buffer.started") {
+      deltaLead.onAudioStarted(msg);
       endCtl.noteAudioStarted();
       assistantSpeakingRef.current = true;
       greetingGate.onAudioStarted();
@@ -316,6 +319,7 @@ export function createRealtimeHandlers({
       hangup.onResponseDone();
       farewellWatch.onResponseDone(msg.response);
       claimGuard.onResponseDone(msg.response);
+      deltaLead.onResponseDone(msg.response);
       claimInterrupter.onResponseDone(msg.response);
     }
     if (msg.type === "response.created" && typedTurnRef?.current) onTypedResponseCreated(typedTurnRef.current);
@@ -381,7 +385,7 @@ export function createRealtimeHandlers({
     // "assistant" entries being added). Found via a full real WebRTC
     // connection test that logged every actual event type/name OpenAI
     // sent, not by guessing.
-    if (msg.type === "response.output_audio_transcript.delta") claimInterrupter.onTranscriptDelta(msg);
+    if (msg.type === "response.output_audio_transcript.delta") { deltaLead.onDelta(msg); claimInterrupter.onTranscriptDelta(msg); }
     if (msg.type === "response.output_audio_transcript.done") {
       const aiText = msg.transcript || "";
       setTranscript((t) => [...t, { role: "assistant", text: aiText, ts: Date.now() }]);

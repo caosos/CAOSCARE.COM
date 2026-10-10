@@ -8330,3 +8330,8 @@ Permanent fix: `scripts/restart_dev_backend.sh` — fixed interpreter, fixed por
 ## 2026-10-10 — Test-reality audit gaps 1-6 closed offline; real defect found and fixed ("turn it off" ended the call)
 Tests added: gap 3 alert receipts append-only (`eb00c5c`), gap 2 research label through dispatch (`f8171fb`), gap 1 handler wiring (`farewellWiring`, `0c2d…` see git), gap 5 resident mint offline (`test_resident_session_mint_offline.py`), gap 4 golden `session.update` (`936c0ad`), gap 6 handler replay (`handlerReplay.test.js`, `cfc8020`). Each was mutation-checked (broken production code made it fail, then restored).
 **Defect found by the replay and fixed in `cfc8020`:** `endIntent.js` classed "turn it off", "shut it off", "turn this off" and a bare "stop" as an explicit END of the call. In a room with lights and a TV, "turn it off" would have hung up on the resident. Only "turn/shut yourself off" now ends it. Frontend 56 suites / 495 tests pass. **Not live:** the Room 214 page still runs the previous bundle until the next authorized rebuild; batch it with the next consolidated deployment request.
+
+---
+
+## 2026-10-10 — RQ-052: transcript-delta vs audio-start instrumentation (offline)
+`frontend/src/lib/deltaLead.js` logs one `transcript_delta_lead` event per response (`lead_ms` = audio start minus first transcript delta; `chars_before_audio`; null when audio never starts), wired in `realtimeMessageHandler.js`. Fixture tests with a fake clock plus a real-handler test (`deltaLead.test.js`, 4 pass; removing the audio-start wiring fails the handler test). Frontend 57 suites / 499 tests. **Not measured on real audio:** the actual lead needs a live call on a page that includes this commit; until then no number is claimed. Not live (no rebuild done).
