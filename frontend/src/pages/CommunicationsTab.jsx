@@ -20,9 +20,27 @@ const STATUS_FILTERS = ["all", "logged", "simulated", "sent", "delivered", "fail
 // from lib/notificationDelivery so "recorded only" is never shown as sent.
 import EmailReadiness from "../components/EmailReadiness";
 
+const FRESH = { state: "loading", data: null, at: null, stale: false, key: null };
+
+// One read's truth. Data is only ever the reply to the key (filter) it is shown for: a failed read of a different
+// filter shows an error, never the previous filter's rows; a failed refresh of the same filter keeps them, marked stale.
+function settle(prev, result, key = null) {
+  if (result.status === "fulfilled") return { state: "ok", data: result.value.data, at: new Date(), stale: false, key };
+  if (prev.at && prev.key === key) return { ...prev, stale: true };
+  return { state: "error", data: null, at: null, stale: false, key };
+}
+
+function ReadNotice({ what, src, onRetry }) {
+  if (src.state === "loading") return <p className="text-sm text-caos-mute" data-testid={`${what}-loading`}>Loading…</p>;
+  const retry = <button type="button" className="underline font-semibold" onClick={onRetry} data-testid={`${what}-retry`}>Retry</button>;
+  if (src.state === "error") return <p className="text-sm text-caos-terracotta" data-testid={`${what}-error`}>Could not load this. Nothing is known about it right now. {retry}</p>;
+  if (src.stale) return <p className="text-xs text-caos-terracotta mb-2" data-testid={`${what}-stale`}>Could not refresh. Showing the last successful load{src.at ? ` (${src.at.toLocaleTimeString()})` : ""}; it may be out of date. {retry}</p>;
+  return null;
+}
+
 export default function CommunicationsTab() {
-  const [status, setStatus] = useState(null);
-  const [notifs, setNotifs] = useState([]);
+  const [status, setStatus] = useState(FRESH);
+  const [log, setLog] = useState(FRESH);
   const [filter, setFilter] = useState("all");
   const [testOpen, setTestOpen] = useState(false);
   const [test, setTest] = useState({ channel: "email", to: "", body: "CAOSCare test notification." });
@@ -31,15 +49,12 @@ export default function CommunicationsTab() {
   useEffect(() => { const g = guard.current; return () => g.invalidate(); }, []);   // closed/navigated away: late replies are dropped
   const load = async () => {
     const mine = guard.current.next();   // only the newest filter's reply may update the list
-    try {
-      const q = filter === "all" ? "" : `&status=${filter}`;
-      const [s, n] = await Promise.all([api.get("/notifications/status"), api.get(`/notifications?limit=100${q}`)]);
-      if (!guard.current.isCurrent(mine)) return;
-      setStatus(s.data);
-      setNotifs(n.data);
-    } catch {
-      if (guard.current.isCurrent(mine)) toast.error("Could not load notifications");
-    }
+    const q = filter === "all" ? "" : `&status=${filter}`;
+    const [s, n] = await Promise.allSettled([api.get("/notifications/status"), api.get(`/notifications?limit=100${q}`)]);
+    if (!guard.current.isCurrent(mine)) return;
+    setStatus((p) => settle(p, s));
+    setLog((p) => settle(p, n, filter));
+    if (s.status === "rejected" || n.status === "rejected") toast.error("Could not load notifications");
   };
   useEffect(() => { load(); }, [filter]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -94,10 +109,13 @@ export default function CommunicationsTab() {
             </DialogContent>
           </Dialog>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <ProviderBadge label="Resend email" ok={status?.resend_configured} detail={status?.resend_from} />
-          <ProviderBadge label="Twilio SMS" ok={status?.twilio_configured} detail={status?.twilio_from} />
-        </div>
+        <ReadNotice what="provider" src={status} onRetry={load} />
+        {status.state === "ok" && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3" data-testid="provider-badges">
+            <ProviderBadge label="Resend email" ok={status.data?.resend_configured} detail={status.data?.resend_from} />
+            <ProviderBadge label="Twilio SMS" ok={status.data?.twilio_configured} detail={status.data?.twilio_from} />
+          </div>
+        )}
         <p className="text-caos-mute text-sm mt-3">
           Without a configured provider, notifications are recorded here but not sent. "Accepted by provider"
           means the provider took the message; "Delivered" appears only when the provider reports delivery.
@@ -117,8 +135,11 @@ export default function CommunicationsTab() {
           </Select>
         </div>
         <div className="space-y-2" data-testid="notif-log">
-          {notifs.map((n) => <NotificationRow key={n.notification_id} n={n} />)}
-          {notifs.length === 0 && <p className="text-caos-mute text-sm">No notifications.</p>}
+          <ReadNotice what="notif" src={log} onRetry={load} />
+          {log.state === "ok" && log.data.map((n) => <NotificationRow key={n.notification_id} n={n} />)}
+          {log.state === "ok" && log.data.length === 0 && (
+            <p className="text-caos-mute text-sm" data-testid="notif-empty">{log.stale ? "No notifications as of the last successful load." : "No notifications."}</p>
+          )}
         </div>
       </Card>
 
