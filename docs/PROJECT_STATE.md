@@ -8272,3 +8272,14 @@ HANDOFF CAPSULE
 - Unresolved proven defects: live end-call refusal (fix not loaded).
 - Do NOT change:    Room 214 services, live page, STT, wake settings, Deal Sniffer.
 - Next safe action: owner decides whether to authorize the Room page rebuild.
+
+---
+
+## 2026-10-09 — RESUMED by owner; Room 214 page rebuilt (authorized)
+
+Authorization: owner, in this session, 2026-10-09 ~19:25 CDT ("Yes, rebuild now"). Coordinator ran `room-node/aria_wake/ctl.sh rebuild` then `restart-page` per `docs/ROOM_PAGE_REBUILD_RUNBOOK.md`, with no live lease (0 at start).
+- Built commit `e15d59f` (includes RQ-055 `60dfb80`, RQ-056 `cf7ece2`). Previous bundle `main.6c585537.js` (kept as `~/.cache/aria-wake/build.prev`); new bundle `main.98a48c6f.js` contains `local_end`, `end_call_corroborated`, `out_of_script_transcript`.
+- Restarted only `aria-wake-page.service` and `aria-wake-kiosk.service`. `aria-wake.service` (listener) not restarted (NRestarts=0); it logged one `client_disconnected` at 00:29:32Z and `client_connected` at 00:30:00Z when the new page reconnected (a websocket close traceback in its log is the old page being killed). All three units active; page health 200.
+- Flags: none (no English pin, no vocabulary hint, claim interrupter off).
+- Rollback: `cd ~/.cache/aria-wake && mv build build.bad && mv build.prev build`, then `ctl.sh restart-page`.
+- Not yet verified live: the end-call behavior itself (needs the owner's short test: "Hey Aria", talk briefly, "Goodbye").
