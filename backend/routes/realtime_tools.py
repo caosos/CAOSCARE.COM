@@ -233,7 +233,9 @@ async def _build_tools() -> list[dict]:
                 "again until the resident has answered. NEVER say goodbye or goodnight to "
                 "end an exchange unless you are calling this tool in the same turn; if "
                 "you are unsure the resident wants to end, ask instead of saying "
-                "goodbye. After a successful call, say one "
+                "goodbye. Say NOTHING before calling it (never announce that you are "
+                "ending - a refusal would make that false); only after a successful "
+                "result, say one "
                 "short warm goodbye and then stop talking — the kiosk will tear down the "
                 "connection."
             ),
