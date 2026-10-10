@@ -57,6 +57,12 @@ const msg = async (o) => { await act(async () => { mockConn.onMessage({ data: JS
 const said = (text) => msg({ type: "conversation.item.input_audio_transcription.completed", transcript: text, item_id: `i_${Math.random()}` });
 const toolCall = (name, n = 1) => msg({ type: "response.function_call_arguments.done", call_id: `c${n}`, name, arguments: "{}" });
 const settle = async (ms = 0) => { await act(async () => { jest.advanceTimersByTime(ms); await Promise.resolve(); await Promise.resolve(); }); };
+const finishGoodbye = async () => {
+  await msg({ type: "response.created", response: { id: "r_bye" } });
+  await msg({ type: "output_audio_buffer.started" });
+  await msg({ type: "output_audio_buffer.stopped" });
+  await settle(500);
+};
 const closed = () => ({ track: mockConn.track.stop.mock.calls.length > 0, pc: mockConn.pc.close.mock.calls.length > 0, dc: mockConn.dc.close.mock.calls.length > 0 });
 const types = () => mockConn.sent.map((m) => m.type);
 const logged = (name) => mockLog.mock.calls.filter((c) => c[1] === name);
@@ -71,23 +77,37 @@ beforeEach(async () => {
 });
 afterEach(async () => { await act(async () => { root.unmount(); }); jest.useRealTimers(); });
 
-test("a clear spoken ending closes channel, peer and microphone, cancels the response, and the call is over", async () => {
+test("a clear spoken ending is ACKNOWLEDGED aloud, then closes channel, peer and microphone; nothing restarts the call", async () => {
   await said("Aria. Goodbye. End the call.");
-  expect(closed()).toEqual({ track: true, pc: true, dc: true });
-  expect(onEndCall).toHaveBeenCalledTimes(1);
+  const bye = mockConn.sent.find((m) => m.type === "response.create");
+  expect(bye.response.instructions).toMatch(/goodbye/i);                          // an audible goodbye is requested
   expect(types()).toEqual(expect.arrayContaining(["response.cancel", "output_audio_buffer.clear"]));
-  expect(logged("local_end")).toHaveLength(1);
-  expect(logged("session_ended")[0][2].meta.reason).toBe("resident_end_call");
+  expect(closed()).toEqual({ track: false, pc: false, dc: false });               // not cut off before it is heard
   const before = mockConn.sent.length;
-  await msg({ type: "response.created", response: { id: "r_stale" } });          // stale response must not resurrect anything
-  await toolCall("request_staff_help");
+  await toolCall("request_staff_help");                                           // ignored while ending
   await said("Hello again");
   expect(mockConn.sent.length).toBe(before);
+  await finishGoodbye();
+  expect(closed()).toEqual({ track: true, pc: true, dc: true });
+  expect(onEndCall).toHaveBeenCalledTimes(1);
+  expect(logged("local_end")).toHaveLength(1);
+  expect(logged("session_ended")[0][2].meta.reason).toBe("resident_end_call");
+  const after = mockConn.sent.length;
+  await msg({ type: "response.created", response: { id: "r_stale" } });          // stale response must not resurrect anything
+  expect(mockConn.sent.length).toBe(after);
+});
+
+test("if the goodbye audio never arrives the call still closes within the 7 s ceiling", async () => {
+  await said("End the call.");
+  await settle(7000);
+  expect(closed()).toEqual({ track: true, pc: true, dc: true });
+  expect(onEndCall).toHaveBeenCalledTimes(1);
 });
 
 test("repeated explicit stops, in one turn and across turns, end the call exactly once", async () => {
   for (const t of ["End the call.", "Goodbye.", "Go away.", "End the call. Goodbye."]) await said(t);
-  await settle(8000);
+  expect(mockConn.sent.filter((m) => m.type === "response.create")).toHaveLength(1);   // one goodbye, not four
+  await finishGoodbye();
   expect(onEndCall).toHaveBeenCalledTimes(1);
   expect(closed()).toEqual({ track: true, pc: true, dc: true });
   await act(async () => { api.stop("ui_end_call_button"); api.stop("ui_end_call_button"); });
@@ -98,6 +118,7 @@ test("while Aria is speaking, a clear 'end the call' barge-in still ends it", as
   await msg({ type: "output_audio_buffer.started" });
   await msg({ type: "input_audio_buffer.speech_started" });
   await said("End the call.");
+  await finishGoodbye();
   expect(closed().track).toBe(true);
   expect(onEndCall).toHaveBeenCalledTimes(1);
 });
@@ -139,6 +160,7 @@ test("standalone Goodbye, End the call and Go away each end the call immediately
     await act(async () => { await api.start(); });
     onEndCall.mockClear();
     await said(phrase);
+    await finishGoodbye();
     expect(onEndCall).toHaveBeenCalledTimes(1);
     expect(closed().track).toBe(true);
   }
@@ -170,6 +192,7 @@ test("page reload / unmount stops the microphone", async () => {
 test("after an ended call a deliberate new start works, and the old connection stays dead", async () => {
   const oldHandler = mockConn.onMessage;
   await said("Goodbye.");
+  await finishGoodbye();
   expect(onEndCall).toHaveBeenCalledTimes(1);
   await act(async () => { await api.start(); });                // new wake / UI start
   expect(mockConn.creates).toBe(2);

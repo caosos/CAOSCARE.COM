@@ -8,15 +8,37 @@
  */
 import { createEndCorroboration, transcriptIsOutOfScript, turnMayEnd } from "./endIntent";
 
+export const GOODBYE_INSTRUCTIONS = "The resident just said goodbye. Say exactly one short warm sentence, for example: Goodbye, I'm right here when you call. Do not ask a question and do not offer anything else.";
+
 export function createEndController({ send, stop, onEndCall, log }) {
   let ended = false;
+  let ending = false;
   const corroboration = createEndCorroboration();
   return {
     get ended() { return ended; },
+    /** True from the moment a spoken goodbye is being acknowledged until the connection closes. */
+    get ending() { return ending || ended; },
+    /** The model's own granted end_call is already speaking its goodbye: just mark the state. */
+    markEnding() { ending = true; },
+    /**
+     * Local end intent with an AUDIBLE acknowledgement (owner, 2026-10-09: a silent cut-off
+     * could not be told from a failure). Cancels whatever Aria is saying, asks for one short
+     * goodbye, and returns true; the caller arms the hang-up scheduler, which closes after
+     * that audio (or at its 7 s ceiling). Idempotent.
+     */
+    beginEnding(via, detail = {}) {
+      if (ending || ended) return false;
+      ending = true;
+      log("local_end", { meta: { via, acknowledged: true, ...detail } });
+      send({ type: "response.cancel" });
+      send({ type: "output_audio_buffer.clear" });
+      send({ type: "response.create", response: { instructions: GOODBYE_INSTRUCTIONS } });
+      return true;
+    },
     endNow(kind, via, detail = {}) {
       if (ended) return;
       ended = true;
-      log("local_end", { meta: { via, ...detail } });
+      log("call_closed", { meta: { via, ...detail } });
       send({ type: "response.cancel" });
       send({ type: "output_audio_buffer.clear" });
       try { stop(kind); } catch { /* teardown is best-effort and must not throw */ }

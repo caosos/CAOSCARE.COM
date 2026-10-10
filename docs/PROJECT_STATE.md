@@ -8283,3 +8283,12 @@ Authorization: owner, in this session, 2026-10-09 ~19:25 CDT ("Yes, rebuild now"
 - Flags: none (no English pin, no vocabulary hint, claim interrupter off).
 - Rollback: `cd ~/.cache/aria-wake && mv build build.bad && mv build.prev build`, then `ctl.sh restart-page`.
 - Not yet verified live: the end-call behavior itself (needs the owner's short test: "Hey Aria", talk briefly, "Goodbye").
+
+---
+
+## 2026-10-09 — RQ-057: goodbye is acknowledged aloud (owner live test of the rebuilt page)
+
+Owner test 00:32-00:34Z on the rebuilt page (`e15d59f`): the first "Goodbye" was transcribed "Nothing." (model `end_call` refused, Aria asked to confirm); the second "Goodbye." ended the call at once via the local end path (`local_end`, `session_ended`), but **silently**, so he could not tell it from a failure. Evidence: sessions `rt_hr70kwv2_1791592350896`, `rt_t6s0qdgg_1791592409347`.
+- Change (frontend only): a local explicit ending now cancels Aria's speech, requests one short spoken goodbye (`response.create` with instructions), and closes after that audio finishes (existing hang-up scheduler: 400 ms tail, 7 s ceiling). While ending, tool calls, transcripts and new speech are ignored, so nothing restarts the call. Logs: `local_end` (acknowledged:true) then `call_closed`.
+- Tests: frontend 54 suites / 473 pass; build compiles; handler-level tests assert the goodbye is requested before anything closes, the 7 s fallback, one goodbye for repeated stops, then all tracks/peer/channel closed.
+- NOT live: the Room page still runs `e15d59f` until the next authorized rebuild.
