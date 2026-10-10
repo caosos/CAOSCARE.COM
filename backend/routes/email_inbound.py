@@ -27,10 +27,11 @@ duplicate, unrecognized recipient, quarantined, routed, or error - so
 import html as _html
 import os
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import httpx
+from pymongo.errors import DuplicateKeyError
 from fastapi import APIRouter, HTTPException, Request, Depends
 
 from deps import db, require_admin
@@ -131,6 +132,36 @@ async def _save_message(msg: InboundEmailMessage) -> dict:
     return doc
 
 
+RETRY_CLAIM_STALE_SECONDS = 300
+_index_ready = False
+
+
+async def _ensure_unique_index() -> None:
+    """The docstring's "unique on provider_message_id" was never enforced. Best effort, once per process: if old
+    duplicate rows block the index, dedup still works through the lookup and the DuplicateKeyError path just stays idle."""
+    global _index_ready
+    if _index_ready:
+        return
+    try:
+        await db.inbound_emails.create_index("provider_message_id", unique=True)
+    except Exception:
+        pass
+    _index_ready = True
+
+
+async def _claim_retry(provider_message_id: str) -> Optional[dict]:
+    """Atomically take the one retry of an inbound email whose body fetch failed. Returns the row, or None when the
+    email is not retryable or another delivery already holds the claim. A claim abandoned by a crash (status
+    "retrying" for over 5 minutes) can be taken again."""
+    now = now_utc()
+    stale = (now - timedelta(seconds=RETRY_CLAIM_STALE_SECONDS)).isoformat()
+    return await db.inbound_emails.find_one_and_update(
+        {"provider_message_id": provider_message_id,
+         "$or": [{"retryable": True}, {"status": "retrying", "retry_started_at": {"$lt": stale}}]},
+        {"$set": {"retryable": False, "status": "retrying", "retry_started_at": now.isoformat()}},
+        projection={"_id": 0}, return_document=True)
+
+
 async def _record_outcome(inbound_id: str, **patch) -> None:
     await db.inbound_emails.update_one({"inbound_id": inbound_id}, {"$set": patch})
     await create_receipt(
@@ -182,35 +213,49 @@ async def resend_inbound_webhook(request: Request):
     # Dedup: the real email's own identity (provider_message_id), not the
     # webhook delivery attempt (svix_id) - a real retried delivery of the
     # same email must never process twice, per the task's explicit rule.
+    await _ensure_unique_index()
     existing = await db.inbound_emails.find_one({"provider_message_id": provider_message_id}, {"_id": 0})
     if existing:
-        return {"ok": True, "status": "duplicate", "inbound_id": existing["inbound_id"]}
+        # A first attempt that failed only because the provider body could not be fetched is retryable: Resend's
+        # retry must run the rest of the pipeline once. One atomic claim lets exactly one retry proceed; any other
+        # concurrent or later delivery is a plain duplicate. Permanent outcomes (parse error, quarantine, routed,
+        # unrecognized recipient) are never retryable.
+        claimed = await _claim_retry(provider_message_id)
+        if not claimed:
+            return {"ok": True, "status": "duplicate", "inbound_id": existing["inbound_id"]}
+        inbound_id = claimed["inbound_id"]
+        from_address = claimed.get("from_address") or ""
+        to_addresses = claimed.get("to_addresses") or []
+    else:
+        from_address = (_extract_addresses(data.get("from")) or [""])[0]
+        to_addresses = _extract_addresses(data.get("to"))
+        received_at = None
+        created_at_raw = payload.get("created_at")
+        if created_at_raw:
+            try:
+                received_at = datetime.fromisoformat(created_at_raw.replace("Z", "+00:00"))
+            except ValueError:
+                received_at = None
 
-    from_address = (_extract_addresses(data.get("from")) or [""])[0]
-    to_addresses = _extract_addresses(data.get("to"))
-    received_at = None
-    created_at_raw = payload.get("created_at")
-    if created_at_raw:
+        msg = InboundEmailMessage(
+            provider_message_id=provider_message_id,
+            provider_event_id=svix_id,
+            provider_event_type=event_type,
+            from_address=from_address,
+            to_addresses=to_addresses,
+            subject=data.get("subject") or "",
+            received_at=received_at,
+            attachments=[
+                {"filename": a.get("filename"), "content_type": a.get("content_type")}
+                for a in (data.get("attachments") or [])
+            ],
+        )
         try:
-            received_at = datetime.fromisoformat(created_at_raw.replace("Z", "+00:00"))
-        except ValueError:
-            received_at = None
-
-    msg = InboundEmailMessage(
-        provider_message_id=provider_message_id,
-        provider_event_id=svix_id,
-        provider_event_type=event_type,
-        from_address=from_address,
-        to_addresses=to_addresses,
-        subject=data.get("subject") or "",
-        received_at=received_at,
-        attachments=[
-            {"filename": a.get("filename"), "content_type": a.get("content_type")}
-            for a in (data.get("attachments") or [])
-        ],
-    )
-    saved = await _save_message(msg)
-    inbound_id = saved["inbound_id"]
+            saved = await _save_message(msg)
+        except DuplicateKeyError:   # two first deliveries at once: the other one owns this email
+            other = await db.inbound_emails.find_one({"provider_message_id": provider_message_id}, {"_id": 0})
+            return {"ok": True, "status": "duplicate", "inbound_id": (other or {}).get("inbound_id")}
+        inbound_id = saved["inbound_id"]
 
     lane = _resolve_lane(to_addresses)
     if not lane:
@@ -225,7 +270,8 @@ async def resend_inbound_webhook(request: Request):
     try:
         full = await _fetch_received_email(provider_message_id)
     except Exception as e:
-        await _record_outcome(inbound_id, status="error", routed_lane=lane,
+        # Transient provider failure: mark retryable so Resend's retry runs again (see _claim_retry).
+        await _record_outcome(inbound_id, status="error", routed_lane=lane, retryable=True,
                                error_message=f"could not fetch email body from Resend: {e}")
         raise HTTPException(status_code=502, detail="Could not retrieve the email body from the provider") from e
 
