@@ -124,3 +124,55 @@ test("old/new reply order: a slow reply for an earlier filter cannot overwrite t
   await act(async () => { slow({ data: [N("old")] }); }); await flush();
   expect(el.textContent).toContain("body-new"); expect(el.textContent).not.toContain("body-old");
 });
+
+// ---- pending-state truth (da-c96b221759) ----
+const never = () => new Promise(() => {});
+function deferred() { let res, rej; const p = new Promise((a, b) => { res = a; rej = b; }); return { p, res, rej }; }
+
+test("filter change: while the new filter is pending, no old rows and no empty claim are shown; then resolve", async () => {
+  status = ok(STATUS); notifs = ok([N("A1")]);
+  await mount();
+  expect(el.textContent).toContain("body-A1");
+  const d = deferred(); notifs = () => d.p;
+  await pick();
+  expect(el.textContent).not.toContain("body-A1"); expect(el.textContent).not.toContain("No notifications");
+  expect(q("notif-loading")).not.toBeNull();
+  await act(async () => d.res({ data: [N("B1", "failed")] })); await flush();
+  expect(el.textContent).toContain("body-B1"); expect(q("notif-loading")).toBeNull();
+});
+
+test("filter change pending then rejects: error (not A rows), then retry recovers", async () => {
+  status = ok(STATUS); notifs = ok([N("A1")]);
+  await mount();
+  const d = deferred(); notifs = () => d.p;
+  await pick();
+  await act(async () => d.rej(Object.assign(new Error("x"), { response: { status: 500 } }))); await flush();
+  expect(q("notif-error")).not.toBeNull(); expect(el.textContent).not.toContain("body-A1");
+  notifs = ok([N("B2", "failed")]);
+  await act(async () => q("notif-retry").click()); await flush();
+  expect(el.textContent).toContain("body-B2"); expect(q("notif-error")).toBeNull();
+});
+
+test("status pending forever: the successful log is still shown", async () => {
+  status = never; notifs = ok([N("a")]);
+  await mount();
+  expect(el.textContent).toContain("body-a"); expect(q("provider-loading")).not.toBeNull();
+  expect(el.textContent).not.toContain("not configured");
+});
+
+test("log pending forever: the successful provider status is still shown", async () => {
+  status = ok(STATUS); notifs = never;
+  await mount();
+  expect(el.textContent).toContain("Resend email - configured"); expect(q("notif-loading")).not.toBeNull();
+  expect(el.textContent).not.toContain("No notifications");
+});
+
+test("unmounted while pending: late replies do not update (no error, no crash)", async () => {
+  const ds = deferred(), dn = deferred(); status = () => ds.p; notifs = () => dn.p;
+  await mount();
+  await act(async () => root.unmount());
+  const spy = jest.spyOn(console, "error").mockImplementation(() => {});
+  await act(async () => { ds.res({ data: STATUS }); dn.res({ data: [N("late")] }); }); await flush();
+  expect(spy).not.toHaveBeenCalled(); spy.mockRestore();
+  root = createRoot(el);   // afterEach unmounts this
+});

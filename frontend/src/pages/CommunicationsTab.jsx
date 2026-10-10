@@ -45,18 +45,33 @@ export default function CommunicationsTab() {
   const [testOpen, setTestOpen] = useState(false);
   const [test, setTest] = useState({ channel: "email", to: "", body: "CAOSCare test notification." });
 
-  const guard = useRef(latestOnly());
-  useEffect(() => { const g = guard.current; return () => g.invalidate(); }, []);   // closed/navigated away: late replies are dropped
-  const load = async () => {
-    const mine = guard.current.next();   // only the newest filter's reply may update the list
-    const q = filter === "all" ? "" : `&status=${filter}`;
-    const [s, n] = await Promise.allSettled([api.get("/notifications/status"), api.get(`/notifications?limit=100${q}`)]);
-    if (!guard.current.isCurrent(mine)) return;
-    setStatus((p) => settle(p, s));
-    setLog((p) => settle(p, n, filter));
-    if (s.status === "rejected" || n.status === "rejected") toast.error("Could not load notifications");
+  // One guard per read: only the newest request of each may publish, and each publishes the moment it settles
+  // (a pending sibling never hides it). Closing the panel invalidates both.
+  const sGuard = useRef(latestOnly()), lGuard = useRef(latestOnly());
+  useEffect(() => { const a = sGuard.current, b = lGuard.current; return () => { a.invalidate(); b.invalidate(); }; }, []);
+  const loadStatus = async () => {
+    const mine = sGuard.current.next();
+    let r;
+    try { r = { status: "fulfilled", value: await api.get("/notifications/status") }; } catch { r = { status: "rejected" }; }
+    if (!sGuard.current.isCurrent(mine)) return;
+    setStatus((p) => settle(p, r));
+    if (r.status === "rejected") toast.error("Could not load provider status");
   };
+  const loadLog = async () => {
+    const mine = lGuard.current.next();
+    const key = filter;
+    setLog((p) => (p.key === key ? p : { ...FRESH, key }));   // a different filter starts empty-and-loading: never the old filter's rows
+    const q = key === "all" ? "" : `&status=${key}`;
+    let r;
+    try { r = { status: "fulfilled", value: await api.get(`/notifications?limit=100${q}`) }; } catch { r = { status: "rejected" }; }
+    if (!lGuard.current.isCurrent(mine)) return;
+    setLog((p) => settle(p, r, key));
+    if (r.status === "rejected") toast.error("Could not load notifications");
+  };
+  const load = () => { loadStatus(); loadLog(); };
   useEffect(() => { load(); }, [filter]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const shownLog = log.key === filter ? log : { ...FRESH, key: filter };   // render-time guard: nothing of another filter
 
   const sendTest = async (e) => {
     e.preventDefault();
@@ -135,10 +150,10 @@ export default function CommunicationsTab() {
           </Select>
         </div>
         <div className="space-y-2" data-testid="notif-log">
-          <ReadNotice what="notif" src={log} onRetry={load} />
-          {log.state === "ok" && log.data.map((n) => <NotificationRow key={n.notification_id} n={n} />)}
-          {log.state === "ok" && log.data.length === 0 && (
-            <p className="text-caos-mute text-sm" data-testid="notif-empty">{log.stale ? "No notifications as of the last successful load." : "No notifications."}</p>
+          <ReadNotice what="notif" src={shownLog} onRetry={load} />
+          {shownLog.state === "ok" && shownLog.data.map((n) => <NotificationRow key={n.notification_id} n={n} />)}
+          {shownLog.state === "ok" && shownLog.data.length === 0 && (
+            <p className="text-caos-mute text-sm" data-testid="notif-empty">{shownLog.stale ? "No notifications as of the last successful load." : "No notifications."}</p>
           )}
         </div>
       </Card>
