@@ -8324,3 +8324,9 @@ Permanent fix: `scripts/restart_dev_backend.sh` — fixed interpreter, fixed por
 
 ## 2026-10-10 — Test-reality gap 3 closed: alert receipts are append-only (RQ-052b)
 `backend/tests/test_alert_receipts_append_only.py` (3 tests, in-process, scratch DB): alert close-out appends `alert_completed` and the first receipt is unchanged; failed page appends `alert_failed`, a later accept a third receipt; an object with no receipt gets none invented. Mutation check: with `update_receipt_status` made a no-op, 2 of 3 fail. No production code changed; nothing restarted.
+
+---
+
+## 2026-10-10 — Test-reality audit gaps 1-6 closed offline; real defect found and fixed ("turn it off" ended the call)
+Tests added: gap 3 alert receipts append-only (`eb00c5c`), gap 2 research label through dispatch (`f8171fb`), gap 1 handler wiring (`farewellWiring`, `0c2d…` see git), gap 5 resident mint offline (`test_resident_session_mint_offline.py`), gap 4 golden `session.update` (`936c0ad`), gap 6 handler replay (`handlerReplay.test.js`, `cfc8020`). Each was mutation-checked (broken production code made it fail, then restored).
+**Defect found by the replay and fixed in `cfc8020`:** `endIntent.js` classed "turn it off", "shut it off", "turn this off" and a bare "stop" as an explicit END of the call. In a room with lights and a TV, "turn it off" would have hung up on the resident. Only "turn/shut yourself off" now ends it. Frontend 56 suites / 495 tests pass. **Not live:** the Room 214 page still runs the previous bundle until the next authorized rebuild; batch it with the next consolidated deployment request.
