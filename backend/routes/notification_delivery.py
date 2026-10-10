@@ -237,10 +237,15 @@ async def apply_resend_delivery_event(event_type: str, data: dict, occurred_at: 
     ) if email_id else None
     if not existing:
         return {"matched": False, "email_id": email_id}
-    update: dict = {"$push": {"delivery_events": event}}
+    nid = existing["notification_id"]
+    # History first, unconditionally: every received event is kept whatever happens to the status.
+    await db.notifications.update_one({"notification_id": nid}, {"$push": {"delivery_events": event}})
+    # The terminal-status guard lives IN the update filter, so it is evaluated atomically against the stored status.
+    # (Reading the status first and writing by id alone let a concurrent late "delayed" overwrite "delivered".)
     new_status = RESEND_EVENT_STATUS.get(event_type)
-    if new_status and existing.get("status") not in _TERMINAL:
-        update["$set"] = {"status": new_status}
-    await db.notifications.update_one({"notification_id": existing["notification_id"]}, update)
+    if new_status:
+        await db.notifications.update_one(
+            {"notification_id": nid, "status": {"$nin": sorted(_TERMINAL)}}, {"$set": {"status": new_status}})
+    current = await db.notifications.find_one({"notification_id": nid}, {"_id": 0, "status": 1})
     return {"matched": True, "notification_id": existing["notification_id"],
-            "notification_status": update.get("$set", {}).get("status", existing.get("status"))}
+            "notification_status": (current or {}).get("status")}
