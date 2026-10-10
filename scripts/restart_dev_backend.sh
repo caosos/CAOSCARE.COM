@@ -1,14 +1,26 @@
 #!/usr/bin/env bash
-# Restart the EliteDesk DEVELOPMENT backend (:8092) safely. Never touches Linode.
-# Preflight runs BEFORE the old process is stopped; any failed check leaves it running.
-# Usage: scripts/restart_dev_backend.sh [--check]  (only option; --check = preflight only). Local host only, port 8092 only.
+# Restart the EliteDesk DEVELOPMENT backend (:8092). Local host only; never Linode.
+# Usage: scripts/restart_dev_backend.sh [--check]   (--check = preflight only; any other argument is rejected)
+#
+# Order: validate -> identify the running process -> prove the NEW code starts on a spare port
+# (the healthy service is untouched until this passes) -> stop old (verified gone) -> start new
+# (verified: new pid owns the port, healthy). There is NO automatic rollback: on failure after the
+# stop it exits non-zero and prints the exact manual recovery (prior log/sha are recorded).
 set -u
-PORT=8092   # fixed on purpose: no env/arg can redirect the restart
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BACKEND="$ROOT/backend"
-PY="/home/caoscare-1/CAOSCARE.COM/backend/.venv/bin/python3"   # fixed
-LOG="/tmp/room214_backend_$(git -C "$ROOT" rev-parse --short HEAD).log"
+PORT=8092                                   # fixed on purpose: nothing can redirect the restart
+EXPECT_ROOT="/home/caoscare-1/CAOSCARE-INTEGRATION"
+PY="/home/caoscare-1/CAOSCARE.COM/backend/.venv/bin/python3"
 fail() { echo "PREFLIGHT FAILED: $*" >&2; exit 2; }
+
+[ "$#" -eq 0 ] || { [ "$#" -eq 1 ] && [ "$1" = "--check" ]; } || fail "unsupported argument(s): $* (only --check)"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+[ "$ROOT" = "$EXPECT_ROOT" ] || fail "run from the integration repo ($EXPECT_ROOT), not $ROOT"
+BACKEND="$ROOT/backend"
+SHA="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo nogit)"
+LOG="/tmp/room214_backend_${SHA}.log"
+STATE="/tmp/restart_dev_backend.last"
+CAND=$((PORT + 1))
+LAUNCH=("$PY" -m uvicorn server:app --host 0.0.0.0 --port)
 
 [ -x "$PY" ] || fail "interpreter missing: $PY"
 [ -f "$BACKEND/server.py" ] || fail "no server.py in $BACKEND"
@@ -17,18 +29,55 @@ LEASES=$(mongosh --quiet --eval 'print(db.getSiblingDB("caoscare").resident_aria
   || fail "cannot read leases (uncertain: not restarting)"
 [ "$LEASES" = "0" ] || fail "live lease(s): $LEASES"
 RECENT=$(mongosh --quiet --eval 'const n=new Date(Date.now()-60000).toISOString();const d=db.getSiblingDB("caoscare");print(d.resident_aria_lease_events.countDocuments({created_at:{$gte:n}})+d.realtime_diagnostics.countDocuments({created_at:{$gte:n}}))' 2>/dev/null) \
-  || fail "cannot read recent activity"
+  || fail "cannot read recent activity (uncertain: not restarting)"
 [ "$RECENT" = "0" ] || fail "call activity in the last 60 s: $RECENT"
-OLD_PID=$(ss -ltnp 2>/dev/null | grep ":$PORT " | grep -o 'pid=[0-9]*' | head -1 | cut -d= -f2)
-echo "preflight ok: python=$PY leases=0 recent=0 old_pid=${OLD_PID:-none} sha=$(git -C "$ROOT" rev-parse --short HEAD)"
-[ "${1:-}" = "--check" ] && exit 0
 
-[ -n "$OLD_PID" ] && { kill "$OLD_PID"; for _ in $(seq 1 20); do kill -0 "$OLD_PID" 2>/dev/null || break; sleep 0.5; done; }
-(cd "$BACKEND" && setsid nohup "$PY" -m uvicorn server:app --host 0.0.0.0 --port "$PORT" >"$LOG" 2>&1 &)
+listener_pid() { ss -ltnp 2>/dev/null | grep -E "[:.]$1 " | grep -o 'pid=[0-9]*' | head -1 | cut -d= -f2; }
+OLD_PID="$(listener_pid "$PORT")"
+if [ -n "$OLD_PID" ]; then
+  OLD_CMD="$(tr '\0' ' ' < /proc/$OLD_PID/cmdline 2>/dev/null)"
+  OLD_CWD="$(readlink /proc/$OLD_PID/cwd 2>/dev/null)"
+  OLD_LOG="$(readlink /proc/$OLD_PID/fd/1 2>/dev/null)"
+  case "$OLD_CMD" in *"uvicorn server:app"*"--port $PORT"*) ;; *) fail "pid $OLD_PID on :$PORT is not the dev backend (cmd: $OLD_CMD)";; esac
+  [ "$OLD_CWD" = "$BACKEND" ] || fail "pid $OLD_PID cwd is $OLD_CWD, expected $BACKEND"
+fi
+[ -z "$(listener_pid "$CAND")" ] || fail "spare port $CAND is in use (bind conflict); not restarting"
+[ -d /tmp ] && [ -w /tmp ] || fail "/tmp not writable (no log/state)"
+
+# Prove the new code starts and answers, on the spare port, before touching the healthy service.
+CLOG="/tmp/restart_dev_backend.candidate.log"
+( cd "$BACKEND" && exec setsid nohup "${LAUNCH[@]}" "$CAND" ) >"$CLOG" 2>&1 </dev/null &
+CPID=$!; CK=0
+for _ in $(seq 1 40); do curl -sf "localhost:$CAND/api/health" >/dev/null && { CK=1; break; }; sleep 1; done
+kill "$CPID" 2>/dev/null; for _ in $(seq 1 20); do kill -0 "$CPID" 2>/dev/null || break; sleep 0.5; done
+[ "$CK" = 1 ] || { tail -5 "$CLOG" >&2; fail "new code did not start healthy on spare port $CAND; running service untouched"; }
+kill -0 "$CPID" 2>/dev/null && fail "spare process $CPID would not stop; running service untouched"
+
+echo "preflight ok: sha=$SHA leases=0 recent=0 old_pid=${OLD_PID:-none} old_log=${OLD_LOG:-none} candidate_started_ok=1"
+[ "${1:-}" = "--check" ] && exit 0
+printf 'time=%s sha=%s old_pid=%s old_cmd=%s old_cwd=%s old_log=%s\n' "$(date -u +%FT%TZ)" "$SHA" "${OLD_PID:-none}" "${OLD_CMD:-}" "${OLD_CWD:-}" "${OLD_LOG:-}" >"$STATE"
+
+RECOVER="Recover: cd $BACKEND && ${LAUNCH[*]} $PORT  (prior log ${OLD_LOG:-none}; state $STATE; to run an older commit, check it out first)"
+if [ -n "$OLD_PID" ]; then
+  kill "$OLD_PID"; for _ in $(seq 1 30); do kill -0 "$OLD_PID" 2>/dev/null || break; sleep 0.5; done
+  kill -0 "$OLD_PID" 2>/dev/null && { echo "STOP FAILED: old pid $OLD_PID still alive; nothing started. Service left as is." >&2; exit 4; }
+  for _ in $(seq 1 20); do [ -z "$(listener_pid "$PORT")" ] && break; sleep 0.5; done
+  [ -z "$(listener_pid "$PORT")" ] || { echo "STOP FAILED: :$PORT still listening after old pid exited. $RECOVER" >&2; exit 4; }
+fi
+( cd "$BACKEND" && exec setsid nohup "${LAUNCH[@]}" "$PORT" ) >"$LOG" 2>&1 </dev/null &
+NEWSTART=$!
 for _ in $(seq 1 40); do
-  curl -sf "localhost:$PORT/api/health" >/dev/null && { echo "RESTART OK pid=$(ss -ltnp | grep ":$PORT " | grep -o 'pid=[0-9]*' | head -1) log=$LOG"; exit 0; }
+  if curl -sf "localhost:$PORT/api/health" >/dev/null; then
+    NP="$(listener_pid "$PORT")"
+    NC="$(tr '\0' ' ' < /proc/$NP/cmdline 2>/dev/null)"
+    NW="$(readlink /proc/$NP/cwd 2>/dev/null)"
+    if [ -n "$NP" ] && [ "$NP" != "${OLD_PID:-x}" ] && [ "$NW" = "$BACKEND" ] && case "$NC" in *"uvicorn server:app"*"--port $PORT"*) true;; *) false;; esac; then
+      echo "RESTART OK pid=$NP (launched $NEWSTART) sha=$SHA cwd=$NW log=$LOG"; exit 0
+    fi
+    echo "RESTART UNVERIFIED: healthy but listener pid=$NP is not the new process (cmd: $NC). $RECOVER" >&2; exit 5
+  fi
   sleep 1
 done
-echo "RESTART FAILED: backend not healthy on :$PORT; the old process was stopped. Log: $LOG. Relaunch the previous commit with the same command." >&2
+echo "RESTART FAILED: new backend not healthy on :$PORT; the old process was stopped. $RECOVER" >&2
 tail -5 "$LOG" >&2
 exit 3
