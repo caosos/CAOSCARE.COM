@@ -157,7 +157,7 @@ Still needs Michael or hardware/accounts (nothing below can be done by a worker)
 2. **Calling:** Asterisk host, ATA, handsets, SIP trunk, OpenAI SIP project and webhook tunnel, per-room 911 address, and his choice of unanswered-front-desk behaviour (callback / queue / voicemail).
 3. **Real drivers, vehicles, hours** for transportation (none exist outside tests); the Ride log is accepted on synthetic data.
 4. **Hardware facts (RQ-004)** and Voice PE arrival; Pilot Room 1 selection (RQ-006).
-5. **Security decisions (RQ-013):** B1/B2/A and the public kiosk list.
+5. **Security — RESOLVED, not a reason to wait (reconciled 2026-10-10):** B1/B2/A closed by RQ-025, `/memory/realtime-turn` by RQ-028, public kiosk list trimmed to `kiosk_id` + `room` by RQ-035. Still genuinely open: names enumerable via `by-kiosk` until a per-kiosk device credential exists (RQ-013 option 3, an owner decision), and no live proof on the Linode deployment (not released).
 6. **Linode release** (needs a merge to main and his approval of the SHA range); `CAOSCARE_DEMO_CONTINUITY_AUTO`; adopt/decline PR #67; RQ-008 Phase 2 list; HA VM reboot test + OOM protections; stop the Okay-Nabu test stack on his word.
 7. **Live checks only he can do:** RQ-003 nursing voice test; live goodbye check on the rebuilt Room 214 page; the Room 214 page still lacks nothing from the parked list except future voice work.
 Evidence: `docs/reports/2026-10-10-ride-log-browser-acceptance.md`, `docs/PROJECT_STATE.md` 2026-10-10 entries.

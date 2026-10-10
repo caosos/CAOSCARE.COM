@@ -8365,3 +8365,8 @@ Pushed: `6caa8f6` (UI correctness), `405e8b5` (ride-log acceptance record), `1f7
 - Telephony dial-token tests (`test_telephony_dial_token_security.py`, 5, isolated, fake secret, no call): exact 120 s boundary (fixed clock), 12 concurrent redemptions yield one target, valid secret from a non-local client is 403 and does not consume, wrong/missing secret 403, unconfigured secret 503 without consuming. Three mutations (`$gt`, host check removed, non-atomic redeem) each fail a test. This is a coverage gap closed, not a production failure.
 - Transport end to end: `test_transportation_lifecycle.py` now also checks the same tasks in the Ride log (one row per task, completed/cancelled/booked, driver and vehicle, receipt count), a second completion refused with a single completed receipt, status filter and CSV equal the JSON, nurse 403. Passed against a scratch backend; breaking the log's driver mapping fails it. Still API-level (no browser click-through of assign/depart/complete); checklist wording stays "API-only" for that lifecycle.
 - Not touched: voice, Room 214 services, Linode, providers, real email/calls.
+
+---
+
+## 2026-10-10 — DeviceStatusCard kiosk truth (da-11a4781440) and blocker reconcile
+Fix `0ec049a`: missing kiosk `status` (stripped for non-admin by RQ-035) is now "status not available", never green in-service. Tests 62 suites / 519; build compiled; isolated browser evidence in `docs/reports/2026-10-10-device-status-card-kiosk-truth.md`. `docs/PILOT1_READY_QUEUE.md` morning block reconciled: B1/B2/A (RQ-025), memory ingest (RQ-028), kiosk list (RQ-035) are RESOLVED; per-kiosk device credential and the genuine provider/hardware/release items stay open. No deploy, voice, or runtime change.
