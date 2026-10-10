@@ -3,10 +3,10 @@
 Target: 2026-10-10
 
 Current phase: PHASE 3 — Real staff operational workflows (focus: operational completion)
-Current active task: RQ-011 integrate Lane D Community services, then RQ-012 integrate Lane F Communications (see `PILOT1_READY_QUEUE.md` RECONCILED STATE). No worker running at reconciliation; NEEDS-MICHAEL list is in the queue file.
+Current active task: none in code. Lane D (RQ-011) and Lane F (RQ-012) were integrated 2026-10-08 (PR #88, #89). What remains in Phase 4 is owner/provider-gated (RQ-005: provider key, verified domain, webhook, real addresses). Latest non-voice truth work: CommunicationsTab read states (`27b410e`). NEEDS-MICHAEL list is in `PILOT1_READY_QUEUE.md`; voice is parked (`CURRENT_PRIORITY.md`).
 Current integration branch: `integration/2026-09-27`
-Current integration SHA: `b860390` (2026-10-07; last code state `d2cd439` — B3 resident-lookup allowlist)
-Last updated: 2026-10-07 (reconciliation)
+Current integration SHA: `27b410e` (2026-10-10; header was `b860390` / 2026-10-07, which predated RQ-011/012/014-050 and the 2026-10-10 email/transport truth work)
+Last updated: 2026-10-10 (header and Phase 4 status reconciled)
 Last updated by: Claude Code (Opus 5.5), EliteDesk
 
 Pilot definition:
@@ -240,13 +240,13 @@ Acceptance: intended staff can use included workflows in normal work without SSH
 - [ ] Real inbound menu email
 - [ ] Review/publish menu (from a real email)
 - [ ] Real inbound activities email
-- [ ] Department contact addresses
+- [~] Department contact addresses — setting exists in Admin > Departments and the readiness panel (`email_readiness.py`) lists departments with no inbox; real addresses not entered.
 - [ ] Real outbound nursing notification
 - [ ] Real outbound maintenance notification
 - [ ] Real outbound transportation notification
 - [ ] Front desk/admin notification
-- [ ] Delivery/receipt visibility
-- [ ] Fallback routing verified
+- [~] Delivery/receipt visibility — Admin > Email & notifications delivery log with truthful statuses (`notification_delivery.py`, RQ-012 merge `bounded/rq-012`); its loading/failure/empty/stale states are now distinct (`27b410e`, evidence `docs/reports/2026-10-10-communications-tab-truth.md`). Statuses are verified with a mock provider and signed synthetic webhooks only; no real delivery event exists.
+- [~] Fallback routing verified — three-tier fallback implemented and unit-tested with a mock provider (RQ-012); not exercised against a real provider.
 
 Acceptance: real information enters and leaves CAOSCare through actual configured communication paths.
 
@@ -483,3 +483,5 @@ Acceptance: Linode runs the exact SHA Michael approved.
 
 ---
 **Update 2026-10-10 (806967c) — evidence only; owner decides acceptance.** Browser acceptance on an isolated stack with synthetic data (report `docs/reports/2026-10-10-ride-log-browser-acceptance.md`, screenshots in `docs/reports/assets/2026-10-10-ride-log/`): staff-UI transport request → assign → depart → complete → same task in Ride log / history / real CSV download, second completion refused with one completion receipt, change and cancel; Ride log truncation notice and PARTIAL CSV file; email-readiness fake missing/default/invalid/configured states with Unknown domain/webhook and zero outbound connections; DepartmentQueue failed-completion retry, request-history race and 403 recovery, communications filter race. One defect found and fixed (moved ride listed on its old run). Phase 7/Transportation lifecycle items move from "API-only" to "browser-verified on synthetic data"; they stay below live acceptance until real drivers/vehicles exist. Phase 4 email stays **unproven** (no real provider event); calling stays **unbuilt on hardware**. Backend gate on the tip: 481 passed / 0 failed / 31 skipped. The :8092 backend runs integration code via the guarded dev restart (owner-allowed, dev only, manual rollback). Voice parked; production unchanged. Outstanding owner/hardware/provider gates: `docs/PILOT1_READY_QUEUE.md` 2026-10-10 morning block.
+
+**Update 2026-10-10 (27b410e) — evidence only; owner decides acceptance.** CommunicationsTab (Admin > Email & notifications): provider status and delivery log now settle independently (loading / error / ok / stale, per-filter key, Retry). Before, a failed read showed "not configured" / "No notifications." and a failed filter change could leave the previous filter's rows. Report `docs/reports/2026-10-10-communications-tab-truth.md`, screenshots `docs/reports/assets/2026-10-10-communications-tab/`. Phase 4 boxes above were reconciled only where code/test evidence exists; none ticked [x]: real inbound/outbound email, domain/webhook, API key, real notifications and verified fallback still need provider configuration (RQ-005) and live acceptance. Header corrected from `b860390`/RQ-011-012-as-current.
