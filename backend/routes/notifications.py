@@ -158,6 +158,9 @@ async def list_family(user=Depends(get_current_user)):
 
 @router.post("/family-contacts")
 async def create_family(data: FamilyContactCreate, user=Depends(get_current_user)):
+    # Call approval is admin-only on update (PATCH .../calls); creation must not be a way around it.
+    if data.allow_calls and user.get("role") not in ("owner", "admin"):
+        raise HTTPException(status_code=403, detail="Only an owner or admin can approve a contact for resident calls")
     fc = FamilyContact(**data.model_dump())
     doc = fc.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
