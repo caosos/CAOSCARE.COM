@@ -155,7 +155,7 @@ export function createRealtimeHandlers({
 
   // Helper: dispatch a tool call coming from the model
   const handleFunctionCall = async (fn) => {
-    if (endCtl.ended) return;
+    if (endCtl.ending) return;
     let parsed = {};
     try { parsed = fn.arguments ? JSON.parse(fn.arguments) : {}; } catch {}
     logRealtimeEvent(sessionIdRef.current, "tool_call", { meta: { name: fn.name, args: parsed } });
@@ -166,7 +166,7 @@ export function createRealtimeHandlers({
     // The model heard an ending the transcript lost (RQ-055): its second
     // end request in a row is granted instead of asking "are you sure?" again.
     if (isEnd && !result?.ok) result = endCtl.corroborate(cls.reason, cls.text) || result;
-    if (endCtl.ended) return;
+    if (endCtl.ending) return;
     logRealtimeEvent(sessionIdRef.current, "tool_result", { meta: { name: fn.name, result } });
     claimGuard.onToolResult(fn.name, result);
     claimInterrupter.onToolResult(fn.name, result);
@@ -212,6 +212,7 @@ export function createRealtimeHandlers({
       if (result.ok) {
         endCallKind = fn.name === "end_call" ? "resident_end_call" : "resident_end_conversation";
         hangup.arm();
+        endCtl.markEnding();
       }
     } else {
       // Ask the model to speak its short confirmation, drawing on the tool result.
@@ -234,6 +235,8 @@ export function createRealtimeHandlers({
     if (myGen !== startGenRef.current || endCtl.ended) return;
     let msg;
     try { msg = JSON.parse(ev.data); } catch { return; }
+    // ENDING: only the goodbye's own audio/response events matter (they time the hang-up); nothing else may restart the call.
+    if (endCtl.ending && !/^(output_audio_buffer\.|response\.(created|done))/.test(msg.type || "")) return;
 
     if (msg.type === "input_audio_buffer.speech_started") {
       setStatus("listening");
@@ -360,8 +363,9 @@ export function createRealtimeHandlers({
       });
       // RQ-055: a clear spoken ending ends the call here, without asking the
       // model to choose a tool. Echo of Aria's own words never ends it.
-      if (endIntent === "explicit" && turnMayEnd(cls.reason)) {
-        endCtl.endNow("resident_end_call", "transcript", { turn_class_reason: cls.reason });
+      if (endIntent === "explicit" && turnMayEnd(cls.reason) && endCtl.beginEnding("transcript", { turn_class_reason: cls.reason })) {
+        endCallKind = "resident_end_call";
+        hangup.arm();   // closes after the goodbye audio finishes (endCallHangup.js)
       }
     }
     // FIXED 2026-08-09 (real, confirmed bug): the current Realtime API
