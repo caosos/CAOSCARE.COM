@@ -4,7 +4,7 @@ import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Card } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
-import { kioskSummary, kioskTile } from "../lib/deviceCounts";
+import { kioskSummary, kioskTile, availabilityTile } from "../lib/deviceCounts";
 import { Radio, Watch, Monitor, BatteryLow, CheckCircle2, AlertTriangle } from "lucide-react";
 
 const STATUS_STYLE = {
@@ -38,19 +38,27 @@ export default function DeviceStatusCard() {
   const [kiosks, setKiosks] = useState([]);
   const [kiosksLoaded, setKiosksLoaded] = useState(null);   // null = still loading, false = request failed
   const [activity, setActivity] = useState([]);
+  const [rfOk, setRfOk] = useState(null);          // null = loading, false = request failed
+  const [wearablesOk, setWearablesOk] = useState(null);
+  const [activityOk, setActivityOk] = useState(null);
 
   const fetchAll = async () => {
     try {
+      const tracked = (p, empty) => p.then((r) => ({ ok: true, data: r.data })).catch(() => ({ ok: false, data: empty }));
+      const emptyRf = { total: 0, in_service: 0, need_attention: 0, devices: [] };
       const [rfRes, wRes, kRes, aRes] = await Promise.all([
-        api.get("/rf/fleet/summary").catch(() => ({ data: { total: 0, in_service: 0, need_attention: 0, devices: [] } })),
-        api.get("/wearables").catch(() => ({ data: [] })),
-        api.get("/kiosks").then((r) => ({ ok: true, data: r.data })).catch(() => ({ ok: false, data: [] })),
-        api.get("/alerts", { params: { limit: 20 } }).catch(() => ({ data: [] })),
+        tracked(api.get("/rf/fleet/summary"), emptyRf),
+        tracked(api.get("/wearables"), []),
+        tracked(api.get("/kiosks"), []),
+        tracked(api.get("/alerts", { params: { limit: 20 } }), []),
       ]);
-      setRf(rfRes.data || { total: 0, in_service: 0, need_attention: 0, devices: [] });
+      setRf(rfRes.data || emptyRf);
+      setRfOk(rfRes.ok);
       setWearables(wRes.data || []);
+      setWearablesOk(wRes.ok);
       setKiosks(kRes.data || []);
       setKiosksLoaded(!!kRes.ok);
+      setActivityOk(aRes.ok);
       const devTriggered = (aRes.data || []).filter((a) =>
         ["pendant", "rf_pendant", "wearable", "kiosk_button"].includes(a.triggered_by)
       );
@@ -66,7 +74,7 @@ export default function DeviceStatusCard() {
 
   const wearablesOnline = wearables.filter((w) => w.status === "active" || w.status === "online").length;
   const wearablesLowBat = wearables.filter((w) => w.status === "low_battery").length;
-  const kTile = kioskTile(kioskSummary(kiosks, kiosksLoaded));
+  const kTile = kioskTile(kioskSummary(kiosks, kiosksLoaded), !isAdmin);
 
   return (
     <Card className="border-caos-line bg-white p-5" data-testid="device-status-card">
@@ -80,13 +88,13 @@ export default function DeviceStatusCard() {
       <div className="grid grid-cols-3 gap-3 mb-5" data-testid="device-inventory-strip">
         <InventoryTile
           icon={<Radio className="w-5 h-5" />} label="Pendants"
-          online={rf.in_service} total={rf.total}
+          online={rf.in_service} total={rf.total} custom={availabilityTile(rfOk)}
           warn={rf.need_attention > 0 ? `${rf.need_attention} need attention — see below` : null}
           to={isAdmin ? "/admin?tab=rf" : null} testid="inv-pendants"
         />
         <InventoryTile
           icon={<Watch className="w-5 h-5" />} label="Wearables"
-          online={wearablesOnline} total={wearables.length}
+          online={wearablesOnline} total={wearables.length} custom={availabilityTile(wearablesOk)}
           warn={wearablesLowBat > 0 ? `${wearablesLowBat} low battery` : null}
           to={isAdmin ? "/admin?tab=wearables" : null} testid="inv-wearables"
         />
@@ -186,7 +194,10 @@ export default function DeviceStatusCard() {
               </RowTag>
             );
           })}
-          {activity.length === 0 && (
+          {activity.length === 0 && activityOk === false && (
+            <p className="text-center text-caos-terracotta py-4 italic text-sm" data-testid="activity-unavailable">Device activity unavailable (could not load).</p>
+          )}
+          {activity.length === 0 && activityOk !== false && (
             <p className="text-center text-caos-mute py-4 italic text-sm">No device activity yet.</p>
           )}
         </div>

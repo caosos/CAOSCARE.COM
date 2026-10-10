@@ -8370,3 +8370,8 @@ Pushed: `6caa8f6` (UI correctness), `405e8b5` (ride-log acceptance record), `1f7
 
 ## 2026-10-10 — DeviceStatusCard kiosk truth (da-11a4781440) and blocker reconcile
 Fix `0ec049a`: missing kiosk `status` (stripped for non-admin by RQ-035) is now "status not available", never green in-service. Tests 62 suites / 519; build compiled; isolated browser evidence in `docs/reports/2026-10-10-device-status-card-kiosk-truth.md`. `docs/PILOT1_READY_QUEUE.md` morning block reconciled: B1/B2/A (RQ-025), memory ingest (RQ-028), kiosk list (RQ-035) are RESOLVED; per-kiosk device credential and the genuine provider/hardware/release items stay open. No deploy, voice, or runtime change.
+
+---
+
+## 2026-10-10 — DeviceStatusCard wording + fetch-failure truth (da-d8097c7eb7)
+Follow-up to `0ec049a`/`1be0033`. `kioskTile` now says "status not available to your role" only for non-admin callers (restriction established); an admin with missing/unrecognized status sees "status unknown". Pendants, Wearables and Recent device activity no longer turn a failed request into 0 / 0 or "No device activity yet": the tiles show "unavailable" (loading shows "…"), the activity list says "Device activity unavailable". Mounted-component tests (13 in `deviceStatusCard.test.js`): admin missing/unrecognized, RF failure, RF loaded, wearables failure, activity failure and empty; removing the RF availability wiring fails one. Frontend 62 suites / 525; build compiled. Browser: earlier screenshots (admin known, nurse stripped, mixed, empty) still apply and are unchanged; the new unavailable / admin-unknown states are covered by component tests only, not re-shot. API permissions unchanged; no deploy.

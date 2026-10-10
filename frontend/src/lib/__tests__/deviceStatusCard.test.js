@@ -3,10 +3,11 @@ import React, { act } from "react";
 import { createRoot } from "react-dom/client";
 import { kioskSummary, kioskTile } from "../deviceCounts";
 
-let mockRole = "admin"; let mockKiosks;
+let mockRole = "admin"; let mockKiosks; let mockFail = [];
 jest.mock("../api", () => ({ api: { get: ((u) => {
   if (u === "/kiosks") return mockKiosks();
-  if (u === "/rf/fleet/summary") return Promise.resolve({ data: { total: 0, in_service: 0, need_attention: 0, devices: [] } });
+  if (mockFail.includes(u)) return Promise.reject(new Error("net"));
+  if (u === "/rf/fleet/summary") return Promise.resolve({ data: { total: 2, in_service: 2, need_attention: 0, devices: [] } });
   return Promise.resolve({ data: [] });
 }) } }));
 jest.mock("../auth", () => ({ useAuth: () => ({ user: { role: mockRole } }) }));
@@ -16,7 +17,7 @@ const Card = require("../../pages/DeviceStatusCard").default;
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 let root, el;
-beforeEach(() => { el = document.createElement("div"); document.body.appendChild(el); root = createRoot(el); });
+beforeEach(() => { mockFail = []; el = document.createElement("div"); document.body.appendChild(el); root = createRoot(el); });
 afterEach(async () => { await act(async () => root.unmount()); el.remove(); });
 const flush = () => act(async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); await new Promise((r) => setTimeout(r, 0)); });
 const tile = async (role, kiosks) => {
@@ -39,6 +40,35 @@ test("non-admin stripped rows: NOT green, no 'in service' claim, says status not
   const t = await tile("staff", stripped);
   expect(t.textContent).toContain("status not available to your role"); expect(t.textContent).not.toContain("in service");
   expect(t.className).not.toContain("border-caos-moss"); expect(t.textContent).toContain("—");
+});
+test("admin with missing/unrecognized status: says status unknown, no permission claim, not green", async () => {
+  const t = await tile("admin", [{ kiosk_id: "a", room: "1" }, { kiosk_id: "b", room: "2", status: "banana" }]);
+  expect(t.textContent).toContain("status unknown"); expect(t.textContent).not.toContain("your role");
+  expect(t.textContent).not.toContain("in service"); expect(t.className).not.toContain("border-caos-moss");
+});
+test("RF fleet request failure: pendants tile unavailable, not 0 / 0 or green", async () => {
+  mockFail = ["/rf/fleet/summary"];
+  await tile("admin", admin);
+  const t = el.querySelector("[data-testid=inv-pendants]");
+  expect(t.textContent).toContain("unavailable"); expect(t.textContent).not.toContain("0 in service"); expect(t.className).not.toContain("border-caos-moss");
+});
+test("RF fleet loaded: pendants tile shows real counts", async () => {
+  await tile("admin", admin);
+  expect(el.querySelector("[data-testid=inv-pendants]").textContent).toContain("2 in service");
+});
+test("wearables request failure: tile unavailable", async () => {
+  mockFail = ["/wearables"];
+  await tile("admin", admin);
+  expect(el.querySelector("[data-testid=inv-wearables]").textContent).toContain("unavailable");
+});
+test("activity request failure: says unavailable, not 'No device activity yet'", async () => {
+  mockFail = ["/alerts"];
+  await tile("admin", admin);
+  expect(el.textContent).toContain("Device activity unavailable"); expect(el.textContent).not.toContain("No device activity yet");
+});
+test("activity loaded and empty: says no activity", async () => {
+  await tile("admin", admin);
+  expect(el.textContent).toContain("No device activity yet");
 });
 test("mixed known and unknown: counts only known online, flags unknown, not healthy", async () => {
   const t = await tile("admin", [{ kiosk_id: "a", room: "1", status: "online" }, { kiosk_id: "b", room: "2" }]);

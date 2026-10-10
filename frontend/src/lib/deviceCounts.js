@@ -13,11 +13,19 @@ export function kioskSummary(kiosks, loaded = true) {
 }
 
 // What the tile shows. `healthy` only when every kiosk's status is known and online.
-export function kioskTile(sum) {
+export function kioskTile(sum, restricted = false) {
   if (sum.loading) return { value: "…", detail: "loading", healthy: false, note: null };
   if (sum.unavailable) return { value: "—", detail: "status unavailable", healthy: false, note: "Could not load kiosks" };
   if (sum.total === 0) return { value: "0", detail: "/ 0 kiosks", healthy: false, note: null };
-  if (sum.known === 0) return { value: "—", detail: `/ ${sum.total} kiosks, status not available to your role`, healthy: false, note: null };
+  if (sum.known === 0) return { value: "—", detail: `/ ${sum.total} kiosks, ${restricted ? "status not available to your role" : "status unknown"}`, healthy: false, note: null };
   const note = sum.unknown > 0 ? `${sum.unknown} status unknown` : sum.offline > 0 ? `${sum.offline} offline` : null;
   return { value: String(sum.online), detail: `/ ${sum.total} in service`, healthy: sum.unknown === 0 && sum.offline === 0, note };
+}
+
+// Generic tile for any inventory whose request failed or is still loading: never a false 0 / 0.
+// ok: null = loading, false = request failed, true = loaded.
+export function availabilityTile(ok) {
+  if (ok === null) return { value: "…", detail: "loading", healthy: false, note: null };
+  if (ok === false) return { value: "—", detail: "unavailable", healthy: false, note: "Could not load" };
+  return null;
 }
