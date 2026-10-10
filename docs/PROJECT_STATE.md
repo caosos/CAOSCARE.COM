@@ -8313,3 +8313,9 @@ RQ-058 rebuild verification (37c96e1, bundle `main.18cb3cf4.js`): 0 leases befor
 
 ## 2026-10-10 — RQ-059: Aria must not announce "ending" before end_call succeeds
 Evidence: session `rt_3ctpadu5_1791588223558` (2026-10-09 18:24 CDT): Aria said "Understood. I'll end the call now. Take care" and then `end_call` was refused. Change (prompt/tool text only): call `end_call` first with no words before it; goodbye only after a successful result. Backend gate 434 passed / 0 failed / 31 skipped (+2 tests). **Not live**: the backend serves prompts at session mint, so it needs a :8092 restart (not done; batched into the next consolidated deployment request with the optional mic-level telemetry page flag).
+
+---
+
+## 2026-10-10 — Guarded dev-backend restart script (owner: restarts of the EliteDesk dev backend need no approval)
+Michael (via #117 da-8f2504be1f): the EliteDesk Care App is his development system; routine backend restarts need no approval. Incident: my first restart stopped :8092 then failed to relaunch (nonexistent `backend/.venv`), ~6 min down; restored 03:38:05Z at `fc18f33`, pid 3289344, health ok, RQ-059 wording loaded, listener unchanged.
+Permanent fix: `scripts/restart_dev_backend.sh` — fixed interpreter, fixed port 8092, only option `--check`; no env/arg can redirect it. Preflight before stopping: interpreter, `import server`, 0 leases, no call activity in 60 s; non-zero exit and `RESTART FAILED` if the new backend is not healthy. `--check` passes (exit 0, also with `CAOSCARE_DEV_PORT=9999` ignored). The local allow rule `Bash(scripts/restart_dev_backend.sh)` is Michael's one-time setting; a guarded restart through the normal worker path is NOT yet proven. No Linode/production.
