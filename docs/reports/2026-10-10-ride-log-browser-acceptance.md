@@ -61,3 +61,15 @@ Same isolated stack (scratch DB, :8131 backend, built UI via serve_built on :313
 Fixed (an unmount now invalidates in-flight replies) and covered by a component test that fails without the fix. NOT run in a real browser.
 ### Still NOT RUN / not built
 Real browser slow-network repro of the three UI screens; screenshots for the second ride-log run; complete paginated CSV.
+
+## Update 3 — shared staff-workflow defects, real browser with controlled network (da-0c87125243)
+Same isolated stack (fresh scratch DB, built UI :3133, headless Chrome/CDP). Network control: CDP `Fetch` pauses, fails or fulfils chosen requests. Synthetic data only: two nursing requests created through the API, no providers. Artifacts: `docs/reports/assets/2026-10-10-ride-log/C*.png`, `A9_after_fix_moved_ride.png`.
+| Case | Result |
+|---|---|
+| DepartmentQueue: first completion request fails (network error) | PASS — dialog stays open, typed note "typed note that must survive" kept, submit re-enabled (C1) |
+| …retry then succeeds | PASS — dialog closes; the task has exactly **one** `task_completed` receipt (no duplicate) (C1b) |
+| History dialog: slow detail reply for task A arrives after task B was opened | PASS — dialog keeps showing B ("beta wants a pillow"), no "alpha" text (C2) |
+| History dialog: detail request answered 403 | PASS — recoverable error with "Try again", not stuck on Loading (C3); retry then loads the history |
+| Communications log: old "All statuses" reply released after the "Failed" filter result | PASS — list stays failed2@/failed3@ only (C4) |
+| Moved ride, calendar AFTER the fix (A9_after_fix) | PASS for the defect: the ride appears exactly once (on the 11:15 run). The cancelled 10:00 run card is still shown, now empty (struck "Cancelled"); not hidden — left as is |
+Not rerun: earlier cases. Still NOT RUN: real slow-network browser repro was replaced by controlled interception above; complete paginated CSV (not built); live voice/production (out of scope).

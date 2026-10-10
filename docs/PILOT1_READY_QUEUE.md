@@ -150,3 +150,14 @@ No queued task is running as of this reconciliation. Workers launch only after t
 - **RQ-051 (READY, owner-approved window):** run `REACT_APP_CLAIM_INTERRUPTER=shadow` on Room 214 (needs `ctl.sh rebuild`, no live call) and read `claim_interrupter_would_cut` events: measure real ms to cut and false-positive rate over a few days. Acceptance: leaked-speech estimate and zero false cuts on true confirmations.
 - **RQ-052 (DONE offline 2026-10-10; real lead needs a live call):** log `response.output_audio_transcript.delta` timing (first delta vs `output_audio_buffer.started`) to measure the real delta-ahead-of-playback lead. Testable offline with the event fixtures.
 - **RQ-053 (WAITING on RQ-051):** physical test of `on` mode: `output_audio_buffer.clear` after `response.cancel` in the browser, corrective turn spoken once, no lost emergency path. Owner decides whether to enable.
+
+**Update 2026-10-10 morning (coordinator) — remaining owner/hardware decisions, for the morning report.** Voice is PARKED by the owner. Approved non-voice work is exhausted; the coordinator is IDLE (no worker running). Changes since the 2026-10-07 list: #8 ":8092 restart" is no longer an owner step — the guarded `scripts/restart_dev_backend.sh` is allowed and was used (EliteDesk dev only, rollback manual); the Room 214 page was rebuilt with owner authorization on 2026-10-09 (voice fixes there are parked, not abandoned).
+Still needs Michael or hardware/accounts (nothing below can be done by a worker):
+1. **Real email (RQ-005):** Resend key, verified sending domain, webhook + secret, real department addresses, approved senders. The readiness panel now reports configuration only; working email is UNPROVEN until a real delivered event.
+2. **Calling:** Asterisk host, ATA, handsets, SIP trunk, OpenAI SIP project and webhook tunnel, per-room 911 address, and his choice of unanswered-front-desk behaviour (callback / queue / voicemail).
+3. **Real drivers, vehicles, hours** for transportation (none exist outside tests); the Ride log is accepted on synthetic data.
+4. **Hardware facts (RQ-004)** and Voice PE arrival; Pilot Room 1 selection (RQ-006).
+5. **Security decisions (RQ-013):** B1/B2/A and the public kiosk list.
+6. **Linode release** (needs a merge to main and his approval of the SHA range); `CAOSCARE_DEMO_CONTINUITY_AUTO`; adopt/decline PR #67; RQ-008 Phase 2 list; HA VM reboot test + OOM protections; stop the Okay-Nabu test stack on his word.
+7. **Live checks only he can do:** RQ-003 nursing voice test; live goodbye check on the rebuilt Room 214 page; the Room 214 page still lacks nothing from the parked list except future voice work.
+Evidence: `docs/reports/2026-10-10-ride-log-browser-acceptance.md`, `docs/PROJECT_STATE.md` 2026-10-10 entries.
