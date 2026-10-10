@@ -16,3 +16,9 @@ test("latestOnly: an older request is never current once a newer one started", (
   expect(g.isCurrent(a)).toBe(false);
   expect(g.isCurrent(b)).toBe(true);
 });
+
+import { csvFileName } from "../rideLog";
+test("a cut-off CSV is named PARTIAL, a complete one is not", () => {
+  expect(csvFileName({ from: "2031-03-10", to: "2031-03-12" }, true)).toBe("rides-2031-03-10-to-2031-03-12-PARTIAL.csv");
+  expect(csvFileName({ from: "2031-03-10", to: "2031-03-12" }, false)).toBe("rides-2031-03-10-to-2031-03-12.csv");
+});

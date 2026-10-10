@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Card } from "../components/ui/card";
@@ -30,6 +30,8 @@ export default function DepartmentQueue({ department, title, itemName = "request
   const [roster, setRoster] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [completing, setCompleting] = useState(false);
+  const completingRef = useRef(false);   // synchronous guard: two clicks in the same tick must send one completion
   const [completeFor, setCompleteFor] = useState(null);
   const [notes, setNotes] = useState("");
   const [historyFor, setHistoryFor] = useState(null);
@@ -63,16 +65,21 @@ export default function DepartmentQueue({ department, title, itemName = "request
       await api.post(`/tasks/${id}/${path}`, body);
       toast.success("Done");
       load();
+      return true;
     } catch (err) {
       toast.error(err?.response?.data?.detail || "Action failed");
+      return false;
     }
   };
   const claim = (id) => act(id, "assign", { assigned_to: user?.user_id });
   const assignTo = (id, uid) => act(id, "assign", { assigned_to: uid || null });
   const start = (id) => act(id, "start");
   const doComplete = async () => {
-    if (!completeFor) return;
-    await act(completeFor, "complete", { notes });
+    if (!completeFor || completingRef.current) return;          // a double click must not send two completions
+    completingRef.current = true; setCompleting(true);
+    const ok = await act(completeFor, "complete", { notes });
+    completingRef.current = false; setCompleting(false);
+    if (!ok) return;                                 // keep the dialog and the typed note so the user can retry
     setCompleteFor(null);
     setNotes("");
   };
@@ -237,7 +244,7 @@ export default function DepartmentQueue({ department, title, itemName = "request
           <Textarea placeholder="What was done / outcome (optional)…" value={notes}
             onChange={(e) => setNotes(e.target.value)} rows={4} data-testid="wo-complete-notes" />
           <DialogFooter>
-            <Button onClick={doComplete} className="bg-caos-forest" data-testid="wo-complete-submit">Mark complete</Button>
+            <Button onClick={doComplete} disabled={completing} className="bg-caos-forest" data-testid="wo-complete-submit">Mark complete</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

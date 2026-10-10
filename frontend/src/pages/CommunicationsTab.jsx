@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { latestOnly } from "../lib/latestOnly";
 import { api } from "../lib/api";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -26,14 +27,18 @@ export default function CommunicationsTab() {
   const [testOpen, setTestOpen] = useState(false);
   const [test, setTest] = useState({ channel: "email", to: "", body: "CAOSCare test notification." });
 
+  const guard = useRef(latestOnly());
+  useEffect(() => { const g = guard.current; return () => g.invalidate(); }, []);   // closed/navigated away: late replies are dropped
   const load = async () => {
+    const mine = guard.current.next();   // only the newest filter's reply may update the list
     try {
       const q = filter === "all" ? "" : `&status=${filter}`;
       const [s, n] = await Promise.all([api.get("/notifications/status"), api.get(`/notifications?limit=100${q}`)]);
+      if (!guard.current.isCurrent(mine)) return;
       setStatus(s.data);
       setNotifs(n.data);
     } catch {
-      toast.error("Could not load notifications");
+      if (guard.current.isCurrent(mine)) toast.error("Could not load notifications");
     }
   };
   useEffect(() => { load(); }, [filter]); // eslint-disable-line react-hooks/exhaustive-deps

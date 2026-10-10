@@ -7,7 +7,7 @@ import { Badge } from "../components/ui/badge";
 import { Download } from "lucide-react";
 import { toast } from "sonner";
 import RequestHistoryDialog from "./RequestHistoryDialog";
-import { LOG_STATUSES, LOG_STATUS_LABEL, LOG_STATUS_TONE, logQuery, pickupLabel, latestOnly } from "../lib/rideLog";
+import { LOG_STATUSES, LOG_STATUS_LABEL, LOG_STATUS_TONE, logQuery, pickupLabel, latestOnly, csvFileName } from "../lib/rideLog";
 
 function ymd(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
 
@@ -34,7 +34,9 @@ export default function TransportLog() {
       const res = await fetch(`${API}/transportation/log?${logQuery(f)}&format=csv`, { headers: { Authorization: `Bearer ${localStorage.getItem("caos_token")}` } });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const url = URL.createObjectURL(await res.blob());
-      const a = document.createElement("a"); a.href = url; a.download = `rides-${f.from}-to-${f.to}.csv`;
+      const a = document.createElement("a"); a.href = url; const partial = res.headers.get("X-Truncated") === "true";
+      a.download = csvFileName(f, partial);
+      if (partial) toast.warning("This export is PARTIAL: more rides matched than the export limit. Narrow the date range and export again.");
       document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
     } catch (e) { toast.error(e?.message || "Download failed"); }
   };

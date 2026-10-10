@@ -279,6 +279,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_origins=_cors_origins(),
     allow_methods=["*"],
+    expose_headers=["X-Truncated"],
     allow_headers=["*"],
 )
 

@@ -17,9 +17,9 @@ export function pickupLabel(r) {
   if (!r.pickup_time) return "-";
   return `${r.pickup_date || ""} ${r.pickup_time}`.trim();
 }
+export { latestOnly } from "./latestOnly";
 
-// Only the newest request may update the screen: an older, slower reply must not overwrite it.
-export function latestOnly() {
-  let n = 0;
-  return { next: () => ++n, isCurrent: (id) => id === n };
+// File name for a downloaded CSV. A cut-off export is named PARTIAL so it can never pass for the complete log.
+export function csvFileName(f, truncated) {
+  return `rides-${f.from}-to-${f.to}${truncated ? "-PARTIAL" : ""}.csv`;
 }
