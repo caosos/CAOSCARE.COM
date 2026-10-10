@@ -182,7 +182,7 @@ Status note: `[~]` below means the software path exists (see screenshots in `fro
 - [~] Assignment
 - [ ] Confirmation
 - [~] Change/cancel
-- [ ] Completion/history
+- [~] Completion/history — ride log built (`cc00b46`): `GET /api/transportation/log` json|csv + Ride log views in Admin and Front desk; 4 API tests incl. role refusal, gate 459 passed / 0 failed; not yet browser-checked, and real rides need real drivers/vehicles (Michael)
 
 **Kitchen / dining / menu**
 

@@ -10,6 +10,10 @@
 
 This file is intentionally short-lived/current-state guidance. It does not replace the Product Baseline, AGENTS.md, lane contracts, or PROJECT_STATE. When this target is completed or Michael changes direction, update this file rather than leaving stale priority instructions in onboarding.
 
+## Direction update (owner, 2026-10-10): voice PARKED; transportation -> email -> calling
+
+Michael is happy with voice for now. **PARKED, do not work or rebuild for:** RQ-052/RQ-051/RQ-053 voice timing and claim-interrupter measurement, voice audits and tuning, audible-goodbye/voice acceptance, and the `cfc8020` end-intent page rebuild (code is on integration, **not live**; the Room 214 page runs bundle `main.18cb3cf4.js`). Active order: (1) transportation logs (ride log built, `cc00b46`), (2) email connectivity (RQ-005, blocked on provider key/domain/addresses), (3) calling (Asterisk/ATA/trunk, hardware/accounts). Owner/hardware-gated items are unchanged: `docs/MICHAEL_ACTION_RUNBOOK.md`. Dev backend restarts on the EliteDesk are routine and use `scripts/restart_dev_backend.sh` (allow-rule `Bash(scripts/restart_dev_backend.sh)` set by Michael); Linode and resident production remain gated.
+
 ## Aria room voice decision (Michael, 2026-10-03)
 
 **Correction (Michael, 2026-10-03, supersedes the eMeet/EliteDesk wording in the paragraph below):** the HP EliteDesk is the central community server running Home Assistant and CAOSCare; apartments get no EliteDesk. The Voice PE is the room voice endpoint over Wi-Fi; central HA + CAOSCare handle speech, conversation, memory, workflows, devices and receipts. The standard room has no eMeet. Test the Voice PE's own microphones in a real apartment first; if coverage is short, investigate another room audio endpoint without a per-apartment EliteDesk. SIP/front-desk calling stays a separate handset/telephony function. See `docs/ROOM_AUDIO_ARCHITECTURE.md`.

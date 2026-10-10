@@ -42,3 +42,4 @@ a guessed number.
 |---|---|---|---|
 | [TSB-001](TSB-001-resident-voice-name-attribution.md) | Room 401 resident-voice name-attribution hallucination + unaudited durable name mutation | OPEN — documented, not remediated | 2026-08-29 |
 | [TSB-002](TSB-002-fabricated-emergency-and-zombie-session.md) | RF event-semantics conflation (periodic frame misclassified as HELP) + fabricated medical-emergency claim + 60-minute unresponsive Resident Aria session | OPEN — documented, not remediated | 2026-08-29 |
+| [TSB-003](TSB-003-turn-it-off-ended-the-call.md) | "Turn it off" / bare "stop" classed as an explicit end of the call | FIXED IN CODE (`cfc8020`), NOT LIVE | 2026-10-10 |
