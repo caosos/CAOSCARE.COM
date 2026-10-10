@@ -23,7 +23,7 @@ const CORE = [
   /^adi[oó]s$/, /^hasta luego$/, /^chao$/, /^buenas noches$/,
   /^that(?:'|’)?s all$/, /^that(?:'|’)?ll be all$/, /^that will be all$/, /^that is all$/,
   /^we(?:'|’)?re done$/, /^we are done$/, /^i(?:'|’)?m done$/, /^i am done$/, /^i(?:'|’)?m done here$/,
-  /^shut (it|this|that) off$/, /^turn (it|this|yourself) off$/, /^(please )?stop$/,
+  /^(shut|turn) yourself off$/,   // NOT "turn it off" / "stop": those mean a device or a barge-in, never the call
 ];
 const NEGATED_OR_QUOTED = /(["“”«»]|\b(don(?:'|’)?t|do not|didn(?:'|’)?t|won(?:'|’)?t|not|never|no one|nobody|when i say|if i say|i (?:might|will|would) say|said|says|saying|the (?:phrase|words?|command)|example|means?|like|such as|instead|keep (?:talking|going)|stay|wait)\b)/i;
 const QUESTION = /\?|^\s*(can|could|would|will|do|does|did|how|what|why|when|where|who|is|are|should|if)\b/i;

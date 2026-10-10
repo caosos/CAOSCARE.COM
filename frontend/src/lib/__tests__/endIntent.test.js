@@ -37,3 +37,10 @@ test("out-of-script transcripts (mis-detected language) are recognised; English 
   ["لابيانو", "안녕하세요.", "岡部。", "प्रभात", ""].forEach((t) => expect(transcriptIsOutOfScript(t)).toBe(true));
   ["Goodbye.", "Adiós.", "Gerçekten.", "Labai ačiū.", "Das sind keine."].forEach((t) => expect(transcriptIsOutOfScript(t)).toBe(false));
 });
+
+// Found by the handler replay (audit gap 6): "Turn it off." (the light / TV) was classed as an
+// explicit END of the call. Device words and a bare "stop" (barge-in) must never end the call.
+import { classifyEndIntent as _cei } from "../endIntent";
+test.each(["Turn it off.", "Turn this off", "Shut it off", "shut that off", "Stop.", "please stop"])(
+  "%s is not an end-the-call command", (t) => expect(_cei(t)).toBe("none"));
+test.each(["Turn yourself off.", "Shut yourself off"])("%s still ends the call", (t) => expect(_cei(t)).toBe("explicit"));
