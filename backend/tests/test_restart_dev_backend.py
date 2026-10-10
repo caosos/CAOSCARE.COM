@@ -32,36 +32,43 @@ def box(tmp_path):
             break
     root = tmp_path / "repo"; (root / "scripts").mkdir(parents=True); (root / "backend").mkdir()
     (root / "backend" / "server.py").write_text("")
+    g = lambda *a: subprocess.run(["git", "-C", str(root), *a], check=True, capture_output=True)
+    g("init", "-q"); g("add", "-A"); g("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "base")
+    sha = subprocess.run(["git", "-C", str(root), "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip()
     (tmp_path / "fake_server.py").write_text(FAKE_SERVER)
     py = tmp_path / "py"
     py.write_text(f'#!/bin/bash\n[ "$1" = "-c" ] && exit ${{STUB_IMPORT_RC:-0}}\n'
-                  f'[ -n "$STUB_START_FAIL" ] && [ "$STUB_START_FAIL" != "after_cand" ] && exit 1\n'
+                  f'[ -n "$STUB_START_FAIL" ] && exit 1\n'
+                  f'[ -n "$STUB_FAIL_REAL" ] && [[ " $* " == *" --port $STUB_FAIL_REAL "* ]] && exit 1\n'
+                  f'[ -n "$STUB_FORK_REAL" ] && [[ " $* " == *" --port $STUB_FORK_REAL "* ]] && {{ {sys.executable} {tmp_path}/fake_server.py "$@" & disown; exit 0; }}\n'
                   f'exec {sys.executable} {tmp_path}/fake_server.py "$@"\n')
     py.chmod(0o755)
     stubs = tmp_path / "bin"; stubs.mkdir()
-    m = stubs / "mongosh"; m.write_text('#!/bin/bash\n[ -n "$STUB_MONGO_FAIL" ] && exit 1\necho "${STUB_LEASES:-0}"\n'); m.chmod(0o755)
+    m = stubs / "mongosh"; m.write_text('#!/bin/bash\n[ -n "$STUB_MONGO_FAIL" ] && exit 1\nc=$(cat "$STUB_CNT" 2>/dev/null || echo 0); echo $((c+1)) > "$STUB_CNT"\nif [ -n "$STUB_FLIP" ] && [ "$c" -ge 2 ]; then echo 1; else echo "${STUB_LEASES:-0}"; fi\n'); m.chmod(0o755)
     text = SCRIPT.read_text()
     text = text.replace("PORT=8092 ", f"PORT={port} ").replace("/home/caoscare-1/CAOSCARE-INTEGRATION", str(root))
     text = text.replace("/home/caoscare-1/CAOSCARE.COM/backend/.venv/bin/python3", str(py))
     assert str(port) in text and str(root) in text
     s = root / "scripts" / "restart_dev_backend.sh"; s.write_text(text); s.chmod(0o755)
     procs = []
-    yield dict(script=s, port=port, root=root, py=py, env_extra={"PATH": f"{stubs}:{os.environ['PATH']}"}, procs=procs)
+    yield dict(sha=sha, tmp=tmp_path, script=s, port=port, root=root, py=py, env_extra={"PATH": f"{stubs}:{os.environ['PATH']}"}, procs=procs)
     for p in procs:
         p.kill()
     subprocess.run(["pkill", "-f", str(tmp_path / "fake_server.py")])
 
 
 def run(box, *args, **env):
-    e = {**os.environ, **box["env_extra"], **{k: str(v) for k, v in env.items()}}
+    e = {**os.environ, **box["env_extra"], "STUB_CNT": str(box["tmp"] / "cnt"), **{k: str(v) for k, v in env.items()}}
+    (box["tmp"] / "cnt").write_text("0")
     return subprocess.run([str(box["script"]), *args], capture_output=True, text=True, env=e, timeout=120)
 
 
 def start_old(box, **env):
     """A fake 'dev backend' already listening, with the right cmdline and cwd."""
     e = {**os.environ, **{k: str(v) for k, v in env.items()}}
+    logf = open(f"/tmp/room214_backend_{box['sha']}.log", "a")
     p = subprocess.Popen([str(box["py"]), "-m", "uvicorn", "server:app", "--host", "0.0.0.0", "--port", str(box["port"])],
-                         cwd=box["root"] / "backend", env=e, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                         cwd=box["root"] / "backend", env=e, stdout=logf, stderr=logf)
     box["procs"].append(p)
     threading.Thread(target=p.wait, daemon=True).start()  # reap like init would, so a stopped pid really disappears
     for _ in range(40):
@@ -146,3 +153,31 @@ def test_successful_restart_new_pid_owns_port(box):
     new_pid = int(r.stdout.split("RESTART OK pid=")[1].split()[0])
     assert new_pid != old.pid
     box["procs"].append(type("P", (), {"kill": lambda self, p=new_pid: os.kill(p, 9)})())
+
+
+def test_guard_is_refreshed_right_before_the_stop(box):
+    old = start_old(box)
+    r = run(box, STUB_FLIP=1)  # 0 at preflight, a live lease appears before the stop
+    assert r.returncode == 2 and "pre-stop refresh" in r.stderr and alive(old)
+
+
+def test_post_stop_start_failure_reports_manual_recovery(box):
+    old = start_old(box)
+    r = run(box, STUB_FAIL_REAL=box["port"])
+    assert r.returncode == 3 and "MANUAL recovery (no automatic rollback)" in r.stderr and box["sha"] in r.stderr
+    old.wait(timeout=10)
+
+
+def test_wrong_listener_is_not_reported_ok(box):
+    start_old(box)
+    r = run(box, STUB_FORK_REAL=box["port"])
+    assert r.returncode == 5 and "RESTART UNVERIFIED" in r.stderr and "RESTART OK" not in r.stdout
+
+
+def test_unidentifiable_prior_runtime_fails_before_stop(box):
+    e = {**os.environ}
+    p = subprocess.Popen([str(box["py"]), "-m", "uvicorn", "server:app", "--host", "0.0.0.0", "--port", str(box["port"])],
+                         cwd=box["root"] / "backend", env=e, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    box["procs"].append(p); threading.Thread(target=p.wait, daemon=True).start(); time.sleep(1.5)
+    r = run(box)
+    assert r.returncode == 2 and "known-good prior" in r.stderr and alive(p)

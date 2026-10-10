@@ -25,12 +25,16 @@ LAUNCH=("$PY" -m uvicorn server:app --host 0.0.0.0 --port)
 [ -x "$PY" ] || fail "interpreter missing: $PY"
 [ -f "$BACKEND/server.py" ] || fail "no server.py in $BACKEND"
 (cd "$BACKEND" && "$PY" -c "import server" >/dev/null 2>&1) || fail "import server failed with $PY"
-LEASES=$(mongosh --quiet --eval 'print(db.getSiblingDB("caoscare").resident_aria_leases.countDocuments({}))' 2>/dev/null) \
-  || fail "cannot read leases (uncertain: not restarting)"
-[ "$LEASES" = "0" ] || fail "live lease(s): $LEASES"
-RECENT=$(mongosh --quiet --eval 'const n=new Date(Date.now()-60000).toISOString();const d=db.getSiblingDB("caoscare");print(d.resident_aria_lease_events.countDocuments({created_at:{$gte:n}})+d.realtime_diagnostics.countDocuments({created_at:{$gte:n}}))' 2>/dev/null) \
-  || fail "cannot read recent activity (uncertain: not restarting)"
-[ "$RECENT" = "0" ] || fail "call activity in the last 60 s: $RECENT"
+guard() {
+  local L R
+  L=$(mongosh --quiet --eval 'print(db.getSiblingDB("caoscare").resident_aria_leases.countDocuments({}))' 2>/dev/null) \
+    || fail "$1: cannot read leases (uncertain: not restarting)"
+  [ "$L" = "0" ] || fail "$1: live lease(s): $L"
+  R=$(mongosh --quiet --eval 'const n=new Date(Date.now()-60000).toISOString();const d=db.getSiblingDB("caoscare");print(d.resident_aria_lease_events.countDocuments({created_at:{$gte:n}})+d.realtime_diagnostics.countDocuments({created_at:{$gte:n}}))' 2>/dev/null) \
+    || fail "$1: cannot read recent activity (uncertain: not restarting)"
+  [ "$R" = "0" ] || fail "$1: call activity in the last 60 s: $R"
+}
+guard preflight
 
 listener_pid() { ss -ltnp 2>/dev/null | grep -E "[:.]$1 " | grep -o 'pid=[0-9]*' | head -1 | cut -d= -f2; }
 OLD_PID="$(listener_pid "$PORT")"
@@ -40,7 +44,11 @@ if [ -n "$OLD_PID" ]; then
   OLD_LOG="$(readlink /proc/$OLD_PID/fd/1 2>/dev/null)"
   case "$OLD_CMD" in *"uvicorn server:app"*"--port $PORT"*) ;; *) fail "pid $OLD_PID on :$PORT is not the dev backend (cmd: $OLD_CMD)";; esac
   [ "$OLD_CWD" = "$BACKEND" ] || fail "pid $OLD_PID cwd is $OLD_CWD, expected $BACKEND"
+  PRIOR_SHA="$(basename "$OLD_LOG" .log | sed -n 's/^room214_backend_//p')"
+  [ -n "$PRIOR_SHA" ] && git -C "$ROOT" cat-file -e "${PRIOR_SHA}^{commit}" 2>/dev/null \
+    || fail "cannot identify a known-good prior commit from the running process log ($OLD_LOG); refusing to stop it"
 fi
+git -C "$ROOT" diff --quiet HEAD -- backend || fail "backend working tree has uncommitted changes; runtime would not match $SHA"
 [ -z "$(listener_pid "$CAND")" ] || fail "spare port $CAND is in use (bind conflict); not restarting"
 [ -d /tmp ] && [ -w /tmp ] || fail "/tmp not writable (no log/state)"
 
@@ -57,24 +65,26 @@ echo "preflight ok: sha=$SHA leases=0 recent=0 old_pid=${OLD_PID:-none} old_log=
 [ "${1:-}" = "--check" ] && exit 0
 printf 'time=%s sha=%s old_pid=%s old_cmd=%s old_cwd=%s old_log=%s\n' "$(date -u +%FT%TZ)" "$SHA" "${OLD_PID:-none}" "${OLD_CMD:-}" "${OLD_CWD:-}" "${OLD_LOG:-}" >"$STATE"
 
-RECOVER="Recover: cd $BACKEND && ${LAUNCH[*]} $PORT  (prior log ${OLD_LOG:-none}; state $STATE; to run an older commit, check it out first)"
+RECOVER="MANUAL recovery (no automatic rollback): git -C $ROOT worktree add /tmp/rollback_${PRIOR_SHA:-prior} ${PRIOR_SHA:-<prior-sha>} && cd /tmp/rollback_${PRIOR_SHA:-prior}/backend && ${LAUNCH[*]} $PORT  (prior log ${OLD_LOG:-none}; state $STATE)"
+guard "pre-stop refresh"
 if [ -n "$OLD_PID" ]; then
   kill "$OLD_PID"; for _ in $(seq 1 30); do kill -0 "$OLD_PID" 2>/dev/null || break; sleep 0.5; done
   kill -0 "$OLD_PID" 2>/dev/null && { echo "STOP FAILED: old pid $OLD_PID still alive; nothing started. Service left as is." >&2; exit 4; }
   for _ in $(seq 1 20); do [ -z "$(listener_pid "$PORT")" ] && break; sleep 0.5; done
   [ -z "$(listener_pid "$PORT")" ] || { echo "STOP FAILED: :$PORT still listening after old pid exited. $RECOVER" >&2; exit 4; }
 fi
-( cd "$BACKEND" && exec setsid nohup "${LAUNCH[@]}" "$PORT" ) >"$LOG" 2>&1 </dev/null &
+( cd "$BACKEND" && exec env CAOSCARE_RUNTIME_SHA="$SHA" setsid nohup "${LAUNCH[@]}" "$PORT" ) >"$LOG" 2>&1 </dev/null &
 NEWSTART=$!
 for _ in $(seq 1 40); do
   if curl -sf "localhost:$PORT/api/health" >/dev/null; then
     NP="$(listener_pid "$PORT")"
     NC="$(tr '\0' ' ' < /proc/$NP/cmdline 2>/dev/null)"
     NW="$(readlink /proc/$NP/cwd 2>/dev/null)"
-    if [ -n "$NP" ] && [ "$NP" != "${OLD_PID:-x}" ] && [ "$NW" = "$BACKEND" ] && case "$NC" in *"uvicorn server:app"*"--port $PORT"*) true;; *) false;; esac; then
-      echo "RESTART OK pid=$NP (launched $NEWSTART) sha=$SHA cwd=$NW log=$LOG"; exit 0
+    NE="$(tr '\0' '\n' < /proc/$NP/environ 2>/dev/null | sed -n 's/^CAOSCARE_RUNTIME_SHA=//p')"
+    if [ -n "$NP" ] && [ "$NP" = "$NEWSTART" ] && [ "$NE" = "$SHA" ] && [ "$NP" != "${OLD_PID:-x}" ] && [ "$NW" = "$BACKEND" ] && case "$NC" in *"uvicorn server:app"*"--port $PORT"*) true;; *) false;; esac; then
+      echo "RESTART OK pid=$NP (launched $NEWSTART) runtime_sha_env=$NE (backend tree clean at $SHA) cwd=$NW log=$LOG"; exit 0
     fi
-    echo "RESTART UNVERIFIED: healthy but listener pid=$NP is not the new process (cmd: $NC). $RECOVER" >&2; exit 5
+    echo "RESTART UNVERIFIED: healthy but listener pid=$NP is not the launched process / runtime sha mismatch (pid=$NP launched=$NEWSTART env_sha=$NE cmd: $NC). $RECOVER" >&2; exit 5
   fi
   sleep 1
 done
