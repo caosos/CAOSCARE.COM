@@ -233,6 +233,10 @@ async def _run():
                   start_time="12:30", driver_id=drv_a["driver_id"], vehicle_id=car["vehicle_id"]).json()
         assert r["booked"] is True
         run4 = (await db.staff_tasks.find_one({"task_id": t4["task_id"]}))["transport_run_id"]
+        # earlier runs this ride was moved out of must not still list it as a rider
+        wed_runs = _get("/transportation/calendar", desk, date=WED).json()["days"][0]["runs"]
+        holders = [run_["run_id"] for run_ in wed_runs for x in run_["riders"] if x["task_id"] == t4["task_id"]]
+        assert holders == [run4], (holders, run4)
         r = _post(f"/transportation/staff/request/{t4['task_id']}/cancel", desk, reason="Appointment moved by the clinic")
         assert r.status_code == 200, r.text
         s = _status(r1)

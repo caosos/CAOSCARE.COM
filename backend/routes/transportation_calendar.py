@@ -81,7 +81,9 @@ async def calendar(date: Optional[str] = None, days: int = 1, user=Depends(requi
                     "closed_by_name": r.get("closed_by_name"),
                     "driver": drivers.get(r.get("driver_id")),
                     "vehicle": vehicles.get(r.get("vehicle_id")),
-                    "riders": [_rider_view(tasks_by_id[tid]) for tid in r.get("resident_task_ids", []) if tid in tasks_by_id],
+                    # a ride that was moved to another run is not a rider here any more (the old run keeps the id until released)
+                    "riders": [_rider_view(tasks_by_id[tid]) for tid in r.get("resident_task_ids", [])
+                               if tid in tasks_by_id and tasks_by_id[tid].get("transport_run_id") in (None, r["run_id"])],
                 }
                 for r in day_runs if r["status"] in OPEN_RUN_STATUSES or r["status"] in ("completed", "cancelled")
             ],

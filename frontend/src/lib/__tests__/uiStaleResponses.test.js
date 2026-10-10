@@ -27,6 +27,8 @@ jest.mock("../../components/EmailReadiness", () => () => null);
 
 const History = require("../../pages/RequestHistoryDialog").default;
 const Comms = require("../../pages/CommunicationsTab").default;
+const RideLog = require("../../pages/TransportLog").default;
+const { toast } = require("sonner");
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 const deferred = () => { let res, rej; const p = new Promise((a, b) => { res = a; rej = b; }); return { p, res, rej }; };
@@ -81,4 +83,12 @@ test("communications log: an old All reply arriving after the new Failed reply i
   await act(async () => { allReply.res({ data: [n("ALLROW", "sent")] }); }); await flush();
   const log = el.querySelector("[data-testid=notif-log]").textContent;
   expect(log).toContain("FAILEDROW"); expect(log).not.toContain("ALLROW");
+});
+
+test("ride log: leaving the page before a slow reply fails must not toast or update", async () => {
+  const A = deferred(); mockApi.get.mockReturnValue(A.p); toast.error.mockClear();
+  await act(async () => root.render(<RideLog />));
+  await act(async () => root.render(<div />));                 // navigate away (unmount) with the request still in flight
+  await act(async () => { A.rej({ response: { data: { detail: "late failure" } } }); }); await flush();
+  expect(toast.error).not.toHaveBeenCalled();
 });

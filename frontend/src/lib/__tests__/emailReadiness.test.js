@@ -8,3 +8,7 @@ test("panel does not claim email works from configuration alone", () => {
   expect(src).toMatch(/Sending domain verified at the provider/);
   expect(src).toMatch(/c\.state === "unknown"/);
 });
+test("sender states are told apart in the panel", () => {
+  expect(src).toMatch(/default: "Resend default address"/);
+  expect(src).toMatch(/invalid: "Invalid address"/);
+});

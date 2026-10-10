@@ -28,6 +28,7 @@ export default function TransportLog() {
     }
   }, [f]);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { const g = seq.current; return () => g.invalidate(); }, []);   // unmounted: a late reply or failure is dropped
 
   const csv = async () => {
     try {

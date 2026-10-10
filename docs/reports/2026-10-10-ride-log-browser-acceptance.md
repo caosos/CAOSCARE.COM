@@ -34,3 +34,30 @@ Screenshots: `docs/reports/assets/2026-10-10-ride-log/` (admin log, history dial
 | Screenshots of this second run | NOT CAPTURED (values above are scripted DOM/file observations) |
 | A true complete paginated export | NOT BUILT: partial exports are labelled instead; the user must narrow the range |
 | Unmount mid-request in a real browser | NOT RUN (covered by the component test only) |
+
+## Update 2 — staff-UI transport lifecycle, EmailReadiness fake states, unmount (da-5f90a99ee6)
+Same isolated stack (scratch DB, :8131 backend, built UI via serve_built on :3133, headless Chrome/CDP; fleet = one driver and one van created through the admin API; synthetic resident). Screenshots: `docs/reports/assets/2026-10-10-ride-log/A*.png` (transport) and `B_*.png` (email). No provider key was real; the backend ran with HTTP(S)_PROXY pointed at a local counter: **0 outbound connection attempts** across the four email cases.
+
+### (A) Transport, driven through the real UI
+| Case | Result / artifact |
+|---|---|
+| Front desk "New ride" form (resident, purpose, date, time as said) | PASS — A1, A2 pending card "Needs coordination" |
+| Assign dialog → driver/vehicle auto-picked, pickup 08:45 | PASS — A3, A4 run card "Pickup 08:45 · Confirmed · Dana Driver · Van 1" |
+| Transportation staff: Departed then Ride completed | PASS — A5, A6; depart button gone after depart, both gone after complete |
+| Same task id in Ride log, history, real CSV button | PASS — A7 (one row, Completed), A8 (Created, Booked by Fran Desk, Departed by Tran Sport, Completed, 5 receipts), CSV file contains the task id with status `completed` |
+| Second completion (run endpoint and task endpoint) | PASS — both HTTP 400; receipts show a single `transportation_completed` plus `task_complete_refused` |
+| Change time via the rider's edit button | PASS — new run 11:15 booked |
+| **Cancelled old run still listed the moved ride as "Booked" with cancel/history buttons (A9)** | **FAIL (found)** — fixed: calendar only lists a rider on the run its task currently belongs to (`transportation_calendar.py`); assertion added to `test_transportation_lifecycle.py` (fails on the old code, passes now). A9 is the BEFORE picture; the cancelled 10:00 card itself is still displayed (struck, empty) |
+| Cancel with reason | PASS — A10 log row "Cancelled" |
+### (B) EmailReadiness (admin → Email & notifications), fake env values
+| Case | Observed |
+|---|---|
+| nothing configured | key, sender, webhook secret, department inboxes, both inbound senders show "Not set"; domain-verified and webhook-reachable show **Unknown**; header says configuration incomplete — PASS (B_missing.png) |
+| default sender `onboarding@resend.dev` | sender row badge "Resend default address" — PASS (B_default.png) |
+| invalid sender "not an address" | badge "Invalid address" — PASS (B_invalid.png) |
+| fully fake-configured | no "Not set"/default/invalid badges; domain and webhook still **Unknown**; text says it does not mean email works — PASS (B_configured.png) |
+| role gating | API: admin 200, front desk 403, nurse 403, anonymous 401; front desk opening the admin URL is redirected away (no panel) — PASS |
+### (C) Ride log unmount mid-request
+Fixed (an unmount now invalidates in-flight replies) and covered by a component test that fails without the fix. NOT run in a real browser.
+### Still NOT RUN / not built
+Real browser slow-network repro of the three UI screens; screenshots for the second ride-log run; complete paginated CSV.
