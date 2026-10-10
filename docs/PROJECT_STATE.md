@@ -8295,3 +8295,8 @@ Owner test 00:32-00:34Z on the rebuilt page (`e15d59f`): the first "Goodbye" was
 
 ## 2026-10-09 — Room 214 page rebuilt again on ca4a32c (owner authorized in session)
 Authorization: owner, in session ("Yes, rebuild now"). 0 live leases. `ctl.sh rebuild` + `restart-page` only; listener not restarted. Bundle `main.1eafdad7.js` (contains the goodbye acknowledgement); previous build kept at `~/.cache/aria-wake/build.prev` for rollback (`mv build build.bad && mv build.prev build`, then `ctl.sh restart-page`). Pending: owner's live check - say "Hey Aria", "Goodbye"; Aria should say a short goodbye aloud and then end.
+
+---
+
+## 2026-10-10 — RQ-058: audible goodbye made reliable (owner live test 20:00-20:05 CDT)
+Forensics: `docs/reports/2026-10-10-goodbye-forensics-0100.md`. One of three goodbyes was silent (reply-in-flight collision); the "Are you still there?" answer came from a live call, not from an ended one. Fix in code on integration (frontend 54 suites / 477 pass, build compiles, mutation checks for in-flight handling and fallback fail as they should). **Not live**: the Room page needs one more authorized rebuild (not done).
