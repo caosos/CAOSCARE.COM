@@ -21,3 +21,16 @@ Screenshots: `docs/reports/assets/2026-10-10-ride-log/` (admin log, history dial
 - The stale-response guard is covered by a unit test of the helper only; no real slow-network reproduction in a browser.
 - Truncation (>5000 rides) not exercised in the browser (backend test with a lowered cap only).
 - Real rides need real drivers and vehicles (owner). Repeated navigation/rapid filter changes were not scripted beyond the sequence above.
+
+## Update — remaining bounded cases (commit 6caa8f6; same isolated stack, 5,200 extra synthetic rides on 2031-04-01)
+| Case | Result |
+|---|---|
+| >5000 rides, real list | 5000 rows shown with the visible notice "More than 5000 rides matched; narrow the range. This list is incomplete." — PASS |
+| Real CSV button download, truncated | file saved as `rides-2031-04-01-to-2031-04-01-PARTIAL.csv` (5001 lines = header + 5000) and a warning toast says the export is PARTIAL — PASS (before this fix the download looked complete: fixed by reading `X-Truncated`; CORS now exposes that header) |
+| Real CSV button download, small range | `rides-2031-03-10-to-2031-03-10.csv`, no partial notice — PASS |
+| Rapid filter, out-of-order replies | the old "cancelled" request was held in the browser (CDP Fetch), filter switched to "completed", old reply released afterwards: screen kept the completed rows only — PASS |
+| Repeated navigation (4× away and back) | log renders each time — PASS |
+| Valid date filter | exercised in both runs — PASS |
+| Screenshots of this second run | NOT CAPTURED (values above are scripted DOM/file observations) |
+| A true complete paginated export | NOT BUILT: partial exports are labelled instead; the user must narrow the range |
+| Unmount mid-request in a real browser | NOT RUN (covered by the component test only) |
