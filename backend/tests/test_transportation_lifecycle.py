@@ -251,6 +251,37 @@ async def _run():
         t6 = _post("/transportation/staff/request", desk, resident_id=r3, purpose="library", requested_for_date=WED,
                    start_time="10:00", driver_id=drv_a["driver_id"], vehicle_id=van["vehicle_id"]).json()
         assert t6["booked"] is True, "driver A should be free again after the generic skip"
+
+        # ---- 11. the same tasks in the Ride log (JSON, CSV): one row each, right status/driver, no duplicates ----
+        import csv as _csv, io as _io
+        q = dict(**{"from": MON, "to": WED, "q": TAG})
+        lg = _get("/transportation/log", desk, **q)
+        assert lg.status_code == 200, lg.text
+        rows = lg.json()["rows"]
+        ids = [x["task_id"] for x in rows]
+        assert len(ids) == len(set(ids)), "a ride must appear exactly once"
+        by = {x["task_id"]: x for x in rows}
+        assert {t1["task_id"], t2["task_id"], t3["task_id"], t4["task_id"], t5["task_id"], t6["task_id"]} <= set(by)
+        assert by[t1["task_id"]]["status"] == "completed" and by[t1["task_id"]]["driver"] == drv_a["name"]
+        assert by[t2["task_id"]]["status"] == "completed" and by[t1["task_id"]]["vehicle"] == van["name"]
+        assert by[t3["task_id"]]["status"] == "completed"
+        assert by[t4["task_id"]]["status"] == "cancelled" and by[t5["task_id"]]["status"] == "cancelled"
+        assert by[t6["task_id"]]["status"] == "booked" and by[t6["task_id"]]["driver"] == drv_a["name"]
+        assert by[t1["task_id"]]["closed_at"] and by[t4["task_id"]]["last_note"] == "Appointment moved by the clinic"
+        assert by[t1["task_id"]]["receipt_count"] >= 3          # requested, booked, departed, completed receipts
+        # completing again is refused and never adds a second row or a second completed receipt
+        n_completed = _receipt_types(admin, t2["task_id"]).count("transportation_completed")
+        assert _post(f"/transportation/request/{t2['task_id']}/complete", desk).status_code == 400
+        assert _receipt_types(admin, t2["task_id"]).count("transportation_completed") == n_completed == 1
+        again = _get("/transportation/log", desk, **q).json()["rows"]
+        assert [x["task_id"] for x in again].count(t2["task_id"]) == 1
+        # status filter and CSV agree with the same rows
+        only_done = _get("/transportation/log", desk, status="completed", **q).json()["rows"]
+        assert {x["task_id"] for x in only_done} >= {t1["task_id"], t2["task_id"], t3["task_id"]}
+        assert all(x["status"] == "completed" for x in only_done)
+        csv_rows = list(_csv.DictReader(_io.StringIO(_get("/transportation/log", desk, format="csv", **q).text)))
+        assert {x["task_id"] for x in csv_rows} == set(ids) and len(csv_rows) == len(ids)
+        assert _get("/transportation/log", nurse, **q).status_code == 403
     finally:
         driver_ids = [d["driver_id"] async for d in db.transport_drivers.find({"name": {"$regex": f"^{TAG}"}})]
         tasks = [t["task_id"] async for t in db.staff_tasks.find({"resident_id": {"$in": residents}})]
