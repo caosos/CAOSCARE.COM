@@ -4,6 +4,7 @@ import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Card } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
+import { kioskSummary, kioskTile } from "../lib/deviceCounts";
 import { Radio, Watch, Monitor, BatteryLow, CheckCircle2, AlertTriangle } from "lucide-react";
 
 const STATUS_STYLE = {
@@ -35,6 +36,7 @@ export default function DeviceStatusCard() {
   const [rf, setRf] = useState({ total: 0, in_service: 0, need_attention: 0, devices: [] });
   const [wearables, setWearables] = useState([]);
   const [kiosks, setKiosks] = useState([]);
+  const [kiosksLoaded, setKiosksLoaded] = useState(null);   // null = still loading, false = request failed
   const [activity, setActivity] = useState([]);
 
   const fetchAll = async () => {
@@ -42,12 +44,13 @@ export default function DeviceStatusCard() {
       const [rfRes, wRes, kRes, aRes] = await Promise.all([
         api.get("/rf/fleet/summary").catch(() => ({ data: { total: 0, in_service: 0, need_attention: 0, devices: [] } })),
         api.get("/wearables").catch(() => ({ data: [] })),
-        api.get("/kiosks").catch(() => ({ data: [] })),
+        api.get("/kiosks").then((r) => ({ ok: true, data: r.data })).catch(() => ({ ok: false, data: [] })),
         api.get("/alerts", { params: { limit: 20 } }).catch(() => ({ data: [] })),
       ]);
       setRf(rfRes.data || { total: 0, in_service: 0, need_attention: 0, devices: [] });
       setWearables(wRes.data || []);
       setKiosks(kRes.data || []);
+      setKiosksLoaded(!!kRes.ok);
       const devTriggered = (aRes.data || []).filter((a) =>
         ["pendant", "rf_pendant", "wearable", "kiosk_button"].includes(a.triggered_by)
       );
@@ -63,7 +66,7 @@ export default function DeviceStatusCard() {
 
   const wearablesOnline = wearables.filter((w) => w.status === "active" || w.status === "online").length;
   const wearablesLowBat = wearables.filter((w) => w.status === "low_battery").length;
-  const kiosksOnline = kiosks.filter((k) => k.status !== "offline").length;
+  const kTile = kioskTile(kioskSummary(kiosks, kiosksLoaded));
 
   return (
     <Card className="border-caos-line bg-white p-5" data-testid="device-status-card">
@@ -89,8 +92,7 @@ export default function DeviceStatusCard() {
         />
         <InventoryTile
           icon={<Monitor className="w-5 h-5" />} label="Kiosks"
-          online={kiosksOnline} total={kiosks.length} warn={null}
-          to={isAdmin ? "/admin?tab=kiosks" : null} testid="inv-kiosks"
+          custom={kTile} to={isAdmin ? "/admin?tab=kiosks" : null} testid="inv-kiosks"
         />
       </div>
 
@@ -193,8 +195,9 @@ export default function DeviceStatusCard() {
   );
 }
 
-function InventoryTile({ icon, label, online, total, warn, to, testid }) {
-  const healthy = online === total && total > 0;
+function InventoryTile({ icon, label, online, total, warn, to, testid, custom }) {
+  const healthy = custom ? custom.healthy : online === total && total > 0;
+  if (custom) { warn = custom.note; }
   const inner = (
     <div className={`rounded-2xl border-2 p-3 h-full ${healthy ? "border-caos-moss bg-caos-moss/5" : warn ? "border-caos-amber bg-caos-amber/5" : "border-caos-line bg-caos-ambient/40"} ${to ? "hover:border-caos-forest cursor-pointer transition-colors" : ""}`} data-testid={testid}>
       <div className="flex items-center gap-2 text-caos-forest">
@@ -202,8 +205,8 @@ function InventoryTile({ icon, label, online, total, warn, to, testid }) {
         <span className="text-xs font-bold uppercase tracking-widest text-caos-mute">{label}</span>
       </div>
       <div className="mt-2 flex items-baseline gap-2">
-        <span className="font-display text-3xl font-semibold text-caos-forest tabular-nums">{online}</span>
-        <span className="text-caos-mute text-sm">/ {total} in service</span>
+        <span className="font-display text-3xl font-semibold text-caos-forest tabular-nums">{custom ? custom.value : online}</span>
+        <span className="text-caos-mute text-sm">{custom ? custom.detail : `/ ${total} in service`}</span>
         {healthy ? <CheckCircle2 className="w-4 h-4 text-caos-moss ml-auto" /> : warn ? <AlertTriangle className="w-4 h-4 text-caos-amber ml-auto" /> : null}
       </div>
       {warn && <p className="text-[11px] text-caos-amber mt-1 font-semibold">{warn}</p>}
