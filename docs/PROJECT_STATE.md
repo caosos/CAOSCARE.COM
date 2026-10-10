@@ -8419,3 +8419,8 @@ Limits: a simulated signed webhook proves the status logic only, not that Resend
 
 ## 2026-10-10 — CommunicationsTab loading/failure truth (da-c90537f56a)
 `27b410e` + report/evidence/checklist reconcile `c1145f0`. Provider status and delivery log settle independently (loading/error/ok/stale, per-filter key, Retry); a failed read is no longer "not configured" / "No notifications.", and a failed filter change no longer shows the previous filter's rows. 10 mounted tests (9 fail on the old component), frontend 64 suites / 543, build compiled, isolated browser check with injected read failures incl. 390 px. Report `docs/reports/2026-10-10-communications-tab-truth.md`. `PILOT1_EXECUTION_CHECKLIST.md` header corrected (was `b860390`, RQ-011/012 as current); Phase 4 contact/delivery/fallback items set to [~] with evidence, none [x]. No backend change or restart, no provider, no voice, no deploy.
+
+---
+
+## 2026-10-10 — Notification API authorization closed (da-b969d9cb87)
+`/notifications`, `/notifications/status`, `/notifications/test` now `require_admin` (they were `get_current_user`; any signed-in role could read all recipients/bodies and use test-send). Only caller is the admin Communications tab. 12 new in-process tests (6 fail at d5de81f), focused 32, full gate 504/0/31, isolated browser check. Report `docs/reports/2026-10-10-notification-api-authz.md`. Status split: ACK posted; code + tests complete; browser evidence isolated/synthetic; NOT deployed or restarted (live :8092 unchanged); no provider contacted.

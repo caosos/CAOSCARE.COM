@@ -106,17 +106,20 @@ async def notify_family_for_alert(alert: dict):
 
 
 # -------- API routes --------
+# The delivery log, provider status and test-send belong to the admin Communications surface only (owner/admin,
+# same as /notifications/readiness and the inbound allowlist). No non-admin caller exists; authorization is
+# enforced here, not by hiding the tab.
 @router.get("/notifications")
 async def list_notifications(limit: int = 50, related_object_id: Optional[str] = None,
                              department: Optional[str] = None, status: Optional[str] = None,
-                             user=Depends(get_current_user)):
+                             user=Depends(require_admin)):
     q = {k: v for k, v in (("related_object_id", related_object_id), ("department", department),
                            ("status", status)) if v}
     return await db.notifications.find(q, {"_id": 0}).sort("created_at", -1).to_list(min(limit, 500))
 
 
 @router.post("/notifications/test")
-async def notifications_test(data: NotificationTest, user=Depends(get_current_user)):
+async def notifications_test(data: NotificationTest, user=Depends(require_admin)):
     if data.channel == "sms":
         return await send_sms(data.to, data.body)
     if data.channel == "email":
@@ -134,7 +137,7 @@ async def notifications_test(data: NotificationTest, user=Depends(get_current_us
 
 
 @router.get("/notifications/status")
-async def notifications_status(user=Depends(get_current_user)):
+async def notifications_status(user=Depends(require_admin)):
     cfg = provider_config()
     twilio = bool(cfg["twilio_sid"] and cfg["twilio_token"] and cfg["twilio_from"])
     return {
