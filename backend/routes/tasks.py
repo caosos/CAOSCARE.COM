@@ -43,6 +43,16 @@ async def _resolve_denorms(data: dict) -> dict:
     return data
 
 
+def staff_visibility_query(user) -> dict:
+    """The one definition of which tasks a user may see in a list: a staff user sees their department's requests
+    plus all_staff ones (no department: only all_staff); owner, admin and front desk see everything. Used by the
+    task list and by task detail so the two cannot drift."""
+    if user.get("role") != "staff":
+        return {}
+    dept = user.get("department")
+    return {"visibility_role": {"$in": [dept, "all_staff"]} if dept else "all_staff"}
+
+
 # ================= TASKS =================
 @router.get("")
 async def list_tasks(
@@ -59,14 +69,8 @@ async def list_tasks(
         q["resident_id"] = resident_id
     if mine_only:
         q["assigned_to"] = user["user_id"]
-    elif user.get("role") == "staff":
-        # Department-scoped visibility (item 4, Terminal 8): a staff user
-        # with a department sees that department's requests plus general
-        # ones; a staff user with no department sees only general/
-        # all_staff-visibility items. Admin/owner see everything, per
-        # "admin/owner visibility remains appropriately broad."
-        dept = user.get("department")
-        q["visibility_role"] = {"$in": [dept, "all_staff"]} if dept else "all_staff"
+    else:
+        q.update(staff_visibility_query(user))
     if status:
         q["status"] = status
     if category:
