@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "updated_at": "2026-10-11T22:02:00Z",
-  "updated_by": "CAOSCare Build Supervisor — PR and missed-ACK reconciliation",
+  "updated_at": "2026-10-11T22:05:00Z",
+  "updated_by": "CAOSCare Build Supervisor — granular owner review reconciliation",
   "ready_unblocked": [
     "careops-transport-live-001: production ff87c22 deployed 2026-10-11T21:28:50Z; 12/12 public smoke, authenticated Transportation role workflow and receipts pending; existing coordinator owns the one active item."
   ],
@@ -19,7 +19,7 @@
     "PR #67 adoption",
     "per-kiosk device-credential decision"
   ],
-  "note": "One active item careops-transport-live-001; main/production ff87c22 at 21:28:50Z dated deploy check, 12/12 public smoke, authenticated Transportation LIVE_VERIFY pending. Integration 73 commits ahead/0 behind main. Eight open PRs classified in checklist b239ee4 and PROJECT_STATE d4ff195; none merge-ready now. Existing local watchdog must publish coordinator_state.py and git status receipt, ACK/WORKING or exact NEED. No duplicate worker or routine permission request.",
+  "note": "One active item careops-transport-live-001 on production ff87c22 (public smoke 12/12; authenticated live workflow pending). Individual 23-item owner review checklist d53e185, project state 6c7a1eb. If transport has exact NEED, next compatible P0 is routing-delivery audit, then staffing/dispatch, via the same coordinator. Delivery da-ba92a5f535 has no observed ACK/WORKING; local heartbeat and EliteDesk uncommitted status UNKNOWN. Eight open PRs classified in Issue #129 comment 6114293012; none merge-ready. No duplicate worker or routine permission request.",
   "liaison_watch": {
     "scanned_through_ts": "1791754656.483969",
     "scanned_through_local": "2026-10-11 16:37:36 CDT",
