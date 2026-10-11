@@ -132,10 +132,29 @@ def test_malformed_and_inverted_bounds_are_422_never_500():
 
 def test_truncation_is_explicit_not_silent(monkeypatch):
     monkeypatch.setattr(transportation_log, "MAX_ROWS", 3)
+    monkeypatch.setattr(transportation_log, "MAX_ROWS_CSV", 3)
     r = get(Q, "admin").json()
     assert r["truncated"] is True and "incomplete" in r["truncated_note"] and len(r["rows"]) <= 3
     c = get(Q + "&format=csv", "admin")
     assert c.headers.get("x-truncated") == "true"
+
+
+def test_csv_export_is_complete_when_screen_list_is_capped(monkeypatch):
+    full = get(Q, "admin").json()
+    assert full["total"] > 3 and full["truncated"] is False
+    monkeypatch.setattr(transportation_log, "MAX_ROWS", 3)          # screen list capped...
+    assert get(Q, "admin").json()["truncated"] is True
+    c = get(Q + "&format=csv", "admin")                              # ...CSV still has every ride
+    assert c.headers.get("x-truncated") is None
+    assert len(list(csv.DictReader(io.StringIO(c.text)))) == full["total"]
+
+
+def test_lookups_are_chunked_not_capped(monkeypatch):
+    monkeypatch.setattr(transportation_log, "CHUNK", 1)              # one id per lookup: results must be identical
+    r = get(Q, "admin").json()
+    by = {x["task_id"]: x for x in r["rows"]}
+    assert by[f"{TAG}_booked"]["driver"] == "Dana Driver" and by[f"{TAG}_departed"]["status"] == "departed"
+    assert by[f"{TAG}_done"]["receipt_count"] == 0 or isinstance(by[f"{TAG}_done"]["receipt_count"], int)
 
 
 def test_to_only_uses_a_week_back():

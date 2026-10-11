@@ -20,7 +20,9 @@ from routes.transportation_runs import require_transport_operator
 router = APIRouter(prefix="/transportation", tags=["transportation-log"])
 
 MAX_DAYS = 93
-MAX_ROWS = 5000   # fetch cap; if more match, the response says truncated (never silently partial)
+MAX_ROWS = 5000        # on-screen (JSON) cap; if more match, the response says truncated (never silently partial)
+MAX_ROWS_CSV = 50000   # CSV export cap: a full export of any realistic range; still flagged if exceeded
+CHUNK = 1000           # ids per database lookup (keeps queries bounded)
 _FORMULA_START = ("=", "+", "-", "@", "\t", "\r", "\n")
 
 
@@ -115,16 +117,21 @@ async def ride_log(
         {"requested_for_date": {"$gte": start, "$lte": end}},
         {"requested_for_date": {"$in": [None, ""]}, "created_at": {"$gte": pad_lo, "$lt": pad_hi}},
     ]}
-    found = await db.staff_tasks.find(query, {"_id": 0}).sort("created_at", -1).to_list(MAX_ROWS + 1)
-    truncated = len(found) > MAX_ROWS
-    tasks = [t for t in found[:MAX_ROWS] if start <= (t.get("requested_for_date") or _local_date(t.get("created_at")) or "") <= end]
-    run_ids = {t["transport_run_id"] for t in tasks if t.get("transport_run_id")}
-    runs = {r["run_id"]: r for r in await db.transport_runs.find({"run_id": {"$in": list(run_ids)}}, {"_id": 0}).to_list(2000)} if run_ids else {}
+    cap = MAX_ROWS_CSV if format == "csv" else MAX_ROWS
+    found = await db.staff_tasks.find(query, {"_id": 0}).sort("created_at", -1).to_list(cap + 1)
+    truncated = len(found) > cap
+    tasks = [t for t in found[:cap] if start <= (t.get("requested_for_date") or _local_date(t.get("created_at")) or "") <= end]
+    run_ids = sorted({t["transport_run_id"] for t in tasks if t.get("transport_run_id")})
+    runs = {}
+    for i in range(0, len(run_ids), CHUNK):
+        async for r in db.transport_runs.find({"run_id": {"$in": run_ids[i:i + CHUNK]}}, {"_id": 0}):
+            runs[r["run_id"]] = r
     drivers = {d["driver_id"]: d["name"] for d in await db.transport_drivers.find({}, {"_id": 0}).to_list(500)}
     vehicles = {v["vehicle_id"]: v.get("name") or v["vehicle_id"] for v in await db.transport_vehicles.find({}, {"_id": 0}).to_list(500)}
     rc: dict = {}
-    if tasks:
-        async for r in db.receipts.find({"related_object_type": "task", "related_object_id": {"$in": [t["task_id"] for t in tasks]}},
+    ids = [t["task_id"] for t in tasks]
+    for i in range(0, len(ids), CHUNK):
+        async for r in db.receipts.find({"related_object_type": "task", "related_object_id": {"$in": ids[i:i + CHUNK]}},
                                         {"_id": 0, "related_object_id": 1}):
             rc[r["related_object_id"]] = rc.get(r["related_object_id"], 0) + 1
 
@@ -163,4 +170,4 @@ async def ride_log(
                                           **({"X-Truncated": "true"} if truncated else {})})
     counts = {s: sum(1 for r in rows if r["status"] == s) for s in STATUSES}
     return {"from": start, "to": end, "total": len(rows), "counts": counts, "truncated": truncated,
-            "truncated_note": (f"More than {MAX_ROWS} rides matched; narrow the range. This list is incomplete." if truncated else None), "rows": rows}
+            "truncated_note": (f"More than {MAX_ROWS} rides matched; narrow the range, or export CSV (up to {MAX_ROWS_CSV}). This list is incomplete." if truncated else None), "rows": rows}

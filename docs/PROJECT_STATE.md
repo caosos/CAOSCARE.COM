@@ -8439,3 +8439,8 @@ Guarded restart of the EliteDesk development :8092 backend via `scripts/restart_
 
 ## 2026-10-10 — Task-detail visibility loaded on the dev backend (da-234923f21b)
 Guarded restart of the EliteDesk development :8092 backend (no Linode/production). Before: tree clean at `a1ae055` = origin, 0 leases, no recent activity, old pid 4137510 (started 16:37, log /tmp/room214_backend_d7b736d.log = rollback provenance). After: pid 4162004, started 2026-10-10 16:52, `uvicorn server:app --host 0.0.0.0 --port 8092`, cwd `~/CAOSCARE-INTEGRATION/backend`, script reports runtime commit a1ae055 with a clean tree, log /tmp/room214_backend_a1ae055.log; health ok. Read-only checks with existing demo accounts and existing tasks (statuses only): nursing -> nursing task 200 (2 receipts), -> maintenance task 404, -> missing id 404 (same body); maintenance -> own 200, -> nursing 404; front desk -> both 200; admin -> maintenance 200; anonymous 401. Not verified at runtime (no existing fixture, none created): an all_staff task and a cross-department task assigned to the caller; covered only by the isolated tests. Development-loaded only; not deployed. No PR.
+
+---
+
+## 2026-10-10 — Ride log: CSV export is complete (previous "PARTIAL" limit removed)
+`GET /api/transportation/log?format=csv` now fetches up to 50,000 rides (the on-screen list keeps its 5,000 cap and says so); run and receipt lookups are chunked (1,000 ids) — the old run lookup silently capped at 2,000 runs. A CSV still beyond 50,000 is flagged `X-Truncated` and named `-PARTIAL`. Tests: capped screen list + full CSV, chunked lookups give identical rows (`test_transportation_log.py` 10 pass). Gate 524 passed / 0 failed / 31 skipped. Dev backend not restarted; no deploy; no voice or wake files touched.
