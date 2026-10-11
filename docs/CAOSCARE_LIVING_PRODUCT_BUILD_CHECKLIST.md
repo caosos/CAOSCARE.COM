@@ -67,7 +67,7 @@ This is the required path whenever an agent, coordinator, watchdog, service, or 
 ## Current build control
 
 - **Current phase:** 3/7 — Care Operations workspaces.
-- **Today’s active engineering task:** `careops-transport-live-001` — promote gated `ff87c22` to `main`, deploy that exact SHA, LIVE_VERIFY Transportation; then Front Desk/Admin normal-work browser acceptance.
+- **Today’s active engineering task:** `careops-transport-live-001` — gate PASSED on `ff87c22`; `main` promotion + deploy wait on the owner's two commands (coordinator session cannot run them). Meanwhile the Front Desk half of the Front Desk/Admin acceptance is done (report 2026-10-11); the Admin half needs an admin sign-in.
 - **Control issue / dispatch channel:** [#129](https://github.com/caosos/CAOSCARE.COM/issues/129).
 - **Completed review:** [PR #130](https://github.com/caosos/CAOSCARE.COM/pull/130), merged into integration.
 - **Integration branch:** `integration/2026-09-27`; current control head `58010c2ed6796ab1bb9245f642fa16cfc5a12af8`; release-code baseline `f35b4542a1b893357c78c21c4a7c4ce936fd8cff` (later coordinator-only commits may update control records without changing product code).
@@ -94,7 +94,8 @@ This is the required path whenever an agent, coordinator, watchdog, service, or 
 - Coordinator role moved to a new session by Michael's direction (handoff capsule `docs/status/COORDINATOR_HANDOFF_2026-10-11.md`); Michael then gave direct owner authorization in that session: promote `ff87c22` to `main`, deploy the exact SHA, LIVE_VERIFY Transportation, then Front Desk/Admin.
 - Release gate on a clean checkout of `ff87c22` (no local edits, shared venv, isolated port 8131 / DB `caoscare_gate_ff87c22`): backend `scripts/run_backend_tests.sh` 536 passed / 31 skipped / 0 failed (13 real_hardware deselected, 263 s); frontend 66 suites / 553 passed; production build compiled. `main` (`880d10f`) is an ancestor of `ff87c22` (fast-forward, 555 files); the only dependency change is `websockets>=14.0`; frontend deps unchanged; no manual data migration identified.
 - Watchdog repair: `scripts/owner_intake/heartbeat_probe.py` no longer crashes on string worker rows in `docs/status/COORDINATOR_STATUS.json` (`58010c2`, 11 tests).
-- BLOCKED (tooling, not authority): the coordinator session's auto-mode permission classifier refused `git push origin ff87c22:main`, `ssh caoscare-prod`, and `gh issue comment` despite the owner's authorization. NEED: Michael runs the two commands (`git push origin ff87c22:main`; on the server `./scripts/deploy_caoscare.sh ff87c22df1dd69b405fa0ec60429c20fe72f6801`) or adds allow rules for them, plus a signed-in caoscare.com owner session in Chrome for LIVE_VERIFY. Production remains `d7ff96a`.
+- 2026-10-11 ~08:00Z: Michael gave the owner authorization in the coordinator session (promote `ff87c22`, deploy, LIVE_VERIFY with live data, then Front Desk/Admin) and posted the coordinator ACK/WORKING receipt himself (#129 comment `6106922610`). His first deploy attempt was refused by the deploy script because `main` was still `880d10f` (the push had not run); production untouched (`d7ff96a`, no backup taken, nothing checked out). Production has one user account (owner) and no transportation staff, drivers or vehicles, so the live Transportation check needs his sign-in and at least one driver/vehicle (real or labelled demo, his choice).
+- BLOCKED (tooling, not authority): the coordinator session's auto-mode permission classifier refused `git push origin ff87c22:main`, `ssh caoscare-prod` (deploy), and `gh issue comment` despite the owner's authorization. NEED: Michael runs the two commands (`git push origin ff87c22:main`; on the server `./scripts/deploy_caoscare.sh ff87c22df1dd69b405fa0ec60429c20fe72f6801`) or adds allow rules for them, plus a signed-in caoscare.com owner session in Chrome for LIVE_VERIFY. Production remains `d7ff96a`.
 
 ### Update 2026-10-10 (EliteDesk, receipts)
 
@@ -198,9 +199,9 @@ Current status: **ACTIVE. Transportation is DEV_ACCEPTED; release/live verificat
 
 - [~] Resident directory, request queue, callback/request handling, communications views, and status lifecycle exist in part.
 - [ ] One unified inbox for requests, messages, callbacks, approvals, and failed deliveries.
-- [ ] Create/assign/reassign/close/reopen from the workspace with truthful status and receipts.
+- [~] Create/assign/reassign/close/reopen from the workspace with truthful status and receipts. Verified 2026-10-11 for the front-desk role: create (resident-request bus, source `front_desk`), acknowledge, claim, assign select, start, note, complete, history — each with a linked receipt. Not present: *reopen* of a completed request.
 - [ ] Shift notes, handoff, announcements, internal messages, read/acknowledge state, and searchable history.
-- [ ] Browser acceptance by a front-desk role and an administrator.
+- [~] Browser acceptance by a front-desk role and an administrator. Front-desk half DEV_ACCEPTED 2026-10-11 (headless, synthetic, 18/18 cases, 0 failed API calls, linked receipt chain; `docs/reports/2026-10-11-front-desk-acceptance.md`). Administrator half NOT run: no admin login on the dev stack for the coordinator (temp demo-admin creation refused by its permission classifier) — NEED owner sign-in or a permission rule.
 
 ### Dining / menus
 
