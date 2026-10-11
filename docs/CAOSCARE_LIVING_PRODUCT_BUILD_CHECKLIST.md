@@ -62,7 +62,7 @@ This protocol applies to every bounded build item, fix, workflow, and section.
 - **Accepted state:** IMPLEMENTED, TESTED, and DEV_ACCEPTED with receipt-backed browser evidence.
 - **Not yet accepted:** `main` promotion, exact-SHA Linode deployment, and live browser/receipt verification.
 - **Coordinator task:** `careops-transport-live-001`; queued through Issue #129 and `docs/status/COORDINATOR_STATUS.json`.
-- **Current live worker heartbeat:** not provable from GitHub. The EliteDesk coordinator/watchdog must ACK and hand off this READY task within five minutes and publish its timestamped receipt.
+- **Current live worker heartbeat:** BLOCKED. Dispatch comment `6105602103` was posted at `2026-10-11T04:53:41Z`; no EliteDesk coordinator/watchdog ACK or WORKING receipt existed at `2026-10-11T04:59:34Z` (>5 minutes). GitHub proves the task is queued, not that a worker is running.
 - **Owner decision required now:** none; Issue #129 explicitly authorizes verified work through `main`, Linode deployment, required restarts, repair, and live verification.
 
 ### Update 2026-10-10 (EliteDesk, receipts)
@@ -280,7 +280,7 @@ Milestone: code is not merely present; the deployed product is usable.
 | Milestone | Acceptance result | Current state | Evidence-based estimate |
 |---|---|---|---|
 | M0 — Build control | Living checklist, current task, gates, ETA, and reporting contract in GitHub | COMPLETE with this file | Complete |
-| M1 — Transportation usable | Staff creates/opens/changes/cancels and completes trips with receipts in the deployed app | DEV_ACCEPTED; RELEASE DISPATCHED | 0.5–1 focused workday, assuming existing Linode access/runbook |
+| M1 — Transportation usable | Staff creates/opens/changes/cancels and completes trips with receipts in the deployed app | DEV_ACCEPTED; RELEASE DISPATCHED; PICKUP BLOCKED | 0.5–1 focused workday after the local coordinator/watchdog is restored |
 | M2 — Core Care Operations loop | Nursing, Maintenance, Front Desk/Admin, and shared service-ticket lifecycle re-accepted on current release | PARTIAL | 2–4 focused workdays after M1 |
 | M3 — Coordinated schedules | Transportation + therapy/appointments + resident/staff calendar links accepted | PARTIAL | 3–6 focused workdays after M2 |
 | M4 — Remaining departments | Dining, Activities, Housekeeping, Admin/reporting, alerts/escalation usable | PARTIAL / some planned | 5–10 focused workdays |

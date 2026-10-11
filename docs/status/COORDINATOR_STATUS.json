@@ -1,13 +1,16 @@
 {
   "schema": 1,
-  "updated_at": "2026-10-11T04:50:00Z",
-  "updated_by": "ChatGPT CAOSCare Build Supervisor (integration/2026-09-27)",
+  "updated_at": "2026-10-11T04:59:34Z",
+  "updated_by": "ChatGPT CAOSCare Build Supervisor (five-minute handoff check)",
   "ready_unblocked": [
     "careops-transport-live-001: release and LIVE_VERIFY the DEV_ACCEPTED Transportation workspace from integration f35b4542a1b893357c78c21c4a7c4ce936fd8cff; dispatch and acceptance contract are in Issue #129 and the living checklist"
   ],
   "workers": [],
-  "questions": [],
+  "questions": [
+    "Restore/start the EliteDesk CAOSCare coordinator/watchdog or provide another authorized host-execution path; dispatch 6105602103 received no ACK/WORKING receipt within five minutes."
+  ],
   "waiting_owner": [
+    "EliteDesk coordinator/watchdog pickup path: no ACK/WORKING receipt for careops-transport-live-001 within five minutes",
     "real drivers/vehicles/hours for non-demo operation",
     "hardware facts and Pilot Room 1 selection",
     "email provider/domain/addresses",
@@ -17,5 +20,5 @@
     "PR #67 adoption",
     "per-kiosk device-credential decision"
   ],
-  "note": "No owner decision blocks careops-transport-live-001. The EliteDesk coordinator/watchdog must detect this READY item and publish a timestamped ACK/WORKING handoff within <=5 minutes. GitHub state alone is not a live-process heartbeat."
+  "note": "careops-transport-live-001 remains READY and unblocked as product work. Its execution pickup is BLOCKED: Issue #129 dispatch 6105602103 at 2026-10-11T04:53:41Z had no local ACK/WORKING receipt by 2026-10-11T04:59:34Z. Do not claim a worker is running."
 }
