@@ -47,3 +47,9 @@ def test_unreadable_status_wakes(tmp_path):
     env = dict(os.environ, CAOS_STATUS_FILE=str(tmp_path / "missing.json"), CAOS_INTAKE_DIR=str(tmp_path))
     out = subprocess.run([sys.executable, str(PROBE)], capture_output=True, text=True, env=env)
     assert json.loads(out.stdout)["verdict"] == "WAKE"
+
+
+def test_string_worker_rows_do_not_crash(tmp_path):
+    # Supervisor control commits record workers as plain strings (COORDINATOR_STATUS.json, 2026-10-11).
+    r = run(tmp_path, {"ready_unblocked": [], "questions": [], "workers": ["da-446d044fa0: ACK; WORKING Front Desk/Admin slice"]})
+    assert r == {"verdict": "IDLE", "reasons": []}

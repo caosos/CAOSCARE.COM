@@ -61,7 +61,8 @@ def probe(now=None) -> dict:
     if st.get("questions"):
         reasons.append(f"{len(st['questions'])} open question(s)")
     for w in st.get("workers", []):
-        wt = w.get("worktree")
+        # Supervisor control commits may record workers as plain strings; only dict rows name a worktree.
+        wt = w.get("worktree") if isinstance(w, dict) else None
         if not wt:
             continue
         last = _latest_change(Path(os.path.expanduser(wt)))

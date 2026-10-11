@@ -8572,3 +8572,8 @@ Control receipts:
 - authority reconciliation: Issue #129 comment `6105970504`
 - coordinator status: `a9111be817d59c335930bdacda5b3c81f24df4da`
 - living checklist: `e6e8a0e39df00a1ffa3ca6ef5635bbd35c05ce0f`
+
+---
+
+## 2026-10-11 — Coordinator handoff; heartbeat probe tolerates supervisor status rows
+By Michael's direction (in his terminal, 2026-10-11 ~06:00Z) CAOSCare coordination moved from the 3-day tmux coordinator session to a new interactive session; the outgoing session stood down with a written capsule (`docs/status/COORDINATOR_HANDOFF_2026-10-11.md`): nothing in flight, tree clean at `ff87c22`, the Front Desk/Admin acceptance slice never started, release step of `careops-transport-live-001` held for Michael's own word because the authorizing text comes from the shared `caosos` account. Infra fix: `scripts/owner_intake/heartbeat_probe.py` crashed (`'str' object has no attribute 'get'`) because supervisor control commits now write `workers` in `docs/status/COORDINATOR_STATUS.json` as strings; string rows are skipped, dict rows unchanged. The Desktop-Agent watchdog had shown `check_error` and read no CAOSCare state or gates since that status format changed. Tests: `scripts/owner_intake/tests` 11 passed (new `test_string_worker_rows_do_not_crash`); live `coordinator_state.py` exits 0 again. Open owner items at this receipt: Desktop-Agent intake pin to the new session (its own edit was refused by the permission classifier; Michael's hand), the #129 coordinator-change/ACK comment (this session's `gh issue comment` was refused twice; text prepared for Michael), and the yes/no on promoting integration to `main` + exact-SHA Linode deploy (production still `d7ff96a`). No product code changed; no restart; no deploy.
