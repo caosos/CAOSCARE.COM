@@ -8508,3 +8508,21 @@ Transportation staff workspace usability remains the active bounded product slic
 
 ### Next
 Complete PR #130 acceptance and release sequence. When the Transportation section meets every acceptance criterion, present the live workflow to Michael as READY_FOR_OWNER_REVIEW; do not check it off until he explicitly approves it.
+
+
+---
+
+## 2026-10-10 — No-idle agent execution rule
+
+Michael directed: "do not allow agents to be idle."
+
+The Care Operations execution protocol now requires a worker that completes a bounded task to publish its receipt and immediately take the next eligible checklist item. A blocked worker records the exact blocker and takes another compatible authorized item. Idle is allowed only when every authorized item is blocked, unsafe, conflicting, or waiting on a genuine owner decision; that reason must be recorded. The rule does not authorize invented busywork, duplicate workers, duplicate queues, or conflicting edits.
+
+The hourly ChatGPT CAOSCare check was resumed and renamed **CAOSCare Build Supervisor**. Its prompt now reconciles Issue #129 and the living checklist, records meaningful completions/blockers, dispatches the next eligible bounded task through the existing GitHub coordinator/worker channel, and escalates to Michael only for a completed section review or genuine owner-only blocker.
+
+The hourly cloud supervisor cannot prove or enforce a five-minute host heartbeat. The existing EliteDesk local coordinator/watchdog owns the <=5-minute idle-detection and next-task handoff target and must publish timestamped receipts. The event-driven CAOSCare PR Watch remains the GitHub PR completion trigger.
+
+Receipts:
+- Living checklist no-idle protocol: `d76d61fccd79ea71d47fe025db15f9ae94b509fe`
+- Issue #129 receipt comment: `6105355182`
+- Automation id: `6acaeb1660a88191aca7fe8f4dfb84d6` (enabled)
