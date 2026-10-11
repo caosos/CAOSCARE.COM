@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "updated_at": "2026-10-11T23:00:00Z",
-  "updated_by": "CAOSCare Build Supervisor — current operations truth reconciliation",
+  "updated_at": "2026-10-11T23:35:00Z",
+  "updated_by": "CAOSCare Build Supervisor — current operations acceptance and routing-exceptions handoff",
   "ready_unblocked": [
-    "careops-current-operations-truth-001: DELIVERED da-ccd1c60334 at 2026-10-11 17:52:43 CDT; ACK/WORKING overdue. Scope and acceptance in Issue #129 comment 6114797710."
+    "careops-routing-exceptions-001: DISPATCHING through existing coordinator caoscare-1-ee. Build the canonical routing-exception supervisor view for undelivered, unassigned, overdue, and failed handoffs; ACK/WORKING required within five minutes of delivery or publish an exact NEED."
   ],
   "workers": [
-    "caoscare-1-ee: latest product evidence is routing/delivery DEV_ACCEPTED at 45bd234 with dev runtime receipt; current EliteDesk heartbeat, worktree, SIM run and loaded revision UNKNOWN. Existing watchdog must recover the same coordinator and publish ACK/WORKING or exact NEED."
+    "caoscare-1-ee: current-operations implementation b3856b9 is loaded on the guarded development backend (PID 812821) with 547 backend passes, 592 frontend tests, and 13/13 browser acceptance. No explicit Issue #129 ACK/WORKING receipt was published for the completed task, so continuous EliteDesk coordinator/watchdog liveness is UNKNOWN; reuse this coordinator only and require the next ACK/WORKING or exact NEED."
   ],
   "questions": [],
   "waiting_owner": [
@@ -19,10 +19,10 @@
     "PR #67 adoption",
     "per-kiosk device-credential decision"
   ],
-  "note": "One active task careops-current-operations-truth-001. Department board febe0fa (543/0/31, frontend 76/589, browser 11/11) and routing/delivery audit 45bd234 (545/0/31, frontend 76/590, browser 7/7) are DEV_ACCEPTED only; production remains ff87c22 with 12/12 public smoke. Transportation authenticated LIVE_VERIFY remains blocked by absent labelled driver/vehicle and fresh signed-in role evidence. Current task delivery da-ccd1c60334 missed five-minute ACK/WORKING; host heartbeat, worktree and SIM state UNKNOWN. Checklist 13a1227; PROJECT_STATE fe1a26a. Eight open PRs; none merge-ready. No duplicate worker or routine permission request.",
+  "note": "careops-current-operations-truth-001 is READY_FOR_OWNER_REVIEW at b3856b9: current-by-default alerts/tasks, older records isolated for review, emergency records protected from automatic close, and audited admin-only legacy close without changing development or production records. Production remains ff87c22 with 12/12 public smoke. One active task only: careops-routing-exceptions-001, DISPATCHING through the existing coordinator. Eight open PRs remain unchanged and none is merge-ready. Checklist c53fd411; PROJECT_STATE a99b12d. No duplicate worker, queue, monitor, or routine permission request.",
   "liaison_watch": {
-    "scanned_through_ts": "1791756348.025629",
-    "scanned_through_local": "2026-10-11 17:05:48 CDT",
+    "scanned_through_ts": "1791760395.149439",
+    "scanned_through_local": "2026-10-11 18:13:15 CDT",
     "last_qualifying_dot_aria_ts": "1791720983.413879",
     "last_qualifying_dot_aria_local": "2026-10-11 07:16:23 CDT",
     "last_qualifying_receipt": "https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6114797710",
