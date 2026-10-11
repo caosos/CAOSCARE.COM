@@ -8762,3 +8762,7 @@ Evidence:
 
 Next single bounded task: `careops-therapy-upcoming-view-001`.
 Use the canonical StaffTask/resident-safe APIs to produce one facility-time, date-ordered upcoming therapy schedule for authorized therapy staff and residents. Show planned time, operational provider/discipline/location, lifecycle status, and linked-ride truth. Include focused authorization/order tests, production build, and isolated browser acceptance at desktop and 390 px. Excludes recurrence, new calendar storage, clinical content, conflict detection, billing, messaging, audio, paid services, production deployment, and real-data mutation. Required closeout: exact SHA, gates, browser report/screenshots, dev-runtime proof if restarted, checklist, Issue #129, project state, coordinator status, and explicit receipt sequence or structured NEED.
+
+
+### 2026-10-11 07:54:18 CDT — upcoming-view delivery receipt
+Automatic intake delivered `da-eecac34ab9` to the existing `caoscare-1-ee` session (Issue #129 comment 6109234198). Delivery is proven; ACK/WORKING is not yet proven. No duplicate process was created. Slack liaison output `1791723184.185039`; Slack inputs processed through `1791722564.078439` (newer inputs were Deal Sniffer-only).
