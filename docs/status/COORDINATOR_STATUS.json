@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "updated_at": "2026-10-11T14:19:07Z",
-  "updated_by": "ChatGPT CAOSCare Build Supervisor (therapy-conflict delivery receipt)",
+  "updated_at": "2026-10-11T21:27:00Z",
+  "updated_by": "ChatGPT CAOSCare Build Supervisor — issue #129 comment 6113952748",
   "ready_unblocked": [
-    "careops-therapy-conflict-001: canonical StaffTask planned fields plus bounded operational duration; detect same-resident overlaps; truthful warning + explicit receipted save-anyway; preserve linked-ride behavior; authorization/overlap/non-overlap/unparseable-time tests + build + isolated responsive browser. Same run validates b229485 lifecycle-button authority. No new calendar store, recurrence generation, clinical data, billing, messaging, audio, paid service, production deploy, or real-data mutation."
+    "careops-transport-live-001: resume exact-SHA Linode deployment and LIVE_VERIFY for main ff87c22; current production last recorded d7ff96a; fresh host ACK/WORKING/heartbeat required. If host/prompt blocks, post exact structured NEED and take compatible authorized Care Operations work."
   ],
   "workers": [
-    "caoscare-1-ee: DELIVERED da-b4fa364b0f at 2026-10-11 09:19:07 CDT via automatic intake for careops-therapy-conflict-001; explicit ACK/WORKING pending. Upcoming product 958093a, backend 541/31 skipped, frontend 74 suites/577, report 25/25, and guarded dev restart fce6026 prove the predecessor completed. Follow-up b229485 remains TESTED-only pending the conflict-run browser case. da-f616017117 remains quarantined cross-project context."
+    "caoscare-1-ee: last GitHub host proof dev backend restart on 77f83d3 at 2026-10-11 09:39 CDT; current live process heartbeat unverified. Issue #129 supervisor relay comment 6113952748 asks for fresh ACK/WORKING and release continuation."
   ],
   "questions": [],
   "waiting_owner": [
@@ -21,7 +21,7 @@
     "PR #67 adoption",
     "per-kiosk device-credential decision"
   ],
-  "note": "careops-therapy-upcoming-view-001 is DEV_ACCEPTED at 958093a4f27080035f8e5552c9fbcc695e894c06. Gates: backend 541 passed/31 skipped, frontend 74 suites/577, build compiled, isolated browser 25/25, report blob 52a7bff65c9d350f6a8ff179f5e556774fb6765a. Dev backend :8092 restarted cleanly on product SHA 958093a via fce6026; main 880d10f and production d7ff96a unchanged. GitHub has no combined-status contexts or workflow runs for 958093a. Follow-up b229485 is TESTED only (frontend 74 suites/578, build compiled), with browser validation folded into careops-therapy-conflict-001. Slack checked after 1791723184.185039; no new CAOSCare input. No owner action. Conflict dispatch delivered as da-b4fa364b0f (Issue #129 comment 6109970689); ACK/WORKING pending. Slack output TS 1791728274.258519.",
+  "note": "Therapy conflict DEV_ACCEPTED on 77f83d3; backend 542 passed/31 skipped, frontend 75 suites/585, isolated browser 17/17, report docs/reports/2026-10-11-therapy-conflict-acceptance.md. Main ff87c22 verified; production last recorded d7ff96a. Checklist and project-state supervisor closeout pending. Issue #129 comment 6113952748 is the current relay.",
   "liaison_watch": {
     "scanned_through_ts": "1791728274.258519",
     "scanned_through_local": "2026-10-11 09:17:54 CDT",
