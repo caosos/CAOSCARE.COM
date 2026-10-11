@@ -8934,3 +8934,8 @@ Delivery `da-6618877755` reached the existing coordinator session at 18:38:25 CD
 
 ## 2026-10-12 — careops-routing-exceptions-001: routing exceptions supervisor view
 Dispatch da-6618877755. Built `routes/routing_exceptions.py` (read over open StaffTasks + request delivery + receipts; classes undelivered / unassigned / overdue / failed handoff; row = owner, age, latest action, delivery, attempts, times asked, refused steps, receipt count, currency; list/detail scoped to admins and the department's people; receipted department re-notify; assignment via the existing route) and Admin → Community → Routing exceptions (`RoutingExceptionsBoard.jsx`). Tests: backend gate 548 / 0 / 31 (new `test_routing_exceptions.py`), frontend 77 suites / 595, build compiled; scratch-stack headless 11/11. Report `docs/reports/2026-10-11-routing-exceptions.md`. Not deployed; production `ff87c22`. Dev backend restart recorded below.
+
+---
+
+## 2026-10-12 — Dev backend restarted on `2155a9f`
+Guarded restart via `scripts/restart_dev_backend.sh` (0 leases, no recent call activity; previous log /tmp/room214_backend_b3856b9.log = rollback provenance); runtime commit 2155a9f with a clean tree, log /tmp/room214_backend_2155a9f.log. The dev stack now serves the routing-exceptions view. Development only; production `ff87c22` unchanged.
