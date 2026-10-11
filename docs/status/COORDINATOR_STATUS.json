@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "updated_at": "2026-10-11T09:19:00Z",
-  "updated_by": "ChatGPT CAOSCare Build Supervisor (reopen completion, callback dispatch, NEED_HOST_RECOVERY)",
+  "updated_at": "2026-10-11T09:38:00Z",
+  "updated_by": "ChatGPT CAOSCare Build Supervisor (callback completion, scoped-permission correction, therapy dispatch)",
   "ready_unblocked": [
-    "careops-frontdesk-callback-001: canonical synthetic callback create → route → assign/reassign → note → complete → explicit reopen → history/receipt acceptance; no external calls, audio, new data universe, or admin login"
+    "careops-therapy-appointment-001: canonical synthetic non-recurring therapy appointment create → resident/staff schedule visibility → reschedule → attend/complete or cancel → receipts; link existing transportation request when needed; no recurrence, billing, external messaging, audio, paid service, or production deploy"
   ],
   "workers": [
-    "caoscare-1-ee: da-616acc5b05 DELIVERED at 2026-10-11T09:08:01Z; no ACK/WORKING visible by 2026-10-11T09:19:00Z; NEED_HOST_RECOVERY—resume the existing CAOSCare Claude screen and approve its pending read-only command; do not start a duplicate coordinator"
+    "caoscare-1-ee: callback acceptance work product present (19/19) after da-7551467565 delivery, proving execution; explicit ACK/WORKING/DONE issue receipt missing; therapy dispatch requires timestamped ACK/WORKING within five minutes or structured NEED"
   ],
   "questions": [],
   "waiting_owner": [
@@ -21,5 +21,5 @@
     "PR #67 adoption",
     "per-kiosk device-credential decision"
   ],
-  "note": "careops-frontdesk-reopen-001 is DEV_ACCEPTED at 04cc580/ce6c10b (backend 537 passed, frontend 67 suites/557 tests, browser 23/23) and remains awaiting owner review, not OWNER_ACCEPTED/DONE. The next compatible task is careops-frontdesk-callback-001. Transportation main/deploy/LIVE_VERIFY remains incomplete. Slack processed through 1791707399.060289; no newer liaison input. Dot Arya routing-recovery item remains quarantined and the cwd-fallback theory is unconfirmed."
+  "note": "careops-frontdesk-callback-001 is DEV_ACCEPTED at baseline ce6c10b; report blob 84df89048c410c0035812c7f5258588a2b2c050d. No code change. Reassignment to another front-desk colleague and admin acceptance remain blocked on identities/sign-in. Prior option-2 instruction is superseded: the saved prompt was one read-only production SSH/mongosh inventory query; option 1 was the narrow authorized choice, option 2 widened all ssh*. No current host prompt action is required. Slack processed through 1791711030.763209. Quarantine remains active; no replay."
 }
