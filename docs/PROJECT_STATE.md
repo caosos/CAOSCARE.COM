@@ -8779,3 +8779,8 @@ Supervisor dispatch (#129 comment 6109222803; addendum 6109259199) in the coordi
 
 ## 2026-10-11 — Dev backend restarted on `958093a`
 Guarded restart via `scripts/restart_dev_backend.sh`: preflight sha=958093a, 0 leases, no recent call activity, old pid 481325 (log /tmp/room214_backend_de8e4f2.log = rollback provenance); new pid 504444, runtime commit 958093a with a clean tree, log /tmp/room214_backend_958093a.log. The dev stack now serves the upcoming schedule reads. Development only; production unchanged (`d7ff96a`), `main` unchanged (`880d10f`).
+
+---
+
+## 2026-10-11 — Request detail dialog: lifecycle buttons follow the authority rule (coordinator-derived follow-up)
+Closes the last limit in the upcoming-view report: `RequestDetailDialog.jsx` now hides Acknowledge/Start/Complete for a viewer who cannot act on the request (`actsFor` or assignee), the same rule already applied to the plan/details form, so the dialog never offers a mutation the server would refuse. Tests: `requestDetailDialogDetails.test.js` (+1, front desk sees no lifecycle buttons; therapy staff still do); frontend 74 suites / 578; CI build compiled. Frontend only, no backend change, no restart, not browser-run, not deployed.

@@ -100,11 +100,13 @@ export default function RequestDetailDialog({ taskId, open, onOpenChange, onChan
               <div className="text-sm">{t.description || t.title}</div>
             </div>
 
-            <div className="flex gap-2 mb-4">
+            {/* Lifecycle actions follow the same authority rule as the plan form; a viewer who
+                cannot act sees the state, not buttons the server would refuse. */}
+            {canEdit && <div className="flex gap-2 mb-4">
               {!t.acknowledged_at && <Button size="sm" variant="outline" className="border-2" onClick={() => act("acknowledge")} data-testid="request-acknowledge-btn">Acknowledge</Button>}
               {t.status === "pending" && <Button size="sm" className="bg-caos-forest" onClick={() => act("start")} data-testid="request-start-btn">Start</Button>}
               {t.status !== "completed" && t.status !== "skipped" && <Button size="sm" variant="outline" className="border-2" onClick={() => act("complete")} data-testid="request-complete-btn">Complete</Button>}
-            </div>
+            </div>}
 
             {isOpen && !canEdit && (
               <div className="mb-6 rounded-xl border border-caos-line p-3 text-sm" data-testid="request-plan-readonly">

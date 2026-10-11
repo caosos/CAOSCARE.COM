@@ -80,6 +80,15 @@ test("front desk sees the plan read-only with the rule stated; no form is offere
   expect(q("request-plan-readonly").textContent).toContain("Only therapy staff, the assignee or an administrator");
   expect(q("request-provider")).toBeNull();
   expect(q("request-save-update-btn")).toBeNull();
+  expect(q("request-start-btn")).toBeNull();            // lifecycle actions follow the same rule
+  expect(q("request-acknowledge-btn")).toBeNull();
+});
+
+test("an authorized viewer still gets the lifecycle actions", async () => {
+  mockUser = { user_id: "pt1", role: "staff", department: "therapy" };
+  await render();
+  expect(q("request-acknowledge-btn")).not.toBeNull();
+  expect(q("request-start-btn")).not.toBeNull();
 });
 
 test("therapy staff and the assignee can edit; nursing staff cannot", async () => {

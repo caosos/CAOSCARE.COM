@@ -67,6 +67,7 @@ Screenshots (`docs/reports/assets/2026-10-11-therapy-upcoming/`): `01_staff_upco
 ## Observations / limits
 - Only `therapy` shows the Upcoming panel today (`UPCOMING_DEPARTMENTS`); the backend view is department-generic.
 - Resident-screen 390 px overflow above is pre-existing kiosk layout, not fixed here.
-- The dialog's Acknowledge/Start/Complete buttons are still shown to a non-authorized viewer and rely on the server's refusal
-  toast; only the plan/details form was made read-only in this slice.
+- Same day, follow-up: the dialog's Acknowledge/Start/Complete buttons now follow the same authority rule as the plan form
+  (hidden for a viewer the server would refuse; still offered to department staff, the assignee and admins). Component tests
+  cover both; frontend 74 suites / 578; build compiled. Not browser-run.
 - Not deployed; `main` `880d10f`, production `d7ff96a`.
