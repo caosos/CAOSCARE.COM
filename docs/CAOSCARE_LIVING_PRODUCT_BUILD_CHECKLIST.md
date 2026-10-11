@@ -54,17 +54,18 @@ This protocol applies to every bounded build item, fix, workflow, and section.
 ## Current build control
 
 - **Current phase:** 3/7 — Care Operations workspaces.
-- **Today’s active engineering task:** release and LIVE_VERIFY the DEV_ACCEPTED Transportation workspace.
+- **Today’s active engineering task:** Front Desk/Admin normal-work browser acceptance in an isolated silent stack; then resume the DEV_ACCEPTED Transportation release/LIVE_VERIFY task.
 - **Control issue / dispatch channel:** [#129](https://github.com/caosos/CAOSCARE.COM/issues/129).
 - **Completed review:** [PR #130](https://github.com/caosos/CAOSCARE.COM/pull/130), merged into integration.
 - **Integration branch:** `integration/2026-09-27`; release-code baseline `f35b4542a1b893357c78c21c4a7c4ce936fd8cff` (later coordinator-only commits may update control records without changing product code).
 - **Transportation implementation:** `agent/transport-workspace-workable` at `21b2261f021d152181c94d8c95d006c533b18529`; integration merge `dc2e4ca1ba22aa6a0e81b950f5597f83a9b4c4ba`.
 - **Accepted state:** IMPLEMENTED, TESTED, and DEV_ACCEPTED with receipt-backed browser evidence.
 - **Not yet accepted:** `main` promotion, exact-SHA Linode deployment, and live browser/receipt verification.
-- **Coordinator task:** `careops-transport-live-001`; queued through Issue #129 and `docs/status/COORDINATOR_STATUS.json`.
-- **Current live worker heartbeat:** RECOVERY DELIVERY CONFIRMED / ACK PENDING. Automatic intake comment `6105949572` delivered nine backfilled `da-*` items to the running existing CAOSCare coordinator session. No timestamped ACK or `WORKING careops-transport-live-001` receipt exists yet, so GitHub does not prove a worker is executing. Reconciliation comment `6105963403` directs the coordinator to claim only the current task and absorb/supersede duplicate backfill items.
+- **Coordinator task:** `da-446d044fa0` is WORKING the compatible Front Desk/Admin acceptance slice; `careops-transport-live-001` is the single next release task.
+- **Current live worker heartbeat:** ACKED / WORKING. Issue #129 comment `6105966756` records `ACK da-446d044fa0` at `2026-10-11T05:47:55Z`, absorbs all nine backfill items into one task with no fan-out, and starts the compatible Front Desk/Admin acceptance slice. Transportation release execution follows this bounded receipt.
 - **Owner decision required now:** none; Issue #129 explicitly authorizes verified work through `main`, Linode deployment, required restarts, repair, and live verification.
-- **Recovery evidence:** Desktop-Agent main `8d3b8505fc3ff91ad1fbf29ebd3effd66c3ce201` watches Issues #117/#129 with five-minute thresholds. Automatic intake reached the running coordinator (`6105949572`); supervisor reconciliation `6105963403` prevents the nine-item backfill from becoming concurrent duplicate work.
+- **Authority reconciliation:** comment `6105970504` records that the later explicit owner authorization in Issue #129 and current PR #130 supersedes the original pre-acceptance no-deploy note. Do not ask Michael to approve the same release again.
+- **Recovery evidence:** Desktop-Agent main `8d3b8505fc3ff91ad1fbf29ebd3effd66c3ce201` watches Issues #117/#129 with five-minute thresholds. Automatic intake reached the running coordinator (`6105949572`); supervisor reconciliation `6105963403` prevented backfill fan-out; ACK/WORKING receipt `6105966756` proves the coordinator is active.
 
 ### Update 2026-10-10 (EliteDesk, receipts)
 
@@ -86,7 +87,7 @@ This protocol applies to every bounded build item, fix, workflow, and section.
 6. Update this checklist, Issue #129, `PROJECT_STATE.md`, and the release receipt with exact SHAs, timestamps, test totals, receipt IDs, failures/repairs, and final verdict.
 7. If every written Transportation gate passes, mark it READY_FOR_OWNER_REVIEW; only Michael may change it to OWNER_ACCEPTED / DONE.
 
-**ETA for `careops-transport-live-001`:** 0.5–1 focused workday after the coordinator ACK/WORKING receipt. Confidence: medium; the estimate assumes existing Linode credentials and deployment runbook still work and expands if release drift or live-only failures are found.
+**ETA for `careops-transport-live-001`:** 0.5–1 focused workday after the active Front Desk/Admin receipt. Confidence: medium; the estimate assumes existing Linode credentials and deployment runbook still work and expands if release drift or live-only failures are found.
 
 ## What “usable” means
 
@@ -281,7 +282,7 @@ Milestone: code is not merely present; the deployed product is usable.
 | Milestone | Acceptance result | Current state | Evidence-based estimate |
 |---|---|---|---|
 | M0 — Build control | Living checklist, current task, gates, ETA, and reporting contract in GitHub | COMPLETE with this file | Complete |
-| M1 — Transportation usable | Staff creates/opens/changes/cancels and completes trips with receipts in the deployed app | DEV_ACCEPTED; RELEASE DISPATCHED; DELIVERY CONFIRMED; ACK PENDING | 0.5–1 focused workday after ACK/WORKING |
+| M1 — Transportation usable | Staff creates/opens/changes/cancels and completes trips with receipts in the deployed app | DEV_ACCEPTED; RELEASE READY; COORDINATOR ACTIVE ON COMPATIBLE SLICE | 0.5–1 focused workday after the active bounded receipt |
 | M2 — Core Care Operations loop | Nursing, Maintenance, Front Desk/Admin, and shared service-ticket lifecycle re-accepted on current release | PARTIAL | 2–4 focused workdays after M1 |
 | M3 — Coordinated schedules | Transportation + therapy/appointments + resident/staff calendar links accepted | PARTIAL | 3–6 focused workdays after M2 |
 | M4 — Remaining departments | Dining, Activities, Housekeeping, Admin/reporting, alerts/escalation usable | PARTIAL / some planned | 5–10 focused workdays |
