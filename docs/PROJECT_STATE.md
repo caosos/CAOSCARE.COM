@@ -8553,3 +8553,22 @@ Recovery control receipts:
 - Issue #129 reconciliation: comment `6105963403`
 
 Current state: `careops-transport-live-001` remains READY and authorized. Delivery is confirmed; worker execution remains unproven until ACK/WORKING. No owner decision blocks it. After ACK, run the exact release gate, promote to `main`, deploy the exact main SHA to Linode, LIVE_VERIFY Transportation, update all existing records, and immediately take the next eligible checklist item. If Linode/runbook access is blocked, record the exact missing dependency and switch to the authorized Front Desk/Admin normal-work browser acceptance slice.
+
+
+---
+
+## 2026-10-11 — Coordinator ACK recovered; compatible Front Desk/Admin slice is WORKING
+
+Issue #129 comment `6105966756` records `ACK da-446d044fa0` at `2026-10-11T05:47:55Z`, absorbs the nine automatic-intake backfill items into one task with no fan-out, and records `WORKING da-446d044fa0` on the compatible Front Desk/Admin normal-work browser acceptance slice. The work is explicitly isolated, synthetic, silent, and excludes voice/audio. This is the first timestamped live coordinator heartbeat after the reboot recovery.
+
+The coordinator temporarily marked only the Transportation release step BLOCKED because the original pre-acceptance PR/Issue wording said no main/Linode work. Supervisor authority reconciliation comment `6105970504` records that the later explicit owner authorization already in the Issue #129 body and current PR #130 supersedes that older note: verified work may proceed through integration, `main`, exact-SHA Linode deployment, required restarts, testing, repair, and continued bounded work. No new owner decision is required; exclusions for audio/Hey Aria, spending/paid commitments, destructive real-data actions, and PR #41/#42 remain.
+
+Current execution sequence:
+1. Finish `da-446d044fa0` and record exact branch/SHA, tests, browser cases, receipt IDs, failures, and verdict in the existing checklist, Issue #129, and project state.
+2. Resume `careops-transport-live-001` without another routine approval.
+3. If Linode credentials or runbook access are genuinely unavailable, record the exact dependency and take the next compatible authorized checklist item.
+
+Control receipts:
+- authority reconciliation: Issue #129 comment `6105970504`
+- coordinator status: `a9111be817d59c335930bdacda5b3c81f24df4da`
+- living checklist: `e6e8a0e39df00a1ffa3ca6ef5635bbd35c05ce0f`
