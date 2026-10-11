@@ -8766,3 +8766,7 @@ Use the canonical StaffTask/resident-safe APIs to produce one facility-time, dat
 
 ### 2026-10-11 07:54:18 CDT — upcoming-view delivery receipt
 Automatic intake delivered `da-eecac34ab9` to the existing `caoscare-1-ee` session (Issue #129 comment 6109234198). Delivery is proven; ACK/WORKING is not yet proven. No duplicate process was created. Slack liaison output `1791723184.185039`; Slack inputs processed through `1791722564.078439` (newer inputs were Deal Sniffer-only).
+
+
+### 2026-10-11 — Supervisor classification of concurrent detail-dialog addendum
+`4b92e193e8ee59056904da79e577b1fa06154373` is a compatible frontend addendum to `careops-therapy-details-001`: it reuses the canonical StaffTask PATCH and shared formatting/payload helper, with 72 frontend suites / 570 tests and a compiled production build. It is classified **IMPLEMENTED / TESTED**, not DEV_ACCEPTED, because it has no browser evidence. The already-delivered `careops-therapy-upcoming-view-001` must include one synthetic browser case proving authorized admin edit and truthful unauthorized front-desk behavior; repair the UI if it exposes a mutation the backend refuses. This is part of the same worker/run, not another queue item.
