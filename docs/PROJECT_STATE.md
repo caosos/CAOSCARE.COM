@@ -8454,3 +8454,8 @@ Guarded restart of the EliteDesk development :8092 backend (no Linode/production
 
 ## 2026-10-10 — RF bridge: backend-unreachable poll no longer logs every 2 s
 `android-bridge/rf_restart_policy.py::ErrorThrottle` + `caos_rf_bridge.py::poll_loop`: a failing backend poll logs once in full, then one status line every 300 s (attempt count), a different error at once, one recovery line. Was ~43,000 lines/day. Test with a fake clock (`test_restart_backoff.py`, 16 pass). Code only: the running bridge process (old code) was not restarted or touched; pendant decoding unchanged; no wake/voice files.
+
+---
+
+## 2026-10-10 — Dev backend restarted on the tip; demo-room device browser check
+`scripts/restart_dev_backend.sh`: OK, pid 140197, runtime commit d6f0541, 0 leases (log /tmp/room214_backend_d6f0541.log). On localhost:3000/kiosk/demo (room DEMO, simulated devices) I drove the real `/devices/public/room/DEMO/command` route: blinds 100 → visual "Blinds open"; TV channel 11 and volume 30 → "CH 11 VOL 30"; position 150 and channel-on-blinds refused with no state change; results `verified:true, simulated:true, demo_room`. Staff-notified chips visible. Then `POST /api/demo/reset` to baseline. Not run: Aria's own typed/spoken phrase (needs a Realtime session). No wake/voice files touched.
