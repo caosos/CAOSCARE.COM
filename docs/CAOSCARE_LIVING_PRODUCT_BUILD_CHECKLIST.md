@@ -101,6 +101,7 @@ This is the required path whenever an agent, coordinator, watchdog, service, or 
 
 ### Exact current sequence
 
+0. Activate Desktop-Agent commit `2ccb63f1f86a63dd4af63222ddb6f3e06a4cee26` on the EliteDesk, restart `desktop-agent.service`, and prove `DELIVERED → ACK → WORKING` from coordinator `caoscare-1-ee` within five minutes.
 1. Confirm `f35b4542a1b893357c78c21c4a7c4ce936fd8cff` is still the integration release candidate and record any drift from `main`.
 2. Run the release regression gate on the exact candidate; do not substitute earlier branch-only results.
 3. Promote the verified candidate to `main` and record the resulting exact main SHA.
@@ -109,7 +110,7 @@ This is the required path whenever an agent, coordinator, watchdog, service, or 
 6. Update this checklist, Issue #129, `PROJECT_STATE.md`, and the release receipt with exact SHAs, timestamps, test totals, receipt IDs, failures/repairs, and final verdict.
 7. If every written Transportation gate passes, mark it READY_FOR_OWNER_REVIEW; only Michael may change it to OWNER_ACCEPTED / DONE.
 
-**ETA for `careops-transport-live-001`:** 0.5–1 focused workday after the active Front Desk/Admin receipt. Confidence: medium; the estimate assumes existing Linode credentials and deployment runbook still work and expands if release drift or live-only failures are found.
+**ETA for `careops-transport-live-001`:** 0.5–1 focused workday after coordinator routing is restored. Confidence: medium; the estimate assumes existing Linode credentials and deployment runbook still work and expands if release drift or live-only failures are found.
 
 ## What “usable” means
 
@@ -304,7 +305,7 @@ Milestone: code is not merely present; the deployed product is usable.
 | Milestone | Acceptance result | Current state | Evidence-based estimate |
 |---|---|---|---|
 | M0 — Build control | Living checklist, current task, gates, ETA, and reporting contract in GitHub | COMPLETE with this file | Complete |
-| M1 — Transportation usable | Staff creates/opens/changes/cancels and completes trips with receipts in the deployed app | DEV_ACCEPTED; RELEASE READY; COORDINATOR ACTIVE ON COMPATIBLE SLICE | 0.5–1 focused workday after the active bounded receipt |
+| M1 — Transportation usable | Staff creates/opens/changes/cancels and completes trips with receipts in the deployed app | DEV_ACCEPTED; RELEASE READY; COORDINATOR ROUTE NEEDS HOST ACTIVATION | 0.5–1 focused workday after coordinator routing is restored |
 | M2 — Core Care Operations loop | Nursing, Maintenance, Front Desk/Admin, and shared service-ticket lifecycle re-accepted on current release | PARTIAL | 2–4 focused workdays after M1 |
 | M3 — Coordinated schedules | Transportation + therapy/appointments + resident/staff calendar links accepted | PARTIAL | 3–6 focused workdays after M2 |
 | M4 — Remaining departments | Dining, Activities, Housekeeping, Admin/reporting, alerts/escalation usable | PARTIAL / some planned | 5–10 focused workdays |
