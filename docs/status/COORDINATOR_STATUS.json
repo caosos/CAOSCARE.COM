@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "updated_at": "2026-10-11T22:07:00Z",
-  "updated_by": "CAOSCare Build Supervisor — granular owner review reconciliation",
+  "updated_at": "2026-10-11T23:00:00Z",
+  "updated_by": "CAOSCare Build Supervisor — current operations truth reconciliation",
   "ready_unblocked": [
-    "careops-transport-live-001: production ff87c22 deployed 2026-10-11T21:28:50Z; 12/12 public smoke, authenticated Transportation role workflow and receipts pending; existing coordinator owns the one active item."
+    "careops-current-operations-truth-001: DELIVERED da-ccd1c60334 at 2026-10-11 17:52:43 CDT; ACK/WORKING overdue. Scope and acceptance in Issue #129 comment 6114797710."
   ],
   "workers": [
-    "caoscare-1-ee: da-ba92a5f535 delivered 2026-10-11 16:54:31 CDT; no Issue #129 ACK/WORKING after five minutes. Local process heartbeat and EliteDesk worktree status UNKNOWN; NEED_HOST_RECOVERY Issue #129 comment 6114293012."
+    "caoscare-1-ee: latest product evidence is routing/delivery DEV_ACCEPTED at 45bd234 with dev runtime receipt; current EliteDesk heartbeat, worktree, SIM run and loaded revision UNKNOWN. Existing watchdog must recover the same coordinator and publish ACK/WORKING or exact NEED."
   ],
   "questions": [],
   "waiting_owner": [
@@ -19,13 +19,13 @@
     "PR #67 adoption",
     "per-kiosk device-credential decision"
   ],
-  "note": "One active item careops-transport-live-001 on production ff87c22 (public smoke 12/12; authenticated live workflow pending). Individual 23-item owner review checklist d53e185, project state 6c7a1eb. If transport has exact NEED, next compatible P0 is routing-delivery audit, then staffing/dispatch, via the same coordinator. Delivery da-ba92a5f535 has no observed ACK/WORKING; local heartbeat and EliteDesk uncommitted status UNKNOWN. Eight open PRs classified in Issue #129 comment 6114293012; none merge-ready. No duplicate worker or routine permission request. Issue #129 receipt 6114353106; Slack checkpoint 1791756348.025629. Liaison scanned through 17:01:08 CDT; newer CAOSCARE messages were prior supervisor outputs, no new external instruction.",
+  "note": "One active task careops-current-operations-truth-001. Department board febe0fa (543/0/31, frontend 76/589, browser 11/11) and routing/delivery audit 45bd234 (545/0/31, frontend 76/590, browser 7/7) are DEV_ACCEPTED only; production remains ff87c22 with 12/12 public smoke. Transportation authenticated LIVE_VERIFY remains blocked by absent labelled driver/vehicle and fresh signed-in role evidence. Current task delivery da-ccd1c60334 missed five-minute ACK/WORKING; host heartbeat, worktree and SIM state UNKNOWN. Checklist 13a1227; PROJECT_STATE fe1a26a. Eight open PRs; none merge-ready. No duplicate worker or routine permission request.",
   "liaison_watch": {
-    "scanned_through_ts": "1791756068.058019",
-    "scanned_through_local": "2026-10-11 17:01:08 CDT",
+    "scanned_through_ts": "1791756348.025629",
+    "scanned_through_local": "2026-10-11 17:05:48 CDT",
     "last_qualifying_dot_aria_ts": "1791720983.413879",
     "last_qualifying_dot_aria_local": "2026-10-11 07:16:23 CDT",
-    "last_qualifying_receipt": "https://github.com/caosos/CAOSCARE.COM/commit/6fdb956844c577db570618cee846d71615c06b43",
+    "last_qualifying_receipt": "https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6114797710",
     "new_qualifying_messages": 0
   }
 }
