@@ -21,5 +21,13 @@
     "PR #67 adoption",
     "per-kiosk device-credential decision"
   ],
-  "note": "careops-therapy-details-001 is DEV_ACCEPTED at de8e4f2dc56eaa0ce541f7b34d6f4aba034a564a. Gates: backend 540 passed/31 skipped, frontend 70 suites/565, build compiled, isolated browser 13/13, report blob f57cfbd619e0744c9b8215bbc52240cf17104b49. Dev backend :8092 restarted cleanly on product SHA de8e4f2 via b34e721; main 880d10f and production d7ff96a unchanged. GitHub has no combined-status contexts or workflow runs for de8e4f2. Slack checked after 1791720983.413879; newer replies were Deal Sniffer-only. Next task is careops-therapy-upcoming-view-001. No CAOSCare owner action. Upcoming-view dispatch delivered as da-eecac34ab9 (Issue #129 comment 6109234198); ACK/WORKING pending. Slack output TS 1791723184.185039; Slack inputs processed through 1791722564.078439. Concurrent product 4b92e19 is IMPLEMENTED/TESTED only (frontend 72 suites/570, build compiled), not browser accepted; its admin-edit/front-desk authorization case is folded into the current upcoming-view worker, not a second task."
+  "note": "careops-therapy-details-001 is DEV_ACCEPTED at de8e4f2dc56eaa0ce541f7b34d6f4aba034a564a. Gates: backend 540 passed/31 skipped, frontend 70 suites/565, build compiled, isolated browser 13/13, report blob f57cfbd619e0744c9b8215bbc52240cf17104b49. Dev backend :8092 restarted cleanly on product SHA de8e4f2 via b34e721; main 880d10f and production d7ff96a unchanged. GitHub has no combined-status contexts or workflow runs for de8e4f2. Slack checked after 1791720983.413879; newer replies were Deal Sniffer-only. Next task is careops-therapy-upcoming-view-001. No CAOSCare owner action. Upcoming-view dispatch delivered as da-eecac34ab9 (Issue #129 comment 6109234198); ACK/WORKING pending. Slack output TS 1791723184.185039; Slack inputs processed through 1791722564.078439. Concurrent product 4b92e19 is IMPLEMENTED/TESTED only (frontend 72 suites/570, build compiled), not browser accepted; its admin-edit/front-desk authorization case is folded into the current upcoming-view worker, not a second task.",
+  "liaison_watch": {
+    "scanned_through_ts": "1791723184.185039",
+    "scanned_through_local": "2026-10-11 07:53:04 CDT",
+    "last_qualifying_dot_aria_ts": "1791720983.413879",
+    "last_qualifying_dot_aria_local": "2026-10-11 07:16:23 CDT",
+    "last_qualifying_receipt": "https://github.com/caosos/CAOSCARE.COM/commit/6fdb956844c577db570618cee846d71615c06b43",
+    "new_qualifying_messages": 0
+  }
 }
