@@ -8444,3 +8444,8 @@ Guarded restart of the EliteDesk development :8092 backend (no Linode/production
 
 ## 2026-10-10 — Ride log: CSV export is complete (previous "PARTIAL" limit removed)
 `GET /api/transportation/log?format=csv` now fetches up to 50,000 rides (the on-screen list keeps its 5,000 cap and says so); run and receipt lookups are chunked (1,000 ids) — the old run lookup silently capped at 2,000 runs. A CSV still beyond 50,000 is flagged `X-Truncated` and named `-PARTIAL`. Tests: capped screen list + full CSV, chunked lookups give identical rows (`test_transportation_log.py` 10 pass). Gate 524 passed / 0 failed / 31 skipped. Dev backend not restarted; no deploy; no voice or wake files touched.
+
+---
+
+## 2026-10-10 — Menu paste parser cosmetics fixed (from the 2026-10-08 browser acceptance)
+`backend/routes/menu_ingest.py::_parse_menu_email`: no trailing "." on dishes; a mid-line "Vegetarian: Stuffed peppers" after a sentence end becomes its own dish ("Mr. Smith's" and "2.5 oz" are not split); a menu with only some meals now says "This menu lists lunch, dinner only; nothing was found for breakfast." instead of "No section found". Status stays `needs_review` for partial menus (staff still check before publishing). 4 new pure tests; gate 528 passed / 0 failed / 31 skipped. No deploy; dev backend not restarted; no voice files touched.

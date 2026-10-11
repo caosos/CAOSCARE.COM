@@ -32,6 +32,7 @@ _SECTION_RE = re.compile(
     r"(breakfast|lunch|dinner|supper)\s*:?\s*\n?(.*?)(?=\n\s*(?:breakfast|lunch|dinner|supper)\s*:|\Z)",
     re.IGNORECASE | re.DOTALL,
 )
+_ORDER = ("breakfast", "lunch", "dinner")
 _MEAL_ALIASES = {"breakfast": "breakfast", "lunch": "lunch", "dinner": "dinner", "supper": "dinner"}
 
 
@@ -45,16 +46,18 @@ def _parse_menu_email(raw_text: str) -> tuple[list[dict], str, Optional[str]]:
         meal = _MEAL_ALIASES[m.group(1).lower()]
         found_meals.add(meal)
         body = m.group(2).strip()
-        # Split on newlines or commas, drop empties/whitespace-only lines.
-        for raw_line in re.split(r"[\n,]", body):
-            name = raw_line.strip(" \t-*•").strip()
+        # Split on newlines, commas, and a sentence end before a "Label:"; a mid-line label like
+        # "Vegetarian: Stuffed peppers" becomes the dish "Vegetarian: Stuffed peppers" on its own.
+        for raw_line in re.split(r"[\n,]|\.\s+(?=[A-Z][A-Za-z ]{1,20}:)", body):
+            name = raw_line.strip(" \t-*•").rstrip(".").strip()
             if name:
                 items.append({"meal_period": meal, "item_name": name})
     if not found_meals:
         return [], "needs_review", "Could not find Breakfast/Lunch/Dinner section headers in the email body."
     missing = {"breakfast", "lunch", "dinner"} - found_meals
     if missing:
-        return items, "needs_review", f"No section found for: {', '.join(sorted(missing))}."
+        # A menu for only some meals is normal; say what was and wasn't in the email, not that it failed.
+        return items, "needs_review", f"This menu lists {', '.join(m for m in _ORDER if m in found_meals)} only; nothing was found for {', '.join(m for m in _ORDER if m in missing)}."
     return items, "parsed", None
 
 
