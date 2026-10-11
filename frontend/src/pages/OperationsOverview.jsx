@@ -1,3 +1,4 @@
+import { deliveryTone, showDelivery } from "../lib/requestDelivery";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
@@ -98,6 +99,9 @@ export default function OperationsOverview({ onNavigate }) {
                       {it.priority && it.priority !== "normal" && <Badge variant="outline" className="uppercase text-[10px]">{it.priority}</Badge>}
                       <span className="text-caos-mute text-xs">open {formatAge(it.age_seconds)}</span>
                     </div>
+                    {showDelivery(it.delivery) && (
+                      <div className={`text-xs mt-1 ${deliveryTone(it.delivery) === "warn" ? "text-caos-terracotta font-semibold" : "text-caos-mute"}`} data-testid={`ops-delivery-${it.ref_id}`}>{it.delivery.label}</div>
+                    )}
                     <div className="font-semibold text-caos-forest mt-1 truncate">{it.title}</div>
                     <div className="text-xs text-caos-mute mt-0.5">
                       {[

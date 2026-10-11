@@ -241,6 +241,12 @@ async def operations_overview(
         elif t.get("re_request_count", 0) > 0:
             push(6, "task", t["task_id"], title, f"Resident has asked {t['re_request_count']}x", **common)
 
+    from routes.request_delivery import delivery_for   # lazy: keep this module's import surface unchanged
+    deliv = await delivery_for([t["task_id"] for t in open_tasks])
+    for it in items:
+        if it["kind"] in ("task", "transportation"):
+            it["delivery"] = deliv.get(it["ref_id"])
+    tasks_section["not_notified_open"] = sum(1 for d in deliv.values() if not d["reached"])
     items.sort(key=lambda x: (x["tier"], x["_ts"], str(x["ref_id"])))
     attention = [{k: v for k, v in it.items() if k != "_ts"} for it in items[:attention_limit]]
 

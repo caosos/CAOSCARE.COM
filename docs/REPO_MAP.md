@@ -918,3 +918,7 @@ listener verifier experiment: `docs/experiments/`.
 
 - `backend/routes/department_board.py`: `GET /departments/{slug}/board` — members and roles, open work by named worker with the dispatch trail (task `event_log`), completed history with receipt counts; a read over StaffTask / users / receipts, no new store; readable by owner/admin and the department's own people.
 - `frontend/src/pages/DepartmentWorkspaceDialog.jsx` (renders the board), `pages/DepartmentBoardSections.jsx`, `lib/departmentBoard.js`. Test: `backend/tests/test_department_board.py`, `frontend/src/lib/__tests__/departmentBoard.test.js`.
+
+## 2026-10-11 — Request delivery truth (careops-routing-delivery-audit-001)
+
+- `backend/routes/request_delivery.py`: one read of a request's linked notification records → delivered / sent / simulated / not_sent / failed / none; used by task detail, the department board and the operations overview. `frontend/src/lib/requestDelivery.js` decides when to warn. Test: `backend/tests/test_request_delivery.py`.

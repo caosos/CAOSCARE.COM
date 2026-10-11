@@ -31,7 +31,8 @@ const board = {
   department: { slug: "housekeeping", label: "Housekeeping", active: true },
   members: [{ user_id: "hk1", name: "Demo - Hilda Brooks", role: "staff" }, { user_id: "hk2", name: "Demo - Omar Reyes", role: "staff" }],
   by_worker: [
-    { user_id: null, name: "Unassigned", work: [{ task_id: "c", what: "Trash can is full", resident_name: "Rosa", room: "3W05", status: "pending", lifecycle: "open", assigned_to: null, trail: [{ at: now, field: "created", text: "front desk" }] }] },
+    { user_id: null, name: "Unassigned", work: [{ task_id: "c", what: "Trash can is full", resident_name: "Rosa", room: "3W05", status: "pending", lifecycle: "open", assigned_to: null,
+      delivery: { state: "not_sent", reached: false, label: "Department NOT notified: recorded only, no email/SMS provider is set up" }, trail: [{ at: now, field: "created", text: "front desk" }] }] },
     { user_id: "hk1", name: "Demo - Hilda Brooks", role: "staff", work: [] },
     { user_id: "hk2", name: "Demo - Omar Reyes", role: "staff", work: [{ task_id: "b", what: "Floor needs mopping", status: "in_progress", lifecycle: "in_progress", assigned_to: "hk2", assigned_name: "Demo - Omar Reyes", acknowledged_at: now,
       trail: [{ at: now, field: "created", text: "front desk" }, { at: now, field: "assigned_to", to: "hk2", to_name: "Demo - Omar Reyes", by_name: "Demo - Omar Reyes" }, { at: now, field: "status", to: "in_progress", by_name: "Demo - Omar Reyes" }] }] },
@@ -86,4 +87,13 @@ test("a forbidden board shows the reason, not an empty department", async () => 
   await render();
   expect(q("dept-board-error").textContent).toMatch(/only if you belong to it or are an administrator/);
   expect(q("dept-work")).toBeNull();
+});
+
+test("a request nobody was told about says so on its card; a reached one shows nothing extra", async () => {
+  const withSent = JSON.parse(JSON.stringify(board));
+  withSent.by_worker[2].work[0].delivery = { state: "sent", reached: true, label: "sent" };
+  mockApi.get.mockResolvedValue({ data: withSent });
+  await render();
+  expect(q("dept-delivery-c").textContent).toMatch(/^Department NOT notified/);
+  expect(q("dept-delivery-b")).toBeNull();
 });

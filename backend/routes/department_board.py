@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from deps import db, get_current_user
 from routes.aria_operational_state import task_lifecycle
 from routes.realtime_facility import today_facility_date
+from routes.request_delivery import delivery_for
 from routes.staff_scope import acts_for, members_query
 
 router = APIRouter(prefix="/departments", tags=["departments"])
@@ -76,6 +77,9 @@ async def department_board(slug: str, completed_limit: int = 30, user=Depends(ge
         async for g in db.receipts.aggregate([{"$match": {"related_object_id": {"$in": ids}}}, {"$group": {"_id": "$related_object_id", "n": {"$sum": 1}}}]):
             counts[g["_id"]] = g["n"]
     work = [_row(t) for t in open_rows]
+    deliv = await delivery_for([r["task_id"] for r in work])
+    for r in work:
+        r["delivery"] = deliv.get(r["task_id"])
     history = [_row(t, counts.get(t["task_id"], 0)) for t in closed]
 
     by_worker = [{"user_id": None, "name": "Unassigned", "role": None, "work": [r for r in work if not r["assigned_to"]]}]
@@ -99,6 +103,7 @@ async def department_board(slug: str, completed_limit: int = 30, user=Depends(ge
                    "in_progress": sum(1 for r in work if r["status"] == "in_progress"),
                    "acknowledged": sum(1 for r in work if r["lifecycle"] == "acknowledged"),
                    "completed_today": sum(1 for r in history if (r["completed_at"] or "")[:10] == today and r["status"] == "completed"),
-                   "closed_shown": len(history)},
+                   "closed_shown": len(history),
+                   "not_notified": sum(1 for r in work if r.get("delivery") and not r["delivery"]["reached"])},
         "can_assign": acts_for(user, slug),
     }

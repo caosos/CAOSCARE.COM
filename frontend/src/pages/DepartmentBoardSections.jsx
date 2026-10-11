@@ -4,6 +4,7 @@ import { Button } from "../components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Hand, Play, Check, History } from "lucide-react";
 import { ago, trailLine, workerSummary, LIFECYCLE_LABEL } from "../lib/departmentBoard";
+import { deliveryTone, showDelivery } from "../lib/requestDelivery";
 
 const STATUS_STYLES = {
   pending: "bg-caos-mute/10 text-caos-mute",
@@ -38,6 +39,9 @@ function WorkCard({ r, roster, canAssign, me, actions, onHistory }) {
         </div>
         <Badge className={STATUS_STYLES[r.status] || ""} variant="outline" data-testid={`dept-status-${r.task_id}`}>{LIFECYCLE_LABEL[r.lifecycle] || r.status}</Badge>
       </div>
+      {showDelivery(r.delivery) && (
+        <div className={`text-xs mt-1 ${deliveryTone(r.delivery) === "warn" ? "text-caos-terracotta font-semibold" : "text-caos-mute"}`} data-testid={`dept-delivery-${r.task_id}`}>{r.delivery.label}</div>
+      )}
       <ol className="mt-2 space-y-0.5 text-xs text-caos-mute" data-testid={`dept-trail-${r.task_id}`}>
         {r.trail.map((e, i) => <li key={i}>{trailLine(e)}</li>)}
       </ol>

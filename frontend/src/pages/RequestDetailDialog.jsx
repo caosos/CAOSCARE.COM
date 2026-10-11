@@ -8,6 +8,7 @@ import { Textarea } from "../components/ui/textarea";
 import { toast } from "sonner";
 import { sourceLabel, deriveStatus, STATUS_BADGE_CLASS, fmtDateTime } from "../lib/requestDisplay";
 import RequestTimeline from "../components/RequestTimeline";
+import { deliveryTone } from "../lib/requestDelivery";
 import { detailsLine, detailsPayload } from "../lib/appointmentDetails";
 import { useAuth } from "../lib/auth";
 import { actsFor } from "../lib/maintenance";
@@ -94,6 +95,7 @@ export default function RequestDetailDialog({ taskId, open, onOpenChange, onChan
               <div><span className="text-caos-mute">Department</span><div className="font-semibold text-caos-forest uppercase text-xs tracking-wider">{t.category}</div></div>
               <div><span className="text-caos-mute">Requested at</span><div>{fmtDateTime(t.created_at)}</div></div>
               <div><span className="text-caos-mute">Requested by / source</span><div>{sourceLabel(t.source)}</div></div>
+              {data.delivery && <div className="col-span-2"><span className="text-caos-mute">Department notification</span><div className={deliveryTone(data.delivery) === "warn" ? "text-caos-terracotta font-semibold" : ""} data-testid="request-delivery">{data.delivery.label}{data.delivery.to?.length ? ` (${data.delivery.to.join(", ")})` : ""}</div></div>}
               <div><span className="text-caos-mute">Priority</span><div className="uppercase text-xs">{t.priority}</div></div>
               <div><span className="text-caos-mute">Status</span><div><Badge className={STATUS_BADGE_CLASS[ds]}>{ds}</Badge></div></div>
               <div><span className="text-caos-mute">Assigned to</span><div>{t.assigned_name || <span className="italic text-caos-mute">unassigned</span>}</div></div>
