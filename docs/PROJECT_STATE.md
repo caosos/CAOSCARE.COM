@@ -8784,3 +8784,22 @@ Guarded restart via `scripts/restart_dev_backend.sh`: preflight sha=958093a, 0 l
 
 ## 2026-10-11 — Request detail dialog: lifecycle buttons follow the authority rule (coordinator-derived follow-up)
 Closes the last limit in the upcoming-view report: `RequestDetailDialog.jsx` now hides Acknowledge/Start/Complete for a viewer who cannot act on the request (`actsFor` or assignee), the same rule already applied to the plan/details form, so the dialog never offers a mutation the server would refuse. Tests: `requestDetailDialogDetails.test.js` (+1, front desk sees no lifecycle buttons; therapy staff still do); frontend 74 suites / 578; CI build compiled. Frontend only, no backend change, no restart, not browser-run, not deployed.
+
+
+---
+
+## 2026-10-11 09:15 CDT — Supervisor reconciliation: upcoming schedule DEV_ACCEPTED; conflict detection dispatched
+
+Task `careops-therapy-upcoming-view-001` is **DEV_ACCEPTED**, not LIVE_VERIFIED and not OWNER_ACCEPTED / DONE.
+
+Evidence:
+- Product `958093a4f27080035f8e5552c9fbcc695e894c06`; report `docs/reports/2026-10-11-therapy-upcoming-acceptance.md`, blob `52a7bff65c9d350f6a8ff179f5e556774fb6765a`.
+- Backend 541 passed / 0 failed / 31 skipped; frontend 74 suites / 577; production build compiled.
+- Isolated browser 25/25, zero failed API calls. Staff/resident order and responsive views, operational details, lifecycle/ride truth, admin edit receipt, and front-desk read-only/direct-403 passed.
+- Guarded development restart `fce6026e61c3b6fa530e3f03581f1f54617a8fe0`: runtime product SHA `958093a`, old PID 481325, new PID 504444, zero leases, clean tree, log `/tmp/room214_backend_958093a.log`.
+- GitHub combined statuses/workflow runs: none. Main `880d10f` and production `d7ff96a` unchanged.
+- Follow-up `b229485c96a57fb45d5a01c2f66a97bf0c00aced` is IMPLEMENTED/TESTED only: lifecycle buttons obey the same authority rule; frontend 74 suites / 578 and build compiled, no browser run.
+- Slack had no new CAOSCare liaison input after `1791723184.185039`.
+
+Next single bounded task: `careops-therapy-conflict-001`.
+Use only canonical StaffTask planned fields plus a bounded operational duration to detect same-resident overlaps. Expose a truthful warning and explicit receipted save-anyway path in existing Plan/detail/Upcoming surfaces; preserve linked-ride behavior. Tests and isolated browser acceptance must cover overlap/non-overlap, authorization, unparseable-time honesty, admin/staff/front-desk views, responsive layout, and the `b229485` lifecycle-button rule. No new calendar store, recurrence generation, clinical content, billing, messaging, audio, paid services, production deployment, or real-data mutation.
