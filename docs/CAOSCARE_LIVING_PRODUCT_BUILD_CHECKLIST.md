@@ -48,9 +48,9 @@ This protocol applies to every bounded build item, fix, workflow, and section.
 - **Control issue:** [#129](https://github.com/caosos/CAOSCARE.COM/issues/129).
 - **Active review:** [PR #130](https://github.com/caosos/CAOSCARE.COM/pull/130).
 - **Integration branch:** `integration/2026-09-27`.
-- **Verified integration head at this update:** `cf3500ea538d36541d56a7b8cb7f3369806ba43b`.
+- **Product-code baseline at reconciliation:** `cf3500ea538d36541d56a7b8cb7f3369806ba43b`; later integration commits in this work block are documentation/control receipts only.
 - **Transportation branch/head:** `agent/transport-workspace-workable` at `21b2261f021d152181c94d8c95d006c533b18529`.
-- **Branch relation:** 2 commits ahead and 2 commits behind integration; GitHub reports the PR mergeable.
+- **Branch relation:** diverged from integration and requires refresh before runtime acceptance; re-check the exact ahead/behind count immediately before merging because the living-control documentation advances the integration tip.
 - **Accepted state:** IMPLEMENTED; focused frontend TESTED; frontend production build passed; Python compile passed.
 - **Not yet accepted:** Mongo-backed lifecycle test, development browser flow, receipt inspection, integration merge, main promotion, Linode deployment, and live browser verification.
 - **Current live worker heartbeat:** not provable from GitHub alone. Recent code and PR activity are proven; a running Claude process is not.
