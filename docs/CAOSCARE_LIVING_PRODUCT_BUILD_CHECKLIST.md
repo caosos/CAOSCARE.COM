@@ -361,7 +361,7 @@ Milestone: code is not merely present; the deployed product is usable.
 | Milestone | Acceptance result | Current state | Evidence-based estimate |
 |---|---|---|---|
 | M0 — Build control | Living checklist, current task, gates, ETA, and reporting contract in GitHub | COMPLETE with this file | Complete |
-| M1 — Transportation usable | Staff creates/opens/changes/cancels and completes trips with receipts in the deployed app | DEV_ACCEPTED; RELEASE GATE PASSED on `ff87c22` (2026-10-11); main promotion + deploy waiting on owner-run commands or permission rule | same day once the two commands run |
+| M1 — Transportation usable | Staff creates/opens/changes/cancels and completes trips with receipts in the deployed app | DEV_ACCEPTED; main `ff87c22`; exact-SHA deploy and LIVE_VERIFY pending; coordinator ACK pending | after host pickup and release acceptance |
 | M2 — Core Care Operations loop | Nursing, Maintenance, Front Desk/Admin, and shared service-ticket lifecycle re-accepted on current release | PARTIAL | 2–4 focused workdays after M1 |
 | M3 — Coordinated schedules | Transportation + therapy/appointments + resident/staff calendar links accepted | PARTIAL | 3–6 focused workdays after M2 |
 | M4 — Remaining departments | Dining, Activities, Housekeeping, Admin/reporting, alerts/escalation usable | PARTIAL / some planned | 5–10 focused workdays |
@@ -441,3 +441,12 @@ Next single bounded task: `careops-therapy-conflict-001`. On canonical StaffTask
 
 ### Handoff receipt — 2026-10-11 09:19:07 CDT
 Desktop Agent automatic intake delivered `da-b4fa364b0f` to the existing coordinator session `caoscare-1-ee` (Issue #129 comment 6109970689). This proves delivery only. Explicit ACK/WORKING remains pending; no duplicate coordinator or worker was created. Slack liaison output: `1791728274.258519`.
+
+
+---
+
+## Correction — 2026-10-11 16:32 CDT — current Care Operations boundary
+
+`careops-therapy-conflict-001` is DEV_ACCEPTED on product `77f83d3d53e17ffb75c71d137ab876e50552efe9`: backend 542 passed / 31 skipped, frontend 75 suites / 585, compiled build, isolated browser 17/17. Evidence: `docs/reports/2026-10-11-therapy-conflict-acceptance.md`; guarded dev backend restart `1bf1bec26ea58a6c55730fea3c858734eb788d54` loaded `77f83d3`. The full Therapy section remains PARTIAL. Same-resident overlaps are checked; staff double-booking across residents remains open.
+
+The prior M1 text saying `main` promotion awaits owner commands is stale. GitHub verifies `main` at `ff87c22df1dd69b405fa0ec60429c20fe72f6801`; last recorded production is `d7ff96a`. The existing `careops-transport-live-001` is the ONE active bounded release task. Standing authorization covers exact-SHA deployment and LIVE_VERIFY; a narrow host/tool approval may still require interaction, to be recorded as exact NEED, not misclassified as a new owner decision. Issue #129 comment 6113952748 routed it to existing coordinator `caoscare-1-ee`; automatic delivery `da-3995f8741b` at 16:27 CDT proves delivery only. Fresh ACK/WORKING and current host process health remain UNKNOWN. If blocked, record exact command/target/prompt and continue compatible authorized work. Checklist/project state closeout and live release verdict are pending.
