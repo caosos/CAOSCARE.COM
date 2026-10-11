@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "updated_at": "2026-10-11T12:08:49Z",
-  "updated_by": "ChatGPT CAOSCare Build Supervisor (ride-link handoff mirrored to Slack)",
+  "updated_at": "2026-10-11T12:42:53Z",
+  "updated_by": "ChatGPT Dot Arya Message Watch (processed Desktop Agent routing-recovery message once)",
   "ready_unblocked": [
     "careops-therapy-details-001: canonical therapy StaffTask only; optional operational provider name, discipline, location; authorization + before/after receipts + truthful staff/resident/Aria visibility; focused tests/build + isolated browser; no clinical chart/EHR, provider registry, recurrence, billing, external messaging, audio, paid service, production deploy, real-data mutation, or parallel truth store"
   ],
@@ -21,5 +21,5 @@
     "PR #67 adoption",
     "per-kiosk device-credential decision"
   ],
-  "note": "careops-therapy-transport-link-001 is DEV_ACCEPTED at 7af6a0a4484d0f0dcd422f0e2019fe79287fb0dc. Gates: backend 539 passed/31 skipped, frontend 70 suites/564, build compiled, isolated browser 15/15, report blob 2dceea207730b304fcc0da5f1e677412435407c1. Dev backend :8092 restarted cleanly on 7af6a0a via 3d8c8d4; main 880d10f and production d7ff96a unchanged. GitHub has no combined-status contexts or PR-triggered runs for 7af6a0a. Slack input processed through 1791718151.045669; newer inputs were Deal Sniffer-only. CAOSCare ride-link completion/details-dispatch ACK posted at 1791720529.563279, linked to Issue #129 receipt 6108860768. No current owner action; quarantine remains active and no replay."
+  "note": "careops-therapy-transport-link-001 is DEV_ACCEPTED at 7af6a0a4484d0f0dcd422f0e2019fe79287fb0dc. Gates: backend 539 passed/31 skipped, frontend 70 suites/564, build compiled, isolated browser 15/15, report blob 2dceea207730b304fcc0da5f1e677412435407c1. Dev backend :8092 restarted cleanly on 7af6a0a via 3d8c8d4; main 880d10f and production d7ff96a unchanged. GitHub has no combined-status contexts or PR-triggered runs for 7af6a0a. Slack input processed through 1791718151.045669; newer inputs were Deal Sniffer-only. CAOSCare ride-link completion/details-dispatch ACK posted at 1791720529.563279, linked to Issue #129 receipt 6108860768. Dot Arya watcher processed Slack TS 1791720983.413879 at 07:16:23 CDT exactly once: DESKTOP AGENT routing-recovery follow-through requests classification of da-f616017117 and current intended-recipient evidence. No Desktop Agent supervisor ACK was visible by 07:42 CDT; quarantine remains active and no replay. No CAOSCare task or worker was created. No current CAOSCare owner action."
 }
