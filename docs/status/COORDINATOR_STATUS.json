@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "updated_at": "2026-10-11T08:24:53Z",
-  "updated_by": "ChatGPT CAOSCare Build Supervisor (Slack follow-through and routing quarantine)",
+  "updated_at": "2026-10-11T09:19:00Z",
+  "updated_by": "ChatGPT CAOSCare Build Supervisor (reopen completion, callback dispatch, NEED_HOST_RECOVERY)",
   "ready_unblocked": [
-    "careops-frontdesk-reopen-001: reopen a completed Front Desk request with truthful state, linked receipts, focused API/UI tests, and synthetic browser acceptance"
+    "careops-frontdesk-callback-001: canonical synthetic callback create → route → assign/reassign → note → complete → explicit reopen → history/receipt acceptance; no external calls, audio, new data universe, or admin login"
   ],
   "workers": [
-    "caoscare-1-ee: Issue #129 dispatch da-a01052935b DELIVERED at 2026-10-11T08:22:16Z; ACK/WORKING pending at this checkpoint"
+    "caoscare-1-ee: da-616acc5b05 DELIVERED at 2026-10-11T09:08:01Z; no ACK/WORKING visible by 2026-10-11T09:19:00Z; NEED_HOST_RECOVERY—resume the existing CAOSCare Claude screen and approve its pending read-only command; do not start a duplicate coordinator"
   ],
   "questions": [],
   "waiting_owner": [
@@ -21,5 +21,5 @@
     "PR #67 adoption",
     "per-kiosk device-credential decision"
   ],
-  "note": "Transportation is IMPLEMENTED/TESTED/DEV_ACCEPTED; main promotion, deployment, and LIVE_VERIFY remain incomplete. Issue #129 comment 6107083640 dispatched the compatible Front Desk reopen slice to the existing coordinator only. Desktop-Agent Issue #3 comment 6106927226 proves a Desktop Agent item was misdelivered to CAOSCare session caoscare-1-ee; CAOSCare quarantined it in comment 6107092750 and cross-referenced Desktop Agent repair ownership in comment 6107092837. GitHub Issue #129 remains canonical until project isolation is re-verified."
+  "note": "careops-frontdesk-reopen-001 is DEV_ACCEPTED at 04cc580/ce6c10b (backend 537 passed, frontend 67 suites/557 tests, browser 23/23) and remains awaiting owner review, not OWNER_ACCEPTED/DONE. The next compatible task is careops-frontdesk-callback-001. Transportation main/deploy/LIVE_VERIFY remains incomplete. Slack processed through 1791707399.060289; no newer liaison input. Dot Arya routing-recovery item remains quarantined and the cwd-fallback theory is unconfirmed."
 }
