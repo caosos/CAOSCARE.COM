@@ -41,3 +41,11 @@ test("filterAlerts: status + severity + hideStale, newest first", () => {
   expect(filterAlerts(A, { status: "all", hideStale: true }, NOW).map((a) => a.alert_id)).toEqual(["a1", "a3", "a4"]);
   expect(filterAlerts([], {}, NOW)).toEqual([]);
 });
+
+test("the server's classification wins over the client age rule", () => {
+  const { isLikelyStale } = require("../alertsView");
+  const old = new Date(Date.now() - 40 * 86400e3).toISOString();
+  expect(isLikelyStale({ status: "active", created_at: old, currency: { bucket: "sim_current" } })).toBe(false);
+  expect(isLikelyStale({ status: "active", created_at: new Date().toISOString(), currency: { bucket: "review" } })).toBe(true);
+  expect(isLikelyStale({ status: "active", created_at: old })).toBe(true);
+});

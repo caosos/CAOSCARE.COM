@@ -922,3 +922,8 @@ listener verifier experiment: `docs/experiments/`.
 ## 2026-10-11 — Request delivery truth (careops-routing-delivery-audit-001)
 
 - `backend/routes/request_delivery.py`: one read of a request's linked notification records → delivered / sent / simulated / not_sent / failed / none; used by task detail, the department board and the operations overview. `frontend/src/lib/requestDelivery.js` decides when to warn. Test: `backend/tests/test_request_delivery.py`.
+
+## 2026-10-11 — Current vs historical operations (careops-current-operations-truth-001)
+
+- `backend/routes/operations_currency.py`: one classification of open alerts/tasks (current / sim_current / sim_past / review), `currency` on `/alerts` and `/tasks` rows with `?view=`, `GET /ops/currency`, `POST /ops/legacy/close` (admin, review records only, receipted; emergencies need a disposition).
+- `frontend/src/pages/LegacyReviewControls.jsx` (close dialog + review banner), `AlertsBoard.jsx` (Current / Older views), `DepartmentQueue.jsx` (Show older). Test: `backend/tests/test_operations_currency.py`.

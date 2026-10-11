@@ -16,6 +16,8 @@ export function ageHours(iso, now = Date.now()) {
 // not a live event (see docs/PROJECT_STATE.md 2026-09-06). We flag it,
 // never hide the record.
 export function isLikelyStale(a, now = Date.now()) {
+  // The server's classification (routes/operations_currency.py) wins when present.
+  if (a?.currency) return ["review", "sim_past"].includes(a.currency.bucket);
   return OPEN.includes(a?.status) && ageHours(a?.created_at, now) > STALE_HOURS;
 }
 

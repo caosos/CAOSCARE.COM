@@ -107,3 +107,15 @@ test("Pick another time keeps the plan unsaved", async () => {
   expect(mockApi.patch).toHaveBeenCalledTimes(1);
   expect(q("wo-conflict-summary")).toBeNull();
 });
+
+test("older open requests are hidden behind a counted toggle and shown on demand", async () => {
+  const older = { ...appt, task_id: "o1", title: "Old mock request", created_at: "2026-08-20T07:00:00Z", currency: { bucket: "review", reason: "test / mock resident" } };
+  mockApi.get.mockImplementation((u) => Promise.resolve({ data: u === "/tasks" ? [appt, older] : [] }));
+  await render();
+  expect(q("wo-older-banner").textContent).toMatch(/1 older open request is hidden/);
+  expect(q("wo-o1")).toBeNull();
+  expect(q("wo-a1")).not.toBeNull();
+  await act(async () => { q("wo-older-toggle").click(); });
+  expect(q("wo-o1")).not.toBeNull();
+  expect(q("wo-older-o1").textContent).toBe("needs review");
+});

@@ -62,6 +62,7 @@ async def list_tasks(
     category: Optional[str] = None,
     visibility_role: Optional[str] = None,
     resident_id: Optional[str] = None,
+    view: Optional[str] = None,   # current | review (operations_currency); default: everything
     user=Depends(get_current_user),
 ):
     q: dict = {}
@@ -85,7 +86,8 @@ async def list_tasks(
     items = await db.staff_tasks.find(q, {"_id": 0}).sort("created_at", -1).to_list(500)
     for t in items:
         _iso(t)
-    return items
+    from routes.operations_currency import annotate, filter_view   # lazy: avoids a module cycle
+    return filter_view(await annotate(items, "task"), view)
 
 
 @router.post("")

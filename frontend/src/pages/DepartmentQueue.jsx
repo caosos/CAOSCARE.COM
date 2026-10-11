@@ -75,7 +75,13 @@ export default function DepartmentQueue({ department, title, itemName = "request
     return () => clearInterval(t);
   }, [load, department]);
 
-  const b = useMemo(() => workOrderBuckets(tasks, { meId: user?.user_id, department }), [tasks, user, department]);
+  // Older open requests (server: operations_currency "review", opened > 14 days ago) are kept out of the
+  // working buckets by default and counted, so current work is not buried; one click shows them.
+  const [showOlder, setShowOlder] = useState(false);
+  const isOlder = (t) => ["review", "sim_past"].includes(t.currency?.bucket);
+  const olderCount = tasks.filter(isOlder).length;
+  const visible = useMemo(() => (showOlder ? tasks : tasks.filter((t) => !isOlder(t))), [tasks, showOlder]); // eslint-disable-line react-hooks/exhaustive-deps
+  const b = useMemo(() => workOrderBuckets(visible, { meId: user?.user_id, department }), [visible, user, department]);
 
   const act = async (id, path, body) => {
     try {
@@ -184,6 +190,8 @@ export default function DepartmentQueue({ department, title, itemName = "request
               <Badge className={`uppercase text-[10px] font-bold ${PRIO_STYLE[t.priority] || PRIO_STYLE.normal}`}>{t.priority}</Badge>
               <Badge variant="outline" className="uppercase text-[10px]">{t.status.replace("_", " ")}</Badge>
               <span className="text-xs text-caos-mute">opened {ageLabel(t.created_at)}</span>
+              {isOlder(t) && <Badge className="bg-caos-mute/20 text-caos-mute text-[10px] uppercase" title={t.currency?.reason || ""} data-testid={`wo-older-${t.task_id}`}>needs review</Badge>}
+              {t.simulated && <Badge variant="outline" className="text-[10px] uppercase">SIM</Badge>}
               {t.due_at && (
                 <span className={`text-xs ${overdue ? "text-caos-terracotta font-semibold" : "text-caos-mute"}`}>
                   due {new Date(t.due_at).toLocaleDateString()}{overdue ? " · OVERDUE" : ""}
@@ -307,6 +315,15 @@ export default function DepartmentQueue({ department, title, itemName = "request
           )}
         </div>
       </div>
+
+      {olderCount > 0 && (
+        <div className="text-xs text-caos-mute bg-[#F3F1EE] rounded-lg p-3 flex flex-wrap items-center gap-2" data-testid="wo-older-banner">
+          {showOlder
+            ? <>Showing {olderCount} older open request{olderCount === 1 ? "" : "s"} too (opened more than 14 days ago; marked "needs review").</>
+            : <>{olderCount} older open request{olderCount === 1 ? " is" : "s are"} hidden (opened more than 14 days ago, mostly test or mock residents). Nothing was closed.</>}
+          <Button size="sm" variant="outline" className="border-2 h-7" onClick={() => setShowOlder((v) => !v)} data-testid="wo-older-toggle">{showOlder ? "Hide older" : "Show older"}</Button>
+        </div>
+      )}
 
       {!loading && b.all.length === 0 && (
         <Card className="p-10 text-center border-caos-line text-caos-mute" data-testid="wo-empty">

@@ -108,6 +108,7 @@ async def create_alert(data: AlertCreate):
 async def list_alerts(
     status: Optional[str] = Query(None),
     limit: int = 100,
+    view: Optional[str] = Query(None),   # current | review (operations_currency); default: everything
     user=Depends(get_current_user),
 ):
     q = {}
@@ -122,7 +123,8 @@ async def list_alerts(
         it["created_at"] = _iso(it.get("created_at"))
         it["acknowledged_at"] = _iso(it.get("acknowledged_at"))
         it["resolved_at"] = _iso(it.get("resolved_at"))
-    return items
+    from routes.operations_currency import annotate, filter_view
+    return filter_view(await annotate(items, "alert"), view)
 
 
 @router.get("/feed")
