@@ -67,7 +67,7 @@ This is the required path whenever an agent, coordinator, watchdog, service, or 
 ## Current build control
 
 - **Current phase:** 3/7 — Care Operations workspaces.
-- **Today’s active engineering task:** `careops-frontdesk-callback-001` is the single prepared compatible task after `careops-frontdesk-reopen-001` completed and passed its documented development acceptance. Transportation `careops-transport-live-001` remains authorized but blocked on the already-recorded main-push/deploy/live-browser host path.
+- **Today’s active engineering task:** `careops-frontdesk-callback-001` DONE 2026-10-11 ~09:45Z (acceptance only, 19/19; `docs/reports/2026-10-11-front-desk-callback-acceptance.md`) after `careops-frontdesk-reopen-001`. Transportation `careops-transport-live-001` remains authorized but blocked on the already-recorded main-push/deploy/live-browser host path. No further compatible Front Desk item is unblocked without the owner: the Admin half needs an admin sign-in; unified inbox / shift notes / announcements are new product scope.
 - **Control issue / dispatch channel:** [#129](https://github.com/caosos/CAOSCARE.COM/issues/129).
 - **Completed review:** [PR #130](https://github.com/caosos/CAOSCARE.COM/pull/130), merged into integration.
 - **Integration branch:** `integration/2026-09-27`; current control head `58010c2ed6796ab1bb9245f642fa16cfc5a12af8`; release-code baseline `f35b4542a1b893357c78c21c4a7c4ce936fd8cff` (later coordinator-only commits may update control records without changing product code).
@@ -215,7 +215,7 @@ Current status: **ACTIVE. Transportation is DEV_ACCEPTED; release/live verificat
 
 ### Front desk and administrative communication
 
-- [~] Resident directory, request queue, callback/request handling, communications views, and status lifecycle exist in part.
+- [~] Resident directory, request queue, callback/request handling, communications views, and status lifecycle exist in part. Callback handling DEV_ACCEPTED 2026-10-11 (`careops-frontdesk-callback-001`, headless 19/19 as the demo front-desk user: create → route to Administration or Maintenance → assign/unassign/claim → note → complete → reopen once → second completion; 9-receipt linked chain; department scope enforced; `docs/reports/2026-10-11-front-desk-callback-acceptance.md`). Reassign to a colleague needs a second front-desk account (admin sign-in).
 - [ ] One unified inbox for requests, messages, callbacks, approvals, and failed deliveries.
 - [~] Create/assign/reassign/close/reopen from the workspace with truthful status and receipts. Verified 2026-10-11 for the front-desk role: create (resident-request bus, source `front_desk`), acknowledge, claim, assign select, start, note, complete, history — each with a linked receipt. **Reopen built the same day** (`careops-frontdesk-reopen-001`, integration `04cc580`): explicit receipted reopen with a required reason, headless-accepted 23/23 incl. reopen → second completion with an unbroken chain (report addendum). Awaiting owner review of the actual workspace.
 - [ ] Shift notes, handoff, announcements, internal messages, read/acknowledge state, and searchable history.
