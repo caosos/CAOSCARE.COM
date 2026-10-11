@@ -843,6 +843,8 @@ class StaffTask(BaseModel):
     re_request_count: int = 0                # times a resident asked again before this closed
     reopened_at: Optional[str] = None        # last explicit reopen (receipted); None if never
     reopen_count: int = 0                    # how many times it was reopened
+    linked_ride_task_id: Optional[str] = None       # the transportation request raised for this planned request (task_ride_link)
+    linked_appointment_task_id: Optional[str] = None  # on a ride: the request it was raised for
     last_re_requested_at: Optional[datetime] = None
     # Append-only transition + note history (ENGINEERING_CONTRACT decision 6),
     # written only via routes/task_history.py. Legacy tasks have none.

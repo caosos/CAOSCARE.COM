@@ -7,12 +7,13 @@ import { Badge } from "../components/ui/badge";
 import { Textarea } from "../components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../components/ui/dialog";
-import { Plus, RefreshCw, Play, Check, Hand, History, Eye, NotebookPen, CalendarClock, XCircle } from "lucide-react";
+import { Plus, RefreshCw, Play, Check, Hand, History, Eye, NotebookPen, CalendarClock, XCircle, Car } from "lucide-react";
 import { toast } from "sonner";
 import { workOrderBuckets, isOverdue, canClaim, canAssign, ageLabel } from "../lib/maintenance";
 import MaintenanceWorkOrderForm from "./MaintenanceWorkOrderForm";
 import RequestHistoryDialog from "./RequestHistoryDialog";
 import { PlanWindowDialog, ReasonDialog } from "./QueueDialogs";
+import { rideLine, canRequestRide } from "../lib/rideLink";
 
 const PRIO_STYLE = {
   urgent: "bg-caos-terracotta text-white",
@@ -42,12 +43,20 @@ export default function DepartmentQueue({ department, title, itemName = "request
   const [reopenReason, setReopenReason] = useState("");
   const [planFor, setPlanFor] = useState(null);
   const [cancelFor, setCancelFor] = useState(null);
+  const [rides, setRides] = useState({});   // task_id -> GET /tasks/{id}/ride view, for requests with a linked ride
 
   const load = useCallback(async () => {
     try {
       const params = adminMode ? { visibility_role: department } : {};
       const { data } = await api.get("/tasks", { params });
       setTasks(data);
+      const linked = data.filter((t) => t.linked_ride_task_id);
+      if (linked.length) {
+        const views = await Promise.all(linked.map((t) => api.get(`/tasks/${t.task_id}/ride`).then((r) => [t.task_id, r.data]).catch(() => null)));
+        setRides(Object.fromEntries(views.filter(Boolean)));
+      } else {
+        setRides({});
+      }
     } catch {
       toast.error(`Could not load ${title.toLowerCase()}`);
     } finally {
@@ -115,6 +124,16 @@ export default function DepartmentQueue({ department, title, itemName = "request
       toast.error(err?.response?.data?.detail || "Could not save the plan");
     }
   };
+  // Ride needed = create-or-attach exactly one transportation request for this planned request.
+  const requestRide = async (id) => {
+    try {
+      const { data } = await api.post(`/tasks/${id}/ride`);
+      toast.success(data.already_linked ? "A ride is already on file for this" : data.attached_existing ? "Attached to the resident's existing ride that day" : data.booked ? "Ride requested and booked" : "Ride requested — transportation will book it");
+      load();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Could not request a ride");
+    }
+  };
   // Cancel = the canonical skip with a stated reason (receipted as task_cancelled).
   const cancelRequest = async (reason) => {
     if (!cancelFor) return;
@@ -170,6 +189,9 @@ export default function DepartmentQueue({ department, title, itemName = "request
                 Planned: {[t.requested_for_time_label, t.requested_for_date].filter(Boolean).join(" · ")}
               </div>
             )}
+            {rideLine(rides[t.task_id]) && (
+              <div className="text-sm text-caos-ink/80" data-testid={`wo-ride-status-${t.task_id}`}>{rideLine(rides[t.task_id])}</div>
+            )}
             <div className="text-xs text-caos-mute mt-0.5">
               {[t.room ? `Room ${t.room}` : null, t.resident_name,
                 t.assigned_name ? `→ ${t.assigned_name}` : "unassigned",
@@ -206,6 +228,11 @@ export default function DepartmentQueue({ department, title, itemName = "request
             {canPlan(t) && t.status !== "completed" && t.status !== "skipped" && (
               <Button size="sm" variant="ghost" onClick={() => setPlanFor(t.task_id)} data-testid={`wo-plan-${t.task_id}`}>
                 <CalendarClock className="w-4 h-4 mr-1" /> Plan
+              </Button>
+            )}
+            {canPlan(t) && canRequestRide(t, rides[t.task_id]) && (
+              <Button size="sm" variant="ghost" onClick={() => requestRide(t.task_id)} data-testid={`wo-ride-${t.task_id}`}>
+                <Car className="w-4 h-4 mr-1" /> Ride
               </Button>
             )}
             {canPlan(t) && t.status !== "completed" && t.status !== "skipped" && (

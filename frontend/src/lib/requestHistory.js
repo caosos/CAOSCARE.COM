@@ -45,6 +45,10 @@ function describe(e, task) {
       return { label: `Visit window set${by(e)}`, text: e.text };
     case "re_request":
       return { label: `Resident asked again (${Number(e.to) + 1}x)`, text: e.text };
+    case "ride_requested":
+      return { label: `Ride requested${by(e)}`, text: e.text, kind: "detail" };
+    case "linked_appointment":
+      return { label: `Linked to an appointment${by(e)}`, text: e.text, kind: "detail" };
     default: {
       // Domain steps that are not a status change (e.g. a ride booked or
       // changed) carry their detail in `text` - shown as plain detail.

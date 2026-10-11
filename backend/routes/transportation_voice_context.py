@@ -87,6 +87,29 @@ async def cancel_my_transport_request(data: TransportCancelByContextInput):
     return await cancel_transport_request(existing["task_id"])
 
 
+async def run_view_for_task(task: dict):
+    """(slot, run_view) for a ride: the real run facts (depart time, driver,
+    vehicle, status) or the legacy slot. Shared by the resident status view
+    and the appointment's linked-ride view (routes/task_ride_link.py)."""
+    slot = None
+    run_view = None
+    if task.get("transport_run_id"):
+        run = await db.transport_runs.find_one({"run_id": task["transport_run_id"]}, {"_id": 0})
+        if run:
+            slot = {"start_time": run["depart_time"], "end_time": run.get("return_time")}
+            driver = await db.transport_drivers.find_one({"driver_id": run.get("driver_id")}, {"_id": 0, "name": 1}) if run.get("driver_id") else None
+            vehicle = await db.transport_vehicles.find_one({"vehicle_id": run.get("vehicle_id")}, {"_id": 0, "name": 1}) if run.get("vehicle_id") else None
+            run_view = {
+                "date": run["date"], "depart_time": run["depart_time"], "status": run["status"],
+                "departed_at": run.get("departed_at"), "completed_at": run.get("completed_at"),
+                "driver_name": (driver or {}).get("name"), "vehicle_name": (vehicle or {}).get("name"),
+                "shared": len(run.get("resident_task_ids", [])) > 1,
+            }
+    elif task.get("transport_slot_id"):
+        slot = await db.transport_slots.find_one({"slot_id": task["transport_slot_id"]}, {"_id": 0, "start_time": 1, "end_time": 1})
+    return slot, run_view
+
+
 @router.get("/request/status")
 async def transport_request_status(
     resident_id: Optional[str] = None, room: Optional[str] = None, conversation_session_id: Optional[str] = None,
@@ -109,22 +132,7 @@ async def transport_request_status(
     ) or await db.staff_tasks.find_one(q, {"_id": 0}, sort=[("created_at", -1)])
     if not task:
         return {"found": False}
-    slot = None
-    run_view = None
-    if task.get("transport_run_id"):
-        run = await db.transport_runs.find_one({"run_id": task["transport_run_id"]}, {"_id": 0})
-        if run:
-            slot = {"start_time": run["depart_time"], "end_time": run.get("return_time")}
-            driver = await db.transport_drivers.find_one({"driver_id": run.get("driver_id")}, {"_id": 0, "name": 1}) if run.get("driver_id") else None
-            vehicle = await db.transport_vehicles.find_one({"vehicle_id": run.get("vehicle_id")}, {"_id": 0, "name": 1}) if run.get("vehicle_id") else None
-            run_view = {
-                "date": run["date"], "depart_time": run["depart_time"], "status": run["status"],
-                "departed_at": run.get("departed_at"), "completed_at": run.get("completed_at"),
-                "driver_name": (driver or {}).get("name"), "vehicle_name": (vehicle or {}).get("name"),
-                "shared": len(run.get("resident_task_ids", [])) > 1,
-            }
-    elif task.get("transport_slot_id"):
-        slot = await db.transport_slots.find_one({"slot_id": task["transport_slot_id"]}, {"_id": 0, "start_time": 1, "end_time": 1})
+    slot, run_view = await run_view_for_task(task)
     return {
         "found": True,
         "status": task["status"],

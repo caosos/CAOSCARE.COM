@@ -13,7 +13,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends
 from models import StaffTask, StaffTaskCreate, StaffTaskUpdate
 from deps import db, get_current_user
-from routes import task_actions, task_lifecycle
+from routes import task_actions, task_lifecycle, task_ride_link
 from routes.actor_context import actor_from_user
 from routes.task_lifecycle import record_origin, simulation_marker
 
@@ -130,7 +130,9 @@ async def update_task(task_id: str, data: StaffTaskUpdate, user=Depends(get_curr
     if "notes" in patch:
         await task_actions.add_note(task_id, patch.pop("notes"), actor, user)
     if patch:
-        await task_actions.set_schedule(task_id, patch, actor, user)
+        task, receipt = await task_actions.set_schedule(task_id, patch, actor, user)
+        if receipt:   # the window really changed: a linked open ride follows it
+            await task_ride_link.sync_schedule(task, user)
     return _iso(await task_lifecycle.load(task_id))
 
 
@@ -156,7 +158,19 @@ async def complete_task(task_id: str, body: dict = None, user=Depends(get_curren
 @router.post("/{task_id}/skip")
 async def skip_task(task_id: str, body: dict = None, user=Depends(get_current_user)):
     task, _ = await task_actions.skip(task_id, (body or {}).get("notes"), actor_from_user(user), user)
+    await task_ride_link.cancel_linked(task, user, (body or {}).get("notes"))   # a linked open ride is cancelled too
     return _iso(task)
+
+
+@router.post("/{task_id}/ride")
+async def request_ride_for_task(task_id: str, user=Depends(get_current_user)):
+    """Create-or-attach exactly one transportation request for a planned request."""
+    return await task_ride_link.request_ride(task_id, actor_from_user(user), user)
+
+
+@router.get("/{task_id}/ride")
+async def ride_for_task(task_id: str, user=Depends(get_current_user)):
+    return await task_ride_link.get_ride(task_id, actor_from_user(user), user)
 
 
 @router.post("/{task_id}/reopen")
