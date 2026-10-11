@@ -8675,3 +8675,26 @@ Supervisor dispatch (#129 comment 6107675195) in the coordinator session. Findin
 
 ## 2026-10-11 — Dev backend restarted on `47674f5`
 Guarded restart via `scripts/restart_dev_backend.sh`: preflight sha=47674f5, 0 leases, no recent call activity, old pid 401682 (log /tmp/room214_backend_ce6c10b.log = rollback provenance); new pid 432927, runtime commit 47674f5 with a clean tree, log /tmp/room214_backend_47674f5.log. The dev stack (localhost:3000 → :8092) now carries the therapy loop, the shared queue for every department, resident visibility of front-desk entries and the spoken-window fix. Development only; production unchanged (`d7ff96a`), `main` unchanged (`880d10f`).
+
+---
+
+## 2026-10-11 05:52 CDT — Supervisor reconciliation: therapy DEV_ACCEPTED; transport-link slice dispatched
+
+Task `careops-therapy-appointment-001` is reconciled as **DEV_ACCEPTED**, not LIVE_VERIFIED and not OWNER_ACCEPTED / DONE.
+
+Evidence:
+- Product commit: `47674f5329500e9fbb508cca01b5bc1d98906df9`.
+- Canonical report: `docs/reports/2026-10-11-therapy-appointment-acceptance.md`, blob `803a396d4d58eff61785555e9acc9c5294dfb273`.
+- Automated gates: backend 538 passed / 0 failed / 31 skipped; frontend 68 suites / 561; production build compiled.
+- Isolated scratch acceptance: 21/21, zero failed API calls, providers blank. The canonical therapy StaffTask completed front-desk create → therapy queue → plan → reschedule → resident/Aria/Home visibility → claim/start/complete; a second appointment cancelled with a required reason; receipt chain and workflow provenance verified.
+- Development runtime: guarded restart commit `d0718e2b31847b5cf12c50604dcec00b634d638c`; old PID 401682, new PID 432927, zero leases, clean tree, runtime commit `47674f5`, log `/tmp/room214_backend_47674f5.log`.
+- GitHub combined statuses and PR-triggered workflow runs for `47674f5`: none present. Local automated/browser receipts above are the applicable acceptance evidence.
+- Main remains `880d10f`; production remains `d7ff96a`. No production deployment occurred.
+
+Receipt compliance:
+- Delivery comments `6107685098` (`da-0315a1eb1a`) and `6107910794` (`da-47650341ef`) lack explicit issue ACK/WORKING/DONE. The committed work product proves coordinator execution, so this is a protocol gap rather than proof of a dead host. The next task must publish explicit timestamped ACK/WORKING or a structured NEED.
+- Slack liaison cursor advanced through `1791715716.977699` (05:48:36 CDT); that newest message was a Deal Sniffer supervisor ACK, cross-project only. No new CAOSCare request and no owner action.
+
+Next single bounded task: `careops-therapy-transport-link-001`.
+Reuse the existing transportation request engine and the canonical therapy StaffTask. In one labelled synthetic scenario, marking a therapy visit as ride-needed must create or attach exactly one normal transportation request; retain idempotency, authorization, canonical linkage, status visibility, and provenance-linked receipts; verify plan/reschedule and cancel/complete behavior in an isolated stack and browser. Do not add a parallel appointment or transportation truth store. Out of scope: recurrence, provider/discipline, billing, external messaging, audio, paid services, production deployment, or real-data mutation. Completion must update the living checklist, Issue #129, this project state, the report/commit evidence, and coordinator status before advancing.
+
