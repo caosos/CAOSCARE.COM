@@ -14,6 +14,7 @@ import MaintenanceWorkOrderForm from "./MaintenanceWorkOrderForm";
 import RequestHistoryDialog from "./RequestHistoryDialog";
 import { PlanWindowDialog, ReasonDialog } from "./QueueDialogs";
 import { rideLine, canRequestRide } from "../lib/rideLink";
+import { detailsLine } from "../lib/appointmentDetails";
 
 const PRIO_STYLE = {
   urgent: "bg-caos-terracotta text-white",
@@ -191,7 +192,7 @@ export default function DepartmentQueue({ department, title, itemName = "request
             )}
             {(t.provider_name || t.discipline || t.location) && (
               <div className="text-sm text-caos-ink/80" data-testid={`wo-details-${t.task_id}`}>
-                {[t.provider_name && `With: ${t.provider_name}${t.discipline ? ` (${t.discipline})` : ""}`, !t.provider_name && t.discipline && `Kind: ${t.discipline}`, t.location && `Where: ${t.location}`].filter(Boolean).join(" · ")}
+                {detailsLine(t)}
               </div>
             )}
             {rideLine(rides[t.task_id]) && (

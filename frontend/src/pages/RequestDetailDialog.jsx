@@ -8,11 +8,15 @@ import { Textarea } from "../components/ui/textarea";
 import { toast } from "sonner";
 import { sourceLabel, deriveStatus, STATUS_BADGE_CLASS, fmtDateTime } from "../lib/requestDisplay";
 import RequestTimeline from "../components/RequestTimeline";
+import { detailsLine, detailsPayload } from "../lib/appointmentDetails";
 
 export default function RequestDetailDialog({ taskId, open, onOpenChange, onChange }) {
   const [data, setData] = useState(null);
   const [schedDate, setSchedDate] = useState("");
   const [schedLabel, setSchedLabel] = useState("");
+  const [provider, setProvider] = useState("");
+  const [discipline, setDiscipline] = useState("");
+  const [location, setLocation] = useState("");
   const [updateNote, setUpdateNote] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -22,6 +26,7 @@ export default function RequestDetailDialog({ taskId, open, onOpenChange, onChan
       setData(d);
       setSchedDate(d.task.requested_for_date || "");
       setSchedLabel(d.task.requested_for_time_label || "");
+      setProvider(d.task.provider_name || ""); setDiscipline(d.task.discipline || ""); setLocation(d.task.location || "");
       setUpdateNote(d.task.notes || "");
     }).catch(() => toast.error("Could not load request"));
   };
@@ -36,7 +41,7 @@ export default function RequestDetailDialog({ taskId, open, onOpenChange, onChan
     } catch (err) { toast.error(err?.response?.data?.detail || "Failed"); }
   };
 
-  // Resident-visible schedule/update - the SAME fields Aria's
+  // Resident-visible schedule, appointment details and update - the SAME fields Aria's
   // check_request_status reads (routes/resident_requests.py's
   // _resident_safe_view) and the resident Home screen's request cards show.
   // Saving here is the ONLY way staff sets a real planned visit window -
@@ -47,6 +52,7 @@ export default function RequestDetailDialog({ taskId, open, onOpenChange, onChan
       await api.patch(`/tasks/${taskId}`, {
         requested_for_date: schedDate || null,
         requested_for_time_label: schedLabel || null,
+        ...detailsPayload({ provider, discipline, location }),
         notes: updateNote,
       });
       toast.success("Saved — resident and Aria will see this update");
@@ -75,6 +81,7 @@ export default function RequestDetailDialog({ taskId, open, onOpenChange, onChan
               <div><span className="text-caos-mute">Status</span><div><Badge className={STATUS_BADGE_CLASS[ds]}>{ds}</Badge></div></div>
               <div><span className="text-caos-mute">Assigned to</span><div>{t.assigned_name || <span className="italic text-caos-mute">unassigned</span>}</div></div>
               {t.requested_for_date && <div><span className="text-caos-mute">Requested for</span><div>{t.requested_for_date} {t.requested_for_time_label && `(${t.requested_for_time_label})`}</div></div>}
+              {detailsLine(t) && <div className="col-span-2"><span className="text-caos-mute">Appointment details</span><div data-testid="request-details-line">{detailsLine(t)}</div></div>}
               {t.re_request_count > 0 && <div><span className="text-caos-mute">Asked again</span><div>{t.re_request_count}x</div></div>}
               {t.conversation_session_id && <div className="col-span-2"><span className="text-caos-mute">Conversation session</span><div className="font-mono text-xs text-caos-mute">{t.conversation_session_id}</div></div>}
             </div>
@@ -95,6 +102,11 @@ export default function RequestDetailDialog({ taskId, open, onOpenChange, onChan
                 <div className="grid grid-cols-2 gap-2 mb-2">
                   <Input type="date" value={schedDate} onChange={(e) => setSchedDate(e.target.value)} data-testid="request-sched-date" />
                   <Input placeholder="e.g. 2-4 PM" value={schedLabel} onChange={(e) => setSchedLabel(e.target.value)} data-testid="request-sched-label" />
+                </div>
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  <Input placeholder="With (provider or staff name, optional)" maxLength={120} value={provider} onChange={(e) => setProvider(e.target.value)} data-testid="request-provider" />
+                  <Input placeholder="Kind (e.g. physical therapy, optional)" maxLength={60} value={discipline} onChange={(e) => setDiscipline(e.target.value)} data-testid="request-discipline" />
+                  <Input className="col-span-2" placeholder="Where (e.g. Therapy room, 2nd floor, optional)" maxLength={160} value={location} onChange={(e) => setLocation(e.target.value)} data-testid="request-location" />
                 </div>
                 <Textarea
                   placeholder="Update the resident will see, e.g. 'Waiting on a replacement part from the vendor.'"

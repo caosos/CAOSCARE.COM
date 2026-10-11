@@ -4,6 +4,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Textarea } from "../components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../components/ui/dialog";
+import { detailsPayload } from "../lib/appointmentDetails";
 
 // Small dialogs used by the shared department queue (DepartmentQueue.jsx).
 // They hold no request state of their own: each hands its values back to the
@@ -38,7 +39,7 @@ export function PlanWindowDialog({ open, onOpenChange, initialDate = "", initial
         </div>
         <DialogFooter>
           <Button onClick={() => onSave({ requested_for_date: date || null, requested_for_time_label: label.trim() || null,
-            provider_name: provider.trim() || "", discipline: discipline.trim() || "", location: location.trim() || "" })}
+            ...detailsPayload({ provider, discipline, location }) })}
             className="bg-caos-forest" data-testid="wo-plan-save">Save plan</Button>
         </DialogFooter>
       </DialogContent>
