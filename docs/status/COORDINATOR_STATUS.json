@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "updated_at": "2026-10-11T10:56:01Z",
-  "updated_by": "ChatGPT CAOSCare Build Supervisor (transport-link delivery receipt)",
+  "updated_at": "2026-10-11T12:05:00Z",
+  "updated_by": "ChatGPT CAOSCare Build Supervisor (ride link DEV_ACCEPTED; appointment-details dispatch)",
   "ready_unblocked": [
-    "careops-therapy-transport-link-001: reuse canonical therapy StaffTask + existing transportation request engine; one optional idempotent linked ride, authorization/status/provenance receipts, isolated automated + browser acceptance; no parallel truth store, recurrence, provider/discipline, billing, external messaging, audio, paid service, production deploy, or real-data mutation"
+    "careops-therapy-details-001: canonical therapy StaffTask only; optional operational provider name, discipline, location; authorization + before/after receipts + truthful staff/resident/Aria visibility; focused tests/build + isolated browser; no clinical chart/EHR, provider registry, recurrence, billing, external messaging, audio, paid service, production deploy, real-data mutation, or parallel truth store"
   ],
   "workers": [
-    "caoscare-1-ee: DELIVERED da-5ee2bb4526 at 2026-10-11 05:56:01 CDT for careops-therapy-transport-link-001; awaiting explicit ACK/WORKING within five minutes or structured NEED. Do not create a duplicate coordinator or worker. Prior therapy work product 47674f5 + 21/21 proves execution, while earlier deliveries lacked explicit receipts."
+    "caoscare-1-ee: ride-link product 7af6a0a, report 15/15, and guarded dev restart 3d8c8d4 prove execution of da-5ee2bb4526; explicit issue ACK/WORKING/DONE remains missing. Next details task must publish timestamped ACK/WORKING within five minutes or structured NEED. da-f616017117 is a quarantined Deal Sniffer watcher receipt, not CAOSCare work."
   ],
   "questions": [],
   "waiting_owner": [
@@ -21,5 +21,5 @@
     "PR #67 adoption",
     "per-kiosk device-credential decision"
   ],
-  "note": "careops-therapy-appointment-001 is DEV_ACCEPTED at 47674f5329500e9fbb508cca01b5bc1d98906df9. Gates: backend 538 passed/31 skipped, frontend 68 suites/561, build compiled, isolated browser 21/21, report blob 803a396d4d58eff61785555e9acc9c5294dfb273. Dev backend :8092 restarted cleanly on 47674f5 via d0718e2; main 880d10f and production d7ff96a unchanged. GitHub has no combined-status contexts or PR-triggered runs for 47674f5, so recorded local gates are canonical. Slack input processed through 1791715716.977699; newest input was Deal Sniffer cross-project only. CAOSCare completion/dispatch ACK posted at 1791716142.179459, linked to Issue #129 receipt 6108284581. No current owner action; quarantine remains active and no replay."
+  "note": "careops-therapy-transport-link-001 is DEV_ACCEPTED at 7af6a0a4484d0f0dcd422f0e2019fe79287fb0dc. Gates: backend 539 passed/31 skipped, frontend 70 suites/564, build compiled, isolated browser 15/15, report blob 2dceea207730b304fcc0da5f1e677412435407c1. Dev backend :8092 restarted cleanly on 7af6a0a via 3d8c8d4; main 880d10f and production d7ff96a unchanged. GitHub has no combined-status contexts or PR-triggered runs for 7af6a0a. Slack input processed through 1791718151.045669; newer messages were Deal Sniffer-only. No current owner action; quarantine remains active and no replay."
 }
