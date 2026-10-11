@@ -241,7 +241,7 @@ Current status: **ACTIVE. Transportation is DEV_ACCEPTED; release/live verificat
 - [~] DEV_ACCEPT create → open → change → cancel → receipt inspection.
 - [~] DEV_ACCEPT Departed → Completed → receipt inspection.
 - [~] Merge integration and run full gate.
-- [ ] Promote/deploy and LIVE_VERIFY the workflow.
+- [~] Promote/deploy and LIVE_VERIFY the workflow. Promoted (`main` → `ff87c22`, Michael, 2026-10-11 16:40Z) and DEPLOYED to Linode 2026-10-11 21:28Z (exact SHA, backup `20261011-212802-pre-deploy-d7ff96a4e4d1`, independent verification + 12/12 public smoke; PROJECT_STATE entry). LIVE_VERIFY not yet run: needs Michael's owner sign-in on production and one driver + one vehicle created there.
 
 ### Front desk and administrative communication
 
