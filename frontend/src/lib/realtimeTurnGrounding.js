@@ -16,16 +16,24 @@
  * clearly genuine "go away"/"end the call" requests as ungrounded,
  * repeatedly, on the exact same turn every time.
  */
+const TYPED_HOLD_MS = 6000; // a typed request stays the grounding turn against a stray 1-2 word mic fragment this soon after
 const WAIT_MAX_MS = 900; // observed real lag was 137-184ms; generous ceiling, not a typical wait.
 
 export function createTurnGroundingTracker() {
   let lastKnownUserTurn = { suspect: false, reason: "no_overlap", text: "" };
   let transcriptPending = false;
+  let typedAt = 0;
   return {
     onSpeechStopped() { transcriptPending = true; },
     onTranscriptionCompleted(cls, userText) {
-      lastKnownUserTurn = { ...cls, text: userText };
       transcriptPending = false;
+      if (cls?.reason === "typed") typedAt = Date.now();
+      // 2026-10-10 (demo kiosk, live): "Turn the volume up a little." typed, then a 1 s mic fragment ("Pekmez.") landed
+      // before the tool call and replaced it as the grounding text, so the volume command was refused as ungrounded.
+      // A typed turn is not replaced by a 1-2 word mic fragment within TYPED_HOLD_MS; anything longer still replaces it.
+      const words = String(userText || "").trim().split(/\s+/).filter(Boolean).length;
+      if (cls?.reason !== "typed" && typedAt && Date.now() - typedAt < TYPED_HOLD_MS && words <= 2) return;
+      lastKnownUserTurn = { ...cls, text: userText };
     },
     async waitForGroundedTurn() {
       const start = Date.now();

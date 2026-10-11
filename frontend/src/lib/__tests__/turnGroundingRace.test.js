@@ -52,3 +52,27 @@ test("sequential turns: second call() correctly waits for its OWN transcript, no
   const second = await t.waitForGroundedTurn();
   expect(second.text).toBe("End the call.");
 });
+
+describe("typed turn vs stray mic fragment (demo kiosk 2026-10-10)", () => {
+  const { createTurnGroundingTracker: make } = require("../realtimeTurnGrounding");
+  test("a 1-word mic fragment right after a typed turn does not replace the grounding text", async () => {
+    const t = make();
+    t.onTranscriptionCompleted({ suspect: false, reason: "typed" }, "Turn the volume up a little.");
+    t.onSpeechStopped();
+    t.onTranscriptionCompleted({ suspect: false, reason: "no_overlap" }, "Pekmez.");
+    expect((await t.waitForGroundedTurn()).text).toBe("Turn the volume up a little.");
+  });
+  test("a real spoken sentence after a typed turn still replaces it", async () => {
+    const t = make();
+    t.onTranscriptionCompleted({ suspect: false, reason: "typed" }, "Open the blinds.");
+    t.onSpeechStopped();
+    t.onTranscriptionCompleted({ suspect: false, reason: "no_overlap" }, "Please make it a bit louder now.");
+    expect((await t.waitForGroundedTurn()).text).toBe("Please make it a bit louder now.");
+  });
+  test("with no typed turn, short spoken turns still ground normally", async () => {
+    const t = make();
+    t.onSpeechStopped();
+    t.onTranscriptionCompleted({ suspect: false, reason: "no_overlap" }, "Goodbye.");
+    expect((await t.waitForGroundedTurn()).text).toBe("Goodbye.");
+  });
+});
