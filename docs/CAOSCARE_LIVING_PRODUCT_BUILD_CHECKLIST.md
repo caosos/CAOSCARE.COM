@@ -57,7 +57,7 @@ This protocol applies to every bounded build item, fix, workflow, and section.
 - **Today’s active engineering task:** release and LIVE_VERIFY the DEV_ACCEPTED Transportation workspace.
 - **Control issue / dispatch channel:** [#129](https://github.com/caosos/CAOSCARE.COM/issues/129).
 - **Completed review:** [PR #130](https://github.com/caosos/CAOSCARE.COM/pull/130), merged into integration.
-- **Integration branch/head:** `integration/2026-09-27` at `f35b4542a1b893357c78c21c4a7c4ce936fd8cff`.
+- **Integration branch:** `integration/2026-09-27`; release-code baseline `f35b4542a1b893357c78c21c4a7c4ce936fd8cff` (later coordinator-only commits may update control records without changing product code).
 - **Transportation implementation:** `agent/transport-workspace-workable` at `21b2261f021d152181c94d8c95d006c533b18529`; integration merge `dc2e4ca1ba22aa6a0e81b950f5597f83a9b4c4ba`.
 - **Accepted state:** IMPLEMENTED, TESTED, and DEV_ACCEPTED with receipt-backed browser evidence.
 - **Not yet accepted:** `main` promotion, exact-SHA Linode deployment, and live browser/receipt verification.
