@@ -8484,3 +8484,49 @@ On localhost:3000/kiosk/demo (room DEMO, simulated devices) with real typed inpu
 
 ## 2026-10-10 — Route audit: public endpoints that spend OpenAI money are now guarded
 A static audit of every route's dependencies (85 routes with no auth dependency; many are intentional device/kiosk ingestion) found three that spend OpenAI money with no login and no limit: `/api/ai/chat` (+ `/ai/chat/history/{session_id}`, which also exposed any session's history by id), `/api/ai/stt`, `/api/ai/tts`, and `/api/vision/describe|frame`. Fixes: `/ai/chat`, `/ai/chat/history` and `/ai/stt` are now **admin-only** (no caller found; the kiosk's turn-based chat was retired 2026-08-09); `/ai/tts` (kiosk and admin brief still use it) and `/vision/*` (glasses) get a per-client rate limit (`routes/paid_endpoint_guard.py`, 30 and 12 per minute, env `CAOSCARE_TTS_RATE_PER_MIN` / `CAOSCARE_VISION_RATE_PER_MIN`, client = first `X-Forwarded-For` hop). Tests: `test_paid_endpoint_guard.py` (4). Six old tests that assumed anonymous chat/stt were updated to the new contract; `test_restart_dev_backend.py` port selection fixed (the spare port was not checked free). Gate: 536 passed / 0 failed / 31 skipped. **Not deployed; production still has these endpoints open until a release.** Still open and not changed (inventory in this entry): other no-auth routes worth a decision are `PATCH /residents/{id}/preferred-name`, `GET /ai/...` n/a, `POST /alerts/{id}/aria-event` and `live-line/*`, `POST /locations`, `/wearables/event`, `/pendants/event`, `/paging/event` (device ingestion, no device auth), `GET /alerts/public/{id}/status`, `POST /realtime/session` (mints paid sessions for any resident/room; lease-guarded only against duplicates). Not touched: wake/voice files.
+
+---
+
+## 2026-10-10 — Living build checklist and owner approval gate
+
+### Owner direction
+Michael requires a living, owner-facing build checklist with current phase, today's active task, milestones, blockers and evidence-based ETA. Every meaningful completed task must update the existing sources of truth before the next task advances. Tiny implementation steps may be grouped into one bounded completion.
+
+A section is not DONE merely because code exists, tests pass, a PR merges, or a deployment occurs. After every written acceptance criterion passes, the section becomes READY_FOR_OWNER_REVIEW. Michael inspects the actual usable section. Only his explicit approval changes it to OWNER_ACCEPTED / DONE and checks it off. A rejected section remains in progress with a recorded punch list.
+
+### Durable changes
+- Added `docs/CAOSCARE_LIVING_PRODUCT_BUILD_CHECKLIST.md`.
+- Updated `docs/CURRENT_PRIORITY.md` to route owner-facing build control to the living checklist.
+- Updated GitHub Issue #129 with current merge/deployment authority and the completion/owner-approval protocol.
+- Updated PR #130 wording to distinguish the original no-deployment receipt from the owner's current authority.
+- Reserved `[x]` in the living checklist for Michael-approved completion; `[~]` means work/evidence exists but is not owner-approved DONE.
+
+### Current task at this receipt
+Transportation staff workspace usability remains the active bounded product slice in PR #130. It is implemented and frontend-tested but is not yet owner-approved or live-verified. The next sequence is branch refresh, backend/runtime test, development browser acceptance with receipt inspection, integration merge/gate, exact-SHA main/Linode deployment, live verification, then owner review.
+
+### Receipts
+- Living checklist creation commit: `e7535abc8e8c4ad962aef149d21c1b446d6dabb5`
+- Current-priority pointer commit: `1debc5326add4d925022d9a3433f58b15cfbed64`
+- Approval-protocol checklist commit: `12587db18e2a56ff86f8daa1adbd295e67741a25`
+- Issue #129 protocol receipt comment: `6104853798`
+
+### Next
+Complete PR #130 acceptance and release sequence. When the Transportation section meets every acceptance criterion, present the live workflow to Michael as READY_FOR_OWNER_REVIEW; do not check it off until he explicitly approves it.
+
+
+---
+
+## 2026-10-10 — No-idle agent execution rule
+
+Michael directed: "do not allow agents to be idle."
+
+The Care Operations execution protocol now requires a worker that completes a bounded task to publish its receipt and immediately take the next eligible checklist item. A blocked worker records the exact blocker and takes another compatible authorized item. Idle is allowed only when every authorized item is blocked, unsafe, conflicting, or waiting on a genuine owner decision; that reason must be recorded. The rule does not authorize invented busywork, duplicate workers, duplicate queues, or conflicting edits.
+
+The hourly ChatGPT CAOSCare check was resumed and renamed **CAOSCare Build Supervisor**. Its prompt now reconciles Issue #129 and the living checklist, records meaningful completions/blockers, dispatches the next eligible bounded task through the existing GitHub coordinator/worker channel, and escalates to Michael only for a completed section review or genuine owner-only blocker.
+
+The hourly cloud supervisor cannot prove or enforce a five-minute host heartbeat. The existing EliteDesk local coordinator/watchdog owns the <=5-minute idle-detection and next-task handoff target and must publish timestamped receipts. The event-driven CAOSCare PR Watch remains the GitHub PR completion trigger.
+
+Receipts:
+- Living checklist no-idle protocol: `d76d61fccd79ea71d47fe025db15f9ae94b509fe`
+- Issue #129 receipt comment: `6105355182`
+- Automation id: `6acaeb1660a88191aca7fe8f4dfb84d6` (enabled)
