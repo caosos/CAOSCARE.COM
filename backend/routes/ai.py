@@ -8,7 +8,8 @@ import base64
 import requests
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from models import ChatInput, TTSInput, ChatMessage, now_utc
-from deps import db, get_current_user
+from deps import db, get_current_user, require_admin
+from routes.paid_endpoint_guard import limit as _limit
 from routes.memory import (
     build_memory_context,
     append_conversation,
@@ -124,7 +125,7 @@ Family, grandkids, old neighborhoods, music they grew up with, prayers, weather,
 
 
 @router.post("/chat")
-async def chat(data: ChatInput):
+async def chat(data: ChatInput, user=Depends(require_admin)):
     """OpenAI text-model companion chat. Uses the memory server for context across sessions."""
     # Log user turn to the rolling conversation store
     await append_conversation(data.resident_id, data.session_id, "user", data.message)
@@ -283,7 +284,7 @@ async def chat(data: ChatInput):
 
 
 @router.get("/chat/history/{session_id}")
-async def chat_history(session_id: str, limit: int = 50):
+async def chat_history(session_id: str, limit: int = 50, user=Depends(require_admin)):
     msgs = (
         await db.chat_messages.find({"session_id": session_id}, {"_id": 0})
         .sort("created_at", 1)
@@ -372,7 +373,7 @@ async def classify_alert_now(alert_id: str, user=Depends(get_current_user)):
     return doc
 
 
-@router.post("/tts")
+@router.post("/tts", dependencies=[Depends(_limit("tts", "CAOSCARE_TTS_RATE_PER_MIN", 30))])
 async def tts(data: TTSInput):
     """Text to MP3 audio. Returns base64 string for easy playback from the kiosk.
 
@@ -399,7 +400,7 @@ async def tts(data: TTSInput):
 
 
 @router.post("/stt")
-async def stt(audio: UploadFile = File(...)):
+async def stt(audio: UploadFile = File(...), user=Depends(require_admin)):
     """Speech to text (Whisper-1). Accepts an audio file upload.
 
     Uses OpenAI directly. If OPENAI_API_KEY is missing, returns HTTP 503."""

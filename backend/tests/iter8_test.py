@@ -167,12 +167,12 @@ class TestMemoryExtract:
 # ---------------- /api/ai/chat integration ----------------
 
 class TestChatMemoryIntegration:
-    def test_chat_without_resident_works(self, skip_if_openai_unavailable):
+    def test_chat_without_resident_works(self, headers, skip_if_openai_unavailable):
         sid = f"anon-{uuid.uuid4().hex[:6]}"
         r = requests.post(
             f"{API}/ai/chat",
             json={"session_id": sid, "message": "Hello, how are you?"},
-            timeout=60,
+            headers=headers, timeout=60,
         )
         skip_if_openai_unavailable(r)
         assert r.status_code == 200, r.text
@@ -181,7 +181,7 @@ class TestChatMemoryIntegration:
         assert d.get("memories_used", 0) == 0
         assert d.get("history_replayed", 0) == 0
 
-    def test_chat_with_resident_returns_memory_fields(self, resident_id, skip_if_openai_unavailable):
+    def test_chat_with_resident_returns_memory_fields(self, resident_id, headers, skip_if_openai_unavailable):
         sid = f"iter8-a-{uuid.uuid4().hex[:6]}"
         msg = (
             "I wanted to tell you — my brother Liam lives in Cork, and every "
@@ -190,7 +190,7 @@ class TestChatMemoryIntegration:
         r = requests.post(
             f"{API}/ai/chat",
             json={"session_id": sid, "resident_id": resident_id, "message": msg},
-            timeout=90,
+            headers=headers, timeout=90,
         )
         skip_if_openai_unavailable(r)
         assert r.status_code == 200, r.text

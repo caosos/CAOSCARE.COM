@@ -299,22 +299,22 @@ class TestLocations:
 
 # ---------- AI ----------
 class TestAI:
-    def test_chat_openai(self, session, skip_if_openai_unavailable):
+    def test_chat_openai(self, session, admin_headers, skip_if_openai_unavailable):
         sid = f"test-{uuid.uuid4().hex[:8]}"
         r = session.post(f"{API}/ai/chat", json={
             "session_id": sid, "message": "Hello, just saying hi.",
-        }, timeout=60)
+        }, headers=admin_headers, timeout=60)
         skip_if_openai_unavailable(r)
         assert r.status_code == 200, r.text
         body = r.json()
         assert "reply" in body and isinstance(body["reply"], str) and len(body["reply"]) > 0
         assert "auto_emergency_detected" in body
 
-    def test_chat_history(self, session, skip_if_openai_unavailable):
+    def test_chat_history(self, session, admin_headers, skip_if_openai_unavailable):
         sid = f"test-{uuid.uuid4().hex[:8]}"
-        r0 = session.post(f"{API}/ai/chat", json={"session_id": sid, "message": "hi"}, timeout=60)
+        r0 = session.post(f"{API}/ai/chat", json={"session_id": sid, "message": "hi"}, headers=admin_headers, timeout=60)
         skip_if_openai_unavailable(r0)
-        r = session.get(f"{API}/ai/chat/history/{sid}")
+        r = session.get(f"{API}/ai/chat/history/{sid}", headers=admin_headers)
         assert r.status_code == 200
         msgs = r.json()
         # at least user + assistant messages
@@ -332,9 +332,10 @@ class TestAI:
         r = session.post(f"{API}/ai/tts", json={"text": "  ", "voice": "sage"})
         assert r.status_code == 400
 
-    def test_stt_endpoint_exists(self, session):
-        # No audio file -> FastAPI returns 422 for missing file param (endpoint exists)
-        r = session.post(f"{API}/ai/stt")
+    def test_stt_endpoint_exists(self, session, admin_headers):
+        # Admin-only since 2026-10-10 (route audit). No audio file -> 422 for the missing file param (endpoint exists).
+        assert session.post(f"{API}/ai/stt").status_code == 401
+        r = session.post(f"{API}/ai/stt", headers=admin_headers)
         assert r.status_code in (400, 422)
 
 
@@ -605,7 +606,7 @@ class TestResidentPersonalization:
             "session_id": sid,
             "message": "Hello friend",
             "resident_id": rid,
-        }, timeout=60)
+        }, headers=admin_headers, timeout=60)
         skip_if_openai_unavailable(r)
         assert r.status_code == 200, r.text
         assert "reply" in r.json() and len(r.json()["reply"]) > 0

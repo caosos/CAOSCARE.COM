@@ -25,10 +25,22 @@ def free_port():
 
 @pytest.fixture
 def box(tmp_path):
-    port = free_port()
+    def bindable(p):
+        t = socket.socket()
+        try:
+            t.bind(("127.0.0.1", p)); return True
+        except OSError:
+            return False
+        finally:
+            t.close()
+    # the script's spare port is port+1, which the bind-conflict test binds itself: both must really be free
+    while True:
+        port = free_port()
+        if bindable(port + 1):
+            break
     while True:
         cand = free_port()
-        if cand not in (port, port + 1) and port + 1 != cand:
+        if cand not in (port, port + 1) and bindable(cand):
             break
     root = tmp_path / "repo"; (root / "scripts").mkdir(parents=True); (root / "backend").mkdir()
     (root / "backend" / "server.py").write_text("")

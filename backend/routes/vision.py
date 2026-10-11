@@ -10,7 +10,8 @@ import base64
 import binascii
 import asyncio
 import requests
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from routes.paid_endpoint_guard import limit as _limit
 from models import VisionFrameInput
 
 router = APIRouter(prefix="/vision", tags=["vision"])
@@ -87,7 +88,7 @@ RULES
 """
 
 
-@router.post("/describe")
+@router.post("/describe", dependencies=[Depends(_limit("vision", "CAOSCARE_VISION_RATE_PER_MIN", 12))])
 async def describe_frame(data: VisionFrameInput):
     """Pure scene-describe (no question). Returns text + optional TTS base64."""
     try:
@@ -116,7 +117,7 @@ async def describe_frame(data: VisionFrameInput):
     return {"reply": reply, "audio_base64": audio_b64}
 
 
-@router.post("/frame")
+@router.post("/frame", dependencies=[Depends(_limit("vision", "CAOSCARE_VISION_RATE_PER_MIN", 12))])
 async def frame_with_question(data: VisionFrameInput):
     """Same as /describe but the question is expected to be present; conversational."""
     if not data.question:
