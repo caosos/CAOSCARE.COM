@@ -8535,3 +8535,21 @@ Receipts:
 
 ## 2026-10-10 — PR #130 (Transportation workspace operable for staff) accepted in the dev runtime
 Merged `agent/transport-workspace-workable` (`21b2261`) into the integration line (no conflicts). Gate 536/0/31; frontend 553; build compiled; dev backend restarted on `dc2e4ca`. Browser as Transportation staff: create -> assign -> open details -> change -> cancel (with reason); second ride Departed -> Completed; receipts chained and authenticated (details in the living checklist update of the same date). Silent testing, no voice. Not promoted to main, not deployed.
+
+
+---
+
+## 2026-10-11 — CAOSCare coordinator recovery delivery reconciled; execution ACK still pending
+
+The failed five-minute pickup for `careops-transport-live-001` was traced to Desktop-Agent watching only Issue #117 after Care Operations moved to Issue #129. Desktop-Agent main commit `8d3b8505fc3ff91ad1fbf29ebd3effd66c3ce201` adds Issue #129 and sets both stall and ACK thresholds to five minutes.
+
+After the EliteDesk recovery, automatic intake comment `6105949572` delivered nine backfilled `da-*` items as one peer message to the running existing CAOSCare coordinator session. This proves delivery to the session, not task execution: no timestamped ACK or `WORKING careops-transport-live-001` receipt existed at the reconciliation check. Supervisor comment `6105963403` instructs the existing coordinator to claim only the current Transportation release task and absorb/supersede older duplicate backfill items; it does not authorize nine concurrent jobs or any duplicate coordinator/queue.
+
+Release evidence remains unchanged: Transportation implementation `21b2261f021d152181c94d8c95d006c533b18529`, integration merge `dc2e4ca1ba22aa6a0e81b950f5597f83a9b4c4ba`, product release baseline `f35b4542a1b893357c78c21c4a7c4ce936fd8cff`, DEV_ACCEPTED tests 536 passed / 0 failed / 31 skipped and frontend 66 suites / 553 tests. At inspection, `main` resolved to `880d10f07e21a8572eec9a5f68771c42eba0eabe`; integration was 396 commits ahead and 0 behind. The integration ref resolved to control head `f8ffb5aeb1454a7a310ea5c500e3dee37fb0be3e` before the recovery control-record commits.
+
+Recovery control receipts:
+- coordinator status: `8bb0eb48a350bee8a00674006d3ac87810aa4100`
+- living checklist: `97f60675f04c2ec73993ce900469d25084a1de9f`
+- Issue #129 reconciliation: comment `6105963403`
+
+Current state: `careops-transport-live-001` remains READY and authorized. Delivery is confirmed; worker execution remains unproven until ACK/WORKING. No owner decision blocks it. After ACK, run the exact release gate, promote to `main`, deploy the exact main SHA to Linode, LIVE_VERIFY Transportation, update all existing records, and immediately take the next eligible checklist item. If Linode/runbook access is blocked, record the exact missing dependency and switch to the authorized Front Desk/Admin normal-work browser acceptance slice.
