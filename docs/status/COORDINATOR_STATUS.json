@@ -1,15 +1,17 @@
 {
   "schema": 1,
-  "updated_at": "2026-10-11T05:48:38Z",
-  "updated_by": "ChatGPT CAOSCare Build Supervisor (coordinator ACK and fallback handoff)",
+  "updated_at": "2026-10-11T08:24:53Z",
+  "updated_by": "ChatGPT CAOSCare Build Supervisor (Slack follow-through and routing quarantine)",
   "ready_unblocked": [
-    "careops-transport-live-001: release and LIVE_VERIFY Transportation after the currently WORKING Front Desk/Admin bounded acceptance receipt"
+    "careops-frontdesk-reopen-001: reopen a completed Front Desk request with truthful state, linked receipts, focused API/UI tests, and synthetic browser acceptance"
   ],
   "workers": [
-    "da-446d044fa0: ACK 2026-10-11T05:47:55Z; WORKING Front Desk/Admin normal-work browser acceptance, isolated stack, synthetic data, silent/no voice"
+    "caoscare-1-ee: Issue #129 dispatch da-a01052935b DELIVERED at 2026-10-11T08:22:16Z; ACK/WORKING pending at this checkpoint"
   ],
   "questions": [],
   "waiting_owner": [
+    "careops-transport-live-001: run the already-authorized main push and exact-SHA deploy commands once available",
+    "Transportation LIVE_VERIFY: authenticated owner/admin browser session and one driver/vehicle choice",
     "real drivers/vehicles/hours for non-demo operation",
     "hardware facts and Pilot Room 1 selection",
     "email provider/domain/addresses",
@@ -19,5 +21,5 @@
     "PR #67 adoption",
     "per-kiosk device-credential decision"
   ],
-  "note": "Coordinator heartbeat is proven by Issue #129 comment 6105966756. Nine backfill items were absorbed into one task with no fan-out. Transportation release was temporarily marked blocked on stale wording; authority reconciliation comment 6105970504 records that the later explicit owner authorization in Issue #129 and current PR #130 supersedes the original pre-acceptance no-deploy note. Finish and record the active Front Desk/Admin slice, then resume careops-transport-live-001 without another owner approval."
+  "note": "Transportation is IMPLEMENTED/TESTED/DEV_ACCEPTED; main promotion, deployment, and LIVE_VERIFY remain incomplete. Issue #129 comment 6107083640 dispatched the compatible Front Desk reopen slice to the existing coordinator only. Desktop-Agent Issue #3 comment 6106927226 proves a Desktop Agent item was misdelivered to CAOSCare session caoscare-1-ee; CAOSCare quarantined it in comment 6107092750 and cross-referenced Desktop Agent repair ownership in comment 6107092837. GitHub Issue #129 remains canonical until project isolation is re-verified."
 }
