@@ -8877,3 +8877,19 @@ Compatible P0 taken while the Transportation LIVE_VERIFY waits on production dat
 
 ## 2026-10-11 — Dev backend restarted on `45bd234`
 Guarded restart via `scripts/restart_dev_backend.sh`: preflight sha=45bd234, 0 leases, no recent call activity, old pid 765209 (log /tmp/room214_backend_febe0fa.log = rollback provenance); new pid 796269, runtime commit 45bd234 with a clean tree, log /tmp/room214_backend_45bd234.log. The dev stack now shows request delivery truth. Development only; production `ff87c22` unchanged.
+
+
+---
+
+## 2026-10-11 18:00 CDT — Supervisor task-boundary reconciliation: current operations truth active
+
+Two compatible Care Operations slices completed in development while authenticated production Transportation acceptance remained blocked:
+
+- `careops-dept-roster-001` is **DEV_ACCEPTED** on the development line through `febe0fabf9dee9b5eab43ec71b8fbe2086d665c0`: department members/roles, open work grouped by named worker, dispatch trail, completed history and receipted assign/acknowledge/start/complete. Backend gate 543 passed / 0 failed / 31 skipped; frontend 76 suites / 589; isolated browser 11/11. Report: `docs/reports/2026-10-11-department-board-acceptance.md`.
+- `careops-routing-delivery-audit-001` is **DEV_ACCEPTED** at `45bd234eb0b3ee9c5255baea27162ff7137cddfc`: a synthetic Kitchen request traced the canonical route and lifecycle; the proven gap was that logged/no-provider delivery was invisible. Detail, department board and Operations Overview now say delivered / sent / simulated / not notified / failed from linked notification records. Backend gate 545 passed / 0 failed / 31 skipped; frontend 76 suites / 590; build compiled; isolated browser 7/7. Report: `docs/reports/2026-10-11-routing-delivery-audit.md`.
+- GitHub exposes no combined-status contexts or pull-request workflow runs for `febe0fa` or `45bd234`; the dated local gate and browser reports are the acceptance evidence. Neither slice is production loaded or owner accepted.
+- Production remains `ff87c22df1dd69b405fa0ec60429c20fe72f6801`, with the dated exact-SHA deployment and 12/12 public smoke. Authenticated Transportation LIVE_VERIFY remains blocked by absent labelled driver/vehicle and fresh signed-in role evidence. Integration is 85 commits ahead of main and 0 behind.
+- Michael's 17:39 CDT screenshots establish a current-operations defect: 322 open alerts including a 20-day ACTIVE/unacknowledged pendant record, plus 49-day mock Nursing work. Age proves staleness in the operator view, but not record provenance or safe closure.
+- **ONE active task:** `careops-current-operations-truth-001`, scoped in Issue #129 comment `6114797710`: observe the intended host's current SIM state; trace one fresh SIM request; separate current real work, current SIM-run work and historical/test records in canonical views; preserve history; add an audited disposition path; verify counts, sorting, refresh, STOP/START and no cross-run leakage.
+- Desktop Agent delivered `da-ccd1c60334` to existing coordinator `caoscare-1-ee` at 17:52:43 CDT. Issue #129 still has no ACK/WORKING after the five-minute target. Current EliteDesk heartbeat, working-tree status, SIM run and loaded development revision are **UNKNOWN**. Recover the existing coordinator/watchdog with the already-recorded read-only command; do not create a duplicate coordinator or worker.
+- Slack liaison scanned through `1791756348.025629` (17:05:48 CDT). No newer liaison message was present; the later owner screenshots arrived in chat and are recorded through Issue #129.
