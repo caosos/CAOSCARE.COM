@@ -1,6 +1,6 @@
 # CAOSCare — Living Product Build Checklist
 
-Updated: 2026-10-11 (01:24 CDT supervisor reconciliation, America/Chicago).
+Updated: 2026-10-11 (03:20 CDT supervisor follow-through, America/Chicago).
 
 This is the owner-facing product build and progress tracker for the Care Operations build. Canonical owner direction: [Issue #129](https://github.com/caosos/CAOSCARE.COM/issues/129). Detailed historical evidence remains in [PILOT1_EXECUTION_CHECKLIST.md](https://github.com/caosos/CAOSCARE.COM/blob/integration/2026-09-27/docs/PILOT1_EXECUTION_CHECKLIST.md). This file controls current phase, active task, milestones, ETA, blockers, and the reporting contract.
 
@@ -79,7 +79,16 @@ This is the required path whenever an agent, coordinator, watchdog, service, or 
 - **Owner decision required now:** none. A physical host action is required because this supervisor cannot restart the EliteDesk service: `git -C /home/caoscare-1/Desktop-Agent pull --ff-only origin main && systemctl --user restart desktop-agent.service`. Issue #129 already authorizes the Transportation release through `main`, exact-SHA Linode deployment, required restarts, repair, and live verification.
 - **Authority reconciliation:** comment `6105970504` records that the later explicit owner authorization in Issue #129 and current PR #130 supersedes the original pre-acceptance no-deploy note. Do not ask Michael to approve the same release again.
 - **Recovery evidence:** Desktop-Agent main `14aa2da70933118631a92631f511648de6788e8c` provides five-minute unacked detection and redelivery; controlled recovery evidence is in Desktop-Agent comment `6106188802`. CAOSCare commit `58010c2ed6796ab1bb9245f642fa16cfc5a12af8` repairs the heartbeat probe (11 owner-intake tests passed; live `coordinator_state.py` exits 0). The last proven ACK/WORKING on the retired coordinator is historical, not current liveness.
-- **Slack liaison checkpoint:** processed through message timestamp `1791699287.900179` (01:14:47 CDT). That message establishes routing only; it contains no new CAOSCare product direction. GitHub remains canonical.
+- **Slack liaison checkpoint:** processed through thread message timestamp `1791703576.527529` (02:26:16 CDT); CAOSCare ACK reply `1791706917.729779` was posted at 03:21 CDT. The thread requested verified worker activity and completion-to-next follow-through. GitHub remains canonical.
+
+### Update 2026-10-11 03:20 CDT (Slack follow-through and no-idle fallback)
+
+- Shared liaison thread processed through TS `1791703576.527529`; named CAOSCare ACK posted at TS `1791706917.729779`. Canonical dispatch receipt: Issue #129 comment `6107083640`.
+- Latest actual repository evidence is integration head `49bb218b0aa7a915cf5d933b85b365769f3f5cde` at 03:02:17 CDT. It records the owner's direct release authorization, successful exact-candidate gate, and the refused deploy attempt. This is not proof of a live process heartbeat after that time.
+- Transportation remains IMPLEMENTED, TESTED, and DEV_ACCEPTED; `main` remains `880d10f07e21a8572eec9a5f68771c42eba0eabe`; production remains reported at `d7ff96a`. Promotion, exact-SHA deployment, and LIVE_VERIFY remain incomplete.
+- NEED_PERMISSION / NEED_HOST_ACTION remains: the coordinator classifier refused the main push, deployment SSH, and GitHub receipt command; live acceptance also needs an authenticated owner/admin browser session and driver/vehicle choice. Michael is unavailable tonight. No new authorization decision is required.
+- No-idle fallback dispatched to the existing `caoscare-1-ee` coordinator only: `careops-frontdesk-reopen-001` — add and accept reopening a completed Front Desk request with truthful lifecycle state, linked receipts, focused API/UI tests, and synthetic browser evidence. If already claimed elsewhere, the coordinator must not duplicate it and must name the next unclaimed Front Desk/Admin checklist item.
+- Automatic completion-to-next-task remains unproven; prior handoff required manual recovery. The next receipt must be timestamped `ACK` / `WORKING`, or a structured NEED if Desktop-Agent delivery is unavailable.
 
 ### Update 2026-10-11 01:24 CDT (coordinator route recovery)
 
