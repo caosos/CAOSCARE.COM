@@ -54,17 +54,16 @@ This protocol applies to every bounded build item, fix, workflow, and section.
 ## Current build control
 
 - **Current phase:** 3/7 — Care Operations workspaces.
-- **Today’s active engineering task:** make the Transportation staff workspace usable end to end.
-- **Control issue:** [#129](https://github.com/caosos/CAOSCARE.COM/issues/129).
-- **Active review:** [PR #130](https://github.com/caosos/CAOSCARE.COM/pull/130).
-- **Integration branch:** `integration/2026-09-27`.
-- **Product-code baseline at reconciliation:** `cf3500ea538d36541d56a7b8cb7f3369806ba43b`; later integration commits in this work block are documentation/control receipts only.
-- **Transportation branch/head:** `agent/transport-workspace-workable` at `21b2261f021d152181c94d8c95d006c533b18529`.
-- **Branch relation:** diverged from integration and requires refresh before runtime acceptance; re-check the exact ahead/behind count immediately before merging because the living-control documentation advances the integration tip.
-- **Accepted state:** IMPLEMENTED; focused frontend TESTED; frontend production build passed; Python compile passed.
-- **Not yet accepted:** Mongo-backed lifecycle test, development browser flow, receipt inspection, integration merge, main promotion, Linode deployment, and live browser verification.
-- **Current live worker heartbeat:** not provable from GitHub alone. Recent code and PR activity are proven; a running Claude process is not.
-- **Owner decision required now:** none.
+- **Today’s active engineering task:** release and LIVE_VERIFY the DEV_ACCEPTED Transportation workspace.
+- **Control issue / dispatch channel:** [#129](https://github.com/caosos/CAOSCARE.COM/issues/129).
+- **Completed review:** [PR #130](https://github.com/caosos/CAOSCARE.COM/pull/130), merged into integration.
+- **Integration branch/head:** `integration/2026-09-27` at `f35b4542a1b893357c78c21c4a7c4ce936fd8cff`.
+- **Transportation implementation:** `agent/transport-workspace-workable` at `21b2261f021d152181c94d8c95d006c533b18529`; integration merge `dc2e4ca1ba22aa6a0e81b950f5597f83a9b4c4ba`.
+- **Accepted state:** IMPLEMENTED, TESTED, and DEV_ACCEPTED with receipt-backed browser evidence.
+- **Not yet accepted:** `main` promotion, exact-SHA Linode deployment, and live browser/receipt verification.
+- **Coordinator task:** `careops-transport-live-001`; queued through Issue #129 and `docs/status/COORDINATOR_STATUS.json`.
+- **Current live worker heartbeat:** not provable from GitHub. The EliteDesk coordinator/watchdog must ACK and hand off this READY task within five minutes and publish its timestamped receipt.
+- **Owner decision required now:** none; Issue #129 explicitly authorizes verified work through `main`, Linode deployment, required restarts, repair, and live verification.
 
 ### Update 2026-10-10 (EliteDesk, receipts)
 
@@ -74,21 +73,19 @@ This protocol applies to every bounded build item, fix, workflow, and section.
 - Browser (localhost:3000, signed in as the synthetic Transportation staff user "Demo - Pete Nash", `/workspace`): New ride (resident picker, purpose, appointment time as said) saved to "Needs coordination" -> Assign (pickup 13:15, confirmed with the demo driver/van) -> Open trip details (Change, Cancel, History) -> Change (moved to 14:02; the emptied 13:15 run shows Cancelled) -> Cancel with a reason. A second ride: Departed then Ride completed.
 - Receipts for the first ride (`task_66caca092bf7`): `rcpt_60f8629f568e` requested, `rcpt_2906672ace84` booked, `rcpt_330f78904ce3` changed, `rcpt_d2946735dc6f` cancelled. Second ride (`task_2f7979e53135`): requested `rcpt_b54c68c74202`, booked, departed, completed. All real-human, identity authenticated, authority `acts_for:transportation`, channel `staff_ui`.
 - Observations (not defects): the task's own `source` stays `front_desk` for staff-entered rides because Aria's ride-status lookup reads that value; the receipt channel is `staff_ui`. "My tasks today" refreshes every 10 s, so a just-completed ride can show for a few seconds.
-- **Not done:** pushed to `integration/2026-09-27` only. Not promoted to `main`, not deployed to Linode, no live browser verification. Issue #129's latest instruction for this slice says no Linode/main; the PR text says authorization allows it; I did not act on that ambiguity. **READY_FOR_OWNER_REVIEW for the dev workflow:** Michael to review at http://localhost:3000/workspace (demo transportation user) and say whether to promote.
+- **Development result:** pushed to `integration/2026-09-27` and DEV_ACCEPTED. Not promoted to `main`, not deployed to Linode, and not live-browser verified. There is no remaining authorization ambiguity: Issue #129 explicitly permits the release path. Transportation remains `[~]` until LIVE_VERIFIED and Michael's owner review.
 
 ### Exact current sequence
 
-1. Refresh PR #130 onto current integration and resolve any conflicts.
-2. Run the extended Transportation lifecycle test and the full backend gate on the EliteDesk integration runtime.
-3. Restart the necessary development services.
-4. Browser-test as Transportation staff: create → open details → change → cancel → inspect receipt IDs.
-5. Browser-test an active trip: Departed → Completed → inspect receipt IDs.
-6. Merge the accepted slice into integration.
-7. Run the integration regression gate.
-8. Promote the verified release to `main`, deploy the exact SHA to Linode, and perform live browser verification.
-9. Update this checklist, Issue #129, and the release receipt with the actual result.
+1. Confirm `f35b4542a1b893357c78c21c4a7c4ce936fd8cff` is still the integration release candidate and record any drift from `main`.
+2. Run the release regression gate on the exact candidate; do not substitute earlier branch-only results.
+3. Promote the verified candidate to `main` and record the resulting exact main SHA.
+4. Deploy that exact main SHA to Linode using the existing deployment runbook and restart only required services.
+5. LIVE_VERIFY health, authentication, Transportation permissions, create → open → change → cancel, Departed → Completed, responsive UI, receipts, and rollback readiness using clearly labeled synthetic/demo data.
+6. Update this checklist, Issue #129, `PROJECT_STATE.md`, and the release receipt with exact SHAs, timestamps, test totals, receipt IDs, failures/repairs, and final verdict.
+7. If every written Transportation gate passes, mark it READY_FOR_OWNER_REVIEW; only Michael may change it to OWNER_ACCEPTED / DONE.
 
-**ETA for this bounded slice:** 3–6 focused engineering hours after an EliteDesk worker/runtime is available. Confidence: medium. The estimate includes refresh, tests, browser acceptance, merge, deploy, and verification; it expands if branch conflicts or runtime failures are found.
+**ETA for `careops-transport-live-001`:** 0.5–1 focused workday. Confidence: medium; the estimate assumes existing Linode credentials and deployment runbook still work and expands if release drift or live-only failures are found.
 
 ## What “usable” means
 
@@ -149,20 +146,20 @@ Milestone: every service request is actionable, traceable, and truthfully visibl
 
 ## Phase 3 — Care Operations workspaces (ACTIVE)
 
-Current status: **ACTIVE. Transportation is the current bounded slice.**
+Current status: **ACTIVE. Transportation is DEV_ACCEPTED; release/live verification is the current bounded slice.**
 
-### Transportation — current task
+### Transportation — release/live task
 
 - [~] Calendar, Day/Week, My rides/All rides, Completed, History, ride log, JSON/CSV export, and receipt-backed lifecycle exist in code.
 - [~] PR #130 implements Transportation staff authority to create, assign, change, cancel, and open trip details.
 - [~] Focused frontend tests passed: 3 suites / 3 tests.
 - [~] Frontend production build passed; changed Python modules compile.
 - [~] Refresh PR #130 onto current integration.
-- [ ] Run Mongo/FastAPI lifecycle test.
-- [ ] Configure acceptance drivers and vehicles in clearly labeled test data.
-- [ ] DEV_ACCEPT create → open → change → cancel → receipt inspection.
-- [ ] DEV_ACCEPT Departed → Completed → receipt inspection.
-- [ ] Merge integration and run full gate.
+- [~] Run Mongo/FastAPI lifecycle test.
+- [~] Configure acceptance drivers and vehicles in clearly labeled test data.
+- [~] DEV_ACCEPT create → open → change → cancel → receipt inspection.
+- [~] DEV_ACCEPT Departed → Completed → receipt inspection.
+- [~] Merge integration and run full gate.
 - [ ] Promote/deploy and LIVE_VERIFY the workflow.
 
 ### Front desk and administrative communication
@@ -266,9 +263,9 @@ Current status: **AUTHORIZED; current Care Operations release not yet executed o
 
 Owner authorization permits verified CAOSCare work to proceed through integration, `main`, Linode deployment, necessary service restarts, testing, repair, and continued bounded development without routine permission stops.
 
-- [ ] Complete the active slice's implementation/test/DEV_ACCEPTED gates.
-- [ ] Merge accepted work into `integration/2026-09-27`.
-- [ ] Run the full integration regression gate and record results.
+- [~] Complete the active slice's implementation/test/DEV_ACCEPTED gates.
+- [~] Merge accepted work into `integration/2026-09-27`.
+- [~] Run the full integration regression gate and record results.
 - [ ] Create the exact release candidate and change summary.
 - [ ] Merge/promote the verified candidate to `main`.
 - [ ] Deploy the exact `main` SHA to Linode.
@@ -283,7 +280,7 @@ Milestone: code is not merely present; the deployed product is usable.
 | Milestone | Acceptance result | Current state | Evidence-based estimate |
 |---|---|---|---|
 | M0 — Build control | Living checklist, current task, gates, ETA, and reporting contract in GitHub | COMPLETE with this file | Complete |
-| M1 — Transportation usable | Staff creates/opens/changes/cancels and completes trips with receipts in the deployed app | ACTIVE | 3–6 focused hours after EliteDesk runtime is available |
+| M1 — Transportation usable | Staff creates/opens/changes/cancels and completes trips with receipts in the deployed app | DEV_ACCEPTED; RELEASE DISPATCHED | 0.5–1 focused workday, assuming existing Linode access/runbook |
 | M2 — Core Care Operations loop | Nursing, Maintenance, Front Desk/Admin, and shared service-ticket lifecycle re-accepted on current release | PARTIAL | 2–4 focused workdays after M1 |
 | M3 — Coordinated schedules | Transportation + therapy/appointments + resident/staff calendar links accepted | PARTIAL | 3–6 focused workdays after M2 |
 | M4 — Remaining departments | Dining, Activities, Housekeeping, Admin/reporting, alerts/escalation usable | PARTIAL / some planned | 5–10 focused workdays |
@@ -291,7 +288,7 @@ Milestone: code is not merely present; the deployed product is usable.
 | M6 — Pilot acceptance | One real room + staff + communications + recovery; then repeatability | NOT STARTED as a complete gate | 3–5 focused workdays after dependencies |
 | M7 — Release verified | Exact SHA on Linode, live workflow accepted, release receipt recorded | NOT STARTED for current slice | 0.5–1 focused day per accepted release |
 
-**Current honest overall position:** the foundation is substantial, and Nursing/Maintenance have local end-to-end evidence. The product is not yet release-ready because Transportation is under correction, the other department workspaces are incomplete or unaccepted, external communications are not live, and the full pilot/release gate has not passed.
+**Current honest overall position:** the foundation is substantial, and Nursing/Maintenance have local end-to-end evidence. The product is not yet release-ready because Transportation is DEV_ACCEPTED but not LIVE_VERIFIED, the other department workspaces are incomplete or unaccepted, external communications are not live, and the full pilot/release gate has not passed.
 
 **Overall planning range:** approximately 2–4 focused engineering weeks for the broader Care Operations product slice, plus calendar time for provider/hardware access. This is a planning range, not a promise; each milestone will replace it with actual cycle-time evidence.
 

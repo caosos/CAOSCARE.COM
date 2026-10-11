@@ -1,14 +1,21 @@
 {
   "schema": 1,
-  "updated_at": "2026-10-09T02:55:00Z",
-  "updated_by": "caoscare coordinator (integration/2026-09-27)",
-  "ready_unblocked": [],
+  "updated_at": "2026-10-11T04:50:00Z",
+  "updated_by": "ChatGPT CAOSCare Build Supervisor (integration/2026-09-27)",
+  "ready_unblocked": [
+    "careops-transport-live-001: release and LIVE_VERIFY the DEV_ACCEPTED Transportation workspace from integration f35b4542a1b893357c78c21c4a7c4ce936fd8cff; dispatch and acceptance contract are in Issue #129 and the living checklist"
+  ],
   "workers": [],
   "questions": [],
   "waiting_owner": [
-    "real drivers/vehicles/hours", "hardware facts (Pilot Room 1)", "email provider/domain/addresses",
-    "telephony accounts/hardware", "storage cleanup Phase 2", "HA host protections", "release/deploy approval",
-    "PR #67 adoption", "security B-list decisions"
+    "real drivers/vehicles/hours for non-demo operation",
+    "hardware facts and Pilot Room 1 selection",
+    "email provider/domain/addresses",
+    "telephony accounts/hardware",
+    "storage cleanup Phase 2",
+    "HA host protections",
+    "PR #67 adoption",
+    "per-kiosk device-credential decision"
   ],
-  "note": "Kept current by the coordinator at every state change. ready_unblocked = approved bounded work with no owner dependency; the heartbeat probe wakes the coordinator only when it, workers, questions or unacknowledged intake items need attention."
+  "note": "No owner decision blocks careops-transport-live-001. The EliteDesk coordinator/watchdog must detect this READY item and publish a timestamped ACK/WORKING handoff within <=5 minutes. GitHub state alone is not a live-process heartbeat."
 }
