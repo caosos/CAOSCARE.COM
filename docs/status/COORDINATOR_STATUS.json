@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "updated_at": "2026-10-11T21:27:00Z",
-  "updated_by": "ChatGPT CAOSCare Build Supervisor — issue #129 comment 6113952748",
+  "updated_at": "2026-10-11T21:31:59Z",
+  "updated_by": "CAOSCare Build Supervisor — standing authority correction",
   "ready_unblocked": [
     "careops-transport-live-001: resume exact-SHA Linode deployment and LIVE_VERIFY for main ff87c22; current production last recorded d7ff96a; fresh host ACK/WORKING/heartbeat required. If host/prompt blocks, post exact structured NEED and take compatible authorized Care Operations work."
   ],
@@ -10,8 +10,6 @@
   ],
   "questions": [],
   "waiting_owner": [
-    "careops-transport-live-001: run the already-authorized main push and exact-SHA deploy commands once available",
-    "Transportation LIVE_VERIFY: authenticated owner/admin browser session and one driver/vehicle choice",
     "real drivers/vehicles/hours for non-demo operation",
     "hardware facts and Pilot Room 1 selection",
     "email provider/domain/addresses",
@@ -21,7 +19,7 @@
     "PR #67 adoption",
     "per-kiosk device-credential decision"
   ],
-  "note": "Therapy conflict DEV_ACCEPTED on 77f83d3; backend 542 passed/31 skipped, frontend 75 suites/585, isolated browser 17/17, report docs/reports/2026-10-11-therapy-conflict-acceptance.md. Main ff87c22 verified; production last recorded d7ff96a. Checklist and project-state supervisor closeout pending. Issue #129 comment 6113952748 is the current relay.",
+  "note": "Therapy conflict DEV_ACCEPTED on 77f83d3; backend 542 passed/31 skipped, frontend 75 suites/585, isolated browser 17/17, report docs/reports/2026-10-11-therapy-conflict-acceptance.md. Main ff87c22 verified; production last recorded d7ff96a. Checklist and project-state supervisor closeout pending. Issue #129 comment 6113952748 is the current relay. Michael screenshot at 16:27 CDT shows historical host heartbeat through 16:17 CDT but agent misclassified authorized release as owner-run. Standing release authority reconfirmed in living checklist de77883. GitHub connector consent is platform access, not product re-authorization.",
   "liaison_watch": {
     "scanned_through_ts": "1791728274.258519",
     "scanned_through_local": "2026-10-11 09:17:54 CDT",
