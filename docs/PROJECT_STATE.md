@@ -8449,3 +8449,8 @@ Guarded restart of the EliteDesk development :8092 backend (no Linode/production
 
 ## 2026-10-10 — Menu paste parser cosmetics fixed (from the 2026-10-08 browser acceptance)
 `backend/routes/menu_ingest.py::_parse_menu_email`: no trailing "." on dishes; a mid-line "Vegetarian: Stuffed peppers" after a sentence end becomes its own dish ("Mr. Smith's" and "2.5 oz" are not split); a menu with only some meals now says "This menu lists lunch, dinner only; nothing was found for breakfast." instead of "No section found". Status stays `needs_review` for partial menus (staff still check before publishing). 4 new pure tests; gate 528 passed / 0 failed / 31 skipped. No deploy; dev backend not restarted; no voice files touched.
+
+---
+
+## 2026-10-10 — RF bridge: backend-unreachable poll no longer logs every 2 s
+`android-bridge/rf_restart_policy.py::ErrorThrottle` + `caos_rf_bridge.py::poll_loop`: a failing backend poll logs once in full, then one status line every 300 s (attempt count), a different error at once, one recovery line. Was ~43,000 lines/day. Test with a fake clock (`test_restart_backoff.py`, 16 pass). Code only: the running bridge process (old code) was not restarted or touched; pendant decoding unchanged; no wake/voice files.

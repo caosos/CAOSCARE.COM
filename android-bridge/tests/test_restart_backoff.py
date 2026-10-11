@@ -263,3 +263,18 @@ def test_bridge_without_sdr_does_not_spin_and_exits_on_sigterm(tmp_path):
     assert output.count("spawning:") == 1
     assert output.count("rtl_433 failed after") == 1
     assert "[rf-bridge] shutting down" in output
+
+
+def test_error_throttle_logs_once_then_periodic_then_recovery():
+    from rf_restart_policy import ErrorThrottle
+    t = ErrorThrottle("poll", every=300)
+    assert "poll: refused" in t.failed("refused", 0)
+    lines = [t.failed("refused", 2 * i) for i in range(1, 100)]          # 200 s of failures
+    assert all(x is None for x in lines)
+    assert "still failing" in t.failed("refused", 300) and t.failed("refused", 302) is None
+    assert "different" in t.failed("different", 303)                      # a new error is logged in full at once
+    assert "recovered" in t.ok(310) and t.ok(312) is None
+
+
+    one = ErrorThrottle("p"); n = sum(1 for i in range(43200) if one.failed("x", i * 2))
+    assert n <= 1 + 86400 // 300 + 1

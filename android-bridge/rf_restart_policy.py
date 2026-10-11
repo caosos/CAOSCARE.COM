@@ -154,3 +154,35 @@ def run_forever(run_once: Callable[[bool], RunResult], stop: threading.Event,
         delay = supervisor.after_run(result)
         if delay:
             stop.wait(delay)
+
+
+class ErrorThrottle:
+    """Log a repeating failure once in full, then one status line every `every` seconds, then one recovery line.
+
+    Used for the backend poll: an unreachable backend must not write a line every 2 s (~43k lines/day).
+    A different error is logged in full at once. Time is passed in, so tests need no sleeping.
+    """
+
+    def __init__(self, label: str, every: float = 300.0):
+        self.label, self.every = label, every
+        self._msg: Optional[str] = None
+        self._since = 0.0
+        self._last = 0.0
+        self._count = 0
+
+    def failed(self, msg: str, now: float) -> Optional[str]:
+        if msg != self._msg:
+            self._msg, self._since, self._last, self._count = msg, now, now, 1
+            return f"[rf-bridge] {self.label}: {msg}"
+        self._count += 1
+        if now - self._last >= self.every:
+            self._last = now
+            return f"[rf-bridge] {self.label} still failing ({self._count} attempts since {int(now - self._since)} s ago): {msg}"
+        return None
+
+    def ok(self, now: float) -> Optional[str]:
+        if self._msg is None:
+            return None
+        line = f"[rf-bridge] {self.label} recovered after {self._count} failed attempts over {int(now - self._since)} s"
+        self._msg = None
+        return line

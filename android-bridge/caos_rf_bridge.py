@@ -52,7 +52,7 @@ import time
 import uuid
 from typing import Optional
 
-from rf_restart_policy import RestartSupervisor, RunResult, run_forever
+from rf_restart_policy import ErrorThrottle, RestartSupervisor, RunResult, run_forever
 from sdr_control import RTL_433_BIN, run_rtl433
 
 try:
@@ -274,6 +274,7 @@ _stop = threading.Event()
 
 
 def poll_loop():
+    throttle = ErrorThrottle("poll")
     while not _state["shutdown"]:
         try:
             data = _get(f"/api/rf/bridge/{KIOSK_ID}/pending")
@@ -282,8 +283,11 @@ def poll_loop():
                 _state["active_capture"] = cap
             else:
                 _state["active_capture"] = None
+            line = throttle.ok(time.monotonic())
         except Exception as e:
-            print(f"[rf-bridge] poll err: {e}", file=sys.stderr, flush=True)
+            line = throttle.failed(str(e), time.monotonic())
+        if line:
+            print(line, file=sys.stderr, flush=True)
         time.sleep(POLL_INTERVAL)
 
 
