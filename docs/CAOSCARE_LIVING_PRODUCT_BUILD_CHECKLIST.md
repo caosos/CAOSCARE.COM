@@ -1,6 +1,6 @@
 # CAOSCare — Living Product Build Checklist
 
-Updated: 2026-10-11 (16:35 CDT therapy conflict DEV_ACCEPTED; Transportation release current).
+Updated: 2026-10-11 (16:54 CDT; exact-SHA production deploy verified, Transportation live workflow pending; owner operator review captured).
 
 This is the owner-facing product build and progress tracker for the Care Operations build. Canonical owner direction: [Issue #129](https://github.com/caosos/CAOSCARE.COM/issues/129). Detailed historical evidence remains in [PILOT1_EXECUTION_CHECKLIST.md](https://github.com/caosos/CAOSCARE.COM/blob/integration/2026-09-27/docs/PILOT1_EXECUTION_CHECKLIST.md). This file controls current phase, active task, milestones, ETA, blockers, and the reporting contract.
 
@@ -67,15 +67,15 @@ This is the required path whenever an agent, coordinator, watchdog, service, or 
 ## Current build control
 
 - **Current phase:** 3/7 — Care Operations workspaces.
-- **ONE current bounded task:** `careops-transport-live-001` — exact-SHA Linode deployment and Transportation LIVE_VERIFY. Therapy conflict is DEV_ACCEPTED on `77f83d3` (backend 542 passed/31 skipped, frontend 75 suites/585, browser 17/17).
+- **ONE current bounded task:** `careops-transport-live-001` — Transportation authenticated LIVE_VERIFY on deployed `ff87c22`; the exact-SHA Linode deployment and 12/12 public smoke are complete. Therapy conflict remains DEV_ACCEPTED on integration product `77f83d3` (backend 542 passed/31 skipped, frontend 75 suites/585, browser 17/17), not deployed.
 - **Control issue / dispatch channel:** [#129](https://github.com/caosos/CAOSCARE.COM/issues/129).
 - **Completed review:** [PR #130](https://github.com/caosos/CAOSCARE.COM/pull/130), merged into integration.
 - **Integration branch:** `integration/2026-09-27`; latest product commit `b229485c96a57fb45d5a01c2f66a97bf0c00aced` (lifecycle-button authority cleanup, IMPLEMENTED/TESTED only); upcoming-view DEV_ACCEPTED product commit `958093a4f27080035f8e5552c9fbcc695e894c06`; guarded dev-restart record `fce6026e61c3b6fa530e3f03581f1f54617a8fe0`; release baseline remains separate until the release gate.
 - **Transportation implementation:** `agent/transport-workspace-workable` at `21b2261f021d152181c94d8c95d006c533b18529`; integration merge `dc2e4ca1ba22aa6a0e81b950f5597f83a9b4c4ba`.
 - **Accepted state:** IMPLEMENTED, TESTED, and DEV_ACCEPTED with receipt-backed browser evidence.
-- **Not yet accepted:** exact-SHA Linode deployment and live Transportation browser/receipt verification. `main` promotion to `ff87c22` is verified.
-- **Coordinator task:** existing `caoscare-1-ee` owns `careops-transport-live-001`. Issue #129 comment 6113952748 was delivered as `da-3995f8741b`; ACK/WORKING remains unverified. The previous main-push blocker is stale.
-- **Current host observation:** Michael's 16:27 CDT screenshot shows the existing coordinator handled periodic heartbeat messages through 16:17 CDT, but it then described authorized release steps as owner-run. That is point-in-time host evidence, not current continuous liveness; fresh ACK/WORKING for `da-3995f8741b` remains UNKNOWN.
+- **Not yet accepted:** authenticated production Transportation browser/receipt verification. `main` and production were observed at `ff87c22`; production deploy completed 21:28:50Z with backup `20261011-212802-pre-deploy-d7ff96a4e4d1`, independent bundle/service check, and 12/12 public smoke. This is a dated observation, not a current process heartbeat.
+- **Coordinator task:** existing `caoscare-1-ee` owns `careops-transport-live-001`. Issue #129 comments 6113952748 and 6114006820 were delivered as `da-3995f8741b` and `da-a8f3b8ea5f`; explicit ACK/WORKING remains unverified in Issue #129. A dated production deploy receipt exists in PROJECT_STATE; the former main-push and deploy blockers are stale.
+- **Current host observation:** PROJECT_STATE records a Linode deployment and independent service check at 21:28:50Z (16:28:50 CDT). No newer local coordinator heartbeat or authenticated Transportation browser receipt is available in Issue #129; current host liveness is UNKNOWN. Michael's 16:27 CDT screenshot is historical point-in-time coordinator evidence.
 - **Owner decision required now:** none established. Routine build, promotion, exact-SHA deployment, restarts, tests and repair are already authorized. A GitHub tool consent prompt is separate from a Care App owner decision.
 - **Authority reconciliation:** comment `6105970504` records that the later explicit owner authorization in Issue #129 and current PR #130 supersedes the original pre-acceptance no-deploy note. Do not ask Michael to approve the same release again.
 - **Recovery evidence:** Desktop-Agent main `14aa2da70933118631a92631f511648de6788e8c` provides five-minute unacked detection and redelivery; controlled recovery evidence is in Desktop-Agent comment `6106188802`. CAOSCare commit `58010c2ed6796ab1bb9245f642fa16cfc5a12af8` repairs the heartbeat probe (11 owner-intake tests passed; live `coordinator_state.py` exits 0). The last proven ACK/WORKING on the retired coordinator is historical, not current liveness.
@@ -284,6 +284,23 @@ Current status: **ACTIVE. Transportation is DEV_ACCEPTED; release/live verificat
 
 Milestone: each department has a normal-work workspace, not a dead demo panel.
 
+### Owner operator review — 2026-10-11 16:49–16:54 CDT (punch list; no duplicate worker dispatched)
+
+Michael inspected the production Care App and reported these concrete gaps. His screenshots and narrated review are owner observation, not authenticated browser acceptance by the supervisor. Existing partial functions remain [~] until the intended operator can complete them. The current single worker task stays `careops-transport-live-001`; the first next eligible correction after its live verdict is the department staffing/dispatch view, unless the coordinator documents an exact blocker and takes that compatible item sooner.
+
+| Priority / area | Observed state or question | Acceptance for one bounded follow-up |
+|---|---|---|
+| P0 Transportation | Owner can see New ride and filters, but cannot use New order / unresolved count; calendar looks unchanged. | In the deployed signed-in role, create/open/change/cancel a labelled test ride, click each unresolved row to its canonical detail, verify driver/vehicle assignment and receipts, and record any role-specific failure. Do not call the 12/12 public smoke a staff workflow test. |
+| P0 Routing truth | “What's for supper tonight?” appears as a Kitchen request, Pending. The screenshot proves creation/routing to a department, not worker delivery or action. | Trace one resident request through department routing, named worker claim/assignment, acknowledgement, completion, and linked receipt; expose undelivered/unassigned/aging work and test that no request silently disappears. |
+| P1 Departments & staff | Housekeeping shows open/completed/skipped counts but no department roster, per-worker assignment, dispatch trail, or usable completed history; Activities similarly lacks worker/work view. | Department page shows members and roles, open/assigned/in-progress/done work by named worker, dispatch/status timestamps, completed history and receipts; authorized manager can assign/reassign, staff can act within scope. |
+| P1 Navigation | Kitchen and Transportation are absent from the operations overview list despite separate screens. “Daily schedule” contains activities and is empty; owner wants activities under Activities, with resident and transport schedules in their own contexts. | Navigation labels/routes match actual operator jobs; Kitchen and Transportation are discoverable in operations; activities calendar and resident/transport schedules open from their relevant workspaces without duplicate records. |
+| P1 Menu & Activities | No useful menu is visible; owner cannot paste a whole menu. Activities lacks populated schedule and work ownership. | Paste/import a full menu into review, validate/date meals, publish once and confirm resident “supper tonight” lookup against the published version; show activity events, responsible staff, and resident-facing schedule with clear empty states. |
+| P1 Family & clinician | Family contacts can be copied/deleted but owner cannot edit; clinician dashboard is “totally unusable.” | Authorized operator can add/edit a family contact and see the save/receipt; clinician view has a stated user/job and a usable normal-work path, or is hidden until one is accepted. |
+| P1 Operator guidance | Several screens and controls do not explain purpose or next action; Transportation resources show drivers/vehicles/buffer without workflow explanation. | Each operational section has plain-language purpose, required setup, role permissions, action results, and meaningful empty/error states; test with an operator unfamiliar with the code. |
+| P2 Email provider | UI reports provider key, sender address and webhook secret unset. | Show configuration status honestly, give the exact setup dependencies, then prove real inbound/outbound delivery with receipts when existing provider/account access is supplied; no paid commitment or “live” claim from mocks. |
+
+Owner review does **not** mark any section OWNER_ACCEPTED / DONE. Reconcile each correction against the canonical StaffTask, department, appointment, menu and receipt records. Preserve the current task and claim only one eligible follow-up through the existing coordinator. For the Transportation production test, first check whether an authorized session or existing labelled driver/vehicle is already available; do not re-ask Michael for routine release permission. If a real owner login or production data choice is indispensable, publish one structured NEED with exact missing access/action and continue the staffing/dispatch slice.
+
 ## Phase 4 — Scheduling, records, resources, and coordinated calendars
 
 Current status: **PARTIAL / not accepted as a complete system.**
@@ -361,7 +378,7 @@ Milestone: code is not merely present; the deployed product is usable.
 | Milestone | Acceptance result | Current state | Evidence-based estimate |
 |---|---|---|---|
 | M0 — Build control | Living checklist, current task, gates, ETA, and reporting contract in GitHub | COMPLETE with this file | Complete |
-| M1 — Transportation usable | Staff creates/opens/changes/cancels and completes trips with receipts in the deployed app | DEV_ACCEPTED; main `ff87c22`; exact-SHA deploy and LIVE_VERIFY pending; coordinator ACK pending | after host pickup and release acceptance |
+| M1 — Transportation usable | Staff creates/opens/changes/cancels and completes trips with receipts in the deployed app | DEV_ACCEPTED; main/production `ff87c22`; 12/12 public smoke; authenticated LIVE_VERIFY pending; coordinator ACK unverified | after authenticated role acceptance |
 | M2 — Core Care Operations loop | Nursing, Maintenance, Front Desk/Admin, and shared service-ticket lifecycle re-accepted on current release | PARTIAL | 2–4 focused workdays after M1 |
 | M3 — Coordinated schedules | Transportation + therapy/appointments + resident/staff calendar links accepted | PARTIAL | 3–6 focused workdays after M2 |
 | M4 — Remaining departments | Dining, Activities, Housekeeping, Admin/reporting, alerts/escalation usable | PARTIAL / some planned | 5–10 focused workdays |
