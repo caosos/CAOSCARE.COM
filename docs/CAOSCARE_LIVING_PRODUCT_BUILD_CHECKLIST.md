@@ -413,3 +413,7 @@ Permanent law: **No action without a receipt. No receipt without provenance.**
 - Dev runtime: guarded restart record `b34e7213c0a857672f892f0b7c18546165a91225`; old PID 456493, new PID 481325, zero leases, clean tree, runtime product commit `de8e4f2`, log `/tmp/room214_backend_de8e4f2.log`. Main remains `880d10f`; production remains `d7ff96a`.
 
 Next single bounded task: `careops-therapy-upcoming-view-001`. Add a date-ordered upcoming-appointments view for therapy staff and residents using only the canonical StaffTask/resident-safe data. Show planned time, provider/discipline/location, lifecycle status, and linked-ride truth; test authorization and stable facility-time ordering; accept staff and resident paths in an isolated browser at desktop and 390 px. Excludes recurrence, a new calendar store, clinical data, conflict detection, billing, messaging, audio, paid services, production deploy, and real-data mutation.
+
+
+### Handoff receipt — 2026-10-11 07:54:18 CDT
+Desktop Agent automatic intake delivered `da-eecac34ab9` to the existing coordinator session `caoscare-1-ee` (Issue #129 comment 6109234198). This proves delivery only. Explicit ACK/WORKING remains pending; no duplicate coordinator or worker was created. Slack liaison output: `1791723184.185039`. Slack inputs were processed through `1791722564.078439`; those newer inputs were Deal Sniffer-only.
