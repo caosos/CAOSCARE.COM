@@ -1,4 +1,5 @@
-"""Staff-initiated transportation assignment action - lets Front Desk/Admin
+"""Staff-initiated transportation assignment action - lets Transportation,
+Front Desk, and Admin
 manually resolve a request stuck at "Pending - no slot yet" from the
 existing daily-ops report and calendar, reusing the exact same booking
 engine (transportation_engine.find_or_create_run) that Aria's own /request
@@ -22,7 +23,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
-from deps import db, require_front_desk_or_admin
+from deps import db, require_transport_coordinator
 from routes.notifications import notify_department, task_notice
 from transportation_engine import find_or_create_run, to_minutes
 from routes import task_lifecycle
@@ -35,7 +36,7 @@ OPEN_TASK_STATUSES = ["pending", "in_progress"]
 
 
 @router.get("/request/{task_id}/assign/context")
-async def assign_context(task_id: str, user=Depends(require_front_desk_or_admin)):
+async def assign_context(task_id: str, user=Depends(require_transport_coordinator)):
     """What staff needs before clicking Assign: the request itself, plus
     whether any drivers/vehicles exist at all, so the UI can explain a
     'nothing to assign' state honestly instead of a generic failure."""
@@ -62,7 +63,7 @@ class AssignInput(BaseModel):
 
 
 @router.post("/request/{task_id}/assign")
-async def assign_transport_request(task_id: str, data: AssignInput, user=Depends(require_front_desk_or_admin)):
+async def assign_transport_request(task_id: str, data: AssignInput, user=Depends(require_transport_coordinator)):
     """Staff commits to an exact time for a request that only ever carried a
     free-text label (e.g. "around 10"). Reuses find_or_create_run - the
     identical engine call /request and /request/{id}/change use - so this

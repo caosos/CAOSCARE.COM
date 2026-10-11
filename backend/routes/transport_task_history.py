@@ -31,7 +31,8 @@ def ride_actor(user: Optional[dict], task: Optional[dict], source: str) -> Actor
     No user -> the room the request came through: a claim, not a verified
     identity (D3); a synthetic demo resident stays marked synthetic."""
     if user:
-        return actor_from_user(user, channel="front_desk" if source == "front_desk" else "staff_ui")
+        channel = "front_desk" if source == "front_desk" and user.get("role") == "front_desk" else "staff_ui"
+        return actor_from_user(user, channel=channel)
     task = task or {}
     return actor_resident_claim(task.get("resident_id"), task.get("room"), source,
                                 synthetic=bool(task.get("simulated")))

@@ -10,6 +10,7 @@ import TransportAssignAction from "../components/TransportAssignAction";
 import TransportRunCard from "../components/TransportRunCard";
 import TransportRideForm from "../components/TransportRideForm";
 import TransportCancelDialog from "../components/TransportCancelDialog";
+import TransportRunDetailsDialog from "../components/TransportRunDetailsDialog";
 import RequestHistoryDialog from "./RequestHistoryDialog";
 import { todayLocal } from "../lib/transportation";
 import { toast } from "sonner";
@@ -17,8 +18,8 @@ import { toast } from "sonner";
 // Day/week transportation timeline - the same TransportRun/StaffTask data
 // Aria's booking engine and the Admin daily-ops report read, shaped for a
 // visual schedule. Used by Admin, Front Desk and the Transportation
-// workspace (one source of truth, role-appropriate actions): front desk and
-// admin book/change/cancel; they and transportation staff mark rides
+// workspace (one source of truth, role-appropriate actions): front desk,
+// admin, and transportation staff book/change/cancel and mark rides
 // departed/completed. The backend enforces the same split.
 
 function addDays(dateStr, n) {
@@ -59,8 +60,9 @@ function PendingCard({ p, canBook, onAssigned, onCancel, onHistory }) {
 // day/week the staff member is looking at is not reset to today.
 export default function TransportationCalendar({ refreshKey = 0 }) {
   const { user } = useAuth();
-  const canBook = ["owner", "admin", "front_desk"].includes(user?.role);
-  const canOperate = canBook || (user?.role === "staff" && user?.department === "transportation");
+  const isTransportationStaff = user?.role === "staff" && user?.department === "transportation";
+  const canBook = ["owner", "admin", "front_desk"].includes(user?.role) || isTransportationStaff;
+  const canOperate = canBook;
   const [date, setDate] = useState(todayLocal());
   const [view, setView] = useState("day"); // day | week
   const isDriverView = user?.role === "staff";   // transportation staff start on "My rides"; admin/front desk see everything
@@ -69,6 +71,7 @@ export default function TransportationCalendar({ refreshKey = 0 }) {
   const [newRide, setNewRide] = useState(false);
   const [changeRide, setChangeRide] = useState(null);
   const [cancelRide, setCancelRide] = useState(null);
+  const [openRun, setOpenRun] = useState(null);
   const [historyFor, setHistoryFor] = useState(null);
 
   const fetchCalendar = async () => {
@@ -124,7 +127,8 @@ export default function TransportationCalendar({ refreshKey = 0 }) {
                   onCancel={setCancelRide} onHistory={setHistoryFor} />
               ))}
               {day.runs.map((r) => (
-                <TransportRunCard key={r.run_id} run={{ ...r, riders: r.riders.map(withDay(day)) }} canOperate={canOperate} canBook={canBook}
+                <TransportRunCard key={r.run_id} run={{ ...r, date: r.date || day.date, riders: r.riders.map(withDay(day)) }} canOperate={canOperate} canBook={canBook}
+                  onOpen={setOpenRun}
                   onChanged={fetchCalendar} onHistory={setHistoryFor} onChange={setChangeRide} onCancel={setCancelRide} />
               ))}
             </div>
@@ -134,6 +138,8 @@ export default function TransportationCalendar({ refreshKey = 0 }) {
       <TransportRideForm open={newRide} onOpenChange={setNewRide} onSaved={fetchCalendar} />
       <TransportRideForm open={!!changeRide} onOpenChange={(o) => { if (!o) setChangeRide(null); }} ride={changeRide} onSaved={fetchCalendar} />
       <TransportCancelDialog ride={cancelRide} onClose={() => setCancelRide(null)} onCancelled={fetchCalendar} />
+      <TransportRunDetailsDialog run={openRun} canBook={canBook} onClose={() => setOpenRun(null)}
+        onChange={setChangeRide} onCancel={setCancelRide} onHistory={setHistoryFor} />
       <RequestHistoryDialog taskId={historyFor} onClose={() => setHistoryFor(null)} />
     </Card>
   );

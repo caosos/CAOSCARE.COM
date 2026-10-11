@@ -13,6 +13,7 @@ jest.mock("../../components/TransportAssignAction", () => () => null);
 jest.mock("../../components/TransportRunCard", () => () => null);
 jest.mock("../../components/TransportRideForm", () => () => null);
 jest.mock("../../components/TransportCancelDialog", () => () => null);
+jest.mock("../../components/TransportRunDetailsDialog", () => () => null);
 jest.mock("../RequestHistoryDialog", () => () => null);
 
 import TransportationCalendar from "../TransportationCalendar";

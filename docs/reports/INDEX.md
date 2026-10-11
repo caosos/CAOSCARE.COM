@@ -2,7 +2,15 @@
 
 Start here. Updated by Claude Code and ChatGPT-Aria as shared project state changes — this is the fastest way to reconstruct current CAOSCARE state without asking Michael to relay prior conversations.
 
-_Last updated: 2026-09-23_
+_Last updated: 2026-10-10_
+
+## Transportation staff workspace usability (2026-10-10) — REVIEW BRANCH
+[2026-10-10-transport-workspace-usability.md](2026-10-10-transport-workspace-usability.md)
+— Confirms the reported Transportation workspace was not operable for trip
+coordination: transportation staff could not create, assign, change or cancel a
+ride, and the ride card had no details action. Records the coordinated frontend
+and backend fix, focused test/build evidence, the unrun backend runtime test,
+and the bounded integration acceptance still required. No merge or deploy.
 
 ## Resident Aria wake word + engineering history (2026-09-23) — CURRENT
 [2026-09-23-milestones-and-decision-history.md](2026-09-23-milestones-and-decision-history.md)

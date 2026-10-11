@@ -1,7 +1,7 @@
-"""Staff-entered transportation - Front Desk (or Admin) booking, changing and
-cancelling a ride on a resident's behalf (phone call, walk-up, a note from
-family). Authenticated, and recorded as source "front_desk" with the staff
-member as requester, so the history shows who did it.
+"""Staff-entered transportation - Transportation, Front Desk, or Admin
+booking, changing and cancelling a ride on a resident's behalf (phone call,
+walk-up, department coordination, or a note from family). Authenticated, and
+recorded with the staff member as requester, so the history shows who did it.
 
 Every action delegates to the same core functions Aria's resident path
 uses (routes/transportation.py: submit_transport_request, change_request,
@@ -15,7 +15,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
-from deps import db, require_front_desk_or_admin
+from deps import db, require_transport_coordinator
 from models import TaskPriority
 from routes.transportation import (
     TransportRequestInput, TransportChangeInput, submit_transport_request, change_request, cancel_request,
@@ -55,7 +55,7 @@ def _check_time(start_time: Optional[str]) -> None:
 
 
 @router.post("/request")
-async def staff_create_request(data: StaffRequestInput, user=Depends(require_front_desk_or_admin)):
+async def staff_create_request(data: StaffRequestInput, user=Depends(require_transport_coordinator)):
     _check_time(data.start_time)
     resident = await db.residents.find_one({"resident_id": data.resident_id}, {"_id": 0, "room": 1})
     if not resident:
@@ -72,7 +72,7 @@ async def staff_create_request(data: StaffRequestInput, user=Depends(require_fro
 
 
 @router.post("/request/{task_id}/change")
-async def staff_change_request(task_id: str, data: StaffChangeInput, user=Depends(require_front_desk_or_admin)):
+async def staff_change_request(task_id: str, data: StaffChangeInput, user=Depends(require_transport_coordinator)):
     _check_time(data.start_time)
     change = TransportChangeInput(
         requested_for_date=data.requested_for_date,
@@ -85,5 +85,5 @@ async def staff_change_request(task_id: str, data: StaffChangeInput, user=Depend
 
 
 @router.post("/request/{task_id}/cancel")
-async def staff_cancel_request(task_id: str, data: StaffCancelInput = StaffCancelInput(), user=Depends(require_front_desk_or_admin)):
+async def staff_cancel_request(task_id: str, data: StaffCancelInput = StaffCancelInput(), user=Depends(require_transport_coordinator)):
     return await cancel_request(task_id, source="front_desk", actor=user, reason=data.reason)
