@@ -301,6 +301,14 @@ Michael inspected the production Care App and reported these concrete gaps. His 
 
 Owner review does **not** mark any section OWNER_ACCEPTED / DONE. Reconcile each correction against the canonical StaffTask, department, appointment, menu and receipt records. Preserve the current task and claim only one eligible follow-up through the existing coordinator. For the Transportation production test, first check whether an authorized session or existing labelled driver/vehicle is already available; do not re-ask Michael for routine release permission. If a real owner login or production data choice is indispensable, publish one structured NEED with exact missing access/action and continue the staffing/dispatch slice.
 
+### PR and working-tree reconciliation — 2026-10-11 17:00 CDT
+
+- **Active product:** `main` is `ff87c22`; integration is 73 commits ahead and 0 behind. This is code drift, not a claim that all later slices passed production acceptance.
+- **Eight open PRs, zero ready for immediate Care Operations merge:** #110 menu parser draft conflicts with integration, whose existing parser/test already covers the three reported cosmetic cases in a different way; inspect semantics before any rebase. #105 Desktop-Agent project-package draft conflicts and its `.agentproject/project.yaml` is absent on integration. #67 Agent Control Plane is open/conflicting with old green CI and lacks current-base/host acceptance. #45 is an old conflicting hardware docs draft. #41/#42 are explicitly parked public onboarding drafts. #46 wake research and #23 voice remain parked outside this lane. None was merged or closed in this review.
+- **Working tree:** this cloud supervisor can verify GitHub commits and its own clean scratch review clone; it cannot inspect the actual EliteDesk `~/CAOSCARE-INTEGRATION` worktree. Do not claim host changes are committed or clean without a timestamped host `git status`.
+- **NEED_HOST_RECOVERY:** `da-ba92a5f535` was delivered 16:54:31 CDT with no Issue #129 ACK/WORKING after five minutes. Existing local watchdog/coordinator must run `cd ~/CAOSCARE-INTEGRATION && python3 scripts/owner_intake/coordinator_state.py && git status --porcelain=v1 -b && git rev-parse HEAD`, publish timestamped state and ACK/WORKING or an exact recovery NEED. Canonical receipt: Issue #129 comment `6114293012`. This is a missed receipt target, not proof the process stopped; current host liveness UNKNOWN.
+- **Next eligible action remains one:** finish authenticated Transportation LIVE_VERIFY on deployed `ff87c22`; if blocked, continue the compatible department staffing/dispatch correction through the same coordinator.
+
 ## Phase 4 — Scheduling, records, resources, and coordinated calendars
 
 Current status: **PARTIAL / not accepted as a complete system.**
