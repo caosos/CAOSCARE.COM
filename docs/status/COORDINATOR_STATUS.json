@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "updated_at": "2026-10-11T10:55:42Z",
-  "updated_by": "ChatGPT CAOSCare Build Supervisor (therapy handoff mirrored to Slack)",
+  "updated_at": "2026-10-11T10:56:01Z",
+  "updated_by": "ChatGPT CAOSCare Build Supervisor (transport-link delivery receipt)",
   "ready_unblocked": [
     "careops-therapy-transport-link-001: reuse canonical therapy StaffTask + existing transportation request engine; one optional idempotent linked ride, authorization/status/provenance receipts, isolated automated + browser acceptance; no parallel truth store, recurrence, provider/discipline, billing, external messaging, audio, paid service, production deploy, or real-data mutation"
   ],
   "workers": [
-    "caoscare-1-ee: therapy product commit 47674f5, report 21/21, and guarded dev restart d0718e2 prove execution; deliveries da-0315a1eb1a and da-47650341ef still lack explicit issue ACK/WORKING/DONE; next transport-link task must publish timestamped ACK/WORKING within five minutes or structured NEED"
+    "caoscare-1-ee: DELIVERED da-5ee2bb4526 at 2026-10-11 05:56:01 CDT for careops-therapy-transport-link-001; awaiting explicit ACK/WORKING within five minutes or structured NEED. Do not create a duplicate coordinator or worker. Prior therapy work product 47674f5 + 21/21 proves execution, while earlier deliveries lacked explicit receipts."
   ],
   "questions": [],
   "waiting_owner": [
