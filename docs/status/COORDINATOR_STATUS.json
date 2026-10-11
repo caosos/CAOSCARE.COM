@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "updated_at": "2026-10-11T23:35:00Z",
-  "updated_by": "CAOSCare Build Supervisor — current operations acceptance and routing-exceptions handoff",
+  "updated_at": "2026-10-11T23:38:25Z",
+  "updated_by": "CAOSCare Build Supervisor — routing-exceptions delivery receipt",
   "ready_unblocked": [
-    "careops-routing-exceptions-001: DISPATCHING through existing coordinator caoscare-1-ee. Build the canonical routing-exception supervisor view for undelivered, unassigned, overdue, and failed handoffs; ACK/WORKING required within five minutes of delivery or publish an exact NEED."
+    "careops-routing-exceptions-001: DELIVERED as da-6618877755 to existing coordinator caoscare-1-ee at 2026-10-11 18:38:25 CDT; awaiting explicit ACK/WORKING by 18:43:25 CDT. Build the canonical routing-exception supervisor view for undelivered, unassigned, overdue, and failed handoffs."
   ],
   "workers": [
-    "caoscare-1-ee: current-operations implementation b3856b9 is loaded on the guarded development backend (PID 812821) with 547 backend passes, 592 frontend tests, and 13/13 browser acceptance. No explicit Issue #129 ACK/WORKING receipt was published for the completed task, so continuous EliteDesk coordinator/watchdog liveness is UNKNOWN; reuse this coordinator only and require the next ACK/WORKING or exact NEED."
+    "caoscare-1-ee: automatic intake confirms delivery da-6618877755. Current-operations implementation b3856b9 is loaded on the guarded development backend (PID 812821) with 547 backend passes, 592 frontend tests, and 13/13 browser acceptance. Continuous EliteDesk coordinator/watchdog liveness remains UNKNOWN until an explicit ACK/WORKING or exact NEED is published."
   ],
   "questions": [],
   "waiting_owner": [
@@ -19,7 +19,7 @@
     "PR #67 adoption",
     "per-kiosk device-credential decision"
   ],
-  "note": "careops-current-operations-truth-001 is READY_FOR_OWNER_REVIEW at b3856b9: current-by-default alerts/tasks, older records isolated for review, emergency records protected from automatic close, and audited admin-only legacy close without changing development or production records. Production remains ff87c22 with 12/12 public smoke. One active task only: careops-routing-exceptions-001, DISPATCHING through the existing coordinator. Eight open PRs remain unchanged and none is merge-ready. Checklist c53fd411; PROJECT_STATE a99b12d. No duplicate worker, queue, monitor, or routine permission request.",
+  "note": "careops-current-operations-truth-001 is READY_FOR_OWNER_REVIEW at b3856b9: current-by-default alerts/tasks, older records isolated for review, emergency records protected from automatic close, and audited admin-only legacy close without changing development or production records. Production remains ff87c22 with 12/12 public smoke. One active task only: careops-routing-exceptions-001, DELIVERED as da-6618877755 and awaiting ACK/WORKING. Eight open PRs remain unchanged and none is merge-ready. Checklist c53fd411; PROJECT_STATE a99b12d; task-boundary receipt 6115181807. No duplicate worker, queue, monitor, or routine permission request.",
   "liaison_watch": {
     "scanned_through_ts": "1791760395.149439",
     "scanned_through_local": "2026-10-11 18:13:15 CDT",
