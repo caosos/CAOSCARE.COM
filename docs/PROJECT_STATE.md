@@ -8479,3 +8479,32 @@ Real demo staff accounts (tokens minted in-process, nothing typed) loaded in Chr
 
 ## 2026-10-10 — Demo kiosk typed path verified with Aria; typed-turn grounding fix; test-hygiene note
 On localhost:3000/kiosk/demo (room DEMO, simulated devices) with real typed input into the live Realtime session: "Open the blinds." → `set_blinds` → visual "Blinds open", Aria confirmed after; "Put the TV on channel 11." → `set_tv_channel` (TV turned on, CH 11); "Make the TV volume louder." with the TV off → Aria truthfully said there was no volume to change and asked; "Yes, turn it on and make the volume louder." → TV on, volume 30. **Defect found and fixed:** a stray 1-word mic fragment ("Pekmez.") arriving ~1 s after a typed request replaced it as the grounding text, so the volume command was refused as ungrounded. `realtimeTurnGrounding.js` now keeps a typed turn as the grounding text against a 1-2 word fragment within 6 s (a real spoken sentence still replaces it; no effect when nothing was typed). 3 new tests, frontend suite passes. Not rebuilt into the Room 214 page (separate build); not deployed. **Hygiene:** this test ran in the owner's own Chrome with his live microphone and speakers (Aria spoke aloud and heard him). Future voice-path browser tests use headless Chrome with a fake microphone and muted output, never his browser. Demo room reset to baseline afterwards.
+
+
+---
+
+## 2026-10-10 — Living build checklist and owner approval gate
+
+### Owner direction
+Michael requires a living, owner-facing build checklist with current phase, today's active task, milestones, blockers and evidence-based ETA. Every meaningful completed task must update the existing sources of truth before the next task advances. Tiny implementation steps may be grouped into one bounded completion.
+
+A section is not DONE merely because code exists, tests pass, a PR merges, or a deployment occurs. After every written acceptance criterion passes, the section becomes READY_FOR_OWNER_REVIEW. Michael inspects the actual usable section. Only his explicit approval changes it to OWNER_ACCEPTED / DONE and checks it off. A rejected section remains in progress with a recorded punch list.
+
+### Durable changes
+- Added `docs/CAOSCARE_LIVING_PRODUCT_BUILD_CHECKLIST.md`.
+- Updated `docs/CURRENT_PRIORITY.md` to route owner-facing build control to the living checklist.
+- Updated GitHub Issue #129 with current merge/deployment authority and the completion/owner-approval protocol.
+- Updated PR #130 wording to distinguish the original no-deployment receipt from the owner's current authority.
+- Reserved `[x]` in the living checklist for Michael-approved completion; `[~]` means work/evidence exists but is not owner-approved DONE.
+
+### Current task at this receipt
+Transportation staff workspace usability remains the active bounded product slice in PR #130. It is implemented and frontend-tested but is not yet owner-approved or live-verified. The next sequence is branch refresh, backend/runtime test, development browser acceptance with receipt inspection, integration merge/gate, exact-SHA main/Linode deployment, live verification, then owner review.
+
+### Receipts
+- Living checklist creation commit: `e7535abc8e8c4ad962aef149d21c1b446d6dabb5`
+- Current-priority pointer commit: `1debc5326add4d925022d9a3433f58b15cfbed64`
+- Approval-protocol checklist commit: `12587db18e2a56ff86f8daa1adbd295e67741a25`
+- Issue #129 protocol receipt comment: `6104853798`
+
+### Next
+Complete PR #130 acceptance and release sequence. When the Transportation section meets every acceptance criterion, present the live workflow to Michael as READY_FOR_OWNER_REVIEW; do not check it off until he explicitly approves it.
