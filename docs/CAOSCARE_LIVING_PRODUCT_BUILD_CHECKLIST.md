@@ -1,6 +1,6 @@
 # CAOSCare — Living Product Build Checklist
 
-Updated: 2026-10-10 (owner direction, America/Chicago).
+Updated: 2026-10-11 (coordinator recovery reconciliation, America/Chicago).
 
 This is the owner-facing product build and progress tracker for the Care Operations build. Canonical owner direction: [Issue #129](https://github.com/caosos/CAOSCARE.COM/issues/129). Detailed historical evidence remains in [PILOT1_EXECUTION_CHECKLIST.md](https://github.com/caosos/CAOSCARE.COM/blob/integration/2026-09-27/docs/PILOT1_EXECUTION_CHECKLIST.md). This file controls current phase, active task, milestones, ETA, blockers, and the reporting contract.
 
@@ -62,8 +62,9 @@ This protocol applies to every bounded build item, fix, workflow, and section.
 - **Accepted state:** IMPLEMENTED, TESTED, and DEV_ACCEPTED with receipt-backed browser evidence.
 - **Not yet accepted:** `main` promotion, exact-SHA Linode deployment, and live browser/receipt verification.
 - **Coordinator task:** `careops-transport-live-001`; queued through Issue #129 and `docs/status/COORDINATOR_STATUS.json`.
-- **Current live worker heartbeat:** BLOCKED. Dispatch comment `6105602103` was posted at `2026-10-11T04:53:41Z`; no EliteDesk coordinator/watchdog ACK or WORKING receipt existed at `2026-10-11T04:59:34Z` (>5 minutes). GitHub proves the task is queued, not that a worker is running.
+- **Current live worker heartbeat:** RECOVERY DELIVERY CONFIRMED / ACK PENDING. Automatic intake comment `6105949572` delivered nine backfilled `da-*` items to the running existing CAOSCare coordinator session. No timestamped ACK or `WORKING careops-transport-live-001` receipt exists yet, so GitHub does not prove a worker is executing. Reconciliation comment `6105963403` directs the coordinator to claim only the current task and absorb/supersede duplicate backfill items.
 - **Owner decision required now:** none; Issue #129 explicitly authorizes verified work through `main`, Linode deployment, required restarts, repair, and live verification.
+- **Recovery evidence:** Desktop-Agent main `8d3b8505fc3ff91ad1fbf29ebd3effd66c3ce201` watches Issues #117/#129 with five-minute thresholds. Automatic intake reached the running coordinator (`6105949572`); supervisor reconciliation `6105963403` prevents the nine-item backfill from becoming concurrent duplicate work.
 
 ### Update 2026-10-10 (EliteDesk, receipts)
 
@@ -85,7 +86,7 @@ This protocol applies to every bounded build item, fix, workflow, and section.
 6. Update this checklist, Issue #129, `PROJECT_STATE.md`, and the release receipt with exact SHAs, timestamps, test totals, receipt IDs, failures/repairs, and final verdict.
 7. If every written Transportation gate passes, mark it READY_FOR_OWNER_REVIEW; only Michael may change it to OWNER_ACCEPTED / DONE.
 
-**ETA for `careops-transport-live-001`:** 0.5–1 focused workday. Confidence: medium; the estimate assumes existing Linode credentials and deployment runbook still work and expands if release drift or live-only failures are found.
+**ETA for `careops-transport-live-001`:** 0.5–1 focused workday after the coordinator ACK/WORKING receipt. Confidence: medium; the estimate assumes existing Linode credentials and deployment runbook still work and expands if release drift or live-only failures are found.
 
 ## What “usable” means
 
@@ -280,7 +281,7 @@ Milestone: code is not merely present; the deployed product is usable.
 | Milestone | Acceptance result | Current state | Evidence-based estimate |
 |---|---|---|---|
 | M0 — Build control | Living checklist, current task, gates, ETA, and reporting contract in GitHub | COMPLETE with this file | Complete |
-| M1 — Transportation usable | Staff creates/opens/changes/cancels and completes trips with receipts in the deployed app | DEV_ACCEPTED; RELEASE DISPATCHED; PICKUP BLOCKED | 0.5–1 focused workday after the local coordinator/watchdog is restored |
+| M1 — Transportation usable | Staff creates/opens/changes/cancels and completes trips with receipts in the deployed app | DEV_ACCEPTED; RELEASE DISPATCHED; DELIVERY CONFIRMED; ACK PENDING | 0.5–1 focused workday after ACK/WORKING |
 | M2 — Core Care Operations loop | Nursing, Maintenance, Front Desk/Admin, and shared service-ticket lifecycle re-accepted on current release | PARTIAL | 2–4 focused workdays after M1 |
 | M3 — Coordinated schedules | Transportation + therapy/appointments + resident/staff calendar links accepted | PARTIAL | 3–6 focused workdays after M2 |
 | M4 — Remaining departments | Dining, Activities, Housekeeping, Admin/reporting, alerts/escalation usable | PARTIAL / some planned | 5–10 focused workdays |
