@@ -1,6 +1,6 @@
 # CAOSCare — Living Product Build Checklist
 
-Updated: 2026-10-11 (03:24 CDT supervisor routing quarantine, America/Chicago).
+Updated: 2026-10-11 (04:19 CDT supervisor completion/dispatch and host-recovery checkpoint, America/Chicago).
 
 This is the owner-facing product build and progress tracker for the Care Operations build. Canonical owner direction: [Issue #129](https://github.com/caosos/CAOSCARE.COM/issues/129). Detailed historical evidence remains in [PILOT1_EXECUTION_CHECKLIST.md](https://github.com/caosos/CAOSCARE.COM/blob/integration/2026-09-27/docs/PILOT1_EXECUTION_CHECKLIST.md). This file controls current phase, active task, milestones, ETA, blockers, and the reporting contract.
 
@@ -67,7 +67,7 @@ This is the required path whenever an agent, coordinator, watchdog, service, or 
 ## Current build control
 
 - **Current phase:** 3/7 — Care Operations workspaces.
-- **Today’s active engineering task:** `careops-transport-live-001` — gate PASSED on `ff87c22`; `main` promotion + deploy wait on the owner's two commands (coordinator session cannot run them). Fallback `careops-frontdesk-reopen-001` DONE (reopen built + accepted, integration `04cc580`/`ce6c10b`); the Front Desk half of the acceptance is done; the Admin half needs an admin sign-in.
+- **Today’s active engineering task:** `careops-frontdesk-callback-001` is the single prepared compatible task after `careops-frontdesk-reopen-001` completed and passed its documented development acceptance. Transportation `careops-transport-live-001` remains authorized but blocked on the already-recorded main-push/deploy/live-browser host path.
 - **Control issue / dispatch channel:** [#129](https://github.com/caosos/CAOSCARE.COM/issues/129).
 - **Completed review:** [PR #130](https://github.com/caosos/CAOSCARE.COM/pull/130), merged into integration.
 - **Integration branch:** `integration/2026-09-27`; current control head `58010c2ed6796ab1bb9245f642fa16cfc5a12af8`; release-code baseline `f35b4542a1b893357c78c21c4a7c4ce936fd8cff` (later coordinator-only commits may update control records without changing product code).
@@ -75,11 +75,19 @@ This is the required path whenever an agent, coordinator, watchdog, service, or 
 - **Accepted state:** IMPLEMENTED, TESTED, and DEV_ACCEPTED with receipt-backed browser evidence.
 - **Not yet accepted:** `main` promotion, exact-SHA Linode deployment, and live browser/receipt verification.
 - **Coordinator task:** `careops-transport-live-001` remains the single authorized release task. The prior `da-446d044fa0` Front Desk/Admin acceptance slice never started and is superseded by the coordinator handoff receipt at `58010c2`.
-- **Current live worker heartbeat:** **NEED_HOST_ACTION / routing stale.** CAOSCare coordination moved to session `caoscare-1-ee`, but Desktop Agent continued delivering to retired session `caoscare-integration-b2`. Issue #129 comment `6106161718` delivered `da-b8429fc895` at 01:16:18 CDT with no ACK inside five minutes; Desktop-Agent comment `6106188802` records the corresponding five-minute `NEED_SERVICE` evidence. The GitHub pin is corrected at Desktop-Agent commit `2ccb63f1f86a63dd4af63222ddb6f3e06a4cee26`; the EliteDesk must fast-forward that commit and restart `desktop-agent.service`.
-- **Owner decision required now:** none. A physical host action is required because this supervisor cannot restart the EliteDesk service: `git -C /home/caoscare-1/Desktop-Agent pull --ff-only origin main && systemctl --user restart desktop-agent.service`. Issue #129 already authorizes the Transportation release through `main`, exact-SHA Linode deployment, required restarts, repair, and live verification.
+- **Current live worker heartbeat:** **NEED_HOST_RECOVERY.** Desktop Agent delivered `da-616acc5b05` to the existing coordinator `caoscare-1-ee` at 04:08:01 CDT (Issue #129 comment `6107432544`), but no timestamped ACK/WORKING receipt was visible by 04:19 CDT. Delivery proves the route reached the registered session; it does not prove the coordinator resumed work.
+- **Owner decision required now:** none. A physical host interaction is required only if the existing CAOSCare Claude screen is still paused: return to that screen and approve the pending read-only command (option 2 / auto mode), then leave the same coordinator running. Do not start a duplicate CAOSCare coordinator.
 - **Authority reconciliation:** comment `6105970504` records that the later explicit owner authorization in Issue #129 and current PR #130 supersedes the original pre-acceptance no-deploy note. Do not ask Michael to approve the same release again.
 - **Recovery evidence:** Desktop-Agent main `14aa2da70933118631a92631f511648de6788e8c` provides five-minute unacked detection and redelivery; controlled recovery evidence is in Desktop-Agent comment `6106188802`. CAOSCare commit `58010c2ed6796ab1bb9245f642fa16cfc5a12af8` repairs the heartbeat probe (11 owner-intake tests passed; live `coordinator_state.py` exits 0). The last proven ACK/WORKING on the retired coordinator is historical, not current liveness.
-- **Slack liaison checkpoint:** processed through thread message timestamp `1791703576.527529` (02:26:16 CDT); CAOSCare ACK reply `1791706917.729779` was posted at 03:21 CDT. The thread requested verified worker activity and completion-to-next follow-through. GitHub remains canonical.
+- **Slack liaison checkpoint:** processed through thread message timestamp `1791707399.060289` (03:29:59 CDT). No newer channel or thread messages were present at the 04:19 CDT reconciliation. Dot Arya’s routing-recovery request remains quarantined and owned by Desktop Agent; no replay from CAOSCare is authorized.
+
+### Update 2026-10-11 04:19 CDT (reopen completion reconciled; next compatible task prepared)
+
+- `careops-frontdesk-reopen-001` is complete on integration: feature `04cc580`, acceptance/report commit `ce6c10b`; backend 537 passed / 31 skipped / 0 failed, frontend 67 suites / 557 tests, production build compiled, development backend restarted on `ce6c10b`, and headless front-desk acceptance passed 23/23 including reopen → second completion with an unbroken receipt chain. This is DEV_ACCEPTED, not OWNER_ACCEPTED / DONE and not deployed.
+- The single next compatible bounded task is `careops-frontdesk-callback-001`: use the existing canonical StaffTask/Receipt path to create a labelled synthetic resident callback, route it to one department, assign/reassign, add a note, complete, reopen once, and verify responsive front-desk UI history plus the linked receipt chain. No external email/SMS/phone call, no audio, no new record universe, and no admin/owner sign-in.
+- Host handoff is degraded: `da-616acc5b05` was delivered to `caoscare-1-ee` at 04:08:01 CDT with no visible ACK/WORKING by 04:19 CDT. Exact recovery is to resume the existing CAOSCare Claude screen and approve its pending read-only command (option 2 / auto mode); do not create another coordinator. Cloud-safe records and dispatch continue through Issue #129.
+- Slack input is processed through `1791707399.060289`; no newer liaison message was present. Dot Arya’s Desktop Agent routing-recovery request remains quarantined. The suspected working-directory fallback is an unconfirmed hypothesis until Desktop Agent inspects the loaded service and proves the intended recipient.
+- Next check: 05:20 CDT. If the existing coordinator has not ACKed by then, preserve this NEED_HOST_RECOVERY and continue cloud-safe reconciliation without duplicate dispatch.
 
 ### Update 2026-10-11 03:20 CDT (Slack follow-through and no-idle fallback)
 
