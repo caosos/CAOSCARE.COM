@@ -67,7 +67,7 @@ This is the required path whenever an agent, coordinator, watchdog, service, or 
 ## Current build control
 
 - **Current phase:** 3/7 — Care Operations workspaces.
-- **Today’s active engineering task:** `careops-transport-live-001` — gate PASSED on `ff87c22`; `main` promotion + deploy wait on the owner's two commands (coordinator session cannot run them). Meanwhile the Front Desk half of the Front Desk/Admin acceptance is done (report 2026-10-11); the Admin half needs an admin sign-in.
+- **Today’s active engineering task:** `careops-transport-live-001` — gate PASSED on `ff87c22`; `main` promotion + deploy wait on the owner's two commands (coordinator session cannot run them). Fallback `careops-frontdesk-reopen-001` DONE (reopen built + accepted, integration `04cc580`/`ce6c10b`); the Front Desk half of the acceptance is done; the Admin half needs an admin sign-in.
 - **Control issue / dispatch channel:** [#129](https://github.com/caosos/CAOSCARE.COM/issues/129).
 - **Completed review:** [PR #130](https://github.com/caosos/CAOSCARE.COM/pull/130), merged into integration.
 - **Integration branch:** `integration/2026-09-27`; current control head `58010c2ed6796ab1bb9245f642fa16cfc5a12af8`; release-code baseline `f35b4542a1b893357c78c21c4a7c4ce936fd8cff` (later coordinator-only commits may update control records without changing product code).
@@ -209,7 +209,7 @@ Current status: **ACTIVE. Transportation is DEV_ACCEPTED; release/live verificat
 
 - [~] Resident directory, request queue, callback/request handling, communications views, and status lifecycle exist in part.
 - [ ] One unified inbox for requests, messages, callbacks, approvals, and failed deliveries.
-- [~] Create/assign/reassign/close/reopen from the workspace with truthful status and receipts. Verified 2026-10-11 for the front-desk role: create (resident-request bus, source `front_desk`), acknowledge, claim, assign select, start, note, complete, history — each with a linked receipt. Not present: *reopen* of a completed request.
+- [~] Create/assign/reassign/close/reopen from the workspace with truthful status and receipts. Verified 2026-10-11 for the front-desk role: create (resident-request bus, source `front_desk`), acknowledge, claim, assign select, start, note, complete, history — each with a linked receipt. **Reopen built the same day** (`careops-frontdesk-reopen-001`, integration `04cc580`): explicit receipted reopen with a required reason, headless-accepted 23/23 incl. reopen → second completion with an unbroken chain (report addendum). Awaiting owner review of the actual workspace.
 - [ ] Shift notes, handoff, announcements, internal messages, read/acknowledge state, and searchable history.
 - [~] Browser acceptance by a front-desk role and an administrator. Front-desk half DEV_ACCEPTED 2026-10-11 (headless, synthetic, 18/18 cases, 0 failed API calls, linked receipt chain; `docs/reports/2026-10-11-front-desk-acceptance.md`). Administrator half NOT run: no admin login on the dev stack for the coordinator (temp demo-admin creation refused by its permission classifier) — NEED owner sign-in or a permission rule.
 

@@ -72,3 +72,28 @@ Every receipt carries `actor_type: real-human`, `actor_role: front_desk`, `actor
   creation himself, or adds a permission rule.
 - Family-/resident-facing status (Aria read-back of this request) was not exercised; silent run.
 - Not deployed, not run against production. Demo request records remain in the dev DB (labelled "Demo -").
+
+## Addendum — reopening a completed request (careops-frontdesk-reopen-001, same day)
+Built on integration `04cc580` (feature + tests), dev backend restarted on `ce6c10b` (pid 401682), same silent setup as above.
+
+What was built: an explicit, receipted **reopen** (the one SC-14 left room for). `POST /api/tasks/{id}/reopen` with a required `reason`;
+only a completed or skipped request; authority as for any other step (admin/owner override, the assignee, a member of the request's
+department — front desk acts for Administration). The request returns to `pending` with its assignee kept; `completed_at`,
+`completed_by`, `started_at`, `duration_minutes` are cleared on the task (they stay in the history and receipts), `reopen_count`
+and `reopened_at` are set, the reason becomes the current note. One `task_reopened` receipt chained to the completion receipt;
+the reason and the status change are `event_log` entries carrying that receipt id. A reopen with no reason is 422 and writes nothing;
+a reopen of a still-open request is 409 and is recorded as `task_reopen_refused`. In the shared queue, Recently completed rows show
+**Reopen** (reason dialog, submit disabled until typed) for people who act for the department or admins; the history timeline reads
+"Reopened by <name>" with the reason.
+
+Headless rerun, 23 / 23 cases (new task `task_85d1ebafc75a`): the 18 earlier cases, plus Reopen disabled until a reason is typed;
+Reopen → card back in the queue as PENDING with assignee Dana Frost and the reason as its note; `GET /tasks/{id}/detail` after reopen =
+`pending` with exactly one `task_reopened` receipt whose parent is the completion receipt (7 receipts); History shows Completed then
+Reopened with the reason; a second Complete after the reopen works and the chain ends `task_reopened → task_completed` (8 receipts).
+0 failed API calls, 0 console errors. Screenshots `09_reopen_dialog_1280`, `10_reopened_card_1280`, `11_history_after_reopen_1280`.
+Backend gate on the feature: 537 passed / 0 failed / 31 skipped (new `test_frontdesk_reopen.py`: 422 / 409 + refusal receipt / nursing
+403 with nothing written / front-desk reopen with chained receipt and Aria status open again / admin reopen / chain unbroken after a
+second completion). Frontend 67 suites / 557 (new `departmentQueueReopen.test.js`, `requestHistory` reopen label).
+
+Observation: the reason appears twice in History (as the note entry and on the Reopened line), the same shape as a completion note. Not
+changed. Still not run: the administrator half (admin sign-in needed).
