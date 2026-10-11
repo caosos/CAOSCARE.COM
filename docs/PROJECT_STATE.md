@@ -8816,3 +8816,8 @@ Supervisor dispatch (#129 comment 6109958604) in the coordinator session. Built:
 
 ## 2026-10-11 — Dev backend restarted on `77f83d3`
 Guarded restart via `scripts/restart_dev_backend.sh`: preflight sha=77f83d3, 0 leases, no recent call activity, old pid 504444 (log /tmp/room214_backend_958093a.log = rollback provenance); new pid 531844, runtime commit 77f83d3 with a clean tree, log /tmp/room214_backend_77f83d3.log. The dev stack now applies the planned-window conflict check. Development only; production unchanged (`d7ff96a`), `main` unchanged (`880d10f`).
+
+---
+
+## 2026-10-11 — `main` promoted to the release candidate `ff87c22` (owner's hand)
+Michael ran the push himself from the coordinator terminal: `origin/main` `880d10f` → `ff87c22df1dd69b405fa0ec60429c20fe72f6801` (fast-forward; the SHA whose gate passed 536/0/31 + frontend 66/553 + build, recorded earlier today). Production is still `d7ff96a`: the exact-SHA Linode deploy and the LIVE_VERIFY of Transportation are the next two owner-run steps. Nothing on integration changed; this entry only records the promotion.
