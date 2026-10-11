@@ -75,6 +75,10 @@ export default function RequestsPanel({ residentId, room }) {
                   ) : !done && (
                     <p className="text-sm text-caos-mute italic mt-1">No service time scheduled yet</p>
                   )}
+                  {(t.provider_name || t.discipline) && (
+                    <p className="text-sm text-caos-ink/80 mt-1">With: {[t.provider_name, t.discipline && `(${t.discipline})`].filter(Boolean).join(" ")}</p>
+                  )}
+                  {t.location && <p className="text-sm text-caos-ink/80 mt-1">Where: {t.location}</p>}
                   {t.latest_update && (
                     <p className="text-sm text-caos-ink/70 mt-1 border-t border-caos-line pt-1">{t.latest_update}</p>
                   )}

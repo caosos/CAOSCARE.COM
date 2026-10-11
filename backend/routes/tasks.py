@@ -129,6 +129,9 @@ async def update_task(task_id: str, data: StaffTaskUpdate, user=Depends(get_curr
     patch = data.model_dump(exclude_unset=True)
     if "notes" in patch:
         await task_actions.add_note(task_id, patch.pop("notes"), actor, user)
+    details = {k: patch.pop(k) for k in list(patch) if k in task_actions.DETAIL_FIELDS}
+    if details:
+        await task_actions.set_details(task_id, details, actor, user)
     if patch:
         task, receipt = await task_actions.set_schedule(task_id, patch, actor, user)
         if receipt:   # the window really changed: a linked open ride follows it

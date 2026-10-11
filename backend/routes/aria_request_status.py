@@ -31,7 +31,18 @@ def _sched(task: dict) -> str:
     date = task.get("requested_for_date") or task.get("scheduled_date")
     if not label and not date:
         return ""
-    return " Planned for " + " on ".join(x for x in (label, date) if x) + "."
+    out = " Planned for " + " on ".join(x for x in (label, date) if x)
+    who = task.get("provider_name")
+    kind = task.get("discipline")
+    if who and kind:
+        out += f" with {who} ({kind})"
+    elif who:
+        out += f" with {who}"
+    elif kind:
+        out += f" ({kind})"
+    if task.get("location"):
+        out += f" at {task['location']}"
+    return out + "."
 
 
 def _note(task: dict, tz: Optional[str], lead: str) -> str:

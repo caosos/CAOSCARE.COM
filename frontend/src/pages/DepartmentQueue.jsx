@@ -117,7 +117,7 @@ export default function DepartmentQueue({ department, title, itemName = "request
     if (!planFor) return;
     try {
       await api.patch(`/tasks/${planFor}`, fields);
-      toast.success(fields.requested_for_date || fields.requested_for_time_label ? "Plan saved — the resident and Aria will see it" : "Plan cleared");
+      toast.success(fields.requested_for_date || fields.requested_for_time_label || fields.provider_name || fields.location ? "Plan saved — the resident and Aria will see it" : "Plan cleared");
       setPlanFor(null);
       load();
     } catch (err) {
@@ -187,6 +187,11 @@ export default function DepartmentQueue({ department, title, itemName = "request
             {(t.requested_for_date || t.requested_for_time_label) && (
               <div className="text-sm text-caos-forest" data-testid={`wo-planned-${t.task_id}`}>
                 Planned: {[t.requested_for_time_label, t.requested_for_date].filter(Boolean).join(" · ")}
+              </div>
+            )}
+            {(t.provider_name || t.discipline || t.location) && (
+              <div className="text-sm text-caos-ink/80" data-testid={`wo-details-${t.task_id}`}>
+                {[t.provider_name && `With: ${t.provider_name}${t.discipline ? ` (${t.discipline})` : ""}`, !t.provider_name && t.discipline && `Kind: ${t.discipline}`, t.location && `Where: ${t.location}`].filter(Boolean).join(" · ")}
               </div>
             )}
             {rideLine(rides[t.task_id]) && (
@@ -362,7 +367,8 @@ export default function DepartmentQueue({ department, title, itemName = "request
 
       <PlanWindowDialog open={!!planFor} onOpenChange={(o) => { if (!o) setPlanFor(null); }} itemName={itemName}
         initialDate={tasks.find((t) => t.task_id === planFor)?.requested_for_date || ""}
-        initialLabel={tasks.find((t) => t.task_id === planFor)?.requested_for_time_label || ""} onSave={savePlan} />
+        initialLabel={tasks.find((t) => t.task_id === planFor)?.requested_for_time_label || ""}
+        initialDetails={tasks.find((t) => t.task_id === planFor) || {}} onSave={savePlan} />
       <ReasonDialog open={!!cancelFor} onOpenChange={(o) => { if (!o) setCancelFor(null); }} title={`Cancel ${itemName}`}
         description="The request is closed as cancelled; the reason is recorded in its history and receipts." placeholder="Why is it cancelled? (required)"
         submitLabel="Cancel request" testId="wo-cancel" onSubmit={cancelRequest} />

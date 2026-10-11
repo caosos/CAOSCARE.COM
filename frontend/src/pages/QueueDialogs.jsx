@@ -12,10 +12,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 // The planned visit window - the SAME two fields the admin/front-desk detail
 // dialog saves (requested_for_date / requested_for_time_label), the fields the
 // resident's Home screen and Aria's check_request_status read.
-export function PlanWindowDialog({ open, onOpenChange, initialDate = "", initialLabel = "", itemName = "request", onSave }) {
+export function PlanWindowDialog({ open, onOpenChange, initialDate = "", initialLabel = "", initialDetails = {}, itemName = "request", onSave }) {
   const [date, setDate] = useState(initialDate);
   const [label, setLabel] = useState(initialLabel);
-  useEffect(() => { if (open) { setDate(initialDate || ""); setLabel(initialLabel || ""); } }, [open, initialDate, initialLabel]);
+  const [provider, setProvider] = useState(initialDetails.provider_name || "");
+  const [discipline, setDiscipline] = useState(initialDetails.discipline || "");
+  const [location, setLocation] = useState(initialDetails.location || "");
+  useEffect(() => {
+    if (open) {
+      setDate(initialDate || ""); setLabel(initialLabel || "");
+      setProvider(initialDetails.provider_name || ""); setDiscipline(initialDetails.discipline || ""); setLocation(initialDetails.location || "");
+    }
+  }, [open, initialDate, initialLabel, initialDetails.provider_name, initialDetails.discipline, initialDetails.location]);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
@@ -24,9 +32,13 @@ export function PlanWindowDialog({ open, onOpenChange, initialDate = "", initial
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div><Label>Date</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} data-testid="wo-plan-date" /></div>
           <div><Label>Time</Label><Input placeholder="e.g. 10:00 AM" value={label} onChange={(e) => setLabel(e.target.value)} data-testid="wo-plan-label" /></div>
+          <div><Label>With (optional)</Label><Input placeholder="provider or staff name" maxLength={120} value={provider} onChange={(e) => setProvider(e.target.value)} data-testid="wo-plan-provider" /></div>
+          <div><Label>Kind (optional)</Label><Input placeholder="e.g. physical therapy" maxLength={60} value={discipline} onChange={(e) => setDiscipline(e.target.value)} data-testid="wo-plan-discipline" /></div>
+          <div className="sm:col-span-2"><Label>Where (optional)</Label><Input placeholder="e.g. Therapy room, 2nd floor" maxLength={160} value={location} onChange={(e) => setLocation(e.target.value)} data-testid="wo-plan-location" /></div>
         </div>
         <DialogFooter>
-          <Button onClick={() => onSave({ requested_for_date: date || null, requested_for_time_label: label.trim() || null })}
+          <Button onClick={() => onSave({ requested_for_date: date || null, requested_for_time_label: label.trim() || null,
+            provider_name: provider.trim() || "", discipline: discipline.trim() || "", location: location.trim() || "" })}
             className="bg-caos-forest" data-testid="wo-plan-save">Save plan</Button>
         </DialogFooter>
       </DialogContent>

@@ -298,6 +298,9 @@ def _resident_safe_view(task: dict, tz: str) -> dict:
         "completed_by_name": task.get("completed_by_name"),
         "scheduled_date": task.get("requested_for_date"),        # planned service window,
         "scheduled_time_label": task.get("requested_for_time_label"),  # separate from lifecycle
+        "provider_name": task.get("provider_name"),      # optional appointment details (who / what / where)
+        "discipline": task.get("discipline"),
+        "location": task.get("location"),
         "latest_update": task.get("notes") or "",
         "latest_update_at": _facility_local(note_at, tz),
         "re_request_count": task.get("re_request_count", 0),

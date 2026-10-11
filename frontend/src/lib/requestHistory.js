@@ -45,6 +45,8 @@ function describe(e, task) {
       return { label: `Visit window set${by(e)}`, text: e.text };
     case "re_request":
       return { label: `Resident asked again (${Number(e.to) + 1}x)`, text: e.text };
+    case "details":
+      return { label: `Details updated${by(e)}`, text: e.text, kind: "detail" };
     case "ride_requested":
       return { label: `Ride requested${by(e)}`, text: e.text, kind: "detail" };
     case "linked_appointment":

@@ -101,6 +101,25 @@ async def set_schedule(task_id: str, fields: dict, actor: ActorContext, user: di
                             action_type="task_schedule_updated", status="created")
 
 
+DETAIL_FIELDS = ("provider_name", "discipline", "location")
+
+
+async def set_details(task_id: str, fields: dict, actor: ActorContext, user: dict):
+    """Optional operational appointment details (who / what kind / where).
+    Whitespace is trimmed; an empty value clears the field. Unchanged values
+    are not a change (no write, no receipt)."""
+    cleaned = {k: ((v or "").strip() or None) for k, v in fields.items() if k in DETAIL_FIELDS}
+
+    def build(t, rid):
+        changed = {k: v for k, v in cleaned.items() if v != t.get(k)}
+        if not changed:
+            return None
+        text = " · ".join(f"{k.replace('_', ' ')}: {v or 'cleared'}" for k, v in changed.items())
+        return changed, [_ev("details", actor, rid, text=text)]
+    return await transition(task_id, actor, user, action="details", build=build,
+                            action_type="task_details_updated", status="created")
+
+
 def _close_events(t: dict, to_status: str, notes: Optional[str], actor: ActorContext, rid: str) -> list:
     """A closing note is its own entry, so it never replaces earlier notes."""
     entries = []

@@ -56,7 +56,7 @@ test("Plan saves the two canonical window fields with PATCH /tasks/{id}", async 
   await setVal(q("wo-plan-label"), "2:00 PM", HTMLInputElement.prototype);
   mockApi.patch.mockResolvedValueOnce({ data: {} });
   await act(async () => { q("wo-plan-save").click(); }); await flush();
-  expect(mockApi.patch).toHaveBeenCalledWith("/tasks/a1", { requested_for_date: "2026-10-15", requested_for_time_label: "2:00 PM" });
+  expect(mockApi.patch).toHaveBeenCalledWith("/tasks/a1", { requested_for_date: "2026-10-15", requested_for_time_label: "2:00 PM", provider_name: "", discipline: "", location: "" });
   expect(q("wo-plan-date")).toBeNull();
 });
 
@@ -69,4 +69,16 @@ test("Cancel needs a reason and posts the canonical skip with it", async () => {
   await act(async () => { q("wo-cancel-submit").click(); }); await flush();
   expect(mockApi.post).toHaveBeenCalledWith("/tasks/a1/skip", { notes: "Therapist out sick; family will rebook" });
   expect(q("wo-cancel-reason")).toBeNull();
+});
+
+test("Plan also saves the optional provider, kind and location; the card shows them", async () => {
+  mockApi.get.mockImplementation((u) => Promise.resolve({ data: u === "/tasks" ? [{ ...appt, provider_name: "Tess Ortiz PT", discipline: "physical therapy", location: "Therapy room" }] : [] }));
+  await render();
+  expect(q("wo-details-a1").textContent).toBe("With: Tess Ortiz PT (physical therapy) · Where: Therapy room");
+  await act(async () => { q("wo-plan-a1").click(); });
+  expect(q("wo-plan-provider").value).toBe("Tess Ortiz PT");
+  await setVal(q("wo-plan-location"), "Clinic, 2nd floor", HTMLInputElement.prototype);
+  mockApi.patch.mockResolvedValueOnce({ data: {} });
+  await act(async () => { q("wo-plan-save").click(); }); await flush();
+  expect(mockApi.patch).toHaveBeenCalledWith("/tasks/a1", { requested_for_date: "2026-10-14", requested_for_time_label: "10:00 AM", provider_name: "Tess Ortiz PT", discipline: "physical therapy", location: "Clinic, 2nd floor" });
 });
