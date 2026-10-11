@@ -8803,3 +8803,7 @@ Evidence:
 
 Next single bounded task: `careops-therapy-conflict-001`.
 Use only canonical StaffTask planned fields plus a bounded operational duration to detect same-resident overlaps. Expose a truthful warning and explicit receipted save-anyway path in existing Plan/detail/Upcoming surfaces; preserve linked-ride behavior. Tests and isolated browser acceptance must cover overlap/non-overlap, authorization, unparseable-time honesty, admin/staff/front-desk views, responsive layout, and the `b229485` lifecycle-button rule. No new calendar store, recurrence generation, clinical content, billing, messaging, audio, paid services, production deployment, or real-data mutation.
+
+
+### 2026-10-11 09:19:07 CDT — therapy-conflict delivery receipt
+Automatic intake delivered `da-b4fa364b0f` to the existing `caoscare-1-ee` session (Issue #129 comment 6109970689). Delivery is proven; ACK/WORKING is not yet proven. No duplicate process was created. Slack liaison output `1791728274.258519`.
