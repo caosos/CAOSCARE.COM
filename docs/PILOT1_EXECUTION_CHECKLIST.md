@@ -93,9 +93,9 @@ Acceptance:
 - [x] "Turn the light off." → state OFF → room visual changes immediately — same isolated run; visual OFF within ~5 s (1 s poll), "I've turned the light off."
 - [x] Thermostat up / down — 72 → 68 (isolated stack) and 79 → 74 → 79 (localhost:3000 demo kiosk (Room 401, shared DB), real Aria typed session, 2026-10-02); visual and caption followed each change
 - [x] TV on / off — isolated stack and localhost:3000 demo kiosk (Room 401, shared DB), real Aria typed session, 2026-10-02
-- [ ] TV volume / channel (as currently supported) — not proven: no channel tool; volume needs volume words in the request
-- [ ] Blinds open / close (as currently supported) — not proven: blinds are drawn and reset, but Aria has no blinds tool
-- [ ] Staff-help request shown on the kiosk — not built in the demo room visual (existing Requests panel only)
+- [~] TV volume / channel — code + tests merged (RQ-021 `78f6e2d`: `set_tv_channel`, `adjust_tv_volume`, grounded in the resident's words, verified read-back, simulated label); typed/spoken live run on the demo kiosk not yet done
+- [~] Blinds open / close — `set_blinds` tool merged (RQ-021 `78f6e2d`) with grounding and read-back; live demo-kiosk run not yet done
+- [~] Staff-help request shown on the kiosk — staff-notified chip merged (RQ-021 `78f6e2d`; words by real stage, never promises arrival); browser check not yet done
 - [ ] Call-front-desk visualization (a visualization only; calling itself is Phase 6) — not built
 - [~] Typed input uses the same path as voice — typed text goes into the same Realtime session and tools (proven, both runs); a real spoken voice run on the demo kiosk not yet done
 - [x] DEMO RESET restores a known baseline for lights, TV, thermostat, blinds and demo requests — on the isolated stack (browser button + `test_demo_kiosk.py::test_demo_light_reset_and_guards`: baseline, demo requests closed as `skipped` with history, refuses a room with a real device). Michael's decision (2026-10-03): the demo kiosk uses a demo-only room. It now lives in room `DEMO` with synthetic resident "Demo - Sample Resident" (`backend/scripts/setup_demo_room.py`); reset refuses any other room. Proven on localhost:3000 `/kiosk/demo`, shared local DB, real Aria typed session, 2026-10-03: reset → baseline; a demo maintenance request created by Aria was closed as `skipped` by reset; Room 401 (6 open requests) and Room 214 unchanged.
@@ -134,9 +134,9 @@ General corrections:
 
 - [ ] Fix stale/misleading copy
 - [ ] Replace weak/outdated screenshots — known: TV and thermostat shown on demo devices; pendant screenshot is a thin table crop.
-- [ ] Remove old tablet wording — known: room screen says "the tablet will ask for microphone permission" (`frontend/src/pages/Kiosk.jsx`).
-- [ ] Correct pendant frequency overclaims — known: admin Pendants screen says any 315/319/433/868/915 MHz pendant works (`frontend/src/pages/RFPairingTab.jsx`); proven with one 319.5 MHz model only.
-- [ ] Correct unsupported notification wording — known: room screen says "I'll stay with you while staff are notified".
+- [x] Remove old tablet wording — RQ-019 `d78224e`; grep of `frontend/src` finds no "tablet will ask" (2026-10-10)
+- [x] Correct pendant frequency overclaims — RQ-019 `d78224e`; grep finds no "any 315/319…" claim in `frontend/src` (2026-10-10)
+- [x] Correct unsupported notification wording — RQ-019 `d78224e`; "I'll stay with you" no longer in `frontend/src` (2026-10-10)
 - [ ] Improve text-heavy panels
 - [~] Ensure real UI screenshots are used where software exists — 22 real screens (demo data), merged into integration at `e70fbce`; desktop/mobile acceptance on integration still pending.
 - [~] Keep planned/in-development demonstrations explicitly labeled — merged into integration at `e70fbce`.
@@ -219,7 +219,7 @@ Status note: `[~]` below means the software path exists (see screenshots in `fro
 
 - [~] Cross-department view
 - [~] Request detail
-- [~] Receipts/history — some status changes still overwrite the previous receipt instead of appending (`docs/ENGINEERING_CONTRACT.md` decision 5).
+- [~] Receipts/history — receipts append (SC-1/SC-13, alert receipts `eb00c5c` append-only test); remaining: a browser walk of History for every department
 - [~] Operational overview
 
 **Alerts / escalation**
