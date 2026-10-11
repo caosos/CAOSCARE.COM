@@ -8530,3 +8530,8 @@ Receipts:
 - Living checklist no-idle protocol: `d76d61fccd79ea71d47fe025db15f9ae94b509fe`
 - Issue #129 receipt comment: `6105355182`
 - Automation id: `6acaeb1660a88191aca7fe8f4dfb84d6` (enabled)
+
+---
+
+## 2026-10-10 — PR #130 (Transportation workspace operable for staff) accepted in the dev runtime
+Merged `agent/transport-workspace-workable` (`21b2261`) into the integration line (no conflicts). Gate 536/0/31; frontend 553; build compiled; dev backend restarted on `dc2e4ca`. Browser as Transportation staff: create -> assign -> open details -> change -> cancel (with reason); second ride Departed -> Completed; receipts chained and authenticated (details in the living checklist update of the same date). Silent testing, no voice. Not promoted to main, not deployed.

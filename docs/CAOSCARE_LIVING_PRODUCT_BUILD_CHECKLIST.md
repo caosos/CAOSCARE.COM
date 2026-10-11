@@ -66,6 +66,16 @@ This protocol applies to every bounded build item, fix, workflow, and section.
 - **Current live worker heartbeat:** not provable from GitHub alone. Recent code and PR activity are proven; a running Claude process is not.
 - **Owner decision required now:** none.
 
+### Update 2026-10-10 (EliteDesk, receipts)
+
+- **PR #130 merged into the local integration line** (merge of `21b2261`; no conflicts) on top of the 2026-10-10 My-rides work. **DEV_ACCEPTED, silently, no audio.**
+- Tests on the merge: backend gate 536 passed / 0 failed / 31 skipped (port 8137, includes the extended Transportation lifecycle test); frontend 66 suites / 553 tests; `CI=true yarn build` compiled.
+- Dev backend restarted with `scripts/restart_dev_backend.sh` on the merge commit (`dc2e4ca`; 0 leases; log `/tmp/room214_backend_dc2e4ca.log`).
+- Browser (localhost:3000, signed in as the synthetic Transportation staff user "Demo - Pete Nash", `/workspace`): New ride (resident picker, purpose, appointment time as said) saved to "Needs coordination" -> Assign (pickup 13:15, confirmed with the demo driver/van) -> Open trip details (Change, Cancel, History) -> Change (moved to 14:02; the emptied 13:15 run shows Cancelled) -> Cancel with a reason. A second ride: Departed then Ride completed.
+- Receipts for the first ride (`task_66caca092bf7`): `rcpt_60f8629f568e` requested, `rcpt_2906672ace84` booked, `rcpt_330f78904ce3` changed, `rcpt_d2946735dc6f` cancelled. Second ride (`task_2f7979e53135`): requested `rcpt_b54c68c74202`, booked, departed, completed. All real-human, identity authenticated, authority `acts_for:transportation`, channel `staff_ui`.
+- Observations (not defects): the task's own `source` stays `front_desk` for staff-entered rides because Aria's ride-status lookup reads that value; the receipt channel is `staff_ui`. "My tasks today" refreshes every 10 s, so a just-completed ride can show for a few seconds.
+- **Not done:** pushed to `integration/2026-09-27` only. Not promoted to `main`, not deployed to Linode, no live browser verification. Issue #129's latest instruction for this slice says no Linode/main; the PR text says authorization allows it; I did not act on that ambiguity. **READY_FOR_OWNER_REVIEW for the dev workflow:** Michael to review at http://localhost:3000/workspace (demo transportation user) and say whether to promote.
+
 ### Exact current sequence
 
 1. Refresh PR #130 onto current integration and resolve any conflicts.
