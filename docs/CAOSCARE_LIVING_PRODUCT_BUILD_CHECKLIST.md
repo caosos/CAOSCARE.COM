@@ -70,7 +70,7 @@ This is the required path whenever an agent, coordinator, watchdog, service, or 
 - **ONE current bounded task:** `careops-transport-live-001` — Transportation authenticated LIVE_VERIFY on deployed `ff87c22`; the exact-SHA Linode deployment and 12/12 public smoke are complete. Therapy conflict remains DEV_ACCEPTED on integration product `77f83d3` (backend 542 passed/31 skipped, frontend 75 suites/585, browser 17/17), not deployed.
 - **Control issue / dispatch channel:** [#129](https://github.com/caosos/CAOSCARE.COM/issues/129).
 - **Completed review:** [PR #130](https://github.com/caosos/CAOSCARE.COM/pull/130), merged into integration.
-- **Integration branch:** `integration/2026-09-27`; latest product commit `b229485c96a57fb45d5a01c2f66a97bf0c00aced` (lifecycle-button authority cleanup, IMPLEMENTED/TESTED only); upcoming-view DEV_ACCEPTED product commit `958093a4f27080035f8e5552c9fbcc695e894c06`; guarded dev-restart record `fce6026e61c3b6fa530e3f03581f1f54617a8fe0`; release baseline remains separate until the release gate.
+- **Integration branch:** `integration/2026-09-27`; current accepted therapy-conflict product commit `77f83d3d53e17ffb75c71d137ab876e50552efe9` with guarded dev restart `1bf1bec26ea58a6c55730fea3c858734eb788d54`. This later integration work is not in production `ff87c22`; the release baseline is separate.
 - **Transportation implementation:** `agent/transport-workspace-workable` at `21b2261f021d152181c94d8c95d006c533b18529`; integration merge `dc2e4ca1ba22aa6a0e81b950f5597f83a9b4c4ba`.
 - **Accepted state:** IMPLEMENTED, TESTED, and DEV_ACCEPTED with receipt-backed browser evidence.
 - **Not yet accepted:** authenticated production Transportation browser/receipt verification. `main` and production were observed at `ff87c22`; production deploy completed 21:28:50Z with backup `20261011-212802-pre-deploy-d7ff96a4e4d1`, independent bundle/service check, and 12/12 public smoke. This is a dated observation, not a current process heartbeat.
@@ -79,7 +79,7 @@ This is the required path whenever an agent, coordinator, watchdog, service, or 
 - **Owner decision required now:** none established. Routine build, promotion, exact-SHA deployment, restarts, tests and repair are already authorized. A GitHub tool consent prompt is separate from a Care App owner decision.
 - **Authority reconciliation:** comment `6105970504` records that the later explicit owner authorization in Issue #129 and current PR #130 supersedes the original pre-acceptance no-deploy note. Do not ask Michael to approve the same release again.
 - **Recovery evidence:** Desktop-Agent main `14aa2da70933118631a92631f511648de6788e8c` provides five-minute unacked detection and redelivery; controlled recovery evidence is in Desktop-Agent comment `6106188802`. CAOSCare commit `58010c2ed6796ab1bb9245f642fa16cfc5a12af8` repairs the heartbeat probe (11 owner-intake tests passed; live `coordinator_state.py` exits 0). The last proven ACK/WORKING on the retired coordinator is historical, not current liveness.
-- **Slack liaison checkpoint:** processed through thread TS `1791718151.045669` (06:29:11 CDT). Messages after the CAOSCare ACK were Deal Sniffer-only NEED/ACK traffic; they were cross-referenced without creating CAOSCare work. CAOSCare posted the ride-link completion/details-dispatch ACK at TS `1791720529.563279`, linked to Issue receipt `6108860768`. No new CAOSCare liaison request or owner action.
+- **Slack liaison checkpoint:** scanned through `1791754656.483969` (16:37:36 CDT); newer messages were Deal Sniffer-only and were not acted on as CAOSCare work. Care App checkpoint posted at `1791755715.385529` (16:55:15 CDT), linked to Issue #129 comment `6114212326`.
 
 ### Update 2026-10-11 07:05 CDT (therapy ride link DEV_ACCEPTED; operational appointment details dispatched)
 
@@ -384,7 +384,7 @@ Milestone: code is not merely present; the deployed product is usable.
 | M4 — Remaining departments | Dining, Activities, Housekeeping, Admin/reporting, alerts/escalation usable | PARTIAL / some planned | 5–10 focused workdays |
 | M5 — Real communications | Email, then SMS/phone, with real delivery/call receipts | BLOCKED on provider configuration | 1–3 focused days per service after configuration |
 | M6 — Pilot acceptance | One real room + staff + communications + recovery; then repeatability | NOT STARTED as a complete gate | 3–5 focused workdays after dependencies |
-| M7 — Release verified | Exact SHA on Linode, live workflow accepted, release receipt recorded | NOT STARTED for current slice | 0.5–1 focused day per accepted release |
+| M7 — Release verified | Exact SHA on Linode, live workflow accepted, release receipt recorded | Exact-SHA Linode deploy and 12/12 public smoke completed; authenticated workflow/receipt gate pending | after authenticated role acceptance |
 
 **Current honest overall position:** the foundation is substantial, and Nursing/Maintenance have local end-to-end evidence. The product is not yet release-ready because Transportation is DEV_ACCEPTED but not LIVE_VERIFIED, the other department workspaces are incomplete or unaccepted, external communications are not live, and the full pilot/release gate has not passed.
 
