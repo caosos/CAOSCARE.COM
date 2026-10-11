@@ -1,6 +1,6 @@
 # CAOSCare — Living Product Build Checklist
 
-Updated: 2026-10-11 (03:20 CDT supervisor follow-through, America/Chicago).
+Updated: 2026-10-11 (03:24 CDT supervisor routing quarantine, America/Chicago).
 
 This is the owner-facing product build and progress tracker for the Care Operations build. Canonical owner direction: [Issue #129](https://github.com/caosos/CAOSCARE.COM/issues/129). Detailed historical evidence remains in [PILOT1_EXECUTION_CHECKLIST.md](https://github.com/caosos/CAOSCARE.COM/blob/integration/2026-09-27/docs/PILOT1_EXECUTION_CHECKLIST.md). This file controls current phase, active task, milestones, ETA, blockers, and the reporting contract.
 
@@ -89,6 +89,7 @@ This is the required path whenever an agent, coordinator, watchdog, service, or 
 - NEED_PERMISSION / NEED_HOST_ACTION remains: the coordinator classifier refused the main push, deployment SSH, and GitHub receipt command; live acceptance also needs an authenticated owner/admin browser session and driver/vehicle choice. Michael is unavailable tonight. No new authorization decision is required.
 - No-idle fallback dispatched to the existing `caoscare-1-ee` coordinator only: `careops-frontdesk-reopen-001` — add and accept reopening a completed Front Desk request with truthful lifecycle state, linked receipts, focused API/UI tests, and synthetic browser evidence. If already claimed elsewhere, the coordinator must not duplicate it and must name the next unclaimed Front Desk/Admin checklist item.
 - Automatic completion-to-next-task remains unproven; prior handoff required manual recovery. The next receipt must be timestamped `ACK` / `WORKING`, or a structured NEED if Desktop-Agent delivery is unavailable.
+- Cross-project route contamination is now proven: Desktop-Agent Issue #3 comment `6106927226` delivered Desktop Agent item `da-601704c864` to CAOSCare coordinator `caoscare-1-ee`. CAOSCare quarantined it at Issue #129 comment `6107092750`; repair ownership was cross-referenced to Desktop Agent at its Issue #3 comment `6107092837`. Until exact-project routing is re-verified, GitHub Issue #129 remains the canonical CAOSCare dispatch and wrong-project `da-*` work must not be executed here.
 
 ### Update 2026-10-11 01:24 CDT (coordinator route recovery)
 
