@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "updated_at": "2026-10-11T10:52:00Z",
-  "updated_by": "ChatGPT CAOSCare Build Supervisor (therapy DEV_ACCEPTED; transport-link dispatch)",
+  "updated_at": "2026-10-11T10:55:42Z",
+  "updated_by": "ChatGPT CAOSCare Build Supervisor (therapy handoff mirrored to Slack)",
   "ready_unblocked": [
     "careops-therapy-transport-link-001: reuse canonical therapy StaffTask + existing transportation request engine; one optional idempotent linked ride, authorization/status/provenance receipts, isolated automated + browser acceptance; no parallel truth store, recurrence, provider/discipline, billing, external messaging, audio, paid service, production deploy, or real-data mutation"
   ],
@@ -21,5 +21,5 @@
     "PR #67 adoption",
     "per-kiosk device-credential decision"
   ],
-  "note": "careops-therapy-appointment-001 is DEV_ACCEPTED at 47674f5329500e9fbb508cca01b5bc1d98906df9. Gates: backend 538 passed/31 skipped, frontend 68 suites/561, build compiled, isolated browser 21/21, report blob 803a396d4d58eff61785555e9acc9c5294dfb273. Dev backend :8092 restarted cleanly on 47674f5 via d0718e2; main 880d10f and production d7ff96a unchanged. GitHub has no combined-status contexts or PR-triggered runs for 47674f5, so recorded local gates are canonical. Slack processed through 1791715716.977699; newest item was Deal Sniffer cross-project only. No current owner action; quarantine remains active and no replay."
+  "note": "careops-therapy-appointment-001 is DEV_ACCEPTED at 47674f5329500e9fbb508cca01b5bc1d98906df9. Gates: backend 538 passed/31 skipped, frontend 68 suites/561, build compiled, isolated browser 21/21, report blob 803a396d4d58eff61785555e9acc9c5294dfb273. Dev backend :8092 restarted cleanly on 47674f5 via d0718e2; main 880d10f and production d7ff96a unchanged. GitHub has no combined-status contexts or PR-triggered runs for 47674f5, so recorded local gates are canonical. Slack input processed through 1791715716.977699; newest input was Deal Sniffer cross-project only. CAOSCare completion/dispatch ACK posted at 1791716142.179459, linked to Issue #129 receipt 6108284581. No current owner action; quarantine remains active and no replay."
 }
