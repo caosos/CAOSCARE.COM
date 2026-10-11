@@ -41,6 +41,16 @@ This protocol applies to every bounded build item, fix, workflow, and section.
    - If Michael does not approve it, record the punch list, keep the section `[~]`, and make the first correction the active task.
 9. **No silent advancement.** A section is not DONE and is not checked off solely because code, tests, a PR, a merge, or a deployment exists.
 
+## No-idle execution protocol
+
+- An agent that finishes a bounded task must produce its completion receipt and accept the next eligible task immediately.
+- An agent that becomes blocked must record the exact blocker and take another compatible, authorized task.
+- The coordinator keeps the next bounded task prepared before the current task finishes.
+- Idle is permitted only when every authorized task is blocked, unsafe, conflicting, or awaiting a genuine owner decision; the reason must be recorded.
+- No invented busywork, duplicate worker, duplicate queue, or conflicting edit is allowed merely to keep an agent occupied.
+- GitHub activity is not a process heartbeat. The EliteDesk local coordinator/watchdog must enforce the five-minute idle-detection and next-task handoff target and publish timestamped receipts.
+- The hourly cloud supervisor is a backup reconciliation layer; PR Watch handles matching GitHub PR events. Neither is represented as a five-minute host watchdog.
+
 ## Current build control
 
 - **Current phase:** 3/7 — Care Operations workspaces.
