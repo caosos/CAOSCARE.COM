@@ -18,6 +18,12 @@ import { driverHoursLabel } from "../lib/transportation";
 // guessing.
 
 function DriverSection({ drivers, onChange }) {
+  const [logins, setLogins] = useState([]);
+  useEffect(() => { api.get("/staff").then((r) => setLogins((r.data || []).filter((u) => ["staff", "front_desk"].includes(u.role)))).catch(() => setLogins([])); }, []);
+  const link = async (d, userId) => {
+    try { await api.patch(`/transportation/drivers/${d.driver_id}`, { user_id: userId || null }); onChange(); }
+    catch (e) { toast.error(e?.response?.data?.detail || "Could not link login"); }
+  };
   const [form, setForm] = useState({ name: "", is_flex: false });
   const [hoursFor, setHoursFor] = useState(null);
   const add = async () => {
@@ -48,7 +54,7 @@ function DriverSection({ drivers, onChange }) {
         <Button onClick={add} className="bg-caos-forest hover:bg-caos-forest-hover rounded-full" data-testid="add-driver-btn"><Plus className="w-4 h-4" /></Button>
       </div>
       <Table>
-        <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Working hours</TableHead><TableHead>Flex</TableHead><TableHead>Enabled</TableHead><TableHead></TableHead></TableRow></TableHeader>
+        <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Working hours</TableHead><TableHead>Login (My rides)</TableHead><TableHead>Flex</TableHead><TableHead>Enabled</TableHead><TableHead></TableHead></TableRow></TableHeader>
         <TableBody>
           {drivers.map((d) => (
             <TableRow key={d.driver_id} data-testid={`driver-row-${d.driver_id}`}>
@@ -57,6 +63,12 @@ function DriverSection({ drivers, onChange }) {
                 <Button variant="ghost" size="sm" className="h-auto py-1 px-2 text-left font-normal" onClick={() => setHoursFor(d)} data-testid={`driver-hours-${d.driver_id}`}>
                   <Clock className="w-3.5 h-3.5 mr-1.5 shrink-0" /> {driverHoursLabel(d)}
                 </Button>
+              </TableCell>
+              <TableCell>
+                <select className="border rounded px-2 py-1 text-sm max-w-[10rem]" value={d.user_id || ""} onChange={(e) => link(d, e.target.value)} data-testid={`driver-login-${d.driver_id}`}>
+                  <option value="">No login</option>
+                  {logins.map((u) => <option key={u.user_id} value={u.user_id}>{u.name}</option>)}
+                </select>
               </TableCell>
               <TableCell><Checkbox checked={d.is_flex} onCheckedChange={() => toggle(d, "is_flex")} /></TableCell>
               <TableCell><Checkbox checked={d.enabled} onCheckedChange={() => toggle(d, "enabled")} /></TableCell>

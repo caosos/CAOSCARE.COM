@@ -42,7 +42,7 @@ def _rider_view(task: dict) -> dict:
 
 
 @router.get("/calendar")
-async def calendar(date: Optional[str] = None, days: int = 1, user=Depends(require_transport_operator)):
+async def calendar(date: Optional[str] = None, days: int = 1, mine: bool = False, user=Depends(require_transport_operator)):
     """view=day is days=1 (default), view=week is days=7. Every occupied
     window, shared run, and still-pending request for the range comes back
     together so the UI never has to reconstruct the day from separate calls."""
@@ -50,7 +50,14 @@ async def calendar(date: Optional[str] = None, days: int = 1, user=Depends(requi
     start = date or datetime.utcnow().strftime("%Y-%m-%d")
     dates = _date_range(start, days)
 
-    runs = [await reconcile_run(r) for r in await db.transport_runs.find({"date": {"$in": dates}}, {"_id": 0}).to_list(500)]
+    run_q = {"date": {"$in": dates}}
+    my_driver = None
+    if mine:
+        # "My rides": only runs assigned to the driver linked to this login. No linked driver = nothing, never everyone's rides.
+        my_driver = await db.transport_drivers.find_one({"user_id": user["user_id"]}, {"_id": 0, "driver_id": 1, "name": 1})
+        run_q["driver_id"] = my_driver["driver_id"] if my_driver else "__none__"
+
+    runs = [await reconcile_run(r) for r in await db.transport_runs.find(run_q, {"_id": 0}).to_list(500)]
     driver_ids = {r["driver_id"] for r in runs if r.get("driver_id")}
     vehicle_ids = {r["vehicle_id"] for r in runs if r.get("vehicle_id")}
     drivers = await _resource_lookup(driver_ids, db.transport_drivers)
@@ -66,7 +73,7 @@ async def calendar(date: Optional[str] = None, days: int = 1, user=Depends(requi
         {"category": "transportation", "status": {"$in": OPEN_TASK_STATUSES}, "transport_run_id": None,
          "requested_for_date": {"$in": dates}},
         {"_id": 0},
-    ).to_list(500)
+    ).to_list(500) if not mine else []   # unassigned rides are nobody's "mine"
 
     days_out = []
     for d in dates:
@@ -90,4 +97,8 @@ async def calendar(date: Optional[str] = None, days: int = 1, user=Depends(requi
             "pending": [_rider_view(t) | {"received_at": t.get("created_at")} for t in pending_tasks if t.get("requested_for_date") == d],
         })
 
-    return {"start_date": start, "days": days_out}
+    out = {"start_date": start, "days": days_out}
+    if mine:
+        out["mine"] = True
+        out["linked_driver"] = my_driver["name"] if my_driver else None
+    return out

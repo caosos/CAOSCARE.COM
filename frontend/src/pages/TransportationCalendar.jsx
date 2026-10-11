@@ -63,6 +63,8 @@ export default function TransportationCalendar({ refreshKey = 0 }) {
   const canOperate = canBook || (user?.role === "staff" && user?.department === "transportation");
   const [date, setDate] = useState(todayLocal());
   const [view, setView] = useState("day"); // day | week
+  const isDriverView = user?.role === "staff";   // transportation staff start on "My rides"; admin/front desk see everything
+  const [mine, setMine] = useState(isDriverView);
   const [data, setData] = useState(null);
   const [newRide, setNewRide] = useState(false);
   const [changeRide, setChangeRide] = useState(null);
@@ -71,13 +73,13 @@ export default function TransportationCalendar({ refreshKey = 0 }) {
 
   const fetchCalendar = async () => {
     try {
-      const { data: d } = await api.get("/transportation/calendar", { params: { date, days: view === "week" ? 7 : 1 } });
+      const { data: d } = await api.get("/transportation/calendar", { params: { date, days: view === "week" ? 7 : 1, ...(mine ? { mine: true } : {}) } });
       setData(d);
     } catch {
       toast.error("Could not load transportation calendar");
     }
   };
-  useEffect(() => { fetchCalendar(); }, [date, view, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchCalendar(); }, [date, view, mine, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const step = view === "week" ? 7 : 1;
   const withDay = (day) => (r) => ({ ...r, requested_for_date: r.requested_for_date || day.date });
@@ -92,6 +94,11 @@ export default function TransportationCalendar({ refreshKey = 0 }) {
           <Button variant="outline" size="sm" className="border-2 rounded-full shrink-0" onClick={() => setDate((d) => addDays(d, step))} data-testid="calendar-next">→</Button>
           <Button variant="outline" size="sm" className={`border-2 rounded-full shrink-0 ${view === "day" ? "bg-caos-forest text-white" : ""}`} onClick={() => setView("day")} data-testid="calendar-view-day">Day</Button>
           <Button variant="outline" size="sm" className={`border-2 rounded-full shrink-0 ${view === "week" ? "bg-caos-forest text-white" : ""}`} onClick={() => setView("week")} data-testid="calendar-view-week">Week</Button>
+          {isDriverView && (
+            <Button variant="outline" size="sm" className={`border-2 rounded-full shrink-0 ${mine ? "bg-caos-forest text-white" : ""}`} onClick={() => setMine((m) => !m)} data-testid="calendar-mine-toggle">
+              {mine ? "My rides" : "All rides"}
+            </Button>
+          )}
           {canBook && (
             <Button size="sm" className="bg-caos-forest hover:bg-caos-forest-hover rounded-full shrink-0" onClick={() => setNewRide(true)} data-testid="calendar-new-ride">
               <Plus className="w-4 h-4 mr-1" /> New ride
@@ -99,6 +106,11 @@ export default function TransportationCalendar({ refreshKey = 0 }) {
           )}
         </div>
       </div>
+      {mine && data && !data.linked_driver && (
+        <p className="text-sm text-caos-terracotta mb-3" data-testid="calendar-not-linked">
+          Your login is not linked to a driver yet, so there are no rides to show. Ask an administrator to link it in Transport resources, or tap "My rides" to see all rides.
+        </p>
+      )}
       {!data ? (
         <div className="text-caos-mute text-sm">Loading…</div>
       ) : (

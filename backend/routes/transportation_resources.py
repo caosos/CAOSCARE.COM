@@ -18,6 +18,19 @@ from transportation_engine import get_scheduling_config
 router = APIRouter(prefix="/transportation", tags=["transportation-resources"])
 
 
+async def _check_driver_user(user_id, driver_id=None):
+    """A linked login must be a real staff/admin user and belong to one driver only. Empty/null = unlinked."""
+    if not user_id:
+        return None
+    u = await db.users.find_one({"user_id": user_id}, {"_id": 0, "role": 1})
+    if not u or u.get("role") not in ("staff", "admin", "owner", "front_desk"):
+        raise HTTPException(status_code=422, detail="user_id must be an existing staff login")
+    other = await db.transport_drivers.find_one({"user_id": user_id, "driver_id": {"$ne": driver_id}}, {"_id": 0, "name": 1})
+    if other:
+        raise HTTPException(status_code=409, detail=f"That login is already linked to driver {other['name']}")
+    return user_id
+
+
 @router.get("/drivers")
 async def list_drivers(user=Depends(require_front_desk_or_admin)):
     return await db.transport_drivers.find({}, {"_id": 0}).sort("name", 1).to_list(50)
@@ -25,6 +38,7 @@ async def list_drivers(user=Depends(require_front_desk_or_admin)):
 
 @router.post("/drivers")
 async def create_driver(data: TransportDriverCreate, user=Depends(require_admin)):
+    data.user_id = await _check_driver_user(data.user_id)
     driver = TransportDriver(**data.model_dump())
     doc = driver.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
@@ -37,6 +51,8 @@ async def create_driver(data: TransportDriverCreate, user=Depends(require_admin)
 async def update_driver(driver_id: str, data: TransportDriverUpdate, user=Depends(require_admin)):
     # exclude_unset (not "drop None") so an admin can clear hours with null
     patch = data.model_dump(exclude_unset=True)
+    if "user_id" in patch:
+        patch["user_id"] = await _check_driver_user(patch["user_id"], driver_id)
     r = await db.transport_drivers.update_one({"driver_id": driver_id}, {"$set": patch})
     if r.matched_count == 0:
         raise HTTPException(status_code=404, detail="Driver not found")

@@ -41,6 +41,7 @@ class TransportDriver(DriverHours):
     name: str
     is_flex: bool = False           # flex = never auto-booked; staff pick them explicitly
     enabled: bool = True
+    user_id: Optional[str] = None   # optional link to the driver's staff login ("My rides"); null = no login
     created_at: datetime = Field(default_factory=now_utc)
 
 
@@ -48,12 +49,14 @@ class TransportDriverCreate(DriverHours):
     name: str
     is_flex: bool = False
     enabled: bool = True
+    user_id: Optional[str] = None
 
 
 class TransportDriverUpdate(DriverHours):
     name: Optional[str] = None
     is_flex: Optional[bool] = None
     enabled: Optional[bool] = None
+    user_id: Optional[str] = None
 
 
 class TransportVehicle(BaseModel):
