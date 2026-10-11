@@ -8743,3 +8743,22 @@ Guarded restart via `scripts/restart_dev_backend.sh`: preflight sha=de8e4f2, 0 l
 
 ## 2026-10-11 — Admin/front-desk detail dialog shows and edits appointment details (coordinator-derived bounded gap)
 Queue was dry (the probe's "ready" item was the already-finished details task; next supervisor dispatch not yet due), so the coordinator took the gap its own acceptance report recorded: `RequestDetailDialog.jsx` (admin Resident requests, front desk All requests, Live Operations, resident hub) edited the planned window but neither showed nor edited provider / discipline / location. Now it shows them and its schedule form saves them in the same canonical `PATCH /tasks/{id}` (admin override / department authority unchanged; cleared field → `""`). New shared `frontend/src/lib/appointmentDetails.js` (`detailsLine`, `detailsPayload`) replaces the inline wording in `DepartmentQueue.jsx` and the inline payload in `QueueDialogs.jsx`. Tests: new `requestDetailDialogDetails.test.js` (3) and `appointmentDetails.test.js` (2); frontend 72 suites / 570 passed; CI build compiled. Frontend only, no backend change, no restart needed, not browser-run, not deployed (`main` 880d10f, production d7ff96a). Report addendum in `docs/reports/2026-10-11-therapy-details-acceptance.md`. Line counts: `RequestDetailDialog.jsx` 133, `appointmentDetails.js` 22.
+
+
+---
+
+## 2026-10-11 07:50 CDT — Supervisor reconciliation: therapy details DEV_ACCEPTED; upcoming schedule view dispatched
+
+Task `careops-therapy-details-001` is **DEV_ACCEPTED**, not LIVE_VERIFIED and not OWNER_ACCEPTED / DONE.
+
+Evidence:
+- Product commit `de8e4f2dc56eaa0ce541f7b34d6f4aba034a564a`.
+- Report `docs/reports/2026-10-11-therapy-details-acceptance.md`, blob `f57cfbd619e0744c9b8215bbc52240cf17104b49`.
+- Backend 540 passed / 0 failed / 31 skipped; frontend 70 suites / 565; production build compiled.
+- Isolated browser 13/13 with zero failed API calls and zero page errors. Authorization refusal, Plan dialog, queue card, resident Home/schedule, Aria speech, edit receipt, reschedule persistence, history, and 390 px layout passed.
+- Guarded development restart `b34e7213c0a857672f892f0b7c18546165a91225`: runtime product SHA `de8e4f2`, old PID 456493, new PID 481325, zero leases, clean tree, log `/tmp/room214_backend_de8e4f2.log`.
+- GitHub combined statuses/workflow runs: none present. Main `880d10f` and production `d7ff96a` unchanged.
+- Slack liaison had no new CAOSCare input after `1791720983.413879`; the two newer thread replies were Deal Sniffer-only and were not acted on by this project.
+
+Next single bounded task: `careops-therapy-upcoming-view-001`.
+Use the canonical StaffTask/resident-safe APIs to produce one facility-time, date-ordered upcoming therapy schedule for authorized therapy staff and residents. Show planned time, operational provider/discipline/location, lifecycle status, and linked-ride truth. Include focused authorization/order tests, production build, and isolated browser acceptance at desktop and 390 px. Excludes recurrence, new calendar storage, clinical content, conflict detection, billing, messaging, audio, paid services, production deployment, and real-data mutation. Required closeout: exact SHA, gates, browser report/screenshots, dev-runtime proof if restarted, checklist, Issue #129, project state, coordinator status, and explicit receipt sequence or structured NEED.
