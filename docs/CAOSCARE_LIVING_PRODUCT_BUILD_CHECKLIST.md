@@ -11,8 +11,35 @@ This is the owner-facing product build and progress tracker for the Care Operati
 - **TESTED** — automated checks passed with a receipt.
 - **DEV_ACCEPTED** — intended user completed the workflow in the development runtime with receipt/provenance evidence.
 - **LIVE_VERIFIED** — the deployed environment was exercised successfully and the exact deployed SHA is recorded.
+- **READY_FOR_OWNER_REVIEW** — the whole bounded section meets its written acceptance criteria and is presented to Michael.
+- **OWNER_ACCEPTED / DONE** — Michael inspected the completed section and explicitly approved it.
 - **BLOCKED** — a named dependency prevents the next acceptance gate.
 - **PARKED** — deliberately outside the active lane.
+
+## Checklist marks and owner approval
+
+- `[ ]` — not completed.
+- `[~]` — work or evidence exists, but the item/section is not owner-approved DONE.
+- `[!]` — blocked by a named dependency.
+- `[x]` — Michael has reviewed and approved the completed item/section.
+
+Existing evidence may support IMPLEMENTED, TESTED, DEV_ACCEPTED, or LIVE_VERIFIED without making the section `[x]`. The final checkmark is the owner acceptance record.
+
+## Completion/update protocol
+
+This protocol applies to every bounded build item, fix, workflow, and section.
+
+1. **Select from the living checklist.** Record the active item, expected acceptance, branch/PR, dependencies, and ETA range before or when work begins.
+2. **Build without routine permission stops.** Implementation, tests, integration, deployment, restarts, repair, and verification continue within existing authority.
+3. **At every meaningful completion, update records before advancing.** A meaningful completion is a finished bounded task, accepted fix, merged PR, deployment, or completed acceptance case—not every keystroke or tiny commit.
+4. **The completion update must record:** exact commit/PR/deployed SHA; tests; development and live acceptance; receipt IDs/provenance; changed checklist item; blocker if any; next bounded task; updated ETA; and whether owner review is ready.
+5. **Update the existing sources of truth together:** this checklist, the active issue/queue, the applicable project-state or acceptance receipt, and PR/commit links. Do not create an unlinked parallel status record.
+6. **Preserve history.** Do not delete prior DONE entries, failures, blockers, owner decisions, or superseded evidence. Append or clearly supersede with a dated reason.
+7. **Section gate:** when every required item in a section meets its acceptance criteria, mark the section **READY_FOR_OWNER_REVIEW** and present the actual usable workflow to Michael with the exact URL/environment and a concise evidence summary.
+8. **Michael reviews the completed section.**
+   - If Michael approves it, record the approval date and evidence, change the section/items to `[x]`, mark **OWNER_ACCEPTED / DONE**, and advance to the next section.
+   - If Michael does not approve it, record the punch list, keep the section `[~]`, and make the first correction the active task.
+9. **No silent advancement.** A section is not DONE and is not checked off solely because code, tests, a PR, a merge, or a deployment exists.
 
 ## Current build control
 
@@ -61,11 +88,11 @@ resident / family / staff request
 
 Current status: **TESTED / partially DEV_ACCEPTED; not globally LIVE_VERIFIED.**
 
-- [x] Canonical resident, staff, department, request/task, actor, and receipt structures exist.
-- [x] Role and department access boundaries exist and have automated coverage.
-- [x] Append-only lifecycle/history and provenance architecture exist.
-- [x] Real and simulated records are structurally distinguishable.
-- [x] Operations Simulator can exercise canonical task services rather than a separate fake business-logic universe.
+- [~] Canonical resident, staff, department, request/task, actor, and receipt structures exist.
+- [~] Role and department access boundaries exist and have automated coverage.
+- [~] Append-only lifecycle/history and provenance architecture exist.
+- [~] Real and simulated records are structurally distinguishable.
+- [~] Operations Simulator can exercise canonical task services rather than a separate fake business-logic universe.
 - [~] Verify every active product surface reads/writes the canonical records; no parallel demo-only operational stores.
 - [ ] Verify backup/restore, data retention, audit export, and facility isolation against the current runtime.
 - [ ] Record one current release-wide security and permission acceptance pass.
@@ -79,20 +106,20 @@ Current status: **Nursing and Maintenance DEV_ACCEPTED locally; cross-department
 
 ### Nursing / care
 
-- [x] Request creation, department routing, queue, claim, acknowledge, start, notes, complete, history, receipts, and truthful resident status — DEV_ACCEPTED on the integration development path.
+- [~] Request creation, department routing, queue, claim, acknowledge, start, notes, complete, history, receipts, and truthful resident status — DEV_ACCEPTED on the integration development path.
 - [ ] Re-run the complete workflow on the current release candidate and record LIVE_VERIFIED evidence.
 - [ ] Add explicit reassignment, unable-to-complete, escalation, and supervisor review acceptance where required.
 
 ### Maintenance / service tickets
 
-- [x] Request/work order, queue, assignment, progress, notes, time spent, completion, resident status, history, and receipts — DEV_ACCEPTED on the integration development path.
+- [~] Request/work order, queue, assignment, progress, notes, time spent, completion, resident status, history, and receipts — DEV_ACCEPTED on the integration development path.
 - [ ] Re-run the complete workflow on the current release candidate and record LIVE_VERIFIED evidence.
 - [ ] Verify priority, category, location/asset, photos/attachments, parts/costs, vendor handoff, reopen, and preventive-work paths.
 
 ### Shared lifecycle
 
-- [x] Pending → claimed/assigned → acknowledged → in progress → completed lifecycle exists.
-- [x] Status truth avoids claiming a worker is coming unless system evidence supports it.
+- [~] Pending → claimed/assigned → acknowledged → in progress → completed lifecycle exists.
+- [~] Status truth avoids claiming a worker is coming unless system evidence supports it.
 - [~] Front desk can create and follow requests; full normal-work acceptance remains incomplete.
 - [~] Admin can inspect cross-department work and history; every department has not been walked.
 - [ ] Confirm cancellation, rejection, reschedule, duplicate, reopen, overdue, escalation, and supervisor override across supported departments.
@@ -106,10 +133,10 @@ Current status: **ACTIVE. Transportation is the current bounded slice.**
 
 ### Transportation — current task
 
-- [x] Calendar, Day/Week, My rides/All rides, Completed, History, ride log, JSON/CSV export, and receipt-backed lifecycle exist in code.
-- [x] PR #130 implements Transportation staff authority to create, assign, change, cancel, and open trip details.
-- [x] Focused frontend tests passed: 3 suites / 3 tests.
-- [x] Frontend production build passed; changed Python modules compile.
+- [~] Calendar, Day/Week, My rides/All rides, Completed, History, ride log, JSON/CSV export, and receipt-backed lifecycle exist in code.
+- [~] PR #130 implements Transportation staff authority to create, assign, change, cancel, and open trip details.
+- [~] Focused frontend tests passed: 3 suites / 3 tests.
+- [~] Frontend production build passed; changed Python modules compile.
 - [~] Refresh PR #130 onto current integration.
 - [ ] Run Mongo/FastAPI lifecycle test.
 - [ ] Configure acceptance drivers and vehicles in clearly labeled test data.
@@ -266,10 +293,10 @@ For every meaningful task completion, update this checklist and the active queue
 - ETA range, assumptions, and confidence;
 - whether an owner decision is actually required.
 
-Do not report “built,” “done,” or “live” as interchangeable words. State exactly: IMPLEMENTED, TESTED, DEV_ACCEPTED, or LIVE_VERIFIED.
+Do not report “built,” “done,” or “live” as interchangeable words. State exactly: IMPLEMENTED, TESTED, DEV_ACCEPTED, LIVE_VERIFIED, READY_FOR_OWNER_REVIEW, or OWNER_ACCEPTED / DONE.
 
 ## Autonomous build rule
 
-Continue through bounded tasks without asking Michael for routine permission. Merge, deploy, restart, test, repair, and continue when the defined gates pass. Stop only for a genuine owner decision such as new spending, destructive loss of real data, a material product-direction choice, unavailable credentials/account access, or an irreversible external commitment.
+Continue through bounded tasks without asking Michael for routine permission. Merge, deploy, restart, test, repair, and continue when the defined gates pass. The normal approval stop is when a complete section reaches READY_FOR_OWNER_REVIEW: present it to Michael, record his approval or punch list, then check it off and advance. Also stop for a genuine owner decision such as new spending, destructive loss of real data, a material product-direction choice, unavailable credentials/account access, or an irreversible external commitment.
 
 Permanent law: **No action without a receipt. No receipt without provenance.**
