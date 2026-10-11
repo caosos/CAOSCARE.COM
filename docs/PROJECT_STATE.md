@@ -8849,3 +8849,12 @@ Michael requested an immediate reconciliation. GitHub comparison shows `integrat
 This cloud session's local scratch review checkout is clean, but it is not the EliteDesk integration checkout. GitHub cannot establish whether `~/CAOSCARE-INTEGRATION` or any worker worktree has uncommitted changes. The existing local coordinator/watchdog must publish a timestamped `git status --porcelain=v1 -b` and HEAD from the actual host. The latest delivery `da-ba92a5f535` at 16:54:31 CDT has no Issue #129 ACK/WORKING after five minutes. The exact read-only recovery check and NEED are recorded in Issue #129 comment 6114293012 and mirrored to Slack. No evidence yet proves the coordinator is stopped; current heartbeat is UNKNOWN.
 
 One bounded task remains `careops-transport-live-001` (authenticated production Transportation workflow and linked receipts). If access blocks it, the compatible department staffing/dispatch correction in the living checklist is next through the same coordinator. No duplicate worker, new queue, or routine authorization question.
+
+
+---
+
+## 2026-10-11 17:05 CDT — Individual Care Operations punch list reconciled
+
+Michael requested that each issue from his operator review be fixed and tracked individually within the existing CAOSCare lane. The living checklist at commit [`d53e185952113234e53cf52bcc83e25fb934cb21`](https://github.com/caosos/CAOSCARE.COM/commit/d53e185952113234e53cf52bcc83e25fb934cb21) now has 23 distinct numbered items, each with owner, stage/blocker, acceptance test, and next action. This supersedes the earlier bundled punch-list wording and the 17:00 suggestion that staffing/dispatch is immediately next. None of these owner observations is falsely marked DONE.
+
+The single current bounded task remains `careops-transport-live-001`, authenticated Transportation LIVE_VERIFY on production `ff87c22df1dd69b405fa0ec60429c20fe72f6801`. Deployed/public-tested does not mean authenticated workflow verified. If this task is blocked on host/access, the existing coordinator must record an exact NEED and continue the next compatible P0 routing-delivery audit, then department staffing/dispatch. Delivery `da-ba92a5f535` lacks an observed five-minute ACK/WORKING; Issue #129 comment `6114293012` has NEED_HOST_RECOVERY. Host process heartbeat and EliteDesk uncommitted status remain UNKNOWN, pending the local watchdog's read-only receipt. No new worker or queue was created.
