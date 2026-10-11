@@ -8577,3 +8577,21 @@ Control receipts:
 
 ## 2026-10-11 — Coordinator handoff; heartbeat probe tolerates supervisor status rows
 By Michael's direction (in his terminal, 2026-10-11 ~06:00Z) CAOSCare coordination moved from the 3-day tmux coordinator session to a new interactive session; the outgoing session stood down with a written capsule (`docs/status/COORDINATOR_HANDOFF_2026-10-11.md`): nothing in flight, tree clean at `ff87c22`, the Front Desk/Admin acceptance slice never started, release step of `careops-transport-live-001` held for Michael's own word because the authorizing text comes from the shared `caosos` account. Infra fix: `scripts/owner_intake/heartbeat_probe.py` crashed (`'str' object has no attribute 'get'`) because supervisor control commits now write `workers` in `docs/status/COORDINATOR_STATUS.json` as strings; string rows are skipped, dict rows unchanged. The Desktop-Agent watchdog had shown `check_error` and read no CAOSCare state or gates since that status format changed. Tests: `scripts/owner_intake/tests` 11 passed (new `test_string_worker_rows_do_not_crash`); live `coordinator_state.py` exits 0 again. Open owner items at this receipt: Desktop-Agent intake pin to the new session (its own edit was refused by the permission classifier; Michael's hand), the #129 coordinator-change/ACK comment (this session's `gh issue comment` was refused twice; text prepared for Michael), and the yes/no on promoting integration to `main` + exact-SHA Linode deploy (production still `d7ff96a`). No product code changed; no restart; no deploy.
+
+---
+
+## 2026-10-11 01:24 CDT — Supervisor reconciliation: current coordinator route repaired in GitHub; host activation required
+
+**Correction to the preceding handoff:** no new owner decision is required for promotion to `main`, exact-SHA Linode deployment, required restarts, repair, or live verification. The later explicit authorization in Issue #129 controls; the original pre-acceptance no-deploy wording is superseded. Transportation remains DEV_ACCEPTED and `careops-transport-live-001` remains the single authorized release task.
+
+The five-minute intake control identified a current routing failure rather than an idle-work authorization problem. CAOSCare moved to coordinator session `caoscare-1-ee`, while Desktop Agent continued handing Issue #129 items to retired session `caoscare-integration-b2`. Issue #129 comment `6106161718` delivered `da-b8429fc895` at 01:16:18 CDT without an ACK inside five minutes. Desktop-Agent Issue #3 comment `6106188802` records the five-minute `NEED_SERVICE` evidence and confirms that twelve older deliveries to the retired session were also unacknowledged. The last ACK/WORKING receipt `6105966756` is therefore historical and does not prove current coordinator liveness.
+
+Cloud-safe repair completed: Desktop-Agent `main` commit `2ccb63f1f86a63dd4af63222ddb6f3e06a4cee26` pins the CAOSCare project package to `session_name: caoscare-1-ee`. The remaining physical-host action is:
+
+`git -C /home/caoscare-1/Desktop-Agent pull --ff-only origin main && systemctl --user restart desktop-agent.service`
+
+Verification required after the restart: Desktop Agent resolves `caoscare-1-ee`; one existing queued Issue #129 item is re-delivered without duplication; the new session publishes timestamped `ACK` and `WORKING careops-transport-live-001` within five minutes. If it does not, record a new `NEED_SERVICE` with the service status/log command and continue cloud-safe reconciliation.
+
+The compatible CAOSCare-side repair is already complete at `58010c2ed6796ab1bb9245f642fa16cfc5a12af8`: `heartbeat_probe.py` tolerates string worker rows, the owner-intake tests report 11 passed, and live `coordinator_state.py` exits 0. Slack liaison input was processed through timestamp `1791699287.900179`; it established the shared routing protocol and contained no new CAOSCare product direction.
+
+Next safe action after host activation: resume `careops-transport-live-001` without another approval. If Linode access is actually unavailable, record the exact credential/runbook dependency and take the Front Desk/Admin normal-work browser acceptance slice. No audio/Hey Aria work, spending, destructive real-data action, or PR #41/#42 work is authorized by this reconciliation.
