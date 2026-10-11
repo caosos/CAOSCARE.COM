@@ -8707,3 +8707,27 @@ Supervisor dispatch (#129 comment 6108284581) in the coordinator session. Built:
 
 ## 2026-10-11 — Dev backend restarted on `7af6a0a`
 Guarded restart via `scripts/restart_dev_backend.sh`: preflight sha=7af6a0a, 0 leases, no recent call activity, old pid 432927 (log /tmp/room214_backend_47674f5.log = rollback provenance); new pid 456493, runtime commit 7af6a0a with a clean tree, log /tmp/room214_backend_7af6a0a.log. The dev stack now carries the ride link for planned appointments. Development only; production unchanged (`d7ff96a`), `main` unchanged (`880d10f`).
+
+---
+
+## 2026-10-11 07:05 CDT — Supervisor reconciliation: ride link DEV_ACCEPTED; appointment details dispatched
+
+Task `careops-therapy-transport-link-001` is reconciled as **DEV_ACCEPTED**, not LIVE_VERIFIED and not OWNER_ACCEPTED / DONE.
+
+Evidence:
+- Product commit: `7af6a0a4484d0f0dcd422f0e2019fe79287fb0dc`.
+- Canonical report: `docs/reports/2026-10-11-therapy-ride-link-acceptance.md`, blob `2dceea207730b304fcc0da5f1e677412435407c1`.
+- Automated gates: backend 539 passed / 0 failed / 31 skipped; frontend 70 suites / 564; production build compiled.
+- Isolated acceptance: 15/15, zero failed API calls and zero page errors. A planned therapy StaffTask created or attached exactly one ordinary transportation request; idempotent re-ask, transportation calendar and resident Home visibility, reschedule and cancellation propagation, same-day existing-ride attachment, completion behavior, linked receipts, and 390 px layout were verified.
+- Development runtime: guarded restart `3d8c8d462b46d9334f88d7cf3c74765a173aa972`; old PID 432927, new PID 456493, zero leases, clean tree, runtime `7af6a0a`, log `/tmp/room214_backend_7af6a0a.log`.
+- GitHub combined statuses and PR-triggered workflow runs for `7af6a0a`: none present. The local automated/build/browser receipts are the applicable evidence.
+- Main remains `880d10f`; production remains `d7ff96a`. No deploy occurred.
+
+Receipt/routing:
+- `da-5ee2bb4526` lacks explicit issue ACK/WORKING/DONE, although the committed work proves execution. This is a receipt-compliance gap, not a dead-host finding.
+- Issue delivery `da-f616017117` contains the Deal Sniffer Dot Arya watcher receipt from comment `6108589014`; it is quarantined as cross-project context and is not executable CAOSCare work.
+- Slack liaison input processed through `1791718151.045669`; all messages newer than the CAOSCare update were Deal Sniffer-only. No CAOSCare owner action.
+
+Next single bounded task: `careops-therapy-details-001`.
+On the canonical therapy StaffTask, add optional operational provider name, discipline, and appointment location. Preserve authorization and provenance, receipt before/after changes, and show truthful values in the therapy queue, resident-facing schedule/Home, and Aria/status where applicable. Accept create → edit → reschedule → staff/resident visibility plus unauthorized refusal in focused automated tests and one isolated browser run. Do not add clinical diagnosis/chart content, a provider registry, recurrence, billing, external messaging, audio, paid services, production deployment, real-data mutation, or a parallel truth store. Required completion records: exact SHA, tests/build, browser report/screenshots, Issue #129, living checklist, coordinator status, project state, and explicit ACK/WORKING/DONE or structured NEED.
+
