@@ -8469,3 +8469,8 @@ Previously listed as needing a data-model decision; built as an additive, option
 
 ## 2026-10-10 — Admin console sweep: all 37 tabs load clean (browser, dev backend)
 In Chrome on localhost:3000, as a temporary synthetic "Demo - QA Admin" (inserted in the dev DB, token injected, removed afterwards), every `/admin?tab=…` value (37) was loaded in turn and its `/api/` calls inspected: **0 responses with status >= 400** and no "could not load / something went wrong" text. Two tabs matched the loose word "unavailable" only because of real data (Devices: the Midea AC's genuine unavailable state; Activity log: log text). Own-fixture note: my first QA user lacked `auth_provider`, so `/auth/me` returned 500 — a fixture error (real users always have it), fixed before the run; not a product defect. No visual pass per tab (screenshots not taken for each). Not deployed; no wake/voice files.
+
+---
+
+## 2026-10-10 — Staff role pages: browser sweep at desktop and phone width
+Real demo staff accounts (tokens minted in-process, nothing typed) loaded in Chrome at 1280 px and 390 px: nursing `/staff`, maintenance, housekeeping, transportation, kitchen `/workspace`, front desk `/front-desk`. Result for all six roles at both widths: **0 failed API calls (>= 400), 0 px horizontal overflow**, correct heading for the role (Maintenance/Housekeeping/Transportation/Kitchen workspace, Front desk). One transportation phone-width result was invalid (I cleared the token mid-run) and was re-run clean. Limit: this checks loading, API health and overflow, not every button. Nothing changed in code; no wake/voice files.
