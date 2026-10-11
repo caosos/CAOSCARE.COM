@@ -1,6 +1,6 @@
 # CAOSCare — Living Product Build Checklist
 
-Updated: 2026-10-11 (coordinator recovery reconciliation, America/Chicago).
+Updated: 2026-10-11 (01:24 CDT supervisor reconciliation, America/Chicago).
 
 This is the owner-facing product build and progress tracker for the Care Operations build. Canonical owner direction: [Issue #129](https://github.com/caosos/CAOSCARE.COM/issues/129). Detailed historical evidence remains in [PILOT1_EXECUTION_CHECKLIST.md](https://github.com/caosos/CAOSCARE.COM/blob/integration/2026-09-27/docs/PILOT1_EXECUTION_CHECKLIST.md). This file controls current phase, active task, milestones, ETA, blockers, and the reporting contract.
 
@@ -67,18 +67,27 @@ This is the required path whenever an agent, coordinator, watchdog, service, or 
 ## Current build control
 
 - **Current phase:** 3/7 — Care Operations workspaces.
-- **Today’s active engineering task:** Front Desk/Admin normal-work browser acceptance in an isolated silent stack; then resume the DEV_ACCEPTED Transportation release/LIVE_VERIFY task.
+- **Today’s active engineering task:** recover intake routing to the current CAOSCare coordinator, then resume the authorized Transportation release/LIVE_VERIFY task. The previously recorded Front Desk/Admin browser slice never started.
 - **Control issue / dispatch channel:** [#129](https://github.com/caosos/CAOSCARE.COM/issues/129).
 - **Completed review:** [PR #130](https://github.com/caosos/CAOSCARE.COM/pull/130), merged into integration.
-- **Integration branch:** `integration/2026-09-27`; release-code baseline `f35b4542a1b893357c78c21c4a7c4ce936fd8cff` (later coordinator-only commits may update control records without changing product code).
+- **Integration branch:** `integration/2026-09-27`; current control head `58010c2ed6796ab1bb9245f642fa16cfc5a12af8`; release-code baseline `f35b4542a1b893357c78c21c4a7c4ce936fd8cff` (later coordinator-only commits may update control records without changing product code).
 - **Transportation implementation:** `agent/transport-workspace-workable` at `21b2261f021d152181c94d8c95d006c533b18529`; integration merge `dc2e4ca1ba22aa6a0e81b950f5597f83a9b4c4ba`.
 - **Accepted state:** IMPLEMENTED, TESTED, and DEV_ACCEPTED with receipt-backed browser evidence.
 - **Not yet accepted:** `main` promotion, exact-SHA Linode deployment, and live browser/receipt verification.
-- **Coordinator task:** `da-446d044fa0` is WORKING the compatible Front Desk/Admin acceptance slice; `careops-transport-live-001` is the single next release task.
-- **Current live worker heartbeat:** ACKED / WORKING. Issue #129 comment `6105966756` records `ACK da-446d044fa0` at `2026-10-11T05:47:55Z`, absorbs all nine backfill items into one task with no fan-out, and starts the compatible Front Desk/Admin acceptance slice. Transportation release execution follows this bounded receipt.
-- **Owner decision required now:** none; Issue #129 explicitly authorizes verified work through `main`, Linode deployment, required restarts, repair, and live verification.
+- **Coordinator task:** `careops-transport-live-001` remains the single authorized release task. The prior `da-446d044fa0` Front Desk/Admin acceptance slice never started and is superseded by the coordinator handoff receipt at `58010c2`.
+- **Current live worker heartbeat:** **NEED_HOST_ACTION / routing stale.** CAOSCare coordination moved to session `caoscare-1-ee`, but Desktop Agent continued delivering to retired session `caoscare-integration-b2`. Issue #129 comment `6106161718` delivered `da-b8429fc895` at 01:16:18 CDT with no ACK inside five minutes; Desktop-Agent comment `6106188802` records the corresponding five-minute `NEED_SERVICE` evidence. The GitHub pin is corrected at Desktop-Agent commit `2ccb63f1f86a63dd4af63222ddb6f3e06a4cee26`; the EliteDesk must fast-forward that commit and restart `desktop-agent.service`.
+- **Owner decision required now:** none. A physical host action is required because this supervisor cannot restart the EliteDesk service: `git -C /home/caoscare-1/Desktop-Agent pull --ff-only origin main && systemctl --user restart desktop-agent.service`. Issue #129 already authorizes the Transportation release through `main`, exact-SHA Linode deployment, required restarts, repair, and live verification.
 - **Authority reconciliation:** comment `6105970504` records that the later explicit owner authorization in Issue #129 and current PR #130 supersedes the original pre-acceptance no-deploy note. Do not ask Michael to approve the same release again.
-- **Recovery evidence:** Desktop-Agent main `8d3b8505fc3ff91ad1fbf29ebd3effd66c3ce201` watches Issues #117/#129 with five-minute thresholds. Automatic intake reached the running coordinator (`6105949572`); supervisor reconciliation `6105963403` prevented backfill fan-out; ACK/WORKING receipt `6105966756` proves the coordinator is active.
+- **Recovery evidence:** Desktop-Agent main `14aa2da70933118631a92631f511648de6788e8c` provides five-minute unacked detection and redelivery; controlled recovery evidence is in Desktop-Agent comment `6106188802`. CAOSCare commit `58010c2ed6796ab1bb9245f642fa16cfc5a12af8` repairs the heartbeat probe (11 owner-intake tests passed; live `coordinator_state.py` exits 0). The last proven ACK/WORKING on the retired coordinator is historical, not current liveness.
+- **Slack liaison checkpoint:** processed through message timestamp `1791699287.900179` (01:14:47 CDT). That message establishes routing only; it contains no new CAOSCare product direction. GitHub remains canonical.
+
+### Update 2026-10-11 01:24 CDT (coordinator route recovery)
+
+- The prior checklist statement that Front Desk/Admin acceptance was WORKING is corrected: the outgoing coordinator's handoff records that the slice never started and nothing was in flight.
+- The current coordinator is `caoscare-1-ee`. Desktop Agent was still pinned/resolving deliveries to `caoscare-integration-b2`, causing the five-minute ACK failure.
+- Desktop-Agent project-package pin is corrected on `main` at `2ccb63f1f86a63dd4af63222ddb6f3e06a4cee26`. Host activation still requires one fast-forward and service restart command recorded above.
+- Cloud-safe compatible work completed: the CAOSCare heartbeat probe repair is on integration at `58010c2`; its receipt reports 11 tests passed and a successful live `coordinator_state.py` read.
+- No release authorization decision is pending. After the routing restart produces `DELIVERED → ACK → WORKING` from `caoscare-1-ee`, resume `careops-transport-live-001`; if Linode access is genuinely unavailable, record the exact dependency and take the Front Desk/Admin normal-work acceptance slice.
 
 ### Update 2026-10-10 (EliteDesk, receipts)
 
