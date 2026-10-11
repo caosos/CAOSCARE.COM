@@ -12,7 +12,8 @@ import { toast } from "sonner";
 import { workOrderBuckets, isOverdue, canClaim, canAssign, ageLabel } from "../lib/maintenance";
 import MaintenanceWorkOrderForm from "./MaintenanceWorkOrderForm";
 import RequestHistoryDialog from "./RequestHistoryDialog";
-import { PlanWindowDialog, ReasonDialog } from "./QueueDialogs";
+import { PlanWindowDialog, ReasonDialog, ConflictDialog } from "./QueueDialogs";
+import { conflictDetail, conflictSummary, overridePayload } from "../lib/scheduleConflict";
 import { rideLine, canRequestRide } from "../lib/rideLink";
 import { detailsLine } from "../lib/appointmentDetails";
 
@@ -43,6 +44,7 @@ export default function DepartmentQueue({ department, title, itemName = "request
   const [reopenFor, setReopenFor] = useState(null);
   const [reopenReason, setReopenReason] = useState("");
   const [planFor, setPlanFor] = useState(null);
+  const [conflict, setConflict] = useState(null);   // {fields, summary} awaiting "save anyway"
   const [cancelFor, setCancelFor] = useState(null);
   const [rides, setRides] = useState({});   // task_id -> GET /tasks/{id}/ride view, for requests with a linked ride
 
@@ -114,15 +116,25 @@ export default function DepartmentQueue({ department, title, itemName = "request
   const isAdmin = ["owner", "admin"].includes(user?.role);
   const canPlan = (t) => isAdmin || showAssign || t.assigned_to === user?.user_id;
   // Planned visit window: PATCH /tasks/{id} with the same two fields the detail dialog saves (receipted as task_schedule_updated).
+  // Save the plan. An overlap with the resident's other planned work comes back as a
+  // 409 (schedule_conflict); staff then choose explicitly to save anyway, which the
+  // server records on the receipt. A time the server cannot read is saved, with the
+  // honest note that overlap was not checked.
   const savePlan = async (fields) => {
     if (!planFor) return;
     try {
       await api.patch(`/tasks/${planFor}`, fields);
-      toast.success(fields.requested_for_date || fields.requested_for_time_label || fields.provider_name || fields.location ? "Plan saved — the resident and Aria will see it" : "Plan cleared");
-      setPlanFor(null);
+      let note = "";
+      if (fields.requested_for_date && fields.requested_for_time_label && !fields.conflict_override) {
+        try { const { data } = await api.get(`/tasks/${planFor}/conflicts`); note = conflictSummary(data); } catch { /* the save already happened; no note */ }
+      }
+      toast.success((fields.requested_for_date || fields.requested_for_time_label || fields.provider_name || fields.location ? "Plan saved — the resident and Aria will see it" : "Plan cleared") + (note ? ` ${note}` : ""));
+      setPlanFor(null); setConflict(null);
       load();
     } catch (err) {
-      toast.error(err?.response?.data?.detail || "Could not save the plan");
+      const d = conflictDetail(err);
+      if (d) { setConflict({ fields, summary: conflictSummary(d) }); return; }
+      toast.error(err?.response?.data?.detail?.message || err?.response?.data?.detail || "Could not save the plan");
     }
   };
   // Ride needed = create-or-attach exactly one transportation request for this planned request.
@@ -370,6 +382,8 @@ export default function DepartmentQueue({ department, title, itemName = "request
         initialDate={tasks.find((t) => t.task_id === planFor)?.requested_for_date || ""}
         initialLabel={tasks.find((t) => t.task_id === planFor)?.requested_for_time_label || ""}
         initialDetails={tasks.find((t) => t.task_id === planFor) || {}} onSave={savePlan} />
+      <ConflictDialog open={!!conflict} onOpenChange={(o) => { if (!o) setConflict(null); }} summary={conflict?.summary}
+        onSaveAnyway={() => savePlan(overridePayload(conflict.fields))} />
       <ReasonDialog open={!!cancelFor} onOpenChange={(o) => { if (!o) setCancelFor(null); }} title={`Cancel ${itemName}`}
         description="The request is closed as cancelled; the reason is recorded in its history and receipts." placeholder="Why is it cancelled? (required)"
         submitLabel="Cancel request" testId="wo-cancel" onSubmit={cancelRequest} />

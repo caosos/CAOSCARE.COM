@@ -64,3 +64,20 @@ export function ReasonDialog({ open, onOpenChange, title, description, placehold
     </Dialog>
   );
 }
+
+// Overlap warning before a plan is kept: staff must choose "Save anyway" explicitly.
+export function ConflictDialog({ open, onOpenChange, summary, onSaveAnyway, testId = "wo-conflict" }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md" data-testid={`${testId}-dialog`}>
+        <DialogHeader><DialogTitle className="font-display">This time overlaps other planned work</DialogTitle></DialogHeader>
+        <p className="text-sm text-caos-ink" data-testid={`${testId}-summary`}>{summary}</p>
+        <p className="text-sm text-caos-mute">The plan is not saved yet. Pick another time, or save anyway; saving anyway is recorded on the receipt.</p>
+        <DialogFooter>
+          <Button variant="outline" className="border-2" onClick={() => onOpenChange(false)} data-testid={`${testId}-back`}>Pick another time</Button>
+          <Button onClick={onSaveAnyway} className="bg-caos-forest" data-testid={`${testId}-save-anyway`}>Save anyway</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

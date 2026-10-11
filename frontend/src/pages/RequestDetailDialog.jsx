@@ -11,6 +11,8 @@ import RequestTimeline from "../components/RequestTimeline";
 import { detailsLine, detailsPayload } from "../lib/appointmentDetails";
 import { useAuth } from "../lib/auth";
 import { actsFor } from "../lib/maintenance";
+import { ConflictDialog } from "./QueueDialogs";
+import { conflictDetail, conflictSummary, overridePayload } from "../lib/scheduleConflict";
 
 export default function RequestDetailDialog({ taskId, open, onOpenChange, onChange }) {
   const { user } = useAuth();
@@ -22,6 +24,7 @@ export default function RequestDetailDialog({ taskId, open, onOpenChange, onChan
   const [location, setLocation] = useState("");
   const [updateNote, setUpdateNote] = useState("");
   const [saving, setSaving] = useState(false);
+  const [conflict, setConflict] = useState(null);
 
   const load = () => {
     if (!taskId) return;
@@ -49,19 +52,23 @@ export default function RequestDetailDialog({ taskId, open, onOpenChange, onChan
   // _resident_safe_view) and the resident Home screen's request cards show.
   // Saving here is the ONLY way staff sets a real planned visit window -
   // Aria is instructed to say "no scheduled time yet" until this is filled in.
-  const saveUpdate = async () => {
+  const saveUpdate = async (extra = {}) => {
     setSaving(true);
+    const body = { requested_for_date: schedDate || null, requested_for_time_label: schedLabel || null,
+      ...detailsPayload({ provider, discipline, location }), notes: updateNote, ...extra };
     try {
-      await api.patch(`/tasks/${taskId}`, {
-        requested_for_date: schedDate || null,
-        requested_for_time_label: schedLabel || null,
-        ...detailsPayload({ provider, discipline, location }),
-        notes: updateNote,
-      });
-      toast.success("Saved — resident and Aria will see this update");
-      load();
-      onChange?.();
-    } catch (err) { toast.error(err?.response?.data?.detail || "Failed to save"); }
+      await api.patch(`/tasks/${taskId}`, body);
+      let note = "";
+      if (schedDate && schedLabel && !extra.conflict_override) {
+        try { const { data } = await api.get(`/tasks/${taskId}/conflicts`); note = conflictSummary(data); } catch { /* saved; no note */ }
+      }
+      toast.success("Saved — resident and Aria will see this update" + (note ? ` ${note}` : ""));
+      setConflict(null); load(); onChange?.();
+    } catch (err) {
+      const d = conflictDetail(err);
+      if (d) setConflict({ summary: conflictSummary(d) });
+      else toast.error(err?.response?.data?.detail?.message || err?.response?.data?.detail || "Failed to save");
+    }
     setSaving(false);
   };
 
@@ -135,12 +142,14 @@ export default function RequestDetailDialog({ taskId, open, onOpenChange, onChan
                   className="mb-2"
                   data-testid="request-update-note"
                 />
-                <Button size="sm" className="bg-caos-forest" disabled={saving} onClick={saveUpdate} data-testid="request-save-update-btn">
+                <Button size="sm" className="bg-caos-forest" disabled={saving} onClick={() => saveUpdate()} data-testid="request-save-update-btn">
                   {saving ? "Saving…" : "Save — resident & Aria will see this"}
                 </Button>
               </div>
             )}
 
+            <ConflictDialog open={!!conflict} onOpenChange={(o) => { if (!o) setConflict(null); }} summary={conflict?.summary}
+              onSaveAnyway={() => saveUpdate(overridePayload({}))} testId="request-conflict" />
             <div>
               <h3 className="font-display text-lg font-medium text-caos-forest mb-2">Timeline</h3>
               <RequestTimeline task={t} receipts={data.receipts} />

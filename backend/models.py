@@ -918,6 +918,9 @@ class StaffTaskUpdate(BaseModel):
     # resident_request_status()/check_request_status.
     requested_for_date: Optional[str] = None
     requested_for_time_label: Optional[str] = None
+    # Staff chose "save anyway" for a window that overlaps the resident's other planned
+    # work (routes/schedule_conflict.py). Recorded on the schedule receipt; never stored on the task.
+    conflict_override: Optional[bool] = None
 
 
 class StaffTaskTemplate(BaseModel):

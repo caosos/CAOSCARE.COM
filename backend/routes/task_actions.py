@@ -88,17 +88,27 @@ async def add_note(task_id: str, text: Optional[str], actor: ActorContext, user:
                             action_type="task_note_added", status="created")
 
 
-async def set_schedule(task_id: str, fields: dict, actor: ActorContext, user: dict):
-    """The planned service window (requested_for_date / _time_label)."""
+async def set_schedule(task_id: str, fields: dict, actor: ActorContext, user: dict,
+                       override_conflicts: Optional[list] = None):
+    """The planned service window (requested_for_date / _time_label).
+    `override_conflicts`: the other requests this window knowingly overlaps
+    (staff chose "save anyway"); recorded in the history entry and on the
+    receipt (result "conflict_override", provider_refs = their ids)."""
+    ids = [c["task_id"] for c in (override_conflicts or [])]
+
     def build(t, rid):
         changed = {k: v for k, v in fields.items() if v != t.get(k)}
         if not changed:
             return None
         text = " · ".join(str(v) for v in (fields.get("requested_for_date"),
                                            fields.get("requested_for_time_label")) if v) or "cleared"
+        if ids:
+            text += " · saved despite overlapping " + ", ".join(
+                f"{c.get('what') or c['task_id']} ({c.get('requested_for_time_label') or 'time not set'})" for c in override_conflicts)
         return changed, [_ev("scheduled", actor, rid, text=text)]
     return await transition(task_id, actor, user, action="schedule", build=build,
-                            action_type="task_schedule_updated", status="created")
+                            action_type="task_schedule_updated", status="created",
+                            result="conflict_override" if ids else None, provider_refs=ids or None)
 
 
 DETAIL_FIELDS = ("provider_name", "discipline", "location")

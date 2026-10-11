@@ -13,7 +13,6 @@ the same order. Each row carries the details (provider / discipline /
 location), the same lifecycle + spoken status the resident hears
 (aria_request_status), and the linked ride's real facts (task_ride_link).
 """
-import re
 from datetime import date, timedelta
 from typing import Optional
 
@@ -22,6 +21,7 @@ from fastapi import APIRouter, Depends
 from deps import db, get_current_user
 from routes.aria_request_status import request_status_view
 from routes.facility_local_time import facility_tz as _facility_tz
+from routes.planned_time import UNTIMED, time_minutes  # noqa: F401  (re-exported for callers/tests)
 from routes.realtime_facility import today_facility_date
 from routes.resident_requests import OPEN_TASK_STATUSES, _resident_safe_view, _scope_query
 from routes.tasks import _iso, staff_visibility_query
@@ -30,34 +30,6 @@ from routes.task_ride_link import _linked_ride, ride_summary
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 MAX_DAYS = 60
-UNTIMED = 24 * 60 + 1          # sorts after every real clock time of the day
-_CLOCK = re.compile(r"(?<!\d)(\d{1,2})(?::(\d{2}))?\s*([ap])\.?\s*m\b", re.I)
-_CLOCK_24 = re.compile(r"(?<!\d)([01]?\d|2[0-3]):([0-5]\d)(?!\s*[ap])", re.I)
-
-
-def time_minutes(label: Optional[str]) -> int:
-    """Minutes after midnight for the FIRST clock time in a free-text label
-    ("10:00 AM", "2-4 PM" -> 14:00 via the trailing meridiem, "around 3 pm",
-    "14:30"); UNTIMED when none can be read. Never guesses a time."""
-    if not label:
-        return UNTIMED
-    # "2-4 PM": the range start has no meridiem of its own; borrow the one that
-    # follows - checked FIRST, or the generic search would read "4 PM".
-    r = re.match(r"\s*(\d{1,2})(?::(\d{2}))?\s*[-\u2013]\s*\d{1,2}(?::\d{2})?\s*([ap])\.?\s*m\b", label, re.I)
-    if r:
-        h, mm, ap = int(r.group(1)), int(r.group(2) or 0), r.group(3).lower()
-        if 1 <= h <= 12 and mm <= 59:
-            return (h % 12 + (12 if ap == "p" else 0)) * 60 + mm
-    m = _CLOCK.search(label)
-    if m:
-        h, mm, ap = int(m.group(1)), int(m.group(2) or 0), m.group(3).lower()
-        if not 1 <= h <= 12 or mm > 59:
-            return UNTIMED
-        return (h % 12 + (12 if ap == "p" else 0)) * 60 + mm
-    m = _CLOCK_24.search(label)
-    if m:
-        return int(m.group(1)) * 60 + int(m.group(2))
-    return UNTIMED
 
 
 def order_key(task: dict) -> tuple:
@@ -98,10 +70,13 @@ async def upcoming_for_staff(department: Optional[str] = None, days: int = 14, l
     tz = await _facility_tz()
     rows = await db.staff_tasks.find(q, {"_id": 0}).to_list(max(1, min(limit, 500)))
     rows.sort(key=order_key)
+    from routes.schedule_conflict import find_conflicts   # (imports this module; lazy to avoid the cycle)
     items = []
     for t in rows:
         view = request_status_view(t, tz)
-        items.append({**_iso(dict(t)), "lifecycle": view["lifecycle"], "spoken": view["spoken"], "ride": await _ride(t)})
+        chk = await find_conflicts(t, t.get("requested_for_date"), t.get("requested_for_time_label"))
+        items.append({**_iso(dict(t)), "lifecycle": view["lifecycle"], "spoken": view["spoken"], "ride": await _ride(t),
+                      "conflicts": chk["conflicts"], "conflict_check": None if chk["checked"] else chk["reason"]})
     return {"today": today_facility_date(), "days": days, "department": department, "items": items}
 
 

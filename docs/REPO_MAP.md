@@ -907,3 +907,9 @@ listener verifier experiment: `docs/experiments/`.
 - `backend/routes/upcoming_schedule.py`: `GET /tasks/upcoming` (staff, task-list visibility rule) and `GET /tasks/resident-request/upcoming` (resident-safe) — date-ordered reads over the canonical planned requests, with details, lifecycle/spoken status and linked-ride facts; `time_minutes()` parses a planned time label for ordering. No calendar store.
 - `frontend/src/lib/upcomingSchedule.js`, `components/UpcomingSchedule.jsx` (therapy workspace), `components/kiosk/UpcomingPanel.jsx` (resident Home "Coming up"); `lib/appointmentDetails.js` (one wording/payload helper for provider/discipline/location, shared by the queue card, Plan dialog and request detail dialog).
 - Test: `backend/tests/test_therapy_upcoming_view.py`.
+
+## 2026-10-11 — Planned-window conflicts (careops-therapy-conflict-001)
+
+- `backend/routes/planned_time.py`: the one parser of a planned time label into minutes (ordering and overlap); `backend/routes/schedule_conflict.py`: same-resident overlap over the canonical planned fields with one operational slot, `GET /tasks/{id}/conflicts`; `PATCH /tasks/{id}` refuses an overlapping window (409) unless `conflict_override`, which `set_schedule` records on the receipt.
+- `frontend/src/lib/scheduleConflict.js`, `ConflictDialog` in `pages/QueueDialogs.jsx`, used by `DepartmentQueue.jsx` and `RequestDetailDialog.jsx`; `UpcomingSchedule.jsx` shows overlaps.
+- Test: `backend/tests/test_therapy_conflict.py`.

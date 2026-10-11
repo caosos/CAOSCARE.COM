@@ -82,3 +82,28 @@ test("Plan also saves the optional provider, kind and location; the card shows t
   await act(async () => { q("wo-plan-save").click(); }); await flush();
   expect(mockApi.patch).toHaveBeenCalledWith("/tasks/a1", { requested_for_date: "2026-10-14", requested_for_time_label: "10:00 AM", provider_name: "Tess Ortiz PT", discipline: "physical therapy", location: "Clinic, 2nd floor" });
 });
+
+test("an overlapping window is refused with a warning; Save anyway re-sends with conflict_override", async () => {
+  await render();
+  await act(async () => { q("wo-plan-a1").click(); });
+  await setVal(q("wo-plan-label"), "2:30 PM", HTMLInputElement.prototype);
+  const detail = { code: "schedule_conflict", checked: true, conflicts: [{ task_id: "z9", what: "Knee physical therapy", category: "therapy", requested_for_time_label: "2:00 PM" }] };
+  mockApi.patch.mockRejectedValueOnce({ response: { status: 409, data: { detail } } });
+  await act(async () => { q("wo-plan-save").click(); }); await flush();
+  expect(q("wo-conflict-summary").textContent).toBe("Overlaps Knee physical therapy (therapy) at 2:00 PM.");
+  expect(mockApi.patch).toHaveBeenCalledTimes(1);
+  mockApi.patch.mockResolvedValueOnce({ data: {} });
+  await act(async () => { q("wo-conflict-save-anyway").click(); }); await flush();
+  expect(mockApi.patch).toHaveBeenLastCalledWith("/tasks/a1", { requested_for_date: "2026-10-14", requested_for_time_label: "2:30 PM", provider_name: "", discipline: "", location: "", conflict_override: true });
+  expect(q("wo-conflict-summary")).toBeNull();
+});
+
+test("Pick another time keeps the plan unsaved", async () => {
+  await render();
+  await act(async () => { q("wo-plan-a1").click(); });
+  mockApi.patch.mockRejectedValueOnce({ response: { status: 409, data: { detail: { code: "schedule_conflict", checked: true, conflicts: [{ task_id: "z9", what: "X", requested_for_time_label: "2:00 PM" }] } } } });
+  await act(async () => { q("wo-plan-save").click(); }); await flush();
+  await act(async () => { q("wo-conflict-back").click(); }); await flush();
+  expect(mockApi.patch).toHaveBeenCalledTimes(1);
+  expect(q("wo-conflict-summary")).toBeNull();
+});

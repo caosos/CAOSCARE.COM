@@ -132,8 +132,22 @@ async def update_task(task_id: str, data: StaffTaskUpdate, user=Depends(get_curr
     details = {k: patch.pop(k) for k in list(patch) if k in task_actions.DETAIL_FIELDS}
     if details:
         await task_actions.set_details(task_id, details, actor, user)
+    override = bool(patch.pop("conflict_override", False))
     if patch:
-        task, receipt = await task_actions.set_schedule(task_id, patch, actor, user)
+        # Overlap with the resident's other open planned work is refused unless staff
+        # explicitly save anyway; the override is then recorded on the receipt.
+        from routes import schedule_conflict   # lazy: it reads request modules that import this route
+        # Authority first (403 / closed 409 / legacy refusal exactly as set_schedule would raise them),
+        # so a caller who may not plan this request never learns what else is planned.
+        current, _auth, _head = await task_lifecycle.check(task_id, actor, user, action="schedule")
+        window = {k: patch.get(k, current.get(k)) for k in ("requested_for_date", "requested_for_time_label")}
+        chk = await schedule_conflict.find_conflicts(current, window["requested_for_date"], window["requested_for_time_label"])
+        if chk["conflicts"] and not override:
+            raise HTTPException(status_code=409, detail={"code": "schedule_conflict",
+                                "message": "This window overlaps other planned work for this resident. Save anyway to keep it.",
+                                **chk})
+        task, receipt = await task_actions.set_schedule(task_id, patch, actor, user,
+                                                        override_conflicts=chk["conflicts"] if override else None)
         if receipt:   # the window really changed: a linked open ride follows it
             await task_ride_link.sync_schedule(task, user)
     return _iso(await task_lifecycle.load(task_id))

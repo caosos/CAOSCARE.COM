@@ -3,6 +3,7 @@ import { api } from "../lib/api";
 import { Badge } from "./ui/badge";
 import { detailsLine } from "../lib/appointmentDetails";
 import { groupByDay, timeOf, rideLineFor, lifecycleLabel } from "../lib/upcomingSchedule";
+import { conflictSummary } from "../lib/scheduleConflict";
 
 /**
  * Date-ordered upcoming schedule for a department's staff — a READ over the
@@ -17,10 +18,12 @@ export default function UpcomingSchedule({ department, days = 14, reloadKey }) {
   useEffect(() => {
     let stop = false;
     setError(false);
-    api.get(`/tasks/upcoming`, { params: { department, days } })
-      .then(({ data: d }) => { if (!stop) setData(d); })
+    const load = () => api.get(`/tasks/upcoming`, { params: { department, days } })
+      .then(({ data: d }) => { if (!stop) { setData(d); setError(false); } })
       .catch(() => { if (!stop) setError(true); });
-    return () => { stop = true; };
+    load();
+    const id = setInterval(load, 20000);   // the queue next to it changes plans; keep this read current
+    return () => { stop = true; clearInterval(id); };
   }, [department, days, reloadKey]);
 
   const groups = data ? groupByDay(data.items, data.today) : [];
@@ -46,6 +49,11 @@ export default function UpcomingSchedule({ department, days = 14, reloadKey }) {
                 </div>
                 {detailsLine(it) && <div className="text-caos-ink/80 mt-1" data-testid={`upcoming-details-${it.task_id}`}>{detailsLine(it)}</div>}
                 {rideLineFor(it) && <div className="text-caos-ink/80 mt-1" data-testid={`upcoming-ride-${it.task_id}`}>{rideLineFor(it)}</div>}
+                {conflictSummary({ checked: !it.conflict_check, reason: it.conflict_check, conflicts: it.conflicts }) && (
+                  <div className={`mt-1 ${it.conflicts?.length ? "text-amber-800 font-medium" : "text-caos-mute"}`} data-testid={`upcoming-conflict-${it.task_id}`}>
+                    {conflictSummary({ checked: !it.conflict_check, reason: it.conflict_check, conflicts: it.conflicts })}
+                  </div>
+                )}
                 {it.assigned_name && <div className="text-xs text-caos-mute mt-1">With staff: {it.assigned_name}</div>}
               </li>
             ))}

@@ -9,7 +9,7 @@ jest.mock("@/lib/utils", () => ({ cn: (...a) => a.filter(Boolean).join(" ") }), 
 jest.mock("sonner", () => ({ toast: { error: jest.fn(), success: jest.fn() } }));
 jest.mock("../../pages/MaintenanceWorkOrderForm", () => () => null);
 jest.mock("../../pages/RequestHistoryDialog", () => () => null);
-jest.mock("../../pages/QueueDialogs", () => ({ PlanWindowDialog: () => null, ReasonDialog: () => null }));
+jest.mock("../../pages/QueueDialogs", () => ({ ConflictDialog: () => null, PlanWindowDialog: () => null, ReasonDialog: () => null }));
 jest.mock("../../components/ui/select", () => ({ Select: () => null, SelectContent: () => null, SelectItem: () => null, SelectTrigger: () => null, SelectValue: () => null }));
 jest.mock("../../components/ui/dialog", () => {
   const R = require("react");

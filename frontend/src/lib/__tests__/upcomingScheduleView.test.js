@@ -47,3 +47,14 @@ test("an empty window says so; a failed read shows an error, not an empty schedu
   expect(q("upcoming-error")).not.toBeNull();
   expect(q("upcoming-empty")).toBeNull();
 });
+
+test("overlaps and unchecked times are shown truthfully on the rows", async () => {
+  const withConflicts = { ...payload, items: [
+    { ...payload.items[0], conflicts: [], conflict_check: "the planned time can't be read as a clock time, so overlap was not checked" },
+    { ...payload.items[1], conflicts: [{ task_id: "n1", what: "Wound check", category: "nursing", requested_for_time_label: "2:15 PM" }], conflict_check: null },
+  ] };
+  mockApi.get.mockResolvedValue({ data: withConflicts });
+  await render();
+  expect(q("upcoming-conflict-c").textContent).toMatch(/^Overlap not checked: /);
+  expect(q("upcoming-conflict-a").textContent).toBe("Overlaps Wound check (nursing) at 2:15 PM.");
+});

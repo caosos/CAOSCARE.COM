@@ -12,8 +12,9 @@ jest.mock("../../components/RequestTimeline", () => () => null);
 jest.mock("../../components/ui/dialog", () => {
   const R = require("react");
   const pass = ({ children, open }) => (open === false ? null : R.createElement("div", null, children));
-  return { Dialog: pass, DialogContent: pass, DialogHeader: pass, DialogTitle: pass };
+  return { Dialog: pass, DialogContent: pass, DialogHeader: pass, DialogTitle: pass, DialogFooter: pass };
 });
+jest.mock("../../components/ui/label", () => { const R = require("react"); return { Label: (p) => R.createElement("label", null, p.children) }; });
 jest.mock("../../components/ui/badge", () => { const R = require("react"); return { Badge: (p) => R.createElement("span", null, p.children) }; });
 jest.mock("../../components/ui/button", () => { const R = require("react"); return { Button: (p) => R.createElement("button", { onClick: p.onClick, disabled: p.disabled, "data-testid": p["data-testid"] }, p.children) }; });
 jest.mock("../../components/ui/textarea", () => {
@@ -100,4 +101,14 @@ test("therapy staff and the assignee can edit; nursing staff cannot", async () =
   await render();
   expect(q("request-provider")).toBeNull();
   expect(q("request-plan-readonly")).not.toBeNull();
+});
+
+test("admin: an overlapping window is refused with a warning, Save anyway re-sends with conflict_override", async () => {
+  await render();
+  mockApi.patch.mockRejectedValueOnce({ response: { status: 409, data: { detail: { code: "schedule_conflict", checked: true, conflicts: [{ task_id: "z9", what: "Hip strength session", category: "therapy", requested_for_time_label: "9:30 AM" }] } } } });
+  await act(async () => { q("request-save-update-btn").click(); }); await flush();
+  expect(q("request-conflict-summary").textContent).toBe("Overlaps Hip strength session (therapy) at 9:30 AM.");
+  mockApi.patch.mockResolvedValueOnce({ data: {} });
+  await act(async () => { q("request-conflict-save-anyway").click(); }); await flush();
+  expect(mockApi.patch).toHaveBeenLastCalledWith("/tasks/a1", expect.objectContaining({ conflict_override: true, requested_for_time_label: "10:00 AM" }));
 });
