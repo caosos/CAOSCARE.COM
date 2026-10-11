@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "updated_at": "2026-10-11T21:55:00Z",
-  "updated_by": "CAOSCare Build Supervisor — deploy and owner review reconciliation",
+  "updated_at": "2026-10-11T22:02:00Z",
+  "updated_by": "CAOSCare Build Supervisor — PR and missed-ACK reconciliation",
   "ready_unblocked": [
     "careops-transport-live-001: production ff87c22 deployed 2026-10-11T21:28:50Z; 12/12 public smoke, authenticated Transportation role workflow and receipts pending; existing coordinator owns the one active item."
   ],
   "workers": [
-    "caoscare-1-ee: dated production deploy recorded in PROJECT_STATE at 2026-10-11T21:28:50Z; explicit ACK/WORKING for current delivery and current process heartbeat UNKNOWN. Do not infer liveness from GitHub."
+    "caoscare-1-ee: da-ba92a5f535 delivered 2026-10-11 16:54:31 CDT; no Issue #129 ACK/WORKING after five minutes. Local process heartbeat and EliteDesk worktree status UNKNOWN; NEED_HOST_RECOVERY Issue #129 comment 6114293012."
   ],
   "questions": [],
   "waiting_owner": [
@@ -19,7 +19,7 @@
     "PR #67 adoption",
     "per-kiosk device-credential decision"
   ],
-  "note": "Checklist 0746b8b and PROJECT_STATE f24b563 reconcile exact-SHA production deploy and Michael's operator punch list. Main/production ff87c22 at deployment observation. Therapy conflict DEV_ACCEPTED on integration 77f83d3, not live. Next single action: existing coordinator publishes fresh ACK/WORKING and authenticated Transportation LIVE_VERIFY or structured NEED; if blocked, take one compatible staffing/dispatch correction. No repeat request for routine release permission.",
+  "note": "One active item careops-transport-live-001; main/production ff87c22 at 21:28:50Z dated deploy check, 12/12 public smoke, authenticated Transportation LIVE_VERIFY pending. Integration 73 commits ahead/0 behind main. Eight open PRs classified in checklist b239ee4 and PROJECT_STATE d4ff195; none merge-ready now. Existing local watchdog must publish coordinator_state.py and git status receipt, ACK/WORKING or exact NEED. No duplicate worker or routine permission request.",
   "liaison_watch": {
     "scanned_through_ts": "1791754656.483969",
     "scanned_through_local": "2026-10-11 16:37:36 CDT",
