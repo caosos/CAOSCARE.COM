@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "updated_at": "2026-10-11T21:31:59Z",
-  "updated_by": "CAOSCare Build Supervisor — standing authority correction",
+  "updated_at": "2026-10-11T21:55:00Z",
+  "updated_by": "CAOSCare Build Supervisor — deploy and owner review reconciliation",
   "ready_unblocked": [
-    "careops-transport-live-001: resume exact-SHA Linode deployment and LIVE_VERIFY for main ff87c22; current production last recorded d7ff96a; fresh host ACK/WORKING/heartbeat required. If host/prompt blocks, post exact structured NEED and take compatible authorized Care Operations work."
+    "careops-transport-live-001: production ff87c22 deployed 2026-10-11T21:28:50Z; 12/12 public smoke, authenticated Transportation role workflow and receipts pending; existing coordinator owns the one active item."
   ],
   "workers": [
-    "caoscare-1-ee: last GitHub host proof dev backend restart on 77f83d3 at 2026-10-11 09:39 CDT; current live process heartbeat unverified. Issue #129 supervisor relay comment 6113952748 asks for fresh ACK/WORKING and release continuation."
+    "caoscare-1-ee: dated production deploy recorded in PROJECT_STATE at 2026-10-11T21:28:50Z; explicit ACK/WORKING for current delivery and current process heartbeat UNKNOWN. Do not infer liveness from GitHub."
   ],
   "questions": [],
   "waiting_owner": [
@@ -19,10 +19,10 @@
     "PR #67 adoption",
     "per-kiosk device-credential decision"
   ],
-  "note": "Therapy conflict DEV_ACCEPTED on 77f83d3; backend 542 passed/31 skipped, frontend 75 suites/585, isolated browser 17/17, report docs/reports/2026-10-11-therapy-conflict-acceptance.md. Main ff87c22 verified; production last recorded d7ff96a. Checklist and project-state supervisor closeout pending. Issue #129 comment 6113952748 is the current relay. Michael screenshot at 16:27 CDT shows historical host heartbeat through 16:17 CDT but agent misclassified authorized release as owner-run. Standing release authority reconfirmed in living checklist de77883. GitHub connector consent is platform access, not product re-authorization.",
+  "note": "Checklist 0746b8b and PROJECT_STATE f24b563 reconcile exact-SHA production deploy and Michael's operator punch list. Main/production ff87c22 at deployment observation. Therapy conflict DEV_ACCEPTED on integration 77f83d3, not live. Next single action: existing coordinator publishes fresh ACK/WORKING and authenticated Transportation LIVE_VERIFY or structured NEED; if blocked, take one compatible staffing/dispatch correction. No repeat request for routine release permission.",
   "liaison_watch": {
-    "scanned_through_ts": "1791728274.258519",
-    "scanned_through_local": "2026-10-11 09:17:54 CDT",
+    "scanned_through_ts": "1791754656.483969",
+    "scanned_through_local": "2026-10-11 16:37:36 CDT",
     "last_qualifying_dot_aria_ts": "1791720983.413879",
     "last_qualifying_dot_aria_local": "2026-10-11 07:16:23 CDT",
     "last_qualifying_receipt": "https://github.com/caosos/CAOSCARE.COM/commit/6fdb956844c577db570618cee846d71615c06b43",
