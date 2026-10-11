@@ -6,6 +6,8 @@ const mockApi = { get: jest.fn(), post: jest.fn(), patch: jest.fn() };
 jest.mock("../api", () => ({ api: mockApi, API: "http://api.test/api" }));
 jest.mock("@/lib/utils", () => ({ cn: (...a) => a.filter(Boolean).join(" ") }), { virtual: true });
 jest.mock("sonner", () => ({ toast: { error: jest.fn(), success: jest.fn() } }));
+let mockUser = { user_id: "adm1", role: "admin" };
+jest.mock("../auth", () => ({ useAuth: () => ({ user: mockUser }) }));
 jest.mock("../../components/RequestTimeline", () => () => null);
 jest.mock("../../components/ui/dialog", () => {
   const R = require("react");
@@ -40,6 +42,7 @@ const q = (id) => el.querySelector(`[data-testid=${id}]`);
 const setVal = async (node, v) => act(async () => {
   const s = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set; s.call(node, v); node.dispatchEvent(new Event("input", { bubbles: true }));
 });
+beforeEach(() => { mockUser = { user_id: "adm1", role: "admin" }; });
 const render = async () => { await act(async () => root.render(<Dialog taskId="a1" open onOpenChange={() => {}} />)); await flush(); };
 
 test("the stored details are shown and pre-fill the form", async () => {
@@ -67,4 +70,25 @@ test("no details line when none are set", async () => {
   await render();
   expect(q("request-details-line")).toBeNull();
   expect(q("request-provider").value).toBe("");
+});
+
+test("front desk sees the plan read-only with the rule stated; no form is offered", async () => {
+  mockUser = { user_id: "fd1", role: "front_desk" };
+  await render();
+  expect(q("request-plan-readonly").textContent).toContain("10:00 AM · 2026-10-14");
+  expect(q("request-plan-readonly").textContent).toContain("With: Tess Ortiz PT (physical therapy) · Where: Therapy room, 2nd floor");
+  expect(q("request-plan-readonly").textContent).toContain("Only therapy staff, the assignee or an administrator");
+  expect(q("request-provider")).toBeNull();
+  expect(q("request-save-update-btn")).toBeNull();
+});
+
+test("therapy staff and the assignee can edit; nursing staff cannot", async () => {
+  mockUser = { user_id: "pt1", role: "staff", department: "therapy" };
+  await render();
+  expect(q("request-provider")).not.toBeNull();
+  await act(async () => root.unmount()); el.remove(); el = document.createElement("div"); document.body.appendChild(el); root = createRoot(el);
+  mockUser = { user_id: "n1", role: "staff", department: "nursing" };
+  await render();
+  expect(q("request-provider")).toBeNull();
+  expect(q("request-plan-readonly")).not.toBeNull();
 });

@@ -9,8 +9,11 @@ import { toast } from "sonner";
 import { sourceLabel, deriveStatus, STATUS_BADGE_CLASS, fmtDateTime } from "../lib/requestDisplay";
 import RequestTimeline from "../components/RequestTimeline";
 import { detailsLine, detailsPayload } from "../lib/appointmentDetails";
+import { useAuth } from "../lib/auth";
+import { actsFor } from "../lib/maintenance";
 
 export default function RequestDetailDialog({ taskId, open, onOpenChange, onChange }) {
+  const { user } = useAuth();
   const [data, setData] = useState(null);
   const [schedDate, setSchedDate] = useState("");
   const [schedLabel, setSchedLabel] = useState("");
@@ -65,6 +68,13 @@ export default function RequestDetailDialog({ taskId, open, onOpenChange, onChan
   if (!taskId) return null;
   const t = data?.task;
   const ds = t ? deriveStatus(t) : null;
+  // The same authority rule the backend applies to every lifecycle step
+  // (task_lifecycle.authority_for): admin/owner, the assignee, or someone who
+  // acts for the request's department. Anyone else sees the plan read-only
+  // instead of a form the server would refuse.
+  const dept = t?.visibility_role || t?.category;
+  const canEdit = !!t && (actsFor(user, dept) || (!!t.assigned_to && t.assigned_to === user?.user_id));
+  const isOpen = !!t && t.status !== "completed" && t.status !== "skipped";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -96,7 +106,15 @@ export default function RequestDetailDialog({ taskId, open, onOpenChange, onChan
               {t.status !== "completed" && t.status !== "skipped" && <Button size="sm" variant="outline" className="border-2" onClick={() => act("complete")} data-testid="request-complete-btn">Complete</Button>}
             </div>
 
-            {t.status !== "completed" && t.status !== "skipped" && (
+            {isOpen && !canEdit && (
+              <div className="mb-6 rounded-xl border border-caos-line p-3 text-sm" data-testid="request-plan-readonly">
+                <div className="text-caos-mute text-xs uppercase tracking-widest mb-1">Plan</div>
+                <div>{t.requested_for_date ? `${t.requested_for_time_label || "time not set"} · ${t.requested_for_date}` : "No planned time yet."}</div>
+                {detailsLine(t) && <div>{detailsLine(t)}</div>}
+                <div className="text-caos-mute mt-1">Only {dept ? `${dept} staff` : "the owning department"}, the assignee or an administrator can change this plan.</div>
+              </div>
+            )}
+            {isOpen && canEdit && (
               <div className="mb-6 rounded-xl border border-caos-line p-3">
                 <div className="text-caos-mute text-xs uppercase tracking-widest mb-2">Resident-visible schedule &amp; update</div>
                 <div className="grid grid-cols-2 gap-2 mb-2">

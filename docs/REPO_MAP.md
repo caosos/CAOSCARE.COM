@@ -901,3 +901,9 @@ listener verifier experiment: `docs/experiments/`.
 
 - `room-node/aria_wake/`: `detector.py` (shared spotter/`StreamDetector`), `aria_wake.py` (listener; phrase "Hey Aria", off unless `ARIA_WAKE_ENABLE=1`), `eval_offline.py` + `eval_results_2026-10-08.json` (offline evaluation through the real detector), `wake_stats.py` (log tally + miss/false marks), `ctl.sh` + `systemd/` (always-on user units, not installed by the repo).
 - Runbook: `docs/reports/2026-10-08-room214-wake-physical-runbook.md`. Tests: `room-node/aria_wake/test_aria_wake.py`, `frontend/src/lib/__tests__/useWakeWord.test.js`.
+
+## 2026-10-11 — Upcoming schedule view (careops-therapy-upcoming-view-001)
+
+- `backend/routes/upcoming_schedule.py`: `GET /tasks/upcoming` (staff, task-list visibility rule) and `GET /tasks/resident-request/upcoming` (resident-safe) — date-ordered reads over the canonical planned requests, with details, lifecycle/spoken status and linked-ride facts; `time_minutes()` parses a planned time label for ordering. No calendar store.
+- `frontend/src/lib/upcomingSchedule.js`, `components/UpcomingSchedule.jsx` (therapy workspace), `components/kiosk/UpcomingPanel.jsx` (resident Home "Coming up"); `lib/appointmentDetails.js` (one wording/payload helper for provider/discipline/location, shared by the queue card, Plan dialog and request detail dialog).
+- Test: `backend/tests/test_therapy_upcoming_view.py`.

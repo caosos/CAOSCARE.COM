@@ -10,6 +10,8 @@ import MaintenanceWorkspace from "./MaintenanceWorkspace";
 import TransportationCalendar from "./TransportationCalendar";
 import CommunityServicesWorkspace from "./CommunityServicesWorkspace";
 import DepartmentQueue from "./DepartmentQueue";
+import UpcomingSchedule from "../components/UpcomingSchedule";
+import { UPCOMING_DEPARTMENTS } from "../lib/upcomingSchedule";
 import { SERVICES_DEPARTMENTS } from "../lib/communityServices";
 
 // One shared operational workspace, rendered per the signed-in staff
@@ -105,6 +107,7 @@ export default function DepartmentWorkspace() {
               <DepartmentQueue key={reloadKey} department={dept} title={`${deptLabel || "Department"} requests`} />
             </section>
             <section className="space-y-6">
+              {UPCOMING_DEPARTMENTS.includes(dept) && <UpcomingSchedule department={dept} reloadKey={reloadKey} />}
               <MyTasksCard />
             </section>
           </div>

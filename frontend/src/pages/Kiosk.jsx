@@ -13,6 +13,7 @@ import { useMagnification } from "../lib/useMagnification";
 import ProfileHeader from "../components/kiosk/ProfileHeader";
 import TodayPanel from "../components/kiosk/TodayPanel";
 import RequestsPanel from "../components/kiosk/RequestsPanel";
+import UpcomingPanel from "../components/kiosk/UpcomingPanel";
 import RoomDevicePanel from "../components/kiosk/RoomDevicePanel";
 import DemoKioskPanel from "../components/kiosk/demo/DemoKioskPanel";
 import { sendRoomDeviceCommand } from "../lib/kioskDeviceControl";
@@ -578,6 +579,7 @@ export default function Kiosk() {
               same underlying state Aria's tools read (see 2026-08-27 report) */}
           <div className="w-full text-left mt-14 space-y-0">
             {isDemo && <DemoKioskPanel room={kiosk?.room} onStartTyped={startTypedConversation} />}
+            <UpcomingPanel residentId={resident?.resident_id} room={kiosk?.room} />
             <RequestsPanel residentId={resident?.resident_id} room={kiosk?.room} />
             <TodayPanel />
             <RoomDevicePanel devices={devices} room={kiosk?.room} onCommand={sendDeviceCommand} />
