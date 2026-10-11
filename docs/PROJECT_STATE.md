@@ -8610,3 +8610,22 @@ While the Transportation release waits on the owner's two commands, the compatib
 
 ## 2026-10-11 — Owner authorization recorded; deploy attempt refused until `main` is promoted
 Michael, in the coordinator session (~06:30Z): YES to promoting `ff87c22` to `main`, deploying that exact SHA to Linode and live-verifying Transportation with live data; receipts may be posted with `gh issue comment`; after live verification, continue with Front Desk/Admin without idling. The coordinator's permission classifier still refused the push, the deploy and the comment, so Michael ran them: the #129 ACK/WORKING receipt is comment `6106922610`; his deploy run at 08:00:25Z was refused by `scripts/deploy_caoscare.sh` ("not part of origin/main's history") because the push to `main` had not executed (the `!` line was sent as chat). Production is unchanged at `d7ff96a` (the script refuses before backup or checkout). Read-only production facts for the live check: one user (owner), 0 transportation staff, 0 drivers, 0 vehicles, 20 residents, 64 open tasks. Also observed: the Desktop-Agent coordinator session `caoscare-1-75` no longer exists, so Desktop-Agent owner items fall through to the CAOSCare coordinator session; not acted on (other lane). Next: Michael runs the push, then the deploy; then LIVE_VERIFY as owner with one driver and vehicle on production.
+
+
+---
+
+## 2026-10-11 03:24 CDT — Supervisor follow-through, compatible fallback dispatched, wrong-project delivery quarantined
+
+The shared Slack liaison thread was processed through message TS `1791703576.527529`; CAOSCare posted its named ACK at TS `1791706917.729779`. The previous timely reply was missed. Latest actual project evidence before this reconciliation was integration commit `49bb218b0aa7a915cf5d933b85b365769f3f5cde` at 03:02:17 CDT, which records the exact-candidate release gate and the refused deploy attempt. Transportation remains IMPLEMENTED, TESTED, and DEV_ACCEPTED; `main` remains `880d10f07e21a8572eec9a5f68771c42eba0eabe`; production remains reported at `d7ff96a`; no LIVE_VERIFY receipt exists.
+
+Issue #129 comment `6107083640` dispatched `careops-frontdesk-reopen-001` to the existing `caoscare-1-ee` coordinator as the compatible no-idle fallback while the already-authorized main push/deploy and signed-in live acceptance await Michael's availability. Desktop Agent delivered that dispatch as `da-a01052935b` at 03:22:16 CDT (comment `6107086103`); no new coordinator, worker, queue, or truth file was created.
+
+A separate project-isolation defect is proven by Desktop-Agent Issue #3 comment `6106927226`: Desktop Agent item `da-601704c864` was delivered to CAOSCare session `caoscare-1-ee`. Source inspection shows Desktop Agent is pinned to `caoscare-1-75` but permits a broad exact-cwd fallback of `/home/caoscare-1`, which can match the CAOSCare session when the pin is absent. CAOSCare quarantined the item in Issue #129 comment `6107092750`; repair ownership and a proposed fail-closed/project-specific fallback regression were cross-referenced to Desktop Agent in Issue #3 comment `6107092837`. CAOSCare must not execute the wrong-project directive. GitHub Issue #129 remains canonical until live project isolation is re-verified.
+
+Control receipts:
+- living checklist Slack checkpoint: `b1c34cd82268a7595c97ae8d36f4e43a7b145537`
+- living checklist routing quarantine: `a2ac8406dd3acbc67ccb1de9e4d7d665e88e681d`
+- coordinator status reconciliation: `de91f7544a0a57490b675ff577a8e123a7cde1de`
+- PR #130 remains merged at `dc2e4ca1ba22aa6a0e81b950f5597f83a9b4c4ba`; the current control commits have no GitHub combined-status contexts or workflow runs.
+
+Next: require timestamped `ACK da-a01052935b` and `WORKING careops-frontdesk-reopen-001` within five minutes of delivery, or record a structured NEED_SERVICE. Continue only the existing CAOSCare coordinator and the single bounded fallback.
