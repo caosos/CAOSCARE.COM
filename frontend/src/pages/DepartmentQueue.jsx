@@ -37,6 +37,8 @@ export default function DepartmentQueue({ department, title, itemName = "request
   const [historyFor, setHistoryFor] = useState(null);
   const [noteFor, setNoteFor] = useState(null);
   const [noteText, setNoteText] = useState("");
+  const [reopenFor, setReopenFor] = useState(null);
+  const [reopenReason, setReopenReason] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -96,6 +98,19 @@ export default function DepartmentQueue({ department, title, itemName = "request
     }
   };
   const canNote = (t) => ["owner", "admin"].includes(user?.role) || t.assigned_to === user?.user_id;
+  const isAdmin = ["owner", "admin"].includes(user?.role);
+  const reopen = async () => {
+    if (!reopenFor || !reopenReason.trim()) return;
+    try {
+      await api.post(`/tasks/${reopenFor}/reopen`, { reason: reopenReason.trim() });
+      toast.success("Reopened");
+      setReopenFor(null);
+      setReopenReason("");
+      load();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Could not reopen the request");
+    }
+  };
 
   const showAssign = canAssign(user, department);
 
@@ -228,6 +243,9 @@ export default function DepartmentQueue({ department, title, itemName = "request
                 <span>{t.title}{t.room ? ` · Rm ${t.room}` : ""}</span>
                 <span className="text-xs flex items-center gap-2">
                   {t.completed_by_name || ""} · {ageLabel(t.completed_at)}
+                  {(showAssign || isAdmin) && (
+                    <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => { setReopenFor(t.task_id); setReopenReason(""); }} data-testid={`wo-reopen-${t.task_id}`}>Reopen</Button>
+                  )}
                   <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => setHistoryFor(t.task_id)} data-testid={`wo-history-${t.task_id}`}>History</Button>
                 </span>
               </div>
@@ -256,6 +274,18 @@ export default function DepartmentQueue({ department, title, itemName = "request
           <Textarea value={noteText} onChange={(e) => setNoteText(e.target.value)} rows={4} data-testid="wo-note-text" />
           <DialogFooter>
             <Button onClick={saveNote} disabled={!noteText.trim()} className="bg-caos-forest" data-testid="wo-note-save">Save note</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!reopenFor} onOpenChange={(o) => { if (!o) setReopenFor(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle className="font-display">Reopen {itemName}</DialogTitle></DialogHeader>
+          <p className="text-sm text-caos-mute">The request goes back to the queue with its assignee kept. The reason is recorded in its history.</p>
+          <Textarea placeholder="Why is this being reopened? (required)" value={reopenReason}
+            onChange={(e) => setReopenReason(e.target.value)} rows={3} data-testid="wo-reopen-reason" />
+          <DialogFooter>
+            <Button onClick={reopen} disabled={!reopenReason.trim()} className="bg-caos-forest" data-testid="wo-reopen-submit">Reopen</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

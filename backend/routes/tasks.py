@@ -159,6 +159,13 @@ async def skip_task(task_id: str, body: dict = None, user=Depends(get_current_us
     return _iso(task)
 
 
+@router.post("/{task_id}/reopen")
+async def reopen_task(task_id: str, body: dict = None, user=Depends(get_current_user)):
+    """Reopen a completed/skipped request with a stated reason (receipted)."""
+    task, _ = await task_actions.reopen(task_id, (body or {}).get("reason"), actor_from_user(user), user)
+    return _iso(task)
+
+
 @router.delete("/{task_id}")
 async def delete_task(task_id: str, user=Depends(get_current_user)):
     await task_actions.delete(task_id, actor_from_user(user), user)

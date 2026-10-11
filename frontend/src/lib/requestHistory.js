@@ -27,7 +27,8 @@ function describe(e, task) {
     case "status": {
       let label = `${(CATEGORY_LABELS[task.category]?.status || {})[e.to] || STATUS_LABEL[e.to] || `Status: ${String(e.to).replace(/_/g, " ")}`}${by(e)}`;
       if (e.to === "completed" && task.duration_minutes) label += ` · ${task.duration_minutes} min`;
-      return { label };
+      // A reopen carries its stated reason; other status changes carry no text.
+      return e.text ? { label, text: e.text, kind: "detail" } : { label };
     }
     case "acknowledged":
       return { label: `Acknowledged${by(e)}` };

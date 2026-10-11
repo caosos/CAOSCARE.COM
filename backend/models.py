@@ -836,6 +836,8 @@ class StaffTask(BaseModel):
     acknowledged_by_name: Optional[str] = None  # denormalized, same pattern as assigned_name
     acknowledged_at: Optional[datetime] = None
     re_request_count: int = 0                # times a resident asked again before this closed
+    reopened_at: Optional[str] = None        # last explicit reopen (receipted); None if never
+    reopen_count: int = 0                    # how many times it was reopened
     last_re_requested_at: Optional[datetime] = None
     # Append-only transition + note history (ENGINEERING_CONTRACT decision 6),
     # written only via routes/task_history.py. Legacy tasks have none.

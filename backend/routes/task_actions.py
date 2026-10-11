@@ -14,7 +14,8 @@ from models import now_utc
 from routes.actor_context import ActorContext
 from routes.staff_scope import ADMIN_ROLES, acting_departments, acts_for
 from routes.task_history import task_event
-from routes.task_lifecycle import LifecycleError, chain_head, load, state_of, transition
+from routes.task_lifecycle import (CLOSED_STATUSES, LifecycleError, chain_head, check, load,
+                                   record_refusal, state_of, transition)
 from routes.receipts import create_receipt
 
 
@@ -140,6 +141,34 @@ async def skip(task_id: str, notes: Optional[str], actor: ActorContext, user: Op
     return await transition(task_id, actor, user, action="skip", build=build, authority=authority,
                             action_type="task_cancelled", status="cancelled",
                             failure_reason=notes or "skipped")
+
+
+async def reopen(task_id: str, reason: Optional[str], actor: ActorContext, user: dict):
+    """The explicit, receipted reopen SC-14 left room for: only a completed or
+    skipped request, only with a stated reason, by someone with authority
+    over it (admin/owner, the assignee, or a member of its department -
+    front desk for Administration). The request goes back to pending with
+    its assignee kept; the closing fields are cleared but the history and
+    receipts keep what happened before (nothing is deleted)."""
+    reason = (reason or "").strip()
+    if not reason:
+        raise LifecycleError(422, "A reason is required to reopen a request")
+    task, auth, _ = await check(task_id, actor, user, action="reopen", allow_closed=True)
+    if task.get("status") not in CLOSED_STATUSES:
+        await record_refusal(task, actor, auth, "reopen",
+                             f"request is {task.get('status')}: only a completed or skipped request can be "
+                             "reopened; nothing changed")
+        raise LifecycleError(409, "This request is still open, so there is nothing to reopen. "
+                                  "Nothing was changed; the attempt was recorded.")
+
+    def build(t, rid):
+        patch = {"status": "pending", "completed_at": None, "completed_by": None, "completed_by_name": None,
+                 "duration_minutes": None, "started_at": None, "notes": reason,
+                 "reopened_at": now_utc().isoformat(), "reopen_count": int(t.get("reopen_count") or 0) + 1}
+        return patch, [_ev("note", actor, rid, text=reason),
+                       _ev("status", actor, rid, frm=t.get("status"), to="pending", text=reason)]
+    return await transition(task_id, actor, user, action="reopen", build=build, allow_closed=True,
+                            action_type="task_reopened", status="created", result=reason)
 
 
 async def delete(task_id: str, actor: ActorContext, user: dict) -> dict:

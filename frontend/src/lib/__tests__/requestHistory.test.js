@@ -88,3 +88,17 @@ test("reassignment and unassignment read clearly", () => {
 test("no task gives an empty timeline", () => {
   expect(buildRequestTimeline(null)).toEqual([]);
 });
+
+test("a reopen shows as Reopened with its stated reason", () => {
+  const { buildRequestTimeline } = require("../requestHistory");
+  const task = { status: "pending", created_at: "2026-10-11T07:00:00Z", event_log: [
+    { at: "2026-10-11T07:20:00Z", field: "status", from: "in_progress", to: "completed", by_name: "Dana" },
+    { at: "2026-10-11T07:30:00Z", field: "note", text: "Pass never issued", by_name: "Dana" },
+    { at: "2026-10-11T07:30:00Z", field: "status", from: "completed", to: "pending", text: "Pass never issued", by_name: "Dana" },
+  ] };
+  const labels = buildRequestTimeline(task).map((e) => e.label);
+  expect(labels).toContain("Completed by Dana");
+  const reopened = buildRequestTimeline(task).find((e) => e.label === "Reopened by Dana");
+  expect(reopened).toBeTruthy();
+  expect(reopened.text).toBe("Pass never issued");
+});
