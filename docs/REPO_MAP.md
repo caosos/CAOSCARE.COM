@@ -913,3 +913,8 @@ listener verifier experiment: `docs/experiments/`.
 - `backend/routes/planned_time.py`: the one parser of a planned time label into minutes (ordering and overlap); `backend/routes/schedule_conflict.py`: same-resident overlap over the canonical planned fields with one operational slot, `GET /tasks/{id}/conflicts`; `PATCH /tasks/{id}` refuses an overlapping window (409) unless `conflict_override`, which `set_schedule` records on the receipt.
 - `frontend/src/lib/scheduleConflict.js`, `ConflictDialog` in `pages/QueueDialogs.jsx`, used by `DepartmentQueue.jsx` and `RequestDetailDialog.jsx`; `UpcomingSchedule.jsx` shows overlaps.
 - Test: `backend/tests/test_therapy_conflict.py`.
+
+## 2026-10-11 — Department board (owner review P1 Departments & staff)
+
+- `backend/routes/department_board.py`: `GET /departments/{slug}/board` — members and roles, open work by named worker with the dispatch trail (task `event_log`), completed history with receipt counts; a read over StaffTask / users / receipts, no new store; readable by owner/admin and the department's own people.
+- `frontend/src/pages/DepartmentWorkspaceDialog.jsx` (renders the board), `pages/DepartmentBoardSections.jsx`, `lib/departmentBoard.js`. Test: `backend/tests/test_department_board.py`, `frontend/src/lib/__tests__/departmentBoard.test.js`.
