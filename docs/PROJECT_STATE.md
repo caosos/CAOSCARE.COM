@@ -8902,3 +8902,23 @@ Supervisor dispatch da-ccd1c60334. Observed on the dev host (read-only): no simu
 
 ## 2026-10-12 — Dev backend restarted on `b3856b9`
 Guarded restart via `scripts/restart_dev_backend.sh`: preflight sha=b3856b9, 0 leases, no recent call activity, old pid 796269 (log /tmp/room214_backend_45bd234.log = rollback provenance); new pid 812821, runtime commit b3856b9 with a clean tree, log /tmp/room214_backend_b3856b9.log. localhost:3000 now opens Alerts & events on current work, with the 322 older records in "Older, needs review". Development only; production `ff87c22` unchanged.
+
+
+---
+
+## 2026-10-11 18:35 CDT — Supervisor boundary: current operations truth ready for owner review
+
+`careops-current-operations-truth-001` is **READY_FOR_OWNER_REVIEW** on exact development revision [`b3856b9dfa1dcf4fbaaf18dc5d428ca4115d4744`](https://github.com/caosos/CAOSCARE.COM/commit/b3856b9dfa1dcf4fbaaf18dc5d428ca4115d4744). The implementation and dated host report establish:
+
+- both simulator runs were STOPPED; the last recorded SIM action was 02:29Z, so the old boards were not showing current SIM work;
+- all 322 open alerts were 21–63 days old and none was simulated; 56 open tasks belonged to MOCK/TEST residents;
+- Alerts and department queues now default to current work and keep older records under a counted review view with reasons, simulator state and run IDs;
+- admin legacy close is receipted and limited to review records; emergencies require a written human disposition;
+- backend 547 passed / 0 failed / 31 skipped; frontend 76 suites / 592; production build compiled; isolated browser acceptance 13/13 with zero failed API calls;
+- guarded development restart loaded exact revision `b3856b9` with a clean tree, PID 812821. No development or production record was closed. Production remains `ff87c22`.
+
+GitHub exposes no combined-status contexts and no pull-request workflow runs for `b3856b9`; the full gate and browser report at `docs/reports/2026-10-11-current-operations-truth.md` is the applicable evidence. The prior missing explicit ACK/WORKING remains a protocol defect; execution evidence does not rewrite DELIVERED as ACK.
+
+**ONE next bounded task:** `careops-routing-exceptions-001`. Use canonical task, notification and receipt records to give supervisors a usable exception view for undelivered, unassigned, overdue and failed handoffs. Each row must show owner, age, latest action, exact delivery state, retry/escalation action and receipt history. Acceptance must seed each exception class, prove authorized filtering/detail/recovery in API and responsive browser, verify counts after recovery, and preserve current-operation currency classification. No external provider spend, audio, production data mutation, new queue or parallel truth store.
+
+Slack was scanned through `1791760395.149439` (18:13:15 CDT). The only newer input was Desktop Agent takeover status; it was cross-project and not acted on here.
