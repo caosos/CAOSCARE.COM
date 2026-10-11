@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "updated_at": "2026-10-11T09:38:00Z",
-  "updated_by": "ChatGPT CAOSCare Build Supervisor (callback completion, scoped-permission correction, therapy dispatch)",
+  "updated_at": "2026-10-11T10:52:00Z",
+  "updated_by": "ChatGPT CAOSCare Build Supervisor (therapy DEV_ACCEPTED; transport-link dispatch)",
   "ready_unblocked": [
-    "careops-therapy-appointment-001: canonical synthetic non-recurring therapy appointment create → resident/staff schedule visibility → reschedule → attend/complete or cancel → receipts; link existing transportation request when needed; no recurrence, billing, external messaging, audio, paid service, or production deploy"
+    "careops-therapy-transport-link-001: reuse canonical therapy StaffTask + existing transportation request engine; one optional idempotent linked ride, authorization/status/provenance receipts, isolated automated + browser acceptance; no parallel truth store, recurrence, provider/discipline, billing, external messaging, audio, paid service, production deploy, or real-data mutation"
   ],
   "workers": [
-    "caoscare-1-ee: callback acceptance work product present (19/19) after da-7551467565 delivery, proving execution; explicit ACK/WORKING/DONE issue receipt missing; therapy dispatch requires timestamped ACK/WORKING within five minutes or structured NEED"
+    "caoscare-1-ee: therapy product commit 47674f5, report 21/21, and guarded dev restart d0718e2 prove execution; deliveries da-0315a1eb1a and da-47650341ef still lack explicit issue ACK/WORKING/DONE; next transport-link task must publish timestamped ACK/WORKING within five minutes or structured NEED"
   ],
   "questions": [],
   "waiting_owner": [
@@ -21,5 +21,5 @@
     "PR #67 adoption",
     "per-kiosk device-credential decision"
   ],
-  "note": "careops-frontdesk-callback-001 is DEV_ACCEPTED at baseline ce6c10b; report blob 84df89048c410c0035812c7f5258588a2b2c050d. No code change. Reassignment to another front-desk colleague and admin acceptance remain blocked on identities/sign-in. Prior option-2 instruction is superseded: the saved prompt was one read-only production SSH/mongosh inventory query; option 1 was the narrow authorized choice, option 2 widened all ssh*. No current host prompt action is required. Slack processed through 1791711030.763209. Quarantine remains active; no replay."
+  "note": "careops-therapy-appointment-001 is DEV_ACCEPTED at 47674f5329500e9fbb508cca01b5bc1d98906df9. Gates: backend 538 passed/31 skipped, frontend 68 suites/561, build compiled, isolated browser 21/21, report blob 803a396d4d58eff61785555e9acc9c5294dfb273. Dev backend :8092 restarted cleanly on 47674f5 via d0718e2; main 880d10f and production d7ff96a unchanged. GitHub has no combined-status contexts or PR-triggered runs for 47674f5, so recorded local gates are canonical. Slack processed through 1791715716.977699; newest item was Deal Sniffer cross-project only. No current owner action; quarantine remains active and no replay."
 }
