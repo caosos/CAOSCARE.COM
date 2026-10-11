@@ -17,6 +17,77 @@ Before making claims or changes, read in order:
 
 The full boot sequence is in `AGENTS.md` and `docs/CAOSCARE_PRODUCT_BASELINE.md` §9.
 
+## Project operating protocol — non-negotiable
+
+This repository uses one authoritative living checklist, one receipt/liaison lane, one existing coordinator, and one bounded eligible item at a time. Preserve completed history and explicitly correct stale entries. Every item must identify its owner, priority, acceptance test, current stage, blocker, and next eligible action.
+
+The coordinator lifecycle is:
+
+```text
+DELIVERED → ACK → WORKING → DONE
+                         ↘ NEED / BLOCKED
+```
+
+A delivery is not an ACK. A worker claim is not a verified result. Do not create a duplicate coordinator, worker, queue, watchdog, monitor, or truth file.
+
+### ETA-driven checks and exception alerts
+
+Every `ACK / WORKING` receipt must include:
+
+- project and bounded task ID;
+- responsible coordinator or worker;
+- current stage;
+- evidence reviewed;
+- realistic ETA;
+- exact `next_check_at` timestamp in `America/Chicago`;
+- expected acceptance test or completion evidence;
+- current blocker, or `NONE`.
+
+The ETA must be derived from the actual work scope, tests, browser verification, deployment steps, and known host conditions. Never invent an ETA or use a meaningless generic estimate.
+
+The existing **LOCAL watchdog** owns the exact `next_check_at` timer. At that time it must inspect current process state, receipts, repository state, and loaded service state when applicable, then publish exactly one of:
+
+- `WORKING` — current evidence, progress, revised ETA, and new `next_check_at`;
+- `DONE` — exact commit, tests and results, review/browser evidence, loaded revision, host observation when applicable, user-visible result, cost if known, timestamp, and next queue item;
+- `NEED / BLOCKED` — exact blocker, exact requested action or copyable command, impact, compatible authorized work continuing, and next check time.
+
+Finishing early requires an immediate `DONE` receipt and dispatch of the next eligible bounded item. Do not wait for the scheduled check.
+
+A missed ACK, ETA, or `next_check_at` is an exception and must be recorded with provenance. Do not claim that a worker stopped unless current host evidence proves it. Otherwise use:
+
+```text
+APPEARS STALE — HOST STATE UNVERIFIED
+```
+
+Notify Michael promptly only for:
+
+- `DONE` requiring owner acceptance;
+- `NEED / BLOCKED`;
+- missed ACK, ETA, or check time;
+- failed test, delivery, deployment, or recovery;
+- a genuine owner decision;
+- a material cost or authority boundary.
+
+Do not notify Michael for routine healthy progress, unchanged state, or routine build/release authority already granted.
+
+The **CLOUD supervisor** is the hourly fallback. Every hourly checkpoint must state:
+
+- current bounded task and queue stage;
+- latest exact receipt and commit;
+- tested state versus loaded state;
+- last timestamped host observation, or `UNKNOWN`;
+- ETA and `next_check_at`;
+- blocker;
+- one next action.
+
+GitHub activity or a dated comment is not proof that a host process is alive now. Slack, GitHub, or other supported events may wake supervision earlier, but they do not replace current host receipts.
+
+Keep project ownership and code isolated. Do not edit, dispatch, supervise, or recover another project's work. Quarantine misdelivered work until the intended recipient is verified.
+
+The governing rule is:
+
+> **No action without a receipt. No receipt without provenance.**
+
 ## CCE-lite trust layer
 
 CAOS Care should use the CAOS Council Engine direction as a practical care-safe profile, not as a heavy multi-model council on every resident/staff interaction.
