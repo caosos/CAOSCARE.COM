@@ -1,16 +1,15 @@
 {
   "schema": 1,
-  "updated_at": "2026-10-11T04:59:34Z",
-  "updated_by": "ChatGPT CAOSCare Build Supervisor (five-minute handoff check)",
+  "updated_at": "2026-10-11T05:47:31Z",
+  "updated_by": "ChatGPT CAOSCare Build Supervisor (recovery delivery reconciliation)",
   "ready_unblocked": [
-    "careops-transport-live-001: release and LIVE_VERIFY the DEV_ACCEPTED Transportation workspace from integration f35b4542a1b893357c78c21c4a7c4ce936fd8cff; dispatch and acceptance contract are in Issue #129 and the living checklist"
+    "careops-transport-live-001: release and LIVE_VERIFY the DEV_ACCEPTED Transportation workspace; existing dispatch 6105602103, recovery reconciliation 6105963403"
   ],
   "workers": [],
   "questions": [
-    "Restore/start the EliteDesk CAOSCare coordinator/watchdog or provide another authorized host-execution path; dispatch 6105602103 received no ACK/WORKING receipt within five minutes."
+    "The running existing CAOSCare coordinator received the 9-item automatic-intake backfill at comment 6105949572 but has not yet published ACK/WORKING. It must claim only careops-transport-live-001 and absorb/supersede duplicate backfill items."
   ],
   "waiting_owner": [
-    "EliteDesk coordinator/watchdog pickup path: no ACK/WORKING receipt for careops-transport-live-001 within five minutes",
     "real drivers/vehicles/hours for non-demo operation",
     "hardware facts and Pilot Room 1 selection",
     "email provider/domain/addresses",
@@ -20,5 +19,5 @@
     "PR #67 adoption",
     "per-kiosk device-credential decision"
   ],
-  "note": "careops-transport-live-001 remains READY and unblocked as product work. Its execution pickup is BLOCKED: Issue #129 dispatch 6105602103 at 2026-10-11T04:53:41Z had no local ACK/WORKING receipt by 2026-10-11T04:59:34Z. Do not claim a worker is running."
+  "note": "Recovery delivery is confirmed, not execution: Desktop-Agent commit 8d3b850 watches Issues #117/#129; comment 6105949572 delivered 9 backfilled da-* items to the running existing coordinator session. No timestamped ACK/WORKING receipt exists yet, so do not claim a worker is running. Reconciliation comment 6105963403 preserves one active task and forbids fan-out."
 }
