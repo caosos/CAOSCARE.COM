@@ -927,3 +927,7 @@ listener verifier experiment: `docs/experiments/`.
 
 - `backend/routes/operations_currency.py`: one classification of open alerts/tasks (current / sim_current / sim_past / review), `currency` on `/alerts` and `/tasks` rows with `?view=`, `GET /ops/currency`, `POST /ops/legacy/close` (admin, review records only, receipted; emergencies need a disposition).
 - `frontend/src/pages/LegacyReviewControls.jsx` (close dialog + review banner), `AlertsBoard.jsx` (Current / Older views), `DepartmentQueue.jsx` (Show older). Test: `backend/tests/test_operations_currency.py`.
+
+## 2026-10-12 — Routing exceptions (careops-routing-exceptions-001)
+
+- `backend/routes/routing_exceptions.py`: `GET /ops/routing-exceptions` (+ `/{id}`, `/{id}/renotify`) — undelivered / unassigned / overdue / failed-handoff requests from the canonical records, scoped, with receipted re-notify. `frontend/src/pages/RoutingExceptionsBoard.jsx` (Admin → Community → Routing exceptions), `lib/routingExceptions.js`. Test: `backend/tests/test_routing_exceptions.py`.

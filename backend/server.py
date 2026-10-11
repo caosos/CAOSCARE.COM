@@ -41,6 +41,7 @@ from routes import upcoming_schedule  # noqa: E402
 from routes import schedule_conflict  # noqa: E402
 from routes import department_board  # noqa: E402
 from routes import operations_currency  # noqa: E402
+from routes import routing_exceptions  # noqa: E402
 from routes import schedule as schedule_routes  # noqa: E402
 from routes import menu as menu_routes  # noqa: E402
 from routes import menu_ingest as menu_ingest_routes  # noqa: E402
@@ -220,6 +221,7 @@ api.include_router(upcoming_schedule.router)
 api.include_router(schedule_conflict.router)
 api.include_router(department_board.router)
 api.include_router(operations_currency.router)
+api.include_router(routing_exceptions.router)
 api.include_router(schedule_routes.router)
 api.include_router(menu_routes.router)
 api.include_router(menu_ingest_routes.router)

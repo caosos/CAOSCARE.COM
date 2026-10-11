@@ -13,6 +13,7 @@ export function tabGroups(residents, staff, kiosks, zones, user) {
         { value: "overview", label: "Operations overview" },
         { value: "live-operations", label: "Live operations" },
         { value: "alerts", label: "Alerts & events" },
+        { value: "routing-exceptions", label: "Routing exceptions" },
         { value: "nursing", label: "Nursing" },
         { value: "maintenance", label: "Maintenance" },
         { value: "housekeeping", label: "Housekeeping" },

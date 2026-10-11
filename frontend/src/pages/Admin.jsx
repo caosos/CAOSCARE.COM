@@ -38,6 +38,7 @@ import KiosksTab from "./KiosksTab";
 import ZonesTab from "./ZonesTab";
 import { tabGroups, resolveTab } from "../lib/adminTabGroups";
 import OperationsOverview from "./OperationsOverview";
+import RoutingExceptionsBoard from "./RoutingExceptionsBoard";
 import LiveOperations from "./LiveOperations";
 import MaintenanceWorkspace from "./MaintenanceWorkspace";
 import DepartmentQueue from "./DepartmentQueue";
@@ -163,6 +164,7 @@ export default function Admin() {
           </TabsList>
 
           <TabsContent value="overview" className="mt-6"><OperationsOverview onNavigate={setActiveTab} /></TabsContent>
+          <TabsContent value="routing-exceptions" className="mt-6"><RoutingExceptionsBoard /></TabsContent>
           <TabsContent value="live-operations" className="mt-6"><LiveOperations /></TabsContent>
           <TabsContent value="alerts" className="mt-6"><AlertsBoard /></TabsContent>
           <TabsContent value="nursing" className="mt-6"><DepartmentQueue department="nursing" title="Nursing requests" adminMode /></TabsContent>
