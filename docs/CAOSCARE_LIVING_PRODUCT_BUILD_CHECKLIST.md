@@ -67,7 +67,7 @@ This is the required path whenever an agent, coordinator, watchdog, service, or 
 ## Current build control
 
 - **Current phase:** 3/7 — Care Operations workspaces.
-- **Today’s active engineering task:** recover intake routing to the current CAOSCare coordinator, then resume the authorized Transportation release/LIVE_VERIFY task. The previously recorded Front Desk/Admin browser slice never started.
+- **Today’s active engineering task:** `careops-transport-live-001` — promote gated `ff87c22` to `main`, deploy that exact SHA, LIVE_VERIFY Transportation; then Front Desk/Admin normal-work browser acceptance.
 - **Control issue / dispatch channel:** [#129](https://github.com/caosos/CAOSCARE.COM/issues/129).
 - **Completed review:** [PR #130](https://github.com/caosos/CAOSCARE.COM/pull/130), merged into integration.
 - **Integration branch:** `integration/2026-09-27`; current control head `58010c2ed6796ab1bb9245f642fa16cfc5a12af8`; release-code baseline `f35b4542a1b893357c78c21c4a7c4ce936fd8cff` (later coordinator-only commits may update control records without changing product code).
@@ -88,6 +88,13 @@ This is the required path whenever an agent, coordinator, watchdog, service, or 
 - Desktop-Agent project-package pin is corrected on `main` at `2ccb63f1f86a63dd4af63222ddb6f3e06a4cee26`. Host activation still requires one fast-forward and service restart command recorded above.
 - Cloud-safe compatible work completed: the CAOSCare heartbeat probe repair is on integration at `58010c2`; its receipt reports 11 tests passed and a successful live `coordinator_state.py` read.
 - No release authorization decision is pending. After the routing restart produces `DELIVERED → ACK → WORKING` from `caoscare-1-ee`, resume `careops-transport-live-001`; if Linode access is genuinely unavailable, record the exact dependency and take the Front Desk/Admin normal-work acceptance slice.
+
+### Update 2026-10-11 (EliteDesk, coordinator handoff and release gate)
+
+- Coordinator role moved to a new session by Michael's direction (handoff capsule `docs/status/COORDINATOR_HANDOFF_2026-10-11.md`); Michael then gave direct owner authorization in that session: promote `ff87c22` to `main`, deploy the exact SHA, LIVE_VERIFY Transportation, then Front Desk/Admin.
+- Release gate on a clean checkout of `ff87c22` (no local edits, shared venv, isolated port 8131 / DB `caoscare_gate_ff87c22`): backend `scripts/run_backend_tests.sh` 536 passed / 31 skipped / 0 failed (13 real_hardware deselected, 263 s); frontend 66 suites / 553 passed; production build compiled. `main` (`880d10f`) is an ancestor of `ff87c22` (fast-forward, 555 files); the only dependency change is `websockets>=14.0`; frontend deps unchanged; no manual data migration identified.
+- Watchdog repair: `scripts/owner_intake/heartbeat_probe.py` no longer crashes on string worker rows in `docs/status/COORDINATOR_STATUS.json` (`58010c2`, 11 tests).
+- BLOCKED (tooling, not authority): the coordinator session's auto-mode permission classifier refused `git push origin ff87c22:main`, `ssh caoscare-prod`, and `gh issue comment` despite the owner's authorization. NEED: Michael runs the two commands (`git push origin ff87c22:main`; on the server `./scripts/deploy_caoscare.sh ff87c22df1dd69b405fa0ec60429c20fe72f6801`) or adds allow rules for them, plus a signed-in caoscare.com owner session in Chrome for LIVE_VERIFY. Production remains `d7ff96a`.
 
 ### Update 2026-10-10 (EliteDesk, receipts)
 
@@ -305,7 +312,7 @@ Milestone: code is not merely present; the deployed product is usable.
 | Milestone | Acceptance result | Current state | Evidence-based estimate |
 |---|---|---|---|
 | M0 — Build control | Living checklist, current task, gates, ETA, and reporting contract in GitHub | COMPLETE with this file | Complete |
-| M1 — Transportation usable | Staff creates/opens/changes/cancels and completes trips with receipts in the deployed app | DEV_ACCEPTED; RELEASE READY; COORDINATOR ROUTE NEEDS HOST ACTIVATION | 0.5–1 focused workday after coordinator routing is restored |
+| M1 — Transportation usable | Staff creates/opens/changes/cancels and completes trips with receipts in the deployed app | DEV_ACCEPTED; RELEASE GATE PASSED on `ff87c22` (2026-10-11); main promotion + deploy waiting on owner-run commands or permission rule | same day once the two commands run |
 | M2 — Core Care Operations loop | Nursing, Maintenance, Front Desk/Admin, and shared service-ticket lifecycle re-accepted on current release | PARTIAL | 2–4 focused workdays after M1 |
 | M3 — Coordinated schedules | Transportation + therapy/appointments + resident/staff calendar links accepted | PARTIAL | 3–6 focused workdays after M2 |
 | M4 — Remaining departments | Dining, Activities, Housekeeping, Admin/reporting, alerts/escalation usable | PARTIAL / some planned | 5–10 focused workdays |
