@@ -8926,3 +8926,7 @@ Slack was scanned through `1791760395.149439` (18:13:15 CDT). The only newer inp
 ### Routing-exceptions delivery receipt — 2026-10-11 18:38:25 CDT
 
 Automatic intake published `DELIVERED da-6618877755` to the existing coordinator session `caoscare-1-ee` for `careops-routing-exceptions-001`. Explicit ACK/WORKING is due by 18:43:25 CDT; absent that, the same watchdog/coordinator must publish an exact `NEED_HOST_RECOVERY` rather than creating another session. Checklist receipt commit: `90057ab89a3ad4af6d78552d566e9ffdcfe37e35`; coordinator status receipt: `aac5bfc245c1411d8088310faf5dfd1cf7ee2e99`; canonical delivery comment: https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6115188974.
+
+### Routing-exceptions host-recovery NEED — 2026-10-11 18:44 CDT
+
+Delivery `da-6618877755` reached the existing coordinator session at 18:38:25 CDT, but no explicit ACK/WORKING appeared by the 18:43:25 deadline. Continuous EliteDesk coordinator/watchdog heartbeat and working-tree state are UNKNOWN. Canonical `NEED_HOST_RECOVERY`: https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6115232846. Exact recovery command: `cd ~/CAOSCARE-INTEGRATION && python3 scripts/owner_intake/coordinator_state.py && git status --porcelain=v1 -b && git rev-parse HEAD`. Reuse `caoscare-1-ee`; do not create a duplicate session. Impact is limited to proving routing-exceptions WORKING/loaded state; the current-operations slice remains READY_FOR_OWNER_REVIEW and production remains `ff87c22`. Next check 18:50 CDT.
