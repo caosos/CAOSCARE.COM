@@ -121,6 +121,21 @@ async def require_front_desk_or_admin(request: Request):
     return user
 
 
+async def require_transport_coordinator(request: Request):
+    """Day-to-day transportation access.
+
+    Owner/admin and front desk may coordinate rides facility-wide. Staff in
+    the transportation department may do the same work from their department
+    workspace. Other department staff remain scoped out.
+    """
+    user = await get_current_user(request)
+    if user.get("role") in ("owner", "admin", "front_desk"):
+        return user
+    if user.get("role") == "staff" and user.get("department") == "transportation":
+        return user
+    raise HTTPException(status_code=403, detail="Transportation, front desk or admin access required")
+
+
 async def require_owner(request: Request):
     """System-owner-only access. Used for Blueprint, memory bulletin internals,
     and any route that exposes architecture or all-resident override."""

@@ -83,14 +83,14 @@ async def _run():
     db = AsyncIOMotorClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]
 
     residents = []
-    for i in range(5):
+    for i in range(6):
         rid = uid("res")
         await db.residents.insert_one({
             "resident_id": rid, "name": f"{TAG} Resident {i}", "room": f"{TAG[-4:]}{i}",
             "created_at": now_utc().isoformat(),
         })
         residents.append(rid)
-    r1, r2, r3, r4, r5 = residents
+    r1, r2, r3, r4, r5, r6 = residents
     try:
         admin = await _user(db, "admin")
         desk = await _user(db, "front_desk")
@@ -109,6 +109,26 @@ async def _run():
         assert _post("/transportation/drivers", desk, name="nope").status_code == 403
         names = {d["name"] for d in _get("/transportation/drivers", desk).json()}
         assert drv_a["name"] in names
+        driver_names = {d["name"] for d in _get("/transportation/drivers", driver_staff).json()}
+        assert drv_a["name"] in driver_names
+        assert any(v["name"] == van["name"] for v in _get("/transportation/vehicles", driver_staff).json())
+
+        # Transportation staff coordinate their own department's daily work:
+        # create, change/book, and cancel remain receipt-backed.
+        own = _post("/transportation/staff/request", driver_staff, resident_id=r6, purpose="therapy",
+                    requested_for_date=WED).json()
+        assert own["booked"] is False
+        moved = _post(f"/transportation/staff/request/{own['task_id']}/change", driver_staff,
+                      requested_for_date=WED, start_time="14:00",
+                      driver_id=drv_c["driver_id"], vehicle_id=car["vehicle_id"])
+        assert moved.status_code == 200 and moved.json()["booked"] is True, moved.text
+        cancelled = _post(f"/transportation/staff/request/{own['task_id']}/cancel", driver_staff,
+                          reason="Department test cancellation")
+        assert cancelled.status_code == 200, cancelled.text
+        own_detail = _get(f"/tasks/{own['task_id']}/detail", admin).json()
+        assert [r["action_type"] for r in own_detail["receipts"]][-2:] == [
+            "transportation_changed", "transportation_cancelled"
+        ]
         # clearing hours with null works
         cleared = requests.patch(f"{API}/transportation/drivers/{drv_f['driver_id']}", headers=admin,
                                  json={"shift_start": None}, timeout=5).json()

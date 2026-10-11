@@ -9,8 +9,9 @@ import { toast } from "sonner";
 import TransportResourceFields, { resourcePayload } from "./TransportResourceFields";
 import { todayLocal } from "../lib/transportation";
 
-// Front desk books a ride for a resident (phone call, walk-up, a family
-// note) or changes an existing one. Both go through the authenticated
+// Front desk, Admin, or Transportation books a ride for a resident (phone
+// call, walk-up, department coordination, or a family note) or changes an
+// existing one. Both go through the authenticated
 // /transportation/staff/* endpoints, which reuse the exact booking/change
 // logic Aria's resident path uses, and are recorded as the front desk.
 //
