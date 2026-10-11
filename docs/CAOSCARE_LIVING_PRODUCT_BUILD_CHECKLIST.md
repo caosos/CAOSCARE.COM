@@ -51,6 +51,19 @@ This protocol applies to every bounded build item, fix, workflow, and section.
 - GitHub activity is not a process heartbeat. The EliteDesk local coordinator/watchdog must enforce the five-minute idle-detection and next-task handoff target and publish timestamped receipts.
 - The hourly cloud supervisor is a backup reconciliation layer; PR Watch handles matching GitHub PR events. Neither is represented as a five-minute host watchdog.
 
+## Escalation and recovery protocol
+
+This is the required path whenever an agent, coordinator, watchdog, service, or automation needs something.
+
+1. **Create a `NEED` receipt immediately.** It must include: project; task/section; timestamp; exact blocker; classification (`NEED_SERVICE`, `NEED_ACCESS`, `NEED_PERMISSION`, `NEED_HOST_ACTION`, or `NEED_OWNER`); exact requested action or one copyable command; impact; evidence; what compatible work continues; and next check time.
+2. **Route it through the existing control channel.** CAOSCare uses Issue #129; Desktop Agent uses Issue #3; Deal Sniffer uses its existing liaison/READY_QUEUE path. Do not invent a parallel queue.
+3. **Keep working.** A blocked agent takes the next compatible authorized checklist item. The coordinator may wait only when every useful authorized item is blocked, conflicting, unsafe, or requires a genuine owner decision.
+4. **Use standing authority.** Routine builds, tests, integration, verified deployments already authorized for that project, necessary service restarts, repairs, and verification do not become new owner questions merely because an agent reached them.
+5. **Escalate with a fix.** A service/host problem must include the recovery command or action and a verification check. A permission/access problem must identify the exact permission or credential required. Never send Michael only a problem statement.
+6. **Receipts close the loop.** Required states are `DELIVERED → ACK → WORKING → DONE`, or `BLOCKED/NEED` with continued compatible work. After recovery, record the loaded revision, service/process identity, port/health checks, and next-task handoff.
+7. **Cloud and host layers stay distinct.** The EliteDesk watchdog targets detection and handoff within five minutes. Hourly ChatGPT supervisors reconcile GitHub/checklist truth and notify this chat. PR watches react to GitHub PR events. None may claim another layer is alive without its receipt.
+8. **Slack escalation target.** Actionable NEED receipts should also be mirrored to `#all-ask-aria` when the ChatGPT Slack app is installed and present there. Until that event trigger is verified, the project issue plus hourly supervisor remains the delivery path.
+
 ## Current build control
 
 - **Current phase:** 3/7 — Care Operations workspaces.
