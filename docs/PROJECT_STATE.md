@@ -8872,3 +8872,8 @@ Guarded restart via `scripts/restart_dev_backend.sh`: preflight sha=febe0fa, 0 l
 
 ## 2026-10-11 — careops-routing-delivery-audit-001: routing traced end to end; "nobody was told" is now shown
 Compatible P0 taken while the Transportation LIVE_VERIFY waits on production data. API trace of one synthetic Kitchen request (room-screen bus → Kitchen routing → queue → overview → board → claim/ack/start/complete → 5 chained receipts → resident history) passed every transition except visibility of delivery: the department notification was only `logged` (no provider) and no screen said so. Repair: `routes/request_delivery.py` (one read of the request's linked notification records → delivered / sent / simulated / not_sent / failed / none; nothing stored), carried by task detail, department board rows (`counts.not_notified`) and overview task attention rows (`tasks.not_notified_open`), shown on the detail dialog, board card and overview row. Tests: backend gate 545 / 0 / 31 (new `test_request_delivery.py`), frontend 76 suites / 590, build compiled; scratch-stack headless 7/7, 0 failed API calls. Report `docs/reports/2026-10-11-routing-delivery-audit.md`. Not deployed; production `ff87c22`. Dev backend restart recorded below.
+
+---
+
+## 2026-10-11 — Dev backend restarted on `45bd234`
+Guarded restart via `scripts/restart_dev_backend.sh`: preflight sha=45bd234, 0 leases, no recent call activity, old pid 765209 (log /tmp/room214_backend_febe0fa.log = rollback provenance); new pid 796269, runtime commit 45bd234 with a clean tree, log /tmp/room214_backend_45bd234.log. The dev stack now shows request delivery truth. Development only; production `ff87c22` unchanged.
