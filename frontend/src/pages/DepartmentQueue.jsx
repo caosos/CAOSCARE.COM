@@ -7,11 +7,12 @@ import { Badge } from "../components/ui/badge";
 import { Textarea } from "../components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../components/ui/dialog";
-import { Plus, RefreshCw, Play, Check, Hand, History, Eye, NotebookPen } from "lucide-react";
+import { Plus, RefreshCw, Play, Check, Hand, History, Eye, NotebookPen, CalendarClock, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { workOrderBuckets, isOverdue, canClaim, canAssign, ageLabel } from "../lib/maintenance";
 import MaintenanceWorkOrderForm from "./MaintenanceWorkOrderForm";
 import RequestHistoryDialog from "./RequestHistoryDialog";
+import { PlanWindowDialog, ReasonDialog } from "./QueueDialogs";
 
 const PRIO_STYLE = {
   urgent: "bg-caos-terracotta text-white",
@@ -39,6 +40,8 @@ export default function DepartmentQueue({ department, title, itemName = "request
   const [noteText, setNoteText] = useState("");
   const [reopenFor, setReopenFor] = useState(null);
   const [reopenReason, setReopenReason] = useState("");
+  const [planFor, setPlanFor] = useState(null);
+  const [cancelFor, setCancelFor] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -99,6 +102,31 @@ export default function DepartmentQueue({ department, title, itemName = "request
   };
   const canNote = (t) => ["owner", "admin"].includes(user?.role) || t.assigned_to === user?.user_id;
   const isAdmin = ["owner", "admin"].includes(user?.role);
+  const canPlan = (t) => isAdmin || showAssign || t.assigned_to === user?.user_id;
+  // Planned visit window: PATCH /tasks/{id} with the same two fields the detail dialog saves (receipted as task_schedule_updated).
+  const savePlan = async (fields) => {
+    if (!planFor) return;
+    try {
+      await api.patch(`/tasks/${planFor}`, fields);
+      toast.success(fields.requested_for_date || fields.requested_for_time_label ? "Plan saved — the resident and Aria will see it" : "Plan cleared");
+      setPlanFor(null);
+      load();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Could not save the plan");
+    }
+  };
+  // Cancel = the canonical skip with a stated reason (receipted as task_cancelled).
+  const cancelRequest = async (reason) => {
+    if (!cancelFor) return;
+    try {
+      await api.post(`/tasks/${cancelFor}/skip`, { notes: reason });
+      toast.success("Cancelled");
+      setCancelFor(null);
+      load();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Could not cancel the request");
+    }
+  };
   const reopen = async () => {
     if (!reopenFor || !reopenReason.trim()) return;
     try {
@@ -137,6 +165,11 @@ export default function DepartmentQueue({ department, title, itemName = "request
               <div className="text-sm text-caos-ink/80 truncate">{t.description}</div>
             )}
             {t.notes && <div className="text-sm text-caos-ink/80">Note: {t.notes}</div>}
+            {(t.requested_for_date || t.requested_for_time_label) && (
+              <div className="text-sm text-caos-forest" data-testid={`wo-planned-${t.task_id}`}>
+                Planned: {[t.requested_for_time_label, t.requested_for_date].filter(Boolean).join(" · ")}
+              </div>
+            )}
             <div className="text-xs text-caos-mute mt-0.5">
               {[t.room ? `Room ${t.room}` : null, t.resident_name,
                 t.assigned_name ? `→ ${t.assigned_name}` : "unassigned",
@@ -168,6 +201,16 @@ export default function DepartmentQueue({ department, title, itemName = "request
             {canNote(t) && t.status !== "completed" && t.status !== "skipped" && (
               <Button size="sm" variant="ghost" onClick={() => { setNoteFor(t.task_id); setNoteText(""); }} data-testid={`wo-note-${t.task_id}`}>
                 <NotebookPen className="w-4 h-4 mr-1" /> Note
+              </Button>
+            )}
+            {canPlan(t) && t.status !== "completed" && t.status !== "skipped" && (
+              <Button size="sm" variant="ghost" onClick={() => setPlanFor(t.task_id)} data-testid={`wo-plan-${t.task_id}`}>
+                <CalendarClock className="w-4 h-4 mr-1" /> Plan
+              </Button>
+            )}
+            {canPlan(t) && t.status !== "completed" && t.status !== "skipped" && (
+              <Button size="sm" variant="ghost" className="text-caos-terracotta" onClick={() => setCancelFor(t.task_id)} data-testid={`wo-cancel-${t.task_id}`}>
+                <XCircle className="w-4 h-4 mr-1" /> Cancel
               </Button>
             )}
             <Button size="sm" variant="ghost" onClick={() => setHistoryFor(t.task_id)} data-testid={`wo-history-${t.task_id}`}>
@@ -289,6 +332,13 @@ export default function DepartmentQueue({ department, title, itemName = "request
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <PlanWindowDialog open={!!planFor} onOpenChange={(o) => { if (!o) setPlanFor(null); }} itemName={itemName}
+        initialDate={tasks.find((t) => t.task_id === planFor)?.requested_for_date || ""}
+        initialLabel={tasks.find((t) => t.task_id === planFor)?.requested_for_time_label || ""} onSave={savePlan} />
+      <ReasonDialog open={!!cancelFor} onOpenChange={(o) => { if (!o) setCancelFor(null); }} title={`Cancel ${itemName}`}
+        description="The request is closed as cancelled; the reason is recorded in its history and receipts." placeholder="Why is it cancelled? (required)"
+        submitLabel="Cancel request" testId="wo-cancel" onSubmit={cancelRequest} />
 
       <RequestHistoryDialog taskId={historyFor} onClose={() => setHistoryFor(null)} />
     </div>

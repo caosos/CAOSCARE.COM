@@ -17,10 +17,11 @@ describe("roleHomePath", () => {
     }
   });
 
-  test("care/nursing, administration, custom, or no department -> /staff", () => {
+  test("care/nursing, administration, unknown custom, or no department -> /staff; therapy -> /workspace", () => {
     expect(roleHomePath({ role: "staff", department: "nursing" })).toBe("/staff");
     expect(roleHomePath({ role: "staff", department: "administration" })).toBe("/staff");
-    expect(roleHomePath({ role: "staff", department: "therapy" })).toBe("/staff");
+    expect(roleHomePath({ role: "staff", department: "therapy" })).toBe("/workspace");
+    expect(roleHomePath({ role: "staff", department: "unknown_custom" })).toBe("/staff");
     expect(roleHomePath({ role: "staff", department: null })).toBe("/staff");
     expect(roleHomePath({ role: "staff" })).toBe("/staff");
   });
@@ -44,7 +45,8 @@ describe("workspaceLabel / departmentWorkspaceLabel", () => {
     expect(departmentWorkspaceLabel("housekeeping")).toBe("Housekeeping workspace");
     expect(departmentWorkspaceLabel("nursing")).toBe("Care / assistance board");
     expect(departmentWorkspaceLabel("administration")).toBe("Admin command centre");
-    expect(departmentWorkspaceLabel("therapy")).toBe("General staff board");
+    expect(departmentWorkspaceLabel("therapy")).toBe("Therapy workspace");
+    expect(departmentWorkspaceLabel("unknown_custom")).toBe("General staff board");
   });
 });
 
@@ -64,4 +66,11 @@ test("Admin button on /staff is for owner/admin only", () => {
   expect(canOpenAdmin({ role: "staff", department: "nursing" })).toBe(false);
   expect(canOpenAdmin({ role: "front_desk" })).toBe(false);
   expect(canOpenAdmin(null)).toBe(false);
+});
+
+test("therapy staff land on the shared department workspace", () => {
+  const { roleHomePath, workspaceLabel } = require("../roleHome");
+  expect(roleHomePath({ role: "staff", department: "therapy" })).toBe("/workspace");
+  expect(workspaceLabel({ role: "staff", department: "therapy" })).toBe("Therapy workspace");
+  expect(roleHomePath({ role: "staff", department: "nursing" })).toBe("/staff");
 });

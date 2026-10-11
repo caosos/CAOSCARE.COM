@@ -4,13 +4,12 @@ import { useAuth } from "../lib/auth";
 import { api } from "../lib/api";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
-import { Badge } from "../components/ui/badge";
-import { LogOut, RefreshCw, Play, Check, Eye } from "lucide-react";
-import { toast } from "sonner";
+import { LogOut, RefreshCw } from "lucide-react";
 import { MyTasksCard } from "./TasksTab";
 import MaintenanceWorkspace from "./MaintenanceWorkspace";
 import TransportationCalendar from "./TransportationCalendar";
 import CommunityServicesWorkspace from "./CommunityServicesWorkspace";
+import DepartmentQueue from "./DepartmentQueue";
 import { SERVICES_DEPARTMENTS } from "../lib/communityServices";
 
 // One shared operational workspace, rendered per the signed-in staff
@@ -22,29 +21,11 @@ import { SERVICES_DEPARTMENTS } from "../lib/communityServices";
 // unassigned staff are routed to /staff (the resident-assistance board)
 // instead of here - see lib/roleHome.js.
 
-const OPEN = ["pending", "in_progress"];
-const STATUS_STYLE = {
-  pending: "bg-caos-mute/10 text-caos-mute",
-  in_progress: "bg-caos-amber/15 text-[#8B5A20] border border-caos-amber",
-  completed: "bg-caos-moss/15 text-caos-forest border border-caos-moss",
-  skipped: "bg-caos-line text-caos-mute line-through",
-};
-
-function ageLabel(iso) {
-  if (!iso) return "—";
-  const ms = Date.now() - new Date(iso).getTime();
-  const h = Math.floor(ms / 3_600_000);
-  if (h < 1) return `${Math.max(1, Math.floor(ms / 60_000))}m`;
-  if (h < 24) return `${h}h`;
-  return `${Math.floor(h / 24)}d`;
-}
-
 export default function DepartmentWorkspace() {
   const { user, logout } = useAuth();
   const nav = useNavigate();
   const [departments, setDepartments] = useState([]);
-  const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);   // Refresh re-mounts the shared queue
 
   const dept = user?.department || null;
   const deptLabel = useMemo(() => {
@@ -53,41 +34,9 @@ export default function DepartmentWorkspace() {
     return d ? d.label : dept && dept.charAt(0).toUpperCase() + dept.slice(1);
   }, [departments, dept]);
 
-  const fetchTasks = async () => {
-    try {
-      const params = dept ? { visibility_role: dept } : {};
-      const { data } = await api.get("/tasks", { params });
-      setTasks(data);
-    } catch {
-      toast.error("Could not load the queue");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
     api.get("/departments/labels").then(({ data }) => setDepartments(data)).catch(() => {});
   }, []);
-  useEffect(() => {
-    fetchTasks();
-    const t = setInterval(fetchTasks, 15000);
-    return () => clearInterval(t);
-  }, [dept]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const act = async (id, action) => {
-    try {
-      await api.post(`/tasks/${id}/${action}`);
-      toast.success(action[0].toUpperCase() + action.slice(1) + (action === "acknowledge" ? "d" : action === "start" ? "ed" : "d"));
-      fetchTasks();
-    } catch (err) {
-      toast.error(err?.response?.data?.detail || "Failed");
-    }
-  };
-
-  const openItems = tasks.filter((t) => OPEN.includes(t.status))
-    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at)); // oldest first
-  const doneItems = tasks.filter((t) => !OPEN.includes(t.status))
-    .sort((a, b) => new Date(b.completed_at || b.created_at) - new Date(a.completed_at || a.created_at));
 
   return (
     <div className="min-h-screen bg-caos-bone">
@@ -116,7 +65,7 @@ export default function DepartmentWorkspace() {
           <h1 className="font-display text-4xl font-light text-caos-forest">
             {deptLabel ? `${deptLabel} workspace` : "Workspace"}
           </h1>
-          <Button variant="ghost" onClick={fetchTasks} data-testid="workspace-refresh">
+          <Button variant="ghost" onClick={() => setReloadKey((k) => k + 1)} data-testid="workspace-refresh">
             <RefreshCw className="w-4 h-4 mr-2" /> Refresh
           </Button>
         </div>
@@ -150,75 +99,11 @@ export default function DepartmentWorkspace() {
         {dept && dept !== "maintenance" && dept !== "transportation" && !SERVICES_DEPARTMENTS.includes(dept) && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <section className="lg:col-span-2">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="font-display text-2xl font-medium text-caos-forest">
-                  Open queue <span className="text-caos-mute text-lg">({openItems.length})</span>
-                </h2>
-              </div>
-              <div className="space-y-2" data-testid="workspace-open-list">
-                {!loading && openItems.length === 0 && (
-                  <Card className="p-8 text-center border-caos-line text-caos-mute italic">Nothing open right now.</Card>
-                )}
-                {openItems.map((t) => (
-                  <Card key={t.task_id} className="p-4 border-caos-line" data-testid={`workspace-task-${t.task_id}`}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="font-semibold text-caos-forest">{t.title}</div>
-                        <div className="text-xs text-caos-mute mt-0.5">
-                          {t.category}
-                          {(t.resident_name || t.room) && " · "}
-                          {t.resident_name}{t.resident_name && t.room ? " · " : ""}{t.room ? `Room ${t.room}` : ""}
-                          {" · open "}{ageLabel(t.created_at)}
-                          {t.re_request_count > 0 && <span className="text-caos-terracotta"> · asked {t.re_request_count}x</span>}
-                        </div>
-                        {t.description && t.description !== t.title && (
-                          <div className="text-sm text-caos-ink/80 mt-1">{t.description}</div>
-                        )}
-                        <div className="flex items-center gap-2 mt-2">
-                          <Badge className={`uppercase tracking-wider text-[10px] font-bold ${STATUS_STYLE[t.status]}`}>{t.status.replace("_", " ")}</Badge>
-                          {t.priority && t.priority !== "normal" && (
-                            <Badge variant="outline" className="uppercase text-[10px]">{t.priority}</Badge>
-                          )}
-                          {t.assigned_name && <span className="text-[11px] text-caos-mute">→ {t.assigned_name}</span>}
-                        </div>
-                      </div>
-                      <div className="flex flex-col gap-1.5 shrink-0">
-                        {!t.acknowledged_at && (
-                          <Button size="sm" variant="outline" className="border-2" onClick={() => act(t.task_id, "acknowledge")} data-testid={`ws-ack-${t.task_id}`}>
-                            <Eye className="w-4 h-4 mr-1" /> Ack
-                          </Button>
-                        )}
-                        {t.status === "pending" && (
-                          <Button size="sm" className="bg-caos-forest hover:bg-caos-forest-hover" onClick={() => act(t.task_id, "start")} data-testid={`ws-start-${t.task_id}`}>
-                            <Play className="w-4 h-4 mr-1" /> Start
-                          </Button>
-                        )}
-                        <Button size="sm" variant="outline" className="border-2" onClick={() => act(t.task_id, "complete")} data-testid={`ws-done-${t.task_id}`}>
-                          <Check className="w-4 h-4 mr-1" /> Done
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-
-              {doneItems.length > 0 && (
-                <details className="mt-5">
-                  <summary className="text-xs font-bold uppercase tracking-widest text-caos-mute cursor-pointer">
-                    Recently closed ({doneItems.length})
-                  </summary>
-                  <div className="mt-2 space-y-1 text-sm">
-                    {doneItems.slice(0, 25).map((t) => (
-                      <div key={t.task_id} className="flex justify-between text-caos-mute border-b border-caos-line py-1">
-                        <span className={t.status === "skipped" ? "line-through" : ""}>{t.title}</span>
-                        <span className="text-xs">{t.completed_by_name || ""} · {ageLabel(t.completed_at || t.created_at)} ago</span>
-                      </div>
-                    ))}
-                  </div>
-                </details>
-              )}
+              {/* Therapy, Resident Programs and any other department work the same
+                  shared queue nursing/maintenance/housekeeping use (claim, note,
+                  plan the visit window, complete, cancel, reopen, history). */}
+              <DepartmentQueue key={reloadKey} department={dept} title={`${deptLabel || "Department"} requests`} />
             </section>
-
             <section className="space-y-6">
               <MyTasksCard />
             </section>

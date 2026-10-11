@@ -20,6 +20,10 @@ const WORKSPACE_DEPARTMENTS = new Set([
   // Not seeded by default; an admin adds it (Departments tab) when a
   // community has an activities coordinator. See CommunityServicesWorkspace.
   "activities",
+  // Therapy / resident programs (custom departments) work the shared
+  // department queue in /workspace (appointments: plan, attend, cancel).
+  "therapy",
+  "resident_programs",
 ]);
 
 export function roleHomePath(user) {

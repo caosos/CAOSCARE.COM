@@ -795,7 +795,12 @@ TaskSource = Literal["staff", "aria_voice", "kiosk_button", "family", "system", 
 # Requests that originate with a resident (the resident-request bus).
 # "simulator" = a simulated resident in an operations-simulator run (SC-17);
 # only ever set server-side, never accepted from a request body.
-RESIDENT_ORIGIN_SOURCES = ("aria_voice", "kiosk_button", "simulator")
+# "front_desk" = entered by authenticated front-desk staff ON THE RESIDENT'S
+# BEHALF through the same bus (same routing, dedup, receipt); it is the
+# resident's request, so the resident's Home screen and Aria's status see it
+# (careops-therapy-appointment-001, 2026-10-11: an appointment entered at the
+# desk must be visible to the resident).
+RESIDENT_ORIGIN_SOURCES = ("aria_voice", "kiosk_button", "simulator", "front_desk")
 # Coarse role gate for who should see this in their queue/dashboard.
 # Enforced backend-side wherever tasks are listed for a given role - see
 # ENGINEERING_CONTRACT.md (once written) for the authorization pattern.

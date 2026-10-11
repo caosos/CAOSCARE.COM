@@ -22,9 +22,13 @@ def _owner(task: dict) -> Optional[str]:
     return task.get("assigned_to_name") or task.get("assigned_name")
 
 
-def _sched(view: dict) -> str:
-    label = view.get("scheduled_time_label")
-    date = view.get("scheduled_date")
+def _sched(task: dict) -> str:
+    """The planned visit window. Called with the raw staff_tasks row (fields
+    requested_for_*); the resident view's names (scheduled_*) are accepted too
+    so either shape speaks the window. Before 2026-10-11 only the view names
+    were read, so a planned window was never spoken."""
+    label = task.get("requested_for_time_label") or task.get("scheduled_time_label")
+    date = task.get("requested_for_date") or task.get("scheduled_date")
     if not label and not date:
         return ""
     return " Planned for " + " on ".join(x for x in (label, date) if x) + "."

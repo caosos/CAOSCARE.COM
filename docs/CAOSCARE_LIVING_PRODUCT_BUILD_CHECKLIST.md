@@ -67,7 +67,7 @@ This is the required path whenever an agent, coordinator, watchdog, service, or 
 ## Current build control
 
 - **Current phase:** 3/7 — Care Operations workspaces.
-- **Today’s active engineering task:** `careops-therapy-appointment-001` is the single next compatible bounded task after `careops-frontdesk-callback-001` completed acceptance-only at 19/19. Transportation `careops-transport-live-001` remains authorized but blocked on the recorded main-push/deploy/live-browser host path; the broader Front Desk/Admin section still needs an admin sign-in.
+- **Today’s active engineering task:** `careops-therapy-appointment-001` DONE 2026-10-11 ~10:25Z (built + scratch-stack acceptance 21/21; report 2026-10-11-therapy-appointment-acceptance). Earlier today: `careops-frontdesk-callback-001` DONE ~09:45Z (acceptance only, 19/19; `docs/reports/2026-10-11-front-desk-callback-acceptance.md`) after `careops-frontdesk-reopen-001`. Transportation `careops-transport-live-001` remains authorized but blocked on the already-recorded main-push/deploy/live-browser host path. No further compatible Front Desk item is unblocked without the owner: the Admin half needs an admin sign-in; unified inbox / shift notes / announcements are new product scope.
 - **Control issue / dispatch channel:** [#129](https://github.com/caosos/CAOSCARE.COM/issues/129).
 - **Completed review:** [PR #130](https://github.com/caosos/CAOSCARE.COM/pull/130), merged into integration.
 - **Integration branch:** `integration/2026-09-27`; current control head `58010c2ed6796ab1bb9245f642fa16cfc5a12af8`; release-code baseline `f35b4542a1b893357c78c21c4a7c4ce936fd8cff` (later coordinator-only commits may update control records without changing product code).
@@ -249,7 +249,7 @@ Current status: **ACTIVE. Transportation is DEV_ACCEPTED; release/live verificat
 
 ### Therapy and appointments
 
-- [ ] Therapy provider/discipline, appointment, recurrence, location, transport need, attendance, cancellation/reschedule, notes/status, and resident-facing schedule.
+- [~] Therapy provider/discipline, appointment, recurrence, location, transport need, attendance, cancellation/reschedule, notes/status, and resident-facing schedule. DEV_ACCEPTED 2026-10-11 for one non-recurring appointment (`careops-therapy-appointment-001`): entered at the front desk → therapy shared queue → planned window (Plan) → reschedule → resident Home screen + Aria show it → attendance (complete) with a 6-receipt linked chain; second appointment cancelled with a reason (`task_cancelled`). Scratch-stack headless 21/21 with a synthetic therapist (`docs/reports/2026-10-11-therapy-appointment-acceptance.md`). Not built: recurrence, provider/discipline, location, transport link, date-ordered schedule view.
 - [ ] Permission boundaries for operational versus clinical information.
 - [ ] Calendar conflict detection and linked transportation request.
 - [ ] Staff and resident browser acceptance.
