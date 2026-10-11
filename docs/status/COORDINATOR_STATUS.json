@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "updated_at": "2026-10-11T12:54:18Z",
-  "updated_by": "ChatGPT CAOSCare Build Supervisor (upcoming-view delivery receipt)",
+  "updated_at": "2026-10-11T12:57:30Z",
+  "updated_by": "ChatGPT CAOSCare Build Supervisor (classify concurrent detail-dialog addendum)",
   "ready_unblocked": [
-    "careops-therapy-upcoming-view-001: canonical StaffTask/resident-safe data only; facility-time date ordering; therapy staff + resident views; planned time, operational provider/discipline/location, lifecycle status, linked-ride truth; authorization/order tests + build + isolated responsive browser; no recurrence, new calendar store, clinical data, conflict engine, billing, messaging, audio, paid service, production deploy, or real-data mutation"
+    "careops-therapy-upcoming-view-001: canonical StaffTask/resident-safe data only; facility-time date ordering; therapy staff + resident views; planned time, operational provider/discipline/location, lifecycle status, linked-ride truth; authorization/order tests + build + isolated responsive browser. In the same browser run, validate 4b92e19 detail-dialog addendum: authorized admin edit and unauthorized front-desk behavior; repair if UI offers a refused mutation. No recurrence, new calendar store, clinical data, conflict engine, billing, messaging, audio, paid service, production deploy, or real-data mutation."
   ],
   "workers": [
     "caoscare-1-ee: DELIVERED da-eecac34ab9 at 2026-10-11 07:54:18 CDT via automatic intake for careops-therapy-upcoming-view-001; explicit ACK/WORKING pending. Details product de8e4f2, backend 540/31 skipped, frontend 70 suites/565, report 13/13, and guarded dev restart b34e721 prove the predecessor completed. da-f616017117 remains quarantined cross-project context."
@@ -21,5 +21,5 @@
     "PR #67 adoption",
     "per-kiosk device-credential decision"
   ],
-  "note": "careops-therapy-details-001 is DEV_ACCEPTED at de8e4f2dc56eaa0ce541f7b34d6f4aba034a564a. Gates: backend 540 passed/31 skipped, frontend 70 suites/565, build compiled, isolated browser 13/13, report blob f57cfbd619e0744c9b8215bbc52240cf17104b49. Dev backend :8092 restarted cleanly on product SHA de8e4f2 via b34e721; main 880d10f and production d7ff96a unchanged. GitHub has no combined-status contexts or workflow runs for de8e4f2. Slack checked after 1791720983.413879; newer replies were Deal Sniffer-only. Next task is careops-therapy-upcoming-view-001. No CAOSCare owner action. Upcoming-view dispatch delivered as da-eecac34ab9 (Issue #129 comment 6109234198); ACK/WORKING pending. Slack output TS 1791723184.185039; Slack inputs processed through 1791722564.078439."
+  "note": "careops-therapy-details-001 is DEV_ACCEPTED at de8e4f2dc56eaa0ce541f7b34d6f4aba034a564a. Gates: backend 540 passed/31 skipped, frontend 70 suites/565, build compiled, isolated browser 13/13, report blob f57cfbd619e0744c9b8215bbc52240cf17104b49. Dev backend :8092 restarted cleanly on product SHA de8e4f2 via b34e721; main 880d10f and production d7ff96a unchanged. GitHub has no combined-status contexts or workflow runs for de8e4f2. Slack checked after 1791720983.413879; newer replies were Deal Sniffer-only. Next task is careops-therapy-upcoming-view-001. No CAOSCare owner action. Upcoming-view dispatch delivered as da-eecac34ab9 (Issue #129 comment 6109234198); ACK/WORKING pending. Slack output TS 1791723184.185039; Slack inputs processed through 1791722564.078439. Concurrent product 4b92e19 is IMPLEMENTED/TESTED only (frontend 72 suites/570, build compiled), not browser accepted; its admin-edit/front-desk authorization case is folded into the current upcoming-view worker, not a second task."
 }
