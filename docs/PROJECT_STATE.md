@@ -8922,3 +8922,7 @@ GitHub exposes no combined-status contexts and no pull-request workflow runs for
 **ONE next bounded task:** `careops-routing-exceptions-001`. Use canonical task, notification and receipt records to give supervisors a usable exception view for undelivered, unassigned, overdue and failed handoffs. Each row must show owner, age, latest action, exact delivery state, retry/escalation action and receipt history. Acceptance must seed each exception class, prove authorized filtering/detail/recovery in API and responsive browser, verify counts after recovery, and preserve current-operation currency classification. No external provider spend, audio, production data mutation, new queue or parallel truth store.
 
 Slack was scanned through `1791760395.149439` (18:13:15 CDT). The only newer input was Desktop Agent takeover status; it was cross-project and not acted on here.
+
+### Routing-exceptions delivery receipt — 2026-10-11 18:38:25 CDT
+
+Automatic intake published `DELIVERED da-6618877755` to the existing coordinator session `caoscare-1-ee` for `careops-routing-exceptions-001`. Explicit ACK/WORKING is due by 18:43:25 CDT; absent that, the same watchdog/coordinator must publish an exact `NEED_HOST_RECOVERY` rather than creating another session. Checklist receipt commit: `90057ab89a3ad4af6d78552d566e9ffdcfe37e35`; coordinator status receipt: `aac5bfc245c1411d8088310faf5dfd1cf7ee2e99`; canonical delivery comment: https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6115188974.
