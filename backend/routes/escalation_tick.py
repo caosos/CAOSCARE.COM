@@ -154,13 +154,66 @@ async def _try_sms(to_phone: str, alert: dict, level: int, rule: dict):
         simulation=await alert_provenance_flag(alert))
 
 
+_HEALTH = {"type": "escalation_schedule", "id": "default"}
+_health_state: dict = {}   # in-process cache of the latest health receipt; loaded from receipts once
+
+
+async def _latest_health() -> dict:
+    if "state" not in _health_state:
+        last = await db.receipts.find_one(
+            {"related_object_type": _HEALTH["type"], "related_object_id": _HEALTH["id"]},
+            {"_id": 0, "receipt_id": 1, "action_type": 1}, sort=[("created_at", -1)])
+        _health_state.update(
+            state="failing" if (last or {}).get("action_type") == "escalation_tick_failed" else "healthy",
+            receipt_id=(last or {}).get("receipt_id"))
+    return _health_state
+
+
+async def _record_health(after: str, *, error: str | None = None, result: dict | None = None) -> None:
+    """Only a change of state is receipted (healthy -> failing -> healthy), so a
+    tick that keeps failing every interval leaves one record, not thousands."""
+    h = await _latest_health()
+    if h["state"] == after:
+        return
+    failed = after == "failing"
+    rcpt = await create_receipt(
+        action_type="escalation_tick_failed" if failed else "escalation_tick_recovered",
+        related_object_type=_HEALTH["type"], related_object_id=_HEALTH["id"], source="system",
+        status="failed" if failed else "completed",
+        result="escalation tick failed; alerts stay open on the dashboard but are not escalated"
+               if failed else "escalation tick running again",
+        failure_reason=error,
+        provenance={"actor_id": ACTOR_ID, "actor_type": "system", "actor_name": "Escalation tick",
+                    "authority": "escalation_schedule",
+                    "before_state": {"tick": h["state"]},
+                    "after_state": {"tick": after, **({"error": error} if failed else {"tick_result": result})},
+                    "parent_receipt_id": h["receipt_id"],
+                    "result_label": "failed" if failed else "verified",
+                    "next_state": "retry_next_interval" if failed else "escalating"})
+    h.update(state=after, receipt_id=rcpt["receipt_id"])
+
+
+async def tick_once() -> None:
+    """One scheduled pass: run the tick, and receipt a failure or a recovery."""
+    try:
+        result = await run_tick()
+    except asyncio.CancelledError:
+        raise
+    except Exception as e:
+        log.warning("escalation tick failed: %s", e)
+        try:
+            await _record_health("failing", error=f"{type(e).__name__}: {e}"[:500])
+        except Exception as e2:   # the receipt store itself may be what is down
+            log.warning("could not record escalation tick failure: %s", e2)
+        return
+    try:
+        await _record_health("healthy", result=result)
+    except Exception as e:
+        log.warning("could not record escalation tick recovery: %s", e)
+
+
 async def run_escalation_loop(interval: int) -> None:
     """Background schedule. Never imports simulator code."""
     while True:
-        try:
-            await run_tick()
-        except asyncio.CancelledError:
-            raise
-        except Exception as e:
-            log.warning("escalation tick failed: %s", e)
+        await tick_once()
         await asyncio.sleep(interval)
