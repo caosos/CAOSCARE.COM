@@ -7,7 +7,7 @@ import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { RefreshCw, ChevronRight, AlertCircle, Info } from "lucide-react";
 import { toast } from "sonner";
-import { formatAge, attentionAccent, accentStyle, linkTarget } from "../lib/opsOverview";
+import { formatAge, attentionAccent, accentStyle, linkTarget, departmentTab } from "../lib/opsOverview";
 
 // Admin / ED operations overview. Read-only. Every value comes from
 // GET /ops/overview (routes/ops_overview.py), which derives it live from
@@ -128,7 +128,8 @@ export default function OperationsOverview({ onNavigate }) {
           {departments.map((d) => (
             <Card key={d.slug} className="p-4 border-caos-line" data-testid={`ops-dept-${d.slug}`}>
               <div className="flex items-center justify-between">
-                <span className="font-semibold text-caos-forest">{d.label}</span>
+                <button type="button" className="font-semibold text-caos-forest hover:underline text-left" title="Open this department's work"
+                  onClick={() => onNavigate?.(departmentTab(d.slug))} data-testid={`ops-dept-open-${d.slug}`}>{d.label} →</button>
                 {!d.active && <Badge variant="outline" className="text-[10px] text-caos-mute">inactive</Badge>}
               </div>
               <div className="grid grid-cols-3 gap-2 mt-3 text-center">

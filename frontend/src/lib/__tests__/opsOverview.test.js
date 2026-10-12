@@ -1,4 +1,4 @@
-import { formatAge, attentionAccent, accentStyle, linkTarget, departmentAlert } from "../opsOverview";
+import { formatAge, attentionAccent, accentStyle, linkTarget, departmentAlert, departmentTab } from "../opsOverview";
 
 describe("formatAge", () => {
   test("buckets seconds into m / h / d", () => {
@@ -49,5 +49,15 @@ describe("departmentAlert", () => {
     expect(departmentAlert({ overdue: 0, unassigned: 3 })).toBe("3 unassigned");
     expect(departmentAlert({ overdue: 0, unassigned: 0 })).toBe(null);
     expect(departmentAlert(null)).toBe(null);
+  });
+});
+
+describe("departmentTab", () => {
+  test("departments with an Admin workspace open it; others open Departments", () => {
+    expect(departmentTab("kitchen")).toBe("kitchen");
+    expect(departmentTab("transportation")).toBe("transportation");
+    expect(departmentTab("nursing")).toBe("nursing");
+    expect(departmentTab("therapy")).toBe("departments");
+    expect(departmentTab(undefined)).toBe("departments");
   });
 });
