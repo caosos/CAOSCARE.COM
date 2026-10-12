@@ -9101,3 +9101,12 @@ Menu paste accepts dated day headers and creates one draft per day (same header 
 
 ## 2026-10-12 — Screen guidance (careops-screen-guidance-001)
 Purpose + next step on Departments, Family and the Transportation daily screen; Activities, Menu and Transport resources got theirs in earlier slices tonight. Frontend 86 suites / 621, build compiled; dev browser 16/16. Report `docs/reports/2026-10-12-screen-guidance.md`. Frontend only; not deployed; novice usability still for owner review.
+
+
+---
+
+## 2026-10-12 — Supervisor boundary: Screen guidance → Good surfaces review
+
+`careops-screen-guidance-001` is DEV_ACCEPTED at `c7ecf0d60a98ebe5f6855a1abbc5b28b0e4fa7aa`. Frontend: 86 suites / 621 tests; compiled build; browser 16/16 at 1280 and 390 px. Development frontend serves `c7ecf0d`; backend remains `7e854ce`; dev `:8092` was healthy at 00:23:22 CDT. Production remains `ff87c22`; this slice is not production-loaded, LIVE_VERIFIED, or OWNER_ACCEPTED / DONE. Novice usability remains for owner review.
+
+Single next bounded task: `careops-good-surfaces-review-001` through the existing coordinator `caoscare-1-ee`. Review Requests, Devices, Reports/Audit, Facility setup, and Live board with intended roles; complete one normal task per surface, verify canonical records/receipts and truthful authorization/empty/load-failure behavior, repair the first concrete gap, and record desktop/390 px, exact tested/loaded revisions, and host evidence. ETA UNKNOWN pending ACK/WORKING; blocker NONE.
