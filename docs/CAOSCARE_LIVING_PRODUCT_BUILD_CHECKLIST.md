@@ -1,6 +1,6 @@
 # CAOSCare — Living Product Build Checklist
 
-Updated: 2026-10-12 (05:57 CDT; canonical alert state ACKED / WORKING).
+Updated: 2026-10-12 (06:06 CDT; canonical alert state DEV_ACCEPTED; close-out receipts DELIVERED).
 
 This is the owner-facing product build and progress tracker for the Care Operations build. Canonical owner direction: [Issue #129](https://github.com/caosos/CAOSCARE.COM/issues/129). Detailed historical evidence remains in [PILOT1_EXECUTION_CHECKLIST.md](https://github.com/caosos/CAOSCARE.COM/blob/integration/2026-09-27/docs/PILOT1_EXECUTION_CHECKLIST.md). This file controls current phase, active task, milestones, ETA, blockers, and the reporting contract.
 
@@ -91,7 +91,7 @@ check); tests `scripts/owner_intake/tests/test_eta_receipts.py`.
 ## Current build control
 
 - **Current phase:** 3/7 — Care Operations workspaces.
-- **ONE current bounded task:** `careops-alerts-canonical-state-001` — ACKED / WORKING through existing coordinator `caoscare-1-ee` and worker `da-2be29b619e`. The worker is inventorying every writer of Alert status, escalation level, Aria/live-line state, notification status, StaffTask review/unclaimed state, and receipts; `escalation_tick` / RQ-018 is the existing sole escalation authority under review. It will publish the canonical state/transition and compatibility matrix, prove Nursing mapping, repair only the first conflicting writer with a failing test first, then run full gates, desktop/390 px, and cleanup. ETA approximately Monday, October 12, 2026 — 7:35 AM America/Chicago; existing LOCAL watchdog next_check_at Monday, October 12, 2026 — 7:35:34 AM America/Chicago; blocker NONE.
+- **ONE current bounded task:** `careops-alerts-close-receipts-001` — DELIVERED through existing coordinator `caoscare-1-ee`; ACK / WORKING required by Monday, October 12, 2026 — 6:11 AM America/Chicago. Make alert resolve/close one atomic terminal transition with exactly one receipt and linked history entry containing actor, authority, before/after, and idempotent repeat/concurrency behavior; cover legacy `escalated` rows and preserve acknowledgement, RQ-018 escalation, dispatch, public status, and Nursing mapping. ETA UNKNOWN pending ACK; existing LOCAL watchdog next_check_at Monday, October 12, 2026 — 6:11:15 AM America/Chicago; blocker NONE.
 - **Control issue / dispatch channel:** [#129](https://github.com/caosos/CAOSCARE.COM/issues/129).
 - **Completed review:** [PR #130](https://github.com/caosos/CAOSCARE.COM/pull/130), merged into integration.
 - **Integration branch:** `integration/2026-09-27`; current accepted therapy-conflict product commit `77f83d3d53e17ffb75c71d137ab876e50552efe9` with guarded dev restart `1bf1bec26ea58a6c55730fea3c858734eb788d54`. This later integration work is not in production `ff87c22`; the release baseline is separate.
@@ -833,3 +833,21 @@ Issue #129 is the dispatch channel to existing coordinator `caoscare-1-ee`. ACK/
 - **Michael must do:** NOTHING.
 
 - **DONE (coordinator) — `careops-alerts-canonical-state-001`, Monday, October 12, 2026 — 6:04 AM America/Chicago:** IMPLEMENTED / TESTED / DEV_ACCEPTED. Inventory + canonical alert contract published (`docs/reports/2026-10-12-alerts-canonical-state.md`). First gap repaired `45bd442`: alert acknowledgement is now atomic, receipted (`alert_acknowledged`, actor/authority/before/after) and history-linked; concurrent acks one winner. Backend 604/0/31; browser nurse 390 + owner 1280 on dev `45bd442`. Open: who may acknowledge (owner decision), actor-less close-out receipts and re-close, direct wander/wearable inserts. Production `ff87c22` unchanged.
+
+
+### Update 2026-10-12 06:06 CDT (canonical alert state DEV_ACCEPTED; close-out receipts dispatched)
+
+- **Completion receipt — `careops-alerts-canonical-state-001`:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6122992084. Transport-only mirror: https://github.com/caosos/CAOSCARE.COM/pull/131#issuecomment-6123012360.
+- **Verdict:** IMPLEMENTED / TESTED / DEV_ACCEPTED; the broader Alerts / escalation section remains incomplete and is not OWNER_ACCEPTED / DONE.
+- **Canonical contract:** Alert staff workflow is active → acknowledged → resolved; legacy `escalated` is read-only/open. RQ-018 `escalation_tick` alone changes escalation level and stops after acknowledgement/resolution. StaffTask lifecycle and accepted Nursing unclaimed escalation remain separate and unchanged. Aria/live-line state remains separate.
+- **First gap repaired:** product `45bd4427125d07aefa2da3817bbeb903126d02a9` makes acknowledgement one status-guarded atomic write, one `alert_acknowledged` receipt with actor/authority/before/after, and one linked history entry. Repeat acknowledgement returns 404; six concurrent attempts produce one winner, one receipt, and one history entry; legacy `escalated` rows are accepted.
+- **Evidence:** backend 604 passed / 0 failed / 31 skipped; focused alert/escalation/dispatch 15/15; frontend unchanged at 90 suites / 642. Headless development browser on `45bd442`: nurse at 390 px acknowledged a synthetic DEMO alert with no overflow or failed API calls; owner at 1280 saw the acknowledgement; receipt `rcpt_43a2883ae8cb` matched history; public room status remained minimal; synthetic alert closed. Records/report/screenshots `eef8e8de410b29cbae938130a7f1eac1876c8468`.
+- **Tested/loaded:** development backend `45bd442`, PID 1489371; frontend unchanged from `db4317f`; production `ff87c22` unchanged. No PR-triggered GitHub workflow run attached; recorded local gates/browser evidence apply. Cost UNKNOWN.
+- **Latest host observation:** Monday, October 12, 2026 — 6:05:47 AM America/Chicago — existing coordinator idle; control-plane PID 1370098 on `f1db2d358ca1`; repository `cd076d251ab9` newer/not loaded. GitHub activity alone is not host-liveness proof.
+- **Deferred policy decision:** which signed-in roles may acknowledge a help alert. This does not block compatible work and is not being sent to Michael as an action request in this transition.
+- **Next single bounded task:** `careops-alerts-close-receipts-001`. Repair gap 2: resolve/close currently creates actor-less `alert_completed` receipts and can re-close. Make terminal close one guarded atomic transition, exactly one actor/authority/before/after receipt and linked history entry; prove repeat/concurrent idempotency and legacy `escalated` compatibility. Preserve canonical acknowledgement, RQ-018 escalation, dispatch, public status, resident/Aria safety, and Nursing mapping.
+- **Expected evidence:** failing-before/fixed-after tests; exact commit; resolve and close paths; active/acknowledged/legacy-escalated inputs; repeat/concurrent attempts; authorization/refusal without deciding the deferred role-policy gap; linked receipt/history; focused/full gates; desktop/390 px browser; cleanup; exact tested/loaded revisions; newest host observation; cost or UNKNOWN.
+- **ETA:** UNKNOWN pending ACK.
+- **next_check_at:** Monday, October 12, 2026 — 6:11:15 AM America/Chicago; owned by the existing LOCAL watchdog.
+- **Blocker:** NONE.
+- **Michael must do:** NOTHING.
