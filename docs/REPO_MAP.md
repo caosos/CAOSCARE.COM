@@ -943,3 +943,4 @@ listener verifier experiment: `docs/experiments/`.
 - `backend/routes/task_review.py`: "can't complete" escalation and supervisor review on StaffTask (POST /tasks/{id}/escalate, /review). UI `frontend/src/components/ExceptionReview.jsx`. Test `backend/tests/test_nursing_exception_lifecycle.py`.
 - `backend/routes/task_unclaimed_escalation.py`: escalation tick flags unclaimed Nursing requests once (EscalationRule.nursing_unclaimed_seconds). Test `backend/tests/test_nursing_unclaimed_escalation.py`.
 - `frontend/src/components/QueueWithUpcoming.jsx`: department queue with its Upcoming panel (therapy, housekeeping).
+- `backend/routes/task_recurrence.py`: recurring series occurrences (tick + POST /tasks/spawn-today). `frontend/src/lib/recurrence.js`. Test `backend/tests/test_housekeeping_recurrence.py`.
