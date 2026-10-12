@@ -1,6 +1,6 @@
 # CAOSCare — Living Product Build Checklist
 
-Updated: 2026-10-12 (06:10 CDT; alert close-out receipts ACKED / WORKING).
+Updated: 2026-10-12 (06:16 CDT; alert close-out receipts DEV_ACCEPTED; direct alert ingress receipts DELIVERED).
 
 This is the owner-facing product build and progress tracker for the Care Operations build. Canonical owner direction: [Issue #129](https://github.com/caosos/CAOSCARE.COM/issues/129). Detailed historical evidence remains in [PILOT1_EXECUTION_CHECKLIST.md](https://github.com/caosos/CAOSCARE.COM/blob/integration/2026-09-27/docs/PILOT1_EXECUTION_CHECKLIST.md). This file controls current phase, active task, milestones, ETA, blockers, and the reporting contract.
 
@@ -867,3 +867,22 @@ Issue #129 is the dispatch channel to existing coordinator `caoscare-1-ee`. ACK/
 - **Michael must do:** NOTHING.
 
 - **DONE (coordinator) — `careops-alerts-close-receipts-001`, Monday, October 12, 2026 — 6:16 AM America/Chicago:** IMPLEMENTED / TESTED / DEV_ACCEPTED. `fc9e95b`: resolve and close are one guarded terminal transition with one provenance-complete `alert_completed` receipt and linked history; repeat/concurrent 409, nothing rewritten; legacy escalated rows close. Backend 605/0/31; browser nurse 390 + owner 1280 on dev `fc9e95b`. Open: role policy (owner), direct wander/wearable inserts. Production `ff87c22` unchanged.
+
+
+### Update 2026-10-12 06:16 CDT (alert close-out receipts DEV_ACCEPTED; direct alert ingress receipts delivered)
+
+- **Canonical DONE:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6123167417. Transport-only mirror: https://github.com/caosos/CAOSCARE.COM/pull/131#issuecomment-6123169312.
+- **Completed task / status:** `careops-alerts-close-receipts-001` / IMPLEMENTED, TESTED, DEV_ACCEPTED. This is not OWNER_ACCEPTED / DONE.
+- **Product evidence:** `fc9e95b638a0e518542ab9a9695c8a82239bdedd` makes resolve and close one guarded active/acknowledged/legacy-escalated → resolved transition. It emits exactly one `alert_completed` receipt with actor, role, department, authority, parent-origin receipt, before/after state and outcome, plus linked history. Repeat and concurrent attempts return 409 and do not rewrite the terminal record.
+- **Tests / browser evidence:** failing-before/fixed-after coverage in `test_alert_close_receipt.py` and updated append-only receipt coverage; backend 605 passed / 0 failed / 31 skipped. Frontend unchanged at 90 suites / 642 tests. Development browser acceptance on backend `fc9e95b`: nurse 390 px closed from `/staff?alert=` with outcome and no overflow/API failure; owner 1280 px verified the resolved list, nurse actor and linked history; repeated close/resolve returned 409; public room status remained minimal. Synthetic data was cleaned up. No PR-triggered GitHub workflow run is attached; the recorded local gates and browser evidence apply.
+- **Records / tested versus loaded:** records/report/screenshots `1a944bef29f398739ac875d54da215110f5237a1`; development backend tested and loaded at `fc9e95b`, PID 1495849; frontend `db4317f`; production `ff87c22` unchanged. Cost UNKNOWN.
+- **Latest host observation:** Monday, October 12, 2026 — 6:16:21 AM America/Chicago — existing coordinator `caoscare-1-ee` busy; control-plane PID 1370098 on `f1db2d358ca1`; repository `cd076d251ab9` newer/not loaded. GitHub activity alone is not host-liveness proof.
+- **Deferred owner policy:** which signed-in roles may acknowledge and close a help alert remains an owner decision. It does not block compatible work, so Michael is not being asked to act at this transition.
+- **ONE next bounded task:** `careops-alerts-ingress-receipts-001`, delivered to existing coordinator `caoscare-1-ee`, stage DELIVERED / awaiting ACK or WORKING within 300 seconds. Repair direct wander, wearable and pendant scaffold inserts so they use the canonical alert creation/coalescing and receipt path without a new store, queue, coordinator or worker.
+- **Expected acceptance evidence:** exact implementation commit; failing-before/fixed-after tests for direct wander/wearable/pendant entry; repeated and concurrent source signals coalesce to one canonical alert and one provenance-complete creation receipt; source identity and parent provenance preserved; existing escalation, public status, dispatch, acknowledgement and close paths remain intact; authorization/resident/Aria safety; desktop and 390 px browser checks; cleanup; full gates; exact tested/loaded revisions; newest host observation; cost or UNKNOWN.
+- **Remaining Alerts milestone steps (ordered):** 1. ACK and inspect the three direct-insert paths; 2. add failing ingress/coalescing/receipt tests; 3. route each path through the canonical helper and prove concurrency/idempotency; 4. verify downstream escalation/dispatch/public/acknowledge/close behavior and safety; 5. run full gates and desktop/390 px browser acceptance; 6. clean synthetic state and reconcile records; 7. address the policy editor, owner role policy, timers/fallback and full Alerts section acceptance.
+- **Upcoming milestones (ordered):** 1. finish Alerts section acceptance; 2. remaining Phase 3 department-workspace gaps; 3. Phase 4 scheduling/records/resources; 4. Phase 5 communications; 5. Phase 6 pilot reliability/accessibility; 6. Phase 7 release/deployment/live acceptance.
+- **ETA:** UNKNOWN pending ACK.
+- **next_check_at:** Monday, October 12, 2026 — 6:21:32 AM America/Chicago; owned by the existing LOCAL watchdog.
+- **Blocker:** NONE.
+- **Michael must do:** NOTHING.
