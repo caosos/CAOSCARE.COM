@@ -12,6 +12,7 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
 from deps import db  # noqa: E402
+from routes import content_coverage as content_coverage_routes
 from routes import auth as auth_routes  # noqa: E402
 from routes import auth_password as auth_password_routes  # noqa: E402
 from routes import residents as resident_routes  # noqa: E402
@@ -222,6 +223,7 @@ api.include_router(schedule_conflict.router)
 api.include_router(department_board.router)
 api.include_router(operations_currency.router)
 api.include_router(routing_exceptions.router)
+api.include_router(content_coverage_routes.router)   # before schedule/menu so /coverage is not read as an id
 api.include_router(schedule_routes.router)
 api.include_router(menu_routes.router)
 api.include_router(menu_ingest_routes.router)

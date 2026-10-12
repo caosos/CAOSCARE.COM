@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { MEAL_PERIODS, menuStatusView } from "../lib/communityServices";
 import MenuItemDialog from "./MenuItemDialog";
 import MenuUploadsPanel from "./MenuUploadsPanel";
+import ContentCoverageNote from "../components/ContentCoverageNote";
 
 const TONE = {
   live: "bg-caos-moss text-white",
@@ -67,6 +68,7 @@ export default function MenuTab() {
 
   return (
     <Card className="border-caos-line p-6" data-testid="menu-tab-root">
+      <ContentCoverageNote kind="menu" refreshKey={items.length} />
       <div className="flex flex-wrap justify-between items-start gap-y-3 mb-4">
         <div>
           <h2 className="font-display text-xl font-medium text-caos-forest">Menu</h2>

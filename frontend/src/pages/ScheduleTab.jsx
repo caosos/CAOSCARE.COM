@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { scheduleStatusView } from "../lib/communityServices";
 import ScheduleItemDialog, { SCHEDULE_CATEGORY_LABELS } from "./ScheduleItemDialog";
 import ScheduleReviewPanel from "./ScheduleReviewPanel";
+import ContentCoverageNote from "../components/ContentCoverageNote";
 
 const TONE = {
   live: "bg-caos-moss text-white",
@@ -62,6 +63,7 @@ export default function ScheduleTab() {
 
   return (
     <Card className="border-caos-line p-6" data-testid="schedule-tab-root">
+      <ContentCoverageNote kind="schedule" refreshKey={items.length} />
       <div className="flex flex-wrap justify-between items-start gap-y-3 mb-4">
         <div>
           <h2 className="font-display text-xl font-medium text-caos-forest">Daily schedule</h2>
