@@ -1019,3 +1019,7 @@ Issue #129 is the dispatch channel to existing coordinator `caoscare-1-ee`. ACK/
 
 - `400b5b3`: optional, validated, staff-only `callback_phone` / `callback_window` on the same StaffTask; public bus refused; edits receipted; never in resident/Aria view. Backend 617/0/31, frontend 94/648, build OK; dev browser 8/8. DEV_ACCEPTED. Report: `docs/reports/2026-10-12-frontdesk-callback-fields.md`.
 - Remaining Front Desk inbox gaps: general/internal messages (no store — needs owner direction on scope); review resolution (owner role decision).
+
+### Update 2026-10-12 — Dining: menu correction versioning (careops-dining-correction-versioning-001)
+
+- `214523f`: correcting a published menu item creates a replacement (`replaces`/`superseded_by`); the published version stays live until the correction is published, then is kept as Replaced; residents/Aria read the corrected item; receipted. Backend 618/0/31, frontend 95/649, build OK; dev browser 8/8 (1280/390). DEV_ACCEPTED. Report: `docs/reports/2026-10-12-dining-correction-versioning.md`.

@@ -268,3 +268,6 @@ No code change; 17/17 dev browser checks; gates 611/0/31, 91/644, build OK. Find
 
 ## 2026-10-12 — Front desk callback fields (careops-frontdesk-callback-contact-fields-001)
 `400b5b3`: callback_phone/callback_window on StaffTask, staff-only, receipted. Backend 617/0/31, frontend 94/648. Report docs/reports/2026-10-12-frontdesk-callback-fields.md.
+
+## 2026-10-12 — Dining menu correction versioning (careops-dining-correction-versioning-001)
+`214523f`: published-item corrections are versioned replacements; draft correction no longer removes the live dish. Backend 618/0/31, frontend 95/649. Report docs/reports/2026-10-12-dining-correction-versioning.md.
