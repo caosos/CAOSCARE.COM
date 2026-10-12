@@ -608,3 +608,30 @@ Append-only. One entry per verified check-in, tied to its receipt. A correction 
 - **next_check_at:** Monday, October 12, 2026 — 4:09 AM America/Chicago
 - **Blocker:** NONE
 - **Michael action required:** NOTHING
+
+
+## Monday, October 12, 2026 — 4:07 AM America/Chicago
+- **Receipt:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6121119930
+- **Project:** CAOSCare
+- **Phase / position:** Phase 3/7 Care Operations workspaces — Housekeeping completion inspection, immediately after recurrence reached DEV_ACCEPTED
+- **Completed since the prior check:** The existing coordinator `caoscare-1-ee` ACKed `careops-housekeeping-inspection-001` before the five-minute deadline. Inspection found that completed tasks already have a receipted same-task reopen path, but there is no recorded inspection pass and no inspection provenance attached to a correction return. No new product completion is claimed.
+- **Evidence:** completion/dispatch https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6121108357; automatic intake delivery https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6121116494 at Monday, October 12, 2026 — 4:04:34 AM America/Chicago; ACK/WORKING https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6121119930 at Monday, October 12, 2026 — 4:04:48 AM America/Chicago; transport-only host mirror https://github.com/caosos/CAOSCARE.COM/pull/131#issuecomment-6121147649. The coordinator reviewed `task_actions.reopen`: department members/admin may reopen completed tasks with a required reason and receipt. The bounded plan adds owner/admin Inspect on a completed request: Pass records `task_inspected` while remaining completed; Return for correction requires a reason and reuses the canonical reopen on the same task with inspection-return provenance; Housekeeping corrects and completes; refusals, truthful Aria, Claude Chrome desktop/390, and one linked history remain required. Prior accepted evidence remains backend `93c3c58`, frontend recurrence changes, backend 595 passed / 0 failed / 31 skipped, frontend 89 suites / 635, compiled build, and recurrence Claude Chrome/390 proof. Tested/loaded development backend `93c3c58`; relevant frontend tested/served; production `ff87c22`. Latest timestamped host observation Monday, October 12, 2026 — 4:06:40 AM America/Chicago: coordinator busy, control-plane service `f1db2d358ca1`, repository `cd076d251ab9` newer and not loaded. This is control-plane/repository evidence, not a newer product load. Known cost: UNKNOWN.
+- **Current bounded task (owner · stage):** `careops-housekeeping-inspection-001` · existing coordinator `caoscare-1-ee` · WORKING / BUILD INSPECTION PASS AND CORRECTION-RETURN PROVENANCE ON THE CANONICAL TASK
+- **Remaining steps for this milestone:**
+  1. Implement owner/admin inspection pass receipt on a completed Housekeeping task
+  2. Implement reason-required inspection return through the existing same-task reopen
+  3. Preserve one task, workflow, history and receipt chain
+  4. Prove Housekeeping correction and second completion
+  5. Prove truthful resident/Aria status and unauthorized refusal
+  6. Repair only the first proven gap
+  7. Run focused/full gates and Claude Chrome desktop/390 acceptance
+  8. Record exact tested/loaded revisions and fresh host evidence, then reconcile authoritative records
+- **Upcoming milestones:**
+  1. Housekeeping supplies/linen
+  2. Michael's spoken Room 214 voice/personality acceptance
+  3. Authenticated Transportation LIVE_VERIFY when role/driver/vehicle dependencies are available
+  4. Full owner/novice pilot walkthrough
+- **ETA:** Approximately Monday, October 12, 2026 — 5:05 AM America/Chicago
+- **next_check_at:** Monday, October 12, 2026 — 5:04:48 AM America/Chicago
+- **Blocker:** NONE
+- **Michael action required:** NOTHING
