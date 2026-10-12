@@ -129,27 +129,39 @@ async def update_task(task_id: str, data: StaffTaskUpdate, user=Depends(get_curr
     lifecycle endpoints, which authorize and receipt each step."""
     actor = actor_from_user(user)
     patch = data.model_dump(exclude_unset=True)
-    if "notes" in patch:
-        await task_actions.add_note(task_id, patch.pop("notes"), actor, user)
+    notes = patch.pop("notes", None) if "notes" in patch else None
+    has_notes = "notes" in data.model_fields_set
     details = {k: patch.pop(k) for k in list(patch) if k in task_actions.DETAIL_FIELDS}
-    if details:
-        await task_actions.set_details(task_id, details, actor, user)
     override = bool(patch.pop("conflict_override", False))
-    if patch:
-        # Overlap with the resident's other open planned work is refused unless staff
-        # explicitly save anyway; the override is then recorded on the receipt.
+    conflicts = []
+    if patch or "provider_name" in details:
+        # A new window, or a new provider on planned work, is checked for overlap with the
+        # resident's other planned work and with the same provider / assignee's work for
+        # other residents. Refused (409, nothing written) unless staff save anyway; the
+        # override is recorded on the receipt. Authority first (403 / 409 closed / legacy
+        # refusal), so a caller who may not plan this request never learns what else is planned.
         from routes import schedule_conflict   # lazy: it reads request modules that import this route
-        # Authority first (403 / closed 409 / legacy refusal exactly as set_schedule would raise them),
-        # so a caller who may not plan this request never learns what else is planned.
-        current, _auth, _head = await task_lifecycle.check(task_id, actor, user, action="schedule")
+        current, _auth, _head = await task_lifecycle.check(task_id, actor, user,
+                                                           action="schedule" if patch else "details")
+        prospective = {**current, **{k: ((v or "").strip() or None) for k, v in details.items()}}
         window = {k: patch.get(k, current.get(k)) for k in ("requested_for_date", "requested_for_time_label")}
-        chk = await schedule_conflict.find_conflicts(current, window["requested_for_date"], window["requested_for_time_label"])
-        if chk["conflicts"] and not override:
-            raise HTTPException(status_code=409, detail={"code": "schedule_conflict",
-                                "message": "This window overlaps other planned work for this resident. Save anyway to keep it.",
-                                **chk})
+        if window["requested_for_date"]:
+            chk = await schedule_conflict.find_conflicts(prospective, window["requested_for_date"],
+                                                         window["requested_for_time_label"])
+            if chk["conflicts"] and not override:
+                raise HTTPException(status_code=409, detail={"code": "schedule_conflict",
+                                    "message": "This window overlaps other planned work (this resident's, or the same "
+                                               "provider or staff member's). Save anyway to keep it.",
+                                    **chk})
+            conflicts = chk["conflicts"] if override else []
+    if has_notes:
+        await task_actions.add_note(task_id, notes, actor, user)
+    if details:
+        await task_actions.set_details(task_id, details, actor, user,
+                                       override_conflicts=conflicts if (conflicts and not patch) else None)
+    if patch:
         task, receipt = await task_actions.set_schedule(task_id, patch, actor, user,
-                                                        override_conflicts=chk["conflicts"] if override else None)
+                                                        override_conflicts=conflicts or None)
         if receipt:   # the window really changed: a linked open ride follows it
             await task_ride_link.sync_schedule(task, user)
     return _iso(await task_lifecycle.load(task_id))

@@ -19,3 +19,10 @@ test("wording: overlap, not checked, undetermined, clear", () => {
 test("the save-anyway payload only adds the override flag", () => {
   expect(overridePayload({ requested_for_date: "2026-10-13", requested_for_time_label: "2:30 PM" })).toEqual({ requested_for_date: "2026-10-13", requested_for_time_label: "2:30 PM", conflict_override: true });
 });
+
+test("a staff double-booking names the room and what is shared", () => {
+  const c = { what: "Gait training", category: "therapy", requested_for_time_label: "10:30 AM", kind: "staff",
+              room: "214", shared: "provider Tess Ortiz PT" };
+  expect(conflictSummary({ checked: true, conflicts: [c] }))
+    .toBe("Overlaps Gait training (therapy) at 10:30 AM, room 214 — same provider Tess Ortiz PT.");
+});

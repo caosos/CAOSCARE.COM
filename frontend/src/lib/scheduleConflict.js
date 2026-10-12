@@ -8,7 +8,9 @@ export function conflictDetail(err) {
 }
 
 export function describeConflict(c) {
-  return `${c.what || c.task_id} (${c.category || "request"}) at ${c.requested_for_time_label || "a time not set"}`;
+  const base = `${c.what || c.task_id} (${c.category || "request"}) at ${c.requested_for_time_label || "a time not set"}`;
+  // Another resident's work with the same provider / staff member: say what is shared.
+  return c.kind === "staff" ? `${base}${c.room ? `, room ${c.room}` : ""} — same ${c.shared || "staff"}` : base;
 }
 
 /** One line for a conflict result: overlaps, or why it could not be checked, or "" when clear. */

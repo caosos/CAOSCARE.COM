@@ -114,7 +114,8 @@ async def set_schedule(task_id: str, fields: dict, actor: ActorContext, user: di
 DETAIL_FIELDS = ("provider_name", "discipline", "location")
 
 
-async def set_details(task_id: str, fields: dict, actor: ActorContext, user: dict):
+async def set_details(task_id: str, fields: dict, actor: ActorContext, user: dict,
+                      override_conflicts: Optional[list] = None):
     """Optional operational appointment details (who / what kind / where).
     Whitespace is trimmed; an empty value clears the field. Unchanged values
     are not a change (no write, no receipt)."""
@@ -125,9 +126,14 @@ async def set_details(task_id: str, fields: dict, actor: ActorContext, user: dic
         if not changed:
             return None
         text = " · ".join(f"{k.replace('_', ' ')}: {v or 'cleared'}" for k, v in changed.items())
+        if ids:
+            text += " · saved despite overlapping " + ", ".join(
+                f"{c.get('what') or c['task_id']} ({c.get('requested_for_time_label') or 'time not set'})" for c in override_conflicts)
         return changed, [_ev("details", actor, rid, text=text)]
+    ids = [c["task_id"] for c in (override_conflicts or [])]
     return await transition(task_id, actor, user, action="details", build=build,
-                            action_type="task_details_updated", status="created")
+                            action_type="task_details_updated", status="created",
+                            result="conflict_override" if ids else None, provider_refs=ids or None)
 
 
 def _close_events(t: dict, to_status: str, notes: Optional[str], actor: ActorContext, rid: str) -> list:
