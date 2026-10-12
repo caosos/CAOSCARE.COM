@@ -11,7 +11,7 @@ Status: IMPLEMENTED / TESTED / DEV_ACCEPTED. Alerts as a section is not owner-ac
 | Runtime reader | `routes/escalation_tick.run_tick` (only writer of `escalation_level`), run by the existing lifespan loop every 30 s |
 | Defaults / fallback | no stored rule → `EscalationRule()` 90 s / 150 s / nursing unclaimed 600 s |
 
-## First proven gap and repair (`7ade644`)
+## First proven gap and repair (`a7c406d`; pre-rebase local `7ade644`, identical code)
 Failing before (`backend/tests/test_alert_policy_editor.py`): `PUT /escalation/rule` stored level 3 ≤ level 2 with 200 and wrote no receipt.
 - `EscalationRule`: each threshold 1 s – 1 day; level 3 must be later than level 2 (422 otherwise).
 - An edit is stored only if the rule did not change meanwhile (409), writes an `escalation_rule_changed` receipt — actor, `policy_editor:<role>`, before (stored or defaults) / after, parent = previous edit's receipt — and the stored rule carries `receipt_id` / `updated_by`.
@@ -29,7 +29,7 @@ Runtime: with a 20/40 s policy a 30 s alert reaches level 2 and its `alert_escal
 ## Gates
 Backend 607 passed / 0 failed / 31 skipped. Frontend 91 suites / 644 tests (new `EscalationTab.test.jsx`, fails on the old editor). Build OK.
 
-## Development browser acceptance (backend 7ade644, PID 1532821)
+## Development browser acceptance (backend pre-rebase `7ade644` = code of `a7c406d`, PID 1532821)
 11/12 checks; the one "failure" is the browser console logging the deliberate 422. Owner desktop: defaults → invalid edit refused with reason → 20/40 saved with receipt. The existing background tick escalated a synthetic alert under the edited policy. Nurse/front desk refused. 390 px: no overflow; nurse lands on /staff with no editor. Cleanup: rule doc, synthetic alert, and 2 synthetic receipts removed; dev again has no stored rule (defaults). No other open alert was younger than 24 h during the window.
 
 Screenshots: `2026-10-12-alerts-policy-editor/01..05_*.png`; script `acceptance_script.py`.
