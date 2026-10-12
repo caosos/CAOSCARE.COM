@@ -283,3 +283,9 @@ Agent: Claude Code (coordinator caoscare-1-ee). Branch `integration/2026-09-27`.
 - `8126a7b`: toggle_light refuses (asks on or off) when the turn's transcript contradicts the model's on/off or asks for no power change. Replay over 146 past Room 214 light calls: 25 blocked incl. every wrong-direction case (09-06, 10-09, 10-10, 10-12 x2) and the 02:04 false wake "Overhead line". Room page rebuilt to `8126a7b` (`ctl.sh rebuild`); kiosk browser needs a reload to load it. Dev backend still `214523f`.
 - Findings (Michael 2026-10-12: voice "different", false wake, needed ~3 tries): wrong-direction light commands predate the gpt-realtime-2.1/marin switch; tool-before-transcript ordering also predates it (64/114 Room 214 tool calls) and is already bounded by `realtimeTurnGrounding`. Michael: no rollback yet.
 - Open: contrast (HC) button present on kiosk demo — Michael reports it missing on his screen (which screen not yet identified); dining browser acceptance (needs backend restart); wake labelled tries; production deploy.
+
+## 2026-10-12 15:25 CDT — Dining labels DEV_ACCEPTED; dev backend + room page refreshed; HC button fix; release PR #132
+- Dev backend restarted (Michael's permission, room idle) → `042ef84`, PID 1828430, log /tmp/room214_backend_042ef84.log (previous 214523f). Room 214 kiosk browser restarted 15:19, page reconnected 15:19:43 on build `8126a7b` (light on/off guard live).
+- `careops-dining-dietary-allergen-truth-001` DEV_ACCEPTED: browser 11/11, report updated.
+- `042ef84`: room screen top row wraps at phone width (HC button had been pushed off-screen).
+- PR #132 (`release/public-pilot-statuses`, 2 commits on prod `ff87c22`: pilot statuses + HC wrap; 66 suites/553 tests, build OK). Merge to main blocked for the agent by Claude Code auto mode; awaiting Michael's merge, then `deploy_caoscare.sh` on caoscare-prod.

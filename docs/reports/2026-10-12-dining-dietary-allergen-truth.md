@@ -1,6 +1,6 @@
 # Dining: staff-entered dietary labels and allergens (careops-dining-dietary-allergen-truth-001, 2026-10-12)
 
-Status: IMPLEMENTED / TESTED. Browser acceptance (desktop / 390 px) NOT yet run — needs the dev backend on :8092 restarted onto `b2faae1` (Michael's OK and an idle Room 214). Not DEV_ACCEPTED, not owner-accepted.
+Status: IMPLEMENTED / TESTED / DEV_ACCEPTED (2026-10-12 15:25 CDT). Not owner-accepted.
 
 ## What changed (product commit `b2faae1`)
 | Surface | Before | After |
@@ -22,6 +22,9 @@ Status: IMPLEMENTED / TESTED. Browser acceptance (desktop / 390 px) NOT yet run 
 - Frontend 95 suites / 652 tests; production build compiled.
 - Scratch databases dropped.
 
+## Dev browser acceptance 11/11 (`2026-10-12-dining-dietary-allergen-truth/acceptance_script.py`)
+Dev backend `042ef84` (PID 1828430, restarted with Michael's permission while Room 214 was idle), dev frontend :3000, demo kitchen login, synthetic date 2031-03-05. Dialog shows label inputs + note → " Vegetarian ,vegetarian, " / "Milk,  Wheat" saved as `["Vegetarian"]` / `["Milk","Wheat"]` → staff list shows "Vegetarian; contains: Milk, Wheat" → `/menu/public/today` repeats them verbatim, nothing added → correction dialog prefilled; adding Egg publishes a new version, superseded keeps Milk, Wheat → `<b>milk</b>` refused with a readable message (the one 422 from the page, expected), nothing saved → 1280 no page errors; 390 px no overflow → corrected receipt before/after carry the labels → nurse 403, anonymous 401, 13 labels 422. Cleanup: 2 items, 4 receipts. Screenshots 01–03.
+
 ## Not done
-- Desktop and 390 px browser proof, role refusal in the browser (API 403 for nursing is covered in the test).
+- Resident Today panel visual: it reads today's menu from production (`REACT_APP_FACILITY_CONTENT_URL`), so it shows labels once production carries this change and staff enter them; covered here by the public endpoint and unit tests.
 - Note: the resident Today panel reads menus from `REACT_APP_FACILITY_CONTENT_URL` (production), so residents see labels only after production carries this change.
