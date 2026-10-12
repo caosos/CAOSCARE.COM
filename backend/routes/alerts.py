@@ -206,11 +206,8 @@ async def _record_acknowledgement(doc: dict, before: str, user: dict, receipt_id
 
 
 async def _close_out(doc: dict) -> None:
-    """Pattern stats + receipt completion, shared by resolve()/close_alert()
-    - both are real "this event is over" endpoints (see routes/alerts.py's
-    module docstring history: resolve() has no visible UI button today,
-    but is still a valid completion path). Best-effort; never blocks the
-    staff-facing response on either of these."""
+    """Pattern stats after an event is over (best-effort; never blocks the
+    staff response). The completion receipt is written by _finish()."""
     if doc.get("resident_id"):
         try:
             from routes.resident_patterns import update_pattern_stats
@@ -218,81 +215,74 @@ async def _close_out(doc: dict) -> None:
         except Exception as e:
             import logging
             logging.getLogger(__name__).warning(f"pattern stats update failed for {doc.get('alert_id')}: {e}")
-    if doc.get("receipt_id"):
+
+
+_FINISHABLE = ["active", "acknowledged", "escalated"]   # "escalated": legacy rows only, never written
+
+
+async def _finish(alert_id: str, user: dict, extra: dict) -> dict:
+    """The one terminal transition behind resolve and close: a status-guarded
+    atomic write (one winner under repeats/concurrency) with a history entry
+    carrying the id of the alert_completed receipt written next."""
+    now_dt = now_utc()
+    now = now_dt.isoformat()
+    existing = await db.alerts.find_one({"alert_id": alert_id}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    update = {"status": "resolved", "resolved_by": user["name"], "resolved_at": now, **extra}
+    anchor = existing.get("acknowledged_at") or existing.get("created_at")
+    if anchor:
         try:
-            from routes.receipts import update_receipt_status
-            await update_receipt_status(
-                "alert", doc["alert_id"], "completed",
-                result=doc.get("outcome") or f"resolved, {doc.get('press_count', 1)} press(es)",
-            )
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).warning(f"receipt completion failed for {doc.get('alert_id')}: {e}")
+            anc = datetime.fromisoformat(anchor) if isinstance(anchor, str) else anchor
+            if anc.tzinfo is None:
+                anc = anc.replace(tzinfo=timezone.utc)
+            update["duration_seconds"] = int((now_dt - anc).total_seconds())
+        except Exception:
+            pass
+    before = existing.get("status")
+    receipt_id = uid("rcpt")
+    r = await db.alerts.update_one(
+        {"alert_id": alert_id, "status": {"$in": _FINISHABLE}},
+        {"$set": update, "$push": {"event_log": {"at": now, "field": "status", "from": before, "to": "resolved",
+                                                  "by": user.get("user_id"), "by_name": user.get("name"),
+                                                  "text": extra.get("outcome"), "receipt_id": receipt_id}}},
+    )
+    if r.matched_count == 0:
+        raise HTTPException(status_code=409, detail="This alert is already resolved. Nothing was changed.")
+    doc = await db.alerts.find_one({"alert_id": alert_id}, {"_id": 0})
+    role = user.get("role")
+    await create_receipt(
+        receipt_id=receipt_id, action_type="alert_completed", related_object_type="alert",
+        related_object_id=alert_id, source="staff", resident_id=doc.get("resident_id"), room=doc.get("room"),
+        zone=doc.get("zone"), requested_by=user.get("user_id"), status="completed",
+        result=doc.get("outcome") or f"resolved, {doc.get('press_count', 1)} press(es)",
+        provenance={"actor_id": user.get("user_id"), "actor_type": "real-human", "actor_name": user.get("name"),
+                    "actor_role": role, "actor_department": user.get("department"),
+                    "authority": f"admin_override:{role}" if role in ("owner", "admin") else f"signed_in:{role}",
+                    "parent_receipt_id": existing.get("receipt_id"),
+                    "before_state": {"status": before, "escalation_level": existing.get("escalation_level")},
+                    "after_state": {"status": "resolved", "resolved_at": now, "outcome": doc.get("outcome"),
+                                    "category": doc.get("category")},
+                    "result_label": "verified", "next_state": "closed"})
+    await _close_out(doc)
+    return doc
 
 
 @router.post("/{alert_id}/resolve")
 async def resolve(alert_id: str, user=Depends(get_current_user)):
-    now_dt = now_utc()
-    now = now_dt.isoformat()
-    existing = await db.alerts.find_one({"alert_id": alert_id}, {"_id": 0})
-    update = {"status": "resolved", "resolved_by": user["name"], "resolved_at": now}
-    if existing:
-        anchor = existing.get("acknowledged_at") or existing.get("created_at")
-        if anchor:
-            try:
-                anc = datetime.fromisoformat(anchor) if isinstance(anchor, str) else anchor
-                if anc.tzinfo is None:
-                    anc = anc.replace(tzinfo=timezone.utc)
-                update["duration_seconds"] = int((now_dt - anc).total_seconds())
-            except Exception:
-                pass
-    r = await db.alerts.update_one(
-        {"alert_id": alert_id, "status": {"$in": ["active", "acknowledged"]}},
-        {"$set": update},
-    )
-    if r.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Alert not found")
-    doc = await db.alerts.find_one({"alert_id": alert_id}, {"_id": 0})
-    await _close_out(doc)
-    return doc
+    return await _finish(alert_id, user, {})
 
 
 @router.post("/{alert_id}/close")
 async def close_alert(alert_id: str, data: AlertClose, user=Depends(get_current_user)):
     """Resolve + capture outcome, category, and close-out notes (operational truth)."""
-    now_dt = now_utc()
-    now = now_dt.isoformat()
-    existing = await db.alerts.find_one({"alert_id": alert_id}, {"_id": 0})
-    update = {
-        "status": "resolved",
-        "resolved_by": user["name"],
-        "resolved_at": now,
-        "outcome": data.outcome,
-        "close_notes": data.close_notes or "",
-    }
+    extra = {"outcome": data.outcome, "close_notes": data.close_notes or ""}
     if data.category:
-        update["category"] = data.category
-    if existing:
-        anchor = existing.get("acknowledged_at") or existing.get("created_at")
-        if anchor:
-            try:
-                anc = datetime.fromisoformat(anchor) if isinstance(anchor, str) else anchor
-                if anc.tzinfo is None:
-                    anc = anc.replace(tzinfo=timezone.utc)
-                update["duration_seconds"] = int((now_dt - anc).total_seconds())
-            except Exception:
-                pass
-    r = await db.alerts.update_one(
-        {"alert_id": alert_id, "status": {"$in": ["active", "acknowledged", "resolved"]}},
-        {"$set": update},
-    )
-    if r.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Alert not found")
-    doc = await db.alerts.find_one({"alert_id": alert_id}, {"_id": 0})
+        extra["category"] = data.category
+    doc = await _finish(alert_id, user, extra)
     for k in ("created_at", "acknowledged_at", "resolved_at"):
         if doc.get(k) and not isinstance(doc[k], str):
             doc[k] = doc[k].isoformat()
-    await _close_out(doc)
 
     # Auto-classify the category + AI summary if not set by staff
     try:

@@ -13,7 +13,8 @@ if os.environ.get("DB_NAME") in ("caoscare", "", None):
     pytest.skip("writes receipts; point DB_NAME at a scratch database", allow_module_level=True)
 
 from deps import db  # noqa: E402
-from routes.alerts import _close_out  # noqa: E402
+from routes.alerts import _close_out, close_alert  # noqa: E402
+from models import AlertClose  # noqa: E402
 from routes.receipts import create_receipt  # noqa: E402
 from routes.staff_dispatch import _transition  # noqa: E402
 
@@ -48,12 +49,14 @@ def teardown_module(_m):
 def test_close_out_appends_a_completed_receipt_and_keeps_the_first():
     doc = run(_alert("close"))
     before = run(_receipts(doc["alert_id"]))
-    run(_close_out(doc))
+    run(close_alert(doc["alert_id"], AlertClose(outcome="nurse attended"),
+                    user={"user_id": f"{TAG}_u", "name": "Closer", "role": "staff", "department": "nursing"}))
     after = run(_receipts(doc["alert_id"]))
     assert len(before) == 1 and len(after) == 2
     assert after[0] == before[0]  # the earlier receipt is byte-identical
     assert after[1]["action_type"] == "alert_completed" and after[1]["status"] == "completed"
     assert after[1]["result"] == "nurse attended" and after[1]["room"] == f"{TAG}-R"
+    assert after[1]["parent_receipt_id"] == before[0]["receipt_id"]
 
 
 def test_failed_page_appends_alert_failed_and_a_later_accept_is_a_third_receipt():
@@ -70,7 +73,8 @@ def test_failed_page_appends_alert_failed_and_a_later_accept_is_a_third_receipt(
     assert "page failed" in rs[1]["result"] and "page accepted" in rs[2]["result"]
 
 
-def test_object_without_a_receipt_gets_nothing_invented():
+def test_close_out_stats_write_no_receipt():
+    # Pattern stats are not an action on the alert; the completion receipt is written by the close itself.
     doc = {"alert_id": f"{TAG}_none", "room": "x", "receipt_id": "r", "status": "active"}
     run(_close_out(doc))
     assert run(_receipts(doc["alert_id"])) == []
