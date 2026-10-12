@@ -189,3 +189,6 @@ Ordered remaining Alerts-milestone steps: 1. add failing tests for each mounted/
 Ordered upcoming milestones: 1. finish Alerts section acceptance; 2. remaining Phase 3 department-workspace gaps; 3. Phase 4 scheduling/records/resources; 4. Phase 5 communications; 5. Phase 6 pilot reliability/accessibility; 6. Phase 7 release/deployment/live acceptance.
 
 ETA approximately Monday, October 12, 2026 — 8:00:46 AM America/Chicago. Existing LOCAL watchdog next_check_at Monday, October 12, 2026 — 8:00:46 AM America/Chicago. Blocker NONE. Michael action NOTHING.
+
+## 2026-10-12 — Alert device ingress (careops-alerts-ingress-receipts-001)
+`004c158`: wander/wearable/pendant-scaffold through `record_resident_activation` (device signals in `signals[]`), creation-receipt provenance. Backend 606/0/31. Dev backend `004c158` (pid 1506940, log /tmp/room214_backend_004c158.log; previous /tmp/room214_backend_fc9e95b.log).

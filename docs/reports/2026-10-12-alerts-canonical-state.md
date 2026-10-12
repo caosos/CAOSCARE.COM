@@ -72,3 +72,25 @@ when the alert had an origin receipt and had no actor.
   receipt with the nurse as actor, linked to the history entry; repeat close and resolve 409 with outcome and
   `resolved_by` unchanged; room-screen public status `resolved` and minimal.
 - Still open: acknowledgement/close role policy (owner decision); direct wander/wearable/pendant inserts.
+
+## Addendum — device ingress (careops-alerts-ingress-receipts-001, `004c158`)
+Gap 3 repaired. `location.py` (geofence), `wearables.py` and `pendants.py` (retired scaffold) inserted alerts
+directly: one alert per signal (9 wearable signals → 9 alerts before the fix), no coalescing, no creation receipt.
+They now call `record_resident_activation`:
+- a button press (wearable `press`, pendant `press`) is a press (`presses[]`, `press_count`);
+- fall / heart-rate / inactivity / geofence is a **device signal** (`semantic_class = device_signal`), recorded in a new
+  `signals[]` list, never `press_count`; it can only raise severity, logged in `event_log`;
+- the creation receipt now carries actor (resident claim for a press, the device for a signal), identity basis,
+  authority `resident_ingress:<source>`, device id and after-state; source identity (`pendant_id`, frequency, zone)
+  is kept on a new event; the pendant scaffold's "second press within 60 s → emergency" is kept as a logged upgrade.
+- RF supervisory frames are still refused (only `help_press` and `device_signal` pass the guard).
+- Tests: `backend/tests/test_alert_ingress_receipts.py` (inactivity + 6 concurrent falls + press + inactivity →
+  one event, emergency, press_count 1, 8 signals, one creation receipt; pendant two presses → one event, press 2,
+  emergency; geofence breaches → one event with 2 signals, zone kept). Fails on the old code (9 alerts), passes now.
+  Old tests (`backend_test` geofence, `iter7` pendant, `iter9` wearable) expected one alert per signal and were updated
+  to the one-open-event rule. Backend 606 passed / 0 failed / 31 skipped.
+- Browser (dev `004c158`, temporary wearable on demo resident 3W02, no open event or lease before): four wearable
+  signals → one emergency event; nurse `/staff` at 390 shows one card (no overflow, no failed API calls); owner
+  `/alerts` at 1280 lists it; public status minimal; acknowledge and close still work; temp wearable removed, nothing
+  left open.
+- Still open: who may acknowledge/close (owner decision).

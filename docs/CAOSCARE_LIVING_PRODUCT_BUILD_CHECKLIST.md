@@ -901,3 +901,5 @@ Issue #129 is the dispatch channel to existing coordinator `caoscare-1-ee`. ACK/
 - **next_check_at:** Monday, October 12, 2026 — 8:00:46 AM America/Chicago; owned by the existing LOCAL watchdog.
 - **Blocker:** NONE.
 - **Michael must do:** NOTHING.
+
+- **DONE (coordinator) — `careops-alerts-ingress-receipts-001`, Monday, October 12, 2026 — 6:36 AM America/Chicago:** IMPLEMENTED / TESTED / DEV_ACCEPTED. `004c158`: geofence, wearable and pendant-scaffold alerts use the canonical one-open-event path; device signals kept separate from presses and only raise severity; creation receipts carry provenance. Backend 606/0/31; browser nurse 390 + owner 1280 on dev `004c158`. Open: acknowledge/close role policy (owner). Production `ff87c22` unchanged.
