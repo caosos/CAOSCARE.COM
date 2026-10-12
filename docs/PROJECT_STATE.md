@@ -8973,3 +8973,14 @@ Guarded restart via `scripts/restart_dev_backend.sh`: 0 leases, no recent call a
 
 ## 2026-10-12 — Heartbeat probe: a DONE receipt ends its check timer
 After the DONE for careops-transport-unresolved-001 the Desktop-Agent watchdog still sent WAKE ("next_check_at reached"), and after the 10-minute grace the probe would have reported a false "missed check" exception to Michael. Cause: `heartbeat_probe.py` timed checks from the newest ledger receipt even when that receipt was DONE. Fix: a DONE receipt has no pending check. New test `test_probe_stays_idle_after_done`; owner-intake suite 19 passed; the new test fails on the old probe. Also cleared the finished task from `docs/status/COORDINATOR_STATUS.json` `ready_unblocked`. Live probe now IDLE.
+
+
+---
+
+## 2026-10-11 21:15 CDT — supervisor boundary: Transportation unresolved accepted in development; New order path dispatched
+
+`careops-transport-unresolved-001` is **DEV_ACCEPTED**, not production loaded and not OWNER_ACCEPTED / DONE. Feature `0c517fedaf539736acd14ea1d5b787d0e7137435`; development records/restart `1d617b8` / `ffa13a7`; backend 549 passed / 0 failed / 31 skipped; frontend 78 suites / 597; build compiled; isolated browser 8/8. Development loaded `1d617b8`, PID 939383, zero leases. The owner-reported **Unresolved 11** now equals and opens the 11 canonical open, unbooked ride requests on any date; each row opens the real request with owner, status, next action and receipt history. Canonical receipt: Issue #129 comment 6116069600; report `docs/reports/2026-10-11-transport-unresolved.md`. GitHub exposes no combined-status contexts or PR workflow runs for the slice.
+
+Production stays `ff87c22df1dd69b405fa0ec60429c20fe72f6801`; authenticated Transportation LIVE_VERIFY remains blocked on a signed-in authorized role plus one driver and one vehicle.
+
+**ONE current bounded task:** `careops-transport-new-order-001`. Reproduce the reported unavailable **New order** control by intended role, determine whether it is the canonical transport-request entry or a misleading duplicate of **New ride**, then repair the canonical path or remove/relabel the duplicate. Acceptance requires authorization/refusal, one canonical request with receipt and queue/calendar visibility, no duplicate record, empty/error states, desktop/390 px browser evidence, exact commit/tests/build/loaded revision, and the next eligible item. ACK/WORKING is due by 2026-10-11 21:20 CDT through the existing coordinator `caoscare-1-ee`; no duplicate worker or queue.
