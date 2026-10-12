@@ -14,3 +14,16 @@ ETA approximately Monday, October 12, 2026 — 6:29 AM America/Chicago. Existing
 
 ## 2026-10-12 — Therapy permission boundaries (careops-therapy-permission-boundaries-001)
 `565cfa1`: escalate/review reasons kept out of `notes` (the resident screen's latest update); dialogs say staff only. `7b737ea`: role × action matrix test, report `docs/reports/2026-10-12-therapy-permission-boundaries.md`, screenshots. Backend 601/0/31 + new tests 2/2; frontend 90/641; build compiled. Dev backend `565cfa1` (pid 1470556, log /tmp/room214_backend_565cfa1.log; previous /tmp/room214_backend_468cbc8.log). Open: completion/cancel/reopen dialogs don't yet say their text is resident-visible; no therapy login on dev.
+
+
+## 2026-10-12 05:30 CDT — Therapy permission boundaries DEV_ACCEPTED; staff conflict detection delivered
+
+Canonical source DONE for `careops-therapy-permission-boundaries-001`: https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6122399284. Transport-only mirror: https://github.com/caosos/CAOSCARE.COM/pull/131#issuecomment-6122412245.
+
+The task is IMPLEMENTED / TESTED / DEV_ACCEPTED, not OWNER_ACCEPTED / DONE. Product `565cfa1` removes staff-only unable-to-complete and supervisor-review reasons from resident-visible notes; the explicit Therapy role × action matrix rejects clinical fields with 422 and proves the operational permission boundary. Backend 601 passed / 0 failed / 31 skipped plus focused 2/2; frontend 90 suites / 641; build compiled. Development browser evidence covered nurse 390 px, resident 390 px, and owner 1280; resident/Aria outputs omitted the staff-only reason. Report `docs/reports/2026-10-12-therapy-permission-boundaries.md` at `7b737ea`. Development backend tested/loaded `565cfa1` (PID 1470556); production remains `ff87c22` unchanged.
+
+Latest timestamped host observation Monday, October 12, 2026 — 5:27:55 AM America/Chicago: existing coordinator idle; control-plane service `f1db2d358ca1`; repository `cd076d251ab9` newer and not loaded. GitHub activity alone is not host-liveness proof.
+
+The ONE current bounded task is now `careops-therapy-staff-conflict-001`, delivered to existing coordinator `caoscare-1-ee`, stage DELIVERED / awaiting ACK or WORKING within 300 seconds. It will detect same Therapy staff/provider overlap across different residents using canonical planned StaffTask data, expose conflicts in existing Plan/detail/Upcoming surfaces, require an explicit receipted save-anyway override, and preserve recurrence, single-occurrence edits, linked transportation, role boundaries, and resident-safe truth. Expected evidence: overlap/non-overlap, role refusal, desktop/390 px browser, receipt chain, full gates, exact tested/loaded revisions, fresh host observation, and cost or UNKNOWN. Final Therapy staff/resident browser acceptance follows this gap.
+
+ETA UNKNOWN pending ACK. Existing LOCAL watchdog next_check_at Monday, October 12, 2026 — 5:35 AM America/Chicago. Blocker NONE. Michael action NOTHING.
