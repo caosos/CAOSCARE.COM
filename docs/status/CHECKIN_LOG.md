@@ -551,3 +551,32 @@ Append-only. One entry per verified check-in, tied to its receipt. A correction 
 - **next_check_at:** Monday, October 12, 2026 — 3:47 AM America/Chicago
 - **Blocker:** NONE
 - **Michael action required:** NOTHING
+
+
+## Monday, October 12, 2026 — 3:48 AM America/Chicago
+- **Receipt:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6120841596
+- **Project:** CAOSCare
+- **Phase / position:** Phase 3/7 Care Operations workspaces — Housekeeping recurrence, immediately after scheduled Housekeeping work reached DEV_ACCEPTED
+- **Completed since the prior check:** The existing coordinator `caoscare-1-ee` ACKed `careops-housekeeping-recurrence-001` before the five-minute deadline and began inspecting the canonical recurrence implementation. No new product completion is claimed.
+- **Evidence:** completion/dispatch https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6120805574; automatic intake delivery https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6120839019 at Monday, October 12, 2026 — 3:45:41 AM America/Chicago; ACK/WORKING https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6120841596 at Monday, October 12, 2026 — 3:45:50 AM America/Chicago; transport-only host mirror https://github.com/caosos/CAOSCARE.COM/pull/131#issuecomment-6120870267. The coordinator found existing `StaffTaskTemplate`, `task_templates.py` spawn-today behavior, and the Tasks Templates board; it is verifying manual-versus-tick generation, deduplication, receipts, scheduling fields, and Housekeeping visibility before changing code. The bounded plan is one labeled weekly Housekeeping series → deterministic idempotent planned occurrences → Upcoming visibility → reschedule one occurrence without changing the series → complete, with refusals, truthful Aria, and Claude Chrome desktop/390 evidence. Prior accepted product evidence remains backend `8d03c65`, frontend `af52bfa`, backend 594 passed / 0 failed / 31 skipped, frontend 88 suites / 633 tests, compiled build, and the schedule browser receipt. Tested/loaded development backend `8d03c65`; frontend tested/served `af52bfa`; production `ff87c22`. Latest timestamped host observation Monday, October 12, 2026 — 3:47:47 AM America/Chicago: coordinator busy, control-plane service `f1db2d358ca1`, repository `cd076d251ab9` newer and not loaded. This is control-plane/repository evidence, not a newer product load. Known cost: UNKNOWN.
+- **Current bounded task (owner · stage):** `careops-housekeeping-recurrence-001` · existing coordinator `caoscare-1-ee` · WORKING / INSPECT TEMPLATE GENERATION, DEDUPLICATION AND HOUSEKEEPING VISIBILITY
+- **Remaining steps for this milestone:**
+  1. Trace existing StaffTaskTemplate generation and timer/manual paths
+  2. Establish deterministic occurrence dates and idempotent deduplication
+  3. Create one labeled synthetic weekly Housekeeping series
+  4. Prove generated planned occurrences in Housekeeping/Admin Upcoming
+  5. Reschedule and complete one occurrence without mutating the series
+  6. Prove truthful resident/Aria status and unauthorized refusal
+  7. Repair only the first proven gap
+  8. Run focused/full gates and Claude Chrome desktop/390 acceptance
+  9. Record exact tested/loaded revisions and fresh host evidence, then reconcile authoritative records
+- **Upcoming milestones:**
+  1. Housekeeping inspection
+  2. Housekeeping supplies/linen
+  3. Michael's spoken Room 214 voice/personality acceptance
+  4. Authenticated Transportation LIVE_VERIFY when role/driver/vehicle dependencies are available
+  5. Full owner/novice pilot walkthrough
+- **ETA:** Approximately Monday, October 12, 2026 — 5:16 AM America/Chicago
+- **next_check_at:** Monday, October 12, 2026 — 4:45:50 AM America/Chicago
+- **Blocker:** NONE
+- **Michael action required:** NOTHING
