@@ -24,3 +24,27 @@ Append-only. One entry per verified check-in, tied to its receipt. A correction 
 - **next_check_at:** MISSING (no open task)
 - **Blocker:** Production access refused to this session (blocks Transportation LIVE_VERIFY and production data); email provider facts missing
 - **Michael action required:** When awake: run the one-line production demo driver/vehicle command or add a permission rule for ssh caoscare-prod; review the DEV_ACCEPTED slices
+
+## Monday, October 12, 2026 — 12:42 AM America/Chicago
+- **Receipt:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6118473718
+- **Phase / position:** Care Operations pilot readiness → next milestone: resident Aria core (conversation, continuity, live lookup, calls)
+- **Completed since the prior check:** Good-surfaces review DEV_ACCEPTED (198fee4); check-in ledger built (29fef52); resident Aria core read-only capture + proposal (0c44262); incident recorded (Room 214 page restarted by a coordinator pkill, 8 s, no session affected)
+- **Evidence:** Capture report docs/reports/2026-10-12-resident-aria-core-capture.md; gate 576/0/31 at 198fee4; owner-intake tests 22 passed; host 2026-10-12 00:42 CDT: dev :8092 healthy on 198fee4, aria-wake services active, Room page reconnected 00:03:45
+- **Current bounded task (owner · stage):** careops-resident-aria-core-reconciliation-001 · caoscare-1-ee · NEED_OWNER after steps 1–3
+- **Remaining steps for this milestone:**
+  1. Michael confirms voice/conversation un-parked
+  2. Approve research model + smoke call + budget
+  3. Approve realtime model/voice change + one Room 214 test call
+  4. Owner-path parity for /aria (context layers + tools)
+  5. call_contact tool on the canonical call lifecycle
+  6. Firsthand acceptance: continuity, personality, live lookup, calls
+- **Upcoming milestones:**
+  1. Nursing request → nurse queue → notification with delivery receipts
+  2. Live email (Resend) acceptance
+  3. Transportation LIVE_VERIFY
+  4. Novice/owner pilot walkthrough
+  5. Pilot Room 1 hardware
+- **ETA:** UNKNOWN until owner decisions
+- **next_check_at:** MISSING (blocked on owner)
+- **Blocker:** NEED_OWNER: un-park confirmation, paid model/research approvals, telephony hardware/accounts; production access refused to this session
+- **Michael action required:** Decide the four items in the receipt; run the production demo driver/vehicle command or allow ssh caoscare-prod; review DEV_ACCEPTED slices
