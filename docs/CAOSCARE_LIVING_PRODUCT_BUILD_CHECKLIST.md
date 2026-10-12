@@ -1,6 +1,6 @@
 # CAOSCare — Living Product Build Checklist
 
-Updated: 2026-10-12 (00:06 CDT; menu visibility DEV_ACCEPTED; Activities calendar dispatched).
+Updated: 2026-10-12 (00:24 CDT; screen guidance DEV_ACCEPTED; good-surfaces review dispatched).
 
 This is the owner-facing product build and progress tracker for the Care Operations build. Canonical owner direction: [Issue #129](https://github.com/caosos/CAOSCARE.COM/issues/129). Detailed historical evidence remains in [PILOT1_EXECUTION_CHECKLIST.md](https://github.com/caosos/CAOSCARE.COM/blob/integration/2026-09-27/docs/PILOT1_EXECUTION_CHECKLIST.md). This file controls current phase, active task, milestones, ETA, blockers, and the reporting contract.
 
@@ -91,7 +91,7 @@ check); tests `scripts/owner_intake/tests/test_eta_receipts.py`.
 ## Current build control
 
 - **Current phase:** 3/7 — Care Operations workspaces.
-- **ONE current bounded task:** `careops-activities-calendar-001` — trace the canonical Activities intake/publish data to the Daily schedule with one labeled dated activity; prove authorized staff and resident views show the same event, owner, time, place, and status; distinguish no published events from load failure; prove desktop and 390 px behavior. Reuse canonical schedule/version records; no production mutation, new store, external messaging, paid service, audio work, or parallel worker.
+- **ONE current bounded task:** `careops-good-surfaces-review-001` — review Requests, Devices, Reports/Audit, Facility setup, and Live board with intended roles; complete one normal task per surface, verify every control routes to canonical records and receipts, repair the first concrete gap, and prove truthful authorization, empty/load-failure behavior, desktop/390 px behavior, exact tested/loaded revisions, and a timestamped host observation. No production mutation, external messaging, paid service, audio work, duplicate coordinator/worker/session/queue/watchdog/monitor, or merge of PR #41/#42.
 - **Control issue / dispatch channel:** [#129](https://github.com/caosos/CAOSCARE.COM/issues/129).
 - **Completed review:** [PR #130](https://github.com/caosos/CAOSCARE.COM/pull/130), merged into integration.
 - **Integration branch:** `integration/2026-09-27`; current accepted therapy-conflict product commit `77f83d3d53e17ffb75c71d137ab876e50552efe9` with guarded dev restart `1bf1bec26ea58a6c55730fea3c858734eb788d54`. This later integration work is not in production `ff87c22`; the release baseline is separate.
