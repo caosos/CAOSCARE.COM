@@ -151,3 +151,20 @@ ETA approximately Monday, October 12, 2026 — 7:23 AM America/Chicago. Existing
 
 ## 2026-10-12 — Alert close receipts (careops-alerts-close-receipts-001)
 `fc9e95b`: `_finish()` shared by resolve/close; receipted, guarded, idempotent. Backend 605/0/31. Dev backend `fc9e95b` (pid 1495849, log /tmp/room214_backend_fc9e95b.log; previous /tmp/room214_backend_45bd442.log).
+
+
+## 2026-10-12 06:17 CDT — Alert close-out receipts DEV_ACCEPTED; direct ingress receipts DELIVERED
+
+Canonical source DONE for `careops-alerts-close-receipts-001`: https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6123167417. Transport-only mirror: https://github.com/caosos/CAOSCARE.COM/pull/131#issuecomment-6123169312. Living-checklist reconciliation: `067269dc3c1e562c33d948cd87916ab26df46a2b`.
+
+The completed task is IMPLEMENTED / TESTED / DEV_ACCEPTED, not OWNER_ACCEPTED / DONE. Product `fc9e95b638a0e518542ab9a9695c8a82239bdedd` unifies resolve and close as one guarded active/acknowledged/legacy-escalated → resolved transition. It emits exactly one provenance-complete `alert_completed` receipt and linked history entry; repeat and concurrent terminal attempts return 409 with no rewrite. Backend gates passed 605 / 0 / 31. Frontend was unchanged at 90 suites / 642 tests. Development browser acceptance covered nurse 390 px and owner 1280 px, verified the outcome, actor and linked history, proved 409 idempotency, kept public room status minimal, and cleaned synthetic data. Records/report/screenshots are at `1a944bef29f398739ac875d54da215110f5237a1`. No PR-triggered GitHub workflow run is attached; recorded local gates/browser evidence apply.
+
+Tested and loaded development backend is `fc9e95b`, PID 1495849; frontend `db4317f`; production `ff87c22` unchanged. Cost UNKNOWN. Latest timestamped host observation Monday, October 12, 2026 — 6:16:21 AM America/Chicago: existing coordinator `caoscare-1-ee` busy; control-plane PID 1370098 on `f1db2d358ca1`; repository `cd076d251ab9` newer/not loaded. GitHub activity alone is not host-liveness proof.
+
+The ONE current bounded task is now `careops-alerts-ingress-receipts-001`, delivered to the existing coordinator `caoscare-1-ee`, stage DELIVERED / awaiting ACK or WORKING within 300 seconds. It will repair direct wander, wearable and pendant scaffold inserts by routing them through the canonical alert creation/coalescing and receipt path without creating a parallel store, queue, coordinator or worker. Acceptance requires exact commits; failing-before/fixed-after tests; repeated and concurrent source signals coalescing to one alert and one provenance-complete creation receipt; preserved source and parent provenance; unchanged escalation, public status, dispatch, acknowledgement and close flows; authorization/resident/Aria safety; desktop and 390 px browser evidence; cleanup; full gates; exact tested/loaded revisions; newest host observation; and cost or UNKNOWN.
+
+Ordered remaining Alerts-milestone steps: 1. ACK and inspect the three direct-ingress paths; 2. add failing ingress/coalescing/receipt tests; 3. route each path through the canonical helper and prove concurrency/idempotency; 4. verify downstream escalation/dispatch/public/acknowledge/close behavior and safety; 5. run full gates and desktop/390 px browser acceptance; 6. clean synthetic state and reconcile records; 7. finish policy editor, owner role-policy decision, timers/fallback and full Alerts section acceptance.
+
+Ordered upcoming milestones: 1. finish Alerts section acceptance; 2. remaining Phase 3 department-workspace gaps; 3. Phase 4 scheduling/records/resources; 4. Phase 5 communications; 5. Phase 6 pilot reliability/accessibility; 6. Phase 7 release/deployment/live acceptance.
+
+ETA UNKNOWN pending ACK. Existing LOCAL watchdog next_check_at Monday, October 12, 2026 — 6:22:49 AM America/Chicago. Blocker NONE. The acknowledgement/close role policy remains deferred but does not block compatible work. Michael action NOTHING.
