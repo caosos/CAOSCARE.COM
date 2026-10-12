@@ -9061,3 +9061,8 @@ Admin department queues show how work arrives, who works in the department, and 
 The screen is now named **Resident care patterns** and states its purpose. Load failure is distinct from no data; event rows open the canonical alert close-out; old open records are flagged; the summary uses the resident briefing; owner/admin and Nursing are allowed while Kitchen/front desk are refused.
 
 **ONE current bounded task:** `careops-menu-visible-001`. Trace the existing menu publish/lookup path with a labeled dated breakfast/lunch/supper; prove the published menu appears in authorized operator and resident views and that “what’s for supper tonight?” returns the actual published meal or an honest no-menu state. Reuse canonical menu/version records and existing endpoints; no production mutation, new truth store, external messaging, paid service, audio work, or parallel worker. ACK/WORKING is due Sunday, October 11, 2026 — 11:58 PM America/Chicago through existing coordinator `caoscare-1-ee`.
+
+---
+
+## 2026-10-12 — Menu visible end to end; menu/activities coverage notes (careops-menu-visible-001)
+Cause of the empty menu: published menu ends 2026-10-03 (production 2026-10-02). New `GET /menu/coverage`, `/schedule/coverage` and a note on both screens naming the last published day and the next step. Labeled paste → draft (not live) → publish → Aria's `get_menu` dinner request returns it → resident room screen shows it at 1280/390: 10/10; test data removed. Backend gate 567 / 0 / 31, frontend 85 suites / 617, build compiled. Dev backend restarted on `4b270ef` (pid 1177328; previous log /tmp/room214_backend_677e250.log). Report `docs/reports/2026-10-12-menu-visible.md`. Not deployed; production menus still need publishing by staff.
