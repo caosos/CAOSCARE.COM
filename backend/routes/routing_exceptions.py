@@ -14,6 +14,8 @@ Classes (a request can be in several):
   failed_handoff  - notification attempts were made and all failed/bounced,
                     or a lifecycle step on it was refused (a `task_*_refused`
                     receipt)
+  unclaimed       - the escalation tick flagged it: nobody claimed it in time
+                    (task_unclaimed_escalation.py); listed while still unassigned
   needs_review    - a worker said it could not be completed (task_review.py);
                     a supervisor has to look at it
 Simulated work is never "undelivered" (its notifications are recorded by
@@ -34,7 +36,7 @@ from routes.request_delivery import delivery_for
 from routes.staff_scope import ADMIN_ROLES, acting_departments, acts_for
 
 router = APIRouter(prefix="/ops", tags=["ops"])
-CLASSES = ("needs_review", "undelivered", "unassigned", "overdue", "failed_handoff")
+CLASSES = ("unclaimed", "needs_review", "undelivered", "unassigned", "overdue", "failed_handoff")
 OPEN = ("pending", "in_progress")
 
 
@@ -75,6 +77,8 @@ async def _rows(user, include_review: bool, task_ids: Optional[list] = None) -> 
             continue
         d = deliv.get(t["task_id"]) or {"state": "none", "label": "", "reached": False, "attempts": 0}
         cls = ["needs_review"] if t.get("needs_review") else []
+        if t.get("unclaimed_escalated_at") and not t.get("assigned_to"):
+            cls.insert(0, "unclaimed")
         if not t.get("simulated") and d["state"] in ("not_sent", "none"):
             cls.append("undelivered")
         if not t.get("assigned_to"):
@@ -103,7 +107,7 @@ async def _rows(user, include_review: bool, task_ids: Optional[list] = None) -> 
                                                                                "escalation_reason": t.get("escalation_reason") if t.get("needs_review") else None},
             "receipts_count": counts.get(t["task_id"], 0), "currency": cur, "classes": cls,
         })
-    out.sort(key=lambda r: ("needs_review" not in r["classes"], "failed_handoff" not in r["classes"], "undelivered" not in r["classes"], -r["age_seconds"]))
+    out.sort(key=lambda r: ("unclaimed" not in r["classes"], "needs_review" not in r["classes"], "failed_handoff" not in r["classes"], "undelivered" not in r["classes"], -r["age_seconds"]))
     return out
 
 

@@ -86,4 +86,6 @@ def request_status_view(task: dict, tz: Optional[str] = None) -> dict:
     else:  # open
         spoken = (f"It's still open — you raised it {opened_age}, and no one has "
                   f"picked it up yet.{_sched(task)}")
+        if task.get("unclaimed_escalated_at"):
+            spoken += " Because no one has taken it, it has been flagged to a supervisor."
     return {"lifecycle": lifecycle, "opened_age": opened_age, "spoken": spoken}

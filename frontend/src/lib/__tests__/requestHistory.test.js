@@ -136,3 +136,11 @@ test("can't-complete and supervisor review read clearly with their reasons", () 
   ]);
   expect(ev[1].text).toBe("Needs two people");
 });
+
+test("an unclaimed flag from the escalation tick reads plainly", () => {
+  const ev = buildRequestTimeline({ ...base, status: "pending", event_log: [
+    { at: "2026-10-12T07:10:00Z", field: "unclaimed_escalated", text: "No one has claimed it after 11 min", by: "system:escalation", by_name: "Escalation tick" },
+  ] });
+  expect(ev[1].label).toBe("Flagged to a supervisor: nobody claimed it");
+  expect(ev[1].text).toMatch(/11 min/);
+});

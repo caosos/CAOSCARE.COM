@@ -862,6 +862,8 @@ class StaffTask(BaseModel):
     reviewed_at: Optional[str] = None
     reviewed_by_name: Optional[str] = None
     review_note: Optional[str] = None
+    unclaimed_escalated_at: Optional[str] = None   # flagged by the escalation tick: nobody claimed it
+    unclaimed_minutes: Optional[int] = None
     linked_ride_task_id: Optional[str] = None       # the transportation request raised for this planned request (task_ride_link)
     linked_appointment_task_id: Optional[str] = None  # on a ride: the request it was raised for
     # Optional operational appointment details (careops-therapy-details-001): who/what/where.
@@ -1547,6 +1549,7 @@ class EscalationRule(BaseModel):
     facility_id: Optional[str] = None
     level_2_seconds: int = 90
     level_3_seconds: int = 150
+    nursing_unclaimed_seconds: int = 600   # a Nursing request nobody has claimed is flagged for a supervisor after this
     notify_supervisor_phone: Optional[str] = None
     notify_oncall_phone: Optional[str] = None
     enabled: bool = True

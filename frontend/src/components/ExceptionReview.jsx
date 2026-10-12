@@ -9,6 +9,13 @@ import { ReasonDialog } from "../pages/QueueDialogs";
 // "Can't complete" and supervisor review for a queued request
 // (POST /tasks/{id}/escalate, /review - backend task_review.py).
 export function ReviewBadge({ t }) {
+  if (!t.needs_review && t.unclaimed_escalated_at && !t.assigned_to) {
+    return (
+      <div className="text-sm text-caos-terracotta font-semibold" data-testid={`wo-unclaimed-${t.task_id}`}>
+        Flagged to a supervisor: nobody claimed it{t.unclaimed_minutes != null ? ` in ${t.unclaimed_minutes} min` : ""}
+      </div>
+    );
+  }
   if (!t.needs_review) return null;
   return (
     <div className="text-sm text-caos-amber font-semibold" data-testid={`wo-needs-review-${t.task_id}`}>

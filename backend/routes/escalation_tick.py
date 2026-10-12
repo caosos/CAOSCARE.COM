@@ -11,7 +11,8 @@ Rules, per alert:
   * the level change is one atomic conditional update, so concurrent ticks
     (two workers, endpoint + schedule) escalate each alert once per level;
   * every change appends a NEW receipt (actor system:escalation, rule used,
-    before/after level). `Alert.status`, `aria_state` and `live_line_state`
+    before/after level). Unclaimed Nursing requests are flagged once from
+    here too (task_unclaimed_escalation.py). `Alert.status`, `aria_state` and `live_line_state`
     are not touched - they answer different questions.
 """
 import asyncio
@@ -128,6 +129,8 @@ async def run_tick(now: datetime | None = None) -> dict:
                 await _try_sms(rule["notify_supervisor_phone"], a, target, rule)
         except Exception as e:
             log.warning("escalation side effect failed for %s: %s", a.get("alert_id"), e)
+    from routes.task_unclaimed_escalation import escalate_unclaimed
+    out.update(await escalate_unclaimed(now, next(iter(rules_by_fac.values()), default_rule)))
     return out
 
 
