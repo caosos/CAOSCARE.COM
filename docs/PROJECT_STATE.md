@@ -241,3 +241,6 @@ Unclaimed step now selects each request's own facility rule via `escalation_tick
 
 ## 2026-10-12 — Alerts fallback contract (careops-alerts-fallback-contract-001)
 Contract + first gap: escalation tick failure/recovery now receipted (`escalation_tick.tick_once`). Backend 609/0/31. Report: docs/reports/2026-10-12-alerts-fallback-contract.md. Next gap: stopped/disabled loop undetected.
+
+## 2026-10-12 — Escalation loop liveness (careops-alerts-loop-liveness-001)
+`/api/health` reports `escalation.state`; disabled-at-startup receipted once (`escalation_tick.start_schedule`). Backend 610/0/31. Report: docs/reports/2026-10-12-alerts-loop-liveness.md.
