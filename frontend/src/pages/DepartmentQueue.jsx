@@ -218,7 +218,7 @@ export default function DepartmentQueue({ department, title, itemName = "request
             )}
             <ReviewBadge t={t} />
             {inspectionText(t) && <div className="text-sm text-caos-amber font-semibold" data-testid={`wo-returned-${t.task_id}`}>{inspectionText(t)}</div>}
-            {t.notes && <div className="text-sm text-caos-ink/80">Note: {t.notes}</div>}
+            {t.notes && !(inspectionText(t) && t.notes.startsWith("Returned after inspection:")) && <div className="text-sm text-caos-ink/80">Note: {t.notes}</div>}
             {(t.requested_for_date || t.requested_for_time_label) && (
               <div className="text-sm text-caos-forest" data-testid={`wo-planned-${t.task_id}`}>
                 Planned: {[t.requested_for_time_label, t.requested_for_date].filter(Boolean).join(" · ")}
