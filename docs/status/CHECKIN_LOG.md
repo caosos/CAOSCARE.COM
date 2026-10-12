@@ -710,3 +710,18 @@ Append-only. One entry per verified check-in, tied to its receipt. A correction 
 - **next_check_at:** Monday, October 12, 2026 — 5:01:37 AM America/Chicago; owned by the existing LOCAL watchdog.
 - **Blocker:** NONE.
 - **Michael must do:** NOTHING.
+
+
+## Monday, October 12, 2026 — 5:01:59 AM America/Chicago
+- **Receipt:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6121965718
+- **Project:** CAOSCARE.COM
+- **Phase / position:** Phase 3/7 — Care Operations workspaces; Housekeeping is READY_FOR_OWNER_REVIEW, Therapy recurrence is DEV_ACCEPTED, and Therapy operational-versus-clinical permission boundaries are actively WORKING.
+- **Completed since prior check:** NO CHANGE to current-task product behavior; the existing coordinator ACKed `careops-therapy-permission-boundaries-001` before the deadline, established worker `da-e7703038b0`, bounded the role-matrix inspection plan, supplied an evidence-based ETA, and assigned the existing LOCAL watchdog’s exact next check.
+- **Evidence / provenance:** canonical ACK/WORKING receipt https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6121965718; transport-only mirror https://github.com/caosos/CAOSCARE.COM/pull/131#issuecomment-6121993580; checklist reconciliation `1d71b4b9dd88cdc4dee4cf12f528a308a37b0363`; project-state reconciliation `4647c79a49d1999c9c3fb0e936907c6fd6b9e553`. Evidence reviewed: resident-safe projection and all Therapy-touching routes are the inspection targets; an isolated HTTP role × action matrix will cover owner/admin, front desk, Therapy, another department, and resident/public. Current-task tests and Claude Chrome/browser evidence: not yet produced at ACK. Prior accepted Therapy recurrence gates remain backend 600 passed / 0 failed / 31 skipped, frontend 90 suites / 641 tests, and compiled build at `468cbc8`. Tested revision: no new current-task revision; prior `468cbc8`. Loaded revision: development backend reported `468cbc8`; production `ff87c22` unchanged. Latest host observation Monday, October 12, 2026 — 5:01:04 AM America/Chicago: coordinator `caoscare-1-ee` busy, control-plane `f1db2d358ca1`, repository `cd076d251ab9` newer/not loaded. GitHub activity is not host-liveness proof.
+- **ONE current bounded task / owner / stage:** `careops-therapy-permission-boundaries-001` / existing coordinator `caoscare-1-ee` and existing worker `da-e7703038b0` / ACKED, WORKING.
+- **Remaining current-milestone steps (ordered):** 1. read the resident-safe projection and every Therapy-touching route; 2. record the explicit operational-versus-clinical role/field/action matrix; 3. prove owner/admin, front-desk, Therapy, other-department, and resident/public permissions/refusals over HTTP on an isolated gate DB; 4. inspect exactly what reaches residents and Aria; 5. repair only the first proven gap; 6. run focused/full gates plus desktop/390 px browser checks where accounts exist; 7. record exact tested/loaded revisions, fresh host evidence, and cost; 8. reconcile checklist, Issue #129, project state, and receipt at the task boundary; 9. complete final Therapy staff/resident browser acceptance.
+- **Upcoming milestones (ordered):** 1. Therapy final browser acceptance and remaining calendar gap assessment; 2. canonical alerts/escalation model; 3. remaining Phase 3 department-workspace gaps; 4. Phase 4 scheduling/records/resources; 5. Phase 5 communications; 6. Phase 6 pilot reliability/accessibility; 7. Phase 7 release/deployment/live acceptance.
+- **ETA:** approximately Monday, October 12, 2026 — 6:29 AM America/Chicago.
+- **next_check_at:** Monday, October 12, 2026 — 5:59:15 AM America/Chicago; owned by the existing LOCAL watchdog.
+- **Blocker:** NONE.
+- **Michael must do:** NOTHING.
