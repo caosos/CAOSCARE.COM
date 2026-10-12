@@ -7,6 +7,7 @@ import TransportationCalendar from "./TransportationCalendar";
 import TransportLog from "./TransportLog";
 import RequestsBoard from "./RequestsBoard";
 import DepartmentQueue from "./DepartmentQueue";
+import RoutingExceptionsBoard from "./RoutingExceptionsBoard";
 import FrontDeskRequestForm from "../components/FrontDeskRequestForm";
 import FrontDeskResidentDirectory from "../components/FrontDeskResidentDirectory";
 import TransportRideForm from "../components/TransportRideForm";
@@ -16,10 +17,13 @@ import TransportRideForm from "../components/TransportRideForm";
 // departments use: the front desk queue is the Administration department's
 // StaffTask queue (Aria's "front desk" requests route there), rides are the
 // shared transportation calendar, and "All requests" is the same
-// RequestsBoard Admin sees.
+// RequestsBoard Admin sees. "Needs attention" is the same routing-exceptions
+// board Admin has (not delivered, unclaimed, unassigned, overdue, needs review),
+// scoped by the backend to what the front desk acts for.
 
 const TABS = [
   ["requests", "Front desk requests"],
+  ["attention", "Needs attention"],
   ["transport", "Transportation"],
   ["ridelog", "Ride log"],
   ["residents", "Residents"],
@@ -73,6 +77,7 @@ export default function FrontDeskDashboard() {
         {tab === "requests" && (
           <DepartmentQueue key={reloadKey} department="administration" title="Front desk requests" adminMode />
         )}
+        {tab === "attention" && <RoutingExceptionsBoard key={reloadKey} />}
         {tab === "transport" && <TransportationCalendar refreshKey={reloadKey} />}
         {tab === "ridelog" && <TransportLog />}
         {tab === "residents" && (
