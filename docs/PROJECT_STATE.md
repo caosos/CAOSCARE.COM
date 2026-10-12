@@ -9140,3 +9140,8 @@ Report extended with the Michael-facing vs resident discrepancy list (owner `/ar
 
 ## 2026-10-12 01:10 CDT — Overnight live acceptance BLOCKED pending Michael in the coordinator terminal
 The relayed owner authorization (#129 comment 6118737780) for the live Room 214 model/voice/flag change and paid test calls was refused by this session's permission check (BLOCKED receipt #6118763661). Nothing changed: backend `e5c516a`, `gpt-realtime`/`shimmer`, new flags off, listener untouched. Read-only inventory `docs/reports/2026-10-12-overnight-acceptance-inventory.md` (`40228be`) lists what exists and the exact missing dependencies (no media_player, AC unavailable, no email key, no telephony, research unset).
+
+---
+
+## 2026-10-12 — Owner-approved Room 214 voice settings live on dev; overnight typed acceptance
+Michael approved in the coordinator terminal: gpt-realtime-2.1 + marin, 10-minute continuity, owner v2, and test calls. Set in `backend/.env` (rollback: remove the four lines or restore `backend/.env.bak-20261012-012212`, then `scripts/restart_dev_backend.sh`); call tool and research left off. Code: `5736b03` (voice override), `ec4a8d4` (demo-room requests are current), `d02325f` (Aria reports a just-finished request; history no longer invents "Started"), `aba31a8` (auth tests pin the default session). Dev backend `aba31a8`, clean tree; listener and Room 214 page untouched. Six typed demo calls plus the staff side in Claude Chrome and a SIM run; details, defects and blocked items in `docs/reports/2026-10-12-overnight-live-acceptance.md`. Gates: backend 588/2/31 at `ec4a8d4` (the 2 fixed by `aba31a8`), frontend 87 suites / 626. Not verified: spoken audio in Room 214 (Michael). Production `ff87c22` unchanged.
