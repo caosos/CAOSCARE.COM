@@ -259,3 +259,6 @@ No code change; 17/17 dev browser checks; gates 611/0/31, 91/644, build OK. Find
 
 ## 2026-10-12 — Front desk unified inbox first slice (careops-frontdesk-unified-inbox-inventory-001)
 `2604c16`: /front-desk "Needs attention" tab = existing RoutingExceptionsBoard (backend-scoped). Matrix + gaps in docs/reports/2026-10-12-frontdesk-unified-inbox.md. Backend 614/0/31, frontend 93/646.
+
+## 2026-10-12 — Front desk failed deliveries (careops-frontdesk-failed-deliveries-001)
+`2278dcf`: /ops/delivery-exceptions (redacted alert-delivery failures, desk + admin) + Needs attention card. Backend 615/0/31, frontend 93/646. Finding: notify_family_for_alert writes no receipt.
