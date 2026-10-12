@@ -147,3 +147,27 @@ describe("ride timeline labels", () => {
     expect(labels).toContain("Started by Pete");
   });
 });
+
+describe("transportSetupStatus", () => {
+  const { transportSetupStatus } = require("../transportation");
+  test("nothing configured: not ready, names both missing pieces", () => {
+    const st = transportSetupStatus([], []);
+    expect(st.ready).toBe(false);
+    expect(st.missing).toEqual(["at least one driver", "at least one enabled vehicle"]);
+  });
+  test("flex-only drivers are not auto-bookable", () => {
+    const st = transportSetupStatus([{ enabled: true, is_flex: true }], [{ enabled: true, capacity: 4 }]);
+    expect(st.ready).toBe(false);
+    expect(st.missing).toEqual(["a driver who is not flex (flex drivers are only booked by name)"]);
+  });
+  test("a seatless vehicle still books a single rider but turns sharing off (engine rule)", () => {
+    const st = transportSetupStatus([{ enabled: true }], [{ enabled: true, capacity: null }]);
+    expect(st).toMatchObject({ ready: true, sharingOff: true, seatedVehicles: 0 });
+  });
+  test("disabled resources do not count; driver + seated vehicle is ready with sharing on", () => {
+    expect(transportSetupStatus([{ enabled: false }], [{ enabled: true, capacity: 4 }]).ready).toBe(false);
+    expect(transportSetupStatus([{ enabled: true }], [{ enabled: false, capacity: 4 }]).ready).toBe(false);
+    const st = transportSetupStatus([{ enabled: true, is_flex: false }], [{ enabled: true, capacity: 4 }]);
+    expect(st).toMatchObject({ ready: true, sharingOff: false, bookableDrivers: 1, vehicles: 1, missing: [] });
+  });
+});

@@ -10,6 +10,7 @@ import { Trash2, Plus, Clock } from "lucide-react";
 import { toast } from "sonner";
 import DriverHoursDialog from "../components/DriverHoursDialog";
 import { driverHoursLabel } from "../lib/transportation";
+import TransportSetupGuide from "../components/TransportSetupGuide";
 
 // Transportation resource config (drivers, vehicles, scheduling buffer) -
 // admin-only facility configuration. Deliberately does NOT invent vehicle
@@ -46,7 +47,7 @@ function DriverSection({ drivers, onChange }) {
   return (
     <Card className="border-caos-line p-6">
       <h2 className="font-display text-xl font-medium text-caos-forest mb-4">Drivers</h2>
-      <div className="flex gap-2 mb-4">
+      <div className="flex flex-wrap gap-2 mb-4">
         <Input placeholder="Driver name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} data-testid="driver-name-input" />
         <label className="flex items-center gap-2 text-sm whitespace-nowrap">
           <Checkbox checked={form.is_flex} onCheckedChange={(v) => setForm({ ...form, is_flex: !!v })} /> Flex (book by name only)
@@ -168,6 +169,7 @@ export default function TransportResourcesTab() {
 
   return (
     <div className="space-y-6" data-testid="transport-resources-root">
+      <TransportSetupGuide drivers={drivers} vehicles={vehicles} />
       <DriverSection drivers={drivers} onChange={fetchAll} />
       <VehicleSection vehicles={vehicles} onChange={fetchAll} />
       <BufferSection config={config} onChange={fetchAll} />

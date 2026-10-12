@@ -9000,3 +9000,8 @@ Community group now holds Kitchen (shared request queue) and the four Transporta
 
 ## 2026-10-12 — Family contacts: add reachable at phone width, edit built, receipts for every change (careops-family-add-001, careops-family-edit-001)
 Add button existed but sat off-screen at 390 px (header row did not wrap); fixed. New `PATCH /family-contacts/{id}` (name, relationship, email, phone, alerts; not resident, call approval or portal link); an approved contact's phone (the number Aria dials) is owner/admin only. Every contact change now writes a chained receipt with before/after. One shared add/edit form. Backend gate 557 / 0 / 31 (new `test_family_contact_edit.py`), frontend 81 suites / 603, build compiled; dev-site headless 11/11. Dev backend restarted on `f4f210f` (pid 1128830, 0 leases; previous log /tmp/room214_backend_1d617b8.log). Report `docs/reports/2026-10-12-family-add-edit.md`. Not deployed.
+
+---
+
+## 2026-10-12 — Transport resources: purpose, setup steps and a truthful "can rides be booked" line (careops-transport-resources-001)
+`TransportSetupGuide.jsx` + `transportSetupStatus` (engine rules: enabled non-flex driver + enabled vehicle; sharing needs a seat count). Frontend 81 suites / 607, build compiled; dev-site headless 8/8 at 1280 and 390. Report `docs/reports/2026-10-12-transport-resources-guidance.md`. Frontend only; not deployed.

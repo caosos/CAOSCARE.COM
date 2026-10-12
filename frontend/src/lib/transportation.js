@@ -95,3 +95,19 @@ export function rideBookedMessage(data, { askedTime = null, changed = false } = 
   }
   return `${changed ? "changed and confirmed" : "confirmed"} - ${changed ? "pickup" : "your ride is booked for"} ${pickup} on ${day}.`;
 }
+
+// Transport resources setup state, from the real driver/vehicle lists, using
+// the booking engine's own rules: a new ride needs an enabled non-flex driver
+// (flex drivers are only booked by name) and an enabled vehicle; a vehicle is
+// shared only when its seat count is set (blank = never assume room).
+export function transportSetupStatus(drivers = [], vehicles = []) {
+  const bookableDrivers = drivers.filter((d) => d.enabled !== false && !d.is_flex).length;
+  const flexDrivers = drivers.filter((d) => d.enabled !== false && d.is_flex).length;
+  const enabledVehicles = vehicles.filter((v) => v.enabled !== false);
+  const seatedVehicles = enabledVehicles.filter((v) => Number(v.capacity) > 0).length;
+  const missing = [];
+  if (bookableDrivers === 0) missing.push(flexDrivers ? "a driver who is not flex (flex drivers are only booked by name)" : "at least one driver");
+  if (enabledVehicles.length === 0) missing.push("at least one enabled vehicle");
+  const sharingOff = enabledVehicles.length > 0 && seatedVehicles === 0;
+  return { ready: missing.length === 0, bookableDrivers, flexDrivers, vehicles: enabledVehicles.length, seatedVehicles, sharingOff, missing };
+}
