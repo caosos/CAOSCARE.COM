@@ -91,7 +91,7 @@ check); tests `scripts/owner_intake/tests/test_eta_receipts.py`.
 ## Current build control
 
 - **Current phase:** 3/7 — Care Operations workspaces.
-- **ONE current bounded task:** `careops-alerts-policy-editor-001` — DELIVERED to existing coordinator `caoscare-1-ee`; ACK / WORKING required within 300 seconds. Scope: inspect the existing canonical alert policy/configuration surfaces and `escalation_tick`, prove one admin-edited policy changes the existing runtime without a parallel store or timer, add provenance-complete policy-change receipts/history and role refusals, and repair only the first proven gap. The separate acknowledge/close role-policy decision remains deferred. ETA UNKNOWN pending ACK; next_check_at Monday, October 12, 2026 — 7:43:39 AM America/Chicago; blocker NONE.
+- **ONE current bounded task:** `careops-alerts-policy-editor-001` — ACKED by existing coordinator `caoscare-1-ee`, worker `da-a0fcc8aef7`; inventory of the canonical policy store, editor/API and `escalation_tick` is starting. The ACK arrived on time but omitted the required evidence-based ETA and expected-acceptance fields; a compliant WORKING correction is required while work continues. ETA UNKNOWN pending that correction; worker next_check_at Monday, October 12, 2026 — 8:13 AM America/Chicago; blocker NONE.
 - **Control issue / dispatch channel:** [#129](https://github.com/caosos/CAOSCARE.COM/issues/129).
 - **Completed review:** [PR #130](https://github.com/caosos/CAOSCARE.COM/pull/130), merged into integration.
 - **Integration branch:** `integration/2026-09-27`; current accepted therapy-conflict product commit `77f83d3d53e17ffb75c71d137ab876e50552efe9` with guarded dev restart `1bf1bec26ea58a6c55730fea3c858734eb788d54`. This later integration work is not in production `ff87c22`; the release baseline is separate.
@@ -919,3 +919,20 @@ Issue #129 is the dispatch channel to existing coordinator `caoscare-1-ee`. ACK/
 - **next_check_at:** Monday, October 12, 2026 — 7:43:39 AM America/Chicago; owned by the existing LOCAL watchdog.
 - **Blocker:** NONE for compatible work. The acknowledge/close role policy still requires a later owner decision.
 - **Michael must do:** NOTHING now.
+
+
+### Update 2026-10-12 07:43 CDT (alert policy editor ACKED; WORKING receipt correction required)
+
+- **Canonical ACK:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6124496240. Automatic intake delivery: https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6124495322.
+- **ONE current bounded task / responsibility / stage:** `careops-alerts-policy-editor-001` / existing coordinator `caoscare-1-ee`, worker `da-a0fcc8aef7` / ACKED; inventory starting.
+- **Pickup timing:** delivered Monday, October 12, 2026 — 7:43:27 AM America/Chicago and ACKed Monday, October 12, 2026 — 7:43 AM America/Chicago, within the 300-second requirement.
+- **Evidence at ACK:** development backend `004c158`, PID 1506940; production `ff87c22` untouched; inventory targets are the existing alert policy store, editor/API and `escalation_tick`.
+- **Receipt correction:** the ACK omitted the evidence-based realistic ETA and expected acceptance evidence required by the project protocol. Work may continue, but the next WORKING receipt must supply those fields and preserve the exact next-check timer.
+- **Tested versus loaded:** no new current-task tests or revision at ACK. Development remains backend `004c158`, PID 1506940, and frontend `db4317f`; production `ff87c22` unchanged.
+- **Latest host observation:** Monday, October 12, 2026 — 7:43 AM America/Chicago — coordinator ACK reported development backend `004c158`, PID 1506940, and began inventory. GitHub activity alone is not host-liveness proof; this receipt is coordinator-reported host evidence.
+- **Remaining Alerts steps (ordered):** 1. publish compliant WORKING with evidence reviewed, realistic ETA and expected acceptance; 2. inventory configuration/runtime readers; 3. failing policy-edit/runtime/receipt/refusal tests; 4. first-gap repair; 5. prove edited policy/default/fallback through existing `escalation_tick`; 6. gates and desktop/390 px browser; 7. cleanup and exact evidence; 8. reconcile records; 9. timer/fallback residue; 10. deferred owner role-policy decision; 11. owner review when complete.
+- **Upcoming milestones:** finish Alerts; remaining Phase 3 workspaces; Phase 4 schedules/resources; Phase 5 communications; Phase 6 pilot/reliability/accessibility; Phase 7 release/live acceptance.
+- **ETA:** UNKNOWN until the compliant WORKING correction.
+- **next_check_at:** Monday, October 12, 2026 — 8:13 AM America/Chicago.
+- **Blocker:** NONE; receipt-schema correction is required but work continues.
+- **Michael must do:** NOTHING.
