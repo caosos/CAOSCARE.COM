@@ -41,3 +41,16 @@ Expected completion evidence: exact implementation commits; cross-resident provi
 
 ## 2026-10-12 — Therapy staff double-booking (careops-therapy-staff-conflict-001)
 `b7f6048`: planned-window check also covers the same provider/assignee across residents in the department; PATCH checks before writing; override receipted on schedule or details receipt. Backend 603/0/31, frontend 90/642, build compiled. Dev backend `b7f6048` (pid 1478496, log /tmp/room214_backend_b7f6048.log; previous /tmp/room214_backend_565cfa1.log). Report `docs/reports/2026-10-12-therapy-staff-conflict.md`.
+
+
+## 2026-10-12 05:43 CDT — Therapy staff conflict DEV_ACCEPTED; final browser acceptance delivered
+
+Canonical source DONE for `careops-therapy-staff-conflict-001`: https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6122651596. Transport-only mirror: https://github.com/caosos/CAOSCARE.COM/pull/131#issuecomment-6122660781.
+
+The task is IMPLEMENTED / TESTED / DEV_ACCEPTED, not OWNER_ACCEPTED / DONE. Product `b7f6048` extends the existing canonical 60-minute conflict check across residents for the same normalized provider name or assignee, refuses overlap with 409 before any write, and reuses the explicit receipted save-anyway path. Resident views carry no conflicts. Tests cover overlap/non-overlap, provider-only changes, assignee, refusal, receipts, Upcoming, resident views, recurrence occurrence, and linked ride. Backend 603 passed / 0 failed / 31 skipped; frontend 90 suites / 642; build compiled. Development browser evidence covered owner 1280 and 390 px with no failed API calls; nurse refusal returned 403; synthetic tasks were cancelled. Development backend tested/loaded `b7f6048`, PID 1478496; production `ff87c22` unchanged. No GitHub workflow runs were attached to `b7f6048`; recorded local gates/browser evidence apply.
+
+Latest timestamped host observation Monday, October 12, 2026 — 5:42:36 AM America/Chicago: existing coordinator idle; control-plane service `f1db2d358ca1`; repository `cd076d251ab9` newer and not loaded. GitHub activity alone is not host-liveness proof.
+
+The ONE current bounded task is now `careops-therapy-browser-acceptance-001`, delivered to existing coordinator `caoscare-1-ee`, stage DELIVERED / awaiting ACK or WORKING within 300 seconds. Using the development runtime and labeled synthetic data, it must prove owner/admin, front desk, an actual signed-in Therapy role via existing or temporary dev-only auth if safe, resident Home, and Aria across create, plan, claim/start, operational note, completion, cancellation/reopen, recurrence/Upcoming, conflict override, linked ride, receipts/history, role refusal, clinical-field rejection, resident-safe truth, desktop, and 390 px. The completion/cancel/reopen dialogs must explicitly label resident-visible text. Synthetic data/accounts must be cleaned up. If all criteria pass, the full Therapy section becomes READY_FOR_OWNER_REVIEW, not OWNER_ACCEPTED / DONE.
+
+ETA UNKNOWN pending ACK. Existing LOCAL watchdog next_check_at Monday, October 12, 2026 — 5:48 AM America/Chicago. Blocker NONE. Michael action NOTHING.
