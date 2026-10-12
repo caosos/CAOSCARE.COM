@@ -7,6 +7,8 @@ import { Badge } from "../components/ui/badge";
 import TransportAssignAction from "../components/TransportAssignAction";
 import TransportUnresolvedList from "../components/TransportUnresolvedList";
 import RequestDetailDialog from "./RequestDetailDialog";
+import TransportRideForm from "../components/TransportRideForm";
+import { Plus } from "lucide-react";
 import { toast } from "sonner";
 
 function fmtDateTime(iso) {
@@ -38,6 +40,7 @@ export default function TransportationTab() {
   const [error, setError] = useState(null);
   const [showUnresolved, setShowUnresolved] = useState(false);
   const [openId, setOpenId] = useState(null);
+  const [newRide, setNewRide] = useState(false);
 
   const fetchReport = async () => {
     try {
@@ -72,6 +75,9 @@ export default function TransportationTab() {
         </div>
         <div className="flex items-center gap-3 overflow-x-auto max-w-full">
           <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-auto shrink-0" data-testid="transport-date-picker" />
+          <Button className="bg-caos-forest hover:bg-caos-forest-hover rounded-full shrink-0" onClick={() => setNewRide(true)} data-testid="transport-new-ride">
+            <Plus className="w-4 h-4 mr-1" /> New ride
+          </Button>
           <Button variant="outline" className="border-2 rounded-full shrink-0" onClick={seedSlots} data-testid="seed-slots-btn">Seed 2-week schedule</Button>
         </div>
       </div>
@@ -147,6 +153,7 @@ export default function TransportationTab() {
           </div>
         </div>
             </Section>
+      <TransportRideForm open={newRide} onOpenChange={setNewRide} onSaved={fetchReport} />
       <RequestDetailDialog taskId={openId} open={!!openId} onOpenChange={(o) => { if (!o) setOpenId(null); }} onChange={fetchReport} />
     </Card>
   );

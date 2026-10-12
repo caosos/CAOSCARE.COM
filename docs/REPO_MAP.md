@@ -935,3 +935,4 @@ listener verifier experiment: `docs/experiments/`.
 ## 2026-10-12 — Transportation unresolved count (careops-transport-unresolved-001)
 
 - `backend/routes/transportation_report.py`: `GET /transportation/report` (transport coordinators only) — open-ride rows with owner, status, times asked, age, next action and currency; `total_unresolved` is the length of `current_state.waiting_unbooked`. `frontend/src/components/TransportUnresolvedList.jsx` (the list behind the Unresolved tile), `frontend/src/pages/TransportationTab.jsx`. Test: `backend/tests/test_transport_unresolved.py`.
+- `frontend/src/pages/TransportationTab.jsx` also has New ride (opens `components/TransportRideForm.jsx`). Tests: `backend/tests/test_transport_new_ride_entry.py`, `frontend/src/pages/__tests__/transportationTabNewRide.test.jsx`.
