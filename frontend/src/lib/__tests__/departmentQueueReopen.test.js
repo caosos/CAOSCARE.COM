@@ -47,6 +47,7 @@ test("front desk sees Reopen on a completed Administration request; empty reason
   expect(q("wo-reopen-t9")).not.toBeNull();
   await act(async () => { q("wo-reopen-t9").click(); });
   expect(q("wo-reopen-submit").disabled).toBe(true);
+  expect(document.body.textContent).toMatch(/resident sees this text on their screen and Aria may read it/);
   await type(q("wo-reopen-reason"), "Resident called back: the pass was never issued.");
   expect(q("wo-reopen-submit").disabled).toBe(false);
   mockApi.post.mockResolvedValueOnce({ data: {} });

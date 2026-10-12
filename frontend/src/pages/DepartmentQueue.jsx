@@ -388,6 +388,7 @@ export default function DepartmentQueue({ department, title, itemName = "request
       <Dialog open={!!completeFor} onOpenChange={(o) => { if (!o) setCompleteFor(null); }}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle className="font-display">Complete {itemName}</DialogTitle></DialogHeader>
+          <p className="text-sm text-caos-mute" data-testid="wo-complete-visibility">The resident sees this text on their screen and Aria may read it to them.</p>
           <Textarea placeholder="What was done / outcome (optional)…" value={notes}
             onChange={(e) => setNotes(e.target.value)} rows={4} data-testid="wo-complete-notes" />
           <DialogFooter>
@@ -410,7 +411,7 @@ export default function DepartmentQueue({ department, title, itemName = "request
       <Dialog open={!!reopenFor} onOpenChange={(o) => { if (!o) setReopenFor(null); }}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle className="font-display">Reopen {itemName}</DialogTitle></DialogHeader>
-          <p className="text-sm text-caos-mute">The request goes back to the queue with its assignee kept. The reason is recorded in its history.</p>
+          <p className="text-sm text-caos-mute">The request goes back to the queue with its assignee kept. The reason is recorded in its history. The resident sees this text on their screen and Aria may read it to them.</p>
           <Textarea placeholder="Why is this being reopened? (required)" value={reopenReason}
             onChange={(e) => setReopenReason(e.target.value)} rows={3} data-testid="wo-reopen-reason" />
           <DialogFooter>
@@ -428,7 +429,7 @@ export default function DepartmentQueue({ department, title, itemName = "request
       {review.dialogs}
       {inspection.dialog}
       <ReasonDialog open={!!cancelFor} onOpenChange={(o) => { if (!o) setCancelFor(null); }} title={`Cancel ${itemName}`}
-        description="The request is closed as cancelled; the reason is recorded in its history and receipts." placeholder="Why is it cancelled? (required)"
+        description="The request is closed as cancelled; the reason is recorded in its history and receipts. The resident sees this text on their screen and Aria may read it to them." placeholder="Why is it cancelled? (required)"
         submitLabel="Cancel request" testId="wo-cancel" onSubmit={cancelRequest} />
 
       <RequestHistoryDialog taskId={historyFor} onClose={() => setHistoryFor(null)} />

@@ -64,6 +64,7 @@ test("Cancel needs a reason and posts the canonical skip with it", async () => {
   await render();
   await act(async () => { q("wo-cancel-a1").click(); });
   expect(q("wo-cancel-submit").disabled).toBe(true);
+  expect(document.body.textContent).toMatch(/resident sees this text on their screen and Aria may read it/);
   await setVal(q("wo-cancel-reason"), "Therapist out sick; family will rebook", HTMLTextAreaElement.prototype);
   mockApi.post.mockResolvedValueOnce({ data: {} });
   await act(async () => { q("wo-cancel-submit").click(); }); await flush();
