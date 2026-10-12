@@ -156,6 +156,13 @@ async def _try_sms(to_phone: str, alert: dict, level: int, rule: dict):
 
 _HEALTH = {"type": "escalation_schedule", "id": "default"}
 _health_state: dict = {}   # in-process cache of the latest health receipt; loaded from receipts once
+_ACTION = {"failing": "escalation_tick_failed", "healthy": "escalation_tick_recovered",
+           "disabled": "escalation_schedule_disabled"}
+_STATE_OF = {v: k for k, v in _ACTION.items()}
+_RESULT = {"failing": "escalation tick failed; alerts stay open on the dashboard but are not escalated",
+           "healthy": "escalation tick running",
+           "disabled": "escalation schedule switched off at startup; alerts stay open on the dashboard but are not escalated"}
+_schedule: dict = {"task": None, "interval": None, "last_tick_at": None}   # this process's loop
 
 
 async def _latest_health() -> dict:
@@ -163,38 +170,38 @@ async def _latest_health() -> dict:
         last = await db.receipts.find_one(
             {"related_object_type": _HEALTH["type"], "related_object_id": _HEALTH["id"]},
             {"_id": 0, "receipt_id": 1, "action_type": 1}, sort=[("created_at", -1)])
-        _health_state.update(
-            state="failing" if (last or {}).get("action_type") == "escalation_tick_failed" else "healthy",
-            receipt_id=(last or {}).get("receipt_id"))
+        _health_state.update(state=_STATE_OF.get((last or {}).get("action_type"), "healthy"),
+                             receipt_id=(last or {}).get("receipt_id"))
     return _health_state
 
 
-async def _record_health(after: str, *, error: str | None = None, result: dict | None = None) -> None:
-    """Only a change of state is receipted (healthy -> failing -> healthy), so a
-    tick that keeps failing every interval leaves one record, not thousands."""
+async def _record_health(after: str, *, error: str | None = None, result: dict | None = None,
+                         authority: str = "escalation_schedule") -> None:
+    """Only a change of state is receipted (healthy / failing / disabled), so a
+    tick that keeps failing, or a restart that stays switched off, leaves one
+    record, not thousands."""
     h = await _latest_health()
     if h["state"] == after:
         return
-    failed = after == "failing"
+    detail = {"error": error} if after == "failing" else {"tick_result": result} if result else {}
     rcpt = await create_receipt(
-        action_type="escalation_tick_failed" if failed else "escalation_tick_recovered",
-        related_object_type=_HEALTH["type"], related_object_id=_HEALTH["id"], source="system",
-        status="failed" if failed else "completed",
-        result="escalation tick failed; alerts stay open on the dashboard but are not escalated"
-               if failed else "escalation tick running again",
-        failure_reason=error,
+        action_type=_ACTION[after], related_object_type=_HEALTH["type"], related_object_id=_HEALTH["id"],
+        source="system", status="failed" if after == "failing" else "completed",
+        result=_RESULT[after], failure_reason=error,
         provenance={"actor_id": ACTOR_ID, "actor_type": "system", "actor_name": "Escalation tick",
-                    "authority": "escalation_schedule",
+                    "authority": authority,
                     "before_state": {"tick": h["state"]},
-                    "after_state": {"tick": after, **({"error": error} if failed else {"tick_result": result})},
+                    "after_state": {"tick": after, **detail},
                     "parent_receipt_id": h["receipt_id"],
-                    "result_label": "failed" if failed else "verified",
-                    "next_state": "retry_next_interval" if failed else "escalating"})
+                    "result_label": "failed" if after == "failing" else "verified",
+                    "next_state": {"failing": "retry_next_interval", "healthy": "escalating",
+                                   "disabled": "not_escalating_until_enabled"}[after]})
     h.update(state=after, receipt_id=rcpt["receipt_id"])
 
 
 async def tick_once() -> None:
     """One scheduled pass: run the tick, and receipt a failure or a recovery."""
+    _schedule["last_tick_at"] = datetime.now(timezone.utc)
     try:
         result = await run_tick()
     except asyncio.CancelledError:
@@ -217,3 +224,38 @@ async def run_escalation_loop(interval: int) -> None:
     while True:
         await tick_once()
         await asyncio.sleep(interval)
+
+
+async def start_schedule() -> asyncio.Task | None:
+    """Called once from the server lifespan. Switched off -> receipted (once)
+    and reported by /api/health; never silently absent."""
+    interval = auto_interval_seconds()
+    if interval is None:
+        _schedule.update(task=None, interval=None)
+        try:
+            await _record_health("disabled", authority="env:CAOSCARE_ESCALATION_AUTO")
+        except Exception as e:
+            log.warning("could not record escalation schedule disabled: %s", e)
+        return None
+    _schedule.update(task=asyncio.create_task(run_escalation_loop(interval)), interval=interval,
+                     last_tick_at=None, started_at=datetime.now(timezone.utc))
+    return _schedule["task"]
+
+
+def escalation_status(now: datetime | None = None) -> dict:
+    """Read-only: what /api/health reports. Only "running" means escalation is happening."""
+    now = now or datetime.now(timezone.utc)
+    task, interval, last = _schedule["task"], _schedule["interval"], _schedule["last_tick_at"]
+    if task is None:
+        state = "disabled"
+    elif task.done():
+        state = "stopped"
+    elif last is None:
+        state = "starting"
+    elif (now - last).total_seconds() > 3 * interval + 60:
+        state = "stale"
+    elif _health_state.get("state") == "failing":
+        state = "failing"
+    else:
+        state = "running"
+    return {"state": state, "interval_seconds": interval, "last_tick_at": last.isoformat() if last else None}

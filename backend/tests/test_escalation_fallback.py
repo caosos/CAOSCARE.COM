@@ -55,6 +55,9 @@ async def _scenario(monkeypatch):
 
     async def broken(now=None):
         raise RuntimeError("database unreachable (synthetic)")
+    # a running schedule (the gate's own server starts with it switched off)
+    escalation_tick._health_state.clear()
+    escalation_tick._health_state.update(state="healthy", receipt_id=None)
     try:
         notes_before = await db.notifications.count_documents({})
         monkeypatch.setattr(escalation_tick, "run_tick", broken)

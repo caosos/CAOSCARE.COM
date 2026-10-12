@@ -157,9 +157,8 @@ async def lifespan(app: FastAPI):
     from routes.asterisk_ari_events import run_ari_listener, ari_ws_url
     ari_task = asyncio.create_task(run_ari_listener()) if ari_ws_url() else None
     # Escalation schedule (independent of any simulator); CAOSCARE_ESCALATION_AUTO=0 disables.
-    from routes.escalation_tick import auto_interval_seconds, run_escalation_loop
-    esc_interval = auto_interval_seconds()
-    esc_task = asyncio.create_task(run_escalation_loop(esc_interval)) if esc_interval else None
+    from routes.escalation_tick import start_schedule
+    esc_task = await start_schedule()
     yield
     if ari_task:
         ari_task.cancel()
@@ -184,6 +183,8 @@ async def health():
         body = {"ok": True, "db": "up"}
     except Exception as e:
         body = {"ok": False, "db": str(e)}
+    from routes.escalation_tick import escalation_status
+    body["escalation"] = escalation_status()   # "ok" is the service; escalation reports its own state
     # Backend test gate only: echo the gate run's nonce so the gate can prove
     # the server answering on its port is the one it started.
     if os.environ.get("CAOSCARE_TEST_HOOKS") and os.environ.get("CAOSCARE_TEST_GATE_RUN_ID"):
