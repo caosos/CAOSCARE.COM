@@ -30,7 +30,7 @@ const PRIO_STYLE = {
 // ...). Every item is a StaffTask with visibility_role === department; this
 // view buckets and acts on that existing data: GET /tasks,
 // POST /tasks/{id}/{acknowledge,assign,start,complete}, PATCH notes.
-export default function DepartmentQueue({ department, title, itemName = "request", allowCreate = false, adminMode = false }) {
+export default function DepartmentQueue({ department, title, itemName = "request", allowCreate = false, adminMode = false, onLoaded }) {
   const { user } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [roster, setRoster] = useState([]);
@@ -51,11 +51,14 @@ export default function DepartmentQueue({ department, title, itemName = "request
   const [cancelFor, setCancelFor] = useState(null);
   const [rides, setRides] = useState({});   // task_id -> GET /tasks/{id}/ride view, for requests with a linked ride
 
+  const onLoadedRef = useRef(onLoaded);   // lets a neighbour (Upcoming) refresh when the queue reloads
+  onLoadedRef.current = onLoaded;
   const load = useCallback(async () => {
     try {
       const params = adminMode ? { visibility_role: department } : {};
       const { data } = await api.get("/tasks", { params });
       setTasks(data);
+      onLoadedRef.current?.();
       const linked = data.filter((t) => t.linked_ride_task_id);
       if (linked.length) {
         const views = await Promise.all(linked.map((t) => api.get(`/tasks/${t.task_id}/ride`).then((r) => [t.task_id, r.data]).catch(() => null)));

@@ -18,8 +18,12 @@ export function rideLine(view) {
 
 // A ride can be asked for once the request has a resident and a planned date
 // and no open ride is linked yet.
+// Work that comes to the resident's room needs no ride (same list as backend task_ride_link.py).
+export const IN_ROOM_DEPARTMENTS = ["housekeeping", "maintenance", "kitchen", "transportation"];
+
 export function canRequestRide(task, view) {
   if (!task?.resident_id || !task?.requested_for_date) return false;
+  if (IN_ROOM_DEPARTMENTS.includes(task.visibility_role)) return false;
   if (["completed", "skipped"].includes(task.status)) return false;
   const r = view?.ride;
   return !(view?.linked && r && !["completed", "skipped"].includes(r.status));

@@ -45,7 +45,7 @@ async def _run():
     from models import uid, now_utc
     db = AsyncIOMotorClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]
     pw = "trl-pw-12345678"
-    people = {"fd": ("front_desk", None), "pt": ("staff", "therapy"), "nurse": ("staff", "nursing"), "drv": ("staff", "transportation")}
+    people = {"fd": ("front_desk", None), "pt": ("staff", "therapy"), "nurse": ("staff", "nursing"), "drv": ("staff", "transportation"), "hk": ("staff", "housekeeping")}
     ids, names = {}, {}
     for k, (role, dept) in people.items():
         ids[k], names[k] = uid("user"), f"{TAG} {k}"
@@ -152,6 +152,15 @@ async def _run():
         # completing the appointment leaves the ride alone
         _ok(requests.post(f"{API}/tasks/{appt2}/complete", headers=H["pt"], json={"notes": "attended"}, timeout=5))
         assert (await db.staff_tasks.find_one({"task_id": other}, {"_id": 0}))["status"] == "pending"
+        # in-room work (housekeeping) never gets a ride: 422, nothing created
+        hk = _ok(requests.post(f"{API}/tasks/resident-request", headers=H["fd"], json={
+            "category": "housekeeping", "resident_id": rid, "source": "front_desk",
+            "summary": "Deep clean", "resident_words": "deep clean"}, timeout=5))["task_id"]
+        _ok(requests.patch(f"{API}/tasks/{hk}", headers=H["hk"], json={"requested_for_date": d1, "requested_for_time_label": "2:00 PM"}, timeout=5))
+        rides_before = await db.staff_tasks.count_documents({"category": "transportation", "resident_id": rid})
+        r = requests.post(f"{API}/tasks/{hk}/ride", headers=H["hk"], timeout=5)
+        assert r.status_code == 422 and "room" in r.text, r.text
+        assert await db.staff_tasks.count_documents({"category": "transportation", "resident_id": rid}) == rides_before
     finally:
         await db.users.delete_many({"email": {"$regex": f"^{TAG}_"}})
         await db.staff_tasks.delete_many({"room": room})

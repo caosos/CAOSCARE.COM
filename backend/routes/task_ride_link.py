@@ -60,6 +60,10 @@ async def ride_summary(ride: dict) -> dict:
     }
 
 
+# Work done in the resident's room: the resident is not going anywhere.
+IN_ROOM_DEPARTMENTS = ("housekeeping", "maintenance", "kitchen", "transportation")
+
+
 async def _linked_ride(task: dict) -> Optional[dict]:
     rid = task.get("linked_ride_task_id")
     return await db.staff_tasks.find_one({"task_id": rid, "category": "transportation"}, {"_id": 0}) if rid else None
@@ -78,6 +82,8 @@ async def request_ride(task_id: str, actor: ActorContext, user: dict) -> dict:
     task, _auth, _head = await check(task_id, actor, user, action="ride")
     if not task.get("resident_id") or not task.get("requested_for_date"):
         raise LifecycleError(422, "Plan the appointment first (resident and date) before requesting a ride")
+    if task.get("visibility_role") in IN_ROOM_DEPARTMENTS:
+        raise LifecycleError(422, "This work comes to the resident's room, so it doesn't need a ride")
     linked = await _linked_ride(task)
     if linked and linked["status"] not in CLOSED_STATUSES:
         return {"task_id": linked["task_id"], "already_linked": True, "attached_existing": False,

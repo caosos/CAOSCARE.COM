@@ -22,3 +22,11 @@ test("a ride can be asked for only on an open, planned request with no open ride
   expect(canRequestRide(planned, { linked: true, ride: { status: "pending" } })).toBe(false);
   expect(canRequestRide(planned, { linked: true, ride: { status: "skipped" } })).toBe(true);
 });
+
+test("in-room work (housekeeping, maintenance, kitchen) never offers a ride", () => {
+  const base = { resident_id: "r1", requested_for_date: "2026-10-14", status: "pending" };
+  for (const d of ["housekeeping", "maintenance", "kitchen"]) {
+    expect(canRequestRide({ ...base, visibility_role: d }, null)).toBe(false);
+  }
+  expect(canRequestRide({ ...base, visibility_role: "therapy" }, null)).toBe(true);
+});

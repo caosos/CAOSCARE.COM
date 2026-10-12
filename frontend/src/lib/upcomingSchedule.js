@@ -3,7 +3,7 @@
 // only groups it by day for display and words each row from its own record.
 import { rideLine } from "./rideLink";
 
-export const UPCOMING_DEPARTMENTS = ["therapy"];   // departments whose workspace shows the upcoming view
+export const UPCOMING_DEPARTMENTS = ["therapy", "housekeeping"];   // departments whose workspace shows the upcoming view
 
 export function dayLabel(dateIso, todayIso) {
   if (!dateIso) return "Unscheduled";

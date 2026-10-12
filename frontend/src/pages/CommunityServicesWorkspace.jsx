@@ -1,6 +1,6 @@
 import React from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs";
-import DepartmentQueue from "./DepartmentQueue";
+import QueueWithUpcoming from "../components/QueueWithUpcoming";
 import MenuTab from "./MenuTab";
 import ScheduleTab from "./ScheduleTab";
 
@@ -19,7 +19,7 @@ const QUEUE_TITLE = {
 };
 
 export default function CommunityServicesWorkspace({ department }) {
-  const queue = <DepartmentQueue department={department} title={QUEUE_TITLE[department] || "Requests"} />;
+  const queue = <QueueWithUpcoming department={department} title={QUEUE_TITLE[department] || "Requests"} />;
   const content = CONTENT[department];
   if (!content) return queue;
   const { label, Screen } = content;
