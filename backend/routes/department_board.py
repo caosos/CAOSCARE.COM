@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from deps import db, get_current_user
 from routes.aria_operational_state import task_lifecycle
+from routes.ops_overview_util import local_date
 from routes.realtime_facility import today_facility_date
 from routes.request_delivery import delivery_for
 from routes.staff_scope import acts_for, members_query
@@ -102,7 +103,8 @@ async def department_board(slug: str, completed_limit: int = 30, user=Depends(ge
         "counts": {"open": len(work), "unassigned": sum(1 for r in work if not r["assigned_to"]),
                    "in_progress": sum(1 for r in work if r["status"] == "in_progress"),
                    "acknowledged": sum(1 for r in work if r["lifecycle"] == "acknowledged"),
-                   "completed_today": sum(1 for r in history if (r["completed_at"] or "")[:10] == today and r["status"] == "completed"),
+                   # facility-local day, not the UTC date string (wrong every evening after 7 pm Central)
+                   "completed_today": sum(1 for r in history if local_date(r["completed_at"]) == today and r["status"] == "completed"),
                    "closed_shown": len(history),
                    "not_notified": sum(1 for r in work if r.get("delivery") and not r["delivery"]["reached"])},
         "can_assign": acts_for(user, slug),

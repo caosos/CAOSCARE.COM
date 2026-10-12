@@ -5,6 +5,8 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Badge } from "../components/ui/badge";
 import TransportAssignAction from "../components/TransportAssignAction";
+import TransportUnresolvedList from "../components/TransportUnresolvedList";
+import RequestDetailDialog from "./RequestDetailDialog";
 import { toast } from "sonner";
 
 function fmtDateTime(iso) {
@@ -33,13 +35,16 @@ function Section({ title, children }) {
 export default function TransportationTab() {
   const [date, setDate] = useState(todayLocal());
   const [report, setReport] = useState(null);
+  const [error, setError] = useState(null);
+  const [showUnresolved, setShowUnresolved] = useState(false);
+  const [openId, setOpenId] = useState(null);
 
   const fetchReport = async () => {
     try {
       const { data } = await api.get("/transportation/report", { params: { date } });
-      setReport(data);
-    } catch {
-      toast.error("Could not load report");
+      setReport(data); setError(null);
+    } catch (err) {
+      setError(err?.response?.status === 403 ? "Transportation is open to administrators, the front desk and transportation staff." : "Could not load the transportation report.");
     }
   };
   useEffect(() => { fetchReport(); }, [date]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -52,6 +57,9 @@ export default function TransportationTab() {
     } catch { toast.error("Could not seed slots"); }
   };
 
+  if (error && !report) return (
+    <Card className="border-caos-line p-6 text-sm" data-testid="transport-report-error">{error} <Button size="sm" variant="outline" className="ml-2" onClick={fetchReport}>Try again</Button></Card>
+  );
   if (!report) return <Card className="border-caos-line p-6">Loading…</Card>;
   const s = report.summary;
 
@@ -72,13 +80,24 @@ export default function TransportationTab() {
         {[
           ["Requests", s.total_requests_received], ["Booked", s.total_booked], ["Completed", s.total_completed],
           ["Cancelled", s.total_cancelled], ["Unresolved", s.total_unresolved],
-        ].map(([label, val]) => (
+        ].map(([label, val]) => label === "Unresolved" ? (
+          <button key={label} type="button" onClick={() => setShowUnresolved((v) => !v)} title={s.unresolved_scope || ""}
+            className={`rounded-xl border-2 p-3 text-center hover:shadow-sm ${showUnresolved ? "border-caos-forest" : "border-caos-amber/60"}`} data-testid="transport-unresolved-tile">
+            <div className="text-2xl font-display text-caos-forest">{val}</div>
+            <div className="text-xs uppercase tracking-wider text-caos-mute">{label} · any date</div>
+          </button>
+        ) : (
           <div key={label} className="rounded-xl border border-caos-line p-3 text-center">
             <div className="text-2xl font-display text-caos-forest">{val}</div>
             <div className="text-xs uppercase tracking-wider text-caos-mute">{label}</div>
           </div>
         ))}
       </div>
+      {error && <div className="text-xs text-red-700 mb-3" data-testid="transport-report-stale">{error} Showing the last loaded report.</div>}
+      {showUnresolved && (
+        <TransportUnresolvedList rows={report.current_state.waiting_unbooked} scope={s.unresolved_scope}
+          onOpen={setOpenId} onAssigned={fetchReport} onClose={() => setShowUnresolved(false)} />
+      )}
       {s.utilization != null && (
         <div className="text-sm text-caos-mute mb-6">Slot utilization: {s.slot_booked}/{s.slot_capacity} ({Math.round(s.utilization * 100)}%)</div>
       )}
@@ -116,18 +135,19 @@ export default function TransportationTab() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
           <div>
             <div className="font-semibold mb-1">Upcoming rides ({report.current_state.upcoming_rides.length})</div>
-            {report.current_state.upcoming_rides.map((r) => <div key={r.task_id} className="text-caos-mute">{r.room} — {r.requested_for_date}</div>)}
+            {report.current_state.upcoming_rides.map((r) => <button type="button" key={r.task_id} className="block text-left text-caos-mute hover:underline" onClick={() => setOpenId(r.task_id)}>{r.resident_name || r.room} — {r.requested_for_date}</button>)}
           </div>
           <div>
-            <div className="font-semibold mb-1">Waiting / unbooked ({report.current_state.waiting_unbooked.length})</div>
-            {report.current_state.waiting_unbooked.map((r) => <div key={r.task_id} className="text-caos-mute">{r.room} — {r.requested_for_date}</div>)}
+            <button type="button" className="font-semibold mb-1 underline" onClick={() => setShowUnresolved(true)} data-testid="transport-waiting-open">Waiting / unbooked ({report.current_state.waiting_unbooked.length})</button>
+            {report.current_state.waiting_unbooked.map((r) => <button type="button" key={r.task_id} className="block text-left text-caos-mute hover:underline" onClick={() => setOpenId(r.task_id)}>{r.resident_name || r.room} — {r.requested_for_date || "no date"}</button>)}
           </div>
           <div>
             <div className="font-semibold mb-1">Follow-ups required ({report.current_state.follow_ups_required.length})</div>
-            {report.current_state.follow_ups_required.map((r) => <div key={r.task_id} className="text-caos-mute">{r.room} — asked {r.re_request_count}x</div>)}
+            {report.current_state.follow_ups_required.map((r) => <button type="button" key={r.task_id} className="block text-left text-caos-mute hover:underline" onClick={() => setOpenId(r.task_id)}>{r.resident_name || r.room} — asked {r.times_asked}x</button>)}
           </div>
         </div>
-      </Section>
+            </Section>
+      <RequestDetailDialog taskId={openId} open={!!openId} onOpenChange={(o) => { if (!o) setOpenId(null); }} onChange={fetchReport} />
     </Card>
   );
 }

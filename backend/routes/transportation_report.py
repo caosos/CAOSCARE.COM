@@ -11,7 +11,7 @@ from typing import Optional
 from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends
 
-from deps import db, get_current_user
+from deps import db, get_current_user, require_transport_coordinator
 from routes.realtime_facility import today_facility_date, FACILITY_TZ
 
 router = APIRouter(prefix="/transportation", tags=["transportation"])
@@ -47,7 +47,7 @@ def _local_date(created_at) -> Optional[str]:
 
 
 @router.get("/report")
-async def daily_report(date: Optional[str] = None, user=Depends(get_current_user)):
+async def daily_report(date: Optional[str] = None, user=Depends(require_transport_coordinator)):
     day = date or today_facility_date()
 
     # ---- INBOUND: requests received today ----
@@ -114,22 +114,48 @@ async def daily_report(date: Optional[str] = None, user=Depends(get_current_user
     total_capacity = sum(s["capacity"] for s in slots)
     total_booked_seats = sum(s["booked_count"] for s in slots)
 
+    from routes.operations_currency import active_run, classify   # one current/older rule (lazy: avoids an import cycle)
+    run = await active_run()
+    now = datetime.now(ZoneInfo("UTC"))
+
+    def ride_row(t: dict) -> dict:
+        """One open ride as the operator needs it: who, what, when, owner, state and the next action."""
+        booked = bool(t.get("transport_run_id") or t.get("transport_slot_id"))
+        asked = 1 + int(t.get("re_request_count") or 0)
+        nxt = ("Book a pickup: choose the time, driver and vehicle" if not booked
+               else "Confirm the driver departs for the booked pickup")
+        if asked > 1 and not booked:
+            nxt = f"Resident has asked {asked} times - book it or tell them why not"
+        created = _iso(t.get("created_at"))
+        try:
+            age_h = int((now - datetime.fromisoformat(created)).total_seconds() // 3600) if created else None
+        except ValueError:
+            age_h = None
+        return {"task_id": t["task_id"], "room": t.get("room"), "resident_name": t.get("resident_name"),
+                "purpose": t.get("description") or t.get("title"), "requested_for_date": t.get("requested_for_date"),
+                "requested_for_time_label": t.get("requested_for_time_label"), "status": t.get("status"), "booked": booked,
+                "owner": t.get("assigned_name"), "re_request_count": int(t.get("re_request_count") or 0), "times_asked": asked,
+                "age_hours": age_h, "source": t.get("source"), "next_action": nxt,
+                "currency": classify(t, "task", run["run_id"] if run else None, now)}
+
+    unresolved = sorted((ride_row(t) for t in waiting_unbooked), key=lambda r: ((r["requested_for_date"] or "9999"), r["task_id"]))
     return {
         "date": day,
         "inbound": inbound,
         "outbound": outbound,
         "current_state": {
-            "upcoming_rides": [{"task_id": t["task_id"], "room": t.get("room"), "requested_for_date": t.get("requested_for_date")} for t in upcoming_rides],
-            "waiting_unbooked": [{"task_id": t["task_id"], "room": t.get("room"), "requested_for_date": t.get("requested_for_date")} for t in waiting_unbooked],
+            "upcoming_rides": [ride_row(t) for t in upcoming_rides],
+            "waiting_unbooked": unresolved,
             "conflicts_declined_no_slot": total_no_slot,
-            "follow_ups_required": [{"task_id": t["task_id"], "room": t.get("room"), "re_request_count": t.get("re_request_count")} for t in follow_ups],
+            "follow_ups_required": [ride_row(t) for t in follow_ups],
         },
         "summary": {
             "total_requests_received": len(inbound_docs),
             "total_booked": total_booked,
             "total_completed": total_completed,
             "total_cancelled": total_cancelled,
-            "total_unresolved": len(waiting_unbooked),
+            "total_unresolved": len(unresolved),          # = the waiting_unbooked list, same records
+            "unresolved_scope": "Open ride requests with no booked pickup, on any date (not only this day)",
             "action_counts": {ACTION_LABELS.get(k, k): v for k, v in counts_by_action.items()},
             "slot_capacity": total_capacity,
             "slot_booked": total_booked_seats,
