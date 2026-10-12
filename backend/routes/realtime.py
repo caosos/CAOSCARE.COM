@@ -64,6 +64,16 @@ def _require_openai_key() -> str:
 # marin/cedar: listed (and recommended "for best quality") in the provider's Realtime guide, checked 2026-10-12.
 # Allowed only; DEFAULT_VOICE is unchanged, so the live room keeps its voice until Michael chooses.
 ALLOWED_VOICES = {"alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse", "marin", "cedar"}
+
+
+def session_voice(requested) -> str:
+    """CAOSCARE_REALTIME_VOICE, when set to an allowed voice, is the voice for every realtime session
+    (owner decision 2026-10-12: Room 214 on "marin"); unset = the page's choice or DEFAULT_VOICE, as before."""
+    forced = (os.environ.get("CAOSCARE_REALTIME_VOICE", "") or "").strip().lower()
+    if forced in ALLOWED_VOICES:
+        return forced
+    v = (requested or DEFAULT_VOICE).lower()
+    return v if v in ALLOWED_VOICES else DEFAULT_VOICE
 DEFAULT_VOICE = "shimmer"
 
 # OpenAI Realtime min temperature is 0.6 (lower values are clamped). 0.6 is
@@ -177,9 +187,7 @@ async def create_aria_session(payload: dict = Body(default={}), user=Depends(req
         raise HTTPException(status_code=403, detail="owner_user_id does not match the signed-in owner")
     owner_user_id = user["user_id"]
     key = _require_openai_key()
-    voice = (payload.get("voice") or DEFAULT_VOICE).lower()
-    if voice not in ALLOWED_VOICES:
-        voice = DEFAULT_VOICE
+    voice = session_voice(payload.get("voice"))
     instructions = await _build_aria_instructions(owner_user_id)
     from routes.aria_owner_v2 import owner_v2_enabled, owner_instructions_v2, owner_tools_v2, owner_context_v2
     v2 = owner_v2_enabled()   # CAOSCARE_ARIA_OWNER_V2, default off = unchanged owner session

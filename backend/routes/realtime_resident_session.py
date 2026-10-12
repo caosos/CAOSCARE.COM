@@ -63,9 +63,8 @@ async def create_resident_session(payload):
 
 async def _mint(payload, lease):
     key = _require_openai_key()
-    voice = (payload.get("voice") or DEFAULT_VOICE).lower()
-    if voice not in ALLOWED_VOICES:
-        voice = DEFAULT_VOICE
+    from routes.realtime import session_voice
+    voice = session_voice(payload.get("voice"))
     facility = await get_active_facility()
     facility_label = (facility or {}).get("name") or FACILITY_LABEL
     facility_tz = (facility or {}).get("timezone") or FACILITY_TZ
