@@ -1,6 +1,6 @@
 # CAOSCare — Living Product Build Checklist
 
-Updated: 2026-10-11 (23:39 CDT; Transportation calendar DEV_ACCEPTED; clinician workspace audit dispatched).
+Updated: 2026-10-11 (23:53 CDT; clinician workspace DEV_ACCEPTED; menu visibility dispatched).
 
 This is the owner-facing product build and progress tracker for the Care Operations build. Canonical owner direction: [Issue #129](https://github.com/caosos/CAOSCARE.COM/issues/129). Detailed historical evidence remains in [PILOT1_EXECUTION_CHECKLIST.md](https://github.com/caosos/CAOSCARE.COM/blob/integration/2026-09-27/docs/PILOT1_EXECUTION_CHECKLIST.md). This file controls current phase, active task, milestones, ETA, blockers, and the reporting contract.
 
@@ -91,7 +91,7 @@ check); tests `scripts/owner_intake/tests/test_eta_receipts.py`.
 ## Current build control
 
 - **Current phase:** 3/7 — Care Operations workspaces.
-- **ONE current bounded task:** `careops-clinician-workspace-001` — audit the existing clinician route and authorized role, define its allowed operational job, and complete the first truthful normal-work path with clear purpose, empty/error guidance, authorization refusal, desktop behavior, and 390 px behavior. Hide or relabel any misleading dead route; reuse canonical tasks/receipts and do not add clinical charting, billing, paid services, production mutation, or a new truth store.
+- **ONE current bounded task:** `careops-menu-visible-001` — trace the existing menu publish/lookup path with a labeled dated breakfast/lunch/supper; prove the published menu appears in authorized operator and resident views and that “what’s for supper tonight?” returns the actual published meal or a truthful no-menu state. Reuse canonical menu items/versions and current endpoints; no production mutation, new store, external messaging, paid service, audio work, or parallel worker.
 - **Control issue / dispatch channel:** [#129](https://github.com/caosos/CAOSCARE.COM/issues/129).
 - **Completed review:** [PR #130](https://github.com/caosos/CAOSCARE.COM/pull/130), merged into integration.
 - **Integration branch:** `integration/2026-09-27`; current accepted therapy-conflict product commit `77f83d3d53e17ffb75c71d137ab876e50552efe9` with guarded dev restart `1bf1bec26ea58a6c55730fea3c858734eb788d54`. This later integration work is not in production `ff87c22`; the release baseline is separate.
@@ -577,3 +577,13 @@ User-visible result: an empty Transportation calendar day now shows the next dat
 **ONE current bounded task:** `careops-clinician-workspace-001`. Audit the existing clinician route and intended authorized role; define the allowed operational job; complete the first truthful normal-work path with purpose, next action/result, empty/load-failure state, authorization refusal, desktop and 390 px browser proof. Hide or relabel a misleading dead route if no canonical workflow exists. Reuse canonical StaffTask/receipt/state records. No clinical diagnosis/chart data, billing, provider registry, new truth store, production mutation, external messaging, audio, or paid service.
 
 Issue #129 is the dispatch channel to existing coordinator `caoscare-1-ee`. ACK/WORKING is required by Sunday, October 11, 2026 — 11:45 PM America/Chicago, or the existing local watchdog must publish exact NEED/BLOCKED. ETA is UNKNOWN pending the coordinator receipt. Blocker: NONE.
+
+
+---
+
+## 2026-10-11 23:53 CDT — clinician workspace DEV_ACCEPTED; menu visibility dispatched
+
+- `careops-clinician-workspace-001` is **DEV_ACCEPTED** at `677e2506f4e4a7837eae343ccbfde97ae2f28635`. Coordinator receipt #6117969982 reports backend 566 passed / 0 failed / 31 skipped; frontend 84 suites / 614 tests; compiled build; browser plus API 14/14. Development backend loaded `677e250`, PID 1167977, dev `:8092` healthy with zero leases, observed Sunday, October 11, 2026 — 11:51:28 PM America/Chicago. GitHub exposes no combined-status contexts. Production remains `ff87c22`; not production loaded, LIVE_VERIFIED, or OWNER_ACCEPTED / DONE.
+- User-visible result: **Resident care patterns** explains its purpose, distinguishes load failure, opens each event’s real close-out, flags older open records, fills its summary from the resident briefing, and refuses Kitchen/front-desk roles; owner/admin and Nursing retain access.
+- **ONE current bounded task:** `careops-menu-visible-001`. Trace the current publish/lookup path with one labeled dated breakfast/lunch/supper; prove the published menu appears in authorized operator and resident views and that “what’s for supper tonight?” returns the actual meal or an honest no-menu state. Reuse canonical menu/version records and existing routes. Exclude production mutation, new truth stores, external messaging, paid services, audio work, and parallel workers.
+- Issue #129 dispatches to existing coordinator `caoscare-1-ee`. ACK/WORKING is required by Sunday, October 11, 2026 — 11:58 PM America/Chicago with realistic ETA, exact next check, acceptance evidence, and blocker `NONE` or an exact NEED/BLOCKED receipt.
