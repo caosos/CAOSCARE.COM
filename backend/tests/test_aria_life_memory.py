@@ -81,3 +81,10 @@ async def _scenario(monkeypatch):
 
 def test_conversations_become_lifelong_memory(monkeypatch):
     asyncio.get_event_loop().run_until_complete(_scenario(monkeypatch))
+
+
+def test_life_story_is_trimmed_at_a_sentence_not_mid_word():
+    t = "One sentence here. " * 100
+    out = life._trim_to_sentence(t, 200)
+    assert len(out) <= 200 and out.endswith(".")
+    assert life._trim_to_sentence("short.", 200) == "short."

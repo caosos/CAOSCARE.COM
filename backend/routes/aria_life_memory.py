@@ -41,7 +41,10 @@ resident across their whole life. You get the current life story and new convers
 summaries. Rewrite the life story in plain third-person prose, at most {max} characters:
 keep people, relationships, important events, preferences, routines and ongoing threads
 (things to ask about later); drop one-off trivia like single light commands. Never invent
-anything that is not in the inputs. Output only the life story text."""
+anything that is not in the inputs: never add a relationship, role or label the inputs do not
+state (someone merely named is not "a friend" or "family"; a topic asked about is not a
+belief), and never guess at feelings. Do not describe testing or how the system works. Use
+the resident's own words for names and details. Output only the life story text."""
 
 
 async def _ended_sessions(resident_id: str, current_session_id: Optional[str]) -> list:
@@ -104,15 +107,24 @@ async def _summarize(resident_id: str, sid: str, ended_at: str, name: str) -> No
     })
 
 
+def _trim_to_sentence(text: str, limit: int) -> str:
+    """Never cut the story mid-word: over the limit, keep whole sentences."""
+    if len(text) <= limit:
+        return text
+    cut = text[:limit]
+    end = max(cut.rfind(". "), cut.rfind(".\n"), cut.rfind("! "), cut.rfind("? "))
+    return cut[:end + 1] if end > 0 else cut.rsplit(" ", 1)[0]
+
+
 async def _fold_into_life_story(resident_id: str, name: str, new: list) -> None:
     story = await db.memories.find_one({"resident_id": resident_id, "category": "life_story"})
     current = (story or {}).get("text") or "(no life story yet)"
     lines = "\n".join(f"- {when[:10]}: {text}" for when, text, _ in new)
-    text = (await _chat(_STORY_SYSTEM.format(max=LIFE_STORY_MAX_CHARS),
+    text = (await _chat(_STORY_SYSTEM.format(max=int(LIFE_STORY_MAX_CHARS * 0.8)),
                         f"Resident's name: {name}\n\nCurrent life story:\n{current}\n\nNew conversations:\n{lines}") or "").strip()
     if not text:
         return
-    text = text[:LIFE_STORY_MAX_CHARS]
+    text = _trim_to_sentence(text, LIFE_STORY_MAX_CHARS)
     covers = list(dict.fromkeys(((story or {}).get("covers_sessions") or []) + [sid for _, _, sid in new]))
     now = now_utc().isoformat()
     await db.memories.update_one(
