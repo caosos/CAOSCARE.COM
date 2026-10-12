@@ -91,7 +91,7 @@ check); tests `scripts/owner_intake/tests/test_eta_receipts.py`.
 ## Current build control
 
 - **Current phase:** 3/7 — Care Operations workspaces.
-- **ONE current bounded task:** `careops-alerts-policy-editor-001` — ACKED by existing coordinator `caoscare-1-ee`, worker `da-a0fcc8aef7`; inventory of the canonical policy store, editor/API and `escalation_tick` is starting. The ACK arrived on time but omitted the required evidence-based ETA and expected-acceptance fields; a compliant WORKING correction is required while work continues. ETA UNKNOWN pending that correction; worker next_check_at Monday, October 12, 2026 — 8:13 AM America/Chicago; blocker NONE.
+- **ONE current bounded task:** `careops-alerts-policy-editor-001` — WORKING through existing coordinator `caoscare-1-ee`, worker `da-a0fcc8aef7`. Corrected receipt reviewed one canonical policy store/editor/runtime reader; first failing test proves invalid threshold ordering is accepted and policy edits lack receipt provenance. A guarded validator plus `escalation_rule_changed` receipt/history chain is in progress, uncommitted; focused gate 14 passed. ETA Monday, October 12, 2026 — 9:15 AM America/Chicago; next_check_at Monday, October 12, 2026 — 8:30 AM America/Chicago; blocker NONE.
 - **Control issue / dispatch channel:** [#129](https://github.com/caosos/CAOSCARE.COM/issues/129).
 - **Completed review:** [PR #130](https://github.com/caosos/CAOSCARE.COM/pull/130), merged into integration.
 - **Integration branch:** `integration/2026-09-27`; current accepted therapy-conflict product commit `77f83d3d53e17ffb75c71d137ab876e50552efe9` with guarded dev restart `1bf1bec26ea58a6c55730fea3c858734eb788d54`. This later integration work is not in production `ff87c22`; the release baseline is separate.
@@ -935,4 +935,21 @@ Issue #129 is the dispatch channel to existing coordinator `caoscare-1-ee`. ACK/
 - **ETA:** UNKNOWN until the compliant WORKING correction.
 - **next_check_at:** Monday, October 12, 2026 — 8:13 AM America/Chicago.
 - **Blocker:** NONE; receipt-schema correction is required but work continues.
+- **Michael must do:** NOTHING.
+
+
+### Update 2026-10-12 07:48 CDT (alert policy editor corrected WORKING receipt verified)
+
+- **Canonical WORKING receipt:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6124535896. Bridge mirror: https://github.com/caosos/CAOSCARE.COM/pull/131#issuecomment-6124565444. Correction-delivery ACK: https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6124532062.
+- **ONE current bounded task / responsibility / stage:** `careops-alerts-policy-editor-001` / existing coordinator `caoscare-1-ee`, worker `da-a0fcc8aef7` / WORKING. Worker `da-64918ae4b4` is only the intake item carrying the receipt correction, not a second implementation worker.
+- **Evidence reviewed:** `backend/routes/escalation.py`, `routes/escalation_tick.py`, `models.EscalationRule`, `frontend/src/pages/EscalationTab.jsx`, and the RQ-018/RQ-027/Nursing-unclaimed tests. Inventory found one `db.escalation_rules` store keyed by facility, one Admin editor, one runtime reader, owner/admin enforcement, and safe default thresholds 90/150/600 when no rule exists.
+- **First proven gap / work in progress:** failing-before `tests/test_alert_policy_editor.py` proved PUT accepted an invalid level-3 ≤ level-2 policy and wrote no receipt. Uncommitted repair adds bounds/ordering validation, optimistic `updated_at` guard, an `escalation_rule_changed` receipt with actor/authority/before/after/parent, and a receipt link on the rule. Focused gate is 14 passed.
+- **Tested versus loaded:** current-task testing is an uncommitted worktree based on backend `004c158`; focused gate 14 passed. No new current-task commit is loaded. Development product remains backend `004c158`, PID 1506940, frontend `db4317f`; production `ff87c22` unchanged.
+- **Latest timestamped host observation:** Monday, October 12, 2026 — 7:47:46 AM America/Chicago — coordinator `caoscare-1-ee` busy; control-plane service PID 1370098 on `f1db2d358ca1`; repository `cd076d251ab9` newer and not loaded. The product receipt separately reports dev backend `004c158`, PID 1506940. GitHub activity alone is not host-liveness proof.
+- **Expected acceptance:** failing-before/fixed-after test, exact commit, receipt chain, policy runtime effect (20-second policy reaches level 2 at 30 seconds while a no-rule facility remains level 0), invalid/unauthorized refusals, full gates, desktop and 390 px browser screenshots, cleanup, exact tested/loaded revisions, fresh host observation and cost UNKNOWN.
+- **Remaining Alerts steps (ordered):** 1. finish and commit validation/provenance repair; 2. prove runtime effect plus no-rule defaults; 3. prove invalid and unauthorized refusals; 4. run full backend/frontend/build gates; 5. desktop/390 px browser acceptance; 6. cleanup and exact evidence; 7. reconcile authoritative records; 8. timer/fallback residue; 9. deferred acknowledge/close role-policy decision; 10. owner review when complete.
+- **Upcoming milestones:** finish Alerts; remaining Phase 3 workspaces; Phase 4 scheduling/resources; Phase 5 communications; Phase 6 pilot/reliability/accessibility; Phase 7 release/live acceptance.
+- **ETA:** Monday, October 12, 2026 — 9:15 AM America/Chicago.
+- **next_check_at:** Monday, October 12, 2026 — 8:30 AM America/Chicago.
+- **Blocker:** NONE.
 - **Michael must do:** NOTHING.
