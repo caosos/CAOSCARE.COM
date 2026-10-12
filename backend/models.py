@@ -1398,6 +1398,7 @@ class TransportSlot(BaseModel):
 MemoryCategory = Literal[
     "family", "preferences", "health", "history", "daily_pattern",
     "concern", "relationship", "milestone", "other",
+    "conversation", "life_story",   # routes/aria_life_memory.py: per-conversation summary; one life story per resident
 ]
 
 # Two bins drive hydration:

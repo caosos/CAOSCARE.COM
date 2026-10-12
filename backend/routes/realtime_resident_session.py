@@ -4,6 +4,7 @@ Split from realtime.py so the resident lifecycle changes do not grow the
 already oversized operator/session/SDP module. Provider request/config
 behavior is preserved; failures now free only the claim made here.
 """
+import asyncio
 import httpx
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
@@ -117,6 +118,10 @@ async def _mint(payload, lease):
         interpretation_patterns = await list_patterns(payload.get("resident_id"))
     except Exception:
         interpretation_patterns = None
+    # Lifelong memory: summarize this resident's finished conversations into the memory store in the
+    # background (routes/aria_life_memory.py); never blocks or fails the call.
+    from routes.aria_life_memory import summarize_pending_sessions
+    asyncio.create_task(summarize_pending_sessions(payload.get("resident_id"), payload.get("session_id")))
     # How the call opens: "Hey Aria" gets a short answer to their name, and never the previous call's opener.
     from routes.aria_opening import resolve_opening
     opening = await resolve_opening(payload.get("resident_id"), payload.get("session_id"), payload.get("trigger_source"))

@@ -63,8 +63,9 @@ async def build_resident_profile_and_memory(resident_id: str, r: dict, name: str
     # them rather than just *know about* them. Pulled fresh per session so
     # any edit to facts/events is reflected immediately.
     try:
+        life_story = await db.memories.find_one({"resident_id": resident_id, "category": "life_story", "archived": {"$ne": True}})
         facts_cur = db.memories.find(
-            {"resident_id": resident_id, "bin": "facts", "archived": {"$ne": True}},
+            {"resident_id": resident_id, "bin": "facts", "archived": {"$ne": True}, "category": {"$ne": "life_story"}},
             {"_id": 0, "text": 1, "category": 1, "importance": 1, "pinned": 1},
         ).sort([("pinned", -1), ("importance", -1), ("created_at", -1)]).limit(40)
         facts = [m async for m in facts_cur]
@@ -74,9 +75,17 @@ async def build_resident_profile_and_memory(resident_id: str, r: dict, name: str
         ).sort([("pinned", -1), ("event_at", -1), ("created_at", -1)]).limit(20)
         events = [m async for m in events_cur]
     except Exception:
-        facts, events = [], []
+        life_story, facts, events = None, [], []
 
     bins = []
+    if life_story and life_story.get("text"):
+        # routes/aria_life_memory.py: one bounded story folded from every past conversation.
+        bins.append(
+            f"## Your story with {name} so far  (from your own past conversations with {name})\n"
+            f"{life_story['text']}\n"
+            f"This is your shared history; every conversation carries on from it. Pick up a thread "
+            f"naturally when it fits - ask how something went, remember who people are - the way a "
+            f"friend who was there would. Only what is written here; never invent.\n")
     bins.append(f"## What you know about {name} (durable facts)")
     if facts:
         for f in facts:
