@@ -466,3 +466,31 @@ Append-only. One entry per verified check-in, tied to its receipt. A correction 
 - **next_check_at:** Monday, October 12, 2026 — 4:05:11 AM America/Chicago
 - **Blocker:** NONE
 - **Michael action required:** NOTHING
+
+
+## Monday, October 12, 2026 — 3:23 AM America/Chicago
+- **Receipt:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6120528046
+- **Project:** CAOSCare
+- **Phase / position:** Phase 3/7 Care Operations workspaces — Housekeeping exception lifecycle DEV_ACCEPTED; scheduled Housekeeping work is the next normal-work gap
+- **Completed since the prior check:** `careops-housekeeping-exception-lifecycle-001` is IMPLEMENTED / TESTED / DEV_ACCEPTED and ready to present for owner review. It is not OWNER_ACCEPTED / DONE. The living checklist and PROJECT_STATE were reconciled before dispatching the next item.
+- **Evidence:** canonical coordinator DONE https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6120319393; transport-only mirror https://github.com/caosos/CAOSCARE.COM/pull/131#issuecomment-6120332842; backend `e2a87701275c714387848bdf64926f1e843b626f`; frontend fix `8ed21cd6dbda30a4a4514deadb9cd2a65b53a704`; records `347d2e6`+; checklist boundary `5bc93ed9c09265d20e74dc2b5ad7e3f4f4216fef`; PROJECT_STATE boundary `0a99af3b43811bed1319bbba96fdcd5208727a7a`; report `docs/reports/2026-10-12-housekeeping-exception-lifecycle.md`. Backend 593 passed / 0 failed / 31 skipped; frontend 88 suites / 631 tests; build compiled. Typed Aria created synthetic `task_256b9f7a6c7f`; demo housekeeper at 390 px claimed, started and could not complete with a reason; owner in Claude Chrome reviewed and assigned Demo - Rosa Vega; Housekeeping completed it; Nursing/Maintenance returned 403; Aria was truthful; eight receipts stayed on one workflow; counts reconciled; no overflow or failed API calls. GitHub combined-status contexts for `8ed21cd` absent. Tested/loaded development backend `e2a8770`; tested/served frontend `8ed21cd`; production `ff87c22`. Latest timestamped host observation Monday, October 12, 2026 — 3:11:39 AM America/Chicago: existing coordinator idle; control-plane service and repository both `82b625303080`. GitHub activity alone is not host-liveness proof. Known cost: UNKNOWN.
+- **Current bounded task (owner · stage):** `careops-housekeeping-schedule-001` · existing coordinator `caoscare-1-ee` · DISPATCHED / ACK REQUIRED
+- **Remaining steps for this milestone:**
+  1. ACK/WORKING with reviewed evidence, realistic ETA, exact next check, expected evidence and blocker/NONE
+  2. Inspect canonical StaffTask requested date/time, room/area location and Housekeeping visibility
+  3. Reproduce one labeled future Housekeeping job
+  4. Repair only the first proven gap
+  5. Prove facility-local ordering, reschedule, start/complete, truthful status, refusal and one receipt chain
+  6. Run focused/full gates and Claude Chrome desktop/390 acceptance
+  7. Record exact tested/loaded revisions and fresh host evidence
+  8. Reconcile checklist, PROJECT_STATE, Issue #129 and ledger at the next boundary
+- **Upcoming milestones:**
+  1. Housekeeping recurrence
+  2. Housekeeping inspection and supplies/linen
+  3. Michael's spoken Room 214 voice/personality acceptance
+  4. Authenticated Transportation LIVE_VERIFY when role/driver/vehicle dependencies are available
+  5. Full owner/novice pilot walkthrough
+- **ETA:** UNKNOWN pending the coordinator's evidence-based ACK/WORKING
+- **next_check_at:** Monday, October 12, 2026 — 3:28:35 AM America/Chicago
+- **Blocker:** NONE
+- **Michael action required:** NOTHING
