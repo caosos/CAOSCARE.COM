@@ -286,7 +286,9 @@ class TestWearableThresholds:
         body = r.json()
         assert body.get("alert") is not None, f"expected alert for HR 140: {body}"
         assert body["alert"]["severity"] == "emergency"
-        assert "upgraded from periodic_ping" in (body["alert"].get("message") or "")
+        # the event may already be open for this resident; this signal's own message is on signals[]
+        msgs = [body["alert"].get("message") or ""] + [x.get("message") or "" for x in body["alert"].get("signals", [])]
+        assert any("upgraded from periodic_ping" in m for m in msgs)
 
     def test_upgrade_periodic_ping_low(self, s, wearable):
         """HR 50 below min=55 during periodic_ping -> upgrade to heart_rate_low."""
@@ -295,7 +297,9 @@ class TestWearableThresholds:
         body = r.json()
         assert body.get("alert") is not None
         assert body["alert"]["severity"] == "emergency"
-        assert "upgraded from periodic_ping" in (body["alert"].get("message") or "")
+        # the event may already be open for this resident; this signal's own message is on signals[]
+        msgs = [body["alert"].get("message") or ""] + [x.get("message") or "" for x in body["alert"].get("signals", [])]
+        assert any("upgraded from periodic_ping" in m for m in msgs)
 
     def test_fall_always_alerts(self, s, wearable):
         """Fall event should ALWAYS alert regardless of HR."""

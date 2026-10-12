@@ -331,6 +331,7 @@ class Alert(BaseModel):
     # the richer, resident/staff-facing lifecycle fields layered on top -
     # see routes/resident_activation.py for the state transitions.
     presses: List[PressRecord] = Field(default_factory=list)
+    signals: List[dict] = Field(default_factory=list)   # non-press device signals (geofence, wearable) - never press_count
     aria_state: AriaState = "dormant"
     live_line_state: LiveLineState = "none"
     pattern_footnote: Optional[str] = None       # set once at event-open time, see resident_patterns.py

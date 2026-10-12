@@ -162,29 +162,22 @@ async def wearable_event(evt: WearableEventInput, request: Request):
     if effective_event != evt.event_type:
         msg += f" (upgraded from {evt.event_type} via resident thresholds)"
 
-    alert = Alert(
-        resident_id=wearable.get("resident_id"),
-        resident_name=resident_name,
-        room=room,
-        zone=evt.zone,
-        severity=severity,
-        message=msg,
-        triggered_by="wearable",
-        auto_voice=True,  # all wearable events open hands-free voice on the nearest kiosk
-    )
-    doc = alert.model_dump()
-    doc["created_at"] = doc["created_at"].isoformat()
-    doc["acknowledged_at"] = None
-    doc["resolved_at"] = None
-    await db.alerts.insert_one(doc)
-    doc.pop("_id", None)
-
-    # Family fan-out
-    try:
-        from routes.notifications import notify_family_for_alert
-        await notify_family_for_alert(doc)
-    except Exception as e:
-        import logging
-        logging.warning(f"Family fan-out failed for wearable alert: {e}")
+    # Canonical creation/coalescing: a wearable button press is a resident press;
+    # fall / heart-rate / inactivity are device signals (never counted as presses).
+    from routes.resident_activation import ACTIVATION_SEMANTIC_CLASS, DEVICE_SIGNAL_CLASS, record_resident_activation
+    doc = await record_resident_activation(
+        wearable.get("resident_id"), room, "wearable",
+        semantic_class=ACTIVATION_SEMANTIC_CLASS if effective_event == "press" else DEVICE_SIGNAL_CLASS,
+        device_id=wearable["wearable_id"], severity=severity, message=msg, triggered_by="wearable",
+        auto_voice=True,   # all wearable events open hands-free voice on the nearest kiosk
+        source_metadata={"zone": evt.zone, "event_type": evt.event_type, "effective_event": effective_event,
+                         "heart_rate": evt.heart_rate})
+    if not doc.get("coalesced"):
+        try:   # family fan-out for a new event only
+            from routes.notifications import notify_family_for_alert
+            await notify_family_for_alert(doc)
+        except Exception as e:
+            import logging
+            logging.warning(f"Family fan-out failed for wearable alert: {e}")
 
     return {"ok": True, "wearable": wearable["wearable_id"], "alert": doc}

@@ -140,40 +140,28 @@ async def pendant_event(evt: PendantEventInput, request: Request):
     auto_voice = True   # default ON — we always want voice for pendant events
     severity = "emergency" if evt.event_type == "fall" else "assist"
 
-    if evt.event_type == "press" and pendant.get("pendant_id"):
+    # Canonical creation/coalescing: a press is a resident press on the one open
+    # event; a second press within 60 s raises it to emergency (as before).
+    from routes.resident_activation import ACTIVATION_SEMANTIC_CLASS, DEVICE_SIGNAL_CLASS, record_resident_activation
+    doc = await record_resident_activation(
+        pendant.get("resident_id"), room, "pendant",
+        semantic_class=ACTIVATION_SEMANTIC_CLASS if evt.event_type == "press" else DEVICE_SIGNAL_CLASS,
+        device_id=pendant["pendant_id"], severity=severity, triggered_by="pendant", auto_voice=auto_voice,
+        message=f"Pendant {evt.event_type.replace('_', ' ')} at {evt.frequency_mhz} MHz",
+        source_metadata={"zone": evt.zone, "frequency_mhz": evt.frequency_mhz, "event_type": evt.event_type},
+        alert_fields={"pendant_id": pendant["pendant_id"], "frequency": evt.frequency_mhz})
+    if evt.event_type == "press" and doc.get("coalesced") and doc.get("severity") != "emergency":
         window_start = (now_utc() - timedelta(seconds=60)).isoformat()
-        recent = await db.alerts.count_documents({
-            "pendant_id": pendant["pendant_id"],
-            "triggered_by": "pendant",
-            "created_at": {"$gte": window_start},
-        })
-        press_count = recent + 1
-        if press_count >= 2:
-            severity = "emergency"
-
-    alert = Alert(
-        pendant_id=pendant["pendant_id"],
-        frequency=evt.frequency_mhz,
-        resident_id=pendant.get("resident_id"),
-        resident_name=resident_name,
-        room=room,
-        zone=evt.zone,
-        severity=severity,
-        message=(
-            f"Panic-press ×{press_count} at {evt.frequency_mhz} MHz"
-            if press_count >= 2 and evt.event_type == "press"
-            else f"Pendant {evt.event_type.replace('_', ' ')} at {evt.frequency_mhz} MHz"
-        ),
-        triggered_by="pendant",
-        auto_voice=auto_voice,
-        press_count=press_count,
-    )
-    doc = alert.model_dump()
-    doc["created_at"] = doc["created_at"].isoformat()
-    doc["acknowledged_at"] = None
-    doc["resolved_at"] = None
-    await db.alerts.insert_one(doc)
-    doc.pop("_id", None)
+        recent = [x for x in doc.get("presses", []) if x.get("device_id") == pendant["pendant_id"]
+                  and str(x.get("at", "")) >= window_start]
+        if len(recent) >= 2:
+            await db.alerts.update_one({"alert_id": doc["alert_id"], "severity": {"$ne": "emergency"}},
+                                       {"$set": {"severity": "emergency", "message":
+                                                 f"Panic-press ×{len(recent)} at {evt.frequency_mhz} MHz"},
+                                        "$push": {"event_log": {"at": now_utc().isoformat(), "field": "severity",
+                                                                "from": doc.get("severity"), "to": "emergency",
+                                                                "text": f"panic press x{len(recent)} within 60 s"}}})
+            doc = await db.alerts.find_one({"alert_id": doc["alert_id"]}, {"_id": 0})
     return {"ok": True, "pendant": pendant["pendant_device_id"], "alert": doc}
 
 

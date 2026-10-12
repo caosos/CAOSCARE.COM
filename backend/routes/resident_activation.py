@@ -43,6 +43,12 @@ log = logging.getLogger(__name__)
 # tamper / battery / unknown RF frame is never passed here); this is a
 # defence-in-depth backstop so no future caller can bypass it silently.
 ACTIVATION_SEMANTIC_CLASS = "help_press"
+# A non-press device signal (geofence breach, wearable fall / heart-rate /
+# inactivity). It opens or joins the same one open event per resident, is
+# recorded in `signals[]` (never `presses[]`, never press_count) and can only
+# raise the event's severity.
+DEVICE_SIGNAL_CLASS = "device_signal"
+_SEVERITY_RANK = {"comfort": 0, "assist": 1, "emergency": 2}
 
 
 class _RetryActivation(Exception):
@@ -88,6 +94,7 @@ async def _record_resident_activation(
     press_id: Optional[str] = None,
     semantic_class: str = "help_press",
     activation_id_hint: Optional[str] = None,
+    alert_fields: Optional[dict] = None,
 ) -> dict:
     """Attach this press to the resident's open event, or open a new one.
     Returns the resulting alert dict (already persisted) plus a
@@ -95,7 +102,7 @@ async def _record_resident_activation(
 
     `semantic_class` MUST be "help_press" - anything else is refused here
     (the real gate is upstream, this only backstops a bypass)."""
-    if semantic_class != ACTIVATION_SEMANTIC_CLASS:
+    if semantic_class not in (ACTIVATION_SEMANTIC_CLASS, DEVICE_SIGNAL_CLASS):
         await alog("resident_event", "activation_refused_non_help",
                    room=room, resident_id=resident_id, kiosk_id=kiosk_id,
                    data={"semantic_class": semantic_class, "source": source})
@@ -109,9 +116,13 @@ async def _record_resident_activation(
         except Exception:
             return -1.0
 
+    is_press = semantic_class == ACTIVATION_SEMANTIC_CLASS
     press = PressRecord(device_id=device_id, source=source, rssi=rssi)
     press_dict = press.model_dump()
     press_dict["at"] = press_dict["at"].isoformat()
+    if not is_press:
+        press_dict = {"at": press_dict["at"], "source": source, "device_id": device_id, "severity": severity,
+                      "message": message, "metadata": source_metadata}
     if press_id:
         press_dict["press_id"] = press_id
         # Every frame in one RF burst names the same logical press. This
@@ -147,15 +158,8 @@ async def _record_resident_activation(
                  "activation_id": open_alert.get("activation_id"),
                  "activation_consumed_at": open_alert.get("activation_consumed_at"),
                  **({"presses.press_id": {"$ne": press_id}} if press_id else {})},
-                {
-                    "$inc": {"press_count": 1},
-                    "$push": {"presses": press_dict},
-                    "$set": {"activation_consumed_at": None,
-                             "open_event_key": _scope(resident_id, room),
-                             "activation_id": activation_id,
-                             "auto_voice": auto_voice or open_alert.get("auto_voice", False),
-                             **({"aria_state": "dormant"} if new_cycle else {})},
-                },
+                _coalesce_update(open_alert, is_press, press_dict, severity, source, resident_id, room,
+                                 activation_id, auto_voice, new_cycle),
                 return_document=ReturnDocument.AFTER,
                 projection={"_id": 0},
             )
@@ -188,19 +192,22 @@ async def _record_resident_activation(
         resident_id=resident_id,
         resident_name=resident_name,
         room=room,
+        zone=(source_metadata or {}).get("zone"),
         severity=severity,
         message=message or "Help requested",
         triggered_by=triggered_by,
         auto_voice=auto_voice,
-        press_count=1,
+        press_count=1 if is_press else 0,
         pattern_footnote=footnote,
         source_metadata=source_metadata,
+        **(alert_fields or {}),   # source identity on a new event (e.g. pendant_id, frequency)
     )
     doc = alert.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
     doc["acknowledged_at"] = None
     doc["resolved_at"] = None
-    doc["presses"] = [press_dict]
+    doc["presses"] = [press_dict] if is_press else []
+    doc["signals"] = [] if is_press else [press_dict]
     doc["activation_id"] = activation_id_hint or uuid.uuid4().hex
 
     scope = _scope(resident_id, room)
@@ -224,6 +231,21 @@ async def _record_resident_activation(
             source="system",
             resident_id=resident_id,
             room=room,
+            zone=(source_metadata or {}).get("zone"),
+            # A press is the resident (identity a room/device claim, not verified);
+            # a device signal is the device reporting on its own.
+            provenance={"actor_id": (resident_id or f"room:{room}") if is_press else f"{source}:{device_id or 'unknown'}",
+                        "actor_type": "real-human" if is_press else "system",
+                        "identity_basis": "unverified_room_claim" if is_press else "device_reported",
+                        "actor_role": "resident" if is_press else None,
+                        "actor_name": source, "channel": source,
+                        "source_device_id": device_id or kiosk_id,
+                        "authority": f"resident_ingress:{source}",
+                        "before_state": {"open_event": None},
+                        "after_state": {"status": "active", "severity": severity, "triggered_by": triggered_by,
+                                        "semantic_class": semantic_class, "press_count": doc["press_count"], "device_id": device_id or kiosk_id,
+                                        "source_metadata": source_metadata},
+                        "result_label": "verified", "next_state": "awaiting_staff_acknowledgement"},
         )
         doc["receipt_id"] = receipt["receipt_id"]
         await db.alerts.update_one(
@@ -241,6 +263,26 @@ async def _record_resident_activation(
                      "event_age_sec": 0.0, "semantic_class": semantic_class, "source": source,
                      "triggered_by": triggered_by, "press_id": press_id})
     return {**doc, "coalesced": False}
+
+
+def _coalesce_update(open_alert, is_press, record, severity, source, resident_id, room,
+                     activation_id, auto_voice, new_cycle) -> dict:
+    """Attach a press or a device signal to the open event. A signal never
+    counts as a press and can only raise severity (logged in event_log)."""
+    upd = {"$set": {"activation_consumed_at": None,
+                    "open_event_key": _scope(resident_id, room),
+                    "activation_id": activation_id,
+                    "auto_voice": auto_voice or open_alert.get("auto_voice", False),
+                    **({"aria_state": "dormant"} if new_cycle else {})},
+           "$push": {"presses" if is_press else "signals": record}}
+    if is_press:
+        upd["$inc"] = {"press_count": 1}
+    cur = open_alert.get("severity") or "assist"
+    if _SEVERITY_RANK.get(severity, 1) > _SEVERITY_RANK.get(cur, 1):
+        upd["$set"]["severity"] = severity
+        upd["$push"]["event_log"] = {"at": record["at"], "field": "severity", "from": cur, "to": severity,
+                                     "text": f"raised by {source}"}
+    return upd
 
 
 async def _pattern_footnote(resident_id: str) -> Optional[str]:

@@ -667,8 +667,10 @@ class TestZonesAndGeofence:
         a = session.get(f"{API}/alerts/{alert_id}", headers=admin_headers)
         assert a.status_code == 200
         alert_doc = a.json()["alert"]
-        assert alert_doc["triggered_by"] == "geofence"
-        assert alert_doc["severity"] == "assist"
+        # One open event per resident (careops-alerts-ingress-receipts-001): the breach opens
+        # the event or joins the resident's already open one, recorded as a geofence signal.
+        assert any(s.get("source") == "geofence" for s in alert_doc.get("signals", [])), alert_doc
+        assert alert_doc["severity"] in ("assist", "emergency")
 
         # Second consecutive - should NOT refire
         r2 = session.post(f"{API}/locations", json={

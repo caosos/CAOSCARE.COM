@@ -48,29 +48,20 @@ async def ingest_location(data: LocationUpdateCreate, request: Request):
             ).sort("created_at", -1).skip(1).limit(1).to_list(1)
             prev_zone = prev[0]["zone"] if prev else None
             if prev_zone != data.zone:
-                # Create geofence alert
-                from models import Alert
-                alert = Alert(
-                    resident_id=resident["resident_id"],
-                    resident_name=resident["name"],
-                    room=resident.get("room"),
-                    zone=data.zone,
-                    severity="assist",
-                    message=f"Entered restricted zone: {data.zone}",
-                    triggered_by="geofence",
-                )
-                adoc = alert.model_dump()
-                adoc["created_at"] = adoc["created_at"].isoformat()
-                adoc["acknowledged_at"] = None
-                adoc["resolved_at"] = None
-                await db.alerts.insert_one(adoc)
-                adoc.pop("_id", None)
-                # Fire family notifications (non-blocking best-effort)
-                try:
-                    from routes.notifications import notify_family_for_alert
-                    await notify_family_for_alert(adoc)
-                except Exception:
-                    pass
+                # Geofence breach: a device signal on the resident's one open event
+                # (canonical creation/coalescing + creation receipt; never a press).
+                from routes.resident_activation import DEVICE_SIGNAL_CLASS, record_resident_activation
+                adoc = await record_resident_activation(
+                    resident["resident_id"], resident.get("room"), "geofence",
+                    semantic_class=DEVICE_SIGNAL_CLASS, severity="assist", auto_voice=False,
+                    message=f"Entered restricted zone: {data.zone}", triggered_by="geofence",
+                    source_metadata={"zone": data.zone, "previous_zone": prev_zone})
+                if not adoc.get("coalesced"):
+                    try:   # fire family notifications for a new event only (best-effort)
+                        from routes.notifications import notify_family_for_alert
+                        await notify_family_for_alert(adoc)
+                    except Exception:
+                        pass
                 doc["geofence_alert"] = adoc["alert_id"]
 
     return doc
