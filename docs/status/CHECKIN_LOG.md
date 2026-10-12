@@ -76,3 +76,29 @@ Append-only. One entry per verified check-in, tied to its receipt. A correction 
 - **next_check_at:** Monday, October 12, 2026 — 2:15:46 AM America/Chicago
 - **Blocker:** NONE for offline/code preparation; paid research/model calls, a live Room 214 model/voice switch and telephony hardware/accounts remain later owner-gated dependencies
 - **Michael action required:** NOTHING tonight
+
+## Monday, October 12, 2026 — 1:01 AM America/Chicago
+- **Receipt:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6118677754
+- **Phase / position:** Resident Aria core — code preparation complete (default-off); live acceptance owner-gated
+- **Completed since the prior check:** Continuity quick-return exception, owner /aria on shared context layers + read-only tools, honest call_contact (50a659b); marin/cedar voices allowed, provider evidence + recommendation (e5c516a); CURRENT_PRIORITY un-parks the conversation slice; check-in correction entry (6d34c64)
+- **Evidence:** Backend gate 586/0/31; frontend 87 suites/624; dev backend loaded e5c516a (pid 1246911); verified with no flags set: Room 214 29 tools, no call_contact, unchanged continuity block; listener active since 2026-10-08, not restarted; host 2026-10-12 01:01 CDT; provider changelog + Realtime guide checked 2026-10-12
+- **Current bounded task (owner · stage):** careops-resident-aria-core-reconciliation-001 · caoscare-1-ee · CODE PREPARED, awaiting owner receipts
+- **Remaining steps for this milestone:**
+  1. Owner approves gpt-realtime-2.1 + marin test call on Room 214
+  2. Owner approves turning on continuity quick-return and owner v2
+  3. Owner approves research model + smoke call + budget
+  4. Telephony hardware/accounts for real calls
+  5. Firsthand acceptance: 2-minute continuity, personality, live lookup, calls
+- **Upcoming milestones:**
+  1. Current SIM truth
+  2. Resident request → Nursing queue
+  3. Nurse email delivery pipeline
+  4. Live email acceptance
+  5. Transportation LIVE_VERIFY
+  6. Firsthand Claude Chrome/owner walkthrough
+  7. Room 1 hardware
+  8. Plan the transcription-model move before 2027-02-26
+- **ETA:** UNKNOWN until owner decisions
+- **next_check_at:** MISSING (owner-gated)
+- **Blocker:** Owner receipts for paid tests, live Room 214 model/voice switch, research budget, telephony
+- **Michael action required:** NOTHING tonight; when awake, decide the four items in receipt 6118677754
