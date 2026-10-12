@@ -9162,3 +9162,14 @@ The prior active task is closed at the development-acceptance boundary. The next
 
 ## 2026-10-12 — Nursing exception lifecycle (careops-nursing-exception-lifecycle-001)
 `d16b3c7`: `routes/task_review.py` — "can't complete" (reason; request stays open, unassigned, `needs_review`) and owner/admin review, both on `task_lifecycle.transition` with receipts; Aria status wording; routing exceptions `needs_review`; queue UI `components/ExceptionReview.jsx`. Gate backend 592/0/31, frontend 87/628, build compiled; dev backend `d16b3c7`. Live run on demo request task_134116c5c444 (nurse 390 px, owner review in Claude Chrome, typed Aria rt_8ektlnec_1791788248058), 8 receipts on one workflow. Report `docs/reports/2026-10-12-nursing-exception-lifecycle.md`.
+
+
+---
+
+## 2026-10-12 02:09 CDT — Nursing exception lifecycle partial acceptance; live admin reassignment still required
+
+Coordinator DONE #6119393963 proves code `d16b3c7`, records `f2f61e8`, backend 592 passed / 0 failed / 31 skipped, frontend 87 suites / 628 tests, compiled build, and a guarded development restart with zero leases. The labeled demo workflow `task_134116c5c444` was exercised by a nurse at 390 px through Claim → Start → Can't complete; typed Aria call `rt_8ektlnec_1791788248058` reported the open supervisor-review state truthfully; an owner marked it reviewed in Claude Chrome; the nurse reclaimed and completed it. Eight receipts remained on one workflow with assignee, acts_for:nursing and admin_override:owner authorities. Report: `docs/reports/2026-10-12-nursing-exception-lifecycle.md`. GitHub combined-status contexts are absent for `d16b3c7`.
+
+Acceptance remains open. The report states that the existing admin assignment dropdown was not clicked in the live browser run; assignment/reassignment was covered only by the automated test and the nurse reclaimed afterward. Because the dispatched acceptance required live reassignment proof, the honest state is **IMPLEMENTED / TESTED / PARTIAL DEV_ACCEPTED**, not fully DEV_ACCEPTED or READY_FOR_OWNER_REVIEW. The 2:02 AM CHECKIN_LOG entry calling the task DEV_ACCEPTED is preserved and superseded by the supervisor correction receipt.
+
+The ONE current bounded task remains `careops-nursing-exception-lifecycle-001` for existing coordinator `caoscare-1-ee`, stage ACCEPTANCE REPAIR: in Claude Chrome, reassign a labeled synthetic Nursing request through the owner/admin dropdown to a named Nursing worker; verify one canonical task/workflow, the `task_assigned` receipt's authority and before/after assignee, unauthorized refusal, assigned-nurse visibility, truthful Aria status, desktop/390 px behavior, exact tested/loaded revision and a fresh host observation. Repair only if the live path fails. Blocker: NONE. Michael action: NOTHING.
