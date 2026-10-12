@@ -883,6 +883,6 @@ Issue #129 is the dispatch channel to existing coordinator `caoscare-1-ee`. ACK/
 - **Remaining Alerts milestone steps (ordered):** 1. ACK and inspect the three direct-insert paths; 2. add failing ingress/coalescing/receipt tests; 3. route each path through the canonical helper and prove concurrency/idempotency; 4. verify downstream escalation/dispatch/public/acknowledge/close behavior and safety; 5. run full gates and desktop/390 px browser acceptance; 6. clean synthetic state and reconcile records; 7. address the policy editor, owner role policy, timers/fallback and full Alerts section acceptance.
 - **Upcoming milestones (ordered):** 1. finish Alerts section acceptance; 2. remaining Phase 3 department-workspace gaps; 3. Phase 4 scheduling/records/resources; 4. Phase 5 communications; 5. Phase 6 pilot reliability/accessibility; 6. Phase 7 release/deployment/live acceptance.
 - **ETA:** UNKNOWN pending ACK.
-- **next_check_at:** Monday, October 12, 2026 — 6:21:32 AM America/Chicago; owned by the existing LOCAL watchdog.
+- **next_check_at:** Monday, October 12, 2026 — 6:22:49 AM America/Chicago; owned by the existing LOCAL watchdog.
 - **Blocker:** NONE.
 - **Michael must do:** NOTHING.
