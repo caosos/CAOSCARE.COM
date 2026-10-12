@@ -86,3 +86,22 @@ Ordered remaining current-milestone steps: 1. inventory every current alert, not
 Ordered upcoming milestones: 1. complete alerts/escalation policy editor, acknowledgements, timers, fallback and section acceptance; 2. remaining Phase 3 department-workspace gaps; 3. Phase 4 scheduling/records/resources; 4. Phase 5 communications; 5. Phase 6 pilot reliability/accessibility; 6. Phase 7 release/deployment/live acceptance.
 
 ETA UNKNOWN pending ACK. Existing LOCAL watchdog next_check_at Monday, October 12, 2026 — 5:56:15 AM America/Chicago. Expected evidence: exact implementation/records commits; state-transition matrix; focused/full gates; labeled API/browser results; receipts/history; tested versus loaded revisions; newest host observation; cleanup; cost or UNKNOWN. Blocker NONE. Michael action NOTHING.
+
+
+## 2026-10-12 05:57 CDT — Canonical alert state ACKED / WORKING
+
+Canonical ACK/WORKING receipt: https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6122858667. Transport-only mirror: https://github.com/caosos/CAOSCARE.COM/pull/131#issuecomment-6122887366. Living-checklist reconciliation: `fd180cead389d69a8900d8cb194555fed2cd335e`.
+
+The ONE current bounded task remains `careops-alerts-canonical-state-001`, existing coordinator `caoscare-1-ee`, worker `da-2be29b619e`, stage ACKED / WORKING. ACK arrived before the 300-second deadline.
+
+Evidence under review: every writer of Alert `status`, `escalation_level`, `aria_state`, and `live_line_state`; `escalation_tick` as RQ-018's sole escalation authority; notification statuses; StaffTask `needs_review` and accepted unclaimed escalation; canonical receipts. The worker will enumerate all writers, publish the state/transition plus compatibility matrix, prove the accepted Nursing unclaimed escalation maps cleanly, add a failing test for the first conflicting writer before repairing it, run focused/full gates and headless desktop/390 px acceptance, and clean synthetic state.
+
+No new current-task product revision, automated gate, or browser result exists at ACK. Prior accepted development remains backend `b7f6048`, frontend `db4317f`; production remains `ff87c22`.
+
+Latest timestamped host observation Monday, October 12, 2026 — 5:57:31 AM America/Chicago: coordinator `caoscare-1-ee` busy; control-plane service PID 1370098 on `f1db2d358ca1`; repository `cd076d251ab9` newer and not loaded. This is control-plane host evidence only; GitHub activity is not host-liveness proof.
+
+Ordered remaining current-milestone steps: 1. inventory all alert/notification/escalation state writers and receipts; 2. publish the canonical transition and compatibility matrix; 3. prove Nursing unclaimed escalation maps cleanly; 4. add a failing test and repair only the first conflicting writer; 5. prove acknowledgement, timer/fallback, idempotency, stop conditions, supervisor visibility, refusal, and resident/Aria-safe truth; 6. run focused/full backend/frontend/build gates and desktop/390 px browser acceptance; 7. clean synthetic state and record exact tested/loaded revisions, newest host evidence, and cost; 8. reconcile checklist, Issue #129, PROJECT_STATE, and receipt.
+
+Ordered upcoming milestones: 1. complete alerts/escalation policy editor, acknowledgements, timers, fallback, and section acceptance; 2. remaining Phase 3 department-workspace gaps; 3. Phase 4 scheduling/records/resources; 4. Phase 5 communications; 5. Phase 6 pilot reliability/accessibility; 6. Phase 7 release/deployment/live acceptance.
+
+ETA approximately Monday, October 12, 2026 — 7:35 AM America/Chicago. Existing LOCAL watchdog next_check_at Monday, October 12, 2026 — 7:35:34 AM America/Chicago. Expected completion evidence: exact implementation/records commits; complete state/transition and compatibility matrix; failing-before/fixed-after test for the first conflict; focused/full gates; labeled API/browser results; receipts/history; exact tested/loaded revisions; cleanup; newest timestamped host observation; cost or UNKNOWN. Blocker NONE. Michael action NOTHING.
