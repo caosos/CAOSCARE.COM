@@ -53,7 +53,8 @@ async def _elsewhere(last_shown: str, my_driver: Optional[dict], mine: bool) -> 
         later[r["date"]] = later.get(r["date"], 0) + 1
     earlier_open = 0
     if not mine:
-        base = {"category": "transportation", "status": {"$in": OPEN_TASK_STATUSES}, "transport_run_id": None}
+        # same "unbooked" rule as the report's Unresolved count: no run and no legacy hourly slot
+        base = {"category": "transportation", "status": {"$in": OPEN_TASK_STATUSES}, "transport_run_id": None, "transport_slot_id": None}
         for t in await db.staff_tasks.find({**base, "requested_for_date": {"$gt": last_shown}}, {"_id": 0, "requested_for_date": 1}).to_list(500):
             later[t["requested_for_date"]] = later.get(t["requested_for_date"], 0) + 1
         earlier_open = await db.staff_tasks.count_documents({**base, "requested_for_date": {"$lt": today_facility_date()}})

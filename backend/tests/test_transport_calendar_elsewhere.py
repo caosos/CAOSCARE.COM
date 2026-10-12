@@ -48,6 +48,7 @@ def test_empty_day_points_to_later_rides_and_counts_past_dated_open_requests():
     earlier_before = get(f"{TAG}_fd", date=d(far)).json()["elsewhere"]["earlier_open_unbooked"]
     task(1, d(far + 3)); task(2, d(far + 3)); task(3, d(far + 9)); task(4, d(-5)); task(5, d(-1))
     task(6, d(-2), status="completed")                                   # closed: not counted
+    task(7, d(-3), transport_slot_id="slot_legacy")                      # booked on a legacy hourly slot: not unbooked
     run(db.transport_runs.insert_one({"run_id": f"{TAG}_r1", "date": d(far + 5), "status": "confirmed", "depart_time": "10:00", "resident_task_ids": []}))
     run(db.transport_runs.insert_one({"run_id": f"{TAG}_r2", "date": d(far + 6), "status": "completed", "depart_time": "10:00", "resident_task_ids": []}))
     r = get(f"{TAG}_fd", date=d(far + 1))
