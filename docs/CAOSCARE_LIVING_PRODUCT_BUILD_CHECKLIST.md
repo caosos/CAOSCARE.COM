@@ -1,6 +1,6 @@
 # CAOSCare — Living Product Build Checklist
 
-Updated: 2026-10-12 (04:56 CDT; Therapy recurrence DEV_ACCEPTED; permission-boundary slice READY / DISPATCHING).
+Updated: 2026-10-12 (05:02 CDT; Therapy permission boundaries ACKED / WORKING).
 
 This is the owner-facing product build and progress tracker for the Care Operations build. Canonical owner direction: [Issue #129](https://github.com/caosos/CAOSCARE.COM/issues/129). Detailed historical evidence remains in [PILOT1_EXECUTION_CHECKLIST.md](https://github.com/caosos/CAOSCARE.COM/blob/integration/2026-09-27/docs/PILOT1_EXECUTION_CHECKLIST.md). This file controls current phase, active task, milestones, ETA, blockers, and the reporting contract.
 
@@ -91,7 +91,7 @@ check); tests `scripts/owner_intake/tests/test_eta_receipts.py`.
 ## Current build control
 
 - **Current phase:** 3/7 — Care Operations workspaces.
-- **ONE current bounded task:** `careops-therapy-permission-boundaries-001` — READY / DISPATCHING through the existing coordinator `caoscare-1-ee`; ACK / WORKING is required within 300 seconds after delivery. Inspect and reuse the canonical StaffTask, department authorization, resident-safe upcoming/status projections, receipts, and Therapy/Admin/front-desk surfaces. Define the operational-versus-clinical boundary already supported by the product, prove authorized create/read/edit/lifecycle access and unauthorized refusals across owner/admin, front desk, Therapy, another department, and resident/Aria, confirm no clinical record/chart/diagnosis/therapy-note store or disclosure is introduced, and repair only the first proven gap. Desktop and 390 px, focused/full gates, exact tested/loaded revisions, and fresh host evidence are required. Stop before clinical records, staff double-booking policy, real data, production mutation, audio/Hey Aria, duplicate infrastructure, or PR merges. ETA UNKNOWN pending ACK; local-watchdog next check Monday, October 12, 2026 — 5:00:58 AM America/Chicago; blocker NONE.
+- **ONE current bounded task:** `careops-therapy-permission-boundaries-001` — ACKED / WORKING through the existing coordinator `caoscare-1-ee` and worker `da-e7703038b0`; development backend reported loaded at `468cbc8`. The worker is reading the resident-safe projection and every Therapy-touching route, then will prove an isolated HTTP role × action matrix for owner/admin, front desk, Therapy, another department, and resident/public; inspect what reaches residents/Aria; repair only the first proven gap; and browser-check where accounts exist. Stop before clinical records, staff double-booking policy, real data, production mutation, audio/Hey Aria, duplicate infrastructure, or PR merges. ETA approximately Monday, October 12, 2026 — 6:29 AM America/Chicago; local-watchdog next check Monday, October 12, 2026 — 5:59:15 AM America/Chicago; blocker NONE.
 - **Control issue / dispatch channel:** [#129](https://github.com/caosos/CAOSCARE.COM/issues/129).
 - **Completed review:** [PR #130](https://github.com/caosos/CAOSCARE.COM/pull/130), merged into integration.
 - **Integration branch:** `integration/2026-09-27`; current accepted therapy-conflict product commit `77f83d3d53e17ffb75c71d137ab876e50552efe9` with guarded dev restart `1bf1bec26ea58a6c55730fea3c858734eb788d54`. This later integration work is not in production `ff87c22`; the release baseline is separate.
@@ -739,3 +739,15 @@ Issue #129 is the dispatch channel to existing coordinator `caoscare-1-ee`. ACK/
 - **Verdict:** IMPLEMENTED / TESTED / DEV_ACCEPTED; full Therapy/appointments remains PARTIAL, not READY_FOR_OWNER_REVIEW or OWNER_ACCEPTED / DONE.
 - **Next single bounded task:** `careops-therapy-permission-boundaries-001`, READY / DISPATCHING through the existing coordinator. Prove the operational-versus-clinical boundary and exact role matrix on canonical Therapy task/status data without adding or exposing clinical records. ACK / WORKING is required within 300 seconds after delivery.
 - **ETA / blocker / owner action:** ETA UNKNOWN pending ACK; blocker NONE; Michael action NOTHING.
+
+
+### Update 2026-10-12 05:02 CDT (Therapy permission boundaries ACKED / WORKING)
+
+- **ACK/WORKING receipt — `careops-therapy-permission-boundaries-001`:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6121965718; transport-only mirror https://github.com/caosos/CAOSCARE.COM/pull/131#issuecomment-6121993580.
+- **Responsible coordinator / worker / stage:** existing coordinator `caoscare-1-ee` / existing worker `da-e7703038b0` / WORKING. ACK arrived before the 300-second deadline.
+- **Evidence reviewed / plan:** read the resident-safe projection and every Therapy-touching route; build an isolated HTTP role × action matrix for owner/admin, front desk, Therapy, another department, and resident/public; inspect exactly what reaches residents and Aria; repair only the first proven gap; browser-check where accounts exist.
+- **Tested / loaded state:** no new current-task product commit, test, or browser result at ACK. Development backend reported loaded at `468cbc8`; prior accepted recurrence gates remain backend 600 passed / 0 failed / 31 skipped, frontend 90 suites / 641, build compiled; production remains `ff87c22` unchanged.
+- **Host observation:** Monday, October 12, 2026 — 5:01:04 AM America/Chicago: coordinator `caoscare-1-ee` busy; control-plane service `f1db2d358ca1`; repository `cd076d251ab9` newer and not loaded. GitHub activity alone is not host-liveness proof.
+- **ETA / next check:** approximately Monday, October 12, 2026 — 6:29 AM America/Chicago; existing LOCAL watchdog next_check_at Monday, October 12, 2026 — 5:59:15 AM America/Chicago.
+- **Expected completion evidence:** exact commits; explicit role/field/action matrix; focused/full gates; labeled desktop and 390 px browser evidence where accounts exist; direct API refusals for unavailable roles; resident/Aria safe truth; receipts/history; exact tested/loaded revisions; newest host observation; cost or UNKNOWN.
+- **Blocker / owner action:** NONE / NOTHING.
