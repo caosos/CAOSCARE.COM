@@ -34,6 +34,13 @@ async def resident_movement(resident_id: str, hours: int = 24, user=Depends(get_
     return {"visits": visits, "total_pings": len(locs)}
 
 
+def _require_care_reader(user: dict) -> None:
+    """Resident care patterns are for owner/admin and nursing staff, not every signed-in login."""
+    if user.get("role") in ("owner", "admin") or (user.get("role") == "staff" and user.get("department") == "nursing"):
+        return
+    raise HTTPException(status_code=403, detail="Resident care patterns are open to administrators and nursing staff")
+
+
 @router.get("/{resident_id}/stats")
 async def resident_stats(resident_id: str, days: int = 30, user=Depends(get_current_user)):
     """Clinician-facing aggregate for a resident over the last N days.
@@ -42,6 +49,7 @@ async def resident_stats(resident_id: str, days: int = 30, user=Depends(get_curr
     "Maggie — 14 bathroom assists this week (up from 8), 2 falls in 30 days,
     avg response 4m 12s."
     """
+    _require_care_reader(user)
     resident = await db.residents.find_one({"resident_id": resident_id}, {"_id": 0})
     if not resident:
         raise HTTPException(status_code=404, detail="Resident not found")
@@ -49,6 +57,8 @@ async def resident_stats(resident_id: str, days: int = 30, user=Depends(get_curr
     now_dt = datetime.now(timezone.utc)
     cutoff = (now_dt - timedelta(days=days)).isoformat()
     prev_cutoff = (now_dt - timedelta(days=days * 2)).isoformat()
+    from routes.ops_overview_util import STALE_ALERT_HOURS
+    older_cutoff = (now_dt - timedelta(hours=STALE_ALERT_HOURS)).isoformat()
 
     curr = await db.alerts.find(
         {"resident_id": resident_id, "created_at": {"$gte": cutoff}},
@@ -69,6 +79,7 @@ async def resident_stats(resident_id: str, days: int = 30, user=Depends(get_curr
             "avg_duration_s": None,
             "falls_during_call": 0,
             "unresolved": 0,
+            "unresolved_older": 0,   # open and older than STALE_ALERT_HOURS: likely test debris, needs review
         }
         response_times = [a["response_seconds"] for a in items if isinstance(a.get("response_seconds"), int)]
         durations = [a["duration_seconds"] for a in items if isinstance(a.get("duration_seconds"), int)]
@@ -81,6 +92,8 @@ async def resident_stats(resident_id: str, days: int = 30, user=Depends(get_curr
                 out["falls_during_call"] += 1
             if a.get("status") != "resolved":
                 out["unresolved"] += 1
+                if a.get("created_at", "") < older_cutoff:
+                    out["unresolved_older"] += 1
         if response_times:
             out["avg_response_s"] = int(sum(response_times) / len(response_times))
             out["max_response_s"] = max(response_times)

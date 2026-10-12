@@ -1,5 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
+import { CATEGORY_META, fmtSeconds } from "../lib/clinician";
+import ClinicianRecentEvents from "../components/ClinicianRecentEvents";
+import AlertDetailDialog from "./AlertDetailDialog";
+import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
@@ -12,23 +16,17 @@ import {
 // Compares current 30-day window to the prior 30-day window so trends are
 // visible without heavy charting deps.
 
-const CATEGORY_META = {
-  bathroom:    { label: "Bathroom",    color: "#4A7C59" },
-  fall:        { label: "Fall",        color: "#B6463A" },
-  pain:        { label: "Pain",        color: "#D4954A" },
-  medication:  { label: "Medication",  color: "#7A6B56" },
-  lonely:      { label: "Loneliness",  color: "#8E7AB5" },
-  confusion:   { label: "Confusion",   color: "#5C7B8A" },
-  meal:        { label: "Meal",        color: "#9B8550" },
-  other:       { label: "Other",       color: "#7A6B56" },
-  unclassified:{ label: "Unclassified",color: "#A8A29E" },
-};
 
 export default function ClinicianTab({ residents = [] }) {
   const [residentId, setResidentId] = useState("");
   const [days, setDays] = useState(30);
   const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [state, setState] = useState("idle");          // idle | loading | ok | error
+  const [error, setError] = useState("");
+  const [summary, setSummary] = useState("");
+  const [summaryState, setSummaryState] = useState("loading");
+  const [openAlert, setOpenAlert] = useState(null);
+  const [reload, setReload] = useState(0);
 
   useEffect(() => {
     if (residents.length && !residentId) setResidentId(residents[0].resident_id);
@@ -36,25 +34,36 @@ export default function ClinicianTab({ residents = [] }) {
 
   useEffect(() => {
     if (!residentId) return;
-    setLoading(true);
+    let live = true;
+    setState("loading");
     api.get(`/residents/${residentId}/stats?days=${days}`)
-      .then(({ data }) => setStats(data))
-      .catch(() => setStats(null))
-      .finally(() => setLoading(false));
-  }, [residentId, days]);
+      .then(({ data }) => { if (live) { setStats(data); setState("ok"); } })
+      .catch((err) => {
+        if (!live) return;
+        setStats(null); setState("error");
+        setError(err?.response?.status === 403 ? "Resident care patterns are open to administrators and nursing staff." : "Could not load this resident's care pattern.");
+      });
+    setSummaryState("loading");
+    api.get(`/residents/${residentId}/briefing`)
+      .then(({ data }) => { if (live) { setSummary(data?.narrative || ""); setSummaryState("ok"); } })
+      .catch(() => { if (live) setSummaryState("error"); });
+    return () => { live = false; };
+  }, [residentId, days, reload]);
 
   return (
     <div className="space-y-6" data-testid="clinician-tab">
       <header className="flex items-end justify-between flex-wrap gap-4">
         <div>
-          <h2 className="font-display text-3xl text-caos-forest">Clinician Dashboard</h2>
-          <p className="text-caos-mute text-sm mt-1">
-            Per-resident care pattern. Trends, response times, and recent events.
+          <h2 className="font-display text-3xl text-caos-forest">Resident care patterns</h2>
+          <p className="text-caos-mute text-sm mt-1 max-w-2xl" data-testid="clinician-purpose">
+            For administrators and nursing leads: pick a resident to see how often they called for help, how fast staff answered,
+            and what the calls were about, compared with the period before. Open any event to see its timeline and close it out.
+            This is not a medical record.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Select value={residentId} onValueChange={setResidentId}>
-            <SelectTrigger className="w-[260px]" data-testid="clinician-resident-picker"><SelectValue placeholder="Pick a resident" /></SelectTrigger>
+            <SelectTrigger className="w-[260px] max-w-full" data-testid="clinician-resident-picker"><SelectValue placeholder="Pick a resident" /></SelectTrigger>
             <SelectContent>
               {residents.map((r) => <SelectItem key={r.resident_id} value={r.resident_id}>{r.name} · Rm {r.room}</SelectItem>)}
             </SelectContent>
@@ -71,19 +80,24 @@ export default function ClinicianTab({ residents = [] }) {
         </div>
       </header>
 
-      {loading && <div className="py-12 text-center"><Loader2 className="w-8 h-8 animate-spin text-caos-forest mx-auto" /></div>}
-
-      {!loading && stats && (
+      {!residents.length && <Card className="p-8 text-center text-caos-mute">No residents yet. Add residents under Residents &amp; care → Residents.</Card>}
+      {state === "loading" && <div className="py-12 text-center"><Loader2 className="w-8 h-8 animate-spin text-caos-forest mx-auto" /></div>}
+      {state === "error" && (
+        <Card className="p-6 text-sm border-caos-line" data-testid="clinician-error">
+          {error} <Button size="sm" variant="outline" className="ml-2" onClick={() => setReload((n) => n + 1)}>Try again</Button>
+        </Card>
+      )}
+      {state === "ok" && stats && (
         <>
+          {stats.current_window.total_calls === 0 && (
+            <Card className="p-4 text-sm text-caos-mute border-caos-line" data-testid="clinician-no-calls">No calls for help in the last {days} days.</Card>
+          )}
           <KpiRow current={stats.current_window} previous={stats.previous_window} />
           <CategoryBreakdown current={stats.current_window} previous={stats.previous_window} />
-          <RecentEvents events={stats.recent_events} narrative={stats.narrative} />
+          <ClinicianRecentEvents events={stats.recent_events} summary={summary} summaryState={summaryState} onOpen={setOpenAlert} />
         </>
       )}
-
-      {!loading && !stats && residentId && (
-        <Card className="p-8 text-center text-caos-mute italic">No data for this resident yet.</Card>
-      )}
+      <AlertDetailDialog alertId={openAlert} open={!!openAlert} onOpenChange={(o) => { if (!o) setOpenAlert(null); }} onChanged={() => setReload((n) => n + 1)} />
     </div>
   );
 }
@@ -94,7 +108,8 @@ function KpiRow({ current, previous }) {
     { icon: AlertTriangle, label: "Falls", curr: current.falls_during_call, prev: previous.falls_during_call, fmt: (v) => v, danger: true },
     { icon: Clock, label: "Avg response", curr: current.avg_response_s, prev: previous.avg_response_s, fmt: fmtSeconds, lowerBetter: true },
     { icon: Stethoscope, label: "Avg duration", curr: current.avg_duration_s, prev: previous.avg_duration_s, fmt: fmtSeconds },
-    { icon: Heart, label: "Unresolved", curr: current.unresolved, prev: previous.unresolved, fmt: (v) => v, danger: true, lowerBetter: true },
+    { icon: Heart, label: "Unresolved", curr: current.unresolved, prev: previous.unresolved, fmt: (v) => v, danger: true, lowerBetter: true,
+      note: current.unresolved_older ? `${current.unresolved_older} older than 3 days, need review` : null },
   ];
   return (
     <div className="grid grid-cols-2 md:grid-cols-5 gap-3" data-testid="clinician-kpis">
@@ -103,7 +118,7 @@ function KpiRow({ current, previous }) {
   );
 }
 
-function KpiCard({ icon: Icon, label, curr, prev, fmt, danger = false, lowerBetter = false }) {
+function KpiCard({ icon: Icon, label, curr, prev, fmt, danger = false, lowerBetter = false, note = null }) {
   const d = trend(curr, prev, lowerBetter);
   const accent = danger && (curr || 0) > 0 ? "text-caos-terracotta" : "text-caos-forest";
   return (
@@ -114,6 +129,7 @@ function KpiCard({ icon: Icon, label, curr, prev, fmt, danger = false, lowerBett
       <div className={`mt-2 font-display text-3xl font-light ${accent}`}>
         {curr === null || curr === undefined ? "—" : fmt(curr)}
       </div>
+      {note && <div className="mt-1 text-[11px] text-caos-mute" data-testid="kpi-unresolved-older">{note}</div>}
       {d && (
         <div className={`mt-1 text-xs flex items-center gap-1 ${d.color}`}>
           {d.icon}
@@ -190,75 +206,3 @@ function CategoryBreakdown({ current, previous }) {
   );
 }
 
-function RecentEvents({ events = [], narrative }) {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <Card className="p-5 border-caos-line md:col-span-2" data-testid="clinician-recent">
-        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-caos-mute mb-3">
-          <Activity className="w-4 h-4 text-caos-forest" /> Recent events
-        </div>
-        {events.length === 0 ? (
-          <p className="text-caos-mute italic text-sm">No events yet.</p>
-        ) : (
-          <div className="space-y-2 max-h-[460px] overflow-y-auto pr-1">
-            {events.map((e) => {
-              const meta = CATEGORY_META[e.category] || { label: e.category, color: "#7A6B56" };
-              return (
-                <div key={e.alert_id} data-testid={`event-${e.alert_id}`} className="flex items-start gap-3 p-3 bg-caos-ambient/40 rounded-lg">
-                  <div className="w-1.5 self-stretch rounded-full" style={{ backgroundColor: meta.color }} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant="outline" className="uppercase text-[10px] tracking-wider">{meta.label}</Badge>
-                      <span className="text-xs text-caos-mute">{new Date(e.created_at).toLocaleString()}</span>
-                      <SeverityBadge sev={e.severity} />
-                      {e.status !== "resolved" && <Badge className="bg-caos-amber/30 text-caos-forest text-[10px] uppercase tracking-wider">{e.status}</Badge>}
-                    </div>
-                    {e.ai_summary && <p className="text-sm text-caos-forest mt-1 leading-snug">{e.ai_summary}</p>}
-                    {e.resident_stated_reason && (
-                      <p className="text-xs text-caos-mute mt-0.5 italic">"{e.resident_stated_reason}"</p>
-                    )}
-                    {e.outcome && <p className="text-xs text-caos-ink/80 mt-1">→ {e.outcome}</p>}
-                    <div className="text-[10px] text-caos-mute mt-1 font-mono">
-                      response {fmtSeconds(e.response_seconds)} · duration {fmtSeconds(e.duration_seconds)}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </Card>
-
-      <Card className="p-5 border-caos-line" data-testid="clinician-narrative">
-        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-caos-mute mb-3">
-          <Heart className="w-4 h-4 text-caos-forest" /> AI summary
-        </div>
-        {narrative ? (
-          <p className="text-sm text-caos-forest leading-relaxed">{narrative}</p>
-        ) : (
-          <p className="text-caos-mute italic text-sm">
-            A short paragraph summary of this resident's care pattern lives here when the
-            backend has populated it. Tap "Brief" on the resident card to generate a fresh narrative.
-          </p>
-        )}
-      </Card>
-    </div>
-  );
-}
-
-function SeverityBadge({ sev }) {
-  const map = {
-    emergency: "bg-caos-terracotta text-white",
-    assist:    "bg-caos-forest/15 text-caos-forest border border-caos-forest",
-    comfort:   "bg-caos-mute/15 text-caos-ink",
-  };
-  return <Badge className={`uppercase text-[10px] tracking-widest ${map[sev] || ""}`}>{sev}</Badge>;
-}
-
-function fmtSeconds(s) {
-  if (s === null || s === undefined) return "—";
-  if (s < 60) return `${s}s`;
-  const m = Math.floor(s / 60);
-  const r = s % 60;
-  return r ? `${m}m ${r}s` : `${m}m`;
-}
