@@ -333,3 +333,28 @@ Append-only. One entry per verified check-in, tied to its receipt. A correction 
 - **next_check_at:** Monday, October 12, 2026 — 2:14:29 AM America/Chicago
 - **Blocker:** NONE
 - **Michael action required:** NOTHING now
+
+
+## Monday, October 12, 2026 — 2:12 AM America/Chicago
+- **Receipt:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6119510087
+- **Project:** CAOSCare
+- **Phase / position:** Phase 3/7 Care Operations workspaces — Core Requests / Nursing exception lifecycle acceptance repair
+- **Completed since the prior check:** The existing coordinator `caoscare-1-ee` accepted the correction, ACKed/WORKING `da-6e828b1016`, and began the bounded live owner/admin reassignment proof. No additional product completion is claimed.
+- **Evidence:** continuation/correction https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6119486459; local intake delivery https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6119508276 at Monday, October 12, 2026 — 2:11:34 AM America/Chicago; ACK/WORKING https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6119510087. The coordinator named the same task, owner, loaded development revision `d16b3c7`, exact acceptance flow and blocker NONE. Existing implementation evidence remains code `d16b3c7`, records `f2f61e8`, report `docs/reports/2026-10-12-nursing-exception-lifecycle.md`, backend 592 passed / 0 failed / 31 skipped, frontend 87 suites / 628 tests, compiled build, nurse 390 px cannot-complete, typed Aria `rt_8ektlnec_1791788248058`, owner Claude Chrome review, nurse reclaim/complete and 8 linked receipts on one workflow. The live dropdown reassignment remains the acceptance gap. GitHub combined-status contexts are absent. Tested and loaded development revision is `d16b3c7`; frontend served the same revision; production remains `ff87c22`. Latest timestamped host observation: Monday, October 12, 2026 — 2:11:34 AM America/Chicago, when the existing local intake delivered to the running coordinator session; this proves coordinator reachability, while the canonical DONE/report proves the loaded CAOSCare revision.
+- **Current bounded task (owner · stage):** `careops-nursing-exception-lifecycle-001` · existing coordinator `caoscare-1-ee` · WORKING / ACCEPTANCE REPAIR / LIVE OWNER REASSIGNMENT
+- **Remaining steps for this milestone:**
+  1. Create one labeled synthetic demo-room Nursing request
+  2. Owner/admin reassigns it through the existing queue dropdown in Claude Chrome
+  3. Verify the canonical task/workflow and `task_assigned` receipt with authority and before/after assignee
+  4. Prove the named nurse sees it at 390 and 1280 px and another nurse is refused
+  5. Verify typed Aria reports the truthful state with no failed API calls
+  6. Repair only if this live path fails, then update the report, checklist, PROJECT_STATE, Issue #129 and ledger with the final verdict
+- **Upcoming milestones:**
+  1. Michael's spoken Room 214 voice/personality acceptance
+  2. Authenticated Transportation LIVE_VERIFY when its role/driver/vehicle dependencies are available
+  3. Full owner/novice pilot walkthrough
+  4. Pilot Room 1 / Voice PE onboarding
+- **ETA:** Approximately 30 minutes from Monday, October 12, 2026 — 2:11:43 AM America/Chicago
+- **next_check_at:** Monday, October 12, 2026 — 2:41:43 AM America/Chicago
+- **Blocker:** NONE
+- **Michael action required:** NOTHING
