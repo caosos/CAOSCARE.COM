@@ -111,7 +111,13 @@ async def set_schedule(task_id: str, fields: dict, actor: ActorContext, user: di
                             result="conflict_override" if ids else None, provider_refs=ids or None)
 
 
-DETAIL_FIELDS = ("provider_name", "discipline", "location")
+DETAIL_FIELDS = ("provider_name", "discipline", "location", "callback_phone", "callback_window")
+
+
+def _detail_text(k: str, v) -> str:
+    if k == "callback_phone" and v:     # history is staff-visible; keep the number out of it
+        return f"callback phone: ending {v[-4:]}"
+    return f"{k.replace('_', ' ')}: {v or 'cleared'}"
 
 
 async def set_details(task_id: str, fields: dict, actor: ActorContext, user: dict,
@@ -125,7 +131,7 @@ async def set_details(task_id: str, fields: dict, actor: ActorContext, user: dic
         changed = {k: v for k, v in cleaned.items() if v != t.get(k)}
         if not changed:
             return None
-        text = " · ".join(f"{k.replace('_', ' ')}: {v or 'cleared'}" for k, v in changed.items())
+        text = " · ".join(_detail_text(k, v) for k, v in changed.items())
         if ids:
             text += " · saved despite overlapping " + ", ".join(
                 f"{c.get('what') or c['task_id']} ({c.get('requested_for_time_label') or 'time not set'})" for c in override_conflicts)

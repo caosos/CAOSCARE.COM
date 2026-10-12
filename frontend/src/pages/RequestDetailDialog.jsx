@@ -10,6 +10,7 @@ import { sourceLabel, deriveStatus, STATUS_BADGE_CLASS, fmtDateTime } from "../l
 import RequestTimeline from "../components/RequestTimeline";
 import { deliveryTone } from "../lib/requestDelivery";
 import { detailsLine, detailsPayload } from "../lib/appointmentDetails";
+import CallbackContactEditor from "../components/CallbackContactEditor";
 import { useAuth } from "../lib/auth";
 import { actsFor } from "../lib/maintenance";
 import { ConflictDialog } from "./QueueDialogs";
@@ -108,6 +109,10 @@ export default function RequestDetailDialog({ taskId, open, onOpenChange, onChan
               <div className="text-caos-mute text-xs uppercase tracking-widest mb-1">Request</div>
               <div className="text-sm">{t.description || t.title}</div>
             </div>
+
+            {(dept === "administration" || t.callback_phone || t.callback_window) && (
+              <CallbackContactEditor task={t} canEdit={canEdit && isOpen} onSaved={() => { load(); onChange?.(); }} />
+            )}
 
             {/* Lifecycle actions follow the same authority rule as the plan form; a viewer who
                 cannot act sees the state, not buttons the server would refuse. */}

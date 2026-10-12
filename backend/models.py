@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from typing import List, Optional, Literal
 from zoneinfo import ZoneInfo, available_timezones
 from pydantic import BaseModel, Field, EmailStr, ConfigDict, field_validator, model_validator
+import re
 import uuid
 
 
@@ -822,6 +823,25 @@ RESIDENT_ORIGIN_SOURCES = ("aria_voice", "kiosk_button", "simulator", "front_des
 TaskVisibilityRole = str
 
 
+def normalize_callback_phone(v):
+    """Callback phone (careops-frontdesk-callback-contact-fields-001): digits,
+    spaces, + - ( ) . only, 7-15 digits; stored as +<digits> (10 digits = US,
+    +1 added). Empty clears. Raises ValueError otherwise."""
+    if v is None:
+        return None
+    v = str(v).strip()
+    if not v:
+        return ""
+    if not re.fullmatch(r"[0-9+\-(). ]+", v):
+        raise ValueError("Callback phone may contain only digits, spaces and + - ( ) .")
+    digits = re.sub(r"\D", "", v)
+    if not 7 <= len(digits) <= 15:
+        raise ValueError("Callback phone needs 7 to 15 digits.")
+    if len(digits) == 10 and not v.startswith("+"):
+        digits = "1" + digits
+    return "+" + digits
+
+
 class StaffTask(BaseModel):
     model_config = ConfigDict(extra="ignore")
     task_id: str = Field(default_factory=lambda: uid("task"))
@@ -878,6 +898,10 @@ class StaffTask(BaseModel):
     provider_name: Optional[str] = None
     discipline: Optional[str] = None
     location: Optional[str] = None
+    # Optional callback contact for a front-desk callback request (staff-entered, staff-only;
+    # never in the resident/Aria view). Receipted on change like the details above.
+    callback_phone: Optional[str] = None
+    callback_window: Optional[str] = None
     last_re_requested_at: Optional[datetime] = None
     # Append-only transition + note history (ENGINEERING_CONTRACT decision 6),
     # written only via routes/task_history.py. Legacy tasks have none.
@@ -939,6 +963,9 @@ class StaffTaskUpdate(BaseModel):
     provider_name: Optional[str] = Field(default=None, max_length=120)
     discipline: Optional[str] = Field(default=None, max_length=60)
     location: Optional[str] = Field(default=None, max_length=160)
+    callback_phone: Optional[str] = Field(default=None, max_length=40)    # empty string clears
+    callback_window: Optional[str] = Field(default=None, max_length=80)   # e.g. "after 2 pm"
+    _check_callback_phone = field_validator("callback_phone")(normalize_callback_phone)
     # Reuses the same "when" pair transportation already uses (see StaffTask's
     # comment above) rather than inventing a separate maintenance-only
     # schedule field - lets staff record a planned service window (e.g.

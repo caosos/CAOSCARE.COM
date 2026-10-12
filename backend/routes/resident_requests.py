@@ -12,9 +12,9 @@ so the public URLs (/api/tasks/resident-request, .../status) don't move.
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
-from models import RESIDENT_ORIGIN_SOURCES, StaffTask, TaskPriority, now_utc
+from models import RESIDENT_ORIGIN_SOURCES, StaffTask, TaskPriority, normalize_callback_phone, now_utc
 from deps import db, get_current_user
 from routes import task_lifecycle
 from routes.actor_context import actor_from_user, actor_resident_claim
@@ -85,6 +85,10 @@ class ResidentRequestInput(BaseModel):
     source: str = "aria_voice"  # "aria_voice" | "kiosk_button" | "front_desk" (auth required for front_desk)
     conversation_session_id: Optional[str] = None
     items: Optional[List[RequestItem]] = Field(None, max_length=10)   # supplies/linens: item + quantity
+    # Staff entry only (source front_desk): how and when to call back. Refused on the public bus.
+    callback_phone: Optional[str] = Field(None, max_length=40)
+    callback_window: Optional[str] = Field(None, max_length=80)
+    _check_callback_phone = field_validator("callback_phone")(normalize_callback_phone)
 
 
 async def create_resident_request(data: ResidentRequestInput, *, user: Optional[dict] = None,
@@ -151,6 +155,8 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
         authority = "public_resident_bus"
     else:
         raise HTTPException(status_code=400, detail="Invalid source")
+    if source != "front_desk" and (data.callback_phone or (data.callback_window or "").strip()):
+        raise HTTPException(status_code=422, detail="A callback phone or time can only be entered by staff.")
     # 2026-08-23 (real, confirmed bug - Chauncey/Room 304): a fabricated
     # "10 o'clock" reached a live staff task. Reject rather than trust a
     # syntactically valid summary - see operational_provenance.py. The check
@@ -237,6 +243,8 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
         "resident_words": data.resident_words,
         "conversation_session_id": data.conversation_session_id,
         "items": [i.model_dump() for i in (data.items or [])],
+        "callback_phone": data.callback_phone or None,
+        "callback_window": (data.callback_window or "").strip() or None,
         **marker,
     }
     await _resolve_denorms(payload)

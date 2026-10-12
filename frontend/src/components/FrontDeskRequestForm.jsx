@@ -40,6 +40,7 @@ export default function FrontDeskRequestForm({ open, onOpenChange, residentId = 
         category: form.category, resident_id: form.resident_id, room: resident?.room || null,
         summary: form.summary, resident_words: form.resident_words || null,
         priority: form.priority, source: "front_desk",
+        callback_phone: (form.callback_phone || "").trim() || null, callback_window: (form.callback_window || "").trim() || null,
       });
       if (data.duplicate) {
         toast.info(`${resident?.name || "This resident"} already has an open ${form.category} request — added as a re-request (asked ${data.re_request_count + 1}x).`);
@@ -50,7 +51,8 @@ export default function FrontDeskRequestForm({ open, onOpenChange, residentId = 
       onSaved?.();
     } catch (err) {
       const d = err?.response?.data?.detail;
-      toast.error(d?.reason ? `Not saved: ${d.reason}` : (typeof d === "string" ? d : "Could not create the request"));
+      toast.error(d?.reason ? `Not saved: ${d.reason}` : Array.isArray(d) ? d.map((x) => String(x.msg || "").replace(/^Value error, /, "")).join(" ")
+        : (typeof d === "string" ? d : "Could not create the request"));
     } finally {
       setBusy(false);
     }
@@ -100,6 +102,19 @@ export default function FrontDeskRequestForm({ open, onOpenChange, residentId = 
             <Textarea rows={2} value={form.resident_words || ""} placeholder="e.g. Daughter Karen called: 'Mom's bill looks double-charged'"
               onChange={(e) => set({ resident_words: e.target.value })} data-testid="fd-request-words" />
           </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <Label>Call back on (optional)</Label>
+              <Input type="tel" maxLength={40} value={form.callback_phone || ""} placeholder="e.g. 555-010-4321"
+                onChange={(e) => set({ callback_phone: e.target.value })} data-testid="fd-request-callback-phone" />
+            </div>
+            <div>
+              <Label>Best time to call (optional)</Label>
+              <Input maxLength={80} value={form.callback_window || ""} placeholder="e.g. after 2 pm"
+                onChange={(e) => set({ callback_window: e.target.value })} data-testid="fd-request-callback-window" />
+            </div>
+          </div>
+          <p className="text-caos-mute text-xs">Callback phone and time are for staff only; the resident screen and Aria don't show them.</p>
           <p className="text-caos-mute text-xs">Rides go through Transportation → New ride so they can be booked.</p>
           <DialogFooter>
             <Button type="submit" disabled={busy || !form.resident_id} className="bg-caos-forest" data-testid="fd-request-save">
