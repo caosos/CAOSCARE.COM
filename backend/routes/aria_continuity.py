@@ -20,6 +20,7 @@ Economics: one indexed query + an in-memory trim. The rendered block is
 hard-capped (see _TOTAL_CHAR_CAP) regardless of how long the prior
 conversations were.
 """
+import os
 from typing import Optional
 
 from fastapi import APIRouter, Depends
@@ -111,6 +112,9 @@ async def resolve_continuity(
     resident_id: Optional[str],
     current_session_id: Optional[str] = None,
     room: Optional[str] = None,
+    *,
+    collection=None,
+    match_field: str = "resident_id",
 ) -> dict:
     """Compact recap of the resident's recent prior sessions. Empty when
     there is nothing recent - a fresh session then starts on baseline
@@ -118,9 +122,11 @@ async def resolve_continuity(
     if not resident_id:
         return {"has_continuity": False, "sessions": []}
 
-    rows = await db.conversations.find(
-        {"resident_id": resident_id}, {"_id": 0, "session_id": 1, "role": 1,
-                                       "content": 1, "created_at": 1},
+    # collection/match_field let Michael's own Aria (db.aria_conversations, owner_user_id) use the same
+    # resolver instead of a copy; defaults are the resident store, unchanged.
+    rows = await (collection if collection is not None else db.conversations).find(
+        {match_field: resident_id}, {"_id": 0, "session_id": 1, "role": 1,
+                                     "content": 1, "created_at": 1},
     ).sort("created_at", -1).to_list(400)
 
     by_session: dict[str, list] = {}
@@ -174,10 +180,37 @@ _HEADER = (
 )
 
 
+def _recent_minutes() -> float:
+    """CAOSCARE_CONTINUITY_RECENT_MINUTES: when > 0 and the latest prior session ended within that many
+    minutes, Aria may pick the thread back up naturally (owner, 2026-10-12: coming back after ~2 minutes
+    should feel like the same conversation). Default 0 = off: the block is exactly as before."""
+    try:
+        return max(0.0, float(os.environ.get("CAOSCARE_CONTINUITY_RECENT_MINUTES", "0") or 0))
+    except ValueError:
+        return 0.0
+
+
+_RECENT_NOTE = (
+    "\n**{name} was talking with you only {age}.** If {name} carries on with that, continue naturally as "
+    "the same conversation (it is fine to say you remember what you were just talking about). Use only "
+    "what is written below; never invent anything that is not there.\n"
+)
+
+
 def render_continuity_block(state: Optional[dict], name: str = "them") -> str:
     if not state or not state.get("has_continuity"):
         return ""
     parts = ["\n\n" + _HEADER.format(name=name)]
+    window = _recent_minutes()
+    latest = state["sessions"][0] if state.get("sessions") else None
+    if window and latest:
+        try:
+            from models import now_utc
+            mins = (now_utc().timestamp() - parse_dt(latest["ended_at"]).timestamp()) / 60
+        except Exception:
+            mins = None
+        if mins is not None and 0 <= mins <= window:
+            parts.append(_RECENT_NOTE.format(name=name, age=latest["age_phrase"]))
     budget = _TOTAL_CHAR_CAP
     for s in state["sessions"]:
         if s.get("unfinished"):

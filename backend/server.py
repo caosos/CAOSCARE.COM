@@ -48,6 +48,7 @@ from routes import menu as menu_routes  # noqa: E402
 from routes import menu_ingest as menu_ingest_routes  # noqa: E402
 from routes import schedule_ingest as schedule_ingest_routes  # noqa: E402
 from routes import email_inbound as email_inbound_routes  # noqa: E402
+from routes import room_call_request as room_call_request_routes  # noqa: E402
 from routes import call_lifecycle as call_lifecycle_routes  # noqa: E402
 from routes import telephony_endpoints as telephony_endpoint_routes  # noqa: E402
 from routes import telephony_local as telephony_local_routes  # noqa: E402
@@ -204,6 +205,7 @@ api.include_router(roadmap_routes.router)
 api.include_router(insight_routes.router)
 api.include_router(notification_routes.router)
 api.include_router(call_lifecycle_routes.router)
+api.include_router(room_call_request_routes.router)
 api.include_router(telephony_endpoint_routes.router)
 api.include_router(telephony_local_routes.router)
 api.include_router(phone_aria_routes.router)

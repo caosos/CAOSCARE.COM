@@ -179,6 +179,10 @@ async def create_aria_session(payload: dict = Body(default={}), user=Depends(req
     if voice not in ALLOWED_VOICES:
         voice = DEFAULT_VOICE
     instructions = await _build_aria_instructions(owner_user_id)
+    from routes.aria_owner_v2 import owner_v2_enabled, owner_instructions_v2, owner_tools_v2, owner_context_v2
+    v2 = owner_v2_enabled()   # CAOSCARE_ARIA_OWNER_V2, default off = unchanged owner session
+    if v2:
+        instructions = await owner_instructions_v2(instructions, owner_user_id)
     session_config = {
         "type": "realtime",
         "model": OPENAI_REALTIME_MODEL,
@@ -204,11 +208,11 @@ async def create_aria_session(payload: dict = Body(default={}), user=Depends(req
     session["_caos"] = {
         "voice": voice,
         "instructions": instructions,
-        "tools": await _build_aria_tools(),
+        "tools": await owner_tools_v2(await _build_aria_tools()) if v2 else await _build_aria_tools(),
         "tool_choice": "auto",
         "turn_detection": DEFAULT_VAD,
         "temperature": DEFAULT_TEMPERATURE,
-        "context": {"owner_user_id": owner_user_id},
+        "context": await owner_context_v2(owner_user_id) if v2 else {"owner_user_id": owner_user_id},
         "diagnostics": _prompt_diagnostics(instructions, "aria_operator"),
     }
     return JSONResponse(content=session)

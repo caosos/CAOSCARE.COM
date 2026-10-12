@@ -30,7 +30,7 @@ async def _build_tools() -> list[dict]:
     against the admin-managed Department list instead of a fixed tuple, so
     a newly-added department is usable by Aria the moment it's created.
     """
-    return _build_device_tools() + [
+    return (_build_device_tools() + [
         {
             "type": "function",
             "name": "call_for_help",
@@ -252,5 +252,10 @@ async def _build_tools() -> list[dict]:
             }
         },
     ] + _build_operations_tools(await get_request_categories()) + _build_display_tools() + _build_interpretation_tools()
+    ) + _call_tools()
 
 
+def _call_tools() -> list[dict]:
+    """call_contact only when CAOSCARE_CALL_TOOL is on (default off), so the live tool list is unchanged."""
+    from routes.room_call_request import call_tool_enabled, CALL_CONTACT_TOOL
+    return [CALL_CONTACT_TOOL] if call_tool_enabled() else []
