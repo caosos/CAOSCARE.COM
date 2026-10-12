@@ -1,7 +1,8 @@
 // Staff / community workflows for /for-communities. Same panel shape as
 // resident.js. Screens are the actual CAOSCare staff software, captured from
-// an isolated demo database (sample data only). No staff workflow has real
-// staff acceptance yet, so none is Working or In pilot (see status.js).
+// an isolated demo database (sample data only). Workflows proven in the test
+// environment are In pilot with their limits stated; none has real-shift
+// staff acceptance yet, so none is Working (see status.js).
 import { statusOf } from "./status";
 import { PHOTOS, SCREENS, PLACEHOLDERS } from "./visuals";
 
@@ -9,6 +10,7 @@ export const COMMUNITY_WORKFLOWS = [
   {
     id: "staff_dashboard", name: "Staff dashboard", department: "All staff",
     summary: "The live board where staff see open calls, requests and device status.",
+    limitation: "Proven in the CAOSCare test environment with test staff accounts. Not yet used by a community's staff during a real shift.",
     visuals: [SCREENS.staffDashboard, SCREENS.requestsBoard],
     flow: {
       does: "A resident asks Aria for help or presses the help button.",
@@ -22,6 +24,7 @@ export const COMMUNITY_WORKFLOWS = [
   {
     id: "nursing", name: "Nursing & care requests", department: "Nursing",
     summary: "A resident asks Aria for help and nursing gets one request in the resident's own words.",
+    limitation: "Proven in the CAOSCare test environment with test staff accounts. Not yet used by a community's staff during a real shift.",
     visuals: [SCREENS.requestDetail, SCREENS.requestsBoard, PHOTOS.caregiver],
     flow: {
       does: "Resident: \"Could you ask someone to help me to the bathroom?\"",
@@ -35,6 +38,7 @@ export const COMMUNITY_WORKFLOWS = [
   {
     id: "maintenance", name: "Maintenance", department: "Maintenance",
     summary: "Repairs become work orders that are claimed, started and completed with notes.",
+    limitation: "Proven in the CAOSCare test environment with test staff accounts. Not yet used by a community's staff during a real shift.",
     visuals: [SCREENS.maintenance, PHOTOS.maintenance],
     flow: {
       does: "Resident: \"The faucet in my bathroom keeps dripping.\"",
@@ -48,6 +52,7 @@ export const COMMUNITY_WORKFLOWS = [
   {
     id: "transportation", name: "Transportation", department: "Transportation",
     summary: "Ride requests that stay pending until a driver and vehicle are assigned.",
+    limitation: "Proven in the CAOSCare test environment with test staff accounts. Not yet used by a community's staff during a real shift.",
     visuals: [SCREENS.transportCalendar, SCREENS.transportWorkspace],
     flow: {
       does: "Resident: \"I need a ride to the eye doctor tomorrow around two.\"",
@@ -61,6 +66,7 @@ export const COMMUNITY_WORKFLOWS = [
   {
     id: "dining", name: "Kitchen, dining & menus", department: "Kitchen",
     summary: "The kitchen publishes the menu once and residents hear and see the same answer.",
+    limitation: "Proven in the CAOSCare test environment with test staff accounts. Not yet used by a community's staff during a real shift.",
     visuals: [SCREENS.menu, SCREENS.roomToday, SCREENS.kitchen],
     flow: {
       does: "Resident: \"What's for lunch?\"",
@@ -74,6 +80,7 @@ export const COMMUNITY_WORKFLOWS = [
   {
     id: "activities", name: "Activities & resident programs", department: "Resident programs",
     summary: "Programs published once, available by voice and on the room screen.",
+    limitation: "Proven in the CAOSCare test environment with test staff accounts. Not yet used by a community's staff during a real shift.",
     visuals: [SCREENS.schedule, SCREENS.roomToday],
     flow: {
       does: "Resident: \"What's happening this afternoon?\"",
@@ -87,6 +94,7 @@ export const COMMUNITY_WORKFLOWS = [
   {
     id: "housekeeping", name: "Housekeeping", department: "Housekeeping",
     summary: "Housekeeping requests reach the housekeeping queue.",
+    limitation: "Proven in the CAOSCare test environment with test staff accounts. Not yet used by a community's staff during a real shift.",
     visuals: [SCREENS.housekeeping],
     flow: {
       does: "Resident: \"Could I get some extra towels?\"",
@@ -100,6 +108,7 @@ export const COMMUNITY_WORKFLOWS = [
   {
     id: "front_desk", name: "Front desk", department: "Front desk",
     summary: "One desk workspace for residents, requests and rides.",
+    limitation: "Proven in the CAOSCare test environment with test staff accounts. Not yet used by a community's staff during a real shift.",
     visuals: [SCREENS.frontDesk],
     flow: {
       does: "Resident: \"Can the front desk call me about my mail?\"",
@@ -126,6 +135,7 @@ export const COMMUNITY_WORKFLOWS = [
   {
     id: "administration", name: "Administration & reporting", department: "Leadership",
     summary: "What needs attention, reports and a record of every action.",
+    limitation: "Proven in the CAOSCare test environment with test staff accounts. Not yet used by a community's staff during a real shift.",
     visuals: [SCREENS.overview, SCREENS.reports, SCREENS.activityLog],
     flow: {
       does: "Residents make requests and staff act on them through the day.",
@@ -139,28 +149,30 @@ export const COMMUNITY_WORKFLOWS = [
   {
     id: "escalation", name: "Alerts & escalation", department: "Nursing",
     summary: "Unanswered calls raised to the next level after set times.",
+    limitation: "Proven in the CAOSCare test environment with test staff accounts. Not yet used by a community's staff during a real shift.",
     visuals: [SCREENS.alertsBoard, SCREENS.escalation],
     flow: {
       does: "Resident presses for help and nobody acknowledges it.",
-      caos: "Would raise the call's level after set times and notify the next contact.",
+      caos: "Raises the call's level after the set times and notifies the next contact.",
       sees: "Staff see open assistance events and their level; administrators set the times.",
       next: "Escalation stops when staff acknowledge the call.",
     },
-    built: "The alerts list and escalation settings. Escalation runs when an administrator triggers it.",
-    pending: "No automatic timer yet, and escalation has not been accepted.",
+    built: "The alerts list, escalation settings that administrators can change, and an automatic timer that raises unanswered calls, with every change receipted.",
+    pending: "Which roles may acknowledge and close a call is still an owner decision.",
   },
   {
     id: "therapy", name: "Therapy", department: "Therapy",
-    summary: "Therapy visits and messages in the resident's own schedule.",
+    summary: "Therapy visits planned, tracked and shown in the resident's own schedule.",
+    limitation: "Proven in the CAOSCare test environment with test staff accounts. Not yet used by a community's staff during a real shift.",
     visuals: [PLACEHOLDERS.therapy],
     flow: {
-      does: "Would ask \"When is my therapy today?\"",
-      caos: "Would read the resident's therapy visits.",
-      sees: "The therapy coordinator would manage visits and leave messages with their name.",
-      next: "Aria would deliver the message and the visit time.",
+      does: "Asks Aria \"When is my therapy today?\"",
+      caos: "Reads the resident's planned therapy visits, including repeating visits and any linked ride.",
+      sees: "Therapy staff plan, start and complete visits; overlapping bookings for the same therapist are flagged.",
+      next: "Aria tells the resident the visit time, the therapist and where to go.",
     },
-    built: "Not built yet.",
-    pending: "Planned.",
+    built: "Therapy requests, planning, repeating visits, double-booking checks, linked rides and a resident \"Coming up\" list.",
+    pending: "Not yet used by a community's therapy staff.",
   },
   {
     id: "beauty", name: "Beauty shop", department: "Salon",
