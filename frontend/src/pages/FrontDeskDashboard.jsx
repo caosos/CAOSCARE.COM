@@ -8,6 +8,7 @@ import TransportLog from "./TransportLog";
 import RequestsBoard from "./RequestsBoard";
 import DepartmentQueue from "./DepartmentQueue";
 import RoutingExceptionsBoard from "./RoutingExceptionsBoard";
+import DeliveryExceptionsCard from "./DeliveryExceptionsCard";
 import FrontDeskRequestForm from "../components/FrontDeskRequestForm";
 import FrontDeskResidentDirectory from "../components/FrontDeskResidentDirectory";
 import TransportRideForm from "../components/TransportRideForm";
@@ -77,7 +78,12 @@ export default function FrontDeskDashboard() {
         {tab === "requests" && (
           <DepartmentQueue key={reloadKey} department="administration" title="Front desk requests" adminMode />
         )}
-        {tab === "attention" && <RoutingExceptionsBoard key={reloadKey} />}
+        {tab === "attention" && (
+          <div className="space-y-8">
+            <RoutingExceptionsBoard key={reloadKey} />
+            <DeliveryExceptionsCard />
+          </div>
+        )}
         {tab === "transport" && <TransportationCalendar refreshKey={reloadKey} />}
         {tab === "ridelog" && <TransportLog />}
         {tab === "residents" && (
