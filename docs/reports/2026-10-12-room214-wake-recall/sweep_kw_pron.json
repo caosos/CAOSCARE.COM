@@ -1,0 +1,102 @@
+{
+  "label": "SYNTHETIC audio through the real listener detector",
+  "missing_cached_clips": 0,
+  "rows": [
+    {
+      "keywords": "kw_pron.txt",
+      "threshold": 0.05,
+      "score": 1.5,
+      "gain_db": 0.0,
+      "by_condition": {
+        "clean": [
+          127,
+          132
+        ],
+        "quiet_-20dB": [
+          88,
+          132
+        ],
+        "far_reverb": [
+          61,
+          132
+        ],
+        "noise_snr10": [
+          111,
+          132
+        ],
+        "tv_speech_snr5": [
+          44,
+          132
+        ],
+        "slow_0.85x": [
+          112,
+          132
+        ],
+        "fast_1.15x": [
+          121,
+          132
+        ]
+      },
+      "adversarial_false": [
+        9,
+        952
+      ],
+      "adversarial_woke_on": {
+        "hay area": 5,
+        "hey Ari": 1,
+        "hey area": 3
+      },
+      "soak_false_wakes": 0,
+      "soak_hours": 0.0
+    },
+    {
+      "keywords": "kw_pron.txt",
+      "threshold": 0.05,
+      "score": 2.0,
+      "gain_db": 0.0,
+      "by_condition": {
+        "clean": [
+          126,
+          132
+        ],
+        "quiet_-20dB": [
+          89,
+          132
+        ],
+        "far_reverb": [
+          65,
+          132
+        ],
+        "noise_snr10": [
+          114,
+          132
+        ],
+        "tv_speech_snr5": [
+          47,
+          132
+        ],
+        "slow_0.85x": [
+          112,
+          132
+        ],
+        "fast_1.15x": [
+          123,
+          132
+        ]
+      },
+      "adversarial_false": [
+        11,
+        952
+      ],
+      "adversarial_woke_on": {
+        "hay area": 4,
+        "hey Ari": 1,
+        "hey Harry": 1,
+        "hey area": 5
+      },
+      "soak_false_wakes": 0,
+      "soak_hours": 0.0
+    }
+  ],
+  "seconds": 226.2
+}

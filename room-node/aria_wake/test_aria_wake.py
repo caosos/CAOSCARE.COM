@@ -183,3 +183,27 @@ def test_wake_stats_levels_split_detected_vs_missed_and_attach_misses():
     out = ws.render(s)
     assert "audio levels" in out and "miss mark" in out and "peak -39.0" in out
     assert "no audio_level events" in ws.render(ws.summarize([], []))
+
+
+def test_shadow_logs_disagreements_only_and_never_wakes():
+    import numpy as np
+    from shadow import ShadowCompare, _WINDOW_CHUNKS
+
+    class Fake:
+        def __init__(self, hits):
+            self.hits, self.n = set(hits), 0
+
+        def feed(self, _samples):
+            self.n += 1
+            return "HEY_ARIA" if self.n in self.hits else None
+
+    events = []
+    # shadow hits at chunk 10 (live at 11 -> agreement) and 50 (live never -> shadow_only);
+    # live alone at 100 -> live_only
+    sc = ShadowCompare(Fake({10, 50}), {"threshold": 0.03}, lambda e, **f: events.append((e, f)))
+    live = {11, 100}
+    z = np.zeros(1600, np.float32)
+    for i in range(1, 100 + _WINDOW_CHUNKS + 3):
+        sc.feed(z, i in live, "listening")
+    assert [e for e, _ in events] == ["shadow_only", "live_only"], events
+    assert sc.agreed == 1 and events[0][1]["mode"] == "listening"

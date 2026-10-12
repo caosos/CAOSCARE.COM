@@ -46,6 +46,7 @@ import numpy as np
 import websockets
 
 from levels import LevelTracker
+from shadow import ShadowCompare
 from detector import (CHUNK, DEFAULT_KEYWORDS, DEFAULT_SCORE, DEFAULT_THRESHOLD, SAMPLE_RATE,  # noqa: F401
                       SilenceReset, StreamDetector, build_spotter, keyword_labels, spot)
 
@@ -59,6 +60,10 @@ KEYWORDS_SCORE = float(os.environ.get("ARIA_WAKE_KEYWORDS_SCORE", str(DEFAULT_SC
 KEYWORDS_THRESHOLD = float(os.environ.get("ARIA_WAKE_KEYWORDS_THRESHOLD", str(DEFAULT_THRESHOLD)))
 GAIN_DB = float(os.environ.get("ARIA_WAKE_GAIN_DB", "0"))   # input boost before the detector (default none)
 SOURCE = os.environ.get("ARIA_WAKE_SOURCE", "")  # PulseAudio source; empty = system default
+# Optional shadow detector (shadow.py): logs only, never wakes. Set a threshold to turn it on.
+SHADOW_THRESHOLD = os.environ.get("ARIA_WAKE_SHADOW_THRESHOLD", "")
+SHADOW_SCORE = float(os.environ.get("ARIA_WAKE_SHADOW_SCORE", str(KEYWORDS_SCORE)))
+SHADOW_KEYWORDS = os.environ.get("ARIA_WAKE_SHADOW_KEYWORDS", KEYWORDS_FILE)
 PENDING_WAKE_TIMEOUT_S = 20   # page never confirmed a conversation -> resume listening
 RESUME_COOLDOWN_S = 1.5       # ignore the tail of Aria's last words after a session ends
 
@@ -163,6 +168,13 @@ class Server:
 
     def audio_loop(self):
         det = StreamDetector(build_spotter(MODEL_DIR, KEYWORDS_FILE, KEYWORDS_THRESHOLD, KEYWORDS_SCORE), GAIN_DB)
+        shadow = None
+        if SHADOW_THRESHOLD:
+            desc = {"keywords_file": os.path.basename(SHADOW_KEYWORDS), "threshold": float(SHADOW_THRESHOLD),
+                    "score": SHADOW_SCORE}
+            shadow = ShadowCompare(StreamDetector(build_spotter(MODEL_DIR, SHADOW_KEYWORDS, float(SHADOW_THRESHOLD),
+                                                                SHADOW_SCORE), GAIN_DB), desc, log)
+            log("shadow_started", **desc)
         levels = LevelTracker(GAIN_DB)
         cmd = ["parec", "--raw", "--format=s16le", f"--rate={SAMPLE_RATE}", "--channels=1",
                "--latency-msec=100", f"--device={self.device}"]
@@ -179,6 +191,8 @@ class Server:
                 det.reset()
             samples = np.frombuffer(buf, dtype=np.int16).astype(np.float32) / 32768.0
             kw = det.feed(samples)
+            if shadow:
+                shadow.feed(samples, bool(kw), self.state.mode)
             seg = levels.update(samples, self.state.mode)   # raw level, before gain; numbers only
             if kw:
                 levels.note_detection(suppressed=self.state.mode != "listening")

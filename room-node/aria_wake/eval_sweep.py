@@ -61,9 +61,12 @@ def load_clips(run_path, limit):
     return pos, neg, [(u, t, p) for u, t, p in utts], missing
 
 
+KEYWORDS = os.path.join(HERE, "keywords.txt")
+
+
 def run_config(cfg):
     thr, score, gain, soak_hours = cfg
-    spotter = build_spotter(MODEL_DIR, os.path.join(HERE, "keywords.txt"), thr, score)
+    spotter = build_spotter(MODEL_DIR, KEYWORDS, thr, score)
     new = lambda: StreamDetector(spotter, gain)
     by_cond = {}
     for cond, audio in POS:
@@ -85,7 +88,7 @@ def run_config(cfg):
                 seconds += len(piece) / SAMPLE_RATE
             if seconds >= soak_hours * 3600:
                 break
-    return {"threshold": thr, "score": score, "gain_db": gain, "by_condition": by_cond,
+    return {"keywords": os.path.basename(KEYWORDS), "threshold": thr, "score": score, "gain_db": gain, "by_condition": by_cond,
             "adversarial_false": [sum(woke.values()), len(NEG)], "adversarial_woke_on": woke,
             "soak_false_wakes": events, "soak_hours": round(seconds / 3600, 3)}
 
@@ -109,19 +112,21 @@ def markdown(rows):
 
 
 def main():
-    global POS, NEG, SOAK_FILES, MODEL_DIR
+    global POS, NEG, SOAK_FILES, MODEL_DIR, KEYWORDS
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", required=True)
     ap.add_argument("--model-dir", default=os.environ.get("ARIA_WAKE_MODEL_DIR", os.path.join(HERE, "model")))
     ap.add_argument("--thresholds", default="0.05,0.08,0.10,0.12,0.15")
     ap.add_argument("--scores", default="1.0,1.5,2.0")
     ap.add_argument("--gains", default="0")
+    ap.add_argument("--keywords", default=KEYWORDS, help="sherpa keywords file (default: the live keywords.txt)")
     ap.add_argument("--soak-hours", type=float, default=0.0, help="0 = skip the soak")
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--jobs", type=int, default=4)
     ap.add_argument("--out", default=None)
     a = ap.parse_args()
     MODEL_DIR = a.model_dir
+    KEYWORDS = a.keywords
     POS, NEG, SOAK_FILES, missing = load_clips(a.run, a.limit)
     if a.limit or not a.soak_hours:
         SOAK_FILES = []
