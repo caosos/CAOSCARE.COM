@@ -265,3 +265,29 @@ Append-only. One entry per verified check-in, tied to its receipt. A correction 
 - **next_check_at:** Monday, October 12, 2026 — 2:52:41 AM America/Chicago
 - **Blocker:** NONE
 - **Michael action required:** NOTHING now. When awake, speak to Aria in Room 214 and judge voice/personality firsthand.
+
+
+## Monday, October 12, 2026 — 1:56 AM America/Chicago
+- **Receipt:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6119318478
+- **Project:** CAOSCare
+- **Phase / position:** Phase 3/7 Care Operations workspaces — Nursing exception lifecycle is the current compatible Core Requests gap after resident Aria typed/demo acceptance
+- **Completed since the prior check:** NO CHANGE. The existing coordinator's 1:52:41 AM ACK/WORKING remains current; no new product commit, test gate, loaded revision, DONE, NEED or BLOCKED receipt appeared.
+- **Evidence:** current coordinator receipt https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6119273531; delivery https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6119271320. Accepted code `8a06ad1` + `40c3fec`, frontend `d01796b`, report/records `9865cea`; backend 591 passed / 0 failed / 31 skipped; frontend 87 suites / 627 tests; compiled build; typed trace `rt_ih7vi9zz_1791787206391`; Claude Chrome/browser Nursing `/staff` at 390 and 1280. GitHub combined-status contexts absent for `8a06ad1` and `d01796b`. Tested backend/code `8a06ad1` + `40c3fec`, tested frontend `d01796b`; loaded development backend `8a06ad1`, frontend served `d01796b`; production `ff87c22`. Latest timestamped host observation: Monday, October 12, 2026 — 1:52:30 AM America/Chicago from local intake delivery to the running coordinator; this proves reachability, not a new loaded revision. Slack #all-ask-aria read after `1791783973.012309` through `1791786857.382299`; the only newer item was a prior ChatGPT-posted CAOSCare checkpoint beginning ACK, not a new qualifying Michael/Dot Aria directive. PR #131 remains draft transport-only at `1763e382`; not merged.
+- **Current bounded task (owner · stage):** `careops-nursing-exception-lifecycle-001` · existing `caoscare-1-ee` · WORKING / inspecting current lifecycle
+- **Remaining steps for this milestone:**
+  1. Map reassignment, unable-to-complete, escalation and supervisor review to existing canonical actions
+  2. Build only the first proven gap
+  3. Run focused and full gates
+  4. Prove typed Aria status and receipt truth at each state
+  5. Complete Claude Chrome/browser acceptance at desktop and 390 px
+  6. Guarded development restart with exact loaded revision and fresh host observation
+  7. Reconcile checklist, PROJECT_STATE, Issue #129 and ledger
+- **Upcoming milestones:**
+  1. Michael's spoken Room 214 voice/personality acceptance
+  2. Authenticated Transportation LIVE_VERIFY when role/driver/vehicle dependencies are available
+  3. Full owner/novice pilot walkthrough
+  4. Pilot Room 1 / Voice PE onboarding
+- **ETA:** Approximately two hours from Monday, October 12, 2026 — 1:52:41 AM America/Chicago; revise after the first proven gap is known
+- **next_check_at:** Monday, October 12, 2026 — 2:52:41 AM America/Chicago
+- **Blocker:** NONE for the current development task. Separate dependencies remain unchanged.
+- **Michael action required:** NOTHING now. When awake, speak to Aria in Room 214 and judge voice/personality firsthand.
