@@ -474,12 +474,13 @@ export default function Kiosk() {
             <span className="text-xs font-bold uppercase tracking-widest text-caos-forest shrink-0">Open →</span>
           </button>
         )}
-        <div className="flex items-center justify-between">
+        {/* Wraps on a phone-width screen so the high-contrast (HC) button is never pushed off the edge (2026-10-12). */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <span className="font-display font-bold tracking-tighter text-caos-forest text-2xl">CAOS</span>
             <span className="font-display font-light text-caos-forest text-2xl">Care</span>
           </div>
-          <div className="flex items-center gap-2 kiosk-a11y-row">
+          <div className="flex flex-wrap items-center justify-end gap-2 kiosk-a11y-row">
             <div className="flex items-center gap-1 px-1 py-1 rounded-full bg-white border border-caos-line" data-testid="kiosk-a11y-magnification">
               <button
                 onClick={() => setMagnification(magnification - 20)}
