@@ -1,6 +1,6 @@
 # CAOSCare — Living Product Build Checklist
 
-Updated: 2026-10-12 (03:20 CDT; Housekeeping exception lifecycle DEV_ACCEPTED; Housekeeping scheduled work prepared).
+Updated: 2026-10-12 (03:42 CDT; Housekeeping scheduling DEV_ACCEPTED; Housekeeping recurrence prepared).
 
 This is the owner-facing product build and progress tracker for the Care Operations build. Canonical owner direction: [Issue #129](https://github.com/caosos/CAOSCARE.COM/issues/129). Detailed historical evidence remains in [PILOT1_EXECUTION_CHECKLIST.md](https://github.com/caosos/CAOSCARE.COM/blob/integration/2026-09-27/docs/PILOT1_EXECUTION_CHECKLIST.md). This file controls current phase, active task, milestones, ETA, blockers, and the reporting contract.
 
@@ -91,7 +91,7 @@ check); tests `scripts/owner_intake/tests/test_eta_receipts.py`.
 ## Current build control
 
 - **Current phase:** 3/7 — Care Operations workspaces.
-- **ONE current bounded task:** `careops-housekeeping-schedule-001` — READY / DISPATCHING through the existing coordinator `caoscare-1-ee`. Reuse the canonical StaffTask, facility-local requested date/time, room/area location, existing Housekeeping queue, lifecycle service, and receipts. Inspect first; with one labeled synthetic future Housekeeping job, prove authorized create/schedule → Housekeeping upcoming visibility → reschedule → start/complete at the intended time, truthful owner/resident/Aria status, unauthorized refusal, desktop/390 behavior, and one unbroken receipt chain. Repair only the first proven gap. Stop before recurrence, inspection, supplies/linen, external delivery, production mutation, audio/Hey Aria work, duplicate infrastructure, or PR #41/#42/#131 merge.
+- **ONE current bounded task:** `careops-housekeeping-recurrence-001` — READY / DISPATCHING through the existing coordinator `caoscare-1-ee`. Inspect and reuse the canonical StaffTask, facility-local requested date/time, Housekeeping queue, lifecycle service, receipts, and existing scheduler/tick path. With one labeled synthetic weekly room/area job, prove authorized recurrence creation, deterministic occurrence generation without duplicates, upcoming Housekeeping/Admin visibility, one occurrence reschedule without corrupting the series, lifecycle completion, truthful resident/Aria status, unauthorized refusal, desktop/390 behavior, and one provenance-linked receipt chain. Repair only the first proven gap. Stop before inspections, supplies/linen, external delivery, production mutation, audio/Hey Aria work, duplicate infrastructure, or PR #41/#42/#131 merge.
 - **Control issue / dispatch channel:** [#129](https://github.com/caosos/CAOSCARE.COM/issues/129).
 - **Completed review:** [PR #130](https://github.com/caosos/CAOSCARE.COM/pull/130), merged into integration.
 - **Integration branch:** `integration/2026-09-27`; current accepted therapy-conflict product commit `77f83d3d53e17ffb75c71d137ab876e50552efe9` with guarded dev restart `1bf1bec26ea58a6c55730fea3c858734eb788d54`. This later integration work is not in production `ff87c22`; the release baseline is separate.
@@ -290,7 +290,7 @@ Current status: **ACTIVE. Transportation development slices are DEV_ACCEPTED; au
 ### Housekeeping
 
 - [~] Request/task, queue, assignment, progress, completion, unable-to-complete, owner/admin review, reassignment, and receipt paths are DEV_ACCEPTED for a labeled synthetic workflow on `e2a8770` + `8ed21cd` + `347d2e6`.
-- [ ] Room/area schedule, recurring work, inspection, and supplies/linen.
+- [~] Room/area scheduling DEV_ACCEPTED Monday, October 12, 2026 — 3:40 AM America/Chicago (`careops-housekeeping-schedule-001`): canonical StaffTask Plan/upcoming/reschedule/start/complete with Housekeeping/Admin visibility, facility-local ordering, role refusal, truthful resident/Aria status, desktop/390 px, and linked receipts. Recurring work, inspection, and supplies/linen remain open.
 - [~] Core exception-lifecycle browser acceptance passed for Housekeeping at desktop and 390 px; full Housekeeping section acceptance remains open.
 
 ### Therapy and appointments
@@ -661,3 +661,13 @@ Issue #129 is the dispatch channel to existing coordinator `caoscare-1-ee`. ACK/
 - **Verdict:** the bounded Housekeeping exception lifecycle is ready to present for owner review. The full Housekeeping and Care Operations sections remain incomplete and are not OWNER_ACCEPTED / DONE.
 - **Next single bounded task:** `careops-housekeeping-schedule-001` through the existing coordinator. Reuse the canonical StaffTask requested date/time, room/area location, Housekeeping queue, lifecycle service and receipts. Prove one labeled future job through authorized schedule/create, upcoming visibility, reschedule, start/complete, truthful status, refusal, desktop/390 px, exact tested/loaded revisions and fresh host evidence. Inspect first and repair only the first proven gap. Stop before recurrence, inspections, supplies/linen, external delivery, production mutation, audio/Hey Aria, duplicate infrastructure, or PR #41/#42/#131 merge.
 - **Blocker:** NONE. Michael action: NOTHING.
+
+
+### Update 2026-10-12 03:42 CDT (Housekeeping scheduling DEV_ACCEPTED; recurrence prepared)
+
+- **Completion receipt — `careops-housekeeping-schedule-001`:** DEV_ACCEPTED, not OWNER_ACCEPTED / DONE. Canonical DONE: https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6120747546; transport-only mirror: https://github.com/caosos/CAOSCARE.COM/pull/131#issuecomment-6120769216.
+- **Implementation / records:** `af52bfa454ed8d82b48f943e97f8577f51369c19` adds the Housekeeping Upcoming panel to staff and Admin, refreshes it after queue changes, and refuses ride creation for in-room work; `8d03c65d67d0ebbe11c799edce286f25a4d8608f` makes Aria read every open request in the requested department. Report: `docs/reports/2026-10-12-housekeeping-schedule.md`.
+- **Gates and browser:** backend 594 passed / 0 failed / 31 skipped; frontend 88 suites / 633 tests; build compiled. Front desk entered two future jobs; owner in Claude Chrome scheduled and rescheduled them; Upcoming ordered them by facility date/time immediately; nurse reschedule returned 403; housekeeper at 390 px saw both with no overflow or failed API calls; resident display matched; Aria trace `rt_dfwi8v3i_1791794082799` named both jobs and times; completion removed the finished job from Upcoming. The canonical workflow retained created → schedule_updated → schedule_updated → in_progress → completed receipts.
+- **Tested / loaded:** development backend tested/loaded `8d03c65`; frontend tested/served `af52bfa`; production remains `ff87c22` unchanged. Latest host/process observation Monday, October 12, 2026 — 3:41:19 AM America/Chicago: existing coordinator idle; control-plane service `f1db2d358ca1`; repository `cd076d251ab9` newer and not loaded. GitHub activity alone is not host-liveness proof.
+- **Verdict:** the bounded Housekeeping scheduling slice is ready to present for owner review. Full Housekeeping and Care Operations remain incomplete.
+- **Next single bounded task:** `careops-housekeeping-recurrence-001` through the existing coordinator. Inspect and reuse canonical StaffTask scheduling, receipts, and the existing scheduler/tick path. Prove one labeled synthetic weekly room/area series through authorized recurrence creation, deterministic occurrence generation without duplicates, Housekeeping/Admin upcoming visibility, single-occurrence reschedule, completion, truthful resident/Aria status, unauthorized refusal, desktop/390 px, focused/full gates, exact tested/loaded revisions, and fresh host evidence. Repair only the first proven gap. Stop before inspection, supplies/linen, external delivery, production mutation, audio/Hey Aria, duplicate infrastructure, or PR #41/#42/#131 merge.
