@@ -680,3 +680,18 @@ Append-only. One entry per verified check-in, tied to its receipt. A correction 
 - **next_check_at:** Monday, October 12, 2026 — 4:40:03 AM America/Chicago; owned by the existing LOCAL watchdog.
 - **Blocker:** NONE.
 - **Michael must do:** NOTHING to continue; only Michael’s explicit approval can later mark Housekeeping OWNER_ACCEPTED / DONE.
+
+
+## Monday, October 12, 2026 — 4:41:15 AM America/Chicago
+- **Receipt:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6121650956
+- **Project:** CAOSCARE.COM
+- **Phase / position:** Phase 3/7 — Care Operations workspaces; Housekeeping is READY_FOR_OWNER_REVIEW, and Therapy recurrence is actively WORKING.
+- **Completed since prior check:** NO CHANGE to current-task product behavior; the existing coordinator ACKed `careops-therapy-recurrence-001`, established worker `da-b0882b249a`, identified the first canonical gap, provided a bounded plan and ETA, and assigned the existing LOCAL watchdog’s exact next check.
+- **Evidence / provenance:** canonical ACK/WORKING receipt https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6121650956; transport-only mirror https://github.com/caosos/CAOSCARE.COM/pull/131#issuecomment-6121678819; checklist reconciliation `204e5e468791c6e7bdf88fb0c1c1558ee81589ed`; project-state reconciliation `5c2cc2907b9e8e62f4abe17cc8d4856e9d1de625`. Evidence reviewed: canonical recurrence generator and accepted series fields; Therapy visits carry provider_name/discipline/location, but StaffTaskTemplate does not, so occurrences cannot inherit them. Current-task tests and Claude Chrome/browser evidence: not yet produced at ACK. Prior accepted gates remain backend 599 passed / 0 failed / 31 skipped and frontend 90 suites / 638 at `5600475`. Tested revision: no new current-task revision; prior `5600475`. Loaded revision: development backend reported `5600475`; production `ff87c22` unchanged. Latest host observation Monday, October 12, 2026 — 4:40:12 AM America/Chicago: coordinator `caoscare-1-ee` busy, control-plane `f1db2d358ca1`, repository `cd076d251ab9` newer/not loaded. GitHub activity is not host-liveness proof.
+- **ONE current bounded task / owner / stage:** `careops-therapy-recurrence-001` / existing coordinator `caoscare-1-ee` and existing worker `da-b0882b249a` / ACKED, WORKING.
+- **Remaining current-milestone steps (ordered):** 1. confirm the missing Therapy template fields live; 2. validate/add provider, discipline, and location to the canonical template and occurrence path; 3. prove one labeled weekly PT series and duplicate-free occurrence generation; 4. prove Therapy/Admin Upcoming plus single-occurrence reschedule and cancel without series mutation/refill; 5. prove resident/Aria truth, role refusal, desktop and 390 px; 6. run focused/full gates and record exact tested/loaded revisions, fresh host evidence, and cost; 7. reconcile checklist, Issue #129, project state, and receipt at the task boundary.
+- **Upcoming milestones (ordered):** 1. Therapy operational-versus-clinical permission boundaries; 2. Therapy staff/resident browser acceptance and remaining calendar gaps; 3. canonical alerts/escalation model; 4. remaining Phase 3 department-workspace gaps; 5. Phase 4 scheduling/records/resources; 6. Phase 5 communications; 7. Phase 6 pilot reliability/accessibility; 8. Phase 7 release/deployment/live acceptance.
+- **ETA:** approximately Monday, October 12, 2026 — 5:38 AM America/Chicago.
+- **next_check_at:** Monday, October 12, 2026 — 5:38:18 AM America/Chicago; owned by the existing LOCAL watchdog.
+- **Blocker:** NONE.
+- **Michael must do:** NOTHING.
