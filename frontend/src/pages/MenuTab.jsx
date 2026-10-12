@@ -7,7 +7,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from ".
 import { Badge } from "../components/ui/badge";
 import { Plus, Trash2, Check, Pencil } from "lucide-react";
 import { toast } from "sonner";
-import { MEAL_PERIODS, menuStatusView } from "../lib/communityServices";
+import { MEAL_PERIODS, menuLabelsText, menuStatusView } from "../lib/communityServices";
 import MenuItemDialog from "./MenuItemDialog";
 import MenuUploadsPanel from "./MenuUploadsPanel";
 import ContentCoverageNote from "../components/ContentCoverageNote";
@@ -109,6 +109,7 @@ export default function MenuTab() {
                   <div className="font-medium">{i.item_name}</div>
                   {i.description && <div className="text-caos-mute text-xs">{i.description}</div>}
                   {i.availability && <div className="text-caos-mute text-xs italic">{i.availability}</div>}
+                  {menuLabelsText(i) && <div className="text-xs text-caos-ink/80" data-testid={`menu-labels-${i.menu_id}`}>{menuLabelsText(i)}</div>}
                   {i.replaces && i.status === "draft" && <div className="text-xs text-caos-forest mt-0.5" data-testid={`menu-correction-${i.menu_id}`}>Correction — the published version stays on the residents' menu until this is published</div>}
                   {i.superseded_by && <div className="text-xs text-caos-mute mt-0.5" data-testid={`menu-replaced-${i.menu_id}`}>Replaced by a corrected version</div>}
                 </TableCell>

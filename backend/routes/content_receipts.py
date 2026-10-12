@@ -20,7 +20,8 @@ from routes.actor_context import ActorContext, actor_from_user, actor_system
 from routes.receipts import create_receipt
 from routes.service_content_access import MENU_DEPARTMENTS, SCHEDULE_DEPARTMENTS
 
-_MENU_FIELDS = ("date", "meal_period", "item_name", "description", "availability", "status")
+_MENU_FIELDS = ("date", "meal_period", "item_name", "description", "availability", "dietary_labels", "allergens",
+                "status")
 _SCHEDULE_FIELDS = ("date", "time_label", "title", "category", "description", "status")
 
 

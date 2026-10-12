@@ -1205,6 +1205,35 @@ MealPeriod = Literal["breakfast", "lunch", "dinner"]
 MenuItemStatus = Literal["draft", "approved", "superseded"]
 
 
+# Dietary/allergen labels (careops-dining-dietary-allergen-truth-001): staff-entered
+# text repeated verbatim to residents/Aria - never a suitability or "free of" claim.
+MENU_LABELS_MAX = 12
+MENU_LABEL_MAX_CHARS = 40
+_MENU_LABEL_RE = re.compile(r"[A-Za-z0-9 '&()/.\-]+")
+
+
+def normalize_menu_labels(v):
+    """Trim, collapse whitespace, drop empties, de-duplicate case-insensitively
+    (first spelling kept). Raises ValueError past the bounds or on characters
+    outside letters, digits, spaces and ' & ( ) / . -. None stays None."""
+    if v is None:
+        return None
+    out, seen = [], set()
+    for raw in v:
+        label = " ".join(str(raw).split())
+        if not label or label.casefold() in seen:
+            continue
+        if len(label) > MENU_LABEL_MAX_CHARS:
+            raise ValueError(f"Each label must be at most {MENU_LABEL_MAX_CHARS} characters.")
+        if not _MENU_LABEL_RE.fullmatch(label):
+            raise ValueError("Labels may contain only letters, digits, spaces and ' & ( ) / . -")
+        seen.add(label.casefold())
+        out.append(label)
+    if len(out) > MENU_LABELS_MAX:
+        raise ValueError(f"At most {MENU_LABELS_MAX} labels.")
+    return out
+
+
 class MenuItem(BaseModel):
     model_config = ConfigDict(extra="ignore")
     menu_id: str = Field(default_factory=lambda: uid("menu"))
@@ -1213,6 +1242,8 @@ class MenuItem(BaseModel):
     item_name: str
     description: Optional[str] = ""
     availability: Optional[str] = None          # e.g. "always available", "while supplies last"
+    dietary_labels: List[str] = Field(default_factory=list)   # e.g. "Vegetarian" (staff-entered)
+    allergens: List[str] = Field(default_factory=list)        # "contains" (staff-entered)
     status: MenuItemStatus = "draft"
     source: str = "staff_entry"                 # "staff_entry" | "staff_paste" | "email" | "email_dev_test" (seed/demo scripts)
     upload_id: Optional[str] = None             # links back to the MenuUpload batch that created it, if any
@@ -1233,6 +1264,9 @@ class MenuItemCreate(BaseModel):
     item_name: str
     description: Optional[str] = ""
     availability: Optional[str] = None
+    dietary_labels: List[str] = Field(default_factory=list)
+    allergens: List[str] = Field(default_factory=list)
+    _check_labels = field_validator("dietary_labels", "allergens")(normalize_menu_labels)
 
 
 class MenuItemUpdate(BaseModel):
@@ -1241,7 +1275,10 @@ class MenuItemUpdate(BaseModel):
     item_name: Optional[str] = None
     description: Optional[str] = None
     availability: Optional[str] = None
+    dietary_labels: Optional[List[str]] = None   # None = unchanged; [] clears
+    allergens: Optional[List[str]] = None
     publish: Optional[bool] = None               # publish the correction in the same action (editor = reviewer)
+    _check_labels = field_validator("dietary_labels", "allergens")(normalize_menu_labels)
 
 
 # ---------- Menu ingestion (email adapter boundary) ----------

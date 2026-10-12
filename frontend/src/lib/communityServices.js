@@ -55,6 +55,24 @@ function dayWords(date) {
   return date ? date : "today";
 }
 
+// Dietary/allergen labels are staff-entered on the menu item and repeated
+// verbatim (routes/menu.py::public_today). Nothing is inferred from them: a
+// missing allergen is not a claim the dish is free of it.
+export const MENU_LABELS_NOTE =
+  "Dietary and allergen labels are entered by kitchen staff. If an allergen is not listed, that does not mean " +
+  "the dish is free of it - please check with the kitchen staff.";
+
+export function menuLabelsText(item) {
+  const diet = (item?.dietary_labels || []).join(", ");
+  const allergens = (item?.allergens || []).join(", ");
+  return [diet, allergens && `contains: ${allergens}`].filter(Boolean).join("; ");
+}
+
+// Staff type labels as a comma-separated list; the backend normalizes and bounds them.
+export function parseMenuLabels(text) {
+  return (text || "").split(",").map((s) => s.trim()).filter(Boolean);
+}
+
 // Aria's get_menu result text. Items come from /menu/public/today, which
 // only ever returns approved items. An empty answer must stay honest: no
 // promise to "check and get back", because nothing has been sent anywhere.
@@ -65,9 +83,16 @@ export function menuToolMessage(items, { mealPeriod = null, date = null } = {}) 
       "Nothing has been requested from the kitchen - if they want, offer to ask the kitchen with " +
       "request_staff_help (category kitchen) and only say it was asked after that succeeds.";
   }
-  const lines = items.map((i) =>
-    `${i.meal_period}: ${i.item_name}${i.description ? ` - ${i.description}` : ""}${i.availability ? ` (${i.availability})` : ""}`);
-  return `Approved menu for ${dayWords(date)}: ${lines.join("; ")}.`;
+  const lines = items.map((i) => {
+    const labels = menuLabelsText(i);
+    return `${i.meal_period}: ${i.item_name}${i.description ? ` - ${i.description}` : ""}` +
+      `${i.availability ? ` (${i.availability})` : ""}${labels ? ` [${labels}]` : ""}`;
+  });
+  const labelRule = items.some((i) => menuLabelsText(i))
+    ? " Labels in [brackets] are entered by kitchen staff: repeat them exactly. Do not say a dish is safe or suitable " +
+      "for anyone, and an allergen that is not listed is not a statement that it is absent - suggest checking with the kitchen staff."
+    : "";
+  return `Approved menu for ${dayWords(date)}: ${lines.join("; ")}.${labelRule}`;
 }
 
 // Aria's get_todays_schedule result text (the endpoint already returns

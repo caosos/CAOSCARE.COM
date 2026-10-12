@@ -71,7 +71,8 @@ async def _supersede(original_id: str, new_id: str, user: dict) -> None:
 async def _correct_published(existing: dict, fields: dict, publish: bool, user: dict) -> dict:
     """A correction of a published item is a new item that replaces it; the
     published one stays live (and unchanged) until the correction is published."""
-    base = {k: existing.get(k) for k in ("date", "meal_period", "item_name", "description", "availability", "upload_id")}
+    base = {k: existing.get(k) for k in ("date", "meal_period", "item_name", "description", "availability",
+                                    "dietary_labels", "allergens", "upload_id")}
     item = MenuItem(**{**base, **fields}, source="staff_entry", replaces=existing["menu_id"], created_by=user["user_id"])
     doc = item.model_dump()
     now_iso = now_utc().isoformat()
@@ -178,6 +179,9 @@ async def public_today(date: Optional[str] = None, meal_period: Optional[str] = 
             "item_name": i["item_name"],
             "description": i.get("description") or "",
             "availability": i.get("availability"),
+            # staff-entered, repeated verbatim; an unlisted allergen is not a claim it is absent
+            "dietary_labels": i.get("dietary_labels") or [],
+            "allergens": i.get("allergens") or [],
         }
         for i in items
     ]

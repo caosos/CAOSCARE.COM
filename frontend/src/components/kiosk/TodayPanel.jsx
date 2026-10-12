@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { CalendarDays, Megaphone, UtensilsCrossed } from "lucide-react";
 import { API } from "../../lib/api";
+import { MENU_LABELS_NOTE, menuLabelsText } from "../../lib/communityServices";
 
 // Shared facility content (menu/activities/notices) has one authoritative
 // source: whichever backend the facility's real kitchen/activities staff
@@ -105,10 +106,16 @@ export default function TodayPanel({ pollMs = 60000 }) {
                 <p className="text-xs font-bold uppercase tracking-wider text-caos-forest mb-1">
                   {MEAL_LABEL[period] || period}
                 </p>
-                <p className="text-sm text-caos-ink/90">{items.map((m) => m.item_name).join(", ")}</p>
+                {items.map((m, idx) => (
+                  <p key={`${idx}-${m.item_name}`} className="text-sm text-caos-ink/90">
+                    {m.item_name}
+                    {menuLabelsText(m) && <span className="block text-xs text-caos-mute" data-testid="today-menu-labels">{menuLabelsText(m)}</span>}
+                  </p>
+                ))}
               </div>
             ))}
           </div>
+          {menu.some((m) => menuLabelsText(m)) && <p className="mt-2 text-xs text-caos-mute" data-testid="today-menu-labels-note">{MENU_LABELS_NOTE}</p>}
         </div>
       )}
     </div>

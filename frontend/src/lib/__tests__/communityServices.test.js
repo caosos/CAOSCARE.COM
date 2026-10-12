@@ -1,6 +1,6 @@
 import {
   SERVICES_DEPARTMENTS, menuStatusView, scheduleStatusView, groupDraftsByBatch,
-  menuToolMessage, scheduleToolMessage,
+  menuToolMessage, scheduleToolMessage, menuLabelsText, parseMenuLabels, MENU_LABELS_NOTE,
 } from "../communityServices";
 import { executeOperationsTool } from "../realtimeOperationsTools";
 
@@ -48,6 +48,23 @@ describe("Aria menu/schedule answers", () => {
   test("menu lists the dishes with description and availability", () => {
     const m = menuToolMessage([{ meal_period: "lunch", item_name: "Tomato soup", description: "vegetarian", availability: "while supplies last" }]);
     expect(m).toBe("Approved menu for today: lunch: Tomato soup - vegetarian (while supplies last).");
+  });
+
+  test("dietary/allergen labels are repeated exactly with the no-inference rule, never a safety claim", () => {
+    const item = { meal_period: "lunch", item_name: "Mac and cheese", dietary_labels: ["Vegetarian"], allergens: ["Milk", "Wheat"] };
+    expect(menuLabelsText(item)).toBe("Vegetarian; contains: Milk, Wheat");
+    expect(menuLabelsText({ allergens: [] })).toBe("");
+    const m = menuToolMessage([item, { meal_period: "lunch", item_name: "Garden salad" }]);
+    expect(m).toMatch(/^Approved menu for today: lunch: Mac and cheese \[Vegetarian; contains: Milk, Wheat\]; lunch: Garden salad\./);
+    expect(m).toMatch(/repeat them exactly/);
+    expect(m).toMatch(/not a statement that it is absent/);
+    expect(m).not.toMatch(/Garden salad \[/);   // no labels -> nothing said about it, nothing inferred
+    expect(MENU_LABELS_NOTE).toMatch(/entered by kitchen staff/);
+  });
+
+  test("staff label entry splits on commas and drops blanks", () => {
+    expect(parseMenuLabels(" Milk, wheat ,, Tree nuts ")).toEqual(["Milk", "wheat", "Tree nuts"]);
+    expect(parseMenuLabels("")).toEqual([]);
   });
 
   test("schedule includes where, and an empty day is honest", () => {
