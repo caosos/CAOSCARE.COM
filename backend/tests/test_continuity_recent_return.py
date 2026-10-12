@@ -18,7 +18,7 @@ def state(minutes_ago):
 def test_off_by_default_is_unchanged(monkeypatch):
     monkeypatch.delenv("CAOSCARE_CONTINUITY_RECENT_MINUTES", raising=False)
     b = c.render_continuity_block(state(2), "Michael")
-    assert "was talking with you only" not in b and "Do not reopen these topics" in b
+    assert "was talking with you only" not in b and "never re-file or reopen a request" in b
 
 
 def test_recent_return_note_when_enabled(monkeypatch):
@@ -36,3 +36,33 @@ def test_older_session_gets_no_note(monkeypatch):
 def test_bad_value_means_off(monkeypatch):
     monkeypatch.setenv("CAOSCARE_CONTINUITY_RECENT_MINUTES", "soon")
     assert c._recent_minutes() == 0.0
+
+
+def test_recent_return_may_notice_it_warmly_without_a_fixed_script(monkeypatch):
+    monkeypatch.setenv("CAOSCARE_CONTINUITY_RECENT_MINUTES", "10")
+    b = c.render_continuity_block(state(1), "Michael")
+    assert "didn't I just talk to you" in b and "not that exact line every time" in b
+
+
+def test_next_day_session_is_still_known(monkeypatch):
+    """da-a3817b6b9c: a conversation from yesterday evening is still in context the next afternoon."""
+    monkeypatch.delenv("CAOSCARE_CONTINUITY_RECENT_MINUTES", raising=False)
+    assert c.CONTINUITY_WINDOW_HOURS >= 48
+    st = state(20 * 60)
+    st["sessions"][0]["age_phrase"] = "yesterday"
+    b = c.render_continuity_block(st, "Michael")
+    assert "### Yesterday" in b and "Tell me about the Cubs game" in b
+    assert "was talking with you only" not in b          # not treated as the same conversation
+    assert "brief question about something" in b
+
+
+def test_age_phrase_uses_calendar_days_in_facility_time(monkeypatch):
+    from zoneinfo import ZoneInfo
+    from routes.aria_time import age_phrase
+    from routes.realtime_facility import FACILITY_TZ
+    tz = ZoneInfo(FACILITY_TZ)
+    local_now = now_utc().astimezone(tz)
+    yday_late = (local_now - timedelta(days=1)).replace(hour=23, minute=30, second=0, microsecond=0)
+    if (local_now - yday_late).total_seconds() >= 6 * 3600:   # beyond the hours phrasing
+        assert age_phrase(yday_late) == "yesterday"
+    assert age_phrase(local_now - timedelta(days=3, hours=1)) in ("3 days ago", "4 days ago")

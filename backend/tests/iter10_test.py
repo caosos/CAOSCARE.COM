@@ -102,8 +102,11 @@ class TestRealtimeSession:
         assert "_caos" in body, "missing _caos blob"
         caos = body["_caos"]
 
-        # Voice default
-        assert caos["voice"] == "shimmer"
+        # Voice: the configured CAOSCARE_REALTIME_VOICE when the server sets one (owner decision
+        # 2026-10-12: Room 214 on "marin"), otherwise the shimmer default.
+        from dotenv import dotenv_values
+        forced = (os.environ.get("CAOSCARE_REALTIME_VOICE") or dotenv_values(os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")).get("CAOSCARE_REALTIME_VOICE") or "").strip().lower()
+        assert caos["voice"] == (forced or "shimmer")
         # Tools
         assert "tools" in caos and isinstance(caos["tools"], list)
         names = {t.get("name") for t in caos["tools"]}

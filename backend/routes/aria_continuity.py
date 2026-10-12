@@ -32,7 +32,7 @@ router = APIRouter(prefix="/aria", tags=["realtime"])
 
 # Only sessions whose LAST turn is within this many hours are continuity.
 # Older than this, a recap is intrusion, not help.
-CONTINUITY_WINDOW_HOURS = 18
+CONTINUITY_WINDOW_HOURS = 72   # across days (owner da-a3817b6b9c, 2026-10-12): yesterday evening is still known; was 18
 MAX_PRIOR_SESSIONS = 3
 MAX_TURNS_PER_SESSION = 12
 _TOTAL_CHAR_CAP = 2200
@@ -171,12 +171,14 @@ async def resolve_continuity(
 
 _HEADER = (
     "## Where you and {name} were  (recent conversation — context, not a task)\n"
-    "This is only what was recently *said*. It is NOT an active request and NOT "
-    "an unfinished job of yours. Do not reopen these topics, recap them aloud, "
-    "or offer to \"continue\" — follow them only if {name} raises them. Greet "
-    "{name} simply; this recap is not an opener. If anything below mentions a "
-    "call, a request, or a nurse coming, the \"What's actually happening right "
-    "now\" section is the authoritative current status — not this recap.\n"
+    "This is what was recently *said*, so you know {name} the way a friend does. It is "
+    "NOT an active request and NOT an unfinished job of yours: never re-file or reopen a "
+    "request from it. If anything below mentions a call, a request, or a nurse coming, the "
+    "\"What's actually happening right now\" section is the authoritative current status — "
+    "not this recap. You may let it show naturally, in your own words, when it fits: a light "
+    "\"didn't we just talk?\" after a very recent call, or a brief question about something "
+    "{name} mentioned earlier. Never a scripted recap, never a list of past topics, never the "
+    "same line twice, and never anything that is not written below.\n"
 )
 
 
@@ -191,9 +193,10 @@ def _recent_minutes() -> float:
 
 
 _RECENT_NOTE = (
-    "\n**{name} was talking with you only {age}.** If {name} carries on with that, continue naturally as "
-    "the same conversation (it is fine to say you remember what you were just talking about). Use only "
-    "what is written below; never invent anything that is not there.\n"
+    "\n**{name} was talking with you only {age}.** This is the same conversation picking back up: it is "
+    "natural to notice it warmly (\"Hey, didn't I just talk to you?\" - in your own words, not that exact "
+    "line every time) and to carry on from the last exchange. Use only what is written below; never invent "
+    "anything that is not there.\n"
 )
 
 

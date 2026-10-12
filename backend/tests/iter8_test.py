@@ -243,7 +243,7 @@ class TestChatMemoryIntegration:
         assert ("liam" in blob) or ("bruno" in blob) or ("cork" in blob), \
             f"background extraction did not capture expected facts. extracts={extracts[:5]}"
 
-    def test_cross_session_memory_recall(self, resident_id, skip_if_openai_unavailable):
+    def test_cross_session_memory_recall(self, headers, resident_id, skip_if_openai_unavailable):
         if not hasattr(pytest, "first_msg"):
             pytest.skip(
                 "test_chat_with_resident_returns_memory_fields did not run "
@@ -254,6 +254,7 @@ class TestChatMemoryIntegration:
         sid2 = f"iter8-b-{uuid.uuid4().hex[:6]}"
         r = requests.post(
             f"{API}/ai/chat",
+            headers=headers,   # /ai/chat requires a signed-in user, like the first-session call above
             json={
                 "session_id": sid2,
                 "resident_id": resident_id,

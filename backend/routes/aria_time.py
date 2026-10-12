@@ -29,8 +29,14 @@ def age_phrase(when) -> str:
         return f"about {max(1, round(secs / 60))} minutes ago"
     if secs < 6 * 3600:
         return f"about {round(secs / 3600)} hours ago"
-    if secs < 24 * 3600:
+    # Calendar days in the facility's time zone, not 24-hour blocks: 9 PM last night is
+    # "yesterday" at 5 PM, not "earlier today" (da-a3817b6b9c, 2026-10-12).
+    from zoneinfo import ZoneInfo
+    from routes.realtime_facility import FACILITY_TZ
+    tz = ZoneInfo(FACILITY_TZ)
+    days = (now_utc().astimezone(tz).date() - parse_dt(when).astimezone(tz).date()).days
+    if days <= 0:
         return "earlier today"
-    if secs < 48 * 3600:
+    if days == 1:
         return "yesterday"
-    return f"{round(secs / 86400)} days ago"
+    return f"{days} days ago"
