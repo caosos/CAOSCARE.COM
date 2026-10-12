@@ -9005,3 +9005,12 @@ Add button existed but sat off-screen at 390 px (header row did not wrap); fixed
 
 ## 2026-10-12 — Transport resources: purpose, setup steps and a truthful "can rides be booked" line (careops-transport-resources-001)
 `TransportSetupGuide.jsx` + `transportSetupStatus` (engine rules: enabled non-flex driver + enabled vehicle; sharing needs a seat count). Frontend 81 suites / 607, build compiled; dev-site headless 8/8 at 1280 and 390. Report `docs/reports/2026-10-12-transport-resources-guidance.md`. Frontend only; not deployed.
+
+
+---
+
+## 2026-10-11 23:21 CDT — supervisor boundary: Family add/edit accepted in development; Transportation resources guidance dispatched
+
+Coordinator receipts prove three serial development completions after host recovery: `careops-transport-new-order-001` at `0226119d61429db76d81febecbbeb1ec8a4b4a10` (backend 550/0/31, frontend 79/598, browser 10/10); Kitchen/Transportation navigation at `4d0c473` (frontend 80/601, browser 12/12); and Family add/edit at backend `f4f210f` plus frontend/docs `a96b18a019cad1fc60f9883ca46075e33963daa4` (backend 557/0/31, frontend 81/603, browser 11/11). Latest timestamped host observation: Sunday, October 11, 2026 — 11:19 PM America/Chicago, development backend `f4f210f`, PID 1128830, healthy, zero leases; frontend `a96b18a`. Production remains `ff87c22`. None is production loaded, LIVE_VERIFIED, or OWNER_ACCEPTED / DONE. GitHub exposes no combined-status contexts for these commits.
+
+**ONE current bounded task:** `careops-transport-resources-001`. Audit and repair operator guidance for canonical drivers, vehicles, login-linked My rides, scheduling buffer, assignment prerequisites, authorized/refused roles, and empty/error states at desktop and 390 px. No new queue/store or production mutation. Issue #129 is the dispatch channel to existing coordinator `caoscare-1-ee`; ACK/WORKING is due Sunday, October 11, 2026 — 11:26 PM America/Chicago. ETA is UNKNOWN until that receipt. Production Transportation LIVE_VERIFY remains separately blocked on current authenticated production access plus a labeled driver and vehicle.
