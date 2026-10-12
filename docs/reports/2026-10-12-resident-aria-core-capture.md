@@ -82,3 +82,28 @@ Each step is its own commit with tests; none restarts the listener; none changes
 - Step 4: the tool only refuses until telephony exists; `git revert <commit>` + restart removes it.
 - Step 5: set `CAOSCARE_RESEARCH_PROVIDER=none` and restart (`docs/RESEARCH_PROVIDER.md`).
 - Room page: untouched by all steps; if ever rebuilt, `ctl.sh` keeps `build.prev` (`mv build build.bad && mv build.prev build`, `ctl.sh restart-page`).
+
+## 9. Code preparation done (2026-10-12, all default-off)
+
+| Step | What | Setting (default) | Commit |
+|---|---|---|---|
+| Continuity on a quick return | when the last session ended within N minutes, Aria may pick the thread up naturally from what was actually said | `CAOSCARE_CONTINUITY_RECENT_MINUTES` (0 = off) | `50a659b` |
+| Michael's `/aria` on the shared layers | truth rules, continuity from `db.aria_conversations` (same resolver, no copy), read-only tools (time, weather, research, activities, menu), facility context; the "will eventually have…" limitation text removed | `CAOSCARE_ARIA_OWNER_V2` (off) | `50a659b` |
+| `call_contact` | front desk or an approved family contact (allow_calls + phone); answers "calling isn't set up here yet" with a refusal receipt; never creates a call record; unapproved → not approved; needs a live session or the owner | `CAOSCARE_CALL_TOOL` (off) | `50a659b` |
+| Voices | `marin`, `cedar` allowed; default stays `shimmer` | — | this commit |
+
+Verified on the dev backend restarted at `50a659b` with no flags set: Room 214 gets 29 tools, no `call_contact`, and the continuity block is unchanged. Tests: backend gate 586 passed / 0 failed / 31 skipped; frontend 87 suites / 624; new tests `test_continuity_recent_return.py`, `test_aria_owner_v2.py`, `test_room_call_request.py`, `test_realtime_voices.py`, `realtimeCallTool.test.js`.
+
+## 10. Provider evidence (checked 2026-10-12) and recommendation — not applied
+
+From the provider's changelog and Realtime guide:
+- Realtime models released after the room's `gpt-realtime`: `gpt-realtime-1.5` (2026-02-23), `gpt-realtime-2` (2026-05-07), **`gpt-realtime-2.1`** and `gpt-realtime-2.1-mini` (2026-07-06; improved alphanumerics, silence/noise handling and interruptions).
+- **`gpt-live-1`** (generally available 2026-09-10): full-duplex voice, $0.05 per minute billed per second, on a different endpoint (`v1/live/sessions`) — an architecture change, not a setting.
+- Voices: `alloy, ash, ballad, coral, echo, sage, shimmer, verse, marin, cedar`; "For best quality, we recommend using `marin` or `cedar`."
+- **Risk found:** `gpt-4o-transcribe` (the room's speech-to-text model) is announced for shutdown on **2027-02-26**; replacements `gpt-transcribe` / `gpt-live-transcribe` (2026-07-28).
+
+Recommendation for Michael's decision (quality first, smallest change): **`gpt-realtime-2.1` with `marin` (or `cedar`)** on the existing Realtime path — one setting change each (`OPENAI_REALTIME_MODEL`, the session voice), same endpoint, same tools — verified by one approved test call. `gpt-live-1` is the next option if 2.1 still feels stiff, but it needs a new session path and its own build. Plan the transcription-model move before February 2027.
+
+Rollback for the recommendation: unset `OPENAI_REALTIME_MODEL` (back to `gpt-realtime`) and keep `shimmer`; restart with `scripts/restart_dev_backend.sh`.
+
+Sources: provider changelog (developers.openai.com/api/docs/changelog); Realtime conversations guide (developers.openai.com/api/docs/guides/realtime-conversations).

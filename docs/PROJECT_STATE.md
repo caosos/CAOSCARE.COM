@@ -9130,3 +9130,8 @@ Read-only capture of Room 214: page build 2026-10-09, listener untouched, backen
 
 ## 2026-10-12 — Resident Aria core slice 1 complete (read-only)
 Report extended with the Michael-facing vs resident discrepancy list (owner `/aria` lacks continuity, truth rules, operations state and tools, and its persona text calls itself limited), a five-step plan behind a default-off flag, and exact rollback. Checklist row added as the single current item. Supervisor authorization (#129 comment 6118459175): conversation slice un-parked for read-only capture and code preparation; paid tests and live Room 214 changes need a separate owner receipt.
+
+---
+
+## 2026-10-12 — Resident Aria core code preparation (default-off) and provider evidence
+`50a659b`: recent-return continuity exception (`CAOSCARE_CONTINUITY_RECENT_MINUTES`), owner `/aria` on the shared context layers + read-only tools (`CAOSCARE_ARIA_OWNER_V2`), honest `call_contact` (`CAOSCARE_CALL_TOOL`); CURRENT_PRIORITY un-parks the conversation slice. Voices `marin`/`cedar` allowed (default unchanged). Gate 586 / 0 / 31; frontend 87 suites / 624. Dev backend restarted on `50a659b` (pid 1242918; previous log /tmp/room214_backend_198fee4.log); verified flags unset → Room 214 unchanged (29 tools, no call_contact, same continuity block); listener untouched. Provider check: `gpt-realtime-2.1` (2026-07) and `gpt-live-1` (2026-09) exist; `gpt-4o-transcribe` shuts down 2027-02-26. Recommendation (not applied): `gpt-realtime-2.1` + `marin` after one approved test call. Report sections 9–10.

@@ -61,7 +61,9 @@ def _require_openai_key() -> str:
 
 # Voice list mirrors OpenAI Realtime API (Dec 2024). Defaults to shimmer to
 # match the rest of CAOS Care's TTS.
-ALLOWED_VOICES = {"alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse"}
+# marin/cedar: listed (and recommended "for best quality") in the provider's Realtime guide, checked 2026-10-12.
+# Allowed only; DEFAULT_VOICE is unchanged, so the live room keeps its voice until Michael chooses.
+ALLOWED_VOICES = {"alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse", "marin", "cedar"}
 DEFAULT_VOICE = "shimmer"
 
 # OpenAI Realtime min temperature is 0.6 (lower values are clamped). 0.6 is
