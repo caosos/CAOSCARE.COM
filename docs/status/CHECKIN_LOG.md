@@ -358,3 +358,30 @@ Append-only. One entry per verified check-in, tied to its receipt. A correction 
 - **next_check_at:** Monday, October 12, 2026 — 2:41:43 AM America/Chicago
 - **Blocker:** NONE
 - **Michael action required:** NOTHING
+
+
+## Monday, October 12, 2026 — 2:31 AM America/Chicago
+- **Receipt:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6119789359
+- **Project:** CAOSCare
+- **Phase / position:** Phase 3/7 Care Operations workspaces — Nursing exception lifecycle DEV_ACCEPTED; automatic unclaimed-request escalation is the next Nursing/Alerts gap
+- **Completed since the prior check:** `careops-nursing-exception-lifecycle-001` completed its corrected acceptance. Live Claude Chrome use found and repaired a real assignment-dropdown remount defect, then proved owner assignment, unauthorized refusal, assigned-nurse visibility and truthful Aria status. The bounded task is ready for owner review but is not OWNER_ACCEPTED / DONE; the broader section is not READY_FOR_OWNER_REVIEW.
+- **Evidence:** coordinator DONE https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6119594909; transport-only mirror https://github.com/caosos/CAOSCARE.COM/pull/131#issuecomment-6119616084; backend lifecycle `d16b3c7`; dropdown repair `1af968fb228216b0d849e2101edbcfbd0a13c36b`; records/report `6b2070e0f014933555cc286670ec9e81be0353f0`; checklist boundary `ebd0875eb9d102b2e74ff0919f05c5d277d45c03`; PROJECT_STATE boundary `f97450bd0c946d60b967ef6cc7d5a98ec06a78c9`; report `docs/reports/2026-10-12-nursing-exception-lifecycle.md`. Backend 592 passed / 0 failed / 31 skipped; frontend 88 suites / 629 tests; build compiled. Owner in Claude Chrome assigned synthetic task `task_789c03588ae8` to Demo - Nancy Reyes RN; the `task_assigned` receipt records MICHAEL CHAMBERS, `admin_override:owner`, null → nurse and the same workflow id. Maintenance reassignment returned 403. Nurse visibility passed at 390/1280 with no overflow or failed API calls. Typed Aria `rt_62sib2cc_1791789384982` reported the truthful acknowledged/not-started state. GitHub combined-status contexts for `1af968f` are absent. Tested/loaded development backend `d16b3c7`; tested/served frontend `6b2070e` including `1af968f`; production `ff87c22`. Latest timestamped host observation: Monday, October 12, 2026 — 2:19:53 AM America/Chicago from the transport bridge; existing coordinator idle and control-plane alive on `c43919bceb56`. This proves host/process state, not product load beyond the canonical DONE/report.
+- **Current bounded task (owner · stage):** `careops-nursing-unclaimed-escalation-001` · existing coordinator `caoscare-1-ee` · DISPATCHED / ACK REQUIRED
+- **Remaining steps for this milestone:**
+  1. ACK/WORKING with evidence reviewed, realistic ETA, exact next check, expected evidence and blocker/NONE
+  2. Inspect the existing escalation tick and routing-exception semantics
+  3. Reproduce a labeled pending/unassigned Nursing request crossing a deterministic threshold
+  4. Implement only the first proven canonical gap
+  5. Prove exactly one provenance-linked escalation, repeated-tick idempotency and stop-on-assignment/closure behavior
+  6. Verify supervisor visibility, truthful Aria status and unauthorized refusal
+  7. Run focused/full gates and Claude Chrome acceptance at desktop and 390 px
+  8. Record exact tested/loaded revisions and fresh host evidence, then reconcile authoritative records
+- **Upcoming milestones:**
+  1. Michael's spoken Room 214 voice/personality acceptance
+  2. Authenticated Transportation LIVE_VERIFY when its role/driver/vehicle dependencies are available
+  3. Full owner/novice pilot walkthrough
+  4. Pilot Room 1 / Voice PE onboarding
+- **ETA:** UNKNOWN pending the coordinator's evidence-based ACK/WORKING
+- **next_check_at:** Monday, October 12, 2026 — 2:36:02 AM America/Chicago
+- **Blocker:** NONE for this development slice
+- **Michael action required:** NOTHING
