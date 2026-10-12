@@ -439,3 +439,30 @@ Append-only. One entry per verified check-in, tied to its receipt. A correction 
 - **next_check_at:** Monday, October 12, 2026 — 3:07:14 AM America/Chicago
 - **Blocker:** NONE for this development slice
 - **Michael action required:** NOTHING
+
+
+## Monday, October 12, 2026 — 3:05 AM America/Chicago
+- **Receipt:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6120241715
+- **Project:** CAOSCare
+- **Phase / position:** Phase 3/7 Care Operations workspaces — Housekeeping exception lifecycle, the next department normal-work gap after Nursing escalation DEV_ACCEPTED
+- **Completed since the prior check:** The existing coordinator `caoscare-1-ee` ACKed `careops-housekeeping-exception-lifecycle-001` before the five-minute deadline and began inspecting the shared Housekeeping queue and exception controls. No new product completion is claimed.
+- **Evidence:** dispatch https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6120215090; local intake delivery https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6120239104 at Monday, October 12, 2026 — 3:05:00 AM America/Chicago; ACK/WORKING https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6120241715. The coordinator identified Housekeeping's shared DepartmentQueue and Admin Housekeeping tab, explicitly said applicability must be proven rather than assumed, named the exact typed-Aria/housekeeper/owner/refusal/receipt/count workflow, ETA about 45 minutes, exact next check and blocker NONE. Prior accepted Nursing escalation evidence remains `e2a8770` + `28c0729` + `743c4d2`, backend 593/0/31, frontend 88 suites/631, compiled build and Claude Chrome/390 proof. Current tested/loaded development backend is `e2a8770`; frontend `743c4d2`; production `ff87c22`. Latest timestamped host observation: Monday, October 12, 2026 — 3:05:00 AM America/Chicago, when automatic intake delivered to the running existing coordinator session. This proves coordinator reachability, not a newer CAOSCare product revision. Slack #all-ask-aria was scanned after `1791786857.382299` through `1791788503.111279`; the only nonblank newer item was a prior ChatGPT-posted CAOSCare ACK checkpoint, so no Michael/Dot Aria liaison input was routed or duplicated.
+- **Current bounded task (owner · stage):** `careops-housekeeping-exception-lifecycle-001` · existing coordinator `caoscare-1-ee` · WORKING / VERIFY SHARED EXCEPTION LIFECYCLE
+- **Remaining steps for this milestone:**
+  1. Raise one labeled synthetic Housekeeping request through typed Aria in the demo room
+  2. Demo housekeeper at 390 px claims, starts and uses cannot-complete with a required reason
+  3. Owner reviews and assigns through the existing dropdown in Claude Chrome
+  4. Housekeeper sees and completes the same canonical request
+  5. Verify one receipt chain, role refusals for Nursing/Maintenance, truthful Aria status and reconciled counts/history
+  6. Repair only the first proven gap
+  7. Run focused/full gates and desktop/390 acceptance with no failed API calls
+  8. Record exact tested/loaded revisions and fresh host evidence, then reconcile authoritative records
+- **Upcoming milestones:**
+  1. Michael's spoken Room 214 voice/personality acceptance
+  2. Authenticated Transportation LIVE_VERIFY when its role/driver/vehicle dependencies are available
+  3. Full owner/novice pilot walkthrough
+  4. Pilot Room 1 / Voice PE onboarding
+- **ETA:** Approximately 45 minutes from Monday, October 12, 2026 — 3:05:11 AM America/Chicago
+- **next_check_at:** Monday, October 12, 2026 — 4:05:11 AM America/Chicago
+- **Blocker:** NONE
+- **Michael action required:** NOTHING
