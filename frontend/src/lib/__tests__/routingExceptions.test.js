@@ -56,3 +56,9 @@ test("a class chip refilters through the server and a failed read shows an error
   await act(async () => { q("rx-refresh").click(); }); await flush();
   expect(q("rx-error")).not.toBeNull();
 });
+
+test("escalation steps read plainly in the latest action", () => {
+  const { latestActionText } = require("../routingExceptions");
+  expect(latestActionText({ field: "unclaimed_escalated", by_name: "Escalation tick" })).toMatch(/Flagged to a supervisor \(unclaimed\)/);
+  expect(latestActionText({ field: "escalated", by_name: "Nurse" })).toMatch(/Couldn't complete/);
+});
