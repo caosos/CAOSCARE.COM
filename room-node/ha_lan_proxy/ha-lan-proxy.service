@@ -1,0 +1,11 @@
+[Unit]
+Description=Expose the Home Assistant VM on the EliteDesk LAN address (room devices, Voice PE)
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/python3 /home/caoscare-1/CAOSCARE-INTEGRATION/room-node/ha_lan_proxy/ha_lan_proxy.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target
