@@ -9091,3 +9091,8 @@ Admin → Community → Activities: the shared request queue (dispatch note, Cla
 
 ## 2026-10-12 — Activities calendar end to end; menu/schedule load failure is not "empty" (careops-activities-calendar-001)
 Labeled activity paste → draft (not live) → publish → Aria's `get_todays_schedule` request returns it with time and place → staff schedule + resident room screen at 1280/390: 10/10; test data removed. Menu and Daily schedule now show a load failure with Try again instead of the empty message. Frontend 86 suites / 621, build compiled. Report `docs/reports/2026-10-12-activities-calendar.md`. Frontend only; not deployed.
+
+---
+
+## 2026-10-12 — Whole-menu paste (careops-menu-paste-001)
+Menu paste accepts dated day headers and creates one draft per day (same header format as the activities calendar). Week paste → per-day drafts (not public) → publish today → Aria supper lookup → corrected dinner supersedes (shown "Replaced") → resident screen shows only the corrected dinner: 12/12, labeled data removed. Backend gate 570 / 0 / 31 (new `test_menu_paste_multiday.py`), frontend 86 suites / 621, build compiled. Dev backend restarted on `7e854ce` (pid 1196119; previous log /tmp/room214_backend_4b270ef.log). Report `docs/reports/2026-10-12-menu-paste.md`. Not deployed.
