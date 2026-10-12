@@ -244,3 +244,6 @@ Contract + first gap: escalation tick failure/recovery now receipted (`escalatio
 
 ## 2026-10-12 — Escalation loop liveness (careops-alerts-loop-liveness-001)
 `/api/health` reports `escalation.state`; disabled-at-startup receipted once (`escalation_tick.start_schedule`). Backend 610/0/31. Report: docs/reports/2026-10-12-alerts-loop-liveness.md.
+
+## 2026-10-12 — Escalation loop death receipt (careops-alerts-loop-death-receipt-001)
+`e2e2b1b`: unexpected loop end → one `escalation_schedule_stopped` receipt; shutdown none; schedule/health split into `routes/escalation_schedule.py`. Backend 611/0/31. Report: docs/reports/2026-10-12-alerts-loop-death-receipt.md.
