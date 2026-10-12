@@ -1,6 +1,6 @@
 # CAOSCare — Living Product Build Checklist
 
-Updated: 2026-10-11 (23:21 CDT; Transportation New ride, operations navigation, and Family add/edit DEV_ACCEPTED; Transportation resources guidance dispatched).
+Updated: 2026-10-11 (23:24 CDT; Transportation resources guidance DEV_ACCEPTED; Transportation calendar repair dispatched).
 
 This is the owner-facing product build and progress tracker for the Care Operations build. Canonical owner direction: [Issue #129](https://github.com/caosos/CAOSCARE.COM/issues/129). Detailed historical evidence remains in [PILOT1_EXECUTION_CHECKLIST.md](https://github.com/caosos/CAOSCARE.COM/blob/integration/2026-09-27/docs/PILOT1_EXECUTION_CHECKLIST.md). This file controls current phase, active task, milestones, ETA, blockers, and the reporting contract.
 
@@ -91,7 +91,7 @@ check); tests `scripts/owner_intake/tests/test_eta_receipts.py`.
 ## Current build control
 
 - **Current phase:** 3/7 — Care Operations workspaces.
-- **ONE current bounded task:** `careops-transport-resources-001` — audit the Transportation resources screen by authorized and refused roles; explain the exact driver, vehicle, login-link, buffer, and assignment prerequisites; repair misleading or absent empty/error guidance; prove desktop and 390 px behavior without creating a new store or modifying production data.
+- **ONE current bounded task:** `careops-transport-calendar-001` — reproduce the owner-reported empty/unchanged Transportation calendar with dated canonical rides; make day/week navigation and empty/error/filter states truthful; ensure every shown ride opens its real request; prove authorized/refused roles and desktop/390 px behavior.
 - **Control issue / dispatch channel:** [#129](https://github.com/caosos/CAOSCARE.COM/issues/129).
 - **Completed review:** [PR #130](https://github.com/caosos/CAOSCARE.COM/pull/130), merged into integration.
 - **Integration branch:** `integration/2026-09-27`; current accepted therapy-conflict product commit `77f83d3d53e17ffb75c71d137ab876e50552efe9` with guarded dev restart `1bf1bec26ea58a6c55730fea3c858734eb788d54`. This later integration work is not in production `ff87c22`; the release baseline is separate.
@@ -553,3 +553,14 @@ The prior M1 text saying `main` promotion awaits owner commands is stale. GitHub
 - Production Transportation LIVE_VERIFY remains separately blocked on a current signed-in authorized production role plus a labeled driver and vehicle. The prior coordinator session refused production SSH reads/writes; this does not block compatible development work.
 - **ONE current bounded task:** `careops-transport-resources-001`. Audit the existing Transportation resources UI by owner/admin, Transportation staff, and an unauthorized role. State exactly what is required before a ride can be assigned; make driver, vehicle, linked login/My rides, buffer behavior, role refusal, and empty/error states understandable. Reuse canonical driver/vehicle records and current endpoints; no new queue/store, production mutation, paid service, audio work, or parallel worker.
 - Dispatch is recorded in Issue #129. The existing coordinator `caoscare-1-ee` must publish ACK/WORKING with responsible worker, reviewed evidence, realistic ETA, exact America/Chicago `next_check_at`, expected acceptance evidence, and blocker `NONE` by Sunday, October 11, 2026 — 11:26 PM America/Chicago, or the existing local watchdog publishes an exact NEED/BLOCKED receipt.
+
+
+---
+
+## Correction / checkpoint — 2026-10-11 23:24 CDT — Transportation resources already complete; calendar repair dispatched
+
+The 23:21 supervisor dispatch of `careops-transport-resources-001` raced with the coordinator's completion and is explicitly superseded; no duplicate worker was created.
+
+- `careops-transport-resources-001` is **DEV_ACCEPTED** at `11fe3f2734acff1e104b9f6c5cfb9994a9e789bf`: frontend 81 suites / 607 tests, production build compiled, isolated browser 8/8. The canonical Transport resources screen now explains its purpose, driver/vehicle prerequisites, login-linked **My rides**, buffer behavior, role expectations, and whether the current records are sufficient to book a ride. Development frontend serves the commit; backend remains `f4f210f`. Timestamped host observation Sunday, October 11, 2026 — 11:22 PM America/Chicago: development `:8092` healthy. Production remains `ff87c22`; not LIVE_VERIFIED or OWNER_ACCEPTED / DONE. GitHub exposes no combined-status contexts for the commit.
+- **ONE current bounded task:** `careops-transport-calendar-001`. Reproduce the owner-reported empty/unchanged calendar with labeled dated rides; repair the first proven display/navigation/filter defect using canonical ride records; ensure each row/card opens its real request; distinguish no rides from load failure; prove authorized/refused roles plus desktop/390 px behavior. No new calendar store, production mutation, paid service, audio work, or parallel worker.
+- Issue #129 is the dispatch channel. Existing coordinator `caoscare-1-ee` must publish ACK/WORKING with evidence-based ETA, exact America/Chicago `next_check_at`, expected acceptance, and blocker `NONE` by Sunday, October 11, 2026 — 11:29 PM America/Chicago, or the existing local watchdog publishes exact NEED/BLOCKED.
