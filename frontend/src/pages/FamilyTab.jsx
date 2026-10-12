@@ -51,7 +51,7 @@ export default function FamilyTab({ residents }) {
       <Card className="border-caos-line p-5">
         <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
           <h3 className="font-display text-lg font-medium text-caos-forest">Family contacts</h3>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
               className="border-2 rounded-full"

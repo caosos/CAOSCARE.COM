@@ -936,3 +936,7 @@ listener verifier experiment: `docs/experiments/`.
 
 - `backend/routes/transportation_report.py`: `GET /transportation/report` (transport coordinators only) — open-ride rows with owner, status, times asked, age, next action and currency; `total_unresolved` is the length of `current_state.waiting_unbooked`. `frontend/src/components/TransportUnresolvedList.jsx` (the list behind the Unresolved tile), `frontend/src/pages/TransportationTab.jsx`. Test: `backend/tests/test_transport_unresolved.py`.
 - `frontend/src/pages/TransportationTab.jsx` also has New ride (opens `components/TransportRideForm.jsx`). Tests: `backend/tests/test_transport_new_ride_entry.py`, `frontend/src/pages/__tests__/transportationTabNewRide.test.jsx`.
+
+## 2026-10-12 — Family contact edit (careops-family-edit-001)
+
+- `backend/routes/notifications.py`: `PATCH /family-contacts/{id}` and `_family_receipt` (receipts for create / update / call approval / delete). `frontend/src/components/FamilyContactForm.jsx` (shared add/edit form). Tests: `backend/tests/test_family_contact_edit.py`, `frontend/src/components/__tests__/familyContactForm.test.jsx`.
