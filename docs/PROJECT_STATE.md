@@ -250,3 +250,6 @@ Contract + first gap: escalation tick failure/recovery now receipted (`escalatio
 
 ## 2026-10-12 — Full Alerts acceptance (careops-alerts-full-acceptance-001)
 No code change; 17/17 dev browser checks; gates 611/0/31, 91/644, build OK. Findings: nurse /staff feed shows 200 legacy alerts (no stale split); ack receipt lacks parent. Owner decision packet in docs/reports/2026-10-12-alerts-full-acceptance.md.
+
+## 2026-10-12 — Nurse Live alerts current vs older (careops-alerts-staff-feed-current-001)
+`/alerts/feed` scope=current default (72 h), scope=older on request, stats older_open; nurse banner + Show older. Backend 612/0/31, frontend 92/645. Report: docs/reports/2026-10-12-alerts-staff-feed-current.md.

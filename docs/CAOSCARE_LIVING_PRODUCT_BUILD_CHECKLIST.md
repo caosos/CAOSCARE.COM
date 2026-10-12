@@ -989,3 +989,8 @@ Issue #129 is the dispatch channel to existing coordinator `caoscare-1-ee`. ACK/
 
 - No code change. Gates: backend 611/0/31, frontend 91/644, build OK. Dev browser 17/17 (owner 1280/390, nurse 390): coalescing, policy edit → tick, acknowledge, close, refusals, public safety, cleanup. Failure/stop/recovery receipt chain proven in a scratch DB. Report + owner decision packet: `docs/reports/2026-10-12-alerts-full-acceptance.md`.
 - Alerts NOT READY_FOR_OWNER_REVIEW: (1) owner decision — acknowledge/close roles (options A–D, B recommended); (2) nurse `/staff` Live alerts shows 200 weeks-old legacy alerts at 390 px (recommended next item); minor: acknowledgement receipt has no parent link.
+
+### Update 2026-10-12 — Nurse Live alerts current vs older (careops-alerts-staff-feed-current-001)
+
+- Full-acceptance finding 1 repaired: `/alerts/feed` lists current (≤ 72 h) alerts by default; older ones counted and shown on request ("Showing 200 of 322"). Nurse 390 px page 5,538 px (was ~87,112). Backend 612/0/31, frontend 92/645, build OK; dev browser 11/11. DEV_ACCEPTED. Report: `docs/reports/2026-10-12-alerts-staff-feed-current.md`.
+- Remaining Alerts: `alert_acknowledged.parent_receipt_id` link (next item); owner decision on acknowledge/close roles (A–D, B recommended); re-run affected acceptance.
