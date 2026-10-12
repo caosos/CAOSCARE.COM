@@ -11,13 +11,14 @@ from routes.realtime_self_knowledge import _system_self_knowledge
 from routes.realtime_facility import _facility_now, greeting_note
 from routes.realtime_companion_memory import build_resident_profile_and_memory
 from routes.realtime_context_tail import render_context_tail
+from routes.aria_opening import render_opening_block
 from routes.realtime_truth_rules import research_prompt_line, TRUTH_INVARIANTS
 
 
 async def _build_companion_instructions(
     resident_id: str | None, operational_state: dict | None = None,
     continuity: dict | None = None, conversation_state: dict | None = None,
-    interpretation_patterns: list | None = None,
+    interpretation_patterns: list | None = None, opening: dict | None = None,
 ) -> str:
     """System prompt the resident-facing companion (Aria) speaks under.
 
@@ -38,7 +39,8 @@ async def _build_companion_instructions(
         "## Right now\n"
         f"It is {rn['weekday']} {rn['part_of_day']}, {rn['date']}, {rn['time']} "
         f"local time at {where} ({rn['tz']}). When the call opens, "
-        f"{greeting_note(rn['part_of_day'])}. When asked the time or date, you "
+        + ("follow 'How this call opens' below" if (opening or {}).get("wake") else greeting_note(rn['part_of_day']))
+        + f". When asked the time or date, you "
         f"may answer from this anchor directly, or call `get_current_time` for "
         f"the freshest value. When asked what city/building/facility they are "
         f"in, or 'where am I', answer directly from this line - "
@@ -271,7 +273,7 @@ async def _build_companion_instructions(
     )
     if not resident_id:
         return (_system_self_knowledge() + time_anchor + persona
-                + render_context_tail("them", operational_state))
+                + render_context_tail("them", operational_state) + render_opening_block(opening, "there"))
 
     r = await db.residents.find_one(
         {"resident_id": resident_id},
@@ -279,7 +281,7 @@ async def _build_companion_instructions(
     )
     if not r:
         return (_system_self_knowledge() + time_anchor + persona
-                + render_context_tail("them", operational_state))
+                + render_context_tail("them", operational_state) + render_opening_block(opening, "there"))
 
     full_name = (r.get("name") or "").strip()
     preferred = (r.get("preferred_name") or "").strip()
@@ -288,6 +290,7 @@ async def _build_companion_instructions(
     profile_and_memory = await build_resident_profile_and_memory(resident_id, r, name, full_name)
     tail = render_context_tail(name or "them", operational_state, continuity,
                                conversation_state, interpretation_patterns)
-    return _system_self_knowledge() + time_anchor + persona + profile_and_memory + tail
+    return (_system_self_knowledge() + time_anchor + persona + profile_and_memory + tail
+            + render_opening_block(opening, name or "there"))
 
 

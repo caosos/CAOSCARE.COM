@@ -117,9 +117,12 @@ async def _mint(payload, lease):
         interpretation_patterns = await list_patterns(payload.get("resident_id"))
     except Exception:
         interpretation_patterns = None
+    # How the call opens: "Hey Aria" gets a short answer to their name, and never the previous call's opener.
+    from routes.aria_opening import resolve_opening
+    opening = await resolve_opening(payload.get("resident_id"), payload.get("session_id"), payload.get("trigger_source"))
     instructions = await _build_companion_instructions(
         payload.get("resident_id"), operational_state=op_state, continuity=continuity,
-        conversation_state=conv_state, interpretation_patterns=interpretation_patterns,
+        conversation_state=conv_state, interpretation_patterns=interpretation_patterns, opening=opening,
     )
     session_config = {
         "type": "realtime",
