@@ -184,7 +184,10 @@ export default function DepartmentQueue({ department, title, itemName = "request
 
   const showAssign = canAssign(user, department);
 
-  const Row = ({ t }) => {
+  // A plain render function, not a component: a component defined in here would
+  // be a new type on every render, so React would rebuild every card (closing an
+  // open "Assign to" list before the choice lands).
+  const renderRow = (t) => {
     const overdue = isOverdue(t);
     return (
       <Card className="p-3 border-caos-line" data-testid={`wo-${t.task_id}`}>
@@ -292,12 +295,12 @@ export default function DepartmentQueue({ department, title, itemName = "request
     );
   };
 
-  const Section = ({ title, rows, tone }) => rows.length === 0 ? null : (
+  const section = (title, rows, tone) => rows.length === 0 ? null : (
     <section data-testid={`wo-section-${title.replace(/\s+/g, "-").toLowerCase()}`}>
       <h3 className={`font-display text-lg font-medium mb-2 ${tone === "warn" ? "text-caos-terracotta" : "text-caos-forest"}`}>
         {title} <span className="text-caos-mute text-sm">({rows.length})</span>
       </h3>
-      <div className="space-y-2 mb-6">{rows.map((t) => <Row key={t.task_id} t={t} />)}</div>
+      <div className="space-y-2 mb-6">{rows.map((t) => <React.Fragment key={t.task_id}>{renderRow(t)}</React.Fragment>)}</div>
     </section>
   );
 
@@ -339,11 +342,11 @@ export default function DepartmentQueue({ department, title, itemName = "request
         </Card>
       )}
 
-      <Section title="Overdue" rows={b.overdue} tone="warn" />
-      <Section title="Unassigned" rows={b.unassigned} />
-      {!adminMode && <Section title="Assigned to me" rows={b.mine} />}
-      <Section title="In progress" rows={b.inProgress} />
-      {adminMode && <Section title="Assigned, not started" rows={b.assigned} />}
+      {section("Overdue", b.overdue, "warn")}
+      {section("Unassigned", b.unassigned)}
+      {!adminMode && section("Assigned to me", b.mine)}
+      {section("In progress", b.inProgress)}
+      {adminMode && section("Assigned, not started", b.assigned)}
 
       {b.closed.length > 0 && (
         <details data-testid="wo-completed" open={adminMode}>
