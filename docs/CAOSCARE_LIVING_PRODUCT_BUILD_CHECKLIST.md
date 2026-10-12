@@ -91,7 +91,7 @@ check); tests `scripts/owner_intake/tests/test_eta_receipts.py`.
 ## Current build control
 
 - **Current phase:** 3/7 — Care Operations workspaces.
-- **ONE current bounded task:** `careops-transport-live-001` — Transportation authenticated LIVE_VERIFY on deployed `ff87c22`; the exact-SHA Linode deployment and 12/12 public smoke are complete. Therapy conflict remains DEV_ACCEPTED on integration product `77f83d3` (backend 542 passed/31 skipped, frontend 75 suites/585, browser 17/17), not deployed.
+- **ONE current bounded task:** `careops-transport-new-order-001` — reproduce the owner-reported unavailable “New order” control by intended role, then repair the canonical transport-request entry path or remove/relabel a misleading duplicate. Transportation authenticated LIVE_VERIFY on deployed `ff87c22` remains preserved and blocked on a signed-in authorized role plus one driver and one vehicle.
 - **Control issue / dispatch channel:** [#129](https://github.com/caosos/CAOSCARE.COM/issues/129).
 - **Completed review:** [PR #130](https://github.com/caosos/CAOSCARE.COM/pull/130), merged into integration.
 - **Integration branch:** `integration/2026-09-27`; current accepted therapy-conflict product commit `77f83d3d53e17ffb75c71d137ab876e50552efe9` with guarded dev restart `1bf1bec26ea58a6c55730fea3c858734eb788d54`. This later integration work is not in production `ff87c22`; the release baseline is separate.
@@ -251,7 +251,7 @@ Milestone: every service request is actionable, traceable, and truthfully visibl
 
 ## Phase 3 — Care Operations workspaces (ACTIVE)
 
-Current status: **ACTIVE. Transportation is DEV_ACCEPTED; release/live verification is the current bounded slice.**
+Current status: **ACTIVE. Transportation development slices are DEV_ACCEPTED; authenticated LIVE_VERIFY is blocked on production role/resource data, so compatible P0 Transportation correction continues.**
 
 ### Transportation — release/live task
 
@@ -318,7 +318,7 @@ Michael's production screenshots and narrated review are owner observations. The
 |---|---|---|---|---|---|
 | `careops-transport-live-001` | P0 | `caoscare-1-ee` | BLOCKED / LIVE_VERIFY PENDING; production `ff87c22` is loaded and public smoke is 12/12, but production has no labelled driver/vehicle and no fresh signed-in role acceptance receipt | Signed-in Transportation role creates, opens, changes, cancels, departs and completes rides on loaded `ff87c22`; inspect linked receipts and responsive UI | Preserve the exact blocker; resume when existing authorized session/data can supply a driver/vehicle without inventing live proof |
 | `careops-transport-unresolved-001` | P0 | `caoscare-1-ee` | DEV_ACCEPTED 2026-10-12 on `0c517fe`: count reproduced (11 = open, unbooked rides, any date); tile opens the list; rows open the real request with receipt timeline; report scoped to transport coordinators; backend 549/0/31, frontend 78/597, browser 8/8 | Count opens a filtered canonical list; every row opens detail, owner/status/next action and receipt trail; count matches records | Owner review; not deployed (production `ff87c22`) |
-| `careops-transport-new-order-001` | P0 | `caoscare-1-ee` | PLANNED; owner reports “New order” unavailable; distinguish from New ride | Intended staff can create the relevant transport request from the visible entry point and see it in queue/calendar with receipt, or misleading entry is removed/renamed | Identify exact control and role, then repair or relabel |
+| `careops-transport-new-order-001` | P0 | `caoscare-1-ee` | DISPATCHED 2026-10-11 21:15 CDT; owner reports “New order” unavailable; distinguish it from New ride before changing behavior | Intended staff can create the relevant transport request from the visible entry point and see it in queue/calendar with receipt, or the misleading entry is removed/renamed | Reproduce by role, trace the canonical path, then repair or relabel with API/browser receipts |
 | `careops-transport-calendar-001` | P1 | `caoscare-1-ee` | PARTIAL; calendar looked unchanged/empty to owner | Scheduled rides appear on day/week views and open their real request; empty state explains filters/data | Reproduce with dated synthetic rides; repair calendar display/navigation |
 | `careops-transport-resources-001` | P1 | `caoscare-1-ee` | PARTIAL; drivers, vehicles and scheduling buffer lack operator guidance | Authorized staff see what is required for assignment, how to manage drivers/vehicles, and what buffer changes; role refusals and empty states are clear | Audit resource screen by role, add task-specific instructions and browser test |
 | `careops-routing-delivery-audit-001` | P0 | `caoscare-1-ee` | DEV_ACCEPTED 2026-10-11 ~23:00Z: trace passed every transition; first gap (department not actually notified, invisible) repaired — detail/board/overview now say delivered / sent / not notified; headless 7/7 (`docs/reports/2026-10-11-routing-delivery-audit.md`). Real delivery still needs the provider (RQ-005) | One synthetic resident request traces creation → Kitchen delivery → named worker claim/assignment → acknowledgement → completion with timestamps and linked receipts; detect any lost/aging request | Run end-to-end routing audit; repair first proven broken transition |
@@ -528,3 +528,15 @@ The prior M1 text saying `main` promotion awaits owner commands is stale. GitHub
 - Production Transportation LIVE_VERIFY remains blocked on an authenticated owner/admin session plus one driver and one vehicle. That blocked item stays preserved.
 - **ONE current bounded task:** `careops-transport-unresolved-001`. Reproduce the reported “11 unresolved” count in the intended Transportation role, make the count open a canonical filtered list, make every row open detail with owner/status/next action/receipt trail, and reconcile the count to records. Use existing records and routes; do not create another queue or truth store.
 - Dispatch is recorded in Issue #129. Explicit `ACK / WORKING` with realistic ETA, exact America/Chicago `next_check_at`, expected acceptance evidence and blocker/NONE is required within five minutes. Until that arrives, ETA and next check are UNKNOWN by design.
+
+
+---
+
+## Checkpoint — 2026-10-11 21:15 CDT — Transportation unresolved DEV_ACCEPTED; New order path dispatched
+
+- `careops-transport-unresolved-001` is **DEV_ACCEPTED** at feature `0c517fedaf539736acd14ea1d5b787d0e7137435`, with development records/restart through `1d617b8` and `ffa13a7`. Backend 549 passed / 0 failed / 31 skipped; frontend 78 suites / 597; build compiled; isolated browser 8/8. Development loaded `1d617b8` on PID 939383 with zero leases. The Transportation **Unresolved 11** tile now opens exactly the 11 canonical open, unbooked rides (any date); every row opens the real request with owner/status/next action/receipt trail. Report: `docs/reports/2026-10-11-transport-unresolved.md`.
+- GitHub exposes no combined-status contexts or pull-request workflow runs for this slice; the dated local gates, browser report, and host restart receipt are the acceptance evidence. It is not production loaded, LIVE_VERIFIED, READY_FOR_OWNER_REVIEW for the full Transportation section, or OWNER_ACCEPTED / DONE.
+- Production remains `ff87c22df1dd69b405fa0ec60429c20fe72f6801`. Authenticated Transportation LIVE_VERIFY remains blocked on a signed-in authorized role plus one driver and one vehicle; preserve that exact NEED.
+- **ONE current bounded task:** `careops-transport-new-order-001`. Reproduce the owner-reported unavailable **New order** control using the intended roles and trace whether it is the canonical transport-request entry or a misleading duplicate of **New ride**. If legitimate, make it visible and usable for the authorized role, create only the canonical request, and prove it appears in the queue/calendar with a linked receipt. If redundant or misleading, remove or rename it truthfully. Prove authorization/refusal, empty/error states, desktop and 390 px behavior, no duplicate records, and no parallel truth store.
+- Explicit ACK/WORKING is due by **2026-10-11 21:20 CDT** with responsible coordinator/worker, stage, evidence, realistic ETA, exact America/Chicago `next_check_at`, expected acceptance evidence, and blocker `NONE`; otherwise publish an exact NEED_HOST_RECOVERY. No duplicate coordinator, worker, queue, monitor, or truth file.
+- Slack liaison processed through `1791767219.741959` (2026-10-11 20:06:59 CDT). That input was a CAOSCare event-connection test only; it did not dispatch work or create an owner decision.
