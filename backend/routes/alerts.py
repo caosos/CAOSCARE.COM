@@ -205,6 +205,7 @@ async def _record_acknowledgement(doc: dict, before: str, user: dict, receipt_id
         result=f"acknowledged by {user.get('name')}",
         provenance={"actor_id": user.get("user_id"), "actor_type": "real-human", "actor_name": user.get("name"),
                     "actor_role": role, "actor_department": user.get("department"), "authority": authority,
+                    "parent_receipt_id": doc.get("receipt_id"),   # the alert's origin receipt, as alert_completed
                     "before_state": {"status": before, "escalation_level": doc.get("escalation_level")},
                     "after_state": {"status": "acknowledged", "acknowledged_at": doc.get("acknowledged_at")},
                     "result_label": "verified", "next_state": "awaiting_resolution"})
