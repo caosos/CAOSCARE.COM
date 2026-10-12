@@ -222,3 +222,20 @@ describe("ambiguity refusal does not loop", () => {
     expect(global.fetch.mock.calls.filter(([u]) => String(u).includes("by-room")).length).toBe(2);
   });
 });
+
+test("an off command for 'Turn on my overhead light' is refused and nothing is sent (Room 214, 2026-10-12)", async () => {
+  mockFetch(LIGHT_ON_DIM);
+  const r = await executeDeviceTool({ name: "toggle_light", args: { state: "off", device: "overhead light" },
+    ctx: ctx({ last_user_text: "Turn on my overhead light, please." }) });
+  expect(r.ok).toBe(false);
+  expect(r.message).toMatch(/overhead light on or off/);
+  expect(global.fetch.mock.calls.filter(([u]) => String(u).includes("/command"))).toHaveLength(0);
+});
+
+test("a matching on command still runs", async () => {
+  mockFetch(LIGHT_OFF);
+  const r = await executeDeviceTool({ name: "toggle_light", args: { state: "on" },
+    ctx: ctx({ last_user_text: "Turn on my overhead light, please." }) });
+  expect(r.ok).toBe(true);
+  expect(global.fetch.mock.calls.filter(([u]) => String(u).includes("/command"))).toHaveLength(1);
+});

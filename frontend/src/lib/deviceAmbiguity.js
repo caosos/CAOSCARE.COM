@@ -37,6 +37,7 @@ export function recordAmbiguity(ctx, tool, noun, choices) {
 }
 
 export function clearAmbiguity(ctx, tool) { refusals.delete(keyOf(ctx, tool)); }
+export function hasPendingAmbiguity(ctx, tool) { return refusals.has(keyOf(ctx, tool)); }
 
 export function shortLabel(d, room) {
   const label = String(d.label || d.device_id || "");
