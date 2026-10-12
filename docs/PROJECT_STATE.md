@@ -9110,3 +9110,8 @@ Purpose + next step on Departments, Family and the Transportation daily screen; 
 `careops-screen-guidance-001` is DEV_ACCEPTED at `c7ecf0d60a98ebe5f6855a1abbc5b28b0e4fa7aa`. Frontend: 86 suites / 621 tests; compiled build; browser 16/16 at 1280 and 390 px. Development frontend serves `c7ecf0d`; backend remains `7e854ce`; dev `:8092` was healthy at 00:23:22 CDT. Production remains `ff87c22`; this slice is not production-loaded, LIVE_VERIFIED, or OWNER_ACCEPTED / DONE. Novice usability remains for owner review.
 
 Single next bounded task: `careops-good-surfaces-review-001` through the existing coordinator `caoscare-1-ee`. Review Requests, Devices, Reports/Audit, Facility setup, and Live board with intended roles; complete one normal task per surface, verify canonical records/receipts and truthful authorization/empty/load-failure behavior, repair the first concrete gap, and record desktop/390 px, exact tested/loaded revisions, and host evidence. ETA UNKNOWN pending ACK/WORKING; blocker NONE.
+
+---
+
+## 2026-10-12 — Good-surfaces review; admin device commands restricted and receipted (careops-good-surfaces-review-001)
+Requests, Devices, Reports/Audit, Facility setup, Live board: one normal task each with the intended role at 1280/390, 30/30. Gap repaired: `POST /devices/{id}/command` was open to any login and wrote no receipt; now owner/admin only with a `staff_device_command` receipt per command. Backend gate 576 / 0 / 31 (new `test_admin_device_command.py`). Dev backend restarted on `198fee4` (pid 1213230; previous log /tmp/room214_backend_7e854ce.log). Report `docs/reports/2026-10-12-good-surfaces-review.md`. Not deployed.
