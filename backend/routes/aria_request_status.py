@@ -71,6 +71,9 @@ def request_status_view(task: dict, tz: Optional[str] = None) -> dict:
         who = task.get("completed_by_name") or owner
         spoken = f"That one — {what} — has been taken care of{f' by {who}' if who else ''}."
         spoken += _note(task, tz, "Their note")
+    elif task.get("needs_review"):
+        spoken = ("Staff weren't able to finish it, so a supervisor has been asked to look at it. "
+                  f"It's still open.{_sched(task)}")
     elif lifecycle == "in_progress":
         spoken = f"{owner or 'Someone'} is working on it now.{_sched(task)}"
         spoken += _note(task, tz, "Latest note")

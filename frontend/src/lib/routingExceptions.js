@@ -1,6 +1,6 @@
 // Routing exceptions (GET /ops/routing-exceptions): wording only; the classes and counts come from the server.
-export const CLASS_LABEL = { undelivered: "Not delivered", unassigned: "Unassigned", overdue: "Overdue", failed_handoff: "Failed handoff" };
-export const CLASS_ORDER = ["undelivered", "unassigned", "overdue", "failed_handoff"];
+export const CLASS_LABEL = { needs_review: "Needs supervisor review", undelivered: "Not delivered", unassigned: "Unassigned", overdue: "Overdue", failed_handoff: "Failed handoff" };
+export const CLASS_ORDER = ["needs_review", "undelivered", "unassigned", "overdue", "failed_handoff"];
 
 export function ageText(sec) {
   if (sec == null) return "";

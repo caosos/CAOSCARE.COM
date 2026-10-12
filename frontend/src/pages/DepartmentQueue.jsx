@@ -17,6 +17,7 @@ import { conflictDetail, conflictSummary, overridePayload } from "../lib/schedul
 import { rideLine, canRequestRide } from "../lib/rideLink";
 import { detailsLine } from "../lib/appointmentDetails";
 import DepartmentDispatchNote from "../components/DepartmentDispatchNote";
+import { ReviewBadge, useExceptionReview } from "../components/ExceptionReview";
 
 const PRIO_STYLE = {
   urgent: "bg-caos-terracotta text-white",
@@ -123,6 +124,7 @@ export default function DepartmentQueue({ department, title, itemName = "request
   const canNote = (t) => ["owner", "admin"].includes(user?.role) || t.assigned_to === user?.user_id;
   const isAdmin = ["owner", "admin"].includes(user?.role);
   const canPlan = (t) => isAdmin || showAssign || t.assigned_to === user?.user_id;
+  const review = useExceptionReview(load);
   // Planned visit window: PATCH /tasks/{id} with the same two fields the detail dialog saves (receipted as task_schedule_updated).
   // Save the plan. An overlap with the resident's other planned work comes back as a
   // 409 (schedule_conflict); staff then choose explicitly to save anyway, which the
@@ -206,6 +208,7 @@ export default function DepartmentQueue({ department, title, itemName = "request
             ) : t.description && t.description !== t.title && (
               <div className="text-sm text-caos-ink/80 line-clamp-2">{t.description}</div>
             )}
+            <ReviewBadge t={t} />
             {t.notes && <div className="text-sm text-caos-ink/80">Note: {t.notes}</div>}
             {(t.requested_for_date || t.requested_for_time_label) && (
               <div className="text-sm text-caos-forest" data-testid={`wo-planned-${t.task_id}`}>
@@ -268,6 +271,7 @@ export default function DepartmentQueue({ department, title, itemName = "request
                 <XCircle className="w-4 h-4 mr-1" /> Cancel
               </Button>
             )}
+            {review.buttons(t, { canAct: canPlan(t), isAdmin })}
             <Button size="sm" variant="ghost" onClick={() => setHistoryFor(t.task_id)} data-testid={`wo-history-${t.task_id}`}>
               <History className="w-4 h-4 mr-1" /> History
             </Button>
@@ -408,6 +412,7 @@ export default function DepartmentQueue({ department, title, itemName = "request
         initialDetails={tasks.find((t) => t.task_id === planFor) || {}} onSave={savePlan} />
       <ConflictDialog open={!!conflict} onOpenChange={(o) => { if (!o) setConflict(null); }} summary={conflict?.summary}
         onSaveAnyway={() => savePlan(overridePayload(conflict.fields))} />
+      {review.dialogs}
       <ReasonDialog open={!!cancelFor} onOpenChange={(o) => { if (!o) setCancelFor(null); }} title={`Cancel ${itemName}`}
         description="The request is closed as cancelled; the reason is recorded in its history and receipts." placeholder="Why is it cancelled? (required)"
         submitLabel="Cancel request" testId="wo-cancel" onSubmit={cancelRequest} />

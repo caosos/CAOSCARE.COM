@@ -35,7 +35,7 @@ from routes.task_history import update_task_with_history
 
 STATE_KEYS = ("status", "assigned_to", "acknowledged_by", "started_at", "completed_at",
               "requested_for_date", "requested_for_time_label",
-              "provider_name", "discipline", "location")   # appointment details ride in before/after too
+              "provider_name", "discipline", "location", "needs_review")   # appointment details ride in before/after too
 _SOURCE_BY_CHANNEL = {"staff_ui": "staff", "front_desk": "front_desk", "system": "system",
                       "aria_voice": "aria_voice", "kiosk_button": "kiosk_button", "simulator": "simulator"}
 

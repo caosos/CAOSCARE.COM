@@ -14,6 +14,8 @@ Classes (a request can be in several):
   failed_handoff  - notification attempts were made and all failed/bounced,
                     or a lifecycle step on it was refused (a `task_*_refused`
                     receipt)
+  needs_review    - a worker said it could not be completed (task_review.py);
+                    a supervisor has to look at it
 Simulated work is never "undelivered" (its notifications are recorded by
 design). The currency classification (operations_currency) is kept: by
 default only current and current-simulation work is listed; `include_review`
@@ -32,7 +34,7 @@ from routes.request_delivery import delivery_for
 from routes.staff_scope import ADMIN_ROLES, acting_departments, acts_for
 
 router = APIRouter(prefix="/ops", tags=["ops"])
-CLASSES = ("undelivered", "unassigned", "overdue", "failed_handoff")
+CLASSES = ("needs_review", "undelivered", "unassigned", "overdue", "failed_handoff")
 OPEN = ("pending", "in_progress")
 
 
@@ -72,7 +74,7 @@ async def _rows(user, include_review: bool, task_ids: Optional[list] = None) -> 
         if not include_review and cur["bucket"] in ("review", "sim_past"):
             continue
         d = deliv.get(t["task_id"]) or {"state": "none", "label": "", "reached": False, "attempts": 0}
-        cls = []
+        cls = ["needs_review"] if t.get("needs_review") else []
         if not t.get("simulated") and d["state"] in ("not_sent", "none"):
             cls.append("undelivered")
         if not t.get("assigned_to"):
@@ -97,10 +99,11 @@ async def _rows(user, include_review: bool, task_ids: Optional[list] = None) -> 
                               if last else {"at": _iso(t.get("created_at")), "field": "created", "by_name": None, "text": t.get("source"), "to": None}),
             "delivery": d, "notification_attempts": d.get("attempts", 0),
             "times_asked": 1 + int(t.get("re_request_count") or 0), "escalation": {"re_request_count": int(t.get("re_request_count") or 0),
-                                                                               "refused_steps": refused.get(t["task_id"], 0)},
+                                                                               "refused_steps": refused.get(t["task_id"], 0),
+                                                                               "escalation_reason": t.get("escalation_reason") if t.get("needs_review") else None},
             "receipts_count": counts.get(t["task_id"], 0), "currency": cur, "classes": cls,
         })
-    out.sort(key=lambda r: ("failed_handoff" not in r["classes"], "undelivered" not in r["classes"], -r["age_seconds"]))
+    out.sort(key=lambda r: ("needs_review" not in r["classes"], "failed_handoff" not in r["classes"], "undelivered" not in r["classes"], -r["age_seconds"]))
     return out
 
 

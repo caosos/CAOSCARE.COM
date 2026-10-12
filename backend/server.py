@@ -36,6 +36,7 @@ from routes import tasks as task_routes  # noqa: E402
 from routes import task_templates as task_templates_routes  # noqa: E402
 from routes import task_detail as task_detail_routes  # noqa: E402
 from routes import task_assignment as task_assignment_routes  # noqa: E402
+from routes import task_review as task_review_routes  # noqa: E402
 from routes import resident_requests as resident_request_routes  # noqa: E402
 from routes import resident_request_overview  # noqa: E402
 from routes import upcoming_schedule  # noqa: E402
@@ -218,6 +219,7 @@ api.include_router(task_routes.router)
 api.include_router(task_templates_routes.router)
 api.include_router(task_detail_routes.router)
 api.include_router(task_assignment_routes.router)
+api.include_router(task_review_routes.router)
 api.include_router(resident_request_routes.router)
 api.include_router(resident_request_overview.router)
 api.include_router(upcoming_schedule.router)

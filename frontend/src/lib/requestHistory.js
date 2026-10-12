@@ -45,6 +45,10 @@ function describe(e, task) {
       return { label: `Visit window set${by(e)}`, text: e.text };
     case "re_request":
       return { label: `Resident asked again (${Number(e.to) + 1}x)`, text: e.text };
+    case "escalated":
+      return { label: `Couldn't complete — sent to a supervisor${by(e)}`, text: e.text, kind: "note" };
+    case "reviewed":
+      return { label: `Supervisor review${by(e)}`, text: e.text, kind: "note" };
     case "details":
       return { label: `Details updated${by(e)}`, text: e.text, kind: "detail" };
     case "ride_requested":

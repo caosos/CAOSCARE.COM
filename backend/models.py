@@ -854,6 +854,14 @@ class StaffTask(BaseModel):
     re_request_count: int = 0                # times a resident asked again before this closed
     reopened_at: Optional[str] = None        # last explicit reopen (receipted); None if never
     reopen_count: int = 0                    # how many times it was reopened
+    needs_review: bool = False               # worker could not complete it; a supervisor must look
+    escalation_reason: Optional[str] = None
+    escalated_at: Optional[str] = None
+    escalated_by_name: Optional[str] = None
+    escalation_count: int = 0
+    reviewed_at: Optional[str] = None
+    reviewed_by_name: Optional[str] = None
+    review_note: Optional[str] = None
     linked_ride_task_id: Optional[str] = None       # the transportation request raised for this planned request (task_ride_link)
     linked_appointment_task_id: Optional[str] = None  # on a ride: the request it was raised for
     # Optional operational appointment details (careops-therapy-details-001): who/what/where.

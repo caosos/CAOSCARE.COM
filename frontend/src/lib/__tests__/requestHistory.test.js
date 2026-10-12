@@ -119,3 +119,20 @@ test("completed straight from pending does not invent a Started step", () => {
   expect(labels).not.toContain("Started by Nurse Ana");
   expect(labels[labels.length - 1]).toMatch(/^Completed/);
 });
+
+test("can't-complete and supervisor review read clearly with their reasons", () => {
+  const task = {
+    ...base, status: "pending",
+    event_log: [
+      { at: "2026-10-12T07:00:00Z", field: "escalated", text: "Needs two people", by: "u1", by_name: "Nurse Ana" },
+      { at: "2026-10-12T07:05:00Z", field: "reviewed", text: "Send evening nurse with an aide", by: "u9", by_name: "Admin" },
+    ],
+  };
+  const ev = buildRequestTimeline(task);
+  expect(ev.map((e) => e.label)).toEqual([
+    "Created (aria voice)",
+    "Couldn't complete — sent to a supervisor by Nurse Ana",
+    "Supervisor review by Admin",
+  ]);
+  expect(ev[1].text).toBe("Needs two people");
+});
