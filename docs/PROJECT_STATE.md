@@ -9148,3 +9148,14 @@ Michael approved in the coordinator terminal: gpt-realtime-2.1 + marin, 10-minut
 
 ## 2026-10-12 — Follow-up: honest new-request wording, phone title wrap
 `8a06ad1` + `40c3fec`: a new request's tool result carries the real department-notice state and says it is "on the <department> list", never "sent" or "coming" without proof (live retest rt_ih7vi9zz_1791787206391). `d01796b`: queue titles wrap at 390 px. Gate backend 591/0/31, frontend 87/627, build compiled. Dev backend `8a06ad1`. Report updated.
+
+
+---
+
+## 2026-10-12 01:50 CDT — honest Aria request wording accepted; Nursing exception lifecycle prepared
+
+`careops-resident-aria-honest-request-language-001` is **DEV_ACCEPTED** on `8a06ad1` + `40c3fec`, with the 390 px queue-title repair at `d01796b` and report/project-state record `9865cea`. Canonical coordinator receipts: Issue #129 comments 6119167547 and 6119172960. Backend gate 591 passed / 0 failed / 31 skipped; frontend 87 suites / 627 tests; compiled build. Live typed trace `rt_ih7vi9zz_1791787206391` proves the tool and Aria say the request is on the Nursing list, that no real notice was sent in the demo, and that no one has acknowledged or is on the way without evidence. Claude Chrome/browser evidence covers Nursing `/staff` at 390 and 1280 with no overflow or failed API calls.
+
+Tested code: `8a06ad1` + `40c3fec` and frontend `d01796b`. Loaded development backend: `8a06ad1` after a guarded restart with zero leases; frontend dev server served `d01796b`. Production remains `ff87c22`. Latest timestamped host observation remains 2026-10-12 01:37:33 CDT; later GitHub receipts are not host-liveness proof. The broader resident Aria slice is typed/demo DEV_ACCEPTED only: Michael's spoken Room 214 voice/personality check remains open. Other dependency gaps remain unchanged.
+
+The prior active task is closed at the development-acceptance boundary. The next compatible checklist gap is prepared as `careops-nursing-exception-lifecycle-001` for existing coordinator `caoscare-1-ee`: on canonical StaffTask/receipts, prove reassignment, unable-to-complete with reason, escalation, supervisor review, truthful resident/Aria status, intended-role permission, unauthorized refusal, queue/history/count reconciliation, desktop/390 px behavior, exact tested/loaded revisions, and a fresh host observation. The existing labeled demo request `task_134116c5c444` must be reconciled only after test provenance is confirmed. No production mutation, external messaging, paid provider action, audio work, new truth store, or duplicate coordinator/worker/session/queue/watchdog/monitor. Blocker: NONE for this development task.
