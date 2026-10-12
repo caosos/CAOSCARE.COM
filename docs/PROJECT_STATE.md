@@ -9028,3 +9028,16 @@ The earlier 23:21 supervisor dispatch of `careops-transport-resources-001` raced
 
 ## 2026-10-12 — Transport calendar: an empty day points to where the rides are (careops-transport-calendar-001)
 Calendar response gains `elsewhere` (next dates with open rides; open unbooked requests dated before today, same rule as Unresolved) and defaults to the facility date instead of UTC. UI strip with jump buttons and the past-dated count. Backend gate 559 / 0 / 31 (new `test_transport_calendar_elsewhere.py`), frontend 82 suites / 609, build compiled; dev-site headless 14/14. Dev backend restarted on `7a7cd92` (pid 1144062; previous log /tmp/room214_backend_922919e.log). Report `docs/reports/2026-10-12-transport-calendar-empty.md`. Not deployed.
+
+
+---
+
+## 2026-10-11 23:39 CDT — Transportation calendar accepted in development; clinician workspace is current
+
+`careops-transport-calendar-001` is **DEV_ACCEPTED** at `922919e90e1bd3938e113f27b03989177600089d` plus `7a7cd92e3dd1c4766f9be81a472133e85800026c`. Coordinator receipt #6117835788 reports backend 559/0/31, frontend 82 suites / 609 tests, compiled build, browser 14/14, and a loaded development backend at `7a7cd92` (PID 1144062, dev `:8092` healthy, zero leases) observed Sunday, October 11, 2026 — 11:36:56 PM America/Chicago. GitHub exposes no combined-status contexts. Production remains `ff87c22`; not production loaded, LIVE_VERIFIED, or OWNER_ACCEPTED / DONE.
+
+The repaired workflow uses the facility-local date instead of UTC. An empty Transportation calendar day now shows the next dates containing rides, one-tap date jumps, and the count of open unbooked requests dated before the current facility day.
+
+**ONE current bounded task:** `careops-clinician-workspace-001`. Audit the existing clinician route and authorized role; define its allowed operational job; complete the first canonical normal-work path; provide truthful purpose, next action/result, empty/load-failure state, and refusal for unauthorized roles; prove desktop and 390 px behavior. Hide or relabel a misleading route if it has no usable canonical workflow. Reuse canonical StaffTask/receipt/state records. Exclude clinical diagnosis/chart data, billing, provider registry, new truth stores, production mutation, external messaging, audio, and paid services.
+
+Issue #129 dispatches this work to the existing coordinator `caoscare-1-ee`. ACK/WORKING is due Sunday, October 11, 2026 — 11:44 PM America/Chicago. ETA UNKNOWN pending that receipt. Blocker: NONE.
