@@ -9214,3 +9214,18 @@ The ONE current bounded task is `careops-housekeeping-schedule-001`, existing co
 
 ## 2026-10-12 — Housekeeping scheduled jobs (careops-housekeeping-schedule-001)
 `af52bfa`: Upcoming panel beside the Housekeeping queue (staff + Admin), refreshes on queue change; in-room departments refuse rides. `8d03c65`: Aria reads every open request in a department when several are open. Live: front desk entered two future jobs, owner planned/rescheduled in Claude Chrome, facility-date order correct, nurse 403, housekeeper at 390, Aria named both, completion receipted. Gate 594/0/31, frontend 88/633. Report `docs/reports/2026-10-12-housekeeping-schedule.md`.
+
+
+---
+
+## 2026-10-12 03:42 CDT — Housekeeping scheduling DEV_ACCEPTED; recurrence next
+
+Canonical coordinator DONE https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6120747546 and transport-only mirror https://github.com/caosos/CAOSCARE.COM/pull/131#issuecomment-6120769216 close `careops-housekeeping-schedule-001` at the development-acceptance boundary. Product commits are `af52bfa454ed8d82b48f943e97f8577f51369c19` (Housekeeping Upcoming beside the shared queue for staff/Admin; immediate refresh; in-room departments refuse rides) and `8d03c65d67d0ebbe11c799edce286f25a4d8608f` (Aria reads every open request in the selected department). Report: `docs/reports/2026-10-12-housekeeping-schedule.md`.
+
+Backend gate: 594 passed / 0 failed / 31 skipped. Frontend: 88 suites / 633 tests; production build compiled. In development, front desk created two future Housekeeping jobs; owner in Claude Chrome planned October 14 at 2:00 PM and October 13 at 10:00 AM, then rescheduled the deep clean to October 13 at 9:00 AM. Upcoming reordered immediately by facility-local date/time. Nurse reschedule returned 403. Housekeeper at 390 px saw both times with no overflow or failed API calls. Resident display matched. Aria trace `rt_dfwi8v3i_1791794082799` named both requests and times. Completing the deep clean removed it from Upcoming. The canonical workflow retained created → schedule_updated → schedule_updated → in_progress → completed receipts; each history entry had its receipt id.
+
+Development backend tested/loaded `8d03c65`; frontend tested/served `af52bfa`; production `ff87c22` unchanged. Latest timestamped host observation Monday, October 12, 2026 — 3:41:19 AM America/Chicago: existing coordinator `caoscare-1-ee` idle; control-plane service loaded `f1db2d358ca1`; repository `cd076d251ab9` newer and not loaded. This is host/process evidence; GitHub activity alone is not host-liveness proof. Known cost: UNKNOWN.
+
+Verdict: IMPLEMENTED / TESTED / DEV_ACCEPTED and ready to present for owner review; not OWNER_ACCEPTED / DONE. Full Housekeeping and broader Care Operations remain incomplete.
+
+The ONE current bounded task is `careops-housekeeping-recurrence-001`, existing coordinator `caoscare-1-ee`, stage READY / DISPATCHING. Inspect and reuse the canonical StaffTask, facility-local requested date/time, Housekeeping queue, lifecycle service, receipts, and existing scheduler/tick path. With one labeled synthetic weekly room/area job, prove authorized recurrence creation, deterministic occurrence generation without duplicates, Housekeeping/Admin upcoming visibility, one occurrence reschedule without corrupting the series, lifecycle completion, truthful resident/Aria status, unauthorized refusal, desktop/390 px acceptance, focused/full gates, exact tested/loaded revisions, and fresh host evidence. Repair only the first proven gap. Stop before inspections, supplies/linen, external delivery, production mutation, audio/Hey Aria, duplicate coordinator/worker/session/queue/watchdog/monitor, or PR #41/#42/#131 merge. Blocker: NONE. Michael action: NOTHING.
