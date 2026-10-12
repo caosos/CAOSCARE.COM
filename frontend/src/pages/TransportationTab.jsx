@@ -71,7 +71,8 @@ export default function TransportationTab() {
       <div className="flex flex-wrap justify-between items-start gap-y-3 mb-4">
         <div>
           <h2 className="font-display text-xl font-medium text-caos-forest">Transportation — daily operations</h2>
-          <p className="text-caos-mute text-sm mt-1">What came in, what went out, what's still open — one day at a time.</p>
+          <p className="text-caos-mute text-sm mt-1">What came in, what went out, what's still open — one day at a time. Start a ride with New ride,
+            book a pickup with Book on any waiting ride, and open Unresolved to see every ride still waiting, on any date.</p>
         </div>
         <div className="flex items-center gap-3 overflow-x-auto max-w-full">
           <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-auto shrink-0" data-testid="transport-date-picker" />

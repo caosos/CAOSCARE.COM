@@ -74,7 +74,8 @@ export default function DepartmentsTab() {
           <p className="text-caos-mute text-sm mt-1">
             Who a staff request can route to. Staff pick one of these as their department, and Aria's request
             categories validate against this same list. Deactivating a department stops it from being offered
-            for new requests without touching anything already routed to it.
+            for new requests without touching anything already routed to it. Click a department to see who works there,
+            its open work by person, and what was finished.
           </p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>

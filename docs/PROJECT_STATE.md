@@ -9096,3 +9096,8 @@ Labeled activity paste → draft (not live) → publish → Aria's `get_todays_s
 
 ## 2026-10-12 — Whole-menu paste (careops-menu-paste-001)
 Menu paste accepts dated day headers and creates one draft per day (same header format as the activities calendar). Week paste → per-day drafts (not public) → publish today → Aria supper lookup → corrected dinner supersedes (shown "Replaced") → resident screen shows only the corrected dinner: 12/12, labeled data removed. Backend gate 570 / 0 / 31 (new `test_menu_paste_multiday.py`), frontend 86 suites / 621, build compiled. Dev backend restarted on `7e854ce` (pid 1196119; previous log /tmp/room214_backend_4b270ef.log). Report `docs/reports/2026-10-12-menu-paste.md`. Not deployed.
+
+---
+
+## 2026-10-12 — Screen guidance (careops-screen-guidance-001)
+Purpose + next step on Departments, Family and the Transportation daily screen; Activities, Menu and Transport resources got theirs in earlier slices tonight. Frontend 86 suites / 621, build compiled; dev browser 16/16. Report `docs/reports/2026-10-12-screen-guidance.md`. Frontend only; not deployed; novice usability still for owner review.

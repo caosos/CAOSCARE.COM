@@ -42,9 +42,11 @@ export default function FamilyTab({ residents }) {
 
   return (
     <div className="space-y-6" data-testid="family-panel">
-      <p className="text-caos-mute text-sm">
-        Family notifications are delivered through the providers on the Communications tab, where every
-        attempt and its delivery status is listed.
+      <p className="text-caos-mute text-sm" data-testid="family-purpose">
+        The family members CAOSCare may contact for each resident: which alerts each one receives (emergency, assist calls,
+        wander, daily summary), whether the resident may ask Aria to call them (an owner or admin turns that on), and each
+        family's portal link. Add a contact with "Add family contact", change it with the pencil. Every send attempt and its
+        delivery status is listed under Communication &amp; requests → Email &amp; notifications.
       </p>
 
       {/* Family contacts */}
