@@ -271,3 +271,8 @@ No code change; 17/17 dev browser checks; gates 611/0/31, 91/644, build OK. Find
 
 ## 2026-10-12 — Dining menu correction versioning (careops-dining-correction-versioning-001)
 `214523f`: published-item corrections are versioned replacements; draft correction no longer removes the live dish. Backend 618/0/31, frontend 95/649. Report docs/reports/2026-10-12-dining-correction-versioning.md.
+
+## 2026-10-12 13:00 CDT — Dining dietary/allergen labels (careops-dining-dietary-allergen-truth-001) + wake recall status
+Agent: Claude Code (coordinator caoscare-1-ee, resumed). Branch `integration/2026-09-27`.
+`b2faae1`: staff-entered `dietary_labels` / `allergens` on MenuItem, bounded/normalized, through draft/publish/correction/receipts, repeated verbatim to residents/Aria with a no-inference note. Backend 640/2/13 (2 failures pre-existing on HEAD, OpenAI-key tests); frontend 95/652; build OK. Report docs/reports/2026-10-12-dining-dietary-allergen-truth.md. Browser acceptance pending: dev backend :8092 still `214523f` (restart needs Michael + idle room).
+Wake (careops-room214-wake-recall-001): shadow 0.01/3.5 live since 12:20; 12:20–12:56 ~30 unlabelled bursts, no shadow_only; one live+shadow hit 12:56:16 (conversation ran). Still needs Michael's 10 labelled tries before changing the live score. No live wake setting changed. Production `ff87c22` unchanged.
