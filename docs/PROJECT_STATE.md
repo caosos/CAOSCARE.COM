@@ -262,3 +262,6 @@ No code change; 17/17 dev browser checks; gates 611/0/31, 91/644, build OK. Find
 
 ## 2026-10-12 — Front desk failed deliveries (careops-frontdesk-failed-deliveries-001)
 `2278dcf`: /ops/delivery-exceptions (redacted alert-delivery failures, desk + admin) + Needs attention card. Backend 615/0/31, frontend 93/646. Finding: notify_family_for_alert writes no receipt.
+
+## 2026-10-12 — Family alert update receipts (careops-alerts-family-update-receipt-001)
+`2079206`: family_alert_update_attempt receipt per attempt, parent = alert origin. Backend 616/0/31. Finding: room-screen repeat presses re-notify family.
