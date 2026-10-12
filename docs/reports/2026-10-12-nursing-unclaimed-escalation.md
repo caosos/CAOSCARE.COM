@@ -4,7 +4,7 @@
 The escalation tick (`escalation_tick.run_tick`) escalated only alerts. A Nursing request nobody claimed stayed
 "pending, unassigned" with no supervisor signal.
 
-## Built (`e2a8770`, labels `<this commit>`)
+## Built (`e2a8770`, labels `28c0729`)
 - `backend/routes/task_unclaimed_escalation.py`, called from the same tick (no new timer). A Nursing request still
   pending and unassigned `nursing_unclaimed_seconds` after it was raised (EscalationRule, default 600) is flagged
   once: atomic claim, then `task_lifecycle.transition` with the system actor → receipt `task_unclaimed_escalated`
