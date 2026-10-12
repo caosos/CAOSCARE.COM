@@ -412,3 +412,30 @@ Append-only. One entry per verified check-in, tied to its receipt. A correction 
 - **next_check_at:** Monday, October 12, 2026 — 3:34:00 AM America/Chicago
 - **Blocker:** NONE
 - **Michael action required:** NOTHING
+
+
+## Monday, October 12, 2026 — 3:02 AM America/Chicago
+- **Receipt:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6120215090
+- **Project:** CAOSCare
+- **Phase / position:** Phase 3/7 Care Operations workspaces — Nursing automatic unclaimed-request escalation DEV_ACCEPTED; Housekeeping exception lifecycle is the next department-workspace gap
+- **Completed since the prior check:** `careops-nursing-unclaimed-escalation-001` is IMPLEMENTED / TESTED / DEV_ACCEPTED and ready to present for owner review. It is not OWNER_ACCEPTED / DONE; broader Alerts/Escalation and Care Operations remain incomplete. The authoritative checklist and PROJECT_STATE were reconciled before dispatch.
+- **Evidence:** coordinator DONE https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6120078175; transport-only mirror https://github.com/caosos/CAOSCARE.COM/pull/131#issuecomment-6120099631; code `e2a87701275c714387848bdf64926f1e843b626f`; labels/report `28c0729`; records `743c4d2`; checklist boundary `c61a4e5d2370978bf24e6d94ceb6a826fb4066c0`; PROJECT_STATE boundary `e70249049bd14e268d020b6cc990ce59ea934ac5`; report `docs/reports/2026-10-12-nursing-unclaimed-escalation.md`. Backend 593 passed / 0 failed / 31 skipped; frontend 88 suites / 631 tests; build compiled. Typed synthetic `task_63bc1794b15d` received one `system:escalation` receipt after the threshold. Owner in Claude Chrome saw Unclaimed, flagged (1) and the Nursing badge; nurse at 390 px saw it without overflow or failed API calls; maintenance did not; Aria `rt_xl5l4ezc_1791791425175` was truthful; after claim it disappeared after two more ticks with one receipt retained, then completed. GitHub combined-status contexts for `e2a8770` absent. Backend tested/loaded `e2a8770` after guarded restart with zero leases and background tick enabled; frontend tested/served `743c4d2`; production `ff87c22`. Latest timestamped host observation: Monday, October 12, 2026 — 2:54:51 AM America/Chicago from the transport bridge; existing coordinator idle, control-plane service loaded `191d76a3eca2`, repository `ff930e5638bd` newer/not loaded. This is control-plane/repository evidence; canonical DONE/report prove product load. Known cost: UNKNOWN.
+- **Current bounded task (owner · stage):** `careops-housekeeping-exception-lifecycle-001` · existing coordinator `caoscare-1-ee` · DISPATCHED / ACK REQUIRED
+- **Remaining steps for this milestone:**
+  1. ACK/WORKING with evidence reviewed, realistic ETA, exact next check, expected evidence and blocker/NONE
+  2. Inspect the Housekeeping route, intended role and existing canonical exception controls
+  3. Reproduce one labeled synthetic room/area request
+  4. Prove claim, start, cannot-complete with reason, owner/admin review, assign or reclaim and complete on one receipt chain
+  5. Repair only the first proven gap
+  6. Prove truthful resident/Aria status, unauthorized refusal and queue/history/count reconciliation
+  7. Run focused/full gates and Claude Chrome desktop/390 acceptance
+  8. Record exact tested/loaded revisions and fresh host evidence, then reconcile authoritative records
+- **Upcoming milestones:**
+  1. Michael's spoken Room 214 voice/personality acceptance
+  2. Authenticated Transportation LIVE_VERIFY when its role/driver/vehicle dependencies are available
+  3. Full owner/novice pilot walkthrough
+  4. Pilot Room 1 / Voice PE onboarding
+- **ETA:** UNKNOWN pending the coordinator's evidence-based ACK/WORKING
+- **next_check_at:** Monday, October 12, 2026 — 3:07:14 AM America/Chicago
+- **Blocker:** NONE for this development slice
+- **Michael action required:** NOTHING
