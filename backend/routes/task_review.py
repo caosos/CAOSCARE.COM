@@ -63,9 +63,10 @@ async def escalate(task_id: str, reason: Optional[str], actor: ActorContext, use
         patch = {"status": "pending", "assigned_to": None, "assigned_name": None, "started_at": None,
                  "needs_review": True, "escalation_reason": reason,
                  "escalated_at": now_utc().isoformat(), "escalated_by_name": actor.name,
-                 "escalation_count": int(t.get("escalation_count") or 0) + 1, "notes": reason}
-        entries = [_ev("note", actor, rid, text=reason),
-                   _ev("escalated", actor, rid, text=reason)]
+                 "escalation_count": int(t.get("escalation_count") or 0) + 1}
+        # The reason is for the supervisor: kept in escalation_reason and the history,
+        # never in `notes`, which the resident's screen and Aria read as the latest update.
+        entries = [_ev("escalated", actor, rid, text=reason)]
         if t.get("assigned_to"):
             entries.append(_ev("assigned_to", actor, rid, frm=t.get("assigned_to"), to=None))
         if t.get("status") != "pending":
@@ -86,8 +87,8 @@ async def review(task_id: str, note: Optional[str], actor: ActorContext, user: d
         if not t.get("needs_review"):
             return None
         return ({"needs_review": False, "reviewed_at": now_utc().isoformat(),
-                 "reviewed_by_name": actor.name, "review_note": note, "notes": note},
-                [_ev("note", actor, rid, text=note), _ev("reviewed", actor, rid, text=note)])
+                 "reviewed_by_name": actor.name, "review_note": note},
+                [_ev("reviewed", actor, rid, text=note)])   # supervisor-only, like the escalation reason
     after, receipt = await transition(task_id, actor, user, action="review", build=build,
                                       action_type="task_reviewed", status="created", result=note)
     if receipt is None:

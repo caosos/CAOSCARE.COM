@@ -58,12 +58,12 @@ export function useExceptionReview(reload) {
     <>
       <ReasonDialog open={!!escalateFor} onOpenChange={(o) => { if (!o) setEscalateFor(null); }}
         title="Can't complete this request"
-        description="Say why. The request stays open, goes back to unassigned, and a supervisor is asked to review it."
+        description="Say why. The request stays open, goes back to unassigned, and a supervisor is asked to review it. Staff only: the resident and Aria do not see this reason."
         placeholder="e.g. Needs a second person or equipment we don't have" submitLabel="Send to supervisor" testId="wo-escalate"
         onSubmit={(r) => send(escalateFor, "escalate", r, "Sent to a supervisor for review", setEscalateFor)} />
       <ReasonDialog open={!!reviewFor} onOpenChange={(o) => { if (!o) setReviewFor(null); }}
         title="Supervisor review"
-        description="Record what you decided. Then assign it to someone, or cancel it with a reason."
+        description="Record what you decided. Then assign it to someone, or cancel it with a reason. Staff only: the resident and Aria do not see this note."
         placeholder="e.g. Reassigning to the evening shift with the right equipment" submitLabel="Mark reviewed" testId="wo-review"
         onSubmit={(r) => send(reviewFor, "review", r, "Review recorded", setReviewFor)} />
     </>
