@@ -1,6 +1,6 @@
 # CAOSCare — Living Product Build Checklist
 
-Updated: 2026-10-12 (06:16 CDT; alert close-out receipts DEV_ACCEPTED; direct alert ingress receipts DELIVERED).
+Updated: 2026-10-12 (06:23 CDT; direct alert ingress receipts ACKED / WORKING).
 
 This is the owner-facing product build and progress tracker for the Care Operations build. Canonical owner direction: [Issue #129](https://github.com/caosos/CAOSCARE.COM/issues/129). Detailed historical evidence remains in [PILOT1_EXECUTION_CHECKLIST.md](https://github.com/caosos/CAOSCARE.COM/blob/integration/2026-09-27/docs/PILOT1_EXECUTION_CHECKLIST.md). This file controls current phase, active task, milestones, ETA, blockers, and the reporting contract.
 
@@ -884,5 +884,20 @@ Issue #129 is the dispatch channel to existing coordinator `caoscare-1-ee`. ACK/
 - **Upcoming milestones (ordered):** 1. finish Alerts section acceptance; 2. remaining Phase 3 department-workspace gaps; 3. Phase 4 scheduling/records/resources; 4. Phase 5 communications; 5. Phase 6 pilot reliability/accessibility; 6. Phase 7 release/deployment/live acceptance.
 - **ETA:** UNKNOWN pending ACK.
 - **next_check_at:** Monday, October 12, 2026 — 6:22:49 AM America/Chicago; owned by the existing LOCAL watchdog.
+- **Blocker:** NONE.
+- **Michael must do:** NOTHING.
+
+
+### Update 2026-10-12 06:23 CDT (direct alert ingress receipts ACKED / WORKING)
+
+- **Canonical ACK / WORKING:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6123235463. Transport-only mirror: https://github.com/caosos/CAOSCARE.COM/pull/131#issuecomment-6123265495.
+- **Delivery timing:** automatic intake delivered worker `da-2df56d6a1e` to the running existing coordinator at Monday, October 12, 2026 — 6:20:40 AM America/Chicago; ACK/WORKING followed at Monday, October 12, 2026 — 6:20:46 AM America/Chicago, within six seconds and before the 300-second deadline.
+- **ONE current bounded task / responsibility / stage:** `careops-alerts-ingress-receipts-001` / existing coordinator `caoscare-1-ee`, worker `da-2df56d6a1e` / ACKED, WORKING.
+- **Evidence reviewed:** direct `db.alerts.insert_one` paths in `location.py` for wander alerts, `wearables.py`, and `pendants.py`; canonical `resident_activation.record_resident_activation` already supplies coalescing and creation receipts. The worker will verify whether `pendants.py` is still mounted/used rather than assuming it is live.
+- **Plan / expected acceptance evidence:** failing tests for each used source first; route used ingress paths through the canonical helper while preserving `triggered_by`, device identifiers, source identity and severity rules; prove repeated/concurrent signals yield one canonical alert and one provenance-complete creation receipt; prove existing escalation, public status, dispatch, acknowledgement, close, authorization and resident/Aria safety remain intact; full gates; headless desktop and 390 px acceptance; cleanup; exact tested/loaded revisions; newest host observation; cost or UNKNOWN.
+- **Current tested/loaded state:** no new current-task revision or test/browser result at ACK. Prior accepted development remains backend `fc9e95b`, PID 1495849, and frontend `db4317f`; production `ff87c22` unchanged.
+- **Latest host observation:** Monday, October 12, 2026 — 6:22:44 AM America/Chicago — existing coordinator `caoscare-1-ee` busy; control-plane service PID 1370098 on `f1db2d358ca1`; repository `cd076d251ab9` newer/not loaded. This is control-plane host evidence; GitHub activity alone is not host-liveness proof.
+- **ETA:** approximately Monday, October 12, 2026 — 8:00:46 AM America/Chicago.
+- **next_check_at:** Monday, October 12, 2026 — 8:00:46 AM America/Chicago; owned by the existing LOCAL watchdog.
 - **Blocker:** NONE.
 - **Michael must do:** NOTHING.
