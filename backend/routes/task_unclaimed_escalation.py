@@ -2,7 +2,9 @@
 
 Part of the one escalation tick (escalation_tick.run_tick); no separate timer.
 A Nursing request that is still pending and unassigned `nursing_unclaimed_seconds`
-(EscalationRule) after it was raised is flagged ONCE for a supervisor:
+(its own facility's EscalationRule, defaults when the facility has none - the
+same `rule_for` lookup alerts use) after it was raised is flagged ONCE for a
+supervisor:
 
   * one atomic claim (`unclaimed_claimed_at`), so repeated or concurrent ticks
     flag it once;
@@ -28,15 +30,16 @@ DEPARTMENTS = ("nursing",)
 ACTOR = actor_system("escalation")
 
 
-async def escalate_unclaimed(now: datetime, rule: dict) -> dict:
+async def escalate_unclaimed(now: datetime, rules_by_fac: dict) -> dict:
+    from routes.escalation_tick import rule_for
     out = {"unclaimed_flagged": 0, "unclaimed_examined": 0}
-    if not rule.get("enabled", True):
-        return out
-    threshold = int(rule.get("nursing_unclaimed_seconds", 600))
-    cutoff = (now - timedelta(seconds=threshold)).isoformat()
+    # widest window any facility could need; each request is then held to its own rule
+    shortest = min([int(r.get("nursing_unclaimed_seconds", 600)) for r in rules_by_fac.values()] +
+                   [int(rule_for({}, None)["nursing_unclaimed_seconds"])])
     tasks = await db.staff_tasks.find(
         {"visibility_role": {"$in": list(DEPARTMENTS)}, "status": "pending",
-         "assigned_to": None, "unclaimed_claimed_at": None, "created_at": {"$lte": cutoff},
+         "assigned_to": None, "unclaimed_claimed_at": None,
+         "created_at": {"$lte": (now - timedelta(seconds=shortest)).isoformat()},
          # planned for a later day (e.g. a recurring occurrence made ahead): not due yet
          "$or": [{"requested_for_date": None}, {"requested_for_date": {"$lte": now.date().isoformat()}}]},
         {"_id": 0}).to_list(500)
@@ -44,6 +47,10 @@ async def escalate_unclaimed(now: datetime, rule: dict) -> dict:
     run = await active_run()
     rid = run["run_id"] if run else None
     for t in tasks:
+        rule = rule_for(rules_by_fac, t.get("facility_id"))
+        threshold = int(rule.get("nursing_unclaimed_seconds", 600))
+        if not rule.get("enabled", True) or parse_dt(t["created_at"]) > now - timedelta(seconds=threshold):
+            continue
         if classify(t, "task", rid, now)["bucket"] not in ("current", "sim_current"):
             continue
         claimed = await db.staff_tasks.update_one(

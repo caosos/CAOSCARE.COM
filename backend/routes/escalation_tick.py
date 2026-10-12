@@ -44,6 +44,12 @@ def auto_interval_seconds() -> int | None:
         return DEFAULT_INTERVAL_SECONDS
 
 
+def rule_for(rules_by_fac: dict, facility_id) -> dict:
+    """The facility's own EscalationRule, or the safe defaults when it has none.
+    Alerts and unclaimed requests both select their rule here."""
+    return rules_by_fac.get(facility_id) or EscalationRule(facility_id=facility_id).model_dump()
+
+
 def _target_level(elapsed: float, rule: dict) -> int:
     if elapsed >= rule.get("level_3_seconds", 150):
         return 3
@@ -83,7 +89,6 @@ async def run_tick(now: datetime | None = None) -> dict:
     rules_by_fac: dict = {}
     async for r in db.escalation_rules.find({}, {"_id": 0}):
         rules_by_fac[r.get("facility_id")] = r
-    default_rule = EscalationRule().model_dump()
 
     active = await db.alerts.find(
         {"status": {"$in": _OPEN_STATUSES}, "acknowledged_at": None, "resolved_at": None},
@@ -93,7 +98,7 @@ async def run_tick(now: datetime | None = None) -> dict:
     out = {"escalated_to_2": 0, "escalated_to_3": 0, "skipped": 0, "stale_skipped": 0,
            "examined": len(active)}
     for a in active:
-        rule = rules_by_fac.get(a.get("facility_id"), default_rule)
+        rule = rule_for(rules_by_fac, a.get("facility_id"))
         current = a.get("escalation_level") or 0
         if not rule.get("enabled", True) or current >= 3:
             out["skipped"] += 1
@@ -130,7 +135,7 @@ async def run_tick(now: datetime | None = None) -> dict:
         except Exception as e:
             log.warning("escalation side effect failed for %s: %s", a.get("alert_id"), e)
     from routes.task_unclaimed_escalation import escalate_unclaimed
-    out.update(await escalate_unclaimed(now, next(iter(rules_by_fac.values()), default_rule)))
+    out.update(await escalate_unclaimed(now, rules_by_fac))
     from routes.task_recurrence import generate   # recurring work occurrences ride the same tick
     try:
         out.update(await generate())
