@@ -1,6 +1,6 @@
 # CAOSCare — Living Product Build Checklist
 
-Updated: 2026-10-12 (06:06 CDT; canonical alert state DEV_ACCEPTED; close-out receipts DELIVERED).
+Updated: 2026-10-12 (06:10 CDT; alert close-out receipts ACKED / WORKING).
 
 This is the owner-facing product build and progress tracker for the Care Operations build. Canonical owner direction: [Issue #129](https://github.com/caosos/CAOSCARE.COM/issues/129). Detailed historical evidence remains in [PILOT1_EXECUTION_CHECKLIST.md](https://github.com/caosos/CAOSCARE.COM/blob/integration/2026-09-27/docs/PILOT1_EXECUTION_CHECKLIST.md). This file controls current phase, active task, milestones, ETA, blockers, and the reporting contract.
 
@@ -91,7 +91,7 @@ check); tests `scripts/owner_intake/tests/test_eta_receipts.py`.
 ## Current build control
 
 - **Current phase:** 3/7 — Care Operations workspaces.
-- **ONE current bounded task:** `careops-alerts-close-receipts-001` — DELIVERED through existing coordinator `caoscare-1-ee`; ACK / WORKING required by Monday, October 12, 2026 — 6:11 AM America/Chicago. Make alert resolve/close one atomic terminal transition with exactly one receipt and linked history entry containing actor, authority, before/after, and idempotent repeat/concurrency behavior; cover legacy `escalated` rows and preserve acknowledgement, RQ-018 escalation, dispatch, public status, and Nursing mapping. ETA UNKNOWN pending ACK; existing LOCAL watchdog next_check_at Monday, October 12, 2026 — 6:11:15 AM America/Chicago; blocker NONE.
+- **ONE current bounded task:** `careops-alerts-close-receipts-001` — ACKED / WORKING through existing coordinator `caoscare-1-ee` and worker `da-6b6a0ace12`. The worker confirmed that resolve ignores legacy `escalated`, close can re-close and overwrite resolution provenance, and `_close_out` produces actor-less, unlinked receipt updates. It will add failing tests first, then unify resolve/close on one guarded active/acknowledged/escalated → resolved transition with exactly one actor/authority/before/after receipt and linked history entry; repeat/concurrent attempts will yield one winner and 409 for the rest without writes. ETA approximately Monday, October 12, 2026 — 7:23 AM America/Chicago; existing LOCAL watchdog next_check_at Monday, October 12, 2026 — 7:23:11 AM America/Chicago; blocker NONE.
 - **Control issue / dispatch channel:** [#129](https://github.com/caosos/CAOSCARE.COM/issues/129).
 - **Completed review:** [PR #130](https://github.com/caosos/CAOSCARE.COM/pull/130), merged into integration.
 - **Integration branch:** `integration/2026-09-27`; current accepted therapy-conflict product commit `77f83d3d53e17ffb75c71d137ab876e50552efe9` with guarded dev restart `1bf1bec26ea58a6c55730fea3c858734eb788d54`. This later integration work is not in production `ff87c22`; the release baseline is separate.
@@ -849,5 +849,19 @@ Issue #129 is the dispatch channel to existing coordinator `caoscare-1-ee`. ACK/
 - **Expected evidence:** failing-before/fixed-after tests; exact commit; resolve and close paths; active/acknowledged/legacy-escalated inputs; repeat/concurrent attempts; authorization/refusal without deciding the deferred role-policy gap; linked receipt/history; focused/full gates; desktop/390 px browser; cleanup; exact tested/loaded revisions; newest host observation; cost or UNKNOWN.
 - **ETA:** UNKNOWN pending ACK.
 - **next_check_at:** Monday, October 12, 2026 — 6:11:15 AM America/Chicago; owned by the existing LOCAL watchdog.
+- **Blocker:** NONE.
+- **Michael must do:** NOTHING.
+
+
+### Update 2026-10-12 06:10 CDT (alert close-out receipts ACKED / WORKING)
+
+- **Canonical ACK:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6123049176. Transport-only mirror: https://github.com/caosos/CAOSCARE.COM/pull/131#issuecomment-6123077551.
+- **Current task / responsibility / stage:** `careops-alerts-close-receipts-001` / existing coordinator `caoscare-1-ee`, worker `da-6b6a0ace12` / ACKED, WORKING before the 300-second deadline.
+- **Evidence reviewed:** `alerts.resolve` accepts active/acknowledged but ignores legacy `escalated`; `alerts.close_alert` includes resolved and can re-close while overwriting `resolved_at` / `resolved_by`; `_close_out` calls `update_receipt_status` without actor, before/after, or a history link.
+- **Plan / expected acceptance evidence:** failing tests first; one shared guarded terminal transition for both resolve and close, active/acknowledged/escalated → resolved; exactly one `alert_completed` receipt containing actor/authority/before/after and one linked history entry; repeat/concurrent attempts produce one winner and 409 for the rest with no additional writes; pattern statistics and dispatch remain unchanged; acknowledgement-role policy remains deferred. Then focused/full gates, desktop/390 px browser, cleanup, exact tested/loaded revisions, newest host observation, and cost.
+- **Current tested/loaded state:** no new current-task revision or gate at ACK. Prior accepted development backend remains `45bd442`, frontend `db4317f`; production `ff87c22` unchanged.
+- **Latest host observation:** Monday, October 12, 2026 — 6:10:08 AM America/Chicago — coordinator `caoscare-1-ee` busy; control-plane service PID 1370098 on `f1db2d358ca1`; repository `cd076d251ab9` newer/not loaded. GitHub activity alone is not host-liveness proof.
+- **ETA:** approximately Monday, October 12, 2026 — 7:23 AM America/Chicago.
+- **next_check_at:** Monday, October 12, 2026 — 7:23:11 AM America/Chicago; owned by the existing LOCAL watchdog.
 - **Blocker:** NONE.
 - **Michael must do:** NOTHING.
