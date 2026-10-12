@@ -8968,3 +8968,8 @@ Dispatch da-47e03b7eb1. Reproduced "Unresolved 11" on the dev stack (= 11 open, 
 
 ## 2026-10-12 — Dev backend restarted on `1d617b8`
 Guarded restart via `scripts/restart_dev_backend.sh`: 0 leases, no recent call activity, old pid 845647 (log /tmp/room214_backend_2155a9f.log = rollback provenance); new pid 939383, runtime commit 1d617b8 with a clean tree, log /tmp/room214_backend_1d617b8.log. localhost:3000 Transportation tab now opens the Unresolved list. Development only; production `ff87c22` unchanged.
+
+---
+
+## 2026-10-12 — Heartbeat probe: a DONE receipt ends its check timer
+After the DONE for careops-transport-unresolved-001 the Desktop-Agent watchdog still sent WAKE ("next_check_at reached"), and after the 10-minute grace the probe would have reported a false "missed check" exception to Michael. Cause: `heartbeat_probe.py` timed checks from the newest ledger receipt even when that receipt was DONE. Fix: a DONE receipt has no pending check. New test `test_probe_stays_idle_after_done`; owner-intake suite 19 passed; the new test fails on the old probe. Also cleared the finished task from `docs/status/COORDINATOR_STATUS.json` `ready_unblocked`. Live probe now IDLE.

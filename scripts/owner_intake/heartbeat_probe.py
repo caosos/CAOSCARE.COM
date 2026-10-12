@@ -92,7 +92,8 @@ def probe(now=None) -> dict:
         sys.path.insert(0, str(Path(__file__).resolve().parent))
         import eta_receipts as er
         cur = er.current(INTAKE_DIR)
-        if cur and cur.get("next_check_at"):
+        # A DONE receipt closes its task: no check is pending after it (no false "missed check").
+        if cur and cur.get("next_check_at") and cur.get("receipt", cur.get("kind")) != "DONE":
             when = datetime.fromtimestamp(now, timezone.utc)
             out["next_check_at"] = cur["next_check_at"]
             miss = er.missed(cur, None, when)

@@ -1,10 +1,8 @@
 {
   "schema": 1,
-  "updated_at": "2026-10-12T00:58:35Z",
-  "updated_by": "CAOSCare Build Supervisor — routing-exceptions boundary and Transportation unresolved dispatch",
-  "ready_unblocked": [
-    "careops-transport-unresolved-001: DISPATCHING through existing coordinator caoscare-1-ee. Reproduce the owner-reported '11 unresolved' Transportation count; open a canonical filtered list; open each row's real detail with owner/status/next action/receipts; reconcile the count; prove role authorization and responsive browser behavior."
-  ],
+  "updated_at": "2026-10-11T20:22:28-05:00",
+  "updated_by": "caoscare-1-ee",
+  "ready_unblocked": [],
   "workers": [
     "caoscare-1-ee: publish ACK/WORKING for careops-transport-unresolved-001 within five minutes with evidence reviewed, realistic ETA, exact America/Chicago next_check_at, expected acceptance evidence, and blocker NONE or an exact NEED. Reuse this session only."
   ],
@@ -19,7 +17,7 @@
     "PR #67 adoption",
     "per-kiosk device-credential decision"
   ],
-  "note": "careops-routing-exceptions-001 is DEV_ACCEPTED at loaded development revision 2155a9f (backend 548/0/31, frontend 77/595, browser 11/11); current-operations truth remains READY_FOR_OWNER_REVIEW at b3856b9. ETA/watchdog enforcement is adopted and tested at integration d87e9cc (18 owner-intake tests). Production remains ff87c22 with public smoke only; authenticated Transportation LIVE_VERIFY remains blocked on a signed-in role plus one driver and one vehicle. Last timestamped host observation: 2026-10-11 19:01 CDT; current host liveness UNKNOWN. One active bounded task only: careops-transport-unresolved-001, dispatch pending ACK.",
+  "note": "careops-transport-unresolved-001 DEV_ACCEPTED on 0c517fe (dev backend 1d617b8); DONE posted #129 comment 6116069600. No ready item until the next supervisor dispatch. Transportation LIVE_VERIFY still waits on a production driver+vehicle (owner command pending).",
   "liaison_watch": {
     "scanned_through_ts": "1791766400.270339",
     "scanned_through_local": "2026-10-11 19:53:20 CDT",

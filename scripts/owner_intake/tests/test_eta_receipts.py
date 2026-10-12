@@ -87,6 +87,15 @@ def test_probe_wakes_at_next_check_and_reports_a_missed_check(tmp_path):
     assert p["verdict"] == "WAKE" and er.STALE in p["reasons"][0]
 
 
+def test_probe_stays_idle_after_done(tmp_path):
+    # A DONE receipt closes the task: its timestamp must not read as a due or missed check.
+    now = datetime.now(TZ)
+    done = {"kind": "eta", "receipt": "DONE", "task_id": "careops-x-001",
+            "next_check_at": (now - timedelta(minutes=40)).isoformat()}
+    p = _probe(tmp_path, [done])
+    assert p["verdict"] == "IDLE" and p["reasons"] == []
+
+
 def test_cli_refuses_an_incomplete_receipt_and_records_a_valid_one(tmp_path):
     env = dict(os.environ, CAOS_INTAKE_DIR=str(tmp_path))
     cli = [sys.executable, str(Path(__file__).resolve().parents[1] / "eta_receipts.py")]
