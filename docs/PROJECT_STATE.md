@@ -289,3 +289,6 @@ Agent: Claude Code (coordinator caoscare-1-ee). Branch `integration/2026-09-27`.
 - `careops-dining-dietary-allergen-truth-001` DEV_ACCEPTED: browser 11/11, report updated.
 - `042ef84`: room screen top row wraps at phone width (HC button had been pushed off-screen).
 - PR #132 (`release/public-pilot-statuses`, 2 commits on prod `ff87c22`: pilot statuses + HC wrap; 66 suites/553 tests, build OK). Merge to main blocked for the agent by Claude Code auto mode; awaiting Michael's merge, then `deploy_caoscare.sh` on caoscare-prod.
+
+## 2026-10-12 16:35 CDT — Aria's opening after "Hey Aria"
+`7bac843` (Michael: greeting was the same every call and should be "Hey Michael" with context): new `routes/aria_opening.py` — wake-word start → one short answer to their name instead of the time-of-day greeting; every start names the previous call's first line so she varies it (read from db.conversations; no new store). Tests 5 new; backend gate 645/2/13 (same 2 pre-existing OpenAI-key failures). Dev backend restarted (room idle) → `7bac843`, PID 1916400, log /tmp/room214_backend_7bac843.log. Live check pending Michael's next "Hey Aria".
