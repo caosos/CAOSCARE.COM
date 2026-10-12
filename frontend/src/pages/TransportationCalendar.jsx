@@ -14,6 +14,7 @@ import TransportRunDetailsDialog from "../components/TransportRunDetailsDialog";
 import RequestHistoryDialog from "./RequestHistoryDialog";
 import { todayLocal } from "../lib/transportation";
 import { toast } from "sonner";
+import TransportCalendarElsewhere from "../components/TransportCalendarElsewhere";
 
 // Day/week transportation timeline - the same TransportRun/StaffTask data
 // Aria's booking engine and the Admin daily-ops report read, shaped for a
@@ -135,6 +136,7 @@ export default function TransportationCalendar({ refreshKey = 0 }) {
           ))}
         </div>
       )}
+      {data && <TransportCalendarElsewhere elsewhere={data.elsewhere} onJump={setDate} fmtDay={fmtDay} />}
       <TransportRideForm open={newRide} onOpenChange={setNewRide} onSaved={fetchCalendar} />
       <TransportRideForm open={!!changeRide} onOpenChange={(o) => { if (!o) setChangeRide(null); }} ride={changeRide} onSaved={fetchCalendar} />
       <TransportCancelDialog ride={cancelRide} onClose={() => setCancelRide(null)} onCancelled={fetchCalendar} />

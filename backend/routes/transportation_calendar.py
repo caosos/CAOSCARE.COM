@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends
 from deps import db
 from routes.transportation_runs import require_transport_operator
 from transportation_engine import reconcile_run
+from routes.realtime_facility import today_facility_date
 
 router = APIRouter(prefix="/transportation", tags=["transportation-calendar"])
 
@@ -41,13 +42,31 @@ def _rider_view(task: dict) -> dict:
     }
 
 
+async def _elsewhere(last_shown: str, my_driver: Optional[dict], mine: bool) -> dict:
+    """What an empty-looking range hides: the next few later dates with open rides, and how many open,
+    unbooked requests are dated before today (they never appear on a future calendar day)."""
+    later: dict[str, int] = {}
+    run_q = {"date": {"$gt": last_shown}, "status": {"$in": OPEN_RUN_STATUSES}}
+    if mine:
+        run_q["driver_id"] = my_driver["driver_id"] if my_driver else "__none__"
+    for r in await db.transport_runs.find(run_q, {"_id": 0, "date": 1}).to_list(500):
+        later[r["date"]] = later.get(r["date"], 0) + 1
+    earlier_open = 0
+    if not mine:
+        base = {"category": "transportation", "status": {"$in": OPEN_TASK_STATUSES}, "transport_run_id": None}
+        for t in await db.staff_tasks.find({**base, "requested_for_date": {"$gt": last_shown}}, {"_id": 0, "requested_for_date": 1}).to_list(500):
+            later[t["requested_for_date"]] = later.get(t["requested_for_date"], 0) + 1
+        earlier_open = await db.staff_tasks.count_documents({**base, "requested_for_date": {"$lt": today_facility_date()}})
+    return {"next_dates": [{"date": d, "count": later[d]} for d in sorted(later)[:3]], "earlier_open_unbooked": earlier_open}
+
+
 @router.get("/calendar")
 async def calendar(date: Optional[str] = None, days: int = 1, mine: bool = False, user=Depends(require_transport_operator)):
     """view=day is days=1 (default), view=week is days=7. Every occupied
     window, shared run, and still-pending request for the range comes back
     together so the UI never has to reconstruct the day from separate calls."""
     days = 7 if days >= 7 else 1
-    start = date or datetime.utcnow().strftime("%Y-%m-%d")
+    start = date or today_facility_date()   # facility-local, not UTC (UTC is tomorrow after 7 pm Central)
     dates = _date_range(start, days)
 
     run_q = {"date": {"$in": dates}}
@@ -97,7 +116,7 @@ async def calendar(date: Optional[str] = None, days: int = 1, mine: bool = False
             "pending": [_rider_view(t) | {"received_at": t.get("created_at")} for t in pending_tasks if t.get("requested_for_date") == d],
         })
 
-    out = {"start_date": start, "days": days_out}
+    out = {"start_date": start, "days": days_out, "elsewhere": await _elsewhere(dates[-1], my_driver if mine else None, mine)}
     if mine:
         out["mine"] = True
         out["linked_driver"] = my_driver["name"] if my_driver else None
