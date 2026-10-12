@@ -800,3 +800,18 @@ Append-only. One entry per verified check-in, tied to its receipt. A correction 
 - **next_check_at:** Monday, October 12, 2026 — 5:56:15 AM America/Chicago; owned by the existing LOCAL watchdog.
 - **Blocker:** NONE.
 - **Michael must do:** NOTHING.
+
+
+## Monday, October 12, 2026 — 5:57:42 AM America/Chicago
+- **Receipt:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6122858667; transport-only mirror https://github.com/caosos/CAOSCARE.COM/pull/131#issuecomment-6122887366.
+- **Project:** CAOSCARE.COM.
+- **Phase / milestone / overall position:** Phase 3/7 — Care Operations workspaces. Housekeeping and Therapy are READY_FOR_OWNER_REVIEW; canonical alerts/escalation state is actively WORKING.
+- **Completed since prior check:** NO CHANGE to current-task product behavior; the existing coordinator ACKed `careops-alerts-canonical-state-001` before the deadline, established worker `da-2be29b619e`, identified the concrete state writers and existing sole escalation authority to inspect, supplied a bounded test-first reconciliation plan and evidence-based ETA, and assigned the existing LOCAL watchdog’s exact next check.
+- **Evidence / provenance:** canonical ACK/WORKING receipt https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6122858667; transport-only mirror https://github.com/caosos/CAOSCARE.COM/pull/131#issuecomment-6122887366; checklist reconciliation `fd180cead389d69a8900d8cb194555fed2cd335e`; PROJECT_STATE reconciliation `237b01065f8ec86a692230ace152c0435ac3a903`. Evidence reviewed: Alert `status`, `escalation_level`, `aria_state`, `live_line_state` writers; `escalation_tick` / RQ-018 sole escalation authority; notification statuses; StaffTask `needs_review` and unclaimed escalation; receipts. Current-task tests and browser evidence: not yet produced at ACK. Tested revision: no new current-task revision; prior backend `b7f6048`, frontend `db4317f`. Loaded revision: development backend `b7f6048`, frontend `db4317f`; production `ff87c22` unchanged. Latest host observation Monday, October 12, 2026 — 5:57:31 AM America/Chicago: coordinator `caoscare-1-ee` busy; control-plane PID 1370098 on `f1db2d358ca1`; repository `cd076d251ab9` newer/not loaded. GitHub activity is not host-liveness proof. Current-task cost UNKNOWN.
+- **ONE current bounded task / responsible coordinator-worker / exact stage:** `careops-alerts-canonical-state-001` / existing coordinator `caoscare-1-ee`, worker `da-2be29b619e` / ACKED, WORKING.
+- **Remaining current-milestone steps (ordered):** 1. inventory all alert/notification/escalation state writers and receipts; 2. publish the canonical transition and compatibility matrix; 3. prove accepted Nursing unclaimed escalation maps cleanly; 4. add a failing test and repair only the first conflicting writer; 5. prove acknowledgement, timer/fallback, idempotency, stop conditions, supervisor visibility, refusal, and resident/Aria-safe truth; 6. run focused/full gates plus desktop/390 px browser acceptance; 7. clean synthetic state and record exact tested/loaded revisions, newest host evidence, and cost; 8. reconcile checklist, Issue #129, PROJECT_STATE, and receipt.
+- **Upcoming milestones (ordered):** 1. complete alerts/escalation policy editor, acknowledgements, timers, fallback, and section acceptance; 2. remaining Phase 3 department-workspace gaps; 3. Phase 4 scheduling/records/resources; 4. Phase 5 communications; 5. Phase 6 pilot reliability/accessibility; 6. Phase 7 release/deployment/live acceptance.
+- **ETA:** approximately Monday, October 12, 2026 — 7:35 AM America/Chicago.
+- **next_check_at:** Monday, October 12, 2026 — 7:35:34 AM America/Chicago; owned by the existing LOCAL watchdog.
+- **Blocker:** NONE.
+- **Michael must do:** NOTHING.
