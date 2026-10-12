@@ -2,9 +2,9 @@
 
 Inspected first: Housekeeping staff (`/workspace`, CommunityServicesWorkspace) and Admin → Housekeeping use the shared
 `DepartmentQueue`, so the escalate/review controls and the remount fix already apply. No backend change was needed.
-One gap found and fixed: the dialogs' example text was nurse-specific (`675c93e`).
+One gap found and fixed: the dialogs' example text was nurse-specific (`8ed21cd`).
 
-Live on dev (backend `e2a8770`, frontend `675c93e`), demo room, synthetic resident:
+Live on dev (backend `e2a8770`, frontend `8ed21cd`), demo room, synthetic resident:
 1. Typed Aria call rt_c3giegxa_1791792405474: "I spilled juice all over my bathroom floor…" → `request_staff_help`
    housekeeping/high → task_256b9f7a6c7f with the resident's exact words; Aria: "It's on the housekeeping list now…
    I can't say someone is on the way."
