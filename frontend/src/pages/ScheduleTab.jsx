@@ -29,14 +29,17 @@ function todayLocal() {
 export default function ScheduleTab() {
   const [date, setDate] = useState(todayLocal());
   const [items, setItems] = useState([]);
+  const [loadError, setLoadError] = useState(false);
   const [editing, setEditing] = useState(null); // null | "new" | item
   const [refreshKey, setRefreshKey] = useState(0);
 
   const fetchAll = async () => {
     try {
       const { data } = await api.get("/schedule", { params: { date } });
+      setLoadError(false);
       setItems(data);
     } catch {
+      setItems([]); setLoadError(true);
       toast.error("Could not load schedule");
     }
   };
@@ -118,8 +121,13 @@ export default function ScheduleTab() {
               </TableRow>
             );
           })}
-          {items.length === 0 && (
-            <TableRow><TableCell colSpan={5} className="text-center text-caos-mute py-6">Nothing scheduled for this date yet.</TableCell></TableRow>
+          {loadError && (
+            <TableRow><TableCell colSpan={5} className="text-center text-caos-terracotta py-6" data-testid="schedule-load-error">
+              Could not load the schedule for this date. This does not mean it is empty. <Button size="sm" variant="outline" className="ml-2" onClick={fetchAll}>Try again</Button>
+            </TableCell></TableRow>
+          )}
+          {!loadError && items.length === 0 && (
+            <TableRow><TableCell colSpan={5} className="text-center text-caos-mute py-6" data-testid="schedule-empty">Nothing scheduled for this date yet.</TableCell></TableRow>
           )}
         </TableBody>
       </Table>

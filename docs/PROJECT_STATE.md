@@ -9086,3 +9086,8 @@ The menu and Daily schedule now state when nothing is published for the current 
 
 ## 2026-10-12 — Activities work view in Admin (careops-activities-work-001, careops-activities-nav-001)
 Admin → Community → Activities: the shared request queue (dispatch note, Claim/Assign, history) plus the activities calendar (same screen and records as Communication → Schedule). Overview Activities card opens it. Frontend 85 suites / 619, build compiled; dev browser 12/12 (empty-department note seen live). Report `docs/reports/2026-10-12-activities-work.md`. Frontend only; not deployed.
+
+---
+
+## 2026-10-12 — Activities calendar end to end; menu/schedule load failure is not "empty" (careops-activities-calendar-001)
+Labeled activity paste → draft (not live) → publish → Aria's `get_todays_schedule` request returns it with time and place → staff schedule + resident room screen at 1280/390: 10/10; test data removed. Menu and Daily schedule now show a load failure with Try again instead of the empty message. Frontend 86 suites / 621, build compiled. Report `docs/reports/2026-10-12-activities-calendar.md`. Frontend only; not deployed.

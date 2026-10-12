@@ -30,14 +30,17 @@ const mealOrder = (m) => MEAL_PERIODS.indexOf(m);
 export default function MenuTab() {
   const [date, setDate] = useState(todayLocal());
   const [items, setItems] = useState([]);
+  const [loadError, setLoadError] = useState(false);
   const [editing, setEditing] = useState(null); // null | "new" | item
   const [refreshKey, setRefreshKey] = useState(0);
 
   const fetchAll = async () => {
     try {
       const { data } = await api.get("/menu", { params: { date } });
+      setLoadError(false);
       setItems([...data].sort((a, b) => mealOrder(a.meal_period) - mealOrder(b.meal_period)));
     } catch {
+      setItems([]); setLoadError(true);
       toast.error("Could not load menu");
     }
   };
@@ -127,8 +130,13 @@ export default function MenuTab() {
               </TableRow>
             );
           })}
-          {items.length === 0 && (
-            <TableRow><TableCell colSpan={4} className="text-center text-caos-mute py-6">No menu items for this date yet.</TableCell></TableRow>
+          {loadError && (
+            <TableRow><TableCell colSpan={4} className="text-center text-caos-terracotta py-6" data-testid="menu-load-error">
+              Could not load the menu for this date. This does not mean it is empty. <Button size="sm" variant="outline" className="ml-2" onClick={fetchAll}>Try again</Button>
+            </TableCell></TableRow>
+          )}
+          {!loadError && items.length === 0 && (
+            <TableRow><TableCell colSpan={4} className="text-center text-caos-mute py-6" data-testid="menu-empty">No menu items for this date yet.</TableCell></TableRow>
           )}
         </TableBody>
       </Table>
