@@ -39,6 +39,7 @@ test("Live alerts lists current alerts; older ones are counted and shown only on
   await act(async () => { q("alerts-older-toggle").click(); });
   expect(q("alert-card-a-old")).not.toBeNull();
   expect(q("alert-older-a-old").textContent).toBe("older");
+  expect(q("alerts-older-banner").textContent).toMatch(/Showing 1 of 1 older open alert too/);
   expect(q("alert-older-a-new")).toBeNull();
   expect(el.querySelector("[data-testid=alerts-list]").firstElementChild.getAttribute("data-testid")).toBe("alert-card-a-new");
   await act(async () => { root.unmount(); });

@@ -183,7 +183,7 @@ export default function StaffDashboard() {
             {stats.older_open > 0 && (
               <div className="text-xs text-caos-mute bg-[#F3F1EE] rounded-lg p-3 mb-3 flex flex-wrap items-center gap-2" data-testid="alerts-older-banner">
                 {showOlder
-                  ? <>Showing {stats.older_open} older open alert{stats.older_open === 1 ? "" : "s"} too (opened more than 3 days ago; marked "older").</>
+                  ? <>Showing {alerts.filter((a) => a.older).length} of {stats.older_open} older open alert{stats.older_open === 1 ? "" : "s"} too, newest first (opened more than 3 days ago; marked "older"). The full list is on the Alerts board.</>
                   : <>{stats.older_open} older open alert{stats.older_open === 1 ? " is" : "s are"} hidden (opened more than 3 days ago, mostly device tests). Nothing was closed.</>}
                 <Button size="sm" variant="outline" className="border-2 h-7" onClick={() => setShowOlder((v) => !v)} data-testid="alerts-older-toggle">{showOlder ? "Hide older" : "Show older"}</Button>
               </div>
