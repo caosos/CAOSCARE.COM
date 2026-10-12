@@ -102,3 +102,26 @@ Append-only. One entry per verified check-in, tied to its receipt. A correction 
 - **next_check_at:** MISSING (owner-gated)
 - **Blocker:** Owner receipts for paid tests, live Room 214 model/voice switch, research budget, telephony
 - **Michael action required:** NOTHING tonight; when awake, decide the four items in receipt 6118677754
+
+## Monday, October 12, 2026 — 1:10 AM America/Chicago
+- **Receipt:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6118763661
+- **Phase / position:** Resident Aria core live acceptance — BLOCKED for live change; read-only inventory done
+- **Completed since the prior check:** Read-only inventory recorded (40228be, docs/reports/2026-10-12-overnight-acceptance-inventory.md): no Home Assistant media_player; Midea AC unavailable; 2 HA lights working; RESEND_API_KEY unset; Asterisk not installed; no Twilio/SIP; research provider unset
+- **Evidence:** Dev backend loaded e5c516a, pid 1246911 (the supervisor's c43919bceb56 / pid 1246865 does not match this host); Room 214 gpt-realtime/shimmer, new flags off; listener active since 2026-10-08; host 2026-10-12 01:10 CDT
+- **Current bounded task (owner · stage):** careops-resident-aria-core-reconciliation-001 · caoscare-1-ee · BLOCKED (NEED_PERMISSION in the coordinator terminal)
+- **Remaining steps for this milestone:**
+  1. Michael approves in the coordinator terminal
+  2. Controlled live switch with rollback
+  3. Model, quick-return and lookup tests
+  4. Lights/weather/timer tests
+  5. Bathroom → Nursing queue test (email recorded only until a provider key exists)
+  6. SIM acceptance
+  7. Claude Chrome resident/staff walkthrough
+- **Upcoming milestones:**
+  1. Transportation LIVE_VERIFY
+  2. Pilot walkthrough
+  3. Pilot Room 1 / Voice PE onboarding
+- **ETA:** UNKNOWN until the terminal approval
+- **next_check_at:** MISSING (blocked on owner approval)
+- **Blocker:** NEED_PERMISSION: relayed authorization not accepted for the live Room 214 change and paid calls
+- **Michael action required:** In the coordinator terminal: yes, switch Room 214 to gpt-realtime-2.1 with marin, turn on the 10-minute continuity and owner v2, and run the test calls

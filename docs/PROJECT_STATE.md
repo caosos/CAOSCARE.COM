@@ -9135,3 +9135,8 @@ Report extended with the Michael-facing vs resident discrepancy list (owner `/ar
 
 ## 2026-10-12 — Resident Aria core code preparation (default-off) and provider evidence
 `50a659b`: recent-return continuity exception (`CAOSCARE_CONTINUITY_RECENT_MINUTES`), owner `/aria` on the shared context layers + read-only tools (`CAOSCARE_ARIA_OWNER_V2`), honest `call_contact` (`CAOSCARE_CALL_TOOL`); CURRENT_PRIORITY un-parks the conversation slice. Voices `marin`/`cedar` allowed (default unchanged). Gate 586 / 0 / 31; frontend 87 suites / 624. Dev backend restarted on `50a659b` (pid 1242918; previous log /tmp/room214_backend_198fee4.log); verified flags unset → Room 214 unchanged (29 tools, no call_contact, same continuity block); listener untouched. Provider check: `gpt-realtime-2.1` (2026-07) and `gpt-live-1` (2026-09) exist; `gpt-4o-transcribe` shuts down 2027-02-26. Recommendation (not applied): `gpt-realtime-2.1` + `marin` after one approved test call. Report sections 9–10.
+
+---
+
+## 2026-10-12 01:10 CDT — Overnight live acceptance BLOCKED pending Michael in the coordinator terminal
+The relayed owner authorization (#129 comment 6118737780) for the live Room 214 model/voice/flag change and paid test calls was refused by this session's permission check (BLOCKED receipt #6118763661). Nothing changed: backend `e5c516a`, `gpt-realtime`/`shimmer`, new flags off, listener untouched. Read-only inventory `docs/reports/2026-10-12-overnight-acceptance-inventory.md` (`40228be`) lists what exists and the exact missing dependencies (no media_player, AC unavailable, no email key, no telephony, research unset).
