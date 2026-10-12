@@ -1216,6 +1216,10 @@ class MenuItem(BaseModel):
     status: MenuItemStatus = "draft"
     source: str = "staff_entry"                 # "staff_entry" | "staff_paste" | "email" | "email_dev_test" (seed/demo scripts)
     upload_id: Optional[str] = None             # links back to the MenuUpload batch that created it, if any
+    # Correction versioning (careops-dining-correction-versioning-001): a correction of a published
+    # item is a new item that `replaces` it; publishing it marks the original superseded_by it.
+    replaces: Optional[str] = None
+    superseded_by: Optional[str] = None
     created_by: Optional[str] = None
     approved_by: Optional[str] = None
     approved_at: Optional[datetime] = None

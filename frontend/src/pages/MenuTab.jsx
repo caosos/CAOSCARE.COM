@@ -109,6 +109,8 @@ export default function MenuTab() {
                   <div className="font-medium">{i.item_name}</div>
                   {i.description && <div className="text-caos-mute text-xs">{i.description}</div>}
                   {i.availability && <div className="text-caos-mute text-xs italic">{i.availability}</div>}
+                  {i.replaces && i.status === "draft" && <div className="text-xs text-caos-forest mt-0.5" data-testid={`menu-correction-${i.menu_id}`}>Correction — the published version stays on the residents' menu until this is published</div>}
+                  {i.superseded_by && <div className="text-xs text-caos-mute mt-0.5" data-testid={`menu-replaced-${i.menu_id}`}>Replaced by a corrected version</div>}
                 </TableCell>
                 <TableCell className="flex flex-wrap gap-1 justify-end">
                   {view.canApprove && (

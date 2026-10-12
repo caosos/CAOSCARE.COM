@@ -89,17 +89,20 @@ def _menu_checks(K, HK):
     assert r.status_code == 409, "a replaced dish must not be re-published next to the correction"
     assert requests.patch(f"{API}/menu/{old['menu_id']}", headers=K, json={"item_name": "x"}, timeout=5).status_code == 409
 
-    # In-place correction published in one action stays live, renamed.
+    # A correction published in one action is a new version that replaces the dish
+    # (careops-dining-correction-versioning-001); the old version is kept as superseded.
     soup = next(i for i in staff_view if i["item_name"] == f"{TAG} tomato soup")
     r = requests.patch(f"{API}/menu/{soup['menu_id']}", headers=K,
                        json={"item_name": f"{TAG} minestrone", "publish": True}, timeout=5)
-    assert r.status_code == 200 and r.json()["status"] == "approved"
+    assert r.status_code == 200 and r.json()["status"] == "approved" and r.json()["replaces"] == soup["menu_id"]
     assert [i["item_name"] for i in _public_menu(D1, "lunch")] == [f"{TAG} minestrone"]
+    mine = r.json()["menu_id"]
 
-    # A correction saved as a draft takes the item off the residents' menu.
-    r = requests.patch(f"{API}/menu/{soup['menu_id']}", headers=K, json={"description": "made with beef stock"}, timeout=5)
-    assert r.json()["status"] == "draft"
-    assert _public_menu(D1, "lunch") == []
+    # A correction saved as a draft no longer takes the dish off the residents' menu:
+    # the published version stays live until the correction is published.
+    r = requests.patch(f"{API}/menu/{mine}", headers=K, json={"description": "made with beef stock"}, timeout=5)
+    assert r.json()["status"] == "draft" and r.json()["replaces"] == mine
+    assert [i["item_name"] for i in _public_menu(D1, "lunch")] == [f"{TAG} minestrone"]
 
 
 def _schedule_checks(ACT, HK):

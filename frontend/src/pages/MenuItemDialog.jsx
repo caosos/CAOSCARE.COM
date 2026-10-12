@@ -10,8 +10,9 @@ import { toast } from "sonner";
 import { MEAL_PERIODS } from "../lib/communityServices";
 
 // Add a menu item, or correct an existing one. A correction to a published
-// item is either published straight away (the editor is the reviewer) or
-// saved as a draft, which takes it off the residents' menu until approved
+// item is a new version that replaces it (routes/menu.py): published straight
+// away (the editor is the reviewer), or saved as a draft while the published
+// version stays on the residents' menu until the correction is published
 // (routes/menu.py::update_menu_item).
 export default function MenuItemDialog({ open, onOpenChange, date, item = null, onSaved }) {
   const blank = { date, meal_period: "lunch", item_name: "", description: "", availability: "" };
@@ -34,7 +35,9 @@ export default function MenuItemDialog({ open, onOpenChange, date, item = null, 
         const { data } = await api.post("/menu", form);
         if (publish) await api.post(`/menu/${data.menu_id}/approve`);
       }
-      toast.success(publish ? "Published — residents and Aria see this now" : "Saved as draft — not visible to residents yet");
+      toast.success(publish ? "Published — residents and Aria see this now"
+        : item?.status === "approved" ? "Correction saved as draft — residents still see the published version until you publish it"
+        : "Saved as draft — not visible to residents yet");
       onOpenChange(false);
       onSaved?.();
     } catch (err) {
@@ -50,7 +53,8 @@ export default function MenuItemDialog({ open, onOpenChange, date, item = null, 
         </DialogHeader>
         {item?.status === "approved" && (
           <p className="text-sm text-caos-mute">
-            This item is published. "Save as draft" removes it from the residents' menu until it is approved again.
+            This item is published. Your correction becomes a new version: "Save as draft" keeps the published version on the
+            residents' menu until you publish the correction; "Save and publish" replaces it now. The old version stays listed as Replaced.
           </p>
         )}
         <form onSubmit={(e) => { e.preventDefault(); save(true); }} className="space-y-3">

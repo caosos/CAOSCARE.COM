@@ -13,8 +13,8 @@ export const MEAL_PERIODS = ["breakfast", "lunch", "dinner"];
 
 // Menu item status -> what staff see. Only "approved" is ever read by
 // residents or Aria (routes/menu.py::public_today). "superseded" items were
-// replaced by a later approved upload and must not be re-approved from the
-// list - they stay for history only.
+// replaced by a later approved upload or a published correction and must not
+// be re-approved from the list - they stay for history only.
 const MENU_STATUS = {
   approved: { label: "Published", tone: "live", canApprove: false },
   draft: { label: "Draft", tone: "draft", canApprove: true },

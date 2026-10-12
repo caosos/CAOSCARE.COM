@@ -52,13 +52,49 @@ async def create_menu_item(data: MenuItemCreate, user=Depends(get_current_user))
     return doc
 
 
+async def _supersede(original_id: str, new_id: str, user: dict) -> None:
+    """Retire the published item a correction replaces. Guarded: only a still
+    published original can be superseded, so two competing corrections cannot
+    both go live (409 for the second)."""
+    before = await db.menu_items.find_one({"menu_id": original_id}, {"_id": 0})
+    r = await db.menu_items.update_one(
+        {"menu_id": original_id, "status": "approved"},
+        {"$set": {"status": "superseded", "superseded_by": new_id, "updated_at": now_utc().isoformat()}})
+    if r.modified_count == 0:
+        raise HTTPException(status_code=409, detail="Another correction already replaced this item; edit the current item instead")
+    await record_content_change(
+        kind="menu", action="superseded", object_type="menu_item", object_id=original_id, actor=staff_actor(user),
+        before=summarize("menu", before), after={"status": "superseded", "superseded_by": new_id},
+        ingest_id=(before or {}).get("upload_id"))
+
+
+async def _correct_published(existing: dict, fields: dict, publish: bool, user: dict) -> dict:
+    """A correction of a published item is a new item that replaces it; the
+    published one stays live (and unchanged) until the correction is published."""
+    base = {k: existing.get(k) for k in ("date", "meal_period", "item_name", "description", "availability", "upload_id")}
+    item = MenuItem(**{**base, **fields}, source="staff_entry", replaces=existing["menu_id"], created_by=user["user_id"])
+    doc = item.model_dump()
+    now_iso = now_utc().isoformat()
+    doc.update(created_at=now_iso, updated_at=now_iso)
+    if publish:
+        await _supersede(existing["menu_id"], doc["menu_id"], user)
+        doc.update(status="approved", approved_by=user["user_id"], approved_at=now_iso)
+    await db.menu_items.insert_one(doc)
+    doc.pop("_id", None)
+    await record_content_change(
+        kind="menu", action="corrected", object_type="menu_item", object_id=doc["menu_id"], actor=staff_actor(user),
+        before=summarize("menu", existing), after=summarize("menu", doc), ingest_id=doc.get("upload_id"),
+        detail={"replaces": existing["menu_id"], "published": publish})
+    return doc
+
+
 @router.patch("/{menu_id}")
 async def update_menu_item(menu_id: str, data: MenuItemUpdate, user=Depends(get_current_user)):
-    """A correction. Editing an already-approved item drops it back to
-    draft - an edit is new, unreviewed content - unless the editor
-    publishes it in the same action (`publish: true`), in which case the
-    editor is the reviewer and the corrected item stays live. A replaced
-    (superseded) item is history and cannot be edited back to life."""
+    """A correction. A published item is never overwritten: the correction is
+    a new item that `replaces` it - a draft unless the editor publishes it in
+    the same action (`publish: true`, editor = reviewer). The original stays
+    live until the correction is published, then it is superseded (kept as
+    history, labelled, not revivable). A draft is edited in place."""
     require_content_editor(user, MENU_DEPARTMENTS)
     existing = await db.menu_items.find_one({"menu_id": menu_id}, {"_id": 0})
     if not existing:
@@ -67,15 +103,15 @@ async def update_menu_item(menu_id: str, data: MenuItemUpdate, user=Depends(get_
         raise HTTPException(status_code=409, detail="This item was replaced by a newer menu; edit the current item instead")
     fields = data.model_dump(exclude_none=True)
     publish = fields.pop("publish", False)
+    if existing["status"] == "approved":
+        return _iso(await _correct_published(existing, fields, publish, user))
+    if publish and existing.get("replaces"):
+        await _supersede(existing["replaces"], menu_id, user)
     patch = dict(fields)
     now_iso = now_utc().isoformat()
     patch["updated_at"] = now_iso
     if publish:
         patch.update(status="approved", approved_by=user["user_id"], approved_at=now_iso)
-    elif existing["status"] == "approved":
-        patch["status"] = "draft"
-        patch["approved_by"] = None
-        patch["approved_at"] = None
     await db.menu_items.update_one({"menu_id": menu_id}, {"$set": patch})
     updated = await db.menu_items.find_one({"menu_id": menu_id}, {"_id": 0})
     await record_content_change(
@@ -95,6 +131,8 @@ async def approve_menu_item(menu_id: str, user=Depends(get_current_user)):
         # Re-approving a replaced dish would put the old and the corrected
         # menu in front of residents side by side.
         raise HTTPException(status_code=409, detail="This item was replaced by a newer menu and cannot be published again")
+    if existing["status"] == "draft" and existing.get("replaces"):
+        await _supersede(existing["replaces"], menu_id, user)   # 409 if a competing correction already went live
     patch = {
         "status": "approved",
         "approved_by": user["user_id"],
