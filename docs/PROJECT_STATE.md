@@ -247,3 +247,6 @@ Contract + first gap: escalation tick failure/recovery now receipted (`escalatio
 
 ## 2026-10-12 — Escalation loop death receipt (careops-alerts-loop-death-receipt-001)
 `e2e2b1b`: unexpected loop end → one `escalation_schedule_stopped` receipt; shutdown none; schedule/health split into `routes/escalation_schedule.py`. Backend 611/0/31. Report: docs/reports/2026-10-12-alerts-loop-death-receipt.md.
+
+## 2026-10-12 — Full Alerts acceptance (careops-alerts-full-acceptance-001)
+No code change; 17/17 dev browser checks; gates 611/0/31, 91/644, build OK. Findings: nurse /staff feed shows 200 legacy alerts (no stale split); ack receipt lacks parent. Owner decision packet in docs/reports/2026-10-12-alerts-full-acceptance.md.

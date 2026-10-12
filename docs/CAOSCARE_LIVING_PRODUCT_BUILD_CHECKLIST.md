@@ -984,3 +984,8 @@ Issue #129 is the dispatch channel to existing coordinator `caoscare-1-ee`. ACK/
 
 - A loop that ends without a server shutdown writes one `escalation_schedule_stopped` receipt; shutdown writes none; recovery chains. Schedule/health now in `backend/routes/escalation_schedule.py`. Backend 611/0/31. DEV_ACCEPTED, not owner-accepted. Report: `docs/reports/2026-10-12-alerts-loop-death-receipt.md`.
 - Remaining Alerts: owner decision on acknowledge/close roles; full owner/nurse desktop + 390 px Alerts acceptance.
+
+### Update 2026-10-12 — Full Alerts acceptance run (careops-alerts-full-acceptance-001)
+
+- No code change. Gates: backend 611/0/31, frontend 91/644, build OK. Dev browser 17/17 (owner 1280/390, nurse 390): coalescing, policy edit → tick, acknowledge, close, refusals, public safety, cleanup. Failure/stop/recovery receipt chain proven in a scratch DB. Report + owner decision packet: `docs/reports/2026-10-12-alerts-full-acceptance.md`.
+- Alerts NOT READY_FOR_OWNER_REVIEW: (1) owner decision — acknowledge/close roles (options A–D, B recommended); (2) nurse `/staff` Live alerts shows 200 weeks-old legacy alerts at 390 px (recommended next item); minor: acknowledgement receipt has no parent link.
