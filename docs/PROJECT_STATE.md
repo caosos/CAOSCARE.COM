@@ -9045,3 +9045,8 @@ Issue #129 dispatches this work to the existing coordinator `caoscare-1-ee`. ACK
 
 ## 2026-10-12 — Department dispatch made visible (careops-dept-dispatch-001)
 Admin department queues show how work arrives, who works in the department, and say plainly when nobody does (empty Assign list; production has only the owner). `DepartmentDispatchNote.jsx`. Frontend 83 suites / 612, build compiled; dev-site headless 8/8. Report `docs/reports/2026-10-12-dept-dispatch.md`. Frontend only; not deployed.
+
+---
+
+## 2026-10-12 — Clinician screen made usable (careops-clinician-workspace-001)
+"Resident care patterns": purpose, load-failure state, events open the alert close-out, older open records flagged, summary from the briefing; resident stats limited to owner/admin + nursing and gain `unresolved_older`. Backend gate 566 / 0 / 31 (new `test_clinician_stats_access.py`), frontend 84 suites / 614 (new `clinicianTab.test.jsx`), build compiled; dev browser+API 14/14. Dev backend restarted on `677e250` (pid 1167977; previous log /tmp/room214_backend_7a7cd92.log). Report `docs/reports/2026-10-12-clinician-workspace.md`. Not deployed.
