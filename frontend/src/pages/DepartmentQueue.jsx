@@ -200,11 +200,11 @@ export default function DepartmentQueue({ department, title, itemName = "request
                 </span>
               )}
             </div>
-            <div className="font-semibold text-caos-forest mt-1 truncate">{t.title}</div>
+            <div className="font-semibold text-caos-forest mt-1 break-words">{t.title}</div>
             {t.resident_words ? (
               <div className="text-sm text-caos-ink/80">Resident said: "{t.resident_words}"</div>
             ) : t.description && t.description !== t.title && (
-              <div className="text-sm text-caos-ink/80 truncate">{t.description}</div>
+              <div className="text-sm text-caos-ink/80 line-clamp-2">{t.description}</div>
             )}
             {t.notes && <div className="text-sm text-caos-ink/80">Note: {t.notes}</div>}
             {(t.requested_for_date || t.requested_for_time_label) && (
