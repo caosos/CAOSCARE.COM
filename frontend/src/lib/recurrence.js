@@ -16,5 +16,6 @@ export function templatePayload(form) {
   if (form.time_label?.trim()) p.time_label = form.time_label.trim();
   if (form.department) p.department = form.department;
   if (form.resident_id) p.resident_id = form.resident_id;
+  for (const k of ["provider_name", "discipline", "location"]) if (form[k]?.trim()) p[k] = form[k].trim();
   return p;
 }

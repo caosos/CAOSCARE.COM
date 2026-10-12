@@ -12,6 +12,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { CATEGORIES, SHIFTS } from "../lib/taskConstants";
 import { WEEKDAYS, seriesLabel, templatePayload } from "../lib/recurrence";
+import { detailsLine } from "../lib/appointmentDetails";
 
 // Extracted verbatim out of TasksTab.jsx 2026-09-21 (Track 1 Lane 2, see
 // AGENTS.md's file-size/modularity rule) - recurring-template management is
@@ -20,7 +21,7 @@ import { WEEKDAYS, seriesLabel, templatePayload } from "../lib/recurrence";
 // domain boundary, not arbitrary chopping. Behavior unchanged.
 export default function TaskTemplatesBoard({ templates, residents, onChange }) {
   const [open, setOpen] = useState(false);
-  const empty = { title: "", description: "", category: "other", shift: "any", recur: "weekly", weekday: "0", time_label: "", department: "", resident_id: "" };
+  const empty = { title: "", description: "", category: "other", shift: "any", recur: "weekly", weekday: "0", time_label: "", department: "", resident_id: "", provider_name: "", discipline: "", location: "" };
   const [form, setForm] = useState(empty);
   const [departments, setDepartments] = useState([]);
   useEffect(() => { api.get("/departments/labels").then(({ data }) => setDepartments(data || [])).catch(() => setDepartments([])); }, []);
@@ -110,6 +111,11 @@ export default function TaskTemplatesBoard({ templates, residents, onChange }) {
                 )}
                 <div><Label>Time</Label><Input data-testid="tpl-time" placeholder="e.g. 9:00 AM" value={form.time_label} onChange={(e) => setForm({ ...form, time_label: e.target.value })} /></div>
               </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div><Label>With (optional)</Label><Input data-testid="tpl-provider" placeholder="e.g. Pat Lee, PT" value={form.provider_name} onChange={(e) => setForm({ ...form, provider_name: e.target.value })} /></div>
+                <div><Label>Kind</Label><Input data-testid="tpl-discipline" placeholder="e.g. Physical therapy" value={form.discipline} onChange={(e) => setForm({ ...form, discipline: e.target.value })} /></div>
+                <div><Label>Where</Label><Input data-testid="tpl-location" placeholder="e.g. Therapy gym" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} /></div>
+              </div>
               <p className="text-xs text-caos-mute">Each occurrence goes to the department's queue planned on its day, and shows in Upcoming a week ahead (weekly) or a day ahead (daily).</p>
               <DialogFooter><Button type="submit" className="bg-caos-forest" data-testid="tpl-save">Create</Button></DialogFooter>
             </form>
@@ -131,7 +137,7 @@ export default function TaskTemplatesBoard({ templates, residents, onChange }) {
               </TableCell>
               <TableCell className="text-xs uppercase tracking-wider">{t.category}</TableCell>
               <TableCell className="text-xs uppercase tracking-wider">{t.shift}</TableCell>
-              <TableCell className="text-xs" data-testid={`tpl-when-${t.template_id}`}>{seriesLabel(t)}{t.department ? ` · ${t.department.replace(/_/g, " ")}` : ""}</TableCell>
+              <TableCell className="text-xs" data-testid={`tpl-when-${t.template_id}`}>{seriesLabel(t)}{t.department ? ` · ${t.department.replace(/_/g, " ")}` : ""}{detailsLine(t) ? ` · ${detailsLine(t)}` : ""}</TableCell>
               <TableCell>{t.active ? <Badge className="bg-caos-moss text-white">ACTIVE</Badge> : <Badge variant="outline">paused</Badge>}</TableCell>
               <TableCell>
                 <Button variant="ghost" size="sm" onClick={() => remove(t.template_id)} data-testid={`del-tpl-${t.template_id}`}>

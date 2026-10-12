@@ -964,6 +964,9 @@ class StaffTaskTemplate(BaseModel):
     weekday: Optional[int] = None          # 0=Monday..6=Sunday, weekly only (facility calendar)
     time_label: Optional[str] = None       # planned time on each occurrence, e.g. "9:00 AM"
     department: Optional[str] = None       # queue the occurrences go to (visibility_role)
+    provider_name: Optional[str] = None    # appointment details each occurrence carries (therapy etc.)
+    discipline: Optional[str] = None
+    location: Optional[str] = None
     active: bool = True
     created_at: datetime = Field(default_factory=now_utc)
 
@@ -979,6 +982,9 @@ class StaffTaskTemplateCreate(BaseModel):
     department: Optional[str] = Field(None, max_length=60)
     resident_id: Optional[str] = None
     room: Optional[str] = Field(None, max_length=40)
+    provider_name: Optional[str] = Field(None, max_length=120)   # same limits as the visit details
+    discipline: Optional[str] = Field(None, max_length=60)
+    location: Optional[str] = Field(None, max_length=160)
 
 
 # ---------- Operational receipts (Terminal 8) ----------

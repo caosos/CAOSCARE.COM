@@ -30,7 +30,8 @@ async def _receipt(action: str, tpl: dict, user: dict, before=None, after=None):
 
 
 def _schedule_fields(tpl: dict) -> dict:
-    return {k: tpl.get(k) for k in ("recur", "weekday", "time_label", "department", "resident_id", "room", "active")}
+    return {k: tpl.get(k) for k in ("recur", "weekday", "time_label", "department", "resident_id", "room",
+                                    "provider_name", "discipline", "location", "active")}
 
 
 @router.get("/templates/all")
@@ -49,6 +50,8 @@ async def create_template(data: StaffTaskTemplateCreate, user=Depends(get_curren
     if data.department and not await db.departments.find_one({"slug": data.department}, {"_id": 1}):
         raise HTTPException(status_code=422, detail="Unknown department")
     fields = data.model_dump()
+    for k in ("provider_name", "discipline", "location", "time_label"):
+        fields[k] = (fields.get(k) or "").strip() or None
     if fields.get("resident_id") and not fields.get("room"):
         r = await db.residents.find_one({"resident_id": fields["resident_id"]}, {"_id": 0, "room": 1})
         if not r:

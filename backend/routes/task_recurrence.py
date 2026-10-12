@@ -69,7 +69,9 @@ async def generate(today: Optional[str] = None) -> dict:
                        "shift": tpl.get("shift", "any"), "resident_id": tpl.get("resident_id"), "room": tpl.get("room"),
                        "template_id": tpl["template_id"], "occurrence_date": day, "source": "system",
                        "visibility_role": dept, "requested_for_date": day,
-                       "requested_for_time_label": tpl.get("time_label")}
+                       "requested_for_time_label": tpl.get("time_label"),
+                       "provider_name": tpl.get("provider_name"), "discipline": tpl.get("discipline"),
+                       "location": tpl.get("location")}
             await _resolve_denorms(payload)
             doc = StaffTask(**payload).model_dump()
             doc["created_at"] = doc["created_at"].isoformat()
