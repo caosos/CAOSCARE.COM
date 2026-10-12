@@ -10,7 +10,8 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 
 from deps import db, require_admin, require_owner
-from models import EscalationRule, now_utc
+from models import EscalationRule, now_utc, uid
+from routes.receipts import create_receipt
 from routes.escalation_tick import run_tick
 
 router = APIRouter(prefix="/escalation", tags=["escalation"])
@@ -39,14 +40,39 @@ async def get_rule(facility_id: str | None = None, user=Depends(require_admin)):
     return _iso(rule)
 
 
+_POLICY_FIELDS = ("level_2_seconds", "level_3_seconds", "nursing_unclaimed_seconds",
+                  "notify_supervisor_phone", "notify_oncall_phone", "enabled")
+
+
 @router.put("/rule")
 async def upsert_rule(rule: EscalationRule, user=Depends(require_admin)):
+    """One policy edit: validated by EscalationRule, stored only if nobody
+    changed the rule meanwhile, and receipted (actor, authority, before/after,
+    parent = the previous edit). The stored rule links its latest receipt."""
+    before = await db.escalation_rules.find_one({"facility_id": rule.facility_id}, {"_id": 0})
+    base = before or EscalationRule(facility_id=rule.facility_id).model_dump()
+    rid = uid("rcpt")
     rule.updated_at = now_utc()
     doc = rule.model_dump()
-    doc["updated_at"] = doc["updated_at"].isoformat()
-    await db.escalation_rules.update_one(
-        {"facility_id": rule.facility_id}, {"$set": doc}, upsert=True,
-    )
+    doc.update(updated_at=doc["updated_at"].isoformat(), updated_by=user.get("user_id"), receipt_id=rid)
+    guard = {"facility_id": rule.facility_id}
+    if before:
+        guard["updated_at"] = before.get("updated_at")
+    res = await db.escalation_rules.update_one(guard, {"$set": doc}, upsert=not before)
+    if (res.matched_count == 0) if before else (res.upserted_id is None):
+        raise HTTPException(409, "The escalation rule was changed by someone else. Reload and try again.")
+    role = user.get("role")
+    await create_receipt(
+        receipt_id=rid, action_type="escalation_rule_changed", related_object_type="escalation_rule",
+        related_object_id=rule.facility_id or "default", source="staff", requested_by=user.get("user_id"),
+        status="completed", result=f"escalation rule changed by {user.get('name')}",
+        provenance={"actor_id": user.get("user_id"), "actor_type": "real-human", "actor_name": user.get("name"),
+                    "actor_role": role, "authority": f"policy_editor:{role}",
+                    "before_state": {**{k: base.get(k) for k in _POLICY_FIELDS},
+                                     "source": "stored" if before else "defaults"},
+                    "after_state": {k: doc.get(k) for k in _POLICY_FIELDS},
+                    "parent_receipt_id": (before or {}).get("receipt_id"),
+                    "result_label": "verified", "next_state": "applied_on_next_escalation_tick"})
     return doc
 
 

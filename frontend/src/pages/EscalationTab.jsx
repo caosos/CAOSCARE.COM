@@ -17,9 +17,14 @@ export default function EscalationTab() {
 
   const save = async () => {
     try {
-      await api.put("/escalation/rule", rule);
+      const { data } = await api.put("/escalation/rule", rule);
+      setRule(data);
       toast.success("Saved");
-    } catch (err) { toast.error(err?.response?.data?.detail || "Save failed"); }
+    } catch (err) {
+      const d = err?.response?.data?.detail;
+      const msg = Array.isArray(d) ? d.map((x) => String(x.msg || "").replace(/^Value error, /, "")).join(" ") : d;
+      toast.error(msg || "Save failed");
+    }
   };
 
   const tick = async () => {
@@ -38,8 +43,14 @@ export default function EscalationTab() {
         <h2 className="font-display text-3xl text-caos-forest">Auto-escalation</h2>
         <p className="text-caos-mute text-sm mt-1 max-w-2xl">
           When an alert sits unacknowledged, escalate it. Level 2 pages a supervisor.
-          Level 3 pages on-call medical. Times are seconds since alert creation.
+          Level 3 pages on-call medical. Times are seconds since alert creation; Level 3 must come later than Level 2.
+          Every saved change is recorded with who made it.
         </p>
+        {rule.updated_by && (
+          <p className="text-xs text-caos-mute mt-1" data-testid="esc-last-change">
+            Last changed {new Date(rule.updated_at).toLocaleString()}
+          </p>
+        )}
       </div>
 
       <Card className="p-5 border-caos-line">
@@ -48,8 +59,8 @@ export default function EscalationTab() {
           <Switch checked={rule.enabled} onCheckedChange={(v) => setRule({ ...rule, enabled: v })} data-testid="esc-enabled" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Field label="Level 2 trigger (seconds)" value={rule.level_2_seconds} onChange={(v) => setRule({ ...rule, level_2_seconds: parseInt(v) || 90 })} testid="esc-l2-seconds" />
-          <Field label="Level 3 trigger (seconds)" value={rule.level_3_seconds} onChange={(v) => setRule({ ...rule, level_3_seconds: parseInt(v) || 150 })} testid="esc-l3-seconds" />
+          <Field label="Level 2 trigger (seconds)" value={rule.level_2_seconds} onChange={(v) => setRule({ ...rule, level_2_seconds: v })} testid="esc-l2-seconds" />
+          <Field label="Level 3 trigger (seconds)" value={rule.level_3_seconds} onChange={(v) => setRule({ ...rule, level_3_seconds: v })} testid="esc-l3-seconds" />
           <Field label="Supervisor phone (Level 2 SMS)" value={rule.notify_supervisor_phone || ""} onChange={(v) => setRule({ ...rule, notify_supervisor_phone: v })} testid="esc-l2-phone" />
           <Field label="On-call phone (Level 3 SMS)" value={rule.notify_oncall_phone || ""} onChange={(v) => setRule({ ...rule, notify_oncall_phone: v })} testid="esc-l3-phone" />
         </div>

@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import List, Optional, Literal
 from zoneinfo import ZoneInfo, available_timezones
-from pydantic import BaseModel, Field, EmailStr, ConfigDict, field_validator
+from pydantic import BaseModel, Field, EmailStr, ConfigDict, field_validator, model_validator
 import uuid
 
 
@@ -1569,13 +1569,19 @@ class EscalationRule(BaseModel):
       Level 3 → staff + supervisor + on-call medical after `level_3_seconds`."""
     model_config = ConfigDict(extra="ignore")
     facility_id: Optional[str] = None
-    level_2_seconds: int = 90
-    level_3_seconds: int = 150
-    nursing_unclaimed_seconds: int = 600   # a Nursing request nobody has claimed is flagged for a supervisor after this
+    level_2_seconds: int = Field(90, ge=1, le=86400)
+    level_3_seconds: int = Field(150, ge=1, le=86400)
+    nursing_unclaimed_seconds: int = Field(600, ge=1, le=86400)   # a Nursing request nobody has claimed is flagged for a supervisor after this
     notify_supervisor_phone: Optional[str] = None
     notify_oncall_phone: Optional[str] = None
     enabled: bool = True
     updated_at: datetime = Field(default_factory=now_utc)
+
+    @model_validator(mode="after")
+    def _level_3_after_level_2(self):
+        if self.level_3_seconds <= self.level_2_seconds:
+            raise ValueError("Level 3 must come later than Level 2.")
+        return self
 
 
 # Per-facility config for the Level 1 resident-assistance event model
