@@ -8963,3 +8963,8 @@ Issue #129 carries the dispatch. `ACK / WORKING` must provide evidence reviewed,
 
 ## 2026-10-12 — careops-transport-unresolved-001: the Unresolved count opens its records
 Dispatch da-47e03b7eb1. Reproduced "Unresolved 11" on the dev stack (= 11 open, unbooked ride requests, any date). Report endpoint now transport-coordinators only and its open-ride rows carry resident/purpose/date/time/status/owner/times asked/age/next action/currency; `total_unresolved` = that list. Transportation tab: tile opens the list, rows open the real request with its receipt timeline and keep Book, error/empty states. Also fixed `department_board.py` "completed today" using the UTC date (wrong after 7 pm Central). Tests: backend gate 549 / 0 / 31 (new `test_transport_unresolved.py`), frontend 78 suites / 597, build compiled; scratch-stack headless 8/8. Report `docs/reports/2026-10-11-transport-unresolved.md`. Not deployed; production `ff87c22`. Dev backend restart recorded below.
+
+---
+
+## 2026-10-12 — Dev backend restarted on `1d617b8`
+Guarded restart via `scripts/restart_dev_backend.sh`: 0 leases, no recent call activity, old pid 845647 (log /tmp/room214_backend_2155a9f.log = rollback provenance); new pid 939383, runtime commit 1d617b8 with a clean tree, log /tmp/room214_backend_1d617b8.log. localhost:3000 Transportation tab now opens the Unresolved list. Development only; production `ff87c22` unchanged.
