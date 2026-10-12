@@ -91,7 +91,7 @@ check); tests `scripts/owner_intake/tests/test_eta_receipts.py`.
 ## Current build control
 
 - **Current phase:** 3/7 — Care Operations workspaces.
-- **ONE current bounded task:** `careops-alerts-policy-editor-001` — WORKING through existing coordinator `caoscare-1-ee`, worker `da-a0fcc8aef7`. Corrected receipt reviewed one canonical policy store/editor/runtime reader; first failing test proves invalid threshold ordering is accepted and policy edits lack receipt provenance. A guarded validator plus `escalation_rule_changed` receipt/history chain is in progress, uncommitted; focused gate 14 passed. ETA Monday, October 12, 2026 — 9:15 AM America/Chicago; next_check_at Monday, October 12, 2026 — 8:30 AM America/Chicago; blocker NONE.
+- **ONE current bounded task:** `careops-alerts-checklist-reconciliation-001` — WORKING (docs only) through existing coordinator `caoscare-1-ee`, item `da-3e0365ca67`. Corrects the stale entry that still named `careops-alerts-policy-editor-001` as WORKING (that text is preserved in the 2026-10-12 07:48 CDT update below); see the 2026-10-12 08:40 CDT correction at the end of this file.
 - **Control issue / dispatch channel:** [#129](https://github.com/caosos/CAOSCARE.COM/issues/129).
 - **Completed review:** [PR #130](https://github.com/caosos/CAOSCARE.COM/pull/130), merged into integration.
 - **Integration branch:** `integration/2026-09-27`; current accepted therapy-conflict product commit `77f83d3d53e17ffb75c71d137ab876e50552efe9` with guarded dev restart `1bf1bec26ea58a6c55730fea3c858734eb788d54`. This later integration work is not in production `ff87c22`; the release baseline is separate.
@@ -304,7 +304,7 @@ Current status: **ACTIVE. Transportation development slices are DEV_ACCEPTED; au
 
 - [!] Canonical state model is unresolved; historical evidence records competing implementations.
 - [~] Nursing unclaimed-request timer behavior is DEV_ACCEPTED on `e2a8770` + `28c0729` + `743c4d2`: one existing tick, 10-minute default threshold, one atomic receipt, repeated/concurrent-tick idempotency, stop after assignment/closure, supervisor visibility and truthful Aria status. Broader alert escalation levels/policy remain unresolved and are not OWNER_ACCEPTED / DONE.
-- [ ] One escalation model, policy editor, acknowledgements, timers, fallback, receipts, and acceptance test.
+- [~] One escalation model, policy editor, acknowledgements, timers, fallback, receipts, and acceptance test. DEV_ACCEPTED parts (2026-10-12): canonical state contract and acknowledge/close/ingress receipts (`docs/reports/2026-10-12-alerts-canonical-state.md`); policy editor validated + receipted, runtime-proven through `escalation_tick` (`a7c406d`, `docs/reports/2026-10-12-alerts-policy-editor.md`); unclaimed-request step uses each facility's own rule (`379139f`, `docs/reports/2026-10-12-alerts-facility-policy-isolation.md`). Open: owner decision on which roles may acknowledge/close; "fallback" behaviour not yet defined/proven; full Alerts section acceptance run.
 
 Milestone: each department has a normal-work workspace, not a dead demo panel.
 
@@ -953,3 +953,15 @@ Issue #129 is the dispatch channel to existing coordinator `caoscare-1-ee`. ACK/
 - **next_check_at:** Monday, October 12, 2026 — 8:30 AM America/Chicago.
 - **Blocker:** NONE.
 - **Michael must do:** NOTHING.
+
+### Update 2026-10-12 08:40 CDT — CORRECTION (checklist reconciliation; supersedes stale current-control entry)
+
+- **Correction:** the "Current build control" line and the 07:48 CDT update still showed `careops-alerts-policy-editor-001` as WORKING/uncommitted. That entry is superseded; its text is kept above as history.
+- **Completed, DEV_ACCEPTED (not OWNER_ACCEPTED):**
+  - `careops-alerts-policy-editor-001` — product `a7c406d` (pre-rebase local `7ade644`, never pushed, identical code); records `b9f4500`, `60c61bf`. DONE receipt https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6124684194. Backend 607/0/31, frontend 91/644, build OK; dev browser desktop + 390 px; synthetic state cleaned.
+  - `careops-alerts-facility-policy-isolation-001` — product `379139f`; record `e228d69`. DONE receipt https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6125164271. Backend 608/0/31; no UI change. PROJECT_STATE already holds this record (entry "Unclaimed escalation per-facility rule").
+- **ONE current bounded task:** `careops-alerts-checklist-reconciliation-001` (this entry), docs only.
+- **Alerts status:** in progress; not READY_FOR_OWNER_REVIEW, not OWNER_ACCEPTED / DONE.
+- **Remaining Alerts criteria (re-inventory):** 1. owner decision — which roles may acknowledge/close a help alert (any signed-in role can today; receipts record `signed_in:<role>`); not decided here. 2. "fallback" — not yet defined in a contract or test (candidates: what happens when the tick is down, or SMS is unconfigured); needs a definition before it can be proven. 3. Records carry no `facility_id` yet, so per-facility policy applies only once they do (single community rule today). 4. One full Alerts section acceptance run (owner/nurse, desktop/390 px) once 1–2 are settled.
+- **Loaded:** dev backend `e228d69`, PID 1544950; production `ff87c22` unchanged. Cost UNKNOWN.
+- **Blocker:** NONE for docs. Michael: the acknowledge/close role-policy decision.
