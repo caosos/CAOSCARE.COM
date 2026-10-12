@@ -256,3 +256,6 @@ No code change; 17/17 dev browser checks; gates 611/0/31, 91/644, build OK. Find
 
 ## 2026-10-12 — Acknowledgement receipt parent link (careops-alerts-ack-parent-link-001)
 `d0642ec`: alert_acknowledged.parent_receipt_id = origin receipt. Backend 613/0/31. Only owner role-policy decision remains before Alerts re-acceptance.
+
+## 2026-10-12 — Front desk unified inbox first slice (careops-frontdesk-unified-inbox-inventory-001)
+`2604c16`: /front-desk "Needs attention" tab = existing RoutingExceptionsBoard (backend-scoped). Matrix + gaps in docs/reports/2026-10-12-frontdesk-unified-inbox.md. Backend 614/0/31, frontend 93/646.

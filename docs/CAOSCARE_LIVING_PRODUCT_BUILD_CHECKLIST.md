@@ -270,7 +270,7 @@ Current status: **ACTIVE. Transportation development slices are DEV_ACCEPTED; au
 ### Front desk and administrative communication
 
 - [~] Resident directory, request queue, callback/request handling, communications views, and status lifecycle exist in part. Callback handling DEV_ACCEPTED 2026-10-11 (`careops-frontdesk-callback-001`, headless 19/19 as the demo front-desk user: create → route to Administration or Maintenance → assign/unassign/claim → note → complete → reopen once → second completion; 9-receipt linked chain; department scope enforced; `docs/reports/2026-10-11-front-desk-callback-acceptance.md`). Reassign to a colleague needs a second front-desk account (admin sign-in).
-- [ ] One unified inbox for requests, messages, callbacks, approvals, and failed deliveries.
+- [~] One unified inbox for requests, messages, callbacks, approvals, and failed deliveries. First slice DEV_ACCEPTED 2026-10-12 (`2604c16`): front desk "Needs attention" over the existing routing exceptions (requests/callbacks not delivered, unclaimed, unassigned, overdue, review), scoped and receipted; matrix + remaining gaps in `docs/reports/2026-10-12-frontdesk-unified-inbox.md`. Open: non-request failed deliveries, messages, approval resolution, callback fields.
 - [~] Create/assign/reassign/close/reopen from the workspace with truthful status and receipts. Verified 2026-10-11 for the front-desk role: create (resident-request bus, source `front_desk`), acknowledge, claim, assign select, start, note, complete, history — each with a linked receipt. **Reopen built the same day** (`careops-frontdesk-reopen-001`, integration `04cc580`): explicit receipted reopen with a required reason, headless-accepted 23/23 incl. reopen → second completion with an unbroken chain (report addendum). Awaiting owner review of the actual workspace.
 - [ ] Shift notes, handoff, announcements, internal messages, read/acknowledge state, and searchable history.
 - [~] Browser acceptance by a front-desk role and an administrator. Front-desk half DEV_ACCEPTED 2026-10-11 (headless, synthetic, 18/18 cases, 0 failed API calls, linked receipt chain; `docs/reports/2026-10-11-front-desk-acceptance.md`). Administrator half NOT run: no admin login on the dev stack for the coordinator (temp demo-admin creation refused by its permission classifier) — NEED owner sign-in or a permission rule.
@@ -999,3 +999,8 @@ Issue #129 is the dispatch channel to existing coordinator `caoscare-1-ee`. ACK/
 
 - Full-acceptance finding 2 repaired (`d0642ec`): `alert_acknowledged` names the origin receipt as parent. Backend 613/0/31; dev API proof. DEV_ACCEPTED. Report: `docs/reports/2026-10-12-alerts-ack-parent-link.md`.
 - Remaining Alerts: owner decision on acknowledge/close roles (A–D, B recommended), then apply and re-run affected acceptance; then READY_FOR_OWNER_REVIEW.
+
+### Update 2026-10-12 — Front desk unified inbox, first slice (careops-frontdesk-unified-inbox-inventory-001)
+
+- Source/state/action/receipt matrix published; first slice: `/front-desk` Needs attention tab over `/ops/routing-exceptions` (`2604c16`). Backend 614/0/31, frontend 93/646, build OK; dev browser 11/11 at 1280/390. DEV_ACCEPTED. Report: `docs/reports/2026-10-12-frontdesk-unified-inbox.md`.
+- Next eligible: failed deliveries not tied to a request (alert SMS/call, family email) for the desk — scoping needs care (resident data); messages/approvals need owner direction.
