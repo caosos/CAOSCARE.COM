@@ -1,0 +1,26 @@
+# CAOSCare check-in log
+
+Append-only. One entry per verified check-in, tied to its receipt. A correction is a new entry naming the receipt it supersedes; earlier entries are never edited.
+
+## Monday, October 12, 2026 — 12:39 AM America/Chicago
+- **Receipt:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6118430767
+- **Phase / position:** Care Operations pilot readiness — operator surfaces validated in development; next: SIM/current-operations truth, resident→Nursing, live email
+- **Completed since the prior check:** Since 2026-10-11 20:21 CDT, all DEV_ACCEPTED (not deployed): transport unresolved (0c517fe), New ride on admin Transportation (0226119), Kitchen/Transportation nav (4d0c473), family add/edit (f4f210f), transport resources guide (11fe3f2), transport calendar elsewhere (922919e+7a7cd92), dept dispatch note (ed1a5a8), clinician screen (677e250), menu/activities coverage (4b270ef), dept history (f1a6ce5), Activities tab (a0f7773), activities calendar + load-failure truth (6d80cad), whole-menu paste (7e854ce), screen guidance (c7ecf0d), good-surfaces review + admin device command auth/receipts (198fee4)
+- **Evidence:** Last gate 576 passed/0 failed/31 skipped at 198fee4; frontend 86 suites/621; build compiled; browser via headless Chrome (Playwright), not the Claude-in-Chrome extension; dev backend loaded 198fee4 pid 1213230; host observation 2026-10-12 00:39 CDT dev :8092 healthy; production ff87c22 unchanged
+- **Current bounded task (owner · stage):** none open — awaiting next supervisor dispatch · caoscare-1-ee · IDLE (probe IDLE)
+- **Remaining steps for this milestone:**
+  1. Owner review of the DEV_ACCEPTED slices
+  2. Promote a release candidate and deploy when authorized
+  3. Production data: staff accounts with departments, current menu and activities
+- **Upcoming milestones:**
+  1. Current SIM run and operator-board truth
+  2. Resident Aria → Nursing request → nurse queue
+  3. Nurse notification pipeline with delivery receipts
+  4. Live email (Resend) acceptance
+  5. Transportation LIVE_VERIFY with driver/vehicle
+  6. Novice/owner pilot walkthrough
+  7. Pilot Room 1 hardware
+- **ETA:** UNKNOWN until the next task is dispatched
+- **next_check_at:** MISSING (no open task)
+- **Blocker:** Production access refused to this session (blocks Transportation LIVE_VERIFY and production data); email provider facts missing
+- **Michael action required:** When awake: run the one-line production demo driver/vehicle command or add a permission rule for ssh caoscare-prod; review the DEV_ACCEPTED slices

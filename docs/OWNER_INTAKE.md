@@ -94,3 +94,9 @@ Verdict: **event wake of an idle CAOSCare coordinator is VERIFIED** (two indepen
 | Desktop-Agent watchdog (runs the probe every 120 s) detects WAKE and sends ONE `DA-HEARTBEAT reasons=[...]` peer message to the idle session | 03:06:27 (+4 min 14 s) | peer message "sent at 22:06:27 CDT" |
 | Session woke from idle, ACKed `hb-20261009T030627Z`, restored the status file (probe IDLE), posted DONE | 03:06:38 (+11 s) | #117 comments + `receiver.py` ledger rows |
 Verdict: **periodic heartbeat wake is VERIFIED for CAOSCare** (probe -> Desktop-Agent watchdog -> idle session -> ACK). Cost model: the probe is a local stdlib script; an IDLE verdict sends nothing and spends nothing; one message per WAKE (at most once per 30 min per Desktop-Agent). Nothing was changed on the host or in Room 214; the dummy question was cleared immediately.
+
+
+## Check-in ledger (owner directive 2026-10-12, #129 comment 6118341041)
+Every verified check-in gets one entry in `docs/status/CHECKIN_LOG.md`, written with
+`scripts/owner_intake/checkin_log.py add --receipt <#129 comment URL> -f ...` (the 11 required fields; refused if any is missing).
+Append-only, deduplicated by receipt; a correction is a new entry with `--supersedes <receipt>`. The short Work update links to the log.
