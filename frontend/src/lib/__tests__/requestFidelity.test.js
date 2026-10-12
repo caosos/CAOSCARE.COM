@@ -69,7 +69,7 @@ test("check_request_status with a category keeps the single-category path", asyn
   const urls = [];
   global.fetch = jest.fn(async (url) => { urls.push(url); return json({ found: false }); });
   await executeOperationsTool({ name: "check_request_status", args: { category: "nursing" }, ctx: { residentId: "r1" } });
-  expect(urls[0]).toMatch(/resident-request\/status\?.*category=nursing/);
+  expect(urls.find((u) => u.includes("/status?"))).toMatch(/resident-request\/status\?.*category=nursing/);
 });
 
 test("RQ-033: the operations tool context carries the resident's last words", () => {
@@ -132,4 +132,19 @@ test("a new request's result follows the real notice state and never promises ar
     expect(m).not.toMatch(/sent to nursing/);
     expect(m).toMatch(/do not say anyone is coming/);
   }
+});
+
+test("check_request_status with a category reads every open request in it when there are several", async () => {
+  global.fetch = jest.fn(async (url) => {
+    if (url.includes("/resident-request/open")) return json({ found: true, requests: [
+      { what_for: "deep clean", category: "housekeeping", spoken: "No one has picked it up yet. Planned for 9:00 AM on 2026-10-13." },
+      { what_for: "change linens", category: "housekeeping", spoken: "No one has picked it up yet. Planned for 10:00 AM on 2026-10-13." },
+    ] });
+    return json({ found: true, what_for: "change linens", spoken: "only the newest" });
+  });
+  const out = await executeOperationsTool({ name: "check_request_status", args: { category: "housekeeping" }, ctx: { residentId: "r1" } });
+  expect(out.message).toMatch(/2 open requests/);
+  expect(out.message).toMatch(/9:00 AM/);
+  expect(out.message).toMatch(/10:00 AM/);
+  expect(global.fetch.mock.calls[0][0]).toMatch(/category=housekeeping/);
 });

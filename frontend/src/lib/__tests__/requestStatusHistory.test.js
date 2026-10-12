@@ -20,7 +20,7 @@ afterEach(() => { delete global.fetch; });
 test("check_request_status hits /status and says 'no open request' when found:false", async () => {
   mockJson(200, { found: false, scope: "current" });
   const r = await call("check_request_status", { category: "maintenance" });
-  expect(global.fetch.mock.calls[0][0]).toMatch(/\/tasks\/resident-request\/status\?/);
+  expect(global.fetch.mock.calls.map((c) => c[0]).find((u) => u.includes("/status?"))).toMatch(/\/tasks\/resident-request\/status\?/);
   expect(r.ok).toBe(true);
   expect(r.message).toMatch(/no open request/i);
   expect(r.message).not.toMatch(/completed/i);

@@ -22,6 +22,7 @@ async def resident_requests_open(
     room: Optional[str] = None,
     conversation_session_id: Optional[str] = None,
     exclude_category: Optional[str] = None,
+    category: Optional[str] = None,
     limit: int = 10,
 ):
     """Public - every genuinely open request for the resident (oldest first),
@@ -31,6 +32,8 @@ async def resident_requests_open(
     q["status"] = {"$in": OPEN_TASK_STATUSES}
     if exclude_category:
         q["category"] = {"$ne": exclude_category}
+    if category:   # "when is housekeeping coming?" - every open one in that department
+        q["category"] = category
     tz = await _facility_tz()
     tasks = await db.staff_tasks.find(q, {"_id": 0}).sort("created_at", 1).to_list(max(1, min(limit, 20)))
     # Requests finished in the last few hours, so "has anyone seen my request?"

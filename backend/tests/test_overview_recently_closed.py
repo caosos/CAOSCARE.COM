@@ -32,3 +32,24 @@ def test_recently_closed():
         finally:
             await db.staff_tasks.delete_many({"resident_id": rid})
     asyncio.run(run())
+
+
+def test_open_requests_filtered_by_category():
+    async def run():
+        from deps import db
+        from routes.resident_request_overview import resident_requests_open
+        rid = "res_test_open_by_cat"
+        now = datetime.now(timezone.utc).isoformat()
+        base = {"resident_id": rid, "room": "T-OC", "source": "aria_voice", "status": "pending", "created_at": now}
+        await db.staff_tasks.delete_many({"resident_id": rid})
+        await db.staff_tasks.insert_many([
+            {**base, "task_id": "t_oc_h1", "category": "housekeeping", "title": "deep clean"},
+            {**base, "task_id": "t_oc_h2", "category": "housekeeping", "title": "linens"},
+            {**base, "task_id": "t_oc_m1", "category": "maintenance", "title": "sink"},
+        ])
+        try:
+            out = await resident_requests_open(resident_id=rid, category="housekeeping")
+            assert sorted(r["task_id"] for r in out["requests"]) == ["t_oc_h1", "t_oc_h2"]
+        finally:
+            await db.staff_tasks.delete_many({"resident_id": rid})
+    asyncio.run(run())

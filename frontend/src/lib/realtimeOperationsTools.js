@@ -110,6 +110,14 @@ export async function executeOperationsTool({ name, args, ctx }) {
       if (!ro.ok) return { ok: false, message: `couldn't check that (${ro.status}).` };
       return { ok: true, message: openRequestsMessage(await ro.json(), rr.ok ? await rr.json() : null) };
     }
+    if (!history && args.category) {
+      // More than one open request in this department (e.g. two housekeeping jobs):
+      // read them all, each with its own state and plan, instead of only the newest.
+      const cq = new URLSearchParams(qs);
+      const rc = await fetch(`${API}/tasks/resident-request/open?${cq.toString()}`).catch(() => null);
+      const many = rc && rc.ok ? await rc.json().catch(() => null) : null;
+      if (many?.requests?.length > 1) return { ok: true, message: openRequestsMessage(many, null) };
+    }
     const path = history ? "history" : "status";
     const r = await fetch(`${API}/tasks/resident-request/${path}?${qs.toString()}`);
     if (!r.ok) return { ok: false, message: `couldn't check that (${r.status}).` };
