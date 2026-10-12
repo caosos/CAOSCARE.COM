@@ -35,16 +35,21 @@ exercised tonight (covered by the SIM tests).
 1. Fixed: demo-room requests hidden from the Nursing queue (`ec4a8d4`).
 2. Fixed: Aria answered "no open request" after a request was completed (`d02325f`).
 3. Fixed: history showed "Started" after "Completed" when work was completed from pending (`d02325f`).
-4. Open (wording): Aria said "I'm going to get someone from nursing to come help you" and called the request "sent";
-   nothing proved anyone was coming, and the department notice was simulated (demo room).
+4. Fixed (`8a06ad1`, `40c3fec`): Aria said nursing would "come help" and called the request "sent" while the notice was
+   simulated. The create response now carries the real notice state; retest rt_ih7vi9zz_1791787206391: "It's on the
+   nursing list now… no one has picked it up yet, so I can't say someone is on the way."
+7. Fixed (`d01796b`): on a phone the action buttons cut the request title off; it now wraps (`07-nurse-staff-390.png`,
+   nurse `/staff` at 390 and 1280: no overflow, no failed API calls).
 5. Open: a fake-mic echo became a stray user turn ("Hallo.", "はい।") — test harness artifact, not a resident path.
 6. Open: the claim guard flags the bare word "weather" even after `get_weather` ran (known false positive).
 
 ## Not done / blocked (unchanged)
 Music (no Home Assistant `media_player`), AC (Midea unavailable), real email (`RESEND_API_KEY` unset), calls
-(no Asterisk/Twilio/SIP), live research (provider unset), spoken audio in Room 214 (needs Michael), 390 px staff walkthrough.
+(no Asterisk/Twilio/SIP), live research (provider unset), spoken audio in Room 214 (needs Michael). One demo request (task_134116c5c444) was left open in the Nursing queue.
 
 ## Gates
 Backend gate at `ec4a8d4`: 588 passed / 2 failed / 31 skipped; the 2 were the auth tests reading the new `.env`
 flags, fixed in `aba31a8` (that file 8/8 with the flags loaded). New tests pass. Frontend 87 suites / 626.
 Production unchanged (`ff87c22`).
+
+Final gate at `40c3fec` (backend unchanged since): backend 591 passed / 0 failed / 31 skipped; frontend 87 suites / 627; build compiled. Dev backend `8a06ad1`.
