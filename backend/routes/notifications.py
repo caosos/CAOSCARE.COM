@@ -98,11 +98,40 @@ async def notify_family_for_alert(alert: dict):
         {"resident_id": rid, "notify_on": key},
         {"_id": 0},
     ).to_list(50)
+    link = dict(alert_id=alert.get("alert_id"), resident_id=rid,
+                related_object_type="alert", related_object_id=alert.get("alert_id"))
     for c in contacts:
         if c.get("phone"):
-            await send_sms(c["phone"], body, alert_id=alert.get("alert_id"), resident_id=rid)
+            note = await send_sms(c["phone"], body, **link)
+            await _receipt_family_update(note, alert, c, key)
         if c.get("email"):
-            await send_email(c["email"], msg_sub, body, alert_id=alert.get("alert_id"), resident_id=rid)
+            note = await send_email(c["email"], msg_sub, body, **link)
+            await _receipt_family_update(note, alert, c, key)
+
+
+async def _receipt_family_update(note: dict, alert: dict, contact: dict, key: str) -> None:
+    """One receipt per family update attempt, chained to the alert's origin
+    receipt; the notification is the evidence and says only what is known
+    ("logged" / "failed" / "sent" = provider accepted, unverified)."""
+    from routes.notification_delivery import _RESULT_LABEL
+    from routes.receipts import create_receipt
+    status = note["status"]
+    receipt = await create_receipt(
+        action_type="family_alert_update_attempt", related_object_type="alert",
+        related_object_id=alert.get("alert_id"), source="system", resident_id=alert.get("resident_id"),
+        room=alert.get("room"), zone=alert.get("zone"),
+        status="failed" if status == "failed" else "completed",
+        result=f"{note['channel']} to family contact {contact.get('relationship') or contact.get('name') or ''}: {status}".strip(),
+        failure_reason=note.get("provider_response") if status == "failed" else None,
+        provenance={"actor_id": "system:family_notify", "actor_type": "system", "actor_name": "Family alert update",
+                    "authority": f"family_contact:{contact.get('contact_id')}:notify_on:{key}",
+                    "channel": note["channel"], "parent_receipt_id": alert.get("receipt_id"),
+                    "after_state": {"notification_id": note["notification_id"], "notification_status": status},
+                    "result_label": _RESULT_LABEL.get(status, "unverified"),
+                    "provider_refs": [r for r in (note.get("provider_message_id"),) if r],
+                    "next_state": "awaiting_staff_acknowledgement"})
+    await db.notifications.update_one({"notification_id": note["notification_id"]},
+                                      {"$set": {"receipt_id": receipt["receipt_id"]}})
 
 
 # -------- API routes --------
