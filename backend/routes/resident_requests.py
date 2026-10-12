@@ -323,7 +323,8 @@ def _resident_safe_view(task: dict, tz: str) -> dict:
 
 
 def _scope_query(resident_id, room, conversation_session_id, allow_session: bool = True) -> dict:
-    q: dict = {"source": {"$in": list(RESIDENT_ORIGIN_SOURCES)}}
+    # the resident's own asks, plus recurring jobs scheduled for them (template series)
+    q: dict = {"$or": [{"source": {"$in": list(RESIDENT_ORIGIN_SOURCES)}}, {"template_id": {"$type": "string"}}]}
     if resident_id:
         q["resident_id"] = resident_id
     elif room:

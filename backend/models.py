@@ -842,6 +842,7 @@ class StaffTask(BaseModel):
     notes: Optional[str] = ""
     due_at: Optional[datetime] = None
     template_id: Optional[str] = None        # if spawned from a recurring template
+    occurrence_date: Optional[str] = None    # the template day this occurrence is for (facility date)
     # ---- resident-request-bus fields (Terminal 8) ----
     priority: TaskPriority = "normal"
     source: TaskSource = "staff"
@@ -955,15 +956,24 @@ class StaffTaskTemplate(BaseModel):
     resident_id: Optional[str] = None
     room: Optional[str] = None
     recur: Literal["daily", "weekly", "per_shift"] = "daily"
+    weekday: Optional[int] = None          # 0=Monday..6=Sunday, weekly only (facility calendar)
+    time_label: Optional[str] = None       # planned time on each occurrence, e.g. "9:00 AM"
+    department: Optional[str] = None       # queue the occurrences go to (visibility_role)
     active: bool = True
     created_at: datetime = Field(default_factory=now_utc)
 
 
 class StaffTaskTemplateCreate(BaseModel):
-    title: str
-    description: Optional[str] = ""
+    title: str = Field(..., min_length=1, max_length=200)
+    description: Optional[str] = Field("", max_length=1000)
     category: TaskCategory = "other"
     shift: TaskShift = "any"
+    recur: Literal["daily", "weekly"] = "daily"
+    weekday: Optional[int] = Field(None, ge=0, le=6)
+    time_label: Optional[str] = Field(None, max_length=40)
+    department: Optional[str] = Field(None, max_length=60)
+    resident_id: Optional[str] = None
+    room: Optional[str] = Field(None, max_length=40)
 
 
 # ---------- Operational receipts (Terminal 8) ----------

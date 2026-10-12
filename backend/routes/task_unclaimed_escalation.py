@@ -36,7 +36,9 @@ async def escalate_unclaimed(now: datetime, rule: dict) -> dict:
     cutoff = (now - timedelta(seconds=threshold)).isoformat()
     tasks = await db.staff_tasks.find(
         {"visibility_role": {"$in": list(DEPARTMENTS)}, "status": "pending",
-         "assigned_to": None, "unclaimed_claimed_at": None, "created_at": {"$lte": cutoff}},
+         "assigned_to": None, "unclaimed_claimed_at": None, "created_at": {"$lte": cutoff},
+         # planned for a later day (e.g. a recurring occurrence made ahead): not due yet
+         "$or": [{"requested_for_date": None}, {"requested_for_date": {"$lte": now.date().isoformat()}}]},
         {"_id": 0}).to_list(500)
     out["unclaimed_examined"] = len(tasks)
     run = await active_run()

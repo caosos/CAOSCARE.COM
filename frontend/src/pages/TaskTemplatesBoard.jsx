@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -7,11 +7,11 @@ import { Textarea } from "../components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "../components/ui/dialog";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "../components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
-import { Checkbox } from "../components/ui/checkbox";
 import { Badge } from "../components/ui/badge";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { CATEGORIES, SHIFTS } from "../lib/taskConstants";
+import { WEEKDAYS, seriesLabel, templatePayload } from "../lib/recurrence";
 
 // Extracted verbatim out of TasksTab.jsx 2026-09-21 (Track 1 Lane 2, see
 // AGENTS.md's file-size/modularity rule) - recurring-template management is
@@ -20,15 +20,15 @@ import { CATEGORIES, SHIFTS } from "../lib/taskConstants";
 // domain boundary, not arbitrary chopping. Behavior unchanged.
 export default function TaskTemplatesBoard({ templates, residents, onChange }) {
   const [open, setOpen] = useState(false);
-  const empty = { title: "", description: "", category: "other", shift: "any", recur: "daily", active: true, resident_id: "" };
+  const empty = { title: "", description: "", category: "other", shift: "any", recur: "weekly", weekday: "0", time_label: "", department: "", resident_id: "" };
   const [form, setForm] = useState(empty);
+  const [departments, setDepartments] = useState([]);
+  useEffect(() => { api.get("/departments/labels").then(({ data }) => setDepartments(data || [])).catch(() => setDepartments([])); }, []);
 
   const create = async (e) => {
     e.preventDefault();
     try {
-      const payload = { ...form };
-      if (!payload.resident_id) delete payload.resident_id;
-      await api.post("/tasks/templates", payload);
+      await api.post("/tasks/templates", templatePayload(form));
       toast.success("Template created");
       setOpen(false);
       setForm(empty);
@@ -76,7 +76,6 @@ export default function TaskTemplatesBoard({ templates, residents, onChange }) {
                     <SelectContent>
                       <SelectItem value="daily">Daily</SelectItem>
                       <SelectItem value="weekly">Weekly</SelectItem>
-                      <SelectItem value="per_shift">Per shift</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -91,10 +90,27 @@ export default function TaskTemplatesBoard({ templates, residents, onChange }) {
                   </SelectContent>
                 </Select>
               </div>
-              <label className="flex items-center gap-2 cursor-pointer" data-testid="tpl-active">
-                <Checkbox checked={form.active} onCheckedChange={(v) => setForm({ ...form, active: !!v })} />
-                <span className="text-sm font-semibold text-caos-forest">Active (will spawn)</span>
-              </label>
+              <div className="grid grid-cols-3 gap-3">
+                <div><Label>Department</Label>
+                  <Select value={form.department || "__none"} onValueChange={(v) => setForm({ ...form, department: v === "__none" ? "" : v })}>
+                    <SelectTrigger data-testid="tpl-dept"><SelectValue placeholder="All staff" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none">All staff</SelectItem>
+                      {departments.map((d) => <SelectItem key={d.slug} value={d.slug}>{d.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {form.recur === "weekly" && (
+                  <div><Label>Day</Label>
+                    <Select value={String(form.weekday)} onValueChange={(v) => setForm({ ...form, weekday: v })}>
+                      <SelectTrigger data-testid="tpl-weekday"><SelectValue /></SelectTrigger>
+                      <SelectContent>{WEEKDAYS.map((d, i) => <SelectItem key={d} value={String(i)}>{d}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <div><Label>Time</Label><Input data-testid="tpl-time" placeholder="e.g. 9:00 AM" value={form.time_label} onChange={(e) => setForm({ ...form, time_label: e.target.value })} /></div>
+              </div>
+              <p className="text-xs text-caos-mute">Each occurrence goes to the department's queue planned on its day, and shows in Upcoming a week ahead (weekly) or a day ahead (daily).</p>
               <DialogFooter><Button type="submit" className="bg-caos-forest" data-testid="tpl-save">Create</Button></DialogFooter>
             </form>
           </DialogContent>
@@ -104,7 +120,7 @@ export default function TaskTemplatesBoard({ templates, residents, onChange }) {
       <Table>
         <TableHeader><TableRow>
           <TableHead>Title</TableHead><TableHead>Category</TableHead><TableHead>Shift</TableHead>
-          <TableHead>Recur</TableHead><TableHead>Active</TableHead><TableHead></TableHead>
+          <TableHead>Repeats</TableHead><TableHead>Active</TableHead><TableHead></TableHead>
         </TableRow></TableHeader>
         <TableBody>
           {templates.map((t) => (
@@ -115,7 +131,7 @@ export default function TaskTemplatesBoard({ templates, residents, onChange }) {
               </TableCell>
               <TableCell className="text-xs uppercase tracking-wider">{t.category}</TableCell>
               <TableCell className="text-xs uppercase tracking-wider">{t.shift}</TableCell>
-              <TableCell className="text-xs uppercase tracking-wider">{t.recur}</TableCell>
+              <TableCell className="text-xs" data-testid={`tpl-when-${t.template_id}`}>{seriesLabel(t)}{t.department ? ` · ${t.department.replace(/_/g, " ")}` : ""}</TableCell>
               <TableCell>{t.active ? <Badge className="bg-caos-moss text-white">ACTIVE</Badge> : <Badge variant="outline">paused</Badge>}</TableCell>
               <TableCell>
                 <Button variant="ghost" size="sm" onClick={() => remove(t.template_id)} data-testid={`del-tpl-${t.template_id}`}>

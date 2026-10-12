@@ -131,6 +131,11 @@ async def run_tick(now: datetime | None = None) -> dict:
             log.warning("escalation side effect failed for %s: %s", a.get("alert_id"), e)
     from routes.task_unclaimed_escalation import escalate_unclaimed
     out.update(await escalate_unclaimed(now, next(iter(rules_by_fac.values()), default_rule)))
+    from routes.task_recurrence import generate   # recurring work occurrences ride the same tick
+    try:
+        out.update(await generate())
+    except Exception as e:
+        log.warning("recurrence generation failed: %s", e)
     return out
 
 
