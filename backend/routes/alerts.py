@@ -129,11 +129,16 @@ async def list_alerts(
 
 
 @router.get("/feed")
-async def alerts_feed(user=Depends(get_current_user)):
-    """Active + recently acknowledged for live staff dashboard. Read-only."""
+async def alerts_feed(scope: str = "current", user=Depends(get_current_user)):
+    """Open alerts for the live staff dashboard, newest first. Read-only.
+    scope=current (default): opened within STALE_ALERT_HOURS - the same bound
+    as alert_is_stale and the owner board; scope=older: the rest, shown only
+    on request and counted in /alerts/stats (`older_open`). Nothing is closed."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=STALE_ALERT_HOURS)).isoformat()
+    age = {"$lt": cutoff} if scope == "older" else {"$gte": cutoff}
     items = (
         await db.alerts.find(
-            {"status": {"$in": ["active", "acknowledged", "escalated"]}},
+            {"status": {"$in": ["active", "acknowledged", "escalated"]}, "created_at": age},
             {"_id": 0},
         )
         .sort("created_at", -1)
@@ -312,9 +317,12 @@ async def alert_stats(user=Depends(get_current_user)):
     emergency_active = await db.alerts.count_documents(
         {"status": "active", "severity": "emergency", **current}
     )
+    older_open = await db.alerts.count_documents(
+        {"status": {"$in": ["active", "acknowledged", "escalated"]}, "created_at": {"$lt": stale_cutoff}})
     return {
         "active": active,
         "acknowledged": ack,
+        "older_open": older_open,
         "resolved_24h": resolved_today_ct,
         "emergency_active": emergency_active,
     }

@@ -45,6 +45,7 @@ export default function StaffDashboard() {
   const nav = useNavigate();
   const [sp] = useSearchParams();
   const [alerts, setAlerts] = useState([]);
+  const [showOlder, setShowOlder] = useState(false);   // open alerts older than 72 h, on request only
   const [locations, setLocations] = useState([]);
   const [stats, setStats] = useState({ active: 0, acknowledged: 0, resolved_24h: 0, emergency_active: 0 });
   const [loading, setLoading] = useState(true);
@@ -54,7 +55,8 @@ export default function StaffDashboard() {
   const fetchAll = async () => {
     try {
       const [aRes, lRes, sRes, iRes] = await Promise.all([
-        api.get("/alerts/feed"),
+        Promise.all([api.get("/alerts/feed"), showOlder ? api.get("/alerts/feed", { params: { scope: "older" } }) : { data: [] }])
+          .then(([cur, old]) => ({ data: [...cur.data, ...old.data.map((a) => ({ ...a, older: true }))] })),
         api.get("/locations/latest"),
         api.get("/alerts/stats"),
         api.get("/insights/summary").catch(() => ({ data: null })),
@@ -74,7 +76,7 @@ export default function StaffDashboard() {
     fetchAll();
     const t = setInterval(fetchAll, 3000);
     return () => clearInterval(t);
-  }, []);
+  }, [showOlder]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // /staff?alert=<id> (from Operations Overview / Admin) opens that event's
   // detail + close-out directly, not just the board.
@@ -178,11 +180,19 @@ export default function StaffDashboard() {
               </Button>
             </div>
 
+            {stats.older_open > 0 && (
+              <div className="text-xs text-caos-mute bg-[#F3F1EE] rounded-lg p-3 mb-3 flex flex-wrap items-center gap-2" data-testid="alerts-older-banner">
+                {showOlder
+                  ? <>Showing {stats.older_open} older open alert{stats.older_open === 1 ? "" : "s"} too (opened more than 3 days ago; marked "older").</>
+                  : <>{stats.older_open} older open alert{stats.older_open === 1 ? " is" : "s are"} hidden (opened more than 3 days ago, mostly device tests). Nothing was closed.</>}
+                <Button size="sm" variant="outline" className="border-2 h-7" onClick={() => setShowOlder((v) => !v)} data-testid="alerts-older-toggle">{showOlder ? "Hide older" : "Show older"}</Button>
+              </div>
+            )}
             <div className="space-y-3" data-testid="alerts-list">
               {!loading && alerts.length === 0 && (
                 <Card className="p-10 text-center border-caos-line">
                   <CheckCircle2 className="w-10 h-10 text-caos-moss mx-auto" />
-                  <p className="mt-3 font-display text-lg text-caos-forest">All clear. No active alerts.</p>
+                  <p className="mt-3 font-display text-lg text-caos-forest">All clear. No current alerts.</p>
                 </Card>
               )}
               {alerts.map((a) => {
@@ -209,6 +219,7 @@ export default function StaffDashboard() {
                           <Badge variant="outline" className="uppercase tracking-wider text-xs">
                             {a.status}
                           </Badge>
+                          {a.older && <Badge className="bg-caos-mute/20 text-caos-mute text-[10px] uppercase" data-testid={`alert-older-${a.alert_id}`}>older</Badge>}
                           {escLevel > 0 && (
                             <Badge
                               data-testid={`esc-${a.alert_id}`}
