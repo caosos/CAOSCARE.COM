@@ -265,3 +265,6 @@ No code change; 17/17 dev browser checks; gates 611/0/31, 91/644, build OK. Find
 
 ## 2026-10-12 — Family alert update receipts (careops-alerts-family-update-receipt-001)
 `2079206`: family_alert_update_attempt receipt per attempt, parent = alert origin. Backend 616/0/31. Finding: room-screen repeat presses re-notify family.
+
+## 2026-10-12 — Front desk callback fields (careops-frontdesk-callback-contact-fields-001)
+`400b5b3`: callback_phone/callback_window on StaffTask, staff-only, receipted. Backend 617/0/31, frontend 94/648. Report docs/reports/2026-10-12-frontdesk-callback-fields.md.
