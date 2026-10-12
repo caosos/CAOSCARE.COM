@@ -940,3 +940,4 @@ listener verifier experiment: `docs/experiments/`.
 ## 2026-10-12 — Family contact edit (careops-family-edit-001)
 
 - `backend/routes/notifications.py`: `PATCH /family-contacts/{id}` and `_family_receipt` (receipts for create / update / call approval / delete). `frontend/src/components/FamilyContactForm.jsx` (shared add/edit form). Tests: `backend/tests/test_family_contact_edit.py`, `frontend/src/components/__tests__/familyContactForm.test.jsx`.
+- `backend/routes/task_review.py`: "can't complete" escalation and supervisor review on StaffTask (POST /tasks/{id}/escalate, /review). UI `frontend/src/components/ExceptionReview.jsx`. Test `backend/tests/test_nursing_exception_lifecycle.py`.
