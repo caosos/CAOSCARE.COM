@@ -209,3 +209,12 @@ Ordered remaining Alerts steps: 1. ACK and inventory policy configuration/runtim
 Upcoming milestones: 1. finish Alerts; 2. remaining Phase 3 workspaces; 3. Phase 4 schedules/resources; 4. Phase 5 communications; 5. Phase 6 pilot/reliability/accessibility; 6. Phase 7 release/live acceptance.
 
 ETA UNKNOWN pending ACK. Existing LOCAL watchdog next_check_at Monday, October 12, 2026 — 7:43:39 AM America/Chicago. Blocker NONE for compatible work. Michael action NOTHING now.
+
+
+## 2026-10-12 07:43 CDT — Alert policy editor ACKED; compliant WORKING correction required
+
+Automatic intake delivered worker `da-a0fcc8aef7` at Monday, October 12, 2026 — 7:43:27 AM America/Chicago: https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6124495322. The existing coordinator ACKed `careops-alerts-policy-editor-001` at Monday, October 12, 2026 — 7:43 AM America/Chicago and began inventory: https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6124496240. Living-checklist reconciliation: `0f6988134f80214b79b30fbff22001db9d1d0b39`.
+
+Current stage is ACKED / inventory starting through the existing coordinator `caoscare-1-ee`, worker `da-a0fcc8aef7`. The ACK reports development backend `004c158`, PID 1506940; production `ff87c22` untouched; targets are the existing policy store, editor/API and `escalation_tick`. This is the latest coordinator-reported host observation. No new current-task revision, gate or browser result exists yet; frontend remains `db4317f`.
+
+The ACK satisfied pickup timing but omitted the required evidence-based realistic ETA and expected acceptance evidence. Work continues with blocker NONE. The next WORKING receipt must correct those fields, name the evidence reviewed, preserve a precise next_check_at, and state expected acceptance. ETA remains UNKNOWN until that correction. Worker next_check_at is Monday, October 12, 2026 — 8:13 AM America/Chicago. Michael action NOTHING.
