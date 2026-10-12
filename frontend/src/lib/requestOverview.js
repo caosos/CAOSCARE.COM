@@ -48,5 +48,5 @@ const DELIVERY_SAY = {
 };
 export function newRequestMessage(category, delivery) {
   const told = DELIVERY_SAY[delivery] || "it shows on their screen when they look";
-  return `request filed for ${category}: ${told}. No one has seen it yet - do not say anyone is coming or on the way.`;
+  return `the request is now on the ${category} list on staff screens; ${told}. No one has seen it yet - say it is on their list, do not say it was sent unless the notice was delivered or sent, and do not say anyone is coming or on the way.`;
 }
