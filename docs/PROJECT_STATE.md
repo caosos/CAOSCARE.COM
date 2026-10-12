@@ -168,3 +168,24 @@ Ordered remaining Alerts-milestone steps: 1. ACK and inspect the three direct-in
 Ordered upcoming milestones: 1. finish Alerts section acceptance; 2. remaining Phase 3 department-workspace gaps; 3. Phase 4 scheduling/records/resources; 4. Phase 5 communications; 5. Phase 6 pilot reliability/accessibility; 6. Phase 7 release/deployment/live acceptance.
 
 ETA UNKNOWN pending ACK. Existing LOCAL watchdog next_check_at Monday, October 12, 2026 — 6:22:49 AM America/Chicago. Blocker NONE. The acknowledgement/close role policy remains deferred but does not block compatible work. Michael action NOTHING.
+
+
+## 2026-10-12 06:23 CDT — Direct alert ingress receipts ACKED / WORKING
+
+Canonical ACK/WORKING receipt: https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6123235463. Transport-only mirror: https://github.com/caosos/CAOSCARE.COM/pull/131#issuecomment-6123265495. Living-checklist reconciliation: `c4dac61ea6227c7cac9cd8254a56a8ecb65495b3`.
+
+The ONE current bounded task remains `careops-alerts-ingress-receipts-001`, existing coordinator `caoscare-1-ee`, worker `da-2df56d6a1e`, stage ACKED / WORKING. Automatic intake delivered at Monday, October 12, 2026 — 6:20:40 AM America/Chicago; ACK/WORKING followed at Monday, October 12, 2026 — 6:20:46 AM America/Chicago, six seconds later and before the 300-second deadline.
+
+Evidence reviewed: direct `db.alerts.insert_one` paths exist in `location.py` for wander alerts, `wearables.py`, and `pendants.py`; the canonical `resident_activation.record_resident_activation` path already supplies coalescing and a creation receipt. The worker will first add failing tests for each used source, confirm whether `pendants.py` is mounted/used, then route the applicable paths through the canonical helper while preserving `triggered_by`, device identifiers, source identity and severity rules.
+
+Expected completion evidence remains: exact commits; failing-before/fixed-after source tests; repeated/concurrent signals producing one canonical alert and one provenance-complete creation receipt; preserved source and parent provenance; unchanged escalation, public status, dispatch, acknowledgement and close behavior; authorization/resident/Aria safety; full gates; headless desktop and 390 px browser acceptance; cleanup; exact tested/loaded revisions; newest host observation; and cost or UNKNOWN.
+
+No new current-task product commit, test result or browser result exists at ACK. Prior accepted development remains backend `fc9e95b`, PID 1495849, and frontend `db4317f`; production `ff87c22` unchanged.
+
+Latest timestamped host observation Monday, October 12, 2026 — 6:22:44 AM America/Chicago: existing coordinator `caoscare-1-ee` busy; control-plane service PID 1370098 on `f1db2d358ca1`; repository `cd076d251ab9` newer/not loaded. This is control-plane host evidence; GitHub activity alone is not host-liveness proof.
+
+Ordered remaining Alerts-milestone steps: 1. add failing tests for each mounted/used direct ingress source; 2. prove whether `pendants.py` is mounted; 3. route applicable sources through the canonical helper with source/severity preservation; 4. prove repeated/concurrent coalescing and exactly one creation receipt; 5. verify downstream escalation/dispatch/public/acknowledge/close and safety; 6. run full gates and desktop/390 px browser acceptance; 7. clean synthetic state and reconcile authoritative records; 8. complete policy editor, owner role-policy decision, timers/fallback and full Alerts section acceptance.
+
+Ordered upcoming milestones: 1. finish Alerts section acceptance; 2. remaining Phase 3 department-workspace gaps; 3. Phase 4 scheduling/records/resources; 4. Phase 5 communications; 5. Phase 6 pilot reliability/accessibility; 6. Phase 7 release/deployment/live acceptance.
+
+ETA approximately Monday, October 12, 2026 — 8:00:46 AM America/Chicago. Existing LOCAL watchdog next_check_at Monday, October 12, 2026 — 8:00:46 AM America/Chicago. Blocker NONE. Michael action NOTHING.
