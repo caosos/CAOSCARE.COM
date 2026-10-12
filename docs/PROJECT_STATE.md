@@ -9041,3 +9041,7 @@ The repaired workflow uses the facility-local date instead of UTC. An empty Tran
 **ONE current bounded task:** `careops-clinician-workspace-001`. Audit the existing clinician route and authorized role; define its allowed operational job; complete the first canonical normal-work path; provide truthful purpose, next action/result, empty/load-failure state, and refusal for unauthorized roles; prove desktop and 390 px behavior. Hide or relabel a misleading route if it has no usable canonical workflow. Reuse canonical StaffTask/receipt/state records. Exclude clinical diagnosis/chart data, billing, provider registry, new truth stores, production mutation, external messaging, audio, and paid services.
 
 Issue #129 dispatches this work to the existing coordinator `caoscare-1-ee`. ACK/WORKING is due Sunday, October 11, 2026 — 11:44 PM America/Chicago. ETA UNKNOWN pending that receipt. Blocker: NONE.
+---
+
+## 2026-10-12 — Department dispatch made visible (careops-dept-dispatch-001)
+Admin department queues show how work arrives, who works in the department, and say plainly when nobody does (empty Assign list; production has only the owner). `DepartmentDispatchNote.jsx`. Frontend 83 suites / 612, build compiled; dev-site headless 8/8. Report `docs/reports/2026-10-12-dept-dispatch.md`. Frontend only; not deployed.

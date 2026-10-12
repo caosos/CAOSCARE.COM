@@ -16,6 +16,7 @@ import { PlanWindowDialog, ReasonDialog, ConflictDialog } from "./QueueDialogs";
 import { conflictDetail, conflictSummary, overridePayload } from "../lib/scheduleConflict";
 import { rideLine, canRequestRide } from "../lib/rideLink";
 import { detailsLine } from "../lib/appointmentDetails";
+import DepartmentDispatchNote from "../components/DepartmentDispatchNote";
 
 const PRIO_STYLE = {
   urgent: "bg-caos-terracotta text-white",
@@ -32,6 +33,7 @@ export default function DepartmentQueue({ department, title, itemName = "request
   const { user } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [roster, setRoster] = useState([]);
+  const [rosterState, setRosterState] = useState("loading");
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [completing, setCompleting] = useState(false);
@@ -70,7 +72,7 @@ export default function DepartmentQueue({ department, title, itemName = "request
   useEffect(() => {
     load();
     api.get("/staff/assignable", { params: { department } })
-      .then(({ data }) => setRoster(data)).catch(() => setRoster([]));
+      .then(({ data }) => { setRoster(data); setRosterState("ok"); }).catch(() => { setRoster([]); setRosterState("error"); });
     const t = setInterval(load, 20000);
     return () => clearInterval(t);
   }, [load, department]);
@@ -315,6 +317,8 @@ export default function DepartmentQueue({ department, title, itemName = "request
           )}
         </div>
       </div>
+
+      {adminMode && <DepartmentDispatchNote label={title.replace(/ requests$/i, "")} roster={roster} rosterState={rosterState} />}
 
       {olderCount > 0 && (
         <div className="text-xs text-caos-mute bg-[#F3F1EE] rounded-lg p-3 flex flex-wrap items-center gap-2" data-testid="wo-older-banner">
