@@ -9050,3 +9050,14 @@ Admin department queues show how work arrives, who works in the department, and 
 
 ## 2026-10-12 — Clinician screen made usable (careops-clinician-workspace-001)
 "Resident care patterns": purpose, load-failure state, events open the alert close-out, older open records flagged, summary from the briefing; resident stats limited to owner/admin + nursing and gain `unresolved_older`. Backend gate 566 / 0 / 31 (new `test_clinician_stats_access.py`), frontend 84 suites / 614 (new `clinicianTab.test.jsx`), build compiled; dev browser+API 14/14. Dev backend restarted on `677e250` (pid 1167977; previous log /tmp/room214_backend_7a7cd92.log). Report `docs/reports/2026-10-12-clinician-workspace.md`. Not deployed.
+
+
+---
+
+## 2026-10-11 23:53 CDT — clinician workspace accepted in development; menu visibility is current
+
+`careops-clinician-workspace-001` is **DEV_ACCEPTED**, not production loaded and not OWNER_ACCEPTED / DONE. Exact commit `677e2506f4e4a7837eae343ccbfde97ae2f28635`; backend 566 passed / 0 failed / 31 skipped; frontend 84 suites / 614 tests; compiled build; browser plus API 14/14. Development backend loaded `677e250`, PID 1167977, dev `:8092` healthy with zero leases, observed Sunday, October 11, 2026 — 11:51:28 PM America/Chicago. Production remains `ff87c22`; GitHub combined-status contexts: none. Canonical coordinator receipt: Issue #129 comment 6117969982; report `docs/reports/2026-10-12-clinician-workspace.md`.
+
+The screen is now named **Resident care patterns** and states its purpose. Load failure is distinct from no data; event rows open the canonical alert close-out; old open records are flagged; the summary uses the resident briefing; owner/admin and Nursing are allowed while Kitchen/front desk are refused.
+
+**ONE current bounded task:** `careops-menu-visible-001`. Trace the existing menu publish/lookup path with a labeled dated breakfast/lunch/supper; prove the published menu appears in authorized operator and resident views and that “what’s for supper tonight?” returns the actual published meal or an honest no-menu state. Reuse canonical menu/version records and existing endpoints; no production mutation, new truth store, external messaging, paid service, audio work, or parallel worker. ACK/WORKING is due Sunday, October 11, 2026 — 11:58 PM America/Chicago through existing coordinator `caoscare-1-ee`.
