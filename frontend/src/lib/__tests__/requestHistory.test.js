@@ -102,3 +102,20 @@ test("a reopen shows as Reopened with its stated reason", () => {
   expect(reopened).toBeTruthy();
   expect(reopened.text).toBe("Pass never issued");
 });
+
+test("completed straight from pending does not invent a Started step", () => {
+  const at = "2026-10-12T06:30:06Z";
+  const task = {
+    ...base,
+    started_at: at, // the complete step stamps started_at too
+    completed_at: at,
+    event_log: [
+      { at: "2026-10-12T06:29:06Z", field: "assigned_to", to: "u1", to_name: "Nurse Ana", by: "u1", by_name: "Nurse Ana" },
+      { at, field: "note", text: "helped", by: "u1", by_name: "Nurse Ana" },
+      { at, field: "status", from: "pending", to: "completed", by: "u1", by_name: "Nurse Ana" },
+    ],
+  };
+  const labels = buildRequestTimeline(task).map((e) => e.label);
+  expect(labels).not.toContain("Started by Nurse Ana");
+  expect(labels[labels.length - 1]).toMatch(/^Completed/);
+});

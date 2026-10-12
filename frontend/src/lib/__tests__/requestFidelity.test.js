@@ -113,3 +113,11 @@ test("a described hazard keeps the resident's words and routes to maintenance (D
   expect(sent.resident_words).toBe("There is water on the floor by my bed.");
   expect(sent.summary).toBe("water on the floor");
 });
+
+test("openRequestsMessage says a just-finished request was taken care of", () => {
+  const msg = openRequestsMessage({ found: false, requests: [], recently_closed: [
+    { what_for: "help to bathroom", category: "nursing", spoken: "That one — help to bathroom — has been taken care of by Nora.", completed_at: { label: "today at 1:30 AM" } },
+  ] }, null);
+  expect(msg).toMatch(/no open request/);
+  expect(msg).toMatch(/Recently finished: help to bathroom \(nursing\): .*taken care of by Nora \(today at 1:30 AM\)/);
+});

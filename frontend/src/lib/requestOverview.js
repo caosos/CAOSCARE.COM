@@ -27,7 +27,10 @@ export function openRequestsMessage(data, ride) {
   if (ride?.found && RIDE_OPEN.includes(ride.status)) {
     items.push(`your ride (transportation): ${transportStatusMessage(ride).replace(/\.$/, "")}.`);
   }
-  if (!items.length) return "you have no open request on record right now.";
+  const closed = (data?.recently_closed || []).map((d) =>
+    `${d.what_for || "a request"} (${d.category}): ${(d.spoken || "").replace(/\.$/, "")}${d.completed_at?.label ? ` (${d.completed_at.label})` : ""}.`);
+  const tail = closed.length ? ` Recently finished: ${closed.join(" | ")}` : "";
+  if (!items.length) return `you have no open request on record right now.${tail}`;
   const head = items.length === 1 ? "you have 1 open request" : `you have ${items.length} open requests`;
-  return `${head}, each with its own state - ${items.join(" | ")}`;
+  return `${head}, each with its own state - ${items.join(" | ")}${tail}`;
 }

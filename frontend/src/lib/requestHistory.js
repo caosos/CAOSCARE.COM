@@ -73,7 +73,11 @@ export function buildRequestTimeline(task) {
   if (task.acknowledged_at && !logged((e) => e.field === "acknowledged")) {
     events.push({ at: task.acknowledged_at, label: `Acknowledged${task.acknowledged_by_name ? ` by ${task.acknowledged_by_name}` : ""}` });
   }
-  if (task.started_at && !logged((e) => e.field === "status" && e.to === "in_progress")) {
+  // Fallbacks are for tasks from before the status history existed. When the
+  // history records status changes, a completion straight from pending (which
+  // also stamps started_at) must not invent a "Started" step.
+  const statusLogged = logged((e) => e.field === "status");
+  if (task.started_at && !statusLogged) {
     events.push({ at: task.started_at, label: `Started${task.assigned_name ? ` by ${task.assigned_name}` : ""}` });
   }
   const closed = ["completed", "skipped"].includes(task.status);

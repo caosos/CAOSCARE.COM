@@ -3,6 +3,7 @@ so "did anyone see my requests?" is answered across nursing, maintenance,
 front desk and every other department at once instead of one category per
 call. Same scoping and the same resident-safe view as /resident-request/
 status - no second wording or lifecycle."""
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter
@@ -12,6 +13,7 @@ from routes.facility_local_time import facility_tz as _facility_tz
 from routes.resident_requests import OPEN_TASK_STATUSES, _resident_safe_view, _scope_query
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
+RECENT_CLOSED_HOURS = 12
 
 
 @router.get("/resident-request/open")
@@ -31,4 +33,14 @@ async def resident_requests_open(
         q["category"] = {"$ne": exclude_category}
     tz = await _facility_tz()
     tasks = await db.staff_tasks.find(q, {"_id": 0}).sort("created_at", 1).to_list(max(1, min(limit, 20)))
-    return {"found": bool(tasks), "scope": "current", "requests": [_resident_safe_view(t, tz) for t in tasks]}
+    # Requests finished in the last few hours, so "has anyone seen my request?"
+    # about one that was just completed is answered with that fact instead of
+    # a bare "nothing open".
+    cq = _scope_query(resident_id, room, conversation_session_id)
+    cq["status"] = "completed"  # a cancelled one is not "taken care of"
+    cq["completed_at"] = {"$gte": (datetime.now(timezone.utc) - timedelta(hours=RECENT_CLOSED_HOURS)).isoformat()}
+    if exclude_category:
+        cq["category"] = {"$ne": exclude_category}
+    closed = await db.staff_tasks.find(cq, {"_id": 0}).sort("completed_at", -1).to_list(3)
+    return {"found": bool(tasks), "scope": "current", "requests": [_resident_safe_view(t, tz) for t in tasks],
+            "recently_closed": [_resident_safe_view(t, tz) for t in closed]}
