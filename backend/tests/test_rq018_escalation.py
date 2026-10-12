@@ -20,7 +20,8 @@ if os.environ.get("DB_NAME") in ("caoscare", "", None):
 
 from deps import db  # noqa: E402
 from routes.alerts import alerts_feed  # noqa: E402
-from routes.escalation_tick import auto_interval_seconds, run_tick  # noqa: E402
+from routes.escalation_schedule import auto_interval_seconds  # noqa: E402
+from routes.escalation_tick import run_tick  # noqa: E402
 from routes.ops_overview_util import STALE_ALERT_HOURS  # noqa: E402
 
 TAG = f"rq018_{uuid.uuid4().hex[:8]}"

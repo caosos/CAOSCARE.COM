@@ -33,7 +33,7 @@ def _health():
 
 async def _scenario(monkeypatch):
     from motor.motor_asyncio import AsyncIOMotorClient
-    from routes import escalation_tick
+    from routes import escalation_schedule as escalation_tick
     db = AsyncIOMotorClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]
 
     # the running server: disabled at startup is reported, not "ok" by silence

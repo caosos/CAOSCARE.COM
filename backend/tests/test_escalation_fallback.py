@@ -19,7 +19,7 @@ if os.environ.get("DB_NAME") in ("caoscare", "", None):
     pytest.skip("writes alert/receipt records; point DB_NAME at a scratch database", allow_module_level=True)
 
 from deps import db  # noqa: E402
-from routes import escalation_tick  # noqa: E402
+from routes import escalation_schedule as escalation_tick  # noqa: E402
 from routes.alerts import acknowledge, alerts_feed  # noqa: E402
 
 TAG = f"efb_{uuid.uuid4().hex[:8]}"
