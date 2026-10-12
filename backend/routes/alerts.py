@@ -2,7 +2,8 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, Query
-from models import AlertCreate, AlertClose, now_utc
+from models import AlertCreate, AlertClose, now_utc, uid
+from routes.receipts import create_receipt
 from deps import db, get_current_user
 from routes.resident_activation import record_resident_activation
 from routes.kiosk_identity import resident_for_kiosk
@@ -160,13 +161,21 @@ async def acknowledge(alert_id: str, user=Depends(get_current_user)):
             update["response_seconds"] = int((now_dt - created).total_seconds())
         except Exception:
             pass
+    # One atomic, status-guarded write: concurrent acknowledgements have exactly one
+    # winner. The winner's history entry carries the id of the receipt written next,
+    # because acknowledging stops escalation and marks the nursing dispatch delivered.
+    receipt_id = uid("rcpt")
+    before = (existing or {}).get("status")
     r = await db.alerts.update_one(
         {"alert_id": alert_id, "status": {"$in": ["active", "escalated"]}},
-        {"$set": update},
+        {"$set": update, "$push": {"event_log": {"at": now, "field": "status", "from": before, "to": "acknowledged",
+                                                  "by": user.get("user_id"), "by_name": user.get("name"),
+                                                  "receipt_id": receipt_id}}},
     )
     if r.matched_count == 0:
         raise HTTPException(status_code=404, detail="Alert not active or not found")
     doc = await db.alerts.find_one({"alert_id": alert_id}, {"_id": 0})
+    await _record_acknowledgement(doc, before, user, receipt_id)
     # A staff ack IS the "delivered / acknowledged" signal for any open
     # nursing dispatch on this event (routes/staff_dispatch.py).
     if doc.get("dispatch_id") and doc.get("dispatch_status") in ("accepted", "requested"):
@@ -179,6 +188,21 @@ async def acknowledge(alert_id: str, user=Depends(get_current_user)):
             import logging
             logging.getLogger(__name__).warning(f"dispatch delivered-mark failed for {alert_id}: {e}")
     return doc
+
+
+async def _record_acknowledgement(doc: dict, before: str, user: dict, receipt_id: str) -> None:
+    role = user.get("role")
+    authority = f"admin_override:{role}" if role in ("owner", "admin") else f"signed_in:{role}"
+    await create_receipt(
+        receipt_id=receipt_id, action_type="alert_acknowledged", related_object_type="alert",
+        related_object_id=doc["alert_id"], source="staff", resident_id=doc.get("resident_id"),
+        room=doc.get("room"), zone=doc.get("zone"), requested_by=user.get("user_id"), status="completed",
+        result=f"acknowledged by {user.get('name')}",
+        provenance={"actor_id": user.get("user_id"), "actor_type": "real-human", "actor_name": user.get("name"),
+                    "actor_role": role, "actor_department": user.get("department"), "authority": authority,
+                    "before_state": {"status": before, "escalation_level": doc.get("escalation_level")},
+                    "after_state": {"status": "acknowledged", "acknowledged_at": doc.get("acknowledged_at")},
+                    "result_label": "verified", "next_state": "awaiting_resolution"})
 
 
 async def _close_out(doc: dict) -> None:
