@@ -129,3 +129,22 @@ Ordered remaining current-milestone steps: 1. add failing tests for actor-less c
 Ordered upcoming milestones: 1. finish alert creation/coalescing, policy editor, role policy, timers/fallback and full Alerts section acceptance; 2. remaining Phase 3 department-workspace gaps; 3. Phase 4 scheduling/records/resources; 4. Phase 5 communications; 5. Phase 6 pilot reliability/accessibility; 6. Phase 7 release/deployment/live acceptance.
 
 ETA UNKNOWN pending ACK. Existing LOCAL watchdog next_check_at Monday, October 12, 2026 — 6:11:15 AM America/Chicago. Expected evidence: exact commit; failing-before/fixed-after tests; state compatibility matrix; focused/full gates; labeled API/browser results; linked receipt/history; exact tested/loaded revisions; cleanup; newest host observation; cost or UNKNOWN. Blocker NONE. Michael action NOTHING.
+
+
+## 2026-10-12 06:10 CDT — Alert close-out receipts ACKED / WORKING
+
+Canonical ACK/WORKING receipt: https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6123049176. Transport-only mirror: https://github.com/caosos/CAOSCARE.COM/pull/131#issuecomment-6123077551. Living-checklist reconciliation: `2d47e6ed75507b783a70dc86d60f79334352dd89`.
+
+The ONE current bounded task remains `careops-alerts-close-receipts-001`, existing coordinator `caoscare-1-ee`, worker `da-6b6a0ace12`, stage ACKED / WORKING. ACK arrived before the 300-second deadline.
+
+Evidence reviewed: `alerts.resolve` filters active/acknowledged and ignores legacy `escalated`; `alerts.close_alert` includes resolved and can re-close while overwriting `resolved_at` / `resolved_by`; `_close_out` calls `update_receipt_status` without actor, before/after, or a history link. The worker will add failing tests first, then use one shared guarded active/acknowledged/escalated → resolved transition for both endpoints, producing exactly one `alert_completed` receipt with actor/authority/before/after and one linked history entry. One concurrent attempt wins; repeats and remaining contenders return 409 without writes. Pattern statistics and dispatch remain untouched, and the deferred acknowledgement-role policy is not decided in this slice.
+
+No new current-task product revision, automated gate, or browser result exists at ACK. Prior accepted development remains backend `45bd442`, frontend `db4317f`; production `ff87c22` unchanged.
+
+Latest timestamped host observation Monday, October 12, 2026 — 6:10:08 AM America/Chicago: coordinator `caoscare-1-ee` busy; control-plane service PID 1370098 on `f1db2d358ca1`; repository `cd076d251ab9` newer and not loaded. This is control-plane host evidence only; GitHub activity is not host-liveness proof.
+
+Ordered remaining current-milestone steps: 1. add failing tests for actor-less and repeated/concurrent close; 2. implement the one shared guarded terminal transition; 3. prove active/acknowledged/legacy-escalated inputs and one linked receipt/history record; 4. prove repeat/concurrent 409 behavior without extra writes; 5. verify pattern stats, dispatch, authorization/refusal, public status and resident/Aria safety remain unchanged; 6. run focused/full backend/frontend/build gates and desktop/390 px browser acceptance; 7. clean synthetic state and record exact tested/loaded revisions, newest host evidence and cost; 8. reconcile checklist, Issue #129, PROJECT_STATE and receipt.
+
+Ordered upcoming milestones: 1. repair direct alert creation/coalescing and receipts; 2. complete Alerts policy editor, role policy, timers/fallback and section acceptance; 3. remaining Phase 3 department-workspace gaps; 4. Phase 4 scheduling/records/resources; 5. Phase 5 communications; 6. Phase 6 pilot reliability/accessibility; 7. Phase 7 release/deployment/live acceptance.
+
+ETA approximately Monday, October 12, 2026 — 7:23 AM America/Chicago. Existing LOCAL watchdog next_check_at Monday, October 12, 2026 — 7:23:11 AM America/Chicago. Expected completion evidence: exact commit; failing-before/fixed-after tests; both endpoints and state compatibility; repeat/concurrent behavior; linked receipt/history; focused/full gates; desktop/390 px browser; exact tested/loaded revisions; cleanup; newest host observation; cost or UNKNOWN. Blocker NONE. Michael action NOTHING.
