@@ -48,3 +48,31 @@ Append-only. One entry per verified check-in, tied to its receipt. A correction 
 - **next_check_at:** MISSING (blocked on owner)
 - **Blocker:** NEED_OWNER: un-park confirmation, paid model/research approvals, telephony hardware/accounts; production access refused to this session
 - **Michael action required:** Decide the four items in the receipt; run the production demo driver/vehicle command or allow ssh caoscare-prod; review DEV_ACCEPTED slices
+
+## Monday, October 12, 2026 — 12:50 AM America/Chicago
+- **Receipt:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6118492847
+- **Supersedes:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6118473718
+- **Phase / position:** Resident Aria core — offline/code preparation before any paid/live acceptance (owner authority: conversation slice un-parked, #129 comment 6118421076; supersedes the NEED_OWNER un-park item in the prior entry)
+- **Completed since the prior check:** Read-only capture accepted at 8b922c5: Room 214 state matrix, Michael-vs-resident discrepancy list, default-off five-step plan, rollback, checklist and PROJECT_STATE reconciliation
+- **Evidence:** docs/reports/2026-10-12-resident-aria-core-capture.md; model gpt-realtime; voice shimmer; resident prompt sha256/12 4aaa94880297; 29 resident tools; live research off; owner /aria 3 tools, no continuity; Asterisk not installed; GitHub combined-status contexts absent for 8b922c5. Captured revision 8b922c5; loaded Room 214 backend 198fee4, page main.18cb3cf4.js; flags off; listener settings unchanged. Latest CAOSCare host observation 2026-10-12 00:42 CDT. New finding: continuity reaches Room 214 (3 prior sessions, 1,478 chars) but its header tells Aria not to reopen, recap or continue them — likely cause of the short-interval amnesia; not yet a live-accepted fix
+- **Current bounded task (owner · stage):** careops-resident-aria-core-reconciliation-001 · caoscare-1-ee · WORKING, default-off code preparation
+- **Remaining steps for this milestone:**
+  1. Default-off recent-minutes continuity exception
+  2. Default-off owner /aria context and read-only-tool parity
+  3. Canonical call_contact with honest not-configured result
+  4. CURRENT_PRIORITY/checklist/PROJECT_STATE reconciliation
+  5. Focused tests and exact tested-versus-loaded receipt
+  6. Stop before paid calls or live-room changes
+- **Upcoming milestones:**
+  1. Live owner-authorized Aria acceptance
+  2. Current SIM truth
+  3. Resident request → Nursing queue
+  4. Nurse email delivery pipeline
+  5. Live email acceptance
+  6. Transportation LIVE_VERIFY
+  7. Firsthand Claude Chrome/owner walkthrough
+  8. Room 1 hardware
+- **ETA:** About 90 minutes from the 00:45:46 CDT ACK
+- **next_check_at:** Monday, October 12, 2026 — 2:15:46 AM America/Chicago
+- **Blocker:** NONE for offline/code preparation; paid research/model calls, a live Room 214 model/voice switch and telephony hardware/accounts remain later owner-gated dependencies
+- **Michael action required:** NOTHING tonight
