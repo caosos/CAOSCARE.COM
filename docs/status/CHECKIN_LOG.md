@@ -725,3 +725,18 @@ Append-only. One entry per verified check-in, tied to its receipt. A correction 
 - **next_check_at:** Monday, October 12, 2026 — 5:59:15 AM America/Chicago; owned by the existing LOCAL watchdog.
 - **Blocker:** NONE.
 - **Michael must do:** NOTHING.
+
+
+## Monday, October 12, 2026 — 5:30:00 AM America/Chicago
+- **Receipt:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6122447976
+- **Project:** CAOSCARE.COM
+- **Phase / position:** Phase 3/7 — Care Operations workspaces; Housekeeping is READY_FOR_OWNER_REVIEW, Therapy permission boundaries are DEV_ACCEPTED, and the final open Therapy functional gap before end-to-end browser acceptance is staff/provider double-booking across residents.
+- **Completed since prior check:** `careops-therapy-permission-boundaries-001` reached IMPLEMENTED / TESTED / DEV_ACCEPTED; the authoritative checklist and PROJECT_STATE were reconciled; `careops-therapy-staff-conflict-001` was delivered to the existing coordinator.
+- **Evidence / provenance:** source DONE https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6122399284; transport-only source mirror https://github.com/caosos/CAOSCARE.COM/pull/131#issuecomment-6122412245; product `565cfa1`; role-matrix/report `7b737ea`; checklist `4e2c44cb6ccf4fdee9b227b0e5ba1199c8a51571`; PROJECT_STATE `d353d1f4422a42198ae841ce563268162c03597a`. Tests: backend 601 passed / 0 failed / 31 skipped plus focused 2/2; frontend 90 suites / 641; build compiled. Claude Chrome/browser: nurse 390 px, resident 390 px, owner 1280 on development; one synthetic Therapy workflow `task_174c3cc487c1` produced created → unassigned → in_progress → note_added → escalated → reviewed; resident and Aria omitted the staff-only reason; demo reset. Tested revision: `565cfa1`. Loaded revision: development backend `565cfa1`, PID 1470556; relevant frontend served with it; production `ff87c22` unchanged. Latest host observation Monday, October 12, 2026 — 5:27:55 AM America/Chicago: existing coordinator idle, control-plane service `f1db2d358ca1`, repository `cd076d251ab9` newer/not loaded. GitHub activity is not host-liveness proof. Cost UNKNOWN.
+- **ONE current bounded task / responsible coordinator-worker / exact stage:** `careops-therapy-staff-conflict-001` / existing coordinator `caoscare-1-ee`, worker not yet assigned pending ACK / DELIVERED, awaiting ACK or WORKING within 300 seconds.
+- **Remaining current-milestone steps (ordered):** 1. inspect canonical Therapy provider/staff identity and overlap semantics; 2. prove same-provider overlap and non-overlap across different residents; 3. repair only the first proven gap with an explicit receipted save-anyway override; 4. prove recurrence, single-occurrence edits, and linked transportation remain correct; 5. prove authorization/refusal, resident/Aria safety, desktop and 390 px behavior; 6. run full gates and record exact tested/loaded revisions, newest host evidence, and cost; 7. reconcile checklist, Issue #129, PROJECT_STATE, and receipt; 8. complete final Therapy staff/resident browser acceptance and present the full section READY_FOR_OWNER_REVIEW when all criteria pass.
+- **Upcoming milestones (ordered):** 1. Therapy final staff/resident browser acceptance and section review package; 2. canonical alerts/escalation model; 3. remaining Phase 3 department-workspace gaps; 4. Phase 4 scheduling/records/resources; 5. Phase 5 communications; 6. Phase 6 pilot reliability/accessibility; 7. Phase 7 release/deployment/live acceptance.
+- **ETA:** UNKNOWN pending ACK.
+- **next_check_at:** Monday, October 12, 2026 — 5:35:00 AM America/Chicago; owned by the existing LOCAL watchdog.
+- **Blocker:** NONE.
+- **Michael must do:** NOTHING.
