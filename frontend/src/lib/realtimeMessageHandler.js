@@ -166,6 +166,7 @@ export function createRealtimeHandlers({
     let parsed = {};
     try { parsed = fn.arguments ? JSON.parse(fn.arguments) : {}; } catch {}
     logRealtimeEvent(sessionIdRef.current, "tool_call", { meta: { name: fn.name, args: parsed } });
+    endCtl.noteCallOpened(fn.call_id);
     claimInterrupter.onToolStart(fn.name);
     toolsInFlight += 1;
     let cls, result;
@@ -187,6 +188,7 @@ export function createRealtimeHandlers({
     if (myGen !== startGenRef.current) return;
     // Tell the model what happened. The output goes onto the conversation
     // as a `function_call_output` item, then we ask the model to respond.
+    endCtl.noteCallAnswered(fn.call_id);
     send({
       type: "conversation.item.create",
       item: {

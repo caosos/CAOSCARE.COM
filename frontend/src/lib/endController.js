@@ -13,15 +13,25 @@
  */
 import { createEndCorroboration, transcriptIsOutOfScript, turnMayEnd } from "./endIntent";
 
-export const GOODBYE_INSTRUCTIONS = "The resident just said goodbye. Say exactly one short warm sentence, for example: Goodbye, I'm right here when you call. Do not ask a question and do not offer anything else.";
+export const GOODBYE_INSTRUCTIONS = "The resident just said goodbye. Answer with only a brief goodbye that echoes theirs - for example \"Okay, bye for now.\" - and nothing else: no explanation, no offer, no question, no mention of anything still running.";
 const FALLBACK_SPEECH_MS = 1500;
 
 export function createEndController({ send, stop, onEndCall, log, speak = defaultSpeak }) {
   let ended = false, ending = false;
   let inFlight = false, pending = false, requested = false, retried = false, audioPlayed = false, fallbackUsed = false;
   const corroboration = createEndCorroboration();
+  // Tool calls the model is still waiting on. Answered before the goodbye is requested, or the model
+  // says "I'm still waiting on that to finish" (Room 214, 2026-10-12 12:56).
+  const openCalls = new Set();
+  const answerOpenCalls = () => {
+    for (const callId of openCalls) {
+      send({ type: "conversation.item.create", item: { type: "function_call_output", call_id: callId, output: JSON.stringify({ ok: true, message: "The call is ending." }) } });
+    }
+    openCalls.clear();
+  };
   const requestGoodbye = () => {
     pending = false; requested = true;
+    answerOpenCalls();
     send({ type: "response.create", response: { instructions: GOODBYE_INSTRUCTIONS } });
   };
   const endNow = (kind, via, detail = {}) => {
@@ -47,6 +57,8 @@ export function createEndController({ send, stop, onEndCall, log, speak = defaul
       else { send({ type: "output_audio_buffer.clear" }); requestGoodbye(); }
       return true;
     },
+    noteCallOpened(callId) { if (callId) openCalls.add(callId); },
+    noteCallAnswered(callId) { openCalls.delete(callId); },
     noteResponseCreated() { inFlight = true; },
     noteResponseDone() {
       inFlight = false;

@@ -247,3 +247,23 @@ test("the goodbye transcript is still recorded while closing", async () => {
   expect(logged("farewell_without_end_call")).toHaveLength(0);
   await finishGoodbye();
 });
+
+// Room 214, 2026-10-12 12:56 (rt_zi8umtl0): the model's end_call arrived 120 ms before the
+// "That'll be all for now." transcript. The transcript began the goodbye while end_call had no
+// output, so Aria said "Okay, I'm still waiting on that to finish." The open call must be
+// answered before the goodbye is requested, and the goodbye just echoes theirs.
+test("a goodbye that overtakes Aria's own end_call answers that call first, then says a brief goodbye", async () => {
+  await msg({ type: "input_audio_buffer.speech_stopped" });   // transcript for this turn is pending
+  const pendingTool = toolCall("end_call", 7);                  // waits for the transcript (grounding)
+  await said("That'll be all for now.");
+  await pendingTool;
+  const iOutput = mockConn.sent.findIndex((m) => m.type === "conversation.item.create" && m.item?.call_id === "c7");
+  const iBye = mockConn.sent.findIndex((m) => m.type === "response.create");
+  expect(iOutput).toBeGreaterThanOrEqual(0);
+  expect(iOutput).toBeLessThan(iBye);
+  expect(mockConn.sent[iBye].response.instructions).toMatch(/bye for now/i);
+  expect(mockConn.sent[iBye].response.instructions).toMatch(/nothing else/i);
+  expect(mockConn.sent.filter((m) => m.type === "response.create")).toHaveLength(1);
+  await finishGoodbye();
+  expect(onEndCall).toHaveBeenCalledTimes(1);
+});
