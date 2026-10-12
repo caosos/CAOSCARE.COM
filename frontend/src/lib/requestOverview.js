@@ -34,3 +34,19 @@ export function openRequestsMessage(data, ride) {
   const head = items.length === 1 ? "you have 1 open request" : `you have ${items.length} open requests`;
   return `${head}, each with its own state - ${items.join(" | ")}${tail}`;
 }
+
+// What Aria may truthfully say right after filing a request. Filing is not the
+// department being told, and being told is not anyone coming: the wording
+// follows the real notification state (request_delivery.py) and never
+// promises that someone is on the way.
+const DELIVERY_SAY = {
+  delivered: "the department's notice was delivered",
+  sent: "the department's notice was sent; delivery is not confirmed yet",
+  simulated: "this is a demo request, so no real notice was sent",
+  not_sent: "no notice could be sent (no email or text service is set up); it shows on their screen when they look",
+  failed: "the notice to the department failed; it shows on their screen when they look",
+};
+export function newRequestMessage(category, delivery) {
+  const told = DELIVERY_SAY[delivery] || "it shows on their screen when they look";
+  return `request filed for ${category}: ${told}. No one has seen it yet - do not say anyone is coming or on the way.`;
+}

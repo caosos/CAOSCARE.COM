@@ -9,7 +9,7 @@
 import { API } from "./api";
 import { transportStatusMessage, rideBookedMessage } from "./transportation";
 import { menuToolMessage, scheduleToolMessage } from "./communityServices";
-import { literalResidentWords, openRequestsMessage } from "./requestOverview";
+import { literalResidentWords, newRequestMessage, openRequestsMessage } from "./requestOverview";
 
 // 2026-08-23: the backend rejects an operational mutation (422 +
 // needs_clarification) when a free-text field claims a fact - so far only
@@ -89,7 +89,7 @@ export async function executeOperationsTool({ name, args, ctx }) {
         task_id: data.task_id,
       };
     }
-    return { ok: true, message: `request created (${data.status}) and sent to ${args.category}.`, task_id: data.task_id };
+    return { ok: true, message: newRequestMessage(args.category, data.delivery), task_id: data.task_id };
   }
 
   if (name === "check_request_status" || name === "check_request_history") {

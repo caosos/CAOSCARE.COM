@@ -121,3 +121,15 @@ test("openRequestsMessage says a just-finished request was taken care of", () =>
   expect(msg).toMatch(/no open request/);
   expect(msg).toMatch(/Recently finished: help to bathroom \(nursing\): .*taken care of by Nora \(today at 1:30 AM\)/);
 });
+
+test("a new request's result follows the real notice state and never promises arrival", () => {
+  const { newRequestMessage } = require("../requestOverview");
+  expect(newRequestMessage("nursing", "simulated")).toMatch(/demo request, so no real notice was sent/);
+  expect(newRequestMessage("nursing", "delivered")).toMatch(/delivered/);
+  expect(newRequestMessage("nursing", undefined)).toMatch(/shows on their screen/);
+  for (const d of ["delivered", "sent", "simulated", "not_sent", "failed", undefined]) {
+    const m = newRequestMessage("nursing", d);
+    expect(m).not.toMatch(/sent to nursing/);
+    expect(m).toMatch(/do not say anyone is coming/);
+  }
+});

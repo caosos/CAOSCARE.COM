@@ -246,7 +246,10 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
         f"{data.summary}\nRoom: {data.room or 'unknown'}\nPriority: {data.priority}",
         **task_notice(doc, receipt["receipt_id"]),
     )
-    return {"task_id": doc["task_id"], "receipt_id": receipt["receipt_id"], "status": doc["status"], "duplicate": False}
+    from routes.request_delivery import delivery_for  # was the department really told?
+    delivery = (await delivery_for([doc["task_id"]]))[doc["task_id"]]
+    return {"task_id": doc["task_id"], "receipt_id": receipt["receipt_id"], "status": doc["status"],
+            "duplicate": False, "delivery": delivery["state"]}
 
 
 @router.post("/resident-request")
