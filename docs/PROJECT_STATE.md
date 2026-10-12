@@ -9115,3 +9115,13 @@ Single next bounded task: `careops-good-surfaces-review-001` through the existin
 
 ## 2026-10-12 — Good-surfaces review; admin device commands restricted and receipted (careops-good-surfaces-review-001)
 Requests, Devices, Reports/Audit, Facility setup, Live board: one normal task each with the intended role at 1280/390, 30/30. Gap repaired: `POST /devices/{id}/command` was open to any login and wrote no receipt; now owner/admin only with a `staff_device_command` receipt per command. Backend gate 576 / 0 / 31 (new `test_admin_device_command.py`). Dev backend restarted on `198fee4` (pid 1213230; previous log /tmp/room214_backend_7e854ce.log). Report `docs/reports/2026-10-12-good-surfaces-review.md`. Not deployed.
+
+---
+
+## 2026-10-12 — Incident: Room 214 page restarted by a coordinator pkill (8 s, no session affected)
+At 00:03:37 CDT, while stopping its own temporary test server (`serve_built.js` on :3019), the coordinator ran `pkill -f serve_built.js`. The pattern also matched the live Room 214 page server (`aria-wake-page.service`, same script on :3002). systemd restarted it at once; `aria-wake-kiosk.service` (Chrome) restarted at 00:03:40; the page reconnected to the wake listener at 00:03:45 (listener log: client_disconnected 05:03:37Z → client_connected 05:03:45Z). The listener itself was not restarted and its settings are unchanged. Evidence of no impact: no lease events, realtime diagnostics or conversation turns between 04:55 and 05:10 UTC. Rule adopted: stop temporary servers by the PID listening on their own port, never by a name pattern (all later stops tonight used the port PID). Found during the 00:4x read-only capture for careops-resident-aria-core-reconciliation-001.
+
+---
+
+## 2026-10-12 — Resident Aria core: current-state capture and proposal (careops-resident-aria-core-reconciliation-001, steps 1–3)
+Read-only capture of Room 214: page build 2026-10-09, listener untouched, backend `198fee4`, model `gpt-realtime` (default), voice `shimmer`, 29 resident tools, live research off, owner `/aria` 3 tools and no continuity, phone calling not installed. Gaps, smallest architecture and owner decisions in `docs/reports/2026-10-12-resident-aria-core-capture.md`. Voice is still PARKED in CURRENT_PRIORITY; implementation waits for Michael to confirm un-parking, the model/voice choice and paid test approvals.
