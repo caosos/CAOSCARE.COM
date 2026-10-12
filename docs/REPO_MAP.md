@@ -931,3 +931,7 @@ listener verifier experiment: `docs/experiments/`.
 ## 2026-10-12 — Routing exceptions (careops-routing-exceptions-001)
 
 - `backend/routes/routing_exceptions.py`: `GET /ops/routing-exceptions` (+ `/{id}`, `/{id}/renotify`) — undelivered / unassigned / overdue / failed-handoff requests from the canonical records, scoped, with receipted re-notify. `frontend/src/pages/RoutingExceptionsBoard.jsx` (Admin → Community → Routing exceptions), `lib/routingExceptions.js`. Test: `backend/tests/test_routing_exceptions.py`.
+
+## 2026-10-12 — Transportation unresolved count (careops-transport-unresolved-001)
+
+- `backend/routes/transportation_report.py`: `GET /transportation/report` (transport coordinators only) — open-ride rows with owner, status, times asked, age, next action and currency; `total_unresolved` is the length of `current_state.waiting_unbooked`. `frontend/src/components/TransportUnresolvedList.jsx` (the list behind the Unresolved tile), `frontend/src/pages/TransportationTab.jsx`. Test: `backend/tests/test_transport_unresolved.py`.
