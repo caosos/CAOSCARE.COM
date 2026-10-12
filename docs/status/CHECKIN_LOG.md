@@ -580,3 +580,31 @@ Append-only. One entry per verified check-in, tied to its receipt. A correction 
 - **next_check_at:** Monday, October 12, 2026 — 4:45:50 AM America/Chicago
 - **Blocker:** NONE
 - **Michael action required:** NOTHING
+
+
+## Monday, October 12, 2026 — 4:04 AM America/Chicago
+- **Receipt:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6121108357
+- **Project:** CAOSCare
+- **Phase / position:** Phase 3/7 Care Operations workspaces — Housekeeping recurrence DEV_ACCEPTED; completion inspection is the next bounded Housekeeping gap
+- **Completed since the prior check:** `careops-housekeeping-recurrence-001` completed early at the development-acceptance boundary. The canonical task-template path now preserves recurrence/resident/department data, generates facility-date daily/weekly occurrences on the existing tick, prevents duplicates, plans occurrences in the Housekeeping queue, receipts series and occurrences, protects rescheduled occurrences from refill, exposes recurring work truthfully, and supports the accepted responsive workflow. It is ready to present for owner review, not OWNER_ACCEPTED / DONE.
+- **Evidence:** coordinator DONE https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6121076424; transport-only host mirror https://github.com/caosos/CAOSCARE.COM/pull/131#issuecomment-6121083277; product commits https://github.com/caosos/CAOSCARE.COM/commit/6cb1f2c6c2c19682b625c9cbcc24fe6f1b16fdb2 and https://github.com/caosos/CAOSCARE.COM/commit/93c3c58847caea8422a55c516ddcbb8bed87442d; checklist https://github.com/caosos/CAOSCARE.COM/commit/57e6ffd9c9d1937f7982ba6ab0335768de1d4648; PROJECT_STATE https://github.com/caosos/CAOSCARE.COM/commit/bc37708f16203216cdb92ba5f91209131a8d3fe2; report `docs/reports/2026-10-12-housekeeping-recurrence.md`. Backend 595 passed / 0 failed / 31 skipped at `93c3c58`; frontend 89 suites / 635 tests; build compiled. The first run at `6cb1f2c` failed two stale assertions; both were repaired before the green full gate. Claude Chrome: owner created a Wednesday 11:00 AM weekly Housekeeping series; tick generated exactly one October 14 occurrence 23 seconds later; Admin Upcoming showed it; owner moved only the occurrence to 1:00 PM; later ticks did not duplicate or refill it while the series remained 11:00 AM. Nurse reschedule returned 403. Housekeeper at 390 px completed it with no overflow or failed API calls. Aria `rt_534cie2z_1791795162596` named the open jobs and times. Generate now truthfully reported all due occurrences existed. Tested/loaded backend `93c3c58`; relevant frontend tested/served with the recurrence changes; production `ff87c22`. Latest timestamped host observation Monday, October 12, 2026 — 4:02:17 AM America/Chicago: coordinator idle, control plane `f1db2d358ca1`, repository `cd076d251ab9` newer/not loaded. GitHub activity alone is not host-liveness proof. Known cost: UNKNOWN.
+- **Current bounded task (owner · stage):** `careops-housekeeping-inspection-001` · existing coordinator `caoscare-1-ee` · DISPATCHED / ACK-WORKING REQUIRED
+- **Remaining steps for this milestone:**
+  1. ACK/WORKING with evidence reviewed, realistic ETA and exact next check
+  2. Inspect canonical completion, history, receipt and reopen paths
+  3. Create and complete one labeled synthetic Housekeeping task
+  4. Prove owner/admin inspection pass or return-for-correction with required reason
+  5. Prove same-task reopen/reassignment and corrected completion
+  6. Prove truthful resident/Aria status and unauthorized refusal
+  7. Repair only the first proven gap
+  8. Run focused/full gates and Claude Chrome desktop/390 acceptance
+  9. Record exact tested/loaded revisions and fresh host evidence, then reconcile authoritative records
+- **Upcoming milestones:**
+  1. Housekeeping supplies/linen
+  2. Michael's spoken Room 214 voice/personality acceptance
+  3. Authenticated Transportation LIVE_VERIFY when role/driver/vehicle dependencies are available
+  4. Full owner/novice pilot walkthrough
+- **ETA:** UNKNOWN pending coordinator ACK/WORKING
+- **next_check_at:** Monday, October 12, 2026 — 4:09 AM America/Chicago
+- **Blocker:** NONE
+- **Michael action required:** NOTHING
