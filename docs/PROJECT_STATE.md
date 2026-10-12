@@ -9125,3 +9125,8 @@ At 00:03:37 CDT, while stopping its own temporary test server (`serve_built.js` 
 
 ## 2026-10-12 — Resident Aria core: current-state capture and proposal (careops-resident-aria-core-reconciliation-001, steps 1–3)
 Read-only capture of Room 214: page build 2026-10-09, listener untouched, backend `198fee4`, model `gpt-realtime` (default), voice `shimmer`, 29 resident tools, live research off, owner `/aria` 3 tools and no continuity, phone calling not installed. Gaps, smallest architecture and owner decisions in `docs/reports/2026-10-12-resident-aria-core-capture.md`. Voice is still PARKED in CURRENT_PRIORITY; implementation waits for Michael to confirm un-parking, the model/voice choice and paid test approvals.
+
+---
+
+## 2026-10-12 — Resident Aria core slice 1 complete (read-only)
+Report extended with the Michael-facing vs resident discrepancy list (owner `/aria` lacks continuity, truth rules, operations state and tools, and its persona text calls itself limited), a five-step plan behind a default-off flag, and exact rollback. Checklist row added as the single current item. Supervisor authorization (#129 comment 6118459175): conversation slice un-parked for read-only capture and code preparation; paid tests and live Room 214 changes need a separate owner receipt.

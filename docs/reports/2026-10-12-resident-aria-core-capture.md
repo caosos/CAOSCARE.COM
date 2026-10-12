@@ -49,3 +49,36 @@ Read-only capture, 2026-10-12 ~00:45 CDT. No listener restart, no paid call, no 
 - Bring the owner `/aria` build onto the resident context layers and tool catalogue (code + tests, no live switch).
 - Add the `call_contact` tool on the existing call lifecycle with an honest "not set up" result until telephony exists.
 - Add the newer voices to the allowed list once verified, without changing the default.
+
+## 6. Michael-facing (`/aria`) versus resident Aria — discrepancy list (code, 2026-10-12)
+
+| Layer | Resident session (`realtime_resident_session.py` + `realtime_companion_prompt.py`) | Michael's `/aria` (`realtime.py::_build_aria_instructions`) |
+|---|---|---|
+| Self-knowledge + truth rules (no invented lookups, actions only from tool results) | yes (`_system_self_knowledge`, `TRUTH_INVARIANTS`, research line) | no |
+| Profile / durable memory | resident profile + two-bin memory | operator memory (`aria_memories`), written only by manual CRUD — no automatic extraction |
+| Short-interval continuity (≤3 sessions, 18 h) | yes (`resolve_continuity`) | **no** |
+| Current operations state (open requests/alerts) | yes (`resolve_operational_state`) | no |
+| This-call state (reconnect) | yes (`resolve_conversation_state`) | no |
+| Learned speech patterns | yes (`list_patterns`) | no |
+| Persona wording | warm companion persona | developer-assistant persona that says it "will eventually have memory, tools, Home Assistant control" — i.e. tells itself it is limited |
+| Tools | 29 (room, schedule, menu, requests, transport, research, time, weather, end_call…) | 3 (`request_staff_help`, `check_request_status`, `end_conversation`) |
+| Model / voice | `gpt-realtime` / `shimmer` | same |
+| Live research | tool present, provider off | not present |
+| Calls | none from a voice session | none |
+
+## 7. Bounded implementation plan (code preparation; nothing switched on live)
+
+Each step is its own commit with tests; none restarts the listener; none changes Room 214 until a separate owner receipt. The dev backend at :8092 also serves Room 214, so **no step is loaded there** until Michael approves; code is merged behind defaults that keep today's behaviour.
+
+1. **Owner build onto the shared context layers** — `_build_aria_instructions` gains the self-knowledge, truth rules, continuity (keyed by the owner's own sessions), and drops the "will eventually have" limitation text. Guarded by `CAOSCARE_ARIA_OWNER_V2=1` (default off). Tests: prompt contains continuity of a seeded prior session; truth rules present; flag off = byte-identical to today.
+2. **Owner tool parity** — owner sessions get the read-only resident tools (time, weather, schedule, menu, request status/history, research) behind the same flag; no room-device tools (the owner session is not bound to a room). Tests: tool list with flag on/off.
+3. **Voices** — after checking the provider's current documentation, add the newer voices to `ALLOWED_VOICES` without changing `DEFAULT_VOICE`. Test: default unchanged.
+4. **`call_contact` tool** — resident and owner: creates a canonical call request on the existing call lifecycle for the front desk or an approved family contact; until telephony exists it returns `ok:false` "calling isn't set up here yet" and writes a refusal receipt. Tests: unapproved contact refused, no fake "calling" text.
+5. **Live lookup** — no code needed; turned on only by the owner-approved env (`CAOSCARE_RESEARCH_PROVIDER=openai_web_search`, `OPENAI_RESEARCH_MODEL`) after the approved smoke call.
+
+## 8. Exact rollback
+- Steps 1–2: unset `CAOSCARE_ARIA_OWNER_V2` (or leave it unset) and restart the dev backend with `scripts/restart_dev_backend.sh`; behaviour returns to today's.
+- Step 3: the default voice never changes; removing the new names from `ALLOWED_VOICES` is a one-line revert.
+- Step 4: the tool only refuses until telephony exists; `git revert <commit>` + restart removes it.
+- Step 5: set `CAOSCARE_RESEARCH_PROVIDER=none` and restart (`docs/RESEARCH_PROVIDER.md`).
+- Room page: untouched by all steps; if ever rebuilt, `ctl.sh` keeps `build.prev` (`mv build build.bad && mv build.prev build`, `ctl.sh restart-page`).
