@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Badge } from "../components/ui/badge";
 import { toast } from "sonner";
 
-const EXAMPLE = "Breakfast: Scrambled eggs, bacon, toast\nLunch: Grilled cheese, tomato soup\nDinner: Baked chicken, mashed potatoes, green beans";
+const EXAMPLE = "Breakfast: Scrambled eggs, bacon, toast\nLunch: Grilled cheese, tomato soup\nDinner: Baked chicken, mashed potatoes, green beans\n\nFor a whole week, start each day with its date:\nMonday 2026-10-12:\nBreakfast: ...\nTuesday 2026-10-13:\nBreakfast: ...";
 
 // Menu intake batches for one service date: menus that arrived by email
 // (routes/email_inbound.py) or were pasted here. Both go through the same
@@ -36,8 +36,9 @@ export default function MenuUploadsPanel({ date, refreshKey, onChanged }) {
   const ingest = async (e) => {
     e.preventDefault();
     try {
-      await api.post("/menu/ingest/paste", { service_date: date, raw_text: rawText });
-      toast.success("Menu added as a draft — review it below, then publish");
+      const { data } = await api.post("/menu/ingest/paste", { service_date: date, raw_text: rawText });
+      if (data?.multi_day) toast.success(`Drafts added for ${data.dates.length} days (${data.dates[0]} to ${data.dates[data.dates.length - 1]}). Pick each date above to review and publish it.`);
+      else toast.success("Menu added as a draft — review it below, then publish");
       setOpen(false);
       setRawText("");
       load();
@@ -70,12 +71,12 @@ export default function MenuUploadsPanel({ date, refreshKey, onChanged }) {
             <Button variant="outline" className="border-2 rounded-full" data-testid="menu-paste-btn">Paste a menu</Button>
           </DialogTrigger>
           <DialogContent className="max-w-lg">
-            <DialogHeader><DialogTitle className="font-display">Paste the menu for {date}</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle className="font-display">Paste a menu (for {date}, or dated days)</DialogTitle></DialogHeader>
             <form onSubmit={ingest} className="space-y-3">
               <div>
                 <Label>Menu text</Label>
                 <Textarea rows={8} required placeholder={EXAMPLE} value={rawText} onChange={(e) => setRawText(e.target.value)} data-testid="menu-paste-body" />
-                <p className="text-xs text-caos-mute mt-1">Start each meal with "Breakfast:", "Lunch:" or "Dinner:"; separate dishes with commas or new lines.</p>
+                <p className="text-xs text-caos-mute mt-1">Start each meal with "Breakfast:", "Lunch:" or "Dinner:"; separate dishes with commas or new lines. To paste a whole week, put a dated line before each day (for example "Monday 2026-10-12:"); each day becomes its own draft.</p>
               </div>
               <DialogFooter><Button type="submit" className="bg-caos-forest" data-testid="menu-paste-submit">Add as draft</Button></DialogFooter>
             </form>

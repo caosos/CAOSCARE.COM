@@ -164,13 +164,31 @@ async def ingest_dev_test(body: dict, user=Depends(get_current_user)):
 
 @router.post("/ingest/paste")
 async def ingest_paste(body: dict, user=Depends(get_current_user)):
-    """Kitchen staff paste the day's menu text (the menu screen's "Paste a
-    menu"). Same parser and draft batch as an emailed menu - only the
-    provenance differs (source="staff_paste"). Body: {service_date, raw_text}."""
+    """Kitchen staff paste menu text (the menu screen's "Paste a menu"). Same parser and draft batch as an
+    emailed menu - only the provenance differs (source="staff_paste"). Body: {service_date, raw_text}.
+    A whole week can be pasted at once with dated headers ("Monday 2026-10-12:" - the same header format
+    the activities calendar paste uses): each dated section becomes its own draft for that day, and
+    service_date is then not needed. Without headers the whole text is one day's menu for service_date."""
+    from datetime import date as _date
+    from routes.schedule_ingest import _split_day_blocks
     require_content_editor(user, MENU_DEPARTMENTS)
-    service_date = body.get("service_date")
     raw_text = (body.get("raw_text") or "")[:8000]
-    if not service_date or not raw_text.strip():
+    if not raw_text.strip():
+        raise HTTPException(status_code=400, detail="raw_text is required")
+    blocks = [(d, t) for d, t in _split_day_blocks(raw_text) if t.strip()]
+    if blocks:
+        if len(blocks) > 31:
+            raise HTTPException(status_code=400, detail="Paste at most 31 days at a time")
+        for d, _ in blocks:
+            try:
+                _date.fromisoformat(d)
+            except ValueError:
+                raise HTTPException(status_code=400, detail=f"{d} is not a real date")
+        uploads = [await create_menu_upload(raw_text=t.strip(), service_date=d, source="staff_paste",
+                                            created_by=user["user_id"], actor=staff_actor(user)) for d, t in blocks]
+        return {"multi_day": True, "dates": [d for d, _ in blocks], "uploads": uploads}
+    service_date = body.get("service_date")
+    if not service_date:
         raise HTTPException(status_code=400, detail="service_date and raw_text are required")
     return await create_menu_upload(
         raw_text=raw_text, service_date=service_date, source="staff_paste", created_by=user["user_id"],
