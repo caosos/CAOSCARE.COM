@@ -146,9 +146,10 @@ async def _run():
             rec(who, "start", _code(requests.post(f"{API}/tasks/{t}/start", headers=H[who], timeout=5)), 403)
             rec(who, "note", _code(requests.patch(f"{API}/tasks/{t}", headers=H[who], json={"notes": "x"}, timeout=5)), 403)
             rec(who, "assign self", _code(requests.post(f"{API}/tasks/{t}/assign", headers=H[who],
-                                                        json={"user_id": ids[who]}, timeout=5)), 403)
+                                                        json={"assigned_to": ids[who]}, timeout=5)), 403)
         rec("therapy", "claim", _code(requests.post(f"{API}/tasks/{t}/assign", headers=H["pt"],
-                                                    json={"user_id": ids["pt"]}, timeout=5)), 200)
+                                                    json={"assigned_to": ids["pt"]}, timeout=5)), 200)
+        assert (await db.staff_tasks.find_one({"task_id": t}))["assigned_to"] == ids["pt"]
         rec("therapy", "start", _code(requests.post(f"{API}/tasks/{t}/start", headers=H["pt"], timeout=5)), 200)
         note = "Session moved to the gym; bring walking shoes."
         rec("therapy", "note", _code(requests.patch(f"{API}/tasks/{t}", headers=H["pt"], json={"notes": note}, timeout=5)), 200)
@@ -230,7 +231,7 @@ async def _run_internal_reasons():
         t = requests.post(f"{API}/tasks/resident-request", headers=H["fd"], json={
             "category": "therapy", "resident_id": rid, "source": "front_desk",
             "summary": "Physical therapy session"}, timeout=5).json()["task_id"]
-        assert requests.post(f"{API}/tasks/{t}/assign", headers=H["pt"], json={"user_id": ids["pt"]}, timeout=5).ok
+        assert requests.post(f"{API}/tasks/{t}/assign", headers=H["pt"], json={"assigned_to": ids["pt"]}, timeout=5).ok
         assert requests.post(f"{API}/tasks/{t}/start", headers=H["pt"], timeout=5).ok
         public = "Session moved to the gym."
         assert requests.patch(f"{API}/tasks/{t}", headers=H["pt"], json={"notes": public}, timeout=5).ok
