@@ -522,3 +522,32 @@ Append-only. One entry per verified check-in, tied to its receipt. A correction 
 - **next_check_at:** Monday, October 12, 2026 — 4:26:57 AM America/Chicago
 - **Blocker:** NONE
 - **Michael action required:** NOTHING
+
+
+## Monday, October 12, 2026 — 3:42 AM America/Chicago
+- **Receipt:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6120805574
+- **Project:** CAOSCare
+- **Phase / position:** Phase 3/7 Care Operations workspaces — Housekeeping scheduling DEV_ACCEPTED; recurrence is the next bounded Housekeeping gap
+- **Completed since the prior check:** `careops-housekeeping-schedule-001` completed at the development-acceptance boundary. Housekeeping staff and Admin now share the canonical Upcoming view; the live development workflow proved future scheduling, facility-local ordering, rescheduling, lifecycle completion, role refusal, truthful resident/Aria status, responsive behavior, and provenance-linked receipts. The slice is ready to present for owner review, not OWNER_ACCEPTED / DONE.
+- **Evidence:** canonical coordinator DONE https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6120747546; transport-only host mirror https://github.com/caosos/CAOSCARE.COM/pull/131#issuecomment-6120769216; product commits https://github.com/caosos/CAOSCARE.COM/commit/af52bfa454ed8d82b48f943e97f8577f51369c19 and https://github.com/caosos/CAOSCARE.COM/commit/8d03c65d67d0ebbe11c799edce286f25a4d8608f; checklist https://github.com/caosos/CAOSCARE.COM/commit/5022e49048eec180de38df3e4ab0cddc2da2ec96; PROJECT_STATE https://github.com/caosos/CAOSCARE.COM/commit/e3f4bcff47bba15a899ed54791be8e2f77778df1; report `docs/reports/2026-10-12-housekeeping-schedule.md`. Backend 594 passed / 0 failed / 31 skipped; frontend 88 suites / 633 tests; build compiled. Claude Chrome: owner planned October 14 at 2:00 PM and October 13 at 10:00 AM, then rescheduled the deep clean to October 13 at 9:00 AM; Upcoming reordered immediately. Housekeeper at 390 px saw both; nurse reschedule returned 403; resident display matched; Aria `rt_dfwi8v3i_1791794082799` named both; completion removed the finished item. Tested/loaded backend `8d03c65`; tested/served frontend `af52bfa`; production `ff87c22`. Latest timestamped host observation Monday, October 12, 2026 — 3:41:19 AM America/Chicago: coordinator idle, control plane `f1db2d358ca1`, repository `cd076d251ab9` newer/not loaded. GitHub activity alone is not host-liveness proof. Known cost: UNKNOWN.
+- **Current bounded task (owner · stage):** `careops-housekeeping-recurrence-001` · existing coordinator `caoscare-1-ee` · DISPATCHED / ACK-WORKING REQUIRED
+- **Remaining steps for this milestone:**
+  1. ACK/WORKING with evidence reviewed, realistic ETA and exact next check
+  2. Inspect canonical recurrence and existing scheduler/tick support
+  3. Create one labeled synthetic weekly Housekeeping series
+  4. Prove deterministic generation without duplicate occurrences
+  5. Prove Housekeeping/Admin Upcoming visibility and facility-local ordering
+  6. Reschedule and complete one occurrence without corrupting the series
+  7. Prove truthful resident/Aria status and unauthorized refusal
+  8. Run focused/full gates and Claude Chrome desktop/390 acceptance
+  9. Record exact tested/loaded revisions and fresh host evidence, then reconcile authoritative records
+- **Upcoming milestones:**
+  1. Housekeeping inspection
+  2. Housekeeping supplies/linen
+  3. Michael's spoken Room 214 voice/personality acceptance
+  4. Authenticated Transportation LIVE_VERIFY when role/driver/vehicle dependencies are available
+  5. Full owner/novice pilot walkthrough
+- **ETA:** UNKNOWN pending coordinator ACK/WORKING
+- **next_check_at:** Monday, October 12, 2026 — 3:47 AM America/Chicago
+- **Blocker:** NONE
+- **Michael action required:** NOTHING
