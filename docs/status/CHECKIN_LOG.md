@@ -190,3 +190,26 @@ Append-only. One entry per verified check-in, tied to its receipt. A correction 
 - **next_check_at:** 2026-10-12T02:37:10-05:00
 - **Blocker:** music/AC/email/calls/research dependencies
 - **Michael action required:** Speak to Aria in Room 214 and judge voice/personality
+
+## Monday, October 12, 2026 — 1:42 AM America/Chicago
+- **Receipt:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6119164460
+- **Project:** CAOSCare
+- **Phase / position:** Resident Aria core — typed/demo acceptance completed; honest request-handoff correction is the single current slice
+- **Completed since the prior check:** Accepted `careops-resident-aria-core-reconciliation-001` as DEV_ACCEPTED (typed/demo), not spoken-room accepted, LIVE_VERIFIED, or OWNER_ACCEPTED / DONE. Owner-approved dev settings are active: `gpt-realtime-2.1`, `marin`, 10-minute continuity, owner v2. Dispatched the first proven defect: premature “sent/come help” language.
+- **Evidence:** canonical DONE https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6119091064; transport-only mirror https://github.com/caosos/CAOSCARE.COM/pull/131#issuecomment-6119097132; code `5736b03`, `ec4a8d4`, `d02325f`, `aba31a8`; report/records `c13de3a`, `1c9648e`; prior ledger `d632028`. Backend gate 588 passed / 2 failed / 31 skipped at `ec4a8d4`; both failures were environment-sensitive auth tests and the affected file passed 8/8 at `aba31a8`. Frontend 87 suites / 626 tests. Typed demo proved time/weather/light/timer, 10-minute continuity, bathroom request → Nursing queue → Claude Chrome claim/complete with note and 3 receipts; SIM Start/Pause/Step/Resume completed 6/6 receipted steps. Tested code `aba31a8`; loaded dev backend `aba31a8`, clean tree, 0 leases; Room 214 listener/page/kiosk untouched; production `ff87c22`. Latest timestamped host observation: Monday, October 12, 2026 — 1:37:33 AM America/Chicago. Spoken Room 214 audio/personality and 390 px staff walkthrough not accepted.
+- **Current bounded task (owner · stage):** `careops-resident-aria-honest-request-language-001` · existing coordinator `caoscare-1-ee` · DISPATCHING; implementation present but unaccepted at `8a06ad1` + `40c3fec`
+- **Remaining steps for this milestone:**
+  1. Focused tests for simulated, undelivered, sent, delivered, claimed, and completed states
+  2. One labeled typed request proving Aria says only that it is on the department list until stronger receipts exist
+  3. Load exact tested revision and record a fresh host observation
+  4. Complete the 390 px Nursing/staff walkthrough
+  5. Michael performs spoken Room 214 voice/personality/continuity acceptance
+  6. Enable/accept live research and later external capabilities only when their dependencies exist
+- **Upcoming milestones:**
+  1. Transportation authenticated LIVE_VERIFY
+  2. Full owner/novice pilot walkthrough
+  3. Pilot Room 1 / Voice PE onboarding
+- **ETA:** Approximately Monday, October 12, 2026 — 2:37 AM America/Chicago
+- **next_check_at:** Monday, October 12, 2026 — 2:37:01 AM America/Chicago
+- **Blocker:** NONE for the current wording fix. Separate dependencies: no Home Assistant media_player; Midea AC unavailable; RESEND_API_KEY unset; research provider unset; no Asterisk/Twilio/SIP
+- **Michael action required:** NOTHING now. When awake, speak to Aria in Room 214 and judge voice/personality firsthand.
