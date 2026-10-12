@@ -994,3 +994,8 @@ Issue #129 is the dispatch channel to existing coordinator `caoscare-1-ee`. ACK/
 
 - Full-acceptance finding 1 repaired: `/alerts/feed` lists current (≤ 72 h) alerts by default; older ones counted and shown on request ("Showing 200 of 322"). Nurse 390 px page 5,538 px (was ~87,112). Backend 612/0/31, frontend 92/645, build OK; dev browser 11/11. DEV_ACCEPTED. Report: `docs/reports/2026-10-12-alerts-staff-feed-current.md`.
 - Remaining Alerts: `alert_acknowledged.parent_receipt_id` link (next item); owner decision on acknowledge/close roles (A–D, B recommended); re-run affected acceptance.
+
+### Update 2026-10-12 — Acknowledgement receipt parent link (careops-alerts-ack-parent-link-001)
+
+- Full-acceptance finding 2 repaired (`d0642ec`): `alert_acknowledged` names the origin receipt as parent. Backend 613/0/31; dev API proof. DEV_ACCEPTED. Report: `docs/reports/2026-10-12-alerts-ack-parent-link.md`.
+- Remaining Alerts: owner decision on acknowledge/close roles (A–D, B recommended), then apply and re-run affected acceptance; then READY_FOR_OWNER_REVIEW.

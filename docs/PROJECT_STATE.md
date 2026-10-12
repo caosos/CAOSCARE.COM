@@ -253,3 +253,6 @@ No code change; 17/17 dev browser checks; gates 611/0/31, 91/644, build OK. Find
 
 ## 2026-10-12 — Nurse Live alerts current vs older (careops-alerts-staff-feed-current-001)
 `/alerts/feed` scope=current default (72 h), scope=older on request, stats older_open; nurse banner + Show older. Backend 612/0/31, frontend 92/645. Report: docs/reports/2026-10-12-alerts-staff-feed-current.md.
+
+## 2026-10-12 — Acknowledgement receipt parent link (careops-alerts-ack-parent-link-001)
+`d0642ec`: alert_acknowledged.parent_receipt_id = origin receipt. Backend 613/0/31. Only owner role-policy decision remains before Alerts re-acceptance.
