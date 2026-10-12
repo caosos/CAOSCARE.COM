@@ -301,3 +301,9 @@ Executing session caoscare-1-64 (b2 notified; ACK https://github.com/caosos/CAOS
 - Dev: backend `9d15215` PID 1935308 (log /tmp/room214_backend_9d15215.log); Room 214 page rebuilt `9d15215`, kiosk reloaded, reconnected 16:56:28.
 - PRODUCTION: PR #132 merged by Michael; deployed `06e7e2b` to caoscare.com 17:03 CDT (backup /opt/caoscare/backups/mongo/20261012-220310-pre-deploy-ff87c22df1dd; rollback `deploy_caoscare.sh ff87c22`). Chrome: home page all In pilot except Building-wide location (Planned); live kiosk 390 px shows HC.
 - Open: real-voice evidence in Room 214 for re-wake greeting, next-day continuity, "bye for now".
+
+## 2026-10-12 17:45 CDT — Lifelong resident memory (Michael: "she shouldn't forget what happened 3 days ago")
+- `2013d53`, `46b99d4`: `routes/aria_life_memory.py` on the existing `db.memories` store — each finished conversation summarized once (events bin, category `conversation`, `source_session`; nothing-substantive stored archived) and folded into one bounded life story per resident (facts bin, `life_story`, pinned, `covers_sessions`). Loaded every call under "Your story with {name} so far" plus dated moments, facts and the 72 h verbatim recap. Background at session mint; trusted turns only; failures retried. Fold rules forbid invented relationships/labels; story trimmed at a sentence.
+- Backfill (real OpenAI, `OPENAI_TEXT_MODEL` gpt-4o-mini) of Room 214 resident res_2425767f4a51: 49 sessions → 34 summaries, 15 nothing-substantive; life story 1155 chars covering 34. First fold invented "his friend Momdani" → rules tightened → rebuilt story states only "someone named Momdani".
+- Gates: backend 652/0/13 (before the 46b99d4 prompt tweak; its tests 3/3). Dev backend `46b99d4` PID 1965332.
+- Open: real-voice check in Room 214 (re-wake, next day, bye for now, memory references).
