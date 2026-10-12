@@ -213,3 +213,29 @@ Append-only. One entry per verified check-in, tied to its receipt. A correction 
 - **next_check_at:** Monday, October 12, 2026 — 2:37:01 AM America/Chicago
 - **Blocker:** NONE for the current wording fix. Separate dependencies: no Home Assistant media_player; Midea AC unavailable; RESEND_API_KEY unset; research provider unset; no Asterisk/Twilio/SIP
 - **Michael action required:** NOTHING now. When awake, speak to Aria in Room 214 and judge voice/personality firsthand.
+
+
+## Monday, October 12, 2026 — 1:51 AM America/Chicago
+- **Receipt:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6119259723
+- **Project:** CAOSCare
+- **Phase / position:** Phase 3/7 Care Operations workspaces — resident Aria typed/demo request flow and honest handoff wording are development-accepted; Nursing exception lifecycle is the next compatible Core Requests gap
+- **Completed since the prior check:** `careops-resident-aria-honest-request-language-001` DEV_ACCEPTED. Aria now says a request is on the Nursing list and refuses to promise sent/coming/on-the-way without delivery or staff-action evidence; the 390 px Nursing title defect is repaired. Checklist and PROJECT_STATE were reconciled before dispatch.
+- **Evidence:** canonical DONE https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6119167547 and ACK/DONE https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6119172960; code `8a06ad1` + `40c3fec`; frontend repair `d01796b`; report/PROJECT_STATE `9865cea`; checklist `8b4bad46ac9052b1e566633b41f67e52c968e5bb`; PROJECT_STATE boundary `fddf1fd92d79b056ba7eeed3335df40ef72d7f37`. Backend 591 passed / 0 failed / 31 skipped; frontend 87 suites / 627 tests; build compiled. Typed trace `rt_ih7vi9zz_1791787206391`; Claude Chrome/browser Nursing `/staff` at 390 and 1280 with no overflow or failed API calls. GitHub combined-status contexts absent. Tested backend/code `8a06ad1` + `40c3fec`, tested frontend `d01796b`; loaded dev backend `8a06ad1` after guarded restart with zero leases, frontend served `d01796b`; production `ff87c22`. Latest timestamped host observation: Monday, October 12, 2026 — 1:37:33 AM America/Chicago; later GitHub activity is not host-liveness proof.
+- **Current bounded task (owner · stage):** `careops-nursing-exception-lifecycle-001` · existing coordinator `caoscare-1-ee` · DISPATCHED / ACK REQUIRED
+- **Remaining steps for this milestone:**
+  1. ACK/WORKING with evidence reviewed, realistic ETA, exact next check, expected completion evidence and blocker/NONE
+  2. Inspect the current canonical Nursing exception lifecycle
+  3. Implement or repair the first proven gap
+  4. Run focused and full gates
+  5. Claude Chrome/browser acceptance at desktop and 390 px
+  6. Load the exact accepted revision and record a fresh host observation
+  7. Reconcile checklist, PROJECT_STATE, Issue #129 and the ledger
+- **Upcoming milestones:**
+  1. Michael's spoken Room 214 voice/personality acceptance
+  2. Authenticated Transportation LIVE_VERIFY when its role/driver/vehicle dependency is available
+  3. Full owner/novice pilot walkthrough
+  4. Pilot Room 1 / Voice PE onboarding
+- **ETA:** UNKNOWN pending the coordinator's evidence-based ACK/WORKING scope
+- **next_check_at:** Monday, October 12, 2026 — 1:56:07 AM America/Chicago
+- **Blocker:** NONE for this development task. Separate dependencies: spoken Room 214 owner acceptance; no Home Assistant media player; Midea AC unavailable; RESEND_API_KEY unset; research provider unset; no Asterisk/Twilio/SIP; Transportation production role/driver/vehicle
+- **Michael action required:** NOTHING now. When awake, speak to Aria in Room 214 and judge voice/personality firsthand.
