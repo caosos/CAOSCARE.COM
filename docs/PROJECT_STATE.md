@@ -8944,3 +8944,18 @@ Guarded restart via `scripts/restart_dev_backend.sh` (0 leases, no recent call a
 
 ## 2026-10-12 — Owner operating addendum adopted: ETA-driven checks and exception alerts (CAOSCare only)
 Source: #129 comment 6115336898 (da-a6a22893bd), adopted at the serial boundary after careops-routing-exceptions-001. Executable: `scripts/owner_intake/eta_receipts.py` (receipt schema for ACK/WORKING, DONE, NEED/BLOCKED; exact America/Chicago `next_check_at`, refused when missing or naive; due/outcome rules with early DONE; missed-check exception "APPEARS STALE — HOST STATE UNVERIFIED"; notification filter; CLI appending to the existing intake ledger, no new tracker) and `heartbeat_probe.py` (the local watchdog's check now prints `next_check_at`, wakes at it, and reports a missed check as an exception). Rule text in `CAOSCARE_START_HERE.md`, `docs/OWNER_INTAKE.md` and the living checklist. Tests: `scripts/owner_intake/tests` 18 passed (new `test_eta_receipts.py`: schema, timezone refusal, DONE/NEED fields, exact timer, three outcomes, early DONE, missed check, notification filter, probe wake/exception, CLI). First live use: WORKING receipt for this adoption written via the CLI at 19:00 CDT; the probe on this host printed `next_check_at` 2026-10-11T19:15:00-05:00. No backend change; no restart. Desktop-Agent and Deal Sniffer untouched. Remaining dependency: the Desktop-Agent watchdog must read the new `next_check_at` field to schedule the exact check (its own repo); until then it is caught on the next poll.
+
+
+---
+
+## 2026-10-11 19:58 CDT — routing-exceptions boundary reconciled; Transportation unresolved count dispatched
+
+`careops-routing-exceptions-001` is **DEV_ACCEPTED** on development revision `2155a9f`: canonical task/notification/receipt reads expose undelivered, unassigned, overdue and failed-handoff cases with scoped list/detail and a receipted re-notify path. Evidence: backend 548 passed / 0 failed / 31 skipped; frontend 77 suites / 595; compiled build; isolated browser 11/11; report `docs/reports/2026-10-11-routing-exceptions.md`. Development loaded `2155a9f`. Production remains `ff87c22df1dd69b405fa0ec60429c20fe72f6801`; this slice is not production loaded, LIVE_VERIFIED, or OWNER_ACCEPTED / DONE.
+
+The owner operating addendum is implemented at integration head `d87e9cc30759381aabb45d5d95947d5d91de58ea`: executable ETA receipt schema, exact `next_check_at` handling, three allowed outcomes, early DONE, missed-check exception, notification filtering, and local-watchdog probe behavior. The owner-intake suite reports 18 passed. Last timestamped EliteDesk observation is the 19:01 CDT adoption receipt; GitHub activity after that is not host-liveness proof, so current host state is UNKNOWN.
+
+Production Transportation LIVE_VERIFY stays blocked on an authenticated owner/admin session and one driver plus one vehicle. Compatible authorized work therefore advances through the existing coordinator only.
+
+**ONE current bounded task:** `careops-transport-unresolved-001`. Reproduce the owner-reported “11 unresolved” Transportation count in the intended role; make the count open a canonical filtered list; make every row open its real detail with owner, status, next action and receipt trail; reconcile the displayed count to canonical records; prove authorization and responsive browser behavior. No new coordinator, worker, queue, monitor, truth store, paid provider action, audio work, or production data mutation.
+
+Issue #129 carries the dispatch. `ACK / WORKING` must provide evidence reviewed, realistic ETA, exact America/Chicago `next_check_at`, acceptance evidence and blocker/NONE within five minutes. Until that receipt arrives, ETA and exact next check are UNKNOWN.

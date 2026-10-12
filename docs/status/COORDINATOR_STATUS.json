@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "updated_at": "2026-10-11T23:44:00Z",
-  "updated_by": "CAOSCare Build Supervisor — routing-exceptions NEED_HOST_RECOVERY",
+  "updated_at": "2026-10-12T00:58:35Z",
+  "updated_by": "CAOSCare Build Supervisor — routing-exceptions boundary and Transportation unresolved dispatch",
   "ready_unblocked": [
-    "careops-routing-exceptions-001: BLOCKED on NEED_HOST_RECOVERY. Delivery da-6618877755 reached existing coordinator caoscare-1-ee at 2026-10-11 18:38:25 CDT, but no explicit ACK/WORKING appeared by 18:43:25. Run the exact recovery command in Issue #129 comment 6115232846 through the existing watchdog/coordinator; next check 18:50 CDT."
+    "careops-transport-unresolved-001: DISPATCHING through existing coordinator caoscare-1-ee. Reproduce the owner-reported '11 unresolved' Transportation count; open a canonical filtered list; open each row's real detail with owner/status/next action/receipts; reconcile the count; prove role authorization and responsive browser behavior."
   ],
   "workers": [
-    "caoscare-1-ee: intake delivery is proven, but continuous EliteDesk coordinator/watchdog heartbeat and working-tree state are UNKNOWN. Reuse this session only; publish ACK da-6618877755 and WORKING careops-routing-exceptions-001, or the exact recovery error and next safe action. Do not create a duplicate coordinator or worker."
+    "caoscare-1-ee: publish ACK/WORKING for careops-transport-unresolved-001 within five minutes with evidence reviewed, realistic ETA, exact America/Chicago next_check_at, expected acceptance evidence, and blocker NONE or an exact NEED. Reuse this session only."
   ],
   "questions": [],
   "waiting_owner": [
@@ -19,10 +19,10 @@
     "PR #67 adoption",
     "per-kiosk device-credential decision"
   ],
-  "note": "careops-current-operations-truth-001 remains READY_FOR_OWNER_REVIEW at loaded development revision b3856b9 with 547 backend passes, 592 frontend tests, and 13/13 browser acceptance; no record was closed. Production remains ff87c22 with 12/12 public smoke. One active task only: careops-routing-exceptions-001, BLOCKED on host receipt after da-6618877755 missed ACK/WORKING. Canonical NEED 6115232846; checklist 1576c6e; PROJECT_STATE 8bc5371. Eight open PRs remain unchanged and none is merge-ready. No owner re-authorization, duplicate worker, queue, monitor, or paid-provider action.",
+  "note": "careops-routing-exceptions-001 is DEV_ACCEPTED at loaded development revision 2155a9f (backend 548/0/31, frontend 77/595, browser 11/11); current-operations truth remains READY_FOR_OWNER_REVIEW at b3856b9. ETA/watchdog enforcement is adopted and tested at integration d87e9cc (18 owner-intake tests). Production remains ff87c22 with public smoke only; authenticated Transportation LIVE_VERIFY remains blocked on a signed-in role plus one driver and one vehicle. Last timestamped host observation: 2026-10-11 19:01 CDT; current host liveness UNKNOWN. One active bounded task only: careops-transport-unresolved-001, dispatch pending ACK.",
   "liaison_watch": {
-    "scanned_through_ts": "1791760395.149439",
-    "scanned_through_local": "2026-10-11 18:13:15 CDT",
+    "scanned_through_ts": "1791766400.270339",
+    "scanned_through_local": "2026-10-11 19:53:20 CDT",
     "last_qualifying_dot_aria_ts": "1791720983.413879",
     "last_qualifying_dot_aria_local": "2026-10-11 07:16:23 CDT",
     "last_qualifying_receipt": "https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6114797710",
