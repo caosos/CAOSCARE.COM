@@ -61,11 +61,15 @@ def _review_reason(rec: dict) -> str:
 
 def classify(rec: dict, kind: str, run_id: Optional[str], now: Optional[datetime] = None) -> dict:
     now = now or datetime.now(timezone.utc)
-    if rec.get("simulated"):
-        live = bool(run_id) and rec.get("simulation_run_id") == run_id
-        return {"bucket": "sim_current" if live else "sim_past", "run_id": rec.get("simulation_run_id"), "reason": None}
     window = timedelta(hours=STALE_ALERT_HOURS) if kind == "alert" else timedelta(days=TASK_REVIEW_DAYS)
     opened = _dt(rec.get("created_at"))
+    if rec.get("simulated"):
+        if rec.get("simulation_run_id"):
+            live = bool(run_id) and rec.get("simulation_run_id") == run_id
+            return {"bucket": "sim_current" if live else "sim_past", "run_id": rec.get("simulation_run_id"), "reason": None}
+        # simulated but not part of a simulator run (the demo room): current while recent, like real work
+        recent = bool(opened) and now - opened <= window
+        return {"bucket": "sim_current" if recent else "sim_past", "run_id": None, "reason": None}
     if opened and now - opened <= window:
         return {"bucket": "current", "run_id": None, "reason": None}
     return {"bucket": "review", "run_id": None, "reason": _review_reason(rec)}
