@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../components/ui/dialog";
 import { Plus, RefreshCw, Play, Check, Hand, History, Eye, NotebookPen, CalendarClock, XCircle, Car } from "lucide-react";
 import { toast } from "sonner";
-import { workOrderBuckets, isOverdue, canClaim, canAssign, ageLabel } from "../lib/maintenance";
+import { workOrderBuckets, isOverdue, canClaim, canAssign, ageLabel, closedLabel } from "../lib/maintenance";
 import MaintenanceWorkOrderForm from "./MaintenanceWorkOrderForm";
 import RequestHistoryDialog from "./RequestHistoryDialog";
 import { PlanWindowDialog, ReasonDialog, ConflictDialog } from "./QueueDialogs";
@@ -341,22 +341,25 @@ export default function DepartmentQueue({ department, title, itemName = "request
       <Section title="In progress" rows={b.inProgress} />
       {adminMode && <Section title="Assigned, not started" rows={b.assigned} />}
 
-      {b.completed.length > 0 && (
-        <details data-testid="wo-completed">
+      {b.closed.length > 0 && (
+        <details data-testid="wo-completed" open={adminMode}>
           <summary className="text-xs font-bold uppercase tracking-widest text-caos-mute cursor-pointer">
-            Recently completed ({b.completed.length})
+            Recently closed ({b.closed.length})
           </summary>
           <div className="mt-2 space-y-1 text-sm">
-            {b.completed.map((t) => (
-              <div key={t.task_id} className="flex justify-between border-b border-caos-line py-1 text-caos-mute">
-                <span>{t.title}{t.room ? ` · Rm ${t.room}` : ""}</span>
-                <span className="text-xs flex items-center gap-2">
-                  {t.completed_by_name || ""} · {ageLabel(t.completed_at)}
-                  {(showAssign || isAdmin) && (
-                    <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => { setReopenFor(t.task_id); setReopenReason(""); }} data-testid={`wo-reopen-${t.task_id}`}>Reopen</Button>
-                  )}
-                  <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => setHistoryFor(t.task_id)} data-testid={`wo-history-${t.task_id}`}>History</Button>
-                </span>
+            {b.closed.map((t) => (
+              <div key={t.task_id} className="border-b border-caos-line py-1.5" data-testid={`wo-closed-${t.task_id}`}>
+                <div className="flex flex-wrap justify-between gap-2">
+                  <span className="text-caos-ink">{t.title}{t.room ? ` · Rm ${t.room}` : ""}</span>
+                  <span className="text-xs flex items-center gap-2 text-caos-mute">
+                    <span className={t.status === "skipped" ? "text-caos-terracotta" : ""}>{closedLabel(t)}</span> · {ageLabel(t.completed_at)}
+                    {(showAssign || isAdmin) && (
+                      <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => { setReopenFor(t.task_id); setReopenReason(""); }} data-testid={`wo-reopen-${t.task_id}`}>Reopen</Button>
+                    )}
+                    <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => setHistoryFor(t.task_id)} data-testid={`wo-history-${t.task_id}`}>History</Button>
+                  </span>
+                </div>
+                {t.notes && <div className="text-xs text-caos-mute mt-0.5" data-testid={`wo-closed-note-${t.task_id}`}>Note: {t.notes}</div>}
               </div>
             ))}
           </div>

@@ -9066,3 +9066,8 @@ The screen is now named **Resident care patterns** and states its purpose. Load 
 
 ## 2026-10-12 — Menu visible end to end; menu/activities coverage notes (careops-menu-visible-001)
 Cause of the empty menu: published menu ends 2026-10-03 (production 2026-10-02). New `GET /menu/coverage`, `/schedule/coverage` and a note on both screens naming the last published day and the next step. Labeled paste → draft (not live) → publish → Aria's `get_menu` dinner request returns it → resident room screen shows it at 1280/390: 10/10; test data removed. Backend gate 567 / 0 / 31, frontend 85 suites / 617, build compiled. Dev backend restarted on `4b270ef` (pid 1177328; previous log /tmp/room214_backend_677e250.log). Report `docs/reports/2026-10-12-menu-visible.md`. Not deployed; production menus still need publishing by staff.
+
+---
+
+## 2026-10-12 — Department history in the admin queues (careops-dept-history-001)
+"Recently closed" (completed + cancelled, outcome, closer, time spent, note), open by default for admins. Frontend 85 suites / 619, build compiled; dev browser 10/10. Report `docs/reports/2026-10-12-dept-history.md`. Frontend only; not deployed.

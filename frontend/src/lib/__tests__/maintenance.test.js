@@ -126,3 +126,19 @@ describe("SC-6: front desk acts for Administration only", () => {
     expect(canAssign(maint, "maintenance")).toBe(true);
   });
 });
+
+describe("closed history (careops-dept-history-001)", () => {
+  const { workOrderBuckets, closedLabel } = require("../maintenance");
+  const tasks = [
+    { task_id: "c1", visibility_role: "maintenance", status: "completed", completed_at: "2026-10-10T10:00:00Z", completed_by_name: "Carl", duration_minutes: 25 },
+    { task_id: "s1", visibility_role: "maintenance", status: "skipped", completed_at: "2026-10-11T10:00:00Z", completed_by_name: "Ann" },
+    { task_id: "o1", visibility_role: "maintenance", status: "pending" },
+  ];
+  test("closed holds completed and cancelled, newest first", () => {
+    expect(workOrderBuckets(tasks).closed.map((t) => t.task_id)).toEqual(["s1", "c1"]);
+  });
+  test("closedLabel names the outcome, who, and time spent", () => {
+    expect(closedLabel(tasks[0])).toBe("Completed by Carl · 25 min");
+    expect(closedLabel(tasks[1])).toBe("Cancelled by Ann");
+  });
+});

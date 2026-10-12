@@ -74,6 +74,11 @@ export function workOrderBuckets(tasks, { meId = null, now = Date.now(), complet
       .filter((t) => t.status === "completed")
       .sort((a, b) => new Date(b.completed_at || 0) - new Date(a.completed_at || 0))
       .slice(0, completedLimit),
+    // completed and cancelled (skipped), newest-closed first: the queue's "recently closed" history
+    closed: wos
+      .filter((t) => DONE.includes(t.status))
+      .sort((a, b) => new Date(b.completed_at || 0) - new Date(a.completed_at || 0))
+      .slice(0, completedLimit),
     counts: {
       open: open.length,
       unassigned: unassigned.length,
@@ -81,4 +86,12 @@ export function workOrderBuckets(tasks, { meId = null, now = Date.now(), complet
       overdue: overdue.length,
     },
   };
+}
+
+// One line for a closed request in a queue's history: outcome, who, and time spent if known.
+export function closedLabel(t) {
+  const outcome = t.status === "skipped" ? "Cancelled" : "Completed";
+  const who = t.completed_by_name ? ` by ${t.completed_by_name}` : "";
+  const spent = typeof t.duration_minutes === "number" && t.duration_minutes > 0 ? ` · ${Math.round(t.duration_minutes)} min` : "";
+  return `${outcome}${who}${spent}`;
 }
