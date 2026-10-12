@@ -831,3 +831,5 @@ Issue #129 is the dispatch channel to existing coordinator `caoscare-1-ee`. ACK/
 - **next_check_at:** Monday, October 12, 2026 — 7:35:34 AM America/Chicago; owned by the existing LOCAL watchdog.
 - **Blocker:** NONE.
 - **Michael must do:** NOTHING.
+
+- **DONE (coordinator) — `careops-alerts-canonical-state-001`, Monday, October 12, 2026 — 6:04 AM America/Chicago:** IMPLEMENTED / TESTED / DEV_ACCEPTED. Inventory + canonical alert contract published (`docs/reports/2026-10-12-alerts-canonical-state.md`). First gap repaired `45bd442`: alert acknowledgement is now atomic, receipted (`alert_acknowledged`, actor/authority/before/after) and history-linked; concurrent acks one winner. Backend 604/0/31; browser nurse 390 + owner 1280 on dev `45bd442`. Open: who may acknowledge (owner decision), actor-less close-out receipts and re-close, direct wander/wearable inserts. Production `ff87c22` unchanged.
