@@ -148,3 +148,6 @@ Ordered remaining current-milestone steps: 1. add failing tests for actor-less a
 Ordered upcoming milestones: 1. repair direct alert creation/coalescing and receipts; 2. complete Alerts policy editor, role policy, timers/fallback and section acceptance; 3. remaining Phase 3 department-workspace gaps; 4. Phase 4 scheduling/records/resources; 5. Phase 5 communications; 6. Phase 6 pilot reliability/accessibility; 7. Phase 7 release/deployment/live acceptance.
 
 ETA approximately Monday, October 12, 2026 — 7:23 AM America/Chicago. Existing LOCAL watchdog next_check_at Monday, October 12, 2026 — 7:23:11 AM America/Chicago. Expected completion evidence: exact commit; failing-before/fixed-after tests; both endpoints and state compatibility; repeat/concurrent behavior; linked receipt/history; focused/full gates; desktop/390 px browser; exact tested/loaded revisions; cleanup; newest host observation; cost or UNKNOWN. Blocker NONE. Michael action NOTHING.
+
+## 2026-10-12 — Alert close receipts (careops-alerts-close-receipts-001)
+`fc9e95b`: `_finish()` shared by resolve/close; receipted, guarded, idempotent. Backend 605/0/31. Dev backend `fc9e95b` (pid 1495849, log /tmp/room214_backend_fc9e95b.log; previous /tmp/room214_backend_45bd442.log).

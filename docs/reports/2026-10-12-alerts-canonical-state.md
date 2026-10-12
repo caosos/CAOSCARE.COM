@@ -54,3 +54,21 @@ with `before_state.status = escalated`.
 3. Wander (`location.py`), wearable and the retired pendant scaffold insert alerts directly: no coalescing with the open
    event and no creation receipt.
 4. `resolve` ignores legacy `escalated` rows.
+
+## Addendum — close receipts (careops-alerts-close-receipts-001, `fc9e95b`)
+Gaps 2 and 4 repaired. `resolve` and `close` now share `_finish()`: one atomic write guarded on
+`status in active/acknowledged/escalated` (legacy `escalated` included), a history entry linked to an
+`alert_completed` receipt that names actor, role, department, authority, the origin receipt as parent, and
+before/after (including outcome and category). A repeat or concurrent close/resolve gets 409 and changes nothing;
+before this, close could re-close a resolved alert and overwrite who/when, and the completion receipt existed only
+when the alert had an origin receipt and had no actor.
+- Tests: `backend/tests/test_alert_close_receipt.py` (active close, acknowledged resolve, legacy escalated, repeat
+  close/resolve 409 with nothing rewritten, 6 concurrent closes → one winner/receipt/history entry, unknown 404)
+  failed before (no receipt), passes after. `test_alert_receipts_append_only.py` updated to the single close path
+  (first receipt byte-identical, completion receipt parented to it). Backend 605 passed / 0 failed / 31 skipped.
+- Browser (dev `fc9e95b`, synthetic DEMO alert, no live Aria lease): nurse at 390 px closed it from
+  `/staff?alert=…` with an outcome (no overflow, no failed API calls); owner `/alerts?status=resolved` at 1280 lists
+  it resolved (cards do not print the outcome; it is on the receipt and in the detail dialog); one `alert_completed`
+  receipt with the nurse as actor, linked to the history entry; repeat close and resolve 409 with outcome and
+  `resolved_by` unchanged; room-screen public status `resolved` and minimal.
+- Still open: acknowledgement/close role policy (owner decision); direct wander/wearable/pendant inserts.

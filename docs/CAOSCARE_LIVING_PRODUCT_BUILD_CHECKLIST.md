@@ -865,3 +865,5 @@ Issue #129 is the dispatch channel to existing coordinator `caoscare-1-ee`. ACK/
 - **next_check_at:** Monday, October 12, 2026 — 7:23:11 AM America/Chicago; owned by the existing LOCAL watchdog.
 - **Blocker:** NONE.
 - **Michael must do:** NOTHING.
+
+- **DONE (coordinator) — `careops-alerts-close-receipts-001`, Monday, October 12, 2026 — 6:16 AM America/Chicago:** IMPLEMENTED / TESTED / DEV_ACCEPTED. `fc9e95b`: resolve and close are one guarded terminal transition with one provenance-complete `alert_completed` receipt and linked history; repeat/concurrent 409, nothing rewritten; legacy escalated rows close. Backend 605/0/31; browser nurse 390 + owner 1280 on dev `fc9e95b`. Open: role policy (owner), direct wander/wearable inserts. Production `ff87c22` unchanged.
