@@ -9071,3 +9071,14 @@ Cause of the empty menu: published menu ends 2026-10-03 (production 2026-10-02).
 
 ## 2026-10-12 — Department history in the admin queues (careops-dept-history-001)
 "Recently closed" (completed + cancelled, outcome, closer, time spent, note), open by default for admins. Frontend 85 suites / 619, build compiled; dev browser 10/10. Report `docs/reports/2026-10-12-dept-history.md`. Frontend only; not deployed.
+
+
+---
+
+## 2026-10-12 00:06 CDT — menu visible end to end; Activities calendar is current
+
+`careops-menu-visible-001` is **DEV_ACCEPTED**, not production loaded and not OWNER_ACCEPTED / DONE. Exact commit `4b270ef03fa9a0b79907b8363217faa9916d9c4e`; backend 567 passed / 0 failed / 31 skipped; frontend 85 suites / 617 tests; compiled build; labeled publish trace 10/10. Development backend loaded `4b270ef`, PID 1177328, dev `:8092` healthy; temporary `:3019` stopped and labeled test data removed, observed Monday, October 12, 2026 — 12:04:09 AM America/Chicago. Production remains `ff87c22`; GitHub combined-status contexts: none. Canonical coordinator receipt: Issue #129 comment 6118089716; report `docs/reports/2026-10-12-menu-visible.md`.
+
+The menu and Daily schedule now state when nothing is published for the current day and identify the last published day. A labeled breakfast/lunch/supper publish was traced through Aria's dinner endpoint and the resident screen. Production menu/Activities content is stale and needs an authorized staff publish; no production change is claimed.
+
+**ONE current bounded task:** `careops-activities-calendar-001`. Trace canonical Activities intake/publish data to the Daily schedule with one labeled dated activity; prove authorized staff and resident views show the same event, owner, time, place, and status; distinguish no published events from load failure; prove desktop and 390 px behavior. Reuse canonical schedule/version records; no production mutation, new truth store, external messaging, paid service, audio work, or parallel worker. ACK/WORKING is due Monday, October 12, 2026 — 12:11 AM America/Chicago through existing coordinator `caoscare-1-ee`.
