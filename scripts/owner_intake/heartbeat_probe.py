@@ -6,8 +6,11 @@ polls GitHub, never calls a model, never posts. WAKE only when the coordinator h
 safe to read:
   - docs/status/COORDINATOR_STATUS.json lists ready_unblocked work or open questions,
   - a worker listed there made no progress for STALL_MINUTES (worktree untouched),
-  - an intake item was received but not ACKed for ACK_MINUTES (receiver ledger).
-Otherwise IDLE: stay quiet, spend nothing.
+  - an intake item was received but not ACKed for ACK_MINUTES (receiver ledger),
+  - the current ETA receipt's next_check_at has arrived (eta_receipts.py), or was missed: reported
+    as an exception, "APPEARS STALE — HOST STATE UNVERIFIED" (never "stopped" without host evidence).
+Otherwise IDLE: stay quiet, spend nothing. The output also carries `next_check_at` so the watchdog can
+schedule the exact check instead of waiting for its next poll.
 Env: CAOS_STATUS_FILE, CAOS_INTAKE_DIR, CAOS_STALL_MINUTES (45), CAOS_ACK_MINUTES (30).
 """
 import json
@@ -84,7 +87,23 @@ def probe(now=None) -> dict:
             t = _parse(rows[0].get("time") or rows[0].get("received_at") or rows[0].get("at"))
             if t and (now - t.timestamp()) / 60 > ACKWAIT:
                 reasons.append(f"intake item {item} received but not ACKed for {int((now - t.timestamp()) / 60)} min")
-    return {"verdict": "WAKE" if reasons else "IDLE", "reasons": reasons}
+    out = {"verdict": "WAKE" if reasons else "IDLE", "reasons": reasons}
+    try:  # ETA-driven check (owner addendum 2026-10-11): the coordinator's own next_check_at
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import eta_receipts as er
+        cur = er.current(INTAKE_DIR)
+        if cur and cur.get("next_check_at"):
+            when = datetime.fromtimestamp(now, timezone.utc)
+            out["next_check_at"] = cur["next_check_at"]
+            miss = er.missed(cur, None, when)
+            if miss:
+                reasons.append(f"missed next_check_at for {cur.get('task_id')} by {miss['minutes_late']} min - {miss['state']}")
+            elif er.due(cur, when):
+                reasons.append(f"next_check_at reached for {cur.get('task_id')}")
+            out["verdict"] = "WAKE" if reasons else "IDLE"
+    except Exception as e:  # never let the ETA layer break the probe
+        out.setdefault("errors", []).append(f"eta check: {e}")
+    return out
 
 
 if __name__ == "__main__":

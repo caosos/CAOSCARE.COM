@@ -64,6 +64,30 @@ This is the required path whenever an agent, coordinator, watchdog, service, or 
 7. **Cloud and host layers stay distinct.** The EliteDesk watchdog targets detection and handoff within five minutes. Hourly ChatGPT supervisors reconcile GitHub/checklist truth and notify this chat. PR watches react to GitHub PR events. None may claim another layer is alive without its receipt.
 8. **Slack escalation target.** Actionable NEED receipts should also be mirrored to `#all-ask-aria` when the ChatGPT Slack app is installed and present there. Until that event trigger is verified, the project issue plus hourly supervisor remains the delivery path.
 
+## ETA-driven checks and exception alerts (owner addendum, 2026-10-11)
+
+Source: Issue #129 comment 6115336898. Governing rule: "No action without a receipt. No receipt without provenance."
+Executable form: `scripts/owner_intake/eta_receipts.py` (schema, rules, CLI) and `heartbeat_probe.py` (the local watchdog's
+check); tests `scripts/owner_intake/tests/test_eta_receipts.py`.
+
+1. Every **ACK / WORKING** carries project, task_id, owner, stage, evidence reviewed, a realistic ETA (from the real scope:
+   tests, browser run, deploy steps, host conditions), an exact `next_check_at` in America/Chicago, the acceptance evidence
+   expected, and the blocker or NONE. The CLI refuses a receipt missing any of them or with a time without a timezone:
+   `python3 scripts/owner_intake/eta_receipts.py WORKING --in-minutes 40 -f project=CAOSCare -f task_id=… -f owner=… -f stage=… -f evidence=… -f eta=… -f acceptance=… -f blocker=NONE`
+2. The existing local watchdog owns the timer: the probe prints `next_check_at` and wakes the coordinator when it arrives.
+   No other coordinator, worker, queue, watchdog or monitor.
+3. At `next_check_at` exactly one of: **WORKING** (evidence, progress, revised ETA, new `next_check_at`); **DONE** (commit,
+   tests, browser/review evidence, loaded revision, host observation, user-visible result, cost if known, timestamp, next
+   item); **NEED / BLOCKED** (blocker, exact action or command, impact, compatible work continuing, next check).
+4. Finishing early: publish **DONE** immediately and take the next eligible item; do not wait for the check.
+5. A missed ETA or check is an exception, recorded with provenance as "APPEARS STALE — HOST STATE UNVERIFIED" unless host
+   evidence proves more. Never claim a worker stopped without host evidence.
+6. Michael is notified only for: DONE needing owner acceptance; NEED / BLOCKED; missed ACK, ETA or check; failed test,
+   delivery, deployment or recovery; a genuine owner decision; a material cost or authority boundary. Not for healthy
+   routine progress or already-granted build authority.
+7. The cloud supervisor stays the hourly fallback; GitHub activity is not proof a host process is alive.
+8. Projects stay isolated: misdelivered work is quarantined and routed, never executed here.
+
 ## Current build control
 
 - **Current phase:** 3/7 — Care Operations workspaces.
