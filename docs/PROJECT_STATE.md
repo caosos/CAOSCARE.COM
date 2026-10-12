@@ -238,3 +238,6 @@ Expected acceptance: failing-before/fixed-after proof; exact commit; linked rece
 
 ## 2026-10-12 — Unclaimed escalation per-facility rule (careops-alerts-facility-policy-isolation-001)
 Unclaimed step now selects each request's own facility rule via `escalation_tick.rule_for` (defaults when none); was first-stored-rule-for-all. Backend 608/0/31. Report: docs/reports/2026-10-12-alerts-facility-policy-isolation.md. Note: tasks/residents/alerts carry no facility_id yet.
+
+## 2026-10-12 — Alerts fallback contract (careops-alerts-fallback-contract-001)
+Contract + first gap: escalation tick failure/recovery now receipted (`escalation_tick.tick_once`). Backend 609/0/31. Report: docs/reports/2026-10-12-alerts-fallback-contract.md. Next gap: stopped/disabled loop undetected.

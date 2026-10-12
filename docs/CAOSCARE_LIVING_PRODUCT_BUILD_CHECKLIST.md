@@ -304,7 +304,7 @@ Current status: **ACTIVE. Transportation development slices are DEV_ACCEPTED; au
 
 - [!] Canonical state model is unresolved; historical evidence records competing implementations.
 - [~] Nursing unclaimed-request timer behavior is DEV_ACCEPTED on `e2a8770` + `28c0729` + `743c4d2`: one existing tick, 10-minute default threshold, one atomic receipt, repeated/concurrent-tick idempotency, stop after assignment/closure, supervisor visibility and truthful Aria status. Broader alert escalation levels/policy remain unresolved and are not OWNER_ACCEPTED / DONE.
-- [~] One escalation model, policy editor, acknowledgements, timers, fallback, receipts, and acceptance test. DEV_ACCEPTED parts (2026-10-12): canonical state contract and acknowledge/close/ingress receipts (`docs/reports/2026-10-12-alerts-canonical-state.md`); policy editor validated + receipted, runtime-proven through `escalation_tick` (`a7c406d`, `docs/reports/2026-10-12-alerts-policy-editor.md`); unclaimed-request step uses each facility's own rule (`379139f`, `docs/reports/2026-10-12-alerts-facility-policy-isolation.md`). Open: owner decision on which roles may acknowledge/close; "fallback" behaviour not yet defined/proven; full Alerts section acceptance run.
+- [~] One escalation model, policy editor, acknowledgements, timers, fallback, receipts, and acceptance test. DEV_ACCEPTED parts (2026-10-12): canonical state contract and acknowledge/close/ingress receipts (`docs/reports/2026-10-12-alerts-canonical-state.md`); policy editor validated + receipted, runtime-proven through `escalation_tick` (`a7c406d`, `docs/reports/2026-10-12-alerts-policy-editor.md`); unclaimed-request step uses each facility's own rule (`379139f`, `docs/reports/2026-10-12-alerts-facility-policy-isolation.md`). Fallback contract written (`docs/reports/2026-10-12-alerts-fallback-contract.md`): tick failure/recovery receipted (DEV_ACCEPTED); SMS unconfigured/failing already honest. Open: owner decision on which roles may acknowledge/close; a stopped/disabled tick loop is not yet detected; full Alerts section acceptance run.
 
 Milestone: each department has a normal-work workspace, not a dead demo panel.
 
@@ -965,3 +965,11 @@ Issue #129 is the dispatch channel to existing coordinator `caoscare-1-ee`. ACK/
 - **Remaining Alerts criteria (re-inventory):** 1. owner decision — which roles may acknowledge/close a help alert (any signed-in role can today; receipts record `signed_in:<role>`); not decided here. 2. "fallback" — not yet defined in a contract or test (candidates: what happens when the tick is down, or SMS is unconfigured); needs a definition before it can be proven. 3. Records carry no `facility_id` yet, so per-facility policy applies only once they do (single community rule today). 4. One full Alerts section acceptance run (owner/nurse, desktop/390 px) once 1–2 are settled.
 - **Loaded:** dev backend `e228d69`, PID 1544950; production `ff87c22` unchanged. Cost UNKNOWN.
 - **Blocker:** NONE for docs. Michael: the acknowledge/close role-policy decision.
+
+### Update 2026-10-12 — Alerts fallback contract (careops-alerts-fallback-contract-001)
+
+- Contract: escalation and outside notification are additions to the on-site alert, never a condition for it. Details and proof: `docs/reports/2026-10-12-alerts-fallback-contract.md`.
+- (a) Tick failure: first gap repaired — a failing tick is receipted once (`escalation_tick_failed`), recovery chained (`escalation_tick_recovered`); alert stays listed/acknowledgeable; no delivery claimed. Backend 609/0/31. DEV_ACCEPTED, not owner-accepted.
+- (b) SMS unconfigured/failing: already honest (`logged` / `failed` / `sent`=unverified, new receipt per attempt); no change.
+- Next gap: a stopped or disabled tick loop leaves no record.
+- Owner decision still open: acknowledge/close roles.
