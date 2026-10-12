@@ -1,6 +1,6 @@
 # CAOSCare — Living Product Build Checklist
 
-Updated: 2026-10-12 (04:16 CDT; Housekeeping inspection DEV_ACCEPTED / READY_FOR_OWNER_REVIEW; Housekeeping supplies/linen prepared).
+Updated: 2026-10-12 (04:22 CDT; Housekeeping supplies/linen ACKED / WORKING).
 
 This is the owner-facing product build and progress tracker for the Care Operations build. Canonical owner direction: [Issue #129](https://github.com/caosos/CAOSCARE.COM/issues/129). Detailed historical evidence remains in [PILOT1_EXECUTION_CHECKLIST.md](https://github.com/caosos/CAOSCARE.COM/blob/integration/2026-09-27/docs/PILOT1_EXECUTION_CHECKLIST.md). This file controls current phase, active task, milestones, ETA, blockers, and the reporting contract.
 
@@ -91,7 +91,7 @@ check); tests `scripts/owner_intake/tests/test_eta_receipts.py`.
 ## Current build control
 
 - **Current phase:** 3/7 — Care Operations workspaces.
-- **ONE current bounded task:** `careops-housekeeping-supplies-linen-001` — READY / DISPATCHING through the existing coordinator `caoscare-1-ee`. Inspect and reuse the canonical inventory, StaffTask/work-request, department queue, receipt, history, resident-status, and Aria-status structures; do not create a parallel inventory truth. With one clearly labeled synthetic Housekeeping supply/linen request tied to a room or area, prove item and quantity capture, authorized acknowledgement/issue/delivery-or-fulfilment using existing lifecycle semantics, truthful stock/status if an inventory source already exists, role refusal, linked receipts and history, Housekeeping/Admin desktop and 390 px behavior, resident/Aria truthful status, focused/full gates, exact tested/loaded revisions, and fresh host evidence. Repair only the first proven gap. Stop before purchasing, vendor orders, paid commitments, external delivery, production mutation, audio/Hey Aria work, duplicate infrastructure, or PR #41/#42/#131 merge.
+- **ONE current bounded task:** `careops-housekeeping-supplies-linen-001` — ACKED / WORKING through the existing coordinator `caoscare-1-ee` and existing worker `da-4d960cc7c3`; development backend reported loaded at `a38d6d1`. Inspecting for an existing inventory/stock source and the current Aria/front-desk/queue capture path, then proving one labeled supply/linen request end to end and repairing only the first proven gap. No purchasing, vendor orders, paid commitments, external delivery, production mutation, audio/Hey Aria work, duplicate infrastructure, or PR #41/#42/#131 merge. ETA approximately Monday, October 12, 2026 — 5:49 AM America/Chicago; local-watchdog next check Monday, October 12, 2026 — 5:19:26 AM America/Chicago; blocker NONE.
 - **Control issue / dispatch channel:** [#129](https://github.com/caosos/CAOSCARE.COM/issues/129).
 - **Completed review:** [PR #130](https://github.com/caosos/CAOSCARE.COM/pull/130), merged into integration.
 - **Integration branch:** `integration/2026-09-27`; current accepted therapy-conflict product commit `77f83d3d53e17ffb75c71d137ab876e50552efe9` with guarded dev restart `1bf1bec26ea58a6c55730fea3c858734eb788d54`. This later integration work is not in production `ff87c22`; the release baseline is separate.
@@ -691,4 +691,16 @@ Issue #129 is the dispatch channel to existing coordinator `caoscare-1-ee`. ACK/
 - **Tested / loaded:** development backend tested/loaded `a38d6d1`; relevant frontend tested/served through `0ae2dac`; production remains `ff87c22` unchanged. Latest host/process observation Monday, October 12, 2026 — 4:14:58 AM America/Chicago: existing coordinator idle; control-plane service `f1db2d358ca1`; repository `cd076d251ab9` newer and not loaded. GitHub activity alone is not host-liveness proof.
 - **Verdict:** this bounded inspection slice is READY_FOR_OWNER_REVIEW; only Michael’s explicit approval can make it OWNER_ACCEPTED / DONE. Full Housekeeping and Care Operations remain incomplete. `DepartmentQueue.jsx` is 435 lines; split it before or with the next growth.
 - **Next single bounded task:** `careops-housekeeping-supplies-linen-001` through the existing coordinator. Inspect and reuse canonical inventory/work-request truth first; prove one labeled synthetic room/area supply-or-linen request through item/quantity, authorized acknowledgement and fulfilment, truthful stock/status where an inventory source exists, refusal, linked receipts/history, Housekeeping/Admin desktop and 390 px, resident/Aria truth, full gates, exact loaded revisions, and fresh host evidence. Repair only the first proven gap. Stop before purchasing, vendor orders, paid commitments, external delivery, production mutation, audio/Hey Aria, duplicate infrastructure, or PR merges.
+- **Blocker:** NONE. Michael action: NOTHING.
+
+
+### Update 2026-10-12 04:22 CDT (Housekeeping supplies/linen ACKED / WORKING)
+
+- **ACK/WORKING receipt — `careops-housekeeping-supplies-linen-001`:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6121342527; transport-only mirror https://github.com/caosos/CAOSCARE.COM/pull/131#issuecomment-6121380661.
+- **Responsible coordinator / worker / stage:** existing coordinator `caoscare-1-ee` / existing worker `da-4d960cc7c3` / WORKING.
+- **Evidence reviewed / plan:** inspect for any canonical inventory or stock source and how Aria `request_staff_help`, the front-desk form, and the department queue capture a supply/linen ask; prove one labeled request end to end; build only the first proven gap; no purchasing or vendor action.
+- **Tested / loaded state:** no new product commit or test result at ACK. Development backend reported loaded at `a38d6d1`; prior accepted inspection gates remain backend 596 passed / 0 failed / 31 skipped and frontend 89 suites / 636 through `0ae2dac`; production remains `ff87c22` unchanged.
+- **Host observation:** Monday, October 12, 2026 — 4:21:21 AM America/Chicago: coordinator `caoscare-1-ee` busy; control-plane service `f1db2d358ca1`; repository `cd076d251ab9` newer and not loaded. GitHub activity alone is not host-liveness proof.
+- **ETA / next check:** approximately Monday, October 12, 2026 — 5:49 AM America/Chicago; existing LOCAL watchdog next_check_at Monday, October 12, 2026 — 5:19:26 AM America/Chicago.
+- **Expected completion evidence:** exact commits; focused/full tests; one labeled desktop and 390 px browser workflow; refusal; resident/Aria truth; linked receipts/history; exact tested and loaded revisions; newest timestamped host observation; cost or UNKNOWN.
 - **Blocker:** NONE. Michael action: NOTHING.
