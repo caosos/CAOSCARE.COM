@@ -9023,3 +9023,8 @@ Coordinator receipts prove three serial development completions after host recov
 The earlier 23:21 supervisor dispatch of `careops-transport-resources-001` raced with the coordinator's completion and is superseded. Coordinator receipt #6117697061 proves **DEV_ACCEPTED** at `11fe3f2734acff1e104b9f6c5cfb9994a9e789bf`: frontend 81/607, build compiled, browser 8/8; development frontend serves the commit, backend remains `f4f210f`; Sunday, October 11, 2026 — 11:22 PM America/Chicago host observation says dev `:8092` healthy. Production remains `ff87c22`; no combined-status contexts; not LIVE_VERIFIED or OWNER_ACCEPTED / DONE.
 
 **ONE current bounded task:** `careops-transport-calendar-001`. Reproduce the empty/unchanged calendar with labeled canonical rides, repair the first proven display/navigation/filter defect, make empty/load-failure truth explicit, open real requests, and prove authorization plus desktop/390 px behavior. Issue #129 dispatches to existing `caoscare-1-ee`; ACK/WORKING is due Sunday, October 11, 2026 — 11:29 PM America/Chicago. ETA UNKNOWN pending that receipt.
+
+---
+
+## 2026-10-12 — Transport calendar: an empty day points to where the rides are (careops-transport-calendar-001)
+Calendar response gains `elsewhere` (next dates with open rides; open unbooked requests dated before today, same rule as Unresolved) and defaults to the facility date instead of UTC. UI strip with jump buttons and the past-dated count. Backend gate 559 / 0 / 31 (new `test_transport_calendar_elsewhere.py`), frontend 82 suites / 609, build compiled; dev-site headless 14/14. Dev backend restarted on `7a7cd92` (pid 1144062; previous log /tmp/room214_backend_922919e.log). Report `docs/reports/2026-10-12-transport-calendar-empty.md`. Not deployed.
