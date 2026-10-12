@@ -2,27 +2,17 @@ import React, { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Label } from "../components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "../components/ui/dialog";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "../components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Checkbox } from "../components/ui/checkbox";
 import { Badge } from "../components/ui/badge";
-import { Trash2, Plus, Copy, Sparkles } from "lucide-react";
+import { Trash2, Plus, Copy, Sparkles, Pencil } from "lucide-react";
+import FamilyContactForm from "../components/FamilyContactForm";
 import { toast } from "sonner";
-
-const NOTIFY_OPTIONS = [
-  { key: "emergency", label: "Emergency" },
-  { key: "assist", label: "Assist calls" },
-  { key: "wander", label: "Wander / geofence" },
-  { key: "daily_summary", label: "Daily summary" },
-];
 
 export default function FamilyTab({ residents }) {
   const [contacts, setContacts] = useState([]);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ resident_id: "", name: "", relationship: "", email: "", phone: "", notify_on: ["emergency", "wander"] });
+  const [editing, setEditing] = useState(null);
 
   const fetchAll = async () => {
     try {
@@ -31,20 +21,6 @@ export default function FamilyTab({ residents }) {
     } catch {}
   };
   useEffect(() => { fetchAll(); }, []);
-
-  const create = async (e) => {
-    e.preventDefault();
-    if (!form.resident_id) { toast.error("Select a resident"); return; }
-    try {
-      await api.post("/family-contacts", form);
-      toast.success("Family contact added");
-      setOpen(false);
-      setForm({ resident_id: "", name: "", relationship: "", email: "", phone: "", notify_on: ["emergency", "wander"] });
-      fetchAll();
-    } catch (err) {
-      toast.error(err?.response?.data?.detail || "Failed");
-    }
-  };
 
   const remove = async (id) => {
     if (!window.confirm("Remove this contact?")) return;
@@ -63,10 +39,6 @@ export default function FamilyTab({ residents }) {
     }
   };
 
-  const toggleNotifyOn = (key) => {
-    const has = form.notify_on.includes(key);
-    setForm({ ...form, notify_on: has ? form.notify_on.filter((k) => k !== key) : [...form.notify_on, key] });
-  };
 
   return (
     <div className="space-y-6" data-testid="family-panel">
@@ -95,47 +67,9 @@ export default function FamilyTab({ residents }) {
             >
               <Sparkles className="w-4 h-4 mr-2" /> Generate tonight's haikus
             </Button>
-            <Dialog open={open} onOpenChange={setOpen}>
-              <DialogTrigger asChild>
-                <Button className="bg-caos-forest hover:bg-caos-forest-hover rounded-full" data-testid="add-family-btn">
-                  <Plus className="w-4 h-4 mr-2" /> Add family contact
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle className="font-display">New family contact</DialogTitle></DialogHeader>
-                <form onSubmit={create} className="space-y-3">
-                  <div>
-                    <Label>Resident</Label>
-                    <Select value={form.resident_id} onValueChange={(v) => setForm({ ...form, resident_id: v })}>
-                      <SelectTrigger data-testid="fam-resident"><SelectValue placeholder="Pick a resident" /></SelectTrigger>
-                      <SelectContent>
-                        {(residents || []).map((r) => (
-                          <SelectItem key={r.resident_id} value={r.resident_id}>{r.name} · Room {r.room}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div><Label>Name</Label><Input required data-testid="fam-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Liam O'Brien" /></div>
-                    <div><Label>Relationship</Label><Input data-testid="fam-rel" value={form.relationship} onChange={(e) => setForm({ ...form, relationship: e.target.value })} placeholder="son" /></div>
-                  </div>
-                  <div><Label>Phone (SMS)</Label><Input data-testid="fam-phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+15551234567" /></div>
-                  <div><Label>Email</Label><Input type="email" data-testid="fam-email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="family@example.com" /></div>
-                  <div>
-                    <Label>Notify on</Label>
-                    <div className="grid grid-cols-2 gap-2 mt-2">
-                      {NOTIFY_OPTIONS.map((opt) => (
-                        <label key={opt.key} className="flex items-center gap-2 cursor-pointer" data-testid={`fam-notify-${opt.key}`}>
-                          <Checkbox checked={form.notify_on.includes(opt.key)} onCheckedChange={() => toggleNotifyOn(opt.key)} />
-                          <span className="text-sm">{opt.label}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                  <DialogFooter><Button type="submit" className="bg-caos-forest" data-testid="fam-save">Save</Button></DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
+            <Button className="bg-caos-forest hover:bg-caos-forest-hover rounded-full" onClick={() => setOpen(true)} data-testid="add-family-btn">
+              <Plus className="w-4 h-4 mr-2" /> Add family contact
+            </Button>
           </div>
         </div>
 
@@ -188,6 +122,9 @@ export default function FamilyTab({ residents }) {
                           <Copy className="w-4 h-4" />
                         </Button>
                       )}
+                      <Button variant="ghost" size="sm" title="Edit contact" onClick={() => setEditing(c)} data-testid={`edit-fam-${c.contact_id}`}>
+                        <Pencil className="w-4 h-4" />
+                      </Button>
                       <Button variant="ghost" size="sm" onClick={() => remove(c.contact_id)} data-testid={`del-fam-${c.contact_id}`}>
                         <Trash2 className="w-4 h-4 text-caos-terracotta" />
                       </Button>
@@ -202,6 +139,8 @@ export default function FamilyTab({ residents }) {
           </TableBody>
         </Table>
       </Card>
+      <FamilyContactForm open={open} onOpenChange={setOpen} residents={residents} onSaved={fetchAll} />
+      <FamilyContactForm open={!!editing} onOpenChange={(o) => { if (!o) setEditing(null); }} residents={residents} contact={editing} onSaved={fetchAll} />
     </div>
   );
 }

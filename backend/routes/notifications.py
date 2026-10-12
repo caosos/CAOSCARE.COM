@@ -4,7 +4,7 @@ are re-exported here because existing callers import them from this module."""
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends
 
-from models import NotificationTest, FamilyContact, FamilyContactCreate, FamilyContactCallApproval, now_utc
+from models import NotificationTest, FamilyContact, FamilyContactCreate, FamilyContactCallApproval, FamilyContactUpdate, now_utc
 from deps import db, get_current_user, require_admin
 from routes.notification_delivery import (  # noqa: F401 - send_* re-exported
     send_email, send_sms, record_undeliverable, provider_config, _save as _log_notification,
@@ -149,6 +149,33 @@ async def notifications_status(user=Depends(require_admin)):
 
 
 # -------- Family contacts --------
+_FAMILY_FIELDS = ("resident_id", "name", "relationship", "email", "phone", "notify_on", "allow_calls")
+
+
+def _family_summary(doc: Optional[dict]) -> Optional[dict]:
+    return {k: doc.get(k) for k in _FAMILY_FIELDS} if doc else None
+
+
+async def _family_receipt(action: str, contact_id: str, user: dict, before: Optional[dict], after: Optional[dict]) -> dict:
+    """One receipt per family-contact change, chained per contact (receipt law)."""
+    from routes.actor_context import actor_from_user
+    from routes.receipts import create_receipt
+    from models import uid
+    actor = actor_from_user(user)
+    earlier = await db.receipts.find({"related_object_type": "family_contact", "related_object_id": contact_id},
+                                     {"_id": 0, "receipt_id": 1, "correlation_id": 1}).sort("created_at", -1).to_list(1)
+    parent = earlier[0]["receipt_id"] if earlier else None
+    rid = uid("rcpt")
+    return await create_receipt(
+        action_type=f"family_contact_{action}", related_object_type="family_contact", related_object_id=contact_id,
+        source="staff", status="completed", receipt_id=rid, result=f"family contact {action}",
+        resident_id=(after or before or {}).get("resident_id"), requested_by=user.get("user_id"),
+        provenance={**actor.receipt_fields(),
+                    "authority": f"admin_override:{actor.role}" if actor.role in ("owner", "admin") else "staff_contact_editor",
+                    "before_state": _family_summary(before), "after_state": _family_summary(after), "result_label": "verified",
+                    "parent_receipt_id": parent, "correlation_id": (earlier[0].get("correlation_id") or parent) if earlier else rid})
+
+
 @router.get("/family-contacts")
 async def list_family(user=Depends(get_current_user)):
     items = await db.family_contacts.find({}, {"_id": 0}).sort("name", 1).to_list(500)
@@ -169,22 +196,50 @@ async def create_family(data: FamilyContactCreate, user=Depends(get_current_user
     doc["created_at"] = doc["created_at"].isoformat()
     await db.family_contacts.insert_one(doc)
     doc.pop("_id", None)
+    await _family_receipt("created", doc["contact_id"], user, None, doc)
     return doc
+
+
+@router.patch("/family-contacts/{contact_id}")
+async def update_family(contact_id: str, data: FamilyContactUpdate, user=Depends(get_current_user)):
+    """Edit a contact's name, relationship, email, phone or alert choices. The phone of a contact approved
+    for resident calls is the number Aria dials, so changing it is owner/admin only (same rule as approval)."""
+    before = await db.family_contacts.find_one({"contact_id": contact_id}, {"_id": 0})
+    if not before:
+        raise HTTPException(status_code=404, detail="Contact not found")
+    changes = {k: v for k, v in data.model_dump(exclude_unset=True).items() if v is not None and v != before.get(k)}
+    if "name" in changes:
+        changes["name"] = changes["name"].strip()
+        if not changes["name"]:
+            raise HTTPException(status_code=422, detail="Name cannot be empty")
+    if "phone" in changes and before.get("allow_calls") and user.get("role") not in ("owner", "admin"):
+        raise HTTPException(status_code=403, detail="This contact is approved for resident calls; only an owner or admin can change the phone number")
+    if not changes:
+        return {**before, "changed": []}
+    await db.family_contacts.update_one({"contact_id": contact_id}, {"$set": changes})
+    after = {**before, **changes}
+    await _family_receipt("updated", contact_id, user, before, after)
+    return {**after, "changed": sorted(changes)}
 
 
 @router.patch("/family-contacts/{contact_id}/calls")
 async def set_family_call_approval(contact_id: str, data: FamilyContactCallApproval, user=Depends(require_admin)):
     """Staff approve (or withdraw) a contact for resident-initiated calls.
     Aria can only call approved contacts, using the number on file."""
-    r = await db.family_contacts.update_one({"contact_id": contact_id}, {"$set": {"allow_calls": data.allow_calls}})
-    if r.matched_count == 0:
+    before = await db.family_contacts.find_one({"contact_id": contact_id}, {"_id": 0})
+    if not before:
         raise HTTPException(status_code=404, detail="Contact not found")
+    await db.family_contacts.update_one({"contact_id": contact_id}, {"$set": {"allow_calls": data.allow_calls}})
+    if before.get("allow_calls") != data.allow_calls:
+        await _family_receipt("call_approval_changed", contact_id, user, before, {**before, "allow_calls": data.allow_calls})
     return {"ok": True, "allow_calls": data.allow_calls}
 
 
 @router.delete("/family-contacts/{contact_id}")
 async def delete_family(contact_id: str, user=Depends(get_current_user)):
+    before = await db.family_contacts.find_one({"contact_id": contact_id}, {"_id": 0})
     r = await db.family_contacts.delete_one({"contact_id": contact_id})
     if r.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Contact not found")
+    await _family_receipt("deleted", contact_id, user, before, None)
     return {"ok": True}

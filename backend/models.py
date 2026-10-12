@@ -602,6 +602,17 @@ class FamilyContactCallApproval(BaseModel):
     allow_calls: bool
 
 
+class FamilyContactUpdate(BaseModel):
+    """Editable contact fields. Not resident_id (a contact belongs to one resident), not allow_calls
+    (admin-only, PATCH .../calls), not portal_token."""
+    model_config = ConfigDict(extra="forbid")
+    name: Optional[str] = Field(default=None, min_length=1, max_length=120)
+    relationship: Optional[str] = Field(default=None, max_length=60)
+    email: Optional[str] = Field(default=None, max_length=200)
+    phone: Optional[str] = Field(default=None, max_length=40)
+    notify_on: Optional[List[Literal["emergency", "assist", "wander", "daily_summary"]]] = None
+
+
 # ---------- Wearable devices (P3) ----------
 class Wearable(BaseModel):
     model_config = ConfigDict(extra="ignore")
