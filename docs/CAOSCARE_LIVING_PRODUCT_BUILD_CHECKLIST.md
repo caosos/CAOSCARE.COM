@@ -1,6 +1,6 @@
 # CAOSCare — Living Product Build Checklist
 
-Updated: 2026-10-11 (23:53 CDT; clinician workspace DEV_ACCEPTED; menu visibility dispatched).
+Updated: 2026-10-12 (00:06 CDT; menu visibility DEV_ACCEPTED; Activities calendar dispatched).
 
 This is the owner-facing product build and progress tracker for the Care Operations build. Canonical owner direction: [Issue #129](https://github.com/caosos/CAOSCARE.COM/issues/129). Detailed historical evidence remains in [PILOT1_EXECUTION_CHECKLIST.md](https://github.com/caosos/CAOSCARE.COM/blob/integration/2026-09-27/docs/PILOT1_EXECUTION_CHECKLIST.md). This file controls current phase, active task, milestones, ETA, blockers, and the reporting contract.
 
@@ -91,7 +91,7 @@ check); tests `scripts/owner_intake/tests/test_eta_receipts.py`.
 ## Current build control
 
 - **Current phase:** 3/7 — Care Operations workspaces.
-- **ONE current bounded task:** `careops-menu-visible-001` — trace the existing menu publish/lookup path with a labeled dated breakfast/lunch/supper; prove the published menu appears in authorized operator and resident views and that “what’s for supper tonight?” returns the actual published meal or a truthful no-menu state. Reuse canonical menu items/versions and current endpoints; no production mutation, new store, external messaging, paid service, audio work, or parallel worker.
+- **ONE current bounded task:** `careops-activities-calendar-001` — trace the canonical Activities intake/publish data to the Daily schedule with one labeled dated activity; prove authorized staff and resident views show the same event, owner, time, place, and status; distinguish no published events from load failure; prove desktop and 390 px behavior. Reuse canonical schedule/version records; no production mutation, new store, external messaging, paid service, audio work, or parallel worker.
 - **Control issue / dispatch channel:** [#129](https://github.com/caosos/CAOSCARE.COM/issues/129).
 - **Completed review:** [PR #130](https://github.com/caosos/CAOSCARE.COM/pull/130), merged into integration.
 - **Integration branch:** `integration/2026-09-27`; current accepted therapy-conflict product commit `77f83d3d53e17ffb75c71d137ab876e50552efe9` with guarded dev restart `1bf1bec26ea58a6c55730fea3c858734eb788d54`. This later integration work is not in production `ff87c22`; the release baseline is separate.
@@ -587,3 +587,14 @@ Issue #129 is the dispatch channel to existing coordinator `caoscare-1-ee`. ACK/
 - User-visible result: **Resident care patterns** explains its purpose, distinguishes load failure, opens each event’s real close-out, flags older open records, fills its summary from the resident briefing, and refuses Kitchen/front-desk roles; owner/admin and Nursing retain access.
 - **ONE current bounded task:** `careops-menu-visible-001`. Trace the current publish/lookup path with one labeled dated breakfast/lunch/supper; prove the published menu appears in authorized operator and resident views and that “what’s for supper tonight?” returns the actual meal or an honest no-menu state. Reuse canonical menu/version records and existing routes. Exclude production mutation, new truth stores, external messaging, paid services, audio work, and parallel workers.
 - Issue #129 dispatches to existing coordinator `caoscare-1-ee`. ACK/WORKING is required by Sunday, October 11, 2026 — 11:58 PM America/Chicago with realistic ETA, exact next check, acceptance evidence, and blocker `NONE` or an exact NEED/BLOCKED receipt.
+
+
+---
+
+## 2026-10-12 00:06 CDT — menu visibility DEV_ACCEPTED; Activities calendar dispatched
+
+- `careops-menu-visible-001` is **DEV_ACCEPTED** at `4b270ef03fa9a0b79907b8363217faa9916d9c4e`. Coordinator receipt #6118089716 reports backend 567 passed / 0 failed / 31 skipped; frontend 85 suites / 617 tests; compiled build; labeled publish trace 10/10. Development backend loaded `4b270ef`, PID 1177328, dev `:8092` healthy; temporary `:3019` stopped and labeled test data removed, observed Monday, October 12, 2026 — 12:04:09 AM America/Chicago. GitHub exposes no combined-status contexts. Production remains `ff87c22`; not production loaded, LIVE_VERIFIED, or OWNER_ACCEPTED / DONE.
+- User-visible result: Menu and Daily schedule now say when nothing is published for the current day and name the last published day. A labeled published menu reached Aria's supper lookup and the resident screen.
+- Production menu ends Friday, October 2, 2026, and production Activities has no current published data. That requires authorized Kitchen/Activities staff or Michael to publish content, but it does not block compatible development work.
+- **ONE current bounded task:** `careops-activities-calendar-001`. Trace canonical Activities intake/publish data to the Daily schedule with one labeled dated activity; prove authorized staff and resident views show the same event, owner, time, place, and status; distinguish no published events from load failure; prove desktop and 390 px behavior. Reuse canonical schedule/version records. Exclude production mutation, new truth stores, external messaging, paid services, audio work, and parallel workers.
+- Issue #129 dispatches to existing coordinator `caoscare-1-ee`. ACK/WORKING is required by Monday, October 12, 2026 — 12:11 AM America/Chicago with realistic ETA, exact next check, acceptance evidence, and blocker `NONE` or an exact NEED/BLOCKED receipt.
