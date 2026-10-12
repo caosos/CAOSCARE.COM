@@ -22,20 +22,23 @@ describe("capability status registry", () => {
     for (const c of [...ALL_CAPABILITIES, ...ROOM_FEATURES]) expect([c.id, c.status]).toEqual([c.id, CAPABILITY_STATUS[c.id]]);
   });
 
-  // 2026-09-27 audit. Changing this list needs new acceptance evidence
+  // 2026-09-27 audit, 2026-10-12 owner direction (test-room/test-environment
+  // evidence in status.js). Changing this list needs new acceptance evidence
   // recorded in status.js and docs/PROJECT_STATE.md.
   test("only evidence-backed capabilities are Working or In pilot", () => {
     const accepted = Object.entries(CAPABILITY_STATUS).filter(([, s]) => isDemonstrable(s)).map(([id]) => id).sort();
-    expect(accepted).toEqual(["lighting", "rf_pendant", "room_screen", "voice"]);
+    expect(accepted).toEqual([
+      "activities", "administration", "dining", "escalation", "front_desk", "help", "housekeeping", "lighting",
+      "low_vision", "maintenance", "nursing", "one_press", "rf_pendant", "room_screen", "staff_dashboard",
+      "therapy", "transportation", "voice",
+    ]);
   });
 
-  test("audited capabilities keep their corrected status", () => {
+  test("capabilities without test-room evidence stay below pilot", () => {
     const expected = {
-      one_press: "in_development", help: "in_development", nursing: "in_development", dining: "in_development",
-      maintenance: "in_development", housekeeping: "in_development", administration: "in_development",
-      low_vision: "in_development", front_desk: "in_development", activities: "in_development",
-      transportation: "in_development", escalation: "in_development", tv: "in_development", climate: "in_development",
-      staff_dashboard: "in_development", front_desk_calls: "planned", family_call: "planned", phone: "planned",
+      tv: "in_development", climate: "in_development",   // no real TV; AC commands unverified/failing
+      front_desk_calls: "planned", family_call: "planned", phone: "planned", location: "planned",
+      blinds: "planned", wearables: "planned", beauty: "planned",
     };
     for (const [id, s] of Object.entries(expected)) expect([id, statusOf(id)]).toEqual([id, s]);
   });
