@@ -1,6 +1,6 @@
 # CAOSCare — Living Product Build Checklist
 
-Updated: 2026-10-11 (19:58 CDT; routing exceptions DEV_ACCEPTED; ETA/watchdog adoption tested; Transportation unresolved count dispatched while production Transportation LIVE_VERIFY remains blocked).
+Updated: 2026-10-11 (23:21 CDT; Transportation New ride, operations navigation, and Family add/edit DEV_ACCEPTED; Transportation resources guidance dispatched).
 
 This is the owner-facing product build and progress tracker for the Care Operations build. Canonical owner direction: [Issue #129](https://github.com/caosos/CAOSCARE.COM/issues/129). Detailed historical evidence remains in [PILOT1_EXECUTION_CHECKLIST.md](https://github.com/caosos/CAOSCARE.COM/blob/integration/2026-09-27/docs/PILOT1_EXECUTION_CHECKLIST.md). This file controls current phase, active task, milestones, ETA, blockers, and the reporting contract.
 
@@ -91,7 +91,7 @@ check); tests `scripts/owner_intake/tests/test_eta_receipts.py`.
 ## Current build control
 
 - **Current phase:** 3/7 — Care Operations workspaces.
-- **ONE current bounded task:** `careops-transport-new-order-001` — reproduce the owner-reported unavailable “New order” control by intended role, then repair the canonical transport-request entry path or remove/relabel a misleading duplicate. Transportation authenticated LIVE_VERIFY on deployed `ff87c22` remains preserved and blocked on a signed-in authorized role plus one driver and one vehicle.
+- **ONE current bounded task:** `careops-transport-resources-001` — audit the Transportation resources screen by authorized and refused roles; explain the exact driver, vehicle, login-link, buffer, and assignment prerequisites; repair misleading or absent empty/error guidance; prove desktop and 390 px behavior without creating a new store or modifying production data.
 - **Control issue / dispatch channel:** [#129](https://github.com/caosos/CAOSCARE.COM/issues/129).
 - **Completed review:** [PR #130](https://github.com/caosos/CAOSCARE.COM/pull/130), merged into integration.
 - **Integration branch:** `integration/2026-09-27`; current accepted therapy-conflict product commit `77f83d3d53e17ffb75c71d137ab876e50552efe9` with guarded dev restart `1bf1bec26ea58a6c55730fea3c858734eb788d54`. This later integration work is not in production `ff87c22`; the release baseline is separate.
@@ -540,3 +540,16 @@ The prior M1 text saying `main` promotion awaits owner commands is stale. GitHub
 - **ONE current bounded task:** `careops-transport-new-order-001`. Reproduce the owner-reported unavailable **New order** control using the intended roles and trace whether it is the canonical transport-request entry or a misleading duplicate of **New ride**. If legitimate, make it visible and usable for the authorized role, create only the canonical request, and prove it appears in the queue/calendar with a linked receipt. If redundant or misleading, remove or rename it truthfully. Prove authorization/refusal, empty/error states, desktop and 390 px behavior, no duplicate records, and no parallel truth store.
 - Explicit ACK/WORKING is due by **2026-10-11 21:20 CDT** with responsible coordinator/worker, stage, evidence, realistic ETA, exact America/Chicago `next_check_at`, expected acceptance evidence, and blocker `NONE`; otherwise publish an exact NEED_HOST_RECOVERY. No duplicate coordinator, worker, queue, monitor, or truth file.
 - Slack liaison processed through `1791767219.741959` (2026-10-11 20:06:59 CDT). That input was a CAOSCare event-connection test only; it did not dispatch work or create an owner decision.
+
+
+---
+
+## Checkpoint — 2026-10-11 23:21 CDT — three development completions reconciled; Transportation resources guidance dispatched
+
+- `careops-transport-new-order-001` is **DEV_ACCEPTED** at `0226119d61429db76d81febecbbeb1ec8a4b4a10`: backend 550 passed / 0 failed / 31 skipped; frontend 79 suites / 598; build compiled; isolated browser 10/10. The admin Transportation daily screen now opens the existing canonical **New ride** form; unauthorized roles are refused and one authorized save produces one canonical request, origin receipt, Unresolved visibility, and calendar visibility. Development frontend served the change; backend remained loaded at `1d617b8`. Production remains `ff87c22`.
+- `careops-ops-nav-kitchen-001` and `careops-ops-nav-transport-001` are **DEV_ACCEPTED** at `4d0c473`: frontend 80 suites / 601, build compiled, browser 12/12 at desktop and 390 px. Kitchen and Transportation are now reachable under Admin → Community and overview department cards open the real workspace.
+- `careops-family-add-001` and `careops-family-edit-001` are **DEV_ACCEPTED** at backend `f4f210f` and frontend/docs `a96b18a019cad1fc60f9883ca46075e33963daa4`: backend 557 passed / 0 failed / 31 skipped; frontend 81 suites / 603; build compiled; browser 11/11. Development backend loaded `f4f210f` at 2026-10-11 23:19 CDT, PID 1128830, healthy with zero leases; frontend served `a96b18a`. Production remains `ff87c22`.
+- GitHub reports no combined-status contexts for the four implementation commits; the labeled coordinator receipts, reports, local gates, browser evidence, and timestamped host observation are the acceptance evidence. These slices are not production loaded, not LIVE_VERIFIED, and not OWNER_ACCEPTED / DONE.
+- Production Transportation LIVE_VERIFY remains separately blocked on a current signed-in authorized production role plus a labeled driver and vehicle. The prior coordinator session refused production SSH reads/writes; this does not block compatible development work.
+- **ONE current bounded task:** `careops-transport-resources-001`. Audit the existing Transportation resources UI by owner/admin, Transportation staff, and an unauthorized role. State exactly what is required before a ride can be assigned; make driver, vehicle, linked login/My rides, buffer behavior, role refusal, and empty/error states understandable. Reuse canonical driver/vehicle records and current endpoints; no new queue/store, production mutation, paid service, audio work, or parallel worker.
+- Dispatch is recorded in Issue #129. The existing coordinator `caoscare-1-ee` must publish ACK/WORKING with responsible worker, reviewed evidence, realistic ETA, exact America/Chicago `next_check_at`, expected acceptance evidence, and blocker `NONE` by Sunday, October 11, 2026 — 11:26 PM America/Chicago, or the existing local watchdog publishes an exact NEED/BLOCKED receipt.
