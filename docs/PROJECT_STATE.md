@@ -9198,3 +9198,16 @@ The ONE current bounded task is `careops-housekeeping-exception-lifecycle-001`, 
 
 ## 2026-10-12 — Housekeeping exception lifecycle (careops-housekeeping-exception-lifecycle-001)
 Housekeeping uses the shared queue, so escalate/review already applied; proven live (typed Aria request → housekeeper at 390 can't complete → owner review + dropdown assign in Claude Chrome → complete; nurse/maintenance 403; Aria truthful; 8 chained receipts; counts reconcile). One fix: neutral dialog example text (`8ed21cd`). Report `docs/reports/2026-10-12-housekeeping-exception-lifecycle.md`.
+
+
+## 2026-10-12 03:20 CDT — Housekeeping exception lifecycle DEV_ACCEPTED; scheduled work next
+
+Canonical coordinator DONE https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6120319393 and transport-only mirror https://github.com/caosos/CAOSCARE.COM/pull/131#issuecomment-6120332842 close `careops-housekeeping-exception-lifecycle-001` at the development-acceptance boundary. Backend remained `e2a8770`; frontend fix `8ed21cd6dbda30a4a4514deadb9cd2a65b53a704` made exception-dialog examples department-neutral; records/report are `347d2e6`+ and `docs/reports/2026-10-12-housekeeping-exception-lifecycle.md`. GitHub combined-status contexts for `8ed21cd` are absent.
+
+The shared DepartmentQueue and canonical lifecycle already supported Housekeeping. Live synthetic `task_256b9f7a6c7f` followed typed Aria creation → housekeeper claim/start/cannot-complete at 390 px → owner review and dropdown assignment to Demo - Rosa Vega in Claude Chrome → Housekeeping completion. Nurse and maintenance actions returned 403; typed Aria stayed truthful; eight transitions shared one workflow and every history entry had a receipt id; counts reconciled. Backend gate remained 593 passed / 0 failed / 31 skipped; frontend 88 suites / 631 tests; build compiled. Development backend tested/loaded `e2a8770`; frontend tested/served `8ed21cd`; production remains `ff87c22` unchanged.
+
+Latest timestamped host observation: Monday, October 12, 2026 — 3:11:39 AM America/Chicago from PR #131 bridge receipt 6120332842: existing coordinator `caoscare-1-ee` idle; control-plane service loaded `82b625303080`; repository `82b625303080` matched. GitHub activity is not host-liveness proof.
+
+Verdict: IMPLEMENTED / TESTED / DEV_ACCEPTED and ready to present for owner review; not OWNER_ACCEPTED / DONE. The full Housekeeping and broader Care Operations sections remain incomplete.
+
+The ONE current bounded task is `careops-housekeeping-schedule-001`, existing coordinator `caoscare-1-ee`, stage READY / DISPATCHING. Reuse the canonical StaffTask requested date/time, room/area location, Housekeeping queue, lifecycle service and receipts. Inspect first; create one labeled future Housekeeping job and prove authorized create/schedule, upcoming Housekeeping/Admin visibility, facility-local ordering, reschedule, start/complete, truthful owner/resident/Aria status, unauthorized refusal, one receipt chain, desktop/390 px, focused/full gates, exact tested/loaded revisions and fresh host evidence. Repair only the first proven gap. Stop before recurrence, inspection, supplies/linen, external delivery, production mutation, audio/Hey Aria, duplicate coordinator/worker/queue/watchdog/monitor, or PR #41/#42/#131 merge. Blocker: NONE. Michael action: NOTHING.
