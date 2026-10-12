@@ -34,8 +34,23 @@ complete this" without cancelling it or leaving it sitting with her, and a super
 ## Limits
 - Supervisor = owner/admin; there is no department lead role.
 - No automatic escalation of a request nobody picks up (alerts have one; tasks do not).
-- Reassigning from the admin queue dropdown was not clicked tonight (the nurse re-claimed instead); assign
-  itself is covered by the test.
 
 ## Gates
 Backend 592 passed / 0 failed / 31 skipped at `d16b3c7`; frontend 87 suites / 628; build compiled. Dev backend loaded `d16b3c7` (guarded restart). Production unchanged (`ff87c22`).
+
+## Correction and live reassignment (02:10–02:30 CDT)
+The first DONE overclaimed: the admin "Assign to" dropdown had not been used live. Trying it found a real defect:
+in the admin Nursing tab the list closed before a choice landed (no request sent), because `Row`/`Section` were
+components defined inside `DepartmentQueue` (a new type every render, so every card was rebuilt; confirmed in the
+page: the card element was replaced within 6 s). Fixed in `1af968f` (plain render functions); regression test
+`departmentQueueStableCards.test.js` fails on the old code. Frontend 88 suites / 629; build compiled.
+
+Live, demo request task_789c03588ae8 (raised through a typed Aria call, synthetic resident):
+- Owner in Claude Chrome assigned it to Demo - Nancy Reyes RN with the dropdown ("Done"; `03-owner-assigned-desktop.jpg`).
+- Receipt `task_assigned`, actor MICHAEL CHAMBERS, authority `admin_override:owner`, before `null` → after the nurse;
+  same workflow id as the origin.
+- Maintenance staff trying to change the assignment: 403.
+- The nurse sees it under "Assigned to me" at 390 and 1280, no overflow, no failed API calls (`04-nurse-sees-assigned-390.png`).
+- Typed Aria rt_62sib2cc_1791789384982: "Staff have acknowledged it… work hasn't started yet."
+- Note: only one nursing worker exists on the dev stack, so this was assign (Unassigned → nurse), not nurse → nurse.
+  Before the fix, my headless test as the nurse assigned and unassigned the same request (two receipts in the chain).
