@@ -1,6 +1,6 @@
 # CAOSCare — Living Product Build Checklist
 
-Updated: 2026-10-12 (05:30 CDT; Therapy permission boundaries DEV_ACCEPTED; staff conflict detection dispatched).
+Updated: 2026-10-12 (05:34 CDT; Therapy staff conflict detection ACKED / WORKING).
 
 This is the owner-facing product build and progress tracker for the Care Operations build. Canonical owner direction: [Issue #129](https://github.com/caosos/CAOSCARE.COM/issues/129). Detailed historical evidence remains in [PILOT1_EXECUTION_CHECKLIST.md](https://github.com/caosos/CAOSCARE.COM/blob/integration/2026-09-27/docs/PILOT1_EXECUTION_CHECKLIST.md). This file controls current phase, active task, milestones, ETA, blockers, and the reporting contract.
 
@@ -91,7 +91,7 @@ check); tests `scripts/owner_intake/tests/test_eta_receipts.py`.
 ## Current build control
 
 - **Current phase:** 3/7 — Care Operations workspaces.
-- **ONE current bounded task:** `careops-therapy-staff-conflict-001` — DELIVERED to the existing coordinator `caoscare-1-ee`; ACK / WORKING is required within 300 seconds, by Monday, October 12, 2026 — 5:35 AM America/Chicago. On canonical Therapy StaffTask planned data, detect the same Therapy staff/provider being double-booked across different residents; show the conflict in the existing Plan/detail/Upcoming surfaces; require an explicit receipted save-anyway override; preserve recurrence, single-occurrence edits, linked transportation, role boundaries, and resident-safe truth; prove overlap/non-overlap, authorization/refusal, desktop/390 px, receipts, full gates, exact tested/loaded revisions, and fresh host evidence. Repair only the first proven gap. Stop before clinical records, provider registry/billing, real data, production mutation, audio/Hey Aria, duplicate infrastructure, or PR merges. ETA UNKNOWN pending ACK; existing LOCAL watchdog next_check_at Monday, October 12, 2026 — 5:35 AM America/Chicago; blocker NONE.
+- **ONE current bounded task:** `careops-therapy-staff-conflict-001` — ACKED / WORKING through the existing coordinator `caoscare-1-ee` and worker `da-ed20c907a6`. The worker reviewed the existing same-resident 60-minute overlap check, its 409 + receipted save-anyway path, and canonical `provider_name` / `assigned_to` fields. It is extending that same path to other residents' open Therapy requests with the same normalized provider name or assignee, then running isolated HTTP, full gates, and desktop/390 px browser evidence. Development product remains loaded at `565cfa1` pending a current-task revision; production remains `ff87c22`. ETA approximately Monday, October 12, 2026 — 6:47 AM America/Chicago; existing LOCAL watchdog next_check_at Monday, October 12, 2026 — 6:47:20 AM America/Chicago; blocker NONE.
 - **Control issue / dispatch channel:** [#129](https://github.com/caosos/CAOSCARE.COM/issues/129).
 - **Completed review:** [PR #130](https://github.com/caosos/CAOSCARE.COM/pull/130), merged into integration.
 - **Integration branch:** `integration/2026-09-27`; current accepted therapy-conflict product commit `77f83d3d53e17ffb75c71d137ab876e50552efe9` with guarded dev restart `1bf1bec26ea58a6c55730fea3c858734eb788d54`. This later integration work is not in production `ff87c22`; the release baseline is separate.
@@ -763,3 +763,15 @@ Issue #129 is the dispatch channel to existing coordinator `caoscare-1-ee`. ACK/
 - **Remaining Therapy gaps:** staff double-booking across residents; then final staff/resident browser acceptance. No Therapy login exists on the development stack, so its current permission evidence is API-only. Completion/cancel/reopen dialogs do not yet explicitly say their entered text is resident-visible; fold that wording check into final browser acceptance unless earlier evidence proves a narrower repair is required.
 - **Next single bounded task:** `careops-therapy-staff-conflict-001` through the existing coordinator. Detect the same Therapy staff/provider overlapping across different residents on canonical planned data; require an explicit receipted save-anyway override; preserve recurrence, linked transportation, role boundaries and resident-safe truth; prove desktop/390 px, authorization/refusal, receipts, full gates, exact loaded revisions, and fresh host evidence. ACK / WORKING is required within 300 seconds after delivery.
 - **ETA / next check / blocker / owner action:** ETA UNKNOWN pending ACK; existing LOCAL watchdog next_check_at Monday, October 12, 2026 — 5:35 AM America/Chicago; blocker NONE; Michael action NOTHING.
+
+
+### Update 2026-10-12 05:34 CDT (Therapy staff conflict detection ACKED / WORKING)
+
+- **ACK/WORKING receipt — `careops-therapy-staff-conflict-001`:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6122483873; transport-only mirror https://github.com/caosos/CAOSCARE.COM/pull/131#issuecomment-6122520853.
+- **Responsible coordinator / worker / stage:** existing coordinator `caoscare-1-ee` / worker `da-ed20c907a6` / WORKING. ACK arrived before the 300-second deadline.
+- **Evidence reviewed / plan:** reuse the existing same-resident overlap check in `routes/schedule_conflict.py`, its 60-minute slot, 409 response, receipted save-anyway path, Upcoming conflict line, and canonical `provider_name` / `assigned_to` fields. Extend the same logic to other residents' open Therapy requests sharing the normalized provider name or assignee; prove isolated HTTP, full gates, desktop and 390 px.
+- **Tested / loaded state:** no new current-task product commit, test, or browser result at ACK. Development backend remains reported loaded at `565cfa1` from the accepted permission-boundary task; production remains `ff87c22` unchanged.
+- **Host observation:** Monday, October 12, 2026 — 5:34:18 AM America/Chicago: coordinator `caoscare-1-ee` busy; control-plane service `f1db2d358ca1`; repository `cd076d251ab9` newer and not loaded. GitHub activity alone is not host-liveness proof.
+- **ETA / next check:** approximately Monday, October 12, 2026 — 6:47 AM America/Chicago; existing LOCAL watchdog next_check_at Monday, October 12, 2026 — 6:47:20 AM America/Chicago.
+- **Expected completion evidence:** exact implementation commits; overlap/non-overlap across residents; normalized provider and assignee cases; explicit receipted override; recurrence/single-occurrence/linked-ride preservation; authorization/refusal; resident/Aria safety; desktop/390 px; full backend/frontend/build gates; exact tested/loaded revisions; newest host observation; cost or UNKNOWN.
+- **Blocker / owner action:** NONE / NOTHING.
