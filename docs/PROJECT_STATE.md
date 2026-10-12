@@ -192,3 +192,20 @@ ETA approximately Monday, October 12, 2026 — 8:00:46 AM America/Chicago. Exist
 
 ## 2026-10-12 — Alert device ingress (careops-alerts-ingress-receipts-001)
 `004c158`: wander/wearable/pendant-scaffold through `record_resident_activation` (device signals in `signals[]`), creation-receipt provenance. Backend 606/0/31. Dev backend `004c158` (pid 1506940, log /tmp/room214_backend_004c158.log; previous /tmp/room214_backend_fc9e95b.log).
+
+
+## 2026-10-12 07:38 CDT — Alert ingress DEV_ACCEPTED; policy editor DELIVERED
+
+Canonical completion source: https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6123477972. Product `004c158`; acceptance records `081b12953dbb457f3c5b5f3df7e5899b83365d60`; living-checklist boundary reconciliation `1d622640c822c36c573d265d6021e83110989f75`.
+
+`careops-alerts-ingress-receipts-001` is IMPLEMENTED / TESTED / DEV_ACCEPTED, not OWNER_ACCEPTED / DONE. Geofence, wearable, and pendant-scaffold sources now reuse the canonical one-open-event path. Device signals are distinct from presses and can only raise severity; one creation receipt preserves source/device/authority provenance. Backend 606 passed / 0 failed / 31 skipped. Development browser acceptance covered nurse 390 px and owner 1280 px, kept public status minimal, preserved acknowledge/close, and cleaned synthetic state. Tested and loaded development backend `004c158`, PID 1506940; frontend `db4317f`; production `ff87c22` unchanged. Cost UNKNOWN.
+
+Latest timestamped host observation Monday, October 12, 2026 — 6:36 AM America/Chicago: the existing coordinator receipt reported backend `004c158` loaded as PID 1506940. GitHub activity is not host-liveness proof.
+
+The ONE current bounded task is `careops-alerts-policy-editor-001`, delivered to existing coordinator `caoscare-1-ee`, awaiting ACK / WORKING within 300 seconds. It must inventory and reuse the canonical alert policy store, UI/API and `escalation_tick`; prove one owner/admin edit is provenance-receipted and changes the existing runtime; reject invalid edits and unauthorized roles; preserve defaults/fallback, resident/Aria/public safety, and the existing local timer/watchdog; run focused/full gates and desktop/390 px acceptance; clean synthetic state; and record exact tested/loaded revisions, newest host evidence and cost. It must repair only the first proven gap and must not decide the separate acknowledge/close role policy.
+
+Ordered remaining Alerts steps: 1. ACK and inventory policy configuration/runtime readers; 2. failing tests for policy edit, receipt/history, runtime effect and refusals; 3. first-gap repair; 4. prove edited policy, defaults and fallback through `escalation_tick`; 5. full gates and desktop/390 px browser; 6. cleanup and exact evidence; 7. reconcile checklist/Issue #129/PROJECT_STATE; 8. timer/fallback residue; 9. owner role-policy decision; 10. owner review when the section is complete.
+
+Upcoming milestones: 1. finish Alerts; 2. remaining Phase 3 workspaces; 3. Phase 4 schedules/resources; 4. Phase 5 communications; 5. Phase 6 pilot/reliability/accessibility; 6. Phase 7 release/live acceptance.
+
+ETA UNKNOWN pending ACK. Existing LOCAL watchdog next_check_at Monday, October 12, 2026 — 7:43:39 AM America/Chicago. Blocker NONE for compatible work. Michael action NOTHING now.
