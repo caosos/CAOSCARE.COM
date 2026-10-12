@@ -148,3 +148,27 @@ Append-only. One entry per verified check-in, tied to its receipt. A correction 
 - **next_check_at:** MISSING (blocked on owner approval)
 - **Blocker:** NEED_PERMISSION: owner approval required inside the coordinator terminal
 - **Michael action required:** In the coordinator terminal: yes, switch Room 214 to gpt-realtime-2.1 with marin, turn on the 10-minute continuity and owner v2, and run the test calls
+
+## Monday, October 12, 2026 — 1:32 AM America/Chicago
+- **Receipt:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6119048704
+- **Project:** CAOSCare
+- **Phase / position:** Resident Aria core live acceptance — default-off preparation complete; controlled Room 214 activation and firsthand acceptance remain next
+- **Completed since the prior check:** NO ACCEPTED CHANGE. Integration advanced with two unreceipted commits; neither is treated as tested, loaded, DEV_ACCEPTED, or live-accepted.
+- **Evidence:** `integration/2026-09-27` head `ec4a8d4ee4ec16348ffa351538edb5bbab698814` (1:28 AM CDT); parent `5736b03f223bd1140706633cf6b93d209a22ef4c` adds `CAOSCARE_REALTIME_VOICE`; head `ec4a8d4` repairs current/past classification for simulated demo-room requests and adds focused tests. GitHub combined-status contexts absent for both. Last accepted gate remains backend 586/0/31 and frontend 87 suites/624 at `e5c516a`. Last proven loaded dev backend `e5c516a`, PID 1246911; Room 214 `gpt-realtime`/`shimmer`, new flags off, listener unchanged; production `ff87c22`; Claude Chrome live acceptance not run. Latest timestamped CAOSCare host observation: Monday, October 12, 2026 — 1:16 AM America/Chicago. GitHub commits are not host-liveness proof. Slack processed through ts `1791783973.012309`; newer messages were other projects.
+- **Current bounded task (owner · stage):** `careops-resident-aria-core-reconciliation-001` · existing coordinator `caoscare-1-ee` · BLOCKED / NEED_PERMISSION for live Room 214 mutation and paid provider calls
+- **Remaining steps for this milestone:**
+  1. Receipt and reconcile `5736b03f` and `ec4a8d4`: scope, tests, tested/loaded state, host evidence, checklist and PROJECT_STATE
+  2. Michael supplies approval in the existing coordinator terminal
+  3. Controlled switch to `gpt-realtime-2.1` + `marin`, 10-minute continuity and owner v2, with rollback
+  4. Model/personality/continuity/live-lookup acceptance
+  5. Home Assistant lights/weather/timer tests; music only after a real media player exists
+  6. Bathroom request → Nursing queue; email delivery after provider key
+  7. SIM current-event truth and Claude Chrome resident/staff walkthrough
+- **Upcoming milestones:**
+  1. Transportation authenticated LIVE_VERIFY
+  2. Full owner/novice pilot walkthrough
+  3. Pilot Room 1 / Voice PE onboarding
+- **ETA:** UNKNOWN until terminal approval and a compliant coordinator receipt
+- **next_check_at:** MISSING — coordinator blocker receipt did not set one while awaiting Michael in that terminal
+- **Blocker:** NEED_PERMISSION in the coordinator terminal; separately, no Home Assistant media_player, Midea AC unavailable, RESEND_API_KEY unset, research provider unset, no Asterisk/Twilio/SIP account
+- **Michael action required:** In the existing CAOSCare coordinator terminal send: `yes, switch Room 214 to gpt-realtime-2.1 with marin, turn on the 10-minute continuity and owner v2, and run the test calls`
