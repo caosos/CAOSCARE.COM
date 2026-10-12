@@ -9,10 +9,10 @@ this shares the same StaffTask/Receipt records tasks.py owns rather than
 creating a parallel data model, and is mounted at the same /tasks prefix
 so the public URLs (/api/tasks/resident-request, .../status) don't move.
 """
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from models import RESIDENT_ORIGIN_SOURCES, StaffTask, TaskPriority, now_utc
 from deps import db, get_current_user
@@ -66,6 +66,11 @@ async def get_request_categories() -> list[str]:
 OPEN_TASK_STATUSES = ["pending", "in_progress"]
 
 
+class RequestItem(BaseModel):
+    item: str = Field(..., min_length=1, max_length=60)
+    quantity: int = Field(1, ge=1, le=20)
+
+
 class ResidentRequestInput(BaseModel):
     """Public — the resident-request-bus entry point Aria/the kiosk call.
     Deliberately narrow: no assigned_to, no arbitrary category, no title
@@ -79,6 +84,7 @@ class ResidentRequestInput(BaseModel):
     priority: TaskPriority = "normal"
     source: str = "aria_voice"  # "aria_voice" | "kiosk_button" | "front_desk" (auth required for front_desk)
     conversation_session_id: Optional[str] = None
+    items: Optional[List[RequestItem]] = Field(None, max_length=10)   # supplies/linens: item + quantity
 
 
 async def create_resident_request(data: ResidentRequestInput, *, user: Optional[dict] = None,
@@ -230,6 +236,7 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
         "room": data.room,
         "resident_words": data.resident_words,
         "conversation_session_id": data.conversation_session_id,
+        "items": [i.model_dump() for i in (data.items or [])],
         **marker,
     }
     await _resolve_denorms(payload)
@@ -294,6 +301,7 @@ def _resident_safe_view(task: dict, tz: str) -> dict:
         "task_id": task["task_id"],
         "category": task["category"],
         "what_for": task.get("resident_words") or task.get("description") or task.get("title") or "",
+        "items": task.get("items") or [],
         "status": status,
         "is_open": is_open,               # the operational current-vs-closed answer
         "acknowledged": request_status_view(task)["lifecycle"] != "open",

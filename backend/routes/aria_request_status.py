@@ -57,6 +57,11 @@ def _note(task: dict, tz: Optional[str], lead: str) -> str:
     return f" {lead}{stamp}: {text}."
 
 
+def items_text(items: list) -> str:
+    """'2 × towels, 1 × warm blanket' - only what the request recorded."""
+    return ", ".join(f"{i.get('quantity', 1)} × {i.get('item')}" for i in items)
+
+
 def request_status_view(task: dict, tz: Optional[str] = None) -> dict:
     """`task` is a raw staff_tasks doc (it carries event_log, needed for the
     note time). `tz` (facility timezone) enables the note's time label."""
@@ -88,4 +93,6 @@ def request_status_view(task: dict, tz: Optional[str] = None) -> dict:
                   f"picked it up yet.{_sched(task)}")
         if task.get("unclaimed_escalated_at"):
             spoken += " Because no one has taken it, it has been flagged to a supervisor."
+    if task.get("items"):   # supplies/linens: say exactly what was asked for, in every state
+        spoken += f" Asked for: {items_text(task['items'])}."
     return {"lifecycle": lifecycle, "opened_age": opened_age, "spoken": spoken}

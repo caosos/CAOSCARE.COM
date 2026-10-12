@@ -10,6 +10,7 @@ import { API } from "./api";
 import { transportStatusMessage, rideBookedMessage } from "./transportation";
 import { menuToolMessage, scheduleToolMessage } from "./communityServices";
 import { literalResidentWords, newRequestMessage, openRequestsMessage } from "./requestOverview";
+import { cleanItems } from "./requestItems";
 
 // 2026-08-23: the backend rejects an operational mutation (422 +
 // needs_clarification) when a free-text field claims a fact - so far only
@@ -69,6 +70,7 @@ export async function executeOperationsTool({ name, args, ctx }) {
         priority: args.priority || "normal",
         source: "aria_voice",
         conversation_session_id: sessionId || null,
+        items: cleanItems(args.items),   // supplies/linens: what and how many the resident asked for
       }),
     });
     if (!r.ok) {

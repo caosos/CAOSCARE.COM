@@ -19,6 +19,7 @@ import { detailsLine } from "../lib/appointmentDetails";
 import DepartmentDispatchNote from "../components/DepartmentDispatchNote";
 import { ReviewBadge, useExceptionReview } from "../components/ExceptionReview";
 import { inspectionText, useInspection } from "../components/InspectionControls";
+import { itemsLine } from "../lib/requestItems";
 
 const PRIO_STYLE = {
   urgent: "bg-caos-terracotta text-white",
@@ -216,6 +217,7 @@ export default function DepartmentQueue({ department, title, itemName = "request
             ) : t.description && t.description !== t.title && (
               <div className="text-sm text-caos-ink/80 line-clamp-2">{t.description}</div>
             )}
+            {itemsLine(t.items) && <div className="text-sm font-semibold text-caos-forest" data-testid={`wo-items-${t.task_id}`}>{itemsLine(t.items)}</div>}
             <ReviewBadge t={t} />
             {inspectionText(t) && <div className="text-sm text-caos-amber font-semibold" data-testid={`wo-returned-${t.task_id}`}>{inspectionText(t)}</div>}
             {t.notes && !(inspectionText(t) && t.notes.startsWith("Returned after inspection:")) && <div className="text-sm text-caos-ink/80">Note: {t.notes}</div>}

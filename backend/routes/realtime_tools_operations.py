@@ -45,7 +45,8 @@ def _build_operations_tools(request_categories: list[str] | None = None) -> list
                 "sent. Do NOT say a call is being connected or that the person "
                 "is coming - this tool only sends a message. "
                 "After calling this, "
-                "tell the resident the request was CREATED and sent - do not say "
+                "tell the resident the request is on the department's list (say it was "
+                "sent only if the result says the notice went out) - do not say "
                 "someone is already coming or already spoke to them unless "
                 "check_request_status confirms it. If the result says an open "
                 "request already existed (duplicate/re_request_count), tell the "
@@ -77,6 +78,14 @@ def _build_operations_tools(request_categories: list[str] | None = None) -> list
                         "type": "string",
                         "enum": ["low", "normal", "high", "urgent"],
                         "description": "Default 'normal' unless the resident indicates real urgency (but not emergency-level - use call_for_help for that)."
+                    },
+                    "items": {
+                        "type": "array",
+                        "description": "For supplies or linens (towels, blankets, toilet paper, sheets...): each item and how many THE RESIDENT asked for. Only what they said; if they gave no number, use 1.",
+                        "items": {"type": "object", "properties": {
+                            "item": {"type": "string"}, "quantity": {"type": "integer", "minimum": 1, "maximum": 20}},
+                            "required": ["item", "quantity"], "additionalProperties": False},
+                        "maxItems": 10
                     }
                 },
                 "required": ["category", "summary"],

@@ -843,6 +843,7 @@ class StaffTask(BaseModel):
     due_at: Optional[datetime] = None
     template_id: Optional[str] = None        # if spawned from a recurring template
     occurrence_date: Optional[str] = None    # the template day this occurrence is for (facility date)
+    items: List[dict] = Field(default_factory=list)   # supplies/linens asked for: [{item, quantity}]
     # ---- resident-request-bus fields (Terminal 8) ----
     priority: TaskPriority = "normal"
     source: TaskSource = "staff"

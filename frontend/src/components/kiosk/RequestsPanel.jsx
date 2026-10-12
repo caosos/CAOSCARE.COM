@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Wrench, Sparkles, Stethoscope, Car, HelpCircle, CheckCircle2 } from "lucide-react";
 import { API } from "../../lib/api";
+import { itemsLine } from "../../lib/requestItems";
 
 const CATEGORY_ICON = {
   maintenance: Wrench, housekeeping: Sparkles, nursing: Stethoscope, transportation: Car,
@@ -62,6 +63,7 @@ export default function RequestsPanel({ residentId, room }) {
                 {done ? <CheckCircle2 className="w-6 h-6 text-caos-forest shrink-0 mt-0.5" /> : <Icon className="w-6 h-6 text-caos-forest shrink-0 mt-0.5" />}
                 <div className="min-w-0 flex-1">
                   <p className="font-display font-semibold text-caos-forest leading-snug">{t.what_for || "Request"}</p>
+                  {itemsLine(t.items) && <p className="text-sm text-caos-ink/80" data-testid={`req-items-${t.task_id}`}>{itemsLine(t.items)}</p>}
                   <p className="text-xs uppercase tracking-wider text-caos-mute mt-1">
                     {t.category.replace(/_/g, " ")} · {STATUS_LABEL[t.status] || t.status}
                   </p>
