@@ -292,3 +292,12 @@ Agent: Claude Code (coordinator caoscare-1-ee). Branch `integration/2026-09-27`.
 
 ## 2026-10-12 16:35 CDT — Aria's opening after "Hey Aria"
 `7bac843` (Michael: greeting was the same every call and should be "Hey Michael" with context): new `routes/aria_opening.py` — wake-word start → one short answer to their name instead of the time-of-day greeting; every start names the previous call's first line so she varies it (read from db.conversations; no new store). Tests 5 new; backend gate 645/2/13 (same 2 pre-existing OpenAI-key failures). Dev backend restarted (room idle) → `7bac843`, PID 1916400, log /tmp/room214_backend_7bac843.log. Live check pending Michael's next "Hey Aria".
+
+## 2026-10-12 17:05 CDT — da-a3817b6b9c resident-Aria continuity + goodbye; PR #132 LIVE on caoscare.com
+Executing session caoscare-1-64 (b2 notified; ACK https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6133170717).
+- `9f71f10` goodbye: open tool calls answered before the goodbye is requested (fixes "I'm still waiting on that to finish"); goodbye = brief echo ("Okay, bye for now."), nothing else.
+- `9d15215` continuity: window 18 h → 72 h (same caps); header lets Aria notice recent/earlier talk in her own words (no script, no invention, never a reopened request); recent-return note invites a warm "didn't I just talk to you?"; age_phrase uses facility calendar days (9 PM last night ≠ "earlier today"). `test_aria_rewake_continuity.py` builds the real prompt for immediate re-wake and next-day. Also fixed the 2 long-failing tests (iter10 configured voice; iter8 auth header).
+- Gates: backend 650 passed / 0 failed / 14 skipped; frontend 96 suites / 660.
+- Dev: backend `9d15215` PID 1935308 (log /tmp/room214_backend_9d15215.log); Room 214 page rebuilt `9d15215`, kiosk reloaded, reconnected 16:56:28.
+- PRODUCTION: PR #132 merged by Michael; deployed `06e7e2b` to caoscare.com 17:03 CDT (backup /opt/caoscare/backups/mongo/20261012-220310-pre-deploy-ff87c22df1dd; rollback `deploy_caoscare.sh ff87c22`). Chrome: home page all In pilot except Building-wide location (Planned); live kiosk 390 px shows HC.
+- Open: real-voice evidence in Room 214 for re-wake greeting, next-day continuity, "bye for now".
