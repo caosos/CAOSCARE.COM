@@ -149,12 +149,34 @@ async def _dispatch_command(dev: dict, cmd: DeviceCommandInput, issued_by: str) 
 
 @router.post("/{device_id}/command")
 async def send_command(device_id: str, cmd: DeviceCommandInput, user=Depends(get_current_user)):
+    """Admin Devices screen. Owner/admin only (a staff login could otherwise switch any room's real
+    devices). Every command, success or failure, gets a receipt naming the user (receipt law)."""
+    if user.get("role") not in ("owner", "admin"):
+        raise HTTPException(status_code=403, detail="Only an owner or admin can command devices from here")
     dev = await db.smart_devices.find_one({"device_id": device_id}, {"_id": 0})
     if not dev:
         raise HTTPException(status_code=404, detail="Device not found")
     if cmd.action not in (dev.get("capabilities") or []):
         raise HTTPException(status_code=400, detail=f"Device does not support {cmd.action}")
-    return await _dispatch_command(dev, cmd, user.get("name"))
+    simulated = bool(simulation_fields(dev))
+    authority = f"admin_override:{user.get('role')}"
+    rcpt = dict(action_type="staff_device_command", related_object_type="device", related_object_id=device_id,
+                source="staff", resident_id=dev.get("resident_id"), room=dev.get("room"), requested_by=user.get("user_id"))
+    who = {"actor_id": user.get("user_id"), "actor_name": user.get("name"), "actor_role": user.get("role"),
+           "actor_type": "real-human", "identity_basis": "authenticated", "authority": authority, "simulated": simulated,
+           "before_state": dev.get("state") or {}}
+    asked = {"requested_action": cmd.action, "requested_value": cmd.value}
+    try:
+        result = await _dispatch_command(dev, cmd, user.get("name"))
+    except HTTPException as e:
+        await create_receipt(**rcpt, status="failed", result=str(e.detail),
+                             provenance={**who, "result_label": "failed", "after_state": asked})
+        raise
+    label = "simulated" if simulated else "verified" if result.get("verified") else "unverified"
+    await create_receipt(**rcpt, status="completed", result=result.get("ack_detail"),
+                         provenance={**who, "result_label": label, "after_state": {**asked, "state": result.get("state")},
+                                     "provider_refs": [result["command_id"]] if result.get("command_id") else []})
+    return result
 
 
 @router.get("/public/by-room/{room}")
