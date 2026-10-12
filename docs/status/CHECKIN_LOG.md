@@ -172,3 +172,21 @@ Append-only. One entry per verified check-in, tied to its receipt. A correction 
 - **next_check_at:** MISSING — coordinator blocker receipt did not set one while awaiting Michael in that terminal
 - **Blocker:** NEED_PERMISSION in the coordinator terminal; separately, no Home Assistant media_player, Midea AC unavailable, RESEND_API_KEY unset, research provider unset, no Asterisk/Twilio/SIP account
 - **Michael action required:** In the existing CAOSCare coordinator terminal send: `yes, switch Room 214 to gpt-realtime-2.1 with marin, turn on the 10-minute continuity and owner v2, and run the test calls`
+
+## Monday, October 12, 2026 — 1:37 AM America/Chicago
+- **Receipt:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6119091064
+- **Phase / position:** Resident Aria core live acceptance
+- **Completed since the prior check:** Owner-approved voice settings on dev; typed demo calls; staff side + SIM in Claude Chrome; 3 defects fixed
+- **Evidence:** docs/reports/2026-10-12-overnight-live-acceptance.md; dev aba31a8; frontend 87/626
+- **Current bounded task (owner · stage):** careops-resident-aria-core-reconciliation-001 DEV_ACCEPTED (typed)
+- **Remaining steps for this milestone:**
+  1. spoken test in Room 214 by Michael
+  2. come-help wording fix
+  3. 390px walkthrough
+- **Upcoming milestones:**
+  1. Transportation LIVE_VERIFY
+  2. owner walkthrough
+- **ETA:** wording fix ~1 h
+- **next_check_at:** 2026-10-12T02:37:10-05:00
+- **Blocker:** music/AC/email/calls/research dependencies
+- **Michael action required:** Speak to Aria in Room 214 and judge voice/personality
