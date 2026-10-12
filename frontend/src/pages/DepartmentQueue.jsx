@@ -18,6 +18,7 @@ import { rideLine, canRequestRide } from "../lib/rideLink";
 import { detailsLine } from "../lib/appointmentDetails";
 import DepartmentDispatchNote from "../components/DepartmentDispatchNote";
 import { ReviewBadge, useExceptionReview } from "../components/ExceptionReview";
+import { inspectionText, useInspection } from "../components/InspectionControls";
 
 const PRIO_STYLE = {
   urgent: "bg-caos-terracotta text-white",
@@ -128,6 +129,7 @@ export default function DepartmentQueue({ department, title, itemName = "request
   const isAdmin = ["owner", "admin"].includes(user?.role);
   const canPlan = (t) => isAdmin || showAssign || t.assigned_to === user?.user_id;
   const review = useExceptionReview(load);
+  const inspection = useInspection(load);
   // Planned visit window: PATCH /tasks/{id} with the same two fields the detail dialog saves (receipted as task_schedule_updated).
   // Save the plan. An overlap with the resident's other planned work comes back as a
   // 409 (schedule_conflict); staff then choose explicitly to save anyway, which the
@@ -215,6 +217,7 @@ export default function DepartmentQueue({ department, title, itemName = "request
               <div className="text-sm text-caos-ink/80 line-clamp-2">{t.description}</div>
             )}
             <ReviewBadge t={t} />
+            {inspectionText(t) && <div className="text-sm text-caos-amber font-semibold" data-testid={`wo-returned-${t.task_id}`}>{inspectionText(t)}</div>}
             {t.notes && <div className="text-sm text-caos-ink/80">Note: {t.notes}</div>}
             {(t.requested_for_date || t.requested_for_time_label) && (
               <div className="text-sm text-caos-forest" data-testid={`wo-planned-${t.task_id}`}>
@@ -366,10 +369,12 @@ export default function DepartmentQueue({ department, title, itemName = "request
                     {(showAssign || isAdmin) && (
                       <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => { setReopenFor(t.task_id); setReopenReason(""); }} data-testid={`wo-reopen-${t.task_id}`}>Reopen</Button>
                     )}
+                    {inspection.button(t, isAdmin)}
                     <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => setHistoryFor(t.task_id)} data-testid={`wo-history-${t.task_id}`}>History</Button>
                   </span>
                 </div>
                 {t.notes && <div className="text-xs text-caos-mute mt-0.5" data-testid={`wo-closed-note-${t.task_id}`}>Note: {t.notes}</div>}
+                {inspectionText(t) && <div className="text-xs text-caos-forest mt-0.5" data-testid={`wo-inspection-${t.task_id}`}>{inspectionText(t)}</div>}
               </div>
             ))}
           </div>
@@ -419,6 +424,7 @@ export default function DepartmentQueue({ department, title, itemName = "request
       <ConflictDialog open={!!conflict} onOpenChange={(o) => { if (!o) setConflict(null); }} summary={conflict?.summary}
         onSaveAnyway={() => savePlan(overridePayload(conflict.fields))} />
       {review.dialogs}
+      {inspection.dialog}
       <ReasonDialog open={!!cancelFor} onOpenChange={(o) => { if (!o) setCancelFor(null); }} title={`Cancel ${itemName}`}
         description="The request is closed as cancelled; the reason is recorded in its history and receipts." placeholder="Why is it cancelled? (required)"
         submitLabel="Cancel request" testId="wo-cancel" onSubmit={cancelRequest} />

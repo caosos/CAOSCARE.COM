@@ -45,6 +45,8 @@ function describe(e, task) {
       return { label: `Visit window set${by(e)}`, text: e.text };
     case "re_request":
       return { label: `Resident asked again (${Number(e.to) + 1}x)`, text: e.text };
+    case "inspected":
+      return { label: `Inspection${by(e)}`, text: e.text, kind: "note" };
     case "unclaimed_escalated":
       return { label: "Flagged to a supervisor: nobody claimed it", text: e.text, kind: "note" };
     case "escalated":

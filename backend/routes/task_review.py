@@ -14,6 +14,12 @@ receipt path (task_lifecycle.transition):
               uses the existing steps: assign it to someone else, or cancel
               it with a reason.
 
+  inspect   - (careops-housekeeping-inspection-001) an owner/admin inspects a
+              COMPLETED request: "pass" records the inspection (receipt
+              `task_inspected`, the request stays completed); "return" sends the
+              same request back for correction through the existing receipted
+              reopen (reason required), and records it as an inspection return.
+
 Cancelling with a reason (skip) and reassignment (assign) already existed and
 are not duplicated here.
 """
@@ -27,13 +33,19 @@ from models import now_utc
 from routes.actor_context import ActorContext, actor_from_user
 from routes.staff_scope import ADMIN_ROLES
 from routes.task_history import task_event
-from routes.task_lifecycle import LifecycleError, transition
+from routes import task_actions
+from routes.task_lifecycle import LifecycleError, check, transition
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
 class ReasonInput(BaseModel):
     reason: str = Field("", max_length=500)
+
+
+class InspectInput(BaseModel):
+    result: str = Field(..., pattern="^(pass|return)$")
+    note: str = Field("", max_length=500)
 
 
 def _ev(field: str, actor: ActorContext, rid: str, **kw) -> dict:
@@ -81,6 +93,42 @@ async def review(task_id: str, note: Optional[str], actor: ActorContext, user: d
     if receipt is None:
         raise LifecycleError(409, "This request is not waiting for review. Nothing was changed.")
     return after, receipt
+
+
+async def inspect(task_id: str, result: str, note: Optional[str], actor: ActorContext, user: dict):
+    if (user or {}).get("role") not in ADMIN_ROLES:
+        raise LifecycleError(403, "Only a supervisor (owner or admin) can inspect completed work")
+    note = (note or "").strip()
+    task, _auth, _ = await check(task_id, actor, user, action="inspect", allow_closed=True)
+    if task.get("status") != "completed":
+        raise LifecycleError(409, "Only completed work can be inspected. Nothing was changed.")
+    if result == "return":
+        if not note:
+            raise LifecycleError(422, "Say what needs correcting")
+        await task_actions.reopen(task_id, f"Returned after inspection: {note}", actor, user)
+
+        def mark(t, rid):
+            return ({"inspection_result": "returned", "inspected_at": now_utc().isoformat(),
+                     "inspected_by_name": actor.name, "inspection_note": note},
+                    [_ev("inspected", actor, rid, text=f"Returned for correction: {note}")])
+        return await transition(task_id, actor, user, action="inspect", build=mark,
+                                 action_type="task_inspection_returned", status="created", result=note)
+
+    def build(t, rid):
+        if t.get("inspection_result") == "passed":
+            return None   # already passed: nothing changes
+        return ({"inspection_result": "passed", "inspected_at": now_utc().isoformat(),
+                 "inspected_by_name": actor.name, "inspection_note": note or None},
+                [_ev("inspected", actor, rid, text=f"Passed{': ' + note if note else ''}")])
+    return await transition(task_id, actor, user, action="inspect", build=build, allow_closed=True,
+                            action_type="task_inspected", status="completed", result=note or "passed")
+
+
+@router.post("/{task_id}/inspect")
+async def inspect_route(task_id: str, body: InspectInput, user: dict = Depends(get_current_user)):
+    task, receipt = await inspect(task_id, body.result, body.note, actor_from_user(user), user)
+    return {"ok": True, "task_id": task["task_id"], "status": task["status"],
+            "inspection_result": task.get("inspection_result"), "receipt_id": (receipt or {}).get("receipt_id")}
 
 
 @router.post("/{task_id}/escalate")

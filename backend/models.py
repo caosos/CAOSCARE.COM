@@ -865,6 +865,10 @@ class StaffTask(BaseModel):
     review_note: Optional[str] = None
     unclaimed_escalated_at: Optional[str] = None   # flagged by the escalation tick: nobody claimed it
     unclaimed_minutes: Optional[int] = None
+    inspection_result: Optional[str] = None       # passed | returned (owner/admin inspection of completed work)
+    inspected_at: Optional[str] = None
+    inspected_by_name: Optional[str] = None
+    inspection_note: Optional[str] = None
     linked_ride_task_id: Optional[str] = None       # the transportation request raised for this planned request (task_ride_link)
     linked_appointment_task_id: Optional[str] = None  # on a ride: the request it was raised for
     # Optional operational appointment details (careops-therapy-details-001): who/what/where.

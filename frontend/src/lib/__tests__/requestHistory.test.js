@@ -144,3 +144,12 @@ test("an unclaimed flag from the escalation tick reads plainly", () => {
   expect(ev[1].label).toBe("Flagged to a supervisor: nobody claimed it");
   expect(ev[1].text).toMatch(/11 min/);
 });
+
+test("inspection steps read plainly", () => {
+  const { inspectionText } = require("../inspection");
+  expect(inspectionText({ status: "completed", inspection_result: "passed", inspected_by_name: "Admin" })).toBe("Inspected: passed (Admin)");
+  expect(inspectionText({ status: "pending", inspection_result: "returned", inspection_note: "Mirror streaked" })).toBe("Returned after inspection: Mirror streaked");
+  expect(inspectionText({ status: "completed", inspection_result: "returned" })).toBeNull();
+  const ev = buildRequestTimeline({ ...base, status: "completed", event_log: [{ at: "2026-10-12T09:00:00Z", field: "inspected", text: "Passed", by: "a", by_name: "Admin" }] });
+  expect(ev[1].label).toBe("Inspection by Admin");
+});
