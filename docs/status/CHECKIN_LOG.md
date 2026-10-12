@@ -125,3 +125,26 @@ Append-only. One entry per verified check-in, tied to its receipt. A correction 
 - **next_check_at:** MISSING (blocked on owner approval)
 - **Blocker:** NEED_PERMISSION: relayed authorization not accepted for the live Room 214 change and paid calls
 - **Michael action required:** In the coordinator terminal: yes, switch Room 214 to gpt-realtime-2.1 with marin, turn on the 10-minute continuity and owner v2, and run the test calls
+
+## Monday, October 12, 2026 — 1:16 AM America/Chicago
+- **Receipt:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6118784250
+- **Phase / position:** Resident Aria core live acceptance — switch prepared, not executed
+- **Completed since the prior check:** Reconciliation only: inventory (40228be) and blocker check-in + PROJECT_STATE (ce6c3e7); supervisor corrected its loaded-state fields
+- **Evidence:** Loaded dev backend e5c516a, pid 1246911; gate 586/0/31; frontend 87/624; Claude Chrome live acceptance not run; Room 214 gpt-realtime/shimmer, new flags off, listener unchanged; host 2026-10-12 01:16 CDT
+- **Current bounded task (owner · stage):** careops-resident-aria-core-reconciliation-001 · caoscare-1-ee · BLOCKED / NEED_PERMISSION
+- **Remaining steps for this milestone:**
+  1. Michael approves in the coordinator terminal
+  2. Controlled Room 214 switch with rollback
+  3. Model, continuity and lookup tests
+  4. Home Assistant tests where configured
+  5. Nursing request test (email recorded until a provider key exists)
+  6. SIM acceptance
+  7. Claude Chrome walkthrough
+- **Upcoming milestones:**
+  1. Transportation LIVE_VERIFY
+  2. Full pilot walkthrough
+  3. Pilot Room 1 / Voice PE onboarding
+- **ETA:** UNKNOWN
+- **next_check_at:** MISSING (blocked on owner approval)
+- **Blocker:** NEED_PERMISSION: owner approval required inside the coordinator terminal
+- **Michael action required:** In the coordinator terminal: yes, switch Room 214 to gpt-realtime-2.1 with marin, turn on the 10-minute continuity and owner v2, and run the test calls
