@@ -99,6 +99,10 @@ def env(monkeypatch):
     monkeypatch.setattr(realtime_resident_session, "httpx", fake_httpx)
     monkeypatch.setattr(realtime_routes, "OPENAI_API_KEY", "sk-test-not-real")
     monkeypatch.delenv("CAOSCARE_LOCAL_OWNER_BYPASS", raising=False)
+    # These tests describe the default session; a deployment .env may switch
+    # these on (Room 214 live acceptance, 2026-10-12).
+    for name in ("CAOSCARE_REALTIME_VOICE", "CAOSCARE_ARIA_OWNER_V2", "CAOSCARE_CONTINUITY_RECENT_MINUTES"):
+        monkeypatch.delenv(name, raising=False)
     OpenAIRecorder.calls = []
     run(_seed())
     yield
