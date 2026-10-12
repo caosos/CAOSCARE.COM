@@ -171,6 +171,10 @@ export default function Admin() {
           <TabsContent value="maintenance" className="mt-6"><MaintenanceWorkspace adminMode /></TabsContent>
           <TabsContent value="housekeeping" className="mt-6"><DepartmentQueue department="housekeeping" title="Housekeeping requests" adminMode /></TabsContent>
           <TabsContent value="kitchen" className="mt-6"><DepartmentQueue department="kitchen" title="Kitchen requests" adminMode /></TabsContent>
+          <TabsContent value="activities" className="mt-6 space-y-8">
+            <DepartmentQueue department="activities" title="Activities requests" adminMode />
+            <ScheduleTab />
+          </TabsContent>
           <TabsContent value="residents" className="mt-6">
             <ResidentsTab residents={residents} kiosks={kiosks} onChange={fetchAll}
               focusResidentId={focusResidentId} onFocusHandled={() => setFocusResidentId(null)} />

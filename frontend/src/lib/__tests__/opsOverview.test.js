@@ -57,6 +57,7 @@ describe("departmentTab", () => {
     expect(departmentTab("kitchen")).toBe("kitchen");
     expect(departmentTab("transportation")).toBe("transportation");
     expect(departmentTab("nursing")).toBe("nursing");
+    expect(departmentTab("activities")).toBe("activities");
     expect(departmentTab("therapy")).toBe("departments");
     expect(departmentTab(undefined)).toBe("departments");
   });

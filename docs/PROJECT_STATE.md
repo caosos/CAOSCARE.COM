@@ -9082,3 +9082,7 @@ Cause of the empty menu: published menu ends 2026-10-03 (production 2026-10-02).
 The menu and Daily schedule now state when nothing is published for the current day and identify the last published day. A labeled breakfast/lunch/supper publish was traced through Aria's dinner endpoint and the resident screen. Production menu/Activities content is stale and needs an authorized staff publish; no production change is claimed.
 
 **ONE current bounded task:** `careops-activities-calendar-001`. Trace canonical Activities intake/publish data to the Daily schedule with one labeled dated activity; prove authorized staff and resident views show the same event, owner, time, place, and status; distinguish no published events from load failure; prove desktop and 390 px behavior. Reuse canonical schedule/version records; no production mutation, new truth store, external messaging, paid service, audio work, or parallel worker. ACK/WORKING is due Monday, October 12, 2026 — 12:11 AM America/Chicago through existing coordinator `caoscare-1-ee`.
+---
+
+## 2026-10-12 — Activities work view in Admin (careops-activities-work-001, careops-activities-nav-001)
+Admin → Community → Activities: the shared request queue (dispatch note, Claim/Assign, history) plus the activities calendar (same screen and records as Communication → Schedule). Overview Activities card opens it. Frontend 85 suites / 619, build compiled; dev browser 12/12 (empty-department note seen live). Report `docs/reports/2026-10-12-activities-work.md`. Frontend only; not deployed.

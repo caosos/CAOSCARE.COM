@@ -54,7 +54,7 @@ export function departmentAlert(row) {
 // Where a department card on the overview leads: that department's own Admin
 // workspace tab when one exists, otherwise the Departments page (whose row
 // opens the shared department board).
-const DEPARTMENT_TABS = { nursing: "nursing", maintenance: "maintenance", housekeeping: "housekeeping", kitchen: "kitchen", transportation: "transportation" };
+const DEPARTMENT_TABS = { nursing: "nursing", maintenance: "maintenance", housekeeping: "housekeeping", kitchen: "kitchen", activities: "activities", transportation: "transportation" };
 export function departmentTab(slug) {
   return DEPARTMENT_TABS[slug] || "departments";
 }
