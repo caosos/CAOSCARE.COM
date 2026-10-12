@@ -1,6 +1,6 @@
 # CAOSCare — Living Product Build Checklist
 
-Updated: 2026-10-12 (05:51 CDT; Therapy READY_FOR_OWNER_REVIEW; canonical alert state slice DELIVERED).
+Updated: 2026-10-12 (05:57 CDT; canonical alert state ACKED / WORKING).
 
 This is the owner-facing product build and progress tracker for the Care Operations build. Canonical owner direction: [Issue #129](https://github.com/caosos/CAOSCARE.COM/issues/129). Detailed historical evidence remains in [PILOT1_EXECUTION_CHECKLIST.md](https://github.com/caosos/CAOSCARE.COM/blob/integration/2026-09-27/docs/PILOT1_EXECUTION_CHECKLIST.md). This file controls current phase, active task, milestones, ETA, blockers, and the reporting contract.
 
@@ -91,7 +91,7 @@ check); tests `scripts/owner_intake/tests/test_eta_receipts.py`.
 ## Current build control
 
 - **Current phase:** 3/7 — Care Operations workspaces.
-- **ONE current bounded task:** `careops-alerts-canonical-state-001` — DELIVERED through existing coordinator `caoscare-1-ee`; ACK / WORKING required by Monday, October 12, 2026 — 5:56 AM America/Chicago. Resolve the documented competing alert implementations into one canonical, receipt-backed state contract using existing task/notification/alert records; preserve current Nursing escalation behavior; prove acknowledgement, timer/fallback semantics, role refusal, resident/Aria-safe truth, desktop/390 px, and exact migration/compatibility behavior. Repair only the first proven gap. ETA UNKNOWN pending ACK; existing LOCAL watchdog next_check_at Monday, October 12, 2026 — 5:56:15 AM America/Chicago; blocker NONE.
+- **ONE current bounded task:** `careops-alerts-canonical-state-001` — ACKED / WORKING through existing coordinator `caoscare-1-ee` and worker `da-2be29b619e`. The worker is inventorying every writer of Alert status, escalation level, Aria/live-line state, notification status, StaffTask review/unclaimed state, and receipts; `escalation_tick` / RQ-018 is the existing sole escalation authority under review. It will publish the canonical state/transition and compatibility matrix, prove Nursing mapping, repair only the first conflicting writer with a failing test first, then run full gates, desktop/390 px, and cleanup. ETA approximately Monday, October 12, 2026 — 7:35 AM America/Chicago; existing LOCAL watchdog next_check_at Monday, October 12, 2026 — 7:35:34 AM America/Chicago; blocker NONE.
 - **Control issue / dispatch channel:** [#129](https://github.com/caosos/CAOSCARE.COM/issues/129).
 - **Completed review:** [PR #130](https://github.com/caosos/CAOSCARE.COM/pull/130), merged into integration.
 - **Integration branch:** `integration/2026-09-27`; current accepted therapy-conflict product commit `77f83d3d53e17ffb75c71d137ab876e50552efe9` with guarded dev restart `1bf1bec26ea58a6c55730fea3c858734eb788d54`. This later integration work is not in production `ff87c22`; the release baseline is separate.
@@ -815,5 +815,19 @@ Issue #129 is the dispatch channel to existing coordinator `caoscare-1-ee`. ACK/
 - **Expected completion evidence:** exact implementation and records commits; state-transition matrix; focused and full backend/frontend/build gates; labeled API/browser cases; receipts/history; exact tested/loaded revisions; newest timestamped host observation; cleanup; cost or UNKNOWN.
 - **ETA:** UNKNOWN pending ACK.
 - **next_check_at:** Monday, October 12, 2026 — 5:56:15 AM America/Chicago; owned by the existing LOCAL watchdog.
+- **Blocker:** NONE.
+- **Michael must do:** NOTHING.
+
+
+### Update 2026-10-12 05:57 CDT (canonical alert state ACKED / WORKING)
+
+- **Canonical ACK:** https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6122858667. Transport-only mirror: https://github.com/caosos/CAOSCARE.COM/pull/131#issuecomment-6122887366.
+- **Current task / responsibility / stage:** `careops-alerts-canonical-state-001` / existing coordinator `caoscare-1-ee`, worker `da-2be29b619e` / ACKED, WORKING before the 300-second deadline.
+- **Evidence reviewed:** writers of Alert `status`, `escalation_level`, `aria_state`, `live_line_state`; `escalation_tick` (RQ-018 sole escalation authority); notification statuses; StaffTask `needs_review` and unclaimed escalation; canonical receipts.
+- **Plan / expected acceptance evidence:** grep every writer; publish the state/transition and compatibility matrix; prove accepted Nursing unclaimed escalation maps cleanly; introduce a failing test for the first conflicting writer before repairing it; run focused/full backend/frontend/build gates; prove supervisor/role behavior, resident/Aria-safe truth, desktop and 390 px; clean synthetic state; record exact tested/loaded revisions, newest host observation, and cost.
+- **Current tested/loaded state:** no new current-task revision or gate at ACK. Prior accepted development backend remains `b7f6048`, frontend `db4317f`; production `ff87c22` unchanged.
+- **Latest host observation:** Monday, October 12, 2026 — 5:57:31 AM America/Chicago — coordinator `caoscare-1-ee` busy; control-plane service PID 1370098 on `f1db2d358ca1`; repository `cd076d251ab9` newer/not loaded. GitHub activity alone is not host-liveness proof.
+- **ETA:** approximately Monday, October 12, 2026 — 7:35 AM America/Chicago.
+- **next_check_at:** Monday, October 12, 2026 — 7:35:34 AM America/Chicago; owned by the existing LOCAL watchdog.
 - **Blocker:** NONE.
 - **Michael must do:** NOTHING.
