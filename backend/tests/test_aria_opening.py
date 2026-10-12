@@ -51,10 +51,17 @@ def test_resolve_reads_the_previous_sessions_first_assistant_line():
         ])
         try:
             o = await resolve_opening(rid, "rt_new", "wake_word")
-            assert o == {"wake": True, "last_opening": "Good afternoon, Michael."}, o
+            assert (o["wake"], o["last_opening"]) == (True, "Good afternoon, Michael."), o
             o2 = await resolve_opening(rid, "rt_b", "manual_kiosk")   # a reconnect of rt_b does not quote itself
-            assert o2 == {"wake": False, "last_opening": "Old first line."}, o2
-            assert await resolve_opening(None, "rt_x", "wake_word") == {"wake": True, "last_opening": None}
+            assert (o2["wake"], o2["last_opening"]) == (False, "Old first line."), o2
+            assert await resolve_opening(None, "rt_x", "wake_word") == {"wake": True, "last_opening": None, "minutes_since_last": None}
         finally:
             await db.conversations.delete_many({"resident_id": rid})
     asyncio.get_event_loop().run_until_complete(go())
+
+
+def test_wake_soon_after_a_call_opens_by_noticing_it():
+    b = render_opening_block({"wake": True, "last_opening": "Hey, Michael.", "minutes_since_last": 4.3}, "Michael")
+    assert "only 4 minute(s) ago" in b and "Didn't I just talk to you" in b and "never the same line" in b
+    far = render_opening_block({"wake": True, "last_opening": None, "minutes_since_last": 300}, "Michael")
+    assert "minute(s) ago" not in far and "one short line" in far

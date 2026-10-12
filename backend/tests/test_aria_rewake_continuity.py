@@ -45,7 +45,7 @@ async def _scenario(monkeypatch):
         p = await _prompt(rid, "rt_rewake")
         assert "Michael was talking with you only" in p and "didn't I just talk to you" in p
         assert "I want to see how the Cubs did" in p                       # the last exchange is there
-        assert "Hey, Michael." in p and "Good afternoon, Michael. I'm here with you." in p   # short answer; don't repeat
+        assert "Didn't I just talk to you, Michael?" in p and "Good afternoon, Michael. I'm here with you." in p   # notices the re-wake; does not repeat
         assert "follow 'How this call opens' below" in p and "greet appropriately" not in p
 
         await db.conversations.delete_many({"resident_id": rid})

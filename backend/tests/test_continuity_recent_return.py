@@ -66,3 +66,10 @@ def test_age_phrase_uses_calendar_days_in_facility_time(monkeypatch):
     if (local_now - yday_late).total_seconds() >= 6 * 3600:   # beyond the hours phrasing
         assert age_phrase(yday_late) == "yesterday"
     assert age_phrase(local_now - timedelta(days=3, hours=1)) in ("3 days ago", "4 days ago")
+
+
+def test_each_prior_call_carries_its_clock_time(monkeypatch):
+    monkeypatch.delenv("CAOSCARE_CONTINUITY_RECENT_MINUTES", raising=False)
+    b = c.render_continuity_block(state(6), "Michael")
+    import re
+    assert re.search(r"### 6 minutes ago \(\w+day \d{1,2}:\d{2} [AP]M\)", b), b

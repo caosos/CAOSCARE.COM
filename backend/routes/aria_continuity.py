@@ -200,6 +200,17 @@ _RECENT_NOTE = (
 )
 
 
+def _clock(when) -> str:
+    """' (Monday 5:39 PM)' in facility time, so 'when did I call you?' has a real answer."""
+    try:
+        from zoneinfo import ZoneInfo
+        from routes.realtime_facility import FACILITY_TZ
+        t = parse_dt(when).astimezone(ZoneInfo(FACILITY_TZ))
+        return f" ({t.strftime('%A')} {t.strftime('%I:%M %p').lstrip('0')})"
+    except Exception:
+        return ""
+
+
 def render_continuity_block(state: Optional[dict], name: str = "them") -> str:
     if not state or not state.get("has_continuity"):
         return ""
@@ -222,7 +233,7 @@ def render_continuity_block(state: Optional[dict], name: str = "them") -> str:
             tail = f" — ended when {name} was done"
         else:
             tail = ""  # end reason unknown — do not claim either way
-        head = f"\n### {s['age_phrase'].capitalize()}{tail}\n"
+        head = f"\n### {s['age_phrase'].capitalize()}{_clock(s.get('ended_at'))}{tail}\n"
         body_lines = _compact_turns(s["_rows"], name)
         chunk = head + "\n".join(body_lines) + "\n"
         if len(chunk) > budget:
