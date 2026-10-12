@@ -78,4 +78,5 @@ async def delete_template(template_id: str, user=Depends(get_current_user)):
 async def spawn_today(user=Depends(get_current_user)):
     """Generate due occurrences now (the tick does this on its own; idempotent)."""
     _require_admin(user)
-    return {"ok": True, **await task_recurrence.generate()}
+    out = await task_recurrence.generate()
+    return {"ok": True, **out, "created": out["occurrences_created"]}   # "created": older callers

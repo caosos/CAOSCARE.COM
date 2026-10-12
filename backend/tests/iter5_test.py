@@ -233,8 +233,11 @@ class TestTasks:
         # staff filter: all returned tasks (if any) must be assigned to nurse OR list may be empty
         me = requests.get(f"{API}/auth/me", headers=nurse_headers).json()
         my_id = me["user_id"]
+        # staff see their own work plus unassigned work for their department and all-staff work
+        # (staff_visibility_query); never another person's assigned task outside those
         for t in staff_list:
-            assert t.get("assigned_to") == my_id, f"staff sees another user's task: {t.get('assigned_to')} vs {my_id}"
+            assert t.get("assigned_to") == my_id or t.get("visibility_role") in (me.get("department"), "all_staff"), \
+                f"staff sees a task outside their scope: {t.get('assigned_to')} / {t.get('visibility_role')}"
         # admin list should be >= staff list
         assert len(admin_list) >= len(staff_list)
 

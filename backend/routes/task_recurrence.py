@@ -57,7 +57,11 @@ async def generate(today: Optional[str] = None) -> dict:
         out["templates"] += 1
         for day in occurrence_dates(tpl, today):
             key = f"{tpl['template_id']}:{day}"
-            if await db.staff_tasks.find_one({"occurrence_key": key}, {"_id": 1}):
+            if await db.staff_tasks.find_one({"$or": [
+                    {"occurrence_key": key},
+                    # made before occurrence keys existed (old spawn-today / seed): same template, same day
+                    {"template_id": tpl["template_id"], "occurrence_key": None,
+                     "created_at": {"$regex": f"^{day}T"}}]}, {"_id": 1}):
                 continue
             dept = tpl.get("department") or "all_staff"
             payload = {"title": tpl["title"], "description": tpl.get("description") or "",

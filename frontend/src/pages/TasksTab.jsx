@@ -69,7 +69,8 @@ export default function TasksTab({ residents, staff }) {
   const spawnToday = async () => {
     try {
       const { data } = await api.post("/tasks/spawn-today");
-      toast.success(`Spawned ${data.created} task${data.created === 1 ? "" : "s"} for today`);
+      const n = data.occurrences_created ?? 0;
+      toast.success(n ? `Created ${n} occurrence${n === 1 ? "" : "s"} from recurring templates` : "Nothing new: every due occurrence already exists");
       fetchAll();
     } catch { toast.error("Could not spawn today's tasks"); }
   };
@@ -80,7 +81,7 @@ export default function TasksTab({ residents, staff }) {
         <div>
           <h2 className="font-display text-xl font-medium text-caos-forest">Staff tasks</h2>
           <p className="text-caos-mute text-sm mt-1">
-            Daily workflow. Templates spawn real tasks each morning. Staff tap Start → Complete. Every move is logged.
+            Daily workflow. Recurring templates create each occurrence in the department's queue ahead of its day (automatically, a few times a minute). Staff tap Start → Complete. Every move is logged.
           </p>
         </div>
         <div className="flex gap-2">
@@ -93,7 +94,7 @@ export default function TasksTab({ residents, staff }) {
             {todayOnly ? "Show all" : "Today only"}
           </Button>
           <Button onClick={spawnToday} variant="outline" className="border-2 rounded-full" data-testid="tasks-spawn-today-btn">
-            <Repeat className="w-4 h-4 mr-2" /> Spawn today's tasks
+            <Repeat className="w-4 h-4 mr-2" /> Generate now
           </Button>
         </div>
       </div>
@@ -238,7 +239,7 @@ function TasksBoard({ tasks, residents, staff, onChange, todayOnly }) {
           ))}
           {tasks.length === 0 && (
             <TableRow><TableCell colSpan={8} className="text-center text-caos-mute py-6">
-              {todayOnly ? 'No tasks today. Click "Spawn today\'s tasks", or "Show all" to see older/undated tasks.' : "No tasks."}
+              {todayOnly ? 'No tasks today. Click "Show all" to see older or undated tasks.' : "No tasks."}
             </TableCell></TableRow>
           )}
         </TableBody>
