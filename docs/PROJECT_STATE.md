@@ -307,3 +307,9 @@ Executing session caoscare-1-64 (b2 notified; ACK https://github.com/caosos/CAOS
 - Backfill (real OpenAI, `OPENAI_TEXT_MODEL` gpt-4o-mini) of Room 214 resident res_2425767f4a51: 49 sessions → 34 summaries, 15 nothing-substantive; life story 1155 chars covering 34. First fold invented "his friend Momdani" → rules tightened → rebuilt story states only "someone named Momdani".
 - Gates: backend 652/0/13 (before the 46b99d4 prompt tweak; its tests 3/3). Dev backend `46b99d4` PID 1965332.
 - Open: real-voice check in Room 214 (re-wake, next day, bye for now, memory references).
+
+## 2026-10-12 18:30 CDT — Room hardware: HA LAN relay live; "Voice PE" on USB was the XIAO IR Mate
+- `bcfeae7`: `room-node/ha_lan_proxy` (user service `ha-lan-proxy`, owner-approved) exposes the HA VM (192.168.122.137:8123, libvirt NAT) at http://192.168.1.151:8123; verified 200 from the LAN address. Undo: `systemctl --user disable --now ha-lan-proxy`.
+- The small unmarked device Michael plugged into the EliteDesk (USB 303a:1001, /dev/ttyACM0, ESPHome firmware) is an **ESP32-C3** (esptool chip-id; MAC ac:27:6e:81:2d:fc) = the Seeed XIAO IR Mate, not the Voice PE (ESP32-S3). Michael confirmed. Temporary ACL on /dev/ttyACM0 for caoscare-1 (cleared on replug). Nothing written to the device.
+- HA cannot discover BLE devices itself (VM has no Bluetooth); Wi-Fi provisioning goes through a phone/laptop (improv-wifi.com or the HA app) with Michael entering the Wi-Fi password.
+- Voice PE: not yet located / arrived. Next: Voice PE stock-firmware bring-up when it is in hand; IR Mate setup (TV/AC) as a separate task.
