@@ -218,3 +218,18 @@ Automatic intake delivered worker `da-a0fcc8aef7` at Monday, October 12, 2026 �
 Current stage is ACKED / inventory starting through the existing coordinator `caoscare-1-ee`, worker `da-a0fcc8aef7`. The ACK reports development backend `004c158`, PID 1506940; production `ff87c22` untouched; targets are the existing policy store, editor/API and `escalation_tick`. This is the latest coordinator-reported host observation. No new current-task revision, gate or browser result exists yet; frontend remains `db4317f`.
 
 The ACK satisfied pickup timing but omitted the required evidence-based realistic ETA and expected acceptance evidence. Work continues with blocker NONE. The next WORKING receipt must correct those fields, name the evidence reviewed, preserve a precise next_check_at, and state expected acceptance. ETA remains UNKNOWN until that correction. Worker next_check_at is Monday, October 12, 2026 — 8:13 AM America/Chicago. Michael action NOTHING.
+
+
+## 2026-10-12 07:48 CDT — Alert policy editor WORKING receipt corrected
+
+Canonical WORKING: https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6124535896. Transport-only mirror: https://github.com/caosos/CAOSCARE.COM/pull/131#issuecomment-6124565444. Checklist reconciliation: `e40917673d6b159d825c95bf68d6b400d8330058`.
+
+The ONE current bounded task is `careops-alerts-policy-editor-001`, existing coordinator `caoscare-1-ee`, worker `da-a0fcc8aef7`, stage WORKING. Intake item `da-64918ae4b4` carried the correction and is not a second implementation worker.
+
+Evidence reviewed: the existing escalation GET/PUT/tick routes, sole `escalation_tick` level writer and lifespan loop, canonical facility-keyed `db.escalation_rules` store with 90/150/600 defaults, Admin Escalation editor, and RQ-018/RQ-027/Nursing-unclaimed tests. Inventory confirms one store, editor and runtime reader with owner/admin enforcement.
+
+First failing-before test `tests/test_alert_policy_editor.py` proved an invalid level-3 ≤ level-2 policy returned 200 and policy changes emitted no receipt. The in-progress uncommitted repair adds bounds/ordering validation, optimistic `updated_at` guard, provenance-complete `escalation_rule_changed` receipt/history, and receipt linkage from the rule. Focused gate is 14 passed.
+
+Tested state is an uncommitted worktree based on backend `004c158`; no new revision is loaded. Development remains backend `004c158`, PID 1506940, frontend `db4317f`; production `ff87c22` unchanged. Latest host observation Monday, October 12, 2026 — 7:47:46 AM America/Chicago: coordinator busy; control-plane PID 1370098 on `f1db2d358ca1`; repository `cd076d251ab9` newer/not loaded. Cost UNKNOWN.
+
+Expected acceptance: failing-before/fixed-after proof; exact commit; linked receipt chain; 20-second edited policy reaches level 2 at 30 seconds while a no-rule facility stays level 0; invalid/unauthorized refusals; full gates; desktop/390 px screenshots; cleanup; exact tested/loaded revisions; newest host observation. ETA Monday, October 12, 2026 — 9:15 AM America/Chicago. Existing LOCAL watchdog next_check_at Monday, October 12, 2026 — 8:30 AM America/Chicago. Blocker NONE. Michael action NOTHING.
