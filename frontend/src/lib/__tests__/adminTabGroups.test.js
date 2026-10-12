@@ -7,7 +7,7 @@ const groups = tabGroups([], [], [], [], { role: "owner" });
 
 test("Community holds every department workspace including Kitchen and Transportation", () => {
   const community = groups.find((g) => g.id === "community").tabs.map((t) => t.value);
-  for (const v of ["nursing", "maintenance", "housekeeping", "kitchen", "activities", "transportation", "transport-calendar", "transport-log", "transport-resources"]) {
+  for (const v of ["nursing", "maintenance", "housekeeping", "kitchen", "therapy", "activities", "transportation", "transport-calendar", "transport-log", "transport-resources"]) {
     expect(community).toContain(v);
   }
 });

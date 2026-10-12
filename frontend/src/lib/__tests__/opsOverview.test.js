@@ -58,7 +58,8 @@ describe("departmentTab", () => {
     expect(departmentTab("transportation")).toBe("transportation");
     expect(departmentTab("nursing")).toBe("nursing");
     expect(departmentTab("activities")).toBe("activities");
-    expect(departmentTab("therapy")).toBe("departments");
+    expect(departmentTab("therapy")).toBe("therapy");
+    expect(departmentTab("resident_programs")).toBe("departments");
     expect(departmentTab(undefined)).toBe("departments");
   });
 });

@@ -171,6 +171,7 @@ export default function Admin() {
           <TabsContent value="nursing" className="mt-6"><DepartmentQueue department="nursing" title="Nursing requests" adminMode /></TabsContent>
           <TabsContent value="maintenance" className="mt-6"><MaintenanceWorkspace adminMode /></TabsContent>
           <TabsContent value="housekeeping" className="mt-6"><QueueWithUpcoming department="housekeeping" title="Housekeeping requests" adminMode /></TabsContent>
+          <TabsContent value="therapy" className="mt-6"><QueueWithUpcoming department="therapy" title="Therapy appointments" adminMode /></TabsContent>
           <TabsContent value="kitchen" className="mt-6"><DepartmentQueue department="kitchen" title="Kitchen requests" adminMode /></TabsContent>
           <TabsContent value="activities" className="mt-6 space-y-8">
             <DepartmentQueue department="activities" title="Activities requests" adminMode />
