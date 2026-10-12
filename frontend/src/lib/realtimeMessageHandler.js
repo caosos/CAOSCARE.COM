@@ -157,14 +157,24 @@ export function createRealtimeHandlers({
   };
 
   // Helper: dispatch a tool call coming from the model
+  // Several tool calls in one turn (e.g. seven schedule lookups): ask for ONE
+  // reply after the last finishes - one per call collided ("active response").
+  let toolsInFlight = 0;
+  let deferredReply = null;
   const handleFunctionCall = async (fn) => {
     if (endCtl.ending) return;
     let parsed = {};
     try { parsed = fn.arguments ? JSON.parse(fn.arguments) : {}; } catch {}
     logRealtimeEvent(sessionIdRef.current, "tool_call", { meta: { name: fn.name, args: parsed } });
     claimInterrupter.onToolStart(fn.name);
-    const cls = await turnGrounding.waitForGroundedTurn();
-    let result = await executeTool({ name: fn.name, args: parsed, ctx: { ...ctxRef.current, turn_suspect: cls.suspect, turn_suspect_reason: cls.reason, last_user_text: cls.text || "" } });
+    toolsInFlight += 1;
+    let cls, result;
+    try {
+      cls = await turnGrounding.waitForGroundedTurn();
+      result = await executeTool({ name: fn.name, args: parsed, ctx: { ...ctxRef.current, turn_suspect: cls.suspect, turn_suspect_reason: cls.reason, last_user_text: cls.text || "" } });
+    } finally {
+      toolsInFlight -= 1;
+    }
     const isEnd = fn.name === "end_call" || fn.name === "end_conversation";
     // The model heard an ending the transcript lost (RQ-055): its second
     // end request in a row is granted instead of asking "are you sure?" again.
@@ -220,7 +230,9 @@ export function createRealtimeHandlers({
     } else {
       // Ask the model to speak its short confirmation, drawing on the tool result.
       // RQ-050 (mode "on"): carry the verified message instead of letting it improvise.
-      send((claimMode === "on" && verifiedConfirmationEvent(fn.name, result)) || { type: "response.create" });
+      const reply = (claimMode === "on" && verifiedConfirmationEvent(fn.name, result)) || { type: "response.create" };
+      if (toolsInFlight > 0) deferredReply = deferredReply || reply;   // the last one to finish replies
+      else { deferredReply = null; send(reply); }
       // Level 1 live-line routing question (2026-09-06): the resident was
       // just asked "someone in the room now, or talk to me?" - the
       // directive treats silence/no answer as "now." Armed here rather

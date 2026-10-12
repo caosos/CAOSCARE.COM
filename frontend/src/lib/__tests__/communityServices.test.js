@@ -75,3 +75,14 @@ describe("executeOperationsTool - menu and schedule reads", () => {
     expect(r).toEqual({ ok: true, message: "Approved menu for today: dinner: Baked chicken." });
   });
 });
+
+test("schedule answer adds the resident's own planned appointments for that day", () => {
+  const { ownPlanLine } = require("../communityServices");
+  const up = { today: "2026-10-12", items: [
+    { scheduled_date: "2026-10-15", scheduled_time_label: "2:00 PM", what_for: "knee PT", provider_name: "Pat Lee, PT", location: "Therapy gym" },
+    { scheduled_date: "2026-10-16", scheduled_time_label: "9:00 AM", what_for: "room clean" },
+  ] };
+  expect(ownPlanLine(up, "2026-10-15")).toMatch(/2:00 PM: knee PT \(with Pat Lee, PT, at Therapy gym\)/);
+  expect(ownPlanLine(up, "2026-10-14")).toBe("");
+  expect(ownPlanLine({ today: "2026-10-16", items: up.items }, null)).toMatch(/room clean/);
+});

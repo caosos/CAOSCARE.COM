@@ -80,3 +80,19 @@ export function scheduleToolMessage(items, { date = null } = {}) {
     `${i.time_label ? `${i.time_label}: ` : ""}${i.title}${i.description ? ` (${i.description})` : ""}`);
   return `Schedule for ${dayWords(date)}: ${lines.join("; ")}.`;
 }
+
+// The resident's own planned appointments/jobs on that day (GET
+// /tasks/resident-request/upcoming items), added to the schedule answer so
+// "when is my therapy?" is answered from their real plan, not only the
+// activities calendar.
+export function ownPlanLine(upcoming, date) {
+  const day = date || upcoming?.today;
+  const mine = (upcoming?.items || []).filter((i) => (i.scheduled_date || i.requested_for_date) === day);
+  if (!mine.length) return "";
+  const parts = mine.map((i) => {
+    const t = i.scheduled_time_label || i.requested_for_time_label;
+    const with_ = [i.provider_name && `with ${i.provider_name}`, i.location && `at ${i.location}`].filter(Boolean).join(", ");
+    return `${t ? `${t}: ` : ""}${i.what_for || i.title || "an appointment"}${with_ ? ` (${with_})` : ""}`;
+  });
+  return ` The resident's own planned appointments/jobs that day: ${parts.join("; ")}.`;
+}

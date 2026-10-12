@@ -65,3 +65,24 @@ test("a tool call arriving BEFORE its transcript still waits for the resident's 
   await new Promise((r) => setTimeout(r, 500));
   expect(JSON.parse(sent[0].item.output).message).toBe("Turn it off.");
 });
+
+test("several tool calls in one turn: one output each, but only ONE request to speak, after the last", async () => {
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  executeDeviceTool
+    .mockImplementationOnce(async () => ({ ok: true, message: "first" }))
+    .mockImplementationOnce(async () => { await gate; return { ok: true, message: "second (slow)" }; })
+    .mockImplementationOnce(async () => ({ ok: true, message: "third" }));
+  const { on, sent } = setup();
+  feed(on, { type: "conversation.item.input_audio_transcription.completed", item_id: "i1", transcript: "What is on this week?" });
+  for (const id of ["c1", "c2", "c3"]) {
+    feed(on, { type: "response.function_call_arguments.done", call_id: id, name: "toggle_light", arguments: "{}" });
+  }
+  await flush();
+  expect(sent.filter((m) => m.type === "response.create")).toHaveLength(0);   // still waiting on the slow one
+  release();
+  await flush();
+  expect(sent.filter((m) => m.type === "conversation.item.create")).toHaveLength(3);
+  expect(sent.filter((m) => m.type === "response.create")).toHaveLength(1);
+  expect(sent[sent.length - 1].type).toBe("response.create");
+});

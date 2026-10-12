@@ -8,7 +8,7 @@
  */
 import { API } from "./api";
 import { transportStatusMessage, rideBookedMessage } from "./transportation";
-import { menuToolMessage, scheduleToolMessage } from "./communityServices";
+import { menuToolMessage, scheduleToolMessage, ownPlanLine } from "./communityServices";
 import { literalResidentWords, newRequestMessage, openRequestsMessage } from "./requestOverview";
 import { cleanItems } from "./requestItems";
 
@@ -267,7 +267,14 @@ export async function executeOperationsTool({ name, args, ctx }) {
     if (args.date) qs.set("date", args.date);
     const r = await fetch(`${API}/schedule/public/today?${qs.toString()}`);
     if (!r.ok) return { ok: false, message: `couldn't reach the schedule (${r.status}).` };
-    return { ok: true, message: scheduleToolMessage(await r.json(), { date: args.date || null }) };
+    let own = "";
+    if (residentId || room) {   // the resident's own planned appointments that day, from their real plan
+      const uq = new URLSearchParams(residentId ? { resident_id: residentId } : { room });
+      uq.set("days", "14");
+      const ru = await fetch(`${API}/tasks/resident-request/upcoming?${uq.toString()}`).catch(() => null);
+      if (ru && ru.ok) own = ownPlanLine(await ru.json().catch(() => null), args.date || null);
+    }
+    return { ok: true, message: scheduleToolMessage(await r.json(), { date: args.date || null }) + own };
   }
 
   if (name === "get_menu") {
