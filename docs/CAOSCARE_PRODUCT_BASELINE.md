@@ -101,7 +101,7 @@ voice control of real Home Assistant-backed lights with read-back
 verification (2026-09-05) + the local wake-word mechanism (now a legacy development/fallback endpoint, `room-node/aria_wake/`; listener → page →
 existing session) at close range, Room 214, 2026-09-23 — with "Aria" as the
 test phrase, which is **not** accepted for production (see below and
-`docs/ARIA_WAKE_WORD_ARCHITECTURE.md`). Planned / partial: far-field
+`docs/ARIA_WAKE_WORD_ARCHITECTURE.md`). Proven 2026-10-12 (Room 214 home test, platform-wide code): a real TV controlled by infrared through a Home Assistant IR blaster (`ir_blaster` adapter; one-way, recorded as sent-not-verified), and Aria continuity across wakes and days with lifelong per-resident memory (`docs/reports/2026-10-12-platform-build-log.md`). Planned / partial: far-field
 wake reliability, TV audio into the CAOSCare AEC path, IR/Zigbee/Z-Wave
 transmit, full room-automation surface, multi-room fleet.
 
