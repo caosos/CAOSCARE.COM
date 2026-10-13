@@ -12,10 +12,10 @@
 
 ## Behaviour
 - `none`: no live research. With only `OPENAI_API_KEY`, a plain model answers from general knowledge with `live: false`; otherwise HTTP 503. Prompt and tool text tell Aria she cannot look things up. Merging this change alone changes nothing live.
-- `openai_web_search`: Responses API with the native `web_search` tool (`tool_choice: required`). `live` is true **only** if the response has at least one `web_search_call` and at least one `url_citation`. Otherwise `live: false` with a `note`. Prompt/tool text flip to "live" only when provider, key and model are all set (`live_research_enabled()`, single source of truth in `routes/realtime_truth_rules.py`).
+- `openai_web_search`: Responses API with the native `web_search` tool (`tool_choice: required`, `external_web_access: true`, `store: false`). `live` is true **only** if the response has at least one `web_search_call` and at least one `url_citation`. Otherwise `live: false` with a `note`. Prompt/tool text flip to "live" only when provider, key and model are all set (`live_research_enabled()`, single source of truth in `routes/realtime_truth_rules.py`).
 - Errors: not configured or model missing -> 503 with the reason; provider HTTP error, timeout or malformed response -> 502 (no fallback, no invented text).
-- Response fields: `answer`, `citations` (URLs), `citations_detail` ([{url,title}]), `source` (`openai_web_search`), `live`, `note`, `provenance` (model, response_id, search_call_count, retrieved_at).
-- Every call writes a `research_lookup` event (`/api/events`): question hash and length (not the text), provider, model, live, citation count, outcome.
+- Response fields: `answer`, `citations` (URLs), `citations_detail` ([{url,title}]), `source` (`openai_web_search`), `live`, `note`, `provenance` (model, response_id, search_call_count, sanitized usage counts, retrieved_at).
+- Every call writes a private `research_lookup` event (`/api/events`): question hash and length (not the text), provider, model, live, citation details, provider response ID, sanitized token counts, and outcome. The provider request is made with `store: false`; CAOSCare retains only its own scoped operational evidence.
 
 ## Enabling (owner decision, not done by this change)
 Set `CAOSCARE_RESEARCH_PROVIDER=openai_web_search` and `OPENAI_RESEARCH_MODEL=<model>` in `backend/.env`, restart the backend, run one owner-approved live smoke call and confirm the budget (Baseline section 5a). Pricing: per search call plus tokens; look up the provider's current page.

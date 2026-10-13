@@ -24,7 +24,8 @@ def test_off_by_default_is_unchanged(monkeypatch):
 def test_recent_return_note_when_enabled(monkeypatch):
     monkeypatch.setenv("CAOSCARE_CONTINUITY_RECENT_MINUTES", "10")
     b = c.render_continuity_block(state(2), "Michael")
-    assert "Michael was talking with you only 2 minutes ago." in b and "never invent" in b
+    assert "same conversation picking back up" in b and "Carry the thread forward silently" in b
+    assert "was talking with you only" not in b and "didn't I just talk" not in b.lower()
     assert "Tell me about the Cubs game" in b
 
 
@@ -38,10 +39,12 @@ def test_bad_value_means_off(monkeypatch):
     assert c._recent_minutes() == 0.0
 
 
-def test_recent_return_may_notice_it_warmly_without_a_fixed_script(monkeypatch):
+def test_recent_return_never_calls_attention_to_recency(monkeypatch):
     monkeypatch.setenv("CAOSCARE_CONTINUITY_RECENT_MINUTES", "10")
     b = c.render_continuity_block(state(1), "Michael")
-    assert "didn't I just talk to you" in b and "not that exact line every time" in b
+    assert "Do not mention recency" in b
+    for phrase in ("didn't I just talk to you", "back again", "sit quietly", "hang around"):
+        assert phrase not in b.lower()
 
 
 def test_next_day_session_is_still_known(monkeypatch):
@@ -53,7 +56,7 @@ def test_next_day_session_is_still_known(monkeypatch):
     b = c.render_continuity_block(st, "Michael")
     assert "### Yesterday" in b and "Tell me about the Cubs game" in b
     assert "was talking with you only" not in b          # not treated as the same conversation
-    assert "brief question about something" in b
+    assert "Let continuity show naturally" in b
 
 
 def test_age_phrase_uses_calendar_days_in_facility_time(monkeypatch):

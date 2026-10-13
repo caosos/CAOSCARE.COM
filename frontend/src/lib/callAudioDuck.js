@@ -34,3 +34,39 @@ export async function restoreRoomAudio(restore, room, send) {
     try { await send(room, r.action, r.value, r.kind, r.device_id); } catch { /* best effort */ }
   }
 }
+
+// One coordinator per kiosk serializes call boundaries. Without this, a
+// close can start restoring (+15) while a rapid new wake starts ducking
+// (-15), leaving a one-way TV at whichever command happens to finish last.
+// The queue guarantees: old duck completes -> old restore completes -> new
+// duck begins. It delegates to the same mute/volume-only functions above,
+// so call-boundary audio handling never gains a power action.
+export function createCallAudioCoordinator(send) {
+  let tail = Promise.resolve();
+  let active = null;
+
+  const enqueue = (work) => {
+    const operation = tail.then(work, work);
+    tail = operation.catch(() => {});
+    return operation;
+  };
+
+  return {
+    begin(devices, room) {
+      return enqueue(async () => {
+        // Defensive recovery for a duplicate begin without a matching end:
+        // restore the prior call before applying the new call's duck.
+        if (active) await restoreRoomAudio(active.restore, active.room, send);
+        active = { room, restore: await duckRoomAudio(devices, room, send) };
+      });
+    },
+    end() {
+      return enqueue(async () => {
+        if (!active) return;
+        const closing = active;
+        active = null;
+        await restoreRoomAudio(closing.restore, closing.room, send);
+      });
+    },
+  };
+}

@@ -27,6 +27,17 @@ def test_every_targeted_device_tool_asks_instead_of_retrying():
         assert t["parameters"]["additionalProperties"] is False
 
 
+def test_tv_tools_forbid_power_substitution_and_explain_readback_truth():
+    tools = _by_name()
+    power = tools["toggle_tv"]["description"]
+    status = tools["get_room_status"]["description"]
+    assert "Never map 'quiet', 'quieter', or 'mute' to TV power-off" in power
+    assert "command was sent is not confirmation" in power
+    assert "only verified read-back" in power
+    assert "One-way infrared TVs cannot verify power or report an exact volume" in status
+    assert "estimated value is not an observed state" in status
+
+
 def _end_call():
     # _build_tools() reads the DB, so check the schema text in the source.
     import inspect

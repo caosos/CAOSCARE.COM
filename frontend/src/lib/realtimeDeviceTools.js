@@ -63,6 +63,31 @@ const RESTING_PHRASES = /\b(be quiet|quiet down|let me rest|resting|give me\s*(s
 // (or an unambiguous loud/quiet/mute cue) to appear, not a specific phrase.
 // VOLUME_PHRASES lives in realtimeRoomControls.js (shared with adjust_tv_volume).
 
+// TV power is grounded separately from TV volume. The model's `state`
+// argument is not evidence that the resident asked for power: exact-volume
+// calls also carry state="on", and live wake/goodbye turns have previously
+// been mistranslated into toggle_tv calls. Require the resident's own words
+// to name the TV, an explicit power verb and the same direction the model
+// supplied. Negated requests fail closed.
+const TV_POWER_NEGATION = /\b(?:don'?t|do\s+not|not|never|no)\b/i;
+const TV_NOUN = "(?:the\\s+)?(?:tv|television)";
+const TV_POWER_PATTERNS = {
+  on: [
+    new RegExp(`\\b(?:turn|switch|power|put)\\s+${TV_NOUN}\\s+(?:back\\s+)?on\\b`, "i"),
+    new RegExp(`\\b(?:turn|switch|power|put)\\s+(?:back\\s+)?on\\s+${TV_NOUN}\\b`, "i"),
+  ],
+  off: [
+    new RegExp(`\\b(?:turn|switch|power|shut)\\s+${TV_NOUN}\\s+off\\b`, "i"),
+    new RegExp(`\\b(?:turn|switch|power|shut)\\s+off\\s+${TV_NOUN}\\b`, "i"),
+  ],
+};
+
+export function tvPowerRequestIsGrounded(text, state) {
+  const heard = String(text || "").trim();
+  if (!TV_POWER_PATTERNS[state] || TV_POWER_NEGATION.test(heard)) return false;
+  return TV_POWER_PATTERNS[state].some((pattern) => pattern.test(heard));
+}
+
 // One human-readable sentence per device, driven entirely by that device's
 // OWN declared capabilities/state - not a hardcoded thermostat/TV special
 // case - so a light, fan, or blinds device registered later is described
@@ -78,7 +103,11 @@ export function describeDevice(d) {
   if (caps.includes("power")) bits.push(s.power === "on" ? "on" : "off");
   if (caps.includes("temperature") && typeof s.temperature === "number") bits.push(`set to ${s.temperature} degrees`);
   if (caps.includes("input") && s.input) bits.push(`on ${s.input}`);
-  if (caps.includes("volume") && typeof s.volume === "number" && s.power === "on") bits.push(`volume ${s.volume}`);
+  // One-way IR state is the last command/estimate, not a device observation.
+  // Never speak that number as though the TV reported it. A state-reporting
+  // adapter may expose a numeric volume without volume_estimated.
+  if (caps.includes("volume") && typeof s.volume === "number" && s.power === "on"
+      && d.protocol !== "ir_blaster" && s.volume_estimated !== true) bits.push(`volume ${s.volume}`);
   if (caps.includes("brightness") && typeof s.brightness === "number" && s.power === "on") bits.push(`brightness ${s.brightness}`);
   if (caps.includes("color") && s.color && s.power === "on") {
     const name = nearestColorName(s.color);
@@ -137,24 +166,42 @@ export async function executeDeviceTool({ name, args, ctx }) {
   }
   if (name === "toggle_tv") {
     if (!room) return { ok: false, message: "no room context — I can't reach the TV here." };
+    const heard = (ctx?.last_user_text || "").trim();
+    const powerGrounded = tvPowerRequestIsGrounded(heard, args.state);
+    const volumeGrounded = typeof args.volume === "number" && VOLUME_PHRASES.test(heard);
+    if (!powerGrounded && !volumeGrounded) {
+      return { ok: false, message: "I didn't hear a clear TV power or volume request, so I didn't change the TV." };
+    }
     // Same lookup-before-command shape as toggle_light (2026-09-06 kiosk
     // multi-light bug) - a room with more than one TV must fail closed on
     // an honest ambiguity message, not guess by posting `kind` alone.
     const tv = await findDeviceGuarded({ room, kind: "tv", noun: "TV", tool: name, args, ctx });
     if (tv.fail) return tv.fail;
     if (!tv.device) return { ok: false, message: "there's no TV set up in this room yet." };
-    const r = await postRoomCommand(room, "power", args.state, "tv", ctx?.session_id, tv.device.device_id);
-    if (!r.ok) return { ok: false, message: `couldn't reach the TV (${r.status}).` };
-    // Structural grounding (2026-08-30) - see VOLUME_PHRASES above. A
-    // volume change is a real, audible, potentially uncomfortable action -
-    // don't apply one the resident's own words don't actually support,
-    // even if the model supplied a number.
-    const heard = (ctx?.last_user_text || "").trim();
-    const volumeGrounded = args.state === "on" && typeof args.volume === "number" && VOLUME_PHRASES.test(heard);
-    if (volumeGrounded) {
-      await postRoomCommand(room, "volume", Math.max(0, Math.min(100, args.volume)), "tv", ctx?.session_id, tv.device.device_id);
+    let powerResult = null;
+    if (powerGrounded) {
+      const r = await postRoomCommand(room, "power", args.state, "tv", ctx?.session_id, tv.device.device_id);
+      if (!r.ok) return { ok: false, message: `couldn't reach the TV (${r.status}).` };
+      powerResult = await r.json().catch(() => null);
     }
-    return { ok: true, message: `turned the TV ${args.state}${volumeGrounded ? ` at volume ${args.volume}` : ""}.` };
+    let volumeResult = null;
+    if (volumeGrounded) {
+      const r = await postRoomCommand(room, "volume", Math.max(0, Math.min(100, args.volume)), "tv", ctx?.session_id, tv.device.device_id);
+      if (!r.ok) return { ok: false, message: `couldn't reach the TV volume (${r.status}).` };
+      volumeResult = await r.json().catch(() => null);
+    }
+    const messages = [];
+    if (powerGrounded) {
+      messages.push(powerResult?.verified === true
+        ? `turned the TV ${args.state}`
+        : `sent the TV ${args.state} command; this TV did not verify the change`);
+    }
+    if (volumeGrounded) {
+      messages.push(volumeResult?.verified === true && typeof volumeResult?.state?.volume === "number"
+        ? `verified the volume at ${volumeResult.state.volume}`
+        : `sent the volume ${Math.max(0, Math.min(100, args.volume))} command; this TV did not report its resulting level`);
+    }
+    return { ok: true, message: `${messages.join(" and ")}.` };
   }
   if (ROOM_CONTROL_TOOLS.has(name)) {
     return executeRoomControlTool(name, args, ctx, { postRoomCommand });
@@ -320,7 +367,7 @@ export async function executeDeviceTool({ name, args, ctx }) {
     // The actual hang-up happens in the calling layer (handleFunctionCall)
     // because it needs access to the peer connection. Returning here just
     // gives the model its short verbal goodbye to speak.
-    return { ok: true, message: name === "end_call" ? "goodbye for now. I'm right here when you call." : "sounds good, talk soon." };
+    return { ok: true, message: "Okay, bye for now." };
   }
   return undefined;
 }

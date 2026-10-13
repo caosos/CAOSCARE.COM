@@ -60,6 +60,26 @@ def _timeout() -> float:
         return DEFAULT_TIMEOUT
 
 
+def _usage_counts(data: dict) -> dict:
+    """Keep provider billing counts, never request/response content."""
+    raw = data.get("usage") if isinstance(data, dict) else None
+    if not isinstance(raw, dict):
+        return {}
+    input_detail = raw.get("input_tokens_details") or {}
+    output_detail = raw.get("output_tokens_details") or {}
+
+    def count(value):
+        return value if isinstance(value, int) and value >= 0 else 0
+
+    return {
+        "input_tokens": count(raw.get("input_tokens")),
+        "cached_input_tokens": count(input_detail.get("cached_tokens")),
+        "output_tokens": count(raw.get("output_tokens")),
+        "reasoning_output_tokens": count(output_detail.get("reasoning_tokens")),
+        "total_tokens": count(raw.get("total_tokens")),
+    }
+
+
 def parse_response(data: dict) -> dict:
     """Extract answer, deduplicated citations and the search-call count."""
     out = data.get("output") if isinstance(data, dict) else None
@@ -99,8 +119,12 @@ async def ask(question: str, instructions: str) -> dict:
         "model": model,
         "instructions": instructions,
         "input": question,
-        "tools": [{"type": "web_search"}],
+        "tools": [{"type": "web_search", "external_web_access": True}],
         "tool_choice": "required",
+        # Resident questions are sensitive. Responses are not retained by the
+        # provider after this request; CAOSCare keeps only its own private,
+        # scoped operational evidence.
+        "store": False,
     }
     effort = os.environ.get("OPENAI_RESEARCH_REASONING_EFFORT", "").strip()
     if effort:
@@ -125,6 +149,7 @@ async def ask(question: str, instructions: str) -> dict:
         "model": data.get("model") or model,
         "response_id": data.get("id"),
         "search_call_count": parsed["search_calls"],
+        "usage": _usage_counts(data),
         "retrieved_at": datetime.now(timezone.utc).isoformat(),
     }
     return parsed

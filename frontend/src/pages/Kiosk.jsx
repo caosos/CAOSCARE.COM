@@ -17,7 +17,7 @@ import UpcomingPanel from "../components/kiosk/UpcomingPanel";
 import RoomDevicePanel from "../components/kiosk/RoomDevicePanel";
 import DemoKioskPanel from "../components/kiosk/demo/DemoKioskPanel";
 import { sendRoomDeviceCommand } from "../lib/kioskDeviceControl";
-import { duckRoomAudio, restoreRoomAudio } from "../lib/callAudioDuck";
+import { createCallAudioCoordinator } from "../lib/callAudioDuck";
 import { logActivationClientEvent } from "../lib/activationClient";
 import { useKioskMediaPrime, openInFullTab, inSandboxedIframe } from "../lib/useKioskMediaPrime";
 import { useWakeWord } from "../lib/useWakeWord";
@@ -90,10 +90,10 @@ export default function Kiosk() {
   }, [voiceId]);
   const [voicePickerOpen, setVoicePickerOpen] = useState(false);
 
-  // TVs-were-muted tracking: when a voice call begins we auto-mute any TV
-  // in the room so the mic doesn't pick up Wheel of Fortune dialogue as
-  // resident speech. On call end, we restore the prior power state.
-  const mutedDevicesRef = useRef([]); // restore list (or its promise) from duckRoomAudio (lib/callAudioDuck.js)
+  // One serialized audio queue owns call duck + restore. A rapid new wake
+  // cannot race an old call's restore and leave a one-way TV too loud.
+  const callAudioRef = useRef(null);
+  if (!callAudioRef.current) callAudioRef.current = createCallAudioCoordinator(sendRoomDeviceCommand);
 
   // Load kiosk + resident
   useEffect(() => {
@@ -248,16 +248,14 @@ export default function Kiosk() {
   };
 
   const restoreAudioAfterCall = async () => {
-    const pending = mutedDevicesRef.current;   // the duck may still be running on a very short call
-    mutedDevicesRef.current = [];
-    await restoreRoomAudio(await pending, kiosk?.room, sendRoomDeviceCommand);
+    await callAudioRef.current.end();
   };
 
   const beginConversation = async (a) => {
     setCallState("chatting");
     // Turn room TVs/speakers down (never off) for the call; restored on every call end (lib/callAudioDuck.js).
     // Not awaited: 15 infrared presses take seconds and must not delay Aria's greeting (Room 214, 2026-10-12).
-    mutedDevicesRef.current = duckRoomAudio(devices, kiosk.room, sendRoomDeviceCommand);
+    callAudioRef.current.begin(devices, kiosk.room);
     // RealtimeChatScreen owns its own greeting + listening loop from here.
   };
 

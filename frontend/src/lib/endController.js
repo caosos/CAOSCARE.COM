@@ -13,7 +13,7 @@
  */
 import { createEndCorroboration, transcriptIsOutOfScript, turnMayEnd } from "./endIntent";
 
-export const GOODBYE_INSTRUCTIONS = "The resident just said goodbye. Answer with only a brief goodbye that echoes theirs - for example \"Okay, bye for now.\" - and nothing else: no explanation, no offer, no question, no mention of anything still running.";
+export const GOODBYE_INSTRUCTIONS = "The resident said goodbye and ended the conversation. Say exactly and only: \"Okay, bye for now.\" Say nothing else. No explanation, offer, question, or extra availability sentence.";
 const FALLBACK_SPEECH_MS = 1500;
 
 export function createEndController({ send, stop, onEndCall, log, speak = defaultSpeak }) {
@@ -85,7 +85,7 @@ export function createEndController({ send, stop, onEndCall, log, speak = defaul
       const outOfScript = turnMayEnd(reason) && transcriptIsOutOfScript(heardText);
       if (!corroboration.onRefusedAttempt(reason) && !outOfScript) return null;
       log("end_call_corroborated", { meta: { reason, via: outOfScript ? "out_of_script_transcript" : "second_attempt" } });
-      return { ok: true, message: "goodbye for now. I'm right here when you call.", corroborated: true };
+      return { ok: true, message: "Okay, bye for now.", corroborated: true };
     },
   };
 }

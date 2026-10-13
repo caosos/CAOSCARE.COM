@@ -2,7 +2,7 @@ import { classifyEndIntent, turnMayEnd, createEndCorroboration } from "../endInt
 
 const yes = ["End the call.", "Goodbye.", "Aria. Goodbye.", "Go away.", "end it now", "Hang up.", "Stop talking.",
   "That'll be all for now. Goodbye.", "Yes, I'm telling you, end it right now.", "Okay, goodbye Aria.",
-  "End the call. Goodbye.", "We're done.", "Good night.", "Adiós."];
+  "End the call. Goodbye.", "We're done.", "Good night.", "Adiós.", "Listen, goodbye."];
 // FALSE-POSITIVE GUARDS ONLY: quoted sentences, questions, meta statements and fragments. A standalone
 // "Goodbye" / "End the call" / "Go away" is NOT in this list - those always end the call (see `yes`).
 const no = ["Can you end the call?", "How do I end the call?", "If I say goodbye, you hang up, right?", "Don't hang up.",

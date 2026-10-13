@@ -1,0 +1,245 @@
+name: Deploy CAOSCare to EliteDesk
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_sha:
+        description: Exact 40-character commit from integration/2026-09-27
+        required: true
+        type: string
+      scope:
+        description: What to load and restart
+        required: true
+        default: verify-only
+        type: choice
+        options:
+          - verify-only
+          - backend
+          - room-page
+          - backend-and-room-page
+      confirmation:
+        description: Type DEPLOY CAOSCARE ELITEDESK
+        required: true
+        type: string
+  push:
+    tags:
+      - elitedesk-caoscare-deploy-*
+  pull_request:
+    branches:
+      - integration/2026-09-27
+    paths:
+      - .github/workflows/elitedesk-caoscare-deploy.yml
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    if: github.event_name == 'pull_request'
+    name: Validate deployment workflow dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate host control scripts
+        run: |
+          bash -n scripts/restart_dev_backend.sh
+          bash -n room-node/aria_wake/ctl.sh
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    name: Exact-SHA EliteDesk deployment
+    runs-on: [self-hosted, Linux, X64, elitedesk, caoscare]
+    timeout-minutes: 30
+    concurrency:
+      group: elitedesk-caoscare-deployment
+      cancel-in-progress: false
+    env:
+      DEPLOY_ROOT: /home/caoscare-1/CAOSCARE-INTEGRATION
+      TARGET_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.target_sha || github.sha }}
+      SCOPE: ${{ github.event_name == 'workflow_dispatch' && inputs.scope || 'backend-and-room-page' }}
+      CONFIRMATION: ${{ inputs.confirmation }}
+
+    steps:
+      - name: Initialize provenance receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          RECEIPT="${RUNNER_TEMP}/elitedesk-caoscare-deploy.txt"
+          echo "RECEIPT=$RECEIPT" >> "$GITHUB_ENV"
+          {
+            echo "CAOSCARE ELITEDESK DEPLOYMENT RECEIPT"
+            echo "report_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "report_chicago=$(TZ=America/Chicago date '+%A, %B %-d, %Y — %-I:%M:%S %p America/Chicago')"
+            echo "actor=$GITHUB_ACTOR"
+            echo "event=$GITHUB_EVENT_NAME"
+            echo "ref=$GITHUB_REF"
+            echo "run_id=$GITHUB_RUN_ID"
+            echo "runner=$RUNNER_NAME"
+            echo "target_sha=$TARGET_SHA"
+            echo "scope=$SCOPE"
+          } | tee "$RECEIPT"
+
+      - name: Validate explicit authorization
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "refused=target_sha_must_be_full_40_character_sha" | tee -a "$RECEIPT"
+            exit 2
+          }
+          case "$SCOPE" in
+            verify-only|backend|room-page|backend-and-room-page) ;;
+            *) echo "refused=unsupported_scope" | tee -a "$RECEIPT"; exit 2 ;;
+          esac
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            [ "$CONFIRMATION" = "DEPLOY CAOSCARE ELITEDESK" ] || {
+              echo "refused=confirmation_mismatch" | tee -a "$RECEIPT"
+              exit 2
+            }
+          else
+            case "$GITHUB_REF" in
+              refs/tags/elitedesk-caoscare-deploy-*) ;;
+              *) echo "refused=unauthorized_ref" | tee -a "$RECEIPT"; exit 2 ;;
+            esac
+          fi
+          echo "authorization=accepted" | tee -a "$RECEIPT"
+
+      - name: Check out exact target revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prove target and run bounded pre-deploy tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACTUAL="$(git rev-parse HEAD)"
+          [ "$ACTUAL" = "$TARGET_SHA" ]
+          git fetch origin integration/2026-09-27 --quiet
+          git merge-base --is-ancestor "$TARGET_SHA" origin/integration/2026-09-27 || {
+            echo "refused=target_not_in_authorized_integration_history" | tee -a "$RECEIPT"
+            exit 2
+          }
+          bash -n scripts/restart_dev_backend.sh
+          bash -n room-node/aria_wake/ctl.sh
+          /home/caoscare-1/CAOSCARE.COM/backend/.venv/bin/python3 -m pytest -q backend/tests/test_restart_dev_backend.py
+          node --test room-node/aria_wake/serve_built.test.js
+          echo "predeploy_tests=passed" | tee -a "$RECEIPT"
+
+      - name: Verify current EliteDesk state
+        shell: bash
+        run: |
+          set -euo pipefail
+          [ -d "$DEPLOY_ROOT/.git" ] || git -C "$DEPLOY_ROOT" rev-parse --git-dir >/dev/null
+          CURRENT="$(git -C "$DEPLOY_ROOT" rev-parse HEAD)"
+          CHANGES="$(git -C "$DEPLOY_ROOT" status --porcelain --untracked-files=no)"
+          [ -z "$CHANGES" ] || {
+            echo "refused=deployment_worktree_has_tracked_changes" | tee -a "$RECEIPT"
+            exit 2
+          }
+          echo "previous_sha=$CURRENT" | tee -a "$RECEIPT"
+          echo "current_branch=$(git -C "$DEPLOY_ROOT" branch --show-current)" | tee -a "$RECEIPT"
+          curl -fsS --max-time 4 http://127.0.0.1:8092/api/health >/dev/null
+          curl -fsS --max-time 4 http://127.0.0.1:3002/api/health >/dev/null
+          echo "predeploy_health=passed" | tee -a "$RECEIPT"
+
+      - name: Load exact revision into controlled deployment checkout
+        if: env.SCOPE != 'verify-only'
+        id: load
+        shell: bash
+        run: |
+          set -euo pipefail
+          CURRENT="$(git -C "$DEPLOY_ROOT" rev-parse HEAD)"
+          git -C "$DEPLOY_ROOT" fetch origin integration/2026-09-27 --quiet
+          git -C "$DEPLOY_ROOT" cat-file -e "${TARGET_SHA}^{commit}"
+          git -C "$DEPLOY_ROOT" merge-base --is-ancestor "$TARGET_SHA" origin/integration/2026-09-27
+          if ! git -C "$DEPLOY_ROOT" diff --quiet "$CURRENT" "$TARGET_SHA" -- backend/requirements.txt; then
+            echo "refused=backend_dependency_change_requires_separate_review" | tee -a "$RECEIPT"
+            exit 2
+          fi
+          if ! git -C "$DEPLOY_ROOT" diff --quiet "$CURRENT" "$TARGET_SHA" -- frontend/package.json frontend/yarn.lock; then
+            echo "refused=frontend_dependency_change_requires_separate_review" | tee -a "$RECEIPT"
+            exit 2
+          fi
+          git -C "$DEPLOY_ROOT" update-ref refs/caoscare-deploy/previous "$CURRENT"
+          git -C "$DEPLOY_ROOT" checkout --quiet integration/2026-09-27
+          git -C "$DEPLOY_ROOT" reset --hard "$TARGET_SHA"
+          LOADED="$(git -C "$DEPLOY_ROOT" rev-parse HEAD)"
+          [ "$LOADED" = "$TARGET_SHA" ]
+          echo "previous_sha=$CURRENT" >> "$GITHUB_OUTPUT"
+          echo "loaded_sha=$LOADED" >> "$GITHUB_OUTPUT"
+          echo "loaded_sha=$LOADED" | tee -a "$RECEIPT"
+
+      - name: Restart and prove backend
+        if: env.SCOPE == 'backend' || env.SCOPE == 'backend-and-room-page'
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$DEPLOY_ROOT/scripts/restart_dev_backend.sh" | tee -a "$RECEIPT"
+          curl -fsS --max-time 5 http://127.0.0.1:8092/api/health >/dev/null
+          PID="$(fuser -n tcp 8092 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]+$' | head -1)"
+          [ -n "$PID" ]
+          RUNTIME_SHA="$(tr '\0' '\n' < "/proc/$PID/environ" | sed -n 's/^CAOSCARE_RUNTIME_SHA=//p')"
+          EXPECTED="$(git -C "$DEPLOY_ROOT" rev-parse --short HEAD)"
+          [ "$RUNTIME_SHA" = "$EXPECTED" ]
+          echo "backend_pid=$PID" | tee -a "$RECEIPT"
+          echo "backend_runtime_sha=$RUNTIME_SHA" | tee -a "$RECEIPT"
+          echo "backend_health=passed" | tee -a "$RECEIPT"
+
+      - name: Rebuild, restart, and prove room page
+        if: env.SCOPE == 'room-page' || env.SCOPE == 'backend-and-room-page'
+        shell: bash
+        run: |
+          set -euo pipefail
+          export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+          export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
+          OLD_BUNDLE="$(curl -fsS http://127.0.0.1:3002/ | grep -oE 'main\.[a-z0-9]+\.js' | head -1 || true)"
+          "$DEPLOY_ROOT/room-node/aria_wake/ctl.sh" rebuild | tee -a "$RECEIPT"
+          "$DEPLOY_ROOT/room-node/aria_wake/ctl.sh" restart-page | tee -a "$RECEIPT"
+          systemctl --user is-active --quiet aria-wake.service
+          systemctl --user is-active --quiet aria-wake-page.service
+          systemctl --user is-active --quiet aria-wake-kiosk.service
+          curl -fsS --max-time 5 http://127.0.0.1:3002/api/health >/dev/null
+          ss -ltn | grep -qE '127\.0\.0\.1:8765[[:space:]]'
+          NEW_BUNDLE="$(curl -fsS http://127.0.0.1:3002/ | grep -oE 'main\.[a-z0-9]+\.js' | head -1)"
+          [ -n "$NEW_BUNDLE" ]
+          echo "previous_bundle=${OLD_BUNDLE:-UNKNOWN}" | tee -a "$RECEIPT"
+          echo "loaded_bundle=$NEW_BUNDLE" | tee -a "$RECEIPT"
+          echo "wake_services=active" | tee -a "$RECEIPT"
+          echo "room_page_health=passed" | tee -a "$RECEIPT"
+
+      - name: Verify-only result
+        if: env.SCOPE == 'verify-only'
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "deployment=not_requested" | tee -a "$RECEIPT"
+          echo "verified_target=$TARGET_SHA" | tee -a "$RECEIPT"
+
+      - name: Finalize durable receipt
+        if: always()
+        shell: bash
+        run: |
+          set -u
+          {
+            echo "job_status=${{ job.status }}"
+            echo "finished_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "host_head=$(git -C "$DEPLOY_ROOT" rev-parse HEAD 2>/dev/null || echo UNKNOWN)"
+            echo
+          } | tee -a "$RECEIPT"
+          {
+            echo "-----"
+            cat "$RECEIPT"
+          } >> /home/caoscare-1/caoscare-elitedesk-deploy-history.log
+
+      - name: Publish deployment receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: elitedesk-caoscare-deploy-${{ github.run_id }}
+          path: ${{ runner.temp }}/elitedesk-caoscare-deploy.txt
+          if-no-files-found: error
+          retention-days: 30

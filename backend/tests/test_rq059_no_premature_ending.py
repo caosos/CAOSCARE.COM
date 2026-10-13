@@ -14,3 +14,4 @@ def test_persona_says_end_call_first_and_goodbye_only_after_success():
     src = inspect.getsource(p)
     assert "FIRST, with no words before it" in src
     assert "until the tool result says it succeeded" in src
+    assert 'exactly and only \\"Okay, bye for now.\\"' in src

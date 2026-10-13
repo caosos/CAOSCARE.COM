@@ -330,3 +330,80 @@ Factory reset (Michael), Wi-Fi provisioned by Michael via its hotspot page. On L
 
 ## 2026-10-12 21:00 CDT — Call-start TV mute proven (platform-wide `816f5f2`)
 Live Room 214, 6 calls 20:38–20:58: each sent exactly one mute at wake and one at call end (12 executed, receipted, unverified), including a 13 s call; greeting audio 3–4 s after wake (breakdown 20:38: session mint 1.7 s, WebRTC 0.9 s, first model audio 1.5 s). Next: faster wake response (pre-mint/pre-connect, shorter opener), labelled wake tries, Bravia network control, IR Mate touch-send off, Voice PE, production release.
+
+## 2026-10-12 22:02 CDT — EliteDesk GitHub runner bridge proven; exact-SHA deployment workflow proposed
+
+- **Agent/tool used:** Codex Work; GitHub connector; GitHub Actions runner `elitedesk-caoscare`.
+- **Branch/ref:** `chore/elitedesk-caoscare-bridge`, PR #133 targeting `integration/2026-09-27`.
+- **What changed:** added a read-only EliteDesk inventory/proof workflow and a separately gated exact-SHA deployment workflow. The deployment workflow is manual/tag-triggered only, accepts only a full commit in the authorized integration history, refuses tracked host changes or dependency-file changes, uses the existing guarded backend restart and room-page rebuild controls, and publishes a durable receipt.
+- **What was verified:** runner `elitedesk-caoscare` version 2.337.0 ran on `caoscare1-hp-elitedesk` as `caoscare-1`; read-only run 38339790348 succeeded at 2026-10-13T03:02:45Z and preserved an artifact. Deployment-workflow validation run 38340115845 succeeded; the real deployment job was skipped on the PR as designed.
+- **Runtime evidence:** `/home/caoscare-1/CAOSCARE-INTEGRATION` was clean at `e3636d016027c06fcc39f26429d63d5e094bd04e`. Live ports: backend `:8092` health 200, room page `:3002` health 200, wake listener `:8765`, Home Assistant `:8123`, frontend dev server `:3000`; old `:8000`/`:8001` backends absent. The live backend reported `CAOSCARE_RUNTIME_SHA=61506b1`, so the loaded backend revision is verified stale relative to the clean integration checkout. `aria-wake.service`, `aria-wake-page.service`, `aria-wake-kiosk.service`, and `caoscare-frontend-dev.service` were active. Disk: 38 GiB free / 83% used; swap: 2.0 GiB used of 2.0 GiB.
+- **No deployment performed:** no application checkout was changed, no CAOSCare service was restarted, and Linode was not accessed.
+- **Blocked at this timestamp:** PR #133 was not merged. A real deployment additionally required an exact approved integration SHA and an explicit dispatch confirmation or an owner-authorized `elitedesk-caoscare-deploy-*` tag.
+- **Next safe step at this timestamp:** carry the proven bridge files into the authorized integration revision, run `verify-only`, then perform the guarded backend and room-page deployment.
+
+## 2026-10-12 22:26 CDT — RQ-047 live-search privacy and cost provenance hardening
+
+Agent: Codex. Branch `fix/rq047-private-live-search`, based on `integration/2026-09-27` at `e3636d0`.
+
+- Existing RQ-047 architecture was preserved: Realtime `research_topic` calls the backend Responses API `web_search` provider; no duplicate provider or tool path was created.
+- Provider requests now set `store: false` and explicit `external_web_access: true`.
+- Private `research_lookup` evidence now records citation details, provider response ID, search-call count and sanitized input/output/total token counts. The resident question remains excluded; only its existing short hash and length are logged.
+- Failing-before proof: `test_live_success_with_citations` failed on missing usage provenance before the implementation. Focused after-proof: `backend/tests/test_rq047_openai_web_search.py` = 14 passed.
+- Modified implementation line counts: `research_openai_search.py` 155; `research.py` 170. Both remain below the repository split threshold.
+- Runtime: NOT CHANGED. No paid call, backend restart, Room 214 setting change, or deployment occurred. Latest independently verified bridge observation remains backend runtime SHA `61506b1`; host proof after this branch does not exist yet.
+- Blocked decision before a paid smoke/live switch: select `OPENAI_RESEARCH_MODEL`; then one isolated owner-authorized lookup must prove `live=true`, citations, natural spoken delivery and the new usage receipt. Room 214 enablement remains a separate guarded restart decision.
+
+HANDOFF CAPSULE
+- Objective: harden, smoke-test and then enable truthful live web lookup for Room 214.
+- Branch: `fix/rq047-private-live-search`.
+- Lane / ownership: RQ-047 provider privacy/provenance only; do not change wake, TV/audio, personality or operational workflows in this branch.
+- Last proven state: focused mocked provider test 14/14; runtime unchanged.
+- Commits: pending at this entry.
+- Runtime state: backend runtime SHA `61506b1` per latest bridge inventory; this branch not loaded.
+- Unresolved proven defects: historical Realtime usage was not logged, so prior-call cost can only be estimated; live research remains disabled.
+- Product invariants that matter here: truthful `live` flag requires real search + citation; resident privacy; receipt provenance; no restart during a live lease.
+- Do NOT change: wake thresholds, TV ducking, Realtime model, Linode, PR #41/#42.
+- Next safe action: commit/push this branch, run CI, select the research model, then perform one isolated capped smoke call before any Room 214 switch.
+
+## 2026-10-12 23:00 CDT — IR Mate touch decision + current Aria completion boundary
+
+**Owner decision:** keep the XIAO Smart IR Mate's top touch behavior and configure it as local TV power
+through learned `Signal0`; do not disable touch. This supersedes the 19:25/21:00 “disable touch-send”
+next-step notes above without erasing that history. The firmware sends the currently selected learned
+slot (initially Signal0), so setup must put TV power in Signal0, leave Signal0 selected, warn that pickup
+can trigger it, and physically prove it before acceptance. The exact hardware/setup/read-back reference
+is now `room-node/ir_mate/README.md`. This entry documents the decision only; no firmware, device,
+Home Assistant, Room 214 runtime, merge, or deployment was changed.
+
+Current task checklist — checked means the work product exists, not that pending live/release gates pass:
+
+- [x] **Audit complete:** 31 recent Room 214 sessions (224 stored turns, 185 completed responses) plus
+  wake/greeting, goodbye, TV command grounding, one-way IR truth, audio duck/restore, and profile paths
+  were reviewed against current source and the owner's reported physical behavior. Unsuccessful wake-word
+  attempts are not present in conversation rows and still require separate labeled listener evidence.
+- [x] **Historical voice-cost estimate complete:** observed speech/playback plus current Realtime pricing
+  supports a likely $1.43–$2.89 total for the 31 sessions and a deliberately pessimistic $14.40 planning
+  ceiling. This is an estimate, not an actual-usage receipt, because historical `response.done` usage was
+  not persisted. The live-search smoke has a separate proposed cap below $0.05 and is still pending owner
+  authorization.
+- [x] **Code/PR preparation done:** draft PR #135 contains the bounded truth/conversation fixes; backend
+  smoke and the full frontend check pass at remote revision `7449dbf`. This checkbox does not claim merge,
+  deployment, or live loading.
+- [ ] **Paid live-search smoke pending:** no paid call, verified `live=true` result, URL-citation evidence,
+  provider usage receipt, or production enablement was produced in this task.
+- [ ] **Merge/deploy pending:** the current branch changes are not claimed merged, deployed, or loaded.
+- [ ] **Room 214 acceptance pending:** Michael physically reported that pickup/top touch vibrates and
+  toggles the TV, confirming the desired feature informally. Formal acceptance still requires labeled
+  normal-voice wake, greeting, first-utterance goodbye, touch/pickup behavior, truthful command wording,
+  mute/restore, and rapid close→wake tests against the exact loaded revision with receipts and timestamps.
+- [ ] **Exact Realtime usage logging pending:** persist actual per-session `response.done` usage/model data
+  and compute cost only from provider-reported units and a verified current price table. Estimates are not
+  usage evidence.
+- [ ] **Verified owner profile and personality profiles pending:** prove Michael's selected owner/home
+  behavior and each supported resident interaction/personality profile through the authoritative saved
+  record, prompt/session load, and labeled live behavior. Code/config existence alone is insufficient.
+- [ ] **Installer manual completion pending:** the IR Mate README now records exact puck behavior and an
+  interim checklist, but the full multi-device installer manual still needs provisioning screenshots,
+  site survey/mounting standards, network/fleet naming, rollback/replacement, privacy/safety handoff,
+  acceptance receipts, and owner approval.

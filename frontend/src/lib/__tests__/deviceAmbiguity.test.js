@@ -57,7 +57,7 @@ describe.each(CASES)("%s", (name, args, text, noun) => {
 });
 
 test("tool refusals are independent per tool in one session", async () => {
-  await executeDeviceTool({ name: "toggle_tv", args: { state: "on" }, ctx: ctx("do it") });
+  await executeDeviceTool({ name: "toggle_tv", args: { state: "on" }, ctx: ctx("turn the TV on") });
   const blinds = await executeDeviceTool({ name: "set_blinds", args: { action: "open" }, ctx: ctx("open the blinds") });
   expect(blinds.ambiguous).toBe(true);
   expect(lookups().length).toBe(2);
