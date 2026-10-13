@@ -82,6 +82,56 @@ jobs:
               awk 'NR == 1 || $4 ~ /:(3000|3002|8000|8001|8092|8123|8765)$/'
             echo
 
+            echo "== Listener process provenance =="
+            for port in 3000 3002 8000 8001 8092 8123 8765
+            do
+              pids=$(fuser -n tcp "$port" 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]+            for url in               http://127.0.0.1:8000/api/health               http://127.0.0.1:8001/api/health               http://127.0.0.1:8092/api/health               http://127.0.0.1:3002/api/health
+            do
+              code=$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 3 "$url" 2>/dev/null || true)
+              [ -n "$code" ] || code=unreachable
+              echo "$url status=$code"
+            done
+            echo
+
+            echo "== Capacity =="
+            df -h / /home/caoscare-1 2>/dev/null || true
+            free -h 2>/dev/null || true
+          } | tee "$REPORT"
+
+      - name: Preserve inventory receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: elitedesk-caoscare-inventory-${{ github.run_id }}
+          path: ${{ runner.temp }}/elitedesk-caoscare-inventory.txt
+          if-no-files-found: error
+          retention-days: 14
+ | sort -u || true)
+              if [ -z "$pids" ]; then
+                echo "port=$port pid=NONE"
+                continue
+              fi
+              for pid in $pids
+              do
+                echo "port=$port pid=$pid user=$(ps -o user= -p "$pid" | xargs) comm=$(ps -o comm= -p "$pid" | xargs)"
+                echo "  cwd=$(readlink -f "/proc/$pid/cwd" 2>/dev/null || echo UNKNOWN)"
+                echo "  exe=$(readlink -f "/proc/$pid/exe" 2>/dev/null || echo UNKNOWN)"
+              done
+            done
+            echo
+
+            echo "== User service definitions and state =="
+            export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+            export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
+            find "$HOME/.config/systemd/user" -maxdepth 1 -type f -name '*.service' -printf '%f\n' 2>/dev/null | sort
+            for service in aria-wake.service aria-wake-page.service aria-wake-kiosk.service caoscare-frontend-dev.service
+            do
+              echo "service=$service"
+              systemctl --user show "$service" --no-pager \
+                -p LoadState -p ActiveState -p SubState -p FragmentPath -p ExecStart 2>/dev/null || true
+            done
+            echo
+
             echo "== Local HTTP probes =="
             for url in               http://127.0.0.1:8000/api/health               http://127.0.0.1:8001/api/health               http://127.0.0.1:8092/api/health               http://127.0.0.1:3002/api/health
             do
