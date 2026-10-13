@@ -17,6 +17,7 @@ import UpcomingPanel from "../components/kiosk/UpcomingPanel";
 import RoomDevicePanel from "../components/kiosk/RoomDevicePanel";
 import DemoKioskPanel from "../components/kiosk/demo/DemoKioskPanel";
 import { sendRoomDeviceCommand } from "../lib/kioskDeviceControl";
+import { duckRoomAudio, restoreRoomAudio } from "../lib/callAudioDuck";
 import { logActivationClientEvent } from "../lib/activationClient";
 import { useKioskMediaPrime, openInFullTab, inSandboxedIframe } from "../lib/useKioskMediaPrime";
 import { useWakeWord } from "../lib/useWakeWord";
@@ -92,7 +93,7 @@ export default function Kiosk() {
   // TVs-were-muted tracking: when a voice call begins we auto-mute any TV
   // in the room so the mic doesn't pick up Wheel of Fortune dialogue as
   // resident speech. On call end, we restore the prior power state.
-  const mutedDevicesRef = useRef([]); // [{ device_id, prior_power }]
+  const mutedDevicesRef = useRef([]); // restore list from duckRoomAudio (lib/callAudioDuck.js)
 
   // Load kiosk + resident
   useEffect(() => {
@@ -246,20 +247,16 @@ export default function Kiosk() {
     await beginConversation(a);
   };
 
+  const restoreAudioAfterCall = async () => {
+    const restore = mutedDevicesRef.current;
+    mutedDevicesRef.current = [];
+    await restoreRoomAudio(restore, kiosk?.room, sendRoomDeviceCommand);
+  };
+
   const beginConversation = async (a) => {
     setCallState("chatting");
-    // Auto-mute any TVs or loud audio devices in the room so the mic
-    // doesn't pick them up as resident speech. Restore on call end.
-    mutedDevicesRef.current = [];
-    try {
-      const noisy = (devices || []).filter((d) => (d.kind === "tv" || d.kind === "speaker") && d.state?.power === "on");
-      for (const d of noisy) {
-        try {
-          await sendRoomDeviceCommand(kiosk.room, "power", "off", d.kind, d.device_id);
-          mutedDevicesRef.current.push({ device_id: d.device_id, kind: d.kind, prior_power: "on" });
-        } catch { /* ignore */ }
-      }
-    } catch { /* ignore */ }
+    // Turn room TVs/speakers down (never off) for the call; restored on every call end (lib/callAudioDuck.js).
+    mutedDevicesRef.current = await duckRoomAudio(devices, kiosk.room, sendRoomDeviceCommand);
     // RealtimeChatScreen owns its own greeting + listening loop from here.
   };
 
@@ -357,16 +354,7 @@ export default function Kiosk() {
   };
 
   const cancelCall = async () => {
-    if (mutedDevicesRef.current.length) {
-      for (const m of mutedDevicesRef.current) {
-        if (m.prior_power === "on") {
-          try {
-            await sendRoomDeviceCommand(kiosk.room, "power", "on", m.kind, m.device_id);
-          } catch { /* ignore */ }
-        }
-      }
-      mutedDevicesRef.current = [];
-    }
+    await restoreAudioAfterCall();
     setAlert(null);
     setCallState("idle");
   };
@@ -623,6 +611,7 @@ export default function Kiosk() {
           setCallState("idle");
           setAlert(null);
           setInitialTypedText(null);
+          restoreAudioAfterCall();
         }}
       />
       {voicePickerDialog}
