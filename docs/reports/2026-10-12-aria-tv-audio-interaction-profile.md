@@ -36,6 +36,7 @@ Status of this item: **CODE COMPLETE / FRONTEND TESTED / BUILD COMPILED / NOT LO
 - Browser/Claude Chrome evidence: **NONE for this checkpoint**.
 - Tested implementation revision: `7186d52` (`7186d521aea21a40409c4a8487b3361f98b29117`).
 - Published review-branch implementation: `e7bcbde9e8b2e7725ab0604b0afe14e8e5b1cc73` on `fix/aria-goodbye-grounding`.
+- Canonical Issue #129 receipt: <https://github.com/caosos/CAOSCARE.COM/issues/129#issuecomment-6136924615>
 - Loaded revision: **UNKNOWN / unchanged from this environment**.
 - Latest timestamped host observation: **UNKNOWN**. This environment did not inspect or control the EliteDesk, Room 214, Home Assistant, IR Mate, or production.
 
