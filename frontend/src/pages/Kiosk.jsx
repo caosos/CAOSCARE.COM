@@ -17,6 +17,7 @@ import UpcomingPanel from "../components/kiosk/UpcomingPanel";
 import RoomDevicePanel from "../components/kiosk/RoomDevicePanel";
 import DemoKioskPanel from "../components/kiosk/demo/DemoKioskPanel";
 import { sendRoomDeviceCommand } from "../lib/kioskDeviceControl";
+import { duckRoomAudio, restoreRoomAudio } from "../lib/callAudioDuck";
 import { logActivationClientEvent } from "../lib/activationClient";
 import { useKioskMediaPrime, openInFullTab, inSandboxedIframe } from "../lib/useKioskMediaPrime";
 import { useWakeWord } from "../lib/useWakeWord";
@@ -88,6 +89,10 @@ export default function Kiosk() {
     localStorage.setItem("caos_kiosk_voice", voiceId);
   }, [voiceId]);
   const [voicePickerOpen, setVoicePickerOpen] = useState(false);
+
+  // The volume dip is positive session feedback and keeps room audio out of the mic.
+  // It never changes TV power and is reversed on every call-end path.
+  const mutedDevicesRef = useRef([]);
 
   // Load kiosk + resident
   useEffect(() => {
@@ -241,11 +246,16 @@ export default function Kiosk() {
     await beginConversation(a);
   };
 
+  const restoreAudioAfterCall = async () => {
+    const pending = mutedDevicesRef.current;
+    mutedDevicesRef.current = [];
+    await restoreRoomAudio(await pending, kiosk?.room, sendRoomDeviceCommand);
+  };
+
   const beginConversation = async (a) => {
     setCallState("chatting");
-    // Conversation lifecycle and room-device control are deliberately separate.
-    // A wake, pendant, or Talk tap must never change TV/speaker power or volume;
-    // devices move only after an explicit resident request through the guarded tools.
+    // Do not await infrared steps: the greeting must start immediately.
+    mutedDevicesRef.current = duckRoomAudio(devices, kiosk.room, sendRoomDeviceCommand);
   };
 
   // Wake-endpoint trigger (EliteDesk home endpoint "Hey Aria", room-node/aria_wake,
@@ -342,6 +352,7 @@ export default function Kiosk() {
   };
 
   const cancelCall = async () => {
+    await restoreAudioAfterCall();
     setAlert(null);
     setCallState("idle");
   };
@@ -598,6 +609,7 @@ export default function Kiosk() {
           setCallState("idle");
           setAlert(null);
           setInitialTypedText(null);
+          restoreAudioAfterCall();
         }}
       />
       {voicePickerDialog}

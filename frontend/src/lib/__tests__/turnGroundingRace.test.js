@@ -23,6 +23,18 @@ test("real incident: waitForGroundedTurn resolves with the racing turn's own tex
   expect(cls.text).toBe("I need you to go away.");
 });
 
+test("an end_call tool that arrives before speech_stopped waits for this turn, not the previous one", async () => {
+  const t = createTurnGroundingTracker();
+  t.onTranscriptionCompleted({ suspect: false, reason: "no_overlap" }, "We're doing system checks.");
+  t.onSpeechStarted(); // resident now says "That'll be all for now"
+  setTimeout(() => {
+    t.onSpeechStopped();
+    t.onTranscriptionCompleted({ suspect: false, reason: "no_overlap" }, "That'll be all for now.");
+  }, 150);
+  const cls = await t.waitForGroundedTurn();
+  expect(cls.text).toBe("That'll be all for now.");
+});
+
 test("no pending transcript: resolves immediately with whatever is already known", async () => {
   const t = createTurnGroundingTracker();
   t.onTranscriptionCompleted({ suspect: false, reason: "no_overlap" }, "Turn the TV on.");
@@ -32,13 +44,20 @@ test("no pending transcript: resolves immediately with whatever is already known
   expect(Date.now() - start).toBeLessThan(50); // no wait incurred
 });
 
-test("transcript never arrives: falls back to prior known turn after the wait ceiling, doesn't hang forever", async () => {
+test("transcript never arrives: returns an empty pending turn, never stale resident words", async () => {
   const t = createTurnGroundingTracker();
   t.onTranscriptionCompleted({ suspect: false, reason: "no_overlap" }, "earlier turn");
   t.onSpeechStopped(); // a new segment starts, but its transcript never lands
   const cls = await t.waitForGroundedTurn();
-  expect(cls.text).toBe("earlier turn"); // stale, but NOT empty/hung - honest best-known state
-}, 2000);
+  expect(cls).toMatchObject({ text: "", pending: true, suspect: false, reason: "no_overlap_pending" });
+}, 2500);
+
+test("a missing transcript preserves overlap suspicion so Aria's own echo cannot end the call", async () => {
+  const t = createTurnGroundingTracker();
+  t.onSpeechStarted(true);
+  const cls = await t.waitForGroundedTurn();
+  expect(cls).toMatchObject({ text: "", pending: true, suspect: true, reason: "overlap_pending" });
+}, 2500);
 
 test("sequential turns: second call() correctly waits for its OWN transcript, not the first's", async () => {
   const t = createTurnGroundingTracker();

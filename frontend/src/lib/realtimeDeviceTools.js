@@ -320,7 +320,7 @@ export async function executeDeviceTool({ name, args, ctx }) {
     // The actual hang-up happens in the calling layer (handleFunctionCall)
     // because it needs access to the peer connection. Returning here just
     // gives the model its short verbal goodbye to speak.
-    return { ok: true, message: name === "end_call" ? "goodbye for now. I'm right here when you call." : "sounds good, talk soon." };
+    return { ok: true, message: name === "end_call" ? "Okay, bye for now." : "Okay, talk soon." };
   }
   return undefined;
 }

@@ -50,12 +50,14 @@ def render_opening_block(opening: Optional[dict], name: str) -> str:
             f"They just called you by name - \"Hey Aria\" - and you were talking with them only "
             f"{max(1, round(recent))} minute(s) ago. Open by noticing that, warmly and briefly, in your own "
             f"words (\"Hey, back again, {name}?\", \"Didn't I just talk to you, {name}?\" - never the same line "
-            f"twice), then listen. You can carry on from the last exchange (see above).")
+            f"twice). Say exactly one short sentence, with no second greeting, offer, question, or explanation; "
+            f"then stop and listen. You can carry on from the last exchange (see above).")
     elif opening.get("wake"):
         lines.append(
             f"They just called you by name - \"Hey Aria\". Answer the way a person answers when "
             f"their name is called: one short line with their name - \"Hey, {name}.\", \"Yes, {name}?\", "
-            f"\"I'm here, {name}.\" - then stop and listen. No time-of-day greeting, no \"take your time\", "
+            f"\"I'm here, {name}.\" Say exactly one short sentence, then stop and listen. No second greeting, "
+            f"offer, question, time-of-day greeting, or \"take your time\", "
             f"no question about how they are. If you talked recently (see above), you may pick up "
             f"that thread in a few words.")
     last = " ".join(str(opening.get("last_opening") or "").split())[:_MAX_QUOTE]

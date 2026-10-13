@@ -256,6 +256,7 @@ export function createRealtimeHandlers({
     if (endCtl.ending && !/^(output_audio_buffer\.|response\.(created|done|output_audio_transcript\.done))/.test(msg.type || "")) return;
 
     if (msg.type === "input_audio_buffer.speech_started") {
+      turnGrounding.onSpeechStarted(assistantSpeakingRef.current);
       setStatus("listening");
       // Wake from rest: re-enable server auto-response (mirrors the
       // greeting window's own re-enable below) - genuinely over, not just visual.
