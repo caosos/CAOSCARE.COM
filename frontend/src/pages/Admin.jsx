@@ -37,6 +37,7 @@ import StaffTab from "./StaffTab";
 import KiosksTab from "./KiosksTab";
 import ZonesTab from "./ZonesTab";
 import { tabGroups, resolveTab } from "../lib/adminTabGroups";
+import { fetchFacilitySnapshot } from "../lib/facilityLoad";
 import OperationsOverview from "./OperationsOverview";
 import RoutingExceptionsBoard from "./RoutingExceptionsBoard";
 import LiveOperations from "./LiveOperations";
@@ -59,7 +60,7 @@ export default function Admin() {
   const [kiosks, setKiosks] = useState([]);
   const [zones, setZones] = useState([]);
   const [facilities, setFacilities] = useState([]);
-  const [facilitiesLoaded, setFacilitiesLoaded] = useState(false);
+  const [facilityLoadState, setFacilityLoadState] = useState("loading");
   const [autoOpenFacilityDialog, setAutoOpenFacilityDialog] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const [focusResidentId, setFocusResidentId] = useState(null);
@@ -78,6 +79,15 @@ export default function Admin() {
     if (t || rid) setSp((p) => { const n = new URLSearchParams(p); n.delete("tab"); n.delete("resident"); return n; }, { replace: true });
   }, [sp, groups]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const loadFacilities = useCallback(async () => {
+    setFacilityLoadState("loading");
+    const snapshot = await fetchFacilitySnapshot(api);
+    if (snapshot.facilities) setFacilities(snapshot.facilities);
+    // An unavailable read is unknown, not proof that no community exists.
+    // Keep any last-known facilities and let the banner offer a truthful retry.
+    setFacilityLoadState(snapshot.loadState);
+  }, []);
+
   const fetchAll = useCallback(async () => {
     try {
       const [r, s, k, z] = await Promise.all([
@@ -87,20 +97,14 @@ export default function Admin() {
     } catch (e) {
       if (e?.response?.status === 403) { toast.error("Admin access required"); nav("/staff"); }
     }
-    try {
-      const f = await api.get("/facilities");
-      setFacilities(f.data);
-    } catch { /* banner just won't render; rest of Admin still works */ }
-    finally { setFacilitiesLoaded(true); }
-  }, [nav]);
+    await loadFacilities();
+  }, [loadFacilities, nav]);
 
   const goSetUpCommunity = () => { setActiveTab("facilities"); setAutoOpenFacilityDialog(true); };
   // Stable identity (empty deps - only calls api.get/setFacilities) so
   // FacilitiesTab's own mount-effect dependency on this prop doesn't
   // refire on every Admin re-render.
-  const refreshFacilities = useCallback(async () => {
-    try { const f = await api.get("/facilities"); setFacilities(f.data); } catch { /* keep prior state */ }
-  }, []);
+  const refreshFacilities = loadFacilities;
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -145,7 +149,8 @@ export default function Admin() {
       <div className="max-w-7xl mx-auto px-6 py-8">
         <h1 className="font-display text-4xl font-light text-caos-forest mb-6">Community command centre</h1>
 
-        <FacilitySetupBanner facilities={facilities} loaded={facilitiesLoaded} isOwner={user?.role === "owner"} onSetup={goSetUpCommunity} />
+        <FacilitySetupBanner facilities={facilities} loadState={facilityLoadState}
+          isOwner={user?.role === "owner"} onSetup={goSetUpCommunity} onRetry={loadFacilities} />
 
         <div className="flex flex-wrap gap-2 mb-4" data-testid="admin-group-nav">
           {groups.map((g) => (
