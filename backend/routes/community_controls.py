@@ -61,7 +61,6 @@ def _operator(user: dict):
 
 
 def _controls():
-    global _service
     if _service is None:
         return community_process_runtime(db).controls
     return _service
