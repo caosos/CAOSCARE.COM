@@ -219,6 +219,14 @@ class Kiosk(BaseModel):
     # ended up as the public face of the product. At most one kiosk may have
     # this true at a time - enforced in routes/kiosks.py's update handler.
     public_demo: bool = False
+    # Per-room preference: lower TV/speaker volume while Resident Aria is
+    # listening, then restore it at conversation close. Existing kiosks that
+    # predate this field keep the accepted behavior through the default.
+    tv_audio_duck: bool = True
+    # Conversation style is independent of the acoustic voice. "guided" is
+    # the current resident-friendly orientation; "natural" is concise adult
+    # conversation with no unsolicited recency/availability commentary.
+    aria_interaction_profile: Literal["guided", "natural"] = "guided"
     created_at: datetime = Field(default_factory=now_utc)
 
 
@@ -230,6 +238,8 @@ class KioskCreate(BaseModel):
     is_central: bool = False
     public_demo: bool = False
     resident_id: Optional[str] = None
+    tv_audio_duck: bool = True
+    aria_interaction_profile: Literal["guided", "natural"] = "guided"
 
 
 class KioskUpdate(BaseModel):
@@ -241,6 +251,8 @@ class KioskUpdate(BaseModel):
     is_central: Optional[bool] = None
     public_demo: Optional[bool] = None
     resident_id: Optional[str] = None  # "" or null unpins
+    tv_audio_duck: Optional[bool] = None
+    aria_interaction_profile: Optional[Literal["guided", "natural"]] = None
 
 
 class Zone(BaseModel):
@@ -1046,6 +1058,8 @@ class Receipt(BaseModel):
     acknowledged_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     result: Optional[str] = None
+    request_text: Optional[str] = None       # exact human wording that authorized/proposed the action
+    confirmation_text: Optional[str] = None  # exact later confirmation, when confirmation-gated
     failure_reason: Optional[str] = None
     follow_up_required: bool = False
     related_object_type: Optional[str] = None  # "task", "alert", "device_command", ...

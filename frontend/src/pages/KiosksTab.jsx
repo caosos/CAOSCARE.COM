@@ -18,15 +18,16 @@ import { toast } from "sonner";
 /* -------------- Kiosks -------------- */
 export default function KiosksTab({ kiosks, zones, onChange }) {
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", room: "", zone: "", mac_address: "", is_central: false });
+  const [form, setForm] = useState({ name: "", room: "", zone: "", mac_address: "", is_central: false, tv_audio_duck: true, aria_interaction_profile: "guided" });
 
   const create = async (e) => {
     e.preventDefault();
+    if (!form.tv_audio_duck && !window.confirm("Turning this off can make it harder for Aria and the resident to hear each other while the TV is playing. Create this room with TV volume dip off?")) return;
     try {
       await api.post("/kiosks", form);
       toast.success("Kiosk added");
       setOpen(false);
-      setForm({ name: "", room: "", zone: "", mac_address: "", is_central: false });
+      setForm({ name: "", room: "", zone: "", mac_address: "", is_central: false, tv_audio_duck: true, aria_interaction_profile: "guided" });
       onChange();
     } catch (err) {
       toast.error(err?.response?.data?.detail || "Failed");
@@ -48,6 +49,27 @@ export default function KiosksTab({ kiosks, zones, onChange }) {
     try {
       await api.patch(`/kiosks/${id}`, { public_demo: true });
       toast.success("Set as the public demo kiosk");
+      onChange();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Failed");
+    }
+  };
+
+  const setTvAudioDuck = async (id, enabled) => {
+    if (!enabled && !window.confirm("Turning this off can make it harder for Aria and the resident to hear each other while the TV is playing. Keep TV volume dip off for this room?")) return;
+    try {
+      await api.patch(`/kiosks/${id}`, { tv_audio_duck: enabled });
+      toast.success(enabled ? "TV volume dip enabled" : "TV volume dip disabled");
+      onChange();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Failed");
+    }
+  };
+
+  const setInteractionProfile = async (id, profile) => {
+    try {
+      await api.patch(`/kiosks/${id}`, { aria_interaction_profile: profile });
+      toast.success(`Aria conversation style set to ${profile}`);
       onChange();
     } catch (err) {
       toast.error(err?.response?.data?.detail || "Failed");
@@ -85,13 +107,28 @@ export default function KiosksTab({ kiosks, zones, onChange }) {
                 <Checkbox checked={form.is_central} onCheckedChange={(v) => setForm({ ...form, is_central: !!v })} />
                 <span className="text-sm font-semibold text-caos-forest">Central nurse station <span className="text-caos-mute font-normal">(listens for any facility emergency)</span></span>
               </label>
+              <label className="flex items-center gap-2 cursor-pointer" data-testid="kiosk-tv-audio-duck-toggle">
+                <Checkbox checked={form.tv_audio_duck} onCheckedChange={(v) => setForm({ ...form, tv_audio_duck: !!v })} />
+                <span className="text-sm font-semibold text-caos-forest">Lower TV volume while Aria is listening <span className="text-caos-mute font-normal">(restores it when the conversation ends)</span></span>
+              </label>
+              {!form.tv_audio_duck && <p className="text-sm text-caos-terracotta" role="alert">Warning: leaving the TV unchanged can reduce wake and speech recognition while it is playing. You will be asked to confirm before saving.</p>}
+              <div>
+                <Label>Aria conversation style</Label>
+                <Select value={form.aria_interaction_profile} onValueChange={(v) => setForm({ ...form, aria_interaction_profile: v })}>
+                  <SelectTrigger data-testid="kiosk-interaction-profile"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="guided">Guided — more orientation</SelectItem>
+                    <SelectItem value="natural">Natural — concise adult conversation</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <DialogFooter><Button type="submit" className="bg-caos-forest" data-testid="kiosk-save">Save</Button></DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
       </div>
       <Table>
-        <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Room</TableHead><TableHead>Zone</TableHead><TableHead>MAC</TableHead><TableHead>Public demo</TableHead><TableHead>Kiosk link</TableHead><TableHead></TableHead></TableRow></TableHeader>
+        <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Room</TableHead><TableHead>Zone</TableHead><TableHead>MAC</TableHead><TableHead>Aria style</TableHead><TableHead>TV volume dip</TableHead><TableHead>Public demo</TableHead><TableHead>Kiosk link</TableHead><TableHead></TableHead></TableRow></TableHeader>
         <TableBody>
           {kiosks.map((k) => (
             <TableRow key={k.kiosk_id} data-testid={`kiosk-row-${k.kiosk_id}`}>
@@ -102,6 +139,26 @@ export default function KiosksTab({ kiosks, zones, onChange }) {
               <TableCell>{k.room}</TableCell>
               <TableCell>{k.zone}</TableCell>
               <TableCell className="font-mono text-xs">{k.mac_address || "—"}</TableCell>
+              <TableCell>
+                <Select value={k.aria_interaction_profile || "guided"} onValueChange={(v) => setInteractionProfile(k.kiosk_id, v)}>
+                  <SelectTrigger className="w-[120px]" data-testid={`kiosk-interaction-profile-${k.kiosk_id}`}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="guided">Guided</SelectItem>
+                    <SelectItem value="natural">Natural</SelectItem>
+                  </SelectContent>
+                </Select>
+              </TableCell>
+              <TableCell>
+                <label className="flex items-center gap-2 cursor-pointer text-sm">
+                  <Checkbox
+                    checked={k.tv_audio_duck !== false}
+                    onCheckedChange={(v) => setTvAudioDuck(k.kiosk_id, !!v)}
+                    aria-label={`TV volume dip for ${k.name}`}
+                    data-testid={`kiosk-tv-audio-duck-${k.kiosk_id}`}
+                  />
+                  <span>{k.tv_audio_duck === false ? "Off" : "On"}</span>
+                </label>
+              </TableCell>
               <TableCell>
                 {k.public_demo ? (
                   <Badge className="bg-caos-forest text-white uppercase text-[10px] tracking-wider">Public demo</Badge>

@@ -9,6 +9,7 @@ import asyncio
 import os
 import sys
 import types
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -54,12 +55,15 @@ def mint(monkeypatch):
     monkeypatch.setattr(realtime_routes, "httpx", fake)
     monkeypatch.setattr(realtime_resident_session, "httpx", fake)
     monkeypatch.setattr(realtime_resident_session, "_require_openai_key", lambda: "sk-test-not-real")
+    monkeypatch.setattr(realtime_resident_session, "db", types.SimpleNamespace(
+        kiosks=types.SimpleNamespace(find_one=AsyncMock(return_value={"aria_interaction_profile": "natural"})),
+    ))
     CALLS.clear()
     app = FastAPI(); app.include_router(realtime_routes.router, prefix="/api")
 
     async def go():
         async with REAL(transport=httpx.ASGITransport(app=app), base_url="http://test") as c:
-            return await c.post("/api/realtime/session", json={"resident_id": "res_offline_mint_none"})
+            return await c.post("/api/realtime/session", json={"resident_id": "res_offline_mint_none", "kiosk_id": "k_natural"})
     return run(go())
 
 
@@ -78,6 +82,8 @@ def test_instructions_carry_the_truth_and_end_call_invariants(mint):
     assert ins == mint.json()["_caos"]["instructions"]
     assert TRUTH_INVARIANTS.strip()[:60] in ins
     assert "end_call" in ins and "FIRST" in ins
+    assert "Interaction profile — Natural" in ins
+    assert "Do not announce that you talked minutes ago" in ins
 
 
 def test_client_config_returned_with_tools_vad_and_noise_reduction(mint):

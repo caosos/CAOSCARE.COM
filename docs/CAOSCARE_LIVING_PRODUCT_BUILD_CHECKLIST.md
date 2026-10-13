@@ -1032,3 +1032,24 @@ Full record: `docs/reports/2026-10-12-platform-build-log.md` (built / problems +
 - PRODUCTION: PR #132 → `06e7e2b` (public "In pilot" statuses with limits; room-screen HC button on phones).
 - Gates: backend 661/0/13, frontend 97/663.
 - Next (see report §3): call-start TV volume-duck instead of power-off; Bravia network control; IR Mate touch-send off; Voice PE bring-up; labelled wake tries; release of integration to production.
+
+### Update 2026-10-12 21:22 CDT — Aria TV audio and Natural-profile slice
+
+- [x] Preserve **“Hey Aria”** and prohibit automatic TV power changes on wake.
+- [x] Default room TV/speaker conversation dip on; restore on all close paths.
+- [x] Add warned administrator opt-out and two-turn Resident Aria confirmation gate.
+- [x] Receipt preference authorization before mutation and completion afterward, with exact request/confirmation wording and provenance.
+- [x] Require the exact live kiosk for a resident voice setting write.
+- [x] Add room-scoped Guided/Natural interaction defaults; Natural forbids “back again,” lingering speeches, and extended goodbye.
+- [x] Add verified Home Assistant `media_player` numeric volume adapter.
+- [x] Preserve the temporary dip while changing the resident's desired post-call volume; ask “Is that good?”
+- [x] Refuse exact in-call volume control for one-way IR; document its restore as best-effort/unverified.
+- [x] Add installer/setup/acceptance manual.
+- [x] Focused frontend 69/69, ambiguity rerun 13/13, optimized build compiled, Python syntax compiled.
+- [ ] Run new backend tests in a complete backend environment (unavailable here).
+- [ ] Repair local Radix dependency and re-run one uninterrupted full frontend gate.
+- [ ] Load reviewed revision through the existing coordinator; set Michael's Room 214 kiosk to Natural.
+- [ ] Ten labeled normal-voice wake trials from the real seat with TV at normal volume.
+- [ ] Physical wake/dip/verified adjustment/goodbye/restore and opt-out receipt acceptance.
+
+**Build position:** Phase 3 remains active; this is a Phase 6 partial slice. It is not loaded, live-accepted, owner-accepted, or Phase 7 ready. Full record: `docs/reports/2026-10-12-aria-tv-audio-interaction-profile.md`. ETA for live acceptance UNKNOWN; `next_check_at` MISSING; Michael action NOTHING until controlled load.

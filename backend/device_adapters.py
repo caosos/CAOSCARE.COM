@@ -48,6 +48,7 @@ _BRIGHTNESS_TOLERANCE_PCT = 6
 _HUE_TOLERANCE_DEG = 30
 _KELVIN_TOLERANCE = 150
 _TEMPERATURE_TOLERANCE_F = 2
+_VOLUME_TOLERANCE_PCT = 2
 _VERIFY_RETRIES = 3
 _VERIFY_DELAY_S = 0.4
 
@@ -121,6 +122,22 @@ def _read_climate_state(attrs: dict, ha_state: str) -> dict:
     return state
 
 
+def _read_media_player_state(attrs: dict, ha_state: str) -> dict:
+    """Normalize a state-reporting Home Assistant media player.
+
+    Home Assistant reports volume as 0.0..1.0; CAOSCare's room-device
+    contract uses 0..100.  This is the supported feedback path for voice
+    volume changes during automatic conversation ducking.
+    """
+    state: dict = {"power": "off" if ha_state in ("off", "unavailable", "unknown") else "on"}
+    level = attrs.get("volume_level")
+    if isinstance(level, (int, float)):
+        state["volume"] = round(max(0, min(1, level)) * 100)
+    if isinstance(attrs.get("is_volume_muted"), bool):
+        state["muted"] = attrs["is_volume_muted"]
+    return state
+
+
 async def _ha_get_state(client: httpx.AsyncClient, entity_id: str) -> dict:
     resp = await client.get(
         f"{HA_BASE_URL}/api/states/{entity_id}",
@@ -145,6 +162,9 @@ def _verifies(action: str, requested, after: dict, domain: str = "") -> bool:
             # climate.turn_on resumes whatever mode the device picks, which
             # this device's own Matter integration does not let us dictate.
             return (ha_state == "off") if requested == "off" else (ha_state != "off")
+        if domain == "media_player":
+            return ((ha_state == "off") if requested == "off" else
+                    (ha_state not in ("off", "unavailable", "unknown")))
         return ha_state == requested
     if action == "hvac_mode":
         return ha_state == requested
@@ -153,6 +173,10 @@ def _verifies(action: str, requested, after: dict, domain: str = "") -> bool:
         # literal string "on" - the light-only guard below doesn't apply.
         temp = attrs.get("temperature")
         return isinstance(temp, (int, float)) and abs(temp - float(requested)) <= _TEMPERATURE_TOLERANCE_F
+    if action == "volume" and domain == "media_player":
+        level = attrs.get("volume_level")
+        return (isinstance(level, (int, float)) and
+                abs(level * 100 - float(requested)) <= _VOLUME_TOLERANCE_PCT)
     if ha_state != "on":
         return False  # brightness/color/color_temp are meaningless on an off light
     if action == "brightness":
@@ -226,6 +250,9 @@ async def execute_home_assistant(device: dict, action: str, value):
                     f"This climate device does not support hvac_mode={value!r} - it only supports {supported}"
                 )
             service, payload = "set_hvac_mode", {"entity_id": entity_id, "hvac_mode": value}
+        elif action == "volume" and domain == "media_player":
+            target = max(0, min(100, int(value)))
+            service, payload = "volume_set", {"entity_id": entity_id, "volume_level": target / 100}
         else:
             raise RuntimeError(f"Home Assistant adapter does not support action={action!r} on domain={domain!r}")
 
@@ -269,6 +296,8 @@ async def execute_home_assistant(device: dict, action: str, value):
         verified_state = _read_light_state(after.get("attributes", {}), after.get("state", ""))
     elif domain == "climate":
         verified_state = _read_climate_state(after.get("attributes", {}), after.get("state", ""))
+    elif domain == "media_player":
+        verified_state = _read_media_player_state(after.get("attributes", {}), after.get("state", ""))
     else:
         verified_state = {"power": after.get("state")}
     return {

@@ -10,6 +10,10 @@
  *    from what was requested, and says "simulated" when the backend says so.
  */
 import { findDeviceGuarded } from "./deviceAmbiguity";
+import {
+  conversationVolumeTarget, isStateReportingVolumeDevice,
+  noteResidentVolumeChoice, residentVolumeReference,
+} from "./callAudioDuck";
 
 // A volume request has many valid forms, so this only requires a volume cue.
 export const VOLUME_PHRASES = /\b(volume|loud(er|ness)?|quiet(er)?|turn\s*(it|the\s*(tv|sound))?\s*(up|down)|mute|unmute)\b/i;
@@ -119,21 +123,29 @@ async function adjustTvVolume({ args, ctx, deps }) {
   }
   const tv = await tvDevice("adjust_tv_volume", args, ctx, "volume");
   if (tv.fail) return tv.fail;
-  // One-way (infrared) TV: neither its power nor its level can be seen, so "louder" is a few
-  // presses and Aria asks how that is - she never names a level she cannot see.
-  if ((tv.device.capabilities || []).includes("volume_step")) {
-    const presses = Math.max(1, Math.min(20, Math.round(Number(args.amount) || 3)));
-    const res = await sendCommand(deps, tv.room, "volume_step", args.direction === "down" ? -presses : presses, "tv", ctx, tv.device);
-    if (res.error) return { ok: false, message: `the volume didn't change (${res.error}).` };
-    return { ok: true, message: `sent ${presses} volume-${args.direction} presses to the TV. This TV can't report its volume, so ask if that's better and adjust a little more if not - don't name a level.` };
+  // Automatic conversation ducking needs a known baseline and a known new
+  // restore target. One-way infrared can do neither safely.
+  if (!isStateReportingVolumeDevice(tv.device)) {
+    return { ok: false, message: "this infrared TV can't report its volume, so I can't safely change its level during my automatic volume dip. A state-reporting smart TV is required for voice volume adjustments." };
   }
   if (tv.device.state?.power !== "on") return { ok: false, message: "the TV is off right now, so there's no volume to change." };
-  const current = typeof tv.device.state?.volume === "number" ? tv.device.state.volume : 20;
-  const step = Math.max(1, Math.min(50, Math.round(Number(args.amount) || 10)));
-  const next = Math.max(0, Math.min(100, current + (args.direction === "down" ? -step : step)));
-  const res = await sendCommand(deps, tv.room, "volume", next, "tv", ctx, tv.device);
+  if (typeof tv.device.state?.volume !== "number") {
+    return { ok: false, message: "this TV isn't reporting its current volume, so I can't safely adjust it." };
+  }
+  const heard = heardText(ctx);
+  const current = residentVolumeReference(tv.device.device_id, tv.device.state.volume);
+  const requestedAmount = Math.round(Number(args.amount));
+  const step = Number.isFinite(requestedAmount) && numbersIn(heard).has(requestedAmount)
+    ? Math.max(1, Math.min(50, requestedAmount)) : 10;
+  const desired = Math.max(0, Math.min(100, current + (args.direction === "down" ? -step : step)));
+  const conversationLevel = conversationVolumeTarget(tv.device.device_id, desired);
+  const res = await sendCommand(deps, tv.room, "volume", conversationLevel, "tv", ctx, tv.device);
   if (res.error) return { ok: false, message: `the volume didn't change (${res.error}).` };
-  return { ok: true, message: `the TV volume is now ${res.data.state.volume}${labelOf(res.data)}.` };
+  if (res.data.verified !== true || typeof res.data.state.volume !== "number") {
+    return { ok: false, message: "the TV did not provide a verified volume reading, so I can't confirm that change." };
+  }
+  noteResidentVolumeChoice(tv.device.device_id, desired);
+  return { ok: true, message: `I adjusted it and kept it lower while we talk${labelOf(res.data)}. Ask the resident, "Is that good?"` };
 }
 
 const HANDLERS = { set_blinds: setBlinds, set_tv_channel: setTvChannel, adjust_tv_volume: adjustTvVolume };

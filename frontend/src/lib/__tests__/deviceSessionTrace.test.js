@@ -6,7 +6,7 @@
 process.env.REACT_APP_BACKEND_URL = "http://127.0.0.1:8000";
 import { executeDeviceTool } from "../realtimeDeviceTools";
 
-const TV = { device_id: "dev_tv", kind: "tv", capabilities: ["power", "volume", "input"], inputs: ["TV", "HDMI 1"], state: { power: "off" } };
+const TV = { device_id: "dev_tv", kind: "tv", protocol: "home_assistant", endpoint: "media_player.test_tv", capabilities: ["power", "volume", "input"], inputs: ["TV", "HDMI 1"], state: { power: "off", volume: 20 } };
 const THERMOSTAT = { device_id: "dev_thermo", kind: "thermostat", capabilities: ["power", "temperature"], state: { power: "on", temperature: 72 } };
 const LIGHT = { device_id: "dev_light", kind: "light", capabilities: ["power"], state: { power: "off" } };
 
@@ -15,9 +15,10 @@ function ctx(overrides = {}) {
 }
 
 beforeEach(() => {
-  global.fetch = jest.fn(async (url) => {
+  global.fetch = jest.fn(async (url, opts) => {
     if (String(url).includes("/devices/public/by-room/")) return { ok: true, json: async () => [TV, THERMOSTAT, LIGHT] };
-    return { ok: true, json: async () => ({ ok: true }) };
+    const body = JSON.parse(opts.body);
+    return { ok: true, json: async () => ({ ok: true, verified: true, state: { [body.action]: body.value } }) };
   });
 });
 

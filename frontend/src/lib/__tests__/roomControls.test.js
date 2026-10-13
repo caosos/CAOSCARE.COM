@@ -8,16 +8,18 @@ process.env.REACT_APP_BACKEND_URL = "http://127.0.0.1:8000";
 import { executeDeviceTool } from "../realtimeDeviceTools";
 import { numbersIn } from "../realtimeRoomControls";
 import { staffNotifiedChips, demoRoomView } from "../demoRoom";
+import { resetResidentVolumeChoices } from "../callAudioDuck";
 
 const ctx = (heard, extra = {}) => ({ resident_id: "r", room: "DEMO", session_id: "rt_x", turn_suspect: false, last_user_text: heard, ...extra });
 const BLINDS = { device_id: "d_bl", kind: "blinds", capabilities: ["position"], state: { position: 0 } };
-const TV = { device_id: "d_tv", kind: "tv", capabilities: ["power", "volume", "channel", "input"], state: { power: "on", volume: 20, channel: 3 } };
+const TV = { device_id: "d_tv", kind: "tv", protocol: "home_assistant", endpoint: "media_player.demo_tv", capabilities: ["power", "volume", "channel", "input"], state: { power: "on", volume: 20, channel: 3 } };
 let devices;
 let commandReply;
 
 const commands = () => global.fetch.mock.calls.filter(([u]) => String(u).includes("/command")).map(([, o]) => JSON.parse(o.body));
 
 beforeEach(() => {
+  resetResidentVolumeChoices();
   devices = [BLINDS, TV];
   commandReply = (body) => ({ ok: true, json: async () => ({ simulated: true, verified: true, state: { [body.action]: body.value } }) });
   global.fetch = jest.fn(async (url, opts) => {
@@ -111,9 +113,9 @@ describe("set_tv_channel", () => {
 describe("adjust_tv_volume", () => {
   test("up and down by a step from the device's own volume", async () => {
     const up = await executeDeviceTool({ name: "adjust_tv_volume", args: { direction: "up" }, ctx: ctx("Turn the volume up") });
-    expect(up.message).toBe("the TV volume is now 30 (simulated device).");
-    await executeDeviceTool({ name: "adjust_tv_volume", args: { direction: "down", amount: 5 }, ctx: ctx("a bit quieter") });
-    expect(commands().map((c) => c.value)).toEqual([30, 15]);
+    expect(up.message).toContain('I adjusted it and kept it lower while we talk (simulated device). Ask the resident, "Is that good?"');
+    await executeDeviceTool({ name: "adjust_tv_volume", args: { direction: "down", amount: 5 }, ctx: ctx("five quieter") });
+    expect(commands().map((c) => c.value)).toEqual([30, 25]);
   });
   test("clamped at 0 and 100", async () => {
     devices = [{ ...TV, state: { power: "on", volume: 95 } }];
@@ -125,15 +127,13 @@ describe("adjust_tv_volume", () => {
     expect(r.ok).toBe(false);
     expect(commands()).toHaveLength(0);
   });
-  test("one-way (infrared) TV: louder is a few presses, power unknown, no level claimed", async () => {
+  test("one-way (infrared) TV: voice volume is refused because no level can be reported", async () => {
     devices = [{ ...TV, capabilities: [...(TV.capabilities || []), "volume_step"], state: { power: "off" } }];
     const r = await executeDeviceTool({ name: "adjust_tv_volume", args: { direction: "up" }, ctx: ctx("a little louder") });
-    expect(r.ok).toBe(true);
-    expect(commands().map((c) => [c.action, c.value])).toEqual([["volume_step", 3]]);
+    expect(r.ok).toBe(false);
+    expect(commands()).toHaveLength(0);
     expect(r.message).toMatch(/can't report its volume/);
-    expect(r.message).not.toMatch(/volume is now/);
-    await executeDeviceTool({ name: "adjust_tv_volume", args: { direction: "down", amount: 5 }, ctx: ctx("turn it down") });
-    expect(commands()[1]).toMatchObject({ action: "volume_step", value: -5 });
+    expect(r.message).toMatch(/state-reporting smart TV/);
   });
   test("TV off: no volume change, honest message", async () => {
     devices = [{ ...TV, state: { power: "off" } }];

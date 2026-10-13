@@ -13,12 +13,14 @@ from routes.realtime_companion_memory import build_resident_profile_and_memory
 from routes.realtime_context_tail import render_context_tail
 from routes.aria_opening import render_opening_block
 from routes.realtime_truth_rules import research_prompt_line, TRUTH_INVARIANTS
+from routes.realtime_interaction_profile import render_interaction_profile
 
 
 async def _build_companion_instructions(
     resident_id: str | None, operational_state: dict | None = None,
     continuity: dict | None = None, conversation_state: dict | None = None,
     interpretation_patterns: list | None = None, opening: dict | None = None,
+    interaction_profile: str = "guided",
 ) -> str:
     """System prompt the resident-facing companion (Aria) speaks under.
 
@@ -271,17 +273,18 @@ async def _build_companion_instructions(
         "confusion, gently confirm a caregiver is on the way and stay with them. "
         "If they ask you to rest or be quiet, stop talking immediately and wait."
     )
+    interaction = render_interaction_profile(interaction_profile)
     if not resident_id:
-        return (_system_self_knowledge() + time_anchor + persona
-                + render_context_tail("them", operational_state) + render_opening_block(opening, "there"))
+        return (_system_self_knowledge() + time_anchor + persona + interaction
+                + render_context_tail("them", operational_state) + render_opening_block(opening, "there", interaction_profile))
 
     r = await db.residents.find_one(
         {"resident_id": resident_id},
         {"_id": 0, "name": 1, "preferred_name": 1, "preferences": 1, "memory": 1, "low_vision": 1},
     )
     if not r:
-        return (_system_self_knowledge() + time_anchor + persona
-                + render_context_tail("them", operational_state) + render_opening_block(opening, "there"))
+        return (_system_self_knowledge() + time_anchor + persona + interaction
+                + render_context_tail("them", operational_state) + render_opening_block(opening, "there", interaction_profile))
 
     full_name = (r.get("name") or "").strip()
     preferred = (r.get("preferred_name") or "").strip()
@@ -290,7 +293,7 @@ async def _build_companion_instructions(
     profile_and_memory = await build_resident_profile_and_memory(resident_id, r, name, full_name)
     tail = render_context_tail(name or "them", operational_state, continuity,
                                conversation_state, interpretation_patterns)
-    return (_system_self_knowledge() + time_anchor + persona + profile_and_memory + tail
-            + render_opening_block(opening, name or "there"))
+    return (_system_self_knowledge() + time_anchor + persona + interaction + profile_and_memory + tail
+            + render_opening_block(opening, name or "there", interaction_profile))
 
 

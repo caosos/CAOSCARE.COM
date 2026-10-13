@@ -953,3 +953,6 @@ listener verifier experiment: `docs/experiments/`.
 - `backend/device_ir_adapter.py` + `backend/ir_codesets.py`: `ir_blaster` protocol — any room's TV by infrared through an HA IR blaster; one-way, `verified=False`. Test `tests/test_ir_blaster_adapter.py`.
 - `frontend/src/lib/powerDirection.js`: light on/off must agree with the turn's transcript. `frontend/src/lib/endController.js`: goodbye answers open tool calls; a goodbye already playing counts as heard.
 - `room-node/ir_mate/`: CAOSCare build of the XIAO IR Mate ESPHome firmware (code-send actions). `room-node/ha_lan_proxy/`: user service exposing the HA VM on the LAN.
+- `docs/TV_AUDIO_AND_WAKE_SETUP_MANUAL.md`: installer contract for automatic conversation volume lowering,
+  state-reporting versus one-way TVs, the confirmation-gated resident opt-out, interaction profiles,
+  fault-layer diagnosis, IR placement/power, and room acceptance.

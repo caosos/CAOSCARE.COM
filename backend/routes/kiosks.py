@@ -1,13 +1,34 @@
 """Kiosks + Zones CRUD."""
+import re
+from datetime import timedelta
+from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, Request
-from models import Kiosk, KioskCreate, KioskUpdate, Zone, ZoneCreate
+from pydantic import BaseModel, Field
+from models import Kiosk, KioskCreate, KioskUpdate, Zone, ZoneCreate, now_utc
 from deps import db, get_current_user, require_admin
+from routes.receipts import create_receipt
+from routes.session_grounding import find_live_session
 
 # What a caller who is not an admin/owner may see of each kiosk (RQ-035,
 # packet P2): enough to identify a room, nothing else.
 PUBLIC_KIOSK_FIELDS = ("kiosk_id", "room")
 
 router = APIRouter(tags=["kiosks"])
+
+
+class VoiceTvAudioDuckChange(BaseModel):
+    resident_id: str = Field(min_length=1, max_length=100)
+    session_id: str = Field(min_length=1, max_length=100)
+    enabled: bool
+    confirmed: bool = False
+    confirmation_text: Optional[str] = Field(default=None, max_length=200)
+    request_text: Optional[str] = Field(default=None, max_length=500)
+
+
+_AFFIRMATIVE = re.compile(
+    r"^\s*(yes|yeah|yep|correct|that(?:'s| is) right|please do|yes\s*,?\s*that(?:'s| is) right)[.!]?\s*$",
+    re.I,
+)
 
 
 # Kiosks ---------------------------------
@@ -108,18 +129,61 @@ async def create_kiosk(data: KioskCreate, user=Depends(require_admin)):
     k = Kiosk(**data.model_dump())
     doc = k.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
+    authorization = await create_receipt(
+        action_type="kiosk_create_authorized", related_object_type="kiosk",
+        related_object_id=doc["kiosk_id"], source="staff", resident_id=doc.get("resident_id"),
+        room=doc.get("room"), zone=doc.get("zone"), requested_by=user.get("user_id"), status="created",
+        result="authenticated admin kiosk creation authorized",
+        provenance={"actor_id": user.get("user_id"), "actor_type": "real-human",
+                    "actor_name": user.get("name"), "actor_role": user.get("role"),
+                    "identity_basis": "authenticated", "authority": f"admin_override:{user.get('role')}",
+                    "before_state": None, "after_state": doc, "result_label": "verified"},
+    )
     await db.kiosks.insert_one(doc)
     doc.pop("_id", None)
+    await create_receipt(
+        action_type="kiosk_created", related_object_type="kiosk", related_object_id=doc["kiosk_id"],
+        source="staff", resident_id=doc.get("resident_id"), room=doc.get("room"), zone=doc.get("zone"),
+        requested_by=user.get("user_id"), status="completed", result="kiosk created",
+        provenance={"actor_id": user.get("user_id"), "actor_type": "real-human",
+                    "actor_name": user.get("name"), "actor_role": user.get("role"),
+                    "identity_basis": "authenticated", "authority": f"admin_override:{user.get('role')}",
+                    "parent_receipt_id": authorization["receipt_id"], "before_state": None,
+                    "after_state": doc, "result_label": "verified"},
+    )
     return doc
 
 
 @router.put("/kiosks/{kiosk_id}")
 async def update_kiosk(kiosk_id: str, data: KioskCreate, user=Depends(require_admin)):
     await _check_pin(data.resident_id)
+    existing = await db.kiosks.find_one({"kiosk_id": kiosk_id}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Kiosk not found")
+    authorization = await create_receipt(
+        action_type="kiosk_settings_change_authorized", related_object_type="kiosk",
+        related_object_id=kiosk_id, source="staff", resident_id=existing.get("resident_id"),
+        room=existing.get("room"), zone=existing.get("zone"), requested_by=user.get("user_id"),
+        status="created", result="authenticated admin full kiosk update authorized",
+        provenance={"actor_id": user.get("user_id"), "actor_type": "real-human",
+                    "actor_name": user.get("name"), "actor_role": user.get("role"),
+                    "identity_basis": "authenticated", "authority": f"admin_override:{user.get('role')}",
+                    "before_state": existing, "after_state": data.model_dump(), "result_label": "verified"},
+    )
     r = await db.kiosks.update_one({"kiosk_id": kiosk_id}, {"$set": data.model_dump()})
     if r.matched_count == 0:
         raise HTTPException(status_code=404, detail="Kiosk not found")
     doc = await db.kiosks.find_one({"kiosk_id": kiosk_id}, {"_id": 0})
+    await create_receipt(
+        action_type="kiosk_settings_updated", related_object_type="kiosk", related_object_id=kiosk_id,
+        source="staff", resident_id=doc.get("resident_id"), room=doc.get("room"), zone=doc.get("zone"),
+        requested_by=user.get("user_id"), status="completed", result="full kiosk settings updated",
+        provenance={"actor_id": user.get("user_id"), "actor_type": "real-human",
+                    "actor_name": user.get("name"), "actor_role": user.get("role"),
+                    "identity_basis": "authenticated", "authority": f"admin_override:{user.get('role')}",
+                    "parent_receipt_id": authorization["receipt_id"], "before_state": existing,
+                    "after_state": doc, "result_label": "verified"},
+    )
     return doc
 
 
@@ -139,10 +203,105 @@ async def patch_kiosk(kiosk_id: str, data: KioskUpdate, user=Depends(require_adm
     if "resident_id" in updates:
         updates["resident_id"] = updates["resident_id"] or None
         await _check_pin(updates["resident_id"])
+    authorization = await create_receipt(
+        action_type="kiosk_settings_change_authorized", related_object_type="kiosk",
+        related_object_id=kiosk_id, source="staff", resident_id=existing.get("resident_id"),
+        room=existing.get("room"), zone=existing.get("zone"), requested_by=user.get("user_id"),
+        status="created", result="authenticated admin settings change authorized",
+        provenance={"actor_id": user.get("user_id"), "actor_type": "real-human",
+                    "actor_name": user.get("name"), "actor_role": user.get("role"),
+                    "identity_basis": "authenticated", "authority": f"admin_override:{user.get('role')}",
+                    "before_state": {k: existing.get(k) for k in updates},
+                    "after_state": updates, "result_label": "verified"},
+    )
     if updates.get("public_demo") is True:
         await db.kiosks.update_many({"kiosk_id": {"$ne": kiosk_id}}, {"$set": {"public_demo": False}})
     await db.kiosks.update_one({"kiosk_id": kiosk_id}, {"$set": updates})
-    return await db.kiosks.find_one({"kiosk_id": kiosk_id}, {"_id": 0})
+    updated = await db.kiosks.find_one({"kiosk_id": kiosk_id}, {"_id": 0})
+    await create_receipt(
+        action_type="kiosk_settings_updated", related_object_type="kiosk", related_object_id=kiosk_id,
+        source="staff", resident_id=updated.get("resident_id"), room=updated.get("room"),
+        zone=updated.get("zone"), requested_by=user.get("user_id"), status="completed",
+        result="kiosk settings updated",
+        provenance={"actor_id": user.get("user_id"), "actor_type": "real-human",
+                    "actor_name": user.get("name"), "actor_role": user.get("role"),
+                    "identity_basis": "authenticated", "authority": f"admin_override:{user.get('role')}",
+                    "parent_receipt_id": authorization["receipt_id"],
+                    "before_state": {k: existing.get(k) for k in updates},
+                    "after_state": {k: updated.get(k) for k in updates}, "result_label": "verified"},
+    )
+    return updated
+
+
+@router.post("/kiosks/{kiosk_id}/tv-audio-duck/voice")
+async def voice_tv_audio_duck(kiosk_id: str, data: VoiceTvAudioDuckChange):
+    """Confirmation-gated Resident Aria write for the room preference."""
+    kiosk = await db.kiosks.find_one({"kiosk_id": kiosk_id}, {"_id": 0})
+    if not kiosk:
+        raise HTTPException(status_code=404, detail="Kiosk not found")
+    live = await find_live_session(data.resident_id, data.session_id)
+    if not live or live.get("room") != kiosk.get("room") or live.get("kiosk_id") != kiosk_id:
+        raise HTTPException(status_code=403, detail="No live Aria session for this exact kiosk")
+
+    key = {"session_id": data.session_id, "kiosk_id": kiosk_id, "setting": "tv_audio_duck"}
+    now = now_utc()
+    if not data.confirmed:
+        await db.kiosk_preference_confirmations.update_one(key, {"$set": {
+            **key, "resident_id": data.resident_id, "enabled": data.enabled,
+            "request_text": (data.request_text or "").strip(),
+            "requested_at": now.isoformat(), "expires_at": (now + timedelta(minutes=5)).isoformat(),
+        }}, upsert=True)
+        wording = (
+            "To confirm, when I wake up, you want me to lower the TV volume while we talk, "
+            "then restore it when we finish. Is that right?"
+            if data.enabled else
+            "To confirm, when I wake up, you don't want me to lower the TV volume; you want it "
+            "to stay the same. That can make it harder for us to hear each other. Is that right?"
+        )
+        return {"ok": False, "awaiting_confirmation": True, "message": wording}
+
+    pending = await db.kiosk_preference_confirmations.find_one({
+        **key, "resident_id": data.resident_id, "enabled": data.enabled,
+        "expires_at": {"$gte": now.isoformat()},
+    }, {"_id": 0})
+    heard = (data.confirmation_text or "").strip()
+    if not pending or not _AFFIRMATIVE.search(heard):
+        return {"ok": False, "awaiting_confirmation": bool(pending),
+                "message": "I haven't changed it. Please say yes if that setting is what you want."}
+
+    before = kiosk.get("tv_audio_duck", True)
+    authorization = await create_receipt(
+        action_type="kiosk_tv_audio_duck_change_authorized", related_object_type="kiosk",
+        related_object_id=kiosk_id, source="aria_voice", resident_id=data.resident_id,
+        room=kiosk.get("room"), zone=kiosk.get("zone"), conversation_session_id=data.session_id,
+        requested_by=data.resident_id, status="created", result="confirmed preference change authorized",
+        provenance={"actor_id": data.resident_id, "actor_type": "real-human", "actor_role": "resident",
+                    "channel": "resident_aria_voice", "identity_basis": "live_exact_kiosk_session",
+                    "authority": "resident_room_preference:confirmed_voice",
+                    "request_text": pending.get("request_text") or None,
+                    "confirmation_text": heard,
+                    "before_state": {"tv_audio_duck": before},
+                    "after_state": {"tv_audio_duck": data.enabled}, "result_label": "verified"},
+    )
+    await db.kiosks.update_one({"kiosk_id": kiosk_id}, {"$set": {"tv_audio_duck": data.enabled}})
+    await db.kiosk_preference_confirmations.delete_one(key)
+    await create_receipt(
+        action_type="kiosk_tv_audio_duck_updated", related_object_type="kiosk", related_object_id=kiosk_id,
+        source="aria_voice", resident_id=data.resident_id, room=kiosk.get("room"), zone=kiosk.get("zone"),
+        conversation_session_id=data.session_id, requested_by=data.resident_id, status="completed",
+        result=f"tv_audio_duck {before} -> {data.enabled}",
+        provenance={"actor_id": data.resident_id, "actor_type": "real-human", "actor_role": "resident",
+                    "channel": "resident_aria_voice", "identity_basis": "live_exact_kiosk_session",
+                    "authority": "resident_room_preference:confirmed_voice",
+                    "parent_receipt_id": authorization["receipt_id"],
+                    "request_text": pending.get("request_text") or None,
+                    "confirmation_text": heard,
+                    "before_state": {"tv_audio_duck": before},
+                    "after_state": {"tv_audio_duck": data.enabled}, "result_label": "verified"},
+    )
+    state = "on" if data.enabled else "off"
+    return {"ok": True, "enabled": data.enabled,
+            "message": f"Okay. Automatic TV volume lowering is {state} for this room."}
 
 
 @router.delete("/kiosks/{kiosk_id}")

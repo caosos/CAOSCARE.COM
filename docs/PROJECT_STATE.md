@@ -347,3 +347,11 @@ HANDOFF CAPSULE
 - Do NOT change:    PR #41/#42; production; live wake threshold/score; Home Assistant or IR firmware.
 - Next safe action: Publish for review, then load only through the existing controlled Room 214 rebuild/deploy process and run one labeled wake → “That’ll be all for now” acceptance test.
 
+## 2026-10-12 21:22 CDT — Aria TV audio/profile checkpoint (careops-aria-tv-audio-profile-001)
+
+Phase 3 remains active; Phase 6 room integration remains partial. Code now has a default-on room TV-volume dip with warned/confirmed opt-out, exact-kiosk voice writes with authorization/completion receipts and exact wording, Natural versus Guided room interaction defaults, verified Home Assistant `media_player` volume read-back, separation of desired normal volume from the temporary conversation level, and transcript-grounded numeric changes. One-way IR remains best-effort/unverified and cannot support exact in-call volume control.
+
+Evidence: implementation commit `7186d521aea21a40409c4a8487b3361f98b29117`; focused frontend 69/69; corrected ambiguity suite 13/13; optimized build compiled; changed Python syntax compiled. The full frontend attempt had 93 suites/646 tests pass, one corrected product failure, and five suite-load failures caused by the local missing Radix module. Backend pytest/browser/physical-room acceptance were not run here. Loaded revision and current host state are UNKNOWN. Full record: `docs/reports/2026-10-12-aria-tv-audio-interaction-profile.md`.
+
+Current bounded task: closeout/commit/publication. Remaining in order: publish review branch; controlled Room 214 load; explicitly set Michael's kiosk to Natural; ten labeled normal-voice wake trials; physical dip/adjust/goodbye/restore acceptance; backend voice-confirmation and receipt-chain gate; clean full gates. ETA for live acceptance UNKNOWN. `next_check_at` MISSING. Blocker: no host/load access or physical evidence in this environment. Michael action: NOTHING until reviewed build is loaded.
+

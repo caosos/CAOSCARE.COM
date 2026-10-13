@@ -6,7 +6,12 @@ process.env.REACT_APP_BACKEND_URL = "http://127.0.0.1:8000";
 import { executeDeviceTool } from "../realtimeDeviceTools";
 import { resetDeviceAmbiguity } from "../deviceAmbiguity";
 
-const dev = (id, kind, label, extra = {}) => ({ device_id: id, kind, label: `Room 214 ${label}`, online: true, capabilities: ["power", "volume", "channel", "input", "position", "temperature"], inputs: ["HDMI 1"], state: { power: "on", volume: 20 }, ...extra });
+const dev = (id, kind, label, extra = {}) => ({
+  device_id: id, kind, label: `Room 214 ${label}`, online: true,
+  ...(kind === "tv" ? { protocol: "home_assistant", endpoint: `media_player.${id}` } : {}),
+  capabilities: ["power", "volume", "channel", "input", "position", "temperature"],
+  inputs: ["HDMI 1"], state: { power: "on", volume: 20 }, ...extra,
+});
 const DEVICES = [
   dev("tv_a", "tv", "bedroom tv"), dev("tv_b", "tv", "den tv"),
   dev("th_a", "thermostat", "bedroom thermostat"), dev("th_b", "thermostat", "den thermostat"),
@@ -20,7 +25,7 @@ beforeEach(() => {
   resetDeviceAmbiguity();
   global.fetch = jest.fn(async (url) => (String(url).includes("by-room")
     ? { ok: true, json: async () => DEVICES }
-    : { ok: true, json: async () => ({ state: { power: "on", channel: 11, volume: 30, position: 100 } }) }));
+    : { ok: true, json: async () => ({ verified: true, state: { power: "on", channel: 11, volume: 30, position: 100 } }) }));
 });
 
 const CASES = [

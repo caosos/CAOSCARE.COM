@@ -14,6 +14,7 @@ from routes.realtime_tools_operations import _build_operations_tools
 from routes.realtime_device_tools import _build_device_tools
 from routes.realtime_display_tools import _build_display_tools
 from routes.realtime_interpretation_tools import _build_interpretation_tools
+from routes.realtime_preference_tools import _build_preference_tools
 from routes.resident_requests import get_request_categories
 from routes.realtime_truth_rules import research_tool_description
 
@@ -30,7 +31,7 @@ async def _build_tools() -> list[dict]:
     against the admin-managed Department list instead of a fixed tuple, so
     a newly-added department is usable by Aria the moment it's created.
     """
-    return (_build_device_tools() + [
+    return (_build_device_tools() + _build_preference_tools() + [
         {
             "type": "function",
             "name": "call_for_help",

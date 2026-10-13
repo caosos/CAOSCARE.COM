@@ -16,8 +16,9 @@ import { checkEnding, ENDING_PHRASES } from "./endingPhrases";
 import { API } from "./api";
 import { nearestColorName, colorTempLabel, handleToggleLight } from "./realtimeLightControl";
 import { findDeviceGuarded } from "./deviceAmbiguity";
-import { VOLUME_PHRASES, ROOM_CONTROL_TOOLS, executeRoomControlTool } from "./realtimeRoomControls";
+import { ROOM_CONTROL_TOOLS, executeRoomControlTool } from "./realtimeRoomControls";
 import { shapeResearchResult } from "./researchShape";
+import { handleToggleTv } from "./realtimeTvPowerControl";
 
 // IMPORTANT: the backend `/devices/.../command` endpoint validates `action`
 // against a strict enum (power | brightness | temperature | fan_speed |
@@ -136,25 +137,7 @@ export async function executeDeviceTool({ name, args, ctx }) {
     return handleToggleLight(room, args, ctx, postRoomCommand);
   }
   if (name === "toggle_tv") {
-    if (!room) return { ok: false, message: "no room context — I can't reach the TV here." };
-    // Same lookup-before-command shape as toggle_light (2026-09-06 kiosk
-    // multi-light bug) - a room with more than one TV must fail closed on
-    // an honest ambiguity message, not guess by posting `kind` alone.
-    const tv = await findDeviceGuarded({ room, kind: "tv", noun: "TV", tool: name, args, ctx });
-    if (tv.fail) return tv.fail;
-    if (!tv.device) return { ok: false, message: "there's no TV set up in this room yet." };
-    const r = await postRoomCommand(room, "power", args.state, "tv", ctx?.session_id, tv.device.device_id);
-    if (!r.ok) return { ok: false, message: `couldn't reach the TV (${r.status}).` };
-    // Structural grounding (2026-08-30) - see VOLUME_PHRASES above. A
-    // volume change is a real, audible, potentially uncomfortable action -
-    // don't apply one the resident's own words don't actually support,
-    // even if the model supplied a number.
-    const heard = (ctx?.last_user_text || "").trim();
-    const volumeGrounded = args.state === "on" && typeof args.volume === "number" && VOLUME_PHRASES.test(heard);
-    if (volumeGrounded) {
-      await postRoomCommand(room, "volume", Math.max(0, Math.min(100, args.volume)), "tv", ctx?.session_id, tv.device.device_id);
-    }
-    return { ok: true, message: `turned the TV ${args.state}${volumeGrounded ? ` at volume ${args.volume}` : ""}.` };
+    return handleToggleTv(room, args, ctx, postRoomCommand);
   }
   if (ROOM_CONTROL_TOOLS.has(name)) {
     return executeRoomControlTool(name, args, ctx, { postRoomCommand });

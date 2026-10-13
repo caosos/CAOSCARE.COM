@@ -23,6 +23,7 @@ import { API } from "./api";
 import { executeOperationsTool } from "./realtimeOperationsTools";
 import { executeDeviceTool } from "./realtimeDeviceTools";
 import { executeDisplayTool } from "./realtimeDisplayTools";
+import { executeKioskPreferenceTool } from "./realtimeKioskPreferences";
 import { executeCareTool, ringLiveLineOnSilence } from "./realtimeCareControl";
 import { executeCallTool } from "./realtimeCallTool";
 import { createFarewellWatch } from "./farewellWatch";
@@ -79,7 +80,7 @@ export function opsToolContext(ctx) {
 async function executeTool({ name, args, ctx }) {
   try {
     const opsCtx = opsToolContext(ctx);
-    for (const dispatch of [() => executeOperationsTool({ name, args, ctx: opsCtx }), () => executeDeviceTool({ name, args, ctx }), () => executeDisplayTool({ name, args }), () => executeCareTool({ name, args, ctx }), () => executeCallTool({ name, args, ctx: opsCtx })]) {
+    for (const dispatch of [() => executeOperationsTool({ name, args, ctx: opsCtx }), () => executeDeviceTool({ name, args, ctx }), () => executeKioskPreferenceTool({ name, args, ctx }), () => executeDisplayTool({ name, args }), () => executeCareTool({ name, args, ctx }), () => executeCallTool({ name, args, ctx: opsCtx })]) {
       const result = await dispatch();
       if (result) return result;
     }

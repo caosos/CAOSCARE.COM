@@ -17,7 +17,7 @@ import UpcomingPanel from "../components/kiosk/UpcomingPanel";
 import RoomDevicePanel from "../components/kiosk/RoomDevicePanel";
 import DemoKioskPanel from "../components/kiosk/demo/DemoKioskPanel";
 import { sendRoomDeviceCommand } from "../lib/kioskDeviceControl";
-import { duckRoomAudio, restoreRoomAudio } from "../lib/callAudioDuck";
+import { duckRoomAudio, restoreRoomAudio, shouldDuckRoomAudio } from "../lib/callAudioDuck";
 import { logActivationClientEvent } from "../lib/activationClient";
 import { useKioskMediaPrime, openInFullTab, inSandboxedIframe } from "../lib/useKioskMediaPrime";
 import { useWakeWord } from "../lib/useWakeWord";
@@ -255,7 +255,9 @@ export default function Kiosk() {
   const beginConversation = async (a) => {
     setCallState("chatting");
     // Do not await infrared steps: the greeting must start immediately.
-    mutedDevicesRef.current = duckRoomAudio(devices, kiosk.room, sendRoomDeviceCommand);
+    mutedDevicesRef.current = shouldDuckRoomAudio(kiosk)
+      ? duckRoomAudio(devices, kiosk.room, sendRoomDeviceCommand)
+      : Promise.resolve([]);
   };
 
   // Wake-endpoint trigger (EliteDesk home endpoint "Hey Aria", room-node/aria_wake,

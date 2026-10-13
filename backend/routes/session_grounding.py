@@ -15,7 +15,7 @@ RELEASE_GRACE_SECONDS = 60
 
 
 async def find_live_session(resident_id: str, session_id: str) -> Optional[dict]:
-    """Return {"room": ...} for a live (or just-released) session of that
+    """Return room and kiosk identity for a live (or just-released) session of that
     resident, else None."""
     if not resident_id or not session_id:
         return None
@@ -26,10 +26,11 @@ async def find_live_session(resident_id: str, session_id: str) -> Optional[dict]
         "last_seen_at": {"$gte": (now - timedelta(seconds=STALE_SECONDS)).isoformat()},
     })
     if live:
-        return {"room": live.get("room")}
+        return {"room": live.get("room"), "kiosk_id": live.get("kiosk_id")}
     released = await db.resident_aria_lease_events.find_one({
         "event": "released", "lease.session_id": session_id,
         "lease.resident_id": resident_id,
         "at": {"$gte": (now - timedelta(seconds=RELEASE_GRACE_SECONDS)).isoformat()},
     })
-    return {"room": (released.get("lease") or {}).get("room")} if released else None
+    lease = (released or {}).get("lease") or {}
+    return {"room": lease.get("room"), "kiosk_id": lease.get("kiosk_id")} if released else None

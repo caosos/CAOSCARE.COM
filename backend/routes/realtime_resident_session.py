@@ -8,6 +8,7 @@ import asyncio
 import httpx
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
+from deps import db
 from routes.realtime import (
     _require_openai_key, DEFAULT_VOICE, ALLOWED_VOICES,
     OPENAI_REALTIME_MODEL, OPENAI_API_BASE, DEFAULT_VAD,
@@ -18,6 +19,7 @@ from routes.realtime_facility import get_active_facility, FACILITY_LABEL, FACILI
 from routes.realtime_tools import _build_tools
 from routes.realtime_room_lease import claim_or_reuse_room_lease, release
 from routes.resident_session_binding import validate_activation, bind_activation
+from routes.realtime_interaction_profile import normalize_interaction_profile
 
 
 async def create_resident_session(payload):
@@ -125,9 +127,14 @@ async def _mint(payload, lease):
     # How the call opens: "Hey Aria" gets a short answer to their name, and never the previous call's opener.
     from routes.aria_opening import resolve_opening
     opening = await resolve_opening(payload.get("resident_id"), payload.get("session_id"), payload.get("trigger_source"))
+    kiosk = await db.kiosks.find_one(
+        {"kiosk_id": payload.get("kiosk_id")}, {"_id": 0, "aria_interaction_profile": 1},
+    ) if payload.get("kiosk_id") else None
+    interaction_profile = normalize_interaction_profile((kiosk or {}).get("aria_interaction_profile"))
     instructions = await _build_companion_instructions(
         payload.get("resident_id"), operational_state=op_state, continuity=continuity,
         conversation_state=conv_state, interpretation_patterns=interpretation_patterns, opening=opening,
+        interaction_profile=interaction_profile,
     )
     session_config = {
         "type": "realtime",

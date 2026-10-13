@@ -65,3 +65,14 @@ def test_wake_soon_after_a_call_opens_by_noticing_it():
     assert "only 4 minute(s) ago" in b and "Didn't I just talk to you" in b and "never the same line" in b
     far = render_opening_block({"wake": True, "last_opening": None, "minutes_since_last": 300}, "Michael")
     assert "minute(s) ago" not in far and "one short line" in far
+
+
+def test_natural_profile_never_comments_that_the_resident_is_back_again():
+    b = render_opening_block(
+        {"wake": True, "last_opening": "Hey, Michael.", "minutes_since_last": 2.0},
+        "Michael", interaction_profile="natural",
+    )
+    assert "exactly one short sentence" in b
+    assert "Do not mention how recently" in b
+    assert "Didn't I just talk to you" not in b
+    assert "back again, Michael" not in b

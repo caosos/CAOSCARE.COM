@@ -39,13 +39,19 @@ async def resolve_opening(resident_id: Optional[str], session_id: Optional[str],
     return opening
 
 
-def render_opening_block(opening: Optional[dict], name: str) -> str:
+def render_opening_block(opening: Optional[dict], name: str, interaction_profile: str = "guided") -> str:
     """The '## How this call opens' prompt section ('' when nothing applies)."""
     if not opening:
         return ""
     lines = []
     recent = opening.get("minutes_since_last")
-    if opening.get("wake") and recent is not None and recent <= RECENT_REWAKE_MINUTES:
+    if opening.get("wake") and interaction_profile == "natural":
+        lines.append(
+            f"They just called you by name - \"Hey Aria\". Answer naturally in exactly one short sentence "
+            f"with their name, such as \"Hey, {name}.\" or \"Yes, {name}?\" Then stop and listen. "
+            f"Do not mention how recently you talked, say they are back again, offer to chat or linger, "
+            f"ask what they need, or add a second sentence.")
+    elif opening.get("wake") and recent is not None and recent <= RECENT_REWAKE_MINUTES:
         lines.append(
             f"They just called you by name - \"Hey Aria\" - and you were talking with them only "
             f"{max(1, round(recent))} minute(s) ago. Open by noticing that, warmly and briefly, in your own "
