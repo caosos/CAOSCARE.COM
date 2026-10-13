@@ -222,21 +222,38 @@ jobs:
           WAKE_PROOF_SINCE="$(date '+%Y-%m-%d %H:%M:%S')"
           systemctl --user stop aria-wake-kiosk.service
           systemctl --user restart aria-wake-page.service
+          PAGE_PROOF_OK=0
           for _ in $(seq 1 30); do
-            curl -fsS --max-time 2 http://127.0.0.1:3002/api/health >/dev/null && break
+            if curl -fsS --max-time 2 http://127.0.0.1:3002/api/health >/dev/null; then
+              PAGE_PROOF_OK=1
+              break
+            fi
             sleep 1
           done
-          curl -fsS --max-time 5 http://127.0.0.1:3002/api/health >/dev/null
+          [ "$PAGE_PROOF_OK" = 1 ] || {
+            systemctl --user --no-pager status aria-wake-page.service || true
+            journalctl --user -u aria-wake-page.service --since "$WAKE_PROOF_SINCE" --no-pager -o cat || true
+            exit 1
+          }
           systemctl --user restart aria-wake.service
-          systemctl --user is-active --quiet aria-wake.service
-          systemctl --user is-active --quiet aria-wake-page.service
-          ss -ltn | grep -qE '127\.0\.0\.1:8765[[:space:]]'
+          LISTENER_PROOF_OK=0
           for _ in $(seq 1 30); do
             WAKE_LOG="$(journalctl --user -u aria-wake.service --since "$WAKE_PROOF_SINCE" --no-pager -o cat)"
-            echo "$WAKE_LOG" | grep -q '"event": "capture_alive"' && break
+            if systemctl --user is-active --quiet aria-wake.service && \
+               systemctl --user is-active --quiet aria-wake-page.service && \
+               ss -ltn | grep -qE '127\.0\.0\.1:8765[[:space:]]' && \
+               echo "$WAKE_LOG" | grep -q '"event": "capture_alive"'; then
+              LISTENER_PROOF_OK=1
+              break
+            fi
             sleep 1
           done
-          echo "$WAKE_LOG" | grep -q '"event": "capture_alive"'
+          [ "$LISTENER_PROOF_OK" = 1 ] || {
+            systemctl --user --no-pager status aria-wake.service aria-wake-page.service || true
+            journalctl --user -u aria-wake.service -u aria-wake-page.service \
+              --since "$WAKE_PROOF_SINCE" --no-pager -o cat || true
+            exit 1
+          }
           systemctl --user restart aria-wake-kiosk.service
           WAKE_PROOF_OK=0
           for _ in $(seq 1 60); do
