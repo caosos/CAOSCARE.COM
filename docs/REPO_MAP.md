@@ -944,3 +944,12 @@ listener verifier experiment: `docs/experiments/`.
 - `backend/routes/task_unclaimed_escalation.py`: escalation tick flags unclaimed Nursing requests once (EscalationRule.nursing_unclaimed_seconds). Test `backend/tests/test_nursing_unclaimed_escalation.py`.
 - `frontend/src/components/QueueWithUpcoming.jsx`: department queue with its Upcoming panel (therapy, housekeeping).
 - `backend/routes/task_recurrence.py`: recurring series occurrences (tick + POST /tasks/spawn-today). `frontend/src/lib/recurrence.js`. Test `backend/tests/test_housekeeping_recurrence.py`.
+
+## 2026-10-12 — Aria continuity/memory and room hardware (platform-wide)
+
+- `backend/routes/aria_opening.py`: how a call opens (wake-word short answer, re-wake within 15 min, never the previous opener). Test `tests/test_aria_opening.py`.
+- `backend/routes/aria_life_memory.py`: lifelong memory on `db.memories` — per-conversation summaries (category `conversation`) + one life story per resident (`life_story`); run in the background at session mint. Test `tests/test_aria_life_memory.py`; real-prompt re-wake/next-day test `tests/test_aria_rewake_continuity.py`.
+- `backend/routes/aria_continuity.py`: window 72 h, clock times; `routes/aria_time.py` calendar-day wording.
+- `backend/device_ir_adapter.py` + `backend/ir_codesets.py`: `ir_blaster` protocol — any room's TV by infrared through an HA IR blaster; one-way, `verified=False`. Test `tests/test_ir_blaster_adapter.py`.
+- `frontend/src/lib/powerDirection.js`: light on/off must agree with the turn's transcript. `frontend/src/lib/endController.js`: goodbye answers open tool calls; a goodbye already playing counts as heard.
+- `room-node/ir_mate/`: CAOSCare build of the XIAO IR Mate ESPHome firmware (code-send actions). `room-node/ha_lan_proxy/`: user service exposing the HA VM on the LAN.

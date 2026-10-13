@@ -278,7 +278,7 @@ Current status: **ACTIVE. Transportation development slices are DEV_ACCEPTED; au
 ### Dining / menus
 
 - [~] Menu intake, review, publish, and resident lookup exist in part.
-- [ ] Real correction propagation, version history, dietary/allergen fields, meal changes, and resident-facing confirmation.
+- [~] Real correction propagation, version history, dietary/allergen fields, meal changes, and resident-facing confirmation. *(2026-10-12: correction versioning `214523f` and dietary/allergen labels `b2faae1` DEV_ACCEPTED; meal changes and resident confirmation remain.)*
 - [ ] Live inbound source acceptance belongs to Phase 5.
 
 ### Activities / programs
@@ -402,7 +402,7 @@ Current status: **PARTIAL; broad voice work is PARKED while Care Operations is a
 - [ ] One real resident request through staff completion and resident follow-up.
 - [ ] One real transportation workflow.
 - [ ] One real communication workflow.
-- [ ] One real room-control workflow with hardware read-back.
+- [~] One real room-control workflow with hardware read-back. *(Lights: HA read-back, proven. TV: real Sony via infrared `ffeca1a` — works, but one-way (sent, not verified); verified read-back needs Bravia network control.)*
 - [ ] Accessibility: low vision, hearing assistance, touch targets, keyboard use, mobile staff use, clear language, and no color-only status.
 - [ ] Ordinary operation without SSH babysitting.
 - [ ] Repeat the installation in a second room from documented provisioning.
@@ -423,7 +423,7 @@ Owner authorization permits verified CAOSCare work to proceed through integratio
 - [ ] Deploy the exact `main` SHA to Linode.
 - [ ] Verify health, authentication, permissions, the active workflow, responsive UI, receipts, and rollback path.
 - [ ] Record deployed SHA, time, operator, commands/actions, test cases, receipt IDs, failures, repairs, and final verdict.
-- [ ] Update public capability claims only after LIVE_VERIFIED acceptance.
+- [~] Update public capability claims only after LIVE_VERIFIED acceptance. *(2026-10-12: owner-directed "In pilot" statuses deployed to production `06e7e2b`, each card stating its test-room limits; not LIVE_VERIFIED.)*
 
 Milestone: code is not merely present; the deployed product is usable.
 
@@ -1023,3 +1023,12 @@ Issue #129 is the dispatch channel to existing coordinator `caoscare-1-ee`. ACK/
 ### Update 2026-10-12 — Dining: menu correction versioning (careops-dining-correction-versioning-001)
 
 - `214523f`: correcting a published menu item creates a replacement (`replaces`/`superseded_by`); the published version stays live until the correction is published, then is kept as Replaced; residents/Aria read the corrected item; receipted. Backend 618/0/31, frontend 95/649, build OK; dev browser 8/8 (1280/390). DEV_ACCEPTED. Report: `docs/reports/2026-10-12-dining-correction-versioning.md`.
+
+### Update 2026-10-12 evening — Aria continuity/memory, room hardware, public statuses (platform-wide)
+
+Full record: `docs/reports/2026-10-12-platform-build-log.md` (built / problems + fixes / what's left).
+- DEV (live Room 214 voice evidence): wake opener + re-wake awareness (`7bac843`, `40f7c3e`); clean goodbye (`9f71f10`, `77e3351`); continuity 72 h + calendar days + clock times (`9d15215`); **lifelong memory** — per-conversation summaries + one life story per resident (`2013d53`, `46b99d4`); light on/off truth check (`8126a7b`).
+- DEV (room hardware): HA LAN relay (`bcfeae7`); IR Mate firmware with code-send actions (`f198372`); **`ir_blaster` device adapter + Sony code table** (`ffeca1a`), Room 214 TV switched from mock to real.
+- PRODUCTION: PR #132 → `06e7e2b` (public "In pilot" statuses with limits; room-screen HC button on phones).
+- Gates: backend 661/0/13, frontend 97/663.
+- Next (see report §3): call-start TV volume-duck instead of power-off; Bravia network control; IR Mate touch-send off; Voice PE bring-up; labelled wake tries; release of integration to production.
