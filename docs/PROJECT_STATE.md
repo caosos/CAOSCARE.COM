@@ -330,3 +330,26 @@ Factory reset (Michael), Wi-Fi provisioned by Michael via its hotspot page. On L
 
 ## 2026-10-12 21:00 CDT — Call-start TV mute proven (platform-wide `816f5f2`)
 Live Room 214, 6 calls 20:38–20:58: each sent exactly one mute at wake and one at call end (12 executed, receipted, unverified), including a 13 s call; greeting audio 3–4 s after wake (breakdown 20:38: session mint 1.7 s, WebRTC 0.9 s, first model audio 1.5 s). Next: faster wake response (pre-mint/pre-connect, shorter opener), labelled wake tries, Bravia network control, IR Mate touch-send off, Voice PE, production release.
+## 2026-10-12 22:26 CDT — RQ-047 live-search privacy and cost provenance hardening
+
+Agent: Codex. Branch `fix/rq047-private-live-search`, based on `integration/2026-09-27` at `e3636d0`.
+
+- Existing RQ-047 architecture was preserved: Realtime `research_topic` calls the backend Responses API `web_search` provider; no duplicate provider or tool path was created.
+- Provider requests now set `store: false` and explicit `external_web_access: true`.
+- Private `research_lookup` evidence now records citation details, provider response ID, search-call count and sanitized input/output/total token counts. The resident question remains excluded; only its existing short hash and length are logged.
+- Failing-before proof: `test_live_success_with_citations` failed on missing usage provenance before the implementation. Focused after-proof: `backend/tests/test_rq047_openai_web_search.py` = 14 passed.
+- Modified implementation line counts: `research_openai_search.py` 155; `research.py` 170. Both remain below the repository split threshold.
+- Runtime: NOT CHANGED. No paid call, backend restart, Room 214 setting change, or deployment occurred. Latest independently verified bridge observation remains backend runtime SHA `61506b1`; host proof after this branch does not exist yet.
+- Blocked decision before a paid smoke/live switch: select `OPENAI_RESEARCH_MODEL`; then one isolated owner-authorized lookup must prove `live=true`, citations, natural spoken delivery and the new usage receipt. Room 214 enablement remains a separate guarded restart decision.
+
+HANDOFF CAPSULE
+- Objective: harden, smoke-test and then enable truthful live web lookup for Room 214.
+- Branch: `fix/rq047-private-live-search`.
+- Lane / ownership: RQ-047 provider privacy/provenance only; do not change wake, TV/audio, personality or operational workflows in this branch.
+- Last proven state: focused mocked provider test 14/14; runtime unchanged.
+- Commits: pending at this entry.
+- Runtime state: backend runtime SHA `61506b1` per latest bridge inventory; this branch not loaded.
+- Unresolved proven defects: historical Realtime usage was not logged, so prior-call cost can only be estimated; live research remains disabled.
+- Product invariants that matter here: truthful `live` flag requires real search + citation; resident privacy; receipt provenance; no restart during a live lease.
+- Do NOT change: wake thresholds, TV ducking, Realtime model, Linode, PR #41/#42.
+- Next safe action: commit/push this branch, run CI, select the research model, then perform one isolated capped smoke call before any Room 214 switch.
