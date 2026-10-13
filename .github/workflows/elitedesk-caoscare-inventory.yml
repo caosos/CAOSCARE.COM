@@ -95,6 +95,10 @@ jobs:
                 echo "port=$port pid=$pid user=$(ps -o user= -p "$pid" | xargs) comm=$(ps -o comm= -p "$pid" | xargs)"
                 echo "  cwd=$(readlink -f "/proc/$pid/cwd" 2>/dev/null || echo UNKNOWN)"
                 echo "  exe=$(readlink -f "/proc/$pid/exe" 2>/dev/null || echo UNKNOWN)"
+                if [ "$port" = "8092" ]; then
+                  runtime_sha=$(tr '\0' '\n' < "/proc/$pid/environ" 2>/dev/null | sed -n 's/^CAOSCARE_RUNTIME_SHA=//p')
+                  echo "  runtime_sha=${runtime_sha:-UNKNOWN}"
+                fi
               done
             done
             echo
