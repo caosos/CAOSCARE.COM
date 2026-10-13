@@ -407,3 +407,37 @@ Current task checklist — checked means the work product exists, not that pendi
   interim checklist, but the full multi-device installer manual still needs provisioning screenshots,
   site survey/mounting standards, network/fleet naming, rollback/replacement, privacy/safety handoff,
   acceptance receipts, and owner approval.
+
+## 2026-10-12 23:28 CDT — Owner-authorized Aria integration, live-search proof, and EliteDesk load
+
+- **Authorization:** Michael directed Codex to finish without routine permission stops at 23:18 CDT and
+  approved use of the existing OpenAI key, `gpt-4.1-mini`, the bounded live-search proof, integration,
+  and guarded EliteDesk loading. Linode remained excluded.
+- **Merged revision:** PR #135 merged to `integration/2026-09-27` as
+  `e13b78492e536a337601db21c3b3e444c8ad2565`. It reconciles the normal greeting/goodbye and truthful TV
+  controls, private live-search receipts, exact puck literature, and the proven EliteDesk bridge. The
+  superseded PR #133 and #134 threads were linked to #135 and closed without separate merges.
+- **Repository gates:** backend smoke passed; full frontend check passed; EliteDesk workflow validation
+  passed; read-only inventory passed; focused research tests 14/14; focused frontend tests 93/93;
+  end-call regression tests 64/64.
+- **Paid live-search proof:** runs 38346316253 and 38346385004 each returned `live=true`, one URL citation,
+  one search call, and sanitized provider usage from `gpt-4.1-mini-2025-04-14`. The first recorded 8,629
+  input + 81 output tokens; the second 8,629 input + 64 output tokens. Branch creation and the subsequent
+  trigger commit each fired the one-shot workflow, so two bounded calls ran instead of the intended one.
+  Estimated combined cost is about $0.027, within the $0.05 cap. The temporary workflow was removed from
+  the branch after proof; it cannot run again from that branch.
+- **Guarded EliteDesk load:** run 38346538110 passed the no-live-lease/recent-activity guard, moved the
+  controlled checkout from `e3636d016027c06fcc39f26429d63d5e094bd04e` to exact integrated revision
+  `e13b78492e536a337601db21c3b3e444c8ad2565`, set provider `openai_web_search` and model
+  `gpt-4.1-mini`, and retained a mode-0600 configuration backup at
+  `/home/caoscare-1/caoscare-config-backups/backend.env.20261013T042755Z.before-live-search`.
+- **Loaded proof:** backend health passed with `CAOSCARE_RUNTIME_SHA=e13b784`; the Room 214 page bundle
+  changed from `main.ac24e887.js` to `main.70fa6eac.js`; `aria-wake`, `aria-wake-page`, and
+  `aria-wake-kiosk` were active; room-page health passed. The temporary deployment workflow was removed
+  from its branch after the successful receipted run.
+- **Checklist reconciliation:** paid live-search proof, integration merge, and guarded EliteDesk loading
+  are complete. Still not accepted: Michael's labeled physical Room 214 wake/greeting/search/TV/goodbye
+  observations; missed-wake measurement; exact Realtime voice usage persistence; verified owner/personality
+  profiles; and the completed multi-device installer manual.
+- **Michael action:** run the short labeled Room 214 physical acceptance script supplied by Codex and
+  report what was heard and what the TV did. No terminal or GitHub work is required.
