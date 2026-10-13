@@ -27,6 +27,7 @@ const LABELS = {
   resume: "Resume community",
   pause: "Pause community",
   stop: "Stop community",
+  step: "Step one event",
 };
 
 export default function SimCommunityControls({ snapshot, onRuntimeRefresh }) {
@@ -51,7 +52,10 @@ export default function SimCommunityControls({ snapshot, onRuntimeRefresh }) {
     () => {
       if (notStarted) return ["create_paused"];
       if (state === "PAUSED") {
-        return [...(needsResidents ? ["provision_residents"] : []), "resume", "stop"];
+        return [
+          ...(needsResidents ? ["provision_residents"] : []),
+          "resume", "step", "stop",
+        ];
       }
       return ACTIONS[state] || [];
     },
@@ -124,16 +128,13 @@ export default function SimCommunityControls({ snapshot, onRuntimeRefresh }) {
             type="button"
             variant={action === "stop" ? "outline" : "default"}
             disabled={!allowed || !advertised.includes(action) || busy !== null
-              || (action === "resume" && !residentsReady)}
+              || (["resume", "step"].includes(action) && !residentsReady)}
             onClick={() => act(action)}
             data-testid={`community-control-${action}`}
           >
             {busy === action ? "Working…" : LABELS[action]}
           </Button>
         ))}
-        <Button type="button" variant="outline" disabled data-testid="community-control-step">
-          Step one event
-        </Button>
         <Button type="button" variant="ghost" onClick={loadGate} disabled={busy !== null}>
           Recheck safety gate
         </Button>
@@ -144,12 +145,14 @@ export default function SimCommunityControls({ snapshot, onRuntimeRefresh }) {
             ? "Resident gate ready: ten canonical burn-in residents have exact run-bound receipts."
             : needsResidents
               ? "Next: provision the ten simulated burn-in residents. Resume stays disabled until that receipt-backed step succeeds."
-              : "Resident readiness is unknown or invalid. Refresh runtime truth before provisioning or resuming."}
+              : "Resident readiness is unknown or invalid. Refresh runtime truth before provisioning, resuming, or stepping."}
         </p>
       )}
-      <p className="mt-2 text-xs text-caos-mute" data-testid="community-step-reason">
-        Step is disabled: {capability?.step?.reason || "durable exclusive-run capability has not been verified."}
-      </p>
+      {capability?.step?.enabled !== true && (
+        <p className="mt-2 text-xs text-caos-mute" data-testid="community-step-reason">
+          Step is disabled: {capability?.step?.reason || "the safety gate has not been verified."}
+        </p>
+      )}
       {state === "STOPPED" && (
         <p className="mt-2 text-sm text-caos-mute">This run is stopped. Its history and receipts remain available.</p>
       )}

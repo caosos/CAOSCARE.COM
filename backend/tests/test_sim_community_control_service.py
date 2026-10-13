@@ -1,7 +1,6 @@
 """Focused orchestration proofs for unregistered community controls."""
 
 import asyncio
-from contextlib import asynccontextmanager
 from copy import deepcopy
 from datetime import datetime, timezone
 
@@ -95,14 +94,15 @@ class Loop:
         return {"phase": "cancelled"}
 
 
-def service(timeline, loop, *, guard=None, exclusive=None, tick=None):
+def service(timeline, loop, *, guard=None, manual_step=None, tick=None):
     async def ready(*, store, run):
         return readiness(run)
 
     return CommunityControlService(
         store=object(), plan=PLAN, timeline=timeline, services=object(),
         loop_manager=loop, start_guard=guard or ready,
-        exclusive_step=exclusive, tick=tick or community_runner.tick,
+        manual_step=manual_step or control_module.community_manual_step.execute_one,
+        tick=tick or community_runner.tick,
         clock=lambda: NOW,
     )
 
@@ -251,129 +251,26 @@ def test_stop_cancels_loop_and_uses_receipt_backed_transition(monkeypatch):
     asyncio.run(case())
 
 
-def test_step_is_default_off_without_exclusive_capability():
+def test_step_delegates_exact_position_and_durable_dependencies():
     async def case():
-        timeline = Timeline()
-        with pytest.raises(CommunityControlError, match="disabled"):
-            await service(timeline, Loop(timeline)).step_one(
-                OWNER, AUTHORITY, RUN_ID, 0, 0, "step", "stepper",
-            )
-
-    asyncio.run(case())
-
-
-def test_exclusive_step_advances_clock_runs_one_tick_and_pauses(monkeypatch):
-    async def case():
-        timeline = Timeline(row(), events=(PLAN.events[0],))
         calls = []
+        async def manual(*args, **kwargs):
+            calls.append((args, kwargs))
+            return {"run": row(cursor=1), "receipt": {"receipt_id": "step"}}
 
-        @asynccontextmanager
-        async def exclusive(run_id):
-            calls.append(("exclusive", run_id))
-            yield
-
-        async def transition(*args, **kwargs):
-            calls.append(("transition", args[3], args[4], args[5], args[6], kwargs))
-            timeline.row["state"] = args[4]
-            return {"run": deepcopy(timeline.row), "receipt": {"receipt_id": args[4]}}
-
-        async def advance(*args, **kwargs):
-            calls.append(("clock", args[0], args[5], kwargs))
-            timeline.row["sim_minute"] = args[5]
-            return {"run": deepcopy(timeline.row), "receipt": {"receipt_id": "clock"}}
-
-        async def tick(run_id, holder_id, **kwargs):
-            before = timeline.row["cursor"]
-            timeline.row["cursor"] += 1
-            return community_runner.TickResult(
-                run_id, "executed", "execute_event_then_advance", "event-1",
-                "receipt-1", before, before + 1, 1, False,
-            )
-
-        monkeypatch.setattr(lifecycle, "transition_run", transition)
-        monkeypatch.setattr(lifecycle, "advance_simulated_clock", advance)
-        control = service(Timeline(), Loop(Timeline()))
-        control.timeline = timeline
-        control.loop = Loop(timeline)
-        control.exclusive_step = exclusive
-        control.tick = tick
+        timeline = Timeline()
+        control = service(timeline, Loop(timeline), manual_step=manual)
         result = await control.step_one(
             OWNER, AUTHORITY, RUN_ID, 0, 0, "step-key", "stepper", now=NOW,
         )
-        transitions = [item for item in calls if item[0] == "transition"]
-        assert [(item[1], item[2]) for item in transitions] == [
-            ("PAUSED", "RUNNING"), ("RUNNING", "PAUSED"),
-        ]
-        clock_call = next(item for item in calls if item[0] == "clock")
-        actor = clock_call[1]
-        assert actor.actor_id == lifecycle.CLOCK_ACTOR_ID
-        assert actor.actor_type == actor.identity_basis == actor.channel == "system"
-        assert result["tick"].cursor_after == 1
-        assert result["run"]["state"] == "PAUSED"
-
-    asyncio.run(case())
-
-
-def test_step_failure_still_receipt_pauses_the_run(monkeypatch):
-    async def case():
-        timeline = Timeline(row(), events=(PLAN.events[0],))
-        transitions = []
-
-        @asynccontextmanager
-        async def exclusive(_run_id):
-            yield
-
-        async def transition(*args, **kwargs):
-            transitions.append((args[3], args[4]))
-            timeline.row["state"] = args[4]
-            return {"run": deepcopy(timeline.row), "receipt": {"receipt_id": args[4]}}
-
-        async def advance(*args, **kwargs):
-            timeline.row["sim_minute"] = args[5]
-            return {"run": deepcopy(timeline.row)}
-
-        async def broken_tick(*args, **kwargs):
-            raise RuntimeError("canonical task failure")
-
-        monkeypatch.setattr(lifecycle, "transition_run", transition)
-        monkeypatch.setattr(lifecycle, "advance_simulated_clock", advance)
-        control = service(timeline, Loop(timeline), exclusive=exclusive, tick=broken_tick)
-        with pytest.raises(RuntimeError, match="canonical task failure"):
-            await control.step_one(
-                OWNER, AUTHORITY, RUN_ID, 0, 0, "step-key", "stepper", now=NOW,
-            )
-        assert transitions == [("PAUSED", "RUNNING"), ("RUNNING", "PAUSED")]
-        assert timeline.row["state"] == "PAUSED"
-
-    asyncio.run(case())
-
-
-def test_clock_failure_during_step_still_receipt_pauses_the_run(monkeypatch):
-    async def case():
-        timeline = Timeline(row(), events=(PLAN.events[0],))
-        transitions = []
-
-        @asynccontextmanager
-        async def exclusive(_run_id):
-            yield
-
-        async def transition(*args, **kwargs):
-            transitions.append((args[3], args[4]))
-            timeline.row["state"] = args[4]
-            return {"run": deepcopy(timeline.row), "receipt": {"receipt_id": args[4]}}
-
-        async def broken_clock(*args, **kwargs):
-            raise RuntimeError("clock write failed")
-
-        monkeypatch.setattr(lifecycle, "transition_run", transition)
-        monkeypatch.setattr(lifecycle, "advance_simulated_clock", broken_clock)
-        control = service(timeline, Loop(timeline), exclusive=exclusive)
-        with pytest.raises(RuntimeError, match="clock write failed"):
-            await control.step_one(
-                OWNER, AUTHORITY, RUN_ID, 0, 0, "step-key", "stepper", now=NOW,
-            )
-        assert transitions == [("PAUSED", "RUNNING"), ("RUNNING", "PAUSED")]
-        assert timeline.row["state"] == "PAUSED"
+        args, kwargs = calls[0]
+        assert args == (OWNER, AUTHORITY, RUN_ID, 0, 0, "step-key", "stepper")
+        assert kwargs["store"] is control.store
+        assert kwargs["plan"] is PLAN and kwargs["timeline"] is timeline
+        assert kwargs["services"] is control.services
+        assert kwargs["tick"] is control.tick and kwargs["clock"] is control.clock
+        assert kwargs["now"] == NOW and callable(kwargs["ready"])
+        assert result["receipt"]["receipt_id"] == "step"
 
     asyncio.run(case())
 

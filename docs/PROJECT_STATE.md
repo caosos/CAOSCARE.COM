@@ -750,3 +750,70 @@ HANDOFF CAPSULE
 - **Verification:** the complete `backend/tests/test_sim_community*.py` suite passed 428/428 in 617.71 seconds; focused frontend suites passed 25/25 and 23/23; the optimized frontend production build compiled; Python compilation and repository whitespace checks pass. No live server, database, provider, deployment, or simulator run was started.
 - **Remaining gates:** run the read-only Mongo topology/transaction probe; run the explicitly confirmed isolated scratch-database provision/execute/pause/reconnect/resume/stop/reset acceptance; mount the single startup/service coordinator only after those pass; deploy an exact reviewed SHA to a test environment; perform browser acceptance for CREATE, PROVISION, RESUME, live ticket movement, PAUSE, restart recovery, STOP, and RESET; then obtain owner approval before any larger 75-resident accelerated run.
 - **Next safe action:** publish this exact verified tree to the isolated draft branch without force, update PR #146 and issue #129 for the tandem builder, then wait for exact-head CI. Do not merge, deploy, restart, enable controls, or touch a live database from this checkpoint.
+
+## 2026-10-13 — Living-community browser-visible lifecycle coverage (isolated lane)
+
+HANDOFF CAPSULE
+- Objective: Prove at the Live Operations page boundary that an owner can visibly follow one canonical ticket from open to in progress to complete, pause without autonomous movement, resume, inspect provenance, and see truthful disabled controls.
+- Branch: `lane/browser-acceptance-coverage`, based on published simulator commit `d90af0bd4ed23d483363a7112bc2c75647bb3bf4`.
+- Lane / ownership: Deterministic frontend/browser-DOM acceptance coverage and bounded runtime-status wording only; no backend, route, deployment, database, server, provider, or live browser mutation.
+- Last proven state: The page-level test drives RUNNING open → RUNNING in progress → PAUSED in progress for a ten-second poll → RUNNING in progress → RUNNING completed, verifies resident/worker/source/authority/receipt provenance, opens the canonical ticket detail seam, and verifies all controls remain disabled when the safety gate refuses mutations. Six focused suites pass (25 tests total), and the optimized production frontend build compiles.
+- Commits: Recorded in the branch commit containing this capsule.
+- Runtime state: No server, database, simulator, provider, deployment, authenticated account, or live browser was opened or changed.
+- Unresolved proven defects: No defect in the deterministic UI contract. This is automated browser-DOM evidence, not deployed browser acceptance; exact-SHA test deployment plus real API/database operation remains required.
+- Product invariants that matter here: canonical StaffTask/receipt truth; explicit simulated identity; paused autonomous work does not move; real-human actions may still appear; unavailable reads never become false zeroes; mutation controls fail closed.
+- Do NOT change: Do not treat this test as proof of Mongo transactions, startup wiring, deployment, or a live three-month run.
+- Next safe action: Integrate this commit, then run the remaining isolated Mongo acceptance and exact-SHA deployed browser acceptance before enabling Living Community controls.
+
+## 2026-10-13 — Kitchen and Activities specialized Work-as slice (isolated lane)
+
+HANDOFF CAPSULE
+- Objective: Let a real owner/admin enter Kitchen or Activities through Work-as and use the existing menu or schedule workspace with explicit dual-identity receipts.
+- Branch: `lane/department-workas-safe`, based on published simulator head `d90af0bd4ed23d483363a7112bc2c75647bb3bf4`.
+- Lane / ownership: Kitchen menu and Activities schedule routes, their existing ingest/review endpoints, shared content-receipt authority, Department Workspace selection, and focused tests only. No Transportation, Front Desk, Nursing alert, provider, simulator runtime, database, deployment, or server changes.
+- Last proven state: All 20 signed-in menu/schedule endpoints revalidate the short-lived Work-as header; wrong-department scope remains 403; receipts retain Michael's authenticated owner/admin identity and separately name the temporary staff department authority; the specialized Kitchen/Activities UI renders while Work-as is active. Nine focused backend tests and 14 focused frontend tests passed; the optimized frontend production build compiled; Python compilation and repository whitespace checks passed.
+- Commits: Recorded in the branch commit containing this capsule.
+- Runtime state: No server, database, provider, simulator loop, deployment, or live resident/community record was contacted or changed.
+- Unresolved proven defects: Transportation still uses separate operator/coordinator dependencies and can notify a real provider path; Front Desk-wide tools do not consume Work-as provenance; Nursing alert actions are not department-scoped Work-as routes and carry care-safety implications. Those surfaces must remain on the generic canonical task queue from Work-as until separately hardened.
+- Product invariants that matter here: Real identity never becomes a simulated worker; each content mutation has a durable dual-provenance receipt; department scope is revalidated on every request; only published content reaches residents/Aria.
+- Do NOT change: Do not broaden Work-as globally, bypass specialized route dependencies, expose another department's content controls, send notifications, or infer clinical authority.
+- Next safe action: Integrate this focused slice, then separately harden Transportation read-only calendar access before considering any ride mutation or notification path.
+
+## 2026-10-13 — Default-off shared startup/runtime composition
+
+HANDOFF CAPSULE
+- Objective: Mount living-community restart recovery without creating a second loop manager or allowing disabled startup to touch simulator storage.
+- Branch: `audit/startup-wiring` from published simulator commit `d90af0bd4ed23d483363a7112bc2c75647bb3bf4`.
+- Lane / ownership: Application lifespan, process-local control/loop registry, startup capability short-circuit, graceful loop shutdown, and focused tests only.
+- Last proven state: the complete simulator suite passes 435/435 in 729.22 seconds; the focused startup/loop/control/reset/API slice passes 52/52; Python compilation and whitespace checks pass. HTTP controls and startup recovery use one exact service/manager. Startup defaults off; startup-enabled/controls-disabled performs no composition or capability/storage probe. Both explicit flags still require the existing real read-only transaction and six-index proof before recovery can load or mutate a run.
+- Commits: recorded in the branch commit containing this capsule.
+- Runtime state: No server, database, simulator, provider, SSH target, deployment, or service restart was touched.
+- Unresolved proven defects: Direct Mongo scratch acceptance and real server/browser restart acceptance remain required before either feature flag is enabled.
+- Product invariants that matter here: one process registry; durable cross-process fenced lease; exact-run receipts; no simulator storage access while startup or controls are disabled; graceful cancellation on server shutdown.
+- Do NOT change: Keep both flags default-off; do not replace the transaction/index proof, silently create indexes, enable a provider, or treat process-local ownership as cross-process exclusivity.
+- Next safe action: Review/cherry-pick this bounded commit, rerun the complete simulator suite, then exercise it only in the explicitly confirmed isolated Mongo scratch acceptance before test deployment.
+
+## 2026-10-13 — Durable owner/admin manual STEP (isolated lane)
+
+HANDOFF CAPSULE
+- Objective: Enable one owner/admin STEP without allowing another process or autonomous loop to execute concurrently.
+- Branch: `lane/community-step-exclusivity`, based exactly on published simulator commit `d90af0bd4ed23d483363a7112bc2c75647bb3bf4`.
+- Lane / ownership: Manual STEP lease mode, receipt-backed orchestration, guarded API/UI enablement, and focused tests only; no startup hook, database selection, provider, deployment, or live mutation.
+- Last proven state: 148 impacted backend tests and 11 focused frontend tests pass; the optimized frontend production build compiles. STEP uses the canonical run document's atomic execution lease with exact holder, monotonically increasing fence, TTL, PAUSED state, cursor, clock, scope, and manual mode. The run remains PAUSED while one canonical event is reconciled/executed and cursor-committed.
+- Commits: Recorded at this lane's committed head.
+- Runtime state: No server, database, provider, simulator loop, SSH session, service, or deployment was contacted or changed.
+- Unresolved proven defects: Direct Mongo concurrency acceptance remains an integration gate; fake-backed tests prove query/CAS semantics but are not topology evidence.
+- Product invariants that matter here: default-off transaction/index capability gate; no action without receipt/provenance; one exact fenced owner; stale/expired ownership cannot advance the cursor; manual STEP cannot leave the community autonomously RUNNING.
+- Do NOT change: Do not make STEP bypass resident readiness, transaction/index gates, exact PAUSED coordinates, lease mode/holder/fence/TTL checks, or provider fences.
+- Next safe action: Integrate after current startup-control changes, resolve only route/capability overlap, rerun combined simulator tests, then include STEP in isolated direct-Mongo and browser acceptance before enabling controls.
+
+## Tuesday, October 13, 2026 — 4:08 PM America/Chicago — Running-community controls integrated and green
+
+- **Integrated outcome:** Live Operations has deterministic page-level proof of canonical ticket movement from OPEN to IN PROGRESS to COMPLETED, including pause freeze, resume, provenance, receipt evidence, and canonical ticket drill-in. Owner/admin STEP now executes one exact event while the run remains PAUSED under a durable `manual_step` lease. Startup recovery and HTTP controls share one process runtime and loop manager.
+- **Work-as expansion:** Kitchen Menu and Activities Schedule are available through Work-as with the real authenticated owner/admin identity and separately signed acting department authority on every supporting request and receipt. Transportation mutation/notification, Front Desk-wide communication, and Nursing alert surfaces remain intentionally gated.
+- **Default-off runtime:** startup performs no simulator composition or storage probe unless both `CAOSCARE_LIVING_COMMUNITY_STARTUP_RECOVERY=true` and `CAOSCARE_LIVING_COMMUNITY_CONTROLS=true`. Transaction and six-index proof remain mandatory. Shutdown cancels loops owned by the shared manager.
+- **Manual STEP proof:** atomic lease acquisition matches exact run/scope/PAUSED/cursor/minute and absent-or-expired lease; every heartbeat, lifecycle write, event execution, and cursor commit requires exact holder/fence/TTL/mode. Human request/completion receipts link to canonical event evidence. The run is never temporarily exposed as autonomously RUNNING.
+- **Combined verification:** complete `backend/tests/test_sim_community*.py` suite 437/437 in 599.14 seconds; combined frontend page/control/workspace slice 19/19; optimized frontend production build compiled; Python compilation, whitespace checks, and modified production file-size checks passed.
+- **Runtime state:** no live database, provider, service, SSH session, deployment, service restart, or simulator run was contacted or changed.
+- **Remaining activation gates:** read-only target-Mongo topology/transaction proof; explicitly confirmed disposable scratch-Mongo acceptance including concurrent STEP, provision, run, pause, reconnect, resume, stop, and reset; exact-SHA test deployment; real browser acceptance; owner review of ten-resident burn-in; owner authorization before merge or any live enablement.
+- **Next safe action:** publish this exact green tree to draft PR #146, update tandem-builder coordination on #129, verify exact-head CI, and keep all controls disabled until the environment gates pass.

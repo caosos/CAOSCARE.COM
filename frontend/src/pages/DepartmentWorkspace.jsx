@@ -98,7 +98,7 @@ export default function DepartmentWorkspace() {
         {/* Maintenance's full workspace is task-only, so every read/write is
             already protected by the Work-as-aware canonical task routes. */}
         {dept === "maintenance" && <MaintenanceWorkspace />}
-        {SERVICES_DEPARTMENTS.includes(dept) && !workContext && <CommunityServicesWorkspace department={dept} />}
+        {SERVICES_DEPARTMENTS.includes(dept) && <CommunityServicesWorkspace department={dept} />}
 
         {/* Transportation works from the ride calendar: Departed / Ride
             completed update the ride and every rider's request together. */}

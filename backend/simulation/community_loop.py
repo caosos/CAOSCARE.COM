@@ -109,6 +109,19 @@ class CommunityLoopManager:
             await handle.task
         return handle.status
 
+    async def cancel_all(self) -> tuple[LoopStatus, ...]:
+        """Stop every live loop owned by this exact process manager."""
+        run_ids = [
+            run_id for run_id, handle in self._handles.items()
+            if handle.task is not None and not handle.task.done()
+        ]
+        stopped = []
+        for run_id in run_ids:
+            status = await self.cancel(run_id)
+            if status is not None:
+                stopped.append(status)
+        return tuple(stopped)
+
     def status(self, run_id: str) -> Optional[LoopStatus]:
         """Return an immutable snapshot; callers cannot mutate loop truth."""
         handle = self._handles.get(run_id)

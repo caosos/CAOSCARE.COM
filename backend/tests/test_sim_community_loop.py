@@ -140,6 +140,25 @@ def test_cancellation_waits_for_an_inflight_fenced_tick_then_stops():
     asyncio.run(case())
 
 
+def test_cancel_all_stops_every_live_loop_owned_by_the_manager():
+    async def case():
+        world, sleeping = World(state="PAUSED"), GateSleep()
+
+        async def tick(*_args, **_kwargs):
+            raise AssertionError("paused run must not tick")
+
+        control = manager(world, tick, sleep=sleeping, poll_seconds=0.01)
+        assert control.start("run-1", "loop-a") is True
+        await sleeping.entered.wait()
+        stopped = await control.cancel_all()
+
+        assert len(stopped) == 1
+        assert stopped[0].run_id == "run-1" and stopped[0].phase == "cancelled"
+        assert loop.is_active("run-1") is False
+        assert await control.cancel_all() == ()
+    asyncio.run(case())
+
+
 def test_only_one_process_local_loop_can_own_a_run():
     async def case():
         world = World()

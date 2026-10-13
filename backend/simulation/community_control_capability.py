@@ -8,7 +8,7 @@ from simulation.community_index_contract import inspect_required_indexes
 ENABLE_ENV = "CAOSCARE_LIVING_COMMUNITY_CONTROLS"
 
 
-def _explicitly_enabled() -> bool:
+def controls_explicitly_enabled() -> bool:
     return os.environ.get(ENABLE_ENV, "").strip().lower() == "true"
 
 
@@ -50,7 +50,7 @@ async def probe_read_only_transaction(store) -> dict:
 
 
 async def control_capability(store) -> dict:
-    enabled = _explicitly_enabled()
+    enabled = controls_explicitly_enabled()
     transaction = await probe_read_only_transaction(store)
     indexes = await inspect_required_indexes(store)
     blockers = []
@@ -79,12 +79,15 @@ async def control_capability(store) -> dict:
         "index_probe": indexes,
         "mutations_allowed": allowed,
         "available_actions": (
-            ["create_paused", "provision_residents", "resume", "pause", "stop"]
+            ["create_paused", "provision_residents", "resume", "pause", "step", "stop"]
             if allowed else []
         ),
         "step": {
-            "enabled": False,
-            "reason": "Step needs a durable cross-process exclusive-run capability.",
+            "enabled": allowed,
+            "reason": (
+                None if allowed else
+                "Step requires the same explicit flag, transaction, and index gates."
+            ),
         },
         "blockers": blockers,
     }

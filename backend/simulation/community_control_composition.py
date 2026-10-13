@@ -34,7 +34,7 @@ def _completion_key(run_id: str, run: dict) -> str:
 def compose_community_controls(
     *, store, clock=lambda: datetime.now(timezone.utc),
     config: LoopConfig = LoopConfig(), start_guard=canonical_start_guard,
-    exclusive_step=None, services=None,
+    services=None,
 ) -> CommunityControlService:
     """Wire canonical adapters around injected storage without starting them."""
     plan = canonical_plan()
@@ -75,6 +75,5 @@ def compose_community_controls(
         services=execution,
         loop_manager=manager,
         start_guard=start_guard,
-        exclusive_step=exclusive_step,
         clock=clock,
     )

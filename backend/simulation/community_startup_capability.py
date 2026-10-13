@@ -2,7 +2,10 @@
 
 from typing import Awaitable, Callable
 
-from simulation.community_control_capability import control_capability
+from simulation.community_control_capability import (
+    control_capability,
+    controls_explicitly_enabled,
+)
 from simulation.community_index_contract import REQUIRED_INDEXES
 
 
@@ -16,6 +19,13 @@ CapabilityProbe = Callable[[], Awaitable[dict]]
 def shared_capability_probe(*, store, probe=control_capability) -> CapabilityProbe:
     """Bind the same read-only transaction/six-index gate as HTTP controls."""
     async def capability():
+        if not controls_explicitly_enabled():
+            return {
+                "schema_version": 1,
+                "controls_enabled": False,
+                "mutations_allowed": False,
+                "blockers": [{"code": "controls_not_enabled"}],
+            }
         return await probe(store)
 
     return capability
@@ -31,6 +41,7 @@ def capability_blockers(value) -> tuple[str, ...]:
     ]
     if value.get("controls_enabled") is not True:
         blockers.append("controls_not_enabled")
+        return tuple(dict.fromkeys(blockers))
     transaction = value.get("transaction_probe")
     if not isinstance(transaction, dict) or transaction.get("supported") is not True:
         blockers.append("transactions_unavailable")

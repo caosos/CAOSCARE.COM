@@ -895,12 +895,17 @@ listener verifier experiment: `docs/experiments/`.
 - `frontend/src/components/simulator/SimCommunityOverview.jsx` is the declared planning view;
   `SimCommunityObserved.jsx` is the separate verified-record view. `communityObservedLoad.js` rejects malformed
   responses, and `LiveOperations.jsx` preserves the last verified snapshot when a refresh fails.
+- `frontend/src/components/simulator/SimCommunityRuntime.jsx` presents the exact-run clock, canonical ticket
+  counts, recent tickets and receipt-backed transitions. `frontend/src/pages/LiveOperations.community.test.jsx`
+  deterministically exercises the page through open, in-progress, paused, resumed and completed browser-visible
+  states while checking provenance, ticket drill-in and default-off control gates.
 - `backend/living_community_boundary.py` and `backend/routes/living_community_ai_guard.py`: shared boundaries
   for legacy bulk processors, memory extraction and alert AI classification. Resident CRUD, task templates,
   escalation, family notifications and haiku provider paths have their own server-owned living-community guards.
 - Tests: `backend/tests/test_sim_community_*.py`, `test_living_community_*`,
   `test_haiku_community_provider_boundary.py`, and
-  `frontend/src/components/simulator/__tests__/{SimCommunityOverview,SimCommunityObserved}.test.jsx`.
+  `frontend/src/components/simulator/__tests__/{SimCommunityOverview,SimCommunityObserved}.test.jsx` plus
+  `frontend/src/pages/LiveOperations.community.test.jsx`.
 ## 2026-09-27 — Community services (Lane D, branch pilot/community-services)
 
 - `backend/routes/service_content_access.py`: who may change the menu (Kitchen/Administration/admin) and the schedule (Activities/Administration/admin).

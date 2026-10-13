@@ -1,6 +1,5 @@
 """Default-off owner/admin HTTP controls for the living community."""
 
-import os
 from hashlib import sha256
 from typing import Literal
 
@@ -11,10 +10,17 @@ from deps import db, require_admin
 from routes.actor_context import actor_from_user
 from simulation.community_atomic_provision import CommunityAtomicProvisionError
 from simulation.community_control_capability import control_capability
-from simulation.community_control_composition import compose_community_controls
 from simulation.community_control_service import CommunityControlError
 from simulation.community_loop_contract import CommunityLoopError
+from simulation.community_manual_step import CommunityManualStepError
+from simulation.community_run_lease import RunLeaseError
 from simulation.community_run_lifecycle import CommunityRunLifecycleError
+from simulation.community_runner import CommunityRunnerError
+from simulation.community_executor import CommunityExecutorError
+from routes.community_runtime_registry import (
+    community_process_holder_id,
+    community_process_runtime,
+)
 
 
 router = APIRouter(prefix="/simulator/community/controls", tags=["simulator"])
@@ -57,12 +63,12 @@ def _operator(user: dict):
 def _controls():
     global _service
     if _service is None:
-        _service = compose_community_controls(store=db)
+        return community_process_runtime(db).controls
     return _service
 
 
 def _holder_id() -> str:
-    return f"community-http:{os.getpid()}"
+    return community_process_holder_id()
 
 
 def _operation_key(user: dict, action: str, supplied: str) -> str:
@@ -171,9 +177,21 @@ async def stop(body: PositionedInput, user=Depends(require_admin)):
 
 
 @router.post("/step")
-async def step_disabled(body: PositionedInput, user=Depends(require_admin)):
+async def step(body: PositionedInput, user=Depends(require_admin)):
     await _allowed()
-    raise HTTPException(status_code=409, detail={
-        "code": "community_step_disabled",
-        "message": "Step needs a durable cross-process exclusive-run capability.",
-    })
+    if body.expected_state != "PAUSED":
+        raise HTTPException(status_code=409, detail="Step requires exact PAUSED state")
+    actor, authority = _operator(user)
+    try:
+        result = await _controls().step_one(
+            actor, authority, body.run_id, body.expected_cursor,
+            body.expected_sim_minute,
+            _operation_key(user, "step", body.operation_key), _holder_id(),
+        )
+    except (
+        CommunityControlError, CommunityManualStepError,
+        CommunityRunLifecycleError, CommunityLoopError, RunLeaseError,
+        CommunityRunnerError, CommunityExecutorError,
+    ) as exc:
+        _refused(exc)
+    return {"ok": True, "action": "step", **result}

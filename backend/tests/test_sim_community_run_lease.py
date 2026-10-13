@@ -162,3 +162,43 @@ def test_wrong_scope_never_claims_and_release_is_fenced():
 def test_validation_rejects_naive_time_and_protected_fields():
     with pytest.raises(lease.RunLeaseError, match="timezone-aware"):
         lease._utc(datetime(2026, 10, 13, 7, 0))
+
+
+def test_manual_step_lease_is_paused_exact_and_fenced():
+    async def case():
+        store = Store(run_row(state=lease.PAUSED, cursor=4, sim_minute=90))
+        claim = await lease.acquire(
+            "living_run_1", "manual-a", store=store, now=NOW,
+            mode=lease.MANUAL_STEP_MODE, expected_cursor=4,
+            expected_sim_minute=90,
+        )
+        assert claim["mode"] == lease.MANUAL_STEP_MODE and claim["fence"] == 1
+        assert store.sim_runs.row["execution_lease"]["mode"] == lease.MANUAL_STEP_MODE
+        await lease.heartbeat(
+            "living_run_1", "manual-a", claim["fence"], store=store, now=NOW,
+            mode=lease.MANUAL_STEP_MODE,
+        )
+        changed = await lease.advance_cursor(
+            "living_run_1", "manual-a", claim["fence"], 4, 5,
+            store=store, now=NOW, mode=lease.MANUAL_STEP_MODE,
+        )
+        assert changed["state"] == lease.PAUSED and changed["cursor"] == 5
+
+    asyncio.run(case())
+
+
+def test_manual_step_claim_refuses_stale_position_and_running_state():
+    async def case():
+        for value in (
+            run_row(state=lease.PAUSED, cursor=2, sim_minute=30),
+            run_row(state=lease.RUNNING, cursor=1, sim_minute=20),
+        ):
+            store = Store(value)
+            with pytest.raises(lease.RunLeaseError):
+                await lease.acquire(
+                    "living_run_1", "manual-a", store=store, now=NOW,
+                    mode=lease.MANUAL_STEP_MODE, expected_cursor=1,
+                    expected_sim_minute=20,
+                )
+
+    asyncio.run(case())

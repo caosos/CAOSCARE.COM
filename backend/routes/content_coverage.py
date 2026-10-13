@@ -5,9 +5,10 @@ can say why instead of looking broken."""
 from datetime import date as _date
 from fastapi import APIRouter, Depends
 
-from deps import db, get_current_user
+from deps import db
 from routes.realtime_facility import today_facility_date
 from routes.schedule import _NOT_LIVE, _STAFF_ONLY_CATEGORIES
+from routes.work_context import get_department_user
 
 router = APIRouter(tags=["content-coverage"])
 
@@ -27,10 +28,10 @@ async def _coverage(collection, live_query: dict) -> dict:
 
 
 @router.get("/menu/coverage")
-async def menu_coverage(user=Depends(get_current_user)):
+async def menu_coverage(user=Depends(get_department_user)):
     return await _coverage(db.menu_items, {"status": "approved"})
 
 
 @router.get("/schedule/coverage")
-async def schedule_coverage(user=Depends(get_current_user)):
+async def schedule_coverage(user=Depends(get_department_user)):
     return await _coverage(db.schedule_items, {"status": {"$nin": _NOT_LIVE}, "category": {"$nin": _STAFF_ONLY_CATEGORIES}})

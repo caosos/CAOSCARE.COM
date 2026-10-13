@@ -65,6 +65,8 @@ def test_capability_executes_and_aborts_a_real_read_only_transaction(monkeypatch
     result = asyncio.run(control_capability(store))
     assert result["mutations_allowed"] is True
     assert "provision_residents" in result["available_actions"]
+    assert "step" in result["available_actions"]
+    assert result["step"] == {"enabled": True, "reason": None}
     assert result["transaction_probe"] == {
         "status": "passed", "supported": True, "blocker": None,
     }
@@ -82,6 +84,7 @@ def test_default_disabled_get_explains_blocker_and_post_writes_nothing(monkeypat
     ))
     assert capability.status_code == 200
     assert capability.json()["mutations_allowed"] is False
+    assert capability.json()["step"]["enabled"] is False
     assert capability.json()["transaction_probe"]["status"] == "passed"
     assert capability.json()["blockers"][0]["code"] == "controls_not_enabled"
 
@@ -134,6 +137,10 @@ class RecordingControls:
         self.calls.append(("stop", actor, authority, run_id, state, cursor, minute, key))
         return {"run": {"state": "STOPPED", "cursor": cursor, "sim_minute": minute}}
 
+    async def step_one(self, actor, authority, run_id, cursor, minute, key, holder):
+        self.calls.append(("step", actor, authority, run_id, cursor, minute, key, holder))
+        return {"run": {"state": "PAUSED", "cursor": cursor + 1, "sim_minute": minute}}
+
 
 def test_enabled_actions_forward_exact_coordinates_key_and_authenticated_actor(monkeypatch):
     monkeypatch.setenv("CAOSCARE_LIVING_COMMUNITY_CONTROLS", "true")
@@ -148,6 +155,7 @@ def test_enabled_actions_forward_exact_coordinates_key_and_authenticated_actor(m
         ("provision-residents", POSITION),
         ("resume", POSITION),
         ("pause", {**POSITION, "expected_state": "RUNNING", "operation_key": "pause-1"}),
+        ("step", POSITION),
         ("stop", {**POSITION, "operation_key": "stop-1"}),
     ]
     for action, body in requests:
@@ -156,7 +164,7 @@ def test_enabled_actions_forward_exact_coordinates_key_and_authenticated_actor(m
         ))
         assert response.status_code == 200, response.text
     assert [call[0] for call in controls.calls] == [
-        "create", "provision", "resume", "pause", "stop",
+        "create", "provision", "resume", "pause", "step", "stop",
     ]
     for call in controls.calls:
         actor, authority = call[1:3]
@@ -203,16 +211,26 @@ def test_stale_or_invalid_state_is_rejected_before_service_call(monkeypatch):
     assert controls.calls == []
 
 
-def test_step_stays_disabled_even_when_other_mutations_are_capable(monkeypatch):
+def test_step_is_enabled_and_forwards_authenticated_owner(monkeypatch):
     monkeypatch.setenv("CAOSCARE_LIVING_COMMUNITY_CONTROLS", "true")
     store = RuntimeStore()
     _install_required_indexes(store)
     app = _app(monkeypatch, store)
+    controls = RecordingControls()
+    community_controls._service = controls
     response = asyncio.run(_request(
         app, "POST", "/api/simulator/community/controls/step", POSITION,
     ))
-    assert response.status_code == 409
-    assert response.json()["detail"]["code"] == "community_step_disabled"
+    assert response.status_code == 200
+    assert response.json()["action"] == "step"
+    call = controls.calls[0]
+    assert call[0] == "step"
+    assert call[1].actor_id == "owner-1" and call[2] == "admin_override:owner"
+    assert call[3:6] == (POSITION["run_id"], 7, 480)
+    assert call[6] == community_controls._operation_key(
+        OWNER, "step", "browser-operation-1",
+    )
+    assert call[7].startswith("community-process:")
 
 
 def test_enabled_transactional_store_without_named_indexes_never_reaches_service(monkeypatch):
@@ -268,3 +286,15 @@ def test_registered_server_exposes_the_guarded_paths():
     assert "/api/simulator/community/controls/resume" in paths
     assert "/api/simulator/community/controls/pause" in paths
     assert "/api/simulator/community/controls/stop" in paths
+
+
+def test_route_uses_the_process_registry_service(monkeypatch):
+    expected = RecordingControls()
+    runtime = type("Runtime", (), {"controls": expected})()
+    monkeypatch.setattr(
+        community_controls, "community_process_runtime",
+        lambda store: runtime,
+    )
+    community_controls._service = None
+
+    assert community_controls._controls() is expected

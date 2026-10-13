@@ -5,14 +5,13 @@ import time.  Human mutations delegate to the atomic lifecycle boundary;
 automatic clock/completion mutations retain the named system actor.
 """
 
-from contextlib import AbstractAsyncContextManager
 from datetime import datetime, timezone
-from hashlib import sha256
 from typing import Awaitable, Callable, Optional
 
 from routes.actor_context import ActorContext
 from simulation.community_atomic_provision import provision_paused_burn_in_run
 from simulation import community_run_lifecycle as lifecycle
+from simulation import community_manual_step
 from simulation import community_runner
 from simulation.community_blueprint import COMMUNITY_ID, SIMULATION_SCOPE
 from simulation.community_department_preflight import preflight_living_community_run_start
@@ -21,9 +20,6 @@ from simulation.community_timeline import CommunityTimeline, validate_timeline
 
 
 StartGuard = Callable[..., Awaitable[dict]]
-ExclusiveStep = Callable[[str], AbstractAsyncContextManager]
-
-
 class CommunityControlError(RuntimeError):
     """A control request was refused before unsafe or ambiguous work."""
 
@@ -38,13 +34,6 @@ def runner_actor() -> ActorContext:
         role="system",
         simulated=False,
     )
-
-
-def _key(parent: str, action: str) -> str:
-    raw = (parent or "").strip()
-    if not raw:
-        raise CommunityControlError("a stable operation key is required")
-    return f"control:{action}:{sha256(raw.encode()).hexdigest()}"
 
 
 async def canonical_start_guard(*, store, run: dict) -> dict:
@@ -81,8 +70,8 @@ class CommunityControlService:
     def __init__(
         self, *, store, plan: CommunityTimeline, timeline, services, loop_manager,
         start_guard: StartGuard = canonical_start_guard,
-        exclusive_step: Optional[ExclusiveStep] = None,
         tick=community_runner.tick,
+        manual_step=community_manual_step.execute_one,
         clock=lambda: datetime.now(timezone.utc),
     ):
         self.store = store
@@ -91,8 +80,8 @@ class CommunityControlService:
         self.services = services
         self.loop = loop_manager
         self.start_guard = start_guard
-        self.exclusive_step = exclusive_step
         self.tick = tick
+        self.manual_step = manual_step
         self.clock = clock
 
     def _now(self, value: Optional[datetime]) -> datetime:
@@ -224,64 +213,9 @@ class CommunityControlService:
         expected_cursor: int, expected_sim_minute: int, operation_key: str,
         holder_id: str, *, now: Optional[datetime] = None,
     ) -> dict:
-        if self.exclusive_step is None:
-            raise CommunityControlError("step is disabled without an exclusive-run capability")
-        async with self.exclusive_step(run_id):
-            row = await self._exact(
-                run_id, lifecycle.PAUSED, expected_cursor, expected_sim_minute,
-            )
-            readiness = await self._ready(row)
-            events = tuple(await self.timeline.load_events(run_id=run_id))
-            if row["cursor"] >= len(events):
-                raise CommunityControlError("no event remains to step")
-            instant = self._now(now)
-            await lifecycle.transition_run(
-                operator, authority, run_id, lifecycle.PAUSED, lifecycle.RUNNING,
-                row["cursor"], row["sim_minute"], _key(operation_key, "step-resume"),
-                self.plan, store=self.store, now=instant, require_unleased=True,
-            )
-            result = None
-            failure = None
-            try:
-                target = (
-                    events[row["cursor"]].day_index * 1440
-                    + events[row["cursor"]].minute
-                )
-                if target > row["sim_minute"]:
-                    advanced = await lifecycle.advance_simulated_clock(
-                        runner_actor(), f"simulation_run:{run_id}:clock", run_id,
-                        row["cursor"], row["sim_minute"], target,
-                        _key(operation_key, "step-clock"), self.plan,
-                        store=self.store, now=instant,
-                    )
-                    row = advanced["run"]
-                result = await self.tick(
-                    run_id, holder_id, store=self.store, timeline=self.timeline,
-                    services=self.services, now=instant, clock=self.clock,
-                )
-            except BaseException as exc:
-                failure = exc
-            current = await self.timeline.load_run(run_id=run_id)
-            if current.get("state") == lifecycle.RUNNING:
-                await lifecycle.transition_run(
-                    operator, authority, run_id, lifecycle.RUNNING, lifecycle.PAUSED,
-                    current["cursor"], current["sim_minute"],
-                    _key(operation_key, "step-pause"), self.plan,
-                    store=self.store, now=instant, require_unleased=True,
-                )
-            if failure:
-                raise failure
-            final = await self.timeline.load_run(run_id=run_id)
-            delta = result.cursor_after - result.cursor_before
-            if (
-                result.run_id != run_id
-                or result.cursor_before != row["cursor"]
-                or delta not in (0, 1)
-                or final.get("state") != lifecycle.PAUSED
-                or final.get("cursor") != result.cursor_after
-                or result.status not in {"executed", "advanced", "blocked"}
-                or (delta == 1 and not result.receipt_id)
-                or (delta == 0 and result.status != "blocked")
-            ):
-                raise CommunityControlError("step result does not prove one exact event attempt")
-            return {"run": final, "tick": result, "readiness": readiness}
+        return await self.manual_step(
+            operator, authority, run_id, expected_cursor, expected_sim_minute,
+            operation_key, holder_id, store=self.store, plan=self.plan,
+            timeline=self.timeline, services=self.services, ready=self._ready,
+            tick=self.tick, now=now, clock=self.clock,
+        )

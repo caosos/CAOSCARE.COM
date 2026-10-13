@@ -177,15 +177,22 @@ async def tick(
     now: Optional[datetime] = None,
     ttl_seconds: int = run_lease.DEFAULT_TTL_SECONDS,
     clock: Optional[Callable[[], datetime]] = None,
+    lease_mode: str = run_lease.RUNNER_MODE,
+    claim: Optional[dict] = None,
+    release_claim: bool = True,
 ) -> TickResult:
     """Acquire, reconcile, and process no more than one cursor event."""
     instant = _utc(now)
-    claim = None
+    supplied_claim = claim is not None
     primary_error = None
     try:
-        claim = await run_lease.acquire(
-            run_id, holder_id, store=store, now=instant, ttl_seconds=ttl_seconds
-        )
+        if claim is None:
+            claim = await run_lease.acquire(
+                run_id, holder_id, store=store, now=instant,
+                ttl_seconds=ttl_seconds, mode=lease_mode,
+            )
+        if not run_lease.claim_matches(claim, run_id, holder_id, lease_mode):
+            raise CommunityRunnerError("supplied lease claim does not match this tick")
         run = await timeline.load_run(run_id=run_id)
         cursor = _coordinate(run.get("cursor"), "run cursor", timeline.event_count)
         _coordinate(run.get("sim_minute"), "run simulated minute")
@@ -208,7 +215,7 @@ async def tick(
             run, event, window, run_id=run_id, holder_id=holder_id, cursor=cursor,
         )
 
-        if run["state"] == run_lease.PAUSED:
+        if run["state"] == run_lease.PAUSED and lease_mode != run_lease.MANUAL_STEP_MODE:
             return _no_action(run_id, "paused", cursor, claim["fence"])
 
         # A state/fence change after the snapshot must stop the tick before it
@@ -220,6 +227,7 @@ async def tick(
             store=store,
             now=instant,
             ttl_seconds=ttl_seconds,
+            mode=lease_mode,
         )
         if (
             owned.get("cursor") != cursor
@@ -238,6 +246,7 @@ async def tick(
                 store=store,
                 clock=clock,
                 ttl_seconds=ttl_seconds,
+                lease_mode=lease_mode,
                 fields={
                     "last_event_id": event.event_id,
                     "last_evidence_receipt_id": proof["receipt_id"],
@@ -264,6 +273,7 @@ async def tick(
             now=instant,
             ttl_seconds=ttl_seconds,
             clock=clock,
+            lease_mode=lease_mode,
         )
         return TickResult(
             run_id, "executed", "execute_event_then_advance", result.event_id,
@@ -274,7 +284,7 @@ async def tick(
         primary_error = exc
         raise
     finally:
-        if claim is not None:
+        if claim is not None and (not supplied_claim or release_claim):
             try:
                 await run_lease.release(
                     run_id, holder_id, claim["fence"], store=store, now=instant

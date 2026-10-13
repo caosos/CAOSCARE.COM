@@ -112,6 +112,7 @@ from routes import aria_turn_taking as aria_turn_taking_routes  # noqa: E402
 from routes import simulation as simulation_routes  # noqa: E402
 from routes import community_runtime as community_runtime_routes  # noqa: E402
 from routes import community_controls as community_control_routes  # noqa: E402
+from routes import community_runtime_registry  # noqa: E402
 from routes import work_context as work_context_routes  # noqa: E402
 from routes import demo_continuity as demo_continuity_routes  # noqa: E402
 from seed import demo_seed_enabled, seed  # noqa: E402
@@ -165,10 +166,14 @@ async def lifespan(app: FastAPI):
     # Escalation schedule (independent of any simulator); CAOSCARE_ESCALATION_AUTO=0 disables.
     from routes.escalation_schedule import start_schedule, stop_schedule
     await start_schedule()
-    yield
-    if ari_task:
-        ari_task.cancel()
-    await stop_schedule()
+    await community_runtime_registry.recover_community_on_startup(db)
+    try:
+        yield
+    finally:
+        await community_runtime_registry.stop_community_on_shutdown(db)
+        if ari_task:
+            ari_task.cancel()
+        await stop_schedule()
 
 
 app = FastAPI(title="CAOS Care", lifespan=lifespan)

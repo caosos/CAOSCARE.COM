@@ -43,6 +43,7 @@ async def execute_current(
     now: datetime,
     ttl_seconds: int = run_lease.DEFAULT_TTL_SECONDS,
     clock: Optional[Callable[[], datetime]] = None,
+    lease_mode: str = run_lease.RUNNER_MODE,
 ) -> executor.StepResult:
     """Execute/reconcile one supplied event under an exact fenced cursor."""
     _validate_event(event)
@@ -53,6 +54,7 @@ async def execute_current(
         cursor=cursor,
         simulation_scope=SIMULATION_SCOPE,
         simulation_community_id=COMMUNITY_ID,
+        lease_mode=lease_mode,
     )
     await executor._owned_run(store, context, now)
     evidence = await services.load_evidence(
@@ -79,6 +81,7 @@ async def execute_current(
         store=store,
         clock=clock,
         ttl_seconds=ttl_seconds,
+        lease_mode=lease_mode,
         fields={
             "last_event_id": event.event_id,
             "last_evidence_receipt_id": proof["receipt_id"],

@@ -21,7 +21,7 @@ export function isCommunityControlCapability(value) {
       && value.index_probe
       && typeof value.index_probe.ready === "boolean"
       && value.step
-      && value.step.enabled === false,
+      && typeof value.step.enabled === "boolean",
   );
 }
 

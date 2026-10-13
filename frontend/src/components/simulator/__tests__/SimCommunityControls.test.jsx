@@ -23,8 +23,8 @@ const capability = {
   mutations_allowed: true,
   transaction_probe: { status: "passed", supported: true, blocker: null },
   index_probe: { status: "passed", ready: true, required: [], blockers: [] },
-  available_actions: ["create_paused", "provision_residents", "resume", "pause", "stop"],
-  step: { enabled: false, reason: "Step needs a durable cross-process exclusive-run capability." },
+  available_actions: ["create_paused", "provision_residents", "resume", "pause", "step", "stop"],
+  step: { enabled: true, reason: null },
   blockers: [],
 };
 
@@ -77,6 +77,10 @@ test("labels Living Community separately and explains why default-off actions ar
     controls_enabled: false,
     mutations_allowed: false,
     available_actions: [],
+    step: {
+      enabled: false,
+      reason: "Step requires the same explicit flag, transaction, and index gates.",
+    },
     blockers: [{
       code: "controls_not_enabled",
       message: "Set CAOSCARE_LIVING_COMMUNITY_CONTROLS=true explicitly to enable mutations.",
@@ -91,7 +95,7 @@ test("labels Living Community separately and explains why default-off actions ar
   expect(view.element.querySelector("[data-testid=community-control-stop]").disabled).toBe(true);
   expect(view.element.querySelector("[data-testid=community-control-step]").disabled).toBe(true);
   expect(view.element.querySelector("[data-testid=community-step-reason]").textContent)
-    .toMatch(/durable cross-process exclusive-run capability/i);
+    .toMatch(/explicit flag, transaction, and index gates/i);
   await act(async () => view.root.unmount());
 });
 
@@ -104,6 +108,22 @@ test("resume posts exact PAUSED position then refreshes current runtime truth", 
   expect(api.post).toHaveBeenCalledWith(
     "/simulator/community/controls/resume",
     actionPayload("resume", run),
+  );
+  expect(refreshed).toHaveBeenCalledTimes(1);
+  await act(async () => view.root.unmount());
+});
+
+test("manual step posts one exact PAUSED position under the verified gate", async () => {
+  api.get.mockResolvedValue({ data: capability });
+  api.post.mockResolvedValue({ data: { ok: true } });
+  const refreshed = jest.fn().mockResolvedValue(undefined);
+  const view = await render({ snapshot: { run }, onRuntimeRefresh: refreshed });
+  const step = view.element.querySelector("[data-testid=community-control-step]");
+  expect(step.disabled).toBe(false);
+  await act(async () => step.click());
+  expect(api.post).toHaveBeenCalledWith(
+    "/simulator/community/controls/step",
+    actionPayload("step", run),
   );
   expect(refreshed).toHaveBeenCalledTimes(1);
   await act(async () => view.root.unmount());
@@ -124,6 +144,7 @@ test("paused unprovisioned run offers provisioning and keeps resume disabled", a
   expect(provision).not.toBeNull();
   expect(provision.disabled).toBe(false);
   expect(view.element.querySelector("[data-testid=community-control-resume]").disabled).toBe(true);
+  expect(view.element.querySelector("[data-testid=community-control-step]").disabled).toBe(true);
   expect(view.element.querySelector("[data-testid=community-resident-readiness]").textContent)
     .toMatch(/provision the ten simulated.*resume stays disabled/i);
   await act(async () => provision.click());
@@ -146,6 +167,7 @@ test("unknown resident readiness never enables resume or invents a provisioning 
   const view = await render({ snapshot: { run: unknown }, onRuntimeRefresh: jest.fn() });
   expect(view.element.querySelector("[data-testid=community-control-provision_residents]")).toBeNull();
   expect(view.element.querySelector("[data-testid=community-control-resume]").disabled).toBe(true);
+  expect(view.element.querySelector("[data-testid=community-control-step]").disabled).toBe(true);
   expect(view.element.querySelector("[data-testid=community-resident-readiness]").textContent)
     .toMatch(/unknown or invalid/i);
   await act(async () => view.root.unmount());

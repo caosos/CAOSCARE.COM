@@ -25,6 +25,9 @@ SNAPSHOT_FIELDS = (
     "terminal_reason",
     "completed_at",
     "completion_receipt_id",
+    "last_event_id",
+    "last_evidence_receipt_id",
+    "last_evidence_status",
 )
 
 

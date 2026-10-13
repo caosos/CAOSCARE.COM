@@ -13,6 +13,7 @@ from pymongo import ReturnDocument
 from routes.actor_context import ActorContext
 from simulation.community_blueprint import BURN_IN_RESIDENTS, COMMUNITY_ID, SIMULATION_SCOPE
 from simulation.community_provisioning import ProvisioningError, _require_operator
+from simulation import community_run_lease as run_lease
 from simulation.community_run_receipts import build_receipt, receipt_id, snapshot
 from simulation.community_timeline import CommunityTimeline, validate_timeline
 
@@ -167,6 +168,7 @@ async def _mutate(
     operator, authority, run_id, expected_state, expected_cursor,
     expected_sim_minute, next_state, next_minute, operation_key, plan,
     action, *, store, now, human_operator=True, require_unleased=False,
+    lease_claim=None,
 ) -> dict:
     if human_operator:
         _operator(operator, authority)
@@ -175,6 +177,8 @@ async def _mutate(
         raise CommunityRunLifecycleError("cursor and simulated clock coordinates must be non-negative integers")
     _, digest = _key(operation_key)
     fields, instant = _plan(plan), _utc(now)
+    if require_unleased and lease_claim is not None:
+        raise CommunityRunLifecycleError("a mutation cannot require both an absent and owned lease")
     receipt_id_value = receipt_id(run_id, digest)
     client = getattr(store, "client", None)
     if client is None or not callable(getattr(client, "start_session", None)):
@@ -193,6 +197,14 @@ async def _mutate(
             }
             if require_unleased:
                 query["execution_lease"] = {"$exists": False}
+            if lease_claim is not None:
+                try:
+                    query.update(run_lease.ownership_fields(
+                        lease_claim["holder_id"], lease_claim["fence"], instant,
+                        mode=lease_claim["mode"],
+                    ))
+                except (KeyError, run_lease.RunLeaseError) as exc:
+                    raise CommunityRunLifecycleError("exact execution lease proof is invalid") from exc
             updates = {
                 "state": next_state, "sim_minute": next_minute,
                 "last_transition_receipt_id": receipt_id_value,
@@ -206,7 +218,7 @@ async def _mutate(
                     completion_receipt_id=receipt_id_value,
                 )
             update = {"$set": updates}
-            if next_state in (PAUSED, STOPPED):
+            if next_state in (PAUSED, STOPPED) and next_state != expected_state:
                 update["$unset"] = {"execution_lease": ""}
             changed = await store.sim_runs.find_one_and_update(
                 query, update, projection={"_id": 0}, session=session,

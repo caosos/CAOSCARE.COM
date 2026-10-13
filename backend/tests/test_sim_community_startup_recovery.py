@@ -348,7 +348,8 @@ def test_bounded_runner_adapter_passes_only_injected_boundaries():
     })]
 
 
-def test_shared_capability_adapter_passes_only_the_injected_store():
+def test_shared_capability_adapter_passes_only_the_injected_store(monkeypatch):
+    monkeypatch.setenv("CAOSCARE_LIVING_COMMUNITY_CONTROLS", "true")
     calls, store = [], object()
 
     async def probe(value):
@@ -358,3 +359,16 @@ def test_shared_capability_adapter_passes_only_the_injected_store():
     adapted = shared_capability_probe(store=store, probe=probe)
     assert execute(adapted())["mutations_allowed"] is True
     assert calls == [store]
+
+
+def test_shared_capability_adapter_never_probes_when_controls_are_off(monkeypatch):
+    monkeypatch.delenv("CAOSCARE_LIVING_COMMUNITY_CONTROLS", raising=False)
+    calls, store = [], object()
+
+    async def probe(value):
+        calls.append(value)
+        raise AssertionError("disabled startup must not probe storage")
+
+    result = execute(shared_capability_probe(store=store, probe=probe)())
+    assert result["mutations_allowed"] is False
+    assert calls == []

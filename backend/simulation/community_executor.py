@@ -44,6 +44,7 @@ class ExecutionContext:
     simulation_scope: str
     simulation_community_id: str
     providers_allowed: bool = False
+    lease_mode: str = run_lease.RUNNER_MODE
 @dataclass(frozen=True)
 class StepResult:
     event_id: str
@@ -208,20 +209,11 @@ async def _owned_run(store, context: ExecutionContext, instant: datetime) -> dic
         "simulation_scope": SIMULATION_SCOPE,
         "simulation_community_id": COMMUNITY_ID,
     }, {"_id": 0})
-    lease = (row or {}).get("execution_lease") or {}
-    expires_at = lease.get("expires_at")
-    try:
-        expires = datetime.fromisoformat(expires_at) if expires_at else None
-    except (TypeError, ValueError):
-        expires = None
     if (
-        not row
-        or row.get("state") != run_lease.RUNNING
-        or row.get("execution_lease_generation") != context.fence
-        or lease.get("holder_id") != context.holder_id
-        or not expires
-        or expires.tzinfo is None
-        or expires.astimezone(timezone.utc) <= instant
+        not run_lease.owns_snapshot(
+            row, context.holder_id, context.fence, instant,
+            mode=context.lease_mode,
+        )
     ):
         raise CommunityExecutorError("run is paused or lease ownership is stale or expired")
     if row.get("cursor") != context.cursor:

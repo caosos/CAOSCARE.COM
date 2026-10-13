@@ -161,6 +161,16 @@ export default function SimCommunityRuntime({ loadState, snapshot, refreshFailed
         </div>
       </header>
 
+      <p className="text-sm text-caos-mute" data-testid="runtime-motion-status" aria-live="polite">
+        {state === "RUNNING"
+          ? "Live: the simulated clock, canonical tickets, and receipt-backed changes refresh every two seconds."
+          : state === "PAUSED"
+            ? "Paused: the simulated clock and autonomous work stay fixed until resume; real human actions can still appear."
+            : state === "STOPPED"
+              ? "Stopped: no new simulator actions run; ticket history and receipts remain available."
+              : "Runtime movement is unknown until an exact run state is available."}
+      </p>
+
       {refreshFailed && (
         <div className="rounded-lg border border-caos-amber bg-[#FDF3E3] p-3 text-sm" data-testid="community-runtime-stale">
           Live refresh failed. Showing the last received read from {snapshot.generated_at}; unknown values were not replaced with zero.

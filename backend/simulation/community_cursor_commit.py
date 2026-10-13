@@ -26,6 +26,7 @@ async def advance_cursor(
     fields: dict,
     clock: Optional[Clock] = None,
     ttl_seconds: int = run_lease.DEFAULT_TTL_SECONDS,
+    lease_mode: str = run_lease.RUNNER_MODE,
 ) -> dict:
     """Revalidate the exact live lease at fresh time, then advance once."""
     instant = _fresh(clock)
@@ -36,6 +37,7 @@ async def advance_cursor(
         store=store,
         now=instant,
         ttl_seconds=ttl_seconds,
+        mode=lease_mode,
     )
     return await run_lease.advance_cursor(
         run_id,
@@ -46,4 +48,5 @@ async def advance_cursor(
         store=store,
         now=instant,
         fields=fields,
+        mode=lease_mode,
     )
