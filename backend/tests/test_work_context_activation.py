@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from routes import work_context as route  # noqa: E402
 from routes import task_lifecycle  # noqa: E402
+from routes import task_actions  # noqa: E402
 from routes.actor_context import actor_from_user  # noqa: E402
 from routes.task_lifecycle import authority_for  # noqa: E402
 from routes.tasks import staff_visibility_query  # noqa: E402
@@ -110,3 +111,69 @@ def test_task_origin_passes_dual_identity_into_receipt_builder(monkeypatch):
     assert provenance["acting_role"] == "staff"
     assert provenance["acting_department"] == "maintenance"
     assert provenance["work_context_id"] == "wctx_receipt"
+
+
+def test_real_owner_completes_simulated_ticket_under_explicit_department_authority(monkeypatch):
+    """The Work-as seam never turns the owner into a synthetic employee."""
+    task = {
+        "task_id": "task_sim_1", "visibility_role": "maintenance", "status": "in_progress",
+        "assigned_to": "owner_1", "assigned_name": "Michael", "resident_id": "sim_resident_1",
+        "simulation_run_id": "sim_run_1", "simulation_scope": "living_community",
+        "simulation_community_id": "community_1", "simulated": True,
+    }
+    owner_as_maintenance = {
+        **OWNER, "role": "staff", "department": "maintenance",
+        "_principal_role": "owner", "_principal_department": None,
+        "_work_context_id": "wctx_complete", "_work_context_acting_role": "staff",
+        "_work_context_acting_department": "maintenance",
+    }
+    actor = actor_from_user(owner_as_maintenance)
+    captured = {}
+    after = {**task, "status": "completed", "completed_by": "owner_1", "completed_by_name": "Michael"}
+
+    async def check(*_args, **_kwargs):
+        authority = task_lifecycle.authority_for(task, actor, owner_as_maintenance)
+        return task, authority, {"receipt_id": "rcpt_origin", "correlation_id": "rcpt_origin"}
+
+    async def update(*_args, **_kwargs):
+        return None
+
+    async def load(_task_id):
+        return after
+
+    async def create_receipt(**kwargs):
+        captured.update(kwargs)
+        return kwargs
+
+    monkeypatch.setattr(task_lifecycle, "check", check)
+    monkeypatch.setattr(task_lifecycle, "update_task_with_history", update)
+    monkeypatch.setattr(task_lifecycle, "load", load)
+    monkeypatch.setattr(task_lifecycle, "create_receipt", create_receipt)
+
+    completed, _ = asyncio.run(task_actions.complete(
+        task["task_id"], "Repaired during owner takeover", actor, owner_as_maintenance,
+    ))
+
+    assert completed["completed_by"] == OWNER["user_id"]
+    assert captured["action_type"] == "task_completed"
+    assert captured["provenance"]["authority"] == (
+        "admin_work_as:owner:as:staff:maintenance:assignee"
+    )
+    assert captured["provenance"]["actor_id"] == OWNER["user_id"]
+    assert captured["provenance"]["actor_type"] == "real-human"
+    assert captured["provenance"]["identity_basis"] == "authenticated"
+    assert captured["provenance"]["simulated"] is False
+    assert captured["provenance"]["acting_department"] == "maintenance"
+    assert captured["provenance"]["simulation_run_id"] == "sim_run_1"
+
+
+def test_work_as_owner_cannot_act_on_another_departments_ticket():
+    owner_as_maintenance = {
+        **OWNER, "role": "staff", "department": "maintenance",
+        "_principal_role": "owner", "_work_context_id": "wctx_scope",
+        "_work_context_acting_role": "staff", "_work_context_acting_department": "maintenance",
+    }
+    actor = actor_from_user(owner_as_maintenance)
+    assert task_lifecycle.authority_for(
+        {"task_id": "task_nursing", "visibility_role": "nursing"}, actor, owner_as_maintenance,
+    ) is None

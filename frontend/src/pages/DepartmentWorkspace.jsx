@@ -15,6 +15,7 @@ import { UPCOMING_DEPARTMENTS } from "../lib/upcomingSchedule";
 import { SERVICES_DEPARTMENTS } from "../lib/communityServices";
 import WorkAsControl from "../components/WorkAsControl";
 import { useWorkContext } from "../lib/workContext";
+import WorkAsIdentityNotice from "../components/WorkAsIdentityNotice";
 
 // One shared operational workspace, rendered per the signed-in staff
 // member's Department (User.department -> Department.slug). It reuses the
@@ -78,6 +79,8 @@ export default function DepartmentWorkspace() {
           </Button>
         </div>
 
+        <WorkAsIdentityNotice principal={user} context={workContext} departmentLabel={deptLabel} />
+
         {!dept && (
           <Card className="border-caos-line p-8 text-center" data-testid="workspace-no-dept">
             <p className="font-display text-lg text-caos-forest">No department assigned yet.</p>
@@ -92,7 +95,9 @@ export default function DepartmentWorkspace() {
             kitchen and activities the community-services workspace; every
             other department the generic queue below. Same StaffTask data
             either way. */}
-        {dept === "maintenance" && !workContext && <MaintenanceWorkspace />}
+        {/* Maintenance's full workspace is task-only, so every read/write is
+            already protected by the Work-as-aware canonical task routes. */}
+        {dept === "maintenance" && <MaintenanceWorkspace />}
         {SERVICES_DEPARTMENTS.includes(dept) && !workContext && <CommunityServicesWorkspace department={dept} />}
 
         {/* Transportation works from the ride calendar: Departed / Ride
@@ -104,7 +109,8 @@ export default function DepartmentWorkspace() {
           </div>
         )}
 
-        {dept && (workContext || (dept !== "maintenance" && dept !== "transportation" && !SERVICES_DEPARTMENTS.includes(dept))) && (
+        {dept && ((workContext && dept !== "maintenance") ||
+          (!workContext && dept !== "maintenance" && dept !== "transportation" && !SERVICES_DEPARTMENTS.includes(dept))) && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <section className="lg:col-span-2">
               {/* Therapy, Resident Programs and any other department work the same

@@ -10,6 +10,10 @@ import SimReceiptTrace from "../components/simulator/SimReceiptTrace";
 import SimCommunityOverview from "../components/simulator/SimCommunityOverview";
 import SimCommunityObserved from "../components/simulator/SimCommunityObserved";
 import { fetchCommunityObservedSnapshot } from "../lib/communityObservedLoad";
+import SimCommunityRuntime from "../components/simulator/SimCommunityRuntime";
+import SimCommunityControls from "../components/simulator/SimCommunityControls";
+import SimCommunityResetControl from "../components/simulator/SimCommunityResetControl";
+import { communityRuntimeIntro, fetchCommunityRuntimeSnapshot } from "../lib/communityRuntimeLoad";
 import RequestDetailDialog from "./RequestDetailDialog";
 
 // Live Operations (SIM-2): watch and control the Operations Simulator
@@ -28,6 +32,7 @@ export default function LiveOperations() {
   const [scenario, setScenario] = useState("");
   const [community, setCommunity] = useState(null);
   const [observed, setObserved] = useState({ loadState: "loading", snapshot: null, refreshFailed: false });
+  const [runtime, setRuntime] = useState({ loadState: "loading", snapshot: null, refreshFailed: false });
 
   useEffect(() => {
     api.get("/simulator/scenarios").then(({ data }) => {
@@ -50,6 +55,21 @@ export default function LiveOperations() {
     const timer = setInterval(loadObserved, 30000);
     return () => clearInterval(timer);
   }, [loadObserved]);
+
+  const loadRuntime = useCallback(async () => {
+    const result = await fetchCommunityRuntimeSnapshot(api);
+    setRuntime((previous) => result.loadState === "ready"
+      ? { ...result, refreshFailed: false }
+      : previous.snapshot
+        ? { loadState: "error", snapshot: previous.snapshot, refreshFailed: true }
+        : { loadState: "error", snapshot: null, refreshFailed: false });
+  }, []);
+
+  useEffect(() => {
+    loadRuntime();
+    const timer = setInterval(loadRuntime, runtime.snapshot?.run?.state === SIM_STATES.RUNNING ? 2000 : 10000);
+    return () => clearInterval(timer);
+  }, [loadRuntime, runtime.snapshot?.run?.state]);
 
   useEffect(() => {
     api.get("/simulator/community/overview", { params: { day_index: 0, minute: 480 } })
@@ -105,13 +125,14 @@ export default function LiveOperations() {
       <div>
         <h2 className="font-display text-2xl text-caos-forest">Live operations</h2>
         <p className="text-sm text-caos-mute">
-          The two runnable scenarios below are demo-room thin slices. The community overview is the declared
-          10-resident burn-in and 50-worker foundation; it is a planning preview and is not yet executing
-          autonomous routines. Runnable actions use canonical services and carry traceable receipts.
+          {communityRuntimeIntro(runtime.snapshot)}
         </p>
       </div>
       <SimCommunityOverview community={community || {}} />
       <SimCommunityObserved {...observed} onRetry={loadObserved} />
+      <SimCommunityControls snapshot={runtime.snapshot} onRuntimeRefresh={loadRuntime} />
+      <SimCommunityResetControl snapshot={runtime.snapshot} onRuntimeRefresh={loadRuntime} />
+      <SimCommunityRuntime {...runtime} onRetry={loadRuntime} onOpenRequest={setRequestId} />
       <SimControls state={state} busy={busy} onControl={control}
                    scenarios={scenarios} scenario={scenario} onScenario={setScenario} />
       <div className="grid gap-4 lg:grid-cols-3">

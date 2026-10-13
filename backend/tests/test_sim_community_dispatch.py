@@ -17,7 +17,7 @@ def test_all_routines_are_ready_under_continuous_department_coverage():
     dispatches = plan_routine_dispatch()
     queued = [row for row in dispatches if row.dispatch_state == QUEUED_UNASSIGNED]
 
-    assert len(dispatches) == 153
+    assert len(dispatches) == 155
     assert queued == []
 
 
@@ -27,7 +27,7 @@ def test_covered_events_are_ready_but_remain_unassigned_and_unexecuted():
     ready = [row for row in first if row.dispatch_state == READY_UNASSIGNED]
 
     assert first == second
-    assert len(ready) == 153
+    assert len(ready) == 155
     assert all(row.ready_day_index == row.planned_day_index for row in ready)
     assert all(row.ready_minute == row.planned_minute for row in ready)
     assert all(row.assigned_actor_id is None for row in ready)

@@ -24,7 +24,7 @@ def test_overview_declares_scale_without_claiming_execution():
         "handoff": 38,
         "executed": 0,
     }
-    assert view["routines"]["planned"] == 153
+    assert view["routines"]["planned"] == 155
     assert view["routines"]["executed"] == 0
     assert view["routines"]["planned_refused"] > 0
     assert view["routines"]["planned_rescheduled"] > 0
@@ -45,8 +45,8 @@ def test_all_departments_and_proven_24h_coverage_are_visible():
 def test_preview_is_inspectable_and_keeps_provider_boundaries_blocked():
     preview = community_preview(day_index=0, minute=0)
     assert len(preview["resident_keys"]) == 10
-    assert len(preview["routine_events"]) == 153
-    assert len(preview["planned_outcomes"]) == 153
+    assert len(preview["routine_events"]) == 155
+    assert len(preview["planned_outcomes"]) == 155
     assert all(not row["represents_execution"] for row in preview["planned_outcomes"])
     assert preview["shift_assignments"]
     assert len(preview["worker_attendance"]) == 50
@@ -77,6 +77,7 @@ def test_preview_is_inspectable_and_keeps_provider_boundaries_blocked():
     blocked = {row["id"] for row in preview["overview"]["blocked_capabilities"]}
     assert {
         "medication_kiosk", "transport_resource_booking", "outbound_family_call",
+        "outbound_front_desk_call",
         "menu_content_publish", "activity_schedule_publish", "resident_alert",
     } <= blocked
 

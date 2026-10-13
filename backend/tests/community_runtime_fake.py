@@ -122,14 +122,13 @@ class Transaction:
         self.session = session
 
     async def __aenter__(self):
-        self.session.in_transaction = True
-        self.session.snapshot = self.session.store.snapshot()
         return self
 
     async def __aexit__(self, exc_type, _exc, _traceback):
         if exc_type:
-            self.session.store.restore(self.session.snapshot)
-        self.session.in_transaction = False
+            await self.session.abort_transaction()
+        else:
+            await self.session.commit_transaction()
         return False
 
 
@@ -143,10 +142,29 @@ class Session:
         return self
 
     async def __aexit__(self, _exc_type, _exc, _traceback):
+        if self.in_transaction:
+            await self.abort_transaction()
         return False
 
     def start_transaction(self):
+        if self.in_transaction:
+            raise RuntimeError("transaction already active")
+        self.in_transaction = True
+        self.snapshot = self.store.snapshot()
         return Transaction(self)
+
+    async def commit_transaction(self):
+        if not self.in_transaction:
+            raise RuntimeError("no active transaction")
+        self.in_transaction = False
+        self.snapshot = None
+
+    async def abort_transaction(self):
+        if not self.in_transaction:
+            raise RuntimeError("no active transaction")
+        self.store.restore(self.snapshot)
+        self.in_transaction = False
+        self.snapshot = None
 
 
 class Client:

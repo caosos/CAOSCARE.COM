@@ -8,8 +8,8 @@ import pytest
 from simulation import community_timeline as timeline
 
 
-EXPECTED_EVENT_COUNT = 24_030
-EXPECTED_DIGEST = "fe9a0fec1136744ed889e134b2e7e260944787c6f38d476d4160dc87e94946f1"
+EXPECTED_EVENT_COUNT = 52_110
+EXPECTED_DIGEST = "35ee4c75c8f08ebb24ffe058baa1fa4095f03f4ab5e0da2aaa6062b727d70970"
 
 
 @pytest.fixture(scope="module")
@@ -21,7 +21,7 @@ def test_builds_exact_stable_90_day_plan(plan):
     again = timeline.build_90_day_timeline()
 
     assert plan == again
-    assert plan.plan_revision == "living-community-timeline-v1"
+    assert plan.plan_revision == "living-community-timeline-v3-department-activity"
     assert plan.digest_algorithm == "sha256"
     assert plan.source_start_day == 0
     assert plan.source_end_day == 89
@@ -35,7 +35,7 @@ def test_ids_are_unique_and_stream_counts_are_exact(plan):
     ids = [event.event_id for event in plan.events]
     assert len(ids) == len(set(ids))
     assert Counter(event.stream_kind for event in plan.events) == {
-        "routine_dispatch": 13_770,
+        "routine_ticket_phase": 41_850,
         "canonical_shift_milestone": 10_260,
     }
 
@@ -43,7 +43,7 @@ def test_ids_are_unique_and_stream_counts_are_exact(plan):
         assert sum(
             event.event_id.startswith(f"day-{day_index:03d}:")
             for event in plan.events
-        ) == 153
+        ) == 465
 
 
 def test_timeline_uses_one_exact_total_order(plan):

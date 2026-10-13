@@ -4,6 +4,7 @@ from copy import deepcopy
 from datetime import datetime, timezone
 
 import pytest
+from pymongo.errors import DuplicateKeyError
 
 from routes.actor_context import ActorContext
 from simulation.community_blueprint import COMMUNITY_ID, SIMULATION_SCOPE
@@ -60,11 +61,17 @@ class Collection:
         self.docs = [deepcopy(row) for row in (docs or [])]
 
     def find(self, query, projection=None, session=None):
-        assert session is self.store.session
-        return Cursor([row for row in self.docs if _matches(row, query)])
+        assert session is None or session is self.store.session
+        rows = [deepcopy(row) for row in self.docs if _matches(row, query)]
+        if projection == {"_id": 0}:
+            for row in rows:
+                row.pop("_id", None)
+        return Cursor(rows)
 
     async def insert_one(self, doc, session=None):
         assert session is self.store.session
+        if doc.get("_id") is not None and any(row.get("_id") == doc["_id"] for row in self.docs):
+            raise DuplicateKeyError("duplicate deterministic _id")
         self.docs.append(deepcopy(doc))
 
     async def delete_many(self, query, session=None):
@@ -81,22 +88,9 @@ class Collection:
         return DeleteResult(count)
 
 
-class Transaction:
-    def __init__(self, session):
-        self.session = session
-
-    async def __aenter__(self):
-        self.session.snapshot = {
-            name: deepcopy(getattr(self.session.store, name).docs)
-            for name in self.session.store.collection_names
-        }
-        return self
-
-    async def __aexit__(self, exc_type, _exc, _tb):
-        if exc_type:
-            for name, docs in self.session.snapshot.items():
-                getattr(self.session.store, name).docs = docs
-        return False
+class UnknownCommit(RuntimeError):
+    def has_error_label(self, label):
+        return label == "UnknownTransactionCommitResult"
 
 
 class Session:
@@ -110,7 +104,25 @@ class Session:
         return False
 
     def start_transaction(self):
-        return Transaction(self)
+        self.snapshot = {
+            name: deepcopy(getattr(self.store, name).docs)
+            for name in self.store.collection_names
+        }
+
+    async def abort_transaction(self):
+        if self.store.fail_abort:
+            raise RuntimeError("injected abort failure")
+        for name, docs in self.snapshot.items():
+            getattr(self.store, name).docs = docs
+
+    async def commit_transaction(self):
+        mode = self.store.commit_mode
+        if mode == "unknown_before_commit":
+            for name, docs in self.snapshot.items():
+                getattr(self.store, name).docs = docs
+            raise UnknownCommit("commit result unknown before durable commit")
+        if mode == "unknown_after_commit":
+            raise UnknownCommit("commit result unknown after durable commit")
 
 
 class Client:
@@ -124,8 +136,10 @@ class Client:
 class Store:
     collection_names = ("residents", "staff_tasks", "notifications", "sim_runs", "receipts")
 
-    def __init__(self, *, fail_delete=None):
+    def __init__(self, *, fail_delete=None, fail_abort=False, commit_mode="success"):
         self.fail_delete = fail_delete
+        self.fail_abort = fail_abort
+        self.commit_mode = commit_mode
         self.session = Session(self)
         self.client = Client(self)
         for name in self.collection_names:
@@ -182,7 +196,7 @@ def populate(store):
 
 async def reset(store, key="operator-reset-1", actor=None, authority="admin_override:owner"):
     return await reset_living_community(
-        actor or operator(), authority, key, store=store, now=NOW,
+        actor or operator(), authority, key, "run-1", store=store, now=NOW,
     )
 
 
@@ -200,6 +214,8 @@ def test_reset_commits_exact_scope_and_never_touches_real_or_demo_rows():
         actions = [row.get("action_type") for row in store.receipts.docs]
         assert actions[-2:] == [REQUEST_ACTION, OUTCOME_ACTION]
         request, outcome = store.receipts.docs[-2:]
+        assert request["_id"] == request["receipt_id"]
+        assert outcome["_id"] == outcome["receipt_id"]
         assert request["before_state"]["counts"]["residents"] == 1
         assert outcome["after_state"]["counts"] == {
             "residents": 0, "staff_tasks": 0, "notifications": 0, "sim_runs": 0,
@@ -225,8 +241,17 @@ def test_retry_is_idempotent_and_appends_replay_evidence():
         )}
         replay = store.receipts.docs[-1]
         assert replay["action_type"] == REPLAY_ACTION
+        assert replay["_id"] == replay["receipt_id"]
         assert replay["parent_receipt_id"] == first["receipt_id"]
         assert replay["before_state"] == replay["after_state"]
+        third = await reset(store)
+        assert third["receipt_id"] == replay["receipt_id"]
+        assert len([row for row in store.receipts.docs if row.get("_id") == replay["_id"]]) == 1
+        with pytest.raises(CommunityResetError, match="exact confirmed STOPPED run"):
+            await reset_living_community(
+                operator(), "admin_override:owner", "operator-reset-1", "run-other",
+                store=store, now=NOW,
+            )
     asyncio.run(run())
 
 
@@ -239,6 +264,21 @@ def test_reset_requires_stopped_run(state):
             await reset(store)
         assert len(store.receipts.docs) == 2
         assert any(row.get("run_id") == "run-1" for row in store.sim_runs.docs)
+    asyncio.run(run())
+
+
+def test_reset_requires_the_exact_confirmed_run_and_no_active_lease():
+    async def run():
+        store = Store(); populate(store)
+        with pytest.raises(CommunityResetError, match="exact confirmed STOPPED run"):
+            await reset_living_community(
+                operator(), "admin_override:owner", "wrong-run", "run-other",
+                store=store, now=NOW,
+            )
+        store.sim_runs.docs[0]["execution_lease"] = {"holder_id": "runner-1"}
+        with pytest.raises(CommunityResetError, match="active execution lease"):
+            await reset(store, "leased-run")
+        assert len(store.receipts.docs) == 2
     asyncio.run(run())
 
 
@@ -256,13 +296,99 @@ def test_partial_marker_or_real_linked_dependency_fails_before_write():
     asyncio.run(run())
 
 
-def test_transaction_failure_rolls_back_deletes_and_request_receipt():
+def test_transaction_body_failure_is_only_called_aborted_after_abort_succeeds():
     async def run():
         store = Store(fail_delete="staff_tasks"); populate(store)
         before = deepcopy({name: getattr(store, name).docs for name in store.collection_names})
-        with pytest.raises(CommunityResetError, match="rolled back"):
+        with pytest.raises(CommunityResetError, match="aborted before commit"):
             await reset(store)
         assert before == {name: getattr(store, name).docs for name in store.collection_names}
+    asyncio.run(run())
+
+
+def test_unknown_commit_is_reconciled_when_exact_outcome_and_empty_state_are_durable():
+    async def run():
+        store = Store(commit_mode="unknown_after_commit"); populate(store)
+        result = await reset(store)
+        assert result["commit_reconciled"] is True
+        assert result["idempotent_replay"] is False
+        assert result["deleted"]["residents"] == 1
+        assert not [row for row in store.residents.docs if row.get("simulation_scope") == SIMULATION_SCOPE]
+        reset_rows = [
+            row for row in store.receipts.docs
+            if row.get("related_object_id") == result["reset_id"]
+        ]
+        assert {row["_id"] for row in reset_rows} == {
+            f"rcpt:{result['reset_id']}:request",
+            f"rcpt:{result['reset_id']}:outcome",
+        }
+    asyncio.run(run())
+
+
+def test_unknown_commit_without_durable_outcome_never_claims_rollback_or_success():
+    async def run():
+        store = Store(commit_mode="unknown_before_commit"); populate(store)
+        before = deepcopy({name: getattr(store, name).docs for name in store.collection_names})
+        with pytest.raises(CommunityResetError, match="commit outcome is unknown") as error:
+            await reset(store)
+        assert "rolled back" not in str(error.value)
+        assert before == {name: getattr(store, name).docs for name in store.collection_names}
+        store.commit_mode = "success"
+        result = await reset(store)
+        assert result["commit_reconciled"] is False
+        assert result["idempotent_replay"] is False
+    asyncio.run(run())
+
+
+def test_abort_failure_reports_unknown_and_never_claims_rollback():
+    async def run():
+        store = Store(fail_delete="staff_tasks", fail_abort=True); populate(store)
+        with pytest.raises(CommunityResetError, match="outcome is unknown") as error:
+            await reset(store)
+        assert "rolled back" not in str(error.value)
+    asyncio.run(run())
+
+
+def test_existing_deterministic_replay_receipt_is_reused_without_duplicate():
+    async def run():
+        store = Store(); populate(store)
+        first = await reset(store)
+        second = await reset(store)
+        count = len(store.receipts.docs)
+        third = await reset(store)
+        assert third["idempotent_replay"] is True
+        assert third["receipt_id"] == second["receipt_id"]
+        assert len(store.receipts.docs) == count
+        assert first["receipt_id"] != second["receipt_id"]
+    asyncio.run(run())
+
+
+def test_duplicate_logical_outcome_evidence_fails_closed():
+    async def run():
+        store = Store(); populate(store)
+        result = await reset(store)
+        outcome = next(
+            row for row in store.receipts.docs if row.get("receipt_id") == result["receipt_id"]
+        )
+        duplicate = deepcopy(outcome)
+        duplicate["_id"] = f"{outcome['_id']}:concurrent-duplicate"
+        store.receipts.docs.append(duplicate)
+        with pytest.raises(CommunityResetError, match="duplicate or unknown reset evidence"):
+            await reset(store)
+    asyncio.run(run())
+
+
+def test_same_reset_id_with_unmarked_receipt_evidence_fails_closed():
+    async def run():
+        store = Store(); populate(store)
+        result = await reset(store)
+        outcome = next(
+            row for row in store.receipts.docs if row.get("receipt_id") == result["receipt_id"]
+        )
+        outcome.pop("simulation_scope")
+        outcome.pop("simulation_community_id")
+        with pytest.raises(CommunityResetError, match="partial or mismatched scope"):
+            await reset(store)
     asyncio.run(run())
 
 
@@ -289,6 +415,7 @@ def test_new_key_advances_generation_after_new_exact_data_exists():
             resident_id="sim:resident:002", room="SIM-002",
             pendant_id="sim:pendant:002", synthetic=True,
         ))
+        store.sim_runs.docs.append(marked(run_id="run-1", state="STOPPED"))
         second = await reset(store, "generation-two")
         assert first["reset_generation"] == 1
         assert second["reset_generation"] == 2

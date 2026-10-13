@@ -70,7 +70,7 @@ def test_plan_covers_departments_and_resident_routines():
 
     assert departments == {
         "nursing", "kitchen", "housekeeping", "maintenance",
-        "transportation", "activities", "administration",
+        "transportation", "activities", "front_desk", "administration",
     }
     assert {
         "shower_assistance", "morning_medication_reminder", "evening_medication_reminder",
@@ -78,6 +78,7 @@ def test_plan_covers_departments_and_resident_routines():
         "morning_room_check", "housekeeping_room_service", "activity_offer_and_escort",
         "appointment_coordination", "transport_coordination", "preventive_maintenance_check",
         "family_call_coordination",
+        "front_desk_message_follow_up",
     } <= routines
     for resident_key in BURN_IN_RESIDENT_KEYS:
         resident_routines = {event.routine for event in events if event.resident_key == resident_key}
@@ -94,7 +95,7 @@ def test_all_planned_events_use_safe_task_adapter_and_name_blocked_edges():
     }
     expected_edges = {
         "medication_kiosk", "transport_resource_booking", "outbound_family_call",
-        "activity_schedule_publish",
+        "outbound_front_desk_call", "activity_schedule_publish",
     }
     assert expected_edges <= {event.blocked_adapter for event in events if event.blocked_adapter}
 
@@ -105,12 +106,17 @@ def test_clinical_and_operational_language_never_claims_unproven_outcomes():
     meals = [event for event in events if event.routine in ("breakfast", "lunch", "dinner")]
     rides = [event for event in events if event.routine == "transport_coordination"]
     calls = [event for event in events if event.routine == "family_call_coordination"]
+    front_desk = [event for event in events if event.routine == "front_desk_message_follow_up"]
 
     assert medication and all("reminder" in event.summary.lower() for event in medication)
     assert all("never medication administration" in event.truth_boundary.lower() for event in medication)
     assert all("never claims that the resident ate" in event.truth_boundary.lower() for event in meals)
     assert all("never claims a driver" in event.truth_boundary.lower() for event in rides)
     assert all("never claims that a call was placed" in event.truth_boundary.lower() for event in calls)
+    assert front_desk and all(
+        "never claims that the resident was contacted" in event.truth_boundary.lower()
+        for event in front_desk
+    )
     forbidden_claims = ("medication was taken", "dose administered", "ride is booked", "call connected")
     assert not any(
         claim in event.summary.lower()

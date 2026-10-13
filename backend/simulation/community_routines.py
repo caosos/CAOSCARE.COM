@@ -39,6 +39,10 @@ ADAPTER_CAPABILITIES = {
         "status": BLOCKED,
         "reason": "Outbound room calling is not configured or simulation-isolated.",
     },
+    "outbound_front_desk_call": {
+        "status": BLOCKED,
+        "reason": "Front-desk outbound calling is not configured or simulation-isolated.",
+    },
     "menu_content_publish": {
         "status": BLOCKED,
         "reason": "Menu content writes do not accept a simulated actor and run provenance.",
@@ -222,6 +226,17 @@ def plan_first_24_hours(
                 "Coordinate an approved family-call request for the resident.",
                 blocked_adapter="outbound_family_call", stagger=3,
                 truth_boundary="Records coordination only; never claims that a call was placed, rang, or connected.",
+            ), resident_key, resident_index, day_index))
+
+        if resident_index in (3, 7):
+            events.append(_event(_RoutineSpec(
+                "front_desk_message_follow_up", "front_desk", 900,
+                "Review and route the simulated resident message for staff follow-up.",
+                blocked_adapter="outbound_front_desk_call", stagger=4,
+                truth_boundary=(
+                    "Records message coordination only; never claims that the resident "
+                    "was contacted or that an outbound call was placed."
+                ),
             ), resident_key, resident_index, day_index))
 
     return tuple(sorted(events, key=lambda item: (

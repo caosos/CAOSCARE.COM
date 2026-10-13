@@ -9,8 +9,8 @@ The store, receipt writer, and resident document factory are injectable so the
 safety behavior can be proven without a database.  Production defaults use the
 existing Mongo store, Resident model, and shared receipt service.
 """
+from datetime import datetime
 from typing import Awaitable, Callable, Optional
-import uuid
 
 from routes.actor_context import ActorContext
 from simulation.community_blueprint import (
@@ -19,6 +19,7 @@ from simulation.community_blueprint import (
     SIMULATION_SCOPE,
     ResidentRecipe,
 )
+from simulation.community_provisioning_receipts import build_resident_receipt
 
 
 PROVISION_ACTION = "simulation_resident_provisioned"
@@ -70,7 +71,11 @@ def _state(doc: dict) -> dict:
     }
 
 
-async def _collision(store, recipe: ResidentRecipe) -> Optional[dict]:
+def _session(session) -> dict:
+    return {"session": session} if session is not None else {}
+
+
+async def _collision(store, recipe: ResidentRecipe, session=None) -> Optional[dict]:
     """Return the one record occupying any stable identity, refusing splits."""
     hits = await store.residents.find(
         {"$or": [
@@ -79,6 +84,7 @@ async def _collision(store, recipe: ResidentRecipe) -> Optional[dict]:
             {"pendant_id": recipe.pendant_id},
         ]},
         {"_id": 0},
+        **_session(session),
     ).to_list(20)
     if len(hits) > 1:
         raise ProvisioningError(
@@ -87,17 +93,23 @@ async def _collision(store, recipe: ResidentRecipe) -> Optional[dict]:
     return hits[0] if hits else None
 
 
-async def _existing_receipt(store, resident_id: str) -> Optional[dict]:
+async def _existing_receipt(
+    store, resident_id: str, simulation_run_id: Optional[str], session=None,
+) -> Optional[dict]:
+    query = {
+        "related_object_type": "resident",
+        "related_object_id": resident_id,
+        "action_type": {"$in": list(RECEIPT_ACTIONS)},
+        "actor_type": "real-human",
+        "identity_basis": "authenticated",
+        "result_label": "simulated",
+    }
+    if simulation_run_id:
+        query["simulation_run_id"] = simulation_run_id
     receipts = await store.receipts.find(
-        {
-            "related_object_type": "resident",
-            "related_object_id": resident_id,
-            "action_type": {"$in": list(RECEIPT_ACTIONS)},
-            "actor_type": "real-human",
-            "identity_basis": "authenticated",
-            "result_label": "simulated",
-        },
+        query,
         {"_id": 0},
+        **_session(session),
     ).to_list(50)
     return next(
         (
@@ -150,9 +162,24 @@ def _simulation_markers(simulation_run_id: Optional[str] = None) -> dict:
 async def _write_receipt(
     writer: Callable[..., Awaitable[dict]], operator: ActorContext, authority: str,
     doc: dict, *, created: bool, simulation_run_id: Optional[str] = None,
+    store=None, session=None, parent_receipt_id: Optional[str] = None,
+    correlation_id: Optional[str] = None, now: Optional[datetime] = None,
 ) -> dict:
-    receipt_id = f"rcpt_{uuid.uuid4().hex[:12]}"
-    state = _state(doc)
+    built = build_resident_receipt(
+        action=PROVISION_ACTION if created else RECONCILE_ACTION,
+        resident=doc, created=created, operator=operator, authority=authority,
+        simulation_run_id=simulation_run_id,
+        parent_receipt_id=parent_receipt_id,
+        correlation_id=correlation_id,
+        now=now,
+    )
+    if session is not None:
+        await store.receipts.insert_one(dict(built), session=session)
+        result = dict(built)
+        result.pop("_id", None)
+        return result
+    receipt_id = built["receipt_id"]
+    state = built["after_state"]
     return await writer(
         action_type=PROVISION_ACTION if created else RECONCILE_ACTION,
         related_object_type="resident",
@@ -167,7 +194,8 @@ async def _write_receipt(
             **operator.receipt_fields(),
             **_simulation_markers(simulation_run_id),
             "authority": authority,
-            "correlation_id": receipt_id,
+            "parent_receipt_id": parent_receipt_id,
+            "correlation_id": correlation_id or receipt_id,
             "before_state": None if created else state,
             "after_state": state,
             "result_label": "simulated",
@@ -184,6 +212,10 @@ async def provision_burn_in_residents(
     receipt_writer: Optional[Callable[..., Awaitable[dict]]] = None,
     document_factory: Optional[Callable[[ResidentRecipe], dict]] = None,
     simulation_run_id: Optional[str] = None,
+    session=None,
+    parent_receipt_id: Optional[str] = None,
+    correlation_id: Optional[str] = None,
+    now: Optional[datetime] = None,
 ) -> dict:
     """Create or reuse exactly ten marked canonical resident records.
 
@@ -203,7 +235,7 @@ async def provision_burn_in_residents(
 
     existing_by_id = {}
     for recipe in recipes:
-        existing = await _collision(store, recipe)
+        existing = await _collision(store, recipe, session)
         if existing and not _marked_for_blueprint(existing, recipe):
             raise ProvisioningError(
                 f"resident identity collision for {recipe.resident_id}; existing data was not changed"
@@ -227,13 +259,15 @@ async def provision_burn_in_residents(
                 raise ProvisioningError(
                     f"resident document factory changed a stable identity for {recipe.resident_id}"
                 )
-            await store.residents.insert_one(dict(doc))
+            await store.residents.insert_one(dict(doc), **_session(session))
             created_ids.append(recipe.resident_id)
 
         # A newly inserted generation always gets a fresh creation receipt.
         # Historical receipts survive cleanup and must never be reused as
         # evidence for a later insert of the same stable blueprint identity.
-        receipt = None if existing is None else await _existing_receipt(store, recipe.resident_id)
+        receipt = None if existing is None else await _existing_receipt(
+            store, recipe.resident_id, simulation_run_id, session,
+        )
         if not receipt:
             receipt = await _write_receipt(
                 receipt_writer,
@@ -242,6 +276,11 @@ async def provision_burn_in_residents(
                 doc,
                 created=existing is None,
                 simulation_run_id=simulation_run_id,
+                store=store,
+                session=session,
+                parent_receipt_id=parent_receipt_id,
+                correlation_id=correlation_id,
+                now=now,
             )
         receipts.append(receipt)
 

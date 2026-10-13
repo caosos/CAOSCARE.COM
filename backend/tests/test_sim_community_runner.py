@@ -141,13 +141,38 @@ class Timeline:
         self.receipts = tuple(receipts)
         self.hook = hook
 
+    @property
+    def event_count(self):
+        return len(self.events)
+
+    def event_at(self, cursor):
+        return None if cursor == len(self.events) else self.events[cursor]
+
     async def load_events(self, **_query):
-        return self.events
+        raise AssertionError("bounded tick must not load the full event stream")
 
     async def load_receipts(self, **_query):
+        raise AssertionError("bounded tick must not load all run receipts")
+
+    async def load_bounded_evidence(
+        self, *, cursor, event_id, last_event_id, last_receipt_id, **_query,
+    ):
         if self.hook:
             self.hook(self.store)
-        return deepcopy(self.receipts)
+        current = tuple(row for row in self.receipts if (
+            row.get("simulation_event_id") == event_id
+            or row.get("execution_cursor") == cursor
+        )) if event_id else ()
+        previous = tuple(row for row in self.receipts if (
+            row.get("receipt_id") == last_receipt_id
+            or row.get("simulation_event_id") == last_event_id
+            and row.get("execution_cursor") == cursor - 1
+        )) if cursor else ()
+        future = tuple(row for row in self.receipts
+                       if row.get("execution_cursor", -1) > cursor)[:1]
+        return deepcopy({
+            "current": current, "previous": previous, "future": future,
+        })
 
     async def load_run(self, **_query):
         return deepcopy(self.store.sim_runs.row)
@@ -163,7 +188,9 @@ class Services:
 
     async def execute_event(self, *, event, context):
         self.executions.append(event.event_id)
-        self.evidence = proof(event, context.fence)
+        self.evidence = proof(
+            event, context.fence, execution_cursor=context.cursor,
+        )
 
 
 def invoke(store, timeline, services=None):
@@ -181,6 +208,42 @@ def test_tick_executes_at_most_one_due_event_and_releases_lease():
         assert services.executions == ["event-1"]
         assert store.sim_runs.row["cursor"] == 1
         assert "execution_lease" not in store.sim_runs.row
+    asyncio.run(case())
+
+
+def test_52110_event_hot_path_never_iterates_or_classifies_the_plan():
+    class NonIterablePlanTimeline:
+        event_count = 52_110
+
+        def __init__(self, store):
+            self.store = store
+            self.lookups = []
+
+        def event_at(self, cursor):
+            self.lookups.append(cursor)
+            if cursor != 0:
+                raise AssertionError("tick may inspect only its cursor event")
+            return event(1)
+
+        async def load_run(self, **_query):
+            return deepcopy(self.store.sim_runs.row)
+
+        async def load_bounded_evidence(self, **_query):
+            return {"current": (), "previous": (), "future": ()}
+
+        async def load_events(self, **_query):
+            raise AssertionError("full 52,110-event plan was loaded")
+
+        async def load_receipts(self, **_query):
+            raise AssertionError("full receipt history was loaded")
+
+    async def case():
+        store, services = Store(run_row()), Services()
+        timeline = NonIterablePlanTimeline(store)
+        result = await invoke(store, timeline, services)
+        assert result.status == "executed" and result.cursor_after == 1
+        assert timeline.lookups == [0]
+
     asyncio.run(case())
 
 
@@ -202,22 +265,74 @@ def test_crash_receipt_from_prior_fence_advances_without_duplicate_execution():
     asyncio.run(case())
 
 
-def test_recovery_refuses_when_lease_expires_before_cursor_advance():
+def test_expiry_during_crash_recovery_refuses_cursor_metadata_change():
     async def case():
         item = event(1)
         store = Store(run_row())
+        timeline = Timeline(store, (item,), (proof(item, 1),))
+
+        def after_evidence_reload():
+            assert timeline.receipts
+            return NOW + timedelta(seconds=31)
+
         with pytest.raises(lease.RunLeaseError, match="heartbeat refused"):
             await runner.tick(
-                "run-1",
-                "worker-a",
-                store=store,
-                timeline=Timeline(store, (item,), (proof(item, 1),)),
-                services=Services(),
-                now=NOW,
-                clock=lambda: NOW + timedelta(seconds=31),
+                "run-1", "worker-a", store=store, timeline=timeline,
+                services=Services(), now=NOW, clock=after_evidence_reload,
             )
         assert store.sim_runs.row["cursor"] == 0
         assert "last_event_id" not in store.sim_runs.row
+        assert "last_evidence_receipt_id" not in store.sim_runs.row
+        assert "last_evidence_status" not in store.sim_runs.row
+    asyncio.run(case())
+
+
+def test_expiry_during_service_work_refuses_cursor_metadata_change():
+    async def case():
+        store, services = Store(run_row()), Services()
+
+        def after_durable_evidence_reload():
+            assert services.evidence is not None
+            return NOW + timedelta(seconds=31)
+
+        with pytest.raises(lease.RunLeaseError, match="heartbeat refused"):
+            await runner.tick(
+                "run-1", "worker-a", store=store,
+                timeline=Timeline(store, (event(1),)), services=services,
+                now=NOW, clock=after_durable_evidence_reload,
+            )
+        assert services.executions == ["event-1"]
+        assert services.evidence is not None
+        assert store.sim_runs.row["cursor"] == 0
+        assert "last_event_id" not in store.sim_runs.row
+        assert "last_evidence_receipt_id" not in store.sim_runs.row
+        assert "last_evidence_status" not in store.sim_runs.row
+    asyncio.run(case())
+
+
+def test_naive_fresh_clock_refuses_cursor_metadata_change():
+    async def case():
+        store, services = Store(run_row()), Services()
+        with pytest.raises(lease.RunLeaseError, match="timezone-aware"):
+            await runner.tick(
+                "run-1", "worker-a", store=store,
+                timeline=Timeline(store, (event(1),)), services=services,
+                now=NOW, clock=lambda: datetime(2026, 10, 13, 18, 0),
+            )
+        assert services.evidence is not None
+        assert store.sim_runs.row["cursor"] == 0
+        assert "last_event_id" not in store.sim_runs.row
+    asyncio.run(case())
+
+
+def test_exact_crash_receipt_advances_even_when_event_adapter_is_blocked():
+    async def case():
+        item = event(1, blocked_capability="outbound_call")
+        store = Store(run_row())
+        services = Services()
+        result = await invoke(store, Timeline(store, (item,), (proof(item, 2),)), services)
+        assert result.status == "advanced" and result.cursor_after == 1
+        assert services.executions == []
     asyncio.run(case())
 
 
@@ -254,6 +369,69 @@ def test_inconsistent_evidence_fails_closed_and_releases():
             await invoke(store, Timeline(store, (item,), duplicated), services)
         assert services.executions == [] and store.sim_runs.row["cursor"] == 0
         assert "execution_lease" not in store.sim_runs.row
+    asyncio.run(case())
+
+
+@pytest.mark.parametrize("bad", [
+    {"status": "attempted"},
+    {"simulation_event_id": "wrong-event"},
+    {"execution_cursor": 1},
+])
+def test_nonterminal_or_mismatched_cursor_evidence_fails_closed(bad):
+    async def case():
+        item = event(1)
+        store, services = Store(run_row()), Services()
+        with pytest.raises(runner.CommunityRunnerError, match="inconsistent"):
+            await invoke(store, Timeline(store, (item, event(2)), (
+                proof(item, 1, **bad),
+            )), services)
+        assert services.executions == [] and store.sim_runs.row["cursor"] == 0
+    asyncio.run(case())
+
+
+def test_receipt_after_unresolved_cursor_gap_fails_closed():
+    async def case():
+        first, second = event(1), event(2)
+        store, services = Store(run_row()), Services()
+        future = proof(second, 1, execution_cursor=1)
+        with pytest.raises(runner.CommunityRunnerError, match="cursor gap"):
+            await invoke(store, Timeline(store, (first, second), (future,)), services)
+        assert services.executions == [] and store.sim_runs.row["cursor"] == 0
+    asyncio.run(case())
+
+
+def test_last_evidence_is_proven_at_cursor_without_scanning_history():
+    async def case():
+        first, second = event(1), event(2)
+        prior = proof(first, 3)
+        store = Store(run_row(
+            cursor=1, last_event_id=first.event_id,
+            last_evidence_receipt_id=prior["receipt_id"],
+            last_evidence_status="completed",
+        ))
+        services = Services()
+        result = await invoke(store, Timeline(store, (first, second), (prior,)), services)
+        assert result.status == "executed" and result.event_id == second.event_id
+        assert services.executions == [second.event_id]
+    asyncio.run(case())
+
+
+def test_duplicate_previous_event_evidence_is_not_hidden_by_last_receipt_id():
+    async def case():
+        first, second = event(1), event(2)
+        prior = proof(first, 3)
+        duplicate = proof(first, 3, receipt_id="receipt:duplicate")
+        store = Store(run_row(
+            cursor=1, last_event_id=first.event_id,
+            last_evidence_receipt_id=prior["receipt_id"],
+            last_evidence_status="completed",
+        ))
+        services = Services()
+        with pytest.raises(runner.CommunityRunnerError, match="ambiguous"):
+            await invoke(
+                store, Timeline(store, (first, second), (prior, duplicate)), services,
+            )
+        assert services.executions == [] and store.sim_runs.row["cursor"] == 1
     asyncio.run(case())
 
 

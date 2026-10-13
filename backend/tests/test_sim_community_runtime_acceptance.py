@@ -195,10 +195,11 @@ def test_crash_retry_reconciles_once_then_atomic_reset_preserves_evidence_and_ne
         assert len(event_receipts(store)) == 2
 
         store.sim_runs.docs[-1]["state"] = "STOPPED"
+        store.sim_runs.docs[-1].pop("execution_lease", None)
         preserved_receipt_ids = {row.get("receipt_id") for row in store.receipts.docs}
         reset = await reset_living_community(
             operator(), "admin_override:owner", "runtime-acceptance-reset",
-            store=store, now=NOW,
+            RUN_ID, store=store, now=NOW,
         )
         assert reset["deleted"] == {
             "notifications": 1, "staff_tasks": 1, "sim_runs": 1, "residents": 10,
@@ -232,21 +233,22 @@ def test_cursor_refuses_missing_or_mismatched_durable_evidence():
     asyncio.run(scenario())
 
 
-def test_reset_failure_rolls_back_every_delete_and_reset_receipt():
+def test_reset_failure_confirms_abort_before_reporting_no_change():
     async def scenario():
         store = RuntimeStore(fail_delete="staff_tasks")
         await provision(store)
         store.sim_runs.docs.append(run_document(state="STOPPED"))
+        store.sim_runs.docs[-1].pop("execution_lease", None)
         store.staff_tasks.docs.append({
             "task_id": "rollback-task", "simulated": True,
             "simulation_scope": SIMULATION_SCOPE,
             "simulation_community_id": COMMUNITY_ID,
         })
         before = deepcopy(store.snapshot())
-        with pytest.raises(CommunityResetError, match="rolled back"):
+        with pytest.raises(CommunityResetError, match="aborted before commit"):
             await reset_living_community(
                 operator(), "admin_override:owner", "rollback-reset",
-                store=store, now=NOW,
+                RUN_ID, store=store, now=NOW,
             )
         assert store.snapshot() == before
 

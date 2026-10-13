@@ -7,12 +7,13 @@ execute at most the event at the persisted cursor.
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Callable, Iterable, Optional, Protocol
+from typing import Callable, Optional, Protocol
 
 from simulation import community_executor as executor
+from simulation import community_cursor_commit
 from simulation import community_run_lease as run_lease
+from simulation import community_runner_step
 from simulation.community_blueprint import COMMUNITY_ID, SIMULATION_SCOPE
-from simulation.community_reconciliation import reconcile_run
 
 
 class CommunityRunnerError(RuntimeError):
@@ -20,15 +21,18 @@ class CommunityRunnerError(RuntimeError):
 
 
 class RunnerTimeline(Protocol):
-    """Injected durable timeline reads used for restart reconciliation."""
+    """Injected cursor-local timeline reads used for restart recovery."""
+
+    event_count: int
 
     async def load_run(self, *, run_id: str) -> dict: ...
 
-    async def load_events(
-        self, *, run_id: str
-    ) -> Iterable[executor.ExecutorEvent]: ...
+    def event_at(self, cursor: int) -> Optional[executor.ExecutorEvent]: ...
 
-    async def load_receipts(self, *, run_id: str) -> Iterable[dict]: ...
+    async def load_bounded_evidence(
+        self, *, run_id: str, cursor: int, event_id: Optional[str],
+        last_event_id: Optional[str], last_receipt_id: Optional[str],
+    ) -> dict: ...
 
 
 @dataclass(frozen=True)
@@ -51,16 +55,10 @@ def _utc(value: Optional[datetime]) -> datetime:
     return instant.astimezone(timezone.utc)
 
 
-def _no_action(run_id: str, plan: dict, fence: int) -> TickResult:
-    cursor = plan["cursor"]
-    if plan["status"] == "paused":
-        status = "paused"
-    elif plan["status"] == "terminal":
-        status = "stopped" if plan["run_state"] == "STOPPED" else "complete"
-    else:
-        rows = plan["classified_events"]
-        status = rows[cursor]["classification"] if cursor < len(rows) else "complete"
-    return TickResult(run_id, status, "none", None, None, cursor, cursor, fence, False)
+def _no_action(run_id: str, status: str, cursor: int, fence: int) -> TickResult:
+    return TickResult(
+        run_id, status, "none", None, None, cursor, cursor, fence, False,
+    )
 
 
 def _explicitly_blocked(event) -> bool:
@@ -72,13 +70,6 @@ def _explicitly_blocked(event) -> bool:
             or event.get("adapter_status") == "blocked"
         )
     return bool(getattr(event, "blocked_capability", None))
-
-
-def _recovery_receipt(receipts: tuple[dict, ...], step: dict) -> dict:
-    matches = [row for row in receipts if row.get("receipt_id") == step["receipt_id"]]
-    if len(matches) != 1:
-        raise CommunityRunnerError("recovery receipt is missing or ambiguous")
-    return matches[0]
 
 
 def _validate_recovery_proof(
@@ -106,6 +97,76 @@ def _validate_recovery_proof(
         raise CommunityRunnerError("recovery receipt failed provenance validation") from exc
 
 
+def _coordinate(value, label: str, maximum: Optional[int] = None) -> int:
+    if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+        raise CommunityRunnerError(f"{label} must be a non-negative integer")
+    if maximum is not None and value > maximum:
+        raise CommunityRunnerError(f"{label} exceeds the canonical plan")
+    return value
+
+
+def _event_minute(event: executor.ExecutorEvent) -> int:
+    day = _coordinate(event.day_index, "event day")
+    minute = _coordinate(event.minute, "event minute", 1439)
+    return day * 1440 + minute
+
+
+def _inconsistent(reason: str) -> CommunityRunnerError:
+    return CommunityRunnerError(f"timeline reconciliation is inconsistent: {reason}")
+
+
+def _validate_last_evidence(
+    run: dict, timeline: RunnerTimeline, window: dict, *, run_id: str,
+    holder_id: str, cursor: int,
+) -> None:
+    fields = (
+        run.get("last_event_id"), run.get("last_evidence_receipt_id"),
+        run.get("last_evidence_status"),
+    )
+    if cursor == 0:
+        if any(value is not None for value in fields) or window["previous"]:
+            raise _inconsistent("cursor zero cannot claim last-event evidence")
+        return
+    previous_event = timeline.event_at(cursor - 1)
+    if previous_event is None or run.get("last_event_id") != previous_event.event_id:
+        raise _inconsistent("last_event_id does not match the persisted cursor")
+    if len(window["previous"]) != 1:
+        raise _inconsistent("last evidence receipt is missing or ambiguous")
+    proof = _validate_recovery_proof(
+        window["previous"][0], previous_event, run_id=run_id,
+        holder_id=holder_id, cursor=cursor - 1,
+    )
+    if (
+        proof["receipt_id"] != run.get("last_evidence_receipt_id")
+        or proof["status"] != run.get("last_evidence_status")
+    ):
+        raise _inconsistent("persisted last evidence fields do not match the receipt")
+
+
+def _current_proof(
+    run: dict, event: Optional[executor.ExecutorEvent], window: dict, *,
+    run_id: str, holder_id: str, cursor: int,
+) -> Optional[dict]:
+    if window["future"]:
+        raise _inconsistent("receipt exists after an unresolved cursor gap")
+    rows = tuple(window["current"])
+    if len(rows) > 1:
+        raise _inconsistent("multiple receipts ambiguously reference the cursor event")
+    if not rows:
+        return None
+    if event is None:
+        raise _inconsistent("receipt exists beyond the terminal cursor")
+    try:
+        proof = _validate_recovery_proof(
+            rows[0], event, run_id=run_id, holder_id=holder_id, cursor=cursor,
+        )
+    except CommunityRunnerError as exc:
+        raise _inconsistent(str(exc)) from exc
+    if _event_minute(event) > run["sim_minute"]:
+        raise _inconsistent("cursor event has a receipt later than simulated time")
+    return proof
+
+
 async def tick(
     run_id: str,
     holder_id: str,
@@ -125,13 +186,30 @@ async def tick(
         claim = await run_lease.acquire(
             run_id, holder_id, store=store, now=instant, ttl_seconds=ttl_seconds
         )
-        events = tuple(await timeline.load_events(run_id=run_id))
-        receipts = tuple(await timeline.load_receipts(run_id=run_id))
         run = await timeline.load_run(run_id=run_id)
-        plan = reconcile_run(run, events, receipts, max_recovery_events=1)
+        cursor = _coordinate(run.get("cursor"), "run cursor", timeline.event_count)
+        _coordinate(run.get("sim_minute"), "run simulated minute")
+        if run.get("state") not in run_lease.ACTIVE:
+            raise CommunityRunnerError("run state is not active")
+        event = timeline.event_at(cursor)
+        window = await timeline.load_bounded_evidence(
+            run_id=run_id, cursor=cursor,
+            event_id=event.event_id if event else None,
+            last_event_id=run.get("last_event_id"),
+            last_receipt_id=run.get("last_evidence_receipt_id"),
+        )
+        if set(window) != {"current", "previous", "future"}:
+            raise CommunityRunnerError("bounded evidence window is incomplete")
+        _validate_last_evidence(
+            run, timeline, window, run_id=run_id, holder_id=holder_id,
+            cursor=cursor,
+        )
+        proof = _current_proof(
+            run, event, window, run_id=run_id, holder_id=holder_id, cursor=cursor,
+        )
 
-        if plan["run_state"] == run_lease.PAUSED:
-            return _no_action(run_id, plan, claim["fence"])
+        if run["state"] == run_lease.PAUSED:
+            return _no_action(run_id, "paused", cursor, claim["fence"])
 
         # A state/fence change after the snapshot must stop the tick before it
         # reports or performs work.
@@ -144,53 +222,22 @@ async def tick(
             ttl_seconds=ttl_seconds,
         )
         if (
-            owned.get("cursor") != plan["cursor"]
-            or owned.get("sim_minute") != plan["sim_minute"]
+            owned.get("cursor") != cursor
+            or owned.get("sim_minute") != run["sim_minute"]
+            or owned.get("last_event_id") != run.get("last_event_id")
+            or owned.get("last_evidence_receipt_id")
+            != run.get("last_evidence_receipt_id")
         ):
             raise CommunityRunnerError("timeline snapshot is stale")
-        if plan["status"] == "inconsistent":
-            raise CommunityRunnerError("timeline reconciliation is inconsistent")
-        cursor = plan["cursor"]
-        if cursor < len(events) and _explicitly_blocked(events[cursor]):
-            return TickResult(
-                run_id, "blocked", "none", None, None,
-                cursor, cursor, claim["fence"], False,
-            )
-        if not plan["recovery_steps"]:
-            return _no_action(run_id, plan, claim["fence"])
-
-        step = plan["recovery_steps"][0]
-        if step["expected_cursor"] != cursor or cursor >= len(events):
-            raise CommunityRunnerError("recovery step does not match the persisted cursor")
-        event = events[cursor]
-        if step["event_id"] != event.event_id:
-            raise CommunityRunnerError("recovery event does not match the deterministic stream")
-
-        if step["action"] == "advance_cursor_from_receipt":
-            proof = _validate_recovery_proof(
-                _recovery_receipt(receipts, step),
-                event,
-                run_id=run_id,
-                holder_id=holder_id,
-                cursor=cursor,
-            )
-            fresh = _utc(clock() if clock else None)
-            await run_lease.heartbeat(
-                run_id,
-                holder_id,
-                claim["fence"],
-                store=store,
-                now=fresh,
-                ttl_seconds=ttl_seconds,
-            )
-            row = await run_lease.advance_cursor(
+        if proof is not None:
+            row = await community_cursor_commit.advance_cursor(
                 run_id,
                 holder_id,
                 claim["fence"],
                 cursor,
-                cursor + 1,
                 store=store,
-                now=fresh,
+                clock=clock,
+                ttl_seconds=ttl_seconds,
                 fields={
                     "last_event_id": event.event_id,
                     "last_evidence_receipt_id": proof["receipt_id"],
@@ -198,24 +245,28 @@ async def tick(
                 },
             )
             return TickResult(
-                run_id, "advanced", step["action"], event.event_id,
+                run_id, "advanced", "advance_cursor_from_receipt", event.event_id,
                 proof["receipt_id"], cursor, row["cursor"], claim["fence"], True,
             )
-
-        if step["action"] != "execute_event_then_advance":
-            raise CommunityRunnerError("unknown recovery action")
-        result = await executor.execute_one(
-            run_id,
-            holder_id,
-            claim["fence"],
+        if event is not None and _explicitly_blocked(event):
+            return TickResult(
+                run_id, "blocked", "none", None, None,
+                cursor, cursor, claim["fence"], False,
+            )
+        if event is None:
+            return _no_action(run_id, "complete", cursor, claim["fence"])
+        if _event_minute(event) > run["sim_minute"]:
+            return _no_action(run_id, "future", cursor, claim["fence"])
+        result = await community_runner_step.execute_current(
+            run_id, holder_id, claim["fence"], cursor, event,
             store=store,
             services=services,
-            events=events,
             now=instant,
+            ttl_seconds=ttl_seconds,
             clock=clock,
         )
         return TickResult(
-            run_id, "executed", step["action"], result.event_id,
+            run_id, "executed", "execute_event_then_advance", result.event_id,
             result.receipt_id, result.cursor_before, result.cursor_after,
             claim["fence"], result.idempotent_replay,
         )

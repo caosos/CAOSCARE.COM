@@ -25,7 +25,7 @@ const Queue = require("../../pages/DepartmentQueue").default;
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const flush = () => act(async () => { await Promise.resolve(); await Promise.resolve(); });
 const open = { task_id: "t1", title: "Help to the bathroom", status: "pending", priority: "high", visibility_role: "nursing",
-  created_at: new Date().toISOString() };
+  created_at: new Date().toISOString(), simulated: true };
 let root, el;
 beforeEach(() => {
   el = document.createElement("div"); document.body.appendChild(el); root = createRoot(el);
@@ -39,4 +39,12 @@ test("a re-render keeps the same card element", async () => {
   expect(card).not.toBeNull();
   await act(async () => root.render(<Queue department="nursing" title="Nursing requests" adminMode />)); await flush();
   expect(el.querySelector("[data-testid=wo-t1]")).toBe(card);
+});
+
+test("a simulated department ticket is unmistakably marked in the actionable queue", async () => {
+  await act(async () => root.render(<Queue department="nursing" title="Nursing requests" />)); await flush();
+  const card = el.querySelector("[data-testid=wo-t1]");
+  expect(card).not.toBeNull();
+  expect(card.textContent).toContain("SIM");
+  expect(card.querySelector("[data-testid=wo-start-t1]")).not.toBeNull();
 });

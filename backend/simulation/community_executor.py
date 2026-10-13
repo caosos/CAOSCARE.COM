@@ -1,23 +1,21 @@
 """Fenced one-event core: no runner, route, DB default, or provider path."""
-
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Callable, Iterable, Optional, Protocol
-
-from simulation import community_run_lease as run_lease
+from typing import Iterable, Optional, Protocol
+from simulation import community_cursor_commit, community_run_lease as run_lease
 from simulation.community_blueprint import BURN_IN_RESIDENTS, COMMUNITY_ID, SIMULATION_SCOPE
 from simulation.community_dispatch import plan_routine_dispatch
 from simulation.community_routines import RoutineEvent, plan_first_24_hours
 from simulation.community_shift_events import planned_events_for_day
 from simulation.community_staffing import active_assignments
-
-
-RECEIPT_RESULTS = {"completed": "succeeded", "failed": "observed", "cancelled": "refused"}
-
-
+from simulation.community_ticket_plan import OPEN, plan_ticket_phases
+RECEIPT_RESULTS = {
+    "completed": "succeeded",
+    "failed": "observed",
+    "cancelled": "refused",
+}
 class CommunityExecutorError(RuntimeError):
     """One event was refused without advancing the cursor."""
-
 @dataclass(frozen=True)
 class ExecutorEvent:
     event_id: str
@@ -35,7 +33,8 @@ class ExecutorEvent:
     adapter: str
     simulated: bool = True
     blocked_capability: Optional[str] = None
-
+    workflow_event_id: Optional[str] = None
+    task_phase: Optional[str] = None
 @dataclass(frozen=True)
 class ExecutionContext:
     run_id: str
@@ -45,8 +44,6 @@ class ExecutionContext:
     simulation_scope: str
     simulation_community_id: str
     providers_allowed: bool = False
-
-
 @dataclass(frozen=True)
 class StepResult:
     event_id: str
@@ -56,8 +53,6 @@ class StepResult:
     cursor_before: int
     cursor_after: int
     idempotent_replay: bool
-
-
 class ExecutorServices(Protocol):
     """Injected boundary; load_evidence reads a persisted canonical receipt."""
 
@@ -66,41 +61,50 @@ class ExecutorServices(Protocol):
 
     async def execute_event(self, *, event: ExecutorEvent,
                             context: ExecutionContext) -> object: ...
-
-
-def _routine_event(event: RoutineEvent, ready_day: int, ready_minute: int) -> ExecutorEvent:
-    workers = sorted(
-        (
-            row
-            for row in active_assignments(ready_day, ready_minute)
-            if row["department"] == event.department
-        ),
-        key=lambda row: row["actor_id"],
-    )
-    if not workers:
-        raise CommunityExecutorError(f"dispatch has no on-shift actor: {event.event_id}")
-    actor = workers[0]
+def _routine_events(event: RoutineEvent, ready_day: int,
+                    ready_minute: int) -> tuple[ExecutorEvent, ...]:
     resident = next(
         (row for row in BURN_IN_RESIDENTS if row.resident_key == event.resident_key),
         None,
     )
     if resident is None:
         raise CommunityExecutorError(f"event is outside the burn-in residents: {event.event_id}")
-    return ExecutorEvent(
-        event_id=event.event_id,
-        stream_kind="routine_dispatch",
+    phases = plan_ticket_phases(event.event_id, ready_day, ready_minute)
+    phase_workers = {}
+    for phase in phases:
+        if phase.phase == OPEN:
+            continue
+        workers = sorted(
+            (row for row in active_assignments(phase.day_index, phase.minute)
+             if row["department"] == event.department),
+            key=lambda row: row["actor_id"],
+        )
+        if not workers:
+            raise CommunityExecutorError(
+                f"ticket phase has no on-shift actor: {phase.event_id}"
+            )
+        phase_workers[phase.phase] = workers[0]
+    return tuple(ExecutorEvent(
+        event_id=phase.event_id,
+        stream_kind="routine_ticket_phase",
         action_type=event.routine,
-        day_index=ready_day,
-        minute=ready_minute,
-        actor_id=actor["actor_id"],
-        actor_name=actor["name"],
-        actor_type=actor["actor_type"],
-        identity_basis=actor["identity_basis"],
+        day_index=phase.day_index,
+        minute=phase.minute,
+        actor_id=(resident.resident_id if phase.phase == OPEN
+                  else phase_workers[phase.phase]["actor_id"]),
+        actor_name=(resident.name if phase.phase == OPEN
+                    else phase_workers[phase.phase]["name"]),
+        actor_type="simulated-agent",
+        identity_basis="synthetic",
         department=event.department,
         target_type="resident",
         target_id=resident.resident_id,
         adapter=event.adapter,
         blocked_capability=event.blocked_adapter,
+        workflow_event_id=event.event_id,
+        task_phase=phase.phase,
+    )
+        for phase in phases
     )
 
 
@@ -108,13 +112,12 @@ def build_day_queue(day_index: int = 0) -> tuple[ExecutorEvent, ...]:
     """Combine canonical shift milestones and coverage-gated routine intents."""
     routines = plan_first_24_hours(day_index=day_index)
     dispatch = {row.event_id: row for row in plan_routine_dispatch(routines)}
-    events = [
-        _routine_event(
-            event,
-            dispatch[event.event_id].ready_day_index,
+    events = [phase
+        for event in routines
+        for phase in _routine_events(
+            event, dispatch[event.event_id].ready_day_index,
             dispatch[event.event_id].ready_minute,
         )
-        for event in routines
     ]
     for event in planned_events_for_day(day_index):
         if event["stream_kind"] != "canonical_shift_milestone":
@@ -138,8 +141,6 @@ def build_day_queue(day_index: int = 0) -> tuple[ExecutorEvent, ...]:
     return tuple(sorted(events, key=lambda row: (
         row.day_index * 1440 + row.minute, row.stream_kind, row.event_id,
     )))
-
-
 def _utc(value: Optional[datetime]) -> datetime:
     instant = value or datetime.now(timezone.utc)
     if instant.tzinfo is None:
@@ -157,9 +158,12 @@ def _validate_events(events: Iterable[ExecutorEvent]) -> tuple[ExecutorEvent, ..
             or row.actor_type != "simulated-agent"
             or row.identity_basis != "synthetic"
             or not row.simulated
-            or not row.actor_id.startswith("sim:staff:")
+            or not (
+                row.actor_id.startswith("sim:staff:")
+                or row.task_phase == OPEN and row.actor_id == row.target_id
+            )
         ):
-            raise CommunityExecutorError("every executable event needs explicit synthetic staff provenance")
+            raise CommunityExecutorError("every executable event needs explicit synthetic actor provenance")
     return rows
 
 
@@ -234,7 +238,7 @@ async def execute_one(
     services: Optional[ExecutorServices] = None,
     events: Optional[Iterable[ExecutorEvent]] = None,
     now: Optional[datetime] = None,
-    clock: Optional[Callable[[], datetime]] = None,
+    clock=None,
 ) -> StepResult:
     """Execute or reconcile exactly the event at the persisted cursor."""
     if services is None:
@@ -271,16 +275,13 @@ async def execute_one(
             execution_fence=fence,
         )
     proof = _validate_evidence(evidence, event, context)
-    fresh = _utc(clock() if clock else None)
-    await run_lease.heartbeat(run_id, holder_id, fence, store=store, now=fresh)
-    row = await run_lease.advance_cursor(
+    row = await community_cursor_commit.advance_cursor(
         run_id,
         holder_id,
         fence,
         cursor,
-        cursor + 1,
         store=store,
-        now=fresh,
+        clock=clock,
         fields={
             "last_event_id": event.event_id,
             "last_evidence_receipt_id": proof["receipt_id"],

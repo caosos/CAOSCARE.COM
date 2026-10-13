@@ -8,20 +8,25 @@ from datetime import datetime, timezone
 from hashlib import sha256
 from typing import Optional
 
-from models import Receipt
 from routes.actor_context import ActorContext
 from simulation.community_blueprint import COMMUNITY_ID, RESIDENTS, SIMULATION_SCOPE
 from simulation.community_provisioning import ProvisioningError, _require_operator
-
-
-REQUEST_ACTION = "simulation_community_reset_requested"
-OUTCOME_ACTION = "simulation_community_reset_completed"
-REPLAY_ACTION = "simulation_community_reset_replayed"
-RESET_COLLECTIONS = ("residents", "staff_tasks", "notifications", "sim_runs")
+from simulation.community_reset_evidence import (
+    OUTCOME_ACTION,
+    REPLAY_ACTION,
+    REQUEST_ACTION,
+    RESET_COLLECTIONS,
+    ResetEvidenceError,
+    build_receipt,
+    committed_result,
+    load_reset_receipts,
+    receipt_id,
+    snapshot,
+)
 
 
 class CommunityResetError(RuntimeError):
-    """Reset was refused or its transaction rolled back."""
+    """Reset was refused, aborted, or has an explicitly unknown outcome."""
 
 
 def _default_store():
@@ -30,11 +35,13 @@ def _default_store():
     return db
 
 
-def _reset_id(reset_key: str) -> str:
+def _reset_id(reset_key: str, expected_run_id: str) -> str:
     key = (reset_key or "").strip()
     if not key or len(key) > 160:
         raise CommunityResetError("a stable reset_key of 1-160 characters is required")
-    digest = sha256(f"{SIMULATION_SCOPE}:{COMMUNITY_ID}:{key}".encode()).hexdigest()[:20]
+    digest = sha256(
+        f"{SIMULATION_SCOPE}:{COMMUNITY_ID}:{expected_run_id}:{key}".encode()
+    ).hexdigest()[:20]
     return f"simreset:{digest}"
 
 
@@ -45,8 +52,9 @@ def _exact(row: dict) -> bool:
     )
 
 
-async def _rows(collection, query: dict, session) -> list[dict]:
-    cursor = collection.find(query, {"_id": 0}, session=session)
+async def _rows(collection, query: dict, session, *, include_id: bool = False) -> list[dict]:
+    projection = None if include_id else {"_id": 0}
+    cursor = collection.find(query, projection, session=session)
     return await cursor.to_list(None)
 
 
@@ -90,6 +98,8 @@ async def _preflight(store, session) -> tuple[dict[str, list[dict]], list[dict]]
     _assert_exact("sim_runs", runs)
     if any(row.get("state") != "STOPPED" for row in runs):
         raise CommunityResetError("every living-community run must be STOPPED before reset")
+    if any("execution_lease" in row for row in runs):
+        raise CommunityResetError("living-community run has an active execution lease")
     run_ids = [row.get("run_id") for row in runs if row.get("run_id")]
 
     links = [
@@ -123,7 +133,9 @@ async def _preflight(store, session) -> tuple[dict[str, list[dict]], list[dict]]
     ]
     if run_ids:
         receipt_links.append({"simulation_run_id": {"$in": run_ids}})
-    receipts = await _rows(store.receipts, _candidate_query(receipt_links), session)
+    receipts = await _rows(
+        store.receipts, _candidate_query(receipt_links), session, include_id=True,
+    )
     _assert_exact("receipts", receipts)
     return {
         "residents": residents,
@@ -133,97 +145,45 @@ async def _preflight(store, session) -> tuple[dict[str, list[dict]], list[dict]]
     }, receipts
 
 
-def _snapshot(rows: dict[str, list[dict]], receipt_count: int) -> dict:
-    return {
-        "simulation_scope": SIMULATION_SCOPE,
-        "simulation_community_id": COMMUNITY_ID,
-        "counts": {name: len(rows[name]) for name in RESET_COLLECTIONS},
-        "preserved_receipts": receipt_count,
-    }
-
-
-def _receipt(
-    action: str,
-    receipt_id: str,
-    reset_id: str,
-    operator: ActorContext,
-    authority: str,
-    generation: int,
-    before: dict,
-    after: dict,
-    when: datetime,
-    *,
-    parent: Optional[str] = None,
+async def _perform(
+    store, session, operator, authority, reset_id, when, expected_run_id,
 ) -> dict:
-    doc = Receipt(
-        receipt_id=receipt_id,
-        action_type=action,
-        related_object_type="simulation_community_reset",
-        related_object_id=reset_id,
-        source="staff",
-        status="created" if action == REQUEST_ACTION else "completed",
-        completed_at=None if action == REQUEST_ACTION else when,
-        result="reset authorized" if action == REQUEST_ACTION else
-        "idempotent reset retry observed" if action == REPLAY_ACTION else
-        "living-community data reset transaction committed",
-        **operator.receipt_fields(),
-        simulation_scope=SIMULATION_SCOPE,
-        simulation_community_id=COMMUNITY_ID,
-        authority=authority,
-        parent_receipt_id=parent,
-        correlation_id=f"rcpt:{reset_id}:request",
-        before_state={**before, "reset_generation": generation},
-        after_state={**after, "reset_generation": generation},
-        result_label="simulated",
-        next_state="reset_pending" if action == REQUEST_ACTION else "reset_complete",
-        created_at=when,
-    ).model_dump()
-    doc["created_at"] = doc["created_at"].isoformat()
-    if doc.get("completed_at") is not None:
-        doc["completed_at"] = doc["completed_at"].isoformat()
-    return doc
-
-
-async def _perform(store, session, operator, authority, reset_id, when) -> dict:
-    reset_receipts = await _rows(store.receipts, {
-        "related_object_type": "simulation_community_reset",
-        "related_object_id": reset_id,
-    }, session)
-    _assert_exact("receipts", reset_receipts)
-    prior = [row for row in reset_receipts if row.get("action_type") == OUTCOME_ACTION]
-    if len(prior) > 1:
-        raise CommunityResetError("duplicate reset outcomes require manual review")
-    if prior:
-        outcome = prior[0]
-        generation = (outcome.get("after_state") or {}).get("reset_generation")
-        if not isinstance(generation, int) or generation < 1:
-            raise CommunityResetError("prior reset outcome has invalid generation evidence")
-        replay_number = sum(
-            row.get("action_type") == REPLAY_ACTION for row in reset_receipts
-        ) + 1
-        replay = _receipt(
-            REPLAY_ACTION, f"rcpt:{reset_id}:replay:{replay_number}", reset_id,
-            operator, authority, generation, outcome["after_state"],
-            outcome["after_state"], when, parent=outcome["receipt_id"],
-        )
-        await store.receipts.insert_one(replay, session=session)
-        return {"reset_id": reset_id, "reset_generation": generation,
-                "idempotent_replay": True, "receipt_id": replay["receipt_id"],
-                "deleted": {name: 0 for name in RESET_COLLECTIONS}}
-    if reset_receipts:
-        raise CommunityResetError("incomplete prior reset evidence requires manual review")
-
     rows, receipts = await _preflight(store, session)
+    try:
+        reset_receipts = await load_reset_receipts(store, session, reset_id)
+        prior = committed_result(reset_id, reset_receipts, rows)
+    except ResetEvidenceError as exc:
+        raise CommunityResetError(str(exc)) from exc
+    if prior:
+        prior["idempotent_replay"] = True
+        prior["deleted"] = {name: 0 for name in RESET_COLLECTIONS}
+        if not any(row.get("action_type") == REPLAY_ACTION for row in reset_receipts):
+            outcome_id = receipt_id(reset_id, "outcome")
+            outcome_state = next(
+                row for row in reset_receipts if row["receipt_id"] == outcome_id
+            )["after_state"]
+            replay = build_receipt(
+                REPLAY_ACTION, reset_id, operator, authority,
+                prior["reset_generation"], outcome_state, outcome_state, when,
+                parent=outcome_id,
+            )
+            await store.receipts.insert_one(replay, session=session)
+        prior["receipt_id"] = receipt_id(reset_id, "replay")
+        return prior
+
+    runs = rows["sim_runs"]
+    if len(runs) != 1 or runs[0].get("run_id") != expected_run_id:
+        raise CommunityResetError("reset requires the exact confirmed STOPPED run")
+
     prior_outcomes = [row for row in receipts if row.get("action_type") == OUTCOME_ACTION]
     generation = 1 + max(
         ((row.get("after_state") or {}).get("reset_generation") or 0
          for row in prior_outcomes), default=0,
     )
-    before = _snapshot(rows, len(receipts))
-    request_id = f"rcpt:{reset_id}:request"
-    request = _receipt(
-        REQUEST_ACTION, request_id, reset_id, operator, authority, generation,
-        before, before, when,
+    before = snapshot(rows, len(receipts))
+    request_id = receipt_id(reset_id, "request")
+    request = build_receipt(
+        REQUEST_ACTION, reset_id, operator, authority, generation, before, before, when,
     )
     await store.receipts.insert_one(request, session=session)
 
@@ -236,7 +196,7 @@ async def _perform(store, session, operator, authority, reset_id, when) -> dict:
         result = await getattr(store, name).delete_many(exact_filter, session=session)
         expected = len(rows[name])
         if result.deleted_count != expected:
-            raise CommunityResetError(f"{name} changed after preflight; reset rolled back")
+            raise CommunityResetError(f"{name} changed after preflight; reset refused")
         deleted[name] = result.deleted_count
 
     after = {
@@ -245,9 +205,9 @@ async def _perform(store, session, operator, authority, reset_id, when) -> dict:
         "counts": {name: 0 for name in RESET_COLLECTIONS},
         "preserved_receipts": len(receipts) + 2,
     }
-    outcome_id = f"rcpt:{reset_id}:outcome"
-    outcome = _receipt(
-        OUTCOME_ACTION, outcome_id, reset_id, operator, authority, generation,
+    outcome_id = receipt_id(reset_id, "outcome")
+    outcome = build_receipt(
+        OUTCOME_ACTION, reset_id, operator, authority, generation,
         before, after, when, parent=request_id,
     )
     await store.receipts.insert_one(outcome, session=session)
@@ -255,20 +215,37 @@ async def _perform(store, session, operator, authority, reset_id, when) -> dict:
             "idempotent_replay": False, "receipt_id": outcome_id, "deleted": deleted}
 
 
+async def _reconcile(store, reset_id: str) -> Optional[dict]:
+    """Read exact durable evidence outside the failed transaction."""
+    rows, _ = await _preflight(store, None)
+    try:
+        exact = await load_reset_receipts(store, None, reset_id)
+        return committed_result(reset_id, exact, rows)
+    except ResetEvidenceError as exc:
+        raise CommunityResetError(str(exc)) from exc
+
+
+async def _abort(session) -> bool:
+    try:
+        await session.abort_transaction()
+        return True
+    except Exception:
+        return False
+
+
 async def reset_living_community(
-    operator: ActorContext,
-    authority: str,
-    reset_key: str,
-    *,
-    store=None,
-    now: Optional[datetime] = None,
+    operator: ActorContext, authority: str, reset_key: str, expected_run_id: str,
+    *, store=None, now: Optional[datetime] = None,
 ) -> dict:
     """Reset exact living-community rows in one required database transaction."""
     try:
         _require_operator(operator, authority)
     except ProvisioningError as exc:
         raise CommunityResetError(str(exc)) from exc
-    reset_id = _reset_id(reset_key)
+    expected_run_id = (expected_run_id or "").strip()
+    if not expected_run_id or len(expected_run_id) > 200:
+        raise CommunityResetError("an exact expected_run_id is required")
+    reset_id = _reset_id(reset_key, expected_run_id)
     instant = now or datetime.now(timezone.utc)
     if instant.tzinfo is None:
         raise CommunityResetError("reset timestamp must be timezone-aware")
@@ -276,14 +253,47 @@ async def reset_living_community(
     client = getattr(selected, "client", None)
     if client is None or not callable(getattr(client, "start_session", None)):
         raise CommunityResetError("transaction-capable database session is required")
-    try:
-        async with await client.start_session() as session:
-            async with session.start_transaction():
-                return await _perform(
-                    selected, session, operator, authority, reset_id,
-                    instant.astimezone(timezone.utc),
-                )
-    except CommunityResetError:
-        raise
-    except Exception as exc:
-        raise CommunityResetError("reset transaction failed and was rolled back") from exc
+    async with await client.start_session() as session:
+        try:
+            session.start_transaction()
+            attempted = await _perform(
+                selected, session, operator, authority, reset_id,
+                instant.astimezone(timezone.utc), expected_run_id,
+            )
+        except Exception as exc:
+            aborted = await _abort(session)
+            if aborted:
+                try:
+                    concurrent = await _reconcile(selected, reset_id)
+                except Exception:
+                    concurrent = None
+                if concurrent:
+                    concurrent.update(
+                        idempotent_replay=True,
+                        commit_reconciled=True,
+                        deleted={name: 0 for name in RESET_COLLECTIONS},
+                    )
+                    return concurrent
+                if isinstance(exc, CommunityResetError):
+                    raise
+                raise CommunityResetError("reset transaction aborted before commit") from exc
+            raise CommunityResetError(
+                "reset outcome is unknown because transaction abort could not be confirmed"
+            ) from exc
+        try:
+            await session.commit_transaction()
+        except Exception as exc:
+            try:
+                committed = await _reconcile(selected, reset_id)
+            except Exception as reconcile_exc:
+                raise CommunityResetError(
+                    "reset commit outcome is unknown; retry the same reset_key to reconcile"
+                ) from reconcile_exc
+            if not committed:
+                raise CommunityResetError(
+                    "reset commit outcome is unknown; retry the same reset_key to reconcile"
+                ) from exc
+            committed["commit_reconciled"] = True
+            return committed
+        attempted["commit_reconciled"] = False
+        return attempted

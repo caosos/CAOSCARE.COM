@@ -13,6 +13,7 @@ load_dotenv(ROOT_DIR / ".env")
 
 from deps import db  # noqa: E402
 from routes import content_coverage as content_coverage_routes
+from routes import community_reset_controls as community_reset_control_routes
 from routes import auth as auth_routes  # noqa: E402
 from routes import auth_password as auth_password_routes  # noqa: E402
 from routes import residents as resident_routes  # noqa: E402
@@ -109,6 +110,8 @@ from routes import aria_conversation_state as aria_conversation_state_routes  # 
 from routes import aria_interpretation_patterns as aria_interpretation_patterns_routes  # noqa: E402
 from routes import aria_turn_taking as aria_turn_taking_routes  # noqa: E402
 from routes import simulation as simulation_routes  # noqa: E402
+from routes import community_runtime as community_runtime_routes  # noqa: E402
+from routes import community_controls as community_control_routes  # noqa: E402
 from routes import work_context as work_context_routes  # noqa: E402
 from routes import demo_continuity as demo_continuity_routes  # noqa: E402
 from seed import demo_seed_enabled, seed  # noqa: E402
@@ -291,6 +294,9 @@ api.include_router(aria_conversation_state_routes.router)
 api.include_router(aria_interpretation_patterns_routes.router)
 api.include_router(aria_turn_taking_routes.router)
 api.include_router(simulation_routes.router)
+api.include_router(community_runtime_routes.router)
+api.include_router(community_control_routes.router)
+api.include_router(community_reset_control_routes.router)
 api.include_router(work_context_routes.router)
 api.include_router(demo_continuity_routes.router)
 

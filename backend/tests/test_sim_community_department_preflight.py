@@ -37,7 +37,7 @@ def test_requirements_are_derived_from_both_routines_and_staffing():
     requirements = department_requirements()
     assert tuple(item.slug for item in requirements) == EXPECTED_SLUGS
     sources = {item.slug: item.used_by for item in requirements}
-    assert sources["front_desk"] == ("staffing",)
+    assert sources["front_desk"] == ("routines", "staffing")
     assert sources["nursing"] == ("routines", "staffing")
     assert sources["administration"] == ("routines", "staffing")
 
