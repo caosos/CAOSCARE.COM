@@ -220,3 +220,14 @@ def test_printed_recovery_is_executable_and_keeps_config_without_leaking(box):
     finally:
         p.kill(); subprocess.run(["pkill", "-f", f"--port {box['port']}"])
         subprocess.run(["git", "-C", str(box["root"]), "worktree", "remove", "--force", rb], capture_output=True)
+
+
+def test_persistent_backend_drops_actions_tracking_marker(box):
+    old = start_old(box)
+    r = run(box, RUNNER_TRACKING_ID="actions-must-not-own-persistent-backend")
+    assert r.returncode == 0 and "RESTART OK" in r.stdout, r.stdout + r.stderr
+    old.wait(timeout=10)
+    new_pid = int(r.stdout.split("RESTART OK pid=")[1].split()[0])
+    env_blob = Path(f"/proc/{new_pid}/environ").read_bytes().split(b"\0")
+    assert b"RUNNER_TRACKING_ID=actions-must-not-own-persistent-backend" not in env_blob
+    box["procs"].append(type("P", (), {"kill": lambda self, p=new_pid: os.kill(p, 9)})())
