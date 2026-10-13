@@ -176,6 +176,7 @@ class Resident(BaseModel):
     preferences: Optional[str] = ""   # likes, hobbies, prayers, comfort topics
     memory: Optional[str] = ""         # things the AI should remember about them
     preferred_name: Optional[str] = ""
+    aria_guidance_profile: Literal["supportive_guided", "concise_natural"] = "supportive_guided"
     clinical_thresholds: Optional[ClinicalThresholds] = None
     # A synthetic (demo/simulation) identity - set only server-side, e.g. by
     # demo_kiosk.ensure_demo_room. Work created for it is marked simulated.
@@ -195,6 +196,7 @@ class ResidentCreate(BaseModel):
     preferences: Optional[str] = ""
     memory: Optional[str] = ""
     preferred_name: Optional[str] = ""
+    aria_guidance_profile: Literal["supportive_guided", "concise_natural"] = "supportive_guided"
     clinical_thresholds: Optional[ClinicalThresholds] = None
 
 

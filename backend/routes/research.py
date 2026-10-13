@@ -132,8 +132,12 @@ async def _run(question: str) -> ResearchOutput:
     )
 
 
-async def research_topic(question: str) -> ResearchOutput:
+async def research_topic(question: str, *, event_context: Optional[dict] = None) -> ResearchOutput:
     """Entry point used by the AI tool dispatcher; records one event per call."""
+    event_context = event_context or {}
+    event_fields = {k: event_context.get(k) for k in
+                    ("resident_id", "room", "conversation_id", "actor_id", "actor_role")
+                    if event_context.get(k) is not None}
     started = time.monotonic()
     meta = {"provider": oas.provider_name(), "live_enabled": live_research_enabled(),
             "model": oas.search_model() or None,
@@ -145,7 +149,7 @@ async def research_topic(question: str) -> ResearchOutput:
         await log_event(event_type="research_lookup", source="resident_aria", target_type="tool",
                         action="research_topic", status="failed", error_code=str(e.status_code),
                         error_message=str(e.detail)[:200], metadata={**meta, "live": False},
-                        duration_ms=(time.monotonic() - started) * 1000)
+                        duration_ms=(time.monotonic() - started) * 1000, **event_fields)
         raise
     prov = out.provenance or {}
     await log_event(event_type="research_lookup", source="resident_aria", target_type="tool",
@@ -157,7 +161,7 @@ async def research_topic(question: str) -> ResearchOutput:
                               "search_call_count": prov.get("search_call_count"),
                               "response_id": prov.get("response_id"),
                               "usage": prov.get("usage") or {}},
-                    duration_ms=(time.monotonic() - started) * 1000)
+                    duration_ms=(time.monotonic() - started) * 1000, **event_fields)
     return out
 
 
@@ -166,5 +170,5 @@ async def research_endpoint(data: ResearchInput, request: Request) -> ResearchOu
     if not data.question.strip():
         raise HTTPException(status_code=400, detail="Empty question")
     # RQ-049: paid provider -> live session (or owner) required, rate limited.
-    await research_guard.enforce(request, data.resident_id, data.session_id)
-    return await research_topic(data.question.strip())
+    context = await research_guard.enforce(request, data.resident_id, data.session_id)
+    return await research_topic(data.question.strip(), event_context=context)

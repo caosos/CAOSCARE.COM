@@ -18,6 +18,7 @@ import { nearestColorName, colorTempLabel, handleToggleLight } from "./realtimeL
 import { findDeviceGuarded } from "./deviceAmbiguity";
 import { VOLUME_PHRASES, ROOM_CONTROL_TOOLS, executeRoomControlTool } from "./realtimeRoomControls";
 import { shapeResearchResult } from "./researchShape";
+import { executeTvRemoteSetup } from "./realtimeTvSetup";
 
 // IMPORTANT: the backend `/devices/.../command` endpoint validates `action`
 // against a strict enum (power | brightness | temperature | fan_speed |
@@ -39,7 +40,7 @@ async function postRoomCommand(room, action, value, kind, sessionId, deviceId) {
 
 // Real, if reversible, room-state changes - gated the same way as staff
 // requests so a noise-hallucinated turn can't move them either.
-const CONSEQUENTIAL_DEVICE_TOOLS = new Set(["adjust_room_temperature", "toggle_light", "toggle_tv", "set_timer", "set_tv_input", ...ROOM_CONTROL_TOOLS]);
+const CONSEQUENTIAL_DEVICE_TOOLS = new Set(["adjust_room_temperature", "toggle_light", "toggle_tv", "set_timer", "set_tv_input", "configure_tv_remote", ...ROOM_CONTROL_TOOLS]);
 
 // 2026-08-30 (real live incident): mark_resting fired on "No, I can't." -
 // a resident PROTESTING being left alone - and end_call fired on "It's
@@ -150,6 +151,9 @@ export async function executeDeviceTool({ name, args, ctx }) {
     if (!list.length) return { ok: true, message: "there's nothing to read yet — no devices are set up in this room." };
     const parts = list.map(describeDevice).filter(Boolean);
     return { ok: true, message: parts.length ? parts.join("; ") + "." : "I don't have a reading for that yet." };
+  }
+  if (name === "configure_tv_remote") {
+    return executeTvRemoteSetup(args, ctx);
   }
   if (name === "adjust_room_temperature") {
     if (!room) return { ok: false, message: "no room context — I can't reach the climate control here." };

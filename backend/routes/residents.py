@@ -5,34 +5,40 @@ from models import Resident, ResidentCreate
 from deps import db, get_current_user
 from routes.receipts import create_receipt
 from routes.kiosk_identity import resident_for_kiosk
+from aria_guidance_profiles import normalize_guidance_profile, DEFAULT as DEFAULT_GUIDANCE_PROFILE
 
 router = APIRouter(prefix="/residents", tags=["residents"])
 
 
 def _serialize(doc: dict) -> dict:
     if isinstance(doc.get("created_at"), str):
-        return doc
+        return {**doc, "aria_guidance_profile": normalize_guidance_profile(doc.get("aria_guidance_profile"))}
     doc = {**doc}
     ca = doc.get("created_at")
     if hasattr(ca, "isoformat"):
         doc["created_at"] = ca.isoformat()
+    doc["aria_guidance_profile"] = normalize_guidance_profile(doc.get("aria_guidance_profile"))
     return doc
 
 
 @router.get("")
 async def list_residents(user=Depends(get_current_user)):
     items = await db.residents.find({}, {"_id": 0}).sort("name", 1).to_list(1000)
-    return items
+    return [_serialize(item) for item in items]
 
 
 @router.post("")
 async def create_resident(data: ResidentCreate, user=Depends(get_current_user)):
+    if data.aria_guidance_profile != DEFAULT_GUIDANCE_PROFILE and user.get("role") not in ("owner", "admin"):
+        raise HTTPException(status_code=403, detail="Only an owner or admin can select a non-default Aria conversation style")
     resident = Resident(**data.model_dump())
     doc = resident.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
     await db.residents.insert_one(doc)
     doc.pop("_id", None)
-    return doc
+    if data.aria_guidance_profile != DEFAULT_GUIDANCE_PROFILE:
+        await _record_guidance_change(doc, user, None, data.aria_guidance_profile)
+    return _serialize(doc)
 
 
 @router.get("/{resident_id}")
@@ -40,17 +46,40 @@ async def get_resident(resident_id: str, user=Depends(get_current_user)):
     doc = await db.residents.find_one({"resident_id": resident_id}, {"_id": 0})
     if not doc:
         raise HTTPException(status_code=404, detail="Resident not found")
-    return doc
+    return _serialize(doc)
 
 
 @router.put("/{resident_id}")
 async def update_resident(resident_id: str, data: ResidentCreate, user=Depends(get_current_user)):
+    before = await db.residents.find_one({"resident_id": resident_id}, {"_id": 0})
+    if not before:
+        raise HTTPException(status_code=404, detail="Resident not found")
+    old_profile = normalize_guidance_profile(before.get("aria_guidance_profile"))
+    new_profile = normalize_guidance_profile(data.aria_guidance_profile)
+    if old_profile != new_profile and user.get("role") not in ("owner", "admin"):
+        raise HTTPException(status_code=403, detail="Only an owner or admin can change Aria's conversation style")
     upd = data.model_dump()
     r = await db.residents.update_one({"resident_id": resident_id}, {"$set": upd})
     if r.matched_count == 0:
         raise HTTPException(status_code=404, detail="Resident not found")
     doc = await db.residents.find_one({"resident_id": resident_id}, {"_id": 0})
-    return doc
+    if old_profile != new_profile:
+        await _record_guidance_change(doc, user, old_profile, new_profile)
+    return _serialize(doc)
+
+
+async def _record_guidance_change(resident: dict, user: dict, before: str | None, after: str) -> None:
+    await create_receipt(
+        action_type="resident_aria_guidance_profile_updated",
+        related_object_type="resident", related_object_id=resident["resident_id"],
+        source="staff", resident_id=resident["resident_id"], room=resident.get("room"),
+        requested_by=user.get("user_id"), status="completed", result=f"{before or 'new'} -> {after}",
+        provenance={"actor_id": user.get("user_id"), "actor_name": user.get("name"),
+                    "actor_role": user.get("role"), "actor_type": "real-human",
+                    "identity_basis": "authenticated", "authority": f"admin_override:{user.get('role')}",
+                    "before_state": {"aria_guidance_profile": before},
+                    "after_state": {"aria_guidance_profile": after}, "result_label": "verified"},
+    )
 
 
 @router.delete("/{resident_id}")

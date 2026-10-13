@@ -53,26 +53,34 @@ async def _owner(request: Request) -> Optional[dict]:
     return u if u.get("role") == "owner" else None
 
 
-async def _deny(status: int, reason: str, detail: str):
+async def _deny(status: int, reason: str, detail: str, context: Optional[dict] = None):
+    context = context or {}
     await log_event(event_type="research_lookup", source="resident_aria", target_type="tool",
                     action="research_topic", status="failed", error_code=str(status),
-                    error_message=reason, metadata={"provider": oas.provider_name(), "denied": True, "live": False})
+                    error_message=reason, metadata={"provider": oas.provider_name(), "denied": True, "live": False},
+                    resident_id=context.get("resident_id"), room=context.get("room"),
+                    conversation_id=context.get("conversation_id"), actor_id=context.get("actor_id"),
+                    actor_role=context.get("actor_role"))
     raise HTTPException(status_code=status, detail=detail)
 
 
-async def enforce(request: Request, resident_id: Optional[str], session_id: Optional[str]) -> None:
-    """No-op when no live provider is configured. Otherwise raises 403/429."""
+async def enforce(request: Request, resident_id: Optional[str], session_id: Optional[str]) -> dict:
+    """Return verified caller context; raise 403/429 for an invalid paid call."""
     if oas.provider_name() != oas.SOURCE:
-        return
+        return {}
     ip = request.client.host if request.client else "unknown"
     key = None
     owner = await _owner(request)
     if owner:
         key = f"owner:{owner.get('user_id')}"
+        context = {"actor_id": owner.get("user_id"), "actor_role": owner.get("role")}
     else:
         found = await find_live_session(resident_id or "", session_id or "")
         if not found:
             await _deny(403, "no live session", "Research is only available during a live conversation.")
         key = f"room:{found.get('room') or ip}"
+        context = {"resident_id": resident_id, "room": found.get("room"),
+                   "conversation_id": session_id}
     if not _allow(key):
-        await _deny(429, "rate limit", "I can't look that up right now - too many lookups. Please try again in a minute.")
+        await _deny(429, "rate limit", "I can't look that up right now - too many lookups. Please try again in a minute.", context)
+    return context

@@ -10,7 +10,6 @@ rejected because it sounds like "area" - docs/WAKE_PHRASE_LAB.md).
 import os
 
 import numpy as np
-import sherpa_onnx
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SAMPLE_RATE = 16000
@@ -35,6 +34,7 @@ def keyword_labels(path):
 
 
 def build_spotter(model_dir, keywords_file=DEFAULT_KEYWORDS, threshold=DEFAULT_THRESHOLD, score=DEFAULT_SCORE):
+    import sherpa_onnx  # runtime dependency; pure state/phrase tests do not need to load the engine
     m = model_dir
     return sherpa_onnx.KeywordSpotter(
         tokens=f"{m}/tokens.txt", encoder=f"{m}/{ENC}", decoder=f"{m}/{DEC}", joiner=f"{m}/{JOIN}",

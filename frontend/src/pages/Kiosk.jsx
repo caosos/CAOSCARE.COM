@@ -22,6 +22,7 @@ import { logActivationClientEvent } from "../lib/activationClient";
 import { useKioskMediaPrime, openInFullTab, inSandboxedIframe } from "../lib/useKioskMediaPrime";
 import { useWakeWord } from "../lib/useWakeWord";
 import { wakeUrlFromSearch } from "../lib/wakeWordClient";
+import { retryKioskBootstrap } from "../lib/kioskBootstrapRetry";
 
 // Kiosk is PUBLIC - no login. Selected/identified by kiosk_id in URL.
 // /kiosk/:kioskId  (use "demo" to pick an arbitrary kiosk automatically)
@@ -97,41 +98,42 @@ export default function Kiosk() {
 
   // Load kiosk + resident
   useEffect(() => {
-    (async () => {
-      try {
-        let id = kioskId;
-        if (id === "demo") {
+    let stopped = false;
+    retryKioskBootstrap(async () => {
+      let id = kioskId;
+      if (id === "demo") {
           // 2026-09-01 (real live defect): this used to fetch every kiosk
           // and take kiosks[0] - database sort order, not a deliberate
           // choice, which is how a real test kiosk ("michael"/Room 121)
           // became the public face of the product. The ONLY thing the
           // public demo route may resolve to now is whichever kiosk an
           // admin has explicitly designated (Kiosks tab, "Public demo").
-          try {
-            const { data: demoKiosk } = await axios.get(`${API}/kiosks/public-demo`);
-            id = demoKiosk.kiosk_id;
-          } catch (e) {
-            toast.error(e?.response?.status === 404
-              ? "No public demo kiosk is configured yet."
-              : "Could not load the public demo.");
-            setDemoSetupError(true);
-            return;
-          }
-        }
-        const { data } = await axios.get(`${API}/residents/public/by-kiosk/${id}`);
-        setKiosk(data.kiosk);
-        setResident(data.resident);
-        // Load smart devices for this room
-        if (data.kiosk?.room) {
-          try {
-            const { data: allDev } = await axios.get(`${API}/devices/public/by-room/${data.kiosk.room}`);
-            setDevices(allDev || []);
-          } catch { /* public endpoint may fall back silently */ }
-        }
-      } catch {
+        const { data: demoKiosk } = await axios.get(`${API}/kiosks/public-demo`);
+        id = demoKiosk.kiosk_id;
+      }
+      const { data } = await axios.get(`${API}/residents/public/by-kiosk/${id}`);
+      if (stopped) return null;
+      setKiosk(data.kiosk);
+      setResident(data.resident);
+      // Load smart devices for this room; this panel is nonfatal after the
+      // identity bootstrap has succeeded.
+      if (data.kiosk?.room) {
+        try {
+          const { data: allDev } = await axios.get(`${API}/devices/public/by-room/${data.kiosk.room}`);
+          setDevices(allDev || []);
+        } catch { /* keep the kiosk usable if devices are temporarily unavailable */ }
+      }
+      return true;
+    }, { shouldStop: () => stopped }).catch((e) => {
+      if (stopped) return;
+      if (kioskId === "demo" && e?.response?.status === 404) {
+        toast.error("No public demo kiosk is configured yet.");
+        setDemoSetupError(true);
+      } else {
         toast.error("Could not load kiosk");
       }
-    })();
+    });
+    return () => { stopped = true; };
   }, [kioskId]);
 
   // Keep the device panel current without a manual refresh - a voice-driven

@@ -13,6 +13,7 @@ from routes.realtime_companion_memory import build_resident_profile_and_memory
 from routes.realtime_context_tail import render_context_tail
 from routes.aria_opening import render_opening_block
 from routes.realtime_truth_rules import research_prompt_line, TRUTH_INVARIANTS
+from aria_guidance_profiles import render_guidance_profile
 
 
 async def _build_companion_instructions(
@@ -277,7 +278,8 @@ async def _build_companion_instructions(
 
     r = await db.residents.find_one(
         {"resident_id": resident_id},
-        {"_id": 0, "name": 1, "preferred_name": 1, "preferences": 1, "memory": 1, "low_vision": 1},
+        {"_id": 0, "name": 1, "preferred_name": 1, "preferences": 1, "memory": 1,
+         "low_vision": 1, "aria_guidance_profile": 1},
     )
     if not r:
         return (_system_self_knowledge() + time_anchor + persona
@@ -290,7 +292,8 @@ async def _build_companion_instructions(
     profile_and_memory = await build_resident_profile_and_memory(resident_id, r, name, full_name)
     tail = render_context_tail(name or "them", operational_state, continuity,
                                conversation_state, interpretation_patterns)
-    return (_system_self_knowledge() + time_anchor + persona + profile_and_memory + tail
+    guidance = render_guidance_profile(r.get("aria_guidance_profile"))
+    return (_system_self_knowledge() + time_anchor + persona + guidance + profile_and_memory + tail
             + render_opening_block(opening, name or "there"))
 
 

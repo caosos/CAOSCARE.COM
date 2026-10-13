@@ -52,7 +52,7 @@ async def send_device_command(admin_user: dict, args: dict) -> dict:
         return _err(f"{e.status_code}: {e.detail}")
 
     duration_ms = (time.monotonic() - started) * 1000
-    verified = result.get("status") == "executed"
+    verified = result.get("status") == "executed" and result.get("verified") is True
     receipt = await create_receipt(
         action_type="admin_assistant_device_command", related_object_type="device",
         related_object_id=device_id, source="aria_admin", requested_by=admin_user["user_id"],

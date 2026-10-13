@@ -96,6 +96,15 @@ def alive(p):
     return p.poll() is None
 
 
+def test_persistent_launch_is_a_real_shell_command():
+    """Guard against a command being hidden behind literal ``\\n`` in a comment."""
+    lines = SCRIPT.read_text().splitlines()
+    launch_lines = [line for line in lines if "env -u RUNNER_TRACKING_ID" in line]
+    assert len(launch_lines) == 1
+    assert launch_lines[0].lstrip().startswith("(")
+    assert r"\n" not in launch_lines[0]
+
+
 def test_rejects_unsupported_arguments(box):
     r = run(box, "--port", "9999")
     assert r.returncode == 2 and "unsupported" in r.stderr

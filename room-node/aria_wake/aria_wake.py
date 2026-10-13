@@ -128,6 +128,20 @@ class Server:
             except Exception:
                 self.clients.discard(ws)
 
+    async def remove_client(self, ws):
+        """Drop a page and recover the detector if the last page vanished mid-call.
+
+        A kiosk reload or crash can happen before it sends the normal
+        ``state=listening`` frame. Leaving the listener in conversation/pending
+        mode would make every later wake phrase suppress forever.
+        """
+        self.clients.discard(ws)
+        if not self.clients and self.state.mode != "listening":
+            previous = self.state.mode
+            self.state.set("listening", cooldown=RESUME_COOLDOWN_S)
+            log("mode_listening", reason="last_client_disconnected", previous_mode=previous)
+        log("client_disconnected", clients=len(self.clients))
+
     async def handler(self, ws):
         self.clients.add(ws)
         log("client_connected", clients=len(self.clients))
@@ -148,8 +162,7 @@ class Server:
                     log("mode_listening", reason=msg.get("reason"))
                     await self.broadcast({"type": "listening", "at": now_iso(), "reason": msg.get("reason")})
         finally:
-            self.clients.discard(ws)
-            log("client_disconnected", clients=len(self.clients))
+            await self.remove_client(ws)
 
     def on_detect(self, keyword):
         """Called from the audio thread."""
@@ -181,6 +194,8 @@ class Server:
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
         log("capture_started", device=self.device, cmd=" ".join(cmd))
         nbytes = CHUNK * 2
+        heartbeat_at = time.monotonic()
+        heartbeat_frames = 0
         while True:
             buf = proc.stdout.read(nbytes)
             if not buf:
@@ -190,6 +205,7 @@ class Server:
                 self.state.reset_stream = False
                 det.reset()
             samples = np.frombuffer(buf, dtype=np.int16).astype(np.float32) / 32768.0
+            heartbeat_frames += 1
             kw = det.feed(samples)
             if shadow:
                 shadow.feed(samples, bool(kw), self.state.mode)
@@ -199,6 +215,11 @@ class Server:
                 self.on_detect(kw)
             if seg:
                 log("audio_level", **seg)
+            now = time.monotonic()
+            if now - heartbeat_at >= 5.0:
+                log("capture_alive", device=self.device, frames=heartbeat_frames,
+                    elapsed_s=round(now - heartbeat_at, 1), mode=self.state.mode)
+                heartbeat_at, heartbeat_frames = now, 0
 
     async def run(self):
         self.loop = asyncio.get_running_loop()

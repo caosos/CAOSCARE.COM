@@ -55,6 +55,10 @@ else is on the development runtime (EliteDesk), not yet released to caoscare.com
 - [ ] **Bravia network control** (HA `braviatv`, Michael sets a Pre-Shared Key on the TV): verified power/volume read-back; IR stays as fallback.
 - [ ] **IR Mate:** disable touch-to-send; reserve its address on the router; one IR Mate per room in provisioning docs.
 - [ ] **Voice PE** (not yet in hand): stock-firmware bring-up on Wi-Fi + HA, room microphone test, then the "Hey Aria" firmware (PR #46) and CAOSCare as the conversation agent.
+
+### Correction — 2026-10-13
+
+Michael explicitly retained touch-to-TV-power after physically observing it. This supersedes the earlier “disable touch-send” notes without erasing them. Touch sends the currently selected learned slot; setup reserves `Signal0` for TV power, leaves it selected, labels placement, and requires physical acceptance. See `room-node/ir_mate/README.md` and `docs/CAOSCARE_DEMO_KIT_AND_SELF_INSTALL_RUNBOOK.md`.
 - [ ] **Wake recall:** labelled "Hey Aria" tries (normal / across the room / TV on) → set the live score.
 - [ ] **Re-wake opener** still adds a question after "Back again"; trim.
 - [ ] **Start-of-call mis-transcriptions** (foreign-language fragments) — investigate transcription language/settings.

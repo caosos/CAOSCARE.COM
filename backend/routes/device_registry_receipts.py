@@ -29,6 +29,6 @@ async def record_device_change(change: str, device_id: str, actor: dict, before=
         provenance={"actor_id": actor.get("user_id"), "actor_name": actor.get("name"), "actor_role": actor.get("role"),
                     "actor_type": actor.get("actor_type", "real-human"),
                     "identity_basis": actor.get("identity_basis", "authenticated"),
-                    "authority": f"admin_override:{actor.get('role')}",
+                    "authority": actor.get("authority", f"admin_override:{actor.get('role')}"),
                     "before_state": _summary(before), "after_state": _summary(after),
                     "result_label": "verified"})   # read back from the store right after the write

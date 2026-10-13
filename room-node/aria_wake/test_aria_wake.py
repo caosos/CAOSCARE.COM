@@ -3,6 +3,7 @@
 Run: .venv/bin/python -m pytest test_aria_wake.py
 """
 import time
+import asyncio
 
 import numpy as np
 
@@ -33,6 +34,32 @@ def test_unconfirmed_wake_expires_back_to_listening(monkeypatch):
     time.sleep(0.01)
     assert s.may_wake()
     assert s.mode == "listening"
+
+
+def test_last_client_disconnect_recovers_conversation_with_cooldown(monkeypatch):
+    events = []
+    monkeypatch.setattr(aw, "log", lambda event, **fields: events.append((event, fields)))
+    server = aw.Server("test")
+    client = object()
+    server.clients.add(client)
+    server.state.set("conversation")
+    asyncio.run(server.remove_client(client))
+    assert server.state.mode == "listening"
+    assert not server.state.may_wake()
+    assert ("mode_listening", {"reason": "last_client_disconnected", "previous_mode": "conversation"}) in events
+
+
+def test_one_of_two_disconnects_does_not_reset_and_final_pending_does(monkeypatch):
+    monkeypatch.setattr(aw, "log", lambda *a, **k: None)
+    server = aw.Server("test")
+    first, second = object(), object()
+    server.clients.update((first, second))
+    server.state.set("conversation")
+    asyncio.run(server.remove_client(first))
+    assert server.state.mode == "conversation"
+    server.state.set("pending")
+    asyncio.run(server.remove_client(second))
+    assert server.state.mode == "listening"
 
 
 def test_silence_reset_fires_once_after_speech_then_pause():

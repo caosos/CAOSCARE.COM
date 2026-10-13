@@ -1032,3 +1032,5 @@ Full record: `docs/reports/2026-10-12-platform-build-log.md` (built / problems +
 - PRODUCTION: PR #132 → `06e7e2b` (public "In pilot" statuses with limits; room-screen HC button on phones).
 - Gates: backend 661/0/13, frontend 97/663.
 - Next (see report §3): call-start TV volume-duck instead of power-off; Bravia network control; IR Mate touch-send off; Voice PE bring-up; labelled wake tries; release of integration to production.
+
+Correction (2026-10-13): call-start mute/restore and the Room 214 `Aria` negative / `Hey Aria` positive / concise goodbye chain are physically accepted. Michael retained IR Mate touch-to-TV-power; “touch-send off” above is superseded. Open gates are formal `Signal0` assignment, permanent placement/power, exact Sony model/LAN capability, far-field wake trials, Voice PE acceptance, per-profile live proof, and a novice second-room install. The canonical demo/self-install checklist is `docs/CAOSCARE_DEMO_KIT_AND_SELF_INSTALL_RUNBOOK.md`.

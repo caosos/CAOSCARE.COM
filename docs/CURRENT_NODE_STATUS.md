@@ -1,7 +1,7 @@
 # CAOSCare EliteDesk Node — Current Status
 
-> Canonical resident-room **architecture** (room node behind the TV + eMeet
-> audio + TV visual surface, proven vs planned) lives in
+> Canonical resident-room **architecture** (one central EliteDesk plus Voice PE
+> room endpoints; Room 214 EliteDesk/eMeet is the development/demo rig) lives in
 > `docs/CAOSCARE_PRODUCT_BASELINE.md` §2. This file is the point-in-time
 > **runtime** snapshot of the bring-up host, not the architecture doc.
 
@@ -19,7 +19,7 @@ Generated: 2026-08-09. Last reconciled: **2026-08-29 (live physical-pendant test
 | `:3002` | Room 214 page (`aria-wake-page`, user unit) | build `77e3351` in `~/.cache/aria-wake/build` | Rebuild with `room-node/aria_wake/ctl.sh rebuild` (refuses during a live call), then `systemctl --user restart aria-wake-kiosk`. |
 | `aria-wake` | "Hey Aria" listener (eMeet) | live 0.05/1.5 + shadow 0.01/3.5 | Logs bursts/detections to the user journal. |
 | `:8123` (LAN) | `ha-lan-proxy` (user unit, owner-approved 2026-10-12) | `room-node/ha_lan_proxy` | `http://192.168.1.151:8123` → HA VM `192.168.122.137:8123` (verified 200 from the LAN address). Undo: `systemctl --user disable --now ha-lan-proxy`. |
-| XIAO IR Mate | ESPHome IR blaster | firmware `room-node/ir_mate/caoscare_ir_mate.yaml` (OTA) | `192.168.1.160` (DHCP — reserve on router), HA entry "XIAO Smart IR Mate 812dfc", services `esphome.xiao_smart_ir_mate_812dfc_send_*`. Top is a touch sensor that sends slot 0. |
+| XIAO IR Mate | ESPHome IR blaster | firmware `room-node/ir_mate/caoscare_ir_mate.yaml` (OTA) | `192.168.1.160` (DHCP — reserve on router), HA entry "XIAO Smart IR Mate 812dfc", services `esphome.xiao_smart_ir_mate_812dfc_send_*`. Top touch sends the currently selected learned slot; setup reserves/selects `Signal0` for TV power. |
 | Room 214 TV | Sony Bravia, device `dev_c32e59817eed` | protocol `ir_blaster`, codeset `sony_sirc12` | One-way: CAOSCare's stored state is what it SENT. Lights stay HA-backed with read-back. |
 | Production | caoscare.com (Linode) | `06e7e2b` | Pre-deploy DB backup `20261012-220310-pre-deploy-ff87c22df1dd`; rollback `deploy_caoscare.sh ff87c22`. |
 

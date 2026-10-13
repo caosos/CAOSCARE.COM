@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "backend/**"
+      - "scripts/restart_dev_backend.sh"
       - ".github/workflows/backend-smoke.yml"
   push:
     branches:
@@ -46,3 +47,6 @@ jobs:
       - name: Import FastAPI application
         working-directory: backend
         run: python -c "import server; print('backend server import ok')"
+
+      - name: Run deployment restart regression tests
+        run: python -m pytest -q backend/tests/test_restart_dev_backend.py
