@@ -6,10 +6,10 @@ The workflow encrypts the file before any artifact upload.
 """
 import argparse
 import json
-import os
 from datetime import datetime, timedelta, timezone
 
 from bson import json_util
+from dotenv import dotenv_values
 from pymongo import MongoClient
 
 
@@ -46,13 +46,19 @@ def without_id(doc):
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--env", required=True)
     parser.add_argument("--out", required=True)
     parser.add_argument("--hours", type=int, default=48)
     args = parser.parse_args()
 
+    config = dotenv_values(args.env)
+    missing = [key for key in ("MONGO_URL", "DB_NAME") if not config.get(key)]
+    if missing:
+        raise RuntimeError(f"Missing required configuration: {', '.join(missing)}")
+
     cutoff = datetime.now(timezone.utc) - timedelta(hours=args.hours)
-    client = MongoClient(os.environ["MONGO_URL"], serverSelectionTimeoutMS=5000)
-    db = client[os.environ["DB_NAME"]]
+    client = MongoClient(config["MONGO_URL"], serverSelectionTimeoutMS=5000)
+    db = client[config["DB_NAME"]]
     client.admin.command("ping")
 
     residents = list(db.residents.find(
