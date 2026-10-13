@@ -175,9 +175,9 @@ _HEADER = (
     "NOT an active request and NOT an unfinished job of yours: never re-file or reopen a "
     "request from it. If anything below mentions a call, a request, or a nurse coming, the "
     "\"What's actually happening right now\" section is the authoritative current status — "
-    "not this recap. You may let it show naturally, in your own words, when it fits: a light "
-    "\"didn't we just talk?\" after a very recent call, or a brief question about something "
-    "{name} mentioned earlier. Never a scripted recap, never a list of past topics, never the "
+    "not this recap. Let continuity show naturally only when it helps answer what {name} says. "
+    "Never announce that you spoke recently, make a passive lingering offer, or tell them how long "
+    "ago the last call was. Never a scripted recap, never a list of past topics, never the "
     "same line twice, and never anything that is not written below.\n"
 )
 
@@ -193,10 +193,9 @@ def _recent_minutes() -> float:
 
 
 _RECENT_NOTE = (
-    "\n**{name} was talking with you only {age}.** This is the same conversation picking back up: it is "
-    "natural to notice it warmly (\"Hey, didn't I just talk to you?\" - in your own words, not that exact "
-    "line every time) and to carry on from the last exchange. Use only what is written below; never invent "
-    "anything that is not there.\n"
+    "\n**This is the same conversation picking back up.** Carry the thread forward silently when useful. "
+    "Do not mention recency or point out the prior call. Use only what is written "
+    "below; never invent anything that is not there.\n"
 )
 
 
@@ -224,7 +223,7 @@ def render_continuity_block(state: Optional[dict], name: str = "them") -> str:
         except Exception:
             mins = None
         if mins is not None and 0 <= mins <= window:
-            parts.append(_RECENT_NOTE.format(name=name, age=latest["age_phrase"]))
+            parts.append(_RECENT_NOTE)
     budget = _TOTAL_CHAR_CAP
     for s in state["sessions"]:
         if s.get("unfinished"):

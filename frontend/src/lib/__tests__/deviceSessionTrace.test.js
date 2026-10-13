@@ -49,7 +49,7 @@ test("toggle_light keeps carrying session_id (existing behaviour)", async () => 
 });
 
 test("no session: TV and thermostat send session_id null, not a fabricated id", async () => {
-  await executeDeviceTool({ name: "toggle_tv", args: { state: "off" }, ctx: ctx({ session_id: undefined }) });
+  await executeDeviceTool({ name: "toggle_tv", args: { state: "off" }, ctx: ctx({ session_id: undefined, last_user_text: "turn the TV off" }) });
   await executeDeviceTool({ name: "adjust_room_temperature", args: { target_f: 68 }, ctx: ctx({ session_id: undefined }) });
   const bodies = commandBodies();
   expect(bodies).toHaveLength(2);

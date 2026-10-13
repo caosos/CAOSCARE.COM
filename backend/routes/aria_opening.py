@@ -12,9 +12,6 @@ from models import now_utc
 from routes.aria_time import parse_dt
 
 _MAX_QUOTE = 200
-RECENT_REWAKE_MINUTES = 15   # a wake this soon after the last call is the same conversation picking back up
-
-
 async def resolve_opening(resident_id: Optional[str], session_id: Optional[str], trigger_source: Optional[str]) -> dict:
     opening = {"wake": trigger_source == "wake_word", "last_opening": None, "minutes_since_last": None}
     if not resident_id:
@@ -44,20 +41,13 @@ def render_opening_block(opening: Optional[dict], name: str) -> str:
     if not opening:
         return ""
     lines = []
-    recent = opening.get("minutes_since_last")
-    if opening.get("wake") and recent is not None and recent <= RECENT_REWAKE_MINUTES:
-        lines.append(
-            f"They just called you by name - \"Hey Aria\" - and you were talking with them only "
-            f"{max(1, round(recent))} minute(s) ago. Open by noticing that, warmly and briefly, in your own "
-            f"words (\"Hey, back again, {name}?\", \"Didn't I just talk to you, {name}?\" - never the same line "
-            f"twice), then listen. You can carry on from the last exchange (see above).")
-    elif opening.get("wake"):
+    if opening.get("wake"):
         lines.append(
             f"They just called you by name - \"Hey Aria\". Answer the way a person answers when "
             f"their name is called: one short line with their name - \"Hey, {name}.\", \"Yes, {name}?\", "
             f"\"I'm here, {name}.\" - then stop and listen. No time-of-day greeting, no \"take your time\", "
-            f"no question about how they are. If you talked recently (see above), you may pick up "
-            f"that thread in a few words.")
+            f"no question about how they are and no lingering offer. Never mention when the prior "
+            f"conversation happened. Carry prior context forward silently.")
     last = " ".join(str(opening.get("last_opening") or "").split())[:_MAX_QUOTE]
     if last:
         lines.append(f"Your previous call opened with: \"{last}\". Do not open the same way - vary your words.")

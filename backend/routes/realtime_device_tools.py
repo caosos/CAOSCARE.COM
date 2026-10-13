@@ -14,8 +14,10 @@ def _build_device_tools() -> list[dict]:
             "type": "function",
             "name": "get_room_status",
             "description": (
-                "Read the REAL current state of the resident's room devices - "
-                "thermostat reading/target and TV power/volume. Use this "
+                "Read the current state reported by the resident's room devices - "
+                "thermostat reading/target and, for state-reporting TVs, power/volume. "
+                "One-way infrared TVs cannot verify power or report an exact volume; "
+                "a last command or estimated value is not an observed state. Use this "
                 "whenever they ask 'what's the temperature in here', 'is the "
                 "TV on', or similar - answer ONLY from what this returns, "
                 "never guess. Cheap to call."
@@ -130,10 +132,13 @@ def _build_device_tools() -> list[dict]:
             "type": "function",
             "name": "toggle_tv",
             "description": (
-                "Turn the resident's TV on or off, or set an exact volume. "
-                "If the resident asks for quiet or to mute the TV, use action='off' "
-                "or set volume to 0. For 'a little louder/quieter' use adjust_tv_volume; "
-                "for a channel use set_tv_channel."
+                "Turn the resident's TV on or off only when their current words explicitly "
+                "name the TV and request that same power direction. Never map 'quiet', "
+                "'quieter', or 'mute' to TV power-off; use adjust_tv_volume for relative "
+                "volume changes. Set an exact volume only when they explicitly request that "
+                "level. A result saying a command was sent is not confirmation that the TV "
+                "changed; only verified read-back supports saying it turned on/off or reached "
+                "an exact level. For a channel use set_tv_channel."
                 " If the result says ambiguous (more than one in the room), do NOT call again yet: ASK the resident which one (the choices are listed), wait for their answer, then call again with device set to the exact choice. Never repeat the same call without a new answer."
             ),
             "parameters": {

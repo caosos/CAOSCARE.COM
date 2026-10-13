@@ -43,9 +43,10 @@ async def _scenario(monkeypatch):
             ("user", "I'm just testing this out, I want to see how the Cubs did."),
             ("assistant", "I don't have the score with me right now.")])
         p = await _prompt(rid, "rt_rewake")
-        assert "Michael was talking with you only" in p and "didn't I just talk to you" in p
+        assert "same conversation picking back up" in p and "Carry the thread forward silently" in p
         assert "I want to see how the Cubs did" in p                       # the last exchange is there
-        assert "Didn't I just talk to you, Michael?" in p and "Good afternoon, Michael. I'm here with you." in p   # notices the re-wake; does not repeat
+        assert "Didn't I just talk to you, Michael?" not in p and "Good afternoon, Michael. I'm here with you." in p
+        assert "back again" not in p.lower() and "sit quietly" not in p.lower()
         assert "follow 'How this call opens' below" in p and "greet appropriately" not in p
 
         await db.conversations.delete_many({"resident_id": rid})
@@ -58,7 +59,7 @@ async def _scenario(monkeypatch):
             ("assistant", "Hey, Michael."), ("user", "My granddaughter Lily has a recital tomorrow.")])
         p2 = await _prompt(rid, "rt_nextday")
         assert "### Yesterday" in p2 and "granddaughter Lily has a recital" in p2
-        assert "Michael was talking with you only" not in p2              # a new day is not the same conversation
+        assert "same conversation picking back up" not in p2              # a new day is not the same conversation
         assert "never anything that is not written below" in p2
     finally:
         await db.conversations.delete_many({"resident_id": rid})

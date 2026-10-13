@@ -1,4 +1,4 @@
-import { DUCK_STEPS, duckRoomAudio, restoreRoomAudio } from "../callAudioDuck";
+import { createCallAudioCoordinator, DUCK_STEPS, duckRoomAudio, restoreRoomAudio } from "../callAudioDuck";
 
 const send = () => { const calls = []; const f = async (...a) => { calls.push(a); }; f.calls = calls; return f; };
 
@@ -35,4 +35,47 @@ test("a device that errors does not stop the others", async () => {
   const r = await duckRoomAudio([{ device_id: "bad", kind: "tv", capabilities: ["volume_step"] },
     { device_id: "ok", kind: "tv", capabilities: ["volume_step"] }], "R", s);
   expect(r.map((x) => x.device_id)).toEqual(["ok"]);
+});
+
+test("rapid close then wake is serialized as duck, restore, duck with no power action", async () => {
+  const calls = [];
+  let releaseFirst;
+  const firstCanFinish = new Promise((resolve) => { releaseFirst = resolve; });
+  const sendBlockedOnce = jest.fn(async (...args) => {
+    calls.push(args);
+    if (calls.length === 1) await firstCanFinish;
+  });
+  const audio = createCallAudioCoordinator(sendBlockedOnce);
+  const tv = { device_id: "tv1", kind: "tv", capabilities: ["power", "volume_step"], state: { power: "on" } };
+
+  const firstWake = audio.begin([tv], "214");
+  await Promise.resolve(); // first duck has entered send() and is still in flight
+  const close = audio.end();
+  const rapidWake = audio.begin([tv], "214");
+  expect(calls).toEqual([["214", "volume_step", -DUCK_STEPS, "tv", "tv1"]]);
+
+  releaseFirst();
+  await Promise.all([firstWake, close, rapidWake]);
+  expect(calls).toEqual([
+    ["214", "volume_step", -DUCK_STEPS, "tv", "tv1"],
+    ["214", "volume_step", DUCK_STEPS, "tv", "tv1"],
+    ["214", "volume_step", -DUCK_STEPS, "tv", "tv1"],
+  ]);
+  expect(calls.some((call) => call[1] === "power")).toBe(false);
+});
+
+test("rapid close then wake preserves mute-first toggle ordering", async () => {
+  const s = send();
+  const audio = createCallAudioCoordinator(s);
+  const tv = { device_id: "tv1", kind: "tv", capabilities: ["power", "volume_step", "mute"], state: {} };
+  await audio.begin([tv], "214");
+  const close = audio.end();
+  const wake = audio.begin([tv], "214");
+  await Promise.all([close, wake]);
+  expect(s.calls).toEqual([
+    ["214", "mute", true, "tv", "tv1"],
+    ["214", "mute", true, "tv", "tv1"],
+    ["214", "mute", true, "tv", "tv1"],
+  ]);
+  expect(s.calls.some((call) => call[1] === "power")).toBe(false);
 });

@@ -15,7 +15,7 @@
  *     heard something the transcript lost. Second attempt is granted.
  * Both are conservative about quotes, questions, negation and long sentences.
  */
-const FILLER = /\b(aria|hey|okay|ok|yes|yeah|yep|please|now|right now|just|really|for now|for today|thanks|thank you|then|so|well|alright|all right|i(?:'|’)?m telling you|i said|michael|go ahead and|you can)\b/gi;
+const FILLER = /\b(aria|hey|listen|okay|ok|yes|yeah|yep|please|now|right now|just|really|for now|for today|thanks|thank you|then|so|well|alright|all right|i(?:'|’)?m telling you|i said|michael|go ahead and|you can)\b/gi;
 const CORE = [
   /^end (the |this |our |that )?(call|conversation|chat)$/,
   /^end it$/, /^hang up( the phone)?$/, /^stop (talking|the call|listening)$/,

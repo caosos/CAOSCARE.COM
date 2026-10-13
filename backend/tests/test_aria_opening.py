@@ -60,8 +60,9 @@ def test_resolve_reads_the_previous_sessions_first_assistant_line():
     asyncio.get_event_loop().run_until_complete(go())
 
 
-def test_wake_soon_after_a_call_opens_by_noticing_it():
+def test_wake_soon_after_a_call_carries_context_without_calling_out_recency():
     b = render_opening_block({"wake": True, "last_opening": "Hey, Michael.", "minutes_since_last": 4.3}, "Michael")
-    assert "only 4 minute(s) ago" in b and "Didn't I just talk to you" in b and "never the same line" in b
+    assert "one short line" in b and "Carry prior context forward silently" in b
+    assert "minute(s) ago" not in b and "Didn't I just talk to you" not in b and "back again" not in b.lower()
     far = render_opening_block({"wake": True, "last_opening": None, "minutes_since_last": 300}, "Michael")
     assert "minute(s) ago" not in far and "one short line" in far
