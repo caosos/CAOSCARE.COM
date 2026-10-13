@@ -327,3 +327,25 @@ Factory reset (Michael), Wi-Fi provisioned by Michael via its hotspot page. On L
 ## 2026-10-12 20:35 CDT — Receipt law for device records; call-start TV duck (platform-wide)
 - `61506b1`: device registry create/update/delete receipted (`device_record_*`, actor/authority/before/after), owner/admin only (anon PUT → 401 on dev). Backend 662/0/13. Backfilled receipt `rcpt_fe312748ba12` for the 19:09 direct DB switch of the Room 214 TV (mock → ir_blaster), actor_type system, "Claude Code coordinator caoscare-1-64, on Michael's instruction".
 - `bff666b` + `ea8e70c`: `frontend/src/lib/callAudioDuck.js` — calls turn TVs/speakers DOWN 15 (IR: steps; known volume: exact level), never off, restored on every call end; duck runs alongside the greeting. Live Room 214 20:23:47: volume_step −15 at wake, +15 at call close 20:24:02, both receipted `resident_aria_device_command` completed/unverified; greeting was 5 s late before `ea8e70c`. Frontend 98/666. Room page `ea8e70c`; dev backend `61506b1`.
+## 2026-10-12 20:39 CDT — Aria wake/TV coupling removed locally; runtime not changed
+
+Michael's Room 214 observations proved that a wake could power the TV off and, after a later change, lower its volume without a TV request. Forensic report: `docs/reports/2026-10-12-aria-wake-tv-side-effects.md`. Repository state inspected was `a1576c71db5cdcaf39827305f9f9948056c15bbc` on local branch `fix/aria-wake-no-tv-side-effects`.
+
+The defect was unconditional resident-page code, not a model-selected room-control tool. Before `bff666b`, conversation start sent TV `power=off`; `bff666b` replaced that with 15 volume-down IR presses at every start and 15 volume-up presses at every close; `ea8e70c` made the start command asynchronous after the command sequence delayed Aria's greeting. The one-way IR adapter records sent commands but cannot verify physical state.
+
+Local correction `625880c04bbd28ce03ce7b740d883409649023b8` removes automatic TV/speaker handling from every conversation start/end path, deletes the duck helper, retains only explicit resident-requested device controls, removes the stale `tv_auto_mute` blueprint claim, and adds a source-boundary regression test. Focused frontend evidence: 3 suites / 8 tests passed, including the existing duplicate-goodbye fallback test. Full frontend evidence: 93 suites / 642 tests passed; five unrelated UI suites did not load because the available dependency tree exposes a newer Radix conditional subpath that Jest 27 cannot resolve. Production frontend build compiled successfully (`main.71429e96.js`, `main.6ade4251.css`). `git diff --check` passed.
+
+No merge, deployment, development-host load, or physical Room 214 acceptance was performed. Current live Room 214 behavior remains whatever revision is loaded there; the correction is not claimed live.
+
+HANDOFF CAPSULE
+- Objective:        Ensure “Hey Aria” and all conversation lifecycle paths never issue TV/speaker commands without an explicit resident request.
+- Branch:           `fix/aria-wake-no-tv-side-effects` from `a1576c71db5cdcaf39827305f9f9948056c15bbc`.
+- Lane / ownership: Resident-page conversation/device boundary only; do not alter model, wake sensitivity, hardware firmware, or production.
+- Last proven state: Local source correction; focused 8/8; full 642 assertions passed with five unrelated dependency-load failures; production build compiled.
+- Commits:          `625880c04bbd28ce03ce7b740d883409649023b8` implementation; this state entry follows separately.
+- Runtime state:    UNKNOWN; not inspected or changed from this environment.
+- Unresolved proven defects: Corrected revision is not loaded or physically accepted in Room 214.
+- Product invariants that matter here: Wake activates conversation only; explicit resident words ground device actions; one-way IR is sent-not-verified; no duplicate voice/session path.
+- Do NOT change:    PR #41/#42; production; Home Assistant network exposure; explicit TV tools.
+- Next safe action: Load the bounded correction on the development Room 214 page, then run one labeled “Hey Aria” → brief talk → “bye for now” trial and prove zero automatic device-command receipts plus one voice path.
+

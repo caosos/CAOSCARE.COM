@@ -17,7 +17,6 @@ import UpcomingPanel from "../components/kiosk/UpcomingPanel";
 import RoomDevicePanel from "../components/kiosk/RoomDevicePanel";
 import DemoKioskPanel from "../components/kiosk/demo/DemoKioskPanel";
 import { sendRoomDeviceCommand } from "../lib/kioskDeviceControl";
-import { duckRoomAudio, restoreRoomAudio } from "../lib/callAudioDuck";
 import { logActivationClientEvent } from "../lib/activationClient";
 import { useKioskMediaPrime, openInFullTab, inSandboxedIframe } from "../lib/useKioskMediaPrime";
 import { useWakeWord } from "../lib/useWakeWord";
@@ -89,11 +88,6 @@ export default function Kiosk() {
     localStorage.setItem("caos_kiosk_voice", voiceId);
   }, [voiceId]);
   const [voicePickerOpen, setVoicePickerOpen] = useState(false);
-
-  // TVs-were-muted tracking: when a voice call begins we auto-mute any TV
-  // in the room so the mic doesn't pick up Wheel of Fortune dialogue as
-  // resident speech. On call end, we restore the prior power state.
-  const mutedDevicesRef = useRef([]); // restore list (or its promise) from duckRoomAudio (lib/callAudioDuck.js)
 
   // Load kiosk + resident
   useEffect(() => {
@@ -247,18 +241,11 @@ export default function Kiosk() {
     await beginConversation(a);
   };
 
-  const restoreAudioAfterCall = async () => {
-    const pending = mutedDevicesRef.current;   // the duck may still be running on a very short call
-    mutedDevicesRef.current = [];
-    await restoreRoomAudio(await pending, kiosk?.room, sendRoomDeviceCommand);
-  };
-
   const beginConversation = async (a) => {
     setCallState("chatting");
-    // Turn room TVs/speakers down (never off) for the call; restored on every call end (lib/callAudioDuck.js).
-    // Not awaited: 15 infrared presses take seconds and must not delay Aria's greeting (Room 214, 2026-10-12).
-    mutedDevicesRef.current = duckRoomAudio(devices, kiosk.room, sendRoomDeviceCommand);
-    // RealtimeChatScreen owns its own greeting + listening loop from here.
+    // Conversation lifecycle and room-device control are deliberately separate.
+    // A wake, pendant, or Talk tap must never change TV/speaker power or volume;
+    // devices move only after an explicit resident request through the guarded tools.
   };
 
   // Wake-endpoint trigger (EliteDesk home endpoint "Hey Aria", room-node/aria_wake,
@@ -355,7 +342,6 @@ export default function Kiosk() {
   };
 
   const cancelCall = async () => {
-    await restoreAudioAfterCall();
     setAlert(null);
     setCallState("idle");
   };
@@ -612,7 +598,6 @@ export default function Kiosk() {
           setCallState("idle");
           setAlert(null);
           setInitialTypedText(null);
-          restoreAudioAfterCall();
         }}
       />
       {voicePickerDialog}

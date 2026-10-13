@@ -70,7 +70,7 @@ ROLE_REQUIREMENTS: dict = {
 # on role-assign to know what services to enable.
 BLUEPRINT_STACK: dict = {
     "room_companion": [
-        "voice_loop_realtime", "barge_in_vad", "tv_auto_mute",
+        "voice_loop_realtime", "barge_in_vad",
         "rest_sleep_protocol", "resident_memory_hydration",
     ],
     "pendant_gateway": [
