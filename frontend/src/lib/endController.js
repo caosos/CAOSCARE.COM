@@ -48,7 +48,8 @@ export function createEndController({ send, stop, onEndCall, log, speak = defaul
     /** True from the moment a goodbye is being acknowledged until the connection closes. */
     get ending() { return ending || ended; },
     /** The model's own granted end_call is already speaking its goodbye: just mark the state. */
-    markEnding() { ending = true; },
+    /** speakingNow: her goodbye is already playing (it started before the end was granted). */
+    markEnding(speakingNow = false) { ending = true; if (speakingNow) audioPlayed = true; },
     beginEnding(via, detail = {}) {
       if (ending || ended) return false;
       ending = true;

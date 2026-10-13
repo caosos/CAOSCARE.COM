@@ -227,7 +227,7 @@ export function createRealtimeHandlers({
       if (result.ok) {
         endCallKind = fn.name === "end_call" ? "resident_end_call" : "resident_end_conversation";
         hangup.arm();
-        endCtl.markEnding();
+        endCtl.markEnding(assistantSpeakingRef.current);
       }
     } else {
       // Ask the model to speak its short confirmation, drawing on the tool result.
