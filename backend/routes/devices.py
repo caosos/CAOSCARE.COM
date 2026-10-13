@@ -22,6 +22,7 @@ from fastapi import APIRouter, HTTPException, Depends, Request
 from models import SmartDevice, SmartDeviceCreate, DeviceCommandInput, now_utc
 from deps import db, get_current_user
 from device_adapters import has_adapter, execute as execute_adapter, simulation_fields
+from routes.device_registry_receipts import record_device_change, require_device_admin
 from routes.receipts import create_receipt
 from routes.events import log_event
 
@@ -50,29 +51,37 @@ async def list_devices(user=Depends(get_current_user)):
 
 @router.post("")
 async def create_device(data: SmartDeviceCreate, user=Depends(get_current_user)):
+    require_device_admin(user)
     dev = SmartDevice(**data.model_dump())
     doc = dev.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
     doc["last_command_at"] = None
     await db.smart_devices.insert_one(doc)
     doc.pop("_id", None)
+    await record_device_change("created", doc["device_id"], user, after=doc)
     return doc
 
 
 @router.put("/{device_id}")
 async def update_device(device_id: str, data: SmartDeviceCreate, user=Depends(get_current_user)):
+    require_device_admin(user)
+    before = await db.smart_devices.find_one({"device_id": device_id}, {"_id": 0})
     r = await db.smart_devices.update_one({"device_id": device_id}, {"$set": data.model_dump()})
     if r.matched_count == 0:
         raise HTTPException(status_code=404, detail="Device not found")
     doc = await db.smart_devices.find_one({"device_id": device_id}, {"_id": 0})
+    await record_device_change("updated", device_id, user, before=before, after=doc)
     return _iso(doc)
 
 
 @router.delete("/{device_id}")
 async def delete_device(device_id: str, user=Depends(get_current_user)):
+    require_device_admin(user)
+    before = await db.smart_devices.find_one({"device_id": device_id}, {"_id": 0})
     r = await db.smart_devices.delete_one({"device_id": device_id})
     if r.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Device not found")
+    await record_device_change("deleted", device_id, user, before=before)
     return {"ok": True}
 
 
