@@ -39,8 +39,20 @@ jobs:
 
           backend_pid="$(ss -ltnp 'sport = :8092' | sed -n 's/.*pid=\([0-9][0-9]*\).*/\1/p' | head -1)"
           test -n "$backend_pid"
-          python_bin="$(readlink -f "/proc/$backend_pid/exe")"
-          test -x "$python_bin"
+          process_python="$(readlink -f "/proc/$backend_pid/exe")"
+          python_bin=""
+          for candidate in \
+            "$HOST_REPO/backend/.venv/bin/python" \
+            "$HOST_REPO/backend/venv/bin/python" \
+            "$HOST_REPO/.venv/bin/python" \
+            "$process_python"; do
+            if test -x "$candidate" && \
+              "$candidate" -c 'import bson, dotenv, pymongo' >/dev/null 2>&1; then
+              python_bin="$candidate"
+              break
+            fi
+          done
+          test -n "$python_bin"
           test -f "$HOST_REPO/backend/.env"
 
           "$python_bin" "$GITHUB_WORKSPACE/scripts/private_audits/export_room214_recent.py" \
