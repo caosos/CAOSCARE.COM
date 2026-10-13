@@ -455,3 +455,13 @@ Current task checklist — checked means the work product exists, not that pendi
 - **Remaining physical acceptance:** one normal-volume Room 214 `Hey, Aria` observation, then the already-defined greeting/search/TV/goodbye sequence. Software readiness is proven; physical acoustic behavior still requires Michael's observation.
 - **Blocker:** physical Room 214 observation only.
 - **Michael must do:** say `Hey, Aria` once at normal volume and report whether she answers. No terminal or GitHub action is required.
+
+
+## 2026-10-12 11:51 PM America/Chicago — Room 214 wake recovery physically accepted; resident guidance profiles clarified
+
+- **Physical observation:** Michael said `Hey, Aria` once at normal volume after recovery. Aria picked it up immediately.
+- **Conversation observation:** Aria did not sound clingy. This is the desired behavior for Michael's personal profile.
+- **Profile requirement:** Michael's profile stays concise, natural, context-aware, and avoids unnecessary return/availability commentary. The default **80-plus profile** provides more hand-holding: clearer choices, brief confirmation of what happened, and simple next-step instruction when the resident may not know how to continue.
+- **Invariant:** extra guidance is selected by the resident/profile and situation. It is not a second operating system and must not make every response verbose.
+- **Acceptance status:** wake recovery physical acceptance PASSED for one normal-volume attempt. The broader search/TV/goodbye sequence remains separately testable; this receipt does not invent results for those steps.
+- **Michael must do:** NOTHING for this accepted wake/profile observation.
