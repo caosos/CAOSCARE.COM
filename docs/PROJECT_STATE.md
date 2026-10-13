@@ -316,3 +316,10 @@ Executing session caoscare-1-64 (b2 notified; ACK https://github.com/caosos/CAOS
 
 ## 2026-10-12 18:50 CDT — XIAO IR Mate set up (Wi-Fi + Home Assistant)
 Factory reset (Michael), Wi-Fi provisioned by Michael via its hotspot page. On LAN at 192.168.1.160 (MAC ac:27:6e:81:2d:fc, DHCP - reserve it on the router), Seeed firmware xiao.smart-ir-mate 2.0 (ESPHome 2025.7.0-dev). Added to HA via the ESPHome config flow (HA_TOKEN): entry "XIAO Smart IR Mate 812dfc". Entities: select …_signal_select (Signal0–9), button …_learn, button …_send, switch …_is_learned_signal, switch …_vibration_device, light …_wifi_rgb_light. No signals learned yet. Not yet wired to CAOSCare's TV device (Room 214 TV is still a mock device).
+
+## 2026-10-12 19:25 CDT — IR Mate firmware + system-wide ir_blaster TV adapter; Room 214 TV is real
+- `f198372` room-node/ir_mate/caoscare_ir_mate.yaml: Seeed IR Mate config + HA actions send_sony/nec/samsung/lg/rc5/pronto/raw + receiver dump; ESPHome 2025.7.5; OTA to 192.168.1.160 (Wi-Fi kept). HA services esphome.xiao_smart_ir_mate_812dfc_send_*.
+- Live (Michael watching): Sony discrete power on (0x750) / off (0xF50) / on all worked; volume 100 down + 50 up worked. Learned-signal replay had failed (truncated capture, idle 65.5 ms). The IR Mate's top is a touch sensor that sends slot 0 + vibrates (explains vibration when picked up).
+- `ffeca1a`: backend ir_codesets.py (sony_sirc12) + device_ir_adapter.py (protocol ir_blaster; verified=False always; volume estimate only after a reset/absolute set); Aria adjust_tv_volume on volume_step TVs sends presses and asks, never names a level. Backend 661/0/13; frontend 96/661.
+- Room 214 TV dev_c32e59817eed switched from protocol mock to ir_blaster (endpoint esphome.xiao_smart_ir_mate_812dfc, codeset sony_sirc12, caps power/volume/volume_step/mute; previous: mock, caps power/volume/input). Room command path test: volume_step +3/-3 executed, verified=false. Gap noted: PUT /devices/{id} writes no receipt.
+- Next: Bravia network control (HA braviatv, Michael sets PSK) for verified read-back; disable IR Mate touch-send; reserve 192.168.1.160 on router.
