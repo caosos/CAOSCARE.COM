@@ -16,12 +16,9 @@ def test_day_plan_is_deterministic_complete_and_only_planned():
     assert first == planned_events_for_day(0)
     assert len({event["event_id"] for event in first}) == len(first)
     assert event_counts(first) == {
-        "clock_in": 31,
-        "clock_out": 31,
-        "coverage_gap_ended": 6,
-        "coverage_gap_present": 5,
-        "coverage_gap_started": 6,
-        "handoff": 31,
+        "clock_in": 38,
+        "clock_out": 38,
+        "handoff": 38,
     }
     assert all(event["status"] == "planned" for event in first)
     assert all(event["execution_state"] == "not_executed" for event in first)
@@ -58,33 +55,20 @@ def test_prior_night_shift_handoffs_and_clock_outs_are_in_next_day_plan():
                       if event["event_type"] == "handoff" and event["minute"] < 7 * 60]
     early_clock_outs = [event for event in events
                         if event["event_type"] == "clock_out" and event["minute"] <= 7 * 60]
-    assert len(early_handoffs) == 5
-    assert len(early_clock_outs) == 5
+    assert len(early_handoffs) == 11
+    assert len(early_clock_outs) == 11
     assert {event["department"] for event in early_clock_outs} == {
-        "nursing", "maintenance", "front_desk"
+        "nursing", "kitchen", "housekeeping", "maintenance",
+        "transportation", "activities", "front_desk", "administration",
     }
     assert all(event["assignment_day_index"] == 0 for event in early_clock_outs)
     assert all(event["handoff_to_actor_ids"] for event in early_handoffs)
 
 
-def test_coverage_gap_events_are_system_observations_with_truthful_boundaries():
+def test_proven_continuous_rota_emits_no_coverage_gap_observations():
     events = planned_events_for_day(0)
     gaps = [event for event in events if event["event_type"].startswith("coverage_gap")]
-    assert all(event["actor_id"] == "system:simulation_planner" for event in gaps)
-    assert all(event["actor_type"] == "system" and not event["actor_simulated"] for event in gaps)
-
-    present = {event["department"] for event in gaps if event["event_type"] == "coverage_gap_present"}
-    assert present == {"kitchen", "housekeeping", "transportation", "activities", "administration"}
-    assert next(event for event in gaps if event["department"] == "kitchen"
-                and event["event_type"] == "coverage_gap_ended")["time"] == "05:30"
-    assert next(event for event in gaps if event["department"] == "transportation"
-                and event["event_type"] == "coverage_gap_started")["time"] == "15:00"
-    assert not [event for event in gaps if event["department"] in {"nursing", "front_desk"}]
-    maintenance = [event for event in gaps if event["department"] == "maintenance"]
-    assert [(event["event_type"], event["time"]) for event in maintenance] == [
-        ("coverage_gap_started", "15:00"),
-        ("coverage_gap_ended", "23:00"),
-    ]
+    assert gaps == []
 
 
 def test_handoff_lists_only_workers_covering_the_same_department_at_shift_end():
@@ -95,10 +79,13 @@ def test_handoff_lists_only_workers_covering_the_same_department_at_shift_end():
     assert nursing["handoff_to_actor_ids"]
     assert all(actor_id.startswith("sim:staff:nursing:") for actor_id in nursing["handoff_to_actor_ids"])
 
-    transport = next(event for event in events
-                     if event["event_type"] == "handoff"
-                     and event["department"] == "transportation")
-    assert transport["handoff_to_actor_ids"] == []
+    handoffs = [event for event in events if event["event_type"] == "handoff"]
+    assert all(event["handoff_to_actor_ids"] for event in handoffs)
+    assert all(
+        all(actor_id.startswith(f"sim:staff:{event['department']}:")
+            for actor_id in event["handoff_to_actor_ids"])
+        for event in handoffs
+    )
 
 
 def test_invalid_day_lead_and_department_are_rejected():

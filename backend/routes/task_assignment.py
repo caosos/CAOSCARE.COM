@@ -17,9 +17,9 @@ from typing import Optional
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from deps import get_current_user
 from routes import task_actions
 from routes.actor_context import actor_from_user
+from routes.work_context import get_department_user
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -37,7 +37,7 @@ def _iso(doc: dict) -> dict:
 
 
 @router.post("/{task_id}/assign")
-async def assign_task(task_id: str, data: AssignInput, user=Depends(get_current_user)):
+async def assign_task(task_id: str, data: AssignInput, user=Depends(get_department_user)):
     """Claim (assign to self), re-assign, or unassign. Admin/owner may
     assign anyone. A department member may claim a task in their own
     department or hand it to a co-worker in that SAME department - never

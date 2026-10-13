@@ -27,24 +27,35 @@ class ActorContext:
     role: Optional[str] = None
     department: Optional[str] = None
     simulated: bool = False
+    acting_role: Optional[str] = None
+    acting_department: Optional[str] = None
+    work_context_id: Optional[str] = None
 
     def receipt_fields(self) -> dict:
         """The provenance fields a receipt carries for this actor."""
         d = asdict(self)
-        return {
+        fields = {
             "actor_id": d["actor_id"], "actor_type": d["actor_type"],
             "actor_name": d["name"], "actor_role": d["role"],
             "actor_department": d["department"], "channel": d["channel"],
             "identity_basis": d["identity_basis"], "simulated": d["simulated"],
         }
+        if d["work_context_id"]:
+            fields.update({"acting_role": d["acting_role"],
+                           "acting_department": d["acting_department"],
+                           "work_context_id": d["work_context_id"]})
+        return fields
 
 
 def actor_from_user(user: dict, channel: str = "staff_ui") -> ActorContext:
     """A signed-in user. Their identity is verified by authentication."""
     return ActorContext(
         actor_id=user["user_id"], actor_type="real-human", identity_basis="authenticated",
-        channel=channel, name=user.get("name"), role=user.get("role"),
-        department=user.get("department"),
+        channel=channel, name=user.get("name"), role=user.get("_principal_role", user.get("role")),
+        department=user.get("_principal_department", user.get("department")),
+        acting_role=user.get("_work_context_acting_role"),
+        acting_department=user.get("_work_context_acting_department"),
+        work_context_id=user.get("_work_context_id"),
     )
 
 

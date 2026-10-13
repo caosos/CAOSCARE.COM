@@ -69,16 +69,32 @@ def authority_for(task: dict, actor: ActorContext, user: Optional[dict]) -> Opti
     if not user:
         return None
     role = user.get("role")
-    if role in ADMIN_ROLES:
-        return f"admin_override:{role}"
-    if task.get("assigned_to") and task.get("assigned_to") == user.get("user_id"):
-        return "assignee"
     vis = task.get("visibility_role")
+    if user.get("_work_context_id") and vis != "all_staff" and not acts_for(user, vis):
+        return None
+    if role in ADMIN_ROLES:
+        authority = f"admin_override:{role}"
+        return authority
+    if task.get("assigned_to") and task.get("assigned_to") == user.get("user_id"):
+        authority = "assignee"
+        return work_as_authority(user, authority)
     if acts_for(user, vis):
-        return f"acts_for:{vis}"
+        authority = f"acts_for:{vis}"
+        return work_as_authority(user, authority)
     if vis == "all_staff" and role in ("staff", "front_desk"):
-        return "all_staff"
+        authority = "all_staff"
+        return work_as_authority(user, authority)
     return None
+
+
+def work_as_authority(user: dict, base: str) -> str:
+    """Name the authenticated admin grant as well as the staff rule used."""
+    if not user.get("_work_context_id"):
+        return base
+    return (
+        f"admin_work_as:{user.get('_principal_role')}:as:{user.get('role')}:"
+        f"{user.get('department')}:{base}"
+    )
 
 
 def _chain_query(task_id: str) -> dict:

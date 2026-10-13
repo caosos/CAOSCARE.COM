@@ -49,6 +49,7 @@ import ReportsTab from "./ReportsTab";
 import AlertsBoard from "./AlertsBoard";
 import AdminAria from "../components/admin/AdminAria";
 import AriaSpotlight from "../components/admin/AriaSpotlight";
+import WorkAsControl from "../components/WorkAsControl";
 
 export default function Admin() {
   const { user, logout } = useAuth();
@@ -120,6 +121,7 @@ export default function Admin() {
             <span className="text-caos-mute text-sm whitespace-nowrap">· {user?.role === "owner" ? "Owner" : "Admin"} · Command centre</span>
           </div>
           <div className="flex items-center gap-3 overflow-x-auto max-w-full">
+            <WorkAsControl onEntered={() => nav("/workspace")} />
             {user?.role === "owner" && (
               <Link to="/admin/blueprint" data-testid="admin-blueprint-link">
                 <Button variant="outline" className="border-2 h-10 rounded-full border-caos-terracotta text-caos-terracotta hover:bg-caos-terracotta hover:text-white">

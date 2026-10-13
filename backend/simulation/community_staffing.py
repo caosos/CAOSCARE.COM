@@ -18,11 +18,6 @@ SIMULATION_LOAD_DISCLAIMER = (
     "Synthetic event-load fixture only; not real-world staffing or clinical coverage advice."
 )
 MAX_SCHEDULED_DAYS_PER_ROLLING_WEEK = 6
-MAINTENANCE_REST_TRADEOFF = (
-    "The three-person maintenance pool rotates one unfilled shift each day so every "
-    "synthetic technician has regular days off. Maintenance is therefore not modeled "
-    "as 24-hour covered; snapshot and rota gaps are reported explicitly."
-)
 
 DEPARTMENT_LABELS = {
     "nursing": "Nursing / Care",
@@ -37,16 +32,16 @@ DEPARTMENT_LABELS = {
 
 # (department, role, number of stable synthetic identities)
 _HEADCOUNT = (
-    ("nursing", "registered_nurse", 5),
-    ("nursing", "medication_reminder_support", 5),
-    ("nursing", "care_aide", 16),
-    ("kitchen", "dining_team_member", 6),
+    ("nursing", "registered_nurse", 4),
+    ("nursing", "medication_reminder_support", 3),
+    ("nursing", "care_aide", 15),
+    ("kitchen", "dining_team_member", 4),
     ("housekeeping", "housekeeper", 4),
-    ("maintenance", "maintenance_technician", 3),
-    ("transportation", "driver", 2),
-    ("activities", "activities_coordinator", 2),
-    ("front_desk", "front_desk_coordinator", 5),
-    ("administration", "administration_leadership", 2),
+    ("maintenance", "maintenance_technician", 4),
+    ("transportation", "driver", 4),
+    ("activities", "activities_coordinator", 4),
+    ("front_desk", "front_desk_coordinator", 4),
+    ("administration", "administration_leadership", 4),
 )
 
 
@@ -91,21 +86,29 @@ _SHIFT_LOAD = (
     ("nursing", "care_aide", "evening", "14:00", "22:00", 4),
     ("nursing", "registered_nurse", "evening", "14:00", "22:00", 1),
     ("nursing", "medication_reminder_support", "evening", "14:00", "22:00", 1),
-    ("nursing", "care_aide", "night", "22:00", "06:00", 2),
+    ("nursing", "care_aide", "night", "22:00", "06:00", 3),
     ("nursing", "registered_nurse", "night", "22:00", "06:00", 1),
-    ("kitchen", "dining_team_member", "opening", "05:30", "13:30", 2),
-    ("kitchen", "dining_team_member", "service", "10:30", "18:30", 2),
-    ("housekeeping", "housekeeper", "early", "06:30", "14:30", 2),
-    ("housekeeping", "housekeeper", "late", "10:30", "18:30", 1),
-    ("maintenance", "maintenance_technician", "day", "07:00", "15:00", 1),
-    ("maintenance", "maintenance_technician", "swing", "15:00", "23:00", 1),
-    ("maintenance", "maintenance_technician", "night", "23:00", "07:00", 1),
-    ("transportation", "driver", "day", "06:30", "15:00", 1),
-    ("activities", "activities_coordinator", "programs", "09:00", "17:00", 1),
+    ("kitchen", "dining_team_member", "day", "06:00", "14:00", 1),
+    ("kitchen", "dining_team_member", "evening", "14:00", "22:00", 1),
+    ("kitchen", "dining_team_member", "night", "22:00", "06:00", 1),
+    ("housekeeping", "housekeeper", "day", "06:00", "14:00", 1),
+    ("housekeeping", "housekeeper", "evening", "14:00", "22:00", 1),
+    ("housekeeping", "housekeeper", "night", "22:00", "06:00", 1),
+    ("maintenance", "maintenance_technician", "day", "06:00", "14:00", 1),
+    ("maintenance", "maintenance_technician", "evening", "14:00", "22:00", 1),
+    ("maintenance", "maintenance_technician", "night", "22:00", "06:00", 1),
+    ("transportation", "driver", "day", "06:00", "14:00", 1),
+    ("transportation", "driver", "evening", "14:00", "22:00", 1),
+    ("transportation", "driver", "night", "22:00", "06:00", 1),
+    ("activities", "activities_coordinator", "day", "06:00", "14:00", 1),
+    ("activities", "activities_coordinator", "evening", "14:00", "22:00", 1),
+    ("activities", "activities_coordinator", "night", "22:00", "06:00", 1),
     ("front_desk", "front_desk_coordinator", "day", "06:00", "14:00", 1),
     ("front_desk", "front_desk_coordinator", "evening", "14:00", "22:00", 1),
     ("front_desk", "front_desk_coordinator", "night", "22:00", "06:00", 1),
-    ("administration", "administration_leadership", "day", "08:00", "16:00", 1),
+    ("administration", "administration_leadership", "day", "06:00", "14:00", 1),
+    ("administration", "administration_leadership", "evening", "14:00", "22:00", 1),
+    ("administration", "administration_leadership", "night", "22:00", "06:00", 1),
 )
 
 
@@ -121,34 +124,35 @@ _DAILY_NEED = Counter()
 for _department, _role, _shift, _start, _end, _count in _SHIFT_LOAD:
     _DAILY_NEED[(_department, _role)] += _count
 
-# With three technicians and three non-overlapping daily slots, continuous
-# maintenance coverage would schedule every identity all 90 days. The fixture
-# instead rotates the uncovered slot. This is an honest simulation-load
-# tradeoff, not a staffing recommendation.
-_MAINTENANCE_GAP_ROTATION = ("swing", "night", "day")
-
-
-def _maintenance_gap_shift(day_index: int) -> str:
-    return _MAINTENANCE_GAP_ROTATION[day_index % len(_MAINTENANCE_GAP_ROTATION)]
-
-
 def planned_coverage_gaps(day_index: int) -> list[dict]:
-    """Return declared rota gaps; never imply coverage that was not assigned."""
+    """Return gaps proven at every coverage-changing rota boundary."""
     if day_index < 0:
         raise ValueError("day_index must be non-negative")
-    shift = _maintenance_gap_shift(day_index)
-    _, _, _, start, end, _ = next(
-        row for row in _SHIFT_LOAD if row[0] == "maintenance" and row[2] == shift
-    )
-    return [{
-        "day_index": day_index,
-        "department": "maintenance",
-        "shift": shift,
-        "start": start,
-        "end": end,
-        "reason": "planned_rest_rotation",
-        "truth": MAINTENANCE_REST_TRADEOFF,
-    }]
+    day_start = day_index * 1440
+    boundaries = {0, 1440}
+    for shift_day in (day_index - 1, day_index):
+        for assignment in _assignments_for_day(shift_day):
+            start = shift_day * 1440 + assignment["start_minute"]
+            end = shift_day * 1440 + assignment["end_minute"]
+            if assignment["spans_midnight"]:
+                end += 1440
+            for absolute in (start, end):
+                if day_start <= absolute <= day_start + 1440:
+                    boundaries.add(absolute - day_start)
+    gaps = []
+    ordered = sorted(boundaries)
+    for start, end in zip(ordered, ordered[1:]):
+        covered = {row["department"] for row in active_assignments(day_index, start)}
+        for department in DEPARTMENT_LABELS.keys() - covered:
+            gaps.append({
+                "day_index": day_index,
+                "department": department,
+                "start_minute": start,
+                "end_minute": end,
+                "uncovered_minutes": end - start,
+                "reason": "derived_from_planned_assignments",
+            })
+    return gaps
 
 
 def minute_in_shift(minute: int, start_minute: int, end_minute: int) -> bool:
@@ -175,18 +179,17 @@ def _assignments_for_day(day_index: int) -> list[dict]:
         for position in range(count):
             worker = pool[(offset + position) % len(pool)]
             start_minute, end_minute = _minutes(start), _minutes(end)
-            if department != "maintenance" or shift != _maintenance_gap_shift(day_index):
-                assignments.append({
-                    "day_index": day_index,
-                    "shift_key": f"{department}:{shift}",
-                    "shift": shift,
-                    "start": start,
-                    "end": end,
-                    "start_minute": start_minute,
-                    "end_minute": end_minute,
-                    "spans_midnight": end_minute <= start_minute,
-                    **worker,
-                })
+            assignments.append({
+                "day_index": day_index,
+                "shift_key": f"{department}:{shift}",
+                "shift": shift,
+                "start": start,
+                "end": end,
+                "start_minute": start_minute,
+                "end_minute": end_minute,
+                "spans_midnight": end_minute <= start_minute,
+                **worker,
+            })
         used[(department, role)] += count
     return assignments
 
@@ -276,6 +279,6 @@ def coverage_summary(day_index: int, minute: int, departments: Iterable[str] = D
         "coverage": coverage,
         "gaps": [department for department, item in coverage.items() if item["on_shift"] == 0],
         "planned_rota_gaps": planned_coverage_gaps(day_index),
-        "coverage_tradeoffs": [MAINTENANCE_REST_TRADEOFF],
+        "coverage_tradeoffs": [],
         "disclaimer": SIMULATION_LOAD_DISCLAIMER,
     }

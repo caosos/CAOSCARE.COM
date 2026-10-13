@@ -17,6 +17,7 @@ import { conflictDetail, conflictSummary, overridePayload } from "../lib/schedul
 import { rideLine, canRequestRide } from "../lib/rideLink";
 import { detailsLine } from "../lib/appointmentDetails";
 import DepartmentDispatchNote from "../components/DepartmentDispatchNote";
+import { useWorkContext } from "../lib/workContext";
 import { ReviewBadge, useExceptionReview } from "../components/ExceptionReview";
 import { inspectionText, useInspection } from "../components/InspectionControls";
 import { itemsLine } from "../lib/requestItems";
@@ -33,7 +34,12 @@ const PRIO_STYLE = {
 // view buckets and acts on that existing data: GET /tasks,
 // POST /tasks/{id}/{acknowledge,assign,start,complete}, PATCH notes.
 export default function DepartmentQueue({ department, title, itemName = "request", allowCreate = false, adminMode = false, onLoaded }) {
-  const { user } = useAuth();
+  const { user: principal } = useAuth();
+  const workContext = useWorkContext();
+  const user = useMemo(
+    () => workContext ? { ...principal, role: workContext.acting_role, department: workContext.acting_department } : principal,
+    [principal, workContext]
+  );
   const [tasks, setTasks] = useState([]);
   const [roster, setRoster] = useState([]);
   const [rosterState, setRosterState] = useState("loading");

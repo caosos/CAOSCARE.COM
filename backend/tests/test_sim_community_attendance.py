@@ -20,7 +20,7 @@ def test_every_worker_has_exactly_one_truthful_daily_state():
     assert len(states) == 50
     assert len({state["actor_id"] for state in states}) == 50
     assert Counter(state["attendance_state"] for state in states) == {
-        "scheduled": 31, "off_duty": 19,
+        "scheduled": 38, "off_duty": 12,
     }
     assert all(state["status"] == "planned" for state in states)
     assert all(state["execution_state"] == "not_executed" for state in states)
@@ -94,31 +94,28 @@ def test_default_projection_covers_all_50_workers_for_90_days_deterministically(
     summary = attendance_summary(first)
     assert summary == {
         "workers": 50,
-        "states": {"off_duty": 19 * 90, "scheduled": 31 * 90},
+        "states": {"off_duty": 12 * 90, "scheduled": 38 * 90},
         "session_milestones": {
-            event_type: 31 * 90 for event_type in ("assignment_acceptance", "planned_login")
+            event_type: 38 * 90 for event_type in ("assignment_acceptance", "planned_login")
         },
         "canonical_shift_milestone_references": {
-            event_type: 31 * 90 for event_type in ("clock_in", "clock_out", "handoff")
+            event_type: 38 * 90 for event_type in ("clock_in", "clock_out", "handoff")
         },
-        "milestones": {event_type: 31 * 90 for event_type in sorted(MILESTONE_TYPES)},
+        "milestones": {event_type: 38 * 90 for event_type in sorted(MILESTONE_TYPES)},
         "truth": PLANNING_TRUTH,
     }
 
 
-def test_maintenance_attendance_has_regular_planned_rest_days():
+def test_every_department_attendance_has_regular_planned_rest_days():
     projection = project_worker_attendance("2026-10-13", days=90)
-    maintenance = [state for state in projection if state["department"] == "maintenance"]
     by_worker = {
-        actor_id: [state for state in maintenance if state["actor_id"] == actor_id]
-        for actor_id in {state["actor_id"] for state in maintenance}
+        actor_id: [state for state in projection if state["actor_id"] == actor_id]
+        for actor_id in {state["actor_id"] for state in projection}
     }
 
-    assert len(by_worker) == 3
+    assert len(by_worker) == 50
     for states in by_worker.values():
-        assert Counter(state["attendance_state"] for state in states) == {
-            "scheduled": 60, "off_duty": 30,
-        }
+        assert Counter(state["attendance_state"] for state in states)["off_duty"] > 0
         assert all(
             sum(state["attendance_state"] == "scheduled" for state in states[start:start + 7]) <= 6
             for start in range(90 - 7 + 1)

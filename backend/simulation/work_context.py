@@ -180,6 +180,8 @@ def effective_user(principal: dict, context: WorkContext) -> dict:
         "_principal_role": principal_role,
         "_principal_department": principal.get("department"),
         "_work_context_id": context.context_id,
+        "_work_context_acting_role": context.acting_role,
+        "_work_context_acting_department": context.acting_department,
     }
 
 

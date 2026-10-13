@@ -13,22 +13,12 @@ from simulation.community_dispatch import (
 from simulation.community_routines import plan_first_24_hours
 
 
-def test_only_uncovered_family_call_events_queue_until_admin_returns():
+def test_all_routines_are_ready_under_continuous_department_coverage():
     dispatches = plan_routine_dispatch()
     queued = [row for row in dispatches if row.dispatch_state == QUEUED_UNASSIGNED]
 
     assert len(dispatches) == 153
-    assert len(queued) == 5
-    assert {row.routine for row in queued} == {"family_call_coordination"}
-    assert {row.department for row in queued} == {"administration"}
-    assert {row.resident_key for row in queued} == {
-        "resident-002", "resident-004", "resident-006", "resident-008", "resident-010",
-    }
-    assert all(row.planned_minute > 16 * 60 for row in queued)
-    assert all((row.ready_day_index, row.ready_minute) == (1, 8 * 60) for row in queued)
-    assert all(row.assigned_actor_id is None for row in queued)
-    assert all("queued and unassigned" in row.truth.lower() for row in queued)
-    assert all("no work has been completed" in row.truth.lower() for row in queued)
+    assert queued == []
 
 
 def test_covered_events_are_ready_but_remain_unassigned_and_unexecuted():
@@ -37,24 +27,29 @@ def test_covered_events_are_ready_but_remain_unassigned_and_unexecuted():
     ready = [row for row in first if row.dispatch_state == READY_UNASSIGNED]
 
     assert first == second
-    assert len(ready) == 148
+    assert len(ready) == 153
     assert all(row.ready_day_index == row.planned_day_index for row in ready)
     assert all(row.ready_minute == row.planned_minute for row in ready)
     assert all(row.assigned_actor_id is None for row in ready)
     assert all("no work has been completed" in row.truth.lower() for row in ready)
 
 
-def test_queue_uses_event_day_and_next_canonical_coverage_window():
-    events = plan_first_24_hours(day_index=3)
-    queued = [
-        row for row in plan_routine_dispatch(events)
-        if row.dispatch_state == QUEUED_UNASSIGNED
-    ]
+def test_queue_uses_event_day_and_next_canonical_coverage_window(monkeypatch):
+    event = plan_first_24_hours(day_index=3)[0]
 
-    assert queued
-    assert all(row.planned_day_index == 3 for row in queued)
-    assert all((row.ready_day_index, row.ready_minute) == (4, 8 * 60) for row in queued)
-    assert all(row.ready_time_hhmm == "08:00" for row in queued)
+    def synthetic_gap(day_index, minute, department):
+        if (day_index, minute, department) == (3, event.minute, event.department):
+            return ()
+        return ("sim:staff:test",)
+
+    monkeypatch.setattr(community_dispatch, "_on_shift_actor_ids", synthetic_gap)
+    queued = [row for row in plan_routine_dispatch((event,))
+              if row.dispatch_state == QUEUED_UNASSIGNED]
+
+    assert len(queued) == 1
+    assert queued[0].planned_day_index == 3
+    assert (queued[0].ready_day_index, queued[0].ready_minute) == (3, event.minute + 1)
+    assert queued[0].assigned_actor_id is None
 
 
 def test_dispatch_planner_is_pure_and_validates_queue_horizon():

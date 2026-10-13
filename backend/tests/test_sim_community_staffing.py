@@ -6,7 +6,6 @@ import pytest
 
 from simulation.community_staffing import (
     DEPARTMENT_LABELS,
-    MAINTENANCE_REST_TRADEOFF,
     MAX_SCHEDULED_DAYS_PER_ROLLING_WEEK,
     SIMULATION_LOAD_DISCLAIMER,
     WORKERS,
@@ -20,14 +19,14 @@ from simulation.community_staffing import (
 
 
 EXPECTED_HEADCOUNT = {
-    "nursing": 26,
-    "kitchen": 6,
+    "nursing": 22,
+    "kitchen": 4,
     "housekeeping": 4,
-    "maintenance": 3,
-    "transportation": 2,
-    "activities": 2,
-    "front_desk": 5,
-    "administration": 2,
+    "maintenance": 4,
+    "transportation": 4,
+    "activities": 4,
+    "front_desk": 4,
+    "administration": 4,
 }
 
 
@@ -46,7 +45,7 @@ def test_roster_has_50_stable_explicit_simulated_identities():
 def test_daily_assignment_is_deterministic_rotating_and_one_shift_per_worker():
     day_zero = assignments_for_day(0)
     assert day_zero == assignments_for_day(0)
-    assert len(day_zero) == 31
+    assert len(day_zero) == 38
     assert len({row["actor_id"] for row in day_zero}) == len(day_zero)
     assert {row["actor_id"] for row in day_zero if row["job_role"] == "care_aide"} != {
         row["actor_id"] for row in assignments_for_day(1) if row["job_role"] == "care_aide"
@@ -61,20 +60,17 @@ def test_overnight_windows_wrap_and_prior_day_workers_remain_active():
         minute_in_shift(1440, 0, 60)
 
     at_two_am = active_assignments(1, 2 * 60)
-    assert {(row["department"], row["shift"]) for row in at_two_am} == {
-        ("nursing", "night"), ("maintenance", "night"), ("front_desk", "night")
-    }
+    assert {row["department"] for row in at_two_am} == set(DEPARTMENT_LABELS)
+    assert {row["shift"] for row in at_two_am} == {"night"}
     assert all(row["day_index"] == 0 for row in at_two_am)
-    assert {row["department"] for row in active_assignments(0, 2 * 60)} == {
-        "nursing", "maintenance", "front_desk"
-    }
+    assert {row["department"] for row in active_assignments(0, 2 * 60)} == set(DEPARTMENT_LABELS)
 
 
 def test_default_projection_is_exactly_90_repeatable_local_days():
     first = project_schedule(date(2026, 10, 13))
     second = project_schedule("2026-10-13", days=90)
     assert first == second
-    assert len(first) == 90 * 31
+    assert len(first) == 90 * 38
     assert first[0]["date"] == "2026-10-13"
     assert {row["date"] for row in first} == {
         (date(2026, 10, 13).fromordinal(date(2026, 10, 13).toordinal() + day)).isoformat()
@@ -86,18 +82,16 @@ def test_default_projection_is_exactly_90_repeatable_local_days():
     assert overnight["ends_at"] == "2026-10-14T06:00:00"
 
 
-def test_coverage_summary_reports_real_gaps_not_invented_coverage():
+def test_coverage_summary_reports_proven_zero_gaps_without_invented_execution():
     overnight = coverage_summary(1, 2 * 60)
-    assert overnight["coverage"]["nursing"]["on_shift"] == 3
+    assert overnight["coverage"]["nursing"]["on_shift"] == 4
     assert overnight["coverage"]["maintenance"]["on_shift"] == 1
     assert overnight["coverage"]["front_desk"]["on_shift"] == 1
-    assert overnight["gaps"] == [
-        "kitchen", "housekeeping", "transportation", "activities", "administration"
-    ]
+    assert overnight["gaps"] == []
     assert overnight["disclaimer"] == SIMULATION_LOAD_DISCLAIMER
     assert "not real-world staffing" in overnight["disclaimer"]
-    assert overnight["coverage_tradeoffs"] == [MAINTENANCE_REST_TRADEOFF]
-    assert overnight["planned_rota_gaps"] == planned_coverage_gaps(1)
+    assert overnight["coverage_tradeoffs"] == []
+    assert overnight["planned_rota_gaps"] == planned_coverage_gaps(1) == []
 
     midday = coverage_summary(1, 12 * 60)
     assert midday["gaps"] == []
@@ -120,22 +114,35 @@ def test_every_worker_gets_rest_in_each_rolling_week():
             for start in range(90 - 7 + 1)
         )
 
-    maintenance = [worker for worker in WORKERS if worker["department"] == "maintenance"]
-    assert {len(scheduled_days[worker["actor_id"]]) for worker in maintenance} == {60}
 
 
-def test_maintenance_rest_rotation_reports_24h_coverage_tradeoff():
-    assert [planned_coverage_gaps(day)[0]["shift"] for day in range(3)] == [
-        "swing", "night", "day",
-    ]
-    assert "maintenance" in coverage_summary(0, 16 * 60)["gaps"]
-    assert "maintenance" in coverage_summary(2, 2 * 60)["gaps"]
-    assert "maintenance" in coverage_summary(2, 12 * 60)["gaps"]
-    assert all(
-        not all(coverage_summary(day, minute)["coverage"]["maintenance"]["on_shift"] > 0
-                for minute in range(1440))
-        for day in range(3)
-    )
+def test_all_shifts_are_exactly_eight_hours_with_continuous_handoffs():
+    for day_index in range(90):
+        assignments = assignments_for_day(day_index)
+        for assignment in assignments:
+            duration = (assignment["end_minute"] - assignment["start_minute"]) % 1440
+            assert duration == 8 * 60
+
+        by_department = defaultdict(list)
+        for assignment in assignments:
+            by_department[assignment["department"]].append(assignment)
+        assert set(by_department) == set(DEPARTMENT_LABELS)
+        for department, rows in by_department.items():
+            windows = {(row["start"], row["end"]) for row in rows}
+            assert windows >= {
+                ("06:00", "14:00"), ("14:00", "22:00"), ("22:00", "06:00")
+            }, department
+
+
+def test_all_departments_are_covered_every_minute_for_full_90_days():
+    expected = set(DEPARTMENT_LABELS)
+    for day_index in range(90):
+        assert planned_coverage_gaps(day_index) == []
+        for minute in range(1440):
+            active = active_assignments(day_index, minute)
+            assert len(active) == len({row["actor_id"] for row in active})
+            covered = {row["department"] for row in active}
+            assert covered == expected, (day_index, minute, expected - covered)
 
 
 def test_invalid_projection_and_coverage_inputs_are_rejected():

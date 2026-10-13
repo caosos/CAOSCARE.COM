@@ -15,7 +15,7 @@ from routes.actor_context import ActorContext
 from routes.staff_scope import ADMIN_ROLES, acting_departments, acts_for
 from routes.task_history import task_event
 from routes.task_lifecycle import (CLOSED_STATUSES, LifecycleError, chain_head, check, load,
-                                   record_refusal, state_of, transition)
+                                   record_refusal, state_of, transition, work_as_authority)
 from routes.receipts import create_receipt
 
 
@@ -31,7 +31,7 @@ async def assign(task_id: str, target_id: Optional[str], actor: ActorContext, us
     if user.get("role") in ADMIN_ROLES:
         authority = f"admin_override:{user['role']}"
     elif acts_for(user, vis):
-        authority = f"acts_for:{vis}"
+        authority = work_as_authority(user, f"acts_for:{vis}")
     else:
         raise LifecycleError(403, "Not allowed to assign this task")
     target_id = (target_id or "").strip() or None

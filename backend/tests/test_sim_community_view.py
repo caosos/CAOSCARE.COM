@@ -10,21 +10,18 @@ def test_overview_declares_scale_without_claiming_execution():
     assert view["apartments"] == {"total": 80, "occupied": 70, "occupancy_target": 70}
     assert view["workers"] == {"count": 50, "simulated": True}
     assert view["worker_attendance"] == {
-        "scheduled": 31,
-        "off_duty": 19,
-        "planned_login": 31,
-        "assignment_acceptance": 31,
+        "scheduled": 38,
+        "off_duty": 12,
+        "planned_login": 38,
+        "assignment_acceptance": 38,
         "canonical_shift_events_reported_under": "shift_events",
         "executed": 0,
         "truth": "Planned only; not authenticated, executed, or receipted.",
     }
     assert view["shift_events"] == {
-        "clock_in": 31,
-        "clock_out": 31,
-        "coverage_gap_ended": 6,
-        "coverage_gap_present": 5,
-        "coverage_gap_started": 6,
-        "handoff": 31,
+        "clock_in": 38,
+        "clock_out": 38,
+        "handoff": 38,
         "executed": 0,
     }
     assert view["routines"]["planned"] == 153
@@ -33,18 +30,15 @@ def test_overview_declares_scale_without_claiming_execution():
     assert view["routines"]["planned_rescheduled"] > 0
 
 
-def test_all_departments_and_real_coverage_gaps_are_visible():
+def test_all_departments_and_proven_24h_coverage_are_visible():
     view = community_overview(day_index=0, minute=8 * 60)
     departments = {row["slug"]: row for row in view["departments"]}
     assert set(departments) == {
         "nursing", "kitchen", "housekeeping", "maintenance",
         "transportation", "activities", "front_desk", "administration",
     }
-    assert departments["nursing"]["worker_count"] == 26
-    assert departments["nursing"]["coverage_24h"] is True
-    assert departments["front_desk"]["coverage_24h"] is True
-    assert departments["maintenance"]["coverage_24h"] is False
-    assert departments["activities"]["coverage_24h"] is False
+    assert departments["nursing"]["worker_count"] == 22
+    assert all(row["coverage_24h"] is True for row in departments.values())
     assert "not real-world staffing" in view["coverage_disclaimer"]
 
 
@@ -56,7 +50,7 @@ def test_preview_is_inspectable_and_keeps_provider_boundaries_blocked():
     assert all(not row["represents_execution"] for row in preview["planned_outcomes"])
     assert preview["shift_assignments"]
     assert len(preview["worker_attendance"]) == 50
-    assert sum(row["attendance_state"] == "scheduled" for row in preview["worker_attendance"]) == 31
+    assert sum(row["attendance_state"] == "scheduled" for row in preview["worker_attendance"]) == 38
     assert all(row["execution_state"] == "not_executed" for row in preview["worker_attendance"])
     assert preview["planned_shift_events"]
     assert all(event["execution_state"] == "not_executed" for event in preview["planned_shift_events"])
