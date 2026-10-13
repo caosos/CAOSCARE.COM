@@ -83,7 +83,7 @@ not an office VoIP phone screen. Picking up opens the resident's existing
 Aria session; hanging up ends it. The handset is an audio/hook-switch
 endpoint on the room node, sharing the same resident identity, tools,
 requests and receipts as the room voice path. It is an option/fallback; the
-active room baseline remains EliteDesk-class node + eMeet + TV.
+Room 214's proven development/demo rig remains EliteDesk + eMeet + TV. The standard community architecture is one central EliteDesk server with a Voice PE room endpoint; Voice PE physical acceptance remains open.
 
 - "Aria, call the front desk" reaches a single staffed destination with a
   queue or callback path. **Request recorded** and **voice call connected**

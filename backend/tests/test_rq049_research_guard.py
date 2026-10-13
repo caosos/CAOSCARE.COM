@@ -86,10 +86,12 @@ def test_no_lease_denied_no_provider_call(setup):
 
 
 def test_live_lease_allowed(setup):
-    calls, _ = setup
+    calls, events = setup
     lease()
     r = post(q(resident_id=RES, session_id=SID))
     assert r.status_code == 200 and r.json()["live"] is True and calls == ["who is the mayor"]
+    event = events[-1]
+    assert (event["resident_id"], event["room"], event["conversation_id"]) == (RES, ROOM, SID)
     assert post(q(resident_id="other", session_id=SID)).status_code == 403
 
 
@@ -111,6 +113,8 @@ def test_owner_token_allowed(setup):
     run(db.users.insert_one({"user_id": uid, "email": f"{uid}@t.test", "name": "o", "role": "owner"}))
     h = {"Authorization": f"Bearer {_issue_jwt(uid)}"}
     assert post(q(), h).status_code == 200
+    event = setup[1][-1]
+    assert event["actor_id"] == uid and event["actor_role"] == "owner"
     uid2 = f"{TAG}_staff"
     run(db.users.insert_one({"user_id": uid2, "email": f"{uid2}@t.test", "name": "s", "role": "staff"}))
     assert post(q(), {"Authorization": f"Bearer {_issue_jwt(uid2)}"}).status_code == 403

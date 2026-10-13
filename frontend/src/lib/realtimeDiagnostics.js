@@ -8,6 +8,28 @@ import { API } from "./api";
 // starting point, not calibrated against this deployment's real data yet.
 export const LOW_CONFIDENCE_THRESHOLD = 0.5;
 
+const count = (value) => Number.isInteger(value) && value >= 0 ? value : 0;
+
+// Keep only provider billing counters. Never persist the full response:
+// it may contain generated text, audio/tool payloads, or future secrets.
+export function sanitizeRealtimeUsage(usage) {
+  if (!usage || typeof usage !== "object") return null;
+  const input = usage.input_token_details || {};
+  const cached = input.cached_tokens_details || {};
+  const output = usage.output_token_details || {};
+  return {
+    total_tokens: count(usage.total_tokens),
+    input_tokens: count(usage.input_tokens),
+    output_tokens: count(usage.output_tokens),
+    input_token_details: {
+      text_tokens: count(input.text_tokens), audio_tokens: count(input.audio_tokens),
+      cached_tokens: count(input.cached_tokens),
+      cached_tokens_details: { text_tokens: count(cached.text_tokens), audio_tokens: count(cached.audio_tokens) },
+    },
+    output_token_details: { text_tokens: count(output.text_tokens), audio_tokens: count(output.audio_tokens) },
+  };
+}
+
 export function transcriptionConfidence(logprobs) {
   if (!Array.isArray(logprobs) || logprobs.length === 0) return null;
   const mean = logprobs.reduce((sum, l) => sum + (l.logprob ?? 0), 0) / logprobs.length;

@@ -29,7 +29,7 @@ import { createFarewellWatch } from "./farewellWatch";
 import { createClaimGuard } from "./claimGuard";
 import { createDeltaLead } from "./deltaLead";
 import { createClaimInterrupter, claimInterrupterMode, verifiedConfirmationEvent } from "./claimInterrupter";
-import { logRealtimeEvent, transcriptionConfidence, LOW_CONFIDENCE_THRESHOLD } from "./realtimeDiagnostics";
+import { logRealtimeEvent, sanitizeRealtimeUsage, transcriptionConfidence, LOW_CONFIDENCE_THRESHOLD } from "./realtimeDiagnostics";
 import { reenableAutoResponse, createGreetingResponseGate } from "./realtimeAutoResponseGate";
 import { createHangupScheduler } from "./endCallHangup";
 import { classifyEndIntent, turnMayEnd } from "./endIntent";
@@ -326,7 +326,15 @@ export function createRealtimeHandlers({
     if (msg.type === "response.done" && typedTurnRef?.current) onTypedResponseDone(typedTurnRef.current, send, msg.response);
     if (msg.type === "response.done") {
       setStatus("live");
-      logRealtimeEvent(sessionIdRef.current, "response_done", { responseId: msg.response?.id });
+      logRealtimeEvent(sessionIdRef.current, "response_done", {
+        responseId: msg.response?.id,
+        meta: {
+          usage: typeof sanitizeRealtimeUsage === "function" ? sanitizeRealtimeUsage(msg.response?.usage) : null,
+          model: caos?.diagnostics?.model || null,
+          provider: "openai",
+          transport: "webrtc",
+        },
+      });
       // Fallback for a greeting that completed with no audio at all - see
       // createGreetingResponseGate's docstring in realtimeAutoResponseGate.js.
       greetingGate.onResponseDone();

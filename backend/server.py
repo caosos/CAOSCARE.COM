@@ -31,6 +31,7 @@ from routes import wearables as wearable_routes  # noqa: E402
 from routes import device_auth as device_auth_routes  # noqa: E402
 from routes import family_portal as family_portal_routes  # noqa: E402
 from routes import devices as device_routes  # noqa: E402
+from routes import tv_remote_setup as tv_remote_setup_routes  # noqa: E402
 from routes import vision as vision_routes  # noqa: E402
 from routes import tasks as task_routes  # noqa: E402
 from routes import task_templates as task_templates_routes  # noqa: E402
@@ -215,6 +216,7 @@ api.include_router(wearable_routes.router)
 api.include_router(device_auth_routes.router)
 api.include_router(family_portal_routes.router)
 api.include_router(device_routes.router)
+api.include_router(tv_remote_setup_routes.router)
 api.include_router(vision_routes.router)
 api.include_router(task_routes.router)
 api.include_router(task_templates_routes.router)

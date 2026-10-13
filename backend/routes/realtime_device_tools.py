@@ -12,6 +12,30 @@ def _build_device_tools() -> list[dict]:
     return [
         {
             "type": "function",
+            "name": "configure_tv_remote",
+            "description": (
+                "Set up the resident's TV remote by conversation. First use phase='start' after they give the "
+                "brand and preferably exact model. The server returns only an approved catalog candidate. Ask "
+                "permission for its one-step volume test; only after their clear yes call phase='test' with the "
+                "setup_id. Then ask whether the physical TV volume changed. Call phase='confirm' with worked=true "
+                "only after a clear yes, or worked=false after a clear no. Never provide or invent raw IR codes. "
+                "The server saves a remote setting only after the exact test is physically confirmed. Web research "
+                "may identify a model/control method, but a web result is never itself executable."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "phase": {"type": "string", "enum": ["start", "test", "confirm"]},
+                    "device": {"type": "string", "description": "Exact TV label or device ID if the room has more than one."},
+                    "vendor": {"type": "string"}, "model": {"type": "string"},
+                    "setup_id": {"type": "string"}, "candidate_id": {"type": "string"},
+                    "worked": {"type": "boolean"},
+                },
+                "required": ["phase"], "additionalProperties": False,
+            },
+        },
+        {
+            "type": "function",
             "name": "get_room_status",
             "description": (
                 "Read the current state reported by the resident's room devices - "

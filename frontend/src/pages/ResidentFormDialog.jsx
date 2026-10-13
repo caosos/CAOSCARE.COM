@@ -19,7 +19,7 @@ import { toast } from "sonner";
 // Admin -> Kiosks' own "Add kiosk" already uses - no separate system.
 
 const EMPTY_THRESHOLDS = { hr_resting_min: "", hr_resting_max: "", hr_exertion_max: "", spo2_min: "", inactivity_minutes: "", notes: "" };
-const EMPTY_FORM = { name: "", preferred_name: "", room: "", pendant_id: "", medical_notes: "", emergency_contact: "", preferences: "", memory: "", participation_level: "pendant_enhanced", clinical_thresholds: { ...EMPTY_THRESHOLDS } };
+const EMPTY_FORM = { name: "", preferred_name: "", room: "", pendant_id: "", medical_notes: "", emergency_contact: "", preferences: "", memory: "", participation_level: "pendant_enhanced", aria_guidance_profile: "supportive_guided", clinical_thresholds: { ...EMPTY_THRESHOLDS } };
 
 export default function ResidentFormDialog({ open, onOpenChange, resident, kiosks, onSaved }) {
   const [form, setForm] = useState(EMPTY_FORM);
@@ -39,6 +39,7 @@ export default function ResidentFormDialog({ open, onOpenChange, resident, kiosk
         preferences: resident.preferences || "",
         memory: resident.memory || "",
         participation_level: resident.participation_level || "pendant_enhanced",
+        aria_guidance_profile: resident.aria_guidance_profile || "supportive_guided",
         clinical_thresholds: {
           hr_resting_min: ct.hr_resting_min ?? "",
           hr_resting_max: ct.hr_resting_max ?? "",
@@ -139,6 +140,19 @@ export default function ResidentFormDialog({ open, onOpenChange, resident, kiosk
                 <SelectItem value="full">Full (all layers)</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div>
+            <Label>Aria conversation style</Label>
+            <Select value={form.aria_guidance_profile} onValueChange={(v) => setForm({ ...form, aria_guidance_profile: v })}>
+              <SelectTrigger data-testid="res-aria-guidance"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="supportive_guided">Supportive guidance (default)</SelectItem>
+                <SelectItem value="concise_natural">Concise and natural</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-caos-mute mt-1">
+              Supportive gives clear choices and one simple next step without talking down. Concise gives direct answers with no lingering offers.
+            </p>
           </div>
           <div><Label>Emergency contact</Label><Input data-testid="res-contact" value={form.emergency_contact} onChange={(e) => setForm({ ...form, emergency_contact: e.target.value })} /></div>
           <div><Label>Medical notes</Label><Textarea data-testid="res-notes" value={form.medical_notes} onChange={(e) => setForm({ ...form, medical_notes: e.target.value })} /></div>

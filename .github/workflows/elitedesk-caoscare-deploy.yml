@@ -29,6 +29,13 @@ on:
       - integration/2026-09-27
     paths:
       - .github/workflows/elitedesk-caoscare-deploy.yml
+      - scripts/restart_dev_backend.sh
+      - backend/tests/test_restart_dev_backend.py
+      - room-node/aria_wake/**
+
+concurrency:
+  group: elitedesk-caoscare-deployment
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -41,19 +48,24 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install focused validation dependencies
+        run: python -m pip install -q pytest numpy websockets sherpa-onnx
       - name: Validate host control scripts
         run: |
           bash -n scripts/restart_dev_backend.sh
           bash -n room-node/aria_wake/ctl.sh
+          MONGO_URL=mongodb://127.0.0.1:27017 DB_NAME=caoscare_ci JWT_SECRET=ci-only \
+            python -m pytest -q backend/tests/test_restart_dev_backend.py
+          (cd room-node/aria_wake && python -m pytest -q test_aria_wake.py)
 
   deploy:
     if: github.event_name != 'pull_request'
     name: Exact-SHA EliteDesk deployment
     runs-on: [self-hosted, Linux, X64, elitedesk, caoscare]
     timeout-minutes: 30
-    concurrency:
-      group: elitedesk-caoscare-deployment
-      cancel-in-progress: false
     env:
       DEPLOY_ROOT: /home/caoscare-1/CAOSCARE-INTEGRATION
       TARGET_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.target_sha || github.sha }}
@@ -78,6 +90,7 @@ jobs:
             echo "runner=$RUNNER_NAME"
             echo "target_sha=$TARGET_SHA"
             echo "scope=$SCOPE"
+            echo "deploy_started_epoch=$(date +%s)"
           } | tee "$RECEIPT"
 
       - name: Validate explicit authorization
@@ -126,6 +139,7 @@ jobs:
           bash -n scripts/restart_dev_backend.sh
           bash -n room-node/aria_wake/ctl.sh
           /home/caoscare-1/CAOSCARE.COM/backend/.venv/bin/python3 -m pytest -q backend/tests/test_restart_dev_backend.py
+          (cd room-node/aria_wake && /home/caoscare-1/CAOSCARE.COM/backend/.venv/bin/python3 -m pytest -q test_aria_wake.py)
           node --test room-node/aria_wake/serve_built.test.js
           echo "predeploy_tests=passed" | tee -a "$RECEIPT"
 
@@ -204,12 +218,19 @@ jobs:
           systemctl --user is-active --quiet aria-wake-kiosk.service
           curl -fsS --max-time 5 http://127.0.0.1:3002/api/health >/dev/null
           ss -ltn | grep -qE '127\.0\.0\.1:8765[[:space:]]'
+          sleep 6
+          WAKE_LOG="$(journalctl --user -u aria-wake.service --since '2 minutes ago' --no-pager -o cat)"
+          echo "$WAKE_LOG" | grep -q '"event": "capture_alive"'
+          LATEST_CLIENT="$(echo "$WAKE_LOG" | grep -E '"event": "client_(connected|disconnected)"' | tail -1)"
+          echo "$LATEST_CLIENT" | grep -qE '"clients": [1-9][0-9]*'
           NEW_BUNDLE="$(curl -fsS http://127.0.0.1:3002/ | grep -oE 'main\.[a-z0-9]+\.js' | head -1)"
           [ -n "$NEW_BUNDLE" ]
           echo "previous_bundle=${OLD_BUNDLE:-UNKNOWN}" | tee -a "$RECEIPT"
           echo "loaded_bundle=$NEW_BUNDLE" | tee -a "$RECEIPT"
           echo "wake_services=active" | tee -a "$RECEIPT"
           echo "room_page_health=passed" | tee -a "$RECEIPT"
+          echo "wake_capture_heartbeat=passed" | tee -a "$RECEIPT"
+          echo "wake_client_connected=passed" | tee -a "$RECEIPT"
 
       - name: Verify-only result
         if: env.SCOPE == 'verify-only'
@@ -241,5 +262,47 @@ jobs:
         with:
           name: elitedesk-caoscare-deploy-${{ github.run_id }}
           path: ${{ runner.temp }}/elitedesk-caoscare-deploy.txt
+          if-no-files-found: error
+          retention-days: 30
+
+  verify-survival:
+    if: github.event_name != 'pull_request' && needs.deploy.result == 'success' && (inputs.scope == 'backend' || inputs.scope == 'backend-and-room-page' || github.event_name == 'push')
+    needs: deploy
+    name: Prove backend survived Actions cleanup
+    runs-on: [self-hosted, Linux, X64, elitedesk, caoscare]
+    timeout-minutes: 5
+    env:
+      DEPLOY_ROOT: /home/caoscare-1/CAOSCARE-INTEGRATION
+      TARGET_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.target_sha || github.sha }}
+    steps:
+      - name: Verify persistent process provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          RECEIPT="${RUNNER_TEMP}/elitedesk-caoscare-survival.txt"
+          curl -fsS --max-time 5 http://127.0.0.1:8092/api/health >/dev/null
+          PID="$(fuser -n tcp 8092 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]+$' | head -1)"
+          [ -n "$PID" ]
+          [ "$(readlink "/proc/$PID/cwd")" = "$DEPLOY_ROOT/backend" ]
+          CMD="$(tr '\0' ' ' < "/proc/$PID/cmdline")"
+          [[ "$CMD" == *"uvicorn server:app"*"--port 8092"* ]]
+          ENVIRON="$(tr '\0' '\n' < "/proc/$PID/environ")"
+          EXPECTED="$(git -C "$DEPLOY_ROOT" rev-parse --short "$TARGET_SHA")"
+          [ "$(echo "$ENVIRON" | sed -n 's/^CAOSCARE_RUNTIME_SHA=//p')" = "$EXPECTED" ]
+          ! echo "$ENVIRON" | grep -q '^RUNNER_TRACKING_ID='
+          {
+            echo "CAOSCARE ELITEDESK POST-CLEANUP SURVIVAL RECEIPT"
+            echo "report_chicago=$(TZ=America/Chicago date '+%A, %B %-d, %Y — %-I:%M:%S %p America/Chicago')"
+            echo "target_sha=$TARGET_SHA"
+            echo "backend_pid=$PID"
+            echo "backend_runtime_sha=$EXPECTED"
+            echo "backend_survived_runner_cleanup=passed"
+            echo "runner_tracking_id_absent=passed"
+          } | tee "$RECEIPT" | tee -a /home/caoscare-1/caoscare-elitedesk-deploy-history.log
+      - name: Publish survival receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: elitedesk-caoscare-survival-${{ github.run_id }}
+          path: ${{ runner.temp }}/elitedesk-caoscare-survival.txt
           if-no-files-found: error
           retention-days: 30
