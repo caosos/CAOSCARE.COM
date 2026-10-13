@@ -1,0 +1,139 @@
+name: EliteDesk CAOSCare read-only inventory
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - integration/2026-09-27
+    paths:
+      - .github/workflows/elitedesk-caoscare-inventory.yml
+  push:
+    branches:
+      - chore/elitedesk-caoscare-bridge
+    paths:
+      - .github/workflows/elitedesk-caoscare-inventory.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: elitedesk-caoscare-inventory
+  cancel-in-progress: false
+
+jobs:
+  inventory:
+    name: Prove runner and inventory CAOSCare runtime
+    runs-on: [self-hosted, Linux, X64, elitedesk, caoscare]
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out the triggering revision
+        uses: actions/checkout@v4
+
+      - name: Collect read-only EliteDesk evidence
+        shell: bash
+        run: |
+          set -uo pipefail
+          REPORT="${RUNNER_TEMP}/elitedesk-caoscare-inventory.txt"
+
+          {
+            echo "CAOSCARE ELITEDESK READ-ONLY INVENTORY"
+            echo "report_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "host=$(hostname)"
+            echo "user=$(id -un)"
+            echo "uid_gid=$(id)"
+            echo "runner_name=${RUNNER_NAME}"
+            echo "runner_os=${RUNNER_OS}"
+            echo "event_sha=${GITHUB_SHA}"
+            echo "checked_out_sha=$(git rev-parse HEAD)"
+            echo "workspace=${GITHUB_WORKSPACE}"
+            echo
+
+            echo "== Candidate CAOSCare directories =="
+            find /home/caoscare-1 -maxdepth 1 -mindepth 1 -type d -iname '*caos*' -print 2>/dev/null | sort
+            echo
+
+            echo "== Known checkout state =="
+            for repo in               /home/caoscare-1/CAOSCARE.COM               /home/caoscare-1/CAOSCARE-INTEGRATION               /home/caoscare-1/CAOSCARE-ADMIN               /home/caoscare-1/CAOSCARE-LEVEL1-INTEGRATION
+            do
+              if git -C "$repo" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+                echo "path=$repo"
+                echo "head=$(git -C "$repo" rev-parse HEAD)"
+                echo "branch=$(git -C "$repo" branch --show-current)"
+                echo "tracked_changes=$(git -C "$repo" status --porcelain --untracked-files=no | wc -l)"
+              else
+                echo "path=$repo state=absent-or-not-git"
+              fi
+            done
+            echo
+
+            echo "== System services =="
+            systemctl list-units --type=service --all --no-legend 2>/dev/null |
+              grep -Ei 'caoscare|aria-wake|home.?assistant|mongod|nginx' || true
+            echo
+
+            echo "== User services =="
+            systemctl --user list-units --type=service --all --no-legend 2>/dev/null |
+              grep -Ei 'caoscare|aria-wake|home.?assistant' || true
+            echo
+
+            echo "== Relevant listening TCP ports =="
+            ss -ltn 2>/dev/null |
+              awk 'NR == 1 || $4 ~ /:(3000|3002|8000|8001|8092|8123|8765)$/'
+            echo
+
+            echo "== Listener process provenance =="
+            for port in 3000 3002 8000 8001 8092 8123 8765
+            do
+              pids=$(fuser -n tcp "$port" 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]+$' | sort -u || true)
+              if [ -z "$pids" ]; then
+                echo "port=$port pid=NONE"
+                continue
+              fi
+              for pid in $pids
+              do
+                echo "port=$port pid=$pid user=$(ps -o user= -p "$pid" | xargs) comm=$(ps -o comm= -p "$pid" | xargs)"
+                echo "  cwd=$(readlink -f "/proc/$pid/cwd" 2>/dev/null || echo UNKNOWN)"
+                echo "  exe=$(readlink -f "/proc/$pid/exe" 2>/dev/null || echo UNKNOWN)"
+                if [ "$port" = "8092" ]; then
+                  runtime_sha=$(tr '\0' '\n' < "/proc/$pid/environ" 2>/dev/null | sed -n 's/^CAOSCARE_RUNTIME_SHA=//p')
+                  echo "  runtime_sha=${runtime_sha:-UNKNOWN}"
+                fi
+              done
+            done
+            echo
+
+            echo "== User service definitions and state =="
+            export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+            export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
+            find "$HOME/.config/systemd/user" -maxdepth 1 -type f -name '*.service' -printf '%f\n' 2>/dev/null | sort
+            for service in aria-wake.service aria-wake-page.service aria-wake-kiosk.service caoscare-frontend-dev.service
+            do
+              echo "service=$service"
+              systemctl --user show "$service" --no-pager \
+                -p LoadState -p ActiveState -p SubState -p FragmentPath -p ExecStart 2>/dev/null || true
+            done
+            echo
+
+            echo "== Local HTTP probes =="
+            for url in               http://127.0.0.1:8000/api/health               http://127.0.0.1:8001/api/health               http://127.0.0.1:8092/api/health               http://127.0.0.1:3002/api/health
+            do
+              code=$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 3 "$url" 2>/dev/null || true)
+              [ -n "$code" ] || code=unreachable
+              echo "$url status=$code"
+            done
+            echo
+
+            echo "== Capacity =="
+            df -h / /home/caoscare-1 2>/dev/null || true
+            free -h 2>/dev/null || true
+          } | tee "$REPORT"
+
+      - name: Preserve inventory receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: elitedesk-caoscare-inventory-${{ github.run_id }}
+          path: ${{ runner.temp }}/elitedesk-caoscare-inventory.txt
+          if-no-files-found: error
+          retention-days: 14
