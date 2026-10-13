@@ -179,7 +179,8 @@ async def run_scratch_acceptance(
         require_unleased=True,
     )
     reset = await reset_living_community(
-        operator, AUTHORITY, _key(database_name, "reset"), store=reopened, now=instant,
+        operator, AUTHORITY, _key(database_name, "reset"), run["run_id"],
+        store=reopened, now=instant,
     )
     verification = await _verify_reset(reopened, reset)
     return {

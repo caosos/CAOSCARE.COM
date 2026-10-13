@@ -203,8 +203,12 @@ def test_scratch_workflow_proves_two_events_reconnect_and_reset(monkeypatch):
         async def load_run(self, *, run_id):
             return {"run_id": run_id, "state": "PAUSED", "cursor": 1, "sim_minute": 31}
 
-    async def fake_reset(*_args, **kwargs):
-        calls.append(("reset", kwargs["store"].name))
+    async def fake_reset(
+        _operator, _authority, _reset_key, expected_run_id, *, store, now,
+    ):
+        assert expected_run_id == "run-1"
+        assert now is not None
+        calls.append(("reset", store.name))
         return {"receipt_id": "rcpt:reset"}
 
     monkeypatch.setattr(acceptance, "probe_mongo", fake_probe)
