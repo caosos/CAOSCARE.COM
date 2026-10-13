@@ -153,8 +153,10 @@ async def research_topic(question: str) -> ResearchOutput:
                     verification_status="verified" if out.live else "unverified",
                     metadata={**meta, "live": out.live, "result_source": out.source,
                               "citation_count": len(out.citations),
+                              "citations": out.citations_detail,
                               "search_call_count": prov.get("search_call_count"),
-                              "response_id": prov.get("response_id")},
+                              "response_id": prov.get("response_id"),
+                              "usage": prov.get("usage") or {}},
                     duration_ms=(time.monotonic() - started) * 1000)
     return out
 

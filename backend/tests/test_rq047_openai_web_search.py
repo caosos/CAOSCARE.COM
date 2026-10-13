@@ -30,7 +30,16 @@ def _payload(searches=1, cites=({"url": "https://a.test/1", "title": "A"},), tex
     out = [{"type": "web_search_call", "id": f"ws_{i}", "status": "completed"} for i in range(searches)]
     out.append({"type": "message", "role": "assistant",
                 "content": [{"type": "output_text", "text": text, "annotations": ann}]})
-    return {"id": "resp_1", "model": "m-2026", "output": out}
+    return {
+        "id": "resp_1", "model": "m-2026", "output": out,
+        "usage": {
+            "input_tokens": 8123,
+            "input_tokens_details": {"cached_tokens": 23},
+            "output_tokens": 41,
+            "output_tokens_details": {"reasoning_tokens": 7},
+            "total_tokens": 8164,
+        },
+    }
 
 
 class _Resp:
@@ -80,12 +89,21 @@ def test_live_success_with_citations(monkeypatch, events):
     assert out.citations == ["https://a.test/1"] and out.citations_detail == [{"url": "https://a.test/1", "title": "A"}]
     p = out.provenance
     assert p["model"] == "m-2026" and p["response_id"] == "resp_1" and p["search_call_count"] == 1 and p["retrieved_at"]
+    assert p["usage"] == {
+        "input_tokens": 8123, "cached_input_tokens": 23,
+        "output_tokens": 41, "reasoning_output_tokens": 7,
+        "total_tokens": 8164,
+    }
     body = seen[0]["json"]
-    assert seen[0]["url"].endswith("/responses") and body["model"] == "m" and body["tools"] == [{"type": "web_search"}]
+    assert seen[0]["url"].endswith("/responses") and body["model"] == "m"
+    assert body["store"] is False
+    assert body["tools"] == [{"type": "web_search", "external_web_access": True}]
     assert "reasoning" not in body
     assert seen[0]["headers"]["Authorization"] == "Bearer k"
     ev = events[-1]
     assert ev["status"] == "succeeded" and ev["metadata"]["live"] is True and ev["metadata"]["citation_count"] == 1
+    assert ev["metadata"]["citations"] == [{"url": "https://a.test/1", "title": "A"}]
+    assert ev["metadata"]["usage"]["total_tokens"] == 8164
     assert "who is the mayor" not in str(ev) and ev["metadata"]["question_length"] == 16
 
 
