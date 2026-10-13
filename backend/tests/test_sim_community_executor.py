@@ -149,6 +149,7 @@ class Services:
 
 def step(store, services, events=None, **changes):
     changes.setdefault("now", NOW)
+    changes.setdefault("clock", lambda: NOW)
     return executor.execute_one(
         "run-1", "worker-a", 7,
         store=store,
@@ -297,7 +298,7 @@ def test_cas_refusal_after_evidence_is_recoverable_by_replay():
             return loaded
 
         services.load_evidence = expire_after_evidence
-        with pytest.raises(Exception, match="cursor advance refused"):
+        with pytest.raises(Exception, match="heartbeat refused"):
             await step(store, services)
         assert services.evidence and store.sim_runs.row["cursor"] == 0
 
@@ -310,11 +311,22 @@ def test_cas_refusal_after_evidence_is_recoverable_by_replay():
         services.evidence = None  # Exact-fence query excludes the prior receipt.
         result = await executor.execute_one(
             "run-1", "worker-b", 8, store=store, services=services,
-            events=(event(1), event(2)), now=NOW,
+            events=(event(1), event(2)), now=NOW, clock=lambda: NOW,
         )
         assert result.idempotent_replay is False
         assert len(services.executions) == 2
         assert store.sim_runs.row["cursor"] == 1
+    asyncio.run(case())
+
+
+def test_lease_expiring_during_service_work_refuses_fresh_heartbeat():
+    async def case():
+        store, services = Store(), Services()
+        after_expiry = NOW + timedelta(seconds=31)
+        with pytest.raises(Exception, match="heartbeat refused"):
+            await step(store, services, clock=lambda: after_expiry)
+        assert services.evidence and store.sim_runs.row["cursor"] == 0
+        assert "last_event_id" not in store.sim_runs.row
     asyncio.run(case())
 
 

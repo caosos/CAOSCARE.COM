@@ -457,3 +457,38 @@ After P1 is integrated and verified on the feature branch, the next safe action
 is coordinator review against the P1 acceptance list and creation of a draft,
 non-merged pull request/requisition receipt. Later phases proceed only from the
 remaining documented acceptance gaps.
+
+## 15. Published-runner reconciliation and fresh lease proof
+
+**Date:** 2026-10-13
+
+The authoritative draft branch advanced to
+`66c31ebee7ab0f513f0f31803a538051f6e070eb` while an older local executor
+checkpoint was in progress. Its published tree
+`399dfce6d208a6f8cff01eda95c11c076ea87021` was reconstructed exactly before
+new work continued. The older executor, adapter, receipt, and multi-event
+catch-up modules were not added because they would have created a parallel
+runtime beside the published one-event runner and 90-day timeline.
+
+The current runner had one proven lease-time defect: it captured the clock at
+the beginning of a step, allowed canonical service work to run, and reused the
+old timestamp for cursor advancement. A lease could therefore expire during
+work and still satisfy the old-time expiry comparison when no takeover had yet
+changed its fence. The executor now samples fresh time and heartbeats the exact
+holder/fence after durable evidence is reloaded and before cursor CAS. The
+prior-receipt crash-recovery path performs the same fresh heartbeat before it
+advances.
+
+Verification in the isolated branch environment:
+
+- 51 focused executor, runner, lease, and runtime-acceptance tests passed;
+- 329 combined backend simulator/access/Work-as/provider/catalog/provenance tests passed;
+- Python compilation and repository whitespace checks passed;
+- normal and recovery-path tests expire the lease during processing and prove
+  that cursor and last-event metadata do not change.
+
+No route, startup loop, live database, provider, EliteDesk service, merge, or
+deployment was touched. The next executor hardening gates remain exact
+timeline/event reservation, canonical parent-task evidence validation,
+deterministic event-receipt uniqueness, validated crash-gap repair, and
+isolated real-Mongo concurrency proof.

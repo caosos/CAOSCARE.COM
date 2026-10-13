@@ -7,7 +7,7 @@ execute at most the event at the persisted cursor.
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Iterable, Optional, Protocol
+from typing import Callable, Iterable, Optional, Protocol
 
 from simulation import community_executor as executor
 from simulation import community_run_lease as run_lease
@@ -115,6 +115,7 @@ async def tick(
     services: executor.ExecutorServices,
     now: Optional[datetime] = None,
     ttl_seconds: int = run_lease.DEFAULT_TTL_SECONDS,
+    clock: Optional[Callable[[], datetime]] = None,
 ) -> TickResult:
     """Acquire, reconcile, and process no more than one cursor event."""
     instant = _utc(now)
@@ -173,6 +174,15 @@ async def tick(
                 holder_id=holder_id,
                 cursor=cursor,
             )
+            fresh = _utc(clock() if clock else None)
+            await run_lease.heartbeat(
+                run_id,
+                holder_id,
+                claim["fence"],
+                store=store,
+                now=fresh,
+                ttl_seconds=ttl_seconds,
+            )
             row = await run_lease.advance_cursor(
                 run_id,
                 holder_id,
@@ -180,7 +190,7 @@ async def tick(
                 cursor,
                 cursor + 1,
                 store=store,
-                now=instant,
+                now=fresh,
                 fields={
                     "last_event_id": event.event_id,
                     "last_evidence_receipt_id": proof["receipt_id"],
@@ -202,6 +212,7 @@ async def tick(
             services=services,
             events=events,
             now=instant,
+            clock=clock,
         )
         return TickResult(
             run_id, "executed", step["action"], result.event_id,

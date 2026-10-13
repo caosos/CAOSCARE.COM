@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Iterable, Optional, Protocol
+from typing import Callable, Iterable, Optional, Protocol
 
 from simulation import community_run_lease as run_lease
 from simulation.community_blueprint import BURN_IN_RESIDENTS, COMMUNITY_ID, SIMULATION_SCOPE
@@ -12,11 +12,7 @@ from simulation.community_shift_events import planned_events_for_day
 from simulation.community_staffing import active_assignments
 
 
-RECEIPT_RESULTS = {
-    "completed": "succeeded",
-    "failed": "observed",
-    "cancelled": "refused",
-}
+RECEIPT_RESULTS = {"completed": "succeeded", "failed": "observed", "cancelled": "refused"}
 
 
 class CommunityExecutorError(RuntimeError):
@@ -238,6 +234,7 @@ async def execute_one(
     services: Optional[ExecutorServices] = None,
     events: Optional[Iterable[ExecutorEvent]] = None,
     now: Optional[datetime] = None,
+    clock: Optional[Callable[[], datetime]] = None,
 ) -> StepResult:
     """Execute or reconcile exactly the event at the persisted cursor."""
     if services is None:
@@ -274,6 +271,8 @@ async def execute_one(
             execution_fence=fence,
         )
     proof = _validate_evidence(evidence, event, context)
+    fresh = _utc(clock() if clock else None)
+    await run_lease.heartbeat(run_id, holder_id, fence, store=store, now=fresh)
     row = await run_lease.advance_cursor(
         run_id,
         holder_id,
@@ -281,7 +280,7 @@ async def execute_one(
         cursor,
         cursor + 1,
         store=store,
-        now=instant,
+        now=fresh,
         fields={
             "last_event_id": event.event_id,
             "last_evidence_receipt_id": proof["receipt_id"],

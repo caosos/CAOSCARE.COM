@@ -168,7 +168,7 @@ def test_crash_retry_reconciles_once_then_atomic_reset_preserves_evidence_and_ne
         with pytest.raises(RuntimeError, match="crash after durable receipt"):
             await execute_one(
                 RUN_ID, HOLDER_ID, FENCE, store=store, services=services,
-                events=events, now=NOW,
+                events=events, now=NOW, clock=lambda: NOW,
             )
         assert store.sim_runs.docs[-1]["cursor"] == 0
         assert services.execution_calls == 1
@@ -180,14 +180,14 @@ def test_crash_retry_reconciles_once_then_atomic_reset_preserves_evidence_and_ne
 
         replay = await execute_one(
             RUN_ID, HOLDER_ID, FENCE, store=store, services=services,
-            events=events, now=NOW,
+            events=events, now=NOW, clock=lambda: NOW,
         )
         assert replay.idempotent_replay is True
         assert replay.cursor_after == 1
         assert services.execution_calls == 1
         second = await execute_one(
             RUN_ID, HOLDER_ID, FENCE, store=store, services=services,
-            events=events, now=NOW,
+            events=events, now=NOW, clock=lambda: NOW,
         )
         assert second.idempotent_replay is False
         assert second.cursor_after == 2
@@ -225,7 +225,7 @@ def test_cursor_refuses_missing_or_mismatched_durable_evidence():
             with pytest.raises(CommunityExecutorError, match="evidence"):
                 await execute_one(
                     RUN_ID, HOLDER_ID, FENCE, store=store, services=services,
-                    events=(event(1),), now=NOW,
+                    events=(event(1),), now=NOW, clock=lambda: NOW,
                 )
             assert store.sim_runs.docs[0]["cursor"] == 0
 

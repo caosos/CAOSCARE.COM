@@ -169,7 +169,7 @@ class Services:
 def invoke(store, timeline, services=None):
     return runner.tick(
         "run-1", "worker-a", store=store, timeline=timeline,
-        services=services or Services(), now=NOW,
+        services=services or Services(), now=NOW, clock=lambda: NOW,
     )
 
 
@@ -199,6 +199,25 @@ def test_crash_receipt_from_prior_fence_advances_without_duplicate_execution():
         assert result.action == "advance_cursor_from_receipt"
         assert result.idempotent_replay is True and result.fence == 5
         assert services.executions == [] and store.sim_runs.row["cursor"] == 1
+    asyncio.run(case())
+
+
+def test_recovery_refuses_when_lease_expires_before_cursor_advance():
+    async def case():
+        item = event(1)
+        store = Store(run_row())
+        with pytest.raises(lease.RunLeaseError, match="heartbeat refused"):
+            await runner.tick(
+                "run-1",
+                "worker-a",
+                store=store,
+                timeline=Timeline(store, (item,), (proof(item, 1),)),
+                services=Services(),
+                now=NOW,
+                clock=lambda: NOW + timedelta(seconds=31),
+            )
+        assert store.sim_runs.row["cursor"] == 0
+        assert "last_event_id" not in store.sim_runs.row
     asyncio.run(case())
 
 
