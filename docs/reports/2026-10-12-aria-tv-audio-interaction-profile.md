@@ -35,12 +35,13 @@ Status of this item: **CODE COMPLETE / FRONTEND TESTED / BUILD COMPILED / NOT LO
 - Backend pytest: **NOT RUN** — this scratch runtime lacks `pytest`, `fastapi`, and the repository's backend test environment. New backend tests are present but unexecuted here.
 - Browser/Claude Chrome evidence: **NONE for this checkpoint**.
 - Tested implementation revision: `7186d52` (`7186d521aea21a40409c4a8487b3361f98b29117`).
+- Published review-branch implementation: `e7bcbde9e8b2e7725ab0604b0afe14e8e5b1cc73` on `fix/aria-goodbye-grounding`.
 - Loaded revision: **UNKNOWN / unchanged from this environment**.
 - Latest timestamped host observation: **UNKNOWN**. This environment did not inspect or control the EliteDesk, Room 214, Home Assistant, IR Mate, or production.
 
 ## ONE current bounded task
 
-`careops-aria-tv-audio-profile-001` — responsible worker: Codex — stage: **committed; publication receipt pending**.
+`careops-aria-tv-audio-profile-001` — responsible worker: Codex — stage: **published for review; not merged or loaded**.
 
 ## Remaining steps for this milestone
 
