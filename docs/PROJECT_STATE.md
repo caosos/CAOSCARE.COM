@@ -340,7 +340,7 @@ HANDOFF CAPSULE
 - Branch:           `fix/aria-goodbye-grounding` from the corrected history after `a1576c71db5cdcaf39827305f9f9948056c15bbc`.
 - Lane / ownership: Resident Aria opening/ending and conversation-volume lifecycle only; do not change wake phrase/settings, TV power, hardware firmware, or production.
 - Last proven state: Focused frontend 101/101; optimized build compiled; Python syntax compiled; diff check clean.
-- Commits:          Local implementation `3c5b13a`; publication receipt follows separately.
+- Commits:          Local implementation `3c5b13a`; clean published implementation `23265b7a330082c68466d21125dc6f93a98dcb19`; the earlier no-TV branch was made safe by corrective commit `8bda1a452bc24c1407be225d39ad4102f959ebdf`.
 - Runtime state:    UNKNOWN; this environment did not access, rebuild, restart, or deploy Room 214.
 - Unresolved proven defects: Physical Room 214 has not yet accepted the corrected goodbye path; far-field/TV-on wake recall remains unmeasured in current runtime telemetry.
 - Product invariants that matter here: “Hey Aria” is retained; TV volume dips on conversation start and restores on close; TV power never changes automatically; clear endings require no repeated confirmation; one brief goodbye only.
