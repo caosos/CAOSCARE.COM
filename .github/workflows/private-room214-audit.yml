@@ -43,11 +43,8 @@ jobs:
           test -x "$python_bin"
           test -f "$HOST_REPO/backend/.env"
 
-          set -a
-          source "$HOST_REPO/backend/.env"
-          set +a
-
           "$python_bin" "$GITHUB_WORKSPACE/scripts/private_audits/export_room214_recent.py" \
+            --env "$HOST_REPO/backend/.env" \
             --hours 48 --out "$plain"
           openssl cms -encrypt -binary -aes-256-cbc \
             -in "$plain" \
@@ -61,7 +58,7 @@ jobs:
       - name: Upload encrypted artifact only
         uses: actions/upload-artifact@v4
         with:
-          name: room214-private-audit-\${{ github.run_id }}
-          path: \${{ runner.temp }}/room214-recent.json.cms
+          name: room214-private-audit-${{ github.run_id }}
+          path: ${{ runner.temp }}/room214-recent.json.cms
           if-no-files-found: error
           retention-days: 1
