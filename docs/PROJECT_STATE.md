@@ -506,6 +506,18 @@ Current task checklist — checked means the work product exists, not that pendi
 - **Michael must do:** NOTHING.
 
 
+## Tuesday, October 13, 2026 — 12:57 AM America/Chicago — New runtime and wake services loaded; journal timestamp proof failed
+
+- **Transition:** PR #144 merged as `86759d30b8bea2b0f297aaf13582118fa398b6ef`; [deployment run 38353670980](https://github.com/caosos/CAOSCARE.COM/actions/runs/38353670980) passed all pre-deploy tests, host health, clean-checkout and no-live-call guards, exact revision load, and backend restart.
+- **Loaded evidence:** controlled checkout and backend runtime are exact `86759d30b8bea2b0f297aaf13582118fa398b6ef`; backend PID `2139668`, runtime SHA `86759d3`, health passed. Frontend rebuilt successfully as `main.78489bba.js`. The guarded full wake/page/kiosk restart command and immediate service/health/listener checks completed before the proof loop.
+- **Incomplete proof:** the host's `journalctl` rejected `2026-10-13T00:56:13-05:00` as a `--since` timestamp. The step stopped before checking fresh `capture_alive` and connected-client records, and the dependent backend-survival job was skipped.
+- **Current bounded task:** use the host-supported `YYYY-MM-DD HH:MM:SS` journal timestamp, verify through PR, and rerun the exact-SHA guarded proof. Responsible coordinator/worker: CAOSCare coordinator / Codex. Stage: one-line workflow correction in progress.
+- **ETA:** UNKNOWN.
+- **next_check_at:** MISSING; work continues immediately.
+- **Blocker:** proof-script timestamp compatibility only. No current application, build, or service failure is established.
+- **Michael must do:** NOTHING.
+
+
 ## Tuesday, October 13, 2026 — 12:47 AM America/Chicago — Exact revision loaded; fresh wake proof incomplete
 
 - **Transition:** PR #143 merged as `5b571b3bad0f759cf052defb0c5ae3ef7511a11f`; [deployment run 38352764203](https://github.com/caosos/CAOSCARE.COM/actions/runs/38352764203) passed 17 backend restart tests, 16 wake tests, the room-page server test, current-host health, the clean-checkout guard, and the no-live-call guard.

@@ -217,7 +217,7 @@ jobs:
           export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
           OLD_BUNDLE="$(curl -fsS http://127.0.0.1:3002/ | grep -oE 'main\.[a-z0-9]+\.js' | head -1 || true)"
           "$DEPLOY_ROOT/room-node/aria_wake/ctl.sh" rebuild | tee -a "$RECEIPT"
-          WAKE_PROOF_SINCE="$(date --iso-8601=seconds)"
+          WAKE_PROOF_SINCE="$(date '+%Y-%m-%d %H:%M:%S')"
           "$DEPLOY_ROOT/room-node/aria_wake/ctl.sh" restart | tee -a "$RECEIPT"
           systemctl --user is-active --quiet aria-wake.service
           systemctl --user is-active --quiet aria-wake-page.service
