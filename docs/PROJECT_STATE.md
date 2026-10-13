@@ -554,3 +554,16 @@ Current task checklist — checked means the work product exists, not that pendi
 - **Verification:** 32 pure simulator tests passed locally. Python compilation and repository whitespace checks passed. Frontend tests and Work-as runtime tests were not executed in this container because frontend dependencies and PyJWT were not installed; PyJWT is already an existing backend requirement. No MongoDB, provider, production runtime, EliteDesk service, or resident record was changed.
 - **Next bounded slice:** publish this isolated branch and draft PR; run repository CI; then add canonical, receipted burn-in provisioning and execution behind explicit reset/cleanup guarantees before enabling any autonomous run.
 - **Michael must do:** NOTHING for this foundation slice.
+
+
+## Tuesday, October 13, 2026 — 1:22 AM America/Chicago — Community false-empty guard merged; simulator P1A remains isolated
+
+- **Observed live-UI problem:** the Admin page displayed “No community set up yet” after a shared-runtime interruption even though the department views remained present. The simulator branch had not been deployed and had made no database writes.
+- **Proven UI defect:** `Admin.jsx` treated a failed or malformed `GET /facilities` response as a completed empty read. That made a backend restart or transient API failure look like deletion. No evidence established that the Conway facility record was deleted.
+- **Fix:** PR #147 merged as `643e57891b3e395ec21a0d99e3fc940fceb6e5eb` after frontend CI passed. The UI now distinguishes loading, confirmed empty, and read failure; a failure says the community could not be verified, retains last-known facilities, and offers retry. It never creates or changes facility data. This merge has not been claimed loaded on the EliteDesk.
+- **Coordination rule:** Issue #129 now forbids unannounced live-service restarts, database seeds, facility mutations or migrations. Any shared-runtime mutation must post its exact SHA, services/data affected, guard and rollback first.
+- **Simulator P1A added to draft PR #146:** an idempotent ten-resident canonical provisioning service preflights resident-ID/room/pendant collisions, refuses unmarked or ambiguous records, creates/reuses canonical receipts, and never creates worker User accounts. A separate PAUSED-only adapter can create one shower-help request through the existing resident-request service and acknowledge it through the existing task lifecycle with an on-shift synthetic Nursing/Care actor and chained receipts.
+- **Execution boundary:** neither P1A service has an HTTP mutation route or has been called against live data. The broader community is still planning-only and has not been deployed.
+- **Verification:** 63 focused tests passed in the canonical dependency environment, including anonymous/staff rejection and owner/admin access for both read-only community endpoints, plus signed Work-as context tamper/expiry/principal tests. Frontend CI for the simulator head passed after its test alias correction; new-head backend/frontend CI remained in progress at this entry.
+- **Next bounded work:** finish current CI, add guarded owner/admin mutation routes only after reset/replay and side-by-side real-record protections are proven, then review before any live load.
+- **Michael must do:** NOTHING.
