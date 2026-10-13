@@ -465,3 +465,16 @@ Current task checklist — checked means the work product exists, not that pendi
 - **Invariant:** extra guidance is selected by the resident/profile and situation. It is not a second operating system and must not make every response verbose.
 - **Acceptance status:** wake recovery physical acceptance PASSED for one normal-volume attempt. The broader search/TV/goodbye sequence remains separately testable; this receipt does not invent results for those steps.
 - **Michael must do:** NOTHING for this accepted wake/profile observation.
+
+
+## 2026-10-12 11:53 PM America/Chicago — Room 214 wake/TV/close chain physically accepted
+
+- **Negative wake test:** saying `Aria` alone did not wake the system. This is required because Michael discusses Aria frequently.
+- **Positive wake test:** saying `Hey Aria` woke the system immediately.
+- **Physical behavior:** the TV muted when the conversation opened and unmuted after the conversation closed.
+- **Close behavior:** Michael said `Goodbye`; Aria answered exactly `Okay, bye for now.` and the session ended.
+- **Acceptance:** the complete observed chain—wake phrase discrimination, wake delivery, TV duck, conversation, concise goodbye, session close, and TV restore—PASSED in Room 214.
+- **Product observation:** Michael expects residents to value this interaction and the puck's touch-to-TV-power feature, especially when the puck is placed beside a chair or stand within reach. Keep touch-to-TV-power; document reachable placement in installation literature.
+- **Remaining personal-profile polish:** Aria also said, `I'm here if you want to chat, or we can just sit quietly for a bit. Your call, Michael.` That is still over-helpful for Michael's concise profile and remains an exact wording defect to remove there. It may remain appropriate in the 80-plus hand-holding profile.
+- **Blocker:** NONE for the recovered wake/TV/close chain.
+- **Michael must do:** NOTHING for this acceptance receipt.
