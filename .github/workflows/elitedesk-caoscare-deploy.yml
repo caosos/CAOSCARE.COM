@@ -71,6 +71,9 @@ jobs:
       TARGET_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.target_sha || github.sha }}
       SCOPE: ${{ github.event_name == 'workflow_dispatch' && inputs.scope || 'backend-and-room-page' }}
       CONFIRMATION: ${{ inputs.confirmation }}
+      MONGO_URL: mongodb://127.0.0.1:27017
+      DB_NAME: caoscare_ci
+      JWT_SECRET: ci-only-not-for-production
 
     steps:
       - name: Initialize provenance receipt
