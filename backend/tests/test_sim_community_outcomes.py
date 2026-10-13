@@ -5,6 +5,7 @@ import inspect
 import pytest
 
 from simulation import community_outcomes
+from simulation.community_dispatch import QUEUED_UNASSIGNED
 from simulation.community_outcomes import PLANNED_ONLY, OUTCOMES, plan_routine_outcomes
 from simulation.community_routines import plan_first_24_hours
 
@@ -21,6 +22,32 @@ def test_outcomes_are_deterministic_complete_and_planned_only():
     assert all(outcome.evidence_label == PLANNED_ONLY for outcome in first)
     assert all(outcome.represents_execution is False for outcome in first)
     assert all(0 <= outcome.planned_resolution_minute < 24 * 60 for outcome in first)
+
+
+def test_uncovered_work_is_queued_unassigned_not_planned_completed():
+    outcomes = plan_routine_outcomes()
+    queued = [
+        outcome for outcome in outcomes
+        if outcome.planned_disposition == QUEUED_UNASSIGNED
+    ]
+
+    assert len(queued) == 5
+    assert {outcome.routine for outcome in queued} == {"family_call_coordination"}
+    assert all(outcome.dispatch_state == QUEUED_UNASSIGNED for outcome in queued)
+    assert all(outcome.assigned_actor_id is None for outcome in queued)
+    assert all(
+        (outcome.queued_until_day_index, outcome.queued_until_minute) == (1, 8 * 60)
+        for outcome in queued
+    )
+    assert all(outcome.planned_resolution_day_index == 1 for outcome in queued)
+    assert all("queued and unassigned" in outcome.summary.lower() for outcome in queued)
+    assert all("no work has been completed" in outcome.truth_boundary.lower() for outcome in queued)
+    assert not {
+        outcome.event_id for outcome in queued
+    } & {
+        outcome.event_id for outcome in outcomes
+        if outcome.planned_disposition == "completed"
+    }
 
 
 def test_reschedules_link_to_original_and_stay_in_first_day():

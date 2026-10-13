@@ -10,11 +10,15 @@ from dataclasses import dataclass
 from hashlib import sha256
 from typing import Iterable, Optional
 
+from simulation.community_dispatch import QUEUED_UNASSIGNED, plan_routine_dispatch
 from simulation.community_routines import RoutineEvent, plan_first_24_hours
 
 
 PLANNED_ONLY = "simulated_plan_only"
-OUTCOMES = ("completed", "resident_refused", "resident_requested_reschedule")
+OUTCOMES = (
+    "completed", "resident_refused", "resident_requested_reschedule",
+    QUEUED_UNASSIGNED,
+)
 
 
 @dataclass(frozen=True)
@@ -27,11 +31,16 @@ class RoutineOutcome:
     routine: str
     department: str
     planned_disposition: str
+    dispatch_state: str
+    planned_resolution_day_index: int
     planned_resolution_minute: int
     summary: str
     truth_boundary: str
     evidence_label: str = PLANNED_ONLY
     represents_execution: bool = False
+    assigned_actor_id: Optional[str] = None
+    queued_until_day_index: Optional[int] = None
+    queued_until_minute: Optional[int] = None
     rescheduled_event_id: Optional[str] = None
     rescheduled_to_minute: Optional[int] = None
 
@@ -122,12 +131,32 @@ def plan_routine_outcomes(
     source = tuple(plan_first_24_hours() if events is None else events)
     if len({event.event_id for event in source}) != len(source):
         raise ValueError("routine event ids must be unique")
+    dispatch_by_event = {
+        dispatch.event_id: dispatch for dispatch in plan_routine_dispatch(source)
+    }
 
     outcomes = []
     for event in source:
+        dispatch = dispatch_by_event[event.event_id]
         score = _score(event, seed)
-        disposition = _disposition(event, score)
-        summary, boundary = _summary(event, disposition)
+        disposition = (
+            QUEUED_UNASSIGNED
+            if dispatch.dispatch_state == QUEUED_UNASSIGNED
+            else _disposition(event, score)
+        )
+        if disposition == QUEUED_UNASSIGNED:
+            summary = (
+                "Planned dispatch result: queued and unassigned until "
+                f"day {dispatch.ready_day_index} at {dispatch.ready_time_hhmm}; "
+                "no work has been completed."
+            )
+            boundary = dispatch.truth
+            resolution_day_index = dispatch.ready_day_index
+            resolution_minute = dispatch.ready_minute
+        else:
+            summary, boundary = _summary(event, disposition)
+            resolution_day_index = event.day_index
+            resolution_minute = _resolution_minute(event, disposition, score)
         rescheduled_event_id = None
         rescheduled_to_minute = None
         if disposition == "resident_requested_reschedule":
@@ -140,9 +169,18 @@ def plan_routine_outcomes(
             routine=event.routine,
             department=event.department,
             planned_disposition=disposition,
-            planned_resolution_minute=_resolution_minute(event, disposition, score),
+            dispatch_state=dispatch.dispatch_state,
+            planned_resolution_day_index=resolution_day_index,
+            planned_resolution_minute=resolution_minute,
             summary=summary,
             truth_boundary=boundary,
+            assigned_actor_id=None,
+            queued_until_day_index=(
+                dispatch.ready_day_index if disposition == QUEUED_UNASSIGNED else None
+            ),
+            queued_until_minute=(
+                dispatch.ready_minute if disposition == QUEUED_UNASSIGNED else None
+            ),
             rescheduled_event_id=rescheduled_event_id,
             rescheduled_to_minute=rescheduled_to_minute,
         ))

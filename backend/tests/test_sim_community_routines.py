@@ -23,6 +23,7 @@ def test_first_day_plan_is_deterministic_ordered_and_bounded():
     assert {event.resident_key for event in first} == set(BURN_IN_RESIDENT_KEYS)
     assert len({event.event_id for event in first}) == len(first)
     assert all(0 <= event.minute < 24 * 60 for event in first)
+    assert all(event.day_index == 0 for event in first)
     assert all(event.time_hhmm.count(":") == 1 for event in first)
 
 

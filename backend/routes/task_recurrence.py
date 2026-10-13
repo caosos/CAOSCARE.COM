@@ -28,6 +28,29 @@ from routes.task_lifecycle import record_origin
 
 ACTOR = actor_system("recurrence")
 _index_ready = False
+LIVING_COMMUNITY_SCOPE = "living_community"
+LIVING_COMMUNITY_ID = "sim:community:living-80-v1"
+
+
+def living_community_block_reason(resident: Optional[dict]) -> Optional[str]:
+    """Why generic recurrence must not process this server-owned resident."""
+    if not resident or resident.get("simulation_scope") != LIVING_COMMUNITY_SCOPE:
+        return None
+    if resident.get("simulation_community_id") != LIVING_COMMUNITY_ID:
+        return "living-community resident markers are invalid"
+    if resident.get("synthetic") is True:
+        return "resident is managed by the living-community simulator"
+    return None
+
+
+async def _resident_block_reason(resident_id: Optional[str]) -> Optional[str]:
+    if not resident_id:
+        return None
+    resident = await db.residents.find_one(
+        {"resident_id": resident_id},
+        {"_id": 0, "synthetic": 1, "simulation_scope": 1, "simulation_community_id": 1},
+    )
+    return living_community_block_reason(resident)
 
 
 async def _ensure_index() -> None:
@@ -52,9 +75,14 @@ async def generate(today: Optional[str] = None) -> dict:
     await _ensure_index()
     from routes.tasks import _resolve_denorms   # import here: tasks imports the tick indirectly
     today = today or today_facility_date()
-    out = {"occurrences_created": 0, "templates": 0}
+    out = {"occurrences_created": 0, "templates": 0,
+           "living_community_templates_skipped": 0,
+           "living_community_occurrences_skipped": 0}
     async for tpl in db.task_templates.find({"active": True}, {"_id": 0}):
         out["templates"] += 1
+        if await _resident_block_reason(tpl.get("resident_id")):
+            out["living_community_templates_skipped"] += 1
+            continue
         for day in occurrence_dates(tpl, today):
             key = f"{tpl['template_id']}:{day}"
             if await db.staff_tasks.find_one({"$or": [
@@ -62,6 +90,13 @@ async def generate(today: Optional[str] = None) -> dict:
                     # made before occurrence keys existed (old spawn-today / seed): same template, same day
                     {"template_id": tpl["template_id"], "occurrence_key": None,
                      "created_at": {"$regex": f"^{day}T"}}]}, {"_id": 1}):
+                continue
+            # Re-read immediately before insertion. Mongo cannot make a
+            # predicate on residents atomic with an insert into staff_tasks;
+            # this narrows that cross-collection race, while every later run
+            # independently refuses the protected template again.
+            if await _resident_block_reason(tpl.get("resident_id")):
+                out["living_community_occurrences_skipped"] += 1
                 continue
             dept = tpl.get("department") or "all_staff"
             payload = {"title": tpl["title"], "description": tpl.get("description") or "",

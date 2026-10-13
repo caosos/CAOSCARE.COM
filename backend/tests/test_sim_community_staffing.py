@@ -1,16 +1,20 @@
 """Pure tests for the 50-worker living-community simulation load."""
+from collections import defaultdict
 from datetime import date
 
 import pytest
 
 from simulation.community_staffing import (
     DEPARTMENT_LABELS,
+    MAINTENANCE_REST_TRADEOFF,
+    MAX_SCHEDULED_DAYS_PER_ROLLING_WEEK,
     SIMULATION_LOAD_DISCLAIMER,
     WORKERS,
     active_assignments,
     assignments_for_day,
     coverage_summary,
     minute_in_shift,
+    planned_coverage_gaps,
     project_schedule,
 )
 
@@ -42,7 +46,7 @@ def test_roster_has_50_stable_explicit_simulated_identities():
 def test_daily_assignment_is_deterministic_rotating_and_one_shift_per_worker():
     day_zero = assignments_for_day(0)
     assert day_zero == assignments_for_day(0)
-    assert len(day_zero) == 32
+    assert len(day_zero) == 31
     assert len({row["actor_id"] for row in day_zero}) == len(day_zero)
     assert {row["actor_id"] for row in day_zero if row["job_role"] == "care_aide"} != {
         row["actor_id"] for row in assignments_for_day(1) if row["job_role"] == "care_aide"
@@ -70,7 +74,7 @@ def test_default_projection_is_exactly_90_repeatable_local_days():
     first = project_schedule(date(2026, 10, 13))
     second = project_schedule("2026-10-13", days=90)
     assert first == second
-    assert len(first) == 90 * 32
+    assert len(first) == 90 * 31
     assert first[0]["date"] == "2026-10-13"
     assert {row["date"] for row in first} == {
         (date(2026, 10, 13).fromordinal(date(2026, 10, 13).toordinal() + day)).isoformat()
@@ -92,10 +96,46 @@ def test_coverage_summary_reports_real_gaps_not_invented_coverage():
     ]
     assert overnight["disclaimer"] == SIMULATION_LOAD_DISCLAIMER
     assert "not real-world staffing" in overnight["disclaimer"]
+    assert overnight["coverage_tradeoffs"] == [MAINTENANCE_REST_TRADEOFF]
+    assert overnight["planned_rota_gaps"] == planned_coverage_gaps(1)
 
     midday = coverage_summary(1, 12 * 60)
     assert midday["gaps"] == []
     assert all(item["on_shift"] > 0 for item in midday["coverage"].values())
+
+
+def test_every_worker_gets_rest_in_each_rolling_week():
+    scheduled_days = defaultdict(set)
+    for day_index in range(90):
+        for assignment in assignments_for_day(day_index):
+            scheduled_days[assignment["actor_id"]].add(day_index)
+
+    assert set(scheduled_days) == {worker["actor_id"] for worker in WORKERS}
+    for worker in WORKERS:
+        days = scheduled_days[worker["actor_id"]]
+        assert len(days) < 90
+        assert all(
+            sum(day in days for day in range(start, start + 7))
+            <= MAX_SCHEDULED_DAYS_PER_ROLLING_WEEK
+            for start in range(90 - 7 + 1)
+        )
+
+    maintenance = [worker for worker in WORKERS if worker["department"] == "maintenance"]
+    assert {len(scheduled_days[worker["actor_id"]]) for worker in maintenance} == {60}
+
+
+def test_maintenance_rest_rotation_reports_24h_coverage_tradeoff():
+    assert [planned_coverage_gaps(day)[0]["shift"] for day in range(3)] == [
+        "swing", "night", "day",
+    ]
+    assert "maintenance" in coverage_summary(0, 16 * 60)["gaps"]
+    assert "maintenance" in coverage_summary(2, 2 * 60)["gaps"]
+    assert "maintenance" in coverage_summary(2, 12 * 60)["gaps"]
+    assert all(
+        not all(coverage_summary(day, minute)["coverage"]["maintenance"]["on_shift"] > 0
+                for minute in range(1440))
+        for day in range(3)
+    )
 
 
 def test_invalid_projection_and_coverage_inputs_are_rejected():
@@ -103,6 +143,8 @@ def test_invalid_projection_and_coverage_inputs_are_rejected():
         project_schedule("2026-10-13", days=0)
     with pytest.raises(ValueError):
         assignments_for_day(-1)
+    with pytest.raises(ValueError):
+        planned_coverage_gaps(-1)
     with pytest.raises(ValueError):
         active_assignments(0, -1)
     with pytest.raises(ValueError, match="unknown departments"):

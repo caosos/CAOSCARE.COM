@@ -187,6 +187,7 @@ def worker_states_for_day(day_index: int) -> list[dict]:
                 "department": worker["department"],
                 "job_role": worker["job_role"],
                 "assignment_day_index": day_index,
+                "rest_reason": "not_scheduled",
                 "milestones": [],
             })
     return states

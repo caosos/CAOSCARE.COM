@@ -16,12 +16,12 @@ def test_day_plan_is_deterministic_complete_and_only_planned():
     assert first == planned_events_for_day(0)
     assert len({event["event_id"] for event in first}) == len(first)
     assert event_counts(first) == {
-        "clock_in": 32,
-        "clock_out": 32,
-        "coverage_gap_ended": 5,
+        "clock_in": 31,
+        "clock_out": 31,
+        "coverage_gap_ended": 6,
         "coverage_gap_present": 5,
-        "coverage_gap_started": 5,
-        "handoff": 32,
+        "coverage_gap_started": 6,
+        "handoff": 31,
     }
     assert all(event["status"] == "planned" for event in first)
     assert all(event["execution_state"] == "not_executed" for event in first)
@@ -79,7 +79,12 @@ def test_coverage_gap_events_are_system_observations_with_truthful_boundaries():
                 and event["event_type"] == "coverage_gap_ended")["time"] == "05:30"
     assert next(event for event in gaps if event["department"] == "transportation"
                 and event["event_type"] == "coverage_gap_started")["time"] == "15:00"
-    assert not [event for event in gaps if event["department"] in {"nursing", "maintenance", "front_desk"}]
+    assert not [event for event in gaps if event["department"] in {"nursing", "front_desk"}]
+    maintenance = [event for event in gaps if event["department"] == "maintenance"]
+    assert [(event["event_type"], event["time"]) for event in maintenance] == [
+        ("coverage_gap_started", "15:00"),
+        ("coverage_gap_ended", "23:00"),
+    ]
 
 
 def test_handoff_lists_only_workers_covering_the_same_department_at_shift_end():

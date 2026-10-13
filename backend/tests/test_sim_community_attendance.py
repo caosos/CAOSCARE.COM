@@ -20,7 +20,7 @@ def test_every_worker_has_exactly_one_truthful_daily_state():
     assert len(states) == 50
     assert len({state["actor_id"] for state in states}) == 50
     assert Counter(state["attendance_state"] for state in states) == {
-        "scheduled": 32, "off_duty": 18,
+        "scheduled": 31, "off_duty": 19,
     }
     assert all(state["status"] == "planned" for state in states)
     assert all(state["execution_state"] == "not_executed" for state in states)
@@ -80,6 +80,7 @@ def test_off_duty_worker_has_no_invented_session_or_activity():
                  if state["attendance_state"] == "off_duty")
     assert state["session_id"] is None and state["shift_assignment_id"] is None
     assert state["milestones"] == []
+    assert state["rest_reason"] == "not_scheduled"
     assert "user_id" not in state and "token" not in state
 
 
@@ -93,16 +94,35 @@ def test_default_projection_covers_all_50_workers_for_90_days_deterministically(
     summary = attendance_summary(first)
     assert summary == {
         "workers": 50,
-        "states": {"off_duty": 18 * 90, "scheduled": 32 * 90},
+        "states": {"off_duty": 19 * 90, "scheduled": 31 * 90},
         "session_milestones": {
-            event_type: 32 * 90 for event_type in ("assignment_acceptance", "planned_login")
+            event_type: 31 * 90 for event_type in ("assignment_acceptance", "planned_login")
         },
         "canonical_shift_milestone_references": {
-            event_type: 32 * 90 for event_type in ("clock_in", "clock_out", "handoff")
+            event_type: 31 * 90 for event_type in ("clock_in", "clock_out", "handoff")
         },
-        "milestones": {event_type: 32 * 90 for event_type in sorted(MILESTONE_TYPES)},
+        "milestones": {event_type: 31 * 90 for event_type in sorted(MILESTONE_TYPES)},
         "truth": PLANNING_TRUTH,
     }
+
+
+def test_maintenance_attendance_has_regular_planned_rest_days():
+    projection = project_worker_attendance("2026-10-13", days=90)
+    maintenance = [state for state in projection if state["department"] == "maintenance"]
+    by_worker = {
+        actor_id: [state for state in maintenance if state["actor_id"] == actor_id]
+        for actor_id in {state["actor_id"] for state in maintenance}
+    }
+
+    assert len(by_worker) == 3
+    for states in by_worker.values():
+        assert Counter(state["attendance_state"] for state in states) == {
+            "scheduled": 60, "off_duty": 30,
+        }
+        assert all(
+            sum(state["attendance_state"] == "scheduled" for state in states[start:start + 7]) <= 6
+            for start in range(90 - 7 + 1)
+        )
 
 
 def test_overnight_session_handoff_and_clock_out_land_next_day():
