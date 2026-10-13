@@ -1,9 +1,9 @@
 """Planning-only synthetic worker attendance and session projection.
 
 Every one of the 50 synthetic workers gets one state per projected day.  An
-on-duty state contains planned milestones for a simulator session marker,
-clock-in, shift-assignment acceptance, handoff, and clock-out.  An off-duty
-state contains no invented activity.
+on-duty state contains attendance-owned simulator session markers plus exact
+references to the canonical clock-in, handoff, and clock-out events from
+``community_shift_events``.  An off-duty state contains no invented activity.
 
 "Login" here is explicitly a simulation-session plan.  It does not create a
 ``User``, authenticate, mint a token, write a database record, or prove that
@@ -15,16 +15,20 @@ from datetime import date, datetime, time, timedelta
 from typing import Iterable
 
 from simulation.community_staffing import WORKERS, assignments_for_day
+from simulation.community_shift_events import (
+    SHIFT_MILESTONE_TYPES,
+    planned_shift_milestones,
+)
 
 
 PLANNING_TRUTH = "Planned only; not authenticated, executed, or receipted."
 MILESTONE_TYPES = (
     "planned_login",
-    "clock_in",
+    SHIFT_MILESTONE_TYPES[0],
     "assignment_acceptance",
-    "handoff",
-    "clock_out",
+    *SHIFT_MILESTONE_TYPES[1:],
 )
+SESSION_MILESTONE_TYPES = ("planned_login", "assignment_acceptance")
 
 
 def _assignment_id(assignment: dict) -> str:
@@ -58,7 +62,10 @@ def _position(absolute_minute: int) -> dict:
     }
 
 
-def _milestone(event_type: str, absolute_minute: int, assignment: dict) -> dict:
+def _session_milestone(event_type: str, absolute_minute: int, assignment: dict) -> dict:
+    """Build attendance-owned intent, never a duplicate shift milestone."""
+    if event_type not in SESSION_MILESTONE_TYPES:
+        raise ValueError(f"attendance does not own {event_type} milestones")
     position = _position(absolute_minute)
     event = {
         "event_id": (
@@ -73,6 +80,7 @@ def _milestone(event_type: str, absolute_minute: int, assignment: dict) -> dict:
         "receipt_id": None,
         "requires_receipt_if_executed": True,
         "truth": PLANNING_TRUTH,
+        "stream_kind": "attendance_session_intent",
         "session_id": _session_id(assignment),
         "shift_assignment_id": _assignment_id(assignment),
         "actor_id": assignment["actor_id"],
@@ -117,13 +125,19 @@ def session_plan(assignment: dict, *, login_lead_minutes: int = 10,
         raise ValueError("assignment acceptance must occur before shift end")
     if end - handoff_lead_minutes <= start:
         raise ValueError("handoff must occur after shift start")
-    moments = (
-        ("planned_login", start - login_lead_minutes),
-        ("clock_in", start),
-        ("assignment_acceptance", start + acceptance_delay_minutes),
-        ("handoff", end - handoff_lead_minutes),
-        ("clock_out", end),
-    )
+    shift_milestones = {
+        event["event_type"]: event
+        for event in planned_shift_milestones(assignment, handoff_lead_minutes)
+    }
+    milestones = [
+        _session_milestone("planned_login", start - login_lead_minutes, assignment),
+        shift_milestones["clock_in"],
+        _session_milestone(
+            "assignment_acceptance", start + acceptance_delay_minutes, assignment,
+        ),
+        shift_milestones["handoff"],
+        shift_milestones["clock_out"],
+    ]
     return {
         "session_id": _session_id(assignment),
         "shift_assignment_id": _assignment_id(assignment),
@@ -141,7 +155,8 @@ def session_plan(assignment: dict, *, login_lead_minutes: int = 10,
         "job_role": assignment["job_role"],
         "shift": assignment["shift"],
         "assignment_day_index": assignment["day_index"],
-        "milestones": [_milestone(kind, at, assignment) for kind, at in moments],
+        "shift_milestones_source": "simulation.community_shift_events",
+        "milestones": milestones,
     }
 
 
@@ -202,15 +217,25 @@ def project_worker_attendance(start_date: date | str, days: int = 90) -> list[di
 
 
 def attendance_summary(states: Iterable[dict]) -> dict:
-    """Count scheduled/off-duty states and planned milestones."""
+    """Count session intents separately from canonical shift references."""
     states = list(states)
     state_counts = Counter(state["attendance_state"] for state in states)
     event_counts = Counter(
         event["event_type"] for state in states for event in state["milestones"]
     )
+    session_counts = {
+        event_type: event_counts[event_type] for event_type in SESSION_MILESTONE_TYPES
+    }
+    shift_references = {
+        event_type: event_counts[event_type] for event_type in SHIFT_MILESTONE_TYPES
+    }
     return {
         "workers": len({state["actor_id"] for state in states}),
         "states": dict(sorted(state_counts.items())),
+        "session_milestones": dict(sorted(session_counts.items())),
+        "canonical_shift_milestone_references": dict(sorted(shift_references.items())),
+        # Compatibility aggregate. Consumers should use the two scoped fields
+        # above rather than count canonical shift events twice.
         "milestones": dict(sorted(event_counts.items())),
         "truth": PLANNING_TRUTH,
     }

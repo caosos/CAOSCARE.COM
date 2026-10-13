@@ -136,9 +136,20 @@ def _default_store():
     return db
 
 
+def _simulation_markers(simulation_run_id: Optional[str] = None) -> dict:
+    """Describe the simulated target without changing the human actor truth."""
+    markers = {
+        "simulation_scope": SIMULATION_SCOPE,
+        "simulation_community_id": COMMUNITY_ID,
+    }
+    if simulation_run_id:
+        markers["simulation_run_id"] = simulation_run_id
+    return markers
+
+
 async def _write_receipt(
     writer: Callable[..., Awaitable[dict]], operator: ActorContext, authority: str,
-    doc: dict, *, created: bool,
+    doc: dict, *, created: bool, simulation_run_id: Optional[str] = None,
 ) -> dict:
     receipt_id = f"rcpt_{uuid.uuid4().hex[:12]}"
     state = _state(doc)
@@ -154,6 +165,7 @@ async def _write_receipt(
         receipt_id=receipt_id,
         provenance={
             **operator.receipt_fields(),
+            **_simulation_markers(simulation_run_id),
             "authority": authority,
             "correlation_id": receipt_id,
             "before_state": None if created else state,
@@ -171,6 +183,7 @@ async def provision_burn_in_residents(
     store=None,
     receipt_writer: Optional[Callable[..., Awaitable[dict]]] = None,
     document_factory: Optional[Callable[[ResidentRecipe], dict]] = None,
+    simulation_run_id: Optional[str] = None,
 ) -> dict:
     """Create or reuse exactly ten marked canonical resident records.
 
@@ -223,7 +236,12 @@ async def provision_burn_in_residents(
         receipt = None if existing is None else await _existing_receipt(store, recipe.resident_id)
         if not receipt:
             receipt = await _write_receipt(
-                receipt_writer, operator, authority, doc, created=existing is None
+                receipt_writer,
+                operator,
+                authority,
+                doc,
+                created=existing is None,
+                simulation_run_id=simulation_run_id,
             )
         receipts.append(receipt)
 

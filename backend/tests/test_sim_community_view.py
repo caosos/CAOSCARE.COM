@@ -13,10 +13,8 @@ def test_overview_declares_scale_without_claiming_execution():
         "scheduled": 32,
         "off_duty": 18,
         "planned_login": 32,
-        "clock_in": 32,
         "assignment_acceptance": 32,
-        "handoff": 32,
-        "clock_out": 32,
+        "canonical_shift_events_reported_under": "shift_events",
         "executed": 0,
         "truth": "Planned only; not authenticated, executed, or receipted.",
     }
@@ -61,6 +59,20 @@ def test_preview_is_inspectable_and_keeps_provider_boundaries_blocked():
     assert all(row["execution_state"] == "not_executed" for row in preview["worker_attendance"])
     assert preview["planned_shift_events"]
     assert all(event["execution_state"] == "not_executed" for event in preview["planned_shift_events"])
+    attendance_shift_events = {
+        event["event_id"]: event
+        for state in preview["worker_attendance"]
+        for event in state["milestones"]
+        if event["stream_kind"] == "canonical_shift_milestone"
+    }
+    day_shift_events = {
+        event["event_id"]: event for event in preview["planned_shift_events"]
+        if event["stream_kind"] == "canonical_shift_milestone"
+    }
+    shared_ids = attendance_shift_events.keys() & day_shift_events.keys()
+    assert shared_ids
+    assert all(attendance_shift_events[event_id] == day_shift_events[event_id]
+               for event_id in shared_ids)
     reminders = [
         event for event in preview["routine_events"]
         if "medication_reminder" in event["routine"]

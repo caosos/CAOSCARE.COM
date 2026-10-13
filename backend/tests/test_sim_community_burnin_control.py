@@ -68,8 +68,8 @@ def test_default_is_safe_preflight_and_performs_no_execution(monkeypatch):
                 "simulation_scope": control.SIMULATION_SCOPE,
                 "simulation_community_id": control.COMMUNITY_ID}
 
-    async def preflight(operator, authority, store=None):
-        calls.append((operator.actor_id, authority))
+    async def preflight(operator, authority, simulation_run_id, store=None):
+        calls.append((operator.actor_id, authority, simulation_run_id))
         return deepcopy(PLAN)
 
     monkeypatch.setenv("JWT_SECRET", "p1a-test-secret-that-is-32-bytes-long")
@@ -87,7 +87,7 @@ def test_default_is_safe_preflight_and_performs_no_execution(monkeypatch):
     assert body["run_state"] == "PAUSED" and body["plan"] == PLAN
     assert body["confirmation_token"] and body["confirmation_expires_at"]
     assert "No residents or receipts were written" in body["message"]
-    assert calls == [(ADMIN["user_id"], "admin_override:owner")]
+    assert calls == [(ADMIN["user_id"], "admin_override:owner", "simrun-1")]
 
 
 def test_running_run_and_unconfirmed_execute_are_refused(monkeypatch):
@@ -105,7 +105,7 @@ def test_running_run_and_unconfirmed_execute_are_refused(monkeypatch):
                 "simulation_scope": control.SIMULATION_SCOPE,
                 "simulation_community_id": control.COMMUNITY_ID}
 
-    async def preflight(operator, authority, store=None):
+    async def preflight(operator, authority, simulation_run_id, store=None):
         return deepcopy(PLAN)
 
     monkeypatch.setattr(control, "_paused_run", paused)
@@ -151,7 +151,7 @@ def test_confirmed_execution_still_requires_disabled_by_default_server_gate(monk
                 "simulation_scope": control.SIMULATION_SCOPE,
                 "simulation_community_id": control.COMMUNITY_ID}
 
-    async def preflight(operator, authority, store=None):
+    async def preflight(operator, authority, simulation_run_id, store=None):
         return deepcopy(PLAN)
 
     monkeypatch.setenv("JWT_SECRET", "p1a-test-secret-that-is-32-bytes-long")
@@ -165,3 +165,45 @@ def test_confirmed_execution_still_requires_disabled_by_default_server_gate(monk
     )
     assert response.status_code == 409
     assert control.EXECUTION_FLAG in response.json()["detail"]
+
+
+def test_confirmed_execution_passes_exact_run_to_receipt_provisioner(monkeypatch):
+    calls = []
+
+    async def paused(run_id, store=None):
+        return {"run_id": run_id, "state": control.PAUSED,
+                "simulation_scope": control.SIMULATION_SCOPE,
+                "simulation_community_id": control.COMMUNITY_ID}
+
+    async def preflight(operator, authority, simulation_run_id, store=None):
+        calls.append(("preflight", simulation_run_id))
+        return deepcopy(PLAN)
+
+    async def execute(operator, authority, simulation_run_id):
+        calls.append(("execute", simulation_run_id))
+        return {
+            "community_id": control.COMMUNITY_ID,
+            "created_ids": ["sim:resident:001"],
+            "reused_ids": ["sim:resident:002"],
+            "receipts": [{
+                "receipt_id": "rcpt-bound-run",
+                "simulated": False,
+                "simulation_scope": control.SIMULATION_SCOPE,
+                "simulation_community_id": control.COMMUNITY_ID,
+                "simulation_run_id": simulation_run_id,
+            }],
+        }
+
+    monkeypatch.setenv("JWT_SECRET", "p1a-test-secret-that-is-32-bytes-long")
+    monkeypatch.setenv(control.EXECUTION_FLAG, "true")
+    monkeypatch.setattr(control, "_paused_run", paused)
+    monkeypatch.setattr(control, "_preflight", preflight)
+    monkeypatch.setattr(control, "_execute_provision", execute)
+    token, _expires = control._issue_confirmation(ADMIN, "simrun-1", control._digest(PLAN))
+    response = app_with(owner).post(
+        "/simulator/community/burn-in/provision",
+        json={"run_id": "simrun-1", "execute": True, "confirmation_token": token},
+    )
+    assert response.status_code == 200
+    assert response.json()["receipt_ids"] == ["rcpt-bound-run"]
+    assert calls == [("preflight", "simrun-1"), ("execute", "simrun-1")]

@@ -56,8 +56,16 @@ ADAPTER_CAPABILITIES = {
 
 @dataclass(frozen=True)
 class RoutineEvent:
-    """One planned simulator intent, sorted by minute then resident/routine."""
+    """One planned intent with an explicit, bounded execution coordinate.
 
+    ``plan_day_index`` is the day whose routine recipe produced the event.
+    ``day_index`` and ``minute`` are the event's scheduled day and minute of
+    that day.  A staggered event may therefore drain into the following day
+    without producing an invalid clock time or losing its source-day identity.
+    """
+
+    plan_day_index: int
+    day_index: int
     minute: int
     resident_key: str
     routine: str
@@ -75,6 +83,14 @@ class RoutineEvent:
     @property
     def time_hhmm(self) -> str:
         return f"{self.minute // 60:02d}:{self.minute % 60:02d}"
+
+    @property
+    def absolute_minute(self) -> int:
+        return self.day_index * 24 * 60 + self.minute
+
+    @property
+    def rollover_days(self) -> int:
+        return self.day_index - self.plan_day_index
 
     @property
     def adapter_status(self) -> str:
@@ -140,8 +156,11 @@ _DAILY_ROUTINES = (
 
 
 def _event(spec: _RoutineSpec, resident_key: str, resident_index: int, day_index: int) -> RoutineEvent:
-    minute = spec.base_minute + (resident_index - 1) * spec.stagger
+    scheduled_offset = spec.base_minute + (resident_index - 1) * spec.stagger
+    rollover_days, minute = divmod(scheduled_offset, 24 * 60)
     return RoutineEvent(
+        plan_day_index=day_index,
+        day_index=day_index + rollover_days,
         minute=minute,
         resident_key=resident_key,
         routine=spec.routine,
@@ -159,7 +178,12 @@ def plan_first_24_hours(
     *,
     day_index: int = 0,
 ) -> tuple[RoutineEvent, ...]:
-    """Return a deterministic first-day plan without performing any action."""
+    """Return one source day's deterministic plan without performing actions.
+
+    The returned plan includes its complete drain: resident staggering may put
+    late work on the next scheduled day, but ``minute`` always remains a valid
+    minute-of-day value.
+    """
     if day_index < 0:
         raise ValueError("day_index must be non-negative")
     if not resident_keys or len(set(resident_keys)) != len(resident_keys):
@@ -201,7 +225,7 @@ def plan_first_24_hours(
             ), resident_key, resident_index, day_index))
 
     return tuple(sorted(events, key=lambda item: (
-        item.minute, item.resident_key, item.routine, item.event_id,
+        item.day_index, item.minute, item.resident_key, item.routine, item.event_id,
     )))
 
 

@@ -3,9 +3,12 @@ import pytest
 
 from simulation.community_shift_events import (
     PLANNED_ONLY,
+    SHIFT_MILESTONE_TYPES,
     event_counts,
     planned_events_for_day,
+    planned_shift_milestones,
 )
+from simulation.community_staffing import assignments_for_day
 
 
 def test_day_plan_is_deterministic_complete_and_only_planned():
@@ -36,6 +39,17 @@ def test_staff_events_keep_explicit_synthetic_identity_and_never_fake_a_login():
     assert all(event["identity_basis"] == "synthetic" and event["actor_simulated"] for event in staff_events)
     assert all("user_id" not in event and "login" not in event for event in staff_events)
     assert all(event["target_type"] == "staff_shift" for event in staff_events)
+    assert all(event["stream_kind"] == "canonical_shift_milestone" for event in staff_events)
+
+
+def test_assignment_has_one_canonical_shift_milestone_stream():
+    assignment = assignments_for_day(2)[0]
+    events = planned_shift_milestones(assignment)
+
+    assert tuple(event["event_type"] for event in events) == SHIFT_MILESTONE_TYPES
+    assert len({event["event_id"] for event in events}) == 3
+    assert all(event["shift_assignment_id"] == event["target_id"] for event in events)
+    assert all(event["session_id"].startswith("sim:worker-session:") for event in events)
 
 
 def test_prior_night_shift_handoffs_and_clock_outs_are_in_next_day_plan():

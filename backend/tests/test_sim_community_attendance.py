@@ -12,6 +12,7 @@ from simulation.community_attendance import (
     worker_states_for_day,
 )
 from simulation.community_staffing import assignments_for_day
+from simulation.community_shift_events import PLANNED_ONLY, planned_shift_milestones
 
 
 def test_every_worker_has_exactly_one_truthful_daily_state():
@@ -36,7 +37,14 @@ def test_scheduled_worker_has_five_ordered_unexecuted_milestones():
         event["day_index"] * 1440 + event["minute"] for event in events
     )
     assert all(event["status"] == "planned" and event["receipt_id"] is None for event in events)
-    assert all(event["executed_at"] is None and event["truth"] == PLANNING_TRUTH for event in events)
+    assert all(event["executed_at"] is None for event in events)
+    assert all(
+        event["truth"] == (
+            PLANNING_TRUTH if event["stream_kind"] == "attendance_session_intent"
+            else PLANNED_ONLY
+        )
+        for event in events
+    )
 
     login = events[0]
     assert login["login_kind"] == "simulation_session_marker"
@@ -45,6 +53,26 @@ def test_scheduled_worker_has_five_ordered_unexecuted_milestones():
     acceptance = events[2]
     assert acceptance["assignment_scope"] == "shift_only"
     assert acceptance["task_ids"] == [] and acceptance["accepts_canonical_task"] is False
+
+
+def test_attendance_embeds_canonical_shift_events_instead_of_minting_duplicates():
+    assignment = assignments_for_day(2)[0]
+    state = session_plan(assignment)
+    embedded = [
+        event for event in state["milestones"]
+        if event["stream_kind"] == "canonical_shift_milestone"
+    ]
+
+    assert embedded == planned_shift_milestones(assignment)
+    assert [event["event_type"] for event in embedded] == [
+        "clock_in", "handoff", "clock_out",
+    ]
+    assert all(event["event_id"].startswith("sim:shift-event:") for event in embedded)
+    assert not any(
+        event["event_id"].startswith("sim:attendance-event:")
+        for event in embedded
+    )
+    assert state["shift_milestones_source"] == "simulation.community_shift_events"
 
 
 def test_off_duty_worker_has_no_invented_session_or_activity():
@@ -66,6 +94,12 @@ def test_default_projection_covers_all_50_workers_for_90_days_deterministically(
     assert summary == {
         "workers": 50,
         "states": {"off_duty": 18 * 90, "scheduled": 32 * 90},
+        "session_milestones": {
+            event_type: 32 * 90 for event_type in ("assignment_acceptance", "planned_login")
+        },
+        "canonical_shift_milestone_references": {
+            event_type: 32 * 90 for event_type in ("clock_in", "clock_out", "handoff")
+        },
         "milestones": {event_type: 32 * 90 for event_type in sorted(MILESTONE_TYPES)},
         "truth": PLANNING_TRUTH,
     }

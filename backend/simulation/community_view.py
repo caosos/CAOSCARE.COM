@@ -107,7 +107,8 @@ def community_overview(day_index: int = 0, minute: int = 0) -> dict:
         "workers": {"count": len(WORKERS), "simulated": True},
         "worker_attendance": {
             **attendance_counts["states"],
-            **attendance_counts["milestones"],
+            **attendance_counts["session_milestones"],
+            "canonical_shift_events_reported_under": "shift_events",
             "executed": 0,
             "truth": attendance_counts["truth"],
         },

@@ -10,13 +10,18 @@ from simulation.community_cleanup import CleanupError, cleanup_burn_in_residents
 from simulation.community_provisioning import provision_burn_in_residents
 
 
+RUN_ID = "simrun-living-markers-1"
+
+
 def _matches(doc, query):
     for key, wanted in query.items():
         if key == "$or":
             if not any(_matches(doc, alternative) for alternative in wanted):
                 return False
             continue
-        actual = doc.get(key)
+        actual = doc
+        for part in key.split("."):
+            actual = actual.get(part) if isinstance(actual, dict) else None
         if isinstance(wanted, dict) and "$in" in wanted:
             if actual not in wanted["$in"]:
                 return False
@@ -64,6 +69,9 @@ class Store:
         self.residents = Collection(residents)
         self.receipts = Collection()
         self.users = Collection()
+        self.staff_tasks = Collection()
+        self.notifications = Collection()
+        self.sim_runs = Collection()
 
 
 def operator(role="owner"):
@@ -91,23 +99,27 @@ def writer(store):
     return write
 
 
-async def provision(store):
+async def provision(store, simulation_run_id=None):
     return await provision_burn_in_residents(
         operator(), "admin_override:owner", store=store,
         receipt_writer=writer(store), document_factory=resident_doc,
+        simulation_run_id=simulation_run_id,
     )
 
 
-async def cleanup(store, actor=None, authority="admin_override:owner"):
+async def cleanup(
+    store, actor=None, authority="admin_override:owner", simulation_run_id=None,
+):
     return await cleanup_burn_in_residents(
-        actor or operator(), authority, store=store, receipt_writer=writer(store)
+        actor or operator(), authority, store=store, receipt_writer=writer(store),
+        simulation_run_id=simulation_run_id,
     )
 
 
 def test_cleanup_removes_exactly_ten_residents_and_preserves_evidence():
     async def run():
-        store = Store(); await provision(store)
-        result = await cleanup(store)
+        store = Store(); await provision(store, simulation_run_id=RUN_ID)
+        result = await cleanup(store, simulation_run_id=RUN_ID)
         assert result["removed_ids"] == [r.resident_id for r in BURN_IN_RESIDENTS]
         assert result["already_absent_ids"] == result["reconciled_ids"] == []
         assert store.residents.docs == []
@@ -116,7 +128,14 @@ def test_cleanup_removes_exactly_ten_residents_and_preserves_evidence():
         actions = [r["action_type"] for r in store.receipts.docs]
         assert actions.count("simulation_resident_cleanup_requested") == 10
         assert actions.count("simulation_resident_removed") == 10
-        removed = [r for r in store.receipts.docs if r["action_type"] == "simulation_resident_removed"]
+        cleanup_receipts = [r for r in store.receipts.docs if r["action_type"] in {
+            "simulation_resident_cleanup_requested", "simulation_resident_removed",
+        }]
+        removed = [r for r in cleanup_receipts if r["action_type"] == "simulation_resident_removed"]
+        assert all(r["simulated"] is False for r in cleanup_receipts)
+        assert all(r["simulation_scope"] == SIMULATION_SCOPE for r in cleanup_receipts)
+        assert all(r["simulation_community_id"] == COMMUNITY_ID for r in cleanup_receipts)
+        assert all(r["simulation_run_id"] == RUN_ID for r in cleanup_receipts)
         assert all(r["actor_type"] == "real-human" for r in removed)
         assert all(r["authority"] == "admin_override:owner" for r in removed)
         assert all(r["before_state"]["simulation_community_id"] == COMMUNITY_ID for r in removed)
@@ -223,6 +242,96 @@ def test_reprovisioned_resident_gets_a_new_cleanup_authorization_cycle():
                     "simulation_resident_cleanup_requested"]
         assert len(requests) == 20
         assert len({r["receipt_id"] for r in requests}) == 20
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize(("collection", "dependency"), [
+    ("staff_tasks", {
+        "task_id": "task-dependent",
+        "resident_id": BURN_IN_RESIDENTS[0].resident_id,
+        "simulated": True,
+        "simulation_scope": SIMULATION_SCOPE,
+    }),
+    ("notifications", {
+        "notification_id": "notification-dependent",
+        "resident_id": BURN_IN_RESIDENTS[0].resident_id,
+        "simulated": True,
+        "simulation_scope": SIMULATION_SCOPE,
+    }),
+    ("sim_runs", {
+        "run_id": "run-dependent",
+        "state": "PAUSED",
+        "simulation_scope": SIMULATION_SCOPE,
+        "simulation_community_id": COMMUNITY_ID,
+        "cast": {"resident": {"actor_id": BURN_IN_RESIDENTS[0].resident_id}},
+    }),
+])
+def test_dependency_preflight_refuses_before_any_delete(collection, dependency):
+    async def run():
+        store = Store([resident_doc(r) for r in BURN_IN_RESIDENTS])
+        getattr(store, collection).docs.append(deepcopy(dependency))
+        with pytest.raises(CleanupError, match=collection):
+            await cleanup(store)
+        assert store.residents.deletes == 0
+        assert len(store.residents.docs) == 10
+        assert store.receipts.docs == []
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("collection", ["staff_tasks", "notifications", "sim_runs"])
+def test_exact_community_marker_is_dependency_evidence(collection):
+    async def run():
+        store = Store([resident_doc(r) for r in BURN_IN_RESIDENTS])
+        getattr(store, collection).docs.append({
+            "simulation_scope": SIMULATION_SCOPE,
+            "simulation_community_id": COMMUNITY_ID,
+            "state": "PAUSED",
+        })
+        with pytest.raises(CleanupError, match=collection):
+            await cleanup(store)
+        assert store.residents.deletes == 0
+        assert store.receipts.docs == []
+
+    asyncio.run(run())
+
+
+def test_task_room_and_direct_resident_notification_are_dependencies():
+    async def run():
+        target = BURN_IN_RESIDENTS[0]
+        for collection, dependency in (
+            ("staff_tasks", {"task_id": "by-room", "room": target.room}),
+            ("notifications", {
+                "notification_id": "by-object",
+                "related_object_type": "resident",
+                "related_object_id": target.resident_id,
+            }),
+        ):
+            store = Store([resident_doc(r) for r in BURN_IN_RESIDENTS])
+            getattr(store, collection).docs.append(dependency)
+            with pytest.raises(CleanupError, match=collection):
+                await cleanup(store)
+            assert store.residents.deletes == 0
+
+    asyncio.run(run())
+
+
+def test_unrelated_operational_records_do_not_block_exact_cleanup():
+    async def run():
+        store = Store([resident_doc(r) for r in BURN_IN_RESIDENTS])
+        store.staff_tasks.docs.append({"task_id": "other", "resident_id": "real-resident"})
+        store.notifications.docs.append({
+            "notification_id": "other", "related_object_type": "resident",
+            "related_object_id": "real-resident",
+        })
+        store.sim_runs.docs.append({
+            "run_id": "other", "state": "PAUSED",
+            "cast": {"resident": {"actor_id": "real-resident"}},
+        })
+        result = await cleanup(store)
+        assert len(result["removed_ids"]) == 10
+        assert store.residents.deletes == 10
 
     asyncio.run(run())
 

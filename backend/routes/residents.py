@@ -9,6 +9,47 @@ from aria_guidance_profiles import normalize_guidance_profile, DEFAULT as DEFAUL
 
 router = APIRouter(prefix="/residents", tags=["residents"])
 
+LIVING_COMMUNITY_SCOPE = "living_community"
+LIVING_COMMUNITY_ID = "sim:community:living-80-v1"
+_MANAGED_DETAIL = "This resident is managed by the living-community simulator"
+
+
+def _refuse_managed_resident(doc: dict) -> None:
+    """Keep generic CRUD outside the simulator's resident write boundary."""
+    if doc.get("simulation_scope") != LIVING_COMMUNITY_SCOPE:
+        return
+    if doc.get("simulation_community_id") != LIVING_COMMUNITY_ID:
+        raise HTTPException(
+            status_code=409,
+            detail="Living-community resident markers are invalid; no change was made",
+        )
+    if doc.get("synthetic") is True:
+        raise HTTPException(status_code=409, detail=f"{_MANAGED_DETAIL}; no change was made")
+
+
+def _generic_mutation_filter(resident_id: str) -> dict:
+    """Atomic inverse of the pre-read refusal, closing marker-change races."""
+    return {
+        "resident_id": resident_id,
+        "$or": [
+            {"simulation_scope": {"$ne": LIVING_COMMUNITY_SCOPE}},
+            {
+                "simulation_scope": LIVING_COMMUNITY_SCOPE,
+                "simulation_community_id": LIVING_COMMUNITY_ID,
+                "synthetic": {"$ne": True},
+            },
+        ],
+    }
+
+
+async def _mutation_miss(resident_id: str) -> None:
+    """Report a concurrent delete separately from a newly protected row."""
+    current = await db.residents.find_one({"resident_id": resident_id}, {"_id": 0})
+    if not current:
+        raise HTTPException(status_code=404, detail="Resident not found")
+    _refuse_managed_resident(current)
+    raise HTTPException(status_code=409, detail="Resident changed during the request; retry")
+
 
 def _serialize(doc: dict) -> dict:
     if isinstance(doc.get("created_at"), str):
@@ -54,14 +95,15 @@ async def update_resident(resident_id: str, data: ResidentCreate, user=Depends(g
     before = await db.residents.find_one({"resident_id": resident_id}, {"_id": 0})
     if not before:
         raise HTTPException(status_code=404, detail="Resident not found")
+    _refuse_managed_resident(before)
     old_profile = normalize_guidance_profile(before.get("aria_guidance_profile"))
     new_profile = normalize_guidance_profile(data.aria_guidance_profile)
     if old_profile != new_profile and user.get("role") not in ("owner", "admin"):
         raise HTTPException(status_code=403, detail="Only an owner or admin can change Aria's conversation style")
     upd = data.model_dump()
-    r = await db.residents.update_one({"resident_id": resident_id}, {"$set": upd})
+    r = await db.residents.update_one(_generic_mutation_filter(resident_id), {"$set": upd})
     if r.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Resident not found")
+        await _mutation_miss(resident_id)
     doc = await db.residents.find_one({"resident_id": resident_id}, {"_id": 0})
     if old_profile != new_profile:
         await _record_guidance_change(doc, user, old_profile, new_profile)
@@ -84,9 +126,13 @@ async def _record_guidance_change(resident: dict, user: dict, before: str | None
 
 @router.delete("/{resident_id}")
 async def delete_resident(resident_id: str, user=Depends(get_current_user)):
-    r = await db.residents.delete_one({"resident_id": resident_id})
-    if r.deleted_count == 0:
+    before = await db.residents.find_one({"resident_id": resident_id}, {"_id": 0})
+    if not before:
         raise HTTPException(status_code=404, detail="Resident not found")
+    _refuse_managed_resident(before)
+    r = await db.residents.delete_one(_generic_mutation_filter(resident_id))
+    if r.deleted_count == 0:
+        await _mutation_miss(resident_id)
     return {"ok": True}
 
 
@@ -107,14 +153,17 @@ async def update_preferred_name(resident_id: str, body: dict):
     name = (body.get("preferred_name") or "").strip()
     if not name or len(name) > 60:
         raise HTTPException(status_code=400, detail="preferred_name must be 1-60 chars")
-    existing = await db.residents.find_one({"resident_id": resident_id}, {"_id": 0, "preferred_name": 1})
+    existing = await db.residents.find_one({"resident_id": resident_id}, {"_id": 0})
     if not existing:
         raise HTTPException(status_code=404, detail="Resident not found")
+    _refuse_managed_resident(existing)
     old_name = existing.get("preferred_name") or ""
-    await db.residents.update_one(
-        {"resident_id": resident_id},
+    result = await db.residents.update_one(
+        _generic_mutation_filter(resident_id),
         {"$set": {"preferred_name": name}},
     )
+    if result.matched_count == 0:
+        await _mutation_miss(resident_id)
     await create_receipt(
         action_type="preferred_name.update",
         related_object_type="resident",

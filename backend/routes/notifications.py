@@ -7,7 +7,8 @@ from fastapi import APIRouter, HTTPException, Depends
 from models import NotificationTest, FamilyContact, FamilyContactCreate, FamilyContactCallApproval, FamilyContactUpdate, now_utc
 from deps import db, get_current_user, require_admin
 from routes.notification_delivery import (  # noqa: F401 - send_* re-exported
-    send_email, send_sms, record_undeliverable, provider_config, _save as _log_notification,
+    alert_provenance_flag, send_email, send_sms, record_undeliverable,
+    provider_config, _save as _log_notification,
 )
 
 router = APIRouter(tags=["notifications"])
@@ -99,21 +100,25 @@ async def notify_family_for_alert(alert: dict):
         {"resident_id": rid, "notify_on": key},
         {"_id": 0},
     ).to_list(50)
+    simulation = await alert_provenance_flag(alert)
     link = dict(alert_id=alert.get("alert_id"), resident_id=rid,
                 related_object_type="alert", related_object_id=alert.get("alert_id"))
     for c in contacts:
         if c.get("phone"):
-            note = await send_sms(c["phone"], body, **link)
-            await _receipt_family_update(note, alert, c, key)
+            note = await send_sms(c["phone"], body, simulation=simulation, **link)
+            await _receipt_family_update(note, alert, c, key, simulation)
         if c.get("email"):
-            note = await send_email(c["email"], msg_sub, body, **link)
-            await _receipt_family_update(note, alert, c, key)
+            note = await send_email(c["email"], msg_sub, body, simulation=simulation, **link)
+            await _receipt_family_update(note, alert, c, key, simulation)
 
 
-async def _receipt_family_update(note: dict, alert: dict, contact: dict, key: str) -> None:
+async def _receipt_family_update(
+    note: dict, alert: dict, contact: dict, key: str, simulation: Optional[dict] = None,
+) -> None:
     """One receipt per family update attempt, chained to the alert's origin
     receipt; the notification is the evidence and says only what is known
-    ("logged" / "failed" / "sent" = provider accepted, unverified)."""
+    ("logged" / "failed" / "sent" = provider accepted, unverified;
+    "simulated" = deliberately suppressed before provider delivery)."""
     from routes.notification_delivery import _RESULT_LABEL
     from routes.receipts import create_receipt
     status = note["status"]
@@ -127,6 +132,10 @@ async def _receipt_family_update(note: dict, alert: dict, contact: dict, key: st
         provenance={"actor_id": "system:family_notify", "actor_type": "system", "actor_name": "Family alert update",
                     "authority": f"family_contact:{contact.get('contact_id')}:notify_on:{key}",
                     "channel": note["channel"], "parent_receipt_id": alert.get("receipt_id"),
+                    "simulated": bool(simulation),
+                    "simulation_scope": (simulation or {}).get("simulation_scope"),
+                    "simulation_community_id": (simulation or {}).get("simulation_community_id"),
+                    "simulation_run_id": (simulation or {}).get("simulation_run_id"),
                     "after_state": {"notification_id": note["notification_id"], "notification_status": status},
                     "result_label": _RESULT_LABEL.get(status, "unverified"),
                     "provider_refs": [r for r in (note.get("provider_message_id"),) if r],

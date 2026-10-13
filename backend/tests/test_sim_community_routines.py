@@ -18,12 +18,48 @@ def test_first_day_plan_is_deterministic_ordered_and_bounded():
 
     assert first == second
     assert first == tuple(sorted(first, key=lambda event: (
-        event.minute, event.resident_key, event.routine, event.event_id,
+        event.day_index, event.minute, event.resident_key, event.routine, event.event_id,
     )))
     assert {event.resident_key for event in first} == set(BURN_IN_RESIDENT_KEYS)
     assert len({event.event_id for event in first}) == len(first)
     assert all(0 <= event.minute < 24 * 60 for event in first)
     assert all(event.time_hhmm.count(":") == 1 for event in first)
+
+
+def test_all_75_residents_have_bounded_minutes_and_explicit_rollover():
+    resident_keys = tuple(f"resident-{index:03d}" for index in range(1, 76))
+    events = plan_first_24_hours(resident_keys, day_index=0)
+
+    assert {event.resident_key for event in events} == set(resident_keys)
+    assert len({event.event_id for event in events}) == len(events)
+    assert all(0 <= event.minute < 24 * 60 for event in events)
+    assert all(event.plan_day_index == 0 for event in events)
+    assert {event.day_index for event in events} == {0, 1}
+    assert all(event.rollover_days in (0, 1) for event in events)
+    assert events == tuple(sorted(events, key=lambda event: (
+        event.absolute_minute, event.resident_key, event.routine, event.event_id,
+    )))
+
+    last_night_check = next(
+        event for event in events
+        if event.resident_key == "resident-075" and event.routine == "night_room_check"
+    )
+    assert (last_night_check.day_index, last_night_check.minute) == (1, 58)
+    assert last_night_check.time_hhmm == "00:58"
+
+
+def test_final_projection_day_preserves_next_day_drain_without_wrapping():
+    resident_keys = tuple(f"resident-{index:03d}" for index in range(1, 76))
+    events = plan_first_24_hours(resident_keys, day_index=89)
+    drained = [event for event in events if event.day_index == 90]
+
+    assert drained
+    assert all(event.plan_day_index == 89 for event in events)
+    assert {event.day_index for event in events} == {89, 90}
+    assert all(0 <= event.minute < 24 * 60 for event in events)
+    assert all(event.rollover_days == 1 for event in drained)
+    assert all(event.event_id.startswith("day-089:") for event in drained)
+    assert not any(event.day_index > 90 for event in events)
 
 
 def test_plan_covers_departments_and_resident_routines():

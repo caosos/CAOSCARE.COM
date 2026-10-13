@@ -16,6 +16,7 @@ from simulation.community_provisioning import (
     _collision,
     _marked_for_blueprint,
     _require_operator,
+    _simulation_markers,
     _state,
 )
 
@@ -78,8 +79,41 @@ async def _pending_request(store, resident_id: str) -> Optional[dict]:
     )
 
 
+async def _dependent_records(store, recipes) -> list[str]:
+    """Name canonical collections that would be orphaned by this cleanup."""
+    resident_ids = [recipe.resident_id for recipe in recipes]
+    rooms = [recipe.room for recipe in recipes]
+    community_marker = {
+        "simulation_scope": SIMULATION_SCOPE,
+        "simulation_community_id": COMMUNITY_ID,
+    }
+    checks = (
+        ("staff_tasks", {"$or": [
+            {"resident_id": {"$in": resident_ids}},
+            {"room": {"$in": rooms}},
+            community_marker,
+        ]}),
+        ("notifications", {"$or": [
+            {"resident_id": {"$in": resident_ids}},
+            {"related_object_type": "resident", "related_object_id": {"$in": resident_ids}},
+            community_marker,
+        ]}),
+        ("sim_runs", {"$or": [
+            {"cast.resident.actor_id": {"$in": resident_ids}},
+            community_marker,
+        ]}),
+    )
+    found = []
+    for collection_name, query in checks:
+        collection = getattr(store, collection_name)
+        if await collection.find(query, {"_id": 1}).to_list(1):
+            found.append(collection_name)
+    return found
+
+
 async def _write_request(
     writer: Callable[..., Awaitable[dict]], operator: ActorContext, authority: str, doc: dict,
+    *, simulation_run_id: Optional[str] = None,
 ) -> dict:
     receipt_id = f"rcpt_{uuid.uuid4().hex[:12]}"
     state = _state(doc)
@@ -95,6 +129,7 @@ async def _write_request(
         receipt_id=receipt_id,
         provenance={
             **operator.receipt_fields(),
+            **_simulation_markers(simulation_run_id),
             "authority": authority,
             "correlation_id": receipt_id,
             "before_state": state,
@@ -109,6 +144,7 @@ async def _write_outcome(
     writer: Callable[..., Awaitable[dict]], operator: ActorContext, authority: str,
     doc: dict, request: dict, *, action: str, status: str = "completed",
     result_label: str = "simulated", failure_reason: Optional[str] = None,
+    simulation_run_id: Optional[str] = None,
 ) -> dict:
     request_id = request["receipt_id"]
     receipt_id = f"rcpt_{uuid.uuid4().hex[:12]}"
@@ -132,6 +168,7 @@ async def _write_outcome(
         failure_reason=failure_reason,
         provenance={
             **operator.receipt_fields(),
+            **_simulation_markers(simulation_run_id),
             "authority": authority,
             "parent_receipt_id": request_id,
             "correlation_id": request.get("correlation_id") or request_id,
@@ -156,6 +193,7 @@ async def cleanup_burn_in_residents(
     *,
     store=None,
     receipt_writer: Optional[Callable[..., Awaitable[dict]]] = None,
+    simulation_run_id: Optional[str] = None,
 ) -> dict:
     """Remove only the ten exactly marked burn-in residents, idempotently."""
     try:
@@ -181,6 +219,13 @@ async def cleanup_burn_in_residents(
             )
         existing_by_id[recipe.resident_id] = existing
 
+    dependencies = await _dependent_records(store, recipes)
+    if dependencies:
+        joined = ", ".join(dependencies)
+        raise CleanupError(
+            f"burn-in residents have dependent records in {joined}; cleanup refused"
+        )
+
     removed_ids, already_absent_ids, reconciled_ids, receipts = [], [], [], []
     for recipe in recipes:
         doc = existing_by_id[recipe.resident_id]
@@ -197,7 +242,7 @@ async def cleanup_burn_in_residents(
                 receipt = await _write_outcome(
                     receipt_writer, operator, authority,
                     {**_state_from_recipe(recipe)}, request, action=RECONCILED_ACTION,
-                    result_label="unverified",
+                    result_label="unverified", simulation_run_id=simulation_run_id,
                 )
                 reconciled_ids.append(recipe.resident_id)
                 receipts.append(receipt)
@@ -207,7 +252,8 @@ async def cleanup_burn_in_residents(
 
         request = await _pending_request(store, recipe.resident_id)
         request = request or await _write_request(
-            receipt_writer, operator, authority, doc
+            receipt_writer, operator, authority, doc,
+            simulation_run_id=simulation_run_id,
         )
         result = await store.residents.delete_one({
             "resident_id": recipe.resident_id,
@@ -222,12 +268,14 @@ async def cleanup_burn_in_residents(
                 receipt_writer, operator, authority, doc, request, action=FAILED_ACTION,
                 status="failed", result_label="failed",
                 failure_reason="resident changed after preflight; nothing was deleted",
+                simulation_run_id=simulation_run_id,
             )
             raise CleanupError(
                 f"resident {recipe.resident_id} changed after preflight; cleanup stopped"
             )
         receipt = await _write_outcome(
-            receipt_writer, operator, authority, doc, request, action=REMOVED_ACTION
+            receipt_writer, operator, authority, doc, request, action=REMOVED_ACTION,
+            simulation_run_id=simulation_run_id,
         )
         removed_ids.append(recipe.resident_id)
         receipts.append(receipt)

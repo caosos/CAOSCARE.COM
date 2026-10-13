@@ -97,7 +97,7 @@ def _digest(plan: dict) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
-async def _preflight(operator, authority: str, store=None) -> dict:
+async def _preflight(operator, authority: str, simulation_run_id: str, store=None) -> dict:
     """Run the canonical provisioner against insert-capturing seams."""
     from simulation.community_provisioning import provision_burn_in_residents
 
@@ -114,6 +114,7 @@ async def _preflight(operator, authority: str, store=None) -> dict:
         authority,
         store=dry_store,
         receipt_writer=capture_receipt,
+        simulation_run_id=simulation_run_id,
     )
     return {
         "community_id": result["community_id"],
@@ -125,10 +126,12 @@ async def _preflight(operator, authority: str, store=None) -> dict:
     }
 
 
-async def _execute_provision(operator, authority: str) -> dict:
+async def _execute_provision(operator, authority: str, simulation_run_id: str) -> dict:
     from simulation.community_provisioning import provision_burn_in_residents
 
-    return await provision_burn_in_residents(operator, authority)
+    return await provision_burn_in_residents(
+        operator, authority, simulation_run_id=simulation_run_id
+    )
 
 
 def _secret() -> str:
@@ -188,7 +191,7 @@ async def provision_control(body: ProvisionControl, user=Depends(require_admin))
     await _paused_run(body.run_id)
     operator, authority = _operator(user)
     try:
-        plan = await _preflight(operator, authority)
+        plan = await _preflight(operator, authority, body.run_id)
     except Exception as exc:
         from simulation.community_provisioning import ProvisioningError
 
@@ -225,7 +228,7 @@ async def provision_control(body: ProvisionControl, user=Depends(require_admin))
     # before its own writes; the digest check above additionally rejects a
     # changed plan since preflight.
     try:
-        result = await _execute_provision(operator, authority)
+        result = await _execute_provision(operator, authority, body.run_id)
     except Exception as exc:
         from simulation.community_provisioning import ProvisioningError
 

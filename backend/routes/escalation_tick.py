@@ -29,6 +29,35 @@ log = logging.getLogger(__name__)
 
 ACTOR_ID = "system:escalation"
 _OPEN_STATUSES = ["open", "active", "escalated"]  # not "acknowledged"/"resolved"
+_LIVING_COMMUNITY_SCOPE = "living_community"
+_LIVING_COMMUNITY_ID = "sim:community:living-80-v1"
+
+
+def outside_living_community_filter() -> dict:
+    """Mongo filter that excludes only the exact protected community marker.
+
+    Demo and other simulated records remain eligible for the normal escalation
+    service.  A fresh object is returned because callers compose this into
+    separate selection and atomic-update queries.
+    """
+    return {"$nor": [{
+        "simulated": True,
+        "simulation_scope": _LIVING_COMMUNITY_SCOPE,
+        "simulation_community_id": _LIVING_COMMUNITY_ID,
+    }]}
+
+
+async def _living_community_resident_ids() -> tuple[str, ...]:
+    """Derive protected identities from resident truth, not alert input."""
+    rows = await db.residents.find(
+        {
+            "synthetic": True,
+            "simulation_scope": _LIVING_COMMUNITY_SCOPE,
+            "simulation_community_id": _LIVING_COMMUNITY_ID,
+        },
+        {"_id": 0, "resident_id": 1},
+    ).to_list(1000)
+    return tuple(sorted({row["resident_id"] for row in rows if row.get("resident_id")}))
 
 
 def rule_for(rules_by_fac: dict, facility_id) -> dict:
@@ -73,12 +102,14 @@ async def _record(alert: dict, rule: dict, before: int, after: int, at: datetime
 
 async def run_tick(now: datetime | None = None) -> dict:
     now = now or datetime.now(timezone.utc)
+    protected_resident_ids = await _living_community_resident_ids()
     rules_by_fac: dict = {}
     async for r in db.escalation_rules.find({}, {"_id": 0}):
         rules_by_fac[r.get("facility_id")] = r
 
     active = await db.alerts.find(
-        {"status": {"$in": _OPEN_STATUSES}, "acknowledged_at": None, "resolved_at": None},
+        {"status": {"$in": _OPEN_STATUSES}, "acknowledged_at": None, "resolved_at": None,
+         "resident_id": {"$nin": list(protected_resident_ids)}},
         {"_id": 0},
     ).to_list(1000)
 
@@ -104,7 +135,8 @@ async def run_tick(now: datetime | None = None) -> dict:
         claimed = await db.alerts.update_one(
             {"alert_id": a["alert_id"],
              "$or": [{"escalation_level": {"$lt": target}}, {"escalation_level": None}],
-             "acknowledged_at": None, "resolved_at": None, "status": {"$in": _OPEN_STATUSES}},
+             "acknowledged_at": None, "resolved_at": None, "status": {"$in": _OPEN_STATUSES},
+             "resident_id": {"$nin": list(protected_resident_ids)}},
             {"$set": {"escalation_level": target, "escalated_at": now.isoformat(),
                       "escalation_source": ACTOR_ID},
              "$push": {"timeline": {"type": "escalation", "level": target, "from": current,

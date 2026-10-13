@@ -9,6 +9,9 @@ from simulation.community_blueprint import BURN_IN_RESIDENTS, COMMUNITY_ID, SIMU
 from simulation.community_provisioning import ProvisioningError, provision_burn_in_residents
 
 
+RUN_ID = "simrun-living-markers-1"
+
+
 def _matches(doc, query):
     for key, wanted in query.items():
         if key == "$or":
@@ -85,17 +88,20 @@ def receipt_writer(store):
     return write
 
 
-async def provision(store, actor=None, authority="admin_override:owner"):
+async def provision(
+    store, actor=None, authority="admin_override:owner", simulation_run_id=None,
+):
     return await provision_burn_in_residents(
         actor or operator(), authority, store=store,
         receipt_writer=receipt_writer(store), document_factory=document,
+        simulation_run_id=simulation_run_id,
     )
 
 
 def test_creates_exactly_ten_canonical_residents_with_real_operator_receipts():
     async def run():
         store = FakeStore()
-        result = await provision(store)
+        result = await provision(store, simulation_run_id=RUN_ID)
         assert len(result["resident_ids"]) == len(result["created_ids"]) == 10
         assert result["reused_ids"] == []
         assert store.residents.inserts == 10
@@ -109,13 +115,29 @@ def test_creates_exactly_ten_canonical_residents_with_real_operator_receipts():
             assert receipt["actor_id"] == "user_real_owner"
             assert receipt["actor_type"] == "real-human"
             assert receipt["identity_basis"] == "authenticated"
+            assert receipt["simulated"] is False
             assert receipt["authority"] == "admin_override:owner"
             assert receipt["result_label"] == "simulated"
+            assert receipt["simulation_scope"] == SIMULATION_SCOPE
+            assert receipt["simulation_community_id"] == COMMUNITY_ID
+            assert receipt["simulation_run_id"] == RUN_ID
             assert receipt["after_state"]["simulation_community_id"] == COMMUNITY_ID
         return store, result
 
     store, first = asyncio.run(run())
     assert first["resident_ids"] == [r.resident_id for r in BURN_IN_RESIDENTS]
+
+
+def test_top_level_target_markers_do_not_require_or_invent_a_run_id():
+    async def run():
+        store = FakeStore()
+        await provision(store)
+        assert all(r["simulation_scope"] == SIMULATION_SCOPE for r in store.receipts.docs)
+        assert all(r["simulation_community_id"] == COMMUNITY_ID for r in store.receipts.docs)
+        assert all("simulation_run_id" not in r for r in store.receipts.docs)
+        assert all(r["simulated"] is False for r in store.receipts.docs)
+
+    asyncio.run(run())
 
 
 def test_second_run_reuses_residents_and_receipts_without_writes():
