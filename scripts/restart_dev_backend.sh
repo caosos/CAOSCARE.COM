@@ -75,7 +75,7 @@ if [ -n "$OLD_PID" ]; then
   for _ in $(seq 1 20); do [ -z "$(listener_pid "$PORT")" ] && break; sleep 0.5; done
   [ -z "$(listener_pid "$PORT")" ] || { echo "STOP FAILED: :$PORT still listening after old pid exited. $RECOVER" >&2; exit 4; }
 fi
-( cd "$BACKEND" && exec env CAOSCARE_RUNTIME_SHA="$SHA" setsid nohup "${LAUNCH[@]}" "$PORT" ) >"$LOG" 2>&1 </dev/null &
+# GitHub Actions marks descendants with RUNNER_TRACKING_ID and kills them during post-job cleanup.\n# Drop that marker only for the persistent backend; the script still owns and verifies its PID.\n( cd "$BACKEND" && exec env -u RUNNER_TRACKING_ID CAOSCARE_RUNTIME_SHA="$SHA" setsid nohup "${LAUNCH[@]}" "$PORT" ) >"$LOG" 2>&1 </dev/null &
 NEWSTART=$!
 for _ in $(seq 1 40); do
   if curl -sf "localhost:$PORT/api/health" >/dev/null; then
