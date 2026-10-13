@@ -142,7 +142,9 @@ jobs:
           bash -n scripts/restart_dev_backend.sh
           bash -n room-node/aria_wake/ctl.sh
           /home/caoscare-1/CAOSCARE.COM/backend/.venv/bin/python3 -m pytest -q backend/tests/test_restart_dev_backend.py
-          (cd room-node/aria_wake && /home/caoscare-1/CAOSCARE.COM/backend/.venv/bin/python3 -m pytest -q test_aria_wake.py)
+          WAKE_PY="$DEPLOY_ROOT/room-node/aria_wake/.venv/bin/python"
+          [ -x "$WAKE_PY" ] || { echo "refused=wake_service_interpreter_missing" | tee -a "$RECEIPT"; exit 2; }
+          (cd room-node/aria_wake && "$WAKE_PY" -m pytest -q test_aria_wake.py)
           node --test room-node/aria_wake/serve_built.test.js
           echo "predeploy_tests=passed" | tee -a "$RECEIPT"
 
