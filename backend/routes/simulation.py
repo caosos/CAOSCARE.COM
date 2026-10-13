@@ -6,11 +6,11 @@ simulation/scheduler.py with that operator as actor. The Live Operations UI is S
 """
 from typing import Dict, Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
 from deps import require_admin
-from simulation import scenario, scheduler, staffing
+from simulation import community_view, scenario, scheduler, staffing
 from routes.actor_context import actor_from_user
 
 router = APIRouter(prefix="/simulator", tags=["simulator"])
@@ -28,6 +28,26 @@ class StartBody(BaseModel):
 
 def _operator(user: dict):
     return actor_from_user(user, channel="staff_ui"), f"admin_override:{user['role']}"
+
+
+@router.get("/community/overview")
+async def simulator_community_overview(
+    day_index: int = Query(0, ge=0, le=89),
+    minute: int = Query(0, ge=0, le=1439),
+    user=Depends(require_admin),
+):
+    """Declared community scale and coverage; never starts or writes a run."""
+    return community_view.community_overview(day_index, minute)
+
+
+@router.get("/community/preview")
+async def simulator_community_preview(
+    day_index: int = Query(0, ge=0, le=89),
+    minute: int = Query(0, ge=0, le=1439),
+    user=Depends(require_admin),
+):
+    """Inspect the day recipe without provisioning or dispatching it."""
+    return community_view.community_preview(day_index, minute)
 
 
 @router.get("/state")

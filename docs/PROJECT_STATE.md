@@ -540,3 +540,17 @@ Current task checklist — checked means the work product exists, not that pendi
 - **next_check_at:** MISSING; work continues immediately.
 - **Blocker:** pre-deploy wake tests used the wrong existing virtual environment. No package installation or runtime workaround is authorized or needed.
 - **Michael must do:** NOTHING.
+
+
+## Tuesday, October 13, 2026 — 1:05 AM America/Chicago — Living Community Simulator foundation isolated and tested
+
+- **Owner direction:** build the Care App ourselves while another builder works in tandem; communicate exact file lanes first and do not use or dispatch the historical Claude Code workflow.
+- **Coordination:** Issue #129 received the Living Community Simulator requisition/non-overlap notice and a correction naming Michael plus the current Care App builders as the active builders. Branch `feature/living-community-simulator` owns only the new community simulator modules, read-only simulator routes/UI, focused tests, and requisition report. No merge or deployment is authorized by this entry.
+- **Declared scale:** deterministic blueprint for 80 apartments, 70 occupied apartments, 75 target residents, a 10-resident single-occupancy burn-in, and 50 simulated workers across Nursing/Care, Dining, Housekeeping, Maintenance, Transportation, Activities, Front Desk, and Administration/Leadership.
+- **Planning implemented:** 90-day deterministic staffing projection; first-day 153-event resident routine plan; planned refusals and linked reschedules; projected clock-in, handoff, clock-out, and coverage-gap events. Every outcome and shift event is marked planned/not executed and cannot serve as a receipt.
+- **Truth boundaries:** medication is reminder-only; meals never imply consumption; transportation and family contact remain coordination-only; external calls, resource booking, alerts, and content publishing stay blocked until simulation-isolated. Simulated workers are synthetic actors, never fake User/login records.
+- **Admin Work-as foundation:** signed, short-lived work context keeps the real owner/admin as principal and records acting role, acting department, and work-context ID separately. It is not routed into production authorization yet.
+- **UI/API:** owner/admin read-only community overview and preview routes feed Live Operations with declared counts, coverage gaps, planned routines/outcomes, shift-event counts, and blocked capabilities. The existing two demo-room scenarios remain the only runnable simulator actions; the UI explicitly says autonomous community execution is not yet running.
+- **Verification:** 32 pure simulator tests passed locally. Python compilation and repository whitespace checks passed. Frontend tests and Work-as runtime tests were not executed in this container because frontend dependencies and PyJWT were not installed; PyJWT is already an existing backend requirement. No MongoDB, provider, production runtime, EliteDesk service, or resident record was changed.
+- **Next bounded slice:** publish this isolated branch and draft PR; run repository CI; then add canonical, receipted burn-in provisioning and execution behind explicit reset/cleanup guarantees before enabling any autonomous run.
+- **Michael must do:** NOTHING for this foundation slice.

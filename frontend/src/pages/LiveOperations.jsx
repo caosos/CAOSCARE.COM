@@ -7,6 +7,7 @@ import SimActors from "../components/simulator/SimActors";
 import SimActivity from "../components/simulator/SimActivity";
 import SimEventStream from "../components/simulator/SimEventStream";
 import SimReceiptTrace from "../components/simulator/SimReceiptTrace";
+import SimCommunityOverview from "../components/simulator/SimCommunityOverview";
 import RequestDetailDialog from "./RequestDetailDialog";
 
 // Live Operations (SIM-2): watch and control the Operations Simulator
@@ -23,12 +24,19 @@ export default function LiveOperations() {
   const [requestId, setRequestId] = useState(null);
   const [scenarios, setScenarios] = useState([]);
   const [scenario, setScenario] = useState("");
+  const [community, setCommunity] = useState(null);
 
   useEffect(() => {
     api.get("/simulator/scenarios").then(({ data }) => {
       setScenarios(data);
       setScenario((cur) => cur || data[0]?.id || "");
     }).catch(() => setScenarios([]));
+  }, []);
+
+  useEffect(() => {
+    api.get("/simulator/community/overview", { params: { day_index: 0, minute: 480 } })
+      .then(({ data }) => setCommunity(data))
+      .catch(() => setCommunity(null));
   }, []);
 
   const load = useCallback(async () => {
@@ -79,11 +87,12 @@ export default function LiveOperations() {
       <div>
         <h2 className="font-display text-2xl text-caos-forest">Live operations</h2>
         <p className="text-sm text-caos-mute">
-          The Operations Simulator, demo room only. Simulated actors act through the same request and task
-          services as real staff; a staff role can be handed to a real person, who then works the request in
-          the normal staff screens. Every action has a receipt you can trace back to where it started.
+          The two runnable scenarios below are demo-room thin slices. The community overview is the declared
+          10-resident burn-in and 50-worker foundation; it is a planning preview and is not yet executing
+          autonomous routines. Runnable actions use canonical services and carry traceable receipts.
         </p>
       </div>
+      <SimCommunityOverview community={community || {}} />
       <SimControls state={state} busy={busy} onControl={control}
                    scenarios={scenarios} scenario={scenario} onScenario={setScenario} />
       <div className="grid gap-4 lg:grid-cols-3">
