@@ -2,7 +2,14 @@ import { DUCK_STEPS, duckRoomAudio, restoreRoomAudio } from "../callAudioDuck";
 
 const send = () => { const calls = []; const f = async (...a) => { calls.push(a); }; f.calls = calls; return f; };
 
-test("an infrared TV is stepped down and back up by the same amount - never powered off", async () => {
+test("a TV with mute is muted at call start and the toggle pressed again at call end", async () => {
+  const s = send();
+  const tv = { device_id: "tv1", kind: "tv", capabilities: ["power", "volume", "volume_step", "mute"], state: {} };
+  await restoreRoomAudio(await duckRoomAudio([tv], "214", s), "214", s);
+  expect(s.calls).toEqual([["214", "mute", true, "tv", "tv1"], ["214", "mute", true, "tv", "tv1"]]);
+});
+
+test("an infrared TV without mute is stepped down and back up by the same amount - never powered off", async () => {
   const s = send();
   const tv = { device_id: "tv1", kind: "tv", capabilities: ["power", "volume", "volume_step"], state: { power: "off" } };
   const r = await duckRoomAudio([tv], "214", s);
