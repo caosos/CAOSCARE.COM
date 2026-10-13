@@ -2,6 +2,11 @@ name: EliteDesk CAOSCare read-only inventory
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches:
+      - integration/2026-09-27
+    paths:
+      - .github/workflows/elitedesk-caoscare-inventory.yml
   push:
     branches:
       - chore/elitedesk-caoscare-bridge
