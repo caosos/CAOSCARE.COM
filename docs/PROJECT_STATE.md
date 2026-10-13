@@ -330,3 +330,15 @@ Factory reset (Michael), Wi-Fi provisioned by Michael via its hotspot page. On L
 
 ## 2026-10-12 21:00 CDT — Call-start TV mute proven (platform-wide `816f5f2`)
 Live Room 214, 6 calls 20:38–20:58: each sent exactly one mute at wake and one at call end (12 executed, receipted, unverified), including a 13 s call; greeting audio 3–4 s after wake (breakdown 20:38: session mint 1.7 s, WebRTC 0.9 s, first model audio 1.5 s). Next: faster wake response (pre-mint/pre-connect, shorter opener), labelled wake tries, Bravia network control, IR Mate touch-send off, Voice PE, production release.
+
+## 2026-10-12 22:02 CDT — EliteDesk GitHub runner bridge proven; exact-SHA deployment workflow proposed
+
+- **Agent/tool used:** Codex Work; GitHub connector; GitHub Actions runner `elitedesk-caoscare`.
+- **Branch/ref:** `chore/elitedesk-caoscare-bridge`, PR #133 targeting `integration/2026-09-27`.
+- **What changed:** added a read-only EliteDesk inventory/proof workflow and a separately gated exact-SHA deployment workflow. The deployment workflow is manual/tag-triggered only, accepts only a full commit in the authorized integration history, refuses tracked host changes or dependency-file changes, uses the existing guarded backend restart and room-page rebuild controls, and publishes a durable receipt.
+- **What was verified:** runner `elitedesk-caoscare` version 2.337.0 ran on `caoscare1-hp-elitedesk` as `caoscare-1`; read-only run 38339790348 succeeded at 2026-10-13T03:02:45Z and preserved an artifact. Deployment-workflow validation run 38340115845 succeeded; the real deployment job was skipped on the PR as designed.
+- **Runtime evidence:** `/home/caoscare-1/CAOSCARE-INTEGRATION` was clean at `e3636d016027c06fcc39f26429d63d5e094bd04e`. Live ports: backend `:8092` health 200, room page `:3002` health 200, wake listener `:8765`, Home Assistant `:8123`, frontend dev server `:3000`; old `:8000`/`:8001` backends absent. The live backend reported `CAOSCARE_RUNTIME_SHA=61506b1`, so the loaded backend revision is verified stale relative to the clean integration checkout. `aria-wake.service`, `aria-wake-page.service`, `aria-wake-kiosk.service`, and `caoscare-frontend-dev.service` were active. Disk: 38 GiB free / 83% used; swap: 2.0 GiB used of 2.0 GiB.
+- **No deployment performed:** no application checkout was changed, no CAOSCare service was restarted, and Linode was not accessed.
+- **Blocked:** PR #133 is not merged. A real deployment additionally requires an exact approved integration SHA and an explicit dispatch confirmation or an owner-authorized `elitedesk-caoscare-deploy-*` tag.
+- **Next safe step:** review and merge PR #133 into the authorized integration line, then run `verify-only` against the exact approved SHA before a backend or room-page deployment.
+
