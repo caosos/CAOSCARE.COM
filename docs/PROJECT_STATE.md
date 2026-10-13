@@ -330,3 +330,45 @@ Factory reset (Michael), Wi-Fi provisioned by Michael via its hotspot page. On L
 
 ## 2026-10-12 21:00 CDT — Call-start TV mute proven (platform-wide `816f5f2`)
 Live Room 214, 6 calls 20:38–20:58: each sent exactly one mute at wake and one at call end (12 executed, receipted, unverified), including a 13 s call; greeting audio 3–4 s after wake (breakdown 20:38: session mint 1.7 s, WebRTC 0.9 s, first model audio 1.5 s). Next: faster wake response (pre-mint/pre-connect, shorter opener), labelled wake tries, Bravia network control, IR Mate touch-send off, Voice PE, production release.
+
+## 2026-10-12 23:00 CDT — IR Mate touch decision + current Aria completion boundary
+
+**Owner decision:** keep the XIAO Smart IR Mate's top touch behavior and configure it as local TV power
+through learned `Signal0`; do not disable touch. This supersedes the 19:25/21:00 “disable touch-send”
+next-step notes above without erasing that history. The firmware sends the currently selected learned
+slot (initially Signal0), so setup must put TV power in Signal0, leave Signal0 selected, warn that pickup
+can trigger it, and physically prove it before acceptance. The exact hardware/setup/read-back reference
+is now `room-node/ir_mate/README.md`. This entry documents the decision only; no firmware, device,
+Home Assistant, Room 214 runtime, merge, or deployment was changed.
+
+Current task checklist — checked means the work product exists, not that pending live/release gates pass:
+
+- [x] **Audit complete:** 31 recent Room 214 sessions (224 stored turns, 185 completed responses) plus
+  wake/greeting, goodbye, TV command grounding, one-way IR truth, audio duck/restore, and profile paths
+  were reviewed against current source and the owner's reported physical behavior. Unsuccessful wake-word
+  attempts are not present in conversation rows and still require separate labeled listener evidence.
+- [x] **Historical voice-cost estimate complete:** observed speech/playback plus current Realtime pricing
+  supports a likely $1.43–$2.89 total for the 31 sessions and a deliberately pessimistic $14.40 planning
+  ceiling. This is an estimate, not an actual-usage receipt, because historical `response.done` usage was
+  not persisted. The live-search smoke has a separate proposed cap below $0.05 and is still pending owner
+  authorization.
+- [x] **Code/PR preparation done:** draft PR #135 contains the bounded truth/conversation fixes; backend
+  smoke and the full frontend check pass at remote revision `7449dbf`. This checkbox does not claim merge,
+  deployment, or live loading.
+- [ ] **Paid live-search smoke pending:** no paid call, verified `live=true` result, URL-citation evidence,
+  provider usage receipt, or production enablement was produced in this task.
+- [ ] **Merge/deploy pending:** the current branch changes are not claimed merged, deployed, or loaded.
+- [ ] **Room 214 acceptance pending:** Michael physically reported that pickup/top touch vibrates and
+  toggles the TV, confirming the desired feature informally. Formal acceptance still requires labeled
+  normal-voice wake, greeting, first-utterance goodbye, touch/pickup behavior, truthful command wording,
+  mute/restore, and rapid close→wake tests against the exact loaded revision with receipts and timestamps.
+- [ ] **Exact Realtime usage logging pending:** persist actual per-session `response.done` usage/model data
+  and compute cost only from provider-reported units and a verified current price table. Estimates are not
+  usage evidence.
+- [ ] **Verified owner profile and personality profiles pending:** prove Michael's selected owner/home
+  behavior and each supported resident interaction/personality profile through the authoritative saved
+  record, prompt/session load, and labeled live behavior. Code/config existence alone is insufficient.
+- [ ] **Installer manual completion pending:** the IR Mate README now records exact puck behavior and an
+  interim checklist, but the full multi-device installer manual still needs provisioning screenshots,
+  site survey/mounting standards, network/fleet naming, rollback/replacement, privacy/safety handoff,
+  acceptance receipts, and owner approval.
