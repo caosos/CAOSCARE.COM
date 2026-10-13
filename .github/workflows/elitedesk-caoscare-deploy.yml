@@ -71,9 +71,6 @@ jobs:
       TARGET_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.target_sha || github.sha }}
       SCOPE: ${{ github.event_name == 'workflow_dispatch' && inputs.scope || 'backend-and-room-page' }}
       CONFIRMATION: ${{ inputs.confirmation }}
-      MONGO_URL: mongodb://127.0.0.1:27017
-      DB_NAME: caoscare_ci
-      JWT_SECRET: ci-only-not-for-production
 
     steps:
       - name: Initialize provenance receipt
@@ -141,7 +138,8 @@ jobs:
           }
           bash -n scripts/restart_dev_backend.sh
           bash -n room-node/aria_wake/ctl.sh
-          /home/caoscare-1/CAOSCARE.COM/backend/.venv/bin/python3 -m pytest -q backend/tests/test_restart_dev_backend.py
+          MONGO_URL=mongodb://127.0.0.1:27017 DB_NAME=caoscare_ci JWT_SECRET=ci-only-not-for-production \
+            /home/caoscare-1/CAOSCARE.COM/backend/.venv/bin/python3 -m pytest -q backend/tests/test_restart_dev_backend.py
           WAKE_PY="$DEPLOY_ROOT/room-node/aria_wake/.venv/bin/python"
           [ -x "$WAKE_PY" ] || { echo "refused=wake_service_interpreter_missing" | tee -a "$RECEIPT"; exit 2; }
           (cd room-node/aria_wake && "$WAKE_PY" -m pytest -q test_aria_wake.py)
@@ -204,9 +202,13 @@ jobs:
           RUNTIME_SHA="$(tr '\0' '\n' < "/proc/$PID/environ" | sed -n 's/^CAOSCARE_RUNTIME_SHA=//p')"
           EXPECTED="$(git -C "$DEPLOY_ROOT" rev-parse --short HEAD)"
           [ "$RUNTIME_SHA" = "$EXPECTED" ]
+          BOOTSTRAP="$(curl -fsS --max-time 10 http://127.0.0.1:8092/api/residents/public/by-kiosk/kio_dc8c06a19608)"
+          echo "$BOOTSTRAP" | grep -q '"kiosk_id":"kio_dc8c06a19608"'
+          echo "$BOOTSTRAP" | grep -q '"room":"214"'
           echo "backend_pid=$PID" | tee -a "$RECEIPT"
           echo "backend_runtime_sha=$RUNTIME_SHA" | tee -a "$RECEIPT"
           echo "backend_health=passed" | tee -a "$RECEIPT"
+          echo "room214_bootstrap=passed" | tee -a "$RECEIPT"
 
       - name: Rebuild, restart, and prove room page
         if: env.SCOPE == 'room-page' || env.SCOPE == 'backend-and-room-page'
@@ -218,25 +220,38 @@ jobs:
           OLD_BUNDLE="$(curl -fsS http://127.0.0.1:3002/ | grep -oE 'main\.[a-z0-9]+\.js' | head -1 || true)"
           "$DEPLOY_ROOT/room-node/aria_wake/ctl.sh" rebuild | tee -a "$RECEIPT"
           WAKE_PROOF_SINCE="$(date '+%Y-%m-%d %H:%M:%S')"
-          "$DEPLOY_ROOT/room-node/aria_wake/ctl.sh" restart | tee -a "$RECEIPT"
-          systemctl --user is-active --quiet aria-wake.service
-          systemctl --user is-active --quiet aria-wake-page.service
-          systemctl --user is-active --quiet aria-wake-kiosk.service
-          curl -fsS --max-time 5 http://127.0.0.1:3002/api/health >/dev/null
-          ss -ltn | grep -qE '127\.0\.0\.1:8765[[:space:]]'
-          WAKE_PROOF_OK=0
-          for _ in $(seq 1 20); do
-            WAKE_LOG="$(journalctl --user -u aria-wake.service --since "$WAKE_PROOF_SINCE" --no-pager -o cat)"
-            LATEST_CLIENT="$(echo "$WAKE_LOG" | grep -E '"event": "client_(connected|disconnected)"' | tail -1 || true)"
-            if echo "$WAKE_LOG" | grep -q '"event": "capture_alive"' && \
-               echo "$LATEST_CLIENT" | grep -qE '"clients": [1-9][0-9]*'; then
-              WAKE_PROOF_OK=1
-              break
-            fi
+          systemctl --user stop aria-wake-kiosk.service
+          systemctl --user restart aria-wake-page.service
+          for _ in $(seq 1 30); do
+            curl -fsS --max-time 2 http://127.0.0.1:3002/api/health >/dev/null && break
             sleep 1
           done
-          [ "$WAKE_PROOF_OK" = 1 ]
+          curl -fsS --max-time 5 http://127.0.0.1:3002/api/health >/dev/null
+          systemctl --user restart aria-wake.service
+          systemctl --user is-active --quiet aria-wake.service
+          systemctl --user is-active --quiet aria-wake-page.service
+          ss -ltn | grep -qE '127\.0\.0\.1:8765[[:space:]]'
+          for _ in $(seq 1 30); do
+            WAKE_LOG="$(journalctl --user -u aria-wake.service --since "$WAKE_PROOF_SINCE" --no-pager -o cat)"
+            echo "$WAKE_LOG" | grep -q '"event": "capture_alive"' && break
+            sleep 1
+          done
           echo "$WAKE_LOG" | grep -q '"event": "capture_alive"'
+          systemctl --user restart aria-wake-kiosk.service
+          WAKE_PROOF_OK=0
+          for _ in $(seq 1 60); do
+            WAKE_LOG="$(journalctl --user -u aria-wake.service --since "$WAKE_PROOF_SINCE" --no-pager -o cat)"
+            LATEST_CLIENT="$(echo "$WAKE_LOG" | grep -E '"event": "client_(connected|disconnected)"' | tail -1 || true)"
+            if echo "$LATEST_CLIENT" | grep -qE '"clients": [1-9][0-9]*'; then WAKE_PROOF_OK=1; break; fi
+            sleep 1
+          done
+          [ "$WAKE_PROOF_OK" = 1 ] || {
+            systemctl --user --no-pager status aria-wake.service aria-wake-page.service aria-wake-kiosk.service || true
+            journalctl --user -u aria-wake.service -u aria-wake-page.service -u aria-wake-kiosk.service \
+              --since "$WAKE_PROOF_SINCE" --no-pager -o cat || true
+            exit 1
+          }
+          systemctl --user is-active --quiet aria-wake-kiosk.service
           echo "$LATEST_CLIENT" | grep -qE '"clients": [1-9][0-9]*'
           NEW_BUNDLE="$(curl -fsS http://127.0.0.1:3002/ | grep -oE 'main\.[a-z0-9]+\.js' | head -1)"
           [ -n "$NEW_BUNDLE" ]
