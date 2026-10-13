@@ -25,6 +25,30 @@ LAUNCH=("$PY" -m uvicorn server:app --host 0.0.0.0 --port)
 [ -x "$PY" ] || fail "interpreter missing: $PY"
 [ -f "$BACKEND/server.py" ] || fail "no server.py in $BACKEND"
 [ -f "$BACKEND/.env" ] || fail "no $BACKEND/.env (server.py loads it; recovery would lack configuration)"
+# A deploy/test runner may carry its own database or auth variables. Python's
+# dotenv loader intentionally does not overwrite inherited values, so allowing
+# a mismatch here can start a healthy-looking backend against the wrong DB.
+# Compare without printing values (especially JWT_SECRET) and refuse before
+# importing, probing, or stopping the current service.
+env_file_value() {
+  awk -v key="$1" '
+    $0 ~ "^[[:space:]]*" key "[[:space:]]*=" {
+      value=substr($0, index($0, "=")+1)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+      if ((substr(value,1,1)=="\"" && substr(value,length(value),1)=="\"") ||
+          (substr(value,1,1)=="\047" && substr(value,length(value),1)=="\047"))
+        value=substr(value,2,length(value)-2)
+      print value; exit
+    }
+  ' "$BACKEND/.env"
+}
+for KEY in MONGO_URL DB_NAME JWT_SECRET; do
+  FILE_VALUE="$(env_file_value "$KEY")"
+  CALLER_VALUE="${!KEY-}"
+  if [ -n "$FILE_VALUE" ] && [ -n "$CALLER_VALUE" ] && [ "$FILE_VALUE" != "$CALLER_VALUE" ]; then
+    fail "inherited $KEY disagrees with backend/.env (refusing cross-environment restart)"
+  fi
+done
 (cd "$BACKEND" && "$PY" -c "import server" >/dev/null 2>&1) || fail "import server failed with $PY"
 guard() {
   local L R
