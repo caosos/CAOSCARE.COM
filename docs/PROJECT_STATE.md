@@ -597,3 +597,40 @@ Current task checklist — checked means the work product exists, not that pendi
 - **Remaining gates:** no unattended executor, restart catch-up/reconciliation or complete atomic reset exists; memory/classifier, seed, location, insights and other bulk processors still need living-community policy; planned-vs-observed database truth is not yet separated in the UI; resident-specific synthetic care plans are not yet modeled; `front_desk` is missing from the default canonical department catalog; maintenance and several departments do not meet continuous 24-hour coverage with the current 50-person roster; Work-as is not integrated into department UI/routes; and current feature-head CI must pass.
 - **Next safe action:** publish this second guarded tree to draft PR #146, verify both CI checks, then add department/preflight and controlled on-shift queue semantics before wiring any executor.
 - **Michael must do:** NOTHING.
+
+
+## Tuesday, October 13, 2026 — 10:44 AM America/Chicago — Observed community truth and remaining isolation guards completed
+
+- **Integration reconciliation:** `feature/living-community-simulator` now includes the current
+  `integration/2026-09-27` facility false-empty and guarded-deployment work. The merge was confined to the
+  feature branch; no integration branch, runtime, service, database, or facility record was changed.
+- **Observed truth:** `community_observed_state.py` reads canonical residents, tasks, notifications, and
+  simulator runs and reports `loaded`, `unknown`, or `error`. A ten-resident burn-in is classified only from
+  exact stable resident ID, room, pendant, and living-community markers as `not_provisioned`, `partial`,
+  `provisioned`, or `inconsistent`. Failed reads remain null/unknown and can never become a false zero.
+- **Read-only API/UI:** owner/admin `GET /api/simulator/community/observed` returns counts only when every
+  required source loaded; otherwise it returns 503 without counts. Live Operations keeps the planning preview
+  separate from observed records. Initial failure says observed state is unknown, and a later refresh failure
+  preserves and labels the last verified snapshot instead of replacing it with zero.
+- **Resident planning:** every one of the 75 synthetic blueprint residents has a deterministic, varied,
+  planning-only preference and assistance profile. The source explicitly says it is synthetic, non-clinical,
+  unconfirmed, and not evidence of consent, an order, an assessed need, or completed care. It is not connected
+  to execution or the database.
+- **Remaining shared-code guards:** legacy demo seed, mock location, and bulk insight paths exclude exact and
+  malformed living-community identities. Automatic memory extraction and alert AI classification fail closed
+  before provider use when server-owned identity belongs to this community. Real residents and the legacy
+  `demo_room` path remain unchanged.
+- **Verification:** 214 focused backend simulator, access, Work-as, resident/template/bulk, memory/classifier,
+  family/provider, and observed-truth tests passed together; 12 focused frontend tests passed; the production
+  frontend build compiled; Python compilation and repository whitespace checks passed. Earlier direct restart
+  tests had five local port-ownership timing failures in this scratch environment; those deployment-lane tests
+  are unchanged by this slice and current GitHub CI remains the clean-environment authority. No reachable local
+  MongoDB was used, so no direct-database or browser runtime acceptance is claimed.
+- **Runtime boundary:** no mutation route was enabled, no simulator run was started, no seed or cleanup ran,
+  no provider was called, no branch was merged or deployed, no EliteDesk service was restarted, and no live
+  facility/resident record was changed.
+- **Remaining gates:** the community still needs its unattended fenced executor, restart catch-up and
+  reconciliation, complete dependency-aware atomic reset, canonical `front_desk` department, an explicit
+  staffing decision for uncovered 24-hour shifts, active Work-as route/UI integration, direct-Mongo proof, and
+  current feature-head CI. The existing demo-room scenarios remain the only runnable actions.
+- **Michael must do:** NOTHING while the isolated draft branch is verified.

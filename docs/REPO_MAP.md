@@ -880,6 +880,27 @@ listener verifier experiment: `docs/experiments/`.
 
 - `backend/simulation/scenario.py` `sink_leak` ("Maintenance: leaking sink") is the Maintenance scenario; resident words "The bathroom sink keeps leaking."
 - Test: `backend/tests/test_sim4_maintenance.py` (owner takeover, staged status truth, dedup, no provider calls).
+
+## 2026-10-13 — Living Community Simulator foundation (draft PR #146)
+
+- `backend/simulation/community_blueprint.py`, `community_staffing.py`, `community_routines.py`, and
+  `community_care_plans.py`: deterministic 80-apartment / 75-resident / 50-worker planning sources. Care plans
+  are synthetic, non-clinical and unconfirmed; planned events are not execution receipts.
+- `backend/simulation/community_provisioning.py`, `community_cleanup.py`, `community_run_lease.py`, and
+  `community_burnin_adapter.py`: exact-marker provisioning, dependency-refusing cleanup, fenced run ownership,
+  and the canonical-service ten-resident burn-in seam. Mutation control remains guarded and unregistered.
+- `backend/simulation/community_observed_state.py` and `GET /api/simulator/community/observed`: read-only
+  canonical resident/task/notification/run truth. Failed reads remain unknown; exact burn-in identity and
+  markers distinguish not provisioned, partial, provisioned and inconsistent states.
+- `frontend/src/components/simulator/SimCommunityOverview.jsx` is the declared planning view;
+  `SimCommunityObserved.jsx` is the separate verified-record view. `communityObservedLoad.js` rejects malformed
+  responses, and `LiveOperations.jsx` preserves the last verified snapshot when a refresh fails.
+- `backend/living_community_boundary.py` and `backend/routes/living_community_ai_guard.py`: shared boundaries
+  for legacy bulk processors, memory extraction and alert AI classification. Resident CRUD, task templates,
+  escalation, family notifications and haiku provider paths have their own server-owned living-community guards.
+- Tests: `backend/tests/test_sim_community_*.py`, `test_living_community_*`,
+  `test_haiku_community_provider_boundary.py`, and
+  `frontend/src/components/simulator/__tests__/{SimCommunityOverview,SimCommunityObserved}.test.jsx`.
 ## 2026-09-27 — Community services (Lane D, branch pilot/community-services)
 
 - `backend/routes/service_content_access.py`: who may change the menu (Kitchen/Administration/admin) and the schedule (Activities/Administration/admin).

@@ -124,6 +124,18 @@ def test_missing_interpreter_and_import_failure(box):
     assert "import server failed" in run(box, STUB_IMPORT_RC=1).stderr
 
 
+def test_refuses_inherited_environment_that_disagrees_with_dotenv(box):
+    """A CI/test DB must never leak into the persistent live restart."""
+    with open(box["root"] / "backend" / ".env", "a") as f:
+        f.write("DB_NAME=caoscare\n")
+    old = start_old(box)
+    r = run(box, DB_NAME="caoscare_ci")
+    assert r.returncode == 2
+    assert "DB_NAME disagrees with backend/.env" in r.stderr
+    assert "caoscare_ci" not in r.stdout + r.stderr
+    assert alive(old)
+
+
 def test_active_lease_and_uncertain_state_do_not_restart(box):
     old = start_old(box)
     assert "live lease" in run(box, STUB_LEASES=1).stderr

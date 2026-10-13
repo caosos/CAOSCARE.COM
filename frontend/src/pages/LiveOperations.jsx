@@ -8,6 +8,8 @@ import SimActivity from "../components/simulator/SimActivity";
 import SimEventStream from "../components/simulator/SimEventStream";
 import SimReceiptTrace from "../components/simulator/SimReceiptTrace";
 import SimCommunityOverview from "../components/simulator/SimCommunityOverview";
+import SimCommunityObserved from "../components/simulator/SimCommunityObserved";
+import { fetchCommunityObservedSnapshot } from "../lib/communityObservedLoad";
 import RequestDetailDialog from "./RequestDetailDialog";
 
 // Live Operations (SIM-2): watch and control the Operations Simulator
@@ -25,6 +27,7 @@ export default function LiveOperations() {
   const [scenarios, setScenarios] = useState([]);
   const [scenario, setScenario] = useState("");
   const [community, setCommunity] = useState(null);
+  const [observed, setObserved] = useState({ loadState: "loading", snapshot: null, refreshFailed: false });
 
   useEffect(() => {
     api.get("/simulator/scenarios").then(({ data }) => {
@@ -32,6 +35,21 @@ export default function LiveOperations() {
       setScenario((cur) => cur || data[0]?.id || "");
     }).catch(() => setScenarios([]));
   }, []);
+
+  const loadObserved = useCallback(async () => {
+    const result = await fetchCommunityObservedSnapshot(api);
+    setObserved((previous) => result.loadState === "ready"
+      ? { ...result, refreshFailed: false }
+      : previous.snapshot
+        ? { loadState: "error", snapshot: previous.snapshot, refreshFailed: true }
+        : { loadState: "error", snapshot: null, refreshFailed: false });
+  }, []);
+
+  useEffect(() => {
+    loadObserved();
+    const timer = setInterval(loadObserved, 30000);
+    return () => clearInterval(timer);
+  }, [loadObserved]);
 
   useEffect(() => {
     api.get("/simulator/community/overview", { params: { day_index: 0, minute: 480 } })
@@ -93,6 +111,7 @@ export default function LiveOperations() {
         </p>
       </div>
       <SimCommunityOverview community={community || {}} />
+      <SimCommunityObserved {...observed} onRetry={loadObserved} />
       <SimControls state={state} busy={busy} onControl={control}
                    scenarios={scenarios} scenario={scenario} onScenario={setScenario} />
       <div className="grid gap-4 lg:grid-cols-3">
