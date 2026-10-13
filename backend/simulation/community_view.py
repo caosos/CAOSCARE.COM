@@ -29,6 +29,7 @@ from simulation.community_staffing import (
     coverage_summary,
 )
 from simulation.community_shift_events import event_counts, planned_events_for_day
+from simulation.community_attendance import attendance_summary, worker_states_for_day
 
 
 def _department_rows(day_index: int, minute: int) -> list[dict]:
@@ -83,6 +84,8 @@ def community_overview(day_index: int = 0, minute: int = 0) -> dict:
     outcomes = plan_routine_outcomes(events)
     outcome_counts = Counter(outcome.planned_disposition for outcome in outcomes)
     shift_events = planned_events_for_day(day_index)
+    attendance = worker_states_for_day(day_index)
+    attendance_counts = attendance_summary(attendance)
     blocked_intents = sum(event.blocked_adapter is not None for event in events)
     return {
         "community_id": COMMUNITY_ID,
@@ -102,6 +105,12 @@ def community_overview(day_index: int = 0, minute: int = 0) -> dict:
             "occupancy_target": OCCUPIED_APARTMENT_TARGET,
         },
         "workers": {"count": len(WORKERS), "simulated": True},
+        "worker_attendance": {
+            **attendance_counts["states"],
+            **attendance_counts["milestones"],
+            "executed": 0,
+            "truth": attendance_counts["truth"],
+        },
         "shift_events": {**event_counts(shift_events), "executed": 0},
         "departments": _department_rows(day_index, minute),
         "routines": {
@@ -151,6 +160,7 @@ def community_preview(day_index: int = 0, minute: int = 0) -> dict:
         "overview": overview,
         "resident_keys": [resident.resident_key for resident in BURN_IN_RESIDENTS],
         "shift_assignments": assignments_for_day(day_index),
+        "worker_attendance": worker_states_for_day(day_index),
         "planned_shift_events": planned_events_for_day(day_index),
         "routine_events": events,
         "planned_outcomes": outcomes,

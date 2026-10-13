@@ -26,6 +26,7 @@ const community = {
   ],
   routines: { scheduled: 42, due: 7, completed: 31, blocked: 4 },
   shift_events: { clock_in: 32, handoff: 32, clock_out: 32, executed: 0 },
+  worker_attendance: { scheduled: 32, off_duty: 18, planned_login: 32, assignment_acceptance: 32, executed: 0 },
   blocked_capabilities: [{ id: "external-calls", name: "External calls", reason: "No simulated-safe adapter" }],
   unsafe_capabilities: ["Medication administration"],
 };
@@ -40,6 +41,8 @@ test("shows declared community scale, department coverage, and routine counts", 
   expect(text(el.querySelector("[data-testid=sim-department-coverage]"))).toMatch(/Activities.*Coverage gap/);
   expect(text(el.querySelector("[data-testid=sim-routine-counts]"))).toMatch(/scheduled.*42.*due.*7.*completed.*31.*blocked.*4/);
   expect(text(el.querySelector("[data-testid=sim-shift-event-counts]"))).toMatch(/clock in.*32.*handoff.*32.*clock out.*32.*executed.*0/);
+  expect(text(el.querySelector("[data-testid=sim-attendance-counts]"))).toMatch(/scheduled.*32.*off duty.*18.*planned login.*32.*assignment acceptance.*32.*executed.*0/);
+  expect(el.textContent).toMatch(/creates no staff account or authentication token/i);
   await act(async () => { root.unmount(); });
 });
 

@@ -20,6 +20,7 @@ from routes import task_actions
 from routes.actor_context import ActorContext
 from routes.resident_requests import ResidentRequestInput, create_resident_request
 from routes.task_lifecycle import load
+from simulation.community_blueprint import COMMUNITY_ID, SIMULATION_SCOPE
 
 
 PAUSED = "PAUSED"
@@ -69,6 +70,11 @@ async def _paused_run(run_id: str) -> dict:
         raise BurnInAdapterError(
             f"Manual burn-in steps require PAUSED; run is {run.get('state') or 'unknown'}"
         )
+    if (
+        run.get("simulation_scope") != SIMULATION_SCOPE
+        or run.get("simulation_community_id") != COMMUNITY_ID
+    ):
+        raise BurnInAdapterError("Run is not bound to the living-community burn-in")
     return run
 
 
@@ -76,6 +82,11 @@ async def _synthetic_resident(resident_id: str, room: str) -> dict:
     resident = await db.residents.find_one({"resident_id": resident_id}, {"_id": 0})
     if not resident or not resident.get("synthetic"):
         raise BurnInAdapterError("Burn-in steps require an existing synthetic resident")
+    if (
+        resident.get("simulation_scope") != SIMULATION_SCOPE
+        or resident.get("simulation_community_id") != COMMUNITY_ID
+    ):
+        raise BurnInAdapterError("Resident is not part of the living-community burn-in")
     if resident.get("room") != room:
         raise BurnInAdapterError("Resident room does not match the canonical resident record")
     return resident
@@ -103,6 +114,11 @@ def _validate_task(task: dict, run_id: str, resident_id: str) -> None:
         raise BurnInAdapterError("Task is not simulated work from this run")
     if task.get("resident_id") != resident_id or task.get("visibility_role") != NURSING_DEPARTMENT:
         raise BurnInAdapterError("Task is not this resident's Nursing/Care request")
+    if (
+        task.get("simulation_scope") != SIMULATION_SCOPE
+        or task.get("simulation_community_id") != COMMUNITY_ID
+    ):
+        raise BurnInAdapterError("Task is not living-community burn-in work")
 
 
 def _result(action: str, task_id: str, receipt: dict, replay: bool) -> BurnInStepResult:

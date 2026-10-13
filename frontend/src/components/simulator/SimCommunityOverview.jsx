@@ -59,6 +59,7 @@ export default function SimCommunityOverview({ community = {} }) {
   const departments = community.departments || [];
   const routines = routineRows(community.routines);
   const shiftEvents = routineRows(community.shift_events);
+  const attendance = routineRows(community.worker_attendance);
   const blocked = capabilityRows(community.blocked_capabilities);
   const unsafe = capabilityRows(community.unsafe_capabilities);
 
@@ -168,6 +169,27 @@ export default function SimCommunityOverview({ community = {} }) {
         )}
         <p className="mt-2 text-xs text-caos-mute">
           These are projected clock-ins, handoffs, clock-outs, and coverage observations. Executed work requires a receipt.
+        </p>
+      </section>
+
+      <section aria-labelledby="sim-attendance-heading">
+        <h3 id="sim-attendance-heading" className="text-xs font-bold uppercase tracking-widest text-caos-mute">
+          Planned worker attendance
+        </h3>
+        {!attendance.length ? (
+          <p className="mt-2 text-sm italic text-caos-mute">No worker-attendance plan reported.</p>
+        ) : (
+          <dl className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5" data-testid="sim-attendance-counts">
+            {attendance.filter((event) => event.key !== "truth").map((event) => (
+              <div key={event.key} className="rounded-lg bg-caos-bone px-3 py-2">
+                <dt className="text-xs capitalize text-caos-mute">{event.label}</dt>
+                <dd className="font-display text-xl text-caos-forest">{shown(event.count)}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+        <p className="mt-2 text-xs text-caos-mute">
+          Login is a simulation-session marker only. It creates no staff account or authentication token, and every event remains unexecuted until receipted.
         </p>
       </section>
 

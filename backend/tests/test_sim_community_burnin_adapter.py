@@ -55,6 +55,8 @@ TASK = {
     "task_id": TASK_ID, "resident_id": RESIDENT_ID, "room": ROOM,
     "category": "nursing", "visibility_role": "nursing", "resident_words": adapter.SHOWER_WORDS,
     "simulated": True, "simulation_run_id": RUN_ID, "status": "pending",
+    "simulation_scope": adapter.SIMULATION_SCOPE,
+    "simulation_community_id": adapter.COMMUNITY_ID,
 }
 
 
@@ -70,8 +72,16 @@ class FakeDb:
     def __init__(self):
         self.task = None
         self.receipts = []
-        self.sim_runs = Collection(lambda q: {"run_id": RUN_ID, "state": adapter.PAUSED} if q.get("run_id") == RUN_ID else None)
-        self.residents = Collection(lambda q: {"resident_id": RESIDENT_ID, "room": ROOM, "synthetic": True}
+        self.sim_runs = Collection(lambda q: {
+            "run_id": RUN_ID, "state": adapter.PAUSED,
+            "simulation_scope": adapter.SIMULATION_SCOPE,
+            "simulation_community_id": adapter.COMMUNITY_ID,
+        } if q.get("run_id") == RUN_ID else None)
+        self.residents = Collection(lambda q: {
+            "resident_id": RESIDENT_ID, "room": ROOM, "synthetic": True,
+            "simulation_scope": adapter.SIMULATION_SCOPE,
+            "simulation_community_id": adapter.COMMUNITY_ID,
+        }
                                     if q.get("resident_id") == RESIDENT_ID else None)
         self.staff_tasks = Collection(lambda q: self.task if self.task and q.get("simulation_run_id") == RUN_ID else None)
         self.receipts_collection = Collection(self._receipt)
@@ -177,6 +187,37 @@ def test_running_or_stopped_run_is_refused_before_canonical_write(monkeypatch, s
     with pytest.raises(adapter.BurnInAdapterError, match="require PAUSED"):
         run(adapter.create_shower_help_request(RUN_ID, RESIDENT_ID, ROOM))
     assert called == []
+
+
+@pytest.mark.parametrize("wrong", ["run_scope", "run_community", "resident_scope", "resident_community"])
+def test_cross_scope_run_or_resident_is_refused_before_canonical_write(monkeypatch, wrong):
+    fake = FakeDb()
+    if wrong.startswith("run_"):
+        run_doc = {
+            "run_id": RUN_ID, "state": adapter.PAUSED,
+            "simulation_scope": adapter.SIMULATION_SCOPE,
+            "simulation_community_id": adapter.COMMUNITY_ID,
+        }
+        run_doc["simulation_scope" if wrong == "run_scope" else "simulation_community_id"] = "other"
+        fake.sim_runs = Collection(lambda _q: run_doc)
+    else:
+        resident = {
+            "resident_id": RESIDENT_ID, "room": ROOM, "synthetic": True,
+            "simulation_scope": adapter.SIMULATION_SCOPE,
+            "simulation_community_id": adapter.COMMUNITY_ID,
+        }
+        resident["simulation_scope" if wrong == "resident_scope" else "simulation_community_id"] = "other"
+        fake.residents = Collection(lambda _q: resident)
+    monkeypatch.setattr(adapter, "db", fake)
+    calls = []
+
+    async def create(*args, **kwargs):
+        calls.append(True)
+
+    monkeypatch.setattr(adapter, "create_resident_request", create)
+    with pytest.raises(adapter.BurnInAdapterError, match="living-community"):
+        run(adapter.create_shower_help_request(RUN_ID, RESIDENT_ID, ROOM))
+    assert calls == []
 
 
 def test_off_shift_or_non_simulated_staff_is_refused(monkeypatch):

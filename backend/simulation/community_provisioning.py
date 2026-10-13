@@ -217,7 +217,10 @@ async def provision_burn_in_residents(
             await store.residents.insert_one(dict(doc))
             created_ids.append(recipe.resident_id)
 
-        receipt = await _existing_receipt(store, recipe.resident_id)
+        # A newly inserted generation always gets a fresh creation receipt.
+        # Historical receipts survive cleanup and must never be reused as
+        # evidence for a later insert of the same stable blueprint identity.
+        receipt = None if existing is None else await _existing_receipt(store, recipe.resident_id)
         if not receipt:
             receipt = await _write_receipt(
                 receipt_writer, operator, authority, doc, created=existing is None

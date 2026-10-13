@@ -140,8 +140,23 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
     if simulation_run_id:
         if not marker:
             raise HTTPException(status_code=400, detail="A simulation run may only raise requests for a synthetic resident")
-        if not await db.sim_runs.find_one({"run_id": simulation_run_id}, {"_id": 1}):
+        run = await db.sim_runs.find_one(
+            {"run_id": simulation_run_id},
+            {"_id": 0, "simulation_scope": 1, "simulation_community_id": 1},
+        )
+        if not run:
             raise HTTPException(status_code=400, detail=f"Unknown simulation run {simulation_run_id}")
+        # Demo-room runs predate explicit run scope and remain compatible.
+        # Any other synthetic world must bind the run to the resident's exact
+        # server-owned scope/community markers; a request body cannot supply them.
+        if marker.get("simulation_scope") != "demo_room" and (
+            run.get("simulation_scope") != marker.get("simulation_scope")
+            or run.get("simulation_community_id") != marker.get("simulation_community_id")
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="Simulation run does not match the synthetic resident scope",
+            )
         source = "simulator"
         actor = actor_resident_claim(data.resident_id, data.room, "simulator", synthetic=True)
         authority = "simulation_run"

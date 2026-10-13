@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from simulation import work_context as wc  # noqa: E402
 
 
-SECRET = "work-context-test-secret"
+SECRET = "work-context-test-secret-at-least-32-bytes"
 DEPARTMENTS = {"administration", "maintenance", "nursing"}
 NOW = datetime.now(timezone.utc).replace(microsecond=0)
 OWNER = {"user_id": "user_michael", "name": "Michael", "role": "owner", "department": None}

@@ -41,11 +41,15 @@ from routes.resident_requests import (ResidentRequestInput, create_resident_requ
                                       resident_request_status)
 from routes.transportation import TransportRequestInput, submit_transport_request  # noqa: E402
 from simulation import roster  # noqa: E402
+from simulation.community_blueprint import COMMUNITY_ID, SIMULATION_SCOPE  # noqa: E402
 
 TAG = f"simprov_{uuid.uuid4().hex[:8]}"
 RUN = f"{TAG}_run"
 REAL_RES = f"{TAG}_real_res"
 REAL_ROOM = f"{TAG}-R"
+LIVING_RES = f"{TAG}_living_res"
+LIVING_ROOM = f"{TAG}-L"
+LIVING_RUN = f"{TAG}_living_run"
 STAFF_EMAIL = f"{TAG}-tech@example.test"
 DEMO = {}
 
@@ -82,15 +86,16 @@ class ProviderSpy:
 async def _clean():
     demo_rid = DEMO.get("resident_id")
     tasks = await db.staff_tasks.find(
-        {"$or": [{"resident_id": {"$in": [REAL_RES, demo_rid]}}, {"simulation_run_id": RUN}]},
+        {"$or": [{"resident_id": {"$in": [REAL_RES, demo_rid, LIVING_RES]}},
+                 {"simulation_run_id": {"$in": [RUN, LIVING_RUN]}}]},
         {"_id": 0, "task_id": 1}).to_list(200)
     ids = [t["task_id"] for t in tasks]
     await db.receipts.delete_many({"related_object_id": {"$in": ids}})
     await db.notifications.delete_many({"$or": [{"task_id": {"$in": ids}}, {"to": STAFF_EMAIL}]})
     await db.staff_tasks.delete_many({"task_id": {"$in": ids}})
-    await db.residents.delete_many({"resident_id": REAL_RES})
+    await db.residents.delete_many({"resident_id": {"$in": [REAL_RES, LIVING_RES]}})
     await db.users.delete_many({"email": STAFF_EMAIL})
-    await db.sim_runs.delete_many({"run_id": RUN})
+    await db.sim_runs.delete_many({"run_id": {"$in": [RUN, LIVING_RUN]}})
 
 
 async def _setup():
@@ -98,12 +103,21 @@ async def _setup():
     DEMO.update(await ensure_demo_room())
     await _clean()
     await db.residents.insert_one({"resident_id": REAL_RES, "name": f"{TAG} Real", "room": REAL_ROOM})
+    await db.residents.insert_one({
+        "resident_id": LIVING_RES, "name": f"{TAG} Living", "room": LIVING_ROOM,
+        "synthetic": True, "simulation_scope": SIMULATION_SCOPE,
+        "simulation_community_id": COMMUNITY_ID,
+    })
     # One staff recipient in each department the tests notify.
     for dept in ("maintenance", "transportation"):
         await db.departments.update_one({"slug": dept}, {"$unset": {"contact_email": ""}})
     await db.users.insert_many([{"user_id": f"{TAG}_{d}", "email": STAFF_EMAIL, "name": d, "role": "staff",
                                  "department": d} for d in ("maintenance", "transportation")])
     await db.sim_runs.insert_one({"run_id": RUN, "state": "running", "created_at": "2026-10-04T00:00:00+00:00"})
+    await db.sim_runs.insert_one({
+        "run_id": LIVING_RUN, "state": "PAUSED", "created_at": "2026-10-13T00:00:00+00:00",
+        "simulation_scope": SIMULATION_SCOPE, "simulation_community_id": COMMUNITY_ID,
+    })
 
 
 @pytest.fixture(autouse=True)
@@ -217,6 +231,53 @@ def test_sc17_simulator_provenance_on_the_canonical_request():
         assert status["found"] and status["task_id"] == out["task_id"]
         op = await resolve_operational_state(DEMO["resident_id"], None, None)
         assert any(i.get("ref") == out["task_id"] for i in op["current"] + op["background"])
+    run(go())
+
+
+def test_living_community_scope_reaches_task_receipt_and_suppressed_notification():
+    async def go():
+        out = await create_resident_request(
+            ResidentRequestInput(
+                category="maintenance", resident_id=LIVING_RES, room=LIVING_ROOM,
+                resident_words="My shower needs help", summary="My shower needs help",
+                source="aria_voice",
+            ),
+            simulation_run_id=LIVING_RUN,
+        )
+        task = await db.staff_tasks.find_one({"task_id": out["task_id"]}, {"_id": 0})
+        assert task["simulation_scope"] == SIMULATION_SCOPE
+        assert task["simulation_community_id"] == COMMUNITY_ID
+        assert task["simulation_run_id"] == LIVING_RUN
+        receipt = (await _receipts(out["task_id"]))[0]
+        assert receipt["simulation_scope"] == SIMULATION_SCOPE
+        assert receipt["simulation_community_id"] == COMMUNITY_ID
+        assert receipt["simulation_run_id"] == LIVING_RUN
+        notes = await _notes(out["task_id"])
+        assert notes and all(note["status"] == "simulated" for note in notes)
+        assert all(note["simulation_scope"] == SIMULATION_SCOPE for note in notes)
+        assert all(note["simulation_community_id"] == COMMUNITY_ID for note in notes)
+        assert all(note["simulation_run_id"] == LIVING_RUN for note in notes)
+        assert ProviderSpy.calls == []
+
+    run(go())
+
+
+def test_living_community_request_refuses_wrong_scope_run():
+    async def go():
+        before = await db.staff_tasks.count_documents({"resident_id": LIVING_RES})
+        with pytest.raises(HTTPException) as error:
+            await create_resident_request(
+                ResidentRequestInput(
+                    category="maintenance", resident_id=LIVING_RES, room=LIVING_ROOM,
+                    resident_words="My shower needs help", summary="My shower needs help",
+                    source="aria_voice",
+                ),
+                simulation_run_id=RUN,
+            )
+        assert error.value.status_code == 400
+        assert "scope" in error.value.detail
+        assert await db.staff_tasks.count_documents({"resident_id": LIVING_RES}) == before
+
     run(go())
 
 

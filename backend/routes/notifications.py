@@ -19,6 +19,7 @@ def simulation_of(task: Optional[dict], receipt_id: Optional[str] = None) -> Opt
     if not task or not task.get("simulated"):
         return None
     return {"simulated": True, "simulation_scope": task.get("simulation_scope"),
+            "simulation_community_id": task.get("simulation_community_id"),
             "simulation_run_id": task.get("simulation_run_id"), "task_id": task.get("task_id"),
             "receipt_id": receipt_id}
 

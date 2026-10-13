@@ -102,8 +102,14 @@ async def load(task_id: str) -> dict:
 
 
 def _run_link(task: dict) -> dict:
-    """SC-17: every receipt on a simulator-raised request names its run."""
-    return {"simulation_run_id": task["simulation_run_id"]} if task.get("simulation_run_id") else {}
+    """SC-17: every receipt preserves the task's server-set simulation scope."""
+    if not task.get("simulation_run_id"):
+        return {}
+    return {
+        key: task[key]
+        for key in ("simulation_run_id", "simulation_scope", "simulation_community_id")
+        if task.get(key)
+    }
 
 
 def _receipt_context(task: dict, actor: ActorContext) -> dict:
@@ -214,9 +220,17 @@ async def simulation_marker(resident_id: Optional[str], simulation_run_id: Optio
     and is recorded only on a synthetic resident's work."""
     if not resident_id:
         return {}
-    r = await db.residents.find_one({"resident_id": resident_id}, {"_id": 0, "synthetic": 1})
+    r = await db.residents.find_one(
+        {"resident_id": resident_id},
+        {"_id": 0, "synthetic": 1, "simulation_scope": 1, "simulation_community_id": 1},
+    )
     if r and r.get("synthetic"):
-        marker = {"simulated": True, "simulation_scope": "demo_room"}
+        marker = {
+            "simulated": True,
+            "simulation_scope": r.get("simulation_scope") or "demo_room",
+        }
+        if r.get("simulation_community_id"):
+            marker["simulation_community_id"] = r["simulation_community_id"]
         if simulation_run_id:
             marker["simulation_run_id"] = simulation_run_id
         return marker
