@@ -1,5 +1,8 @@
 import React, { act } from "react";
 import { createRoot } from "react-dom/client";
+
+jest.mock("@/lib/utils", () => ({ cn: (...values) => values.filter(Boolean).join(" ") }), { virtual: true });
+
 import SimCommunityOverview from "../SimCommunityOverview";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
