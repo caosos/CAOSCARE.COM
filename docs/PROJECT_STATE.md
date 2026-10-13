@@ -333,7 +333,7 @@ Michael's Room 214 observations proved that a wake could power the TV off and, a
 
 The defect was unconditional resident-page code, not a model-selected room-control tool. Before `bff666b`, conversation start sent TV `power=off`; `bff666b` replaced that with 15 volume-down IR presses at every start and 15 volume-up presses at every close; `ea8e70c` made the start command asynchronous after the command sequence delayed Aria's greeting. The one-way IR adapter records sent commands but cannot verify physical state.
 
-Local correction `625880c04bbd28ce03ce7b740d883409649023b8` removes automatic TV/speaker handling from every conversation start/end path, deletes the duck helper, retains only explicit resident-requested device controls, removes the stale `tv_auto_mute` blueprint claim, and adds a source-boundary regression test. Focused frontend evidence: 3 suites / 8 tests passed, including the existing duplicate-goodbye fallback test. Full frontend evidence: 93 suites / 642 tests passed; five unrelated UI suites did not load because the available dependency tree exposes a newer Radix conditional subpath that Jest 27 cannot resolve. Production frontend build compiled successfully (`main.71429e96.js`, `main.6ade4251.css`). `git diff --check` passed.
+Local correction `625880c04bbd28ce03ce7b740d883409649023b8`, published as GitHub implementation commit `436589ec00485f96a503466841d6ad1d3d79a4c7`, removes automatic TV/speaker handling from every conversation start/end path, deletes the duck helper, retains only explicit resident-requested device controls, removes the stale `tv_auto_mute` blueprint claim, and adds a source-boundary regression test. Focused frontend evidence: 3 suites / 8 tests passed, including the existing duplicate-goodbye fallback test. Full frontend evidence: 93 suites / 642 tests passed; five unrelated UI suites did not load because the available dependency tree exposes a newer Radix conditional subpath that Jest 27 cannot resolve. Production frontend build compiled successfully (`main.71429e96.js`, `main.6ade4251.css`). `git diff --check` passed.
 
 No merge, deployment, development-host load, or physical Room 214 acceptance was performed. Current live Room 214 behavior remains whatever revision is loaded there; the correction is not claimed live.
 
@@ -342,7 +342,7 @@ HANDOFF CAPSULE
 - Branch:           `fix/aria-wake-no-tv-side-effects` from `a1576c71db5cdcaf39827305f9f9948056c15bbc`.
 - Lane / ownership: Resident-page conversation/device boundary only; do not alter model, wake sensitivity, hardware firmware, or production.
 - Last proven state: Local source correction; focused 8/8; full 642 assertions passed with five unrelated dependency-load failures; production build compiled.
-- Commits:          `625880c04bbd28ce03ce7b740d883409649023b8` implementation; this state entry follows separately.
+- Commits:          Local `625880c04bbd28ce03ce7b740d883409649023b8`; published GitHub implementation `436589ec00485f96a503466841d6ad1d3d79a4c7`; this provenance amendment follows separately.
 - Runtime state:    UNKNOWN; not inspected or changed from this environment.
 - Unresolved proven defects: Corrected revision is not loaded or physically accepted in Room 214.
 - Product invariants that matter here: Wake activates conversation only; explicit resident words ground device actions; one-way IR is sent-not-verified; no duplicate voice/session path.

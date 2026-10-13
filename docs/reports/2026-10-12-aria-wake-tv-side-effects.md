@@ -39,7 +39,7 @@ The earlier second goodbye voice had a separate proven cause. The local browser 
 
 ## Implementation and local evidence
 
-- Implementation commit: `625880c04bbd28ce03ce7b740d883409649023b8`.
+- Local implementation commit: `625880c04bbd28ce03ce7b740d883409649023b8`; published GitHub implementation commit: `436589ec00485f96a503466841d6ad1d3d79a4c7`.
 - `Kiosk.jsx` no longer imports or invokes automatic audio duck/restore code. Conversation start changes only the call state; conversation end clears only conversation state.
 - The obsolete `callAudioDuck.js` implementation and its behavior test were removed.
 - `conversationDeviceBoundary.test.js` asserts that the automatic duck/restore symbols are absent while the explicit resident-requested device command path remains wired.
