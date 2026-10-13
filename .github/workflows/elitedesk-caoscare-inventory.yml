@@ -1,0 +1,101 @@
+name: EliteDesk CAOSCare read-only inventory
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - chore/elitedesk-caoscare-bridge
+    paths:
+      - .github/workflows/elitedesk-caoscare-inventory.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: elitedesk-caoscare-inventory
+  cancel-in-progress: false
+
+jobs:
+  inventory:
+    name: Prove runner and inventory CAOSCare runtime
+    runs-on: [self-hosted, Linux, X64, elitedesk, caoscare]
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out the triggering revision
+        uses: actions/checkout@v4
+
+      - name: Collect read-only EliteDesk evidence
+        shell: bash
+        run: |
+          set -uo pipefail
+          REPORT="${RUNNER_TEMP}/elitedesk-caoscare-inventory.txt"
+
+          {
+            echo "CAOSCARE ELITEDESK READ-ONLY INVENTORY"
+            echo "report_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "host=$(hostname)"
+            echo "user=$(id -un)"
+            echo "uid_gid=$(id)"
+            echo "runner_name=${RUNNER_NAME}"
+            echo "runner_os=${RUNNER_OS}"
+            echo "event_sha=${GITHUB_SHA}"
+            echo "checked_out_sha=$(git rev-parse HEAD)"
+            echo "workspace=${GITHUB_WORKSPACE}"
+            echo
+
+            echo "== Candidate CAOSCare directories =="
+            find /home/caoscare-1 -maxdepth 1 -mindepth 1 -type d -iname '*caos*' -print 2>/dev/null | sort
+            echo
+
+            echo "== Known checkout state =="
+            for repo in               /home/caoscare-1/CAOSCARE.COM               /home/caoscare-1/CAOSCARE-INTEGRATION               /home/caoscare-1/CAOSCARE-ADMIN               /home/caoscare-1/CAOSCARE-LEVEL1-INTEGRATION
+            do
+              if git -C "$repo" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+                echo "path=$repo"
+                echo "head=$(git -C "$repo" rev-parse HEAD)"
+                echo "branch=$(git -C "$repo" branch --show-current)"
+                echo "tracked_changes=$(git -C "$repo" status --porcelain --untracked-files=no | wc -l)"
+              else
+                echo "path=$repo state=absent-or-not-git"
+              fi
+            done
+            echo
+
+            echo "== System services =="
+            systemctl list-units --type=service --all --no-legend 2>/dev/null |
+              grep -Ei 'caoscare|aria-wake|home.?assistant|mongod|nginx' || true
+            echo
+
+            echo "== User services =="
+            systemctl --user list-units --type=service --all --no-legend 2>/dev/null |
+              grep -Ei 'caoscare|aria-wake|home.?assistant' || true
+            echo
+
+            echo "== Relevant listening TCP ports =="
+            ss -ltn 2>/dev/null |
+              awk 'NR == 1 || $4 ~ /:(3000|3002|8000|8001|8092|8123|8765)$/'
+            echo
+
+            echo "== Local HTTP probes =="
+            for url in               http://127.0.0.1:8000/api/health               http://127.0.0.1:8001/api/health               http://127.0.0.1:8092/api/health               http://127.0.0.1:3002/api/health
+            do
+              code=$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 3 "$url" 2>/dev/null || true)
+              [ -n "$code" ] || code=unreachable
+              echo "$url status=$code"
+            done
+            echo
+
+            echo "== Capacity =="
+            df -h / /home/caoscare-1 2>/dev/null || true
+            free -h 2>/dev/null || true
+          } | tee "$REPORT"
+
+      - name: Preserve inventory receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: elitedesk-caoscare-inventory-${{ github.run_id }}
+          path: ${{ runner.temp }}/elitedesk-caoscare-inventory.txt
+          if-no-files-found: error
+          retention-days: 14
