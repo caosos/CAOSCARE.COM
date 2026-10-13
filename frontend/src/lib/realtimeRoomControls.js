@@ -119,6 +119,14 @@ async function adjustTvVolume({ args, ctx, deps }) {
   }
   const tv = await tvDevice("adjust_tv_volume", args, ctx, "volume");
   if (tv.fail) return tv.fail;
+  // One-way (infrared) TV: neither its power nor its level can be seen, so "louder" is a few
+  // presses and Aria asks how that is - she never names a level she cannot see.
+  if ((tv.device.capabilities || []).includes("volume_step")) {
+    const presses = Math.max(1, Math.min(20, Math.round(Number(args.amount) || 3)));
+    const res = await sendCommand(deps, tv.room, "volume_step", args.direction === "down" ? -presses : presses, "tv", ctx, tv.device);
+    if (res.error) return { ok: false, message: `the volume didn't change (${res.error}).` };
+    return { ok: true, message: `sent ${presses} volume-${args.direction} presses to the TV. This TV can't report its volume, so ask if that's better and adjust a little more if not - don't name a level.` };
+  }
   if (tv.device.state?.power !== "on") return { ok: false, message: "the TV is off right now, so there's no volume to change." };
   const current = typeof tv.device.state?.volume === "number" ? tv.device.state.volume : 20;
   const step = Math.max(1, Math.min(50, Math.round(Number(args.amount) || 10)));

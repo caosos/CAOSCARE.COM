@@ -125,6 +125,16 @@ describe("adjust_tv_volume", () => {
     expect(r.ok).toBe(false);
     expect(commands()).toHaveLength(0);
   });
+  test("one-way (infrared) TV: louder is a few presses, power unknown, no level claimed", async () => {
+    devices = [{ ...TV, capabilities: [...(TV.capabilities || []), "volume_step"], state: { power: "off" } }];
+    const r = await executeDeviceTool({ name: "adjust_tv_volume", args: { direction: "up" }, ctx: ctx("a little louder") });
+    expect(r.ok).toBe(true);
+    expect(commands().map((c) => [c.action, c.value])).toEqual([["volume_step", 3]]);
+    expect(r.message).toMatch(/can't report its volume/);
+    expect(r.message).not.toMatch(/volume is now/);
+    await executeDeviceTool({ name: "adjust_tv_volume", args: { direction: "down", amount: 5 }, ctx: ctx("turn it down") });
+    expect(commands()[1]).toMatchObject({ action: "volume_step", value: -5 });
+  });
   test("TV off: no volume change, honest message", async () => {
     devices = [{ ...TV, state: { power: "off" } }];
     const r = await executeDeviceTool({ name: "adjust_tv_volume", args: { direction: "up" }, ctx: ctx("turn it up") });

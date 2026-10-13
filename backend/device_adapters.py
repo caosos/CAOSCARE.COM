@@ -7,7 +7,7 @@ means adding one function here; the resident UI and Aria's tools do not
 change (2026-08-27, per Michael's "prepare for real physical hardware"
 directive).
 
-Two adapters exist today:
+Three adapters exist today (ir_blaster: device_ir_adapter.py, one-way, verified=False):
   mock            - simulated device, no hardware (simulated_device.py):
                     validates against the device's capabilities and holds
                     the resulting state as the simulator's read-back.
@@ -277,7 +277,9 @@ async def execute_home_assistant(device: dict, action: str, value):
     }
 
 
-ADAPTERS = {"mock": execute_mock, "home_assistant": execute_home_assistant}
+from device_ir_adapter import execute_ir_blaster  # noqa: E402 - one-way infrared via an HA IR blaster
+
+ADAPTERS = {"mock": execute_mock, "home_assistant": execute_home_assistant, "ir_blaster": execute_ir_blaster}
 
 
 def has_adapter(protocol: str) -> bool:

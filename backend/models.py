@@ -679,7 +679,7 @@ class DeviceTokenCreate(BaseModel):
 # state/capabilities contract as every other protocol, so swapping a room
 # from "mock" to a real protocol (wifi/zigbee/...) needs no conversational
 # or tool-schema change - only the execution path in devices.py branches on it.
-DeviceProtocol = Literal["mock", "home_assistant", "bluetooth", "wifi", "rf_433", "rf_915", "ir", "zigbee", "matter"]
+DeviceProtocol = Literal["mock", "home_assistant", "ir_blaster", "bluetooth", "wifi", "rf_433", "rf_915", "ir", "zigbee", "matter"]
 DeviceKind = Literal[
     "light", "fan", "heater", "ac", "thermostat", "tv", "speaker",
     "blinds", "outlet", "humidifier", "bed", "door_lock", "generic",
@@ -687,6 +687,7 @@ DeviceKind = Literal[
 DeviceCapability = Literal[
     "power", "brightness", "temperature", "fan_speed", "volume",
     "channel", "input", "color", "color_temp", "position", "hvac_mode",
+    "volume_step", "mute",   # ir_blaster TVs: relative steps (no read-back of the level)
 ]
 
 
@@ -705,6 +706,7 @@ class SmartDevice(BaseModel):
     # Aria/the UI offer only what this specific device actually supports
     # instead of guessing a universal input list.
     inputs: List[str] = Field(default_factory=list)
+    ir_codeset: Optional[str] = None        # protocol=ir_blaster: table name in ir_codesets.py
     state: dict = Field(default_factory=dict)   # e.g. {"power":"on","brightness":60,"temperature_c":22}
     vendor: Optional[str] = None
     model: Optional[str] = None
@@ -723,6 +725,7 @@ class SmartDeviceCreate(BaseModel):
     endpoint: Optional[str] = None
     capabilities: List[DeviceCapability] = Field(default_factory=list)
     inputs: List[str] = Field(default_factory=list)
+    ir_codeset: Optional[str] = None        # protocol=ir_blaster: table name in ir_codesets.py
     vendor: Optional[str] = None
     model: Optional[str] = None
     notes: Optional[str] = ""
