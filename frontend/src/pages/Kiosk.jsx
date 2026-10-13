@@ -93,7 +93,7 @@ export default function Kiosk() {
   // TVs-were-muted tracking: when a voice call begins we auto-mute any TV
   // in the room so the mic doesn't pick up Wheel of Fortune dialogue as
   // resident speech. On call end, we restore the prior power state.
-  const mutedDevicesRef = useRef([]); // restore list from duckRoomAudio (lib/callAudioDuck.js)
+  const mutedDevicesRef = useRef([]); // restore list (or its promise) from duckRoomAudio (lib/callAudioDuck.js)
 
   // Load kiosk + resident
   useEffect(() => {
@@ -248,15 +248,16 @@ export default function Kiosk() {
   };
 
   const restoreAudioAfterCall = async () => {
-    const restore = mutedDevicesRef.current;
+    const pending = mutedDevicesRef.current;   // the duck may still be running on a very short call
     mutedDevicesRef.current = [];
-    await restoreRoomAudio(restore, kiosk?.room, sendRoomDeviceCommand);
+    await restoreRoomAudio(await pending, kiosk?.room, sendRoomDeviceCommand);
   };
 
   const beginConversation = async (a) => {
     setCallState("chatting");
     // Turn room TVs/speakers down (never off) for the call; restored on every call end (lib/callAudioDuck.js).
-    mutedDevicesRef.current = await duckRoomAudio(devices, kiosk.room, sendRoomDeviceCommand);
+    // Not awaited: 15 infrared presses take seconds and must not delay Aria's greeting (Room 214, 2026-10-12).
+    mutedDevicesRef.current = duckRoomAudio(devices, kiosk.room, sendRoomDeviceCommand);
     // RealtimeChatScreen owns its own greeting + listening loop from here.
   };
 
