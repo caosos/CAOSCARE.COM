@@ -504,3 +504,15 @@ Current task checklist — checked means the work product exists, not that pendi
 - **next_check_at:** MISSING; work continues immediately.
 - **Blocker:** deployment workflow test environment incomplete. This is a workflow defect, not a wake, microphone, Aria, or EliteDesk runtime failure.
 - **Michael must do:** NOTHING.
+
+
+## Tuesday, October 13, 2026 — 12:38 AM America/Chicago — Wake-test interpreter mismatch stopped second load
+
+- **Transition:** PR #142 merged the bounded test environment as `4744e0df0c995d8b6250d74d883b4bf4b1617d37`; its deployment-workflow validation passed.
+- **Deployment receipt:** [run 38352121463](https://github.com/caosos/CAOSCARE.COM/actions/runs/38352121463) passed all 17 backend restart regression tests on the EliteDesk, then stopped during wake-test collection because the workflow invoked the backend virtual environment, which does not include the wake service's `websockets` dependency.
+- **Host evidence:** the failure receipt again recorded `host_head=e13b78492e536a337601db21c3b3e444c8ad2565`. Host verification, checkout loading, restart, and runtime mutation were skipped.
+- **Current bounded task:** run wake tests with the controlled integration checkout's existing wake-service interpreter at `room-node/aria_wake/.venv/bin/python`, fail closed if it is absent, verify through PR, merge, and repeat the guarded load. Responsible coordinator/worker: CAOSCare coordinator / Codex. Stage: workflow correction in progress.
+- **ETA:** UNKNOWN.
+- **next_check_at:** MISSING; work continues immediately.
+- **Blocker:** pre-deploy wake tests used the wrong existing virtual environment. No package installation or runtime workaround is authorized or needed.
+- **Michael must do:** NOTHING.
