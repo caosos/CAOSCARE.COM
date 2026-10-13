@@ -327,3 +327,23 @@ Factory reset (Michael), Wi-Fi provisioned by Michael via its hotspot page. On L
 ## 2026-10-12 20:35 CDT — Receipt law for device records; call-start TV duck (platform-wide)
 - `61506b1`: device registry create/update/delete receipted (`device_record_*`, actor/authority/before/after), owner/admin only (anon PUT → 401 on dev). Backend 662/0/13. Backfilled receipt `rcpt_fe312748ba12` for the 19:09 direct DB switch of the Room 214 TV (mock → ir_blaster), actor_type system, "Claude Code coordinator caoscare-1-64, on Michael's instruction".
 - `bff666b` + `ea8e70c`: `frontend/src/lib/callAudioDuck.js` — calls turn TVs/speakers DOWN 15 (IR: steps; known volume: exact level), never off, restored on every call end; duck runs alongside the greeting. Live Room 214 20:23:47: volume_step −15 at wake, +15 at call close 20:24:02, both receipted `resident_aria_device_command` completed/unverified; greeting was 5 s late before `ea8e70c`. Frontend 98/666. Room page `ea8e70c`; dev backend `61506b1`.
+## 2026-10-12 20:46 CDT — Correction: TV duck/restore retained; end-confirmation race fixed locally
+
+Michael live-accepted the volume behavior: “Hey Aria” lowers the TV so wake is audible and room audio does not compete with the conversation; ending the call restores it. The prior proposal to remove automatic volume handling was wrong and was reversed before merge or deployment. The invariant is now explicit: conversation start may lower TV/speaker **volume**, conversation end restores it, and conversation lifecycle never changes TV **power**.
+
+The same live test exposed a separate call-ending failure: after “That’ll be all for now,” Aria asked for “goodbye” or “end the call”; Michael said “Goodbye,” and Aria still claimed confirmation was missing. Root cause in the source path: a Realtime model tool call can arrive after `speech_started` but before `speech_stopped`/transcription; the grounding tracker previously marked a transcript pending only at `speech_stopped`, so the tool could be evaluated against the previous turn. The bounded correction marks the current turn pending at `speech_started`, waits up to 1.5 seconds for its transcript, and never substitutes stale words if the current transcript remains missing. A non-overlapping audio-native end request with missing transcription uses the existing out-of-script corroboration path; overlapping/echo-like speech remains blocked. Tool results and corroborated endings now carry only “Okay, bye for now.” Re-wake opening instructions require exactly one sentence with no appended offer or question.
+
+Agent/tool: Codex. Branch: `fix/aria-goodbye-grounding`. Focused frontend evidence: 5 suites / 101 tests passed, covering transcript/tool-call races, direct ending phrases, echo/false-positive guards, one-goodbye teardown, and TV duck/restore. Python syntax compilation passed. Optimized frontend production build compiled successfully (`main.72584c18.js`). `git diff --check` passed. The backend integration test was not run because this scratch environment has no backend pytest environment; its modified Python files did compile. Runtime state is unchanged and UNKNOWN from this environment. No merge or deployment performed.
+
+HANDOFF CAPSULE
+- Objective:        Make “That’ll be all for now” / “Goodbye” end once, briefly, while preserving “Hey Aria” wake and TV volume duck/restore.
+- Branch:           `fix/aria-goodbye-grounding` from the corrected history after `a1576c71db5cdcaf39827305f9f9948056c15bbc`.
+- Lane / ownership: Resident Aria opening/ending and conversation-volume lifecycle only; do not change wake phrase/settings, TV power, hardware firmware, or production.
+- Last proven state: Focused frontend 101/101; optimized build compiled; Python syntax compiled; diff check clean.
+- Commits:          Local implementation `3c5b13a`; publication receipt follows separately.
+- Runtime state:    UNKNOWN; this environment did not access, rebuild, restart, or deploy Room 214.
+- Unresolved proven defects: Physical Room 214 has not yet accepted the corrected goodbye path; far-field/TV-on wake recall remains unmeasured in current runtime telemetry.
+- Product invariants that matter here: “Hey Aria” is retained; TV volume dips on conversation start and restores on close; TV power never changes automatically; clear endings require no repeated confirmation; one brief goodbye only.
+- Do NOT change:    PR #41/#42; production; live wake threshold/score; Home Assistant or IR firmware.
+- Next safe action: Publish for review, then load only through the existing controlled Room 214 rebuild/deploy process and run one labeled wake → “That’ll be all for now” acceptance test.
+

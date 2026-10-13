@@ -85,7 +85,7 @@ export function createEndController({ send, stop, onEndCall, log, speak = defaul
       const outOfScript = turnMayEnd(reason) && transcriptIsOutOfScript(heardText);
       if (!corroboration.onRefusedAttempt(reason) && !outOfScript) return null;
       log("end_call_corroborated", { meta: { reason, via: outOfScript ? "out_of_script_transcript" : "second_attempt" } });
-      return { ok: true, message: "goodbye for now. I'm right here when you call.", corroborated: true };
+      return { ok: true, message: "Okay, bye for now.", corroborated: true };
     },
   };
 }

@@ -90,10 +90,9 @@ export default function Kiosk() {
   }, [voiceId]);
   const [voicePickerOpen, setVoicePickerOpen] = useState(false);
 
-  // TVs-were-muted tracking: when a voice call begins we auto-mute any TV
-  // in the room so the mic doesn't pick up Wheel of Fortune dialogue as
-  // resident speech. On call end, we restore the prior power state.
-  const mutedDevicesRef = useRef([]); // restore list (or its promise) from duckRoomAudio (lib/callAudioDuck.js)
+  // The volume dip is positive session feedback and keeps room audio out of the mic.
+  // It never changes TV power and is reversed on every call-end path.
+  const mutedDevicesRef = useRef([]);
 
   // Load kiosk + resident
   useEffect(() => {
@@ -248,17 +247,15 @@ export default function Kiosk() {
   };
 
   const restoreAudioAfterCall = async () => {
-    const pending = mutedDevicesRef.current;   // the duck may still be running on a very short call
+    const pending = mutedDevicesRef.current;
     mutedDevicesRef.current = [];
     await restoreRoomAudio(await pending, kiosk?.room, sendRoomDeviceCommand);
   };
 
   const beginConversation = async (a) => {
     setCallState("chatting");
-    // Turn room TVs/speakers down (never off) for the call; restored on every call end (lib/callAudioDuck.js).
-    // Not awaited: 15 infrared presses take seconds and must not delay Aria's greeting (Room 214, 2026-10-12).
+    // Do not await infrared steps: the greeting must start immediately.
     mutedDevicesRef.current = duckRoomAudio(devices, kiosk.room, sendRoomDeviceCommand);
-    // RealtimeChatScreen owns its own greeting + listening loop from here.
   };
 
   // Wake-endpoint trigger (EliteDesk home endpoint "Hey Aria", room-node/aria_wake,
