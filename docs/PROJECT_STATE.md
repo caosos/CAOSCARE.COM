@@ -441,3 +441,17 @@ Current task checklist — checked means the work product exists, not that pendi
   profiles; and the completed multi-device installer manual.
 - **Michael action:** run the short labeled Room 214 physical acceptance script supplied by Codex and
   report what was heard and what the TV did. No terminal or GitHub work is required.
+
+
+## 2026-10-12 11:44 PM America/Chicago — Room 214 wake outage diagnosed, recovered, and deployment defect fixed
+
+- **Owner observation:** eight normal-volume `Hey, Aria` attempts with the TV off produced no visible response.
+- **Proven cause:** the microphone and wake engine were healthy. The listener recorded strong speech and multiple exact `HEY_ARIA` detections, but each reported `detection_no_client`. GitHub Actions deployment run `38346538110` had started backend PID `2110321`, then runner post-job cleanup terminated that descendant. Port `:8092` disappeared, the room-page `:3002` API proxy returned 502, the kiosk's one-shot initialization failed, and no wake WebSocket client remained.
+- **Recovery:** restart was performed only after the lease/activity guard proved zero live calls. The backend was relaunched without `RUNNER_TRACKING_ID`; wake, page, and kiosk services were restarted in order after backend and proxy health returned.
+- **Acceptance evidence:** [recovery run 38347856164](https://github.com/caosos/CAOSCARE.COM/actions/runs/38347856164) passed after the previous job had completed: backend health 200, room-page health 200, `aria-wake`, `aria-wake-page`, and `aria-wake-kiosk` active, fresh audio capture, fresh `client_connected`, and `backend_survived_runner_cleanup=passed`.
+- **Permanent fix:** [PR #137](https://github.com/caosos/CAOSCARE.COM/pull/137) merged as `e79b1b8e3e991a54f9b1f56177839eaa66a28502`. The persistent backend launch now strips only the Actions ownership marker while retaining the existing no-live-call guard, PID ownership, exact runtime SHA, clean-tree, and health proofs. Backend smoke run `38347944180` passed, including the new regression test.
+- **Rollback decision:** no application rollback. The `e3636d0..e13b784` diff did not modify wake detection, microphone capture, wake WebSocket, model, threshold, or kiosk service code. Rolling back would not address the proven process-lifecycle defect.
+- **Loaded runtime:** application code remains `e13b78492e536a337601db21c3b3e444c8ad2565`; the merged `e79b1b8` change is deployment tooling/tests and does not require a room runtime reload.
+- **Remaining physical acceptance:** one normal-volume Room 214 `Hey, Aria` observation, then the already-defined greeting/search/TV/goodbye sequence. Software readiness is proven; physical acoustic behavior still requires Michael's observation.
+- **Blocker:** physical Room 214 observation only.
+- **Michael must do:** say `Hey, Aria` once at normal volume and report whether she answers. No terminal or GitHub action is required.
