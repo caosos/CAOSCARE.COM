@@ -11,7 +11,7 @@ jest.mock("../../lib/workContext", () => ({ useWorkContext: () => mockContext })
 jest.mock("react-router-dom", () => ({
   Link: ({ children }) => <span>{children}</span>,
   useNavigate: () => jest.fn(),
-}));
+}), { virtual: true });
 jest.mock("@/lib/utils", () => ({ cn: (...values) => values.filter(Boolean).join(" ") }), { virtual: true });
 jest.mock("../TasksTab", () => ({ MyTasksCard: () => null }));
 jest.mock("../MaintenanceWorkspace", () => () => null);
