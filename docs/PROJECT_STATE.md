@@ -506,6 +506,18 @@ Current task checklist — checked means the work product exists, not that pendi
 - **Michael must do:** NOTHING.
 
 
+## Tuesday, October 13, 2026 — 12:47 AM America/Chicago — Exact revision loaded; fresh wake proof incomplete
+
+- **Transition:** PR #143 merged as `5b571b3bad0f759cf052defb0c5ae3ef7511a11f`; [deployment run 38352764203](https://github.com/caosos/CAOSCARE.COM/actions/runs/38352764203) passed 17 backend restart tests, 16 wake tests, the room-page server test, current-host health, the clean-checkout guard, and the no-live-call guard.
+- **Loaded evidence:** the controlled EliteDesk checkout moved from `e13b78492e536a337601db21c3b3e444c8ad2565` to exact `5b571b3bad0f759cf052defb0c5ae3ef7511a11f`. Backend restart passed with PID `2135089`, runtime SHA `5b571b3`, zero live leases, zero recent calls, and health passed. The production frontend compiled as `main.78489bba.js` and was placed in the wake-page build directory.
+- **Incomplete proof:** the room-page step restarted only the page and kiosk, then required the new `capture_alive` event from `aria-wake`. Because the wake service itself was still the pre-deploy process, the new heartbeat code was not loaded; the step failed and the dependent post-cleanup survival job was skipped. This is missing acceptance evidence, not proof that the new wake code failed.
+- **Current bounded task:** change the guarded room-page load to restart `aria-wake`, page, and kiosk together, then poll only post-restart journal evidence for a fresh capture heartbeat and connected client before declaring success. Responsible coordinator/worker: CAOSCare coordinator / Codex. Stage: workflow correction in progress.
+- **ETA:** UNKNOWN.
+- **next_check_at:** MISSING; work continues immediately.
+- **Blocker:** fresh wake-service heartbeat/client proof and post-runner-cleanup backend survival proof are not yet complete.
+- **Michael must do:** NOTHING.
+
+
 ## Tuesday, October 13, 2026 — 12:38 AM America/Chicago — Wake-test interpreter mismatch stopped second load
 
 - **Transition:** PR #142 merged the bounded test environment as `4744e0df0c995d8b6250d74d883b4bf4b1617d37`; its deployment-workflow validation passed.
