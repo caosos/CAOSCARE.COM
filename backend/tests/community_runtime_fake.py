@@ -182,6 +182,7 @@ class RuntimeStore:
 
     collection_names = (
         "residents", "users", "receipts", "staff_tasks", "notifications", "sim_runs",
+        "sim_shift_covers",
     )
 
     def __init__(self, *, fail_delete=None):

@@ -4,6 +4,10 @@ import { createRoot } from "react-dom/client";
 jest.mock("@/lib/utils", () => ({ cn: (...values) => values.filter(Boolean).join(" ") }), { virtual: true });
 
 import SimCommunityQueue from "../SimCommunityQueue";
+import { api } from "../../../lib/api";
+
+jest.mock("../../../lib/api", () => ({ api: { post: jest.fn(() => Promise.resolve({ data: { ok: true } })) } }));
+jest.mock("sonner", () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -67,5 +71,37 @@ test("a broken capacity rule is shown loudly", () => {
 test("executor lag behind the clock is stated, not hidden in waits", () => {
   const { container, root } = render({ queue: { ...queue, executor_behind_clock_minutes: 125 }, runId: "run-7" });
   expect(container.querySelector('[data-testid="queue-executor-lag"]').textContent).toContain("2 h 5 min behind");
+  act(() => root.unmount());
+});
+
+test("real staff working simulated tickets are listed with drill-in", () => {
+  const opened = [];
+  const { container, root } = render({
+    queue: { ...queue, real_staff_working: [{ actor_id: "user_m", task_id: "task-real", department: "nursing", summary: "Shower" }] },
+    runId: "run-7", onOpenRequest: (id) => opened.push(id),
+  });
+  const box = container.querySelector('[data-testid="queue-real-staff"]');
+  expect(box.textContent).toContain("user_m");
+  act(() => box.querySelector("button").click());
+  expect(opened).toEqual(["task-real"]);
+  act(() => root.unmount());
+});
+
+test("cover shift posts the exact run and worker, then refreshes", async () => {
+  const changed = jest.fn();
+  const { container, root } = render({ queue, runId: "run-7", onChanged: changed });
+  await act(async () => container.querySelector('[data-testid="cover-sim:staff:kitchen:01"]').click());
+  expect(api.post).toHaveBeenCalledWith("/simulator/community/shift-cover", { run_id: "run-7", worker_actor_id: "sim:staff:kitchen:01" });
+  expect(changed).toHaveBeenCalled();
+  act(() => root.unmount());
+});
+
+test("a covered worker offers End cover and names who covers", async () => {
+  const covered = { ...queue, workers: [{ ...queue.workers[0], availability: "covered", covered_by: "Michael" }] };
+  const { container, root } = render({ queue: covered, runId: "run-7" });
+  const row = container.querySelector('[data-testid="worker-sim:staff:kitchen:01"]');
+  expect(row.textContent).toContain("covered by Michael");
+  await act(async () => row.querySelector('[data-testid="cover-sim:staff:kitchen:01"]').click());
+  expect(api.post).toHaveBeenLastCalledWith("/simulator/community/shift-cover/end", { run_id: "run-7", worker_actor_id: "sim:staff:kitchen:01" });
   act(() => root.unmount());
 });

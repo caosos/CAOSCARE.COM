@@ -7,6 +7,7 @@ from pymongo.errors import DuplicateKeyError
 
 from simulation.community_blueprint import COMMUNITY_ID, SIMULATION_SCOPE
 from simulation.community_executor import ExecutionContext, ExecutorEvent
+from simulation.community_human_handoff import yielded_to_real_staff
 from simulation.community_shift_execution import is_shift_event, record_shift_milestone, validate_shift_event
 from simulation import community_ticket_staging as ticket
 from simulation.community_ticket_plan import CLAIM, COMPLETE, OPEN, PHASES
@@ -123,7 +124,9 @@ class CanonicalCommunityExecutionServices:
 
     async def _write_phase(self, *, event: ExecutorEvent, context: ExecutionContext,
                            task: dict, parent: dict,
-                           before_status: Optional[str]) -> dict:
+                           before_status: Optional[str], status: str = "completed",
+                           result: Optional[str] = None,
+                           next_state: Optional[str] = None) -> dict:
         actor = ticket.actor(event)
         return await self.receipt_writer(
             action_type=event.action_type,
@@ -133,8 +136,8 @@ class CanonicalCommunityExecutionServices:
             resident_id=event.target_id,
             assigned_role=event.department,
             assigned_user=None if event.task_phase == OPEN else event.actor_id,
-            status="completed",
-            result=ticket.phase_result(event),
+            status=status,
+            result=result or ticket.phase_result(event),
             provenance={
                 **actor.receipt_fields(),
                 "simulation_scope": SIMULATION_SCOPE,
@@ -155,7 +158,7 @@ class CanonicalCommunityExecutionServices:
                 },
                 "result_label": "simulated",
                 "provider_refs": [],
-                "next_state": ticket.next_phase(event.task_phase),
+                "next_state": next_state or ticket.next_phase(event.task_phase),
             },
         )
 
@@ -216,6 +219,14 @@ class CanonicalCommunityExecutionServices:
             raise CommunityExecutionAdapterError(str(exc)) from exc
         state = task.get("status")
         actor, user = ticket.actor(event), ticket.staff_user(event)
+        if event.task_phase != OPEN:
+            yielded = await yielded_to_real_staff(self.store, event, context.run_id, task)
+            if yielded:
+                parent, result, next_state = yielded
+                return await self._write_phase(
+                    event=event, context=context, task=task, parent=parent,
+                    before_status=state, status="cancelled", result=result, next_state=next_state,
+                )
 
         if event.task_phase == OPEN:
             if state != "pending":

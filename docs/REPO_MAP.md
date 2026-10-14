@@ -914,6 +914,10 @@ listener verifier experiment: `docs/experiments/`.
   `community_execution_adapter.py`. `community_queue_view.py` (part of `GET /api/simulator/community/runtime`)
   and `frontend/src/components/simulator/SimCommunityQueue.jsx` show waiting tickets with simulated wait, overdue
   and backlog per department, busy/free workers with ticket drill-in, and executor lag behind the clock.
+- Real staff in the simulated community: `backend/simulation/community_shift_cover.py` +
+  `backend/routes/community_shift_cover.py` (owner/admin covers an on-site simulated worker's shift; the worker's
+  planned phases yield with receipts and their tickets wait for the person, worked via Work as <department>) and
+  `backend/simulation/community_human_handoff.py` (a real person who changes a simulated ticket takes it over).
 - Tests: `backend/tests/test_sim_community_*.py`, `test_living_community_*`,
   `test_haiku_community_provider_boundary.py`, and
   `frontend/src/components/simulator/__tests__/{SimCommunityOverview,SimCommunityObserved}.test.jsx` plus

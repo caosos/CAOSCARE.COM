@@ -1,4 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
+import { toast } from "sonner";
+import { api } from "../../lib/api";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 
@@ -72,25 +74,45 @@ function QueuedTicket({ row, onOpenRequest }) {
   );
 }
 
-function Worker({ row, onOpenRequest }) {
+function Worker({ row, runId, onOpenRequest, onChanged }) {
+  const [saving, setSaving] = useState(false);
   const busy = row.availability === "busy";
+  const covered = row.availability === "covered";
+  const toggleCover = async () => {
+    setSaving(true);
+    try {
+      await api.post(`/simulator/community/shift-cover${covered ? "/end" : ""}`, { run_id: runId, worker_actor_id: row.actor_id });
+      toast.success(covered ? `${row.name}'s shift handed back` : `You are covering ${row.name}'s shift. Use Work as ${titleCase(row.department)} to work their tickets.`);
+      onChanged?.();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail?.message || "Could not change the shift cover");
+    } finally {
+      setSaving(false);
+    }
+  };
   return (
     <li className="flex flex-wrap items-center justify-between gap-2 border-b border-caos-line py-1 last:border-0" data-testid={`worker-${row.actor_id}`}>
       <span className="text-sm">
         <b className="text-caos-forest">{row.name}</b>
         <span className="text-xs text-caos-mute"> · {titleCase(row.department)} · {titleCase(row.job_role)}</span>
+        {covered && <span className="text-xs font-semibold text-caos-forest"> · covered by {row.covered_by}</span>}
       </span>
       <span className="flex items-center gap-2">
-        <Badge variant="outline" className={busy ? "text-[#8B5A20]" : "text-caos-forest"}>{busy ? "Busy" : "Free"}</Badge>
+        <Badge variant="outline" className={busy ? "text-[#8B5A20]" : "text-caos-forest"}>{covered ? "Covered" : busy ? "Busy" : "Free"}</Badge>
         {busy && row.task_id && onOpenRequest && (
           <Button type="button" size="sm" variant="ghost" onClick={() => onOpenRequest(row.task_id)}>Ticket</Button>
+        )}
+        {runId && (
+          <Button type="button" size="sm" variant="outline" disabled={saving} onClick={toggleCover} data-testid={`cover-${row.actor_id}`}>
+            {covered ? "End cover" : "Cover shift"}
+          </Button>
         )}
       </span>
     </li>
   );
 }
 
-export default function SimCommunityQueue({ queue, runId, onOpenRequest }) {
+export default function SimCommunityQueue({ queue, runId, onOpenRequest, onChanged }) {
   const exact = queue?.status === "loaded" && queue.run_id === runId;
   return (
     <section className="space-y-2 border-t border-caos-line pt-4" aria-labelledby="community-queue-heading">
@@ -119,6 +141,19 @@ export default function SimCommunityQueue({ queue, runId, onOpenRequest }) {
               Capacity rule broken: {queue.anomalies.map((row) => `${titleCase(row.kind)} (${row.actor_id})`).join("; ")}
             </div>
           )}
+          {queue.real_staff_working?.length > 0 && (
+            <div className="rounded-lg border border-caos-moss p-3 text-sm" data-testid="queue-real-staff">
+              <p className="font-semibold text-caos-forest">Real staff working simulated tickets</p>
+              <ul className="mt-1 space-y-1">
+                {queue.real_staff_working.map((row) => (
+                  <li key={row.task_id} className="flex flex-wrap items-center justify-between gap-2">
+                    <span>{titleCase(row.department)} · {row.summary || row.task_id} · {row.actor_id || "unassigned"}</span>
+                    {onOpenRequest && <Button type="button" size="sm" variant="ghost" onClick={() => onOpenRequest(row.task_id)}>Ticket</Button>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <Totals totals={queue.totals} />
           <Departments departments={queue.departments} />
           <div className="grid gap-4 xl:grid-cols-2">
@@ -134,7 +169,7 @@ export default function SimCommunityQueue({ queue, runId, onOpenRequest }) {
               <h4 className="text-sm font-semibold text-caos-forest">On-site workers ({queue.workers.length})</h4>
               {queue.workers.length === 0 ? <p className="mt-2 text-sm text-caos-mute">No simulated worker is on site.</p> : (
                 <ul className="mt-2 max-h-[28rem] overflow-y-auto rounded-lg border border-caos-line px-3" data-testid="queue-workers">
-                  {queue.workers.map((row) => <Worker key={row.actor_id} row={row} onOpenRequest={onOpenRequest} />)}
+                  {queue.workers.map((row) => <Worker key={row.actor_id} row={row} runId={runId} onOpenRequest={onOpenRequest} onChanged={onChanged} />)}
                 </ul>
               )}
             </div>

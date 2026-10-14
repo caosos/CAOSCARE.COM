@@ -15,6 +15,7 @@ from functools import lru_cache
 
 from simulation.community_blueprint import COMMUNITY_ID, SIMULATION_SCOPE
 from simulation.community_runtime_staffing import staffing_at
+from simulation.community_shift_cover import active_covers
 from simulation.community_staffing import DEPARTMENT_LABELS
 from simulation.community_ticket_plan import OPEN, OPEN_TO_CLAIM_MINUTES
 from simulation.community_capacity_schedule import HORIZON_MINUTES
@@ -45,12 +46,13 @@ def _unknown(status: str, run_id) -> dict:
             "queued": None, "workers": None, "anomalies": None}
 
 
-def _worker(row: dict, active: dict | None) -> dict:
+def _worker(row: dict, active: dict | None, cover: dict | None) -> dict:
     return {
         "actor_id": row["actor_id"], "name": row["name"], "department": row["department"],
         "job_role": row["job_role"], "shift": row["shift"],
-        "availability": "busy" if active else "free",
+        "availability": "covered" if cover else "busy" if active else "free",
         "task_id": (active or {}).get("task_id"),
+        "covered_by": (cover or {}).get("covered_by_name"),
     }
 
 
@@ -71,6 +73,7 @@ async def queue_snapshot(*, run_id, clock_minute, next_event_minute=None, store=
         requested = _requested_minutes((run or {}).get("plan_revision") or "")
         pending = await store.staff_tasks.find({**scoped, "status": "pending"}, projection).to_list(None)
         working = await store.staff_tasks.find({**scoped, "status": "in_progress"}, projection).to_list(None)
+        covers = {row["worker_actor_id"]: row for row in await active_covers(store, run_id)}
     except Exception as exc:  # noqa: BLE001 - surfaced as an unknown read, never as zero
         return {**_unknown("error", run_id), "error": type(exc).__name__}
 
@@ -90,11 +93,17 @@ async def queue_snapshot(*, run_id, clock_minute, next_event_minute=None, store=
     queued.sort(key=lambda row: (row["waiting_minutes"] is None, -(row["waiting_minutes"] or 0),
                                  row["task_id"] or ""))
 
-    held = defaultdict(list)
+    held, real_staff = defaultdict(list), []
     for task in working:
-        held[task.get("assigned_to")].append(task)
+        holder = task.get("assigned_to") or ""
+        if holder.startswith("sim:staff:"):
+            held[holder].append(task)
+        else:  # a real person (Work-as or a department account) took this ticket over
+            real_staff.append({"actor_id": holder or None, "task_id": task.get("task_id"),
+                               "department": task.get("category"), "summary": task.get("summary")})
     on_site = {row["actor_id"] for row in staffing["workers"]}
-    workers = [_worker(row, (held.get(row["actor_id"]) or [None])[0]) for row in staffing["workers"]]
+    workers = [_worker(row, (held.get(row["actor_id"]) or [None])[0], covers.get(row["actor_id"]))
+               for row in staffing["workers"]]
     anomalies = (
         [{"kind": "worker_holds_multiple_active_tickets", "actor_id": actor,
           "task_ids": sorted(t.get("task_id") for t in tasks)}
@@ -130,5 +139,6 @@ async def queue_snapshot(*, run_id, clock_minute, next_event_minute=None, store=
                    "longest_wait_minutes": max((row["waiting_minutes"] or 0 for row in queued), default=None)},
         "departments": departments, "queued": queued[:QUEUED_LIMIT],
         "queued_shown": min(len(queued), QUEUED_LIMIT), "workers": workers,
+        "real_staff_working": real_staff,
         "anomalies": anomalies,
     }

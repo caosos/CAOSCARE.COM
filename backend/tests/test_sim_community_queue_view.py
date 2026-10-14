@@ -30,9 +30,18 @@ class Runs:
         return {"plan_revision": PLAN_REVISIONS["burn_in_10"]}
 
 
+class Covers:
+    def __init__(self, rows=()):
+        self.rows = list(rows)
+
+    def find(self, _query, _projection):
+        return Cursor(self.rows)
+
+
 class Store:
-    def __init__(self, rows, fail=False):
+    def __init__(self, rows, fail=False, covers=()):
         self.staff_tasks, self.sim_runs = Tasks(rows, fail), Runs()
+        self.sim_shift_covers = Covers(covers)
 
 
 MINUTE = 8 * 60 + 10 + 90           # breakfast for resident-001 was requested at 08:10
@@ -47,9 +56,9 @@ def _task(task_id, status, workflow, category, assigned_to=None, run="run-1"):
             "simulation_run_id": run, "conversation_session_id": f"simulator:event:{workflow}"}
 
 
-def _snapshot(rows, minute, fail=False, next_event=None):
+def _snapshot(rows, minute, fail=False, next_event=None, covers=()):
     return asyncio.run(view.queue_snapshot(run_id="run-1", clock_minute=minute,
-                                           next_event_minute=next_event, store=Store(rows, fail)))
+                                           next_event_minute=next_event, store=Store(rows, fail, covers)))
 
 
 def test_queued_tickets_show_simulated_wait_and_worker_availability():
@@ -93,3 +102,18 @@ def test_executor_lag_is_reported_not_shown_as_longer_waits():
     out = _snapshot(rows, MINUTE + 600, next_event=MINUTE)
     assert out["as_of_minute"] == MINUTE and out["executor_behind_clock_minutes"] == 600
     assert out["queued"][0]["waiting_minutes"] == 90
+
+
+def test_real_staff_holding_a_ticket_is_listed_not_flagged():
+    rows = [_task("t-real", "in_progress", "w9", "nursing", "user_michael")]
+    out = _snapshot(rows, MINUTE)
+    assert out["anomalies"] == []
+    assert out["real_staff_working"] == [{"actor_id": "user_michael", "task_id": "t-real",
+                                          "department": "nursing", "summary": "s"}]
+
+
+def test_a_covered_shift_is_shown_with_who_covers_it():
+    cover = {"worker_actor_id": AIDE["actor_id"], "covered_by_name": "Michael"}
+    by_id = {row["actor_id"]: row for row in _snapshot([], MINUTE, covers=[cover])["workers"]}
+    assert by_id[AIDE["actor_id"]]["availability"] == "covered"
+    assert by_id[AIDE["actor_id"]]["covered_by"] == "Michael"

@@ -242,7 +242,7 @@ export default function SimCommunityRuntime({ loadState, snapshot, refreshFailed
       </div>
 
       <StaffingCoverage staffing={snapshot.staffing} />
-      <SimCommunityQueue queue={snapshot.queue} runId={run.run_id} onOpenRequest={onOpenRequest} />
+      <SimCommunityQueue queue={snapshot.queue} runId={run.run_id} onOpenRequest={onOpenRequest} onChanged={onRetry} />
       <SimCommunityActivity activity={snapshot.activity} runId={run.run_id} onOpenRequest={onOpenRequest} />
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-caos-line pt-3">
         <div className="flex flex-wrap gap-2" aria-label="Runtime source status">

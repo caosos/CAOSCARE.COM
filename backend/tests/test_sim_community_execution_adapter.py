@@ -38,6 +38,9 @@ def _matches(row, query):
         if isinstance(wanted, dict) and "$gt" in wanted:
             if actual is None or actual <= wanted["$gt"]:
                 return False
+        elif isinstance(wanted, dict) and "$nin" in wanted:
+            if actual in wanted["$nin"]:
+                return False
         elif isinstance(wanted, dict) and "$ne" in wanted:
             if actual == wanted["$ne"]:
                 return False
@@ -95,6 +98,7 @@ class Store:
         self.staff_tasks = Collection(tasks)
         self.receipts = Collection(receipts)
         self.sim_runs = RunCollection()
+        self.sim_shift_covers = Collection()
 
 
 def event(**changes):
