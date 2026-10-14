@@ -3,7 +3,8 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import * as Icons from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { useAuth } from "../../lib/auth";
-import { navFor } from "../../lib/workspaceNav";
+import { navFor, sectionOfPath } from "../../lib/workspaceNav";
+import { Sheet, SheetContent, SheetTitle } from "../ui/sheet";
 import AdminAria from "../admin/AdminAria";
 import WorkAsControl from "../WorkAsControl";
 
@@ -44,7 +45,8 @@ function SidebarSection({ section, active, open, onToggle, onAria }) {
   return (
     <div>
       {section.to && !section.action ? (
-        <Link to={section.to} onClick={onToggle} className={`${base} ${look}`} data-testid={`nav-${section.id}`}>
+        <Link to={section.id === "dashboard" ? dashboardHref() : section.to} onClick={onToggle}
+              className={`${base} ${look}`} data-testid={`nav-${section.id}`}>
           <Icon className="h-[22px] w-[22px]" strokeWidth={1.8} /> {section.label}
         </Link>
       ) : (
@@ -69,11 +71,49 @@ function SidebarSection({ section, active, open, onToggle, onAria }) {
   );
 }
 
-export default function WorkspaceShell({ children }) {
+function SidebarNav({ sections, activeId, expanded, setExpanded, ariaOpen, openAria, onNavigate }) {
+  return (
+    <>
+      <Link to="/operations" onClick={onNavigate} className="mb-8 flex items-center gap-2 px-3">
+        <CaosCareMark />
+        <span>
+          <span className="block text-[30px] font-bold leading-none tracking-tight text-[#111827]">CAOSCare</span>
+          <span className="mt-1 block text-[12px] text-[#4B5563]">People · Care · Community</span>
+        </span>
+      </Link>
+      <nav className="space-y-1.5" aria-label="Main" onClick={(e) => { if (e.target.closest("a")) onNavigate?.(); }}>
+        {sections.map((s) => (
+          <SidebarSection key={s.id} section={s} active={s.id === activeId}
+                          open={expanded === s.id || (s.action === "ask-aria" && ariaOpen)}
+                          onToggle={() => setExpanded((e) => (e === s.id ? null : s.id))}
+                          onAria={() => { onNavigate?.(); openAria(); }} />
+        ))}
+      </nav>
+    </>
+  );
+}
+
+// The one application shell: sidebar, header (Work-as, clock, account),
+// breadcrumbs, Ask Aria. `crumbs` = [{label, to?}] after "Dashboard".
+// The workspace view (?world=&day=) is remembered for this tab so Dashboard
+// links from other pages return to it.
+const LAST_VIEW = "caos_ws_last_view";
+export function dashboardHref() {
+  try { return `/operations${sessionStorage.getItem(LAST_VIEW) || ""}`; } catch { return "/operations"; }
+}
+
+export default function WorkspaceShell({ children, crumbs }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  useEffect(() => {
+    if (location.pathname === "/operations") {
+      try { sessionStorage.setItem(LAST_VIEW, location.search); } catch { /* storage unavailable */ }
+    }
+  }, [location.pathname, location.search]);
+  const activeId = sectionOfPath(location.pathname);
   const [expanded, setExpanded] = useState(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [ariaOpen, setAriaOpen] = useState(false);
   const [prompt, setPrompt] = useState(null);
   const sections = navFor(user?.role);
@@ -86,25 +126,23 @@ export default function WorkspaceShell({ children }) {
     <AskAria.Provider value={{ openAria }}>
       <div className="ws-root flex min-h-screen bg-[#FBFCFD] text-[#111827]">
         <aside className="hidden w-[284px] shrink-0 border-r border-[#EEF0F3] bg-[#F7F8FA] px-4 py-5 lg:block">
-          <Link to="/operations" className="mb-8 flex items-center gap-2 px-3">
-            <CaosCareMark />
-            <span>
-              <span className="block text-[30px] font-bold leading-none tracking-tight text-[#111827]">CAOSCare</span>
-              <span className="mt-1 block text-[12px] text-[#4B5563]">People · Care · Community</span>
-            </span>
-          </Link>
-          <nav className="space-y-1.5" aria-label="Main">
-            {sections.map((s) => (
-              <SidebarSection key={s.id} section={s} active={s.id === "dashboard" && location.pathname === "/operations"}
-                              open={expanded === s.id || (s.action === "ask-aria" && ariaOpen)}
-                              onToggle={() => setExpanded((e) => (e === s.id ? null : s.id))}
-                              onAria={() => openAria()} />
-            ))}
-          </nav>
+          <SidebarNav sections={sections} activeId={activeId} expanded={expanded} setExpanded={setExpanded}
+                      ariaOpen={ariaOpen} openAria={openAria} />
         </aside>
+        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+          <SheetContent side="left" className="w-[300px] overflow-y-auto bg-[#F7F8FA] px-4 py-5">
+            <SheetTitle className="sr-only">Menu</SheetTitle>
+            <SidebarNav sections={sections} activeId={activeId} expanded={expanded} setExpanded={setExpanded}
+                        ariaOpen={ariaOpen} openAria={openAria} onNavigate={() => setMobileOpen(false)} />
+          </SheetContent>
+        </Sheet>
         <div className="min-w-0 flex-1 px-5 pb-10 pt-5 sm:px-9">
-          <header className="flex items-center justify-end gap-6">
-            <WorkAsControl onEntered={() => navigate("/workspace")} />
+          <header className="flex flex-wrap items-center justify-end gap-x-6 gap-y-3">
+            <button type="button" onClick={() => setMobileOpen(true)} aria-label="Open menu" data-testid="nav-mobile-open"
+                    className="mr-auto rounded-lg border border-[#E5E7EB] bg-white p-2 lg:hidden">
+              <Icons.Menu className="h-5 w-5" />
+            </button>
+            <span className="order-last w-full sm:order-none sm:w-auto"><WorkAsControl onEntered={() => navigate("/workspace")} /></span>
             <span className="hidden sm:inline"><Clock /></span>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -117,15 +155,22 @@ export default function WorkspaceShell({ children }) {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {/* Small screens have no sidebar: every section stays reachable here. */}
-                {sections.map((s) => (s.action
-                  ? <DropdownMenuItem key={s.id} onSelect={() => openAria()}>{s.label}</DropdownMenuItem>
-                  : <DropdownMenuItem key={s.id} onSelect={() => navigate(s.to || s.items[0].to)} className="lg:hidden">{s.label}</DropdownMenuItem>))}
+                <DropdownMenuItem onSelect={() => openAria()}>Ask Aria</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => navigate("/admin")}>Classic command centre</DropdownMenuItem>
                 <DropdownMenuItem onSelect={async () => { await logout?.(); navigate("/login"); }}>Sign out</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </header>
+          {crumbs?.length ? (
+            <nav aria-label="Breadcrumb" className="mt-1 text-[14px] text-[#6B7280]" data-testid="breadcrumbs">
+              <Link to={dashboardHref()} className="hover:text-[#111827]">Dashboard</Link>
+              {crumbs.map((c) => (
+                <span key={c.label}> <span aria-hidden="true">›</span> {c.to
+                  ? <Link to={c.to} className="hover:text-[#111827]">{c.label}</Link>
+                  : <span className="text-[#111827]">{c.label}</span>}</span>
+              ))}
+            </nav>
+          ) : null}
           {children}
         </div>
       </div>

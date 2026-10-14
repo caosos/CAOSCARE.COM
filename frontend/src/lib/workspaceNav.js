@@ -20,8 +20,8 @@ export const NAV_SECTIONS = [
     page("/staff", "Live board"),
     page("/alerts", "Alerts screen"),
   ] },
-  { id: "residents", label: "Residents", icon: "UsersRound", items: [
-    tab("residents", "Residents"),
+  { id: "residents", label: "Residents", icon: "UsersRound", to: "/residents", items: [
+    page("/residents", "Residents", { tab: "residents" }),   // new design; classic tab: /admin?tab=residents
     tab("clinician", "Clinician"),
     tab("family", "Family"),
     tab("meds", "Medications"),
@@ -92,6 +92,13 @@ export function canSee(entry, role) {
 export function navFor(role) {
   return NAV_SECTIONS.filter((s) => canSee(s, role))
     .map((s) => ({ ...s, items: s.items.filter((i) => canSee(i, role)) }));
+}
+
+// The section the current page belongs to (active indicator): an exact
+// section/page path; command-centre tabs are not pages of this shell.
+export function sectionOfPath(pathname) {
+  return NAV_SECTIONS.find((s) => s.to === pathname || s.items.some((i) => !i.to.includes("?") && i.to === pathname
+    && i.to !== "/admin"))?.id;
 }
 
 // The section an admin tab belongs to (for highlighting).

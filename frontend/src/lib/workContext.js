@@ -43,6 +43,10 @@ export function useWorkContext() {
       clearWorkContext();
       return undefined;
     }
+    // setTimeout overflows above 2^31-1 ms (~24.8 days) and would fire at
+    // once, clearing a valid context; such a far expiry needs no timer here
+    // (the server still refuses an expired context).
+    if (remaining > 2147483647) return undefined;
     const timer = setTimeout(clearWorkContext, remaining);
     return () => clearTimeout(timer);
   }, [context?.expires_at]);

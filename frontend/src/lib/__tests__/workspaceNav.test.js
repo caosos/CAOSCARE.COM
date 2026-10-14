@@ -41,3 +41,11 @@ test("pages outside the command centre stay reachable", () => {
   }
   expect(sectionOfTab("nursing")).toBe("departments");
 });
+
+test("Residents opens the new page and is the active section there", () => {
+  const { sectionOfPath } = require("../workspaceNav");
+  expect(NAV_SECTIONS.find((s) => s.id === "residents").to).toBe("/residents");
+  expect(sectionOfPath("/residents")).toBe("residents");
+  expect(sectionOfPath("/operations")).toBe("dashboard");
+  expect(sectionOfPath("/admin")).toBeUndefined();
+});

@@ -2,7 +2,7 @@
 // (/me/dashboard-layout). Saves are debounced; a 409 (saved from another
 // tab) reloads the server copy instead of overwriting it.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api } from "./api";
+import { API, api } from "./api";
 import { defaultLayout, normalizeLayout } from "./workspaceCatalog";
 
 const WORKSPACE = "live_ops";
@@ -46,10 +46,31 @@ export function useWorkspaceLayout() {
 
   useEffect(() => { load(); }, [load]);
 
+  const pending = useRef(null);
+  // Leaving or reloading the page must not drop a change still waiting to be
+  // saved: send it at once with keepalive (survives the page going away).
+  const flush = useCallback(() => {
+    if (!pending.current) return;
+    clearTimeout(timer.current);
+    const body = JSON.stringify({ workspace: WORKSPACE, version: version.current, boxes: pending.current });
+    pending.current = null;
+    let token = null;
+    try { token = localStorage.getItem("caos_token"); } catch { /* no storage */ }
+    fetch(`${API}/me/dashboard-layout`, { method: "PUT", keepalive: true, credentials: "include", body,
+      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) } })
+      .catch(() => {});
+  }, []);
+  useEffect(() => {
+    window.addEventListener("pagehide", flush);
+    return () => { window.removeEventListener("pagehide", flush); flush(); };
+  }, [flush]);
+
   const save = useCallback((next) => {
     clearTimeout(timer.current);
+    pending.current = next;
     setStatus("saving");
     timer.current = setTimeout(async () => {
+      pending.current = null;
       try {
         const { data } = await api.put("/me/dashboard-layout",
           { workspace: WORKSPACE, version: version.current, boxes: next });
