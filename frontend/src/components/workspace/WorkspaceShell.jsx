@@ -102,16 +102,23 @@ export function dashboardHref() {
   try { return `/operations${sessionStorage.getItem(LAST_VIEW) || ""}`; } catch { return "/operations"; }
 }
 
-export default function WorkspaceShell({ children, crumbs }) {
+// activeSection: highlight a sidebar section explicitly (the command centre
+// knows its tab); ariaSection/onAriaNavigate: let Ask Aria move within the
+// current page instead of navigating away.
+export default function WorkspaceShell({ children, crumbs, activeSection, ariaSection, onAriaNavigate }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  useEffect(() => {
+    document.body.classList.add("ws-app");   // theme bridge for older pages and dialogs (index.css)
+    return () => document.body.classList.remove("ws-app");
+  }, []);
   useEffect(() => {
     if (location.pathname === "/operations") {
       try { sessionStorage.setItem(LAST_VIEW, location.search); } catch { /* storage unavailable */ }
     }
   }, [location.pathname, location.search]);
-  const activeId = sectionOfPath(location.pathname);
+  const activeId = activeSection || sectionOfPath(location.pathname);
   const [expanded, setExpanded] = useState(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [ariaOpen, setAriaOpen] = useState(false);
@@ -174,7 +181,7 @@ export default function WorkspaceShell({ children, crumbs }) {
           {children}
         </div>
       </div>
-      <AdminAria currentSection="operations" onNavigate={(t) => navigate(`/admin?tab=${t}`)}
+      <AdminAria currentSection={ariaSection || "operations"} onNavigate={onAriaNavigate || ((t) => navigate(`/admin?tab=${t}`))}
                  open={ariaOpen} onOpenChange={setAriaOpen} hideLauncher prompt={prompt} />
     </AskAria.Provider>
   );

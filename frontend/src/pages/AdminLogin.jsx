@@ -19,7 +19,7 @@ export default function AdminLogin() {
   // here goes straight through instead of being shown a sign-in form again.
   useEffect(() => {
     if (authLoading || !user) return;
-    nav(location.state?.from?.pathname || "/admin", { replace: true });
+    nav(location.state?.from?.pathname || "/operations", { replace: true });
   }, [user, authLoading, nav, location.state]);
 
   const handleLogin = async (e) => {
@@ -28,7 +28,7 @@ export default function AdminLogin() {
     try {
       const u = await loginAdmin(form.email, form.password);
       toast.success(`Welcome, ${u.name}`);
-      nav(location.state?.from?.pathname || "/admin");
+      nav(location.state?.from?.pathname || "/operations");
     } catch (err) {
       const status = err?.response?.status;
       const msg = err?.response?.data?.detail || "Sign-in failed";

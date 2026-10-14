@@ -135,7 +135,7 @@ export default function StaffDashboard() {
           </div>
           <div className="flex items-center gap-3 overflow-x-auto max-w-full">
             {canOpenAdmin(user) && (
-              <Link to="/admin" data-testid="nav-admin">
+              <Link to="/operations" data-testid="nav-admin">
                 <Button variant="outline" className="border-2 h-10 rounded-full">
                   <Shield className="w-4 h-4 mr-2" /> Admin
                 </Button>

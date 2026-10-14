@@ -9,9 +9,17 @@ it stays reachable from the new sidebar exactly as it is today
 (`frontend/src/lib/workspaceNav.js`; `workspaceNav.test.js` fails if any
 command-centre tab is unreachable).
 
-Status: **NEW** = in the new shell and design · **LINKED** = reachable from the new
-sidebar, still old design · **OUT** = not part of the staff/admin app (public,
-resident room screen, family portal).
+Status: **NEW** = in the new shell and design · **SHELL** = inside the shared shell
+(sidebar, header, breadcrumbs, palette via the scoped theme bridge in `index.css`),
+page body not yet redesigned · **LINKED** = reachable from the new sidebar, still
+old design · **OUT** = not part of the staff/admin app (public, resident room
+screen, family portal).
+
+**Update (stage 1b, owner correction 2026-10-14):** owners/admins now land on
+`/operations` after sign-in; the whole `/admin` command centre (all 41 tabs),
+`/admin/help`, `/admin/install`, `/admin/blueprint` and `/aria` render inside the
+shared shell (status SHELL); the old top bar and its Blueprint button are gone;
+Blueprint lives in Settings > Documents (`/documents`, NEW).
 
 ## Pages (routes)
 
@@ -19,15 +27,16 @@ resident room screen, family portal).
 |---|---|---|---|
 | `/operations` workspace | owner, admin | NEW | — |
 | `/residents` | owner, admin | NEW (list); resident hub + add/edit dialogs still old style | Stage 2: resident hub and resident form dialogs |
-| `/admin` classic command centre (41 tabs, below) | owner, admin | LINKED | per stage below; kept as "Classic command centre" until every tab is migrated |
+| `/admin` command centre (41 tabs, below) | owner, admin | SHELL | per stage below; kept as "Classic command centre" until every tab is migrated |
 | `/staff` live board | all staff | LINKED (Dashboard ▸ Live board) | Stage 6 (staff surfaces) |
 | `/workspace` department workspace, Work-as target | staff; admin via Work-as | LINKED (Staff ▸ Department workspace; Work-as in header) | Stage 6 |
 | `/alerts` | all staff | LINKED (Dashboard ▸ Alerts screen) | Stage 3 |
 | `/front-desk` | owner, admin, front desk | LINKED (Staff ▸ Front desk) | Stage 6 |
-| `/admin/blueprint` | owner | LINKED (Settings ▸ Blueprint) | Stage 7 |
-| `/admin/install`, `/admin/install/:kioskId` | owner, admin | LINKED (Devices ▸ Install a room screen) | Stage 5 |
-| `/admin/help` | owner, admin | LINKED (Settings ▸ Tutorials) | Stage 7 |
-| `/aria` voice | owner | LINKED (Ask Aria ▸ Talk to Aria) | Stage 7 |
+| `/admin/blueprint` | owner | SHELL (Settings ▸ Documents ▸ Interactive blueprint) | Stage 7 |
+| `/documents` | owner, admin (owner-only entries for owner) | NEW | — |
+| `/admin/install`, `/admin/install/:kioskId` | owner, admin | SHELL (Devices ▸ Install a room screen) | Stage 5 |
+| `/admin/help` | owner, admin | SHELL (Settings ▸ Tutorials) | Stage 7 |
+| `/aria` voice | owner | SHELL (Ask Aria ▸ Talk to Aria) | Stage 7 |
 | `/`, `/experience`, `/for-communities`, `/for-residents`, `/login`, `/admin-login` | public | OUT | separate public-site decision |
 | `/kiosk/:kioskId` room screen, `/family/:token` | resident / family | OUT | not staff UI; own design rules (low-intimidation, senior UX) |
 

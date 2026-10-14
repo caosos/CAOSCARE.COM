@@ -1,10 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { api } from "../lib/api";
-import { Button } from "../components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs";
-import { LogOut, Sparkles, Users, Radio } from "lucide-react";
 import { toast } from "sonner";
 import RFPairingTab from "./RFPairingTab";
 import ClinicianTab from "./ClinicianTab";
@@ -47,12 +45,12 @@ import QueueWithUpcoming from "../components/QueueWithUpcoming";
 import ActivityLog from "./ActivityLog";
 import ReportsTab from "./ReportsTab";
 import AlertsBoard from "./AlertsBoard";
-import AdminAria from "../components/admin/AdminAria";
 import AriaSpotlight from "../components/admin/AriaSpotlight";
-import WorkAsControl from "../components/WorkAsControl";
+import WorkspaceShell from "../components/workspace/WorkspaceShell";
+import { NAV_SECTIONS } from "../lib/workspaceNav";
 
 export default function Admin() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const nav = useNavigate();
   const [sp, setSp] = useSearchParams();
 
@@ -67,8 +65,6 @@ export default function Admin() {
   const [focusResidentId, setFocusResidentId] = useState(null);
 
   const groups = useMemo(() => tabGroups(residents, staff, kiosks, zones, user), [residents, staff, kiosks, zones, user]);
-  const activeGroupId = groups.find((g) => g.tabs.some((t) => t.value === activeTab))?.id;
-  const groupTabs = groups.find((g) => g.id === activeGroupId)?.tabs || [];
 
   // Deep links: /admin?tab=<value>&resident=<id> (workspace sidebar, staff
   // dashboard cards, Admin Aria, notifications). The open tab stays in the
@@ -121,68 +117,29 @@ export default function Admin() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  return (
-    <div className="min-h-screen bg-caos-bone">
-      <header className="border-b border-caos-line bg-caos-bone sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-y-2 px-4 sm:px-6 py-4">
-          <div className="flex items-center gap-6">
-            <Link to="/" className="text-xl" data-testid="admin-home-link">
-              <span className="font-display font-bold tracking-tighter text-caos-forest">CAOS</span>
-              <span className="font-display font-light text-caos-forest">Care</span>
-            </Link>
-            <span className="text-caos-mute text-sm whitespace-nowrap">· {user?.role === "owner" ? "Owner" : "Admin"} · Command centre</span>
-          </div>
-          <div className="flex items-center gap-3 overflow-x-auto max-w-full">
-            <WorkAsControl onEntered={() => nav("/workspace")} />
-            <Link to="/operations" data-testid="admin-workspace-link">
-              <Button variant="outline" className="border-2 h-10 rounded-full">My workspace</Button>
-            </Link>
-            {user?.role === "owner" && (
-              <Link to="/admin/blueprint" data-testid="admin-blueprint-link">
-                <Button variant="outline" className="border-2 h-10 rounded-full border-caos-terracotta text-caos-terracotta hover:bg-caos-terracotta hover:text-white">
-                  <Sparkles className="w-4 h-4 mr-2" /> Blueprint
-                </Button>
-              </Link>
-            )}
-            <Link to="/admin/help" data-testid="admin-help-link">
-              <Button variant="outline" className="border-2 h-10 rounded-full">Tutorials</Button>
-            </Link>
-            <Link to="/staff" data-testid="admin-live-board-link">
-              <Button variant="outline" className="border-2 h-10 rounded-full">
-                <Radio className="w-4 h-4 mr-2" /> Live board
-              </Button>
-            </Link>
-            <Button variant="outline" className="border-2 h-10 rounded-full" onClick={() => setActiveTab("staff")} data-testid="admin-users-access-btn">
-              <Users className="w-4 h-4 mr-2" /> Users &amp; access
-            </Button>
-            <span className="text-sm text-caos-mute hidden md:block">{user?.name}</span>
-            <Button variant="outline" onClick={async () => { await logout(); nav("/login"); }} className="border-2 h-10 rounded-full" data-testid="admin-logout-btn">
-              <LogOut className="w-4 h-4 mr-2" /> Sign out
-            </Button>
-          </div>
-        </div>
-      </header>
+  // In the shared application shell (owner direction 2026-10-14): the sidebar
+  // replaces the old header and group pills; the section's own tabs stay as
+  // a tab bar, so every existing tab and its content is unchanged.
+  const section = NAV_SECTIONS.find((s) => s.items.some((i) => i.tab === activeTab));
+  const sectionTabs = (section?.items || []).filter((i) => i.tab && groups.some((g) => g.tabs.some((t) => t.value === i.tab)));
+  const tabLabel = groups.flatMap((g) => g.tabs).find((t) => t.value === activeTab)?.label || activeTab;
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <h1 className="font-display text-4xl font-light text-caos-forest mb-6">Community command centre</h1>
+  return (
+    <WorkspaceShell crumbs={section && section.id !== "dashboard" ? [{ label: section.label }, { label: tabLabel }] : [{ label: tabLabel }]}
+                    activeSection={section?.id} ariaSection={activeTab} onAriaNavigate={setActiveTab}>
+      <div className="ws-legacy mt-1" data-testid="admin-in-shell">
+        <h1 className="text-[28px] font-bold leading-tight tracking-tight sm:text-[36px]">{tabLabel}</h1>
 
         <FacilitySetupBanner facilities={facilities} loadState={facilityLoadState}
           isOwner={user?.role === "owner"} onSetup={goSetUpCommunity} onRetry={loadFacilities} />
 
-        <div className="flex flex-wrap gap-2 mb-4" data-testid="admin-group-nav">
-          {groups.map((g) => (
-            <button key={g.id} onClick={() => setActiveTab(g.tabs[0].value)} data-testid={`group-${g.id}`}
-              className={`px-4 py-2 rounded-full text-sm font-semibold uppercase tracking-wider transition-colors ${
-                activeGroupId === g.id ? "bg-caos-forest text-white" : "bg-white border border-caos-line text-caos-mute hover:border-caos-forest"}`}>
-              {g.label}
-            </button>
-          ))}
-        </div>
-
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="flex-wrap h-auto">
-            {groupTabs.map((t) => (
-              <TabsTrigger key={t.value} value={t.value} data-testid={`tab-${t.value}`}>{t.label}</TabsTrigger>
+          <TabsList className="mt-4 h-auto flex-wrap justify-start gap-1 rounded-xl border border-[#E5E7EB] bg-white p-1">
+            {sectionTabs.map((t) => (
+              <TabsTrigger key={t.tab} value={t.tab} data-testid={`tab-${t.tab}`}
+                className="rounded-lg px-3 py-1.5 text-[14px] data-[state=active]:bg-[#2F80ED] data-[state=active]:text-white">
+                {t.label}
+              </TabsTrigger>
             ))}
           </TabsList>
 
@@ -239,8 +196,7 @@ export default function Admin() {
           <TabsContent value="roadmap" className="mt-6"><Roadmap /></TabsContent>
         </Tabs>
       </div>
-      <AdminAria currentSection={activeTab} onNavigate={setActiveTab} />
       <AriaSpotlight />
-    </div>
+    </WorkspaceShell>
   );
 }

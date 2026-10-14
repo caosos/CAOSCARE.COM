@@ -15,6 +15,8 @@ import StaffDashboard from "./pages/StaffDashboard";
 import Admin from "./pages/Admin";
 import OperationsWorkspace from "./pages/OperationsWorkspace";
 import ResidentsPage from "./pages/ResidentsPage";
+import DocumentsPage from "./pages/DocumentsPage";
+import ShellPage from "./components/workspace/ShellPage";
 import Blueprint from "./pages/Blueprint";
 import InstallKioskWizard from "./pages/InstallKioskWizard";
 import HelpHub from "./pages/HelpHub";
@@ -53,7 +55,7 @@ function Protected({ children, adminOnly = false, ownerOnly = false, frontDeskOn
     const dest = ownerOnly || adminOnly ? "/admin-login" : "/login";
     return <Navigate to={dest} state={{ from: location }} replace />;
   }
-  if (ownerOnly && user.role !== "owner") return <Navigate to="/admin" replace />;
+  if (ownerOnly && user.role !== "owner") return <Navigate to="/operations" replace />;
   // "Admin" tier = owner OR admin (clinical admin nurse). Staff are rejected.
   if (adminOnly && !["owner", "admin"].includes(user.role)) return <Navigate to="/staff" replace />;
   // Front Desk tier = owner/admin (broader oversight) OR front_desk itself.
@@ -89,11 +91,12 @@ function AppRouter() {
       <Route path="/admin" element={<Protected adminOnly><Admin /></Protected>} />
       <Route path="/operations" element={<Protected adminOnly><OperationsWorkspace /></Protected>} />
       <Route path="/residents" element={<Protected adminOnly><ResidentsPage /></Protected>} />
-      <Route path="/admin/blueprint" element={<Protected ownerOnly><Blueprint /></Protected>} />
-      <Route path="/admin/install" element={<Protected adminOnly><InstallKioskWizard /></Protected>} />
-      <Route path="/admin/install/:kioskId" element={<Protected adminOnly><InstallKioskWizard /></Protected>} />
-      <Route path="/admin/help" element={<Protected adminOnly><HelpHub /></Protected>} />
-      <Route path="/aria" element={<Protected ownerOnly><AriaVoice /></Protected>} />
+      <Route path="/documents" element={<Protected adminOnly><DocumentsPage /></Protected>} />
+      <Route path="/admin/blueprint" element={<Protected ownerOnly><ShellPage activeSection="settings" crumbs={[{ label: "Settings" }, { label: "Documents", to: "/documents" }, { label: "Blueprint" }]}><Blueprint /></ShellPage></Protected>} />
+      <Route path="/admin/install" element={<Protected adminOnly><ShellPage crumbs={[{ label: "Devices" }, { label: "Install a room screen" }]}><InstallKioskWizard /></ShellPage></Protected>} />
+      <Route path="/admin/install/:kioskId" element={<Protected adminOnly><ShellPage crumbs={[{ label: "Devices" }, { label: "Install a room screen" }]}><InstallKioskWizard /></ShellPage></Protected>} />
+      <Route path="/admin/help" element={<Protected adminOnly><ShellPage crumbs={[{ label: "Settings" }, { label: "Tutorials" }]}><HelpHub /></ShellPage></Protected>} />
+      <Route path="/aria" element={<Protected ownerOnly><ShellPage crumbs={[{ label: "Ask Aria" }, { label: "Talk to Aria" }]}><AriaVoice /></ShellPage></Protected>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

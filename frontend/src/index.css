@@ -238,3 +238,29 @@ h1, h2, h3, h4, h5, h6, .font-display {
 
 /* Live Operations workspace (approved design): Inter throughout, headings included. */
 .ws-root, .ws-root h1, .ws-root h2, .ws-root h3 { font-family: 'Inter', 'Manrope', system-ui, sans-serif; }
+
+/* Theme bridge (owner 2026-10-14: the /operations design is the standard for
+   the whole authenticated app). While the shared shell is mounted it marks
+   <body class="ws-app">; the older pages and their dialogs (portals under
+   body) then draw with the approved palette: white surfaces, dark type,
+   blue primary actions. The resident room screen and public site never
+   mount the shell, so they keep their own theme. */
+body.ws-app {
+  --caos-bone: #FBFCFD;
+  --caos-ambient: #F3F4F6;
+  --caos-surface: #FFFFFF;
+  --caos-forest: #2F80ED;
+  --caos-forest-hover: #1F6FD9;
+  --caos-terracotta: #D93B3B;
+  --caos-terracotta-dark: #B42318;
+  --caos-ink: #111827;
+  --caos-mute: #6B7280;
+  --caos-line: #E5E7EB;
+  background: #FBFCFD;
+}
+body.ws-app .text-caos-forest { color: #111827; }
+body.ws-app .font-display,
+body.ws-app h1, body.ws-app h2, body.ws-app h3, body.ws-app h4 { font-family: 'Inter', 'Manrope', system-ui, sans-serif; }
+body.ws-app { font-family: 'Inter', 'Manrope', system-ui, sans-serif; }
+.ws-embedded header.sticky { display: none; }
+.ws-embedded .min-h-screen { min-height: 0; }

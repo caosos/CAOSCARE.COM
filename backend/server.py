@@ -117,6 +117,7 @@ from routes import community_dashboard as community_dashboard_routes  # noqa: E4
 from routes import ops_metrics as ops_metrics_routes  # noqa: E402
 from routes import user_layout as user_layout_routes  # noqa: E402
 from routes import ops_widgets as ops_widgets_routes  # noqa: E402
+from routes import documents as documents_routes  # noqa: E402
 from routes import community_runtime_registry  # noqa: E402
 from routes import work_context as work_context_routes  # noqa: E402
 from routes import demo_continuity as demo_continuity_routes  # noqa: E402
@@ -311,6 +312,7 @@ api.include_router(community_dashboard_routes.router)
 api.include_router(ops_widgets_routes.router)
 api.include_router(ops_metrics_routes.router)
 api.include_router(user_layout_routes.router)
+api.include_router(documents_routes.router)
 api.include_router(community_reset_control_routes.router)
 api.include_router(work_context_routes.router)
 api.include_router(demo_continuity_routes.router)
