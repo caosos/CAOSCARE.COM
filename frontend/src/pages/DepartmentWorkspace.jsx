@@ -54,7 +54,7 @@ export default function DepartmentWorkspace() {
           </Link>
           <div className="flex items-center gap-3 overflow-x-auto max-w-full">
             {["owner", "admin"].includes(user?.role) && (
-              <WorkAsControl onExited={() => nav("/admin")} />
+              <WorkAsControl onExited={() => nav("/operations")} />
             )}
             {["owner", "admin"].includes(user?.role) && (
               <Link to="/admin"><Button variant="outline" className="border-2 h-10 rounded-full">Admin</Button></Link>

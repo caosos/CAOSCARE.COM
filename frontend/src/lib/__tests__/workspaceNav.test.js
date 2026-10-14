@@ -27,7 +27,7 @@ test("owner-only destinations are hidden from admins", () => {
   expect(adminItems).not.toContain("/aria");
   expect(allAdminTabs({ role: "admin" })).not.toContain("facilities");   // the classic page agrees
   const ownerItems = navFor("owner").flatMap((s) => s.items.map((i) => i.to));
-  expect(ownerItems).toEqual(expect.arrayContaining(["/admin?tab=facilities", "/admin/blueprint", "/aria"]));
+  expect(ownerItems).toEqual(expect.arrayContaining(["/admin?tab=facilities", "/aria", "/documents"]));
 });
 
 test("staff roles get no admin navigation", () => {
@@ -36,7 +36,7 @@ test("staff roles get no admin navigation", () => {
 
 test("pages outside the command centre stay reachable", () => {
   const pages = NAV_SECTIONS.flatMap((s) => s.items.map((i) => i.to));
-  for (const p of ["/staff", "/alerts", "/front-desk", "/workspace", "/admin/install", "/admin/help", "/admin"]) {
+  for (const p of ["/staff", "/alerts", "/front-desk", "/workspace", "/admin/install", "/admin/help", "/admin", "/documents"]) {
     expect(pages).toContain(p);
   }
   expect(sectionOfTab("nursing")).toBe("departments");
@@ -48,4 +48,10 @@ test("Residents opens the new page and is the active section there", () => {
   expect(sectionOfPath("/residents")).toBe("residents");
   expect(sectionOfPath("/operations")).toBe("dashboard");
   expect(sectionOfPath("/admin")).toBeUndefined();
+});
+
+test("Documents sits under Settings; Blueprint is reached through Documents, not the top bar", () => {
+  const settings = NAV_SECTIONS.find((s) => s.id === "settings");
+  expect(settings.items.map((i) => i.to)).toContain("/documents");
+  expect(NAV_SECTIONS.flatMap((s) => s.items.map((i) => i.to))).not.toContain("/admin/blueprint");
 });

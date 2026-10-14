@@ -75,7 +75,7 @@ export const NAV_SECTIONS = [
     tab("communications", "Email & notifications"),
     tab("escalation", "Escalation"),
     tab("roadmap", "Roadmap"),
-    page("/admin/blueprint", "Blueprint", { roles: OWNER }),
+    page("/documents", "Documents"),   // Blueprint lives here (owner): Settings > Documents
     page("/admin/help", "Tutorials"),
     page("/admin", "Classic command centre"),
   ] },
