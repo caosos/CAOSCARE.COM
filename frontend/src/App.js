@@ -13,6 +13,7 @@ import AdminLogin from "./pages/AdminLogin";
 import Kiosk from "./pages/Kiosk";
 import StaffDashboard from "./pages/StaffDashboard";
 import Admin from "./pages/Admin";
+import OperationsWorkspace from "./pages/OperationsWorkspace";
 import Blueprint from "./pages/Blueprint";
 import InstallKioskWizard from "./pages/InstallKioskWizard";
 import HelpHub from "./pages/HelpHub";
@@ -85,6 +86,7 @@ function AppRouter() {
       <Route path="/alerts" element={<Protected><AlertsPage /></Protected>} />
       <Route path="/front-desk" element={<Protected frontDeskOnly><FrontDeskDashboard /></Protected>} />
       <Route path="/admin" element={<Protected adminOnly><Admin /></Protected>} />
+      <Route path="/operations" element={<Protected adminOnly><OperationsWorkspace /></Protected>} />
       <Route path="/admin/blueprint" element={<Protected ownerOnly><Blueprint /></Protected>} />
       <Route path="/admin/install" element={<Protected adminOnly><InstallKioskWizard /></Protected>} />
       <Route path="/admin/install/:kioskId" element={<Protected adminOnly><InstallKioskWizard /></Protected>} />

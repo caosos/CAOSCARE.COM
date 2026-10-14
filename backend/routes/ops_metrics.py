@@ -19,7 +19,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from deps import db, get_current_user
 from routes.facility_local_time import facility_tz
-from routes.ops_metrics_query import METRICS, NO_DEPARTMENT, Scope, count_by_department, explain, match_for
+from routes.ops_metrics_query import METRICS, NO_DEPARTMENT, TILE_METRICS, Scope, count_by_department, explain, match_for
 from routes.ops_overview_util import dept_label
 from routes.staff_scope import ADMIN_ROLES, acting_departments
 from routes.task_origin import KIND_LABELS, KINDS, kind_of, routine_name, world_of
@@ -100,7 +100,7 @@ async def metrics(world: str = "live", date: Optional[str] = None, run_id: Optio
     departments = await db.departments.find({}, {"_id": 0}).sort("label", 1).to_list(100)
     by_slug = {d["slug"]: d for d in departments}
     rows: dict = {}
-    for metric in METRICS:
+    for metric in TILE_METRICS:
         for slug, counts in (await count_by_department(db, metric, scope)).items():
             rows.setdefault(slug, {})[metric] = counts
     for d in departments:
@@ -108,12 +108,14 @@ async def metrics(world: str = "live", date: Optional[str] = None, run_id: Optio
             rows.setdefault(d["slug"], {})
     empty = {"total": 0, "by_origin": {k: 0 for k in KINDS}}
     out = [{"slug": slug, "label": "No department" if slug == NO_DEPARTMENT else dept_label(slug, by_slug),
-            "metrics": {m: rows[slug].get(m, empty) for m in METRICS}} for slug in rows]
+            "metrics": {m: rows[slug].get(m, empty) for m in TILE_METRICS}} for slug in rows]
     out.sort(key=lambda r: (r["slug"] == NO_DEPARTMENT, r["label"].lower()))
-    totals = {m: sum(r["metrics"][m]["total"] for r in out) for m in METRICS}
+    totals = {m: sum(r["metrics"][m]["total"] for r in out) for m in TILE_METRICS}
+    by_origin = {m: {k: sum(r["metrics"][m]["by_origin"][k] for r in out) for k in KINDS} for m in TILE_METRICS}
     return {"world": scope.world, "period": scope.period(), "run": _run_summary(run),
-            "metrics": {m: METRICS[m]["label"] for m in METRICS},
-            "origins": {k: KIND_LABELS[k] for k in KINDS}, "departments": out, "totals": totals}
+            "metrics": {m: METRICS[m]["label"] for m in TILE_METRICS},
+            "origins": {k: KIND_LABELS[k] for k in KINDS}, "departments": out, "totals": totals,
+            "totals_by_origin": by_origin}
 
 
 def _row(t: dict, by_slug: dict) -> dict:

@@ -24,7 +24,22 @@ METRICS = {
     "done": {"label": "Completed", "status": "completed", "dated": True},
     "waiting": {"label": "Waiting", "status": "pending", "dated": False},
     "in_progress": {"label": "In progress", "status": "in_progress", "dated": False},
+    "open": {"label": "Open", "status": ["pending", "in_progress"], "dated": False},
+    "scheduled": {"label": "Scheduled", "status": None, "dated": True},
 }
+TILE_METRICS = ("done", "waiting", "in_progress")   # split by origin on /ops/metrics
+
+
+def _status_filter(status) -> list:
+    if status is None:
+        return []
+    return [{"status": {"$in": status}}] if isinstance(status, list) else [{"status": status}]
+
+
+def _status_words(status) -> str:
+    if status is None:
+        return "any status"
+    return "status " + (" or ".join(status) if isinstance(status, list) else status)
 
 
 class Scope:
@@ -50,12 +65,12 @@ def wall_day_bounds(date: str, tz: str):
     return start.astimezone(ZoneInfo("UTC")), end.astimezone(ZoneInfo("UTC"))
 
 
-def _completed_on(date: str, tz: str) -> dict:
-    """completed_at falls on `date` in the facility timezone. Stored as an
-    ISO string or a datetime depending on the writer; both are matched."""
+def _on_date(field: str, date: str, tz: str) -> dict:
+    """`field` falls on `date` in the facility timezone. Stored as an ISO
+    string or a datetime depending on the writer; both are matched."""
     start, end = wall_day_bounds(date, tz)
-    return {"$or": [{"completed_at": {"$gte": start.isoformat(), "$lt": end.isoformat()}},
-                    {"completed_at": {"$gte": start, "$lt": end}}]}
+    return {"$or": [{field: {"$gte": start.isoformat(), "$lt": end.isoformat()}},
+                    {field: {"$gte": start, "$lt": end}}]}
 
 
 def _sim_day(day: int) -> dict:
@@ -67,14 +82,15 @@ def match_for(metric: str, scope: Scope, department: Optional[str] = None,
     if metric not in METRICS:
         raise ValueError(f"unknown metric {metric}")
     spec = METRICS[metric]
-    parts = [world_filter(scope.world), {"status": spec["status"]}]
+    parts = [world_filter(scope.world), *_status_filter(spec["status"])]
     if scope.world == "simulated" and scope.run_id:
         parts.append({"simulation_run_id": scope.run_id})
     if spec["dated"]:
         if scope.world == "simulated" and scope.sim_day is not None:
             parts.append(_sim_day(scope.sim_day))
         elif scope.world == "live" and scope.date:
-            parts.append(_completed_on(scope.date, scope.tz))
+            field = "completed_at" if spec["status"] == "completed" else "created_at"
+            parts.append(_on_date(field, scope.date, scope.tz))
     if department == NO_DEPARTMENT:
         parts.append({"visibility_role": {"$in": [None, ""]}})
     elif department:
@@ -92,14 +108,18 @@ def explain(metric: str, scope: Scope, department_label: Optional[str] = None,
     where = f"in {department_label}" if department_label else "in every department you can see"
     world = ("simulated records of run " + (scope.run_id or "?")) if scope.world == "simulated" \
         else "live records (not marked simulated)"
-    if spec["dated"]:
+    if spec["dated"] and spec["status"] != "completed":
+        when = (f"scheduled for simulated day {scope.sim_day + 1}" if scope.world == "simulated"
+                and scope.sim_day is not None else
+                f"created on {scope.date} ({scope.tz})" if scope.world == "live" and scope.date else "at any time")
+    elif spec["dated"]:
         when = (f"scheduled for simulated day {scope.sim_day + 1}" if scope.world == "simulated"
                 and scope.sim_day is not None else
                 f"completed on {scope.date} ({scope.tz})" if scope.world == "live" and scope.date else "at any time")
     else:
         when = "right now"
     kind = f"; origin: {KIND_LABELS[origin]} ({KIND_BASIS[origin]})" if origin else ""
-    return f"Tasks {where} with status {spec['status']}, {when}; {world}{kind}."
+    return f"Tasks {where} with {_status_words(spec['status'])}, {when}; {world}{kind}."
 
 
 async def count_by_department(store, metric: str, scope: Scope) -> dict:
