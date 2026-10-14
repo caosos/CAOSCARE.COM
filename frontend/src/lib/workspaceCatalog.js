@@ -6,10 +6,10 @@
 // source.kind:
 //   "metric"  -> /ops/metrics/records?metric=&department=&origin=
 //   "widget"  -> /ops/metrics/widgets/{name}  (residents, staff on duty, events)
-//   "panel"   -> a component box with no number (simulation controls)
+//   "panel"   -> a component box with no number (simulation controls, Ask Aria)
 import {
   BedDouble, BriefcaseBusiness, Brush, CalendarDays, CarFront, CheckCircle2, ClipboardCheck,
-  Headset, HeartPulse, PlayCircle, UserRoundPlus, Users, Utensils, Wrench,
+  Headset, HeartPulse, PlayCircle, Sparkles, UserRoundPlus, Users, Utensils, Wrench,
 } from "lucide-react";
 
 export const TINTS = {
@@ -58,6 +58,8 @@ export const WIDGETS = [
     icon: BriefcaseBusiness, source: metric("open", { department: "administration" }), optional: true },
   { id: "transportation", title: "Transportation", subtitle: "Open requests", tint: "cyan",
     icon: CarFront, source: metric("open", { department: "transportation" }), optional: true },
+  { id: "ask_aria", title: "Ask Aria", subtitle: "Your CAOSCare assistant", tint: "sky",
+    icon: Sparkles, source: { kind: "panel", panel: "aria" }, optional: true, defaultW: 2 },
   { id: "simulation", title: "Simulation", subtitle: "Run controls", tint: "slate",
     icon: PlayCircle, source: { kind: "panel", panel: "simulation" }, optional: true, defaultW: 2 },
 ];

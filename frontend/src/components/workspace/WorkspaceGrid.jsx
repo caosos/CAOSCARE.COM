@@ -2,6 +2,9 @@ import { useState } from "react";
 import { CirclePlus, Eye } from "lucide-react";
 import WorkspaceCard from "./WorkspaceCard";
 import SimulationBox from "./SimulationBox";
+import AriaBox from "./AriaBox";
+
+const PANELS = { simulation: SimulationBox, aria: AriaBox };
 import { WIDGET_BY_ID } from "../../lib/workspaceCatalog";
 import { moveBox, stepBox } from "../../lib/useWorkspaceLayout";
 
@@ -48,7 +51,7 @@ export default function WorkspaceGrid({ boxes, values, update, onOpen, onAdd, on
                            onOpen={() => onOpen(widget)} onHide={() => set(box.id, { hidden: true })}
                            onResize={(w) => set(box.id, { w })}
                            onStep={(d) => update((prev) => stepBox(prev, box.id, d))}>
-              {widget.source.kind === "panel" ? <SimulationBox view={view} /> : null}
+              {widget.source.kind === "panel" ? (() => { const Panel = PANELS[widget.source.panel]; return <Panel view={view} />; })() : null}
             </WorkspaceCard>
           );
         })}

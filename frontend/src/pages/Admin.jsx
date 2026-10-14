@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { api } from "../lib/api";
@@ -70,15 +70,27 @@ export default function Admin() {
   const activeGroupId = groups.find((g) => g.tabs.some((t) => t.value === activeTab))?.id;
   const groupTabs = groups.find((g) => g.id === activeGroupId)?.tabs || [];
 
-  // Deep links: /admin?tab=<value>&resident=<id> (staff dashboard cards,
-  // Admin Aria, notifications). Consumed once, then stripped from the URL.
+  // Deep links: /admin?tab=<value>&resident=<id> (workspace sidebar, staff
+  // dashboard cards, Admin Aria, notifications). The open tab stays in the
+  // URL so reload, shared links and Back return to the same section;
+  // `resident` is consumed once.
   useEffect(() => {
     const t = resolveTab(sp.get("tab"), groups);
     const rid = sp.get("resident");
-    if (t) setActiveTab(t);
-    if (rid) { setFocusResidentId(rid); if (!t) setActiveTab("residents"); }
-    if (t || rid) setSp((p) => { const n = new URLSearchParams(p); n.delete("tab"); n.delete("resident"); return n; }, { replace: true });
+    if (t && t !== activeTab) setActiveTab(t);
+    if (rid) {
+      setFocusResidentId(rid);
+      if (!t) setActiveTab("residents");
+      setSp((p) => { const n = new URLSearchParams(p); n.delete("resident"); return n; }, { replace: true });
+    }
   }, [sp, groups]); // eslint-disable-line react-hooks/exhaustive-deps
+  const urlRead = useRef(false);   // write the tab back only after the incoming link has been applied
+  useEffect(() => {
+    if (!urlRead.current) { urlRead.current = true; if (resolveTab(sp.get("tab"), groups)) return; }
+    if (sp.get("tab") !== activeTab && !(sp.get("tab") && resolveTab(sp.get("tab"), groups) === activeTab)) {
+      setSp((p) => { const n = new URLSearchParams(p); n.set("tab", activeTab); return n; }, { replace: true });
+    }
+  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadFacilities = useCallback(async () => {
     setFacilityLoadState("loading");
@@ -122,6 +134,9 @@ export default function Admin() {
           </div>
           <div className="flex items-center gap-3 overflow-x-auto max-w-full">
             <WorkAsControl onEntered={() => nav("/workspace")} />
+            <Link to="/operations" data-testid="admin-workspace-link">
+              <Button variant="outline" className="border-2 h-10 rounded-full">My workspace</Button>
+            </Link>
             {user?.role === "owner" && (
               <Link to="/admin/blueprint" data-testid="admin-blueprint-link">
                 <Button variant="outline" className="border-2 h-10 rounded-full border-caos-terracotta text-caos-terracotta hover:bg-caos-terracotta hover:text-white">
