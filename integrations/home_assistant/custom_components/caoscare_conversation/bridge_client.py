@@ -48,3 +48,24 @@ async def call_bridge(session, url, token, payload, timeout=DEFAULT_TIMEOUT):
     except Exception as e:  # network error, bad JSON
         result["error"] = f"{type(e).__name__}: {e}"
     return result
+
+
+def speech_url(bridge_url):
+    """The speech endpoint sits beside the turn endpoint."""
+    return bridge_url.rsplit("/", 1)[0] + "/speech"
+
+
+async def call_speech(session, url, token, text, timeout=20.0):
+    """Aria's voice for `text` as (mp3 bytes, None), or (None, error)."""
+    async def _do():
+        async with session.post(url, json={"text": text},
+                                headers={"Authorization": f"Bearer {token}"}) as resp:
+            if resp.status != 200:
+                return None, f"speech HTTP {resp.status}"
+            return await resp.read(), None
+    try:
+        return await asyncio.wait_for(_do(), timeout)
+    except asyncio.TimeoutError:
+        return None, f"speech timeout after {timeout}s"
+    except Exception as e:
+        return None, f"{type(e).__name__}: {e}"

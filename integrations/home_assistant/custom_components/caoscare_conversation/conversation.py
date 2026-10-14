@@ -1,11 +1,11 @@
 """Assist conversation agent that delegates every turn to CAOSCare.
 
-Not yet run inside Home Assistant. Written against the ConversationEntity
-API (async_process / ConversationResult with continue_conversation, HA
-2025.4+); verify against the installed HA version before use.
+Checked against Home Assistant 2026.7.4: internal_async_process calls
+async_process (overridden here); supported_languages is an abstract property.
 """
 from homeassistant.components import conversation
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import MATCH_ALL
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import intent
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -20,12 +20,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 class CaosCareAgent(conversation.ConversationEntity):
     _attr_has_entity_name = True
     _attr_name = None
-    _attr_supported_languages = "*"
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry):
         self.hass = hass
         self.entry = entry
         self._attr_unique_id = entry.entry_id
+
+    @property
+    def supported_languages(self):
+        # Abstract property in HA 2026.7; CAOSCare handles the language itself.
+        return MATCH_ALL
 
     async def async_process(self, user_input: conversation.ConversationInput) -> conversation.ConversationResult:
         cfg = self.entry.data
