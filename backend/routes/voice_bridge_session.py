@@ -23,7 +23,6 @@ from pymongo.errors import DuplicateKeyError
 
 from deps import db
 from routes.realtime_facility import get_active_facility
-from routes.resident_assistant_identity import assistant_name
 
 DUPLICATE_WINDOW = timedelta(seconds=10)
 
@@ -44,7 +43,7 @@ def ending_phrase(text: str) -> Optional[str]:
     """The normalized closing phrase if the whole utterance is one, else None.
     The assistant's name is ignored ("Goodbye, Aria"); anything else said
     with it ("I'm done eating, take my tray") is not a closing phrase."""
-    names = {"aria", normalize(assistant_name())}
+    names = {"aria"}
     words = [w for w in normalize(text).split() if w not in names]
     t = " ".join(words)
     if t and any(p.fullmatch(t) for p in _ENDINGS):

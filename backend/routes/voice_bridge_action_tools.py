@@ -1,59 +1,19 @@
 """Voice bridge tools that change something in the room or start a workflow:
-lights, temperature, transportation, call for help. Each calls the same
-canonical service the room screen uses (devices.execute_room_command,
-transportation.create_transport_request, ai_escalation.ai_escalate); the
-result text says only what the service confirmed."""
+room devices (room_device_tools: lights, TV, thermostat), transportation,
+call for help. Each calls the same canonical service the room screen uses
+(devices.execute_room_command, transportation.create_transport_request,
+ai_escalation.ai_escalate); the result text says only what the service
+confirmed."""
 from fastapi import HTTPException
 
-from deps import db
-from models import DeviceCommandInput
+from routes.room_device_tools import ROOM_DEVICE_TOOLS, run_room_device_tool
 
-ACTION_TOOLS = ("toggle_light", "adjust_room_temperature", "request_transportation", "call_for_help")
-
-
-async def _room_command(ctx, action, value, kind=None) -> dict:
-    from routes.devices import execute_room_command
-    try:
-        r = await execute_room_command(ctx["room"], DeviceCommandInput(
-            action=action, value=value, kind=kind, session_id=ctx.get("session_id")))
-    except HTTPException as e:
-        return {"ok": False, "detail": e.detail}
-    return {"ok": bool(r.get("verified")), "state": r.get("state"),
-            "message": "done and confirmed by the device" if r.get("verified")
-            else "sent, but the device did not confirm it - do not say it is done"}
-
-
-async def _climate_target(ctx, args):
-    if args.get("target_f") is not None:
-        return float(args["target_f"])
-    if args.get("delta_f") is not None:
-        dev = await db.smart_devices.find_one(
-            {"room": ctx["room"], "capabilities": "temperature", "online": {"$ne": False}}, {"_id": 0, "state": 1})
-        cur = ((dev or {}).get("state") or {}).get("temperature")
-        if cur is None:
-            return None
-        return float(cur) + float(args["delta_f"])
-    return None
+ACTION_TOOLS = ROOM_DEVICE_TOOLS + ("request_transportation", "call_for_help")
 
 
 async def run_action_tool(name: str, args: dict, ctx: dict) -> dict:
-    if name == "toggle_light":
-        out = {"ok": True}
-        if args.get("state") in ("on", "off"):
-            out = await _room_command(ctx, "power", args["state"], "light")
-        if out.get("ok") and args.get("brightness") is not None:
-            out = await _room_command(ctx, "brightness", int(args["brightness"]), "light")
-        return out if (args.get("state") or args.get("brightness") is not None) else \
-            {"ok": False, "detail": "say on, off or a brightness"}
-    if name == "adjust_room_temperature":
-        if args.get("state") in ("on", "off"):
-            out = await _room_command(ctx, "power", args["state"], "thermostat")
-            if not out.get("ok"):
-                return out
-        target = await _climate_target(ctx, args)
-        if target is None:
-            return {"ok": False, "detail": "no temperature given"} if not args.get("state") else {"ok": True}
-        return await _room_command(ctx, "temperature", round(target), "thermostat")
+    if name in ROOM_DEVICE_TOOLS:
+        return await run_room_device_tool(name, args, ctx)
     if name == "request_transportation":
         from routes.transportation import TransportRequestInput, create_transport_request
         try:

@@ -34,7 +34,7 @@ from deps import db
 from routes.ai import _post_openai
 from routes.arrival_claim_guard import candidate_tasks, guard_reply
 from routes.realtime_diagnostics import DiagnosticEvent, log_event
-from routes.realtime_memory_ingest import RealtimeTurnIngest, realtime_turn_ingest
+from routes.realtime_memory_ingest import RealtimeTurnIngest, store_turn
 from routes.resident_conversation_context import build_resident_instructions
 from routes.voice_bridge_admission import ADMISSION, CLASS_NAMES, MAX_WAIT_S, classify
 from routes.voice_bridge_config import resolve_model
@@ -118,7 +118,10 @@ async def _history(session_id: str) -> list:
 
 
 async def _ingest(ident: dict, session_id: str, role: str, text: str):
-    await realtime_turn_ingest(RealtimeTurnIngest(
+    # The bridge holds its own server-side authority (bridge credential +
+    # registered device -> room), not a room-page lease, so it stores turns
+    # in-process like the phone sideband (RQ-028).
+    await store_turn(RealtimeTurnIngest(
         resident_id=ident["resident_id"], session_id=session_id, role=role, text=text,
         room=ident["room"], kiosk_id=ident["kiosk_id"]))
 

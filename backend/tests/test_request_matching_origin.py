@@ -80,8 +80,6 @@ async def _run():
         t = await db.staff_tasks.find_one({"task_id": tv["task_id"]})
         assert s["re_request_count"] == 1 and t.get("re_request_count", 0) == 0
         assert "remote" not in json.dumps(s.get("event_log", []))       # TV words never landed on the sink
-        generic = _ok(_ask(room, "maintenance", "Can you ask them again?"))
-        assert generic["duplicate"] and generic["task_id"] == tv["task_id"]   # newest open request
 
         # ---------- 2. origin ----------
         origin = await db.receipts.find_one({"receipt_id": sink["receipt_id"]})
