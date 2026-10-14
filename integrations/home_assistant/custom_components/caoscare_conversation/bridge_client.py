@@ -55,7 +55,7 @@ def speech_url(bridge_url):
     return bridge_url.rsplit("/", 1)[0] + "/speech"
 
 
-async def call_speech(session, url, token, text, timeout=20.0):
+async def call_speech(session, url, token, text, timeout=60.0):
     """Aria's voice for `text` as (mp3 bytes, None), or (None, error)."""
     async def _do():
         async with session.post(url, json={"text": text},
@@ -69,3 +69,27 @@ async def call_speech(session, url, token, text, timeout=20.0):
         return None, f"speech timeout after {timeout}s"
     except Exception as e:
         return None, f"{type(e).__name__}: {e}"
+
+
+async def open_speech_stream(session, url, token, text, connect_timeout=10.0):
+    """(async generator of mp3 chunks, None) once CAOSCare starts answering,
+    or (None, error)."""
+    try:
+        resp = await asyncio.wait_for(session.post(url, json={"text": text},
+                                                   headers={"Authorization": f"Bearer {token}"}),
+                                      connect_timeout)
+    except asyncio.TimeoutError:
+        return None, f"speech did not start within {connect_timeout}s"
+    except Exception as e:
+        return None, f"{type(e).__name__}: {e}"
+    if resp.status != 200:
+        resp.release()
+        return None, f"speech HTTP {resp.status}"
+
+    async def gen():
+        try:
+            async for chunk in resp.content.iter_chunked(4096):
+                yield chunk
+        finally:
+            resp.release()
+    return gen(), None

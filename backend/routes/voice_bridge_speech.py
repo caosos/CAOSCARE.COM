@@ -10,7 +10,8 @@ import os
 from typing import Optional
 
 import httpx
-from fastapi import APIRouter, Header, HTTPException, Response
+from fastapi import APIRouter, Header, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from routes.realtime import OPENAI_API_BASE, _require_openai_key, session_voice
@@ -30,19 +31,37 @@ def tts_model() -> str:
 
 @router.post("/speech")
 async def speech(body: SpeechInput, authorization: Optional[str] = Header(None)):
+    """Streams the audio as the provider produces it (the provider speaks at
+    roughly real-time pace, so waiting for the whole file delays a long reply
+    by its full length)."""
     _check_token(authorization)
     key = _require_openai_key()
     voice = session_voice(None)
+    client = httpx.AsyncClient(timeout=httpx.Timeout(10, read=60))
+    req = client.build_request("POST", f"{OPENAI_API_BASE}/audio/speech",
+                               headers={"Authorization": f"Bearer {key}"},
+                               json={"model": tts_model(), "voice": voice, "input": body.text,
+                                     "response_format": "mp3"})
     try:
-        async with httpx.AsyncClient(timeout=20) as client:
-            r = await client.post(f"{OPENAI_API_BASE}/audio/speech",
-                                  headers={"Authorization": f"Bearer {key}"},
-                                  json={"model": tts_model(), "voice": voice, "input": body.text,
-                                        "response_format": "mp3"})
+        upstream = await client.send(req, stream=True)
     except httpx.HTTPError as e:
+        await client.aclose()
         log.warning("voice bridge speech failed: %s", type(e).__name__)
         raise HTTPException(502, "speech provider unreachable")
-    if r.status_code != 200:
-        log.warning("voice bridge speech provider status %s", r.status_code)
-        raise HTTPException(502, f"speech provider returned {r.status_code}")
-    return Response(content=r.content, media_type="audio/mpeg", headers={"X-Aria-Voice": voice})
+    if upstream.status_code != 200:
+        await upstream.aclose()
+        await client.aclose()
+        log.warning("voice bridge speech provider status %s", upstream.status_code)
+        raise HTTPException(502, f"speech provider returned {upstream.status_code}")
+
+    async def chunks():
+        try:
+            async for chunk in upstream.aiter_bytes():
+                yield chunk
+        except httpx.HTTPError as e:
+            log.warning("voice bridge speech stream cut: %s", type(e).__name__)
+        finally:
+            await upstream.aclose()
+            await client.aclose()
+
+    return StreamingResponse(chunks(), media_type="audio/mpeg", headers={"X-Aria-Voice": voice})
