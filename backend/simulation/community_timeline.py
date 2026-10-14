@@ -14,7 +14,7 @@ from typing import Iterable
 from simulation.community_executor import ExecutorEvent, build_day_queue
 
 
-PLAN_REVISION = "living-community-timeline-v3-department-activity"
+PLAN_REVISION = "living-community-timeline-v4-realistic-staffing"
 TIMELINE_DAYS = 90
 DIGEST_ALGORITHM = "sha256"
 

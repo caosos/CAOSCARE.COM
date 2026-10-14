@@ -42,9 +42,17 @@ function routineRows(routines) {
 
 function coverageLabel(department) {
   if (typeof department.coverage === "string") return department.coverage;
+  if (department.operating_hours) {
+    const hours = department.operating_hours === "24 hours" ? "Open 24 hours" : `Open ${department.operating_hours}`;
+    return department.after_hours_on_call ? `${hours} · on call after hours` : hours;
+  }
   if (department.coverage_24h === true) return "24-hour coverage";
   if (department.coverage_24h === false) return "Coverage gap";
   return "Coverage not reported";
+}
+
+function hasGap(department) {
+  return department.status_now === "uncovered" || department.coverage_24h === false;
 }
 
 /**
@@ -111,7 +119,7 @@ export default function SimCommunityOverview({ community = {} }) {
           <ul className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3" data-testid="sim-department-coverage">
             {departments.map((department, index) => {
               const key = department.slug || department.id || `${department.label || "department"}-${index}`;
-              const covered = department.coverage_24h === true;
+              const covered = !hasGap(department);
               return (
                 <li key={key} className="rounded-lg border border-caos-line bg-white p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">

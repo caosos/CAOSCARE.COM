@@ -20,7 +20,7 @@ def test_every_worker_has_exactly_one_truthful_daily_state():
     assert len(states) == 50
     assert len({state["actor_id"] for state in states}) == 50
     assert Counter(state["attendance_state"] for state in states) == {
-        "scheduled": 38, "off_duty": 12,
+        "scheduled": 27, "on_call": 2, "off_duty": 21,
     }
     assert all(state["status"] == "planned" for state in states)
     assert all(state["execution_state"] == "not_executed" for state in states)
@@ -84,6 +84,20 @@ def test_off_duty_worker_has_no_invented_session_or_activity():
     assert "user_id" not in state and "token" not in state
 
 
+def test_on_call_worker_is_reachable_but_never_present_or_clocked_in():
+    states = [state for state in worker_states_for_day(0) if state["attendance_state"] == "on_call"]
+    assert {(state["department"], state["shift"]) for state in states} == {
+        ("maintenance", "after_hours_on_call"), ("nursing", "night_on_call"),
+    }
+    for state in states:
+        assert state["milestones"] == [] and state["session_id"] is None
+        assert state["physically_present"] is False
+        assert state["shift_assignment_id"].startswith("sim:shift:0:")
+    assignment = next(row for row in assignments_for_day(0) if row["duty"] == "on_call")
+    with pytest.raises(ValueError, match="on-call duty has no clock-in"):
+        planned_shift_milestones(assignment)
+
+
 def test_default_projection_covers_all_50_workers_for_90_days_deterministically():
     first = project_worker_attendance("2026-10-13")
     second = project_worker_attendance("2026-10-13", days=90)
@@ -94,14 +108,14 @@ def test_default_projection_covers_all_50_workers_for_90_days_deterministically(
     summary = attendance_summary(first)
     assert summary == {
         "workers": 50,
-        "states": {"off_duty": 12 * 90, "scheduled": 38 * 90},
+        "states": {"off_duty": 21 * 90, "on_call": 2 * 90, "scheduled": 27 * 90},
         "session_milestones": {
-            event_type: 38 * 90 for event_type in ("assignment_acceptance", "planned_login")
+            event_type: 27 * 90 for event_type in ("assignment_acceptance", "planned_login")
         },
         "canonical_shift_milestone_references": {
-            event_type: 38 * 90 for event_type in ("clock_in", "clock_out", "handoff")
+            event_type: 27 * 90 for event_type in ("clock_in", "clock_out", "handoff")
         },
-        "milestones": {event_type: 38 * 90 for event_type in sorted(MILESTONE_TYPES)},
+        "milestones": {event_type: 27 * 90 for event_type in sorted(MILESTONE_TYPES)},
         "truth": PLANNING_TRUTH,
     }
 
@@ -117,14 +131,15 @@ def test_every_department_attendance_has_regular_planned_rest_days():
     for states in by_worker.values():
         assert Counter(state["attendance_state"] for state in states)["off_duty"] > 0
         assert all(
-            sum(state["attendance_state"] == "scheduled" for state in states[start:start + 7]) <= 6
+            sum(state["attendance_state"] in {"scheduled", "on_call"}
+                for state in states[start:start + 7]) <= 6
             for start in range(90 - 7 + 1)
         )
 
 
 def test_overnight_session_handoff_and_clock_out_land_next_day():
     assignment = next(row for row in assignments_for_day(0)
-                      if row["department"] == "front_desk" and row["shift"] == "night")
+                      if row["department"] == "nursing" and row["shift"] == "night")
     state = session_plan(assignment)
     by_type = {event["event_type"]: event for event in state["milestones"]}
     assert by_type["planned_login"]["day_index"] == 0

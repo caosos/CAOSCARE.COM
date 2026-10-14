@@ -7,13 +7,16 @@ from models import uid
 from routes.actor_context import ActorContext
 from simulation.community_blueprint import COMMUNITY_ID, SIMULATION_SCOPE
 from simulation.community_executor import ExecutionContext, ExecutorEvent
+from simulation.community_staffing import ON_SITE_SHIFTS
 
 
 SHIFT_ACTIONS = frozenset({"clock_in", "handoff", "clock_out"})
 SHIFT_ADAPTER = "canonical_shift_service"
 SHIFT_STREAM = "canonical_shift_milestone"
+# Shift names come from the staffing table; on-call duty is never a milestone.
 _TARGET = re.compile(
-    r"^sim:shift:-?\d+:(sim:staff:([^:]+):[^:]+:\d+):(day|evening|night)$"
+    r"^sim:shift:-?\d+:(sim:staff:([^:]+):[^:]+:\d+):("
+    + "|".join(sorted(map(re.escape, ON_SITE_SHIFTS))) + r")$"
 )
 ReceiptWriter = Callable[..., Awaitable[dict]]
 

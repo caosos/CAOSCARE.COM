@@ -21,7 +21,8 @@ const community = {
   apartments: { total: 80, occupied: 70, occupancy_target: 70 },
   workers: { count: 50 },
   departments: [
-    { slug: "nursing", label: "Nursing / Care", worker_count: 18, shift_count: 3, coverage_24h: true },
+    { slug: "nursing", label: "Nursing / Care", worker_count: 22, shift_count: 4, operating_hours: "24 hours", status_now: "on_duty", after_hours_on_call: false },
+    { slug: "maintenance", label: "Maintenance", worker_count: 4, shift_count: 2, operating_hours: "07:00-15:30", status_now: "on_call", after_hours_on_call: true },
     { slug: "activities", label: "Activities", worker_count: 4, shift_count: 1, coverage_24h: false },
   ],
   routines: { scheduled: 42, due: 7, completed: 31, blocked: 4 },
@@ -37,7 +38,8 @@ test("shows declared community scale, department coverage, and routine counts", 
   expect(text(el.querySelector("[data-testid=sim-resident-target]"))).toContain("75");
   expect(text(el.querySelector("[data-testid=sim-apartment-count]"))).toMatch(/80.*70 occupied.*70 occupancy target/);
   expect(text(el.querySelector("[data-testid=sim-worker-count]"))).toContain("50");
-  expect(text(el.querySelector("[data-testid=sim-department-coverage]"))).toMatch(/Nursing \/ Care.*24-hour coverage.*18 workers.*3 shifts/);
+  expect(text(el.querySelector("[data-testid=sim-department-coverage]"))).toMatch(/Nursing \/ Care.*Open 24 hours.*22 workers.*4 shifts/);
+  expect(text(el.querySelector("[data-testid=sim-department-coverage]"))).toMatch(/Maintenance.*Open 07:00-15:30 · on call after hours/);
   expect(text(el.querySelector("[data-testid=sim-department-coverage]"))).toMatch(/Activities.*Coverage gap/);
   expect(text(el.querySelector("[data-testid=sim-routine-counts]"))).toMatch(/scheduled.*42.*due.*7.*completed.*31.*blocked.*4/);
   expect(text(el.querySelector("[data-testid=sim-shift-event-counts]"))).toMatch(/clock in.*32.*handoff.*32.*clock out.*32.*executed.*0/);

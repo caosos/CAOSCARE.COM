@@ -24,10 +24,9 @@ from simulation.community_staffing import (
     DEPARTMENT_LABELS,
     SIMULATION_LOAD_DISCLAIMER,
     WORKERS,
-    active_assignments,
     assignments_for_day,
-    coverage_summary,
 )
+from simulation.community_coverage import AFTER_HOURS_ON_CALL, coverage_summary
 from simulation.community_shift_events import event_counts, planned_events_for_day
 from simulation.community_attendance import attendance_summary, worker_states_for_day
 
@@ -42,16 +41,6 @@ def _department_rows(day_index: int, minute: int) -> list[dict]:
         for department in DEPARTMENT_LABELS
     }
     snapshot = coverage_summary(day_index, minute)
-    coverage_24h = {
-        department: all(
-            any(
-                row["department"] == department
-                for row in active_assignments(day_index, check_minute)
-            )
-            for check_minute in range(1440)
-        )
-        for department in DEPARTMENT_LABELS
-    }
     return [
         {
             "slug": department,
@@ -59,7 +48,10 @@ def _department_rows(day_index: int, minute: int) -> list[dict]:
             "worker_count": worker_counts[department],
             "shift_count": len(shift_names[department]),
             "on_shift_now": snapshot["coverage"][department]["on_shift"],
-            "coverage_24h": coverage_24h[department],
+            "on_call_now": snapshot["coverage"][department]["on_call"],
+            "status_now": snapshot["coverage"][department]["status"],
+            "operating_hours": snapshot["coverage"][department]["operating_hours"],
+            "after_hours_on_call": department in AFTER_HOURS_ON_CALL,
         }
         for department, label in DEPARTMENT_LABELS.items()
     ]

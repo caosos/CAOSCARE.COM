@@ -2,22 +2,23 @@
 
 This module is reference data plus pure scheduling functions.  It never
 creates ``User`` records and never writes to the database.  The headcounts
-and coverage targets create believable simulator traffic; they are NOT
+and shift windows create believable simulator traffic; they are NOT
 staffing, clinical, regulatory, or labor recommendations for a real facility.
 
-Simulated workers have stable ``sim:staff:`` identities.  A future shift
-runtime can use these profiles to build synthetic ActorContexts and call the
-canonical, receipt-backed workflow services.
+Simulated workers have stable ``sim:staff:`` identities.  A shift runtime uses
+these profiles to build synthetic ActorContexts and call the canonical,
+receipt-backed workflow services.  Department open/closed/on-call/uncovered
+status is derived in :mod:`simulation.community_coverage`.
 """
 from collections import Counter, defaultdict
 from datetime import date, datetime, time, timedelta
-from typing import Iterable
 
 
 SIMULATION_LOAD_DISCLAIMER = (
     "Synthetic event-load fixture only; not real-world staffing or clinical coverage advice."
 )
 MAX_SCHEDULED_DAYS_PER_ROLLING_WEEK = 6
+MIN_REST_BETWEEN_DUTIES_MINUTES = 8 * 60
 
 DEPARTMENT_LABELS = {
     "nursing": "Nursing / Care",
@@ -76,39 +77,37 @@ def build_roster() -> tuple[dict, ...]:
 
 WORKERS = build_roster()
 
-# Each row is one daily coverage slot.  Counts are deliberately modest load
-# generators, not claims that this coverage is sufficient in a real facility.
-# End <= start means the shift crosses midnight.
+# Owner direction (Michael, 2026-10-13): an 80-apartment, budget-constrained
+# assisted-living community.  Overnight 2-3 care staff are physically present;
+# maintenance works normal hours plus after-hours ON-CALL (never on site 24 h);
+# other departments keep realistic operating hours and are CLOSED otherwise.
+#
+# Row: (department, job role, shift, start, end, count, duty).  End <= start
+# means the window crosses midnight.  ``on_site`` workers are physically
+# present; ``on_call`` workers are reachable but off site and never clock in.
+ON_SITE = "on_site"
+ON_CALL = "on_call"
 _SHIFT_LOAD = (
-    ("nursing", "care_aide", "day", "06:00", "14:00", 5),
-    ("nursing", "registered_nurse", "day", "06:00", "14:00", 1),
-    ("nursing", "medication_reminder_support", "day", "06:00", "14:00", 1),
-    ("nursing", "care_aide", "evening", "14:00", "22:00", 4),
-    ("nursing", "registered_nurse", "evening", "14:00", "22:00", 1),
-    ("nursing", "medication_reminder_support", "evening", "14:00", "22:00", 1),
-    ("nursing", "care_aide", "night", "22:00", "06:00", 3),
-    ("nursing", "registered_nurse", "night", "22:00", "06:00", 1),
-    ("kitchen", "dining_team_member", "day", "06:00", "14:00", 1),
-    ("kitchen", "dining_team_member", "evening", "14:00", "22:00", 1),
-    ("kitchen", "dining_team_member", "night", "22:00", "06:00", 1),
-    ("housekeeping", "housekeeper", "day", "06:00", "14:00", 1),
-    ("housekeeping", "housekeeper", "evening", "14:00", "22:00", 1),
-    ("housekeeping", "housekeeper", "night", "22:00", "06:00", 1),
-    ("maintenance", "maintenance_technician", "day", "06:00", "14:00", 1),
-    ("maintenance", "maintenance_technician", "evening", "14:00", "22:00", 1),
-    ("maintenance", "maintenance_technician", "night", "22:00", "06:00", 1),
-    ("transportation", "driver", "day", "06:00", "14:00", 1),
-    ("transportation", "driver", "evening", "14:00", "22:00", 1),
-    ("transportation", "driver", "night", "22:00", "06:00", 1),
-    ("activities", "activities_coordinator", "day", "06:00", "14:00", 1),
-    ("activities", "activities_coordinator", "evening", "14:00", "22:00", 1),
-    ("activities", "activities_coordinator", "night", "22:00", "06:00", 1),
-    ("front_desk", "front_desk_coordinator", "day", "06:00", "14:00", 1),
-    ("front_desk", "front_desk_coordinator", "evening", "14:00", "22:00", 1),
-    ("front_desk", "front_desk_coordinator", "night", "22:00", "06:00", 1),
-    ("administration", "administration_leadership", "day", "06:00", "14:00", 1),
-    ("administration", "administration_leadership", "evening", "14:00", "22:00", 1),
-    ("administration", "administration_leadership", "night", "22:00", "06:00", 1),
+    ("nursing", "care_aide", "day", "06:00", "14:00", 4, ON_SITE),
+    ("nursing", "registered_nurse", "day", "06:00", "14:00", 1, ON_SITE),
+    ("nursing", "medication_reminder_support", "day", "06:00", "14:00", 1, ON_SITE),
+    ("nursing", "care_aide", "evening", "14:00", "22:00", 3, ON_SITE),
+    ("nursing", "registered_nurse", "evening", "14:00", "22:00", 1, ON_SITE),
+    ("nursing", "medication_reminder_support", "evening", "14:00", "22:00", 1, ON_SITE),
+    ("nursing", "care_aide", "night", "22:00", "06:00", 3, ON_SITE),
+    ("nursing", "registered_nurse", "night_on_call", "22:00", "06:00", 1, ON_CALL),
+    ("kitchen", "dining_team_member", "early", "05:30", "13:30", 1, ON_SITE),
+    ("kitchen", "dining_team_member", "late", "12:00", "20:00", 1, ON_SITE),
+    ("housekeeping", "housekeeper", "day", "08:00", "16:30", 2, ON_SITE),
+    ("maintenance", "maintenance_technician", "day", "07:00", "15:30", 1, ON_SITE),
+    ("maintenance", "maintenance_technician", "after_hours_on_call", "15:30", "07:00", 1, ON_CALL),
+    ("transportation", "driver", "early", "07:30", "15:30", 1, ON_SITE),
+    ("transportation", "driver", "late", "09:30", "17:30", 1, ON_SITE),
+    ("activities", "activities_coordinator", "day", "09:00", "17:00", 1, ON_SITE),
+    ("activities", "activities_coordinator", "evening", "12:00", "20:00", 1, ON_SITE),
+    ("front_desk", "front_desk_coordinator", "day", "07:00", "15:00", 1, ON_SITE),
+    ("front_desk", "front_desk_coordinator", "evening", "15:00", "23:00", 1, ON_SITE),
+    ("administration", "administration_leadership", "business", "08:00", "17:00", 2, ON_SITE),
 )
 
 
@@ -119,40 +118,12 @@ def _pools() -> dict[tuple[str, str], tuple[dict, ...]]:
     return {key: tuple(value) for key, value in grouped.items()}
 
 
+# On-site shift names; only these have clock-in/handoff/clock-out milestones.
+ON_SITE_SHIFTS = frozenset(row[2] for row in _SHIFT_LOAD if row[6] == ON_SITE)
 _WORKER_POOLS = _pools()
 _DAILY_NEED = Counter()
-for _department, _role, _shift, _start, _end, _count in _SHIFT_LOAD:
+for _department, _role, _shift, _start, _end, _count, _duty in _SHIFT_LOAD:
     _DAILY_NEED[(_department, _role)] += _count
-
-def planned_coverage_gaps(day_index: int) -> list[dict]:
-    """Return gaps proven at every coverage-changing rota boundary."""
-    if day_index < 0:
-        raise ValueError("day_index must be non-negative")
-    day_start = day_index * 1440
-    boundaries = {0, 1440}
-    for shift_day in (day_index - 1, day_index):
-        for assignment in _assignments_for_day(shift_day):
-            start = shift_day * 1440 + assignment["start_minute"]
-            end = shift_day * 1440 + assignment["end_minute"]
-            if assignment["spans_midnight"]:
-                end += 1440
-            for absolute in (start, end):
-                if day_start <= absolute <= day_start + 1440:
-                    boundaries.add(absolute - day_start)
-    gaps = []
-    ordered = sorted(boundaries)
-    for start, end in zip(ordered, ordered[1:]):
-        covered = {row["department"] for row in active_assignments(day_index, start)}
-        for department in DEPARTMENT_LABELS.keys() - covered:
-            gaps.append({
-                "day_index": day_index,
-                "department": department,
-                "start_minute": start,
-                "end_minute": end,
-                "uncovered_minutes": end - start,
-                "reason": "derived_from_planned_assignments",
-            })
-    return gaps
 
 
 def minute_in_shift(minute: int, start_minute: int, end_minute: int) -> bool:
@@ -167,10 +138,15 @@ def minute_in_shift(minute: int, start_minute: int, end_minute: int) -> bool:
 
 
 def _assignments_for_day(day_index: int) -> list[dict]:
-    """Build one repeatable day, including a carry-in day before day zero."""
+    """Build one repeatable day, including a carry-in day before day zero.
+
+    One rotation over each role's whole daily need (on-site and on-call
+    together) gives every worker at most one duty per day and spreads rest
+    days evenly; the tests prove the weekly rest and between-duty rest rules.
+    """
     used = Counter()
     assignments = []
-    for department, role, shift, start, end, count in _SHIFT_LOAD:
+    for department, role, shift, start, end, count, duty in _SHIFT_LOAD:
         pool = _WORKER_POOLS[(department, role)]
         need = _DAILY_NEED[(department, role)]
         if need > len(pool):
@@ -188,6 +164,7 @@ def _assignments_for_day(day_index: int) -> list[dict]:
                 "start_minute": start_minute,
                 "end_minute": end_minute,
                 "spans_midnight": end_minute <= start_minute,
+                "duty": duty,
                 **worker,
             })
         used[(department, role)] += count
@@ -195,10 +172,10 @@ def _assignments_for_day(day_index: int) -> list[dict]:
 
 
 def assignments_for_day(day_index: int) -> list[dict]:
-    """Build one repeatable local-calendar day of assignments.
+    """Build one repeatable local-calendar day of duties (on site and on call).
 
     Rotation is deterministic and assigns a worker at most once per day.
-    Overnight assignments belong to the day on which they begin.
+    Overnight duties belong to the day on which they begin.
     """
     if day_index < 0:
         raise ValueError("day_index must be non-negative")
@@ -228,23 +205,19 @@ def project_schedule(start_date: date | str, days: int = 90) -> list[dict]:
     ]
 
 
-def active_assignments(day_index: int, minute: int) -> list[dict]:
-    """Return workers on shift at one simulated local minute.
-
-    Includes prior-day assignments whose shift crosses midnight.
-    """
+def _active(day_index: int, minute: int, duty: str) -> list[dict]:
     if day_index < 0:
         raise ValueError("day_index must be non-negative")
     if not 0 <= minute < 1440:
         raise ValueError("minute must be between 0 and 1439")
     absolute = day_index * 1440 + minute
-    # At the beginning of a projection, night coverage started on the
-    # carry-in day (-1); otherwise a 90-day run begun at midnight would
-    # incorrectly show no nurse/front-desk/maintenance presence until dawn.
-    days = (day_index - 1, day_index)
+    # Overnight windows begin on the prior day (-1 is the carry-in day), so a
+    # run begun at midnight still shows the night staff already present.
     active = []
-    for shift_day in days:
+    for shift_day in (day_index - 1, day_index):
         for assignment in _assignments_for_day(shift_day):
+            if assignment["duty"] != duty:
+                continue
             start = shift_day * 1440 + assignment["start_minute"]
             end = shift_day * 1440 + assignment["end_minute"]
             if assignment["spans_midnight"]:
@@ -254,31 +227,31 @@ def active_assignments(day_index: int, minute: int) -> list[dict]:
     return active
 
 
-def coverage_summary(day_index: int, minute: int, departments: Iterable[str] = DEPARTMENT_LABELS) -> dict:
-    """Summarize on-shift synthetic coverage and name uncovered departments."""
-    wanted = tuple(departments)
-    unknown = set(wanted) - set(DEPARTMENT_LABELS)
-    if unknown:
-        raise ValueError(f"unknown departments: {', '.join(sorted(unknown))}")
-    by_department = {department: [] for department in wanted}
-    for assignment in active_assignments(day_index, minute):
-        if assignment["department"] in by_department:
-            by_department[assignment["department"]].append(assignment)
-    coverage = {
-        department: {
-            "label": DEPARTMENT_LABELS[department],
-            "on_shift": len(rows),
-            "actor_ids": [row["actor_id"] for row in rows],
-            "job_roles": sorted({row["job_role"] for row in rows}),
-        }
-        for department, rows in by_department.items()
-    }
-    return {
-        "day_index": day_index,
-        "minute": minute,
-        "coverage": coverage,
-        "gaps": [department for department, item in coverage.items() if item["on_shift"] == 0],
-        "planned_rota_gaps": planned_coverage_gaps(day_index),
-        "coverage_tradeoffs": [],
-        "disclaimer": SIMULATION_LOAD_DISCLAIMER,
-    }
+def active_assignments(day_index: int, minute: int) -> list[dict]:
+    """Workers physically on site at one simulated local minute."""
+    return _active(day_index, minute, ON_SITE)
+
+
+def on_call_assignments(day_index: int, minute: int) -> list[dict]:
+    """Workers reachable on call (off site, not clocked in) at one minute."""
+    return _active(day_index, minute, ON_CALL)
+
+
+def worker_statuses(day_index: int, minute: int) -> list[dict]:
+    """Exactly one ON DUTY / ON CALL / OFF DUTY status for each of the 50."""
+    on_site = {row["actor_id"]: row for row in active_assignments(day_index, minute)}
+    on_call = {row["actor_id"]: row for row in on_call_assignments(day_index, minute)}
+    rows = []
+    for worker in WORKERS:
+        duty = on_site.get(worker["actor_id"]) or on_call.get(worker["actor_id"])
+        rows.append({
+            "actor_id": worker["actor_id"],
+            "name": worker["name"],
+            "department": worker["department"],
+            "job_role": worker["job_role"],
+            "status": ("on_duty" if worker["actor_id"] in on_site
+                       else "on_call" if duty else "off_duty"),
+            "shift": duty["shift"] if duty else None,
+            "physically_present": worker["actor_id"] in on_site,
+        })
+    return rows

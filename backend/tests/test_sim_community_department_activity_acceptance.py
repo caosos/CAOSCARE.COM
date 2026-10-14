@@ -9,9 +9,8 @@ from simulation.community_executor import ExecutionContext, build_day_queue
 from simulation.community_runtime_view import runtime_snapshot
 from simulation.community_shift_events import planned_events_for_day
 from simulation.community_shift_execution import record_shift_milestone
-from simulation.community_staffing import (
-    DEPARTMENT_LABELS, WORKERS, active_assignments, planned_coverage_gaps,
-)
+from simulation.community_coverage import coverage_summary, planned_coverage_gaps
+from simulation.community_staffing import DEPARTMENT_LABELS, WORKERS, active_assignments
 from simulation.community_ticket_plan import CLAIM, COMPLETE, OPEN
 from simulation.community_timeline import build_90_day_timeline
 from tests.community_runtime_fake import Collection, RuntimeStore, _matches
@@ -45,11 +44,18 @@ def marked(**values):
 
 
 def test_actual_rota_has_no_hidden_gap_during_representative_24_hours():
+    """Departments may be CLOSED or ON CALL by design; none is ever UNCOVERED."""
     assert len(WORKERS) == 50
     assert planned_coverage_gaps(0) == []
     for minute in range(1440):
-        on_shift = active_assignments(0, minute)
-        assert {row["department"] for row in on_shift} == DEPARTMENTS
+        summary = coverage_summary(0, minute)
+        assert summary["gaps"] == []
+        assert summary["coverage"]["nursing"]["status"] == "on_duty"
+        assert {item["status"] for item in summary["coverage"].values()} <= {
+            "on_duty", "on_call", "closed",
+        }
+    midday = {row["department"] for row in active_assignments(0, 12 * 60)}
+    assert midday == DEPARTMENTS  # every department works during the day
 
 
 def test_runtime_projection_shows_every_department_at_each_shift_boundary():
@@ -65,12 +71,14 @@ def test_runtime_projection_shows_every_department_at_each_shift_boundary():
             ))
             view = await runtime_snapshot(store=store, events=queue)
             assert view["status"] == "loaded"
+            coverage = view["staffing"]["coverage"]
             assert view["staffing"]["gaps"] == []
-            assert set(view["staffing"]["coverage"]) == DEPARTMENTS
-            assert all(
-                view["staffing"]["coverage"][department]["on_shift"] > 0
-                for department in DEPARTMENTS
-            )
+            assert set(coverage) == DEPARTMENTS
+            assert coverage["nursing"]["status"] == "on_duty"
+            assert all((item["status"] == "on_duty") == (item["on_shift"] > 0)
+                       for item in coverage.values())
+            assert coverage["maintenance"]["status"] == (
+                "on_duty" if 7 * 60 <= minute < 15 * 60 + 30 else "on_call")
 
     asyncio.run(scenario())
 

@@ -6,9 +6,7 @@ from functools import lru_cache
 from simulation.community_blueprint import COMMUNITY_ID, SIMULATION_SCOPE
 from simulation.community_readiness_view import attach_resident_readiness
 from simulation.community_runtime_shapes import append_error as _error, source_status as _source
-from simulation.community_staffing import (
-    DEPARTMENT_LABELS, active_assignments, coverage_summary,
-)
+from simulation.community_runtime_staffing import staffing_projection as _staffing
 from simulation.community_timeline import build_90_day_timeline
 
 
@@ -149,37 +147,6 @@ def _null_tickets(status: str) -> dict:
         "open": None, "in_progress": None, "completed": None,
         "skipped": None, "other": None, "total": None,
     }}
-
-
-def _staffing(run: dict, run_view: dict) -> dict:
-    if run_view["status"] != "loaded":
-        return {"status": "error", "basis": "deterministic_schedule_at_persisted_simulated_time",
-                "day_index": None, "minute": None, "workers": [], "coverage": None, "gaps": None}
-    time = run_view["simulated_time"]
-    if time["absolute_minute"] == 90 * 1440:
-        coverage = {
-            key: {"label": label, "on_shift": 0, "actor_ids": [], "job_roles": []}
-            for key, label in DEPARTMENT_LABELS.items()
-        }
-        return {
-            "status": "loaded",
-            "basis": "deterministic_schedule_at_persisted_simulated_time",
-            "day_index": 90, "minute": 0, "workers": [],
-            "coverage": coverage, "gaps": list(DEPARTMENT_LABELS),
-        }
-    workers = active_assignments(time["day_index"], time["minute"])
-    coverage = coverage_summary(time["day_index"], time["minute"])
-    return {
-        "status": "loaded",
-        "basis": "deterministic_schedule_at_persisted_simulated_time",
-        "day_index": time["day_index"],
-        "minute": time["minute"],
-        "workers": [{key: row[key] for key in (
-            "actor_id", "name", "department", "department_label", "job_role", "shift",
-        )} for row in workers],
-        "coverage": coverage["coverage"],
-        "gaps": coverage["gaps"],
-    }
 
 
 async def _receipt_projection(collection, query: dict, run: dict, run_view: dict,

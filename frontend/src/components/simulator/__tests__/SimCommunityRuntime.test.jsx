@@ -41,10 +41,11 @@ const loaded = {
     status: "loaded", basis: "deterministic_schedule_at_persisted_simulated_time", day_index: 0, minute: 480,
     workers: [],
     coverage: {
-      nursing: { label: "Nursing / Care", on_shift: 4, actor_ids: [], job_roles: [] },
-      maintenance: { label: "Maintenance", on_shift: 0, actor_ids: [], job_roles: [] },
+      nursing: { label: "Nursing / Care", status: "on_duty", on_shift: 3, on_call: 1, actor_ids: [], job_roles: [], operating_hours: "24 hours" },
+      maintenance: { label: "Maintenance", status: "on_call", on_shift: 0, on_call: 1, actor_ids: [], job_roles: [], operating_hours: "07:00-15:30" },
+      kitchen: { label: "Dining / Kitchen", status: "closed", on_shift: 0, on_call: 0, actor_ids: [], job_roles: [], operating_hours: "05:30-20:00" },
     },
-    gaps: ["maintenance"],
+    gaps: [],
   },
   sources: {
     runs: { status: "loaded", error: null },
@@ -110,9 +111,12 @@ test("shows a loaded active run, canonical ticket movement, coverage, next work,
     .toMatch(/resident routine due.*Avery Brooks.*nursing.*event-13/i);
   expect(element.querySelector("[data-testid=runtime-last-receipt]").textContent)
     .toMatch(/resident routine created.*succeeded.*Taylor Reed.*receipt-12/i);
-  expect(element.querySelector("[data-testid=runtime-coverage]").textContent)
-    .toMatch(/Nursing \/ Care.*4 on shift.*Maintenance.*0 on shift/);
-  expect(element.querySelector("[data-testid=runtime-coverage-gaps]").textContent).toMatch(/maintenance/i);
+  const coverage = element.querySelector("[data-testid=runtime-coverage]").textContent;
+  expect(coverage).toMatch(/Nursing \/ Care.*On duty · 3 on site.*Hours 24 hours/);
+  expect(coverage).toMatch(/Maintenance.*On call · 1 off site/);
+  expect(coverage).toMatch(/Dining \/ Kitchen.*Closed/);
+  // Closed and on-call departments are not gaps.
+  expect(element.querySelector("[data-testid=runtime-coverage-gaps]")).toBeNull();
   expect(element.querySelector("[data-testid=community-live-tasks]").textContent)
     .toMatch(/Simulated.*housekeeping.*Scheduled simulated room care.*SIM Resident 007.*in progress/i);
   expect(element.querySelector("[data-testid=community-live-transitions]").textContent)
@@ -203,4 +207,18 @@ test("activity mismatch or read failure stays unknown rather than falsely empty"
   view = await render({ loadState: "ready", snapshot: failed });
   expect(view.element.textContent).toMatch(/tickets are unknown.*transitions are unknown/i);
   await act(async () => view.root.unmount());
+});
+
+test("a genuinely uncovered department is flagged; a legacy zero is never called closed", async () => {
+  const staffing = {
+    status: "loaded", workers: [], gaps: ["nursing"],
+    coverage: {
+      nursing: { label: "Nursing / Care", status: "uncovered", on_shift: 0, on_call: 0 },
+      legacy: { label: "Legacy", on_shift: 0 },
+    },
+  };
+  const { element } = await render({ loadState: "ready", snapshot: { ...loaded, staffing } });
+  const items = [...element.querySelectorAll("[data-testid=runtime-coverage] li")];
+  expect(items.map((item) => item.getAttribute("data-status"))).toEqual(["uncovered", "uncovered"]);
+  expect(element.querySelector("[data-testid=runtime-coverage-gaps]").textContent).toMatch(/nursing/i);
 });

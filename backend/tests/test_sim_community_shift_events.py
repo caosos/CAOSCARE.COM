@@ -16,9 +16,10 @@ def test_day_plan_is_deterministic_complete_and_only_planned():
     assert first == planned_events_for_day(0)
     assert len({event["event_id"] for event in first}) == len(first)
     assert event_counts(first) == {
-        "clock_in": 38,
-        "clock_out": 38,
-        "handoff": 38,
+        "clock_in": 27,
+        "clock_out": 27,
+        "department_status_changed": 14,
+        "handoff": 27,
     }
     assert all(event["status"] == "planned" for event in first)
     assert all(event["execution_state"] == "not_executed" for event in first)
@@ -55,20 +56,26 @@ def test_prior_night_shift_handoffs_and_clock_outs_are_in_next_day_plan():
                       if event["event_type"] == "handoff" and event["minute"] < 7 * 60]
     early_clock_outs = [event for event in events
                         if event["event_type"] == "clock_out" and event["minute"] <= 7 * 60]
-    assert len(early_handoffs) == 11
-    assert len(early_clock_outs) == 11
-    assert {event["department"] for event in early_clock_outs} == {
-        "nursing", "kitchen", "housekeeping", "maintenance",
-        "transportation", "activities", "front_desk", "administration",
-    }
+    # Only the three overnight care staff carry in; no other department is on site at night.
+    assert len(early_handoffs) == 3
+    assert len(early_clock_outs) == 3
+    assert {event["department"] for event in early_clock_outs} == {"nursing"}
     assert all(event["assignment_day_index"] == 0 for event in early_clock_outs)
     assert all(event["handoff_to_actor_ids"] for event in early_handoffs)
 
 
-def test_proven_continuous_rota_emits_no_coverage_gap_observations():
-    events = planned_events_for_day(0)
-    gaps = [event for event in events if event["event_type"].startswith("coverage_gap")]
-    assert gaps == []
+def test_rota_emits_no_gaps_only_truthful_open_close_and_on_call_changes():
+    events = planned_events_for_day(1)
+    assert [event for event in events if event["event_type"].startswith("coverage_gap")] == []
+    changes = {(event["department"], event["time"], event["status_before"], event["status_after"])
+               for event in events if event["event_type"] == "department_status_changed"}
+    assert ("maintenance", "07:00", "on_call", "on_duty") in changes
+    assert ("maintenance", "15:30", "on_duty", "on_call") in changes
+    assert ("kitchen", "20:00", "on_duty", "closed") in changes
+    assert ("front_desk", "23:00", "on_duty", "closed") in changes
+    assert not any(department == "nursing" for department, *_ in changes)  # 24 h on duty
+    assert all(event["actor_type"] == "system" for event in events
+               if event["stream_kind"] == "coverage_observation")
 
 
 def test_handoff_lists_only_workers_covering_the_same_department_at_shift_end():
@@ -80,12 +87,16 @@ def test_handoff_lists_only_workers_covering_the_same_department_at_shift_end():
     assert all(actor_id.startswith("sim:staff:nursing:") for actor_id in nursing["handoff_to_actor_ids"])
 
     handoffs = [event for event in events if event["event_type"] == "handoff"]
-    assert all(event["handoff_to_actor_ids"] for event in handoffs)
-    assert all(
-        all(actor_id.startswith(f"sim:staff:{event['department']}:")
-            for actor_id in event["handoff_to_actor_ids"])
-        for event in handoffs
-    )
+    for event in handoffs:
+        receivers = event["handoff_to_actor_ids"] + event["handoff_to_on_call_actor_ids"]
+        assert all(actor_id.startswith(f"sim:staff:{event['department']}:") for actor_id in receivers)
+        # Every handoff names who takes over, or truthfully says the department closes.
+        assert receivers or event["department_after_handoff"] == "closed", event["event_id"]
+    maintenance = next(event for event in handoffs
+                       if event["department"] == "maintenance" and event["time"] == "15:15")
+    assert maintenance["handoff_to_actor_ids"] == []
+    assert len(maintenance["handoff_to_on_call_actor_ids"]) == 1
+    assert maintenance["department_after_handoff"] == "on_call"
 
 
 def test_invalid_day_lead_and_department_are_rejected():
@@ -95,3 +106,12 @@ def test_invalid_day_lead_and_department_are_rejected():
         planned_events_for_day(0, handoff_lead_minutes=-1)
     with pytest.raises(ValueError):
         planned_events_for_day(0, departments=("nursing", "ghost"))
+
+
+def test_every_on_site_shift_is_executable_and_on_call_duty_never_is():
+    """SIM-005A: executor shift names come from the staffing table itself."""
+    from simulation.community_shift_execution import _TARGET
+    rows = assignments_for_day(4)
+    for row in rows:
+        target = f"sim:shift:{row['day_index']}:{row['actor_id']}:{row['shift']}"
+        assert bool(_TARGET.fullmatch(target)) is (row["duty"] == "on_site"), target

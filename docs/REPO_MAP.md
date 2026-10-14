@@ -902,6 +902,9 @@ listener verifier experiment: `docs/experiments/`.
 - `backend/living_community_boundary.py` and `backend/routes/living_community_ai_guard.py`: shared boundaries
   for legacy bulk processors, memory extraction and alert AI classification. Resident CRUD, task templates,
   escalation, family notifications and haiku provider paths have their own server-owned living-community guards.
+- `backend/simulation/community_coverage.py` (department ON DUTY / ON CALL / CLOSED / UNCOVERED from operating hours and the rota) and
+  `community_runtime_staffing.py` (runtime staffing projection); the shift table in `community_staffing.py` follows the
+  owner's 2026-10-13 staffing direction (overnight 3 care staff on site, maintenance hours + on-call).
 - Tests: `backend/tests/test_sim_community_*.py`, `test_living_community_*`,
   `test_haiku_community_provider_boundary.py`, and
   `frontend/src/components/simulator/__tests__/{SimCommunityOverview,SimCommunityObserved}.test.jsx` plus

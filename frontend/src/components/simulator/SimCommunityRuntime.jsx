@@ -84,13 +84,28 @@ function LastEvidence({ receipt }) {
   );
 }
 
+const DEPARTMENT_STATUS = {
+  on_duty: (coverage) => `On duty · ${coverage.on_shift} on site`,
+  on_call: (coverage) => `On call · ${coverage.on_call} off site`,
+  closed: () => "Closed",
+  uncovered: () => "UNCOVERED",
+  simulation_complete: () => "Simulation complete",
+};
+
+// Older snapshots carry only on_shift; never call a closed department a gap.
+function departmentStatus(coverage) {
+  if (coverage.status) return coverage.status;
+  if (coverage.on_shift == null) return null;
+  return coverage.on_shift > 0 ? "on_duty" : "uncovered";
+}
+
 function StaffingCoverage({ staffing }) {
   const rows = staffing?.coverage ? Object.entries(staffing.coverage) : [];
   return (
     <section aria-labelledby="runtime-coverage-heading">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 id="runtime-coverage-heading" className="text-xs font-bold uppercase tracking-widest text-caos-mute">
-          Departments on shift now
+          Departments now
         </h3>
         <SourceStatus label="Staffing read" status={staffing?.status} />
       </div>
@@ -98,14 +113,21 @@ function StaffingCoverage({ staffing }) {
         <p className="mt-2 text-sm italic text-caos-mute">Coverage is unknown; no department totals were reported.</p>
       ) : (
         <ul className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-4" data-testid="runtime-coverage">
-          {rows.map(([department, coverage]) => (
-            <li key={department} className="rounded-lg border border-caos-line bg-white p-3">
-              <p className="text-sm font-semibold text-caos-forest">{coverage.label || titleCase(department)}</p>
-              <p className={coverage.on_shift > 0 ? "text-sm text-caos-mute" : "text-sm font-semibold text-caos-terracotta"}>
-                {coverage.on_shift == null ? "Coverage unknown" : `${coverage.on_shift} on shift`}
-              </p>
-            </li>
-          ))}
+          {rows.map(([department, coverage]) => {
+            const status = departmentStatus(coverage);
+            const describe = DEPARTMENT_STATUS[status];
+            return (
+              <li key={department} className="rounded-lg border border-caos-line bg-white p-3" data-status={status || "unknown"}>
+                <p className="text-sm font-semibold text-caos-forest">{coverage.label || titleCase(department)}</p>
+                <p className={status === "uncovered" ? "text-sm font-semibold text-caos-terracotta" : "text-sm text-caos-mute"}>
+                  {describe ? describe(coverage) : "Coverage unknown"}
+                </p>
+                {coverage.operating_hours && (
+                  <p className="text-xs text-caos-mute">Hours {coverage.operating_hours}</p>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
       {staffing?.gaps?.length > 0 && (

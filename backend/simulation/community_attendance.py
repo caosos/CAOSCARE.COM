@@ -14,7 +14,7 @@ from collections import Counter
 from datetime import date, datetime, time, timedelta
 from typing import Iterable
 
-from simulation.community_staffing import WORKERS, assignments_for_day
+from simulation.community_staffing import ON_SITE, WORKERS, assignments_for_day
 from simulation.community_shift_events import (
     SHIFT_MILESTONE_TYPES,
     planned_shift_milestones,
@@ -168,8 +168,31 @@ def worker_states_for_day(day_index: int) -> list[dict]:
     states = []
     for worker in WORKERS:
         assignment = scheduled.get(worker["actor_id"])
-        if assignment:
+        if assignment and assignment["duty"] == ON_SITE:
             states.append(session_plan(assignment))
+        elif assignment:
+            # Off-site on-call duty: reachable, never clocked in or present.
+            states.append({
+                "session_id": None,
+                "shift_assignment_id": _assignment_id(assignment),
+                "attendance_state": "on_call",
+                "status": "planned",
+                "execution_state": "not_executed",
+                "receipt_ids": [],
+                "truth": PLANNING_TRUTH,
+                "actor_id": worker["actor_id"],
+                "actor_name": worker["name"],
+                "actor_type": worker["actor_type"],
+                "identity_basis": worker["identity_basis"],
+                "actor_simulated": worker["simulated"],
+                "department": worker["department"],
+                "job_role": worker["job_role"],
+                "shift": assignment["shift"],
+                "assignment_day_index": day_index,
+                "on_call_window": f"{assignment['start']}-{assignment['end']}",
+                "physically_present": False,
+                "milestones": [],
+            })
         else:
             states.append({
                 "session_id": None,

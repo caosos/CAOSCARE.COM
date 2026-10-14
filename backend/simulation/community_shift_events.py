@@ -11,10 +11,14 @@ No database, authentication, or ``User`` records are read or written here.
 from collections import Counter
 from typing import Iterable
 
+from simulation.community_coverage import OPERATING_HOURS, UNCOVERED, department_status
 from simulation.community_staffing import (
     DEPARTMENT_LABELS,
+    ON_SITE,
+    _minutes,
     active_assignments,
     assignments_for_day,
+    on_call_assignments,
 )
 
 
@@ -26,7 +30,8 @@ _EVENT_ORDER = {
     "clock_in": 2,
     "handoff": 3,
     "clock_out": 4,
-    "coverage_gap_started": 5,
+    "department_status_changed": 5,
+    "coverage_gap_started": 6,
 }
 
 
@@ -98,7 +103,8 @@ def _staff_event(event_type: str, day_index: int, minute: int, assignment: dict,
 
 
 def _coverage_event(event_type: str, day_index: int, minute: int, department: str,
-                    before: int, after: int) -> dict:
+                    before: int, after: int, status_before: str | None = None,
+                    status_after: str | None = None) -> dict:
     """A planned simulator observation, not a staff action or fake identity."""
     return {
         **_common(event_type, day_index, minute, department),
@@ -114,14 +120,20 @@ def _coverage_event(event_type: str, day_index: int, minute: int, department: st
         "department_label": DEPARTMENT_LABELS[department],
         "coverage_before": before,
         "coverage_after": after,
+        "status_before": status_before,
+        "status_after": status_after,
     }
 
 
 def _day_assignments(day_index: int) -> list[dict]:
-    """Assignments that begin today plus overnight workers carried in."""
+    """On-site shifts that begin today plus overnight workers carried in.
+
+    On-call duty is off site: it has no clock-in, handoff or clock-out.
+    """
     carry_in = [row for row in active_assignments(day_index, 0)
                 if row["day_index"] < day_index]
-    return carry_in + assignments_for_day(day_index)
+    return carry_in + [row for row in assignments_for_day(day_index)
+                       if row["duty"] == ON_SITE]
 
 
 def _incoming(assignment: dict, at_absolute: int, candidates: list[dict]) -> list[str]:
@@ -150,10 +162,21 @@ def planned_shift_milestones(assignment: dict, handoff_lead_minutes: int = 15,
         end_day_index = end // 1440
         candidates = _day_assignments(end_day_index)
 
+    if assignment.get("duty", ON_SITE) != ON_SITE:
+        raise ValueError("on-call duty has no clock-in, handoff or clock-out")
+    incoming = _incoming(assignment, end, candidates)
+    end_day, end_minute = divmod(end, 1440)
+    on_call = sorted(row["actor_id"] for row in on_call_assignments(end_day, end_minute)
+                     if row["department"] == assignment["department"])
     moments = (
         ("clock_in", start, {}),
         ("handoff", end - handoff_lead_minutes, {
-            "handoff_to_actor_ids": _incoming(assignment, end, candidates),
+            "handoff_to_actor_ids": incoming,
+            # Off-site cover after this shift; empty means the department closes.
+            "handoff_to_on_call_actor_ids": [] if incoming else on_call,
+            "department_after_handoff": department_status(
+                assignment["department"], end_minute, len(incoming), len(on_call),
+            ),
             "shift_end_minute": end % 1440,
         }),
         ("clock_out", end, {}),
@@ -174,39 +197,45 @@ def _coverage_at(assignments: list[dict], absolute_minute: int) -> Counter:
     return coverage
 
 
-def _coverage_events(day_index: int, assignments: list[dict], departments: Iterable[str]) -> list[dict]:
-    start_of_day = day_index * 1440
-    end_of_day = start_of_day + 1440
-    events = []
-    at_midnight = _coverage_at(assignments, start_of_day)
-    for department in departments:
-        if at_midnight[department] == 0:
-            events.append(_coverage_event(
-                "coverage_gap_present", day_index, 0, department, 0, 0,
-            ))
+def _status_at(day_index: int, minute: int, assignments: list[dict],
+               department: str) -> tuple[int, str]:
+    absolute = day_index * 1440 + minute
+    on_site = _coverage_at(assignments, absolute)[department]
+    on_call = sum(row["department"] == department
+                  for row in on_call_assignments(day_index, minute))
+    return on_site, department_status(department, minute, on_site, on_call)
 
+
+def _coverage_events(day_index: int, assignments: list[dict], departments: Iterable[str]) -> list[dict]:
+    """Observed planned status changes; only UNCOVERED is a coverage gap."""
     boundaries = set()
     for assignment in assignments:
-        start, end = _absolute_window(assignment)
-        if start_of_day < start < end_of_day:
-            boundaries.add(start)
-        if start_of_day < end < end_of_day:
-            boundaries.add(end)
-    for absolute in sorted(boundaries):
-        minute = absolute - start_of_day
-        before = _coverage_at(assignments, absolute - 1)
-        after = _coverage_at(assignments, absolute)
-        for department in departments:
-            if before[department] == 0 and after[department] > 0:
+        for absolute in _absolute_window(assignment):
+            if day_index * 1440 < absolute < (day_index + 1) * 1440:
+                boundaries.add(absolute - day_index * 1440)
+    for row in on_call_assignments(day_index, 0) + [
+            r for r in assignments_for_day(day_index) if r["duty"] != ON_SITE]:
+        boundaries.update(m for m in (row["start_minute"], row["end_minute"]) if 0 < m < 1440)
+    for start, end in OPERATING_HOURS.values():
+        boundaries.update(m for m in (_minutes(start), _minutes(end)) if 0 < m < 1440)
+    events = []
+    for department in departments:
+        count, status = _status_at(day_index, 0, assignments, department)
+        if status == UNCOVERED:
+            events.append(_coverage_event(
+                "coverage_gap_present", day_index, 0, department, 0, 0, status, status,
+            ))
+        for minute in sorted(boundaries):
+            after_count, after = _status_at(day_index, minute, assignments, department)
+            if after != status:
+                event_type = ("coverage_gap_started" if after == UNCOVERED
+                              else "coverage_gap_ended" if status == UNCOVERED
+                              else "department_status_changed")
                 events.append(_coverage_event(
-                    "coverage_gap_ended", day_index, minute, department,
-                    before[department], after[department],
+                    event_type, day_index, minute, department,
+                    count, after_count, status, after,
                 ))
-            elif before[department] > 0 and after[department] == 0:
-                events.append(_coverage_event(
-                    "coverage_gap_started", day_index, minute, department,
-                    before[department], after[department],
-                ))
+            count, status = after_count, after
     return events
 
 
