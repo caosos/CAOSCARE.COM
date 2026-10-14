@@ -438,9 +438,9 @@ def test_real_day_zero_carry_in_shift_event_is_supported_exactly():
         item = next(row for row in queue if row.stream_kind == "canonical_shift_milestone"
                     and row.target_id.startswith("sim:shift:-1:"))
         assert item.event_id == (
-            "sim:shift-event:0:0345:handoff:sim:staff:nursing:care_aide:13"
+            "sim:shift-event:0:0345:handoff:sim:staff:nursing:care_aide:14"
         )
-        assert item.target_id == "sim:shift:-1:sim:staff:nursing:care_aide:13:night"
+        assert item.target_id == "sim:shift:-1:sim:staff:nursing:care_aide:14:night"
         ctx, store = context(cursor=queue.index(item)), Store()
         services, calls = harness(store)
         proof = await services.execute_event(event=item, context=ctx)

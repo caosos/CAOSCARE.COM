@@ -91,6 +91,19 @@ def test_two_to_three_care_workers_are_on_site_every_overnight_minute():
     assert [row["job_role"] for row in on_call] == ["registered_nurse"]
 
 
+def test_med_techs_work_7_to_7_with_one_always_on_site():
+    """Michael 2026-10-14: med techs are 7-7 (07:00-19:00 and 19:00-07:00)."""
+    rows = [r for r in assignments_for_day(3) if r["job_role"] == "medication_reminder_support"]
+    assert sorted((r["start"], r["end"]) for r in rows) == [("07:00", "19:00"), ("19:00", "07:00")]
+    for day_index in range(90):
+        for minute in range(0, 1440, 15):
+            here = [r for r in active_assignments(day_index, minute)
+                    if r["job_role"] == "medication_reminder_support"]
+            assert len(here) == 1, (day_index, minute)
+    # Evening reminders (19:45 onward) fall inside the night med tech's shift.
+    assert any(r["job_role"] == "medication_reminder_support" for r in active_assignments(1, 22 * 60 + 15))
+
+
 def test_maintenance_works_normal_hours_with_truthful_after_hours_on_call():
     assert AFTER_HOURS_ON_CALL == {"maintenance"}
     for day_index in range(90):
@@ -156,7 +169,7 @@ def test_rest_days_and_rest_between_duties_are_honored():
 def test_daily_rota_is_deterministic_one_duty_per_worker_and_rotates():
     day_zero = assignments_for_day(0)
     assert day_zero == assignments_for_day(0)
-    assert Counter(row["duty"] for row in day_zero) == {"on_site": 27, "on_call": 2}
+    assert Counter(row["duty"] for row in day_zero) == {"on_site": 26, "on_call": 2}
     assert len({row["actor_id"] for row in day_zero}) == len(day_zero)
     aides = lambda day: {r["actor_id"] for r in assignments_for_day(day) if r["job_role"] == "care_aide"}
     assert aides(0) != aides(1)
@@ -170,14 +183,14 @@ def test_overnight_windows_wrap_and_prior_day_staff_remain_present():
         minute_in_shift(1440, 0, 60)
     at_two_am = active_assignments(1, 2 * 60)
     assert {row["department"] for row in at_two_am} == {"nursing"}
-    assert all(row["day_index"] == 0 and row["shift"] == "night" for row in at_two_am)
+    assert all(row["day_index"] == 0 and row["shift"] in {"night", "med_tech_night"} for row in at_two_am)
     assert len(active_assignments(0, 2 * 60)) == 3  # carry-in night staff on day 0
 
 
 def test_default_projection_is_exactly_90_repeatable_local_days():
     first = project_schedule(date(2026, 10, 13))
     assert first == project_schedule("2026-10-13", days=90)
-    assert len(first) == 90 * 29
+    assert len(first) == 90 * 28
     assert first[0]["date"] == "2026-10-13"
     overnight = next(row for row in first if row["shift_key"] == "nursing:night")
     assert overnight["spans_midnight"] is True

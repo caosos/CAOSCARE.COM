@@ -16,10 +16,10 @@ def test_day_plan_is_deterministic_complete_and_only_planned():
     assert first == planned_events_for_day(0)
     assert len({event["event_id"] for event in first}) == len(first)
     assert event_counts(first) == {
-        "clock_in": 27,
-        "clock_out": 27,
+        "clock_in": 26,
+        "clock_out": 26,
         "department_status_changed": 14,
-        "handoff": 27,
+        "handoff": 26,
     }
     assert all(event["status"] == "planned" for event in first)
     assert all(event["execution_state"] == "not_executed" for event in first)
@@ -56,7 +56,7 @@ def test_prior_night_shift_handoffs_and_clock_outs_are_in_next_day_plan():
                       if event["event_type"] == "handoff" and event["minute"] < 7 * 60]
     early_clock_outs = [event for event in events
                         if event["event_type"] == "clock_out" and event["minute"] <= 7 * 60]
-    # Only the three overnight care staff carry in; no other department is on site at night.
+    # Only the three overnight care staff (2 aides + the night med tech) carry in.
     assert len(early_handoffs) == 3
     assert len(early_clock_outs) == 3
     assert {event["department"] for event in early_clock_outs} == {"nursing"}

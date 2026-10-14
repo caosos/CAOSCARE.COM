@@ -10,20 +10,20 @@ def test_overview_declares_scale_without_claiming_execution():
     assert view["apartments"] == {"total": 80, "occupied": 70, "occupancy_target": 70}
     assert view["workers"] == {"count": 50, "simulated": True}
     assert view["worker_attendance"] == {
-        "scheduled": 27,
+        "scheduled": 26,
         "on_call": 2,
-        "off_duty": 21,
-        "planned_login": 27,
-        "assignment_acceptance": 27,
+        "off_duty": 22,
+        "planned_login": 26,
+        "assignment_acceptance": 26,
         "canonical_shift_events_reported_under": "shift_events",
         "executed": 0,
         "truth": "Planned only; not authenticated, executed, or receipted.",
     }
     assert view["shift_events"] == {
-        "clock_in": 27,
-        "clock_out": 27,
+        "clock_in": 26,
+        "clock_out": 26,
         "department_status_changed": 14,
-        "handoff": 27,
+        "handoff": 26,
         "executed": 0,
     }
     assert view["routines"]["planned"] == 155
@@ -59,7 +59,7 @@ def test_preview_is_inspectable_and_keeps_provider_boundaries_blocked():
     assert all(not row["represents_execution"] for row in preview["planned_outcomes"])
     assert preview["shift_assignments"]
     assert len(preview["worker_attendance"]) == 50
-    assert sum(row["attendance_state"] == "scheduled" for row in preview["worker_attendance"]) == 27
+    assert sum(row["attendance_state"] == "scheduled" for row in preview["worker_attendance"]) == 26
     assert all(row["execution_state"] == "not_executed" for row in preview["worker_attendance"])
     assert preview["planned_shift_events"]
     assert all(event["execution_state"] == "not_executed" for event in preview["planned_shift_events"])

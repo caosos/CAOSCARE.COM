@@ -79,6 +79,7 @@ WORKERS = build_roster()
 
 # Owner direction (Michael, 2026-10-13): an 80-apartment, budget-constrained
 # assisted-living community.  Overnight 2-3 care staff are physically present;
+# med techs work 7-7 (07:00-19:00 and 19:00-07:00, Michael 2026-10-14);
 # maintenance works normal hours plus after-hours ON-CALL (never on site 24 h);
 # other departments keep realistic operating hours and are CLOSED otherwise.
 #
@@ -90,11 +91,11 @@ ON_CALL = "on_call"
 _SHIFT_LOAD = (
     ("nursing", "care_aide", "day", "06:00", "14:00", 4, ON_SITE),
     ("nursing", "registered_nurse", "day", "06:00", "14:00", 1, ON_SITE),
-    ("nursing", "medication_reminder_support", "day", "06:00", "14:00", 1, ON_SITE),
     ("nursing", "care_aide", "evening", "14:00", "22:00", 3, ON_SITE),
     ("nursing", "registered_nurse", "evening", "14:00", "22:00", 1, ON_SITE),
-    ("nursing", "medication_reminder_support", "evening", "14:00", "22:00", 1, ON_SITE),
-    ("nursing", "care_aide", "night", "22:00", "06:00", 3, ON_SITE),
+    ("nursing", "care_aide", "night", "22:00", "06:00", 2, ON_SITE),
+    ("nursing", "medication_reminder_support", "med_tech_day", "07:00", "19:00", 1, ON_SITE),
+    ("nursing", "medication_reminder_support", "med_tech_night", "19:00", "07:00", 1, ON_SITE),
     ("nursing", "registered_nurse", "night_on_call", "22:00", "06:00", 1, ON_CALL),
     ("kitchen", "dining_team_member", "early", "05:30", "13:30", 1, ON_SITE),
     ("kitchen", "dining_team_member", "late", "12:00", "20:00", 1, ON_SITE),

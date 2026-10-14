@@ -163,9 +163,9 @@ def step(store, services, events=None, **changes):
 
 def test_day_queue_combines_existing_plans_with_explicit_synthetic_staff():
     queue = executor.build_day_queue()
-    assert len(queue) == 546
+    assert len(queue) == 543
     assert sum(row.stream_kind == "routine_ticket_phase" for row in queue) == 465
-    assert sum(row.stream_kind == "canonical_shift_milestone" for row in queue) == 81
+    assert sum(row.stream_kind == "canonical_shift_milestone" for row in queue) == 78
     assert len({row.event_id for row in queue}) == len(queue)
     assert {row.stream_kind for row in queue} == {
         "routine_ticket_phase", "canonical_shift_milestone",

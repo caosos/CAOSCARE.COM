@@ -20,7 +20,7 @@ def test_every_worker_has_exactly_one_truthful_daily_state():
     assert len(states) == 50
     assert len({state["actor_id"] for state in states}) == 50
     assert Counter(state["attendance_state"] for state in states) == {
-        "scheduled": 27, "on_call": 2, "off_duty": 21,
+        "scheduled": 26, "on_call": 2, "off_duty": 22,
     }
     assert all(state["status"] == "planned" for state in states)
     assert all(state["execution_state"] == "not_executed" for state in states)
@@ -108,14 +108,14 @@ def test_default_projection_covers_all_50_workers_for_90_days_deterministically(
     summary = attendance_summary(first)
     assert summary == {
         "workers": 50,
-        "states": {"off_duty": 21 * 90, "on_call": 2 * 90, "scheduled": 27 * 90},
+        "states": {"off_duty": 22 * 90, "on_call": 2 * 90, "scheduled": 26 * 90},
         "session_milestones": {
-            event_type: 27 * 90 for event_type in ("assignment_acceptance", "planned_login")
+            event_type: 26 * 90 for event_type in ("assignment_acceptance", "planned_login")
         },
         "canonical_shift_milestone_references": {
-            event_type: 27 * 90 for event_type in ("clock_in", "clock_out", "handoff")
+            event_type: 26 * 90 for event_type in ("clock_in", "clock_out", "handoff")
         },
-        "milestones": {event_type: 27 * 90 for event_type in sorted(MILESTONE_TYPES)},
+        "milestones": {event_type: 26 * 90 for event_type in sorted(MILESTONE_TYPES)},
         "truth": PLANNING_TRUTH,
     }
 
