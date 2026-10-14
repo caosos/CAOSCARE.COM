@@ -114,6 +114,7 @@ from routes import community_runtime as community_runtime_routes  # noqa: E402
 from routes import community_controls as community_control_routes  # noqa: E402
 from routes import community_shift_cover as community_shift_cover_routes  # noqa: E402
 from routes import community_dashboard as community_dashboard_routes  # noqa: E402
+from routes import ops_metrics as ops_metrics_routes  # noqa: E402
 from routes import community_runtime_registry  # noqa: E402
 from routes import work_context as work_context_routes  # noqa: E402
 from routes import demo_continuity as demo_continuity_routes  # noqa: E402
@@ -305,6 +306,7 @@ api.include_router(community_runtime_routes.router)
 api.include_router(community_control_routes.router)
 api.include_router(community_shift_cover_routes.router)
 api.include_router(community_dashboard_routes.router)
+api.include_router(ops_metrics_routes.router)
 api.include_router(community_reset_control_routes.router)
 api.include_router(work_context_routes.router)
 api.include_router(demo_continuity_routes.router)
