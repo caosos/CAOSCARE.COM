@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { api } from "../../lib/api";
 import { Button } from "../ui/button";
 import { Sparkles, X, Send } from "lucide-react";
@@ -17,8 +17,15 @@ import CopyTranscriptButton from "../CopyTranscriptButton";
  * backend/routes/admin_assistant.py for why, and for the clean seam a
  * future voice frontend could reuse without rework.
  */
-export default function AdminAria({ currentSection, onNavigate }) {
-  const [open, setOpen] = useState(false);
+// Optional control (Live Operations workspace): `open`/`onOpenChange` let a
+// sidebar item open the same panel, `hideLauncher` drops the floating
+// button, and `prompt` ({text, id}) sends a question typed elsewhere through
+// this same conversation. Without them it behaves exactly as before.
+export default function AdminAria({ currentSection, onNavigate, open: openProp, onOpenChange, hideLauncher = false,
+                                    prompt }) {
+  const [openState, setOpenState] = useState(false);
+  const open = openProp ?? openState;
+  const setOpen = (v) => { setOpenState(v); onOpenChange?.(v); };
   const [messages, setMessages] = useState([]); // [{role, content}]
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -30,8 +37,8 @@ export default function AdminAria({ currentSection, onNavigate }) {
   // genuinely new thread, which is honest).
   const conversationIdRef = useRef(`conv_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`);
 
-  const send = async () => {
-    const text = input.trim();
+  const send = async (typed) => {
+    const text = (typeof typed === "string" ? typed : input).trim();
     if (!text || busy) return;
     const nextHistory = [...messages, { role: "user", content: text }];
     setMessages(nextHistory);
@@ -56,7 +63,16 @@ export default function AdminAria({ currentSection, onNavigate }) {
     setTimeout(() => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight }), 50);
   };
 
+  const sentPrompt = useRef(null);
+  useEffect(() => {
+    if (prompt?.text && prompt.id !== sentPrompt.current) {
+      sentPrompt.current = prompt.id;
+      send(prompt.text);
+    }
+  }, [prompt]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!open) {
+    if (hideLauncher) return null;
     return (
       <button
         onClick={() => setOpen(true)}
@@ -104,7 +120,7 @@ export default function AdminAria({ currentSection, onNavigate }) {
           data-testid="admin-aria-input"
           className="flex-1 rounded-full border border-caos-line px-4 py-2 text-sm focus:outline-none focus:border-caos-forest"
         />
-        <Button onClick={send} disabled={busy || !input.trim()} data-testid="admin-aria-send" className="bg-caos-forest rounded-full w-10 h-10 p-0">
+        <Button onClick={() => send()} disabled={busy || !input.trim()} data-testid="admin-aria-send" className="bg-caos-forest rounded-full w-10 h-10 p-0">
           <Send className="w-4 h-4" />
         </Button>
       </div>

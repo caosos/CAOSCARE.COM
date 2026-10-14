@@ -19,23 +19,31 @@ function Value({ state }) {
 // One box. Drag the handle (or use the menu) to move it; the eye hides it;
 // the menu also sets its width. Clicking the box opens its records.
 export default function WorkspaceCard({ widget, box, state, children, onOpen, onHide, onResize, onStep,
-                                        onGripDown, dragging, dropActive }) {
+                                        onPointerDown, placeholder }) {
   const tint = TINTS[widget.tint] || TINTS.slate;
   const Icon = widget.icon;
   const subtitle = state?.unverified ? "Not recorded yet" : widget.subtitle;
   return (
     <article
       data-box-id={widget.id}
+      onPointerDown={onPointerDown}
       data-testid={`ws-box-${widget.id}`}
       className={`group relative flex flex-col rounded-2xl border p-6 pt-5 shadow-[0_1px_2px_rgba(16,24,40,0.04)]
-        transition-shadow ${tint.card} ${dropActive ? "ring-2 ring-[#2F80ED] ring-offset-2" : ""} ${dragging ? "opacity-60" : ""}`}
+        cursor-grab transition-shadow active:cursor-grabbing ${tint.card}
+        ${placeholder ? "border-2 border-dashed !border-[#2F80ED] opacity-40" : ""}`}
       style={{ gridColumn: `span ${box.w} / span ${box.w}` }}
     >
       <div className="flex items-start justify-between">
-        <span onPointerDown={onGripDown} data-testid={`ws-grip-${widget.id}`} title="Drag to move"
-              className="-ml-3 -mt-1 cursor-grab touch-none rounded p-1 text-[#B8BEC8] hover:text-[#6B7280] active:cursor-grabbing">
+        <button type="button" data-drag-handle data-testid={`ws-grip-${widget.id}`}
+                aria-label={`Move ${widget.title}. Use arrow keys to move earlier or later.`} title="Drag to move"
+                onKeyDown={(e) => {
+                  const d = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 }[e.key];
+                  if (d) { e.preventDefault(); onStep(d); }
+                }}
+                className="-ml-3 -mt-1 cursor-grab touch-none rounded p-1 text-[#B8BEC8] hover:text-[#6B7280]
+                  focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2F80ED] active:cursor-grabbing">
           <GripVertical className="h-4 w-4" />
-        </span>
+        </button>
         <div className="-mr-2 flex items-center gap-1">
           <button type="button" onClick={onHide} aria-label={`Hide ${widget.title}`}
                   className="rounded-md p-1.5 text-[#1F2937] hover:bg-black/5">

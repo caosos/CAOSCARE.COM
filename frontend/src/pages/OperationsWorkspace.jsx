@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Settings } from "lucide-react";
 import WorkspaceShell from "../components/workspace/WorkspaceShell";
 import WorkspaceGrid from "../components/workspace/WorkspaceGrid";
@@ -49,7 +50,21 @@ function PeriodBar({ view, setView, run }) {
 // restored; the arrangement is saved per user on the server.
 export default function OperationsWorkspace() {
   const { boxes, status, update, reset } = useWorkspaceLayout();
-  const [view, setView] = useState({ world: "live", date: null, simDay: null });
+  // The chosen world and period live in the address (?world=&date=&day=), so
+  // Back, reload and returning from another page keep what you were looking at.
+  const [sp, setSp] = useSearchParams();
+  const [view, setView] = useState(() => ({
+    world: sp.get("world") === "simulated" ? "simulated" : "live",
+    date: sp.get("date") || null,
+    simDay: sp.get("day") != null && sp.get("day") !== "" ? Number(sp.get("day")) - 1 : null,
+  }));
+  useEffect(() => {
+    const n = new URLSearchParams();
+    if (view.world === "simulated") n.set("world", "simulated");
+    if (view.world === "live" && view.date) n.set("date", view.date);
+    if (view.world === "simulated" && view.simDay != null) n.set("day", String(view.simDay + 1));
+    if (n.toString() !== sp.toString()) setSp(n, { replace: true });
+  }, [view]); // eslint-disable-line react-hooks/exhaustive-deps
   const [openWidget, setOpenWidget] = useState(null);
   const [panel, setPanel] = useState(null);       // "customize" | "add" | null
   const visibleIds = useMemo(() => (boxes || []).filter((b) => !b.hidden).map((b) => b.id), [boxes]);
@@ -63,13 +78,13 @@ export default function OperationsWorkspace() {
 
   return (
     <WorkspaceShell>
-      <div className="mt-1 flex items-start justify-between gap-4">
+      <div className="mt-1 flex flex-col items-start justify-between gap-4 sm:flex-row">
         <div className="min-w-0 flex-1">
-          <h1 className="text-[36px] font-bold leading-tight tracking-tight">My CAOSCare Workspace</h1>
-          <p className="mt-1 text-[20px] text-[#4B5563]">Drag to arrange · Hide what you don't need</p>
+          <h1 className="text-[28px] font-bold leading-tight tracking-tight sm:text-[36px]">My CAOSCare Workspace</h1>
+          <p className="mt-1 text-[17px] text-[#4B5563] sm:text-[20px]">Drag to arrange · Hide what you don't need</p>
           <PeriodBar view={view} setView={setView} run={run} />
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1">
+        <div className="flex shrink-0 flex-col items-start gap-1 sm:items-end">
           <button type="button" onClick={() => setPanel("customize")} data-testid="ws-customize"
                   className="flex items-center gap-2.5 rounded-lg border border-[#E5E7EB] bg-white px-5 py-3 text-[17px]
                     font-medium shadow-[0_1px_2px_rgba(16,24,40,0.05)] hover:bg-[#F9FAFB]">
