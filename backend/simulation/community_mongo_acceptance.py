@@ -13,6 +13,7 @@ from simulation import community_run_lifecycle as lifecycle
 from simulation.community_atomic_provision import provision_paused_burn_in_run
 from simulation.community_blueprint import COMMUNITY_ID, SIMULATION_SCOPE
 from simulation.community_control_service import runner_actor
+from simulation.community_department_preflight import preflight_living_community_run_start
 from simulation.community_execution_adapter import CanonicalCommunityExecutionServices
 from simulation.community_index_preparation import prepare_required_indexes
 from simulation.community_mongo_probe import (
@@ -59,7 +60,13 @@ async def _reopen(callback):
     return await value if inspect.isawaitable(value) else value
 
 
-async def _advance_and_tick(store, plan, run: dict, phase: str, now: datetime) -> dict:
+async def _advance_and_tick(store, plan, run: dict, phase: str, now: datetime | None) -> dict:
+    # The lease is acquired and then revalidated before the cursor commit; both
+    # must read the same clock. A real run uses live time (a frozen start time
+    # makes the 30 s lease look expired once setup takes longer); an injected
+    # `now` stays frozen for deterministic tests.
+    clock = (lambda: now) if now is not None else (lambda: datetime.now(timezone.utc))
+    now = clock()
     canonical_store = ticket_staging.default_store()
     if getattr(canonical_store, "name", None) != store.name:
         raise CommunityMongoAcceptanceError(
@@ -79,7 +86,7 @@ async def _advance_and_tick(store, plan, run: dict, phase: str, now: datetime) -
         run = advanced["run"]
     result = await tick(
         run["run_id"], HOLDER_ID, store=store, timeline=timeline,
-        services=CanonicalCommunityExecutionServices(store=store), now=now,
+        services=CanonicalCommunityExecutionServices(store=store), now=now, clock=clock,
     )
     if result.status != "executed" or result.cursor_after != run["cursor"] + 1:
         raise CommunityMongoAcceptanceError("one canonical event did not execute exactly once")
@@ -112,6 +119,7 @@ async def run_scratch_acceptance(
     operator_id: str,
     operator_name: str | None,
     reopen_store,
+    seed_catalog=None,
     now: datetime | None = None,
 ) -> dict:
     """Provision, execute, pause, reconnect, resume, execute, stop and reset."""
@@ -129,6 +137,14 @@ async def run_scratch_acceptance(
         raise CommunityMongoAcceptanceError("acceptance timestamp must be timezone-aware")
     operator = _operator(operator_id, operator_name)
     plan = canonical_plan()
+
+    # A fresh scratch database has no department catalog; a real server seeds
+    # it at startup (routes.departments.seed_default_departments). Seed it the
+    # same way, then refuse before any simulator mutation unless every
+    # department the canonical routines/staffing use is present and active.
+    if seed_catalog is not None:
+        await seed_catalog()
+    departments = await preflight_living_community_run_start(store=store)
 
     indexes = await prepare_required_indexes(
         operator, AUTHORITY, _key(database_name, "indexes"), store=store, now=instant,
@@ -150,7 +166,7 @@ async def run_scratch_acceptance(
         run["cursor"], run["sim_minute"], _key(database_name, "resume-1"),
         plan, store=store, now=instant, require_unleased=True,
     )
-    first = await _advance_and_tick(store, plan, resumed["run"], "first", instant)
+    first = await _advance_and_tick(store, plan, resumed["run"], "first", now)
     paused = await lifecycle.transition_run(
         operator, AUTHORITY, run["run_id"], lifecycle.RUNNING, lifecycle.PAUSED,
         first["run"]["cursor"], first["run"]["sim_minute"],
@@ -170,7 +186,7 @@ async def run_scratch_acceptance(
         plan, store=reopened, now=instant, require_unleased=True,
     )
     second = await _advance_and_tick(
-        reopened, plan, resumed_again["run"], "second", instant,
+        reopened, plan, resumed_again["run"], "second", now,
     )
     stopped = await lifecycle.transition_run(
         operator, AUTHORITY, run["run_id"], lifecycle.RUNNING, lifecycle.STOPPED,
@@ -187,6 +203,7 @@ async def run_scratch_acceptance(
         "status": "passed",
         "database": database_name,
         "probe": probe,
+        "departments": [item.slug for item in departments.departments],
         "run_id": run["run_id"],
         "events_executed": [first["tick"].event_id, second["tick"].event_id],
         "restart_reloaded_state": persisted["state"],

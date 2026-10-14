@@ -4,6 +4,10 @@ from types import SimpleNamespace
 import pytest
 
 from simulation import community_mongo_acceptance as acceptance
+from simulation.community_department_preflight import (
+    DepartmentPreflightError,
+    department_requirements,
+)
 from simulation.community_mongo_probe import (
     CommunityMongoAcceptanceError,
     classify_topology,
@@ -115,10 +119,34 @@ class CountCollection:
         return self.count
 
 
+class DepartmentCursor:
+    def __init__(self, rows):
+        self.rows = rows
+
+    async def to_list(self, _limit):
+        return [dict(row) for row in self.rows]
+
+
+class DepartmentCatalog:
+    def __init__(self, rows):
+        self.rows = rows
+
+    def find(self, query, projection):
+        assert query == {}
+        return DepartmentCursor(self.rows)
+
+
+def canonical_department_rows():
+    return [{"slug": item.slug, "active": True} for item in department_requirements()]
+
+
 class WorkflowStore:
-    def __init__(self, name, collections=()):
+    def __init__(self, name, collections=(), departments=None):
         self.name = name
         self.collections = list(collections)
+        self.departments = DepartmentCatalog(
+            canonical_department_rows() if departments is None else departments
+        )
         self.sim_runs = CountCollection()
         self.residents = CountCollection()
         self.staff_tasks = CountCollection()
@@ -157,6 +185,9 @@ def test_scratch_workflow_proves_two_events_reconnect_and_reset(monkeypatch):
         calls.append(("probe", selected.name))
         return {"status": "passed", "topology": "replica_set",
                 "transaction_read_abort": True, "error_type": None}
+
+    async def fake_seed():
+        calls.append(("seed", None))
 
     async def fake_indexes(*_args, **_kwargs):
         calls.append(("indexes", _kwargs["store"].name))
@@ -226,8 +257,13 @@ def test_scratch_workflow_proves_two_events_reconnect_and_reset(monkeypatch):
             store, database_name=database, production_databases=("caoscare",),
             confirmed=True, operator_id="user:michael",
             operator_name="Michael", reopen_store=lambda: reopened,
+            seed_catalog=fake_seed,
         )
         assert result["status"] == "passed"
+        assert calls.index(("seed", None)) < calls.index(("indexes", database))
+        assert result["departments"] == sorted(
+            item.slug for item in department_requirements()
+        )
         assert result["events_executed"] == ["event-1", "event-2"]
         assert result["restart_reloaded_state"] == "PAUSED"
         assert result["final_run_state_before_reset"] == "STOPPED"
@@ -239,5 +275,31 @@ def test_scratch_workflow_proves_two_events_reconnect_and_reset(monkeypatch):
         assert ("restart-load", database) in calls
         assert ("tick-2", database) in calls
         assert calls[-1] == ("reset", database)
+
+    asyncio.run(scenario())
+
+
+def test_missing_department_stops_scratch_acceptance_before_any_mutation(monkeypatch):
+    """SIM-003: a fresh scratch database has no catalog; without the seed the
+    real preflight must refuse before index preparation or any run write."""
+    async def forbidden(*_args, **_kwargs):
+        raise AssertionError("mutation boundary was reached")
+
+    async def fake_probe(_selected):
+        return {"status": "passed", "topology": "replica_set",
+                "transaction_read_abort": True, "error_type": None}
+
+    monkeypatch.setattr(acceptance, "probe_mongo", fake_probe)
+    monkeypatch.setattr(acceptance, "prepare_required_indexes", forbidden)
+    monkeypatch.setattr(acceptance.lifecycle, "create_burn_in_run", forbidden)
+
+    async def scenario():
+        store = WorkflowStore("caoscare_sim_acceptance_20261013b", departments=[])
+        with pytest.raises(DepartmentPreflightError):
+            await acceptance.run_scratch_acceptance(
+                store, database_name=store.name, production_databases=("caoscare",),
+                confirmed=True, operator_id="user:michael",
+                operator_name="Michael", reopen_store=lambda: store,
+            )
 
     asyncio.run(scenario())

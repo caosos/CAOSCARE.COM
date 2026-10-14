@@ -200,7 +200,7 @@ async def cleanup_burn_in_residents(
         _require_operator(operator, authority)
     except ProvisioningError as exc:
         raise CleanupError(str(exc)) from exc
-    store = store or _default_store()
+    store = store if store is not None else _default_store()
     receipt_writer = receipt_writer or _default_receipt_writer
     recipes = tuple(BURN_IN_RESIDENTS)
     if len(recipes) != 10:

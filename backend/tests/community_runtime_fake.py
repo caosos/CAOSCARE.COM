@@ -176,6 +176,10 @@ class Client:
 
 
 class RuntimeStore:
+    def __bool__(self):
+        # Real pymongo/Motor Database objects refuse truth testing (SIM-003).
+        raise NotImplementedError("Database objects do not implement truth value testing")
+
     collection_names = (
         "residents", "users", "receipts", "staff_tasks", "notifications", "sim_runs",
     )

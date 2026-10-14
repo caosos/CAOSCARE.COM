@@ -65,6 +65,10 @@ class Collection:
 
 
 class Store:
+    def __bool__(self):
+        # Real pymongo/Motor Database objects refuse truth testing (SIM-003).
+        raise NotImplementedError("Database objects do not implement truth value testing")
+
     def __init__(self, residents=None):
         self.residents = Collection(residents)
         self.receipts = Collection()

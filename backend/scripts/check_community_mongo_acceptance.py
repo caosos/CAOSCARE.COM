@@ -73,6 +73,7 @@ async def _run(args) -> dict:
             )
         os.environ["DB_NAME"] = scratch
         from deps import db
+        from routes.departments import seed_default_departments
         from simulation.community_mongo_acceptance import run_scratch_acceptance
 
         reopened_clients = []
@@ -91,6 +92,7 @@ async def _run(args) -> dict:
                 operator_id=args.operator_id,
                 operator_name=args.operator_name,
                 reopen_store=reopen,
+                seed_catalog=seed_default_departments,
             )
         finally:
             for client in reopened_clients:

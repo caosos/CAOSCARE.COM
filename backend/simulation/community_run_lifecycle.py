@@ -152,6 +152,7 @@ async def create_burn_in_run(
                 "origin_receipt_id": receipt_id_value,
                 "last_transition_receipt_id": receipt_id_value,
                 "created_at": instant.isoformat(), "updated_at": instant.isoformat(),
+                "sim_clock_at": instant.isoformat(),
             }
             receipt = build_receipt(
                 "simulation_community_run_created", receipt_id_value, digest, row,
@@ -209,6 +210,9 @@ async def _mutate(
                 "state": next_state, "sim_minute": next_minute,
                 "last_transition_receipt_id": receipt_id_value,
                 "updated_at": instant.isoformat(),
+                # Real time at which sim_minute was last set; the accelerated
+                # clock measures from here (lease writes also touch updated_at).
+                "sim_clock_at": instant.isoformat(),
             }
             if action == "simulation_community_run_resumed" and not row.get("original_human_starter"):
                 updates["original_human_starter"] = operator.receipt_fields()

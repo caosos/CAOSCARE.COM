@@ -215,9 +215,9 @@ def _persisted_time(value) -> datetime:
         try:
             value = datetime.fromisoformat(value.replace("Z", "+00:00"))
         except ValueError as exc:
-            raise CommunityRunnerTimelineError("run updated_at is invalid") from exc
+            raise CommunityRunnerTimelineError("run clock anchor is invalid") from exc
     if not isinstance(value, datetime) or value.tzinfo is None:
-        raise CommunityRunnerTimelineError("run updated_at must be timezone-aware")
+        raise CommunityRunnerTimelineError("run clock anchor must be timezone-aware")
     return value.astimezone(timezone.utc)
 
 
@@ -256,10 +256,14 @@ class PersistedRunClock:
         if row.get("state") != lifecycle.RUNNING:
             return row
 
-        anchor = _persisted_time(row.get("updated_at"))
+        # Measure from when sim_minute was last set, not from updated_at: every
+        # lease acquire/heartbeat/release also refreshes updated_at, which would
+        # reset the anchor each poll and freeze the clock. Rows written before
+        # sim_clock_at existed fall back to updated_at.
+        anchor = _persisted_time(row.get("sim_clock_at") or row.get("updated_at"))
         elapsed = (now - anchor).total_seconds()
         if elapsed < 0:
-            raise CommunityRunnerTimelineError("run updated_at is later than observed_at")
+            raise CommunityRunnerTimelineError("run clock anchor is later than observed_at")
         advance = int(elapsed * float(acceleration) / 60.0)
         last_minute = self.plan.day_count * 1440 - 1
         next_minute = min(last_minute, row["sim_minute"] + advance)

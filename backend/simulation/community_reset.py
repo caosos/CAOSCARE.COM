@@ -249,7 +249,7 @@ async def reset_living_community(
     instant = now or datetime.now(timezone.utc)
     if instant.tzinfo is None:
         raise CommunityResetError("reset timestamp must be timezone-aware")
-    selected = store or _default_store()
+    selected = store if store is not None else _default_store()
     client = getattr(selected, "client", None)
     if client is None or not callable(getattr(client, "start_session", None)):
         raise CommunityResetError("transaction-capable database session is required")

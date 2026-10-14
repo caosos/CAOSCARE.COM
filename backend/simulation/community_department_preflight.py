@@ -131,7 +131,7 @@ def _default_store():
 
 
 async def _read_canonical_departments(store=None) -> tuple[dict, ...]:
-    source = store or _default_store()
+    source = store if store is not None else _default_store()
     rows = await source.departments.find(
         {}, {"_id": 0, "slug": 1, "active": 1}
     ).to_list(1000)

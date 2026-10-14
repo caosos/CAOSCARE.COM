@@ -226,7 +226,7 @@ async def provision_burn_in_residents(
     claim.
     """
     _require_operator(operator, authority)
-    store = store or _default_store()
+    store = store if store is not None else _default_store()
     receipt_writer = receipt_writer or _default_receipt_writer
     document_factory = document_factory or _default_document
     recipes = tuple(BURN_IN_RESIDENTS)

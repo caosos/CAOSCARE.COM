@@ -320,3 +320,30 @@ def test_clock_noop_cap_and_invalid_inputs(monkeypatch):
         updated_at=(NOW - timedelta(seconds=10)).isoformat(),
     )
     asyncio.run(case())
+
+
+def test_clock_measures_from_sim_clock_anchor_not_lease_bookkeeping(monkeypatch):
+    """SIM-003 (real Mongo): every lease acquire/heartbeat/release refreshes
+    updated_at, so a clock anchored there never advanced while the loop polled.
+    The anchor is sim_clock_at, written only when sim_minute is set."""
+    async def case():
+        calls = []
+
+        async def advance(*args, **kwargs):
+            calls.append(args)
+            return {"run": {**row, "sim_minute": args[5]}}
+
+        monkeypatch.setattr(lifecycle, "advance_simulated_clock", advance)
+        clock = adapter.PersistedRunClock(store=Store(), plan=PLAN)
+        result = await clock(
+            run_id=RUN_ID, observed_run=row, observed_at=NOW,
+            acceleration=60.0, horizon_minutes=90 * 24 * 60,
+        )
+        assert calls and calls[0][2:6] == (RUN_ID, 12, 100, 110)
+        assert result["sim_minute"] == 110
+
+    row = run_row(
+        updated_at=(NOW - timedelta(milliseconds=200)).isoformat(),  # lease write just now
+        sim_clock_at=(NOW - timedelta(seconds=10)).isoformat(),      # clock last set 10 s ago
+    )
+    asyncio.run(case())

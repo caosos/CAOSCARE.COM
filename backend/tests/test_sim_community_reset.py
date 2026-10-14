@@ -134,6 +134,10 @@ class Client:
 
 
 class Store:
+    def __bool__(self):
+        # Real pymongo/Motor Database objects refuse truth testing (SIM-003).
+        raise NotImplementedError("Database objects do not implement truth value testing")
+
     collection_names = ("residents", "staff_tasks", "notifications", "sim_runs", "receipts")
 
     def __init__(self, *, fail_delete=None, fail_abort=False, commit_mode="success"):

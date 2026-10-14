@@ -155,7 +155,7 @@ async def acquire(
             "updated_at": instant.isoformat(),
         },
     }
-    row = await (store or _store_default()).sim_runs.find_one_and_update(
+    row = await (store if store is not None else _store_default()).sim_runs.find_one_and_update(
         query, update, projection={"_id": 0}, return_document=ReturnDocument.AFTER
     )
     if not row:
@@ -196,7 +196,7 @@ async def heartbeat(
         raise RunLeaseError("lease TTL must be at least 5 seconds")
     instant = _utc(now)
     expires = instant + timedelta(seconds=ttl_seconds)
-    row = await (store or _store_default()).sim_runs.find_one_and_update(
+    row = await (store if store is not None else _store_default()).sim_runs.find_one_and_update(
         _owned(run_id, holder_id, fence, instant, mode=mode),
         {"$set": {
             "execution_lease.heartbeat_at": instant.isoformat(),
@@ -238,7 +238,7 @@ async def advance_cursor(
     extra = dict(fields or {})
     if reserved.intersection(extra):
         raise RunLeaseError("cursor metadata cannot replace protected run fields")
-    row = await (store or _store_default()).sim_runs.find_one_and_update(
+    row = await (store if store is not None else _store_default()).sim_runs.find_one_and_update(
         query,
         {"$set": {**extra, "cursor": next_cursor, "updated_at": instant.isoformat()}},
         projection={"_id": 0},
@@ -264,7 +264,7 @@ async def release(
         "execution_lease_generation": fence,
         "execution_lease.holder_id": _holder(holder_id),
     }
-    row = await (store or _store_default()).sim_runs.find_one_and_update(
+    row = await (store if store is not None else _store_default()).sim_runs.find_one_and_update(
         query,
         {"$unset": {"execution_lease": ""}, "$set": {"updated_at": instant.isoformat()}},
         projection={"_id": 0},
