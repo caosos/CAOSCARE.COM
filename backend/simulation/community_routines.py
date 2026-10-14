@@ -10,8 +10,10 @@ of ingestion/adherence.  Transportation and family-call events coordinate a
 human workflow; they never book a vehicle or place a call.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Optional
+
+from simulation.community_family_call_routing import family_call_department
 
 
 BURN_IN_RESIDENT_KEYS = tuple(f"resident-{index:03d}" for index in range(1, 11))
@@ -199,9 +201,12 @@ def plan_first_24_hours(
             raise ValueError("resident keys must be non-empty")
         events.extend(_event(spec, resident_key, resident_index, day_index) for spec in _DAILY_ROUTINES)
 
+        # Optional routines repeat every ten residents, so the 75-resident
+        # community scales them while the ten-resident burn-in plan is unchanged.
+        cycle = (resident_index - 1) % 10 + 1
         # A subset has a planned appointment.  These are coordination tasks,
         # deliberately not calls to the unpartitioned transport booking engine.
-        if resident_index in (2, 5, 8):
+        if cycle in (2, 5, 8):
             events.append(_event(_RoutineSpec(
                 "appointment_coordination", "administration", 555,
                 "Confirm the simulated appointment details with staff; do not claim provider confirmation.",
@@ -214,21 +219,23 @@ def plan_first_24_hours(
                 truth_boundary="Records coordination only; never claims a driver, vehicle, pickup, or booking.",
             ), resident_key, resident_index, day_index))
 
-        if resident_index in (1, 6):
+        if cycle in (1, 6):
             events.append(_event(_RoutineSpec(
                 "preventive_maintenance_check", "maintenance", 690,
                 "Inspect the simulated room fixture listed for preventive maintenance.", stagger=5,
             ), resident_key, resident_index, day_index))
 
         if resident_index % 2 == 0:
-            events.append(_event(_RoutineSpec(
+            family = _event(_RoutineSpec(
                 "family_call_coordination", "administration", 960,
                 "Coordinate an approved family-call request for the resident.",
                 blocked_adapter="outbound_family_call", stagger=3,
                 truth_boundary="Records coordination only; never claims that a call was placed, rang, or connected.",
-            ), resident_key, resident_index, day_index))
+            ), resident_key, resident_index, day_index)
+            # Owner rule: Administration before 17:00, Front Desk 17:00-23:00.
+            events.append(replace(family, department=family_call_department(family.minute)))
 
-        if resident_index in (3, 7):
+        if cycle in (3, 7):
             events.append(_event(_RoutineSpec(
                 "front_desk_message_follow_up", "front_desk", 900,
                 "Review and route the simulated resident message for staff follow-up.",

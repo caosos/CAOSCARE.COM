@@ -10,7 +10,7 @@ from typing import Awaitable, Callable, Optional
 import uuid
 
 from routes.actor_context import ActorContext
-from simulation.community_blueprint import BURN_IN_RESIDENTS, COMMUNITY_ID, SIMULATION_SCOPE
+from simulation.community_blueprint import BURN_IN_RESIDENTS, COMMUNITY_ID, RESIDENTS, SIMULATION_SCOPE
 from simulation.community_provisioning import (
     ProvisioningError,
     _collision,
@@ -194,17 +194,18 @@ async def cleanup_burn_in_residents(
     store=None,
     receipt_writer: Optional[Callable[..., Awaitable[dict]]] = None,
     simulation_run_id: Optional[str] = None,
+    residents=BURN_IN_RESIDENTS,
 ) -> dict:
-    """Remove only the ten exactly marked burn-in residents, idempotently."""
+    """Remove only the cohort's exactly marked residents, idempotently."""
     try:
         _require_operator(operator, authority)
     except ProvisioningError as exc:
         raise CleanupError(str(exc)) from exc
     store = store if store is not None else _default_store()
     receipt_writer = receipt_writer or _default_receipt_writer
-    recipes = tuple(BURN_IN_RESIDENTS)
-    if len(recipes) != 10:
-        raise CleanupError("burn-in blueprint must contain exactly 10 residents")
+    recipes = tuple(residents)
+    if not recipes or any(recipe not in RESIDENTS for recipe in recipes):
+        raise CleanupError("cleanup residents must be blueprint residents")
 
     # All-or-nothing safety preflight: one bad record prevents every delete.
     existing_by_id = {}
@@ -222,9 +223,7 @@ async def cleanup_burn_in_residents(
     dependencies = await _dependent_records(store, recipes)
     if dependencies:
         joined = ", ".join(dependencies)
-        raise CleanupError(
-            f"burn-in residents have dependent records in {joined}; cleanup refused"
-        )
+        raise CleanupError(f"residents have dependent records in {joined}; cleanup refused")
 
     removed_ids, already_absent_ids, reconciled_ids, receipts = [], [], [], []
     for recipe in recipes:

@@ -11,6 +11,7 @@ receipt-backed workflow services.  Department open/closed/on-call/uncovered
 status is derived in :mod:`simulation.community_coverage`.
 """
 from collections import Counter, defaultdict
+from functools import lru_cache
 from datetime import date, datetime, time, timedelta
 
 
@@ -139,6 +140,12 @@ def minute_in_shift(minute: int, start_minute: int, end_minute: int) -> bool:
 
 
 def _assignments_for_day(day_index: int) -> list[dict]:
+    """One day's duties as fresh dicts (callers may not mutate shared state)."""
+    return [dict(row) for row in _day_rota(day_index)]
+
+
+@lru_cache(maxsize=None)
+def _day_rota(day_index: int) -> tuple[dict, ...]:
     """Build one repeatable day, including a carry-in day before day zero.
 
     One rotation over each role's whole daily need (on-site and on-call
@@ -169,7 +176,7 @@ def _assignments_for_day(day_index: int) -> list[dict]:
                 **worker,
             })
         used[(department, role)] += count
-    return assignments
+    return tuple(assignments)
 
 
 def assignments_for_day(day_index: int) -> list[dict]:
@@ -216,7 +223,7 @@ def _active(day_index: int, minute: int, duty: str) -> list[dict]:
     # run begun at midnight still shows the night staff already present.
     active = []
     for shift_day in (day_index - 1, day_index):
-        for assignment in _assignments_for_day(shift_day):
+        for assignment in _day_rota(shift_day):
             if assignment["duty"] != duty:
                 continue
             start = shift_day * 1440 + assignment["start_minute"]
@@ -224,7 +231,7 @@ def _active(day_index: int, minute: int, duty: str) -> list[dict]:
             if assignment["spans_midnight"]:
                 end += 1440
             if start <= absolute < end:
-                active.append(assignment)
+                active.append(dict(assignment))
     return active
 
 

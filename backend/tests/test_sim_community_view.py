@@ -6,7 +6,7 @@ def test_overview_declares_scale_without_claiming_execution():
     view = community_overview(day_index=0, minute=8 * 60)
     assert view["execution_status"] == "planning_only"
     assert "not yet" in view["truth_statement"]
-    assert view["residents"] == {"count": 10, "burn_in_target": 10, "target": 75}
+    assert view["residents"] == {"count": 10, "cohort": "burn_in_10", "burn_in_target": 10, "target": 75}
     assert view["apartments"] == {"total": 80, "occupied": 70, "occupancy_target": 70}
     assert view["workers"] == {"count": 50, "simulated": True}
     assert view["worker_attendance"] == {

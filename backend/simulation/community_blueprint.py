@@ -206,3 +206,22 @@ APARTMENTS = build_apartments()
 RESIDENTS = build_residents(APARTMENTS)
 BURN_IN_RESIDENTS = tuple(r for r in RESIDENTS if r.enabled_for_burn_in)
 SUMMARY = validate_blueprint(APARTMENTS, RESIDENTS)
+
+
+def is_room_mate(recipe: ResidentRecipe, row: dict) -> bool:
+    """True when ``row`` is the other blueprint occupant of ``recipe``'s room.
+
+    Double-occupancy apartments legitimately hold two residents in one room,
+    so a room match alone is not an identity collision for that co-occupant.
+    """
+    other = _ROOM_MATES.get(row.get("resident_id"))
+    return (
+        other is not None
+        and other.resident_id != recipe.resident_id
+        and other.room == recipe.room
+        and row.get("room") == recipe.room
+        and row.get("pendant_id") == other.pendant_id
+    )
+
+
+_ROOM_MATES = {resident.resident_id: resident for resident in RESIDENTS}

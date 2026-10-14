@@ -11,6 +11,7 @@ from typing import Iterable, Optional
 
 from simulation.community_routines import RoutineEvent, plan_first_24_hours
 from simulation.community_staffing import DEPARTMENT_LABELS, active_assignments
+from simulation.community_ticket_plan import CLAIM_TO_COMPLETE_MINUTES, OPEN_TO_CLAIM_MINUTES
 
 
 READY_UNASSIGNED = "ready_unassigned"
@@ -53,12 +54,24 @@ def _on_shift_actor_ids(day_index: int, minute: int, department: str) -> tuple[s
     ))
 
 
+# A ticket opens, is claimed and completes at these offsets; it is only ready
+# when someone from the department is on site at every one of them, so a
+# ticket never ends up claimed or completed after the department has closed.
+_PHASE_OFFSETS = (0, OPEN_TO_CLAIM_MINUTES, OPEN_TO_CLAIM_MINUTES + CLAIM_TO_COMPLETE_MINUTES)
+
+
+def _staffed_through_completion(absolute: int, department: str) -> bool:
+    return all(
+        _on_shift_actor_ids(*divmod(absolute + offset, 1440), department)
+        for offset in _PHASE_OFFSETS
+    )
+
+
 def _next_coverage(event: RoutineEvent, max_queue_days: int) -> tuple[int, int]:
     start = event.day_index * 1440 + event.minute
     for absolute in range(start + 1, start + max_queue_days * 1440 + 1):
-        day_index, minute = divmod(absolute, 1440)
-        if _on_shift_actor_ids(day_index, minute, event.department):
-            return day_index, minute
+        if _staffed_through_completion(absolute, event.department):
+            return divmod(absolute, 1440)
     raise ValueError(
         f"no {event.department} coverage within {max_queue_days} day(s) "
         f"after {event.event_id}"
@@ -81,7 +94,7 @@ def plan_routine_dispatch(
     for event in source:
         if event.department not in DEPARTMENT_LABELS:
             raise ValueError(f"unknown department: {event.department}")
-        if _on_shift_actor_ids(event.day_index, event.minute, event.department):
+        if _staffed_through_completion(event.absolute_minute, event.department):
             state = READY_UNASSIGNED
             ready_day_index, ready_minute = event.day_index, event.minute
             truth = READY_TRUTH

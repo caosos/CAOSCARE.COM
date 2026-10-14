@@ -88,6 +88,7 @@ def test_loaded_counts_only_exact_marked_records_and_never_writes():
     }
     assert result["marker_anomalies"] == []
     assert result["provisioning"] == {
+        "cohort": "burn_in_10",
         "state": "inconsistent",
         "expected_residents": 10,
         "observed_residents": 1,
@@ -196,6 +197,7 @@ def test_successful_empty_resident_read_is_not_provisioned():
     result = asyncio.run(observe_community_state(store=Store({})))
 
     assert result["provisioning"] == {
+        "cohort": "burn_in_10",
         "state": "not_provisioned",
         "expected_residents": 10,
         "observed_residents": 0,
@@ -212,6 +214,7 @@ def test_all_ten_exact_blueprint_residents_are_provisioned():
     ))
 
     assert result["provisioning"] == {
+        "cohort": "burn_in_10",
         "state": "provisioned",
         "expected_residents": 10,
         "observed_residents": 10,
@@ -279,6 +282,7 @@ def test_failed_resident_read_does_not_invent_provisioning_state():
     result = asyncio.run(observe_community_state(collection_reader=reader))
 
     assert result["provisioning"] == {
+        "cohort": "burn_in_10",
         "state": None,
         "expected_residents": 10,
         "observed_residents": None,

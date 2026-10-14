@@ -37,6 +37,10 @@ def parser() -> argparse.ArgumentParser:
         help="production database name to refuse (default: original DB_NAME or caoscare)",
     )
     result.add_argument(
+        "--cohort", choices=("community_75", "burn_in_10"), default=None,
+        help="resident cohort for scratch acceptance (default: full 75-resident community)",
+    )
+    result.add_argument(
         "--confirm-scratch-mutations",
         action="store_true",
         help="explicitly authorize writes and exact scoped reset in --scratch-db only",
@@ -93,6 +97,7 @@ async def _run(args) -> dict:
                 operator_name=args.operator_name,
                 reopen_store=reopen,
                 seed_catalog=seed_default_departments,
+                cohort=args.cohort,
             )
         finally:
             for client in reopened_clients:

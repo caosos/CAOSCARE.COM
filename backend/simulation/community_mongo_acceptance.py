@@ -121,6 +121,7 @@ async def run_scratch_acceptance(
     reopen_store,
     seed_catalog=None,
     now: datetime | None = None,
+    cohort: str | None = None,
 ) -> dict:
     """Provision, execute, pause, reconnect, resume, execute, stop and reset."""
     database_name = validate_scratch_database(
@@ -136,7 +137,7 @@ async def run_scratch_acceptance(
     if instant.tzinfo is None:
         raise CommunityMongoAcceptanceError("acceptance timestamp must be timezone-aware")
     operator = _operator(operator_id, operator_name)
-    plan = canonical_plan()
+    plan = canonical_plan(cohort)
 
     # A fresh scratch database has no department catalog; a real server seeds
     # it at startup (routes.departments.seed_default_departments). Seed it the
@@ -202,6 +203,9 @@ async def run_scratch_acceptance(
     return {
         "status": "passed",
         "database": database_name,
+        "cohort": plan.cohort,
+        "resident_count": plan.resident_count,
+        "event_count": plan.event_count,
         "probe": probe,
         "departments": [item.slug for item in departments.departments],
         "run_id": run["run_id"],

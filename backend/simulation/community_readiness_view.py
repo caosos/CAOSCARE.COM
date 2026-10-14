@@ -1,14 +1,27 @@
 """Read-only proof of resident readiness for one living-community run."""
 
 from simulation.community_atomic_provision import READY_ACTION
-from simulation.community_blueprint import BURN_IN_RESIDENTS, COMMUNITY_ID, SIMULATION_SCOPE
+from simulation.community_blueprint import COMMUNITY_ID, SIMULATION_SCOPE
+from simulation.community_cohort import residents_for
 
 
-def _view(status: str, provisioned, receipt_id=None, reason=None) -> dict:
+def expected_resident_count(run: dict):
+    """The run's own resident count; else its plan cohort's; else unknown."""
+    count = run.get("resident_count")
+    if isinstance(count, int) and not isinstance(count, bool):
+        return count
+    from simulation.community_timeline import cohort_of_revision
+    try:
+        return len(residents_for(cohort_of_revision(run.get("plan_revision"))))
+    except ValueError:
+        return None
+
+
+def _view(status: str, provisioned, receipt_id=None, reason=None, expected=None) -> dict:
     return {
         "status": status,
         "residents_provisioned": provisioned,
-        "expected_resident_count": len(BURN_IN_RESIDENTS),
+        "expected_resident_count": expected,
         "receipt_id": receipt_id,
         "reason": reason,
     }
@@ -16,6 +29,7 @@ def _view(status: str, provisioned, receipt_id=None, reason=None) -> dict:
 
 async def resident_readiness(collection, run: dict) -> tuple[dict, dict]:
     """Return verified readiness and its independent source status."""
+    expected = expected_resident_count(run)
     marker = run.get("residents_provisioned")
     receipt_id = run.get("provisioning_receipt_id")
     if marker is False:
@@ -24,18 +38,18 @@ async def resident_readiness(collection, run: dict) -> tuple[dict, dict]:
             "provisioning_created_ids", "provisioning_reused_ids",
         )):
             return (
-                _view("error", None, reason="unprovisioned_run_has_receipt"),
+                _view("error", None, reason="unprovisioned_run_has_receipt", expected=expected),
                 {"status": "error", "error": "unprovisioned_run_has_receipt"},
             )
-        return _view("not_provisioned", False), {"status": "loaded", "error": None}
+        return _view("not_provisioned", False, expected=expected), {"status": "loaded", "error": None}
     if marker is not True:
         return (
-            _view("error", None, reason="resident_marker_missing_or_invalid"),
+            _view("error", None, reason="resident_marker_missing_or_invalid", expected=expected),
             {"status": "error", "error": "resident_marker_missing_or_invalid"},
         )
     if not isinstance(receipt_id, str) or not receipt_id.strip():
         return (
-            _view("error", None, reason="readiness_receipt_id_missing"),
+            _view("error", None, reason="readiness_receipt_id_missing", expected=expected),
             {"status": "error", "error": "readiness_receipt_id_missing"},
         )
     row = await collection.find_one({
@@ -64,15 +78,16 @@ async def resident_readiness(collection, run: dict) -> tuple[dict, dict]:
         after.get("residents_provisioned") is True,
         after.get("provisioning_receipt_id") == receipt_id,
         resident_receipt_ids == run.get("provisioning_resident_receipt_ids"),
-        len(resident_receipt_ids) == len(BURN_IN_RESIDENTS),
-        len(set(resident_receipt_ids)) == len(BURN_IN_RESIDENTS),
+        expected is not None,
+        len(resident_receipt_ids) == expected,
+        len(set(resident_receipt_ids)) == expected,
     ))
     if not exact:
         return (
-            _view("error", None, receipt_id, "readiness_receipt_not_exact"),
+            _view("error", None, receipt_id, "readiness_receipt_not_exact", expected=expected),
             {"status": "error", "error": "readiness_receipt_not_exact"},
         )
-    return _view("ready", True, receipt_id), {"status": "loaded", "error": None}
+    return _view("ready", True, receipt_id, expected=expected), {"status": "loaded", "error": None}
 
 
 async def attach_resident_readiness(
@@ -88,5 +103,6 @@ async def attach_resident_readiness(
             errors.append({"source": "readiness", "code": reason})
     except Exception as exc:
         sources["readiness"] = {"status": "error", "error": type(exc).__name__}
-        run_view["resident_readiness"] = _view("error", None, reason="read_failed")
+        run_view["resident_readiness"] = _view("error", None, reason="read_failed",
+                                               expected=expected_resident_count(run))
         errors.append({"source": "readiness", "code": "read_failed"})

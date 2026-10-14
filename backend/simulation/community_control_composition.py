@@ -5,6 +5,7 @@ module does not import ``deps``, register a route, or create background work.
 """
 
 from datetime import datetime, timezone
+from typing import Optional
 from hashlib import sha256
 
 from simulation import community_run_lifecycle as lifecycle
@@ -15,7 +16,7 @@ from simulation.community_control_service import (
 )
 from simulation.community_execution_adapter import CanonicalCommunityExecutionServices
 from simulation.community_loop import CommunityLoopManager
-from simulation.community_loop_contract import LoopConfig
+from simulation.community_loop_contract import LoopConfig, configured_speed
 from simulation.community_runner_timeline import (
     DatabaseRunnerTimeline,
     PersistedRunClock,
@@ -33,11 +34,15 @@ def _completion_key(run_id: str, run: dict) -> str:
 
 def compose_community_controls(
     *, store, clock=lambda: datetime.now(timezone.utc),
-    config: LoopConfig = LoopConfig(), start_guard=canonical_start_guard,
-    services=None,
+    config: Optional[LoopConfig] = None, start_guard=canonical_start_guard,
+    services=None, cohort: Optional[str] = None,
 ) -> CommunityControlService:
-    """Wire canonical adapters around injected storage without starting them."""
-    plan = canonical_plan()
+    """Wire canonical adapters around injected storage without starting them.
+
+    Defaults: the full 75-resident cohort and the operator-selected speed.
+    """
+    config = config or LoopConfig(acceleration=float(configured_speed()))
+    plan = canonical_plan(cohort)
     timeline = DatabaseRunnerTimeline(store=store, plan=plan)
     run_clock = PersistedRunClock(store=store, plan=plan)
     execution = services or CanonicalCommunityExecutionServices(store=store)

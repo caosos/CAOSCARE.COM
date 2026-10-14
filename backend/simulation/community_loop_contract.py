@@ -2,11 +2,27 @@
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import os
 from typing import Optional
 
 
 RUNNING, PAUSED, STOPPED = "RUNNING", "PAUSED", "STOPPED"
 HORIZON_MINUTES = 90 * 24 * 60
+# Selectable acceleration. Speed only changes how fast simulated time advances;
+# every event still executes one at a time with its receipt (none are skipped).
+SPEEDS = (1, 10, 60, 600)
+DEFAULT_SPEED = 60
+SPEED_ENV = "CAOSCARE_LIVING_COMMUNITY_SPEED"
+
+
+def configured_speed() -> int:
+    """The operator-selected speed (default 60x); unknown values are refused."""
+    raw = os.environ.get(SPEED_ENV, "").strip()
+    if not raw:
+        return DEFAULT_SPEED
+    if not raw.isdigit() or int(raw) not in SPEEDS:
+        raise ValueError(f"{SPEED_ENV} must be one of {SPEEDS}")
+    return int(raw)
 
 
 class CommunityLoopError(RuntimeError):

@@ -15,6 +15,7 @@ from typing import Optional
 from routes.actor_context import ActorContext
 from simulation import community_run_lifecycle as lifecycle
 from simulation.community_blueprint import COMMUNITY_ID, SIMULATION_SCOPE
+from simulation.community_cohort import default_cohort
 from simulation.community_timeline import (
     CommunityTimeline,
     build_90_day_timeline,
@@ -26,10 +27,14 @@ class CommunityRunnerTimelineError(RuntimeError):
     """Persisted state cannot prove one canonical community-run timeline."""
 
 
-@lru_cache(maxsize=1)
-def canonical_plan() -> CommunityTimeline:
-    """Build and validate the current immutable 90-day plan once per process."""
-    return validate_timeline(build_90_day_timeline())
+def canonical_plan(cohort: Optional[str] = None) -> CommunityTimeline:
+    """The immutable 90-day plan for a cohort (runtime default: all 75)."""
+    return _canonical_plan(cohort or default_cohort())
+
+
+@lru_cache(maxsize=None)
+def _canonical_plan(cohort: str) -> CommunityTimeline:
+    return validate_timeline(build_90_day_timeline(cohort))
 
 
 def _text(value, label: str) -> str:

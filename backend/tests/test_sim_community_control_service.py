@@ -281,7 +281,7 @@ def test_canonical_start_guard_refuses_unknown_and_returns_exact_proof(monkeypat
             return {"status": "unknown", "provisioning": {"state": None}}
 
         monkeypatch.setattr(control_module, "observe_community_state", unknown)
-        with pytest.raises(CommunityControlError, match="ten exact"):
+        with pytest.raises(CommunityControlError, match="every burn_in_10 canonical resident exactly"):
             await control_module.canonical_start_guard(store=object(), run=row())
 
         async def observed(**_kwargs):

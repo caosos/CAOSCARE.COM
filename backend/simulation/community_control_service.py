@@ -16,7 +16,8 @@ from simulation import community_runner
 from simulation.community_blueprint import COMMUNITY_ID, SIMULATION_SCOPE
 from simulation.community_department_preflight import preflight_living_community_run_start
 from simulation.community_observed_state import observe_community_state
-from simulation.community_timeline import CommunityTimeline, validate_timeline
+from simulation.community_cohort import residents_for
+from simulation.community_timeline import CommunityTimeline, cohort_of_revision, validate_timeline
 
 
 StartGuard = Callable[..., Awaitable[dict]]
@@ -38,16 +39,20 @@ def runner_actor() -> ActorContext:
 
 async def canonical_start_guard(*, store, run: dict) -> dict:
     """Prove exact residents and active departments without writing state."""
-    observed = await observe_community_state(store=store)
+    try:
+        cohort = cohort_of_revision(run.get("plan_revision"))
+    except ValueError as exc:
+        raise CommunityControlError("run plan revision names no resident cohort") from exc
+    observed = await observe_community_state(store=store, cohort=cohort)
     provisioning = observed.get("provisioning") or {}
     if (
         observed.get("status") != "loaded"
         or provisioning.get("state") != "provisioned"
-        or provisioning.get("exact_blueprint_residents") != 10
+        or provisioning.get("exact_blueprint_residents") != len(residents_for(cohort))
         or observed.get("marker_anomalies")
     ):
         raise CommunityControlError(
-            "start requires ten exact canonical burn-in residents and no marker anomalies"
+            f"start requires every {cohort} canonical resident exactly and no marker anomalies"
         )
     departments = await preflight_living_community_run_start(store=store)
     return {
@@ -119,7 +124,7 @@ class CommunityControlService:
         }
         if not isinstance(proof, dict) or any(proof.get(k) != v for k, v in expected.items()):
             raise CommunityControlError("start-readiness proof does not match the exact run")
-        if not proof.get("department_digest") or proof.get("resident_count") != 10:
+        if not proof.get("department_digest") or proof.get("resident_count") != self.plan.resident_count:
             raise CommunityControlError("start-readiness proof is incomplete")
         return proof
 

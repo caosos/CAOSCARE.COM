@@ -179,7 +179,8 @@ def test_scratch_workflow_proves_two_events_reconnect_and_reset(monkeypatch):
     database = "caoscare_sim_acceptance_20261013a"
     store, reopened = WorkflowStore(database), WorkflowStore(database)
     calls = []
-    plan = SimpleNamespace(events=(SimpleNamespace(event_id="one"),))
+    plan = SimpleNamespace(events=(SimpleNamespace(event_id="one"),), cohort="burn_in_10",
+                           resident_count=10, event_count=1)
 
     async def fake_probe(selected):
         calls.append(("probe", selected.name))
@@ -243,7 +244,7 @@ def test_scratch_workflow_proves_two_events_reconnect_and_reset(monkeypatch):
         return {"receipt_id": "rcpt:reset"}
 
     monkeypatch.setattr(acceptance, "probe_mongo", fake_probe)
-    monkeypatch.setattr(acceptance, "canonical_plan", lambda: plan)
+    monkeypatch.setattr(acceptance, "canonical_plan", lambda cohort=None: plan)
     monkeypatch.setattr(acceptance, "prepare_required_indexes", fake_indexes)
     monkeypatch.setattr(acceptance.lifecycle, "create_burn_in_run", fake_create)
     monkeypatch.setattr(acceptance, "provision_paused_burn_in_run", fake_provision)

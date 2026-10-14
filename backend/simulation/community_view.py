@@ -19,6 +19,7 @@ from simulation.community_routines import (
     BLOCKED,
     plan_first_24_hours,
 )
+from simulation.community_cohort import default_cohort, resident_keys_for
 from simulation.community_outcomes import plan_routine_outcomes
 from simulation.community_staffing import (
     DEPARTMENT_LABELS,
@@ -72,7 +73,8 @@ def community_overview(day_index: int = 0, minute: int = 0) -> dict:
     if not 0 <= minute < 1440:
         raise ValueError("minute must be between 0 and 1439")
 
-    events = plan_first_24_hours(day_index=day_index)
+    cohort = default_cohort()
+    events = plan_first_24_hours(resident_keys_for(cohort), day_index=day_index)
     outcomes = plan_routine_outcomes(events)
     outcome_counts = Counter(outcome.planned_disposition for outcome in outcomes)
     shift_events = planned_events_for_day(day_index)
@@ -87,7 +89,8 @@ def community_overview(day_index: int = 0, minute: int = 0) -> dict:
             "provisioned, clocked in, or executing autonomous work."
         ),
         "residents": {
-            "count": len(BURN_IN_RESIDENTS),
+            "count": len(resident_keys_for(cohort)),
+            "cohort": cohort,
             "burn_in_target": len(BURN_IN_RESIDENTS),
             "target": RESIDENT_TARGET,
         },
@@ -136,7 +139,8 @@ def community_overview(day_index: int = 0, minute: int = 0) -> dict:
 def community_preview(day_index: int = 0, minute: int = 0) -> dict:
     """Return the first-day recipe for inspection; never dispatch it."""
     overview = community_overview(day_index, minute)
-    source_events = plan_first_24_hours(day_index=day_index)
+    keys = resident_keys_for(default_cohort())
+    source_events = plan_first_24_hours(keys, day_index=day_index)
     events = []
     for event in source_events:
         row = asdict(event)
@@ -151,7 +155,7 @@ def community_preview(day_index: int = 0, minute: int = 0) -> dict:
         outcomes.append(row)
     return {
         "overview": overview,
-        "resident_keys": [resident.resident_key for resident in BURN_IN_RESIDENTS],
+        "resident_keys": list(keys),
         "shift_assignments": assignments_for_day(day_index),
         "worker_attendance": worker_states_for_day(day_index),
         "planned_shift_events": planned_events_for_day(day_index),

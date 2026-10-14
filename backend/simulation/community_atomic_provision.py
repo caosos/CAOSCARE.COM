@@ -10,7 +10,8 @@ from typing import Optional
 from models import Receipt
 from pymongo import ReturnDocument
 from routes.actor_context import ActorContext
-from simulation.community_blueprint import BURN_IN_RESIDENTS, COMMUNITY_ID, SIMULATION_SCOPE
+from simulation.community_blueprint import COMMUNITY_ID, SIMULATION_SCOPE
+from simulation.community_cohort import residents_for
 from simulation.community_provisioning import (
     ADMIN_ROLES,
     PROVISION_ACTION,
@@ -47,12 +48,8 @@ def _plan_fields(plan: CommunityTimeline) -> dict:
         checked = validate_timeline(plan)
     except (TypeError, ValueError) as exc:
         raise CommunityAtomicProvisionError("the canonical timeline is invalid") from exc
-    return {
-        "plan_revision": checked.plan_revision,
-        "plan_digest_sha256": checked.digest_sha256,
-        "event_count": checked.event_count,
-        "timeline_end_minute": checked.day_count * 1440 - 1,
-    }
+    return {"plan_revision": checked.plan_revision, "plan_digest_sha256": checked.digest_sha256,
+            "event_count": checked.event_count, "timeline_end_minute": checked.day_count * 1440 - 1}
 
 
 def _scope(run_id: str) -> dict:
@@ -97,12 +94,11 @@ async def _one_run(store, run_id: str, session) -> dict:
 
 def _exact_run(
     row: dict, plan_fields: dict, expected_cursor: int,
-    expected_sim_minute: int, *, provisioned: bool,
+    expected_sim_minute: int, *, provisioned: bool, residents: tuple,
 ) -> None:
     expected = {
         **plan_fields, "state": PAUSED, "cursor": expected_cursor,
-        "sim_minute": expected_sim_minute,
-        "burn_in_resident_count": len(BURN_IN_RESIDENTS),
+        "sim_minute": expected_sim_minute, "resident_count": len(residents),
         "residents_provisioned": provisioned,
     }
     if any(row.get(key) != value for key, value in expected.items()):
@@ -113,31 +109,31 @@ def _exact_run(
         raise CommunityAtomicProvisionError("resident provisioning requires an unleased run")
 
 
-async def _resident_receipts(store, run_id: str, session) -> list[dict]:
+async def _resident_receipts(store, run_id: str, session, residents: tuple) -> list[dict]:
     rows = await store.receipts.find({
         "related_object_type": "resident",
-        "related_object_id": {"$in": [row.resident_id for row in BURN_IN_RESIDENTS]},
+        "related_object_id": {"$in": [row.resident_id for row in residents]},
         "action_type": {"$in": list(RESIDENT_ACTIONS)},
         "simulation_run_id": run_id,
         "simulation_scope": SIMULATION_SCOPE,
         "simulation_community_id": COMMUNITY_ID,
     }, {"_id": 0}, session=session).to_list(None)
-    expected_ids = {row.resident_id for row in BURN_IN_RESIDENTS}
+    expected_ids = {row.resident_id for row in residents}
     by_resident = {row.get("related_object_id"): row for row in rows}
-    if len(rows) != 10 or set(by_resident) != expected_ids:
+    if len(rows) != len(residents) or set(by_resident) != expected_ids:
         raise CommunityAtomicProvisionError(
             "current-run resident receipts are missing, duplicated, or out of scope"
         )
-    return [by_resident[row.resident_id] for row in BURN_IN_RESIDENTS]
+    return [by_resident[row.resident_id] for row in residents]
 
 
 def _validate_resident_receipts(
-    rows: list[dict], run: dict, authority: str,
+    rows: list[dict], run: dict, authority: str, residents: tuple,
 ) -> list[str]:
     parent = run.get("last_transition_receipt_id")
     correlation = run.get("origin_receipt_id")
     identifiers = []
-    for recipe, row in zip(BURN_IN_RESIDENTS, rows):
+    for recipe, row in zip(residents, rows):
         after = row.get("after_state") or {}
         if (
             row.get("actor_type") != "real-human"
@@ -205,12 +201,13 @@ def _ready_receipt(
 async def _replay(
     store, run: dict, run_id: str, operator: ActorContext, authority: str, identifier: str,
     key_digest: str, plan_fields: dict, expected_cursor: int,
-    expected_sim_minute: int, session,
+    expected_sim_minute: int, session, residents: tuple,
 ) -> dict:
-    _exact_run(run, plan_fields, expected_cursor, expected_sim_minute, provisioned=True)
+    _exact_run(run, plan_fields, expected_cursor, expected_sim_minute,
+               provisioned=True, residents=residents)
     receipt = await store.receipts.find_one({"_id": identifier}, {"_id": 0}, session=session)
-    rows = await _resident_receipts(store, run_id, session)
-    ids = _validate_resident_receipts(rows, run, authority)
+    rows = await _resident_receipts(store, run_id, session, residents)
+    ids = _validate_resident_receipts(rows, run, authority, residents)
     if (
         not receipt
         or receipt.get("action_type") != READY_ACTION
@@ -235,7 +232,7 @@ async def provision_paused_burn_in_run(
     expected_cursor: int, expected_sim_minute: int, operation_key: str,
     plan: CommunityTimeline, *, store, now: Optional[datetime] = None,
 ) -> dict:
-    """Commit ten residents and exact run-bound readiness evidence atomically."""
+    """Commit the plan cohort's residents and run-bound readiness evidence atomically."""
     try:
         _require_operator(operator, authority)
     except ProvisioningError as exc:
@@ -247,6 +244,7 @@ async def provision_paused_burn_in_run(
         raise CommunityAtomicProvisionError("cursor and clock must be non-negative integers")
     _, key_digest = _key(operation_key)
     plan_fields, instant = _plan_fields(plan), _instant(now)
+    residents = residents_for(plan.cohort)
     identifier = _readiness_id(run_id, key_digest)
     client = getattr(store, "client", None)
     if client is None or not callable(getattr(client, "start_session", None)):
@@ -257,19 +255,20 @@ async def provision_paused_burn_in_run(
             if run.get("residents_provisioned") is True:
                 return await _replay(
                     store, run, run_id, operator, authority, identifier, key_digest,
-                    plan_fields, expected_cursor, expected_sim_minute, session,
+                    plan_fields, expected_cursor, expected_sim_minute, session, residents,
                 )
-            _exact_run(run, plan_fields, expected_cursor, expected_sim_minute, provisioned=False)
+            _exact_run(run, plan_fields, expected_cursor, expected_sim_minute,
+                       provisioned=False, residents=residents)
             try:
                 result = await provision_burn_in_residents(
-                    operator, authority, store=store, simulation_run_id=run_id,
+                    operator, authority, store=store, simulation_run_id=run_id, residents=residents,
                     session=session, parent_receipt_id=run.get("last_transition_receipt_id"),
                     correlation_id=run.get("origin_receipt_id"), now=instant,
                 )
             except ProvisioningError as exc:
                 raise CommunityAtomicProvisionError(str(exc)) from exc
-            rows = await _resident_receipts(store, run_id, session)
-            resident_receipt_ids = _validate_resident_receipts(rows, run, authority)
+            rows = await _resident_receipts(store, run_id, session, residents)
+            resident_receipt_ids = _validate_resident_receipts(rows, run, authority, residents)
             updates = {
                 "residents_provisioned": True,
                 "provisioning_receipt_id": identifier,

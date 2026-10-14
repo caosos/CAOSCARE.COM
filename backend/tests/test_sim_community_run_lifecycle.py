@@ -168,7 +168,7 @@ def test_create_is_paused_exactly_once_with_plan_and_real_actor_receipt():
         assert run["plan_digest_sha256"] == PLAN.digest_sha256
         assert run["event_count"] == PLAN.event_count
         assert run["timeline_end_minute"] == PLAN.day_count * 1440 - 1
-        assert run["burn_in_resident_count"] == 10
+        assert run["resident_count"] == 10 and run["cohort"] == "burn_in_10"
         assert run["residents_provisioned"] is False
         assert run["created_by"]["actor_id"] == "user-michael"
         assert run["original_human_starter"] is None

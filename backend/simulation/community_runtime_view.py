@@ -1,13 +1,12 @@
 """Read-only projection: failures stay unknown; no writes or adapters."""
 
 from datetime import datetime, timezone
-from functools import lru_cache
 
 from simulation.community_blueprint import COMMUNITY_ID, SIMULATION_SCOPE
 from simulation.community_readiness_view import attach_resident_readiness
 from simulation.community_runtime_shapes import append_error as _error, source_status as _source
 from simulation.community_runtime_staffing import staffing_projection as _staffing
-from simulation.community_timeline import build_90_day_timeline
+from simulation.community_timeline import build_90_day_timeline, cohort_of_revision
 
 
 RUN_STATES = frozenset({"RUNNING", "PAUSED", "STOPPED"})
@@ -19,9 +18,12 @@ def _default_store():
     return db
 
 
-@lru_cache(maxsize=1)
-def _events():
-    return build_90_day_timeline().events
+def _events(run: dict):
+    """The run's own plan (its revision names the cohort); empty if unknown."""
+    try:
+        return build_90_day_timeline(cohort_of_revision(run.get("plan_revision"))).events
+    except ValueError:
+        return ()
 
 
 async def _rows(collection, query: dict, projection: dict) -> list[dict]:
@@ -67,7 +69,7 @@ def _empty_run(status: str) -> dict:
         "last_evidence": None,
         "resident_readiness": {
             "status": status, "residents_provisioned": None,
-            "expected_resident_count": 10, "receipt_id": None, "reason": None,
+            "expected_resident_count": None, "receipt_id": None, "reason": None,
         },
     }
 
@@ -192,7 +194,6 @@ async def _receipt_projection(collection, query: dict, run: dict, run_view: dict
 async def runtime_snapshot(*, store=None, events=None) -> dict:
     """Project one exact run without writes or provider access."""
     store = store if store is not None else _default_store()
-    timeline = tuple(events) if events is not None else tuple(_events())
     errors: list[dict] = []
     sources = {name: _source("unknown") for name in ("runs", "readiness", "tasks", "receipts")}
     run_view = _empty_run("unknown")
@@ -218,6 +219,7 @@ async def runtime_snapshot(*, store=None, events=None) -> dict:
         staffing["status"] = "error" if errors else "not_started"
         return _response(status, run_view, tickets, staffing, sources, errors)
 
+    timeline = tuple(events) if events is not None else tuple(_events(run))
     run_view = _run_projection(run, timeline, errors)
     staffing = _staffing(run, run_view)
     scoped = {**query, "simulation_run_id": run.get("run_id")}

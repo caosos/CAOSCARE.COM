@@ -11,7 +11,7 @@ from typing import Optional
 from pymongo import ReturnDocument
 
 from routes.actor_context import ActorContext
-from simulation.community_blueprint import BURN_IN_RESIDENTS, COMMUNITY_ID, SIMULATION_SCOPE
+from simulation.community_blueprint import COMMUNITY_ID, SIMULATION_SCOPE
 from simulation.community_provisioning import ProvisioningError, _require_operator
 from simulation import community_run_lease as run_lease
 from simulation.community_run_receipts import build_receipt, receipt_id, snapshot
@@ -146,7 +146,7 @@ async def create_burn_in_run(
                 return _replay(prior, row, "simulation_community_run_created")
             row = {
                 "_id": run_id, **_scope(run_id), **fields, "state": PAUSED,
-                "cursor": 0, "sim_minute": 0, "burn_in_resident_count": len(BURN_IN_RESIDENTS),
+                "cursor": 0, "sim_minute": 0, "cohort": plan.cohort, "resident_count": plan.resident_count,
                 "residents_provisioned": False, "creation_key_sha256": digest,
                 "created_by": operator.receipt_fields(), "original_human_starter": None,
                 "origin_receipt_id": receipt_id_value,

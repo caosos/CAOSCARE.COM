@@ -10,14 +10,16 @@ safety behavior can be proven without a database.  Production defaults use the
 existing Mongo store, Resident model, and shared receipt service.
 """
 from datetime import datetime
-from typing import Awaitable, Callable, Optional
+from typing import Awaitable, Callable, Optional, Sequence
 
 from routes.actor_context import ActorContext
 from simulation.community_blueprint import (
     BURN_IN_RESIDENTS,
     COMMUNITY_ID,
+    RESIDENTS,
     SIMULATION_SCOPE,
     ResidentRecipe,
+    is_room_mate,
 )
 from simulation.community_provisioning_receipts import build_resident_receipt
 
@@ -86,6 +88,7 @@ async def _collision(store, recipe: ResidentRecipe, session=None) -> Optional[di
         {"_id": 0},
         **_session(session),
     ).to_list(20)
+    hits = [row for row in hits if not is_room_mate(recipe, row)]
     if len(hits) > 1:
         raise ProvisioningError(
             f"split identity collision for {recipe.resident_id}: id, room, or pendant belong to different residents"
@@ -216,8 +219,9 @@ async def provision_burn_in_residents(
     parent_receipt_id: Optional[str] = None,
     correlation_id: Optional[str] = None,
     now: Optional[datetime] = None,
+    residents: Sequence[ResidentRecipe] = BURN_IN_RESIDENTS,
 ) -> dict:
-    """Create or reuse exactly ten marked canonical resident records.
+    """Create or reuse the cohort's marked canonical resident records.
 
     All identities are checked before any mutation.  A matching, fully marked
     resident is reused; any unmarked or partially matching record is a hard
@@ -229,9 +233,10 @@ async def provision_burn_in_residents(
     store = store if store is not None else _default_store()
     receipt_writer = receipt_writer or _default_receipt_writer
     document_factory = document_factory or _default_document
-    recipes = tuple(BURN_IN_RESIDENTS)
-    if len(recipes) != 10:
-        raise ProvisioningError("burn-in blueprint must contain exactly 10 residents")
+    recipes = tuple(residents)
+    if not recipes or any(recipe not in RESIDENTS for recipe in recipes) or len(
+            {recipe.resident_id for recipe in recipes}) != len(recipes):
+        raise ProvisioningError("residents must be distinct blueprint residents")
 
     existing_by_id = {}
     for recipe in recipes:

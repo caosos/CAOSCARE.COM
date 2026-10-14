@@ -8,11 +8,12 @@ from collections.abc import Awaitable, Callable, Iterable
 from typing import Optional
 
 from simulation.community_blueprint import (
-    BURN_IN_RESIDENTS,
     COMMUNITY_ID,
     RESIDENTS,
     SIMULATION_SCOPE,
+    is_room_mate,
 )
+from simulation.community_cohort import CohortError, default_cohort, residents_for
 
 
 COLLECTIONS = ("residents", "staff_tasks", "notifications", "sim_runs")
@@ -44,6 +45,7 @@ PROJECTIONS = {
         "simulation_scope": 1,
         "simulation_community_id": 1,
         **({TRUTH_FIELDS[name]: 1} if name in TRUTH_FIELDS else {}),
+        **({"state": 1, "plan_revision": 1} if name == "sim_runs" else {}),
     }
     for name in COLLECTIONS
 }
@@ -103,11 +105,25 @@ def _object_id(collection_name: str, row: dict) -> Optional[str]:
     return str(value) if value is not None else None
 
 
-def _burn_in_provisioning(rows: tuple[dict, ...]) -> dict:
-    """Classify the exact ten-resident burn-in identity set."""
+def _run_cohort(run_rows: tuple[dict, ...]) -> str:
+    """The active (else only) run's plan cohort; the runtime default otherwise."""
+    from simulation.community_timeline import cohort_of_revision
+    active = [row for row in run_rows if row.get("state") in {"RUNNING", "PAUSED"}]
+    chosen = active if active else list(run_rows)
+    if len(chosen) == 1:
+        try:
+            return cohort_of_revision(chosen[0].get("plan_revision"))
+        except (CohortError, ValueError):
+            pass
+    return default_cohort()
+
+
+def _burn_in_provisioning(rows: tuple[dict, ...], cohort: str) -> dict:
+    """Classify the exact identity set of the run's resident cohort."""
+    residents = residents_for(cohort)
     observed_indexes: set[int] = set()
     exact = missing = collisions = 0
-    for recipe in BURN_IN_RESIDENTS:
+    for recipe in residents:
         hits = [
             (index, row)
             for index, row in enumerate(rows)
@@ -115,7 +131,7 @@ def _burn_in_provisioning(rows: tuple[dict, ...]) -> dict:
                 row.get("resident_id") == recipe.resident_id
                 or row.get("room") == recipe.room
                 or row.get("pendant_id") == recipe.pendant_id
-            )
+            ) and not is_room_mate(recipe, row)
         ]
         observed_indexes.update(index for index, _row in hits)
         if not hits:
@@ -137,7 +153,7 @@ def _burn_in_provisioning(rows: tuple[dict, ...]) -> dict:
 
     if collisions:
         state = "inconsistent"
-    elif exact == len(BURN_IN_RESIDENTS):
+    elif exact == len(residents):
         state = "provisioned"
     elif not observed_indexes:
         state = "not_provisioned"
@@ -145,7 +161,8 @@ def _burn_in_provisioning(rows: tuple[dict, ...]) -> dict:
         state = "partial"
     return {
         "state": state,
-        "expected_residents": len(BURN_IN_RESIDENTS),
+        "cohort": cohort,
+        "expected_residents": len(residents),
         "observed_residents": len(observed_indexes),
         "exact_blueprint_residents": exact,
         "missing_count": missing,
@@ -153,10 +170,11 @@ def _burn_in_provisioning(rows: tuple[dict, ...]) -> dict:
     }
 
 
-def _unavailable_provisioning() -> dict:
+def _unavailable_provisioning(cohort: str) -> dict:
     return {
         "state": None,
-        "expected_residents": len(BURN_IN_RESIDENTS),
+        "cohort": cohort,
+        "expected_residents": len(residents_for(cohort)),
         "observed_residents": None,
         "exact_blueprint_residents": None,
         "missing_count": None,
@@ -199,6 +217,7 @@ async def observe_community_state(
     *,
     store=None,
     collection_reader: Optional[Reader] = None,
+    cohort: Optional[str] = None,
 ) -> dict:
     """Read exact living-community markers without changing canonical state.
 
@@ -239,10 +258,11 @@ async def observe_community_state(
             }
 
     loaded_counts, anomalies = _analyze(rows_by_collection)
+    cohort = cohort or _run_cohort(rows_by_collection.get("sim_runs", ()))
     provisioning = (
-        _burn_in_provisioning(rows_by_collection["residents"])
+        _burn_in_provisioning(rows_by_collection["residents"], cohort)
         if sources["residents"]["status"] == "loaded"
-        else _unavailable_provisioning()
+        else _unavailable_provisioning(cohort)
     )
     for name in COLLECTIONS:
         source = sources[name]

@@ -33,7 +33,7 @@ def marked(**extra):
 
 def run_row(**extra):
     return marked(**{
-        "run_id": RUN_ID, "state": "RUNNING", "cursor": 1, "sim_minute": 400,
+        "run_id": RUN_ID, "state": "RUNNING", "cursor": 1, "sim_minute": 400, "resident_count": 10,
         "last_event_id": "event-0", "last_evidence_receipt_id": "receipt-0",
         "residents_provisioned": False,
         "created_at": "2026-10-13T12:00:00+00:00", **extra,
