@@ -15,6 +15,7 @@ import SimCommunityControls from "../components/simulator/SimCommunityControls";
 import SimCommunityResetControl from "../components/simulator/SimCommunityResetControl";
 import { communityRuntimeIntro, fetchCommunityRuntimeSnapshot } from "../lib/communityRuntimeLoad";
 import RequestDetailDialog from "./RequestDetailDialog";
+import LiveDashboard from "../components/dashboard/LiveDashboard";
 
 // Live Operations (SIM-2): watch and control the Operations Simulator
 // without a terminal. Holds no simulator state of its own - every value is
@@ -124,33 +125,41 @@ export default function LiveOperations() {
     <div className="space-y-4" data-testid="live-operations">
       <div>
         <h2 className="font-display text-2xl text-caos-forest">Live operations</h2>
-        <p className="text-sm text-caos-mute">
-          {communityRuntimeIntro(runtime.snapshot)}
-        </p>
+        <p className="text-sm text-caos-mute">The running community: who is working, what is waiting, and what got done.</p>
       </div>
-      <SimCommunityOverview community={community || {}} />
-      <SimCommunityObserved {...observed} onRetry={loadObserved} />
-      <SimCommunityControls snapshot={runtime.snapshot} onRuntimeRefresh={loadRuntime} />
-      <SimCommunityResetControl snapshot={runtime.snapshot} onRuntimeRefresh={loadRuntime} />
-      <SimCommunityRuntime {...runtime} onRetry={loadRuntime} onOpenRequest={setRequestId} />
-      <SimControls state={state} busy={busy} onControl={control}
-                   scenarios={scenarios} scenario={scenario} onScenario={setScenario} />
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="space-y-4 min-w-0">
-          <SimActors cast={cast} startedBy={state?.started_by} onChanged={load}
-                     active={state?.state === SIM_STATES.RUNNING || state?.state === SIM_STATES.PAUSED}
-                     onSelect={(a) => {
-                       const id = a.filled_by?.mode === "real" ? a.filled_by.user_id : a.actor_id;
-                       const r = stream.find((x) => x.actor_id === id);
-                       if (r) setTrace(r);
-                     }} />
-          <SimActivity current={current} requests={requests} failed={failed}
-                       onOpenReceipt={setTrace} onOpenRequest={setRequestId} />
+      <LiveDashboard onOpenRequest={setRequestId} />
+      <details className="rounded-lg border border-caos-line bg-white p-3" data-testid="engineering-details">
+        <summary className="cursor-pointer text-sm font-semibold text-caos-mute">
+          Engineering details — plan, run controls, raw runtime, receipts and the demo-room simulator
+        </summary>
+        <div className="mt-4 space-y-4">
+          <p className="text-sm text-caos-mute">{communityRuntimeIntro(runtime.snapshot)}</p>
+          <SimCommunityOverview community={community || {}} />
+          <SimCommunityObserved {...observed} onRetry={loadObserved} />
+          <SimCommunityControls snapshot={runtime.snapshot} onRuntimeRefresh={loadRuntime} />
+          <SimCommunityResetControl snapshot={runtime.snapshot} onRuntimeRefresh={loadRuntime} />
+          <SimCommunityRuntime {...runtime} onRetry={loadRuntime} onOpenRequest={setRequestId} />
+          <h3 className="text-xs font-bold uppercase tracking-widest text-caos-mute">Demo-room simulator (legacy)</h3>
+          <SimControls state={state} busy={busy} onControl={control}
+                       scenarios={scenarios} scenario={scenario} onScenario={setScenario} />
+          <div className="grid gap-4 lg:grid-cols-3">
+            <div className="space-y-4 min-w-0">
+              <SimActors cast={cast} startedBy={state?.started_by} onChanged={load}
+                         active={state?.state === SIM_STATES.RUNNING || state?.state === SIM_STATES.PAUSED}
+                         onSelect={(a) => {
+                           const id = a.filled_by?.mode === "real" ? a.filled_by.user_id : a.actor_id;
+                           const r = stream.find((x) => x.actor_id === id);
+                           if (r) setTrace(r);
+                         }} />
+              <SimActivity current={current} requests={requests} failed={failed}
+                           onOpenReceipt={setTrace} onOpenRequest={setRequestId} />
+            </div>
+            <div className="lg:col-span-2 min-w-0">
+              <SimEventStream rows={stream} currentId={current?.receipt_id} onSelect={setTrace} />
+            </div>
+          </div>
         </div>
-        <div className="lg:col-span-2 min-w-0">
-          <SimEventStream rows={stream} currentId={current?.receipt_id} onSelect={setTrace} />
-        </div>
-      </div>
+      </details>
       <SimReceiptTrace receipt={trace} cast={cast} onClose={() => setTrace(null)}
                        onOpenRequest={(id) => { setTrace(null); setRequestId(id); }} />
       <RequestDetailDialog taskId={requestId} open={!!requestId}

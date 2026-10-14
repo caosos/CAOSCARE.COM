@@ -66,7 +66,7 @@ async def queue_snapshot(*, run_id, clock_minute, next_event_minute=None, store=
     store = store if store is not None else _default_store()
     scoped = {"simulation_scope": SIMULATION_SCOPE, "simulation_community_id": COMMUNITY_ID,
               "simulation_run_id": run_id, "simulated": True}
-    projection = {"_id": 0, "task_id": 1, "category": 1, "priority": 1, "summary": 1,
+    projection = {"_id": 0, "task_id": 1, "category": 1, "priority": 1, "title": 1, "description": 1,
                   "resident_id": 1, "conversation_session_id": 1, "assigned_to": 1}
     try:
         run = await store.sim_runs.find_one({"run_id": run_id}, {"_id": 0, "plan_revision": 1})
@@ -85,7 +85,7 @@ async def queue_snapshot(*, run_id, clock_minute, next_event_minute=None, store=
         claimable = None if minute is None else max(0, absolute_minute - minute - OPEN_TO_CLAIM_MINUTES)
         queued.append({
             "task_id": task.get("task_id"), "department": task.get("category"),
-            "priority": task.get("priority"), "summary": task.get("summary"),
+            "priority": task.get("priority"), "summary": task.get("description") or task.get("title"),
             "resident_id": task.get("resident_id"), "requested_at_minute": minute,
             "waiting_minutes": waiting,
             "overdue": claimable is not None and claimable > OVERDUE_AFTER_MINUTES,
@@ -100,7 +100,8 @@ async def queue_snapshot(*, run_id, clock_minute, next_event_minute=None, store=
             held[holder].append(task)
         else:  # a real person (Work-as or a department account) took this ticket over
             real_staff.append({"actor_id": holder or None, "task_id": task.get("task_id"),
-                               "department": task.get("category"), "summary": task.get("summary")})
+                               "department": task.get("category"),
+                               "summary": task.get("description") or task.get("title")})
     on_site = {row["actor_id"] for row in staffing["workers"]}
     workers = [_worker(row, (held.get(row["actor_id"]) or [None])[0], covers.get(row["actor_id"]))
                for row in staffing["workers"]]

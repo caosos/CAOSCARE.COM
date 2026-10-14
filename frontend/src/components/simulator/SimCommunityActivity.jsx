@@ -15,7 +15,7 @@ function TaskRow({ task, onOpenRequest }) {
             <Badge variant="outline" className="text-[10px] uppercase">Simulated</Badge>
             <span className="text-xs font-semibold uppercase tracking-wide text-caos-mute">{titleCase(task.department)}</span>
           </div>
-          <p className="mt-1 break-words text-sm font-semibold text-caos-forest">{task.summary || "Summary unavailable"}</p>
+          <p className="mt-1 break-words text-sm font-semibold text-caos-forest">{task.summary || "No description recorded"}</p>
           <p className="text-xs text-caos-mute">{person} · {titleCase(task.priority)} priority</p>
           <p className="font-mono text-[11px] text-caos-mute">{task.task_id}</p>
         </div>

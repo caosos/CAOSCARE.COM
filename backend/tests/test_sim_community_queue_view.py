@@ -52,7 +52,7 @@ COOK = next(row for row in ON_SITE if row["department"] == "kitchen")
 
 def _task(task_id, status, workflow, category, assigned_to=None, run="run-1"):
     return {"task_id": task_id, "status": status, "category": category, "priority": "normal",
-            "summary": "s", "resident_id": "sim:resident:001", "assigned_to": assigned_to,
+            "description": "s", "resident_id": "sim:resident:001", "assigned_to": assigned_to,
             "simulation_run_id": run, "conversation_session_id": f"simulator:event:{workflow}"}
 
 
