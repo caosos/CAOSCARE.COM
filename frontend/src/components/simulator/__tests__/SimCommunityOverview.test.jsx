@@ -17,7 +17,7 @@ async function render(community) {
 const text = (el) => el.textContent.replace(/\s+/g, " ").trim();
 
 const community = {
-  residents: { count: 10, burn_in_target: 10, target: 75 },
+  residents: { count: 10, cohort: "burn_in_10", burn_in_target: 10, target: 75 },
   apartments: { total: 80, occupied: 70, occupancy_target: 70 },
   workers: { count: 50 },
   departments: [
@@ -34,7 +34,7 @@ const community = {
 
 test("shows declared community scale, department coverage, and routine counts", async () => {
   const { el, root } = await render(community);
-  expect(text(el.querySelector("[data-testid=sim-resident-count]"))).toMatch(/10.*10.*burn-in target/);
+  expect(text(el.querySelector("[data-testid=sim-resident-count]"))).toMatch(/10.*Ten-resident burn-in test/);
   expect(text(el.querySelector("[data-testid=sim-resident-target]"))).toContain("75");
   expect(text(el.querySelector("[data-testid=sim-apartment-count]"))).toMatch(/80.*70 occupied.*70 occupancy target/);
   expect(text(el.querySelector("[data-testid=sim-worker-count]"))).toContain("50");
@@ -62,7 +62,7 @@ test("states the medication boundary and names blocked and unsafe capabilities",
 test("keeps missing simulator facts visibly unreported", async () => {
   const { el, root } = await render({});
   expect(el.querySelector("[data-testid=sim-resident-count]").textContent).toContain("\u2014");
-  expect(el.textContent).toContain("Burn-in target not reported");
+  expect(el.textContent).toContain("Cohort not reported");
   expect(el.textContent).toContain("No department coverage reported");
   expect(el.textContent).toContain("No routine counts reported");
   expect(el.querySelector("[data-testid=sim-medication-boundary]")).not.toBeNull();

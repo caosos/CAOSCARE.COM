@@ -1,8 +1,7 @@
-import React, { useState } from "react";
-import { toast } from "sonner";
-import { api } from "../../lib/api";
+import React from "react";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
+import CoverShiftButton from "./CoverShiftButton";
 
 const titleCase = (value) => String(value || "unknown").replaceAll("_", " ");
 const shown = (value) => (value === null || value === undefined ? "Unknown" : value);
@@ -61,7 +60,7 @@ function QueuedTicket({ row, onOpenRequest }) {
   return (
     <li className="flex flex-wrap items-center justify-between gap-2 border-b border-caos-line py-2 last:border-0" data-testid={`queued-${row.task_id}`}>
       <div className="min-w-0">
-        <p className="text-sm font-semibold text-caos-forest">{titleCase(row.department)} · {row.summary || "Summary unavailable"}</p>
+        <p className="text-sm font-semibold text-caos-forest">{titleCase(row.department)} · {row.summary || "No description recorded"}</p>
         <p className={row.overdue ? "text-xs font-semibold text-caos-terracotta" : "text-xs text-caos-mute"}>
           Waiting {duration(row.waiting_minutes)}{row.overdue ? " · overdue" : ""} · {titleCase(row.priority)} priority
         </p>
@@ -75,21 +74,8 @@ function QueuedTicket({ row, onOpenRequest }) {
 }
 
 function Worker({ row, runId, onOpenRequest, onChanged }) {
-  const [saving, setSaving] = useState(false);
   const busy = row.availability === "busy";
   const covered = row.availability === "covered";
-  const toggleCover = async () => {
-    setSaving(true);
-    try {
-      await api.post(`/simulator/community/shift-cover${covered ? "/end" : ""}`, { run_id: runId, worker_actor_id: row.actor_id });
-      toast.success(covered ? `${row.name}'s shift handed back` : `You are covering ${row.name}'s shift. Use Work as ${titleCase(row.department)} to work their tickets.`);
-      onChanged?.();
-    } catch (err) {
-      toast.error(err?.response?.data?.detail?.message || "Could not change the shift cover");
-    } finally {
-      setSaving(false);
-    }
-  };
   return (
     <li className="flex flex-wrap items-center justify-between gap-2 border-b border-caos-line py-1 last:border-0" data-testid={`worker-${row.actor_id}`}>
       <span className="text-sm">
@@ -102,11 +88,7 @@ function Worker({ row, runId, onOpenRequest, onChanged }) {
         {busy && row.task_id && onOpenRequest && (
           <Button type="button" size="sm" variant="ghost" onClick={() => onOpenRequest(row.task_id)}>Ticket</Button>
         )}
-        {runId && (
-          <Button type="button" size="sm" variant="outline" disabled={saving} onClick={toggleCover} data-testid={`cover-${row.actor_id}`}>
-            {covered ? "End cover" : "Cover shift"}
-          </Button>
-        )}
+        <CoverShiftButton runId={runId} worker={row} covered={covered} onChanged={onChanged} />
       </span>
     </li>
   );

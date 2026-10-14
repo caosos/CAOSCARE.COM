@@ -82,11 +82,11 @@ export default function SimCommunityOverview({ community = {} }) {
 
       <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Community scale">
         <Metric
-          label="Burn-in residents"
+          label="Residents in this plan"
           value={residents.count}
-          detail={residents.burn_in_target === 0 || residents.burn_in_target
-            ? `of ${residents.burn_in_target} burn-in target`
-            : "Burn-in target not reported"}
+          detail={residents.cohort === "burn_in_10"
+            ? "Ten-resident burn-in test"
+            : residents.cohort ? "Full community" : "Cohort not reported"}
           testid="sim-resident-count"
         />
         <Metric

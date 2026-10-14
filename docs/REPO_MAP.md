@@ -918,6 +918,12 @@ listener verifier experiment: `docs/experiments/`.
   `backend/routes/community_shift_cover.py` (owner/admin covers an on-site simulated worker's shift; the worker's
   planned phases yield with receipts and their tickets wait for the person, worked via Work as <department>) and
   `backend/simulation/community_human_handoff.py` (a real person who changes a simulated ticket takes it over).
+- Live Operations dashboard (SIM-007A): `backend/routes/community_dashboard.py` (read-only owner/admin endpoints) over
+  `backend/simulation/community_dashboard_common.py` (run, plan lookup, ticket rows), `community_dashboard_view.py`
+  (summary), `community_dashboard_detail.py` (department / worker / resident) and `community_ticket_view.py` (one ticket's
+  times, outcome and receipts). UI: `frontend/src/components/dashboard/` (`LiveDashboard` + drill-in views),
+  `frontend/src/lib/dashboardFormat.js`, `useDashboardResource.js`; the older panels live under Engineering details in
+  `frontend/src/pages/LiveOperations.jsx`. `components/simulator/CoverShiftButton.jsx` is the one Cover shift control.
 - Tests: `backend/tests/test_sim_community_*.py`, `test_living_community_*`,
   `test_haiku_community_provider_boundary.py`, and
   `frontend/src/components/simulator/__tests__/{SimCommunityOverview,SimCommunityObserved}.test.jsx` plus
