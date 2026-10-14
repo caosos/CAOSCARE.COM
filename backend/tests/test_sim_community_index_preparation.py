@@ -55,9 +55,11 @@ class Collection:
             raise RuntimeError("secret database address")
         return deepcopy(self.indexes)
 
-    async def create_index(self, keys, *, name, unique, session=None):
+    async def create_index(self, keys, *, name, unique, session=None, partialFilterExpression=None):
         self.calls.append(("create", name, tuple(keys), unique, session))
-        self.indexes[name] = {"key": list(keys), "unique": unique, "v": 2}
+        self.indexes[name] = {"key": list(keys), "unique": unique, "v": 2,
+                              **({"partialFilterExpression": partialFilterExpression}
+                                 if partialFilterExpression else {})}
         if name in self.crash_create:
             self.crash_create.remove(name)
             raise KeyboardInterrupt("injected crash")
@@ -96,6 +98,7 @@ def _install_all(store, *, except_name=None):
         collection = getattr(store, row["collection"])
         collection.indexes[row["name"]] = {
             "key": list(row["keys"]), "unique": row["unique"], "v": 2,
+            **({"partialFilterExpression": row["partial"]} if row.get("partial") else {}),
         }
 
 
@@ -107,7 +110,7 @@ def _run(coro):
     return asyncio.run(coro)
 
 
-def test_creates_only_six_missing_indexes_and_writes_exact_provenance_chain():
+def test_creates_only_the_missing_required_indexes_and_writes_exact_provenance_chain():
     store = Store()
     result = _run(prepare_required_indexes(
         OWNER, AUTHORITY, "prepare-v1", store=store, now=NOW,

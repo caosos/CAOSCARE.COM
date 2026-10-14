@@ -13,10 +13,11 @@ import json
 from typing import Iterable
 
 from simulation.community_cohort import BURN_IN, FULL_COMMUNITY, residents_for
-from simulation.community_executor import ExecutorEvent, build_day_queue
+from simulation.community_day_queue import build_day_queue, event_sort_key
+from simulation.community_executor import ExecutorEvent
 
 
-PLAN_REVISION_BASE = "living-community-timeline-v6"
+PLAN_REVISION_BASE = "living-community-timeline-v7"
 # The revision names the cohort, so a run's persisted fingerprint says which
 # residents it executes. The burn-in remains the default for pure builders.
 PLAN_REVISIONS = {
@@ -55,15 +56,6 @@ def cohort_of_revision(plan_revision: str) -> str:
         if revision == plan_revision:
             return cohort
     raise TimelineValidationError("timeline plan revision is unsupported")
-
-
-def event_sort_key(event: ExecutorEvent) -> tuple[int, str, str]:
-    """The one stable total ordering used by build and validation."""
-    return (
-        event.day_index * 1440 + event.minute,
-        event.stream_kind,
-        event.event_id,
-    )
 
 
 def _event_payload(event: ExecutorEvent) -> dict:

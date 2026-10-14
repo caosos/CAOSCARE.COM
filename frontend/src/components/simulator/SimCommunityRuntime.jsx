@@ -4,6 +4,7 @@ import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { Progress } from "../ui/progress";
 import SimCommunityActivity from "./SimCommunityActivity";
+import SimCommunityQueue from "./SimCommunityQueue";
 
 const STATE_CLASS = {
   RUNNING: "border-caos-moss bg-caos-moss/20 text-caos-forest",
@@ -241,6 +242,7 @@ export default function SimCommunityRuntime({ loadState, snapshot, refreshFailed
       </div>
 
       <StaffingCoverage staffing={snapshot.staffing} />
+      <SimCommunityQueue queue={snapshot.queue} runId={run.run_id} onOpenRequest={onOpenRequest} />
       <SimCommunityActivity activity={snapshot.activity} runId={run.run_id} onOpenRequest={onOpenRequest} />
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-caos-line pt-3">
         <div className="flex flex-wrap gap-2" aria-label="Runtime source status">

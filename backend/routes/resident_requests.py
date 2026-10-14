@@ -186,6 +186,11 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
     # A run's requests dedup only within that run (SC-17).
     dup_q: dict = {"category": data.category, "status": {"$in": OPEN_TASK_STATUSES},
                    "simulation_run_id": simulation_run_id}
+    if simulation_run_id:
+        # One scheduled simulator routine is one request: only a retry of the
+        # same event merges.  An earlier routine still open (a truthful
+        # backlog) must not absorb the next one as a "repeat ask".
+        dup_q["conversation_session_id"] = data.conversation_session_id
     if data.resident_id:
         dup_q["resident_id"] = data.resident_id
     elif data.room:

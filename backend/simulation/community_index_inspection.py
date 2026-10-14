@@ -2,7 +2,7 @@
 
 from copy import deepcopy
 
-from simulation.community_index_contract import REQUIRED_INDEXES
+from simulation.community_index_contract import REQUIRED_INDEXES, required_options
 
 
 UNSUPPORTED_OPTIONS = (
@@ -22,7 +22,7 @@ def _options(row: dict) -> dict:
     result = {"unique": bool(row.get("unique", False))}
     for name in UNSUPPORTED_OPTIONS:
         if name in row and row[name] not in (False, None, {}):
-            result[name] = deepcopy(row[name])
+            result[name] = deepcopy(dict(row[name]) if isinstance(row[name], dict) else row[name])
     return result
 
 
@@ -32,6 +32,7 @@ def _expected(requirement: dict) -> dict:
         "name": requirement["name"],
         "keys": [list(item) for item in requirement["keys"]],
         "unique": requirement["unique"],
+        "partial": requirement.get("partial"),
         "purpose": requirement["purpose"],
     }
 
@@ -64,7 +65,7 @@ async def inspect_index_contract(store, *, session=None) -> dict:
             observed_options = _options(found)
             compatible = (
                 observed_keys == requirement["keys"]
-                and observed_options == {"unique": requirement["unique"]}
+                and observed_options == required_options(requirement)
             )
             rows.append({
                 **expected, "status": "ready" if compatible else "conflict",

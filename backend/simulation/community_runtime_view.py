@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 from simulation.community_blueprint import COMMUNITY_ID, SIMULATION_SCOPE
 from simulation.community_readiness_view import attach_resident_readiness
+from simulation.community_routines import ADAPTER_CAPABILITIES, BLOCKED
 from simulation.community_runtime_shapes import append_error as _error, source_status as _source
 from simulation.community_runtime_staffing import staffing_projection as _staffing
 from simulation.community_timeline import build_90_day_timeline, cohort_of_revision
@@ -81,7 +82,8 @@ def _event(row) -> dict:
             "event_id", "stream_kind", "action_type", "day_index", "minute",
             "actor_id", "actor_name", "department", "target_type", "target_id",
         )
-    } | {"blocked": bool(row.blocked_capability)}
+    } | {"blocked": ADAPTER_CAPABILITIES.get(row.adapter, {}).get("status") == BLOCKED,
+         "capability_not_invoked": row.blocked_capability}
 
 
 def _run_projection(run: dict, events: tuple, errors: list[dict]) -> dict:

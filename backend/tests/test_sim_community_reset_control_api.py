@@ -29,6 +29,8 @@ def _install_required_indexes(store):
         grouped.setdefault(requirement["collection"], {})[requirement["name"]] = {
             "key": list(requirement["keys"]),
             **({"unique": True} if requirement["unique"] is True else {}),
+            **({"partialFilterExpression": requirement["partial"]}
+               if requirement.get("partial") else {}),
         }
     for collection_name, information in grouped.items():
         async def index_information(rows=deepcopy(information)):

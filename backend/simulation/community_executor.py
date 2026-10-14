@@ -4,12 +4,7 @@ from datetime import datetime, timezone
 from typing import Iterable, Optional, Protocol
 from simulation import community_cursor_commit, community_run_lease as run_lease
 from simulation.community_blueprint import COMMUNITY_ID, SIMULATION_SCOPE
-from simulation.community_cohort import BURN_IN, COHORTS, resident_keys_for, residents_for
-from simulation.community_dispatch import plan_routine_dispatch
-from simulation.community_routines import RoutineEvent, plan_first_24_hours
-from simulation.community_shift_events import planned_events_for_day
-from simulation.community_ticket_assignment import TicketAssignmentError, assign_ticket_workers
-from simulation.community_ticket_plan import CLAIM, COMPLETE, OPEN, plan_ticket_phases
+from simulation.community_ticket_plan import OPEN
 RECEIPT_RESULTS = {
     "completed": "succeeded",
     "failed": "observed",
@@ -36,6 +31,11 @@ class ExecutorEvent:
     blocked_capability: Optional[str] = None
     workflow_event_id: Optional[str] = None
     task_phase: Optional[str] = None
+    # Capacity queue truth (routine tickets): when the resident asked, and on
+    # the claim phase why and how long the ticket waited for a free worker.
+    requested_at_minute: Optional[int] = None
+    wait_reason: Optional[str] = None
+    waited_minutes: Optional[int] = None
 @dataclass(frozen=True)
 class ExecutionContext:
     run_id: str
@@ -63,93 +63,6 @@ class ExecutorServices(Protocol):
 
     async def execute_event(self, *, event: ExecutorEvent,
                             context: ExecutionContext) -> object: ...
-def _routine_events(event: RoutineEvent, ready_day: int, ready_minute: int,
-                    cohort: str = BURN_IN, workers=None) -> tuple[ExecutorEvent, ...]:
-    resident = _RESIDENT_INDEX.get(cohort, {}).get(event.resident_key)
-    if resident is None:
-        raise CommunityExecutorError(f"event is outside the {cohort} residents: {event.event_id}")
-    phases = plan_ticket_phases(event.event_id, ready_day, ready_minute)
-    if workers is None:
-        workers = _assign([(event, phases)])[event.event_id]
-    phase_workers = dict(zip((CLAIM, COMPLETE), workers))
-    return tuple(ExecutorEvent(
-        event_id=phase.event_id,
-        stream_kind="routine_ticket_phase",
-        action_type=event.routine,
-        day_index=phase.day_index,
-        minute=phase.minute,
-        actor_id=(resident.resident_id if phase.phase == OPEN
-                  else phase_workers[phase.phase]["actor_id"]),
-        actor_name=(resident.name if phase.phase == OPEN
-                    else phase_workers[phase.phase]["name"]),
-        actor_type="simulated-agent",
-        identity_basis="synthetic",
-        department=event.department,
-        target_type="resident",
-        target_id=resident.resident_id,
-        adapter=event.adapter,
-        blocked_capability=event.blocked_adapter,
-        workflow_event_id=event.event_id,
-        task_phase=phase.phase,
-    )
-        for phase in phases
-    )
-
-
-_RESIDENT_INDEX = {
-    cohort: {row.resident_key: row for row in residents_for(cohort)}
-    for cohort in COHORTS
-}
-
-
-def _assign(tickets) -> dict:
-    """Least-loaded claim/complete workers for (routine, phases) tickets."""
-    try:
-        return assign_ticket_workers(
-            (event.event_id, event.department, phases[1].absolute_minute, phases[2].absolute_minute)
-            for event, phases in tickets
-        )
-    except TicketAssignmentError as exc:
-        raise CommunityExecutorError(str(exc)) from exc
-
-
-def build_day_queue(day_index: int = 0, *, cohort: str = BURN_IN) -> tuple[ExecutorEvent, ...]:
-    """Combine canonical shift milestones and coverage-gated routine intents."""
-    routines = plan_first_24_hours(resident_keys_for(cohort), day_index=day_index)
-    dispatch = {row.event_id: row for row in plan_routine_dispatch(routines)}
-    tickets = [(event, plan_ticket_phases(
-        event.event_id, dispatch[event.event_id].ready_day_index,
-        dispatch[event.event_id].ready_minute,
-    )) for event in routines]
-    workers = _assign(tickets)
-    events = [phase
-        for event, phases in tickets
-        for phase in _routine_events(
-            event, phases[0].day_index, phases[0].minute, cohort, workers[event.event_id],
-        )
-    ]
-    for event in planned_events_for_day(day_index):
-        if event["stream_kind"] != "canonical_shift_milestone":
-            continue
-        events.append(ExecutorEvent(
-            event_id=event["event_id"],
-            stream_kind=event["stream_kind"],
-            action_type=event["event_type"],
-            day_index=event["day_index"],
-            minute=event["minute"],
-            actor_id=event["actor_id"],
-            actor_name=event["actor_name"],
-            actor_type=event["actor_type"],
-            identity_basis=event["identity_basis"],
-            department=event["department"],
-            target_type=event["target_type"],
-            target_id=event["target_id"],
-            adapter="canonical_shift_service",
-            simulated=event["actor_simulated"],
-        ))
-    return tuple(sorted(events, key=lambda row: (
-        row.day_index * 1440 + row.minute, row.stream_kind, row.event_id,
-    )))
 def _utc(value: Optional[datetime]) -> datetime:
     instant = value or datetime.now(timezone.utc)
     if instant.tzinfo is None:
@@ -243,7 +156,10 @@ async def execute_one(
     """Execute or reconcile exactly the event at the persisted cursor."""
     if services is None:
         raise CommunityExecutorError("execution services are required; no default provider path exists")
-    queue = _validate_events(build_day_queue() if events is None else events)
+    if events is None:  # legacy single-day default; runtime passes the plan
+        from simulation.community_day_queue import build_day_queue
+        events = build_day_queue()
+    queue = _validate_events(events)
     instant = _utc(now)
     initial = await store.sim_runs.find_one({
         "run_id": run_id,

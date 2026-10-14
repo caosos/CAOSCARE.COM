@@ -20,14 +20,29 @@ REQUIRED_INDEXES = (
     {"collection": "staff_tasks", "name": "living_tasks_activity",
      "keys": (("simulation_run_id", 1), ("simulated", 1), ("created_at", -1)),
      "unique": False, "purpose": "recent canonical tickets"},
+    # The database itself refuses a second in-progress ticket for one worker.
+    {"collection": "staff_tasks", "name": "living_tasks_one_active_per_worker",
+     "keys": (("simulation_run_id", 1), ("assigned_to", 1)), "unique": True,
+     "partial": {"status": "in_progress", "simulated": True,
+                 "simulation_scope": "living_community"},
+     "purpose": "one active ticket per simulated worker"},
 )
+
+
+def required_options(requirement: dict) -> dict:
+    """The index options a requirement demands, in index_information() form."""
+    options = {"unique": requirement["unique"]}
+    if requirement.get("partial"):
+        options["partialFilterExpression"] = dict(requirement["partial"])
+    return options
 
 
 def _index_view(requirement: dict) -> dict:
     return {
         "collection": requirement["collection"], "name": requirement["name"],
         "keys": [list(item) for item in requirement["keys"]],
-        "unique": requirement["unique"], "purpose": requirement["purpose"],
+        "unique": requirement["unique"], "partial": requirement.get("partial"),
+        "purpose": requirement["purpose"],
     }
 
 
@@ -48,7 +63,9 @@ async def inspect_required_indexes(store) -> dict:
             continue
         observed_keys = tuple(tuple(item) for item in (found or {}).get("key", ()))
         unique_ok = bool((found or {}).get("unique")) is requirement["unique"]
-        options_ok = not (found or {}).get("partialFilterExpression") and not (found or {}).get("sparse")
+        partial = (found or {}).get("partialFilterExpression")
+        options_ok = (dict(partial or {}) == dict(requirement.get("partial") or {})
+                      and not (found or {}).get("sparse"))
         if found is None:
             status = "missing"
         elif observed_keys != requirement["keys"] or not unique_ok or not options_ok:

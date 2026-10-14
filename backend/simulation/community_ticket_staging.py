@@ -193,3 +193,13 @@ def next_phase(phase: str) -> str:
         CLAIM: "awaiting_simulated_completion",
         COMPLETE: "executor_cursor_ready",
     }[phase]
+
+
+def queue_fields(event: ExecutorEvent) -> dict:
+    """Queue truth for a phase receipt: original request time and actual wait."""
+    if event.requested_at_minute is None:
+        return {}
+    fields = {"requested_at_minute": event.requested_at_minute}
+    if event.task_phase == CLAIM:
+        fields.update({"wait_reason": event.wait_reason, "waited_minutes": event.waited_minutes})
+    return fields

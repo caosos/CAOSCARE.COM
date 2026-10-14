@@ -5,7 +5,8 @@ from collections import defaultdict
 
 from simulation.community_activity_view import activity_snapshot
 from simulation.community_blueprint import BURN_IN_RESIDENTS, COMMUNITY_ID, SIMULATION_SCOPE
-from simulation.community_executor import ExecutionContext, build_day_queue
+from simulation.community_day_queue import build_day_queue
+from simulation.community_executor import ExecutionContext
 from simulation.community_runtime_view import runtime_snapshot
 from simulation.community_shift_events import planned_events_for_day
 from simulation.community_shift_execution import record_shift_milestone

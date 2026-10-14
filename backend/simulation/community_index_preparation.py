@@ -87,11 +87,14 @@ async def _create_missing(store, inspection: dict, *, session=None) -> list[str]
         if by_name[requirement["name"]]["status"] != "missing":
             continue
         collection = getattr(store, requirement["collection"])
+        options = ({"partialFilterExpression": requirement["partial"]}
+                   if requirement.get("partial") else {})
         returned = await collection.create_index(
             list(requirement["keys"]),
             name=requirement["name"],
             unique=requirement["unique"],
             session=session,
+            **options,
         )
         if returned != requirement["name"]:
             raise IndexPreparationError("database did not confirm the required index name")

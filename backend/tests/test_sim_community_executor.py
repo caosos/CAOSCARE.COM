@@ -8,11 +8,14 @@ import pytest
 
 from simulation import community_executor as executor
 from simulation.community_blueprint import COMMUNITY_ID, SIMULATION_SCOPE
-from simulation.community_routines import RoutineEvent
+from simulation.community_day_queue import build_day_queue
 from simulation.community_staffing import active_assignments
+from simulation.community_ticket_plan import OPEN_TO_CLAIM_MINUTES, work_minutes
 
 
 NOW = datetime(2026, 10, 13, 16, 0, tzinfo=timezone.utc)
+# Burn-in day zero: 155 tickets x open/claim/complete plus 78 shift milestones.
+DAY_ZERO_EVENTS = 543
 
 
 def _get(row, path):
@@ -162,9 +165,8 @@ def step(store, services, events=None, **changes):
 
 
 def test_day_queue_combines_existing_plans_with_explicit_synthetic_staff():
-    queue = executor.build_day_queue()
-    assert len(queue) == 543
-    assert sum(row.stream_kind == "routine_ticket_phase" for row in queue) == 465
+    queue = build_day_queue()
+    assert len(queue) == DAY_ZERO_EVENTS
     assert sum(row.stream_kind == "canonical_shift_milestone" for row in queue) == 78
     assert len({row.event_id for row in queue}) == len(queue)
     assert {row.stream_kind for row in queue} == {
@@ -186,30 +188,26 @@ def test_day_queue_combines_existing_plans_with_explicit_synthetic_staff():
     assert front_desk.department == "front_desk"
     assert front_desk.blocked_capability == "outbound_front_desk_call"
 
-    routine = next(row for row in queue if row.task_phase == "open")
-    phases = [row for row in queue if row.workflow_event_id == routine.workflow_event_id]
-    assert [row.task_phase for row in phases] == ["open", "claim", "complete"]
-    absolute = [row.day_index * 1440 + row.minute for row in phases]
-    assert [absolute[1] - absolute[0], absolute[2] - absolute[1]] == [5, 10]
-    assert phases[0].actor_id == phases[0].target_id
-    for row in phases[1:]:
-        active = {item["actor_id"] for item in active_assignments(row.day_index, row.minute)}
-        assert row.actor_id in active
 
-
-def test_ticket_phase_actor_hands_off_truthfully_at_shift_boundary():
-    routine = RoutineEvent(
-        plan_day_index=0, day_index=0, minute=345,
-        resident_key="resident-001", routine="boundary_check",
-        department="nursing", summary="Boundary handoff proof.",
-        event_id="day-000:resident-001:boundary_check",
-    )
-    opened, claimed, completed = executor._routine_events(routine, 0, 345)
-    assert opened.actor_id == opened.target_id
-    assert claimed.actor_id != completed.actor_id
-    for row in (claimed, completed):
-        active = {item["actor_id"] for item in active_assignments(row.day_index, row.minute)}
-        assert row.actor_id in active
+def test_one_worker_claims_and_completes_while_on_site_after_a_truthful_wait():
+    queue = build_day_queue()
+    by_workflow = {}
+    for row in queue:
+        if row.stream_kind == "routine_ticket_phase":
+            by_workflow.setdefault(row.workflow_event_id, []).append(row)
+    for phases in by_workflow.values():
+        opened, claimed, completed = phases
+        assert [row.task_phase for row in phases] == ["open", "claim", "complete"]
+        assert opened.actor_id == opened.target_id
+        assert claimed.actor_id == completed.actor_id
+        absolute = [row.day_index * 1440 + row.minute for row in phases]
+        assert absolute[0] == opened.requested_at_minute == claimed.requested_at_minute
+        assert claimed.waited_minutes == absolute[1] - absolute[0] - OPEN_TO_CLAIM_MINUTES >= 0
+        assert (claimed.wait_reason == "none") is (claimed.waited_minutes == 0)
+        assert absolute[2] - absolute[1] == work_minutes(claimed.action_type)
+        for minute in (absolute[1], absolute[2] - 1):
+            active = {item["actor_id"] for item in active_assignments(*divmod(minute, 1440))}
+            assert claimed.actor_id in active
 
 
 @pytest.mark.parametrize("status,meaning", sorted(executor.RECEIPT_RESULTS.items()))

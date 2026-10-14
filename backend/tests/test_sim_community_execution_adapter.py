@@ -16,7 +16,8 @@ from simulation.community_execution_adapter import (
 )
 from simulation.community_executor import ExecutionContext, ExecutorEvent
 from simulation.community_shift_execution import ShiftExecutionError
-from simulation.community_ticket_plan import CLAIM, COMPLETE, OPEN, plan_ticket_phases
+from simulation.community_day_queue import build_day_queue
+from simulation.community_ticket_plan import CLAIM, COMPLETE, OPEN
 
 
 NOW = datetime(2026, 10, 13, 16, 0, tzinfo=timezone.utc)
@@ -36,6 +37,9 @@ def _matches(row, query):
         actual = _get(row, key)
         if isinstance(wanted, dict) and "$gt" in wanted:
             if actual is None or actual <= wanted["$gt"]:
+                return False
+        elif isinstance(wanted, dict) and "$ne" in wanted:
+            if actual == wanted["$ne"]:
                 return False
         elif actual != wanted:
             return False
@@ -95,16 +99,14 @@ class Store:
 
 def event(**changes):
     phase = changes.pop("task_phase", OPEN)
-    planned = {row.phase: row for row in plan_ticket_phases(
-        "day-000:resident-001:morning_medication_reminder", 0, 470,
-    )}[phase]
+    minute = {OPEN: 470, CLAIM: 475, COMPLETE: 478}[phase]
     resident_origin = phase == OPEN
     values = {
-        "event_id": planned.event_id,
+        "event_id": f"day-000:resident-001:morning_medication_reminder:ticket_{phase}",
         "stream_kind": "routine_ticket_phase",
         "action_type": "morning_medication_reminder",
-        "day_index": planned.day_index,
-        "minute": planned.minute,
+        "day_index": 0,
+        "minute": minute,
         "actor_id": "sim:resident:001" if resident_origin else "sim:staff:nursing:med_tech:01",
         "actor_name": "SIM Resident 001" if resident_origin else "SIM - Medication Technician 01",
         "actor_type": "simulated-agent",
@@ -433,7 +435,7 @@ def test_shift_milestone_is_idempotent_receipt_only_simulated_evidence():
 
 def test_real_day_zero_carry_in_shift_event_is_supported_exactly():
     async def case():
-        queue = executor.build_day_queue()
+        queue = build_day_queue()
         # SIM-005A: only overnight care staff carry in from day -1.
         item = next(row for row in queue if row.stream_kind == "canonical_shift_milestone"
                     and row.target_id.startswith("sim:shift:-1:"))

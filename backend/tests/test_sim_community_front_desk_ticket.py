@@ -5,7 +5,8 @@ import asyncio
 import pytest
 
 from simulation.community_blueprint import COMMUNITY_ID, SIMULATION_SCOPE
-from simulation.community_executor import ExecutionContext, build_day_queue
+from simulation.community_day_queue import build_day_queue
+from simulation.community_executor import ExecutionContext
 from simulation.community_front_desk_ticket import FrontDeskTicketError, create_front_desk_request
 from tests.community_runtime_fake import RuntimeStore
 

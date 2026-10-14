@@ -905,6 +905,15 @@ listener verifier experiment: `docs/experiments/`.
 - `backend/simulation/community_coverage.py` (department ON DUTY / ON CALL / CLOSED / UNCOVERED from operating hours and the rota) and
   `community_runtime_staffing.py` (runtime staffing projection); the shift table in `community_staffing.py` follows the
   owner's 2026-10-13 staffing direction (overnight 3 care staff on site, maintenance hours + on-call).
+- Worker capacity (SIM-006): `backend/simulation/community_capacity_schedule.py` schedules every ticket of the
+  90-day plan so each on-site worker holds one active ticket at a time (claimed only by a free worker whose shift
+  covers the whole job; excess waits with a recorded reason); `community_day_queue.py` turns that schedule into one
+  day's executor events; `community_ticket_plan.py` holds the open-queue dwell and the per-routine hands-on minutes
+  (labelled simulation assumptions). The rule is also enforced against persisted state: the partial unique index
+  `living_tasks_one_active_per_worker` (`community_index_contract.py`) plus a pre-claim check in
+  `community_execution_adapter.py`. `community_queue_view.py` (part of `GET /api/simulator/community/runtime`)
+  and `frontend/src/components/simulator/SimCommunityQueue.jsx` show waiting tickets with simulated wait, overdue
+  and backlog per department, busy/free workers with ticket drill-in, and executor lag behind the clock.
 - Tests: `backend/tests/test_sim_community_*.py`, `test_living_community_*`,
   `test_haiku_community_provider_boundary.py`, and
   `frontend/src/components/simulator/__tests__/{SimCommunityOverview,SimCommunityObserved}.test.jsx` plus

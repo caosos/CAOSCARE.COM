@@ -3,6 +3,8 @@
 from collections.abc import Awaitable, Callable
 from typing import Optional
 
+from pymongo.errors import DuplicateKeyError
+
 from simulation.community_blueprint import COMMUNITY_ID, SIMULATION_SCOPE
 from simulation.community_executor import ExecutionContext, ExecutorEvent
 from simulation.community_shift_execution import is_shift_event, record_shift_milestone, validate_shift_event
@@ -82,6 +84,22 @@ class CanonicalCommunityExecutionServices:
             "simulated": True,
         }, {"_id": 0})
 
+    async def _refuse_second_active_ticket(self, task: dict, event: ExecutorEvent,
+                                           context: ExecutionContext) -> None:
+        """One active ticket per worker, checked against persisted state."""
+        held = await self.store.staff_tasks.find_one({
+            "simulation_run_id": context.run_id,
+            "simulation_scope": SIMULATION_SCOPE,
+            "simulated": True,
+            "status": "in_progress",
+            "assigned_to": event.actor_id,
+            "task_id": {"$ne": task["task_id"]},
+        }, {"_id": 0, "task_id": 1})
+        if held:
+            raise CommunityExecutionAdapterError(
+                f"worker {event.actor_id} already holds active ticket {held['task_id']}"
+            )
+
     async def _task_receipt(self, task_id: str, event: ExecutorEvent,
                             context: ExecutionContext, action_type: str) -> Optional[dict]:
         query = {
@@ -133,6 +151,7 @@ class CanonicalCommunityExecutionServices:
                     "task_id": task["task_id"],
                     "status": task.get("status"),
                     "blocked_capability_not_invoked": event.blocked_capability,
+                    **ticket.queue_fields(event),
                 },
                 "result_label": "simulated",
                 "provider_refs": [],
@@ -208,9 +227,15 @@ class CanonicalCommunityExecutionServices:
                 "resident_request_created", "created", None,
             )
         elif event.task_phase == CLAIM and state == "pending":
-            task, phase_receipt = await self.task_starter(
-                task_id=task["task_id"], actor=actor, user=user,
-            )
+            await self._refuse_second_active_ticket(task, event, context)
+            try:
+                task, phase_receipt = await self.task_starter(
+                    task_id=task["task_id"], actor=actor, user=user,
+                )
+            except DuplicateKeyError as exc:
+                raise CommunityExecutionAdapterError(
+                    f"database refused a second active ticket for {event.actor_id}"
+                ) from exc
             action_type, phase_status, before_status = "task_in_progress", "in_progress", "pending"
         elif event.task_phase == CLAIM and state == "in_progress":
             phase_receipt = await self._task_receipt(

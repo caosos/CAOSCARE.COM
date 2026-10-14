@@ -14,6 +14,7 @@ from simulation import community_cursor_commit
 from simulation import community_run_lease as run_lease
 from simulation import community_runner_step
 from simulation.community_blueprint import COMMUNITY_ID, SIMULATION_SCOPE
+from simulation.community_routines import ADAPTER_CAPABILITIES, BLOCKED
 
 
 class CommunityRunnerError(RuntimeError):
@@ -69,7 +70,11 @@ def _explicitly_blocked(event) -> bool:
             or event.get("execution_state") == "blocked"
             or event.get("adapter_status") == "blocked"
         )
-    return bool(getattr(event, "blocked_capability", None))
+    # ``blocked_capability`` names a capability the ticket deliberately does
+    # not invoke (its receipt records ``blocked_capability_not_invoked``); the
+    # event itself runs through its safe canonical adapter.  Only an event
+    # whose own adapter is blocked must never execute.
+    return ADAPTER_CAPABILITIES.get(getattr(event, "adapter", None), {}).get("status") == BLOCKED
 
 
 def _validate_recovery_proof(

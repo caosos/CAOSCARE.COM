@@ -327,7 +327,7 @@ def test_naive_fresh_clock_refuses_cursor_metadata_change():
 
 def test_exact_crash_receipt_advances_even_when_event_adapter_is_blocked():
     async def case():
-        item = event(1, blocked_capability="outbound_call")
+        item = event(1, adapter="outbound_family_call")
         store = Store(run_row())
         services = Services()
         result = await invoke(store, Timeline(store, (item,), (proof(item, 2),)), services)
@@ -349,7 +349,7 @@ def test_paused_run_is_reconciled_without_heartbeat_or_execution(state, expected
 
 @pytest.mark.parametrize("item,expected", [
     (event(1, minute=101), "future"),
-    (event(1, blocked_capability="outbound_call"), "blocked"),
+    (event(1, adapter="outbound_family_call"), "blocked"),
 ])
 def test_future_and_blocked_work_never_execute(item, expected):
     async def case():
@@ -357,6 +357,17 @@ def test_future_and_blocked_work_never_execute(item, expected):
         result = await invoke(store, Timeline(store, (item,)), services)
         assert result.status == expected
         assert services.executions == [] and store.sim_runs.row["cursor"] == 0
+    asyncio.run(case())
+
+
+def test_ticket_that_records_an_uninvoked_capability_still_executes():
+    """SIM-006: medication reminders carry blocked_capability=medication_kiosk;
+    treating that as a blocked event halted every 75-resident run at day 0, 07:50."""
+    async def case():
+        item = event(1, blocked_capability="medication_kiosk")
+        store, services = Store(run_row()), Services()
+        result = await invoke(store, Timeline(store, (item,)), services)
+        assert result.status != "blocked" and len(services.executions) == 1
     asyncio.run(case())
 
 

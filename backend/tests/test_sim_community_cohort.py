@@ -1,5 +1,5 @@
 """SIM-005B: all 75 residents executable; ten-resident burn-in optional."""
-from collections import Counter, defaultdict
+from collections import Counter
 
 import pytest
 
@@ -8,8 +8,6 @@ from simulation.community_blueprint import RESIDENTS
 from simulation.community_dispatch import QUEUED_UNASSIGNED, plan_routine_dispatch
 from simulation.community_family_call_routing import family_call_department
 from simulation.community_routines import RoutineEvent, plan_first_24_hours
-from simulation.community_staffing import active_assignments
-from simulation.community_ticket_assignment import assign_ticket_workers, peak_concurrent_tickets
 from simulation.community_timeline import (
     PLAN_REVISIONS, build_90_day_timeline, cohort_of_revision, validate_timeline,
 )
@@ -34,9 +32,10 @@ def test_runtime_default_is_the_full_community_and_burn_in_is_optional(monkeypat
 
 def test_full_plan_executes_every_resident_deterministically(full_plan):
     assert full_plan.cohort == "community_75" and full_plan.resident_count == 75
-    assert full_plan.event_count == 321_030
+    # 104,640 tickets; the 105 still queued at the horizon have no claim/complete.
+    assert full_plan.event_count == 320_730
     kinds = Counter(event.stream_kind for event in full_plan.events)
-    assert kinds == {"routine_ticket_phase": 314_010, "canonical_shift_milestone": 7_020}
+    assert kinds == {"routine_ticket_phase": 313_710, "canonical_shift_milestone": 7_020}
     opened = {e.target_id for e in full_plan.events if e.task_phase == "open"}
     assert opened == {resident.resident_id for resident in RESIDENTS}
     ids = [event.event_id for event in full_plan.events]
@@ -79,33 +78,6 @@ def test_ticket_is_dispatched_only_when_staffed_through_completion():
     (row,) = plan_routine_dispatch([late])
     assert row.dispatch_state == QUEUED_UNASSIGNED
     assert (row.ready_day_index, row.ready_minute) == (1, 7 * 60)
-
-
-def test_workers_are_on_site_and_load_is_spread(full_plan):
-    phases = defaultdict(dict)
-    for event in full_plan.events:
-        if event.stream_kind == "routine_ticket_phase":
-            phases[event.workflow_event_id][event.task_phase] = event
-    spans, used = defaultdict(list), set()
-    for wf in list(phases)[:20000]:
-        claim, complete = phases[wf]["claim"], phases[wf]["complete"]
-        for row in (claim, complete):
-            on_site = {w["actor_id"] for w in active_assignments(row.day_index, row.minute)}
-            assert row.actor_id in on_site
-        used.add(claim.actor_id)
-        if claim.actor_id == complete.actor_id:
-            spans[claim.actor_id].append((claim.day_index * 1440 + claim.minute,
-                                          complete.day_index * 1440 + complete.minute))
-    assert len(used) >= 35  # least-loaded assignment, not "first worker takes everything"
-    assert max(peak_concurrent_tickets(spans).values()) <= 10
-
-
-def test_least_loaded_assignment_spreads_simultaneous_tickets():
-    tickets = [(f"wf-{n}", "nursing", 1440 + 9 * 60, 1440 + 9 * 60 + 10) for n in range(4)]
-    assigned = assign_ticket_workers(tickets)
-    claimers = [assigned[f"wf-{n}"][0]["actor_id"] for n in range(4)]
-    assert len(set(claimers)) == 4
-    assert all(assigned[f"wf-{n}"][0] is assigned[f"wf-{n}"][1] for n in range(4))
 
 
 def _resident_row(recipe, **changes):

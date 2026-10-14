@@ -314,3 +314,18 @@ def test_sc17_runs_dedup_only_within_the_run():
         sim_again = await create_resident_request(_sim_input(), simulation_run_id=RUN)
         assert sim_again["duplicate"] and sim_again["task_id"] == sim["task_id"]
     run(go())
+
+
+def test_distinct_scheduled_simulator_routines_never_merge_as_repeat_asks():
+    """SIM-006: yesterday's night check still open must not absorb today's."""
+    async def go():
+        night = _sim_input("Perform the scheduled night resident room check.")
+        night.conversation_session_id = "simulator:event:day-000:resident-001:night_room_check"
+        first = await create_resident_request(night, simulation_run_id=RUN)
+        retry = await create_resident_request(night, simulation_run_id=RUN)
+        assert retry["duplicate"] and retry["task_id"] == first["task_id"]
+        overnight = _sim_input("Perform the scheduled night resident room check.")
+        overnight.conversation_session_id = "simulator:event:day-001:resident-001:overnight_room_check"
+        second = await create_resident_request(overnight, simulation_run_id=RUN)
+        assert not second["duplicate"] and second["task_id"] != first["task_id"]
+    run(go())

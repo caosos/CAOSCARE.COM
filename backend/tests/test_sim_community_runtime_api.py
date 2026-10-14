@@ -12,7 +12,9 @@ from routes import community_runtime
 
 FIXTURE = {
     "schema_version": 1, "status": "loaded", "read_only": True,
-    "run": {"state": "RUNNING", "run_id": "living-run-1"},
+    "run": {"status": "loaded", "state": "RUNNING", "run_id": "living-run-1",
+            "simulated_time": {"absolute_minute": 480},
+            "next_event": {"day_index": 0, "minute": 470}},
     "tickets": {"status": "loaded", "counts": {"open": 0}},
     "staffing": {"status": "loaded", "workers": []},
 }
@@ -22,6 +24,9 @@ ACTIVITY = {
     "run_id": "living-run-1", "tasks": {"status": "loaded", "items": []},
     "transitions": {"status": "loaded", "items": []},
 }
+
+
+QUEUE = {"schema_version": 1, "status": "loaded", "read_only": True, "run_id": "living-run-1"}
 
 
 def request(monkeypatch, role):
@@ -37,7 +42,12 @@ def request(monkeypatch, role):
         assert run_id == "living-run-1"
         return ACTIVITY
 
+    async def queue_snapshot(*, run_id, clock_minute, next_event_minute):
+        assert (run_id, clock_minute, next_event_minute) == ("living-run-1", 480, 470)
+        return QUEUE
+
     monkeypatch.setattr(deps, "get_current_user", current_user)
+    monkeypatch.setattr(community_runtime.community_queue_view, "queue_snapshot", queue_snapshot)
     monkeypatch.setattr(community_runtime.community_runtime_view, "runtime_snapshot", snapshot)
     monkeypatch.setattr(community_runtime.community_activity_view, "activity_snapshot", activity_snapshot)
     app = FastAPI()
@@ -61,4 +71,4 @@ def test_runtime_rejects_non_admins(monkeypatch, role, status):
 def test_runtime_allows_admin_tiers(monkeypatch, role):
     response = request(monkeypatch, role)
     assert response.status_code == 200
-    assert response.json() == {**FIXTURE, "activity": ACTIVITY}
+    assert response.json() == {**FIXTURE, "activity": ACTIVITY, "queue": QUEUE}
