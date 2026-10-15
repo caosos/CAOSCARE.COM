@@ -20,12 +20,18 @@ from typing import Iterable, Optional
 
 from deps import db
 
+# An arrival claim names who is coming: help, a person, or the request
+# ("it's on its way"). Bare "is coming" is not one: "your words are coming
+# through" and "the sound is coming from the EliteDesk" were stripped and
+# replaced with a request sentence on a turn with no request (Voice PE,
+# 2026-10-15). Aria speaking about herself ("I'll be right here") is not one.
+_WHO = (r"(help|someone|somebody|staff|a staff member|the staff|they|nurse|the nurse|an aide|the aide|"
+        r"a caregiver|maintenance|housekeeping|the driver|the team|he|she|your ride|your request)")
 ARRIVAL = re.compile(
-    r"\b(on (its|their|the|her|his|my) way|(is|are|'s|'re) (coming|headed|heading)|"
-    r"will be (here|there|right there|right over|with you|by|over|up)|"
-    r"(will|'ll) (come|stop|swing|head|be over|be right)|"
-    r"(help|someone|staff|they)('s| is| are)? (coming|underway|en route)|underway|en route|"
-    r"heading (your|over|to you)|be right (there|over|with you))",
+    rf"\b(on (its|their|her|his) way|en route|underway|"
+    rf"{_WHO}('s|'re| is| are| will be|'ll be)? (on the way|coming( over| by| to you)?\b(?! (through|from|in|out|across|up))|"
+    rf"headed (over|your way|to you)|heading (over|your way|to you))|"
+    rf"{_WHO}( will|'ll) (come|stop by|swing by|head over|be (right )?(over|there|up|with you|here|by)))",
     re.I)
 CLAIM_ACTIONS = ("task_assigned", "task_acknowledged", "task_in_progress", "transportation_departed")
 OPEN = ("pending", "in_progress")
