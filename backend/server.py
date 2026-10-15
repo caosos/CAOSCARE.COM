@@ -44,6 +44,7 @@ from routes import resident_request_overview  # noqa: E402
 from routes import upcoming_schedule  # noqa: E402
 from routes import schedule_conflict  # noqa: E402
 from routes import department_board  # noqa: E402
+from routes import department_roster  # noqa: E402
 from routes import operations_currency  # noqa: E402
 from routes import routing_exceptions  # noqa: E402
 from routes import delivery_exceptions  # noqa: E402
@@ -242,6 +243,7 @@ api.include_router(resident_request_routes.router)
 api.include_router(resident_request_overview.router)
 api.include_router(upcoming_schedule.router)
 api.include_router(schedule_conflict.router)
+api.include_router(department_roster.router)
 api.include_router(department_board.router)
 api.include_router(operations_currency.router)
 api.include_router(routing_exceptions.router)
