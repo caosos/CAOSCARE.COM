@@ -32,7 +32,7 @@ def test_territories_are_fixed_and_workload_follows_their_occupied_rooms():
         assert per[A] in ((8,) if day < 5 else (0,)) and per[B] in ((6,) if day >= 2 else (0,))
         # Same room, same housekeeper and weekday every week: territories are never reshuffled.
         assert hk.cleans_on(day) == [{**r} for r in hk.cleans_on(day + 7)]
-    assert work_minutes(hk.FULL_CLEAN) == hk.FULL_CLEAN_MINUTES == 45
+    assert work_minutes(hk.FULL_CLEAN) == hk.FULL_CLEAN_MINUTES == 30   # owner, 2026-10-15
 
 
 def test_over_90_days_each_clean_is_taken_only_by_its_territory_housekeeper():
@@ -44,7 +44,7 @@ def test_over_90_days_each_clean_is_taken_only_by_its_territory_housekeeper():
     for row in cleans:
         room = next(r.room for r in hk.RESIDENTS if r.resident_key == row.workflow_id.split(":")[1])
         assert row.worker["actor_id"] == hk.territory_of(room)
-        assert row.complete_at - row.claim_at == 45
+        assert row.complete_at - row.claim_at == 30
 
 
 def test_today_answers_scheduled_assigned_completed_in_progress_remaining():

@@ -8,8 +8,9 @@ housekeeper - the normal apartments are never reshuffled day to day.
 
 Workload follows the actual occupied apartments: Housekeeper 01's territory has
 40 occupied apartments over 5 shifts (8 per shift), Housekeeper 02's has 30 over 5
-(6 per shift); vacant apartments get no routine clean.  The 45-minute full clean
-and the request times are simulation assumptions, not facility data.
+(6 per shift); vacant apartments get no routine clean.  The 30-minute full clean is an
+owner-approved simulation assumption (Michael 2026-10-15: a conservative baseline; staff
+may do it in 15-20); the request times are simulation assumptions too.
 """
 from functools import lru_cache
 from typing import Optional
@@ -18,9 +19,9 @@ from simulation.community_blueprint import APARTMENTS, RESIDENTS
 from simulation.community_staffing import _day_rota, weekday_of
 
 FULL_CLEAN = "housekeeping_full_clean"
-FULL_CLEAN_MINUTES = 45
+FULL_CLEAN_MINUTES = 30
 FIRST_CLEAN_MINUTE = 8 * 60 + 15   # 08:15, after the 08:00 shift start
-CLEAN_SPACING = 50                 # 45 minutes of work plus moving to the next apartment
+CLEAN_SPACING = 35                 # 30 minutes of work plus moving to the next apartment
 
 # Fixed territories (apartment numbers, inclusive) per housekeeper.
 TERRITORIES = {

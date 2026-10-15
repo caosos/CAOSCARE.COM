@@ -986,3 +986,9 @@ Med techs now work 12-hour shifts 07:00–19:00 and 19:00–07:00 (one always on
 - **Plan:** community_75 has 314,363 events. The burn_in_10 digest is `0c777af0…faaf6`.
 - **Still visible:** maintenance median wait 2.8 days and 145 jobs open at day 90 with one person; 247 activity escorts missed.
 - **Not loaded:** waits for Kitchen acceptance and the owner's cutover.
+
+### 2026-10-15 addendum — full clean is 30 minutes (owner decision, #166 comment 6203700924)
+
+- Michael set a 30-minute full clean as an owner-approved, conservative simulation assumption; staff may take 15–20. This supersedes the 45 minutes above. Cleans are spaced 35 minutes apart. The weekly clean and the territories are unchanged, and no staff were added.
+- 90 days: 904 cleans, all completed, 0 still waiting. Clean wait median / p90 / max: 10 / 55 / 90 min. All housekeeping work: 28 min / 13.9 h / 20.9 h. Last clean finishes by 14:15 (Housekeeper 01) and 13:15 (Housekeeper 02).
+- Plan counts are unchanged; the burn_in_10 digest is now `035d6a30…50a3`. Simulator suites 620 passed / 0 failed. Not loaded.

@@ -9,7 +9,7 @@ from simulation import community_timeline as timeline
 
 
 EXPECTED_EVENT_COUNT = 49_977
-EXPECTED_DIGEST = "0c777af02e6391862f397a84662fbf555283c2cee96a933d4f251232f22faaf6"
+EXPECTED_DIGEST = "035d6a303fecde1709983d70cdad5aa13121c6d1c27fc917a425944852eb50a3"
 
 
 @pytest.fixture(scope="module")
