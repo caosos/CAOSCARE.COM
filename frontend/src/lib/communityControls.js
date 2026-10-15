@@ -36,7 +36,14 @@ export async function fetchCommunityControlCapability(apiClient) {
 }
 
 export function operationKey(action, run) {
-  if (action === "create_paused") return "staff-ui:create-paused:living-community-burn-in";
+  if (action === "create_paused") {
+    // The first run keeps its original key; a run created after a stopped one
+    // is keyed to the run it follows, so it gets its own id (a retry of the
+    // same click still replays instead of creating two runs).
+    return run?.run_id
+      ? `staff-ui:create-paused:after:${run.run_id}`
+      : "staff-ui:create-paused:living-community-burn-in";
+  }
   return [
     "staff-ui", action, run?.run_id, run?.state, run?.cursor, run?.simulated_time?.absolute_minute,
   ].join(":");

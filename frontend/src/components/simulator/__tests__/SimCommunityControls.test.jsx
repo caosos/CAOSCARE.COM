@@ -11,6 +11,7 @@ import {
   actionPayload,
   fetchCommunityControlCapability,
   isCommunityControlCapability,
+  operationKey,
 } from "../../../lib/communityControls";
 
 
@@ -188,4 +189,10 @@ test.each([
     expect(view.element.querySelector("[data-testid=community-control-create_paused]")).not.toBeNull();
   }
   await act(async () => view.root.unmount());
+});
+
+test("a run created after a stopped run gets its own operation key", () => {
+  expect(operationKey("create_paused", undefined)).toBe("staff-ui:create-paused:living-community-burn-in");
+  expect(operationKey("create_paused", { run_id: "simrun:living:old", state: "STOPPED" }))
+    .toBe("staff-ui:create-paused:after:simrun:living:old");
 });
