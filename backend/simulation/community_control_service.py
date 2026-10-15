@@ -130,11 +130,11 @@ class CommunityControlService:
 
     async def create_paused(
         self, operator: ActorContext, authority: str, operation_key: str,
-        *, now: Optional[datetime] = None,
+        *, now: Optional[datetime] = None, start_minute: int = 0,
     ) -> dict:
         return await lifecycle.create_burn_in_run(
             operator, authority, operation_key, self.plan,
-            store=self.store, now=self._now(now),
+            store=self.store, now=self._now(now), start_minute=start_minute,
         )
 
     async def provision_residents(

@@ -215,9 +215,9 @@ class RealtimeAcceptanceHarness:
         )
         self.run_id = None
 
-    async def create_and_provision(self):
+    async def create_and_provision(self, start_minute: int = 0):
         created = await self.controls.create_paused(
-            self.operator, AUTHORITY, "acceptance-create", now=NOW,
+            self.operator, AUTHORITY, "acceptance-create", now=NOW, start_minute=start_minute,
         )
         self.run_id = created["run"]["run_id"]
         await provision_burn_in_residents(

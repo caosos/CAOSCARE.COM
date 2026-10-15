@@ -125,9 +125,17 @@ def _replay(prior: dict, row: dict, action: str) -> dict:
 async def create_burn_in_run(
     operator: ActorContext, authority: str, idempotency_key: str,
     plan: CommunityTimeline, *, store, now: Optional[datetime] = None,
+    start_minute: int = 0,
 ) -> dict:
-    """Create one PAUSED, unprovisioned ten-resident burn-in run."""
+    """Create one PAUSED, unprovisioned run.
+
+    ``start_minute`` (0..1439) starts the simulated clock at that minute of
+    day 0 - the facility's real time of day for a real-time run; planned work
+    before it is receipted as not simulated (community_run_start).
+    """
     _operator(operator, authority)
+    if isinstance(start_minute, bool) or not isinstance(start_minute, int) or not 0 <= start_minute < 1440:
+        raise CommunityRunLifecycleError("start_minute must be a minute of day 0 (0..1439)")
     _, digest = _key(idempotency_key)
     fields, instant = _plan(plan), _utc(now)
     run_id = f"simrun:living:{sha256(f'{COMMUNITY_ID}:{digest}'.encode()).hexdigest()[:20]}"
@@ -146,7 +154,8 @@ async def create_burn_in_run(
                 return _replay(prior, row, "simulation_community_run_created")
             row = {
                 "_id": run_id, **_scope(run_id), **fields, "state": PAUSED,
-                "cursor": 0, "sim_minute": 0, "cohort": plan.cohort, "resident_count": plan.resident_count,
+                "cursor": 0, "sim_minute": start_minute, "started_at_minute": start_minute,
+                "cohort": plan.cohort, "resident_count": plan.resident_count,
                 "residents_provisioned": False, "creation_key_sha256": digest,
                 "created_by": operator.receipt_fields(), "original_human_starter": None,
                 "origin_receipt_id": receipt_id_value,

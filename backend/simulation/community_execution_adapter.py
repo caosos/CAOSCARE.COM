@@ -9,7 +9,7 @@ from simulation.community_blueprint import COMMUNITY_ID, SIMULATION_SCOPE
 from simulation.community_executor import ExecutionContext, ExecutorEvent
 from simulation.community_human_handoff import yielded_to_real_staff
 from simulation.community_shift_execution import is_shift_event, record_shift_milestone, validate_shift_event
-from simulation import community_ticket_staging as ticket
+from simulation import community_run_start as run_start, community_ticket_staging as ticket
 from simulation.community_ticket_plan import CLAIM, COMPLETE, OPEN, PHASES
 
 
@@ -56,6 +56,7 @@ class CanonicalCommunityExecutionServices:
                  task_completer: Optional[TaskTransition] = None,
                  receipt_writer: Optional[ReceiptWriter] = None):
         self.store = store if store is not None else ticket.default_store()
+        self._run_starts: dict = {}
         self.request_creator = request_creator or ticket.create_request
         self.task_loader = task_loader or ticket.load_task
         self.task_starter = task_starter or ticket.start_task
@@ -167,6 +168,14 @@ class CanonicalCommunityExecutionServices:
                             context: ExecutionContext) -> dict:
         """Advance one canonical ticket phase; never open and close in one tick."""
         _validate(event, context)
+        start = await run_start.run_start_minute(self.store, context.run_id, self._run_starts)
+        if run_start.before_start(event, start):
+            existing = await self.load_evidence(
+                run_id=context.run_id, event_id=event.event_id,
+                expected_cursor=context.cursor, execution_fence=context.fence,
+            )
+            return existing or await run_start.record_before_start(
+                self.receipt_writer, EXECUTOR_AUTHORITY, event, context, start)
         if is_shift_event(event):
             existing = await self.load_evidence(
                 run_id=context.run_id, event_id=event.event_id,

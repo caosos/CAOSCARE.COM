@@ -1,5 +1,6 @@
 """Default-off owner/admin HTTP controls for the living community."""
 
+from datetime import datetime, timezone
 from hashlib import sha256
 from typing import Literal
 
@@ -11,7 +12,8 @@ from routes.actor_context import actor_from_user
 from simulation.community_atomic_provision import CommunityAtomicProvisionError
 from simulation.community_control_capability import control_capability
 from simulation.community_control_service import CommunityControlError
-from simulation.community_loop_contract import CommunityLoopError
+from simulation.community_loop_contract import CommunityLoopError, configured_speed
+from simulation.community_run_start import local_minute_of_day
 from simulation.community_manual_step import CommunityManualStepError
 from simulation.community_run_lease import RunLeaseError
 from simulation.community_run_lifecycle import CommunityRunLifecycleError
@@ -104,8 +106,12 @@ async def create_paused(body: CreatePausedInput, user=Depends(require_admin)):
     await _allowed()
     actor, authority = _operator(user)
     try:
+        # At real speed (1x) a new run starts on the facility's real clock
+        # (community_run_start); faster runs start at 00:00 of day 0 as before.
+        real_time = configured_speed() == 1
         result = await _controls().create_paused(
             actor, authority, _operation_key(user, "create_paused", body.operation_key),
+            start_minute=local_minute_of_day(datetime.now(timezone.utc)) if real_time else 0,
         )
     except (CommunityControlError, CommunityRunLifecycleError, CommunityLoopError) as exc:
         _refused(exc)
