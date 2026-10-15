@@ -70,3 +70,29 @@ Every row in §3 cites session id and clock time (CDT) of the stored turn in `db
 ## 9. After the acceptance session (preserved, outside the requested scope)
 
 `rt_87no5md6_1792104271070` (17:44–17:49 CDT): order a pizza / contact businesses (I10), send a text message (I10), a small sandbox for Aria to make things for Michael (I11), and a repeat of the "don't recite what you can't do" irritation (I2). Aria said she could "note that as a capability people want" — she cannot yet (I6).
+
+## 10. Stage 3 reconciliation (2026-10-15 19:05 CDT) — against source `1f60a58`, docs PR #170, queue #166, open PRs #146/#160/#161/#167/#170
+
+| Idea | Class | Evidence |
+|---|---|---|
+| I1 read-only self-code | ALREADY BUILT | PR #169, live-accepted 17:33 CDT |
+| I3 creator/owner persists | ALREADY BUILT | pinned `db.memories` facts 2026-10-15; "that's on record" in session rt_87no5md6 |
+| I8 menu not on file | ALREADY BUILT (code) / DUPLICATE OF EXISTING QUEUE (content) | Aria information principle; menu data entry is Kitchen commissioning under CO-008 (#166) |
+| I2 + U1 stop re-stating an acknowledged limit | PARTIALLY BUILT — and the built part is **not applied** | `concise_natural` profile exists (`backend/aria_guidance_profiles.py`, 36 lines) but the Room 214 resident record `res_2425767f4a51` has **no `aria_guidance_profile`**, so Michael's room runs the default `supportive_guided` profile; the 2026-10-13 PROJECT_STATE step "resolve Michael's exact resident record and save `concise_natural` with a receipt" was never done. No profile text addresses an acknowledged limit. Loops observed 15:18–15:21 and 17:48 CDT. |
+| I6 "I'll note that for the team" | NEW (truth defect) | `realtime_self_knowledge.py` line 111 instructs exactly that sentence; no channel exists, so it over-promises inside the NEVER-over-promise rule |
+| I5 builder note channel | NEW | owner intake exists GitHub → coordinator (`docs/OWNER_INTAKE.md`), nothing Aria → backlog; destination is an owner decision |
+| I4 wake/mic owner exemption | PARTIALLY BUILT / CONFLICTS WITH CURRENT DIRECTION | wake and audio-path tuning remain PARKED (CURRENT_PRIORITY); not now |
+| I7 AC protocol truth | PARTIALLY BUILT / DUPLICATE | known defect (Midea off-commands), climate "In development"; CO-008/#164 realism lane territory |
+| I9 email assistant, I10 order/text, I11 sandbox | NEW / CONFLICTS WITH CURRENT DIRECTION | resident-facing truth rule forbids claiming outside actions; belongs to a #163 (unified Aria gateway) owner decision packet, not a side build |
+
+### Recommended single bounded next task — `room214-owner-profile-truth-001` (awaiting owner approval; nothing started)
+
+**Goal.** Make Room 214 Aria actually run the owner's concise profile and stop re-reciting a limit the owner has already acknowledged.
+
+**Scope (two small parts, one PR):**
+1. **Data, through existing governance:** set `aria_guidance_profile = concise_natural` on resident `res_2425767f4a51` via the existing owner-only resident update route (`backend/routes/residents.py`), which writes receipt `resident_aria_guidance_profile_updated` with before/after. Needs the owner's signed-in session or explicit approval for the coordinator to do it on his behalf.
+2. **Prompt-only, platform-wide file, profile-scoped effect:** add one sentence to the `concise_natural` body in `backend/aria_guidance_profiles.py`: once the resident has acknowledged a limit, do not restate it; if they say they are changing it, acknowledge once ("not yet — I'll follow whatever you change") and move on. Extend `backend/tests/test_aria_guidance_profiles.py`; add a real-prompt test (pattern of `test_aria_rewake_continuity.py`) proving the Room 214 prompt carries `PROFILE: concise_natural` and the new sentence.
+
+**Acceptance.** (a) `GET /api/residents/res_2425767f4a51` → `concise_natural`, receipt present; (b) backend gate + the two tests; (c) guarded dev load; (d) live: Michael replays the 15:18 exchange ("you don't have it yet, I'm about to change it") — transcript shows one acknowledgement and no repeated boundary recital; "Can you change your code?" still answered No (self-code contract unchanged).
+
+**Non-overlap.** Touches one 36-line prompt module, one test file and one resident record; no simulator, department, dashboard, #153 or CO-008 files; does not change wake, memory, tools, or the self-code gate. Second candidate, not bundled: `aria-self-knowledge-truth-001` — replace the "I'll let the team know you asked" sentence with a truthful one until a builder-note channel exists (I6).
