@@ -129,6 +129,12 @@ async def _mint(payload, lease):
         payload.get("resident_id"), operational_state=op_state, continuity=continuity,
         conversation_state=conv_state, interpretation_patterns=interpretation_patterns, opening=opening,
     )
+    # Owner feature 2026-10-15: read-only self-code inspection, declared ONLY to the
+    # canonical Room 214 session (routes/self_code_tools.py); every call is re-proven
+    # server-side, so other sessions never see the tools and could not use them anyway.
+    from routes.self_code_tools import self_code_session_extras
+    self_code = await self_code_session_extras(payload, lease)
+    instructions += self_code["prompt"]
     session_config = {
         "type": "realtime",
         "model": OPENAI_REALTIME_MODEL,
@@ -158,7 +164,7 @@ async def _mint(payload, lease):
     session["_caos"] = {
         "voice": voice,
         "instructions": instructions,
-        "tools": await _build_tools(),
+        "tools": await _build_tools() + self_code["tools"],
         "tool_choice": "auto",
         "turn_detection": DEFAULT_VAD,
         "noise_reduction": DEFAULT_NOISE_REDUCTION,
@@ -170,6 +176,7 @@ async def _mint(payload, lease):
             "room": payload.get("room"),
             "alert_id": payload.get("alert_id"),
             "activation_id": payload.get("activation_id"),
+            "self_code_inspection": self_code["enabled"],
             "facility_label": facility_label,
             "facility_tz": facility_tz,
             "aria_companion_timeout_sec": assist_cfg.get("aria_companion_timeout_sec", 300),
