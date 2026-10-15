@@ -36,6 +36,10 @@ class ExecutorEvent:
     requested_at_minute: Optional[int] = None
     wait_reason: Optional[str] = None
     waited_minutes: Optional[int] = None
+    # Minutes per blocker over the whole wait ((reason, minutes), ...), and
+    # whether an off-site on-call worker was called in for this claim.
+    wait_breakdown: Optional[tuple] = None
+    called_in_on_call: bool = False
     # Who raised the ticket: the resident ("resident") or an on-site worker
     # ("staff"); on the OPEN phase actor_id is that person.
     opened_by: str = "resident"

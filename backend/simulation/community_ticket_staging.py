@@ -4,7 +4,8 @@ from routes.actor_context import ActorContext
 from simulation.community_blueprint import COMMUNITY_ID, SIMULATION_SCOPE
 from simulation.community_executor import ExecutionContext, ExecutorEvent
 from simulation.community_player_requests import PRIORITIES, SUMMARIES, WORDS
-from simulation.community_ticket_plan import CLAIM, COMPLETE, OPEN
+from simulation.community_service_windows import window_label
+from simulation.community_ticket_plan import CLAIM, COMPLETE, EXPIRE, OPEN
 
 
 class CommunityTicketStageError(RuntimeError):
@@ -72,6 +73,13 @@ async def complete_task(*, task_id: str, note: str, actor: ActorContext, user: d
     return await complete(task_id, note, actor, user)
 
 
+async def expire_task(*, task_id: str, note: str, actor: ActorContext, user: dict):
+    """Close a time-bound ticket unserved (canonical ``skipped``, receipted)."""
+    from routes.task_actions import skip
+
+    return await skip(task_id, note, actor, user)
+
+
 async def write_receipt(**kwargs) -> dict:
     from routes.receipts import create_receipt
 
@@ -120,6 +128,11 @@ def completion_note(event: ExecutorEvent) -> str:
         return ("Simulated activity offer and escort task completed; no schedule was "
                 "published and attendance is not inferred.")
     return f"Simulated {action.replace('_', ' ')} task completed through the canonical lifecycle."
+
+
+def expiry_note(event: ExecutorEvent) -> str:
+    return (f"Not served: the {window_label(event.action_type)} ended before a worker was free. "
+            "Closed by the department lead; nothing was served or claimed.")
 
 
 def actor(event: ExecutorEvent) -> ActorContext:
@@ -204,8 +217,13 @@ def validate_task_receipt(
 def phase_result(event: ExecutorEvent) -> str:
     if event.task_phase == OPEN:
         return f"Simulated {event.action_type.replace('_', ' ')} ticket opened in the canonical queue."
+    if event.task_phase == CLAIM and event.called_in_on_call:
+        return (f"{event.actor_name} was called in from on-call, arrived, and claimed the "
+                "simulated canonical ticket.")
     if event.task_phase == CLAIM:
         return f"{event.actor_name} claimed and started the simulated canonical ticket."
+    if event.task_phase == EXPIRE:
+        return expiry_note(event)
     return completion_note(event)
 
 
@@ -214,6 +232,7 @@ def next_phase(phase: str) -> str:
         OPEN: "awaiting_simulated_worker",
         CLAIM: "awaiting_simulated_completion",
         COMPLETE: "executor_cursor_ready",
+        EXPIRE: "executor_cursor_ready",
     }[phase]
 
 
@@ -222,6 +241,10 @@ def queue_fields(event: ExecutorEvent) -> dict:
     if event.requested_at_minute is None:
         return {}
     fields = {"requested_at_minute": event.requested_at_minute}
+    if event.task_phase in (CLAIM, EXPIRE):
+        fields.update({"wait_reason": event.wait_reason,
+                       "wait_breakdown": dict(event.wait_breakdown or ())})
     if event.task_phase == CLAIM:
-        fields.update({"wait_reason": event.wait_reason, "waited_minutes": event.waited_minutes})
+        fields.update({"waited_minutes": event.waited_minutes,
+                       "called_in_on_call": event.called_in_on_call})
     return fields

@@ -914,6 +914,11 @@ listener verifier experiment: `docs/experiments/`.
   `community_execution_adapter.py`. `community_queue_view.py` (part of `GET /api/simulator/community/runtime`)
   and `frontend/src/components/simulator/SimCommunityQueue.jsx` show waiting tickets with simulated wait, overdue
   and backlog per department, busy/free workers with ticket drill-in, and executor lag behind the clock.
+- Plan realism (CO-008, plan v9): `backend/simulation/community_role_eligibility.py` (routine → eligible job roles, preference
+  order), `community_on_call.py` (high/urgent call-in of on-call cover after a response delay), `community_wait_blockers.py`
+  (minutes per blocker over a ticket's whole wait), `community_service_windows.py` (dinner/activity windows; expired work is
+  closed not served) and `community_ticket_phase.py` (one canonical lifecycle transition per ticket phase, incl. `expire`).
+  Report: `docs/reports/2026-10-15-co008-plan-realism.md`.
 - Real staff in the simulated community: `backend/simulation/community_shift_cover.py` +
   `backend/routes/community_shift_cover.py` (owner/admin covers an on-site simulated worker's shift; the worker's
   planned phases yield with receipts and their tickets wait for the person, worked via Work as <department>) and

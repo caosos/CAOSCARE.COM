@@ -9,7 +9,7 @@ from simulation import community_timeline as timeline
 
 
 EXPECTED_EVENT_COUNT = 52_873
-EXPECTED_DIGEST = "c17ecbfa79dfa0702fc53409b05379119c995579add7641e3ec56c0eb937ae35"
+EXPECTED_DIGEST = "798135a8a1de9053b28da1baf3764204008e3b20c3b987dbb004cf9051a97969"
 
 
 @pytest.fixture(scope="module")
@@ -21,7 +21,7 @@ def test_builds_exact_stable_90_day_plan(plan):
     again = timeline.build_90_day_timeline()
 
     assert plan == again
-    assert plan.plan_revision == "living-community-timeline-v8-player-raised-burn_in_10"
+    assert plan.plan_revision == "living-community-timeline-v9-plan-realism-burn_in_10"
     assert plan.digest_algorithm == "sha256"
     assert plan.source_start_day == 0
     assert plan.source_end_day == 89

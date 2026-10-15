@@ -14,7 +14,7 @@ from simulation.community_dashboard_common import (
 )
 from simulation.community_dashboard_detail import DashboardNotFound
 from simulation.community_dashboard_view import executed_position
-from simulation.community_ticket_plan import CLAIM, COMPLETE, OPEN
+from simulation.community_ticket_plan import CLAIM, COMPLETE, EXPIRE, OPEN
 
 EXECUTOR = "living_community_executor"
 _RECEIPT_FIELDS = {
@@ -53,6 +53,7 @@ def _executed(receipts: list[dict], phase: str):
 
 def _timeline(task: dict, phases: dict, receipts: list[dict]) -> dict:
     claim, finish = _executed(receipts, CLAIM), _executed(receipts, COMPLETE)
+    queue = (claim or _executed(receipts, EXPIRE) or {}).get("after_state") or {}
     opened = phases[OPEN]
     requested = opened.requested_at_minute if opened else None
     sim_start = (phases[CLAIM].day_index * 1440 + phases[CLAIM].minute
@@ -61,7 +62,8 @@ def _timeline(task: dict, phases: dict, receipts: list[dict]) -> dict:
                if finish and finish.get("status") == "completed" and phases[COMPLETE] else None)
     out = {"requested": sim_time(requested), "started": sim_time(sim_start),
            "finished": sim_time(sim_end), "basis": "simulated", "wait_minutes": None,
-           "work_minutes": None, "wait_reason": (claim or {}).get("after_state", {}).get("wait_reason")}
+           "work_minutes": None, "wait_reason": queue.get("wait_reason"),
+           "wait_breakdown": queue.get("wait_breakdown"), "called_in_on_call": queue.get("called_in_on_call")}
     if sim_start is not None and requested is not None:
         out["wait_minutes"] = sim_start - requested
     if sim_start is not None and sim_end is not None:
@@ -99,7 +101,7 @@ async def ticket_detail(task_id: str, *, store=None) -> dict:
     plan = plan_events(run.get("plan_revision") or "")
     workflow = workflow_of(task)
     phases = phases_for(plan, workflow)
-    event_ids = [f"{workflow}:ticket_{phase}" for phase in (OPEN, CLAIM, COMPLETE)]
+    event_ids = [f"{workflow}:ticket_{phase}" for phase in (OPEN, CLAIM, COMPLETE, EXPIRE)]
     executor = await store.receipts.find(
         {"simulation_run_id": run["run_id"], "simulation_event_id": {"$in": event_ids}},
         _RECEIPT_FIELDS).to_list(None)

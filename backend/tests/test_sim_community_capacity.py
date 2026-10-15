@@ -37,7 +37,8 @@ def test_full_community_backlog_waits_and_drains_truthfully():
     rows = list(scheduled.values())
     reasons = {row.wait_reason for row in rows}
     assert reasons == {capacity.NO_WAIT, capacity.STAFF_BUSY, capacity.DEPARTMENT_CLOSED,
-                       capacity.ON_CALL_ONLY, capacity.UNCLAIMED_AT_END}
+                       capacity.ON_CALL_ONLY, capacity.ON_CALL_RESPONSE, capacity.UNCLAIMED_AT_END,
+                       "not_served_service_window_closed"}
     # Queues drain: with resident calls and staff reports added (2026-10-14),
     # a non-urgent maintenance call can wait through closed hours until the
     # next on-site shift, but aged priority means nothing waits two days.
@@ -49,8 +50,8 @@ def test_full_community_backlog_waits_and_drains_truthfully():
 
 def test_busy_staff_make_later_requests_wait_in_priority_order():
     at = 2 * 1440 + 8 * 60  # one dining team member is on site at 08:00
-    rows = _schedule(("b", "kitchen", "normal", at, 3), ("a", "kitchen", "normal", at, 3),
-                     ("u", "kitchen", "urgent", at + 1, 3))
+    rows = _schedule(("b", "kitchen", "normal", at, 3, "lunch"), ("a", "kitchen", "normal", at, 3, "lunch"),
+                     ("u", "kitchen", "urgent", at + 1, 3, "lunch"))
     assert rows["a"].claim_at == at + 5 and rows["a"].wait_reason == capacity.NO_WAIT
     assert rows["u"].claim_at == at + 8 and rows["u"].wait_reason == capacity.STAFF_BUSY
     assert rows["b"].claim_at == at + 11 and rows["b"].waited_minutes == 6
@@ -59,28 +60,29 @@ def test_busy_staff_make_later_requests_wait_in_priority_order():
 
 def test_after_hours_maintenance_waits_for_on_site_staff_not_on_call():
     at = 1440 + 15 * 60 + 25  # eligible 15:30, when the technician leaves
-    row = _schedule(("m", "maintenance", "normal", at, 10))["m"]
+    row = _schedule(("m", "maintenance", "normal", at, 10, "resident_call_light_out"))["m"]
     assert row.claim_at == 2 * 1440 + 7 * 60
     assert row.wait_reason == capacity.ON_CALL_ONLY
 
 
 def test_closed_department_waits_for_opening_and_never_runs_past_close():
     at = 1440 + 19 * 60 + 52  # eligible 19:57; ten minutes would run past 20:00
-    row = _schedule(("act", "activities", "normal", at, 10))["act"]
+    row = _schedule(("act", "activities", "normal", at, 10, "activity_follow_up"))["act"]
     assert row.claim_at == 2 * 1440 + 9 * 60
     assert row.wait_reason == capacity.DEPARTMENT_CLOSED
 
 
 def test_requests_and_work_past_the_horizon_are_not_planned():
     horizon = 3 * 1440
-    rows = _schedule(("late", "nursing", "normal", horizon - 6, 3),
-                     ("after", "nursing", "normal", horizon, 3), horizon=horizon)
+    rows = _schedule(("late", "nursing", "normal", horizon - 6, 3, "night_room_check"),
+                     ("after", "nursing", "normal", horizon, 3, "night_room_check"), horizon=horizon)
     assert "after" not in rows
     assert rows["late"].wait_reason == capacity.UNCLAIMED_AT_END
 
 
 def test_schedule_is_deterministic():
-    tickets = [(f"t{n}", "nursing", "normal", 1440 + 9 * 60, 8) for n in range(30)]
+    tickets = [(f"t{n}", "nursing", "normal", 1440 + 9 * 60, 8, "resident_call_help_up")
+               for n in range(30)]
     assert _schedule(*tickets) == _schedule(*reversed(tickets))
 
 
