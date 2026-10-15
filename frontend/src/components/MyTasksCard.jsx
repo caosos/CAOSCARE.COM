@@ -29,7 +29,7 @@ export default function MyTasksCard() {
 
   const fetchMine = async () => {
     try {
-      const { data } = await api.get("/tasks/mine");
+      const { data } = await api.get("/tasks", { params: { mine_only: true } });
       setTasks(data);
     } catch { /* the list keeps its last value; actions report their own errors */ }
   };
