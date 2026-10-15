@@ -914,6 +914,15 @@ listener verifier experiment: `docs/experiments/`.
   `community_execution_adapter.py`. `community_queue_view.py` (part of `GET /api/simulator/community/runtime`)
   and `frontend/src/components/simulator/SimCommunityQueue.jsx` show waiting tickets with simulated wait, overdue
   and backlog per department, busy/free workers with ticket drill-in, and executor lag behind the clock.
+- Simulated escalation (CO-008, #164/#168): `backend/simulation/community_response_thresholds.py` (the one
+  department x priority pickup/complete threshold table in simulated minutes, labelled simulation assumptions;
+  optional JSON override via `CAOSCARE_SIM_RESPONSE_THRESHOLDS`), `community_escalation.py` (level 1 = threshold ->
+  department lead, level 2 = twice -> supervisor; each level once per phase with a receipt
+  `simulated_ticket_escalated`, a `simulated` notification record and an `escalated` task event_log entry; minutes
+  proven from the executor open/claim receipts), `community_escalation_leads.py` (who is reachable from the roster
+  at that simulated minute; "no lead reachable" recorded truthfully) and `community_escalation_monitor.py` (loop
+  hook, at most once per simulated minute, failures logged and never stop the loop; wired in
+  `community_control_composition.py`). Real escalation (`routes/escalation_tick.py`) still excludes the community.
 - Real staff in the simulated community: `backend/simulation/community_shift_cover.py` +
   `backend/routes/community_shift_cover.py` (owner/admin covers an on-site simulated worker's shift; the worker's
   planned phases yield with receipts and their tickets wait for the person, worked via Work as <department>) and
