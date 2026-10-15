@@ -30,7 +30,9 @@ test("collapsed shows the summary only; expanding shows actions and the timeline
   await act(async () => { el.querySelector("[data-testid=wo-row-t1]").click(); });
   await act(async () => { await Promise.resolve(); });
   expect(el.querySelector("[role=toolbar]")).not.toBeNull();
-  for (const id of ["ack", "start", "complete", "note", "plan", "cancel", "history"]) expect(el.querySelector(`[data-testid=wo-${id}-t1]`)).not.toBeNull();
+  for (const id of ["ack", "start", "note", "plan", "cancel", "history"]) expect(el.querySelector(`[data-testid=wo-${id}-t1]`)).not.toBeNull();
+  // A waiting request is started before it can be completed (#168).
+  expect(el.querySelector("[data-testid=wo-complete-t1]")).toBeNull();
   expect(mockGet).toHaveBeenCalledWith("/tasks/t1/detail");
   expect(el.querySelector("[data-testid=timeline]").textContent).toBe("2 receipts");
   await act(async () => root.unmount());
@@ -39,4 +41,15 @@ test("collapsed shows the summary only; expanding shows actions and the timeline
 test("a simulator ticket shows its simulated day next to real time", () => {
   expect(simDayOf({ conversation_session_id: "simulator:event:day-012:resident-004:morning_room_check" })).toBe(13);
   expect(simDayOf({ conversation_session_id: "rt_abc" })).toBeNull();
+});
+
+test("only a request in progress offers Complete", async () => {
+  mockGet.mockResolvedValue({ data: { task: {}, receipts: [] } });
+  const el = document.createElement("div");
+  const root = createRoot(el);
+  await act(async () => root.render(<QueueTaskRow t={{ ...task, status: "in_progress" }} ctx={ctx} />));
+  await act(async () => { el.querySelector("[data-testid=wo-row-t1]").click(); });
+  expect(el.querySelector("[data-testid=wo-complete-t1]")).not.toBeNull();
+  expect(el.querySelector("[data-testid=wo-start-t1]")).toBeNull();
+  await act(async () => root.unmount());
 });

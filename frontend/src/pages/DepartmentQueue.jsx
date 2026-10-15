@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../lib/api";
+import { apiErrorText } from "../lib/apiError";
 import { useAuth } from "../lib/auth";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -95,7 +96,7 @@ export default function DepartmentQueue({ department, title, itemName = "request
       load();
       return true;
     } catch (err) {
-      toast.error(err?.response?.data?.detail || "Action failed");
+      toast.error(apiErrorText(err, "The action was refused"));
       return false;
     }
   };
@@ -120,7 +121,7 @@ export default function DepartmentQueue({ department, title, itemName = "request
       setNoteFor(null);
       load();
     } catch (err) {
-      toast.error(err?.response?.data?.detail || "Could not save the note");
+      toast.error(apiErrorText(err, "The note was not saved"));
     }
   };
   const canNote = (t) => ["owner", "admin"].includes(user?.role) || t.assigned_to === user?.user_id;
@@ -147,7 +148,7 @@ export default function DepartmentQueue({ department, title, itemName = "request
     } catch (err) {
       const d = conflictDetail(err);
       if (d) { setConflict({ fields, summary: conflictSummary(d) }); return; }
-      toast.error(err?.response?.data?.detail?.message || err?.response?.data?.detail || "Could not save the plan");
+      toast.error(apiErrorText(err, "The plan was not saved"));
     }
   };
   // Ride needed = create-or-attach exactly one transportation request for this planned request.
@@ -157,7 +158,7 @@ export default function DepartmentQueue({ department, title, itemName = "request
       toast.success(data.already_linked ? "A ride is already on file for this" : data.attached_existing ? "Attached to the resident's existing ride that day" : data.booked ? "Ride requested and booked" : "Ride requested — transportation will book it");
       load();
     } catch (err) {
-      toast.error(err?.response?.data?.detail || "Could not request a ride");
+      toast.error(apiErrorText(err, "The ride was not requested"));
     }
   };
   // Cancel = the canonical skip with a stated reason (receipted as task_cancelled).
@@ -169,7 +170,7 @@ export default function DepartmentQueue({ department, title, itemName = "request
       setCancelFor(null);
       load();
     } catch (err) {
-      toast.error(err?.response?.data?.detail || "Could not cancel the request");
+      toast.error(apiErrorText(err, "The request was not cancelled"));
     }
   };
   const reopen = async () => {
@@ -181,7 +182,7 @@ export default function DepartmentQueue({ department, title, itemName = "request
       setReopenReason("");
       load();
     } catch (err) {
-      toast.error(err?.response?.data?.detail || "Could not reopen the request");
+      toast.error(apiErrorText(err, "The request was not reopened"));
     }
   };
 
@@ -288,10 +289,10 @@ export default function DepartmentQueue({ department, title, itemName = "request
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle className="font-display">Complete {itemName}</DialogTitle></DialogHeader>
           <p className="text-sm text-caos-mute" data-testid="wo-complete-visibility">The resident sees this text on their screen and Aria may read it to them.</p>
-          <Textarea placeholder="What was done / outcome (optional)…" value={notes}
+          <Textarea placeholder="What was done / outcome (required)…" value={notes}
             onChange={(e) => setNotes(e.target.value)} rows={4} data-testid="wo-complete-notes" />
           <DialogFooter>
-            <Button onClick={doComplete} disabled={completing} className="bg-caos-forest" data-testid="wo-complete-submit">Mark complete</Button>
+            <Button onClick={doComplete} disabled={completing || !notes.trim()} className="bg-caos-forest" data-testid="wo-complete-submit">Mark complete</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

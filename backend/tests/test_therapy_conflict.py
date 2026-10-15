@@ -140,6 +140,7 @@ async def _run():
         r = plan(a, "fd", requested_for_time_label="2:00 PM"); assert r.status_code == 403, r.text
         assert requests.get(f"{API}/tasks/{a}/conflicts", timeout=5).status_code == 401
         # closed work does not count
+        _ok(requests.post(f"{API}/tasks/{n}/start", headers=H["nurse"], timeout=5))
         _ok(requests.post(f"{API}/tasks/{n}/complete", headers=H["nurse"], json={"notes": "done"}, timeout=5))
         chk_a = _ok(requests.get(f"{API}/tasks/{a}/conflicts", headers=H["pt"], timeout=5))
         assert {u["task_id"] for u in chk_a["conflicts"]} == {b}

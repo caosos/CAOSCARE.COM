@@ -17,6 +17,7 @@ from routes.task_history import task_event
 from routes.task_lifecycle import (CLOSED_STATUSES, LifecycleError, chain_head, check, load,
                                    record_refusal, state_of, transition, work_as_authority)
 from routes.receipts import create_receipt
+from routes.task_work_rules import check_complete, check_start
 
 
 def _ev(field: str, actor: ActorContext, rid: str, **kw) -> dict:
@@ -64,6 +65,8 @@ async def acknowledge(task_id: str, actor: ActorContext, user: dict):
 
 
 async def start(task_id: str, actor: ActorContext, user: dict):
+    await check_start(task_id, actor, user)
+
     def build(t, rid):
         patch = {"status": "in_progress", "started_at": now_utc().isoformat(),
                  "assigned_to": t.get("assigned_to") or actor.actor_id,
@@ -151,7 +154,10 @@ def _close_events(t: dict, to_status: str, notes: Optional[str], actor: ActorCon
     return entries
 
 
-async def complete(task_id: str, notes: Optional[str], actor: ActorContext, user: dict):
+async def complete(task_id: str, notes: Optional[str], actor: ActorContext, user: dict,
+                   override_reason: Optional[str] = None):
+    override = await check_complete(task_id, notes, actor, user, override_reason)
+
     def build(t, rid):
         finished = now_utc()
         duration = None
@@ -164,12 +170,15 @@ async def complete(task_id: str, notes: Optional[str], actor: ActorContext, user
         patch = {"status": "completed", "completed_at": finished.isoformat(),
                  "completed_by": actor.actor_id, "completed_by_name": actor.name,
                  "duration_minutes": duration, "notes": notes or t.get("notes") or ""}
-        if not t.get("started_at"):
-            patch["started_at"] = finished.isoformat()
-        return patch, _close_events(t, "completed", notes, actor, rid)
+        entries = _close_events(t, "completed", notes, actor, rid)
+        if override:
+            patch["completion_override_reason"] = override
+            entries.insert(0, _ev("note", actor, rid, text=f"Owner/admin override: {override}"))
+        return patch, entries
     return await transition(task_id, actor, user, action="complete", build=build,
                             action_type="task_completed", status="completed",
-                            result=notes or "completed")
+                            authority=f"admin_override:{user['role']}" if override else None,
+                            result=(f"override: {override} | {notes}" if override else notes) or "completed")
 
 
 async def skip(task_id: str, notes: Optional[str], actor: ActorContext, user: Optional[dict],

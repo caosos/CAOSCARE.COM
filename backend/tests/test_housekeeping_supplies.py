@@ -69,9 +69,12 @@ async def _scenario():
         await task_actions.assign(tid, hk["user_id"], actor_from_user(hk), hk)
         s = await resident_request_status(room=room)
         assert "2 × towels" in s["spoken"] and "1 × warm blanket" in s["spoken"] and "stock" not in s["spoken"].lower()
+        # Claimed, then started, then completed (#168: claim is not completion).
+        await task_actions.start(tid, actor_from_user(hk), hk)
         await task_actions.complete(tid, "Delivered 2 towels and a blanket", actor_from_user(hk), hk)
         chain = await db.receipts.find({"related_object_id": tid}).sort("created_at", 1).to_list(20)
-        assert [c["action_type"] for c in chain] == ["resident_request_created", "task_assigned", "task_completed"]
+        assert [c["action_type"] for c in chain] == ["resident_request_created", "task_assigned",
+                                                     "task_in_progress", "task_completed"]
     finally:
         await db.users.delete_many({"user_id": {"$regex": f"^{TAG}_"}})
         tids = [x["task_id"] for x in await db.staff_tasks.find({"room": room}, {"task_id": 1}).to_list(10)]

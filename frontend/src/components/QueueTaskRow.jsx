@@ -107,7 +107,7 @@ export default function QueueTaskRow({ t, ride, ctx }) {
               <Button size="sm" variant="outline" className={tool} onClick={() => claim(t.task_id)} data-testid={`wo-claim-${t.task_id}`}><Hand className="mr-1 h-4 w-4" />Claim</Button>)}
             {t.status === "pending" && (
               <Button size="sm" className={`${tool} bg-caos-forest text-white hover:bg-caos-forest-hover`} onClick={() => start(t.task_id)} data-testid={`wo-start-${t.task_id}`}><Play className="mr-1 h-4 w-4" />Start</Button>)}
-            {open(t) && (
+            {t.status === "in_progress" && (
               <Button size="sm" variant="outline" className={tool} onClick={() => openComplete(t.task_id)} data-testid={`wo-complete-${t.task_id}`}><Check className="mr-1 h-4 w-4" />Complete</Button>)}
             {canNote(t) && open(t) && (
               <Button size="sm" variant="ghost" className={tool} onClick={() => openNote(t.task_id)} data-testid={`wo-note-${t.task_id}`}><NotebookPen className="mr-1 h-4 w-4" />Note</Button>)}

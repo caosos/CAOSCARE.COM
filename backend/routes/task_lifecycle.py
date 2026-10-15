@@ -25,6 +25,7 @@ entry carries its receipt_id, so a missing receipt is detectable.
 from typing import Callable, Optional
 
 from fastapi import HTTPException
+from pymongo.errors import DuplicateKeyError
 
 from deps import db
 from models import uid
@@ -212,7 +213,15 @@ async def transition(task_id: str, actor: ActorContext, user: Optional[dict], *,
         first = await db.receipts.find_one(_chain_query(task_id), {"_id": 0, "receipt_id": 1},
                                            sort=[("created_at", 1)])
         correlation = first["receipt_id"]
-    await update_task_with_history(task_id, set_fields, entries)
+    try:
+        await update_task_with_history(task_id, set_fields, entries)
+    except DuplicateKeyError:
+        # The persisted one-active-ticket-per-worker index refused the write
+        # (a race the work rules did not see): a clear refusal, not a 500.
+        await record_refusal(task, actor, auth, action,
+                             "the worker already holds another in-progress request; nothing changed")
+        raise LifecycleError(409, "You are already working on another request. Complete it, hand it "
+                                  "off or mark it blocked first. Nothing was changed; the attempt was recorded.")
     after = await load(task_id)
     receipt = await create_receipt(
         action_type=action_type, related_object_type="task", related_object_id=task_id,
