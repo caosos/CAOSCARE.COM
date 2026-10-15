@@ -14,6 +14,7 @@ from simulation.community_control_service import (
     canonical_start_guard,
     runner_actor,
 )
+from simulation.community_escalation_monitor import EscalationMonitor
 from simulation.community_execution_adapter import CanonicalCommunityExecutionServices
 from simulation.community_loop import CommunityLoopManager
 from simulation.community_loop_contract import LoopConfig, configured_speed
@@ -72,6 +73,7 @@ def compose_community_controls(
         complete_run=complete_run,
         clock=clock,
         config=config,
+        monitor=EscalationMonitor(store=store),
     )
     return CommunityControlService(
         store=store,

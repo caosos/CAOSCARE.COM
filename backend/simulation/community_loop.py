@@ -7,6 +7,7 @@ one fenced event at a time.
 """
 
 import asyncio
+import logging
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from typing import Awaitable, Callable, Optional
@@ -31,6 +32,9 @@ RunCompleter = Callable[..., Awaitable[dict]]
 TickFunction = Callable[..., Awaitable[community_runner.TickResult]]
 SleepFunction = Callable[[float], Awaitable[None]]
 ClockFunction = Callable[[], datetime]
+# Optional per-tick side monitor (simulated escalation); never stops the loop.
+MonitorFunction = Callable[..., Awaitable[object]]
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -60,11 +64,13 @@ class CommunityLoopManager:
         clock: ClockFunction = lambda: datetime.now(timezone.utc),
         sleep: SleepFunction = asyncio.sleep,
         config: LoopConfig = LoopConfig(),
+        monitor: Optional[MonitorFunction] = None,
     ):
         self.store, self.timeline, self.services = store, timeline, services
         self.load_run = load_run
         self.advance_sim_clock, self.complete_run = advance_sim_clock, complete_run
         self.tick, self.clock, self.sleep, self.config = tick, clock, sleep, config
+        self.monitor = monitor
         self._handles: dict[str, _Handle] = {}
 
     def start(self, run_id: str, holder_id: str) -> bool:
@@ -193,6 +199,15 @@ class CommunityLoopManager:
             return None
         return advanced
 
+    async def _observe(self, handle: _Handle, row: dict) -> None:
+        if self.monitor is None:
+            return
+        try:
+            await self.monitor(run_id=handle.status.run_id, sim_minute=row["sim_minute"],
+                               now=_utc(self.clock))
+        except Exception as exc:  # noqa: BLE001 - a monitor never stops the loop
+            logger.warning("community loop monitor failed: %s: %s", type(exc).__name__, exc)
+
     async def _drive(self, handle: _Handle) -> None:
         try:
             while not handle.cancel.is_set():
@@ -202,6 +217,7 @@ class CommunityLoopManager:
                         if handle.status.phase == "stopped":
                             break
                         continue
+                    await self._observe(handle, row)
                     self._set(
                         handle, phase="running",
                         ticks_started=handle.status.ticks_started + 1,

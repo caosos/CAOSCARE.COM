@@ -67,7 +67,8 @@ async def queue_snapshot(*, run_id, clock_minute, next_event_minute=None, store=
     scoped = {"simulation_scope": SIMULATION_SCOPE, "simulation_community_id": COMMUNITY_ID,
               "simulation_run_id": run_id, "simulated": True}
     projection = {"_id": 0, "task_id": 1, "category": 1, "priority": 1, "title": 1, "description": 1,
-                  "resident_id": 1, "conversation_session_id": 1, "assigned_to": 1}
+                  "resident_id": 1, "conversation_session_id": 1, "assigned_to": 1,
+                  "simulated_escalation_level": 1, "simulated_escalated_at_minute": 1}
     try:
         run = await store.sim_runs.find_one({"run_id": run_id}, {"_id": 0, "plan_revision": 1})
         requested = _requested_minutes((run or {}).get("plan_revision") or "")
@@ -89,6 +90,9 @@ async def queue_snapshot(*, run_id, clock_minute, next_event_minute=None, store=
             "resident_id": task.get("resident_id"), "requested_at_minute": minute,
             "waiting_minutes": waiting,
             "overdue": claimable is not None and claimable > OVERDUE_AFTER_MINUTES,
+            # Simulated escalation (community_escalation): level 0 = never escalated.
+            "escalation_level": task.get("simulated_escalation_level") or 0,
+            "escalated_at_minute": task.get("simulated_escalated_at_minute"),
         })
     queued.sort(key=lambda row: (row["waiting_minutes"] is None, -(row["waiting_minutes"] or 0),
                                  row["task_id"] or ""))
@@ -136,6 +140,7 @@ async def queue_snapshot(*, run_id, clock_minute, next_event_minute=None, store=
         "executor_behind_clock_minutes": clock_minute - as_of,
         "overdue_after_minutes": OVERDUE_AFTER_MINUTES,
         "totals": {"queued": len(queued), "overdue": sum(row["overdue"] for row in queued),
+                   "escalated": sum(row["escalation_level"] > 0 for row in queued),
                    "in_progress": len(working),
                    "longest_wait_minutes": max((row["waiting_minutes"] or 0 for row in queued), default=None)},
         "departments": departments, "queued": queued[:QUEUED_LIMIT],
