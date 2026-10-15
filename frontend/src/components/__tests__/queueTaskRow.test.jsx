@@ -87,3 +87,12 @@ test("only a request in progress offers Complete", async () => {
   expect(el.querySelector("[data-testid=wo-start-t1]")).toBeNull();
   await act(async () => root.unmount());
 });
+
+test("an escalated simulated ticket says so and reads overdue (#168)", async () => {
+  const el = document.createElement("div");
+  const root = createRoot(el);
+  await act(async () => root.render(<QueueTaskRow t={{ ...task, simulated: true, simulated_escalation_level: 2 }} ctx={ctx} />));
+  expect(el.querySelector("[data-testid=wo-escalated-t1]").textContent).toBe("Escalated · level 2");
+  expect(el.textContent).toContain("overdue");
+  await act(async () => root.unmount());
+});

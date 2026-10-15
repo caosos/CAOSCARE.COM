@@ -70,6 +70,12 @@ export default function QueueTaskRow({ t, ride, ctx }) {
         <span className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-7 sm:pl-0">
           <Pill tone={PRIO[t.priority] || PRIO.normal}>{t.priority}</Pill>
           <Pill tone={STATUS[t.status] || STATUS.pending}>{t.status.replace("_", " ")}</Pill>
+          {t.simulated_escalation_level > 0 && (
+            <span className="text-[12px] font-semibold text-caos-terracotta" data-testid={`wo-escalated-${t.task_id}`}
+                  title="Past its response time in simulated minutes; the department lead (level 1) or supervisor (level 2) was notified (simulated).">
+              Escalated · level {t.simulated_escalation_level}
+            </span>
+          )}
           <span className="max-w-[11rem] truncate text-[13px] text-caos-ink">{t.assigned_name || <span className="text-caos-mute">Unassigned</span>}</span>
           <span className="text-[12px] text-caos-mute">{requested}</span>
           <span className={`text-[12px] ${overdue ? "font-semibold text-caos-terracotta" : "text-caos-mute"}`}>
