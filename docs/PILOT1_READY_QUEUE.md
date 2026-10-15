@@ -1,3 +1,5 @@
+> **HISTORICAL (2026-10-15).** Pilot 1's 2026-10-10 target has passed. This queue is evidence of what was approved and done; it is not the active queue. Active queue: owner issue #166. Current truth: `docs/PROJECT_STATE.md` header. Voice PE references below are superseded (rejected 2026-10-14).
+
 # CAOSCare Pilot 1 Ready Queue
 
 Target: 2026-10-10  

@@ -1,5 +1,7 @@
 # Room 214 Aria — read-only self-code inspection
 
+**Status 2026-10-15:** IMPLEMENTED + TESTED (PR #169 → integration `1f60a58`), LOADED on dev `:8092` and the Room 214 page (`main.b13c2b0d.js`), PHYSICALLY VERIFIED and OWNER ACCEPTED live (session `rt_lnrab36x_1792103482825`, 17:31 CDT; receipts on PR #169). Not PRODUCTION DEPLOYED (production `06e7e2b` predates it).
+
 **Owner feature (Michael, 2026-10-15).** The Aria instance serving **Room 214
 only** may read the CAOSCARE source relevant to herself, so she can answer
 "look at your own code and tell me how your memory works" from the actual

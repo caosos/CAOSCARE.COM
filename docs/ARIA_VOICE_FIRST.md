@@ -5,8 +5,11 @@ Living build record for `commands/TERMINAL_5_ARIA_VOICE_FIRST.md` and
 `caoscare1-hp-elitedesk` node. Do not replace or erase prior entries —
 append dated sections as the build progresses.
 
-Wake word: **Aria**, three syllables (Ar-i-a). Not yet implemented — see
-Phase A findings below.
+Wake word (as of this record's start, 2026-08-02): **Aria** — not yet implemented then.
+**Status 2026-10-15:** the production wake phrase is **"Hey Aria"**, implemented in
+`room-node/aria_wake/` and physically accepted in Room 214 (2026-10-12/13); see
+`docs/ARIA_WAKE_WORD_ARCHITECTURE.md`. This file is the dated build history and is
+not rewritten.
 
 ---
 

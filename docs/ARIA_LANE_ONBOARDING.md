@@ -63,10 +63,15 @@ source **for this work**, not licence to fill in unrelated placeholder content.
 ## Verify before implementing
 
 ```
-pwd                       # /home/caoscare-1/CAOSCARE.COM
-git branch --show-current  # aria/conversation-substrate  (do NOT branch again)
-git status --short          # expect in-progress substrate + Level 1 plumbing
+# 2026-10-15: the substrate lane merged into integration long ago. Work from a
+# bounded worktree branched off origin/integration/2026-09-27 (e.g.
+# ~/CAOSCARE-BOUNDED/<task>), one branch per task, draft PR into integration.
+git fetch origin && git log --oneline -1 origin/integration/2026-09-27
+git status --short          # expect clean before you start
 ```
+
+Also read `docs/ROOM214_SELF_CODE_INSPECTION.md` before touching the session mint
+or tool catalog (Room 214-only read-only tools are declared there).
 
 Do not merge `main`. Do not deploy. Do not touch the Claude Code 1 / Claude Code
 2 lanes. Small bounded changes; report line counts of every created/modified

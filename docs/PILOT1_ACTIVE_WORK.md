@@ -1,3 +1,5 @@
+> **HISTORICAL (2026-10-15).** Lane map for the Pilot 1 push (target 2026-10-10). Not the current work map: see the `docs/PROJECT_STATE.md` header and owner issue #166. The handoff/report format rules in this file remain in use.
+
 # CAOSCare Pilot 1 Active Work
 
 > **UPDATE 2026-10-10 (806967c, supersedes the 'Live now' line below where it differs):** :8092 runs the integration code from the guarded restart (`scripts/restart_dev_backend.sh`, owner-allowed for the EliteDesk dev backend only; manual rollback; not a release). Ride-log, email-readiness, shared staff-workflow and transport-lifecycle UI browser acceptance are recorded in `docs/reports/2026-10-10-ride-log-browser-acceptance.md`. Full backend gate on this tip: 481 passed / 0 failed / 31 skipped / 13 deselected (real-hardware), port 8141, 2026-10-10 ~05:50 UTC. No worker running; voice parked; owner/hardware/provider gates unchanged (see PILOT1_READY_QUEUE 2026-10-10 block).

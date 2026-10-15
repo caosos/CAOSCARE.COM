@@ -2,7 +2,15 @@
 
 Start here. Updated by Claude Code and ChatGPT-Aria as shared project state changes — this is the fastest way to reconstruct current CAOSCARE state without asking Michael to relay prior conversations.
 
-_Last updated: 2026-10-10_
+_Last updated: 2026-10-15_
+
+## Room 214 read-only self-code inspection (2026-10-15) — CURRENT, OWNER ACCEPTED
+Contract `../ROOM214_SELF_CODE_INSPECTION.md`; receipts on PR #169; ideas extracted from Michael's last Room 214 conversations: `../status/ROOM214_LAST_CONVERSATION_IDEAS_2026-10-15.md`.
+
+## Platform build log + resident Aria core capture (2026-10-12) — CURRENT EVIDENCE
+[2026-10-12-platform-build-log.md](2026-10-12-platform-build-log.md) — lifelong memory, re-wake/goodbye, real Sony TV by infrared, call-start TV mute, device-record receipts, all proven in Room 214.
+[2026-10-12-resident-aria-core-capture.md](2026-10-12-resident-aria-core-capture.md) — resident Aria conversation experience capture/plan (model, continuity, live lookup, calling).
+Note: the 2026-10-10 "voice PARKED" direction recorded below was partially lifted 2026-10-12 (resident Aria conversation un-parked); Voice PE was rejected 2026-10-14.
 
 ## Transportation staff workspace usability (2026-10-10) — REVIEW BRANCH
 [2026-10-10-transport-workspace-usability.md](2026-10-10-transport-workspace-usability.md)

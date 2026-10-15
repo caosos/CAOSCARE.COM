@@ -90,6 +90,15 @@ check); tests `scripts/owner_intake/tests/test_eta_receipts.py`.
 
 ## Current build control
 
+### Correction — 2026-10-15 18:40 CDT (supersedes the bullets below, which are kept as the 2026-10-12 record)
+
+- **Control issue / queue:** owner master queue [#166](https://github.com/caosos/CAOSCARE.COM/issues/166) (one ACTIVE change order at a time; CO-008 department operations active with PRs #160/#161/#167; queued #162–#165, follow-up #168; P0 #153). Issue #129 is the historical dispatch thread.
+- **Philosophy (owner):** major structure built; department-by-department trim, realism and commissioning: Kitchen → Nursing/Care → Housekeeping → Maintenance → Activities → Transportation → Front Office/Administration. Kitchen v11 is the accepted simulation model; v12 staffing/workspace work is a candidate until its runtime acceptance is proven. Owner-approved simulation assumptions live in `docs/CAOSCARE_OPERATIONS_SIMULATOR.md` §11 and are not facility measurements.
+- **Integration branch:** `integration/2026-09-27` tip `1f60a58` (PR #169, Room 214 read-only self-code inspection — IMPLEMENTED, TESTED, LOADED on dev `:8092` and the Room 214 page, PHYSICALLY/OWNER ACCEPTED live 2026-10-15 17:33 CDT; Room 214 only, no write path).
+- **Production:** caoscare.com `06e7e2b` (deployed 2026-10-12 17:03 CDT; PR #132). The `ff87c22` / `d7ff96a` values below are historical.
+- **Dev runtime:** `docs/CURRENT_NODE_STATUS.md` runtime table (2026-10-15). Restarts use `scripts/restart_dev_backend.sh`; page rebuilds use `room-node/aria_wake/ctl.sh rebuild`.
+- **State vocabulary** for every item: IMPLEMENTED · TESTED · SCRATCH ACCEPTED · BROWSER VERIFIED · PHYSICALLY VERIFIED · LOADED · OWNER ACCEPTED · PRODUCTION DEPLOYED (maps onto the PLANNED…DONE ladder at the top of this file; DEV_ACCEPTED = SCRATCH/BROWSER accepted on dev, LIVE_VERIFIED = PRODUCTION DEPLOYED and exercised).
+
 - **Current phase:** 3/7 — Care Operations workspaces.
 - **ONE current bounded task:** `careops-alerts-checklist-reconciliation-001` — WORKING (docs only) through existing coordinator `caoscare-1-ee`, item `da-3e0365ca67`. Corrects the stale entry that still named `careops-alerts-policy-editor-001` as WORKING (that text is preserved in the 2026-10-12 07:48 CDT update below); see the 2026-10-12 08:40 CDT correction at the end of this file.
 - **Control issue / dispatch channel:** [#129](https://github.com/caosos/CAOSCARE.COM/issues/129).

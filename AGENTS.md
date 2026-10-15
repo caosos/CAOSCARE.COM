@@ -40,14 +40,14 @@ It is intended to support senior-care and assisted-living environments through:
 - staff support
 - documentation and receipts
 - family/staff communication assistance
-- room architecture (Michael, 2026-10-03 — see the Product Baseline §2 and `docs/ROOM_AUDIO_ARCHITECTURE.md`):
+- room architecture (owner direction 2026-10-14/15 — canonical detail in the Product Baseline §2 and `docs/ROOM_AUDIO_ARCHITECTURE.md`):
   - one central community EliteDesk runs Home Assistant and CAOSCare; no EliteDesk is installed in each apartment;
-  - each apartment uses a Home Assistant Voice Preview Edition as the Aria room voice endpoint over Wi-Fi;
-  - no eMeet is included in the standard room hardware; test the Voice PE microphones in a real apartment before adding another audio endpoint;
+  - the proven room endpoint today is Room 214's eMeet speakerphone with the local "Hey Aria" listener (`room-node/aria_wake/`), physically accepted 2026-10-12/13;
+  - the **Home Assistant Voice Preview Edition was rejected by the owner on 2026-10-14** and is not the room endpoint; the future room appliance direction is CAOSCare Home One (issue #165, feasibility only, nothing built);
   - SIP/front-desk calling remains a separate handset/telephony function unless later testing establishes another accepted architecture;
   - the resident-facing assistant is Aria; primary wake phrase "Hey Aria", secondary test candidate "Aria";
   - resident rooms are NOT tablet-based.
-  - *Superseded (history only, do not treat as current): a per-apartment "room node" — a local CAOSCare computer behind the TV with an eMeet speakerphone.*
+  - *Superseded (history only, do not treat as current): Voice PE as the per-apartment voice endpoint (2026-10-03 → 2026-10-14); a per-apartment "room node" behind the TV (before 2026-10-03).*
 - staff clients (tablet / phone / computer) running the role- and department-scoped workspace — see the Product Baseline §3
 - behavior-change awareness
 - escalation support under human oversight
@@ -65,7 +65,7 @@ Do not remove or silently degrade:
 - privacy/consent boundaries
 - audit receipts
 - escalation/handoff paths
-- the room architecture (central EliteDesk server + Voice PE room endpoint) and the staff-client model as defined in `docs/CAOSCARE_PRODUCT_BASELINE.md` (§2, §3); wearable-ingest direction
+- the room architecture (central EliteDesk server + the accepted room voice endpoint; see the Product Baseline §2) and the staff-client model as defined in `docs/CAOSCARE_PRODUCT_BASELINE.md` (§2, §3); wearable-ingest direction
 - human-in-the-loop care decisions
 - low-intimidation senior-care UX
 - CAOS ecosystem alignment
