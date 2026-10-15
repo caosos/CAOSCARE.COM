@@ -3,14 +3,13 @@
 from collections.abc import Awaitable, Callable
 from typing import Optional
 
-from pymongo.errors import DuplicateKeyError
-
 from simulation.community_blueprint import COMMUNITY_ID, SIMULATION_SCOPE
 from simulation.community_executor import ExecutionContext, ExecutorEvent
 from simulation.community_human_handoff import yielded_to_real_staff
 from simulation.community_shift_execution import is_shift_event, record_shift_milestone, validate_shift_event
 from simulation import community_run_start as run_start, community_ticket_staging as ticket
-from simulation.community_ticket_plan import CLAIM, COMPLETE, OPEN, PHASES
+from simulation import community_ticket_phase as phase
+from simulation.community_ticket_plan import OPEN, PHASES
 
 
 EXECUTOR_AUTHORITY = "living_community_executor"
@@ -54,6 +53,7 @@ class CanonicalCommunityExecutionServices:
                  task_loader: Optional[TaskLoader] = None,
                  task_starter: Optional[TaskTransition] = None,
                  task_completer: Optional[TaskTransition] = None,
+                 task_expirer: Optional[TaskTransition] = None,
                  receipt_writer: Optional[ReceiptWriter] = None):
         self.store = store if store is not None else ticket.default_store()
         self._run_starts: dict = {}
@@ -61,6 +61,7 @@ class CanonicalCommunityExecutionServices:
         self.task_loader = task_loader or ticket.load_task
         self.task_starter = task_starter or ticket.start_task
         self.task_completer = task_completer or ticket.complete_task
+        self.task_expirer = task_expirer or ticket.expire_task
         self.receipt_writer = receipt_writer or ticket.write_receipt
 
     async def load_evidence(self, *, run_id: str, event_id: str,
@@ -239,45 +240,11 @@ class CanonicalCommunityExecutionServices:
                     before_status=state, status="cancelled", result=result, next_state=next_state,
                 )
 
-        if event.task_phase == OPEN:
-            if state != "pending":
-                raise CommunityExecutionAdapterError("open phase task is not pending")
-            origin_action = ticket.origin_action(event)
-            phase_receipt = await self._task_receipt(
-                task["task_id"], event, context, origin_action,
-            )
-            action_type, phase_status, before_status = (origin_action, "created", None)
-        elif event.task_phase == CLAIM and state == "pending":
-            await self._refuse_second_active_ticket(task, event, context)
-            try:
-                task, phase_receipt = await self.task_starter(
-                    task_id=task["task_id"], actor=actor, user=user,
-                )
-            except DuplicateKeyError as exc:
-                raise CommunityExecutionAdapterError(
-                    f"database refused a second active ticket for {event.actor_id}"
-                ) from exc
-            action_type, phase_status, before_status = "task_in_progress", "in_progress", "pending"
-        elif event.task_phase == CLAIM and state == "in_progress":
-            phase_receipt = await self._task_receipt(
-                task["task_id"], event, context, "task_in_progress",
-            )
-            action_type, phase_status, before_status = "task_in_progress", "in_progress", "pending"
-        elif event.task_phase == COMPLETE and state == "in_progress":
-            task, phase_receipt = await self.task_completer(
-                task_id=task["task_id"], note=ticket.completion_note(event),
-                actor=actor, user=user,
-            )
-            action_type, phase_status, before_status = "task_completed", "completed", "in_progress"
-        elif event.task_phase == COMPLETE and state == "completed":
-            phase_receipt = await self._task_receipt(
-                task["task_id"], event, context, "task_completed",
-            )
-            action_type, phase_status, before_status = "task_completed", "completed", "in_progress"
-        else:
-            raise CommunityExecutionAdapterError(
-                f"ticket {event.task_phase} phase contradicts canonical task state {state}"
-            )
+        try:
+            task, phase_receipt, action_type, phase_status, before_status = await phase.transition(
+                self, event, context, task, actor, user, ticket.origin_action(event))
+        except phase.TicketPhaseError as exc:
+            raise CommunityExecutionAdapterError(str(exc)) from exc
 
         if not phase_receipt or not phase_receipt.get("receipt_id"):
             raise CommunityExecutionAdapterError(f"canonical {action_type} produced no durable receipt")

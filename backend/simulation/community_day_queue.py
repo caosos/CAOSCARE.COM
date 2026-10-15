@@ -3,9 +3,11 @@
 Every routine becomes a canonical ticket that opens at its real request time.
 Claim and completion come from the capacity schedule
 (:mod:`simulation.community_capacity_schedule`): one active ticket per
-on-site worker, so excess requests wait in the department queue and the
-claim phase records how long and why.  Phases beyond the 90-day horizon are
-not planned, so an unfinished ticket stays truthfully open at the end.
+qualified worker, so excess requests wait in the department queue and the
+claim phase records how long and why (minutes per blocker).  A meal or
+activity whose service window closed first gets an ``expire`` phase instead
+(closed unserved by the department lead).  Phases beyond the 90-day horizon
+are not planned, so an unfinished ticket stays truthfully open at the end.
 """
 from functools import lru_cache
 from hashlib import sha256
@@ -17,7 +19,7 @@ from simulation.community_player_requests import player_requests
 from simulation.community_routines import RoutineEvent, plan_first_24_hours
 from simulation.community_staffing import active_assignments
 from simulation.community_shift_events import planned_events_for_day
-from simulation.community_ticket_plan import CLAIM, COMPLETE, OPEN, work_minutes
+from simulation.community_ticket_plan import CLAIM, COMPLETE, EXPIRE, OPEN, work_minutes
 
 TIMELINE_DAYS = 90
 _RESIDENT_INDEX = {
@@ -56,7 +58,7 @@ def cohort_schedule(cohort: str = BURN_IN):
                 for day in range(TIMELINE_DAYS)}
     scheduled = schedule_tickets(
         (event.event_id, event.department, event.priority, event.absolute_minute,
-         work_minutes(event.routine))
+         work_minutes(event.routine), event.routine)
         for day_routines in routines.values() for event in day_routines
     )
     return routines, scheduled
@@ -79,13 +81,15 @@ def event_sort_key(event: ExecutorEvent) -> tuple[int, int, str, str]:
 
 def ticket_events(event: RoutineEvent, ticket: ScheduledTicket,
                   cohort: str = BURN_IN) -> tuple[ExecutorEvent, ...]:
-    """Open / claim / complete events for one scheduled ticket."""
+    """Open / claim / complete (or open / expire) events for one scheduled ticket."""
     resident = _RESIDENT_INDEX.get(cohort, {}).get(event.resident_key)
     if resident is None:
         raise CommunityExecutorError(f"event is outside the {cohort} residents: {event.event_id}")
     phases = [(OPEN, ticket.requested_at, opener(event))]
     if ticket.claim_at is not None and ticket.complete_at < HORIZON_MINUTES:
         phases += [(CLAIM, ticket.claim_at, ticket.worker), (COMPLETE, ticket.complete_at, ticket.worker)]
+    elif ticket.expire_at is not None and ticket.expire_at < HORIZON_MINUTES:
+        phases.append((EXPIRE, ticket.expire_at, ticket.expired_by))
     rows = []
     for phase, absolute, worker in phases:
         day_index, minute = divmod(absolute, 1440)
@@ -108,8 +112,10 @@ def ticket_events(event: RoutineEvent, ticket: ScheduledTicket,
             workflow_event_id=event.event_id,
             task_phase=phase,
             requested_at_minute=ticket.requested_at,
-            wait_reason=ticket.wait_reason if phase == CLAIM else None,
+            wait_reason=ticket.wait_reason if phase in (CLAIM, EXPIRE) else None,
             waited_minutes=ticket.waited_minutes if phase == CLAIM else None,
+            wait_breakdown=ticket.wait_breakdown if phase in (CLAIM, EXPIRE) else None,
+            called_in_on_call=ticket.called_in_on_call and phase == CLAIM,
         ))
     return tuple(rows)
 

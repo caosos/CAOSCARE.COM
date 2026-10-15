@@ -923,6 +923,11 @@ listener verifier experiment: `docs/experiments/`.
   at that simulated minute; "no lead reachable" recorded truthfully) and `community_escalation_monitor.py` (loop
   hook, at most once per simulated minute, failures logged and never stop the loop; wired in
   `community_control_composition.py`). Real escalation (`routes/escalation_tick.py`) still excludes the community.
+- Plan realism (CO-008, plan v9): `backend/simulation/community_role_eligibility.py` (routine → eligible job roles, preference
+  order), `community_on_call.py` (high/urgent call-in of on-call cover after a response delay), `community_wait_blockers.py`
+  (minutes per blocker over a ticket's whole wait), `community_service_windows.py` (dinner/activity windows; expired work is
+  closed not served) and `community_ticket_phase.py` (one canonical lifecycle transition per ticket phase, incl. `expire`).
+  Report: `docs/reports/2026-10-15-co008-plan-realism.md`.
 - Real staff in the simulated community: `backend/simulation/community_shift_cover.py` +
   `backend/routes/community_shift_cover.py` (owner/admin covers an on-site simulated worker's shift; the worker's
   planned phases yield with receipts and their tickets wait for the person, worked via Work as <department>) and

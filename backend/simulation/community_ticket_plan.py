@@ -10,7 +10,9 @@ the ticket wait longer, truthfully.
 OPEN = "open"
 CLAIM = "claim"
 COMPLETE = "complete"
-PHASES = (OPEN, CLAIM, COMPLETE)
+# A time-bound ticket closed unserved when its service window ended.
+EXPIRE = "expire"
+PHASES = (OPEN, CLAIM, COMPLETE, EXPIRE)
 
 # The Live Operations surface polls every two real seconds. At the default
 # 60x speed, one simulated minute passes per real second, so the shortest

@@ -14,7 +14,7 @@ from simulation.community_dashboard_common import (
 )
 from simulation.community_dashboard_detail import DashboardNotFound
 from simulation.community_dashboard_view import executed_position
-from simulation.community_ticket_plan import CLAIM, COMPLETE, OPEN
+from simulation.community_ticket_plan import CLAIM, COMPLETE, EXPIRE, OPEN
 
 EXECUTOR = "living_community_executor"
 _RECEIPT_FIELDS = {
@@ -62,6 +62,7 @@ def timeline(task: dict, phases: dict, receipts: list[dict]) -> dict:
     the run's plan; start and finish only from phases that actually executed.
     """
     claim, finish = executed_phase(receipts, CLAIM), executed_phase(receipts, COMPLETE)
+    queue = _queue(claim or executed_phase(receipts, EXPIRE))
     opened = phases[OPEN]
     requested = _queue(executed_phase(receipts, OPEN)).get("requested_at_minute")
     if requested is None and opened:
@@ -72,8 +73,9 @@ def timeline(task: dict, phases: dict, receipts: list[dict]) -> dict:
                if finish and finish.get("status") == "completed" and phases[COMPLETE] else None)
     out = {"requested": sim_time(requested), "started": sim_time(sim_start),
            "finished": sim_time(sim_end), "basis": "simulated", "wait_minutes": None,
-           "work_minutes": None, "wait_reason": _queue(claim).get("wait_reason"),
-           "recorded_waited_minutes": _queue(claim).get("waited_minutes")}
+           "work_minutes": None, "wait_reason": queue.get("wait_reason"),
+           "recorded_waited_minutes": queue.get("waited_minutes"),
+           "wait_breakdown": queue.get("wait_breakdown"), "called_in_on_call": queue.get("called_in_on_call")}
     if sim_start is not None and requested is not None:
         out["wait_minutes"] = sim_start - requested
     if sim_start is not None and sim_end is not None:
@@ -102,7 +104,7 @@ def _outcome(task: dict, timeline: dict, receipts: list[dict]) -> str:
 
 async def executor_receipts(store, run_id: str, workflow: str) -> list[dict]:
     """The living-community executor's phase receipts for one ticket workflow."""
-    event_ids = [f"{workflow}:ticket_{phase}" for phase in (OPEN, CLAIM, COMPLETE)]
+    event_ids = [f"{workflow}:ticket_{phase}" for phase in (OPEN, CLAIM, COMPLETE, EXPIRE)]
     return await store.receipts.find(
         {"simulation_run_id": run_id, "simulation_event_id": {"$in": event_ids}},
         _RECEIPT_FIELDS).to_list(None)
