@@ -971,3 +971,18 @@ Med techs now work 12-hour shifts 07:00–19:00 and 19:00–07:00 (one always on
 - **Verified:** simulator suites 614 passed / 0 failed (new `test_sim_community_staff_detail.py`, 9 tests). Frontend 120 suites / 777 tests (new `staffOnDutyWorker.test.jsx`). Full backend gate on `6c55337`: 1,325 passed / 0 failed / 13 skipped.
 - **Not done:** browser acceptance (needs the branch loaded and a run, both held by the owner's runtime rule); real-Mongo scratch acceptance of v12.
 - **Next safe step:** owner review of the role schedules and the housekeeping/maintenance shortage; on advance, load into the test stack, start a v12 run, and click Dining Server / Driver / Housekeeper / Care Aide in Chrome.
+
+### 2026-10-15 addendum — v12 staffing finalized (owner decisions), commit `0aa2fa0`
+
+- **Maintenance:** the two invented on-call technicians are removed. There is ONE maintenance technician: on site Mon–Fri 07:00–15:30, and the same person's after-hours and weekend on-call duty. Rest rules apply to on-site shifts only. Fixed an attendance bug where the evening on-call duty overwrote the on-site shift as the day's state. Outside vendors are not staff and are not modelled.
+- **Housekeeping:** one 45-minute full clean (an assumption) per occupied apartment per week, by fixed territory (`community_housekeeping.py`).
+  - SIM-001–040: 40 occupied, Mon–Fri, 8 cleans per shift.
+  - SIM-041–080: 30 occupied, Wed–Sun, 6 cleans per shift. Vacant apartments get no clean.
+  - Only the territory's housekeeper takes its cleans. Housekeeper and department detail show today's cleans (completed / in progress / remaining).
+  - Before → after: 6,750 → 904 full cleans; 1,584 → 0 still waiting at day 90; median wait 8.9 days → 15 min for cleans and 47 min for all housekeeping.
+- **File size:** static data moved to `community_staffing_data.py`; `community_staffing.py` went from 336 to 251 lines.
+- **Workers:** 55, i.e. v11's 66 minus housekeeping 2, maintenance 3, activities 5 and administration 1. Kitchen v11 staffing and service model unchanged (regression test).
+- **Verified:** simulator suites 620 passed / 0 failed; frontend 120 suites / 777 tests; full backend gate on `0aa2fa0` 1,331 passed / 0 failed / 13 skipped.
+- **Plan:** community_75 has 314,363 events. The burn_in_10 digest is `0c777af0…faaf6`.
+- **Still visible:** maintenance median wait 2.8 days and 145 jobs open at day 90 with one person; 247 activity escorts missed.
+- **Not loaded:** waits for Kitchen acceptance and the owner's cutover.
