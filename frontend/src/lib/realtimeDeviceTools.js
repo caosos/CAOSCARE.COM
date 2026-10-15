@@ -71,7 +71,8 @@ const RESTING_PHRASES = /\b(be quiet|quiet down|let me rest|resting|give me\s*(s
 // to name the TV, an explicit power verb and the same direction the model
 // supplied. Negated requests fail closed.
 const TV_POWER_NEGATION = /\b(?:don'?t|do\s+not|not|never|no)\b/i;
-const TV_NOUN = "(?:the\\s+)?(?:tv|television)";
+// Room 214, 2026-10-15: "Turn my TV on." / "Turn off my TV." were refused until repeated with "the".
+const TV_NOUN = "(?:(?:the|my|our|this|that)\\s+)?(?:tv|television)";
 const TV_POWER_PATTERNS = {
   on: [
     new RegExp(`\\b(?:turn|switch|power|put)\\s+${TV_NOUN}\\s+(?:back\\s+)?on\\b`, "i"),

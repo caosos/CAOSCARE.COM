@@ -62,6 +62,8 @@ test.each([
   ["Switch off the television.", "off"],
   ["Turn the television back on.", "on"],
   ["Shut the TV off.", "off"],
+  ["Turn my TV on.", "on"],
+  ["Turn off my TV.", "off"],
 ])("explicit direction-matched TV request is grounded: %s", (text, state) => {
   expect(tvPowerRequestIsGrounded(text, state)).toBe(true);
   expect(tvPowerRequestIsGrounded(text, state === "on" ? "off" : "on")).toBe(false);
