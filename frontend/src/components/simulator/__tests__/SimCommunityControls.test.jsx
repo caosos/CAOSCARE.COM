@@ -147,7 +147,7 @@ test("paused unprovisioned run offers provisioning and keeps resume disabled", a
   expect(view.element.querySelector("[data-testid=community-control-resume]").disabled).toBe(true);
   expect(view.element.querySelector("[data-testid=community-control-step]").disabled).toBe(true);
   expect(view.element.querySelector("[data-testid=community-resident-readiness]").textContent)
-    .toMatch(/provision the ten simulated.*resume stays disabled/i);
+    .toMatch(/set up this run's simulated residents.*resume stays disabled/i);
   await act(async () => provision.click());
   expect(api.post).toHaveBeenCalledWith(
     "/simulator/community/controls/provision-residents",
