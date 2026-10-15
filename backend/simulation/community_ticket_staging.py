@@ -4,6 +4,7 @@ from routes.actor_context import ActorContext
 from simulation.community_blueprint import COMMUNITY_ID, SIMULATION_SCOPE
 from simulation.community_executor import ExecutionContext, ExecutorEvent
 from simulation.community_player_requests import PRIORITIES, SUMMARIES, WORDS
+from simulation.community_ticket_text import routine_summary
 from simulation.community_ticket_plan import CLAIM, COMPLETE, OPEN
 
 
@@ -81,7 +82,7 @@ async def write_receipt(**kwargs) -> dict:
 def summary(event: ExecutorEvent) -> str:
     if event.action_type in SUMMARIES:
         return SUMMARIES[event.action_type]
-    return f"Scheduled simulated {event.action_type.replace('_', ' ')}."
+    return routine_summary(event.action_type) or f"Scheduled {event.action_type.replace('_', ' ')}."
 
 
 def priority(event: ExecutorEvent) -> str:
