@@ -33,6 +33,7 @@ export const DUTY_LABEL = {
 };
 
 export const AVAILABILITY_LABEL = {
+  called_in: "Called in from on call",
   busy: "Busy",
   free: "Free",
   covered: "Covered",

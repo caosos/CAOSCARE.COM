@@ -74,7 +74,8 @@ function QueuedTicket({ row, onOpenRequest }) {
 }
 
 function Worker({ row, runId, onOpenRequest, onChanged }) {
-  const busy = row.availability === "busy";
+  const calledIn = row.availability === "called_in";   // v9: on-call worker called in for this ticket
+  const busy = row.availability === "busy" || calledIn;
   const covered = row.availability === "covered";
   return (
     <li className="flex flex-wrap items-center justify-between gap-2 border-b border-caos-line py-1 last:border-0" data-testid={`worker-${row.actor_id}`}>
@@ -84,11 +85,11 @@ function Worker({ row, runId, onOpenRequest, onChanged }) {
         {covered && <span className="text-xs font-semibold text-caos-forest"> · covered by {row.covered_by}</span>}
       </span>
       <span className="flex items-center gap-2">
-        <Badge variant="outline" className={busy ? "text-[#8B5A20]" : "text-caos-forest"}>{covered ? "Covered" : busy ? "Busy" : "Free"}</Badge>
+        <Badge variant="outline" className={busy ? "text-[#8B5A20]" : "text-caos-forest"}>{covered ? "Covered" : calledIn ? "Called in" : busy ? "Busy" : "Free"}</Badge>
         {busy && row.task_id && onOpenRequest && (
           <Button type="button" size="sm" variant="ghost" onClick={() => onOpenRequest(row.task_id)}>Ticket</Button>
         )}
-        <CoverShiftButton runId={runId} worker={row} covered={covered} onChanged={onChanged} />
+        {!calledIn && <CoverShiftButton runId={runId} worker={row} covered={covered} onChanged={onChanged} />}
       </span>
     </li>
   );

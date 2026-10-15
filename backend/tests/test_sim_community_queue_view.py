@@ -117,3 +117,16 @@ def test_a_covered_shift_is_shown_with_who_covers_it():
     by_id = {row["actor_id"]: row for row in _snapshot([], MINUTE, covers=[cover])["workers"]}
     assert by_id[AIDE["actor_id"]]["availability"] == "covered"
     assert by_id[AIDE["actor_id"]]["covered_by"] == "Michael"
+
+
+def test_an_on_call_worker_called_in_is_working_not_an_off_site_anomaly():
+    """v9 (#168): a high/urgent ticket calls in the on-call worker; they are busy, not off site."""
+    evening = 20 * 60
+    tech = next(row for row in staffing_at(evening)["on_call_workers"] if row["department"] == "maintenance")
+    rows = [_task("t-call", "in_progress", "w-call", "maintenance", tech["actor_id"])]
+    out = _snapshot(rows, evening)
+    assert out["anomalies"] == []
+    called = [row for row in out["workers"] if row["actor_id"] == tech["actor_id"]]
+    assert called and called[0]["availability"] == "called_in" and called[0]["task_id"] == "t-call"
+    assert out["departments"]["maintenance"]["called_in"] == 1
+    assert out["departments"]["maintenance"]["on_site"] == 0

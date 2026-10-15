@@ -109,20 +109,25 @@ async def queue_snapshot(*, run_id, clock_minute, next_event_minute=None, store=
     on_site = {row["actor_id"] for row in staffing["workers"]}
     workers = [_worker(row, (held.get(row["actor_id"]) or [None])[0], covers.get(row["actor_id"]))
                for row in staffing["workers"]]
+    # v9: an on-call worker called in for a ticket is working it, not an off-site anomaly
+    on_call = {row["actor_id"]: row for row in staffing.get("on_call_workers") or []}
+    workers += [{**_worker(row, held[actor][0], None), "availability": "called_in"}
+                for actor, row in on_call.items() if held.get(actor)]
     anomalies = (
         [{"kind": "worker_holds_multiple_active_tickets", "actor_id": actor,
           "task_ids": sorted(t.get("task_id") for t in tasks)}
          for actor, tasks in sorted(held.items(), key=lambda item: str(item[0])) if len(tasks) > 1]
         + [{"kind": "active_ticket_held_by_off_site_worker", "actor_id": actor,
             "task_ids": sorted(t.get("task_id") for t in tasks)}
-           for actor, tasks in sorted(held.items(), key=lambda item: str(item[0])) if actor not in on_site]
+           for actor, tasks in sorted(held.items(), key=lambda item: str(item[0]))
+           if actor not in on_site and actor not in on_call]
     )
 
     departments = {}
     coverage = staffing.get("coverage") or {}
     for key, label in DEPARTMENT_LABELS.items():
         rows = [row for row in queued if row["department"] == key]
-        staff = [row for row in workers if row["department"] == key]
+        staff = [row for row in workers if row["department"] == key and row["availability"] != "called_in"]
         waits = [row["waiting_minutes"] for row in rows if row["waiting_minutes"] is not None]
         departments[key] = {
             "label": label, "status": (coverage.get(key) or {}).get("status"),
@@ -132,6 +137,7 @@ async def queue_snapshot(*, run_id, clock_minute, next_event_minute=None, store=
             "on_site": len(staff), "busy": sum(row["availability"] == "busy" for row in staff),
             "free": sum(row["availability"] == "free" for row in staff),
             "on_call": (coverage.get(key) or {}).get("on_call"),
+            "called_in": sum(row["department"] == key and row["availability"] == "called_in" for row in workers),
         }
     return {
         "schema_version": 1, "status": "loaded", "read_only": True, "run_id": run_id,
