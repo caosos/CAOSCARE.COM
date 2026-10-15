@@ -144,7 +144,8 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
             {"run_id": simulation_run_id},
             {"_id": 0, "simulation_scope": 1, "simulation_community_id": 1},
         )
-        if not run:
+        # A demo-room run has neither projected field, so it comes back as {} - present, not missing.
+        if run is None:
             raise HTTPException(status_code=400, detail=f"Unknown simulation run {simulation_run_id}")
         # Demo-room runs predate explicit run scope and remain compatible.
         # Any other synthetic world must bind the run to the resident's exact
