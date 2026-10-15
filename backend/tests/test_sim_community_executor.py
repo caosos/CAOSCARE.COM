@@ -15,7 +15,7 @@ from simulation.community_ticket_plan import OPEN_TO_CLAIM_MINUTES, work_minutes
 
 NOW = datetime(2026, 10, 13, 16, 0, tzinfo=timezone.utc)
 # Burn-in day zero: 155 tickets x open/claim/complete plus 78 shift milestones.
-DAY_ZERO_EVENTS = 543
+DAY_ZERO_EVENTS = 588
 
 
 def _get(row, path):
@@ -176,7 +176,7 @@ def test_day_queue_combines_existing_plans_with_explicit_synthetic_staff():
     assert all(row.identity_basis == "synthetic" and row.simulated for row in queue)
     assert all(
         row.actor_id.startswith("sim:staff:")
-        or row.task_phase == "open" and row.actor_id == row.target_id
+        or row.task_phase == "open" and row.opened_by == "resident" and row.actor_id == row.target_id
         for row in queue
     )
     assert all((queue[index].day_index, queue[index].minute)
@@ -198,7 +198,11 @@ def test_one_worker_claims_and_completes_while_on_site_after_a_truthful_wait():
     for phases in by_workflow.values():
         opened, claimed, completed = phases
         assert [row.task_phase for row in phases] == ["open", "claim", "complete"]
-        assert opened.actor_id == opened.target_id
+        if opened.opened_by == "resident":
+            assert opened.actor_id == opened.target_id
+        else:
+            on_site = {item["actor_id"] for item in active_assignments(opened.day_index, opened.minute)}
+            assert opened.actor_id in on_site
         assert claimed.actor_id == completed.actor_id
         absolute = [row.day_index * 1440 + row.minute for row in phases]
         assert absolute[0] == opened.requested_at_minute == claimed.requested_at_minute

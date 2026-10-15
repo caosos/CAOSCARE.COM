@@ -16,7 +16,8 @@ Deterministic simulated-time scheduling over the whole 90-day plan.
 * Requests or work that would fall after the 90-day horizon are not
   planned; a ticket still waiting at the end stays open, truthfully.
 
-Order is deterministic: higher priority first, then earliest request, then
+Order is deterministic: higher priority first (aged one level per day waited),
+then earliest request, then
 workflow id; free workers are taken by fewest tickets so far, then actor id.
 The same invariant is enforced against persisted state at execution time.
 """
@@ -100,7 +101,10 @@ def _schedule_department(department: str, tickets: list, horizon: int) -> list[S
         while position < len(pending) and pending[position][3] + OPEN_TO_CLAIM_MINUTES <= at:
             ready.append(pending[position])
             position += 1
-        ready.sort(key=lambda t: (_PRIORITY_RANK.get(t[2], 2), t[3], t[0]))
+        # A work order that has waited a full day moves up one priority level
+        # per day waited, as a real department escalates old orders, so low
+        # priority work is never starved by a steady stream of newer requests.
+        ready.sort(key=lambda t: (max(0, _PRIORITY_RANK.get(t[2], 2) - (at - t[3]) // 1440), t[3], t[0]))
         present = [(end, row) for _start, end, row in windows.present(at)
                    if busy_until.get(row["actor_id"], 0) <= at]
         present.sort(key=lambda item: (claims[item[1]["actor_id"]], item[1]["actor_id"]))

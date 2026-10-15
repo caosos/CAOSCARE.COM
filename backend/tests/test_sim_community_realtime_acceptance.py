@@ -57,16 +57,19 @@ def test_operator_watches_ticket_open_work_complete_pause_resume_and_stop():
         task_id = target["task_id"]
         assert runtime["status"] == activity["status"] == "loaded"
         assert runtime["run"]["state"] == "RUNNING"
-        assert runtime["run"]["last_evidence"]["actor_id"] == target_open.target_id
+        # The first ticket of the day is the overnight room check, raised by
+        # the care aide on site, not by the resident (players, not thin air).
+        assert target_open.opened_by == "staff" and target_open.actor_id.startswith("sim:staff:")
+        assert runtime["run"]["last_evidence"]["actor_id"] == target_open.actor_id
         assert runtime["tickets"]["counts"] == {
             "open": 1, "in_progress": 0, "completed": 0,
             "skipped": 0, "other": 0, "total": 1,
         }
         assert target["status"] == "pending" and target["simulated"] is True
-        assert target["resident"]["name"] == target_open.actor_name
-        origin = _transition(activity, task_id, "resident_request_created")
+        assert target["resident"]["id"] == target_open.target_id
+        origin = _transition(activity, task_id, "task_created")
         assert origin["actor"] == {
-            "id": target_open.target_id, "type": "simulated-agent",
+            "id": target_open.actor_id, "type": "simulated-agent",
             "name": None, "role": None, "department": None,
             "channel": "simulator", "identity_basis": "synthetic",
             "simulated": True,

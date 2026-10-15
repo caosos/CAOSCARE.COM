@@ -85,6 +85,13 @@ class RoutineEvent:
         default=("completed", "resident_refused", "resident_requested_reschedule")
     )
     event_id: str = field(default="", compare=False)
+    # Who raises the ticket (Michael, 2026-10-14: every simulated request comes
+    # from a player in the system). "resident": the resident asks; "staff": an
+    # on-site worker of ``opener_department`` opens it (rounds, preventive
+    # maintenance, a problem they noticed). Nobody on site -> not raised.
+    opened_by: str = "resident"
+    opener_department: Optional[str] = None
+    resident_words: Optional[str] = None
 
     @property
     def time_hhmm(self) -> str:
@@ -113,6 +120,7 @@ class _RoutineSpec:
     stagger: int = 2
     blocked_adapter: Optional[str] = None
     truth_boundary: str = "Completion records only the described simulated work."
+    opened_by: str = "staff"
 
 
 _DAILY_ROUTINES = (
@@ -176,6 +184,8 @@ def _event(spec: _RoutineSpec, resident_key: str, resident_index: int, day_index
         blocked_adapter=spec.blocked_adapter,
         truth_boundary=spec.truth_boundary,
         event_id=f"day-{day_index:03d}:{resident_key}:{spec.routine}",
+        opened_by=spec.opened_by,
+        opener_department=spec.department if spec.opened_by == "staff" else None,
     )
 
 
@@ -229,7 +239,7 @@ def plan_first_24_hours(
             family = _event(_RoutineSpec(
                 "family_call_coordination", "administration", 960,
                 "Coordinate an approved family-call request for the resident.",
-                blocked_adapter="outbound_family_call", stagger=3,
+                blocked_adapter="outbound_family_call", stagger=3, opened_by="resident",
                 truth_boundary="Records coordination only; never claims that a call was placed, rang, or connected.",
             ), resident_key, resident_index, day_index)
             # Owner rule: Administration before 17:00, Front Desk 17:00-23:00.
@@ -239,7 +249,7 @@ def plan_first_24_hours(
             events.append(_event(_RoutineSpec(
                 "front_desk_message_follow_up", "front_desk", 900,
                 "Review and route the simulated resident message for staff follow-up.",
-                blocked_adapter="outbound_front_desk_call", stagger=4,
+                blocked_adapter="outbound_front_desk_call", stagger=4, opened_by="resident",
                 truth_boundary=(
                     "Records message coordination only; never claims that the resident "
                     "was contacted or that an outbound call was placed."

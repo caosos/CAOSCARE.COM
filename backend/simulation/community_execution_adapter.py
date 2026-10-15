@@ -33,10 +33,11 @@ def _validate(event: ExecutorEvent, context: ExecutionContext) -> None:
     if is_shift_event(event):
         validate_shift_event(event)
         return
-    expected_actor = event.target_id if event.task_phase == OPEN else "sim:staff:"
-    actor_matches = event.actor_id == expected_actor if event.task_phase == OPEN else (
-        event.actor_id.startswith(expected_actor)
-    )
+    # OPEN is raised by its person: the resident, or the on-site worker who
+    # opened it; claim/complete are always a simulated worker.
+    resident_opens = event.task_phase == OPEN and event.opened_by == "resident"
+    actor_matches = (event.actor_id == event.target_id if resident_opens
+                     else event.actor_id.startswith("sim:staff:"))
     if (event.stream_kind != "routine_ticket_phase" or event.adapter != SUPPORTED_ADAPTER
             or event.target_type != "resident" or event.task_phase not in PHASES
             or not event.workflow_event_id or not actor_matches):
@@ -196,13 +197,14 @@ class CanonicalCommunityExecutionServices:
                 ticket.validate_task(task, event, context)
             except ticket.CommunityTicketStageError as exc:
                 raise CommunityExecutionAdapterError(str(exc)) from exc
-            origin = await self._task_receipt(task_id, event, context, "resident_request_created")
+            origin_action = ticket.origin_action(event)
+            origin = await self._task_receipt(task_id, event, context, origin_action)
             if not origin:
                 raise CommunityExecutionAdapterError("canonical request has no durable origin receipt")
             try:
                 ticket.validate_task_receipt(
-                    origin, task, event, context, action_type="resident_request_created",
-                    status="created", staff_actor=False,
+                    origin, task, event, context, action_type=origin_action,
+                    status="created", staff_actor=event.opened_by == "staff",
                 )
             except ticket.CommunityTicketStageError as exc:
                 raise CommunityExecutionAdapterError(str(exc)) from exc
@@ -231,12 +233,11 @@ class CanonicalCommunityExecutionServices:
         if event.task_phase == OPEN:
             if state != "pending":
                 raise CommunityExecutionAdapterError("open phase task is not pending")
+            origin_action = ticket.origin_action(event)
             phase_receipt = await self._task_receipt(
-                task["task_id"], event, context, "resident_request_created",
+                task["task_id"], event, context, origin_action,
             )
-            action_type, phase_status, before_status = (
-                "resident_request_created", "created", None,
-            )
+            action_type, phase_status, before_status = (origin_action, "created", None)
         elif event.task_phase == CLAIM and state == "pending":
             await self._refuse_second_active_ticket(task, event, context)
             try:
@@ -274,7 +275,7 @@ class CanonicalCommunityExecutionServices:
         try:
             ticket.validate_task_receipt(
                 phase_receipt, task, event, context, action_type=action_type,
-                status=phase_status, staff_actor=event.task_phase != OPEN,
+                status=phase_status, staff_actor=event.task_phase != OPEN or event.opened_by == "staff",
             )
         except ticket.CommunityTicketStageError as exc:
             raise CommunityExecutionAdapterError(str(exc)) from exc

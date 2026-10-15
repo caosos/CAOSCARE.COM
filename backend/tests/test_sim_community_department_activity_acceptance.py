@@ -155,7 +155,15 @@ def test_every_department_has_meaningful_visible_ticket_phases_in_one_day():
         for phases in workflows:
             phases.sort(key=lambda row: row.day_index * 1440 + row.minute)
             assert [row.task_phase for row in phases] == [OPEN, CLAIM, COMPLETE]
-            assert phases[0].actor_id == phases[0].target_id
+            opened = phases[0]
+            # Every ticket is raised by a person: the resident asks, or a worker
+            # physically on site opens it (rounds, preventive maintenance, reports).
+            if opened.opened_by == "resident":
+                assert opened.actor_id == opened.target_id
+            else:
+                assert opened.actor_id in {
+                    worker["actor_id"] for worker in active_assignments(opened.day_index, opened.minute)
+                }
             for row in phases[1:]:
                 active_ids = {
                     worker["actor_id"]

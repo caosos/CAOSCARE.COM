@@ -3,6 +3,7 @@
 from routes.actor_context import ActorContext
 from simulation.community_blueprint import COMMUNITY_ID, SIMULATION_SCOPE
 from simulation.community_executor import ExecutionContext, ExecutorEvent
+from simulation.community_player_requests import PRIORITIES, SUMMARIES, WORDS
 from simulation.community_ticket_plan import CLAIM, COMPLETE, OPEN
 
 
@@ -20,8 +21,17 @@ def default_store():
     return db
 
 
+def origin_action(event: ExecutorEvent) -> str:
+    """The origin receipt: the resident's request, or a task a worker created."""
+    return "task_created" if event.opened_by == "staff" else "resident_request_created"
+
+
 async def create_request(*, event: ExecutorEvent, context: ExecutionContext,
                          summary: str, priority: str) -> dict:
+    if event.opened_by == "staff":
+        from simulation.community_staff_ticket import create_staff_task
+
+        return await create_staff_task(event=event, context=context, summary=summary, priority=priority)
     if event.department == "front_desk":
         from simulation.community_front_desk_ticket import create_front_desk_request
 
@@ -34,7 +44,7 @@ async def create_request(*, event: ExecutorEvent, context: ExecutionContext,
         ResidentRequestInput(
             category=event.department,
             resident_id=event.target_id,
-            resident_words=None,
+            resident_words=WORDS.get(event.action_type),
             summary=summary,
             priority=priority,
             source="aria_voice",
@@ -69,16 +79,28 @@ async def write_receipt(**kwargs) -> dict:
 
 
 def summary(event: ExecutorEvent) -> str:
+    if event.action_type in SUMMARIES:
+        return SUMMARIES[event.action_type]
     return f"Scheduled simulated {event.action_type.replace('_', ' ')}."
 
 
 def priority(event: ExecutorEvent) -> str:
+    if event.action_type in PRIORITIES:
+        return PRIORITIES[event.action_type]
     urgent = ("medication_reminder", "toileting", "transfer", "shower")
     return "high" if any(word in event.action_type for word in urgent) else "normal"
 
 
 def completion_note(event: ExecutorEvent) -> str:
     action = event.action_type
+    if action == "resident_call_ride" or action == "staff_report_ride_follow_up":
+        return "Simulated ride request coordinated; no driver, vehicle, pickup, or booking claimed."
+    if action == "resident_call_check_on_me":
+        return "Simulated staff check-in with the resident completed; no clinical assessment is recorded."
+    if action.startswith("resident_call_"):
+        return "Simulated staff responded to the resident's request and closed it."
+    if action.startswith("staff_report_"):
+        return "Simulated follow-up to the staff report completed."
     if action == "front_desk_message_follow_up":
         return (
             "Simulated Front Desk message coordination documented and queued for follow-up; "
@@ -101,7 +123,7 @@ def completion_note(event: ExecutorEvent) -> str:
 
 
 def actor(event: ExecutorEvent) -> ActorContext:
-    resident_origin = event.task_phase == OPEN
+    resident_origin = event.task_phase == OPEN and event.opened_by == "resident"
     return ActorContext(
         actor_id=event.actor_id,
         actor_type=event.actor_type,

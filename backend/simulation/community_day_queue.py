@@ -8,11 +8,14 @@ claim phase records how long and why.  Phases beyond the 90-day horizon are
 not planned, so an unfinished ticket stays truthfully open at the end.
 """
 from functools import lru_cache
+from hashlib import sha256
 
 from simulation.community_capacity_schedule import HORIZON_MINUTES, ScheduledTicket, schedule_tickets
 from simulation.community_cohort import BURN_IN, COHORTS, resident_keys_for, residents_for
 from simulation.community_executor import CommunityExecutorError, ExecutorEvent
+from simulation.community_player_requests import player_requests
 from simulation.community_routines import RoutineEvent, plan_first_24_hours
+from simulation.community_staffing import active_assignments
 from simulation.community_shift_events import planned_events_for_day
 from simulation.community_ticket_plan import CLAIM, COMPLETE, OPEN, work_minutes
 
@@ -23,11 +26,34 @@ _RESIDENT_INDEX = {
 }
 
 
+def opener(event: RoutineEvent):
+    """The on-site worker who raises a staff-opened ticket, or None.
+
+    Every simulated request comes from a person in the system: the resident,
+    or a worker of ``opener_department`` physically on site at that minute
+    (chosen deterministically). With nobody on site it is not raised at all.
+    """
+    if event.opened_by != "staff":
+        return None
+    staff = sorted((row for row in active_assignments(event.day_index, event.minute)
+                    if row["department"] == event.opener_department), key=lambda row: row["actor_id"])
+    if not staff:
+        return None
+    pick = int(sha256(event.event_id.encode()).hexdigest(), 16) % len(staff)
+    return staff[pick]
+
+
+def _raised(events) -> tuple:
+    """Resident asks, and staff-opened work that has an on-site opener."""
+    return tuple(e for e in events if e.opened_by == "resident" or opener(e) is not None)
+
+
 @lru_cache(maxsize=None)
 def cohort_schedule(cohort: str = BURN_IN):
-    """Routines per source day and their capacity schedule, built once."""
+    """Routines and player requests per source day and their capacity schedule, built once."""
     keys = resident_keys_for(cohort)
-    routines = {day: plan_first_24_hours(keys, day_index=day) for day in range(TIMELINE_DAYS)}
+    routines = {day: _raised(plan_first_24_hours(keys, day_index=day) + player_requests(keys, day_index=day))
+                for day in range(TIMELINE_DAYS)}
     scheduled = schedule_tickets(
         (event.event_id, event.department, event.priority, event.absolute_minute,
          work_minutes(event.routine))
@@ -57,7 +83,7 @@ def ticket_events(event: RoutineEvent, ticket: ScheduledTicket,
     resident = _RESIDENT_INDEX.get(cohort, {}).get(event.resident_key)
     if resident is None:
         raise CommunityExecutorError(f"event is outside the {cohort} residents: {event.event_id}")
-    phases = [(OPEN, ticket.requested_at, None)]
+    phases = [(OPEN, ticket.requested_at, opener(event))]
     if ticket.claim_at is not None and ticket.complete_at < HORIZON_MINUTES:
         phases += [(CLAIM, ticket.claim_at, ticket.worker), (COMPLETE, ticket.complete_at, ticket.worker)]
     rows = []
@@ -71,6 +97,7 @@ def ticket_events(event: RoutineEvent, ticket: ScheduledTicket,
             minute=minute,
             actor_id=resident.resident_id if worker is None else worker["actor_id"],
             actor_name=resident.name if worker is None else worker["name"],
+            opened_by=event.opened_by,
             actor_type="simulated-agent",
             identity_basis="synthetic",
             department=event.department,
