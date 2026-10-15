@@ -39,6 +39,10 @@ export function simulationLines(sim, t, clock) {
   } else {
     lines.push(["Simulated work", "not recorded in simulated time · see the real times"]);
   }
+  // v9: minutes per blocker over the whole wait (server: community_wait_blockers), when recorded
+  const parts = Object.entries(sim.wait_breakdown || {}).filter(([, m]) => m > 0);
+  if (parts.length) lines.push(["Wait by cause", parts.map(([why, m]) => `${m} min ${words(why)}`).join(" · ")]);
+  if (sim.called_in_on_call) lines.push(["Called in", "the on-call worker was called in for this ticket"]);
   const raiser = sim.raised_by?.name || UNKNOWN;
   lines.push(["Raised by", `${raiser} (${sim.origin?.label || UNKNOWN})`]);
   lines.push(["Sim clock", `${simAt(sim.now)}${sim.run_state ? ` · run ${words(sim.run_state).toLowerCase()}` : ""}`]);

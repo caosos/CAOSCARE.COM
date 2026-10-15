@@ -53,3 +53,13 @@ test("next step follows the work rules", () => {
   expect(nextStepText({ status: "completed" })).toBe("none · this request is closed");
   expect(nextStepText({ status: "skipped" })).toBe("none · this request is closed");
 });
+
+test("v9: the wait is split by cause and a call-in is stated", () => {
+  const l = text(simulationLines({ ...base, started: at(1, "18:40"), waiting_minutes: 70, working_minutes: 5,
+                                   wait_reason: "waiting_for_on_call_response", called_in_on_call: true,
+                                   wait_breakdown: { waiting_for_on_site_staff_on_call_only: 30, waiting_for_on_call_response: 40, none: 0 } },
+                                 null, clock));
+  expect(l["Wait by cause"]).toBe("30 min waiting for on site staff on call only · 40 min waiting for on call response");
+  expect(l["Called in"]).toBe("the on-call worker was called in for this ticket");
+  expect(text(simulationLines(base, { status: "pending" }, clock))["Wait by cause"]).toBeUndefined();
+});
