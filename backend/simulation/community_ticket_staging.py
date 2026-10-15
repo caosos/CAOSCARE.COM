@@ -4,7 +4,7 @@ from routes.actor_context import ActorContext
 from simulation.community_blueprint import COMMUNITY_ID, SIMULATION_SCOPE
 from simulation.community_executor import ExecutionContext, ExecutorEvent
 from simulation.community_player_requests import PRIORITIES, SUMMARIES, WORDS
-from simulation.community_service_model import is_meal
+from simulation.community_service_model import ROOM_SERVICE, is_meal
 from simulation.community_service_windows import window_label
 from simulation.community_ticket_text import routine_summary
 from simulation.community_ticket_plan import CLAIM, COMPLETE, EXPIRE, OPEN
@@ -105,6 +105,10 @@ def completion_note(event: ExecutorEvent) -> str:
     action = event.action_type
     if action == "resident_call_ride" or action == "staff_report_ride_follow_up":
         return "Simulated ride request coordinated; no driver, vehicle, pickup, or booking claimed."
+    if action == "resident_call_snack":
+        return "Simulated snack and drink brought to the apartment; no claim of what the resident ate or drank."
+    if action == "resident_call_tray":
+        return "Simulated meal tray brought to the apartment and set up; no claim that the resident ate or how much."
     if action == "resident_call_check_on_me":
         return "Simulated staff check-in with the resident completed; no clinical assessment is recorded."
     if action.startswith("resident_call_"):
@@ -120,7 +124,10 @@ def completion_note(event: ExecutorEvent) -> str:
         return ("Simulated medication reminder delivered; no claim of administration, "
                 "ingestion, dose completion, or adherence.")
     if is_meal(action):
-        return "Simulated meal service offered; no claim that the resident ate or how much."
+        if action.endswith(ROOM_SERVICE):
+            return ("Simulated tray delivered to the apartment and set up; "
+                    "no claim that the resident ate or how much.")
+        return "Simulated meal served in the dining room; no claim that the resident ate or how much."
     if action == "transport_coordination":
         return ("Simulated transportation coordination completed; no driver, vehicle, "
                 "pickup, or booking claimed.")

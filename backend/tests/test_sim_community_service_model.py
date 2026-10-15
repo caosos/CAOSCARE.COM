@@ -88,3 +88,18 @@ def test_room_delivery_is_about_30_of_75_and_every_tray_takes_its_full_trip():
              and row.claim_at is not None]
     assert trays and all(row.complete_at - row.claim_at == svc.ROOM_DELIVERY_MINUTES for row in trays)
     assert {row.worker["job_role"] for row in trays} == {"meal_delivery_aide", "dining_server"}
+
+
+def test_kitchen_tickets_say_what_to_do_and_close_truthfully():
+    from types import SimpleNamespace
+    from simulation.community_ticket_staging import completion_note
+    from simulation.community_ticket_text import routine_summary
+    delivery = routine_summary("dinner_room_service")
+    assert all(step in delivery for step in ("pick up", "kitchen pass", "hand it over and set it up", "walk back"))
+    assert "dining room" in routine_summary("lunch") and "intake is not recorded" in routine_summary("lunch")
+    note = lambda action: completion_note(SimpleNamespace(action_type=action))
+    assert note("dinner_room_service").startswith("Simulated tray delivered to the apartment")
+    assert note("breakfast").startswith("Simulated meal served in the dining room")
+    for action in ("dinner", "dinner_room_service", "resident_call_snack", "resident_call_tray"):
+        assert "no claim" in note(action)
+    assert "housekeeping" not in note("housekeeping_room_service") or "meal" not in note("housekeeping_room_service")

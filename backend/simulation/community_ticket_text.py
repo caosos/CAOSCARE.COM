@@ -27,15 +27,14 @@ ROUTINE_TEXT = {
                                     "remind the resident it is time for evening medications (reminder only)"),
     "shower_assistance": ("Shower assistance",
                           "offer the scheduled shower; the resident may decline or reschedule"),
-    "breakfast": ("Breakfast service", "serve the resident's breakfast (service only; intake is not recorded)"),
-    "lunch": ("Lunch service", "serve the resident's lunch (service only; intake is not recorded)"),
-    "dinner": ("Dinner service", "serve the resident's dinner (service only; intake is not recorded)"),
-    "breakfast_room_service": ("Breakfast to the apartment",
-                               "carry the resident's breakfast to the apartment (service only; intake is not recorded)"),
-    "lunch_room_service": ("Lunch to the apartment",
-                           "carry the resident's lunch to the apartment (service only; intake is not recorded)"),
-    "dinner_room_service": ("Dinner to the apartment",
-                            "carry the resident's dinner to the apartment (service only; intake is not recorded)"),
+    # Kitchen (CO-008 room delivery): say what the worker does, step by step.
+    **{meal: (f"{meal.title()} in the dining room",
+              f"bring the resident's plated {meal} to their seat, settle them and clear when they finish "
+              "(service only; intake is not recorded)") for meal in ("breakfast", "lunch", "dinner")},
+    **{f"{meal}_room_service": (f"{meal.title()} delivery to the apartment",
+                                f"pick up the resident's labelled {meal} tray at the kitchen pass, carry it to the "
+                                "apartment, knock, hand it over and set it up, then walk back for the next tray "
+                                "(service only; intake is not recorded)") for meal in ("breakfast", "lunch", "dinner")},
     "housekeeping_room_service": ("Room cleaning and linens", "scheduled clean of the apartment and linen change"),
     "activity_escort": ("Escort to the activity",
                         "the resident needs help getting to today's group activity"),
