@@ -1,7 +1,7 @@
 """Atomic resident-readiness gate for one living-community burn-in run.
 
 This service writes no route and selects no default database.  The exact
-PAUSED run, ten canonical residents, their run-bound receipts, and the run's
+PAUSED run, its cohort's canonical residents, their run-bound receipts, and the run's
 resident-readiness marker commit in one required transaction.
 """
 from datetime import datetime, timezone
@@ -163,7 +163,7 @@ def _validate_resident_receipts(
 
 def _ready_receipt(
     run: dict, changed: dict, operator: ActorContext, authority: str,
-    identifier: str, key_digest: str, instant: datetime,
+    identifier: str, key_digest: str, instant: datetime, resident_count: int,
 ) -> dict:
     doc = Receipt(
         receipt_id=identifier,
@@ -174,7 +174,7 @@ def _ready_receipt(
         requested_by=operator.actor_id,
         status="completed",
         completed_at=instant,
-        result="ten canonical burn-in residents committed for this exact run",
+        result=f"{resident_count} canonical simulated residents committed for this exact run",
         **operator.receipt_fields(),
         simulation_scope=SIMULATION_SCOPE,
         simulation_community_id=COMMUNITY_ID,
@@ -284,7 +284,7 @@ async def provision_paused_burn_in_run(
             if not changed:
                 raise CommunityAtomicProvisionError("run changed during resident provisioning")
             receipt = _ready_receipt(
-                run, changed, operator, authority, identifier, key_digest, instant,
+                run, changed, operator, authority, identifier, key_digest, instant, len(residents),
             )
             await store.receipts.insert_one(receipt, session=session)
             receipt.pop("_id", None)

@@ -144,9 +144,9 @@ export default function SimCommunityControls({ snapshot, onRuntimeRefresh }) {
       {state === "PAUSED" && (
         <p className="mt-2 text-sm text-caos-mute" data-testid="community-resident-readiness">
           {residentsReady
-            ? "Resident gate ready: ten canonical burn-in residents have exact run-bound receipts."
+            ? "Resident gate ready: every simulated resident in this run has an exact run-bound receipt."
             : needsResidents
-              ? "Next: provision the ten simulated burn-in residents. Resume stays disabled until that receipt-backed step succeeds."
+              ? "Next: set up this run's simulated residents. Resume stays disabled until that receipt-backed step succeeds."
               : "Resident readiness is unknown or invalid. Refresh runtime truth before provisioning, resuming, or stepping."}
         </p>
       )}
