@@ -76,7 +76,7 @@ def test_plan_covers_departments_and_resident_routines():
     assert {
         "shower_assistance", "morning_medication_reminder", "evening_medication_reminder",
         "breakfast", "lunch", "dinner", "toileting_transfer_support",
-        "morning_room_check", "housekeeping_room_service", "one_to_one_activity_visit",
+        "morning_room_check", "housekeeping_full_clean", "one_to_one_activity_visit",
         "appointment_coordination", "transport_coordination", "preventive_maintenance_check",
         "family_call_coordination",
         "front_desk_message_follow_up",
@@ -131,7 +131,7 @@ def test_clinical_and_operational_language_never_claims_unproven_outcomes():
 def test_resident_choice_and_input_validation_are_explicit():
     events = plan_first_24_hours()
     choice_events = [event for event in events if event.routine in {
-        "shower_assistance", "one_to_one_activity_visit", "housekeeping_room_service",
+        "shower_assistance", "one_to_one_activity_visit", "housekeeping_full_clean",
     }]
     assert choice_events
     assert all("resident_refused" in event.possible_outcomes for event in choice_events)

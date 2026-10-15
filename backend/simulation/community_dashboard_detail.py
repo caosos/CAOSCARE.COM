@@ -111,7 +111,13 @@ async def department_detail(slug: str, *, store=None) -> dict:
                  "in_progress": [r for r in open_rows if r["status"] == "in_progress"],
                  "completed_today": done,
                  "upcoming": _planned(run, as_of, department=slug)},
+        **({"cleans_today": await _cleans(store, run, as_of)} if slug == "housekeeping" else {}),
     }
+
+
+async def _cleans(store, run: dict, as_of: int) -> dict:
+    rows = await community_worker_detail.housekeeping_today(store, run["run_id"], min(as_of, HORIZON - 1) // 1440)
+    return {"rows": rows, "counts": community_worker_detail.clean_counts(rows)}
 
 
 async def worker_detail(actor_id: str, *, store=None) -> dict:

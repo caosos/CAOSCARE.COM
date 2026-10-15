@@ -49,7 +49,7 @@ async def _seed(db):
     await db.staff_tasks.insert_many([
         task("t-done", breakfast, "completed", "kitchen", assigned_to=claim.actor_id,
              assigned_name=claim.actor_name, completed_by_name=claim.actor_name),
-        task("t-wait", "day-000:resident-001:housekeeping_room_service", "pending", "housekeeping"),
+        task("t-wait", "day-000:resident-001:housekeeping_full_clean", "pending", "housekeeping"),
         task("t-work", "day-000:resident-001:shower_assistance", "in_progress", "nursing",
              assigned_to="sim:staff:nursing:care_aide:01", assigned_name="SIM - Care Aide 01"),
     ])
@@ -94,7 +94,7 @@ def test_summary_counts_departments_staff_and_residents():
         assert depts["housekeeping"]["waiting"] == 1 and depts["nursing"]["in_progress"] == 1
         aide = next(s for s in out["staff"] if s["actor_id"] == "sim:staff:nursing:care_aide:01")
         assert aide["current_task_id"] == "t-work"
-        assert len(out["staff"]) == 57
+        assert len(out["staff"]) == 55
     _run(check)
 
 
@@ -102,7 +102,7 @@ def test_department_worker_and_resident_details_use_canonical_tickets():
     async def check(db, claim):
         dept = await department_detail("housekeeping", store=db)
         assert [r["task_id"] for r in dept["work"]["waiting"]] == ["t-wait"]
-        assert dept["work"]["waiting"][0]["what"] == "Scheduled simulated housekeeping room service."
+        assert dept["work"]["waiting"][0]["what"] == "Scheduled simulated housekeeping full clean."
         assert dept["schedule_today"] and all(u["planned"] for u in dept["work"]["upcoming"])
         worker = await worker_detail(claim.actor_id, store=db)
         assert [r["task_id"] for r in worker["completed"]] == ["t-done"]

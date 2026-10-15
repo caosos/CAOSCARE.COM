@@ -49,8 +49,6 @@ _NURSING_ROUTINES = {
 _DEFAULT_ROLES = {
     "kitchen": ("dining_server",),
     "activities": ("activities_coordinator",),
-    # One normal maintenance worker; the on-call technicians take what is called in.
-    "maintenance": ("maintenance_technician", "on_call_maintenance_technician"),
     "administration": ("administrator", "business_office_manager", "executive_director"),
 }
 _ACTIVITY_ROUTINES = {

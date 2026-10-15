@@ -164,7 +164,12 @@ def worker_states_for_day(day_index: int) -> list[dict]:
     """Return exactly one planned attendance state for each synthetic worker."""
     if day_index < 0:
         raise ValueError("day_index must be non-negative")
-    scheduled = {row["actor_id"]: row for row in assignments_for_day(day_index)}
+    # One state per worker per day.  A worker can have an on-site shift and later be
+    # the on-call contact (the one maintenance person); the on-site shift is the day's state.
+    scheduled = {}
+    for row in assignments_for_day(day_index):
+        if row["actor_id"] not in scheduled or row["duty"] == ON_SITE:
+            scheduled[row["actor_id"]] = row
     states = []
     for worker in WORKERS:
         assignment = scheduled.get(worker["actor_id"])

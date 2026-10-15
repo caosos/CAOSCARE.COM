@@ -15,6 +15,7 @@ from typing import Optional
 
 from simulation.community_coverage import opens_on
 from simulation.community_family_call_routing import family_call_department
+from simulation import community_housekeeping as hk
 from simulation import community_service_model as svc
 
 
@@ -139,8 +140,6 @@ _DAILY_ROUTINES = (
     ),
     _RoutineSpec("shower_assistance", "nursing", 540,
                  "Offer scheduled shower assistance; the resident may decline or reschedule.", "high", stagger=5),
-    _RoutineSpec("housekeeping_room_service", "housekeeping", 615,
-                 "Offer scheduled room cleaning and linen service.", stagger=4),
     _RoutineSpec("afternoon_toileting_transfer_support", "nursing", 780,
                  "Offer scheduled toileting or transfer support.", "high"),
     _RoutineSpec(
@@ -197,6 +196,13 @@ def plan_first_24_hours(
             raise ValueError("resident keys must be non-empty")
         events.extend(_event(spec, resident_key, resident_index, day_index) for spec in _DAILY_ROUTINES)
         events.extend(_service_events(resident_key, resident_index, day_index))
+        # Housekeeping: one scheduled full clean per occupied apartment per week (owner 2026-10-15).
+        clean_at = hk.clean_minute(resident_key, day_index)
+        if clean_at is not None:
+            events.append(_event(_RoutineSpec(
+                hk.FULL_CLEAN, "housekeeping", clean_at,
+                "Weekly full clean of the apartment by its territory housekeeper.", stagger=0,
+            ), resident_key, resident_index, day_index))
 
         # Optional routines repeat every ten residents, so the 75-resident
         # community scales them while the ten-resident burn-in plan is unchanged.

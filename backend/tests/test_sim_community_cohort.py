@@ -32,14 +32,14 @@ def test_runtime_default_is_the_full_community_and_burn_in_is_optional(monkeypat
 
 def test_full_plan_executes_every_resident_deterministically(full_plan):
     assert full_plan.cohort == "community_75" and full_plan.resident_count == 75
-    # Staff roles (v12): 107,802 tickets; see the phase counts below.
-    assert full_plan.event_count == 328_751
+    # Staff roles (v12): 101,956 tickets; see the phase counts below.
+    assert full_plan.event_count == 314_363
     kinds = Counter(event.stream_kind for event in full_plan.events)
-    assert kinds == {"routine_ticket_phase": 319_559, "canonical_shift_milestone": 9_192}
+    assert kinds == {"routine_ticket_phase": 305_171, "canonical_shift_milestone": 9_192}
     phases = Counter(event.task_phase for event in full_plan.events)
     # v12 staff roles: 247 activity escorts close unserved (one coordinator); the rest of the
-    # gap between open and claim is the visible housekeeping/maintenance backlog at day 90.
-    assert phases == {"open": 107_802, "claim": 105_755, "complete": 105_755, "expire": 247, None: 9_192}
+    # gap between open and claim is the visible maintenance backlog and the work still queued at day 90.
+    assert phases == {"open": 101_956, "claim": 101_484, "complete": 101_484, "expire": 247, None: 9_192}
     opened = {e.target_id for e in full_plan.events if e.task_phase == "open"}
     assert opened == {resident.resident_id for resident in RESIDENTS}
     ids = [event.event_id for event in full_plan.events]

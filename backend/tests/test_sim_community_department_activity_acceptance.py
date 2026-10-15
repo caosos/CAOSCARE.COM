@@ -22,7 +22,7 @@ DEPARTMENTS = set(DEPARTMENT_LABELS)
 MEANINGFUL_WORK = {
     "nursing": "shower_assistance",
     "kitchen": "breakfast",
-    "housekeeping": "housekeeping_room_service",
+    "housekeeping": "housekeeping_full_clean",
     "maintenance": "preventive_maintenance_check",
     "transportation": "transport_coordination",
     # Service model: only escorts and one-to-one visits take activities staff time.
@@ -51,7 +51,7 @@ def marked(**values):
 
 def test_actual_rota_has_no_hidden_gap_during_representative_24_hours():
     """Departments may be CLOSED or ON CALL by design; none is ever UNCOVERED."""
-    assert len(WORKERS) == 57
+    assert len(WORKERS) == 55
     assert planned_coverage_gaps(0) == []
     for minute in range(1440):
         summary = coverage_summary(0, minute)
@@ -200,6 +200,10 @@ def test_all_90_source_days_keep_meaningful_ticket_work_in_every_department():
     # the Front Desk; every other department works daily.
     for day in range(90):
         expected = DEPARTMENTS if weekday_of(day) < 5 else DEPARTMENTS - {"activities", "administration"}
+        # The burn-in's ten apartments are all in Housekeeper 01's Mon-Fri territory: on a
+        # weekend only a resident call can bring housekeeping work.
+        if weekday_of(day) >= 5:
+            expected = expected - {"housekeeping"} | (departments_by_source_day[day] & {"housekeeping"})
         assert departments_by_source_day[day] == expected, day
 
 

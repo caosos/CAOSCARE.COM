@@ -45,10 +45,10 @@ def test_full_community_backlog_waits_and_drains_truthfully():
     # Queues drain: with resident calls and staff reports added (2026-10-14),
     # a non-urgent maintenance call can wait through closed hours until the
     # next on-site shift, but aged priority means nothing waits two days.
-    # Owner staffing corrections (2026-10-15): two housekeepers (Mon-Fri, Wed-Sun) against a
-    # daily full clean of every apartment, and one weekday maintenance worker, cannot keep up.
-    # That shortage stays visible (it is not hidden by adding staff); every other department drains.
-    SHORT = {"housekeeping", "maintenance"}
+    # Owner (2026-10-15): one maintenance person, on site on business days and on call otherwise,
+    # cannot keep up with the routine maintenance load. That shortage stays visible (no staff
+    # are added to hide it); every other department, housekeeping included, drains.
+    SHORT = {"maintenance"}
     assert max(row.waited_minutes or 0 for row in rows if row.department not in SHORT) < 2 * 1440
     for department in SHORT:
         assert max(row.waited_minutes or 0 for row in rows if row.department == department) > 2 * 1440

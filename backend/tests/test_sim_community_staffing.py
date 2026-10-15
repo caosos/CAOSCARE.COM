@@ -40,7 +40,7 @@ from simulation.community_staffing import (
 
 
 EXPECTED_HEADCOUNT = {
-    "nursing": 22, "kitchen": 18, "housekeeping": 2, "maintenance": 3,
+    "nursing": 22, "kitchen": 18, "housekeeping": 2, "maintenance": 1,
     "transportation": 4, "activities": 1, "front_desk": 4, "administration": 3,
 }
 OVERNIGHT_MINUTES = list(range(22 * 60, 1440, 15)) + list(range(0, 6 * 60, 15))
@@ -54,8 +54,8 @@ def _windows(row):
 
 
 def test_roster_keeps_57_stable_explicit_simulated_identities():
-    assert len(WORKERS) == 57
-    assert len({worker["actor_id"] for worker in WORKERS}) == 57
+    assert len(WORKERS) == 55
+    assert len({worker["actor_id"] for worker in WORKERS}) == 55
     assert {d: sum(w["department"] == d for w in WORKERS) for d in EXPECTED_HEADCOUNT} == EXPECTED_HEADCOUNT
     assert all(worker["actor_id"].startswith("sim:staff:") for worker in WORKERS)
     assert all(worker["actor_type"] == "simulated-agent" for worker in WORKERS)
@@ -160,8 +160,11 @@ def test_uncovered_is_reported_only_for_genuine_gaps():
 def test_rest_days_and_rest_between_duties_are_honored():
     duties = defaultdict(list)
     for day_index in range(90):
+        # Rest rules apply to worked (on-site) shifts. Being the on-call contact is availability,
+        # not a shift: the one maintenance person is on call every night and weekend (owner).
         for row in assignments_for_day(day_index):
-            duties[row["actor_id"]].append((*_windows(row), day_index))
+            if row["duty"] == "on_site":
+                duties[row["actor_id"]].append((*_windows(row), day_index))
     for actor_id, rows in duties.items():
         days = {row[2] for row in rows}
         assert len(days) < 90
@@ -176,7 +179,11 @@ def test_daily_rota_is_deterministic_one_duty_per_worker_and_rotates():
     day_zero = assignments_for_day(0)
     assert day_zero == assignments_for_day(0)
     assert Counter(row["duty"] for row in day_zero) == {"on_site": 35, "on_call": 2}
-    assert len({row["actor_id"] for row in day_zero}) == len(day_zero)
+    on_site = [row["actor_id"] for row in day_zero if row["duty"] == "on_site"]
+    assert len(set(on_site)) == len(on_site)
+    # Only the one maintenance person holds both an on-site shift and the on-call duty.
+    both = {row["actor_id"] for row in day_zero if row["duty"] == "on_call"} & set(on_site)
+    assert both == {"sim:staff:maintenance:maintenance_technician:01"}
     aides = lambda day: {r["actor_id"] for r in assignments_for_day(day) if r["job_role"] == "care_aide"}
     assert aides(0) != aides(1)
 

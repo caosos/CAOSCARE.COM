@@ -35,7 +35,8 @@ ROUTINE_TEXT = {
                                 f"pick up the resident's labelled {meal} tray at the kitchen pass, carry it to the "
                                 "apartment, knock, hand it over and set it up, then walk back for the next tray "
                                 "(service only; intake is not recorded)") for meal in ("breakfast", "lunch", "dinner")},
-    "housekeeping_room_service": ("Room cleaning and linens", "scheduled clean of the apartment and linen change"),
+    "housekeeping_full_clean": ("Weekly full clean",
+                                "the apartment's scheduled weekly full clean and linen change, by its territory housekeeper"),
     "activity_escort": ("Escort to the activity",
                         "the resident needs help getting to today's group activity"),
     "one_to_one_activity_visit": ("One-to-one activity visit",

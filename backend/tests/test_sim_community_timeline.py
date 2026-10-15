@@ -8,8 +8,8 @@ import pytest
 from simulation import community_timeline as timeline
 
 
-EXPECTED_EVENT_COUNT = 52_287
-EXPECTED_DIGEST = "ee9e174e1be991d87e79b2e76b2982a3f9eafe50fd5059aa52fc4619ffebd002"
+EXPECTED_EVENT_COUNT = 49_977
+EXPECTED_DIGEST = "0c777af02e6391862f397a84662fbf555283c2cee96a933d4f251232f22faaf6"
 
 
 @pytest.fixture(scope="module")
@@ -35,7 +35,7 @@ def test_ids_are_unique_and_stream_counts_are_exact(plan):
     ids = [event.event_id for event in plan.events]
     assert len(ids) == len(set(ids))
     assert Counter(event.stream_kind for event in plan.events) == {
-        "routine_ticket_phase": 43_095,  # rounds + meals + weekday activity escorts/visits + calls + reports
+        "routine_ticket_phase": 40_785,  # rounds + meals + weekly cleans + weekday activity work + calls + reports
         "canonical_shift_milestone": 9_192,  # weekly on-site shifts (35/36/30) x 3 milestones over 90 days
     }
 
@@ -43,7 +43,7 @@ def test_ids_are_unique_and_stream_counts_are_exact(plan):
     # reports; the call volume varies by day but is fixed by the plan.
     per_day = [sum(event.event_id.startswith(f"day-{day_index:03d}:") for event in plan.events)
                for day_index in range(90)]
-    assert min(per_day) == 457 and max(per_day) == 489   # weekends plan no coordinator-run activity
+    assert min(per_day) == 427 and max(per_day) == 465   # weekly cleans; no weekend coordinator-run activity
 
 
 def test_timeline_uses_one_exact_total_order(plan):

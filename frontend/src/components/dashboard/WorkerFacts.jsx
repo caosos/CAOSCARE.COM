@@ -2,6 +2,30 @@ import React from "react";
 import { titleCase } from "../../lib/dashboardFormat";
 import { Section, TicketList } from "./DashboardParts";
 
+const CLEAN_STATE = { completed: "Completed", in_progress: "In progress", remaining: "Remaining" };
+
+// Today's scheduled full cleans: room, housekeeper and canonical state (also used by the department view).
+export function CleansToday({ rows, counts, onTicket }) {
+  if (!rows) return null;
+  return (
+    <Section title="Full cleans scheduled today" count={rows.length} testId="cleans-today">
+      {counts && <p className="text-sm">{counts.completed} completed · {counts.in_progress} in progress · {counts.remaining} remaining</p>}
+      {rows.length ? (
+        <ul className="divide-y divide-caos-line rounded-lg border border-caos-line bg-white text-sm">
+          {rows.map((r) => (
+            <li key={r.room} className="flex flex-wrap justify-between gap-2 p-2">
+              {r.task_id ? (
+                <button type="button" className="text-left font-semibold text-caos-forest hover:underline" onClick={() => onTicket?.(r.task_id)}>{r.room}</button>
+              ) : <span className="font-semibold">{r.room}</span>}
+              <span className="text-caos-mute">{r.housekeeper_name} · {r.planned?.hh_mm} · {CLEAN_STATE[r.state]}</span>
+            </li>
+          ))}
+        </ul>
+      ) : <p className="text-sm text-caos-mute">No full cleans scheduled today.</p>}
+    </Section>
+  );
+}
+
 // Role-specific facts for one simulated worker (#153 / #166). Every value comes from
 // the worker-detail read; anything the simulator does not model is shown as unknown.
 function RoleDetails({ details, onTicket }) {
@@ -18,10 +42,13 @@ function RoleDetails({ details, onTicket }) {
   if (details.kind === "cook") return <Section title="Kitchen work"><p className="text-sm">{details.note}</p></Section>;
   if (details.kind === "housekeeping") {
     return (
-      <Section title="Room assignment">
-        <p className="text-sm">{details.assigned_rooms || "No zone assigned"}</p>
-        <p className="text-xs text-caos-mute">{details.note}</p>
-      </Section>
+      <>
+        <Section title="Room assignment">
+          <p className="text-sm">{details.assigned_rooms || "No zone assigned"} · {details.occupied_rooms} occupied</p>
+          <p className="text-xs text-caos-mute">{details.note}</p>
+        </Section>
+        <CleansToday rows={details.cleans_today} counts={details.cleans_today_counts} onTicket={onTicket} />
+      </>
     );
   }
   if (details.kind === "transportation") {

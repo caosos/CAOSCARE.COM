@@ -35,6 +35,7 @@ from typing import Iterable, Optional
 
 from simulation import community_wait_blockers as blockers
 from simulation.community_on_call import call_in
+from simulation.community_housekeeping import required_worker
 from simulation.community_role_eligibility import eligible_roles, role_rank
 from simulation.community_service_windows import NOT_SERVED, department_lead, service_deadline
 from simulation.community_staffing import ON_CALL, ON_SITE
@@ -147,10 +148,12 @@ class _Department:
                 self._expire(ticket, deadline)
                 continue
             eligible, work = eligible_roles(self.department, ticket[5]), ticket[4]
+            only = required_worker(ticket[5], ticket[0])   # a territory clean: its own housekeeper
             options = [(role_rank(eligible, row["job_role"]), self.claims[row["actor_id"]],
                         row["actor_id"], index)
                        for index, (end, row) in enumerate(present)
                        if role_rank(eligible, row["job_role"]) is not None
+                       and (only is None or row["actor_id"] == only)
                        and end >= at + work and at + work < self.horizon]
             if options:
                 _end, worker = present.pop(min(options)[3])

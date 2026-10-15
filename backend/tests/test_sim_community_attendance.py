@@ -20,10 +20,10 @@ ON_SITE_90 = 12 * (2 * 35 + 3 * 36 + 2 * 30) + (35 + 35 + 36 + 36 + 36 + 30)   #
 
 def test_every_worker_has_exactly_one_truthful_daily_state():
     states = worker_states_for_day(0)
-    assert len(states) == 57
-    assert len({state["actor_id"] for state in states}) == 57
+    assert len(states) == 55
+    assert len({state["actor_id"] for state in states}) == 55
     assert Counter(state["attendance_state"] for state in states) == {
-        "scheduled": 35, "on_call": 2, "off_duty": 20,   # Day 1 is a Monday
+        "scheduled": 35, "on_call": 1, "off_duty": 19,   # Day 1 is a Monday
     }
     assert all(state["status"] == "planned" for state in states)
     assert all(state["execution_state"] == "not_executed" for state in states)
@@ -88,14 +88,16 @@ def test_off_duty_worker_has_no_invented_session_or_activity():
 
 
 def test_on_call_worker_is_reachable_but_never_present_or_clocked_in():
-    states = [state for state in worker_states_for_day(0) if state["attendance_state"] == "on_call"]
+    # Day 6 is a Saturday: the one maintenance person is on call all day (on weekdays their
+    # day state is the on-site shift, and the evening on-call follows it).
+    states = [state for state in worker_states_for_day(5) if state["attendance_state"] == "on_call"]
     assert {(state["department"], state["shift"]) for state in states} == {
-        ("maintenance", "after_hours_on_call"), ("nursing", "night_on_call"),
+        ("maintenance", "weekend_on_call"), ("nursing", "night_on_call"),
     }
     for state in states:
         assert state["milestones"] == [] and state["session_id"] is None
         assert state["physically_present"] is False
-        assert state["shift_assignment_id"].startswith("sim:shift:0:")
+        assert state["shift_assignment_id"].startswith("sim:shift:5:")
     assignment = next(row for row in assignments_for_day(0) if row["duty"] == "on_call")
     with pytest.raises(ValueError, match="on-call duty has no clock-in"):
         planned_shift_milestones(assignment)
@@ -105,14 +107,15 @@ def test_default_projection_covers_all_57_workers_for_90_days_deterministically(
     first = project_worker_attendance("2026-10-13")
     second = project_worker_attendance("2026-10-13", days=90)
     assert first == second
-    assert len(first) == 57 * 90
+    assert len(first) == 55 * 90
     assert set(Counter(state["actor_id"] for state in first).values()) == {90}
     assert len({state["date"] for state in first}) == 90
     summary = attendance_summary(first)
     assert summary == {
-        "workers": 57,
+        "workers": 55,
         # Weekly on-site shifts (owner schedules 2026-10-15): Mon-Tue 35, Wed-Fri 36, Sat-Sun 30.
-        "states": {"off_duty": 57 * 90 - ON_SITE_90 - 2 * 90, "on_call": 2 * 90, "scheduled": ON_SITE_90},
+        # On call: the night RN every day, plus the maintenance person on weekends (25 weekend days).
+        "states": {"off_duty": 55 * 90 - ON_SITE_90 - (90 + 25), "on_call": 90 + 25, "scheduled": ON_SITE_90},
         "session_milestones": {
             event_type: ON_SITE_90 for event_type in ("assignment_acceptance", "planned_login")
         },
@@ -131,12 +134,12 @@ def test_every_department_attendance_has_regular_planned_rest_days():
         for actor_id in {state["actor_id"] for state in projection}
     }
 
-    assert len(by_worker) == 57
+    assert len(by_worker) == 55
     for states in by_worker.values():
-        assert Counter(state["attendance_state"] for state in states)["off_duty"] > 0
+        # Worked (on-site) days: at most six in any seven. On-call availability is not a shift.
+        assert Counter(state["attendance_state"] for state in states)["scheduled"] < 90
         assert all(
-            sum(state["attendance_state"] in {"scheduled", "on_call"}
-                for state in states[start:start + 7]) <= 6
+            sum(state["attendance_state"] == "scheduled" for state in states[start:start + 7]) <= 6
             for start in range(90 - 7 + 1)
         )
 

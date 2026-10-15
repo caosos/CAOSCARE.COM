@@ -76,7 +76,7 @@ def seed(monkeypatch):
     run(db.staff_tasks.insert_many([
         task("done", BREAKFAST, "completed", assigned_to=claim.actor_id, assigned_name=claim.actor_name),
         task("work", SHOWER, "in_progress", assigned_to="sim:staff:nursing:care_aide:01", assigned_name="SIM - Care Aide 01"),
-        task("wait", "day-000:resident-001:housekeeping_room_service", "pending"),
+        task("wait", "day-000:resident-001:housekeeping_full_clean", "pending"),
         {"task_id": f"{TAG}_real", "title": "Change a light bulb", "status": "pending", "visibility_role": "maintenance",
          "source": "staff", "created_at": "2026-10-14T10:00:00+00:00"},
     ]))

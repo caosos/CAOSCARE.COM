@@ -3,6 +3,7 @@ import useDashboardResource from "../../lib/useDashboardResource";
 import { DUTY_LABEL, simTime, titleCase } from "../../lib/dashboardFormat";
 import CoverShiftButton from "../simulator/CoverShiftButton";
 import { Empty, PlannedList, ReadState, Section, TicketList } from "./DashboardParts";
+import { CleansToday } from "./WorkerFacts";
 
 function Person({ person, runId, onWorker, onTicket, onChanged }) {
   const shifts = (person.today || []).map((s) => `${titleCase(s.shift)} ${simTime(s.start)}–${s.end.hh_mm}${s.duty === "on_call" ? " (on call)" : ""}`);
@@ -73,6 +74,7 @@ export default function DashboardDepartment({ id, runId, onWorker, onTicket, onC
         <Section title="In progress" count={work.in_progress.length}><TicketList rows={work.in_progress} onTicket={onTicket} empty="Nothing in progress." /></Section>
         <Section title="Completed today (latest)" count={work.completed_today.length} testId="department-completed"><TicketList rows={work.completed_today} onTicket={onTicket} empty="Nothing completed yet today." /></Section>
       </div>
+      {data.cleans_today && <CleansToday rows={data.cleans_today.rows} counts={data.cleans_today.counts} onTicket={onTicket} />}
       <Section title="Upcoming today (planned, not yet requested)" count={work.upcoming.length}>
         <PlannedList rows={work.upcoming} />
       </Section>

@@ -11,7 +11,7 @@ from simulation.community_blueprint import COMMUNITY_ID, SIMULATION_SCOPE
 from simulation.community_coverage import coverage_summary
 from simulation.community_dashboard_detail import DashboardNotFound, worker_detail
 from simulation.community_staffing import (
-    WORKERS, active_assignments, assignments_for_day, weekday_of,
+    WORKERS, active_assignments, assignments_for_day, on_call_assignments, weekday_of,
 )
 from simulation.community_timeline import PLAN_REVISIONS, build_90_day_timeline
 from simulation.community_worker_detail import worker_state
@@ -33,8 +33,13 @@ def test_activities_has_exactly_one_coordinator_and_no_assistant():
     assert _roles("activities") == {"activities_coordinator": 1}
 
 
-def test_one_normal_maintenance_worker_on_site_on_business_days():
-    assert _roles("maintenance")["maintenance_technician"] == 1
+def test_one_maintenance_person_on_site_on_business_days_and_on_call_otherwise():
+    # Owner: the building has ONE maintenance person; no invented on-call technicians.
+    assert _roles("maintenance") == {"maintenance_technician": 1}
+    tech = "sim:staff:maintenance:maintenance_technician:01"
+    for day in range(14):
+        on_call = {r["actor_id"] for r in on_call_assignments(day, 23 * 60) if r["department"] == "maintenance"}
+        assert on_call == {tech}   # the same person is the after-hours / weekend contact
     for day in range(14):
         on_site = {r["actor_id"] for r in active_assignments(day, 10 * 60) if r["department"] == "maintenance"}
         assert on_site == ({"sim:staff:maintenance:maintenance_technician:01"} if weekday_of(day) < 5 else set())
@@ -107,7 +112,7 @@ async def _seed(db):
         task("t-meal", "day-000:resident-001:breakfast", "completed", "kitchen", server),
         task("t-ride", "day-000:resident-002:transport_coordination", "in_progress", "transportation", driver, "002"),
         task("t-care", "day-000:resident-004:shower_assistance", "in_progress", "nursing", AIDE, "004"),
-        task("t-clean", "day-000:resident-005:housekeeping_room_service", "in_progress", "housekeeping",
+        task("t-clean", "day-000:resident-006:housekeeping_full_clean", "in_progress", "housekeeping",
              HOUSEKEEPER_A, "005"),
         task("t-fix", "day-000:resident-006:preventive_maintenance_check", "pending", "maintenance", None, "006"),
         # Another worker's ticket: must never appear in anyone else's detail.
@@ -168,3 +173,25 @@ def test_unknown_worker_is_refused_not_guessed():
         with pytest.raises(DashboardNotFound):
             await worker_detail("user_real_person", store=db)
     _run(check)
+
+
+def test_kitchen_v11_staffing_and_service_model_are_preserved():
+    from simulation import community_service_model as svc
+    from simulation.community_staffing import _day_rota
+    assert _roles("kitchen") == {"cook": 3, "dining_server": 6, "meal_delivery_aide": 9}
+    delivered = sum(svc.meal_location_for(i) == "room_service_offer" for i in range(1, 76))
+    assert (delivered, 75 - delivered) == (30, 45)
+    assert svc.WORK_MINUTES["dinner_room_service"] == 13 and svc.WORK_MINUTES["dinner"] == 3
+    shifts = Counter((r["job_role"], r["shift"]) for r in _day_rota(0) if r["department"] == "kitchen")
+    assert shifts == {("cook", "early"): 1, ("cook", "late"): 1, ("dining_server", "early"): 2,
+                      ("dining_server", "late"): 2, ("meal_delivery_aide", "meals_am"): 3,
+                      ("meal_delivery_aide", "meals_pm"): 3}
+
+
+def test_worker_count_reconciles_from_v11_66_to_v12_55():
+    v11 = {"nursing": 22, "kitchen": 18, "housekeeping": 4, "maintenance": 4, "transportation": 4,
+           "activities": 6, "front_desk": 4, "administration": 4}
+    removed = {"housekeeping": 2, "maintenance": 3, "activities": 5, "administration": 1}  # owner corrections
+    v12 = Counter(w["department"] for w in WORKERS)
+    assert sum(v11.values()) == 66 and sum(removed.values()) == 11
+    assert dict(v12) == {d: n - removed.get(d, 0) for d, n in v11.items()} and len(WORKERS) == 55

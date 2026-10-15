@@ -9,6 +9,7 @@ from collections import Counter
 from simulation.community_dashboard_common import (
     default_store, planned_phase, scoped, sim_time, ticket_row, workflow_of,
 )
+from simulation import community_housekeeping as hk
 from simulation.community_dashboard_view import HORIZON
 from simulation.community_service_model import ROOM_SERVICE, meal_of
 from simulation.community_shift_cover import active_cover
@@ -20,10 +21,6 @@ from simulation.community_ticket_text import routine_label
 
 COMPLETED_LIMIT = 40
 QUEUE_LIMIT = 15
-HOUSEKEEPING_ZONES = {  # deterministic apartment assignment per housekeeper (owner 2026-10-15)
-    "sim:staff:housekeeping:housekeeper:01": (1, 40),
-    "sim:staff:housekeeping:housekeeper:02": (41, 80),
-}
 STATE_LABELS = {
     "working": "On duty · working a ticket", "free": "On duty · free",
     "on_call": "On call (off site)", "called_in": "Called in from on call · working",
@@ -59,6 +56,32 @@ def weekly_schedule(actor_id: str, day: int) -> list[dict]:
     return rows
 
 
+async def housekeeping_today(store, run_id: str, day: int, actor_id=None) -> list[dict]:
+    """Each full clean scheduled today, its housekeeper and its canonical status.
+
+    ``remaining`` means not completed yet: requested and waiting, or not yet due.
+    """
+    planned = hk.cleans_on(day, actor_id=actor_id)
+    sessions = {f"simulator:event:{hk.clean_workflow(day, row['resident_key'])}": row for row in planned}
+    tasks = await store.staff_tasks.find(
+        {**scoped(run_id), "conversation_session_id": {"$in": list(sessions)}},
+        {"_id": 0, "task_id": 1, "status": 1, "conversation_session_id": 1, "assigned_name": 1}).to_list(None)
+    by_session = {t["conversation_session_id"]: t for t in tasks}
+    out = []
+    for session, row in sessions.items():
+        task = by_session.get(session)
+        status = (task or {}).get("status")
+        out.append({"room": row["room"], "housekeeper": row["housekeeper"],
+                    "housekeeper_name": next(w["name"] for w in WORKERS if w["actor_id"] == row["housekeeper"]),
+                    "planned": sim_time(day * 1440 + row["minute"]), "task_id": (task or {}).get("task_id"),
+                    "state": {"completed": "completed", "in_progress": "in_progress"}.get(status, "remaining")})
+    return out
+
+
+def clean_counts(rows: list[dict]) -> dict:
+    return {state: sum(r["state"] == state for r in rows) for state in ("completed", "in_progress", "remaining")}
+
+
 def _finished_day(task: dict, plan: dict):
     done = planned_phase(plan, workflow_of(task), COMPLETE)
     return None if done is None else done.day_index
@@ -82,11 +105,12 @@ def _role_details(worker: dict, current: list, today: list) -> dict:
                 "current_service": routine_label(working["routine"]) if working and working["routine"] else None,
                 "served_today": dict(sorted(meals.items()))}
     if department == "housekeeping":
-        first, last = HOUSEKEEPING_ZONES.get(worker["actor_id"], (None, None))
+        first, last = hk.TERRITORIES.get(worker["actor_id"], (None, None))
         return {"kind": "housekeeping",
                 "assigned_rooms": None if first is None else f"SIM-{first:03d} to SIM-{last:03d}",
-                "note": "Zone assignment only; housekeeping tickets still go to whichever housekeeper "
-                        "is free (the housekeeping workload is not yet redesigned)."}
+                "occupied_rooms": len(hk.occupied_rooms(worker["actor_id"])) if first else 0,
+                "note": "Each occupied apartment in the territory gets one full clean a week; only this "
+                        "housekeeper takes them."}
     if department == "transportation":
         return {"kind": "transportation", "rides_today": [row["task_id"] for row in today]}
     if department == "nursing":
@@ -116,6 +140,9 @@ async def worker_detail(actor_id: str, *, run: dict, as_of: int, plan: dict, sto
     cover = await active_cover(store, run["run_id"], actor_id)
     state = worker_state(status["status"], bool(current), bool(cover))
     details = _role_details(worker, current, today)
+    if details["kind"] == "housekeeping":
+        cleans = await housekeeping_today(store, run["run_id"], day, actor_id)
+        details.update({"cleans_today": cleans, "cleans_today_counts": clean_counts(cleans)})
     if details["kind"] == "maintenance_queue":
         pending = await store.staff_tasks.find(
             {**scoped(run["run_id"]), "simulated": True, "category": "maintenance", "status": "pending"},

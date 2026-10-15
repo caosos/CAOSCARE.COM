@@ -15,7 +15,7 @@ from simulation.community_ticket_plan import OPEN_TO_CLAIM_MINUTES, work_minutes
 
 NOW = datetime(2026, 10, 13, 16, 0, tzinfo=timezone.utc)
 # Burn-in day zero: 146 tickets x open/claim/complete plus shift milestones (service model).
-DAY_ZERO_EVENTS = 588
+DAY_ZERO_EVENTS = 564
 
 
 def _get(row, path):
