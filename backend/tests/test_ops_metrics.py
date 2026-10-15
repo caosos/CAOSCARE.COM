@@ -139,3 +139,11 @@ def test_python_and_mongo_origin_rules_agree():
              ({"source": "aria_admin"}, "staff_generated"), ({}, "unknown"), ({"source": "family"}, "unknown")]
     for doc, kind in cases:
         assert kind_of(doc) == kind
+
+
+def test_staff_on_duty_box_is_for_administrators_only(seeded):
+    from routes import ops_widgets
+    for user in ({"role": "staff", "department": OTHER}, {"role": "resident"}):
+        with pytest.raises(HTTPException) as e:
+            run(ops_widgets.widget("staff_on_duty", world="simulated", date=None, run_id=None, sim_day=None, user=user))
+        assert e.value.status_code == 403

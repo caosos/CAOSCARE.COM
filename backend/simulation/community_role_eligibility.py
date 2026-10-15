@@ -48,10 +48,13 @@ _NURSING_ROUTINES = {
 # prep, plating and dish work on shift; they do not take resident service tickets.
 _DEFAULT_ROLES = {
     "kitchen": ("dining_server",),
-    "activities": ("activities_assistant", "activities_coordinator"),
+    "activities": ("activities_coordinator",),
+    # One normal maintenance worker; the on-call technicians take what is called in.
+    "maintenance": ("maintenance_technician", "on_call_maintenance_technician"),
+    "administration": ("administrator", "business_office_manager", "executive_director"),
 }
 _ACTIVITY_ROUTINES = {
-    "one_to_one_activity_visit": ("activities_coordinator", "activities_assistant"),
+    "one_to_one_activity_visit": ("activities_coordinator",),
 }
 # Room delivery (owner estimate 2026-10-15): delivery aides carry trays first and
 # dining servers help; in the dining room it is the other way round.

@@ -65,7 +65,7 @@ def _segments(department: str, horizon: int):
         here = [row for start, end, row in every if start <= at < end]
         roles = frozenset(row["job_role"] for row in here if row["duty"] == ON_SITE)
         on_call = sum(row["duty"] == ON_CALL for row in here)
-        states.append((department_status(department, at % 1440, len(roles), on_call), roles))
+        states.append((department_status(department, at // 1440, at % 1440, len(roles), on_call), roles))
     return starts, states
 
 

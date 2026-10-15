@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { api } from "../../lib/api";
 import { fetchRecords, periodParams } from "../../lib/useWorkspaceData";
 import RequestDetailDialog from "../../pages/RequestDetailDialog";
+import DashboardWorker from "../dashboard/DashboardWorker";
 
 const ORIGINS = [["scheduled_routine", "Scheduled routine"], ["resident_request", "Resident request"],
                  ["staff_generated", "Staff / system"], ["unknown", "Origin not recorded"]];
@@ -29,6 +30,7 @@ export default function RecordsDialog({ widget, view, open, onOpenChange }) {
   const [origin, setOrigin] = useState(undefined);
   const [counts, setCounts] = useState({});
   const [taskId, setTaskId] = useState(null);
+  const [workerId, setWorkerId] = useState(null);
   const isMetric = widget?.source.kind === "metric";
   const fixedOrigin = widget?.source.origin;
 
@@ -135,13 +137,30 @@ export default function RecordsDialog({ widget, view, open, onOpenChange }) {
               {rows.map((r) => (
                 <li key={r.id} className={`py-2 ${r.task_id ? "cursor-pointer hover:bg-[#F9FAFB]" : ""}`}
                     onClick={() => r.task_id && setTaskId(r.task_id)}>
-                  <span className="font-medium text-[#111827]">{r.name}</span>
-                  <span className="text-[#6B7280]"> · {r.detail}</span>
+                  {r.worker_id ? (
+                    // A worker opens their own detail; a real button, so it works from the keyboard.
+                    <button type="button" onClick={() => setWorkerId(r.worker_id)} data-testid="ws-worker-row"
+                            className="w-full rounded text-left hover:bg-[#F9FAFB] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1D72D8]">
+                      <span className="font-medium text-[#111827] underline-offset-2 hover:underline">{r.name}</span>
+                      <span className="text-[#6B7280]"> · {r.detail}</span>
+                    </button>
+                  ) : (
+                    <>
+                      <span className="font-medium text-[#111827]">{r.name}</span>
+                      <span className="text-[#6B7280]"> · {r.detail}</span>
+                    </>
+                  )}
                 </li>
               ))}
               {!rows.length && <li className="py-6 text-center text-[#6B7280]">No records.</li>}
             </ul>
           )}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!workerId} onOpenChange={(o) => !o && setWorkerId(null)}>
+        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto" data-testid="ws-worker-detail">
+          <DialogHeader><DialogTitle className="sr-only">Worker detail</DialogTitle></DialogHeader>
+          {workerId && <DashboardWorker id={workerId} runId={data?.run?.run_id} onTicket={setTaskId} />}
         </DialogContent>
       </Dialog>
       <RequestDetailDialog taskId={taskId} open={!!taskId} onOpenChange={(o) => !o && setTaskId(null)} />

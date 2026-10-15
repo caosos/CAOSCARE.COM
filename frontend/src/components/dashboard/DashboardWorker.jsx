@@ -3,6 +3,7 @@ import useDashboardResource from "../../lib/useDashboardResource";
 import { DUTY_LABEL, simTime, titleCase } from "../../lib/dashboardFormat";
 import CoverShiftButton from "../simulator/CoverShiftButton";
 import { Empty, PlannedList, ReadState, Section, TicketList } from "./DashboardParts";
+import WorkerFacts from "./WorkerFacts";
 
 function Shifts({ rows }) {
   if (!rows?.length) return <Empty>Off.</Empty>;
@@ -32,10 +33,11 @@ export default function DashboardWorker({ id, runId, onTicket, onChanged }) {
           <p className="text-sm text-caos-mute">{titleCase(w.job_role)} · {w.department_label} · simulated worker</p>
           <p className="mt-1 text-sm"><b>{availability}</b>{data.shift_now ? ` · ${titleCase(data.shift_now)} shift` : ""} · as of {simTime(data.as_of)}</p>
         </div>
-        {data.duty === "on_duty" && (
+        {data.duty === "on_duty" && runId && (
           <CoverShiftButton runId={runId} worker={w} covered={!!data.covered_by} onChanged={() => { reload(); onChanged?.(); }} />
         )}
       </div>
+      <WorkerFacts data={data} onTicket={onTicket} />
       <div className="grid gap-4 sm:grid-cols-2">
         <Section title="Shift today"><Shifts rows={data.schedule.today} /></Section>
         <Section title="Shift tomorrow"><Shifts rows={data.schedule.tomorrow} /></Section>

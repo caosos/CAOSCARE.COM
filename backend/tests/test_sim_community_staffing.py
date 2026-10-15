@@ -34,13 +34,14 @@ from simulation.community_staffing import (
     minute_in_shift,
     on_call_assignments,
     project_schedule,
+    weekday_of,
     worker_statuses,
 )
 
 
 EXPECTED_HEADCOUNT = {
-    "nursing": 22, "kitchen": 18, "housekeeping": 4, "maintenance": 4,
-    "transportation": 4, "activities": 6, "front_desk": 4, "administration": 4,
+    "nursing": 22, "kitchen": 18, "housekeeping": 2, "maintenance": 3,
+    "transportation": 4, "activities": 1, "front_desk": 4, "administration": 3,
 }
 OVERNIGHT_MINUTES = list(range(22 * 60, 1440, 15)) + list(range(0, 6 * 60, 15))
 CARE_ROLES = {"care_aide", "medication_reminder_support"}
@@ -53,8 +54,8 @@ def _windows(row):
 
 
 def test_roster_keeps_57_stable_explicit_simulated_identities():
-    assert len(WORKERS) == 66
-    assert len({worker["actor_id"] for worker in WORKERS}) == 66
+    assert len(WORKERS) == 57
+    assert len({worker["actor_id"] for worker in WORKERS}) == 57
     assert {d: sum(w["department"] == d for w in WORKERS) for d in EXPECTED_HEADCOUNT} == EXPECTED_HEADCOUNT
     assert all(worker["actor_id"].startswith("sim:staff:") for worker in WORKERS)
     assert all(worker["actor_type"] == "simulated-agent" for worker in WORKERS)
@@ -111,8 +112,10 @@ def test_maintenance_works_normal_hours_with_truthful_after_hours_on_call():
             here = [r for r in active_assignments(day_index, minute) if r["department"] == "maintenance"]
             reachable = [r for r in on_call_assignments(day_index, minute) if r["department"] == "maintenance"]
             status = coverage_summary(day_index, minute)["coverage"]["maintenance"]["status"]
-            if 7 * 60 <= minute < 15 * 60 + 30:
+            # Owner (2026-10-15): one maintenance worker, on site on business days only.
+            if 7 * 60 <= minute < 15 * 60 + 30 and weekday_of(day_index) < 5:
                 assert len(here) == 1 and not reachable and status == ON_DUTY
+                assert here[0]["actor_id"] == "sim:staff:maintenance:maintenance_technician:01"
             else:
                 assert not here, "maintenance is never on site after hours"
                 assert len(reachable) == 1 and status == ON_CALL
@@ -129,7 +132,7 @@ def test_closed_departments_never_show_on_site_staff():
                 if item["status"] == CLOSED:
                     assert item["on_shift"] == 0 and item["actor_ids"] == []
                     assert item["on_call"] == 0
-                    assert not is_open(department, minute)
+                    assert not is_open(department, day_index, minute)
                 assert (item["status"] == ON_DUTY) == (item["on_shift"] > 0)
     overnight = coverage_summary(1, 2 * 60)["coverage"]
     assert {d for d, item in overnight.items() if item["status"] == CLOSED} == {
@@ -142,13 +145,16 @@ def test_uncovered_is_reported_only_for_genuine_gaps():
     assert all(planned_coverage_gaps(day) == [] for day in range(90))
     assert coverage_summary(1, 2 * 60)["gaps"] == []
     # The classifier flags a real gap: an open department, or a missing on-call.
-    assert department_status("nursing", 3 * 60, on_site=0, on_call=1) == UNCOVERED
-    assert department_status("kitchen", 12 * 60, on_site=0, on_call=0) == UNCOVERED
-    assert department_status("maintenance", 2 * 60, on_site=0, on_call=0) == UNCOVERED
-    assert department_status("maintenance", 2 * 60, on_site=0, on_call=1) == ON_CALL
-    assert department_status("kitchen", 23 * 60, on_site=0, on_call=0) == CLOSED
+    assert department_status("nursing", 1, 3 * 60, on_site=0, on_call=1) == UNCOVERED
+    assert department_status("kitchen", 1, 12 * 60, on_site=0, on_call=0) == UNCOVERED
+    assert department_status("maintenance", 1, 2 * 60, on_site=0, on_call=0) == UNCOVERED
+    assert department_status("maintenance", 1, 2 * 60, on_site=0, on_call=1) == ON_CALL
+    assert department_status("kitchen", 1, 23 * 60, on_site=0, on_call=0) == CLOSED
+    # Business-day departments are closed (not uncovered) on the weekend (day 5 = Saturday).
+    assert department_status("administration", 5, 10 * 60, on_site=0, on_call=0) == CLOSED
+    assert department_status("maintenance", 5, 10 * 60, on_site=0, on_call=1) == ON_CALL
     with pytest.raises(ValueError, match="unknown department"):
-        department_status("ghost", 0, 0, 0)
+        department_status("ghost", 0, 0, 0, 0)
 
 
 def test_rest_days_and_rest_between_duties_are_honored():
@@ -169,7 +175,7 @@ def test_rest_days_and_rest_between_duties_are_honored():
 def test_daily_rota_is_deterministic_one_duty_per_worker_and_rotates():
     day_zero = assignments_for_day(0)
     assert day_zero == assignments_for_day(0)
-    assert Counter(row["duty"] for row in day_zero) == {"on_site": 37, "on_call": 2}
+    assert Counter(row["duty"] for row in day_zero) == {"on_site": 35, "on_call": 2}
     assert len({row["actor_id"] for row in day_zero}) == len(day_zero)
     aides = lambda day: {r["actor_id"] for r in assignments_for_day(day) if r["job_role"] == "care_aide"}
     assert aides(0) != aides(1)
@@ -190,7 +196,7 @@ def test_overnight_windows_wrap_and_prior_day_staff_remain_present():
 def test_default_projection_is_exactly_90_repeatable_local_days():
     first = project_schedule(date(2026, 10, 13))
     assert first == project_schedule("2026-10-13", days=90)
-    assert len(first) == 90 * 39
+    assert len(first) == 12 * (2 * 37 + 3 * 38 + 2 * 32) + (37 + 37 + 38 + 38 + 38 + 32)
     assert first[0]["date"] == "2026-10-13"
     overnight = next(row for row in first if row["shift_key"] == "nursing:night")
     assert overnight["spans_midnight"] is True

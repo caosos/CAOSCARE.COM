@@ -11,6 +11,7 @@ from simulation.community_dashboard_common import (
 )
 from simulation.community_dashboard_view import HORIZON, executed_position
 from simulation.community_day_queue import build_day_queue
+from simulation import community_worker_detail
 from simulation.community_shift_cover import active_cover
 from simulation.community_staffing import DEPARTMENT_LABELS, WORKERS, _day_rota, worker_statuses
 from simulation.community_ticket_plan import CLAIM, OPEN
@@ -114,32 +115,17 @@ async def department_detail(slug: str, *, store=None) -> dict:
 
 
 async def worker_detail(actor_id: str, *, store=None) -> dict:
-    worker = next((row for row in WORKERS if row["actor_id"] == actor_id), None)
-    if worker is None:
-        raise DashboardNotFound(f"unknown simulated worker {actor_id}")
     store = store if store is not None else default_store()
+    if not any(row["actor_id"] == actor_id for row in WORKERS):
+        raise DashboardNotFound(f"unknown simulated worker {actor_id}")
     run, as_of, plan = await _context(store)
     day = min(as_of, HORIZON - 1) // 1440
-    status = next(row for row in worker_statuses(day, min(as_of, HORIZON - 1) % 1440)
-                  if row["actor_id"] == actor_id)
-    current = await _tasks(store, run["run_id"], {"assigned_to": actor_id, "status": "in_progress"})
-    history = await _tasks(store, run["run_id"], {"assigned_to": actor_id, "status": "completed"},
-                           limit=COMPLETED_LIMIT, newest=True)
-    total_done = await store.staff_tasks.count_documents(
-        {**scoped(run["run_id"]), "assigned_to": actor_id, "status": "completed"})
-    cover = await active_cover(store, run["run_id"], actor_id)
+    detail = await community_worker_detail.worker_detail(actor_id, run=run, as_of=as_of, plan=plan, store=store)
     return {
-        "status": "loaded", "run_id": run["run_id"], "as_of": sim_time(as_of),
-        "worker": {k: worker[k] for k in ("actor_id", "name", "job_role", "department",
-                                          "department_label", "actor_type", "identity_basis")},
-        "duty": status["status"], "shift_now": status["shift"],
-        "covered_by": (cover or {}).get("covered_by_name"),
+        "status": "loaded", "run_id": run["run_id"], "as_of": sim_time(as_of), **detail,
         "schedule": {"today": _shifts(day, actor_id=actor_id),
                      "tomorrow": _shifts(day + 1, actor_id=actor_id) if day + 1 < 90 else []},
-        "current": [ticket_row(t, plan, as_of) for t in current],
         "next_planned": _planned(run, as_of, actor_id=actor_id, phase=CLAIM, limit=10, days=2),
-        "completed_total": total_done,
-        "completed": [ticket_row(t, plan, as_of) for t in history],
     }
 
 

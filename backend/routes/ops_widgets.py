@@ -49,8 +49,10 @@ async def _staff_on_duty(scope, run) -> dict:
     return {"value": len(rows),
             "explanation": (f"Simulated workers on site per the staffing rota at the last executed moment "
                             f"(day {day + 1}, {minute // 60:02d}:{minute % 60:02d}). On-call staff are not counted."),
-            "rows": [{"id": w["actor_id"], "name": w["name"],
-                      "detail": f"{w['department']} · {w['job_role']} · {w['shift']}"} for w in rows]}
+            # worker_id opens that worker's detail (GET /simulator/community/dashboard/workers/{id}).
+            "rows": [{"id": w["actor_id"], "worker_id": w["actor_id"], "name": w["name"], "simulated": True,
+                      "detail": f"{w['department'].replace('_', ' ')} · {w['job_role'].replace('_', ' ')} · "
+                                f"{w['shift'].replace('_', ' ')} shift"} for w in rows]}
 
 
 async def _events_today(scope, run) -> dict:

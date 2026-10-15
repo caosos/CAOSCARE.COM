@@ -13,6 +13,7 @@ human workflow; they never book a vehicle or place a call.
 from dataclasses import dataclass, field, replace
 from typing import Optional
 
+from simulation.community_coverage import opens_on
 from simulation.community_family_call_routing import family_call_department
 from simulation import community_service_model as svc
 
@@ -229,7 +230,7 @@ def plan_first_24_hours(
                 truth_boundary="Records coordination only; never claims that a call was placed, rang, or connected.",
             ), resident_key, resident_index, day_index)
             # Owner rule: Administration before 17:00, Front Desk 17:00-23:00.
-            events.append(replace(family, department=family_call_department(family.minute)))
+            events.append(replace(family, department=family_call_department(family.minute, day_index=family.day_index)))
 
         if cycle in (3, 7):
             events.append(_event(_RoutineSpec(
@@ -260,7 +261,9 @@ def _service_events(resident_key: str, resident_index: int, day_index: int) -> l
             routine, "kitchen", seating, f"Serve the resident's {meal} {where}.",
             truth_boundary=_MEAL_TRUTH, stagger=1,
         ), resident_key, resident_index, day_index))
-    if not svc.attends_activity(resident_index, day_index):
+    # The group session and one-to-one visits are the activities coordinator's work;
+    # on days the coordinator is off (owner: one coordinator) no session is planned.
+    if not svc.attends_activity(resident_index, day_index) or not opens_on("activities", day_index):
         return out
     if svc.activity_style_for(resident_index) == "one_to_one_offer":
         order = sum(1 for i in range(1, resident_index)

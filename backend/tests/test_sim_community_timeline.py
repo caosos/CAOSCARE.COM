@@ -8,8 +8,8 @@ import pytest
 from simulation import community_timeline as timeline
 
 
-EXPECTED_EVENT_COUNT = 53_629
-EXPECTED_DIGEST = "93a387722f05cd4c9e304e568e624358e0dcd9eab05edba80fbcaffb8a1f0a85"
+EXPECTED_EVENT_COUNT = 52_287
+EXPECTED_DIGEST = "ee9e174e1be991d87e79b2e76b2982a3f9eafe50fd5059aa52fc4619ffebd002"
 
 
 @pytest.fixture(scope="module")
@@ -21,7 +21,7 @@ def test_builds_exact_stable_90_day_plan(plan):
     again = timeline.build_90_day_timeline()
 
     assert plan == again
-    assert plan.plan_revision == "living-community-timeline-v11-room-delivery-burn_in_10"
+    assert plan.plan_revision == "living-community-timeline-v12-staff-roles-burn_in_10"
     assert plan.digest_algorithm == "sha256"
     assert plan.source_start_day == 0
     assert plan.source_end_day == 89
@@ -35,15 +35,15 @@ def test_ids_are_unique_and_stream_counts_are_exact(plan):
     ids = [event.event_id for event in plan.events]
     assert len(ids) == len(set(ids))
     assert Counter(event.stream_kind for event in plan.events) == {
-        "routine_ticket_phase": 43_639,  # rounds + meals + activity escorts/visits + calls + reports
-        "canonical_shift_milestone": 9_990,  # 37 on-site shifts x 3 milestones x 90 days
+        "routine_ticket_phase": 43_095,  # rounds + meals + weekday activity escorts/visits + calls + reports
+        "canonical_shift_milestone": 9_192,  # weekly on-site shifts (35/36/30) x 3 milestones over 90 days
     }
 
     # Every day carries its rounds plus that day's resident calls and staff
     # reports; the call volume varies by day but is fixed by the plan.
     per_day = [sum(event.event_id.startswith(f"day-{day_index:03d}:") for event in plan.events)
                for day_index in range(90)]
-    assert min(per_day) == 475 and max(per_day) == 489
+    assert min(per_day) == 457 and max(per_day) == 489   # weekends plan no coordinator-run activity
 
 
 def test_timeline_uses_one_exact_total_order(plan):

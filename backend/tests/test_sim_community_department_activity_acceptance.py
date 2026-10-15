@@ -11,7 +11,7 @@ from simulation.community_runtime_view import runtime_snapshot
 from simulation.community_shift_events import planned_events_for_day
 from simulation.community_shift_execution import record_shift_milestone
 from simulation.community_coverage import coverage_summary, planned_coverage_gaps
-from simulation.community_staffing import DEPARTMENT_LABELS, WORKERS, active_assignments
+from simulation.community_staffing import DEPARTMENT_LABELS, WORKERS, active_assignments, weekday_of
 from simulation.community_ticket_plan import CLAIM, COMPLETE, OPEN
 from simulation.community_timeline import build_90_day_timeline
 from tests.community_runtime_fake import Collection, RuntimeStore, _matches
@@ -51,7 +51,7 @@ def marked(**values):
 
 def test_actual_rota_has_no_hidden_gap_during_representative_24_hours():
     """Departments may be CLOSED or ON CALL by design; none is ever UNCOVERED."""
-    assert len(WORKERS) == 66
+    assert len(WORKERS) == 57
     assert planned_coverage_gaps(0) == []
     for minute in range(1440):
         summary = coverage_summary(0, minute)
@@ -195,7 +195,12 @@ def test_all_90_source_days_keep_meaningful_ticket_work_in_every_department():
 
     assert plan.day_count == 90 and plan.source_start_day == 0 and plan.source_end_day == 89
     assert set(departments_by_source_day) == set(range(90))
-    assert all(departments_by_source_day[day] == DEPARTMENTS for day in range(90))
+    # Owner (2026-10-15): one activities coordinator and the front office work business
+    # days, so on Saturdays and Sundays no activity work is planned and family calls go to
+    # the Front Desk; every other department works daily.
+    for day in range(90):
+        expected = DEPARTMENTS if weekday_of(day) < 5 else DEPARTMENTS - {"activities", "administration"}
+        assert departments_by_source_day[day] == expected, day
 
 
 def test_activity_projection_can_show_ticket_work_from_all_departments():

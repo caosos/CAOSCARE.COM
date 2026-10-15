@@ -17,7 +17,7 @@ from simulation.community_day_queue import build_day_queue, event_sort_key
 from simulation.community_executor import ExecutorEvent
 
 
-PLAN_REVISION_BASE = "living-community-timeline-v11-room-delivery"
+PLAN_REVISION_BASE = "living-community-timeline-v12-staff-roles"
 # The revision names the cohort, so a run's persisted fingerprint says which
 # residents it executes. The burn-in remains the default for pure builders.
 PLAN_REVISIONS = {

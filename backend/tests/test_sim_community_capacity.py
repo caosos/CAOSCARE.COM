@@ -45,9 +45,15 @@ def test_full_community_backlog_waits_and_drains_truthfully():
     # Queues drain: with resident calls and staff reports added (2026-10-14),
     # a non-urgent maintenance call can wait through closed hours until the
     # next on-site shift, but aged priority means nothing waits two days.
-    assert max(row.waited_minutes or 0 for row in rows) < 2 * 1440
+    # Owner staffing corrections (2026-10-15): two housekeepers (Mon-Fri, Wed-Sun) against a
+    # daily full clean of every apartment, and one weekday maintenance worker, cannot keep up.
+    # That shortage stays visible (it is not hidden by adding staff); every other department drains.
+    SHORT = {"housekeeping", "maintenance"}
+    assert max(row.waited_minutes or 0 for row in rows if row.department not in SHORT) < 2 * 1440
+    for department in SHORT:
+        assert max(row.waited_minutes or 0 for row in rows if row.department == department) > 2 * 1440
     unclaimed = [row for row in rows if row.wait_reason == capacity.UNCLAIMED_AT_END]
-    assert unclaimed and all(row.requested_at >= 89 * 1440 for row in unclaimed)
+    assert unclaimed and all(row.requested_at >= 89 * 1440 for row in unclaimed if row.department not in SHORT)
     assert all(row.claim_at is None and row.worker is None for row in unclaimed)
 
 

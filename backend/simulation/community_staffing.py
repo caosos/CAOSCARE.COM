@@ -21,6 +21,19 @@ SIMULATION_LOAD_DISCLAIMER = (
 MAX_SCHEDULED_DAYS_PER_ROLLING_WEEK = 6
 MIN_REST_BETWEEN_DUTIES_MINUTES = 8 * 60
 
+# Simulated calendar: Day 1 (day_index 0) is a Monday. Weekly schedules below
+# use 0 = Monday ... 6 = Sunday.
+DAY0_WEEKDAY = 0
+WEEKDAY_NAMES = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+MON_FRI = frozenset(range(5))
+WED_SUN = frozenset({2, 3, 4, 5, 6})
+SAT_SUN = frozenset({5, 6})
+
+
+def weekday_of(day_index: int) -> int:
+    return (DAY0_WEEKDAY + day_index) % 7
+
+
 DEPARTMENT_LABELS = {
     "nursing": "Nursing / Care",
     "kitchen": "Dining / Kitchen",
@@ -40,13 +53,15 @@ _HEADCOUNT = (
     ("kitchen", "cook", 3),
     ("kitchen", "dining_server", 6),
     ("kitchen", "meal_delivery_aide", 9),
-    ("housekeeping", "housekeeper", 4),
-    ("maintenance", "maintenance_technician", 4),
+    ("housekeeping", "housekeeper", 2),
+    ("maintenance", "maintenance_technician", 1),
+    ("maintenance", "on_call_maintenance_technician", 2),
     ("transportation", "driver", 4),
-    ("activities", "activities_coordinator", 4),
-    ("activities", "activities_assistant", 2),
+    ("activities", "activities_coordinator", 1),
     ("front_desk", "front_desk_coordinator", 4),
-    ("administration", "administration_leadership", 4),
+    ("administration", "business_office_manager", 1),
+    ("administration", "administrator", 1),
+    ("administration", "executive_director", 1),
 )
 
 
@@ -87,8 +102,10 @@ WORKERS = build_roster()
 # maintenance works normal hours plus after-hours ON-CALL (never on site 24 h);
 # other departments keep realistic operating hours and are CLOSED otherwise.
 #
-# Row: (department, job role, shift, start, end, count, duty).  End <= start
-# means the window crosses midnight.  ``on_site`` workers are physically
+# Row: (department, job role, shift, start, end, count, duty[, schedule]).  End <=
+# start means the window crosses midnight.  The optional schedule names the
+# weekdays the row runs ("days") and/or one fixed person ("worker", 1-based);
+# rows without one run every day and rotate through the role's people.  ``on_site`` workers are physically
 # present; ``on_call`` workers are reachable but off site and never clock in.
 ON_SITE = "on_site"
 ON_CALL = "on_call"
@@ -110,17 +127,27 @@ _SHIFT_LOAD = (
     # Room delivery (owner estimate 2026-10-15): about 30 trays per meal need their own staff.
     ("kitchen", "meal_delivery_aide", "meals_am", "07:15", "13:15", 3, ON_SITE),
     ("kitchen", "meal_delivery_aide", "meals_pm", "16:45", "19:45", 3, ON_SITE),
-    ("housekeeping", "housekeeper", "day", "08:00", "16:30", 2, ON_SITE),
-    ("maintenance", "maintenance_technician", "day", "07:00", "15:30", 1, ON_SITE),
-    ("maintenance", "maintenance_technician", "after_hours_on_call", "15:30", "07:00", 1, ON_CALL),
+    # Owner corrections (Michael, 2026-10-15): two named housekeepers on fixed weekly schedules.
+    ("housekeeping", "housekeeper", "weekday", "08:00", "16:30", 1, ON_SITE, {"days": MON_FRI, "worker": 1}),
+    ("housekeeping", "housekeeper", "midweek_weekend", "08:00", "16:30", 1, ON_SITE, {"days": WED_SUN, "worker": 2}),
+    # One normal maintenance worker for the building; after hours and weekends are on call.
+    ("maintenance", "maintenance_technician", "day", "07:00", "15:30", 1, ON_SITE, {"days": MON_FRI, "worker": 1}),
+    ("maintenance", "on_call_maintenance_technician", "after_hours_on_call", "15:30", "07:00", 1, ON_CALL,
+     {"days": MON_FRI}),
+    ("maintenance", "on_call_maintenance_technician", "weekend_on_call", "07:00", "07:00", 1, ON_CALL,
+     {"days": SAT_SUN}),
     ("transportation", "driver", "early", "07:30", "15:30", 1, ON_SITE),
     ("transportation", "driver", "late", "09:30", "17:30", 1, ON_SITE),
-    ("activities", "activities_coordinator", "day", "09:00", "17:00", 1, ON_SITE),
-    ("activities", "activities_coordinator", "evening", "12:00", "20:00", 1, ON_SITE),
-    ("activities", "activities_assistant", "afternoon", "11:00", "19:00", 1, ON_SITE),
+    # One activities coordinator, no assistant (weekdays: an owner-unconfirmed assumption).
+    ("activities", "activities_coordinator", "day", "09:00", "17:00", 1, ON_SITE, {"days": MON_FRI, "worker": 1}),
     ("front_desk", "front_desk_coordinator", "day", "07:00", "15:00", 1, ON_SITE),
     ("front_desk", "front_desk_coordinator", "evening", "15:00", "23:00", 1, ON_SITE),
-    ("administration", "administration_leadership", "business", "08:00", "17:00", 2, ON_SITE),
+    # Recognizable front-office roles, one person each, business days.
+    ("administration", "business_office_manager", "business", "08:00", "17:00", 1, ON_SITE,
+     {"days": MON_FRI, "worker": 1}),
+    ("administration", "administrator", "business", "08:00", "17:00", 1, ON_SITE, {"days": MON_FRI, "worker": 1}),
+    ("administration", "executive_director", "business", "08:00", "17:00", 1, ON_SITE,
+     {"days": MON_FRI, "worker": 1}),
 )
 
 
@@ -133,10 +160,35 @@ def _pools() -> dict[tuple[str, str], tuple[dict, ...]]:
 
 # On-site shift names; only these have clock-in/handoff/clock-out milestones.
 ON_SITE_SHIFTS = frozenset(row[2] for row in _SHIFT_LOAD if row[6] == ON_SITE)
+
+
+def _schedule(row: tuple) -> dict:
+    return row[7] if len(row) > 7 else {}
+
+
+def row_runs_on(row: tuple, day_index: int) -> bool:
+    days = _schedule(row).get("days")
+    return days is None or weekday_of(day_index) in days
 _WORKER_POOLS = _pools()
-_DAILY_NEED = Counter()
-for _department, _role, _shift, _start, _end, _count, _duty in _SHIFT_LOAD:
-    _DAILY_NEED[(_department, _role)] += _count
+
+
+def _rotating_need(day_index: int) -> Counter:
+    """People each role's rotating (not fixed-person) rows need on one day."""
+    need = Counter()
+    for row in _SHIFT_LOAD:
+        if "worker" not in _schedule(row) and row_runs_on(row, day_index):
+            need[(row[0], row[1])] += row[5]
+    return need
+
+
+_WEEK_NEED = [_rotating_need(day) for day in range(7)]  # indexed by weekday_of(day) - DAY0_WEEKDAY
+
+
+def _rotation_base(key: tuple, day_index: int) -> int:
+    """People this role has already rotated through before ``day_index`` (weekly-periodic)."""
+    week = sum(need[key] for need in _WEEK_NEED)
+    weeks, rest = divmod(day_index, 7)
+    return weeks * week + sum(_WEEK_NEED[d][key] for d in range(rest))
 
 
 def minute_in_shift(minute: int, start_minute: int, end_minute: int) -> bool:
@@ -165,17 +217,26 @@ def _day_rota(day_index: int) -> tuple[dict, ...]:
     """
     used = Counter()
     assignments = []
-    for department, role, shift, start, end, count, duty in _SHIFT_LOAD:
+    need_today = _rotating_need(day_index)
+    for row in _SHIFT_LOAD:
+        department, role, shift, start, end, count, duty = row[:7]
+        if not row_runs_on(row, day_index):
+            continue
         pool = _WORKER_POOLS[(department, role)]
-        need = _DAILY_NEED[(department, role)]
-        if need > len(pool):
-            raise ValueError(f"daily load exceeds roster for {department}/{role}")
-        offset = (day_index * need + used[(department, role)]) % len(pool)
-        for position in range(count):
-            worker = pool[(offset + position) % len(pool)]
+        fixed = _schedule(row).get("worker")
+        if fixed is not None:
+            people = [pool[fixed - 1]]
+        else:
+            if need_today[(department, role)] > len(pool):
+                raise ValueError(f"daily load exceeds roster for {department}/{role}")
+            offset = (_rotation_base((department, role), day_index) + used[(department, role)]) % len(pool)
+            people = [pool[(offset + position) % len(pool)] for position in range(count)]
+            used[(department, role)] += count
+        for worker in people:
             start_minute, end_minute = _minutes(start), _minutes(end)
             assignments.append({
                 "day_index": day_index,
+                "weekday": WEEKDAY_NAMES[weekday_of(day_index)],
                 "shift_key": f"{department}:{shift}",
                 "shift": shift,
                 "start": start,
@@ -186,7 +247,6 @@ def _day_rota(day_index: int) -> tuple[dict, ...]:
                 "duty": duty,
                 **worker,
             })
-        used[(department, role)] += count
     return tuple(assignments)
 
 

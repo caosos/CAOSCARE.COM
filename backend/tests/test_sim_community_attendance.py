@@ -15,12 +15,15 @@ from simulation.community_staffing import assignments_for_day
 from simulation.community_shift_events import PLANNED_ONLY, planned_shift_milestones
 
 
+ON_SITE_90 = 12 * (2 * 35 + 3 * 36 + 2 * 30) + (35 + 35 + 36 + 36 + 36 + 30)   # 12 weeks + Mon-Sat
+
+
 def test_every_worker_has_exactly_one_truthful_daily_state():
     states = worker_states_for_day(0)
-    assert len(states) == 66
-    assert len({state["actor_id"] for state in states}) == 66
+    assert len(states) == 57
+    assert len({state["actor_id"] for state in states}) == 57
     assert Counter(state["attendance_state"] for state in states) == {
-        "scheduled": 37, "on_call": 2, "off_duty": 27,
+        "scheduled": 35, "on_call": 2, "off_duty": 20,   # Day 1 is a Monday
     }
     assert all(state["status"] == "planned" for state in states)
     assert all(state["execution_state"] == "not_executed" for state in states)
@@ -102,20 +105,21 @@ def test_default_projection_covers_all_57_workers_for_90_days_deterministically(
     first = project_worker_attendance("2026-10-13")
     second = project_worker_attendance("2026-10-13", days=90)
     assert first == second
-    assert len(first) == 66 * 90
+    assert len(first) == 57 * 90
     assert set(Counter(state["actor_id"] for state in first).values()) == {90}
     assert len({state["date"] for state in first}) == 90
     summary = attendance_summary(first)
     assert summary == {
-        "workers": 66,
-        "states": {"off_duty": 27 * 90, "on_call": 2 * 90, "scheduled": 37 * 90},
+        "workers": 57,
+        # Weekly on-site shifts (owner schedules 2026-10-15): Mon-Tue 35, Wed-Fri 36, Sat-Sun 30.
+        "states": {"off_duty": 57 * 90 - ON_SITE_90 - 2 * 90, "on_call": 2 * 90, "scheduled": ON_SITE_90},
         "session_milestones": {
-            event_type: 37 * 90 for event_type in ("assignment_acceptance", "planned_login")
+            event_type: ON_SITE_90 for event_type in ("assignment_acceptance", "planned_login")
         },
         "canonical_shift_milestone_references": {
-            event_type: 37 * 90 for event_type in ("clock_in", "clock_out", "handoff")
+            event_type: ON_SITE_90 for event_type in ("clock_in", "clock_out", "handoff")
         },
-        "milestones": {event_type: 37 * 90 for event_type in sorted(MILESTONE_TYPES)},
+        "milestones": {event_type: ON_SITE_90 for event_type in sorted(MILESTONE_TYPES)},
         "truth": PLANNING_TRUTH,
     }
 
@@ -127,7 +131,7 @@ def test_every_department_attendance_has_regular_planned_rest_days():
         for actor_id in {state["actor_id"] for state in projection}
     }
 
-    assert len(by_worker) == 66
+    assert len(by_worker) == 57
     for states in by_worker.values():
         assert Counter(state["attendance_state"] for state in states)["off_duty"] > 0
         assert all(

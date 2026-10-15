@@ -15,7 +15,7 @@ from simulation.community_ticket_plan import OPEN_TO_CLAIM_MINUTES, work_minutes
 
 NOW = datetime(2026, 10, 13, 16, 0, tzinfo=timezone.utc)
 # Burn-in day zero: 146 tickets x open/claim/complete plus shift milestones (service model).
-DAY_ZERO_EVENTS = 594
+DAY_ZERO_EVENTS = 588
 
 
 def _get(row, path):
@@ -167,7 +167,7 @@ def step(store, services, events=None, **changes):
 def test_day_queue_combines_existing_plans_with_explicit_synthetic_staff():
     queue = build_day_queue()
     assert len(queue) == DAY_ZERO_EVENTS
-    assert sum(row.stream_kind == "canonical_shift_milestone" for row in queue) == 111
+    assert sum(row.stream_kind == "canonical_shift_milestone" for row in queue) == 105
     assert len({row.event_id for row in queue}) == len(queue)
     assert {row.stream_kind for row in queue} == {
         "routine_ticket_phase", "canonical_shift_milestone",

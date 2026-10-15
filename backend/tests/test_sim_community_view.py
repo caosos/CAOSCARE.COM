@@ -8,22 +8,22 @@ def test_overview_declares_scale_without_claiming_execution():
     assert "not yet" in view["truth_statement"]
     assert view["residents"] == {"count": 10, "cohort": "burn_in_10", "burn_in_target": 10, "target": 75}
     assert view["apartments"] == {"total": 80, "occupied": 70, "occupancy_target": 70}
-    assert view["workers"] == {"count": 66, "simulated": True}
+    assert view["workers"] == {"count": 57, "simulated": True}
     assert view["worker_attendance"] == {
-        "scheduled": 37,
+        "scheduled": 35,
         "on_call": 2,
-        "off_duty": 27,
-        "planned_login": 37,
-        "assignment_acceptance": 37,
+        "off_duty": 20,
+        "planned_login": 35,
+        "assignment_acceptance": 35,
         "canonical_shift_events_reported_under": "shift_events",
         "executed": 0,
         "truth": "Planned only; not authenticated, executed, or receipted.",
     }
     assert view["shift_events"] == {
-        "clock_in": 37,
-        "clock_out": 37,
+        "clock_in": 35,
+        "clock_out": 35,
         "department_status_changed": 14,
-        "handoff": 37,
+        "handoff": 35,
         "executed": 0,
     }
     assert view["routines"]["planned"] == 146
@@ -58,8 +58,8 @@ def test_preview_is_inspectable_and_keeps_provider_boundaries_blocked():
     assert len(preview["planned_outcomes"]) == 146
     assert all(not row["represents_execution"] for row in preview["planned_outcomes"])
     assert preview["shift_assignments"]
-    assert len(preview["worker_attendance"]) == 66
-    assert sum(row["attendance_state"] == "scheduled" for row in preview["worker_attendance"]) == 37
+    assert len(preview["worker_attendance"]) == 57
+    assert sum(row["attendance_state"] == "scheduled" for row in preview["worker_attendance"]) == 35
     assert all(row["execution_state"] == "not_executed" for row in preview["worker_attendance"])
     assert preview["planned_shift_events"]
     assert all(event["execution_state"] == "not_executed" for event in preview["planned_shift_events"])

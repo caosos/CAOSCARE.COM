@@ -16,8 +16,10 @@ from simulation.community_staffing import (
     SIMULATION_LOAD_DISCLAIMER,
     ON_CALL as ON_CALL_DUTY,
     ON_SITE,
+    MON_FRI,
     _assignments_for_day,
     _minutes,
+    weekday_of,
     active_assignments,
     minute_in_shift,
     on_call_assignments,
@@ -35,25 +37,39 @@ OPERATING_HOURS = {
     "housekeeping": ("08:00", "16:30"),
     "maintenance": ("07:00", "15:30"),
     "transportation": ("07:30", "17:30"),
-    "activities": ("09:00", "20:00"),
+    "activities": ("09:00", "17:00"),
     "front_desk": ("07:00", "23:00"),
     "administration": ("08:00", "17:00"),
 }
 AFTER_HOURS_ON_CALL = frozenset({"maintenance"})
+# Weekdays a department opens (owner corrections 2026-10-15: one maintenance worker,
+# one activities coordinator and the front office work business days); others open daily.
+OPERATING_DAYS = {"maintenance": MON_FRI, "activities": MON_FRI, "administration": MON_FRI}
 
 
-def is_open(department: str, minute: int) -> bool:
+def opens_on(department: str, day_index: int) -> bool:
+    days = OPERATING_DAYS.get(department)
+    return days is None or weekday_of(day_index) in days
+
+
+def hours_label(department: str) -> str:
     start, end = OPERATING_HOURS[department]
-    return minute_in_shift(minute, _minutes(start), _minutes(end))
+    hours = "24 hours" if start == end else f"{start}–{end}"
+    return hours + (" · Mon–Fri" if OPERATING_DAYS.get(department) == MON_FRI else "")
 
 
-def department_status(department: str, minute: int, on_site: int, on_call: int) -> str:
+def is_open(department: str, day_index: int, minute: int) -> bool:
+    start, end = OPERATING_HOURS[department]
+    return opens_on(department, day_index) and minute_in_shift(minute, _minutes(start), _minutes(end))
+
+
+def department_status(department: str, day_index: int, minute: int, on_site: int, on_call: int) -> str:
     """Classify one department from its hours and who is actually there."""
     if department not in DEPARTMENT_LABELS:
         raise ValueError(f"unknown department: {department}")
     if on_site > 0:
         return ON_DUTY
-    if is_open(department, minute):
+    if is_open(department, day_index, minute):
         return UNCOVERED
     if on_call > 0:
         return ON_CALL
@@ -76,13 +92,13 @@ def coverage_summary(day_index: int, minute: int,
         start, end = OPERATING_HOURS[department]
         coverage[department] = {
             "label": DEPARTMENT_LABELS[department],
-            "status": department_status(department, minute, len(here), len(reachable)),
+            "status": department_status(department, day_index, minute, len(here), len(reachable)),
             "on_shift": len(here),
             "actor_ids": [row["actor_id"] for row in here],
             "job_roles": sorted({row["job_role"] for row in here}),
             "on_call": len(reachable),
             "on_call_actor_ids": [row["actor_id"] for row in reachable],
-            "operating_hours": "24 hours" if start == end else f"{start}-{end}",
+            "operating_hours": hours_label(department),
         }
     return {
         "day_index": day_index,
@@ -125,7 +141,7 @@ def planned_coverage_gaps(day_index: int) -> list[dict]:
         for department in DEPARTMENT_LABELS:
             here = [w for w in windows if w[2] == department and w[0] <= segment_start < w[1]]
             status = department_status(
-                department, segment_start,
+                department, day_index, segment_start,
                 sum(w[3] == ON_SITE for w in here), sum(w[3] == ON_CALL_DUTY for w in here),
             )
             if status != UNCOVERED:

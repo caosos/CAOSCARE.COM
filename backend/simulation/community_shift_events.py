@@ -175,7 +175,7 @@ def planned_shift_milestones(assignment: dict, handoff_lead_minutes: int = 15,
             # Off-site cover after this shift; empty means the department closes.
             "handoff_to_on_call_actor_ids": [] if incoming else on_call,
             "department_after_handoff": department_status(
-                assignment["department"], end_minute, len(incoming), len(on_call),
+                assignment["department"], end_day, end_minute, len(incoming), len(on_call),
             ),
             "shift_end_minute": end % 1440,
         }),
@@ -203,7 +203,7 @@ def _status_at(day_index: int, minute: int, assignments: list[dict],
     on_site = _coverage_at(assignments, absolute)[department]
     on_call = sum(row["department"] == department
                   for row in on_call_assignments(day_index, minute))
-    return on_site, department_status(department, minute, on_site, on_call)
+    return on_site, department_status(department, day_index, minute, on_site, on_call)
 
 
 def _coverage_events(day_index: int, assignments: list[dict], departments: Iterable[str]) -> list[dict]:

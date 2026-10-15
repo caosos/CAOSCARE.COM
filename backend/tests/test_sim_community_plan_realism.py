@@ -227,7 +227,7 @@ def test_expired_ticket_is_open_then_expire_by_the_lead_in_the_timeline(full):
 def test_v9_plan_is_deterministic_and_v8_runs_are_not_loadable():
     tickets = [(f"t{n}", "kitchen", "normal", DAY + 19 * 60 + n % 4, 3, "dinner") for n in range(30)]
     assert _schedule(*tickets) == _schedule(*reversed(tickets))
-    assert PLAN_REVISIONS["community_75"] == "living-community-timeline-v11-room-delivery-community_75"
+    assert PLAN_REVISIONS["community_75"] == "living-community-timeline-v12-staff-roles-community_75"
     # One plan revision per cohort: a v8 run must be cut over before v9 is deployed.
     with pytest.raises(TimelineValidationError):
         cohort_of_revision("living-community-timeline-v8-player-raised-community_75")

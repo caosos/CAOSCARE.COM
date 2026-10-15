@@ -8,7 +8,7 @@ from collections import Counter, defaultdict
 from datetime import datetime, timezone
 
 from simulation.community_cohort import residents_for
-from simulation.community_coverage import OPERATING_HOURS
+from simulation.community_coverage import hours_label
 from simulation.community_dashboard_common import (
     TASK_FIELDS, current_run, default_store, plan_events, scoped, sim_time, ticket_row,
 )
@@ -97,10 +97,9 @@ async def dashboard_snapshot(*, store=None) -> dict:
         mine = by_dept.get(slug, [])
         waits = [row["waiting_minutes"] for row in mine if row["waiting_minutes"] is not None]
         people = [row for row in staff if row["department"] == slug]
-        start, end = OPERATING_HOURS[slug]
         departments.append({
             "slug": slug, "label": label, "status": coverage[slug]["status"],
-            "hours": "24 hours" if start == end else f"{start}–{end}",
+            "hours": hours_label(slug),
             "on_duty": sum(row["duty"] == "on_duty" for row in people),
             "on_call": sum(row["duty"] == "on_call" for row in people),
             "staff_total": len(people),

@@ -10,7 +10,7 @@
 Coordination only: routing never claims a call was placed or a provider
 notified.  The windows are configuration; change them here only.
 """
-from simulation.community_coverage import OPERATING_HOURS
+from simulation.community_coverage import OPERATING_HOURS, opens_on
 from simulation.community_staffing import _minutes, minute_in_shift
 from simulation.community_ticket_plan import CLAIM_TO_COMPLETE_MINUTES, OPEN_TO_CLAIM_MINUTES
 
@@ -24,10 +24,16 @@ URGENT_DEPARTMENT = "nursing"
 TICKET_SPAN_MINUTES = OPEN_TO_CLAIM_MINUTES + CLAIM_TO_COMPLETE_MINUTES
 
 
-def family_call_department(minute: int, *, urgent: bool = False) -> str:
-    """Department that owns a family-call request raised at ``minute``."""
+def family_call_department(minute: int, *, day_index: int = 0, urgent: bool = False) -> str:
+    """Department that owns a family-call request raised at ``minute`` of ``day_index``.
+
+    Administration works business days only; on its closed days the Front Desk
+    coordinates during its hours, and later requests queue for the Front Desk.
+    """
     if urgent:
         return URGENT_DEPARTMENT
+    if not opens_on(QUEUE_DEPARTMENT, day_index):
+        return "front_desk"
     for department, start, end in FAMILY_CALL_ROUTING:
         start_minute, end_minute = _minutes(start), _minutes(end)
         finish = (minute + TICKET_SPAN_MINUTES) % 1440

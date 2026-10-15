@@ -9,7 +9,7 @@ Simulation assumption (not a real facility's chain of command):
 
 * level 1 - the ticket's department lead: for Nursing the registered nurse,
   otherwise any worker of that department; on site first, then on call;
-* level 2 - the supervisor: Administration / Leadership on site, else the
+* level 2 - the supervisor: the Executive Director, else the Administrator on site, else the
   registered nurse on site, else the registered nurse on call.
 """
 from typing import Optional
@@ -18,7 +18,8 @@ from simulation.community_staffing import active_assignments, worker_statuses
 
 _LEAD_ROLES = {"nursing": ("registered_nurse",)}
 _SUPERVISOR_CHAIN = (
-    ("administration", "administration_leadership", ("on_duty",)),
+    ("administration", "executive_director", ("on_duty",)),
+    ("administration", "administrator", ("on_duty",)),
     ("nursing", "registered_nurse", ("on_duty",)),
     ("nursing", "registered_nurse", ("on_call",)),
 )
