@@ -22,7 +22,7 @@ router = APIRouter(prefix="/ai", tags=["ai"])
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
 OPENAI_TEXT_MODEL = os.environ.get("OPENAI_TEXT_MODEL", "gpt-4o-mini").strip() or "gpt-4o-mini"
-OPENAI_REALTIME_MODEL = os.environ.get("OPENAI_REALTIME_MODEL", "gpt-realtime").strip() or "gpt-realtime"
+OPENAI_REALTIME_MODEL = os.environ.get("OPENAI_REALTIME_MODEL", "gpt-realtime-2.1-mini").strip() or "gpt-realtime-2.1-mini"  # same default as routes/realtime.py (2026-10-15)
 OPENAI_VOICE = os.environ.get("OPENAI_VOICE", "sage").strip() or "sage"
 OPENAI_API_BASE = os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1").rstrip("/")
 

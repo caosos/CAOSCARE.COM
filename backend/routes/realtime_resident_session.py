@@ -156,6 +156,15 @@ async def _mint(payload, lease):
         raise
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"OpenAI Realtime session error: {e}")
+    # Runtime truth (2026-10-15): record the model the PROVIDER says this session runs on,
+    # next to the model we asked for, so cost/model claims rest on provider evidence.
+    provider_model = (session.get("session") or {}).get("model")
+    from routes.activation_log import alog
+    await alog("realtime", "session_provider_model", room=payload.get("room"),
+               resident_id=payload.get("resident_id"), kiosk_id=payload.get("kiosk_id"),
+               session_id=(lease or {}).get("session_id") or payload.get("session_id"),
+               data={"requested_model": OPENAI_REALTIME_MODEL, "provider_model": provider_model,
+                     "voice": voice})
 
     # Everything under `_caos` travels back to the browser so it can apply a
     # `session.update` over the data channel the moment it opens. The OpenAI
@@ -191,7 +200,7 @@ async def _mint(payload, lease):
                              for s in (continuity or {}).get("sessions", [])],
             },
         },
-        "diagnostics": _prompt_diagnostics(instructions, "resident_kiosk_realtime"),
+        "diagnostics": _prompt_diagnostics(instructions, "resident_kiosk_realtime", session),
     }
     await validate_activation(payload)
     return JSONResponse(content=session)
