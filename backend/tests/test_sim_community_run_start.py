@@ -33,8 +33,12 @@ def test_run_starts_at_the_given_minute_and_receipts_earlier_work_as_not_simulat
             result = await harness.tick_next()
             assert result.event_id == event.event_id
         receipts = [r for r in harness.store.receipts.docs
-                    if r.get("result_label") == "not_simulated"]
+                    if (r.get("after_state") or {}).get("not_simulated_before_run_start")]
         assert receipts and all(r["status"] == "cancelled" for r in receipts)
+        # Every such receipt must be valid for the real receipt model.
+        from models import Receipt
+        for r in receipts:
+            Receipt(**{k: v for k, v in r.items() if k in Receipt.model_fields})
         assert all("before this run started at 09:00" in r["result"] for r in receipts)
         # Nothing was opened for work that predates the start.
         assert not [t for t in harness.store.staff_tasks.docs

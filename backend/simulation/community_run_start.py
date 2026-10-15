@@ -71,7 +71,9 @@ async def record_before_start(receipt_writer, authority: str, event: ExecutorEve
             "authority": authority,
             "before_state": None,
             "after_state": {"not_simulated_before_run_start": True, "run_started_at_minute": start},
-            "result_label": "not_simulated",
+            # Receipt labels are verified/simulated/unverified/failed: this is
+            # a simulator record; after_state says nothing was simulated.
+            "result_label": "simulated",
             "provider_refs": [],
             "next_state": "executor_cursor_ready",
         },
