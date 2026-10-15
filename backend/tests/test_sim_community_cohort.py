@@ -33,9 +33,9 @@ def test_runtime_default_is_the_full_community_and_burn_in_is_optional(monkeypat
 def test_full_plan_executes_every_resident_deterministically(full_plan):
     assert full_plan.cohort == "community_75" and full_plan.resident_count == 75
     # 104,640 tickets; the 105 still queued at the horizon have no claim/complete.
-    assert full_plan.event_count == 320_730
+    assert full_plan.event_count == 350_077
     kinds = Counter(event.stream_kind for event in full_plan.events)
-    assert kinds == {"routine_ticket_phase": 313_710, "canonical_shift_milestone": 7_020}
+    assert kinds == {"routine_ticket_phase": 343_057, "canonical_shift_milestone": 7_020}
     opened = {e.target_id for e in full_plan.events if e.task_phase == "open"}
     assert opened == {resident.resident_id for resident in RESIDENTS}
     ids = [event.event_id for event in full_plan.events]

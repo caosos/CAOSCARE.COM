@@ -46,22 +46,34 @@ def _receipt(row: dict, plan: dict) -> dict:
     }
 
 
-def _executed(receipts: list[dict], phase: str):
+def executed_phase(receipts: list[dict], phase: str):
     return next((r for r in receipts if (r.get("simulation_event_id") or "").endswith(f":ticket_{phase}")
                  and r.get("authority") == EXECUTOR), None)
 
 
-def _timeline(task: dict, phases: dict, receipts: list[dict]) -> dict:
-    claim, finish = _executed(receipts, CLAIM), _executed(receipts, COMPLETE)
+def _queue(receipt) -> dict:
+    return (receipt or {}).get("after_state") or {}
+
+
+def timeline(task: dict, phases: dict, receipts: list[dict]) -> dict:
+    """Simulated request/start/finish and the waits between them.
+
+    The request minute is the one the executor OPEN receipt recorded, else
+    the run's plan; start and finish only from phases that actually executed.
+    """
+    claim, finish = executed_phase(receipts, CLAIM), executed_phase(receipts, COMPLETE)
     opened = phases[OPEN]
-    requested = opened.requested_at_minute if opened else None
+    requested = _queue(executed_phase(receipts, OPEN)).get("requested_at_minute")
+    if requested is None and opened:
+        requested = opened.requested_at_minute
     sim_start = (phases[CLAIM].day_index * 1440 + phases[CLAIM].minute
                  if claim and claim.get("status") == "completed" and phases[CLAIM] else None)
     sim_end = (phases[COMPLETE].day_index * 1440 + phases[COMPLETE].minute
                if finish and finish.get("status") == "completed" and phases[COMPLETE] else None)
     out = {"requested": sim_time(requested), "started": sim_time(sim_start),
            "finished": sim_time(sim_end), "basis": "simulated", "wait_minutes": None,
-           "work_minutes": None, "wait_reason": (claim or {}).get("after_state", {}).get("wait_reason")}
+           "work_minutes": None, "wait_reason": _queue(claim).get("wait_reason"),
+           "recorded_waited_minutes": _queue(claim).get("waited_minutes")}
     if sim_start is not None and requested is not None:
         out["wait_minutes"] = sim_start - requested
     if sim_start is not None and sim_end is not None:
@@ -88,6 +100,14 @@ def _outcome(task: dict, timeline: dict, receipts: list[dict]) -> str:
     return "Waiting in the department queue for an available worker."
 
 
+async def executor_receipts(store, run_id: str, workflow: str) -> list[dict]:
+    """The living-community executor's phase receipts for one ticket workflow."""
+    event_ids = [f"{workflow}:ticket_{phase}" for phase in (OPEN, CLAIM, COMPLETE)]
+    return await store.receipts.find(
+        {"simulation_run_id": run_id, "simulation_event_id": {"$in": event_ids}},
+        _RECEIPT_FIELDS).to_list(None)
+
+
 async def ticket_detail(task_id: str, *, store=None) -> dict:
     store = store if store is not None else default_store()
     run = await current_run(store)
@@ -99,14 +119,11 @@ async def ticket_detail(task_id: str, *, store=None) -> dict:
     plan = plan_events(run.get("plan_revision") or "")
     workflow = workflow_of(task)
     phases = phases_for(plan, workflow)
-    event_ids = [f"{workflow}:ticket_{phase}" for phase in (OPEN, CLAIM, COMPLETE)]
-    executor = await store.receipts.find(
-        {"simulation_run_id": run["run_id"], "simulation_event_id": {"$in": event_ids}},
-        _RECEIPT_FIELDS).to_list(None)
+    executor = await executor_receipts(store, run["run_id"], workflow)
     canonical = await store.receipts.find(
         {"related_object_type": "task", "related_object_id": task_id}, _RECEIPT_FIELDS).to_list(None)
     receipts = sorted(executor + canonical, key=lambda r: str(_stamp(r.get("created_at")) or ""))
-    timeline = _timeline(task, phases, receipts)
+    told = timeline(task, phases, receipts)
     return {
         "status": "loaded", "run_id": run["run_id"], "as_of": sim_time(executed_position(run)),
         "ticket": {**ticket_row(task, plan, executed_position(run)),
@@ -114,8 +131,8 @@ async def ticket_detail(task_id: str, *, store=None) -> dict:
                    "requested_by": {"id": task.get("resident_id"), "name": task.get("resident_name"),
                                     "room": task.get("room")},
                    "source": task.get("source"), "workflow": workflow},
-        "timeline": timeline,
-        "outcome": _outcome(task, timeline, receipts),
+        "timeline": told,
+        "outcome": _outcome(task, told, receipts),
         "receipts": [_receipt(r, plan) for r in receipts],
         "history": [{k: _stamp(v) for k, v in entry.items()} for entry in task.get("event_log") or []],
     }

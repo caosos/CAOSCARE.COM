@@ -33,6 +33,9 @@ function describe(e, task) {
     case "acknowledged":
       return { label: `Acknowledged${by(e)}` };
     case "assigned_to":
+      if (e.assignment === "handoff") return { label: `Handed off to ${e.to ? e.to_name || "staff" : "the queue"}${by(e)}`, text: e.text, kind: "note" };
+      if (e.assignment === "reassign") return { label: `Reassigned to ${e.to_name || "staff"}${by(e)}`, text: e.text, kind: "note" };
+      if (e.assignment === "release") return { label: `Put back in the queue${by(e)}`, text: e.text, kind: "note" };
       if (!e.to) return { label: `Unassigned${by(e)}` };
       if (e.to === e.by) {
         const driver = CATEGORY_LABELS[task.category]?.claimed;
@@ -50,6 +53,8 @@ function describe(e, task) {
     case "unclaimed_escalated":
       return { label: "Flagged to a supervisor: nobody claimed it", text: e.text, kind: "note" };
     case "escalated":
+      // simulated escalation monitor (#168): past its response time, not a "can't complete"
+      if (e.sim_level) return { label: `Escalated (simulated) · level ${e.sim_level}, ${e.sim_phase === "complete" ? "not finished" : "not picked up"} in time`, text: e.text, kind: "note" };
       return { label: `Couldn't complete — sent to a supervisor${by(e)}`, text: e.text, kind: "note" };
     case "reviewed":
       return { label: `Supervisor review${by(e)}`, text: e.text, kind: "note" };

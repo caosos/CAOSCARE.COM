@@ -40,6 +40,13 @@ def _matches(row, query):
                 return False
             if "$in" in wanted and actual not in wanted["$in"]:
                 return False
+            if "$ne" in wanted and actual == wanted["$ne"]:
+                return False
+            # As in MongoDB, a missing field matches no comparison.
+            if "$lte" in wanted and not (actual is not None and actual <= wanted["$lte"]):
+                return False
+            if "$gt" in wanted and not (actual is not None and actual > wanted["$gt"]):
+                return False
         elif actual != wanted:
             return False
     return True
@@ -204,13 +211,18 @@ def test_bad_plan_and_other_run_fail_closed_before_mutation():
         bad = replace(PLAN, digest_sha256="0" * 64)
         with pytest.raises(lifecycle.CommunityRunLifecycleError, match="timeline"):
             await create(store, plan=bad)
+        # Several runs may exist (owner decision 2026-10-14), but only one may
+        # be active: an active other run refuses creation before any write.
         store.data["sim_runs"].append({
             "_id": "other", "run_id": "other", "simulation_scope": SIMULATION_SCOPE,
-            "simulation_community_id": COMMUNITY_ID,
+            "simulation_community_id": COMMUNITY_ID, "state": "PAUSED",
         })
-        with pytest.raises(lifecycle.CommunityRunLifecycleError, match="conflicts"):
+        with pytest.raises(lifecycle.CommunityRunLifecycleError, match="still PAUSED"):
             await create(store)
         assert store.data["receipts"] == []
+        store.data["sim_runs"][0]["state"] = "STOPPED"
+        created = await create(store)
+        assert created["run"]["state"] == "PAUSED" and created["run"]["run_id"] != "other"
     asyncio.run(case())
 
 

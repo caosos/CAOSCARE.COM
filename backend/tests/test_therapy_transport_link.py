@@ -150,6 +150,7 @@ async def _run():
         a2 = await db.staff_tasks.find_one({"task_id": appt2}, {"_id": 0})
         assert a2["linked_ride_task_id"] == other
         # completing the appointment leaves the ride alone
+        _ok(requests.post(f"{API}/tasks/{appt2}/start", headers=H["pt"], timeout=5))
         _ok(requests.post(f"{API}/tasks/{appt2}/complete", headers=H["pt"], json={"notes": "attended"}, timeout=5))
         assert (await db.staff_tasks.find_one({"task_id": other}, {"_id": 0}))["status"] == "pending"
         # in-room work (housekeeping) never gets a ride: 422, nothing created

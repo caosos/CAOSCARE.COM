@@ -11,6 +11,7 @@ import {
   actionPayload,
   fetchCommunityControlCapability,
   isCommunityControlCapability,
+  operationKey,
 } from "../../../lib/communityControls";
 
 
@@ -146,7 +147,7 @@ test("paused unprovisioned run offers provisioning and keeps resume disabled", a
   expect(view.element.querySelector("[data-testid=community-control-resume]").disabled).toBe(true);
   expect(view.element.querySelector("[data-testid=community-control-step]").disabled).toBe(true);
   expect(view.element.querySelector("[data-testid=community-resident-readiness]").textContent)
-    .toMatch(/provision the ten simulated.*resume stays disabled/i);
+    .toMatch(/set up this run's simulated residents.*resume stays disabled/i);
   await act(async () => provision.click());
   expect(api.post).toHaveBeenCalledWith(
     "/simulator/community/controls/provision-residents",
@@ -182,6 +183,16 @@ test.each([
   expect(view.element.querySelector("[data-testid=community-control-state]").textContent).toBe(state);
   expect(Boolean(view.element.querySelector("[data-testid=community-control-pause]")))
     .toBe(expectedAction === "community-control-pause");
-  if (state === "STOPPED") expect(view.element.textContent).toMatch(/history and receipts remain available/i);
+  if (state === "STOPPED") {
+    expect(view.element.textContent).toMatch(/history and receipts remain available/i);
+    // A new run can be created beside the stopped one.
+    expect(view.element.querySelector("[data-testid=community-control-create_paused]")).not.toBeNull();
+  }
   await act(async () => view.root.unmount());
+});
+
+test("a run created after a stopped run gets its own operation key", () => {
+  expect(operationKey("create_paused", undefined)).toBe("staff-ui:create-paused:living-community-burn-in");
+  expect(operationKey("create_paused", { run_id: "simrun:living:old", state: "STOPPED" }))
+    .toBe("staff-ui:create-paused:after:simrun:living:old");
 });

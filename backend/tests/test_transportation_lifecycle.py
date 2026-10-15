@@ -271,7 +271,9 @@ async def _run():
         t5 = _post("/transportation/staff/request", desk, resident_id=r2, purpose="bank", requested_for_date=WED,
                    start_time="10:00", driver_id=drv_a["driver_id"], vehicle_id=van["vehicle_id"]).json()
         assert t5["booked"] is True
-        assert _post(f"/tasks/{t5['task_id']}/skip", admin).status_code == 200
+        # a cancellation states its reason (#168)
+        assert _post(f"/tasks/{t5['task_id']}/skip", admin).status_code == 422
+        assert _post(f"/tasks/{t5['task_id']}/skip", admin, notes="Resident cancelled the bank trip").status_code == 200
         t6 = _post("/transportation/staff/request", desk, resident_id=r3, purpose="library", requested_for_date=WED,
                    start_time="10:00", driver_id=drv_a["driver_id"], vehicle_id=van["vehicle_id"]).json()
         assert t6["booked"] is True, "driver A should be free again after the generic skip"

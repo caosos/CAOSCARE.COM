@@ -13,8 +13,12 @@ export function isDepartmentTask(t, department = "maintenance") {
 
 export const isMaintenanceWO = (t) => isDepartmentTask(t, "maintenance");
 
+// A simulated ticket the escalation monitor has escalated is past its response
+// threshold (in simulated minutes), so it counts as overdue like a missed due time.
 export function isOverdue(t, now = Date.now()) {
-  if (!t || !t.due_at || DONE.includes(t.status)) return false;
+  if (!t || DONE.includes(t.status)) return false;
+  if ((t.simulated_escalation_level || 0) > 0) return true;
+  if (!t.due_at) return false;
   const d = new Date(t.due_at).getTime();
   return Number.isFinite(d) && d < now;
 }

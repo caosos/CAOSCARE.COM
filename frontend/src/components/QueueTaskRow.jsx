@@ -4,6 +4,7 @@ import { api } from "../lib/api";
 import { Button } from "./ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import RequestTimeline from "./RequestTimeline";
+import TaskFacts from "./TaskFacts";
 import { ReviewBadge } from "./ExceptionReview";
 import { inspectionText } from "./InspectionControls";
 import { itemsLine } from "../lib/requestItems";
@@ -59,7 +60,7 @@ export default function QueueTaskRow({ t, ride, ctx }) {
               className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-left hover:bg-caos-bone">
         <ChevronRight className={`h-4 w-4 shrink-0 text-caos-mute transition-transform ${expanded ? "rotate-90" : ""}`} />
         <span className="min-w-[12rem] flex-1">
-          <span className="block truncate text-[14px] font-semibold text-caos-ink">{t.title}</span>
+          <span className={`block text-[14px] font-semibold text-caos-ink ${expanded ? "break-words" : "truncate"}`}>{t.title}</span>
           <span className="block truncate text-[12px] text-caos-mute">
             {[t.resident_name, t.room ? `Room ${t.room}` : null].filter(Boolean).join(" · ") || "No resident"}
             {t.simulated ? " · SIM" : ""}
@@ -69,6 +70,12 @@ export default function QueueTaskRow({ t, ride, ctx }) {
         <span className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-7 sm:pl-0">
           <Pill tone={PRIO[t.priority] || PRIO.normal}>{t.priority}</Pill>
           <Pill tone={STATUS[t.status] || STATUS.pending}>{t.status.replace("_", " ")}</Pill>
+          {t.simulated_escalation_level > 0 && (
+            <span className="text-[12px] font-semibold text-caos-terracotta" data-testid={`wo-escalated-${t.task_id}`}
+                  title="Past its response time in simulated minutes; the department lead (level 1) or supervisor (level 2) was notified (simulated).">
+              Escalated · level {t.simulated_escalation_level}
+            </span>
+          )}
           <span className="max-w-[11rem] truncate text-[13px] text-caos-ink">{t.assigned_name || <span className="text-caos-mute">Unassigned</span>}</span>
           <span className="text-[12px] text-caos-mute">{requested}</span>
           <span className={`text-[12px] ${overdue ? "font-semibold text-caos-terracotta" : "text-caos-mute"}`}>
@@ -97,6 +104,7 @@ export default function QueueTaskRow({ t, ride, ctx }) {
                 worked != null ? `work time ${worked} min` : null,
                 t.re_request_count > 0 ? `asked ${t.re_request_count + 1}x` : null].filter(Boolean).join(" · ")}
             </div>
+            <TaskFacts t={t} detail={detail} clock={clock} testid={`wo-facts-${t.task_id}`} />
             {t.notes && !(inspectionText(t) && t.notes.startsWith("Returned after inspection:")) && <div>Outcome / note: {t.notes}</div>}
           </div>
 
@@ -107,7 +115,7 @@ export default function QueueTaskRow({ t, ride, ctx }) {
               <Button size="sm" variant="outline" className={tool} onClick={() => claim(t.task_id)} data-testid={`wo-claim-${t.task_id}`}><Hand className="mr-1 h-4 w-4" />Claim</Button>)}
             {t.status === "pending" && (
               <Button size="sm" className={`${tool} bg-caos-forest text-white hover:bg-caos-forest-hover`} onClick={() => start(t.task_id)} data-testid={`wo-start-${t.task_id}`}><Play className="mr-1 h-4 w-4" />Start</Button>)}
-            {open(t) && (
+            {t.status === "in_progress" && (
               <Button size="sm" variant="outline" className={tool} onClick={() => openComplete(t.task_id)} data-testid={`wo-complete-${t.task_id}`}><Check className="mr-1 h-4 w-4" />Complete</Button>)}
             {canNote(t) && open(t) && (
               <Button size="sm" variant="ghost" className={tool} onClick={() => openNote(t.task_id)} data-testid={`wo-note-${t.task_id}`}><NotebookPen className="mr-1 h-4 w-4" />Note</Button>)}
@@ -124,6 +132,9 @@ export default function QueueTaskRow({ t, ride, ctx }) {
                 <SelectTrigger className="h-8 w-48 text-xs" data-testid={`wo-assign-${t.task_id}`}><SelectValue placeholder="Assign to…" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none">Unassigned</SelectItem>
+                  {t.assigned_to && !roster.some((u) => u.user_id === t.assigned_to) && (
+                    <SelectItem value={t.assigned_to}>{t.assigned_name || "Current holder"}</SelectItem>
+                  )}
                   {roster.map((u) => <SelectItem key={u.user_id} value={u.user_id}>{u.name}</SelectItem>)}
                 </SelectContent>
               </Select>

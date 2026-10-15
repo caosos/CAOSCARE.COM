@@ -13,7 +13,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends
 from models import StaffTask, StaffTaskCreate, StaffTaskUpdate
 from deps import db
-from routes import task_actions, task_lifecycle, task_ride_link
+from routes import task_actions, task_lifecycle, task_ride_link, task_work_rules
 from routes.actor_context import actor_from_user
 from routes.task_lifecycle import record_origin, simulation_marker, work_as_authority
 from routes.work_context import get_department_user
@@ -185,12 +185,15 @@ async def start_task(task_id: str, user=Depends(get_department_user)):
 
 @router.post("/{task_id}/complete")
 async def complete_task(task_id: str, body: dict = None, user=Depends(get_department_user)):
-    task, _ = await task_actions.complete(task_id, (body or {}).get("notes"), actor_from_user(user), user)
+    body = body or {}
+    task, _ = await task_actions.complete(task_id, body.get("notes"), actor_from_user(user), user,
+                                          override_reason=body.get("override_reason"))
     return _iso(task)
 
 
 @router.post("/{task_id}/skip")
 async def skip_task(task_id: str, body: dict = None, user=Depends(get_department_user)):
+    await task_work_rules.check_cancel(task_id, (body or {}).get("notes"), actor_from_user(user), user)
     task, _ = await task_actions.skip(task_id, (body or {}).get("notes"), actor_from_user(user), user)
     await task_ride_link.cancel_linked(task, user, (body or {}).get("notes"))   # a linked open ride is cancelled too
     return _iso(task)

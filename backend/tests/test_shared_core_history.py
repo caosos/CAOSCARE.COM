@@ -157,12 +157,15 @@ async def _run():
         _post(f"/tasks/{mt}/assign", T, {"assigned_to": users["tech"]["user_id"]})
         _post(f"/tasks/{mt}/start", T)
         requests.patch(f"{API}/tasks/{mt}", headers=T, json={"notes": "waiting on washer part"}, timeout=5)
-        _post(f"/tasks/{mt}/complete", T, {})   # no closing note: the progress note stays current
+        # Completion needs a written outcome (#168; refusals tested in test_task_work_rules).
+        _post(f"/tasks/{mt}/complete", T, {"notes": "Washer replaced; drip stopped"})
 
         md = _detail(mt, A)
-        assert md["task"]["notes"] == "waiting on washer part"
+        assert md["task"]["notes"] == "Washer replaced; drip stopped"
         mlog = md["task"]["event_log"]
-        assert [e["text"] for e in mlog if e["field"] == "note"] == ["waiting on washer part"]
+        # the progress note is kept in the history; the outcome is its own entry
+        assert [e["text"] for e in mlog if e["field"] == "note"] == [
+            "waiting on washer part", "Washer replaced; drip stopped"]
         assert [(e["field"], e.get("to")) for e in mlog if e["field"] != "note"] == [
             ("assigned_to", users["tech"]["user_id"]), ("status", "in_progress"), ("status", "completed")]
         m_actions = [rc["action_type"] for rc in md["receipts"]]

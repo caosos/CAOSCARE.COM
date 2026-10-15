@@ -89,12 +89,17 @@ def _scope(run_id: str) -> dict:
 
 
 async def _candidates(store, run_id: str, session) -> list[dict]:
-    cursor = store.sim_runs.find({"$or": [
-        {"run_id": run_id},
-        {"simulation_scope": SIMULATION_SCOPE},
-        {"simulation_community_id": COMMUNITY_ID},
-    ]}, {"_id": 0}, session=session)
+    """Rows carrying this exact run id (a community may keep earlier, stopped runs)."""
+    cursor = store.sim_runs.find({"run_id": run_id}, {"_id": 0}, session=session)
     return await cursor.to_list(None)
+
+
+async def _active_other(store, run_id: str, session) -> Optional[dict]:
+    """Another RUNNING/PAUSED run of this community: only one may be active."""
+    return await store.sim_runs.find_one({
+        "simulation_scope": SIMULATION_SCOPE, "simulation_community_id": COMMUNITY_ID,
+        "state": {"$in": [RUNNING, PAUSED]}, "run_id": {"$ne": run_id},
+    }, {"_id": 0, "run_id": 1, "state": 1}, session=session)
 
 
 async def _one_run(store, run_id: str, session) -> dict:
@@ -125,9 +130,17 @@ def _replay(prior: dict, row: dict, action: str) -> dict:
 async def create_burn_in_run(
     operator: ActorContext, authority: str, idempotency_key: str,
     plan: CommunityTimeline, *, store, now: Optional[datetime] = None,
+    start_minute: int = 0,
 ) -> dict:
-    """Create one PAUSED, unprovisioned ten-resident burn-in run."""
+    """Create one PAUSED, unprovisioned run.
+
+    ``start_minute`` (0..1439) starts the simulated clock at that minute of
+    day 0 - the facility's real time of day for a real-time run; planned work
+    before it is receipted as not simulated (community_run_start).
+    """
     _operator(operator, authority)
+    if isinstance(start_minute, bool) or not isinstance(start_minute, int) or not 0 <= start_minute < 1440:
+        raise CommunityRunLifecycleError("start_minute must be a minute of day 0 (0..1439)")
     _, digest = _key(idempotency_key)
     fields, instant = _plan(plan), _utc(now)
     run_id = f"simrun:living:{sha256(f'{COMMUNITY_ID}:{digest}'.encode()).hexdigest()[:20]}"
@@ -144,9 +157,16 @@ async def create_burn_in_run(
                 if not prior or not _same_plan(row, fields) or row.get("creation_key_sha256") != digest:
                     raise CommunityRunLifecycleError("an existing run conflicts with this creation request")
                 return _replay(prior, row, "simulation_community_run_created")
+            # Owner decision 2026-10-14 (option 2): earlier runs are kept as
+            # history; a new run may be created only when none is active.
+            other = await _active_other(store, run_id, session)
+            if other:
+                raise CommunityRunLifecycleError(
+                    f"run {other['run_id']} is still {other['state']}; stop it before creating a new run")
             row = {
                 "_id": run_id, **_scope(run_id), **fields, "state": PAUSED,
-                "cursor": 0, "sim_minute": 0, "cohort": plan.cohort, "resident_count": plan.resident_count,
+                "cursor": 0, "sim_minute": start_minute, "started_at_minute": start_minute,
+                "cohort": plan.cohort, "resident_count": plan.resident_count,
                 "residents_provisioned": False, "creation_key_sha256": digest,
                 "created_by": operator.receipt_fields(), "original_human_starter": None,
                 "origin_receipt_id": receipt_id_value,
@@ -197,7 +217,14 @@ async def _mutate(
                 "cursor": expected_cursor, "sim_minute": expected_sim_minute,
             }
             if require_unleased:
-                query["execution_lease"] = {"$exists": False}
+                # An expired lease is not held: its holder can no longer commit
+                # (every cursor commit revalidates a live lease), so a process
+                # that died mid-tick must not wedge the clock or Stop forever.
+                # Same expiry rule as run_lease.acquire; the stale lease is removed.
+                query["$or"] = [
+                    {"execution_lease": {"$exists": False}},
+                    {"execution_lease.expires_at": {"$lte": instant.isoformat()}},
+                ]
             if lease_claim is not None:
                 try:
                     query.update(run_lease.ownership_fields(
@@ -222,7 +249,7 @@ async def _mutate(
                     completion_receipt_id=receipt_id_value,
                 )
             update = {"$set": updates}
-            if next_state in (PAUSED, STOPPED) and next_state != expected_state:
+            if require_unleased or (next_state in (PAUSED, STOPPED) and next_state != expected_state):
                 update["$unset"] = {"execution_lease": ""}
             changed = await store.sim_runs.find_one_and_update(
                 query, update, projection={"_id": 0}, session=session,

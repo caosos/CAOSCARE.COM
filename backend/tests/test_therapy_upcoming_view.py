@@ -80,6 +80,7 @@ async def _run():
         e = ask("Untimed visit");       plan(e, d1, "afternoon")        # no clock time: after the timed ones that day
         unplanned = ask("Not planned yet")
         done = ask("Already done");     plan(done, d1, "8:00 AM")
+        _ok(requests.post(f"{API}/tasks/{done}/start", headers=H["pt"], timeout=5))
         _ok(requests.post(f"{API}/tasks/{done}/complete", headers=H["pt"], json={"notes": "attended"}, timeout=5))
         old = ask("Yesterday's visit"); plan(old, past, "10:00 AM")
         ride = _ok(requests.post(f"{API}/tasks/{a}/ride", headers=H["pt"], timeout=5))["task_id"]

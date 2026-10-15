@@ -35,6 +35,16 @@ ROUTINE_WORK_MINUTES = {
     "breakfast": 3,
     "lunch": 3,
     "dinner": 3,
+    # Requests raised by residents and staff (community_player_requests).
+    "resident_call_help_up": 8, "resident_call_bathroom": 8, "resident_call_check_on_me": 10,
+    "resident_call_dressing": 15, "resident_call_reposition": 8, "resident_call_towels": 5,
+    "resident_call_spill": 10, "resident_call_trash": 5, "resident_call_light_out": 15,
+    "resident_call_toilet_running": 20, "resident_call_too_warm": 15, "resident_call_tv_remote": 10,
+    "resident_call_snack": 5, "resident_call_tray": 10, "resident_call_package": 5,
+    "resident_call_visitor": 3, "resident_call_ride": 10,
+    "staff_report_bed_alarm": 20, "staff_report_call_cord": 20, "staff_report_linen_change": 15,
+    "staff_report_missed_meal": 10, "staff_report_leaking_faucet": 30, "staff_report_broken_blind": 20,
+    "staff_report_ride_follow_up": 10, "staff_report_activity_help": 10,
 }
 DEFAULT_ACCELERATION = 60
 RUNTIME_POLL_SECONDS = 2

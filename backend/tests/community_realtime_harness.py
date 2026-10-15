@@ -96,11 +96,15 @@ class CanonicalTaskBoundary:
     async def create_request(self, *, event, context, summary, priority):
         task_id = f"task:{event.workflow_event_id}"
         created_at = self._stamp()
+        # Same rule as the real path: a worker-raised ticket has the worker as
+        # its origin actor ("task_created"); a resident's ask has the resident.
+        staff = event.opened_by == "staff"
+        opener = event.actor_id if staff else event.target_id
         task = {
             "task_id": task_id, "resident_id": event.target_id,
             "category": event.department, "visibility_role": event.department,
             "description": summary, "priority": priority, "status": "pending",
-            "source": "simulator", "simulated": True,
+            "source": "staff" if staff else "simulator", "simulated": True,
             "conversation_session_id": f"simulator:event:{event.workflow_event_id}",
             "simulation_run_id": context.run_id,
             "simulation_scope": SIMULATION_SCOPE,
@@ -110,11 +114,11 @@ class CanonicalTaskBoundary:
         await self.store.staff_tasks.insert_one(task)
         receipt_id = f"rcpt:task:{task_id}:origin"
         await self.write_receipt(
-            receipt_id=receipt_id, action_type="resident_request_created",
+            receipt_id=receipt_id, action_type="task_created" if staff else "resident_request_created",
             related_object_type="task", related_object_id=task_id,
-            source="simulator", status="created", resident_id=event.target_id,
+            source="staff" if staff else "simulator", status="created", resident_id=event.target_id,
             provenance={
-                "actor_id": event.target_id, "actor_type": "simulated-agent",
+                "actor_id": opener, "actor_type": "simulated-agent",
                 "identity_basis": "synthetic", "channel": "simulator",
                 "simulated": True, "authority": "simulation_run",
                 "simulation_run_id": context.run_id,
@@ -211,9 +215,9 @@ class RealtimeAcceptanceHarness:
         )
         self.run_id = None
 
-    async def create_and_provision(self):
+    async def create_and_provision(self, start_minute: int = 0):
         created = await self.controls.create_paused(
-            self.operator, AUTHORITY, "acceptance-create", now=NOW,
+            self.operator, AUTHORITY, "acceptance-create", now=NOW, start_minute=start_minute,
         )
         self.run_id = created["run"]["run_id"]
         await provision_burn_in_residents(

@@ -36,6 +36,9 @@ class ExecutorEvent:
     requested_at_minute: Optional[int] = None
     wait_reason: Optional[str] = None
     waited_minutes: Optional[int] = None
+    # Who raised the ticket: the resident ("resident") or an on-site worker
+    # ("staff"); on the OPEN phase actor_id is that person.
+    opened_by: str = "resident"
 @dataclass(frozen=True)
 class ExecutionContext:
     run_id: str

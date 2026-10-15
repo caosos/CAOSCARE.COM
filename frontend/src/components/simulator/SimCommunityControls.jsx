@@ -19,11 +19,13 @@ const STATE_CLASS = {
 
 const ACTIONS = {
   RUNNING: ["pause", "stop"],
+  // A stopped run keeps its history; a new run can be created beside it.
+  STOPPED: ["create_paused"],
 };
 
 const LABELS = {
   create_paused: "Create paused run",
-  provision_residents: "Provision 10 residents",
+  provision_residents: "Set up residents",
   resume: "Resume community",
   pause: "Pause community",
   stop: "Stop community",
@@ -142,9 +144,9 @@ export default function SimCommunityControls({ snapshot, onRuntimeRefresh }) {
       {state === "PAUSED" && (
         <p className="mt-2 text-sm text-caos-mute" data-testid="community-resident-readiness">
           {residentsReady
-            ? "Resident gate ready: ten canonical burn-in residents have exact run-bound receipts."
+            ? "Resident gate ready: every simulated resident in this run has an exact run-bound receipt."
             : needsResidents
-              ? "Next: provision the ten simulated burn-in residents. Resume stays disabled until that receipt-backed step succeeds."
+              ? "Next: set up this run's simulated residents. Resume stays disabled until that receipt-backed step succeeds."
               : "Resident readiness is unknown or invalid. Refresh runtime truth before provisioning, resuming, or stepping."}
         </p>
       )}
@@ -154,7 +156,7 @@ export default function SimCommunityControls({ snapshot, onRuntimeRefresh }) {
         </p>
       )}
       {state === "STOPPED" && (
-        <p className="mt-2 text-sm text-caos-mute">This run is stopped. Its history and receipts remain available.</p>
+        <p className="mt-2 text-sm text-caos-mute">This run is stopped. Its history and receipts remain available. Create a new run to start again.</p>
       )}
     </Card>
   );

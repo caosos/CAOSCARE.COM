@@ -118,7 +118,9 @@ class RecordingControls:
     def __init__(self):
         self.calls = []
 
-    async def create_paused(self, actor, authority, key):
+    async def create_paused(self, actor, authority, key, start_minute=0):
+        # Default speed (60x) starts at 00:00; only 1x starts on the real clock.
+        assert start_minute == 0
         self.calls.append(("create", actor, authority, key))
         return {"run": {"state": "PAUSED", "cursor": 0, "sim_minute": 0}}
 

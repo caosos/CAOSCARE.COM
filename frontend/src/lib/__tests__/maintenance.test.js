@@ -32,6 +32,11 @@ describe("isOverdue", () => {
     expect(isOverdue(wo({ due_at: iso(-HOUR), status: "completed" }), NOW)).toBe(false);
     expect(isOverdue(wo({ due_at: "not-a-date" }), NOW)).toBe(false);
   });
+  test("an escalated simulated ticket is overdue until it is closed (#168)", () => {
+    expect(isOverdue(wo({ due_at: null, simulated_escalation_level: 1 }), NOW)).toBe(true);
+    expect(isOverdue(wo({ due_at: null, simulated_escalation_level: 0 }), NOW)).toBe(false);
+    expect(isOverdue(wo({ simulated_escalation_level: 2, status: "completed" }), NOW)).toBe(false);
+  });
 });
 
 describe("canClaim / canAssign", () => {

@@ -26,6 +26,7 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 class AssignInput(BaseModel):
     assigned_to: Optional[str] = None   # a user_id, or null / "" to unassign
+    reason: Optional[str] = None        # required to reassign, release or hand off (task_work_rules)
 
 
 def _iso(doc: dict) -> dict:
@@ -42,5 +43,5 @@ async def assign_task(task_id: str, data: AssignInput, user=Depends(get_departme
     assign anyone. A department member may claim a task in their own
     department or hand it to a co-worker in that SAME department - never
     across the department boundary. Rules and receipt: task_actions.assign."""
-    task, _ = await task_actions.assign(task_id, data.assigned_to, actor_from_user(user), user)
+    task, _ = await task_actions.assign(task_id, data.assigned_to, actor_from_user(user), user, data.reason)
     return _iso(task)
