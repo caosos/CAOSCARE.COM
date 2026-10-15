@@ -43,6 +43,40 @@ test("a simulator ticket shows its simulated day next to real time", () => {
   expect(simDayOf({ conversation_session_id: "rt_abc" })).toBeNull();
 });
 
+test("expanded simulator ticket shows simulated request time beside receipt time, expected/elapsed, raiser and next step", async () => {
+  const simulation = { run_found: true, run_state: "RUNNING", expected_work_minutes: 3, routine: "morning_room_check",
+                       origin: { kind: "scheduled_routine", label: "Scheduled routine" }, raised_by: { name: "SIM - Care Aide 05" },
+                       now: { day: 2, hh_mm: "08:10" }, requested: { day: 2, hh_mm: "07:40" }, started: null, finished: null,
+                       wait_reason: "waiting_for_available_staff", waiting_minutes: 30, working_minutes: null };
+  const long = { ...task, title: "Morning room check for SIM Resident 004 with a long description that must wrap" };
+  mockGet.mockResolvedValue({ data: { task: long, receipts: [], origin: simulation.origin, simulation } });
+  const el = document.createElement("div"); const root = createRoot(el);
+  await act(async () => root.render(<QueueTaskRow t={long} ctx={ctx} />));
+  await act(async () => { el.querySelector("[data-testid=wo-row-t1]").click(); });
+  await act(async () => { await Promise.resolve(); });
+  const facts = el.querySelector("[data-testid=wo-facts-t1]").textContent;
+  expect(facts).toContain("Requested (sim)Day 2 07:40 · receipt time");
+  expect(facts).toContain("Expected~3 min");
+  expect(facts).toContain("Waiting30 min (waiting for available staff)");
+  expect(facts).toContain("Raised bySIM - Care Aide 05 (Scheduled routine)");
+  expect(facts).toContain("Next step: claim or start it when you begin the work");
+  const title = Array.from(el.querySelectorAll("span")).find((s) => s.textContent === long.title);
+  expect(title.className).not.toContain("truncate");                 // titles wrap when expanded
+  await act(async () => root.unmount());
+});
+
+test("a real task shows why it exists and only real times - no simulation lines", async () => {
+  const real = { ...task, simulated: false };
+  mockGet.mockResolvedValue({ data: { task: real, receipts: [], origin: { kind: "staff_generated", label: "Staff / system created" }, simulation: null } });
+  const el = document.createElement("div"); const root = createRoot(el);
+  await act(async () => root.render(<QueueTaskRow t={real} ctx={ctx} />));
+  await act(async () => { el.querySelector("[data-testid=wo-row-t1]").click(); });
+  await act(async () => { await Promise.resolve(); });
+  expect(el.querySelector("[data-testid=wo-facts-t1-sim]")).toBeNull();
+  expect(el.querySelector("[data-testid=wo-facts-t1]").textContent).toContain("Why: Staff / system created");
+  await act(async () => root.unmount());
+});
+
 test("only a request in progress offers Complete", async () => {
   mockGet.mockResolvedValue({ data: { task: {}, receipts: [] } });
   const el = document.createElement("div");

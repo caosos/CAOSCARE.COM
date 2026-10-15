@@ -10,7 +10,9 @@ from fastapi import APIRouter, HTTPException, Depends
 from deps import db
 from routes.tasks import _iso, staff_visibility_query
 from routes.request_delivery import delivery_for
+from routes.task_origin import KIND_LABELS, kind_of
 from routes.work_context import get_department_user
+from simulation.community_task_simulation import task_simulation
 
 router = APIRouter(prefix="/tasks", tags=["task-detail"])
 
@@ -31,4 +33,8 @@ async def get_task_detail(task_id: str, user=Depends(get_department_user)):
         {"related_object_type": "task", "related_object_id": task_id}, {"_id": 0},
     ).sort("created_at", 1).to_list(200)
     delivery = (await delivery_for([task_id]))[task_id]
-    return {"task": _iso(task), "receipts": receipts, "delivery": delivery}
+    # Simulated living-community tickets also carry their simulated clock (#168); None for real tasks.
+    simulation = await task_simulation(task)
+    kind = kind_of(task)
+    return {"task": _iso(task), "receipts": receipts, "delivery": delivery,
+            "origin": {"kind": kind, "label": KIND_LABELS[kind]}, "simulation": simulation}

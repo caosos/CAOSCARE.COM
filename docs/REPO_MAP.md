@@ -933,6 +933,10 @@ listener verifier experiment: `docs/experiments/`.
   times, outcome and receipts). UI: `frontend/src/components/dashboard/` (`LiveDashboard` + drill-in views),
   `frontend/src/lib/dashboardFormat.js`, `useDashboardResource.js`; the older panels live under Engineering details in
   `frontend/src/pages/LiveOperations.jsx`. `components/simulator/CoverShiftButton.jsx` is the one Cover shift control.
+- Task facts on the workspace (#168): `backend/simulation/community_task_simulation.py` builds the `simulation` block of
+  `GET /api/tasks/{id}/detail` (`routes/task_detail.py`) from `community_ticket_view.timeline`; the UI renders it, the
+  origin and the next permitted step through `frontend/src/components/TaskFacts.jsx` + `frontend/src/lib/taskFacts.js`
+  (queue row expanded view and `MyTasksCard.jsx`). Test: `backend/tests/test_task_detail_simulation.py`.
 - Tests: `backend/tests/test_sim_community_*.py`, `test_living_community_*`,
   `test_haiku_community_provider_boundary.py`, and
   `frontend/src/components/simulator/__tests__/{SimCommunityOverview,SimCommunityObserved}.test.jsx` plus

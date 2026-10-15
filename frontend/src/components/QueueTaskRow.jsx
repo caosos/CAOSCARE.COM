@@ -4,6 +4,7 @@ import { api } from "../lib/api";
 import { Button } from "./ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import RequestTimeline from "./RequestTimeline";
+import TaskFacts from "./TaskFacts";
 import { ReviewBadge } from "./ExceptionReview";
 import { inspectionText } from "./InspectionControls";
 import { itemsLine } from "../lib/requestItems";
@@ -59,7 +60,7 @@ export default function QueueTaskRow({ t, ride, ctx }) {
               className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-left hover:bg-caos-bone">
         <ChevronRight className={`h-4 w-4 shrink-0 text-caos-mute transition-transform ${expanded ? "rotate-90" : ""}`} />
         <span className="min-w-[12rem] flex-1">
-          <span className="block truncate text-[14px] font-semibold text-caos-ink">{t.title}</span>
+          <span className={`block text-[14px] font-semibold text-caos-ink ${expanded ? "break-words" : "truncate"}`}>{t.title}</span>
           <span className="block truncate text-[12px] text-caos-mute">
             {[t.resident_name, t.room ? `Room ${t.room}` : null].filter(Boolean).join(" · ") || "No resident"}
             {t.simulated ? " · SIM" : ""}
@@ -97,6 +98,7 @@ export default function QueueTaskRow({ t, ride, ctx }) {
                 worked != null ? `work time ${worked} min` : null,
                 t.re_request_count > 0 ? `asked ${t.re_request_count + 1}x` : null].filter(Boolean).join(" · ")}
             </div>
+            <TaskFacts t={t} detail={detail} clock={clock} testid={`wo-facts-${t.task_id}`} />
             {t.notes && !(inspectionText(t) && t.notes.startsWith("Returned after inspection:")) && <div>Outcome / note: {t.notes}</div>}
           </div>
 
