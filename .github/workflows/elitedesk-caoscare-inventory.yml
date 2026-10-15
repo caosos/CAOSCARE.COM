@@ -129,6 +129,151 @@ jobs:
             free -h 2>/dev/null || true
           } | tee "$REPORT"
 
+      - name: Owner Aria creator-memory side task (one-shot)
+        shell: bash
+        run: |
+          set -euo pipefail
+          BACKEND=/home/caoscare-1/CAOSCARE-INTEGRATION/backend
+          PY=/home/caoscare-1/CAOSCARE.COM/backend/.venv/bin/python3
+          [ -x "$PY" ]
+          [ -f "$BACKEND/.env" ]
+          cd "$BACKEND"
+
+          "$PY" - <<'PY'
+          import asyncio
+          import os
+          from datetime import datetime, timezone
+          from deps import db
+          from models import AriaMemory
+          from routes.aria_memory import build_aria_context_block
+
+          async def main():
+              owners = await db.users.find(
+                  {"role": "owner"},
+                  {"_id": 0, "user_id": 1, "name": 1},
+              ).to_list(10)
+              if len(owners) != 1:
+                  print(f"owner_memory_status=BLOCKED owner_count={len(owners)}")
+                  raise SystemExit(2)
+
+              owner = owners[0]
+              owner_id = owner["user_id"]
+              owner_name = (owner.get("name") or "The CAOSCARE owner").strip()
+
+              identity_text = (
+                  f"{owner_name} is the human creator and owner of CAOSCARE. "
+                  f"Aria and the other AI assistants have helped {owner_name} build CAOSCARE."
+              )
+              provenance_text = (
+                  f"{owner_name} explicitly confirmed that he is the human creator and owner of CAOSCARE "
+                  f"and that Aria and the other AI assistants helped him build it. "
+                  "Before this confirmation, Aria had not verified that claim; "
+                  "her earlier uncertainty remains historically correct."
+              )
+
+              identity = await db.aria_memories.find_one({
+                  "owner_user_id": owner_id,
+                  "category": "identity",
+                  "bin": "standing",
+                  "archived": {"$ne": True},
+                  "text": {"$regex": "human creator.*CAOSCARE", "$options": "i"},
+              }, {"_id": 0})
+
+              if identity is None:
+                  model = AriaMemory(
+                      owner_user_id=owner_id,
+                      text=identity_text,
+                      category="identity",
+                      bin="standing",
+                      importance=5,
+                      source="chat",
+                      confidence="stated",
+                      pinned=True,
+                  )
+                  doc = model.model_dump()
+                  doc["created_at"] = doc["created_at"].isoformat()
+                  await db.aria_memories.insert_one(doc)
+                  identity_id = doc["memory_id"]
+                  identity_result = "inserted"
+              else:
+                  identity_id = identity["memory_id"]
+                  identity_result = "existing"
+
+              provenance = await db.aria_memories.find_one({
+                  "owner_user_id": owner_id,
+                  "bin": "episodic",
+                  "archived": {"$ne": True},
+                  "text": {"$regex": "earlier uncertainty remains historically correct", "$options": "i"},
+              }, {"_id": 0})
+
+              if provenance is None:
+                  model = AriaMemory(
+                      owner_user_id=owner_id,
+                      text=provenance_text,
+                      category="session_summary",
+                      bin="episodic",
+                      importance=5,
+                      source="chat",
+                      confidence="stated",
+                      pinned=False,
+                  )
+                  doc = model.model_dump()
+                  doc["created_at"] = doc["created_at"].isoformat()
+                  await db.aria_memories.insert_one(doc)
+                  provenance_id = doc["memory_id"]
+                  provenance_result = "inserted"
+              else:
+                  provenance_id = provenance["memory_id"]
+                  provenance_result = "existing"
+
+              stored_identity = await db.aria_memories.find_one(
+                  {"memory_id": identity_id, "owner_user_id": owner_id},
+                  {"_id": 0, "memory_id": 1, "text": 1, "category": 1, "bin": 1,
+                   "importance": 1, "source": 1, "confidence": 1, "pinned": 1},
+              )
+              stored_provenance = await db.aria_memories.find_one(
+                  {"memory_id": provenance_id, "owner_user_id": owner_id},
+                  {"_id": 0, "memory_id": 1, "text": 1, "category": 1, "bin": 1,
+                   "importance": 1, "source": 1, "confidence": 1, "pinned": 1},
+              )
+
+              assert stored_identity and stored_identity["text"] == identity_text
+              assert stored_identity["category"] == "identity"
+              assert stored_identity["bin"] == "standing"
+              assert stored_identity["pinned"] is True
+              assert stored_identity["confidence"] == "stated"
+
+              assert stored_provenance and stored_provenance["text"] == provenance_text
+              assert stored_provenance["bin"] == "episodic"
+              assert stored_provenance["confidence"] == "stated"
+
+              context = await build_aria_context_block(owner_id)
+              assert identity_text in context
+              assert provenance_text in context
+
+              receipt_path = "/home/caoscare-1/.local/state/caoscare/owner-aria-memory-receipts.log"
+              os.makedirs(os.path.dirname(receipt_path), exist_ok=True)
+              stamp = datetime.now(timezone.utc).isoformat()
+              with open(receipt_path, "a", encoding="utf-8") as fh:
+                  fh.write(
+                      f"{stamp} task=owner-aria-creator-memory "
+                      f"identity={identity_result}:{identity_id} "
+                      f"provenance={provenance_result}:{provenance_id} "
+                      "context_verified=true\n"
+                  )
+
+              print("owner_memory_status=PASS")
+              print(f"identity_result={identity_result}")
+              print(f"identity_memory_id={identity_id}")
+              print(f"provenance_result={provenance_result}")
+              print(f"provenance_memory_id={provenance_id}")
+              print("context_contains_identity=true")
+              print("context_contains_provenance=true")
+              print("personality_prompt_transcripts_changed=false")
+
+          asyncio.run(main())
+          PY
+
       - name: Preserve inventory receipt
         if: always()
         uses: actions/upload-artifact@v4
