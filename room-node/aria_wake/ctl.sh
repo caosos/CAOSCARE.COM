@@ -63,7 +63,10 @@ build_page() {
   need yarn "yarn (corepack enable)"
   local out="$CACHE/build" new="$CACHE/build.new"
   mkdir -p "$CACHE"; rm -rf "$new"
-  (cd "$REPO/frontend" && BUILD_PATH="$new" REACT_APP_BACKEND_URL="http://localhost:$PAGE_PORT" yarn build)
+  # REACT_APP_BUILD_SHA: the page reports its own build revision to the backend's
+  # self-code inspection (Room 214 only) so "is this the page you are running" is truthful.
+  (cd "$REPO/frontend" && BUILD_PATH="$new" REACT_APP_BACKEND_URL="http://localhost:$PAGE_PORT" \
+    REACT_APP_BUILD_SHA="$(git -C "$REPO" rev-parse HEAD)" yarn build)
   [ -f "$new/index.html" ] || { echo "build failed: no index.html" >&2; exit 1; }
   rm -rf "$CACHE/build.prev"; [ -d "$out" ] && mv "$out" "$CACHE/build.prev"
   mv "$new" "$out"   # server reads files per request: no restart needed

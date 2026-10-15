@@ -78,6 +78,7 @@ from routes import realtime_memory_ingest as realtime_memory_ingest_routes  # no
 from routes import audit as audit_routes  # noqa: E402
 from routes import realtime as realtime_routes  # noqa: E402
 from routes import realtime_room_lease as realtime_room_lease_routes  # noqa: E402
+from routes import self_code_inspection as self_code_inspection_routes  # noqa: E402
 from routes import rf as rf_routes  # noqa: E402
 from routes import rf_bridge_health as rf_bridge_health_routes  # noqa: E402
 from routes import rf_fleet as rf_fleet_routes  # noqa: E402
@@ -258,6 +259,7 @@ api.include_router(memory_routes.router)
 api.include_router(realtime_memory_ingest_routes.router)
 api.include_router(audit_routes.router)
 api.include_router(realtime_routes.router)
+api.include_router(self_code_inspection_routes.router)
 api.include_router(realtime_room_lease_routes.router)
 api.include_router(rf_routes.router)
 api.include_router(rf_bridge_health_routes.router)

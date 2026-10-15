@@ -953,3 +953,7 @@ listener verifier experiment: `docs/experiments/`.
 - `backend/device_ir_adapter.py` + `backend/ir_codesets.py`: `ir_blaster` protocol — any room's TV by infrared through an HA IR blaster; one-way, `verified=False`. Test `tests/test_ir_blaster_adapter.py`.
 - `frontend/src/lib/powerDirection.js`: light on/off must agree with the turn's transcript. `frontend/src/lib/endController.js`: goodbye answers open tool calls; a goodbye already playing counts as heard.
 - `room-node/ir_mate/`: CAOSCare build of the XIAO IR Mate ESPHome firmware (code-send actions). `room-node/ha_lan_proxy/`: user service exposing the HA VM on the LAN.
+
+## 2026-10-15 — Room 214 read-only self-code inspection (owner feature)
+
+- `backend/routes/self_code_identity.py` (verified Room 214 session only: canonical kiosk/resident record + live backend-written lease + loopback origin; fail closed), `self_code_source.py` (fixed allow-list, traversal/symlink/secret/binary denies, bounded read/search, inspected-vs-loaded SHA truth), `self_code_inspection.py` (`POST /api/aria/self-code/{inspect,search,read}`, one receipt per attempt), `self_code_tools.py` (schemas + prompt block declared only at a Room 214 mint). `frontend/src/lib/realtimeSelfCodeTools.js` relays the three tools; `room-node/aria_wake/ctl.sh` embeds `REACT_APP_BUILD_SHA`. Contract: `docs/ROOM214_SELF_CODE_INSPECTION.md`. Tests: `backend/tests/test_room214_self_code_{gate,session}.py`, `frontend/src/lib/__tests__/selfCodeDispatch.test.js`.
