@@ -36,7 +36,8 @@ def test_full_community_backlog_waits_and_drains_truthfully():
     _routines, scheduled = cohort_schedule("community_75")
     rows = list(scheduled.values())
     reasons = {row.wait_reason for row in rows}
-    assert reasons == {capacity.NO_WAIT, capacity.STAFF_BUSY, capacity.DEPARTMENT_CLOSED,
+    # Room delivery staffing (v11) serves every meal in its window, so "not served" may be absent.
+    assert reasons | {"not_served_service_window_closed"} == {capacity.NO_WAIT, capacity.STAFF_BUSY, capacity.DEPARTMENT_CLOSED,
                        capacity.ON_CALL_ONLY, capacity.ON_CALL_RESPONSE, capacity.UNCLAIMED_AT_END,
                        "not_served_service_window_closed",
                        # service model: an overnight snack/tray call while only the cook is on site

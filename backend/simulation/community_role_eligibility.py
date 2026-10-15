@@ -12,6 +12,7 @@ goes to that role.  Nursing has three roles, so every nursing routine must be
 listed here, and an unlisted one is refused rather than guessed.  This is a
 simulation assumption about scope of work, not a clinical or labor rule.
 """
+from simulation.community_service_model import MEALS, ROOM_SERVICE
 from simulation.community_staffing import WORKERS
 
 MED_TECH = "medication_reminder_support"
@@ -52,6 +53,12 @@ _DEFAULT_ROLES = {
 _ACTIVITY_ROUTINES = {
     "one_to_one_activity_visit": ("activities_coordinator", "activities_assistant"),
 }
+# Room delivery (owner estimate 2026-10-15): delivery aides carry trays first and
+# dining servers help; in the dining room it is the other way round.
+_KITCHEN_ROUTINES = {
+    **{meal: ("dining_server", "meal_delivery_aide") for meal in MEALS},
+    **{meal + ROOM_SERVICE: ("meal_delivery_aide", "dining_server") for meal in MEALS},
+}
 
 
 def _department_roles() -> dict[str, tuple[str, ...]]:
@@ -66,6 +73,7 @@ def _department_roles() -> dict[str, tuple[str, ...]]:
 DEPARTMENT_ROLES = _department_roles()
 ROUTINE_ROLES = {("nursing", routine): roles for routine, roles in _NURSING_ROUTINES.items()}
 ROUTINE_ROLES.update({("activities", routine): roles for routine, roles in _ACTIVITY_ROUTINES.items()})
+ROUTINE_ROLES.update({("kitchen", routine): roles for routine, roles in _KITCHEN_ROUTINES.items()})
 
 for (_department, _routine), _roles in ROUTINE_ROLES.items():
     _unknown = set(_roles) - set(DEPARTMENT_ROLES[_department])

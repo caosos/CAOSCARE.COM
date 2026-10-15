@@ -13,8 +13,13 @@ Dining
   * Residents arrive across the first hour of a seating (one per simulated
     minute), not across the whole evening.
   * Most residents eat in the dining room (about 3 server-minutes each: carry
-    the plate, settle the place, clear). About one in eight takes the meal in
-    the apartment, which needs a server to walk it there (about 8 minutes).
+    the plate, settle the place, clear).
+  * Room delivery (owner estimate, Michael 2026-10-15): about 30 of 75
+    residents (40%) have each meal delivered to the apartment. One delivery is
+    one tray carried by one staff member: pick up the tray, walk to the
+    apartment, hand off and set up, walk back (``ROOM_DELIVERY_STEPS``). Meal
+    delivery aides take deliveries first and dining servers help; dining
+    servers take the dining room first and delivery aides help.
 
 Activities
   * The activity itself is a group session run by the activities coordinator
@@ -49,10 +54,19 @@ ESCORT_LEAD_MINUTES = 25              # escorts run 13:35 onward, before the ses
 ONE_TO_ONE_FIRST = 870                # 14:30
 ONE_TO_ONE_SPACING = 30
 
+# Simulation assumption: minutes for one room delivery, one tray per trip.
+ROOM_DELIVERY_STEPS = {
+    "tray_pickup": 2,          # collect the plated tray and check it against the resident
+    "walk_to_apartment": 4,    # kitchen to apartment, including the elevator
+    "handoff_and_setup": 3,    # knock, greet, set the tray down and open it
+    "return_to_kitchen": 4,    # walk back for the next tray
+}
+ROOM_DELIVERY_MINUTES = sum(ROOM_DELIVERY_STEPS.values())
+
 # Simulation assumption: hands-on staff minutes per resident ticket.
 WORK_MINUTES = {
     **{meal: 3 for meal in MEALS},
-    **{meal + ROOM_SERVICE: 8 for meal in MEALS},
+    **{meal + ROOM_SERVICE: ROOM_DELIVERY_MINUTES for meal in MEALS},
     ACTIVITY_ESCORT: 8,
     ACTIVITY_VISIT: 20,
 }
@@ -79,8 +93,8 @@ def needs_escort(resident_index: int) -> bool:
 
 
 def meal_location_for(resident_index: int) -> str:
-    """About one resident in eight takes meals in the apartment."""
-    return "room_service_offer" if (resident_index - 1) % 8 == 7 else "dining_room"
+    """Two residents in five (30 of 75) have meals delivered, spread through the building."""
+    return "room_service_offer" if (resident_index - 1) % 5 in (1, 3) else "dining_room"
 
 
 def activity_style_for(resident_index: int) -> str:
@@ -102,4 +116,5 @@ def is_meal(routine: str) -> bool:
 
 
 def meal_of(routine: str) -> Optional[str]:
-    return routine[: -len(ROOM_SERVICE)] if routine.endswith(ROOM_SERVICE) else (routine if routine in MEALS else None)
+    base = routine[: -len(ROOM_SERVICE)] if routine.endswith(ROOM_SERVICE) else routine
+    return base if base in MEALS else None   # "housekeeping_room_service" is not a meal

@@ -94,7 +94,7 @@ def test_summary_counts_departments_staff_and_residents():
         assert depts["housekeeping"]["waiting"] == 1 and depts["nursing"]["in_progress"] == 1
         aide = next(s for s in out["staff"] if s["actor_id"] == "sim:staff:nursing:care_aide:01")
         assert aide["current_task_id"] == "t-work"
-        assert len(out["staff"]) == 57
+        assert len(out["staff"]) == 66
     _run(check)
 
 

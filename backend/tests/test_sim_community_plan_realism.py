@@ -72,7 +72,7 @@ def test_med_tech_is_preferred_and_aides_never_take_reminders():
 def test_unlisted_nursing_routine_is_refused_not_guessed():
     with pytest.raises(eligibility.RoleEligibilityError):
         eligibility.eligible_roles("nursing", "ghost_routine")
-    assert eligibility.eligible_roles("kitchen", "dinner") == ("dining_server",)
+    assert eligibility.eligible_roles("kitchen", "dinner") == ("dining_server", "meal_delivery_aide")
     assert eligibility.eligible_roles("nursing", "evening_medication_reminder") == (MED_TECH, RN)
     for (department, _routine), roles in eligibility.ROUTINE_ROLES.items():
         assert set(roles) <= set(eligibility.DEPARTMENT_ROLES[department])
@@ -177,11 +177,11 @@ def test_overnight_wait_is_attributed_to_the_closed_department():
 
 def test_dinner_not_claimed_in_its_window_expires_to_the_department_lead():
     at = DAY + 19 * 60
-    rows = _schedule(*[(f"d{n:02d}", "kitchen", "normal", at, 3, "dinner") for n in range(20)])
+    rows = _schedule(*[(f"d{n:02d}", "kitchen", "normal", at, 3, "dinner") for n in range(80)])
     served = [row for row in rows.values() if row.claim_at is not None]
     missed = [row for row in rows.values() if row.expire_at is not None]
     deadline = DAY + 19 * 60 + 30
-    assert served and missed and len(served) + len(missed) == 20
+    assert served and missed and len(served) + len(missed) == 80
     assert all(row.claim_at < deadline for row in served)
     lead = _ids(active_assignments(2, 19 * 60 + 29))
     for row in missed:
@@ -197,7 +197,8 @@ def test_only_meals_and_activities_in_the_window_table_expire(full):
                     "evening_medication_reminder", "staff_report_call_cord"):
         assert service_deadline(routine, DAY) is None
     expired = Counter(events[row.workflow_id].routine for row in scheduled.values() if row.expire_at)
-    assert set(expired) <= set(SERVICE_WINDOW_ENDS) and sum(expired.values()) > 0
+    # v11 room-delivery staffing serves every meal in its window; expiry itself is proven above.
+    assert set(expired) <= set(SERVICE_WINDOW_ENDS)
     for workflow, row in scheduled.items():
         if events[workflow].routine in SERVICE_WINDOW_ENDS and row.claim_at is not None:
             assert row.claim_at < service_deadline(events[workflow].routine, row.requested_at)
@@ -226,7 +227,7 @@ def test_expired_ticket_is_open_then_expire_by_the_lead_in_the_timeline(full):
 def test_v9_plan_is_deterministic_and_v8_runs_are_not_loadable():
     tickets = [(f"t{n}", "kitchen", "normal", DAY + 19 * 60 + n % 4, 3, "dinner") for n in range(30)]
     assert _schedule(*tickets) == _schedule(*reversed(tickets))
-    assert PLAN_REVISIONS["community_75"] == "living-community-timeline-v10-service-model-community_75"
+    assert PLAN_REVISIONS["community_75"] == "living-community-timeline-v11-room-delivery-community_75"
     # One plan revision per cohort: a v8 run must be cut over before v9 is deployed.
     with pytest.raises(TimelineValidationError):
         cohort_of_revision("living-community-timeline-v8-player-raised-community_75")

@@ -39,6 +39,7 @@ _HEADCOUNT = (
     ("nursing", "care_aide", 15),
     ("kitchen", "cook", 3),
     ("kitchen", "dining_server", 6),
+    ("kitchen", "meal_delivery_aide", 9),
     ("housekeeping", "housekeeper", 4),
     ("maintenance", "maintenance_technician", 4),
     ("transportation", "driver", 4),
@@ -106,6 +107,9 @@ _SHIFT_LOAD = (
     ("kitchen", "cook", "late", "12:00", "20:00", 1, ON_SITE),
     ("kitchen", "dining_server", "early", "06:30", "14:30", 2, ON_SITE),
     ("kitchen", "dining_server", "late", "12:00", "20:00", 2, ON_SITE),
+    # Room delivery (owner estimate 2026-10-15): about 30 trays per meal need their own staff.
+    ("kitchen", "meal_delivery_aide", "meals_am", "07:15", "13:15", 3, ON_SITE),
+    ("kitchen", "meal_delivery_aide", "meals_pm", "16:45", "19:45", 3, ON_SITE),
     ("housekeeping", "housekeeper", "day", "08:00", "16:30", 2, ON_SITE),
     ("maintenance", "maintenance_technician", "day", "07:00", "15:30", 1, ON_SITE),
     ("maintenance", "maintenance_technician", "after_hours_on_call", "15:30", "07:00", 1, ON_CALL),

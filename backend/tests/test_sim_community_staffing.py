@@ -1,4 +1,4 @@
-"""Pure tests for the 57-worker living-community staffing model.
+"""Pure tests for the 66-worker living-community staffing model.
 
 Owner direction (Michael, 2026-10-13): 80-apartment, budget-constrained
 assisted living.  Overnight 2-3 care staff on site; maintenance normal hours
@@ -39,7 +39,7 @@ from simulation.community_staffing import (
 
 
 EXPECTED_HEADCOUNT = {
-    "nursing": 22, "kitchen": 9, "housekeeping": 4, "maintenance": 4,
+    "nursing": 22, "kitchen": 18, "housekeeping": 4, "maintenance": 4,
     "transportation": 4, "activities": 6, "front_desk": 4, "administration": 4,
 }
 OVERNIGHT_MINUTES = list(range(22 * 60, 1440, 15)) + list(range(0, 6 * 60, 15))
@@ -53,8 +53,8 @@ def _windows(row):
 
 
 def test_roster_keeps_57_stable_explicit_simulated_identities():
-    assert len(WORKERS) == 57
-    assert len({worker["actor_id"] for worker in WORKERS}) == 57
+    assert len(WORKERS) == 66
+    assert len({worker["actor_id"] for worker in WORKERS}) == 66
     assert {d: sum(w["department"] == d for w in WORKERS) for d in EXPECTED_HEADCOUNT} == EXPECTED_HEADCOUNT
     assert all(worker["actor_id"].startswith("sim:staff:") for worker in WORKERS)
     assert all(worker["actor_type"] == "simulated-agent" for worker in WORKERS)
@@ -169,7 +169,7 @@ def test_rest_days_and_rest_between_duties_are_honored():
 def test_daily_rota_is_deterministic_one_duty_per_worker_and_rotates():
     day_zero = assignments_for_day(0)
     assert day_zero == assignments_for_day(0)
-    assert Counter(row["duty"] for row in day_zero) == {"on_site": 31, "on_call": 2}
+    assert Counter(row["duty"] for row in day_zero) == {"on_site": 37, "on_call": 2}
     assert len({row["actor_id"] for row in day_zero}) == len(day_zero)
     aides = lambda day: {r["actor_id"] for r in assignments_for_day(day) if r["job_role"] == "care_aide"}
     assert aides(0) != aides(1)
@@ -190,7 +190,7 @@ def test_overnight_windows_wrap_and_prior_day_staff_remain_present():
 def test_default_projection_is_exactly_90_repeatable_local_days():
     first = project_schedule(date(2026, 10, 13))
     assert first == project_schedule("2026-10-13", days=90)
-    assert len(first) == 90 * 33
+    assert len(first) == 90 * 39
     assert first[0]["date"] == "2026-10-13"
     overnight = next(row for row in first if row["shift_key"] == "nursing:night")
     assert overnight["spans_midnight"] is True

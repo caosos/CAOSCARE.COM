@@ -8,8 +8,8 @@ import pytest
 from simulation import community_timeline as timeline
 
 
-EXPECTED_EVENT_COUNT = 52_009
-EXPECTED_DIGEST = "48db0598e29421524acad2feeb103a9c293bbd49d46403728bb76c3f3a6e1742"
+EXPECTED_EVENT_COUNT = 53_629
+EXPECTED_DIGEST = "93a387722f05cd4c9e304e568e624358e0dcd9eab05edba80fbcaffb8a1f0a85"
 
 
 @pytest.fixture(scope="module")
@@ -21,7 +21,7 @@ def test_builds_exact_stable_90_day_plan(plan):
     again = timeline.build_90_day_timeline()
 
     assert plan == again
-    assert plan.plan_revision == "living-community-timeline-v10-service-model-burn_in_10"
+    assert plan.plan_revision == "living-community-timeline-v11-room-delivery-burn_in_10"
     assert plan.digest_algorithm == "sha256"
     assert plan.source_start_day == 0
     assert plan.source_end_day == 89
@@ -36,7 +36,7 @@ def test_ids_are_unique_and_stream_counts_are_exact(plan):
     assert len(ids) == len(set(ids))
     assert Counter(event.stream_kind for event in plan.events) == {
         "routine_ticket_phase": 43_639,  # rounds + meals + activity escorts/visits + calls + reports
-        "canonical_shift_milestone": 8_370,  # 31 on-site shifts x 3 milestones x 90 days
+        "canonical_shift_milestone": 9_990,  # 37 on-site shifts x 3 milestones x 90 days
     }
 
     # Every day carries its rounds plus that day's resident calls and staff

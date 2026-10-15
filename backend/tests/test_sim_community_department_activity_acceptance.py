@@ -51,7 +51,7 @@ def marked(**values):
 
 def test_actual_rota_has_no_hidden_gap_during_representative_24_hours():
     """Departments may be CLOSED or ON CALL by design; none is ever UNCOVERED."""
-    assert len(WORKERS) == 57
+    assert len(WORKERS) == 66
     assert planned_coverage_gaps(0) == []
     for minute in range(1440):
         summary = coverage_summary(0, minute)

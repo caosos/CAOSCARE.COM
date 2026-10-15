@@ -16,10 +16,10 @@ def test_day_plan_is_deterministic_complete_and_only_planned():
     assert first == planned_events_for_day(0)
     assert len({event["event_id"] for event in first}) == len(first)
     assert event_counts(first) == {
-        "clock_in": 31,
-        "clock_out": 31,
+        "clock_in": 37,
+        "clock_out": 37,
         "department_status_changed": 14,
-        "handoff": 31,
+        "handoff": 37,
     }
     assert all(event["status"] == "planned" for event in first)
     assert all(event["execution_state"] == "not_executed" for event in first)
