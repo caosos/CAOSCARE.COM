@@ -14,7 +14,8 @@ export default function DepartmentDispatchNote({ label, roster, rosterState }) {
       {rosterState === "error" && <div className="text-caos-terracotta" data-testid="dept-roster-error">Could not load who works in {label}.</div>}
       {rosterState === "ok" && roster.length === 0 && (
         <div className="text-caos-terracotta" data-testid="dept-roster-empty">
-          No one works in {label} yet, so nobody can claim this work and the Assign list is empty.
+          No one works in {label} yet with a staff account, so no person can claim this work and the Assign list is empty
+          (simulated workers, if any, are listed below and do their own work).
           Add staff in Departments &amp; staff → Users &amp; access and set their department to {label}.
         </div>
       )}

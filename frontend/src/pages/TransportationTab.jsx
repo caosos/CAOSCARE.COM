@@ -8,6 +8,8 @@ import TransportAssignAction from "../components/TransportAssignAction";
 import TransportUnresolvedList from "../components/TransportUnresolvedList";
 import RequestDetailDialog from "./RequestDetailDialog";
 import TransportRideForm from "../components/TransportRideForm";
+import DepartmentRoster from "../components/DepartmentRoster";
+import TransportCoordinationNote from "../components/TransportCoordinationNote";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 
@@ -67,6 +69,9 @@ export default function TransportationTab() {
   const s = report.summary;
 
   return (
+    <div className="space-y-4">
+    <DepartmentRoster department="transportation" label="Transportation" />
+    <TransportCoordinationNote />
     <Card className="border-caos-line p-6" data-testid="transportation-tab-root">
       <div className="flex flex-wrap justify-between items-start gap-y-3 mb-4">
         <div>
@@ -157,5 +162,6 @@ export default function TransportationTab() {
       <TransportRideForm open={newRide} onOpenChange={setNewRide} onSaved={fetchReport} />
       <RequestDetailDialog taskId={openId} open={!!openId} onOpenChange={(o) => { if (!o) setOpenId(null); }} onChange={fetchReport} />
     </Card>
+    </div>
   );
 }

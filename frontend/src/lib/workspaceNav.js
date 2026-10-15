@@ -51,6 +51,8 @@ export const NAV_SECTIONS = [
     tab("therapy", "Therapy"),
     tab("activities", "Activities"),
     tab("transportation", "Transportation"),
+    tab("front-desk-queue", "Front Desk"),
+    tab("administration", "Administration"),
   ] },
   { id: "reports", label: "Reports", icon: "ChartColumn", items: [
     tab("reports", "Ops reports"),

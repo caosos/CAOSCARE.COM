@@ -17,6 +17,7 @@ import { conflictDetail, conflictSummary, overridePayload } from "../lib/schedul
 import { rideLine, canRequestRide } from "../lib/rideLink";
 import { detailsLine } from "../lib/appointmentDetails";
 import DepartmentDispatchNote from "../components/DepartmentDispatchNote";
+import DepartmentRoster from "../components/DepartmentRoster";
 import { useWorkContext } from "../lib/workContext";
 import { ReviewBadge, useExceptionReview } from "../components/ExceptionReview";
 import { inspectionText, useInspection } from "../components/InspectionControls";
@@ -340,6 +341,7 @@ export default function DepartmentQueue({ department, title, itemName = "request
       </div>
 
       {adminMode && <DepartmentDispatchNote label={title.replace(/ requests$/i, "")} roster={roster} rosterState={rosterState} />}
+      <DepartmentRoster department={department} label={title.replace(/ requests$/i, "")} refreshKey={tasks.length} />
 
       {olderCount > 0 && (
         <div className="text-xs text-caos-mute bg-[#F3F1EE] rounded-lg p-3 flex flex-wrap items-center gap-2" data-testid="wo-older-banner">

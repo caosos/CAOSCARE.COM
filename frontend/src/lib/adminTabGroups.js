@@ -21,6 +21,8 @@ export function tabGroups(residents, staff, kiosks, zones, user) {
         { value: "therapy", label: "Therapy" },
         { value: "activities", label: "Activities" },
         { value: "transportation", label: "Transportation" },
+        { value: "front-desk-queue", label: "Front Desk" },
+        { value: "administration", label: "Administration" },
         { value: "transport-calendar", label: "Transport calendar" },
         { value: "transport-log", label: "Ride log" },
         { value: "transport-resources", label: "Transport resources" },
