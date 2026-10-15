@@ -931,6 +931,7 @@ listener verifier experiment: `docs/experiments/`.
 - Service model (CO-008, plan v10): `backend/simulation/community_service_model.py` (dining seatings, cooks vs dining servers,
   apartment meals, synthetic mobility, escorts only for residents who need them, one-to-one visits; work minutes and
   windows read it). Report: `docs/reports/2026-10-15-co008-service-model.md`. Test: `backend/tests/test_sim_community_service_model.py`.
+- Room delivery (CO-008, plan v11): 30 of 75 residents get meals delivered (`community_service_model.ROOM_DELIVERY_STEPS`, 13 min per tray); kitchen role `meal_delivery_aide` (`community_staffing.py`, `community_role_eligibility._KITCHEN_ROUTINES`). Report: `docs/reports/2026-10-15-co008-room-delivery.md`.
 - Real staff in the simulated community: `backend/simulation/community_shift_cover.py` +
   `backend/routes/community_shift_cover.py` (owner/admin covers an on-site simulated worker's shift; the worker's
   planned phases yield with receipts and their tickets wait for the person, worked via Work as <department>) and
