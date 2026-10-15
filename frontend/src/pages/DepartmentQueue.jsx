@@ -20,6 +20,7 @@ import QueueTaskRow from "../components/QueueTaskRow";
 import { useWorkContext } from "../lib/workContext";
 import { useExceptionReview } from "../components/ExceptionReview";
 import { inspectionText, useInspection } from "../components/InspectionControls";
+import useAssignWithReason from "../components/useAssignWithReason";
 
 // A department's request queue (Maintenance work orders, Nursing requests,
 // ...). Every item is a StaffTask with visibility_role === department; this
@@ -101,7 +102,7 @@ export default function DepartmentQueue({ department, title, itemName = "request
     }
   };
   const claim = (id) => act(id, "assign", { assigned_to: user?.user_id });
-  const assignTo = (id, uid) => act(id, "assign", { assigned_to: uid || null });
+  const { assignTo, dialog: assignDialog } = useAssignWithReason(tasks, act);
   const start = (id) => act(id, "start");
   const doComplete = async () => {
     if (!completeFor || completingRef.current) return;          // a double click must not send two completions
@@ -327,6 +328,7 @@ export default function DepartmentQueue({ department, title, itemName = "request
       <ConflictDialog open={!!conflict} onOpenChange={(o) => { if (!o) setConflict(null); }} summary={conflict?.summary}
         onSaveAnyway={() => savePlan(overridePayload(conflict.fields))} />
       {review.dialogs}
+      {assignDialog}
       {inspection.dialog}
       <ReasonDialog open={!!cancelFor} onOpenChange={(o) => { if (!o) setCancelFor(null); }} title={`Cancel ${itemName}`}
         description="The request is closed as cancelled; the reason is recorded in its history and receipts. The resident sees this text on their screen and Aria may read it to them." placeholder="Why is it cancelled? (required)"

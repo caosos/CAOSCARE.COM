@@ -17,6 +17,7 @@ from routes.task_history import task_event
 from routes.task_lifecycle import (CLOSED_STATUSES, LifecycleError, chain_head, check, load,
                                    record_refusal, state_of, transition, work_as_authority)
 from routes.receipts import create_receipt
+from routes import task_work_rules
 from routes.task_work_rules import check_complete, check_start
 
 
@@ -24,7 +25,8 @@ def _ev(field: str, actor: ActorContext, rid: str, **kw) -> dict:
     return task_event(field, by=actor.actor_id, by_name=actor.name, receipt_id=rid, **kw)
 
 
-async def assign(task_id: str, target_id: Optional[str], actor: ActorContext, user: dict):
+async def assign(task_id: str, target_id: Optional[str], actor: ActorContext, user: dict,
+                 reason: Optional[str] = None):
     """Claim (assign to self), re-assign, or unassign. Admin/owner may assign
     anyone; a department member assigns within that department only."""
     task = await load(task_id)
@@ -46,12 +48,20 @@ async def assign(task_id: str, target_id: Optional[str], actor: ActorContext, us
         if not u:
             raise LifecycleError(404, "Assignee not found")
         name = u.get("name")
+    kind = await task_work_rules.check_assign(task_id, target_id, reason, actor, user)
+    why = (reason or "").strip() or None
 
     def build(t, rid):
-        return ({"assigned_to": target_id, "assigned_name": name},
-                [_ev("assigned_to", actor, rid, frm=t.get("assigned_to"), to=target_id, to_name=name)])
+        fields = {"assigned_to": target_id, "assigned_name": name}
+        events = [{**_ev("assigned_to", actor, rid, frm=t.get("assigned_to"), to=target_id, to_name=name,
+                         text=why), "assignment": kind}]
+        if kind == "handoff":   # the work waits until the new holder starts it
+            fields.update(status="pending", started_at=None)
+            events.append(_ev("status", actor, rid, frm="in_progress", to="pending", text=why))
+        return fields, events
     return await transition(task_id, actor, user, action="assign", authority=authority, build=build,
-                            action_type="task_assigned" if target_id else "task_unassigned", status="created")
+                            action_type=task_work_rules.ASSIGN_ACTION.get(kind) or "task_assigned",
+                            status="created", result=why)
 
 
 async def acknowledge(task_id: str, actor: ActorContext, user: dict):

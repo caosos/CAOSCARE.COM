@@ -129,7 +129,7 @@ async def _run():
         assert s["lifecycle"] == "acknowledged" and PICKED_UP not in s["spoken"]
         assert f"{names['tech']} has taken it on" in s["spoken"]
         # unassigning puts it back to genuinely unseen - the owner rule is not sticky
-        _ok(requests.post(f"{API}/tasks/{mt}/assign", headers=H["admin"], json={"assigned_to": None}, timeout=5))
+        _ok(requests.post(f"{API}/tasks/{mt}/assign", headers=H["admin"], json={"assigned_to": None, "reason": "Tech called away"}, timeout=5))
         assert PICKED_UP in _status(mroom)["spoken"]
         # maintenance staff permissions unchanged
         assert requests.post(f"{API}/tasks/{mt}/assign", headers=H["tech"],

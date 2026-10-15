@@ -56,7 +56,7 @@ async def _run():
     # Open requests for one resident and department merge (repeat asks), so
     # each case uses its own resident.
     rids = {}
-    for n in range(2, 6):
+    for n in range(2, 8):
         rids[n] = uid("res")
         await db.residents.insert_one({"resident_id": rids[n], "name": f"{TAG} Resident {n}", "room": room,
                                        "created_at": now_utc().isoformat()})
@@ -123,6 +123,37 @@ async def _run():
         assert requests.post(f"{API}/tasks/{t5}/skip", headers=H["n1"], json={}, timeout=5).status_code == 422
         _ok(requests.post(f"{API}/tasks/{t5}/skip", headers=H["n1"],
                           json={"notes": "Resident no longer needs help"}, timeout=5))
+
+        # 6. reassignment and handoff are distinct, receipted outcomes that say why
+        t6 = ask(f"{TAG} glasses", rids[6])
+        _ok(requests.post(f"{API}/tasks/{t6}/assign", headers=H["n1"], json={"assigned_to": ids["n1"]}, timeout=5))
+        r = requests.post(f"{API}/tasks/{t6}/assign", headers=H["n1"], json={"assigned_to": ids["n2"]}, timeout=5)
+        assert r.status_code == 422 and "why" in r.text, r.text
+        _ok(requests.post(f"{API}/tasks/{t6}/assign", headers=H["n1"],
+                          json={"assigned_to": ids["n2"], "reason": "Going on break"}, timeout=5))
+        rc = await db.receipts.find_one({"related_object_id": t6, "action_type": "task_reassigned"}, {"_id": 0})
+        assert rc and rc["result"] == "Going on break"
+        _ok(requests.post(f"{API}/tasks/{t6}/start", headers=H["n2"], timeout=5))
+        r = requests.post(f"{API}/tasks/{t6}/assign", headers=H["n2"], json={"assigned_to": ids["n1"]}, timeout=5)
+        assert r.status_code == 422, r.text
+        h = _ok(requests.post(f"{API}/tasks/{t6}/assign", headers=H["n2"],
+                              json={"assigned_to": ids["n1"], "reason": "Shift ended; glasses found, not yet cleaned"},
+                              timeout=5))
+        assert h["status"] == "pending" and h["assigned_to"] == ids["n1"] and not h.get("started_at")
+        assert await db.receipts.count_documents({"related_object_id": t6, "action_type": "task_handed_off"}) == 1
+        log = (await db.staff_tasks.find_one({"task_id": t6}))["event_log"]
+        assert [e.get("assignment") for e in log if e["field"] == "assigned_to"] == ["claim", "reassign", "handoff"]
+        # the new holder starts it again before completing
+        r = requests.post(f"{API}/tasks/{t6}/complete", headers=H["n1"], json={"notes": "x"}, timeout=5)
+        assert r.status_code == 409, r.text
+        # 7. putting a claimed request back in the queue needs a reason too
+        t7 = ask(f"{TAG} water", rids[7])
+        _ok(requests.post(f"{API}/tasks/{t7}/assign", headers=H["n1"], json={"assigned_to": ids["n1"]}, timeout=5))
+        assert requests.post(f"{API}/tasks/{t7}/assign", headers=H["n1"], json={"assigned_to": None},
+                             timeout=5).status_code == 422
+        _ok(requests.post(f"{API}/tasks/{t7}/assign", headers=H["n1"],
+                          json={"assigned_to": None, "reason": "Called to an emergency"}, timeout=5))
+        assert await db.receipts.count_documents({"related_object_id": t7, "action_type": "task_unassigned"}) == 1
     finally:
         await db.users.delete_many({"email": {"$regex": f"^{TAG}_"}})
         await db.staff_tasks.delete_many({"room": room})

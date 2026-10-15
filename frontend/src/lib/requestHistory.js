@@ -33,6 +33,9 @@ function describe(e, task) {
     case "acknowledged":
       return { label: `Acknowledged${by(e)}` };
     case "assigned_to":
+      if (e.assignment === "handoff") return { label: `Handed off to ${e.to ? e.to_name || "staff" : "the queue"}${by(e)}`, text: e.text, kind: "note" };
+      if (e.assignment === "reassign") return { label: `Reassigned to ${e.to_name || "staff"}${by(e)}`, text: e.text, kind: "note" };
+      if (e.assignment === "release") return { label: `Put back in the queue${by(e)}`, text: e.text, kind: "note" };
       if (!e.to) return { label: `Unassigned${by(e)}` };
       if (e.to === e.by) {
         const driver = CATEGORY_LABELS[task.category]?.claimed;

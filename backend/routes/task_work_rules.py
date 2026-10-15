@@ -112,3 +112,39 @@ async def check_cancel(task_id: str, notes: Optional[str], actor: ActorContext,
         await _refuse(task, actor, user, "cancel", 422,
                       "Give the reason for cancelling (for example: resident no longer needs "
                       "help, duplicate request).")
+
+
+# Assignment outcomes (#168: reassignment and handoff are distinct outcomes):
+#   claim     - nobody held it; you take it                 -> task_assigned
+#   assign    - nobody held it; given to a named worker     -> task_assigned
+#   reassign  - waiting, held by one worker, moved to another -> task_reassigned  (reason)
+#   release   - waiting, held by one worker, back to the queue -> task_unassigned (reason)
+#   handoff   - in progress, passed to another worker or back to the queue
+#               -> task_handed_off (reason); it waits until the new holder starts it
+ASSIGN_ACTION = {"claim": "task_assigned", "assign": "task_assigned", "reassign": "task_reassigned",
+                 "release": "task_unassigned", "handoff": "task_handed_off"}
+_ASK = {"reassign": "Say why it is being moved to someone else.",
+        "release": "Say why it is going back to the queue.",
+        "handoff": "Say why the work is being handed off and what is left to do."}
+
+
+def assignment_kind(task: dict, target_id: Optional[str], actor_id: str) -> Optional[str]:
+    prev = task.get("assigned_to")
+    if prev == target_id:
+        return None
+    if task.get("status") == "in_progress":
+        return "handoff"
+    if not prev:
+        return "claim" if target_id == actor_id else "assign"
+    return "reassign" if target_id else "release"
+
+
+async def check_assign(task_id: str, target_id: Optional[str], reason: Optional[str],
+                       actor: ActorContext, user: Optional[dict]) -> Optional[str]:
+    """The kind of assignment change, refusing (422) a reassignment, release or
+    handoff that does not say why."""
+    task = await task_lifecycle.load(task_id)
+    kind = assignment_kind(task, target_id, actor.actor_id)
+    if kind in _ASK and task.get("status") in ("pending", "in_progress") and not (reason or "").strip():
+        await _refuse(task, actor, user, "assign", 422, _ASK[kind])
+    return kind
