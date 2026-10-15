@@ -50,6 +50,8 @@ function describe(e, task) {
     case "unclaimed_escalated":
       return { label: "Flagged to a supervisor: nobody claimed it", text: e.text, kind: "note" };
     case "escalated":
+      // simulated escalation monitor (#168): past its response time, not a "can't complete"
+      if (e.sim_level) return { label: `Escalated (simulated) · level ${e.sim_level}, ${e.sim_phase === "complete" ? "not finished" : "not picked up"} in time`, text: e.text, kind: "note" };
       return { label: `Couldn't complete — sent to a supervisor${by(e)}`, text: e.text, kind: "note" };
     case "reviewed":
       return { label: `Supervisor review${by(e)}`, text: e.text, kind: "note" };

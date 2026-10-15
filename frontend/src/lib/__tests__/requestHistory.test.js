@@ -153,3 +153,12 @@ test("inspection steps read plainly", () => {
   const ev = buildRequestTimeline({ ...base, status: "completed", event_log: [{ at: "2026-10-12T09:00:00Z", field: "inspected", text: "Passed", by: "a", by_name: "Admin" }] });
   expect(ev[1].label).toBe("Inspection by Admin");
 });
+
+test("a simulated escalation reads as escalated, not as couldn't complete (#168)", () => {
+  const rows = buildRequestTimeline({ ...base, status: "pending", event_log: [
+    { at: "2026-10-15T06:07:17Z", field: "escalated", from: 0, to: 1, sim_level: 1, sim_phase: "pickup", text: "unclaimed 146 simulated min", by: "sim:system:escalation_monitor", by_name: "SIM - Escalation monitor" },
+  ] });
+  const r = rows.find((x) => (x.label || "").startsWith("Escalated"));
+  expect(r.label).toBe("Escalated (simulated) · level 1, not picked up in time");
+  expect(rows.some((x) => (x.label || "").includes("Couldn't complete"))).toBe(false);
+});
