@@ -182,6 +182,10 @@ test.each([
   expect(view.element.querySelector("[data-testid=community-control-state]").textContent).toBe(state);
   expect(Boolean(view.element.querySelector("[data-testid=community-control-pause]")))
     .toBe(expectedAction === "community-control-pause");
-  if (state === "STOPPED") expect(view.element.textContent).toMatch(/history and receipts remain available/i);
+  if (state === "STOPPED") {
+    expect(view.element.textContent).toMatch(/history and receipts remain available/i);
+    // A new run can be created beside the stopped one.
+    expect(view.element.querySelector("[data-testid=community-control-create_paused]")).not.toBeNull();
+  }
   await act(async () => view.root.unmount());
 });
