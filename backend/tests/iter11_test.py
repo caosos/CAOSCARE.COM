@@ -48,6 +48,9 @@ def seeded_resident(admin_client):
 class TestResearch:
     def test_research_haiku_uses_openai_fallback_or_503(self, s):
         r = s.post(f"{API}/research", json={"question": "what is a haiku"}, timeout=60)
+        if r.status_code == 403:   # PR #141: research runs only inside a live resident conversation
+            assert "live conversation" in r.text
+            return
         if r.status_code == 503:
             assert "CAOSCARE_RESEARCH_PROVIDER" in r.text
             return

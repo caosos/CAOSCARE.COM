@@ -209,11 +209,17 @@ def test_returning_the_role_resumes_simulated_work_from_the_current_state():
         outs = []
         while (o := await scheduler.tick()) is not None:
             outs.append(o)
-        kinds = [("observed" if o.get("observed") else "executed", o["step"]["action"]) for o in outs]
-        assert kinds == [("observed", "acknowledge"), ("observed", "start"), ("executed", "note"),
-                         ("executed", "complete"), ("executed", "check_status")]
+            if "error" in o:
+                break
+        kinds = [("observed" if o.get("observed") else "executed", o["step"]["action"]) for o in outs if "step" in o]
+        assert kinds == [("observed", "acknowledge"), ("observed", "start"), ("executed", "note")]
+        # CO-008 (#168): only the worker on a request completes it. Michael is still working it, so
+        # the simulated tech's completion is refused and the run pauses with that reason on record;
+        # nothing is completed on Michael's behalf.
+        assert "only they can complete it" in outs[-1]["error"]
         t = await db.staff_tasks.find_one({"task_id": tid})
-        assert t["status"] == "completed" and t["completed_by"] == roster.STAFF["actor_id"]
+        assert t["status"] == "in_progress" and t["assigned_to"] == MICHAEL["user_id"]
+        assert (await scheduler.view())["state"] == scheduler.PAUSED
         note = await receipt(outs[2]["canonical_receipt_id"])
         assert note["actor_type"] == "simulated-agent"
         assert await db.staff_tasks.count_documents({"simulation_run_id": started["run_id"]}) == 1
