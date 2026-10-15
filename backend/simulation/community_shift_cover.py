@@ -59,16 +59,37 @@ async def _receipt(write, *, action_type: str, cover: dict, actor, run: dict, re
     )
 
 
+async def _work_minute(run: dict) -> int:
+    """The simulated minute the community's records reflect (the executor's
+    position), which is what every screen shows and what a cover affects:
+    the executor yields the covered worker's events as it reaches them. The
+    run clock can be far ahead when the executor lags (CO-008: clock day 19,
+    work done to day 13), so it is not used to decide who is on site."""
+    import asyncio
+    from simulation.community_dashboard_view import executed_position   # local: that module imports this one
+    return await asyncio.to_thread(executed_position, run)
+
+
 async def start_cover(store, write, *, run_id: str, worker_actor_id: str, actor) -> dict:
-    """Cover an on-site simulated worker's shift from the run's current minute."""
+    """Cover an on-site simulated worker's shift from the moment the
+    community's work has reached."""
     run = await _run(store, run_id)
-    minute = run["sim_minute"]
+    minute = await _work_minute(run)
     worker = next((row for row in staffing_at(minute)["workers"]
                    if row["actor_id"] == worker_actor_id), None)
     if worker is None:
-        raise ShiftCoverError(f"{worker_actor_id} is not on site at the run's current time")
+        raise ShiftCoverError(f"{worker_actor_id} is not on site at the community's current working time")
     if await active_cover(store, run_id, worker_actor_id):
         raise ShiftCoverError(f"{worker['name']}'s shift is already covered")
+    # CO-008 (found live): covering a worker mid-ticket cancelled that ticket's
+    # planned completion, leaving it in progress under the worker forever; the
+    # one-active-ticket rule then refused the worker's next claim and the whole
+    # run stopped. A shift is taken over between tickets.
+    busy = await store.staff_tasks.find_one({"simulation_run_id": run_id, "assigned_to": worker_actor_id,
+                                             "status": "in_progress"}, {"_id": 0, "task_id": 1, "title": 1})
+    if busy:
+        raise ShiftCoverError(f"{worker['name']} is in the middle of a ticket ({busy.get('title') or busy['task_id']}); "
+                              "cover the shift when it is finished")
     cover = {
         "cover_id": f"cover:{run_id}:{worker_actor_id}:{minute}",
         "run_id": run_id, "worker_actor_id": worker_actor_id, "worker_name": worker["name"],
@@ -89,7 +110,7 @@ async def end_cover(store, write, *, run_id: str, worker_actor_id: str, actor) -
     cover = await active_cover(store, run_id, worker_actor_id)
     if cover is None:
         raise ShiftCoverError("that shift is not being covered")
-    cover["ended_at_sim_minute"] = run["sim_minute"]
+    cover["ended_at_sim_minute"] = await _work_minute(run)
     receipt = await _receipt(write, action_type="sim_shift_cover_ended", cover=cover, actor=actor,
                              run=run, result=f"{actor.name} handed {cover['worker_name']}'s shift back.")
     await _covers(store).update_one(

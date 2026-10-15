@@ -52,6 +52,7 @@ class CoverStore:
         self.sim_runs = Rows([{"run_id": "run-1", "simulation_scope": "living_community",
                                "state": state, "sim_minute": MINUTE}])
         self.sim_shift_covers = Rows()
+        self.staff_tasks = Rows()
 
 
 def _writer(log):
@@ -113,4 +114,42 @@ def test_covered_worker_leaves_the_ticket_in_the_queue_then_completion_follows()
         done = await services.execute_event(event=complete, context=context(cursor=4))
         assert done["status"] == "cancelled" and done["next_state"] == "left_in_queue"
         assert calls["complete"] == [] and store.staff_tasks.rows[0]["status"] == "pending"
+    asyncio.run(case())
+
+
+def test_cover_uses_the_moment_work_has_reached_not_a_run_clock_far_ahead(monkeypatch):
+    """CO-008: the executor lagged (clock day 19 at night, work done to day 13
+    mid-morning); a worker on site at the worked moment can be covered."""
+    import simulation.community_dashboard_view as view
+    monkeypatch.setattr(view, "executed_position", lambda run: MINUTE)
+
+    async def case():
+        store, log = CoverStore(), []
+        store.sim_runs.rows[0]["sim_minute"] = MINUTE + 6 * 1440 + 18 * 60      # 02:00 six days later
+        assert not any(r["actor_id"] == AIDE["actor_id"]
+                       for r in staffing_at(store.sim_runs.rows[0]["sim_minute"])["workers"])
+        row = await cover.start_cover(store, _writer(log), run_id="run-1",
+                                      worker_actor_id=AIDE["actor_id"], actor=MICHAEL)
+        assert row["started_at_sim_minute"] == MINUTE
+        ended = await cover.end_cover(store, _writer(log), run_id="run-1",
+                                      worker_actor_id=AIDE["actor_id"], actor=MICHAEL)
+        assert ended["ended_at_sim_minute"] == MINUTE
+    asyncio.run(case())
+
+
+def test_a_worker_mid_ticket_cannot_be_covered(monkeypatch):
+    """CO-008: covering mid-ticket orphaned the ticket and stopped the run."""
+    import simulation.community_dashboard_view as view
+    monkeypatch.setattr(view, "executed_position", lambda run: MINUTE)
+
+    async def case():
+        store, log = CoverStore(), []
+        store.staff_tasks.rows.append({"simulation_run_id": "run-1", "assigned_to": AIDE["actor_id"],
+                                       "status": "in_progress", "task_id": "t-busy", "title": "Shower assistance"})
+        with pytest.raises(cover.ShiftCoverError, match="in the middle of a ticket"):
+            await cover.start_cover(store, _writer(log), run_id="run-1", worker_actor_id=AIDE["actor_id"], actor=MICHAEL)
+        assert log == [] and store.sim_shift_covers.rows == []
+        store.staff_tasks.rows[0]["status"] = "completed"
+        row = await cover.start_cover(store, _writer(log), run_id="run-1", worker_actor_id=AIDE["actor_id"], actor=MICHAEL)
+        assert row["covered_by_name"] == "Michael"
     asyncio.run(case())

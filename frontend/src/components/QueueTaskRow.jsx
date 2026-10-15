@@ -52,11 +52,13 @@ export default function QueueTaskRow({ t, ride, ctx }) {
   const tool = "h-8 px-2.5 text-[13px]";
   return (
     <div className="bg-white" data-testid={`wo-${t.task_id}`}>
+      {/* Sizes by its own width (flex-wrap), so it reads well in a narrow
+          column (Work as) as well as full width. */}
       <button type="button" onClick={() => setExpanded((v) => !v)} aria-expanded={expanded}
               data-testid={`wo-row-${t.task_id}`}
-              className="grid w-full grid-cols-[16px_1fr] items-center gap-x-2 px-3 py-2 text-left hover:bg-caos-bone md:grid-cols-[16px_minmax(0,1fr)_80px_105px_170px_190px_80px]">
-        <ChevronRight className={`h-4 w-4 text-caos-mute transition-transform ${expanded ? "rotate-90" : ""}`} />
-        <span className="min-w-0">
+              className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-left hover:bg-caos-bone">
+        <ChevronRight className={`h-4 w-4 shrink-0 text-caos-mute transition-transform ${expanded ? "rotate-90" : ""}`} />
+        <span className="min-w-[12rem] flex-1">
           <span className="block truncate text-[14px] font-semibold text-caos-ink">{t.title}</span>
           <span className="block truncate text-[12px] text-caos-mute">
             {[t.resident_name, t.room ? `Room ${t.room}` : null].filter(Boolean).join(" · ") || "No resident"}
@@ -64,11 +66,11 @@ export default function QueueTaskRow({ t, ride, ctx }) {
             {isOlder(t) && <> · <span title={t.currency?.reason || ""} data-testid={`wo-older-${t.task_id}`}>needs review</span></>}
           </span>
         </span>
-        <span className="col-start-2 flex flex-wrap items-center gap-1.5 md:contents">
-          <span><Pill tone={PRIO[t.priority] || PRIO.normal}>{t.priority}</Pill></span>
-          <span><Pill tone={STATUS[t.status] || STATUS.pending}>{t.status.replace("_", " ")}</Pill></span>
-          <span className="truncate text-[13px] text-caos-ink">{t.assigned_name || <span className="text-caos-mute">Unassigned</span>}</span>
-          <span className="truncate text-[12px] text-caos-mute">{requested}</span>
+        <span className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-7 sm:pl-0">
+          <Pill tone={PRIO[t.priority] || PRIO.normal}>{t.priority}</Pill>
+          <Pill tone={STATUS[t.status] || STATUS.pending}>{t.status.replace("_", " ")}</Pill>
+          <span className="max-w-[11rem] truncate text-[13px] text-caos-ink">{t.assigned_name || <span className="text-caos-mute">Unassigned</span>}</span>
+          <span className="text-[12px] text-caos-mute">{requested}</span>
           <span className={`text-[12px] ${overdue ? "font-semibold text-caos-terracotta" : "text-caos-mute"}`}>
             {ageLabel(t.created_at)}{overdue ? " · overdue" : ""}
           </span>
