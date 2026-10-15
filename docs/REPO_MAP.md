@@ -932,6 +932,7 @@ listener verifier experiment: `docs/experiments/`.
   apartment meals, synthetic mobility, escorts only for residents who need them, one-to-one visits; work minutes and
   windows read it). Report: `docs/reports/2026-10-15-co008-service-model.md`. Test: `backend/tests/test_sim_community_service_model.py`.
 - Room delivery (CO-008, plan v11): 30 of 75 residents get meals delivered (`community_service_model.ROOM_DELIVERY_STEPS`, 13 min per tray); kitchen role `meal_delivery_aide` (`community_staffing.py`, `community_role_eligibility._KITCHEN_ROUTINES`). Report: `docs/reports/2026-10-15-co008-room-delivery.md`.
+- Worker detail and role corrections (#153, plan v12): `backend/simulation/community_worker_detail.py` (state, today, week, role facts) behind `GET /api/simulator/community/dashboard/workers/{id}`; weekly/fixed-person shift rows in `community_staffing.py`, weekday-aware hours in `community_coverage.py` (`OPERATING_DAYS`). UI: Staff On Duty rows in `frontend/src/components/workspace/RecordsDialog.jsx` open `components/dashboard/DashboardWorker.jsx` + `WorkerFacts.jsx`. Tests: `backend/tests/test_sim_community_staff_detail.py`, `frontend/src/components/workspace/__tests__/staffOnDutyWorker.test.jsx`.
 - Real staff in the simulated community: `backend/simulation/community_shift_cover.py` +
   `backend/routes/community_shift_cover.py` (owner/admin covers an on-site simulated worker's shift; the worker's
   planned phases yield with receipts and their tickets wait for the person, worked via Work as <department>) and

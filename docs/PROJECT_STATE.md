@@ -945,3 +945,29 @@ Med techs now work 12-hour shifts 07:00–19:00 and 19:00–07:00 (one always on
 - **Verified:** simulator suites 603 passed / 0 failed. Full backend gate on `58e719b`: 1,314 passed / 0 failed / 13 skipped (exit 0). Real-Mongo scratch acceptance passed on `caoscare_sim_acceptance_co008v11a20261015` (75 residents, run `simrun:living:ae98ba005787554575d9`, reset kept 91 receipts). No frontend change.
 - **Not done:** runtime cutover. The #168 owner direction (comment 6200729443) says not to stop the v10 run or switch until the owner authorizes it. The v10 run `simrun:living:bcc6e54a0a4e54e7aeb8` is still RUNNING on `8a7a845`.
 - **Next safe step:** owner decision on the cutover, then stop v10 (kept), load `co008/room-delivery` and start a v11 run at 1x.
+
+## Thursday, October 15, 2026 — Staff On Duty → worker detail + owner role corrections (plan v12), first #153 slice
+
+- **Agent/tool:** Claude Code (Opus 5.5), CAOSCare session, no subagents. **Branch:** `co008/workspace-staff-drilldown` from exact `eaa1c23` (`co008/room-delivery`); worktree `/home/caoscare-1/CAOSCARE-CO008-STAFF`. Product commit `6c55337`.
+- **Owner direction (2026-10-15, #166/#153):** every Staff On Duty name opens a truthful worker detail. Role corrections: one activities coordinator and no assistant; one normal maintenance worker; two housekeepers, A Mon–Fri and B Wed–Sun; business office manager, administrator and executive director; nursing unchanged. Do not load into :8096/:3006 or create a run until this slice is advanced to runtime acceptance.
+- **What changed:**
+  - **Worker detail** (`simulation/community_worker_detail.py`, behind the existing admin-only `GET /api/simulator/community/dashboard/workers/{id}`):
+    - simulated marker, role, shift and 7-day rota;
+    - state: working / free / on call / called in / off duty / covered;
+    - today's assigned and completed tickets;
+    - role facts: meal service, rides, housekeeping zone, residents cared for, maintenance queue;
+    - breaks and location are reported as unknown, never guessed.
+  - **Staff On Duty records** (`routes/ops_widgets.py`, `RecordsDialog.jsx`) are buttons that open the worker view; `WorkerFacts.jsx` renders the new facts.
+  - **Staffing:**
+    - shift rows can name weekdays and a fixed person; department hours are weekday-aware (`community_coverage.OPERATING_DAYS`, Day 1 = Monday);
+    - on-call maintenance alternates nights and weekends between 2 on-call technicians;
+    - family calls go to the Front Desk when Administration is closed;
+    - no coordinator-run activities on weekends.
+  - Plan `living-community-timeline-v12-staff-roles` (community_75: 328,751 events).
+- **Visible consequences (not hidden, not fixed by adding staff):**
+  - Housekeeping can't keep up with a daily full clean of all 75 apartments: median wait 8.9 days, 1,584 still waiting at day 90. This is the known daily-clean artifact plus 1–2 housekeepers.
+  - Maintenance: median wait 2.8 days, 145 still waiting at day 90.
+  - 247 activity escorts are not served (one coordinator).
+- **Verified:** simulator suites 614 passed / 0 failed (new `test_sim_community_staff_detail.py`, 9 tests). Frontend 120 suites / 777 tests (new `staffOnDutyWorker.test.jsx`). Full backend gate on `6c55337`: 1,325 passed / 0 failed / 13 skipped.
+- **Not done:** browser acceptance (needs the branch loaded and a run, both held by the owner's runtime rule); real-Mongo scratch acceptance of v12.
+- **Next safe step:** owner review of the role schedules and the housekeeping/maintenance shortage; on advance, load into the test stack, start a v12 run, and click Dining Server / Driver / Housekeeper / Care Aide in Chrome.
