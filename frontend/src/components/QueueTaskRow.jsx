@@ -132,6 +132,9 @@ export default function QueueTaskRow({ t, ride, ctx }) {
                 <SelectTrigger className="h-8 w-48 text-xs" data-testid={`wo-assign-${t.task_id}`}><SelectValue placeholder="Assign to…" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none">Unassigned</SelectItem>
+                  {t.assigned_to && !roster.some((u) => u.user_id === t.assigned_to) && (
+                    <SelectItem value={t.assigned_to}>{t.assigned_name || "Current holder"}</SelectItem>
+                  )}
                   {roster.map((u) => <SelectItem key={u.user_id} value={u.user_id}>{u.name}</SelectItem>)}
                 </SelectContent>
               </Select>
