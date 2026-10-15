@@ -7,17 +7,44 @@ import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Textarea } from "./ui/textarea";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
+import RequestTimeline from "./RequestTimeline";
+import TaskFacts from "./TaskFacts";
+import { nextStepText } from "../lib/taskFacts";
 
 const clock = (iso) => (iso ? new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : null);
 const label = (s) => (s || "").replace(/_/g, " ");
 const PRIO = { urgent: "text-[#B42318]", high: "text-[#C2410C]", normal: "text-caos-mute", low: "text-caos-mute" };
 
-// What the worker may do next, matching the server's work rules (#168):
-// a waiting request is started; only a request you are working is completed.
+// Where the request stands, then what the worker may do next (the shared
+// work-rule text, lib/taskFacts.js).
 function nextStep(t) {
-  if (t.status === "in_progress") return `In progress since ${clock(t.started_at) || "—"} · complete it with what was done`;
-  if (t.acknowledged_at) return `Acknowledged ${clock(t.acknowledged_at)} · start it when you begin the work`;
-  return "Waiting · start it when you begin the work";
+  const now = t.status === "in_progress" ? `In progress since ${clock(t.started_at) || "unknown"}`
+    : t.acknowledged_at ? `Acknowledged ${clock(t.acknowledged_at)}` : "Waiting";
+  return `${now} · next: ${nextStepText(t)}`;
+}
+
+// Opened on demand: why the request exists, its simulated clock (simulator
+// tickets), the worker, notes and every receipt - GET /tasks/{id}/detail.
+function MyTaskDetails({ t }) {
+  const [detail, setDetail] = useState(null);
+  const load = (e) => {
+    if (!e.currentTarget.open) return;
+    api.get(`/tasks/${t.task_id}/detail`).then(({ data }) => setDetail(data)).catch(() => setDetail({ failed: true }));
+  };
+  return (
+    <details className="mt-1 text-sm" onToggle={load} data-testid={`my-task-details-${t.task_id}`}>
+      <summary className="cursor-pointer text-xs font-semibold text-caos-mute">Details, notes and receipts</summary>
+      <div className="mt-1 space-y-1">
+        {t.description && t.description !== t.title && <div className="break-words">{t.description}</div>}
+        <div><span className="text-caos-mute">Worker: </span>{t.assigned_name || "unassigned"}</div>
+        <TaskFacts t={t} detail={detail} clock={clock} showNext={false} testid={`my-task-facts-${t.task_id}`} />
+        {t.notes && <div className="break-words"><span className="text-caos-mute">Notes: </span>{t.notes}</div>}
+        {!detail && <div className="text-caos-mute">Loading…</div>}
+        {detail?.failed && <div className="text-caos-terracotta">Could not load the details.</div>}
+        {detail?.task && <RequestTimeline task={detail.task} receipts={detail.receipts} />}
+      </div>
+    </details>
+  );
 }
 
 // "My tasks today" for a signed-in worker: readable request, resident and
@@ -69,7 +96,7 @@ export default function MyTasksCard() {
           <div key={t.task_id} data-testid={`my-task-${t.task_id}`}
                className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-caos-line p-3 hover:bg-caos-ambient/40">
             <div className="min-w-[14rem] flex-1">
-              <div className="font-semibold leading-snug text-caos-forest">{t.title}</div>
+              <div className="break-words font-semibold leading-snug text-caos-forest">{t.title}</div>
               {t.resident_words && <div className="mt-0.5 text-sm text-caos-ink">Resident said: “{t.resident_words}”</div>}
               <div className="mt-1 text-sm text-caos-mute">
                 {[t.resident_name, t.room ? `Room ${t.room}` : null, label(t.category)].filter(Boolean).join(" · ")}
@@ -79,6 +106,7 @@ export default function MyTasksCard() {
               <div className="mt-0.5 text-xs text-caos-mute">
                 Asked {clock(t.created_at)} (receipt time) · {nextStep(t)}
               </div>
+              <MyTaskDetails t={t} />
             </div>
             <div className="flex shrink-0 gap-2">
               {t.status === "pending" && (
