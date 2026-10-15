@@ -2,6 +2,7 @@
 
 import pytest
 
+from simulation.community_service_model import meal_of
 from simulation.community_routines import (
     ADAPTER_CAPABILITIES,
     BLOCKED,
@@ -75,14 +76,16 @@ def test_plan_covers_departments_and_resident_routines():
     assert {
         "shower_assistance", "morning_medication_reminder", "evening_medication_reminder",
         "breakfast", "lunch", "dinner", "toileting_transfer_support",
-        "morning_room_check", "housekeeping_room_service", "activity_offer_and_escort",
+        "morning_room_check", "housekeeping_room_service", "one_to_one_activity_visit",
         "appointment_coordination", "transport_coordination", "preventive_maintenance_check",
         "family_call_coordination",
         "front_desk_message_follow_up",
     } <= routines
     for resident_key in BURN_IN_RESIDENT_KEYS:
         resident_routines = {event.routine for event in events if event.resident_key == resident_key}
-        assert {"shower_assistance", "breakfast", "lunch", "dinner", "night_room_check"} <= resident_routines
+        assert {"shower_assistance", "night_room_check"} <= resident_routines
+        # every resident is served each meal, in the dining room or the apartment
+        assert {meal_of(routine) for routine in resident_routines} >= {"breakfast", "lunch", "dinner"}
 
 
 def test_all_planned_events_use_safe_task_adapter_and_name_blocked_edges():
@@ -128,7 +131,7 @@ def test_clinical_and_operational_language_never_claims_unproven_outcomes():
 def test_resident_choice_and_input_validation_are_explicit():
     events = plan_first_24_hours()
     choice_events = [event for event in events if event.routine in {
-        "shower_assistance", "activity_offer_and_escort", "housekeeping_room_service",
+        "shower_assistance", "one_to_one_activity_visit", "housekeeping_room_service",
     }]
     assert choice_events
     assert all("resident_refused" in event.possible_outcomes for event in choice_events)

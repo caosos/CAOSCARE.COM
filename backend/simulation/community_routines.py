@@ -14,6 +14,7 @@ from dataclasses import dataclass, field, replace
 from typing import Optional
 
 from simulation.community_family_call_routing import family_call_department
+from simulation import community_service_model as svc
 
 
 BURN_IN_RESIDENT_KEYS = tuple(f"resident-{index:03d}" for index in range(1, 11))
@@ -135,28 +136,12 @@ _DAILY_ROUTINES = (
         "Offer the scheduled morning medication reminder.", "high", blocked_adapter="medication_kiosk",
         truth_boundary="Records reminder delivery only; never medication administration, ingestion, or adherence.",
     ),
-    _RoutineSpec(
-        "breakfast", "kitchen", 490,
-        "Offer scheduled breakfast service.",
-        truth_boundary="Records meal service only; never claims that the resident ate or how much was consumed.",
-    ),
     _RoutineSpec("shower_assistance", "nursing", 540,
                  "Offer scheduled shower assistance; the resident may decline or reschedule.", "high", stagger=5),
     _RoutineSpec("housekeeping_room_service", "housekeeping", 615,
                  "Offer scheduled room cleaning and linen service.", stagger=4),
-    _RoutineSpec(
-        "lunch", "kitchen", 720, "Offer scheduled lunch service.",
-        truth_boundary="Records meal service only; never claims that the resident ate or how much was consumed.",
-    ),
     _RoutineSpec("afternoon_toileting_transfer_support", "nursing", 780,
                  "Offer scheduled toileting or transfer support.", "high"),
-    _RoutineSpec("activity_offer_and_escort", "activities", 840,
-                 "Offer the planned activity and escort support; attendance remains unconfirmed until completed.",
-                 blocked_adapter="activity_schedule_publish", stagger=3),
-    _RoutineSpec(
-        "dinner", "kitchen", 1020, "Offer scheduled dinner service.",
-        truth_boundary="Records meal service only; never claims that the resident ate or how much was consumed.",
-    ),
     _RoutineSpec(
         "evening_medication_reminder", "nursing", 1185,
         "Offer the scheduled evening medication reminder.", "high", blocked_adapter="medication_kiosk",
@@ -210,6 +195,7 @@ def plan_first_24_hours(
         if not resident_key:
             raise ValueError("resident keys must be non-empty")
         events.extend(_event(spec, resident_key, resident_index, day_index) for spec in _DAILY_ROUTINES)
+        events.extend(_service_events(resident_key, resident_index, day_index))
 
         # Optional routines repeat every ten residents, so the 75-resident
         # community scales them while the ten-resident burn-in plan is unchanged.
@@ -259,6 +245,43 @@ def plan_first_24_hours(
     return tuple(sorted(events, key=lambda item: (
         item.day_index, item.minute, item.resident_key, item.routine, item.event_id,
     )))
+
+
+_MEAL_TRUTH = "Records meal service only; never claims that the resident ate or how much was consumed."
+
+
+def _service_events(resident_key: str, resident_index: int, day_index: int) -> list:
+    """Meals and activity work under the service model (community_service_model)."""
+    out = []
+    for meal, seating in svc.MEAL_SEATING.items():
+        routine = svc.meal_routine(meal, resident_index)
+        where = "in the apartment" if routine != meal else "in the dining room"
+        out.append(_event(_RoutineSpec(
+            routine, "kitchen", seating, f"Serve the resident's {meal} {where}.",
+            truth_boundary=_MEAL_TRUTH, stagger=1,
+        ), resident_key, resident_index, day_index))
+    if not svc.attends_activity(resident_index, day_index):
+        return out
+    if svc.activity_style_for(resident_index) == "one_to_one_offer":
+        order = sum(1 for i in range(1, resident_index)
+                    if svc.activity_style_for(i) == "one_to_one_offer" and svc.attends_activity(i, day_index))
+        minute = svc.ONE_TO_ONE_FIRST + order * svc.ONE_TO_ONE_SPACING
+        out.append(_event(_RoutineSpec(
+            svc.ACTIVITY_VISIT, "activities", minute,
+            "One-to-one activity visit in the resident's apartment; attendance is recorded only when completed.",
+            blocked_adapter="activity_schedule_publish", stagger=0,
+        ), resident_key, resident_index, day_index))
+    elif svc.needs_escort(resident_index):
+        order = sum(1 for i in range(1, resident_index)
+                    if svc.needs_escort(i) and svc.activity_style_for(i) != "one_to_one_offer"
+                    and svc.attends_activity(i, day_index))
+        minute = svc.ACTIVITY_SESSION_START - svc.ESCORT_LEAD_MINUTES + order
+        out.append(_event(_RoutineSpec(
+            svc.ACTIVITY_ESCORT, "activities", minute,
+            "Escort the resident to the group activity; residents who move independently attend on their own.",
+            blocked_adapter="activity_schedule_publish", stagger=0,
+        ), resident_key, resident_index, day_index))
+    return out
 
 
 def blocked_adapters() -> tuple[str, ...]:

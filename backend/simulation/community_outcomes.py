@@ -12,6 +12,7 @@ from typing import Iterable, Optional
 
 from simulation.community_dispatch import QUEUED_UNASSIGNED, plan_routine_dispatch
 from simulation.community_routines import RoutineEvent, plan_first_24_hours
+from simulation.community_service_model import is_meal
 
 
 PLANNED_ONLY = "simulated_plan_only"
@@ -86,7 +87,7 @@ def _reschedule_minute(event: RoutineEvent, score: int) -> int:
 
 def _summary(event: RoutineEvent, disposition: str) -> tuple[str, str]:
     medication = "medication_reminder" in event.routine
-    meal = event.routine in ("breakfast", "lunch", "dinner")
+    meal = is_meal(event.routine)
 
     if medication:
         action = {

@@ -927,3 +927,11 @@ Med techs now work 12-hour shifts 07:00–19:00 and 19:00–07:00 (one always on
 - **Runtime:** test stack backend :8096 `aa12f85` (transient user unit `caoscare-dashboard-backend`, DB `caoscare_sim_acceptance_live20261014b`, 1x run `simrun:living:f24c347040991ddde766` resumed by startup recovery), frontend :3006 `main.3d513551.js`. Room 214 and the real `caoscare` DB untouched by CO-008 work.
 - **Blocked on Michael:** v9 cutover (stop the v8 run, deploy `co008/v9-candidate`, start a v9 run at 1x); duration/staffing choices (38% dinners and 45% activity offers not served under v9 with current staffing).
 - **Next safe step:** on Michael's go, cut over to v9 and verify a dinner expiry and an on-call call-in in Chrome.
+
+## Thursday, October 15, 2026 — 02:45 CDT — CO-008 service model (plan v10), owner decision 2
+
+- **Agent/tool:** Claude Code (Opus 5.5), CAOSCare session, no subagents (owner: none after 2 AM). **Branch:** `co008/service-model` from `co008/v9-candidate`.
+- **Owner direction:** fix the dining and activities service model before adding staff; no shortened durations; realistic evening staffing; keep shortages visible.
+- **What changed:** new `simulation/community_service_model.py` (one source of truth). Kitchen splits into cooks, who hold prep, plating and dish work, and dining servers, who serve in parallel; seatings span one hour; about 1 in 8 residents eats in the apartment (8 min). Activities: synthetic mobility means only escort-needing attendees (8 min) and one-to-one visits (20 min) take staff time, and independent residents attend on their own. Staffing is 57 workers / 31 on-site shifts a day (cook 3, dining server 6, activities assistant 2 added). Plan `living-community-timeline-v10-service-model`.
+- **Verified:** simulator suites 602 passed; frontend 775. Dinners not served 38% → 0.1%; activity tickets not served 45% → 0. The remaining waits are classified in `docs/reports/2026-10-15-co008-service-model.md` (dinner/breakfast median 29 min = genuine shortage with 2 servers; housekeeping/front-desk waits = modelling artifacts of the daily volume).
+- **Next safe step:** real-Mongo acceptance on a fresh scratch DB, then cut over the test stack from the v9 run (kept) to a v10 run at 1x and verify in Chrome.

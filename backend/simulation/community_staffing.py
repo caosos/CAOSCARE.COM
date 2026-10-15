@@ -37,11 +37,13 @@ _HEADCOUNT = (
     ("nursing", "registered_nurse", 4),
     ("nursing", "medication_reminder_support", 3),
     ("nursing", "care_aide", 15),
-    ("kitchen", "dining_team_member", 4),
+    ("kitchen", "cook", 3),
+    ("kitchen", "dining_server", 6),
     ("housekeeping", "housekeeper", 4),
     ("maintenance", "maintenance_technician", 4),
     ("transportation", "driver", 4),
     ("activities", "activities_coordinator", 4),
+    ("activities", "activities_assistant", 2),
     ("front_desk", "front_desk_coordinator", 4),
     ("administration", "administration_leadership", 4),
 )
@@ -68,7 +70,7 @@ def _worker(department: str, role: str, number: int) -> dict:
 
 
 def build_roster() -> tuple[dict, ...]:
-    """Return all 50 stable synthetic worker profiles in canonical order."""
+    """Return all stable synthetic worker profiles in canonical order."""
     return tuple(
         _worker(department, role, number)
         for department, role, count in _HEADCOUNT
@@ -98,8 +100,12 @@ _SHIFT_LOAD = (
     ("nursing", "medication_reminder_support", "med_tech_day", "07:00", "19:00", 1, ON_SITE),
     ("nursing", "medication_reminder_support", "med_tech_night", "19:00", "07:00", 1, ON_SITE),
     ("nursing", "registered_nurse", "night_on_call", "22:00", "06:00", 1, ON_CALL),
-    ("kitchen", "dining_team_member", "early", "05:30", "13:30", 1, ON_SITE),
-    ("kitchen", "dining_team_member", "late", "12:00", "20:00", 1, ON_SITE),
+    # Service model (CO-008, owner 2026-10-15): the cook holds prep, plating and dish work;
+    # dining servers serve residents in parallel at each seating.
+    ("kitchen", "cook", "early", "05:30", "13:30", 1, ON_SITE),
+    ("kitchen", "cook", "late", "12:00", "20:00", 1, ON_SITE),
+    ("kitchen", "dining_server", "early", "06:30", "14:30", 2, ON_SITE),
+    ("kitchen", "dining_server", "late", "12:00", "20:00", 2, ON_SITE),
     ("housekeeping", "housekeeper", "day", "08:00", "16:30", 2, ON_SITE),
     ("maintenance", "maintenance_technician", "day", "07:00", "15:30", 1, ON_SITE),
     ("maintenance", "maintenance_technician", "after_hours_on_call", "15:30", "07:00", 1, ON_CALL),
@@ -107,6 +113,7 @@ _SHIFT_LOAD = (
     ("transportation", "driver", "late", "09:30", "17:30", 1, ON_SITE),
     ("activities", "activities_coordinator", "day", "09:00", "17:00", 1, ON_SITE),
     ("activities", "activities_coordinator", "evening", "12:00", "20:00", 1, ON_SITE),
+    ("activities", "activities_assistant", "afternoon", "11:00", "19:00", 1, ON_SITE),
     ("front_desk", "front_desk_coordinator", "day", "07:00", "15:00", 1, ON_SITE),
     ("front_desk", "front_desk_coordinator", "evening", "15:00", "23:00", 1, ON_SITE),
     ("administration", "administration_leadership", "business", "08:00", "17:00", 2, ON_SITE),

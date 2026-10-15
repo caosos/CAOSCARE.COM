@@ -42,6 +42,18 @@ _NURSING_ROUTINES = {
 }
 
 
+# Departments with several roles: the roles that take that department's routines
+# unless a routine is listed above (service model, CO-008 2026-10-15). Cooks hold
+# prep, plating and dish work on shift; they do not take resident service tickets.
+_DEFAULT_ROLES = {
+    "kitchen": ("dining_server",),
+    "activities": ("activities_assistant", "activities_coordinator"),
+}
+_ACTIVITY_ROUTINES = {
+    "one_to_one_activity_visit": ("activities_coordinator", "activities_assistant"),
+}
+
+
 def _department_roles() -> dict[str, tuple[str, ...]]:
     roles: dict[str, list[str]] = {}
     for worker in WORKERS:
@@ -53,11 +65,15 @@ def _department_roles() -> dict[str, tuple[str, ...]]:
 
 DEPARTMENT_ROLES = _department_roles()
 ROUTINE_ROLES = {("nursing", routine): roles for routine, roles in _NURSING_ROUTINES.items()}
+ROUTINE_ROLES.update({("activities", routine): roles for routine, roles in _ACTIVITY_ROUTINES.items()})
 
 for (_department, _routine), _roles in ROUTINE_ROLES.items():
     _unknown = set(_roles) - set(DEPARTMENT_ROLES[_department])
     if _unknown:
         raise ValueError(f"{_routine}: roles not on the {_department} roster: {sorted(_unknown)}")
+for _department, _roles in _DEFAULT_ROLES.items():
+    if set(_roles) - set(DEPARTMENT_ROLES[_department]):
+        raise ValueError(f"{_department}: default roles not on the roster")
 
 
 class RoleEligibilityError(ValueError):
@@ -71,6 +87,8 @@ def eligible_roles(department: str, routine: str) -> tuple[str, ...]:
     roles = DEPARTMENT_ROLES.get(department)
     if roles is None:
         raise RoleEligibilityError(f"unknown department: {department}")
+    if department in _DEFAULT_ROLES:
+        return _DEFAULT_ROLES[department]
     if len(roles) != 1:
         raise RoleEligibilityError(f"{department} routine {routine!r} has no declared eligible roles")
     return roles

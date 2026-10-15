@@ -21,7 +21,10 @@ from simulation.community_staffing import _minutes
 # plan-realism report measures the effect of adding them).
 SERVICE_WINDOW_ENDS = {
     "dinner": "19:30",
-    "activity_offer_and_escort": "18:00",
+    "dinner_room_service": "19:30",
+    # An escort after the group session has started is no longer an escort to it.
+    "activity_escort": "14:30",
+    "one_to_one_activity_visit": "18:30",
 }
 NOT_SERVED = "not_served_service_window_closed"
 

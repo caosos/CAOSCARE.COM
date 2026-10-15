@@ -7,6 +7,8 @@ actual claim time comes from the capacity schedule
 the ticket wait longer, truthfully.
 """
 
+from simulation.community_service_model import WORK_MINUTES as SERVICE_WORK_MINUTES
+
 OPEN = "open"
 CLAIM = "claim"
 COMPLETE = "complete"
@@ -34,9 +36,8 @@ ROUTINE_WORK_MINUTES = {
     "afternoon_toileting_transfer_support": 8,
     "evening_toileting_transfer_support": 8,
     "shower_assistance": 20,
-    "breakfast": 3,
-    "lunch": 3,
-    "dinner": 3,
+    # Meals and activities: community_service_model (one source of truth).
+    **SERVICE_WORK_MINUTES,
     # Requests raised by residents and staff (community_player_requests).
     "resident_call_help_up": 8, "resident_call_bathroom": 8, "resident_call_check_on_me": 10,
     "resident_call_dressing": 15, "resident_call_reposition": 8, "resident_call_towels": 5,

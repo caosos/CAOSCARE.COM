@@ -4,6 +4,7 @@ from routes.actor_context import ActorContext
 from simulation.community_blueprint import COMMUNITY_ID, SIMULATION_SCOPE
 from simulation.community_executor import ExecutionContext, ExecutorEvent
 from simulation.community_player_requests import PRIORITIES, SUMMARIES, WORDS
+from simulation.community_service_model import is_meal
 from simulation.community_service_windows import window_label
 from simulation.community_ticket_text import routine_summary
 from simulation.community_ticket_plan import CLAIM, COMPLETE, EXPIRE, OPEN
@@ -118,16 +119,18 @@ def completion_note(event: ExecutorEvent) -> str:
     if "medication_reminder" in action:
         return ("Simulated medication reminder delivered; no claim of administration, "
                 "ingestion, dose completion, or adherence.")
-    if action in {"breakfast", "lunch", "dinner"}:
+    if is_meal(action):
         return "Simulated meal service offered; no claim that the resident ate or how much."
     if action == "transport_coordination":
         return ("Simulated transportation coordination completed; no driver, vehicle, "
                 "pickup, or booking claimed.")
     if action == "family_call_coordination":
         return "Simulated family-call coordination completed; no call was placed or connected."
-    if action == "activity_offer_and_escort":
-        return ("Simulated activity offer and escort task completed; no schedule was "
+    if action == "activity_escort":
+        return ("Simulated escort to the group activity completed; no schedule was "
                 "published and attendance is not inferred.")
+    if action == "one_to_one_activity_visit":
+        return "Simulated one-to-one activity visit completed; no schedule was published."
     return f"Simulated {action.replace('_', ' ')} task completed through the canonical lifecycle."
 
 

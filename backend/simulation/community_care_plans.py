@@ -9,6 +9,7 @@ use canonical services with receipts before any recipe can become operational.
 from dataclasses import dataclass
 from typing import Iterable
 
+from simulation import community_service_model as svc
 from simulation.community_blueprint import (
     COMMUNITY_ID,
     RESIDENTS,
@@ -72,6 +73,7 @@ class ResidentPreferences:
     communication_style: str
     meal_location: str
     activity_style: str
+    mobility: str             # synthetic; decides only whether moving to an activity takes staff time
     shower_window_minutes: tuple[int, int]
     shower_days: tuple[int, ...]
     quiet_hours_minutes: tuple[int, int]
@@ -103,8 +105,6 @@ _COMMUNICATION_STYLES = (
     "supportive_guided_prompts",
     "repeat_then_confirm",
 )
-_MEAL_LOCATIONS = ("dining_room", "room_service_offer")
-_ACTIVITY_STYLES = ("group_offer", "small_group_offer", "one_to_one_offer")
 _ASSISTANCE_INTERACTIONS = (
     "ask_before_approaching",
     "announce_then_wait_for_response",
@@ -172,8 +172,9 @@ def _build_plan(resident: ResidentRecipe) -> ResidentCarePlanRecipe:
     )
     preferences = ResidentPreferences(
         communication_style=_COMMUNICATION_STYLES[variant % 3],
-        meal_location=_MEAL_LOCATIONS[variant % 2],
-        activity_style=_ACTIVITY_STYLES[(variant // 2) % 3],
+        meal_location=svc.meal_location_for(ordinal),
+        activity_style=svc.activity_style_for(ordinal),
+        mobility=svc.mobility_for(ordinal),
         shower_window_minutes=(shower_start, shower_start + 120),
         shower_days=_SHOWER_DAY_PATTERNS[variant % 4],
         quiet_hours_minutes=(1320 + (variant % 3) * 30, 390 + (variant % 3) * 30),

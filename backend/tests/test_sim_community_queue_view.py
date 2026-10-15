@@ -44,7 +44,7 @@ class Store:
         self.sim_shift_covers = Covers(covers)
 
 
-MINUTE = 8 * 60 + 10 + 90           # breakfast for resident-001 was requested at 08:10
+MINUTE = 7 * 60 + 30 + 90           # breakfast seating for resident-001 opens at 07:30
 ON_SITE = staffing_at(MINUTE)["workers"]
 AIDE = next(row for row in ON_SITE if row["job_role"] == "care_aide")
 COOK = next(row for row in ON_SITE if row["department"] == "kitchen")
@@ -62,14 +62,14 @@ def _snapshot(rows, minute, fail=False, next_event=None, covers=()):
 
 
 def test_queued_tickets_show_simulated_wait_and_worker_availability():
-    breakfast = "day-000:resident-001:breakfast"   # requested 08:10
+    breakfast = "day-000:resident-001:breakfast"   # requested 07:30
     rows = [_task("t-wait", "pending", breakfast, "kitchen"),
             _task("t-work", "in_progress", "day-000:resident-001:morning_room_check",
                   "nursing", AIDE["actor_id"]),
             _task("t-other-run", "pending", breakfast, "kitchen", run="run-0")]
     out = _snapshot(rows, MINUTE)
     (queued,) = out["queued"]
-    assert queued["task_id"] == "t-wait" and queued["requested_at_minute"] == 490
+    assert queued["task_id"] == "t-wait" and queued["requested_at_minute"] == 450
     assert queued["waiting_minutes"] == 90 and queued["overdue"] is True
     assert out["departments"]["kitchen"]["queued"] == 1
     assert out["departments"]["kitchen"]["longest_wait_minutes"] == 90

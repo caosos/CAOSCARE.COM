@@ -8,25 +8,25 @@ def test_overview_declares_scale_without_claiming_execution():
     assert "not yet" in view["truth_statement"]
     assert view["residents"] == {"count": 10, "cohort": "burn_in_10", "burn_in_target": 10, "target": 75}
     assert view["apartments"] == {"total": 80, "occupied": 70, "occupancy_target": 70}
-    assert view["workers"] == {"count": 50, "simulated": True}
+    assert view["workers"] == {"count": 57, "simulated": True}
     assert view["worker_attendance"] == {
-        "scheduled": 26,
+        "scheduled": 31,
         "on_call": 2,
-        "off_duty": 22,
-        "planned_login": 26,
-        "assignment_acceptance": 26,
+        "off_duty": 24,
+        "planned_login": 31,
+        "assignment_acceptance": 31,
         "canonical_shift_events_reported_under": "shift_events",
         "executed": 0,
         "truth": "Planned only; not authenticated, executed, or receipted.",
     }
     assert view["shift_events"] == {
-        "clock_in": 26,
-        "clock_out": 26,
+        "clock_in": 31,
+        "clock_out": 31,
         "department_status_changed": 14,
-        "handoff": 26,
+        "handoff": 31,
         "executed": 0,
     }
-    assert view["routines"]["planned"] == 155
+    assert view["routines"]["planned"] == 146
     assert view["routines"]["executed"] == 0
     assert view["routines"]["planned_refused"] > 0
     assert view["routines"]["planned_rescheduled"] > 0
@@ -54,12 +54,12 @@ def test_all_departments_show_truthful_hours_status_and_on_call():
 def test_preview_is_inspectable_and_keeps_provider_boundaries_blocked():
     preview = community_preview(day_index=0, minute=0)
     assert len(preview["resident_keys"]) == 10
-    assert len(preview["routine_events"]) == 155
-    assert len(preview["planned_outcomes"]) == 155
+    assert len(preview["routine_events"]) == 146
+    assert len(preview["planned_outcomes"]) == 146
     assert all(not row["represents_execution"] for row in preview["planned_outcomes"])
     assert preview["shift_assignments"]
-    assert len(preview["worker_attendance"]) == 50
-    assert sum(row["attendance_state"] == "scheduled" for row in preview["worker_attendance"]) == 26
+    assert len(preview["worker_attendance"]) == 57
+    assert sum(row["attendance_state"] == "scheduled" for row in preview["worker_attendance"]) == 31
     assert all(row["execution_state"] == "not_executed" for row in preview["worker_attendance"])
     assert preview["planned_shift_events"]
     assert all(event["execution_state"] == "not_executed" for event in preview["planned_shift_events"])

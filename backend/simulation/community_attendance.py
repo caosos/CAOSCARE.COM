@@ -1,6 +1,6 @@
 """Planning-only synthetic worker attendance and session projection.
 
-Every one of the 50 synthetic workers gets one state per projected day.  An
+Every synthetic worker gets one state per projected day.  An
 on-duty state contains attendance-owned simulator session markers plus exact
 references to the canonical clock-in, handoff, and clock-out events from
 ``community_shift_events``.  An off-duty state contains no invented activity.
@@ -161,7 +161,7 @@ def session_plan(assignment: dict, *, login_lead_minutes: int = 10,
 
 
 def worker_states_for_day(day_index: int) -> list[dict]:
-    """Return exactly one planned attendance state for each of 50 workers."""
+    """Return exactly one planned attendance state for each synthetic worker."""
     if day_index < 0:
         raise ValueError("day_index must be non-negative")
     scheduled = {row["actor_id"]: row for row in assignments_for_day(day_index)}

@@ -25,10 +25,15 @@ MEANINGFUL_WORK = {
     "housekeeping": "housekeeping_room_service",
     "maintenance": "preventive_maintenance_check",
     "transportation": "transport_coordination",
-    "activities": "activity_offer_and_escort",
+    # Service model: only escorts and one-to-one visits take activities staff time.
+    "activities": ("activity_escort", "one_to_one_activity_visit"),
     "front_desk": "front_desk_message_follow_up",
     "administration": "appointment_coordination",
 }
+
+
+def _first(work):
+    return work[0] if isinstance(work, tuple) else work
 
 
 class CountCollection(Collection):
@@ -46,7 +51,7 @@ def marked(**values):
 
 def test_actual_rota_has_no_hidden_gap_during_representative_24_hours():
     """Departments may be CLOSED or ON CALL by design; none is ever UNCOVERED."""
-    assert len(WORKERS) == 50
+    assert len(WORKERS) == 57
     assert planned_coverage_gaps(0) == []
     for minute in range(1440):
         summary = coverage_summary(0, minute)
@@ -150,7 +155,8 @@ def test_every_department_has_meaningful_visible_ticket_phases_in_one_day():
     assert {event.department for event in ticket_events} == DEPARTMENTS
     for department, action in MEANINGFUL_WORK.items():
         workflows = [rows for rows in by_workflow.values()
-                     if rows[0].department == department and rows[0].action_type == action]
+                     if rows[0].department == department
+                     and rows[0].action_type in (action if isinstance(action, tuple) else (action,))]
         assert workflows, department
         for phases in workflows:
             phases.sort(key=lambda row: row.day_index * 1440 + row.minute)
@@ -205,7 +211,7 @@ def test_activity_projection_can_show_ticket_work_from_all_departments():
             store.staff_tasks.docs.append(marked(
                 task_id=task_id, simulation_run_id=RUN_ID, simulated=True,
                 resident_id=resident_id, category=department,
-                visibility_role=department, description=MEANINGFUL_WORK[department],
+                visibility_role=department, description=_first(MEANINGFUL_WORK[department]),
                 priority="normal", status="completed",
                 created_at=f"2026-10-13T{index:02d}:00:00+00:00",
                 completed_at=f"2026-10-13T{index:02d}:15:00+00:00",

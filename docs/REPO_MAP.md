@@ -928,6 +928,9 @@ listener verifier experiment: `docs/experiments/`.
   (minutes per blocker over a ticket's whole wait), `community_service_windows.py` (dinner/activity windows; expired work is
   closed not served) and `community_ticket_phase.py` (one canonical lifecycle transition per ticket phase, incl. `expire`).
   Report: `docs/reports/2026-10-15-co008-plan-realism.md`.
+- Service model (CO-008, plan v10): `backend/simulation/community_service_model.py` (dining seatings, cooks vs dining servers,
+  apartment meals, synthetic mobility, escorts only for residents who need them, one-to-one visits; work minutes and
+  windows read it). Report: `docs/reports/2026-10-15-co008-service-model.md`. Test: `backend/tests/test_sim_community_service_model.py`.
 - Real staff in the simulated community: `backend/simulation/community_shift_cover.py` +
   `backend/routes/community_shift_cover.py` (owner/admin covers an on-site simulated worker's shift; the worker's
   planned phases yield with receipts and their tickets wait for the person, worked via Work as <department>) and

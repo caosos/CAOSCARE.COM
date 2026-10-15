@@ -38,7 +38,9 @@ def test_full_community_backlog_waits_and_drains_truthfully():
     reasons = {row.wait_reason for row in rows}
     assert reasons == {capacity.NO_WAIT, capacity.STAFF_BUSY, capacity.DEPARTMENT_CLOSED,
                        capacity.ON_CALL_ONLY, capacity.ON_CALL_RESPONSE, capacity.UNCLAIMED_AT_END,
-                       "not_served_service_window_closed"}
+                       "not_served_service_window_closed",
+                       # service model: an overnight snack/tray call while only the cook is on site
+                       "waiting_for_qualified_staff"}
     # Queues drain: with resident calls and staff reports added (2026-10-14),
     # a non-urgent maintenance call can wait through closed hours until the
     # next on-site shift, but aged priority means nothing waits two days.
@@ -49,9 +51,10 @@ def test_full_community_backlog_waits_and_drains_truthfully():
 
 
 def test_busy_staff_make_later_requests_wait_in_priority_order():
-    at = 2 * 1440 + 8 * 60  # one dining team member is on site at 08:00
-    rows = _schedule(("b", "kitchen", "normal", at, 3, "lunch"), ("a", "kitchen", "normal", at, 3, "lunch"),
-                     ("u", "kitchen", "urgent", at + 1, 3, "lunch"))
+    at = 2 * 1440 + 8 * 60  # one maintenance technician is on site at 08:00
+    rows = _schedule(("b", "maintenance", "normal", at, 3, "resident_call_light_out"),
+                     ("a", "maintenance", "normal", at, 3, "resident_call_light_out"),
+                     ("u", "maintenance", "urgent", at + 1, 3, "resident_call_light_out"))
     assert rows["a"].claim_at == at + 5 and rows["a"].wait_reason == capacity.NO_WAIT
     assert rows["u"].claim_at == at + 8 and rows["u"].wait_reason == capacity.STAFF_BUSY
     assert rows["b"].claim_at == at + 11 and rows["b"].waited_minutes == 6
