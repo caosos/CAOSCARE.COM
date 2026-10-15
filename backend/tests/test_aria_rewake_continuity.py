@@ -55,6 +55,8 @@ async def _scenario(monkeypatch):
         from routes.realtime_facility import FACILITY_TZ
         local_now = now_utc().astimezone(ZoneInfo(FACILITY_TZ))
         yday_9pm = (local_now - timedelta(days=1)).replace(hour=21, minute=0, second=0, microsecond=0)
+        if local_now - yday_9pm < timedelta(hours=7):   # just after midnight 9 PM reads "about N hours ago":
+            yday_9pm = yday_9pm.replace(hour=6)         # use yesterday morning so the run never depends on the clock
         await seed("rt_yday", now_utc() - yday_9pm, [
             ("assistant", "Hey, Michael."), ("user", "My granddaughter Lily has a recital tomorrow.")])
         p2 = await _prompt(rid, "rt_nextday")
