@@ -89,12 +89,17 @@ def _scope(run_id: str) -> dict:
 
 
 async def _candidates(store, run_id: str, session) -> list[dict]:
-    cursor = store.sim_runs.find({"$or": [
-        {"run_id": run_id},
-        {"simulation_scope": SIMULATION_SCOPE},
-        {"simulation_community_id": COMMUNITY_ID},
-    ]}, {"_id": 0}, session=session)
+    """Rows carrying this exact run id (a community may keep earlier, stopped runs)."""
+    cursor = store.sim_runs.find({"run_id": run_id}, {"_id": 0}, session=session)
     return await cursor.to_list(None)
+
+
+async def _active_other(store, run_id: str, session) -> Optional[dict]:
+    """Another RUNNING/PAUSED run of this community: only one may be active."""
+    return await store.sim_runs.find_one({
+        "simulation_scope": SIMULATION_SCOPE, "simulation_community_id": COMMUNITY_ID,
+        "state": {"$in": [RUNNING, PAUSED]}, "run_id": {"$ne": run_id},
+    }, {"_id": 0, "run_id": 1, "state": 1}, session=session)
 
 
 async def _one_run(store, run_id: str, session) -> dict:
@@ -152,6 +157,12 @@ async def create_burn_in_run(
                 if not prior or not _same_plan(row, fields) or row.get("creation_key_sha256") != digest:
                     raise CommunityRunLifecycleError("an existing run conflicts with this creation request")
                 return _replay(prior, row, "simulation_community_run_created")
+            # Owner decision 2026-10-14 (option 2): earlier runs are kept as
+            # history; a new run may be created only when none is active.
+            other = await _active_other(store, run_id, session)
+            if other:
+                raise CommunityRunLifecycleError(
+                    f"run {other['run_id']} is still {other['state']}; stop it before creating a new run")
             row = {
                 "_id": run_id, **_scope(run_id), **fields, "state": PAUSED,
                 "cursor": 0, "sim_minute": start_minute, "started_at_minute": start_minute,

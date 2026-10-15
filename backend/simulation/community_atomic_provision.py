@@ -79,11 +79,7 @@ def _readiness_id(run_id: str, key_digest: str) -> str:
 
 
 async def _one_run(store, run_id: str, session) -> dict:
-    rows = await store.sim_runs.find({"$or": [
-        {"run_id": run_id},
-        {"simulation_scope": SIMULATION_SCOPE},
-        {"simulation_community_id": COMMUNITY_ID},
-    ]}, {"_id": 0}, session=session).to_list(None)
+    rows = await store.sim_runs.find({"run_id": run_id}, {"_id": 0}, session=session).to_list(None)
     expected = _scope(run_id)
     if len(rows) != 1 or any(rows[0].get(k) != value for k, value in expected.items()):
         raise CommunityAtomicProvisionError(
