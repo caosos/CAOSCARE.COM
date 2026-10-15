@@ -60,3 +60,9 @@ def routine_summary(action_type: str):
         return None
     label, why = text
     return f"{label}: {why}."
+
+
+def routine_label(action_type: str):
+    """The short plain label of a known routine ("Dinner delivery to the apartment"), else None."""
+    text = ROUTINE_TEXT.get(action_type)
+    return text[0] if text else None

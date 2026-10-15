@@ -14,6 +14,7 @@ from simulation.community_day_queue import build_day_queue
 from simulation.community_shift_cover import active_cover
 from simulation.community_staffing import DEPARTMENT_LABELS, WORKERS, _day_rota, worker_statuses
 from simulation.community_ticket_plan import CLAIM, OPEN
+from simulation.community_ticket_text import routine_label
 
 COMPLETED_LIMIT = 40
 
@@ -69,7 +70,8 @@ def _planned(run: dict, as_of: int, *, department=None, actor_id=None, resident_
                     or (actor_id and event.actor_id != actor_id)
                     or (resident_id and event.target_id != resident_id)):
                 continue
-            rows.append({"routine": event.action_type, "department": event.department,
+            rows.append({"routine": event.action_type, "label": routine_label(event.action_type),
+                         "department": event.department,
                          "at": sim_time(minute), "resident_id": event.target_id,
                          "worker": event.actor_name if phase != OPEN else None, "planned": True})
     rows.sort(key=lambda row: row["at"]["absolute_minute"])

@@ -71,7 +71,7 @@ export function PlannedList({ rows, empty = "Nothing more planned today." }) {
     <ul className="divide-y divide-caos-line rounded-lg border border-dashed border-caos-line bg-white">
       {rows.map((row, index) => (
         <li key={`${row.routine}-${row.at?.absolute_minute}-${row.resident_id}-${index}`} className="flex flex-wrap justify-between gap-2 p-2 text-sm">
-          <span>{titleCase(row.routine)}{row.worker ? ` · ${row.worker}` : ""}</span>
+          <span>{row.label || titleCase(row.routine)}{row.worker ? ` · ${row.worker}` : ""}</span>
           <span className="text-xs text-caos-mute">planned {simTime(row.at)}</span>
         </li>
       ))}

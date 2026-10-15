@@ -102,4 +102,6 @@ def test_kitchen_tickets_say_what_to_do_and_close_truthfully():
     assert note("breakfast").startswith("Simulated meal served in the dining room")
     for action in ("dinner", "dinner_room_service", "resident_call_snack", "resident_call_tray"):
         assert "no claim" in note(action)
-    assert "housekeeping" not in note("housekeeping_room_service") or "meal" not in note("housekeeping_room_service")
+    from simulation.community_ticket_text import routine_label
+    assert routine_label("dinner_room_service") == "Dinner delivery to the apartment"
+    assert routine_label("lunch") == "Lunch in the dining room" and routine_label("unknown_routine") is None
