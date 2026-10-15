@@ -40,6 +40,11 @@ def _matches(row, query):
                 return False
             if "$in" in wanted and actual not in wanted["$in"]:
                 return False
+            # As in MongoDB, a missing field matches no comparison.
+            if "$lte" in wanted and not (actual is not None and actual <= wanted["$lte"]):
+                return False
+            if "$gt" in wanted and not (actual is not None and actual > wanted["$gt"]):
+                return False
         elif actual != wanted:
             return False
     return True
