@@ -101,6 +101,15 @@ def owns_snapshot(
     )
 
 
+def live_lease(row: dict, now: Optional[datetime] = None) -> bool:
+    """True when the run carries an execution lease that has not expired."""
+    lease = row.get("execution_lease") or {}
+    expires = lease.get("expires_at")
+    if not expires:
+        return bool(lease)
+    return datetime.fromisoformat(expires) > _utc(now)
+
+
 def claim_matches(claim: dict, run_id: str, holder_id: str, mode: str) -> bool:
     fence = claim.get("fence") if isinstance(claim, dict) else None
     return bool(

@@ -206,7 +206,14 @@ async def _mutate(
                 "cursor": expected_cursor, "sim_minute": expected_sim_minute,
             }
             if require_unleased:
-                query["execution_lease"] = {"$exists": False}
+                # An expired lease is not held: its holder can no longer commit
+                # (every cursor commit revalidates a live lease), so a process
+                # that died mid-tick must not wedge the clock or Stop forever.
+                # Same expiry rule as run_lease.acquire; the stale lease is removed.
+                query["$or"] = [
+                    {"execution_lease": {"$exists": False}},
+                    {"execution_lease.expires_at": {"$lte": instant.isoformat()}},
+                ]
             if lease_claim is not None:
                 try:
                     query.update(run_lease.ownership_fields(
@@ -231,7 +238,7 @@ async def _mutate(
                     completion_receipt_id=receipt_id_value,
                 )
             update = {"$set": updates}
-            if next_state in (PAUSED, STOPPED) and next_state != expected_state:
+            if require_unleased or (next_state in (PAUSED, STOPPED) and next_state != expected_state):
                 update["$unset"] = {"execution_lease": ""}
             changed = await store.sim_runs.find_one_and_update(
                 query, update, projection={"_id": 0}, session=session,

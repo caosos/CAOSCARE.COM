@@ -13,6 +13,7 @@ from simulation.community_atomic_provision import provision_paused_burn_in_run
 from simulation import community_run_lifecycle as lifecycle
 from simulation import community_manual_step
 from simulation import community_runner
+from simulation import community_run_lease as run_lease
 from simulation.community_blueprint import COMMUNITY_ID, SIMULATION_SCOPE
 from simulation.community_department_preflight import preflight_living_community_run_start
 from simulation.community_observed_state import observe_community_state
@@ -204,7 +205,7 @@ class CommunityControlService:
         )
         loop_status = await self.loop.cancel(run_id)
         row = await self.timeline.load_run(run_id=run_id)
-        if row.get("state") != expected_state or row.get("execution_lease"):
+        if row.get("state") != expected_state or run_lease.live_lease(row, self._now(now)):
             raise CommunityControlError("run changed or remained leased while stopping")
         changed = await lifecycle.transition_run(
             operator, authority, run_id, expected_state, lifecycle.STOPPED,
