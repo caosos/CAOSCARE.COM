@@ -1,7 +1,9 @@
 # CAOSCare coordination watch — runbook (owner-authorized 2026-10-16)
 
-**Status:** code on `feature/coordination-watch`; NOT installed, NOT running (see "What is missing"). One
-local `systemd --user` service, no model calls, `gh` only ($0 API when idle).
+**Status (2026-10-15 22:09 CDT):** INSTALLED and RUNNING as `caoscare-coordination-watch.service` (user unit,
+enabled, linger `yes`) from `feature/coordination-watch`. One local `systemd --user` service, no model calls, `gh`
+only ($0 API). First live tick delivered the `TEST ONLY — NO PRODUCT ACTION` item `coord-test-001` to #166 and
+Main Claude's own intake (`gh_watch.sh`) consumed it (its cursor advanced, the session re-invoked).
 
 | Question | Answer |
 |---|---|
@@ -17,7 +19,7 @@ local `systemd --user` service, no model calls, `gh` only ($0 API when idle).
 | Do NOT duplicate | no second watcher, no second queue (#166 is authoritative), no new Claude session, no Desktop-Agent re-pointing from this lane; the tmux `caoscare-integration-b2` coordinator is stood down |
 | ChatGPT in the loop | reads #166 and PR #131 `CAOSCARE RECEIPT:` comments; does not run on this host |
 
-## Install (owner-run; refused from the Claude session)
+## Install / reinstall
 ```bash
 cp ~/CAOSCARE-COORDINATION/scripts/owner_intake/systemd/caoscare-coordination-watch.service ~/.config/systemd/user/
 systemctl --user daemon-reload
@@ -26,7 +28,11 @@ loginctl enable-linger caoscare-1        # already "yes" on this host
 systemctl --user status caoscare-coordination-watch --no-pager
 ```
 
-## What is missing (classifier-refused writes, 2026-10-16)
-`scripts/owner_intake/coord_host.py` (host evidence from the session registry) and
-`docs/status/COORDINATION_QUEUE.json` (config + queue mirror). Their exact specification is in the draft PR
-on `feature/coordination-watch`; without them the service does not start.
+## Dry run
+`CAOS_COORD_DRY_RUN=1 python3 scripts/owner_intake/coordination_watch.py --once` posts nothing and persists nothing
+(no state, no events, no dispatched marks), so it can never consume a pending delivery.
+
+## Files
+`scripts/owner_intake/coordination_watch.py` (loop), `coord_github.py` (gh read/classify/receipts), `coord_queue.py`
+(queue mirror + dispatch gate), `coord_host.py` (session registry + /proc host evidence), `tests/test_coordination_watch.py`,
+`systemd/caoscare-coordination-watch.service`, `docs/status/COORDINATION_QUEUE.json` (queue mirror, edited by commit only).
