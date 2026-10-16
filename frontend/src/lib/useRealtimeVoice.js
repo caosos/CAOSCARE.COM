@@ -152,7 +152,7 @@ export function useRealtimeVoice({
     if (attemptRef.current) attemptRef.current.cancelReason = reason;
     const ended = REASON_TO_ARIA_EVENT[reason] ? postAriaEvent(REASON_TO_ARIA_EVENT[reason]) : null;
     clearLifecycleTimers();
-    try { lifecycleCleanupRef.current?.(); } catch {}
+    try { lifecycleCleanupRef.current?.(reason); } catch {}
     lifecycleCleanupRef.current = null;
     startGenRef.current += 1;               // cancel any pending start()
     try { dcRef.current?.close(); } catch {}

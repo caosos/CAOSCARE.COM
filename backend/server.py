@@ -32,6 +32,8 @@ from routes import wearables as wearable_routes  # noqa: E402
 from routes import device_auth as device_auth_routes  # noqa: E402
 from routes import family_portal as family_portal_routes  # noqa: E402
 from routes import devices as device_routes  # noqa: E402
+from routes import room_device_inventory as room_device_inventory_routes  # noqa: E402
+from routes import medication_status as medication_status_routes  # noqa: E402
 from routes import tv_remote_setup as tv_remote_setup_routes  # noqa: E402
 from routes import vision as vision_routes  # noqa: E402
 from routes import tasks as task_routes  # noqa: E402
@@ -94,6 +96,7 @@ from routes import capabilities as capability_routes  # noqa: E402
 from routes import aria_memory as aria_memory_routes  # noqa: E402
 from routes import receipts as receipt_routes  # noqa: E402
 from routes import realtime_diagnostics as realtime_diagnostics_routes  # noqa: E402
+from routes import realtime_call_quality as realtime_call_quality_routes  # noqa: E402
 from routes import resident_conversations as resident_conversations_routes  # noqa: E402
 from routes import admin_assistant as admin_assistant_routes  # noqa: E402
 from routes import events as event_routes  # noqa: E402
@@ -233,6 +236,8 @@ api.include_router(wearable_routes.router)
 api.include_router(device_auth_routes.router)
 api.include_router(family_portal_routes.router)
 api.include_router(device_routes.router)
+api.include_router(room_device_inventory_routes.router)
+api.include_router(medication_status_routes.router)
 api.include_router(tv_remote_setup_routes.router)
 api.include_router(vision_routes.router)
 api.include_router(task_routes.router)
@@ -291,6 +296,7 @@ api.include_router(capability_routes.router)
 api.include_router(aria_memory_routes.router)
 api.include_router(receipt_routes.router)
 api.include_router(realtime_diagnostics_routes.router)
+api.include_router(realtime_call_quality_routes.router)
 api.include_router(resident_conversations_routes.router)
 api.include_router(admin_assistant_routes.router)
 api.include_router(event_routes.router)

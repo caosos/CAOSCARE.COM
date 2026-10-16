@@ -13,6 +13,7 @@
  */
 import { API } from "./api";
 import { executeOperationsTool } from "./realtimeOperationsTools";
+import { executeMedicationTool } from "./realtimeMedicationTool";
 
 const IMMEDIATE_PHRASES = /\b(now|right now|hurt|fell|fallen|can'?t breathe|help me|emergency|please hurry|need (someone|help) now)\b/i;
 const COMPANIONABLE_PHRASES = /\b(lonely|dinner|company|can wait|no rush|not urgent|just (want(ed)?|wanted) to talk|talk to you)\b/i;
@@ -76,6 +77,7 @@ export async function ringLiveLineOnSilence(alertId) {
 }
 
 export async function executeCareTool({ name, args, ctx }) {
+  if (name === "check_medication_status") return executeMedicationTool({ name, args, ctx });
   if (name !== "request_live_staff") return undefined;
   const alertId = ctx?.alert_id;
   const heard = (ctx?.last_user_text || "").trim();

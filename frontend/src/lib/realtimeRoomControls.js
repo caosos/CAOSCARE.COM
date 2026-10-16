@@ -78,9 +78,13 @@ async function setBlinds({ args, ctx, deps }) {
   }
   const res = await sendCommand(deps, room, "position", target, "blinds", ctx, found.device);
   if (res.error) return { ok: false, message: `the blinds didn't change (${res.error}).` };
-  const pos = res.data.state.position;
-  const words = pos <= 0 ? "closed" : pos >= 100 ? "fully open" : `${pos}% open`;
-  return { ok: true, message: `the blinds are now ${words}${labelOf(res.data)}.` };
+  const words = (p) => (p <= 0 ? "closed" : p >= 100 ? "fully open" : `${p}% open`);
+  // Only a device read-back (or the simulator's own state) proves where the
+  // blinds ended up; a one-way or bridge-queued command was only sent.
+  if (res.data.verified === true || res.data.simulated) {
+    return { ok: true, message: `the blinds are now ${words(res.data.state.position)}${labelOf(res.data)}.` };
+  }
+  return { ok: true, verified: false, message: `I sent the blinds the command to be ${words(target)}, but they can't report back, so I can't confirm they moved.` };
 }
 
 async function tvDevice(tool, args, ctx, capability) {

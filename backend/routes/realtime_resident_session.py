@@ -135,6 +135,9 @@ async def _mint(payload, lease):
     from routes.self_code_tools import self_code_session_extras
     self_code = await self_code_session_extras(payload, lease)
     instructions += self_code["prompt"]
+    # Owner/creator context, same verified Room 214 proof (routes/owner_room_context.py).
+    from routes.owner_room_context import owner_room_prompt
+    instructions += await owner_room_prompt(payload, lease)
     session_config = {
         "type": "realtime",
         "model": OPENAI_REALTIME_MODEL,

@@ -25,10 +25,25 @@ const CORE = [
   /^we(?:'|’)?re done$/, /^we are done$/, /^i(?:'|’)?m done$/, /^i am done$/, /^i(?:'|’)?m done here$/,
   /^(shut|turn) yourself off$/,   // NOT "turn it off" / "stop": those mean a device or a barge-in, never the call
 ];
+// Farewell lead-ins: a clear ending on their own, and allowed before an ending
+// in the same sentence ("I'll talk to you later, goodbye." - Room 214,
+// 2026-10-16: one comma made it a five-word sentence, nothing matched, and
+// Aria answered "Okay, let me wrap this up..." instead of hanging up).
+const LEADS = [
+  /^(i(?:'|’)?ll )?talk to you (later|soon|tomorrow)$/, /^(i(?:'|’)?ll )?see you (later|soon|tomorrow)$/,
+  /^have a (good|nice) (night|day|evening)$/, /^take care$/, /^bye for now$/,
+];
 const NEGATED_OR_QUOTED = /(["“”«»]|\b(don(?:'|’)?t|do not|didn(?:'|’)?t|won(?:'|’)?t|not|never|no one|nobody|when i say|if i say|i (?:might|will|would) say|said|says|saying|the (?:phrase|words?|command)|example|means?|like|such as|instead|keep (?:talking|going)|stay|wait)\b)/i;
 const QUESTION = /\?|^\s*(can|could|would|will|do|does|did|how|what|why|when|where|who|is|are|should|if)\b/i;
 
 const normal = (s) => s.replace(/[.!,;:]+/g, " ").replace(FILLER, " ").replace(/\s+/g, " ").trim().toLowerCase();
+
+const isEnding = (c) => c.split(" ").length <= 6 && [...CORE, ...LEADS].some((re) => re.test(c));
+/** "talk to you later, goodbye" / "okay thanks, bye": every comma clause is an ending or filler, the last a real ending. */
+function clausesEnd(sentence) {
+  const clauses = sentence.split(/[,;]+/).map(normal).filter(Boolean);
+  return clauses.length > 1 && clauses.every(isEnding) && CORE.some((re) => re.test(clauses[clauses.length - 1]));
+}
 
 /** "explicit" when some sentence of the utterance is, after filler words, only an ending phrase. */
 export function classifyEndIntent(text) {
@@ -39,7 +54,8 @@ export function classifyEndIntent(text) {
   for (const s of sentences) {
     if (NEGATED_OR_QUOTED.test(s) || QUESTION.test(s)) return "none";
     const n = normal(s);
-    if (n && n.split(" ").length <= 4 && CORE.some((re) => re.test(n))) explicit = true;
+    if (n && n.split(" ").length <= 6 && [...CORE, ...LEADS].some((re) => re.test(n))) explicit = true;
+    else if (clausesEnd(s)) explicit = true;
   }
   return explicit ? "explicit" : "none";
 }
