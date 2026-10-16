@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Settings } from "lucide-react";
 import WorkspaceShell from "../components/workspace/WorkspaceShell";
 import WorkspaceGrid from "../components/workspace/WorkspaceGrid";
 import RecordsDialog from "../components/workspace/RecordsDialog";
@@ -66,7 +65,9 @@ export default function OperationsWorkspace() {
     if (n.toString() !== sp.toString()) setSp(n, { replace: true });
   }, [view]); // eslint-disable-line react-hooks/exhaustive-deps
   const [openWidget, setOpenWidget] = useState(null);
-  const [panel, setPanel] = useState(null);       // "customize" | "add" | null
+  // Layout is arranged on the page itself (owner 2026-10-15: no "Customize Layout" button): drag to
+  // reorder, a box's eye to hide, ⋮ to resize, and "Add a widget" / "Restore hidden boxes" below the grid.
+  const [adding, setAdding] = useState(false);
   const visibleIds = useMemo(() => (boxes || []).filter((b) => !b.hidden).map((b) => b.id), [boxes]);
   const { values } = useBoxValues(visibleIds, view);
   const run = Object.values(values).find((v) => v?.run)?.run;
@@ -84,54 +85,35 @@ export default function OperationsWorkspace() {
           <p className="mt-1 text-[17px] text-[#4B5563] sm:text-[20px]">Drag to arrange · Hide what you don't need</p>
           <PeriodBar view={view} setView={setView} run={run} />
         </div>
-        <div className="flex shrink-0 flex-col items-start gap-1 sm:items-end">
-          <button type="button" onClick={() => setPanel("customize")} data-testid="ws-customize"
-                  className="flex items-center gap-2.5 rounded-lg border border-[#E5E7EB] bg-white px-5 py-3 text-[17px]
-                    font-medium shadow-[0_1px_2px_rgba(16,24,40,0.05)] hover:bg-[#F9FAFB]">
-            <Settings className="h-5 w-5" /> Customize Layout
-          </button>
-          <span className="text-xs text-[#6B7280]" data-testid="ws-save-status">{SAVE_LABEL[status]}</span>
-        </div>
+        <span className="shrink-0 text-xs text-[#6B7280]" data-testid="ws-save-status">{SAVE_LABEL[status]}</span>
       </div>
       <div className="mt-6">
         {boxes ? (
           <WorkspaceGrid boxes={boxes} values={values} update={update} view={view} onOpen={setOpenWidget}
-                         onAdd={() => setPanel("add")}
+                         onAdd={() => setAdding(true)}
                          onRestore={() => update((prev) => prev.map((b) => ({ ...b, hidden: false })))} />
         ) : <p className="text-[#6B7280]">Loading your workspace…</p>}
       </div>
       <RecordsDialog widget={openWidget} view={view} open={!!openWidget} onOpenChange={(o) => !o && setOpenWidget(null)} />
-      <Dialog open={!!panel} onOpenChange={(o) => !o && setPanel(null)}>
+      <Dialog open={adding} onOpenChange={setAdding}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>{panel === "add" ? "Add a widget" : "Customize layout"}</DialogTitle>
-            <DialogDescription>
-              {panel === "add" ? "Choose a box to add to your workspace." : "Show or hide boxes. Drag boxes on the page to reorder; use a box's ⋮ menu to resize."}
-            </DialogDescription>
+            <DialogTitle>Add a widget</DialogTitle>
+            <DialogDescription>Choose a box to add to your workspace.</DialogDescription>
           </DialogHeader>
           <ul className="max-h-[60vh] space-y-1 overflow-y-auto">
-            {WIDGETS.filter((w) => panel !== "add" || !placed.has(w.id) || (boxes || []).find((b) => b.id === w.id)?.hidden)
-              .map((w) => {
-                const box = (boxes || []).find((b) => b.id === w.id);
-                const shown = box && !box.hidden;
-                return (
-                  <li key={w.id} className="flex items-center justify-between rounded-lg px-2 py-2 hover:bg-[#F9FAFB]">
-                    <span><span className="font-medium">{w.title}</span> <span className="text-[#6B7280]">· {w.subtitle}</span></span>
-                    {panel === "add" ? (
-                      <button type="button" onClick={() => { addBox(w.id); setPanel(null); }} className="rounded-md border px-3 py-1 text-sm">Add</button>
-                    ) : (
-                      <input type="checkbox" checked={!!shown} aria-label={`Show ${w.title} ${w.subtitle}`}
-                             onChange={() => (shown ? update((prev) => prev.map((b) => (b.id === w.id ? { ...b, hidden: true } : b))) : addBox(w.id))} />
-                    )}
-                  </li>
-                );
-              })}
+            {WIDGETS.filter((w) => !placed.has(w.id) || (boxes || []).find((b) => b.id === w.id)?.hidden)
+              .map((w) => (
+                <li key={w.id} className="flex items-center justify-between rounded-lg px-2 py-2 hover:bg-[#F9FAFB]">
+                  <span><span className="font-medium">{w.title}</span> <span className="text-[#6B7280]">· {w.subtitle}</span></span>
+                  <button type="button" onClick={() => { addBox(w.id); setAdding(false); }} className="rounded-md border px-3 py-1 text-sm">Add</button>
+                </li>
+              ))}
           </ul>
-          {panel === "customize" && (
-            <button type="button" onClick={() => { reset(); setPanel(null); }} className="mt-2 text-sm text-[#B42318] underline">
-              Reset to default layout
-            </button>
-          )}
+          <button type="button" onClick={() => { reset(); setAdding(false); }} data-testid="ws-reset"
+                  className="mt-2 self-start text-sm text-[#B42318] underline">
+            Reset to default layout
+          </button>
         </DialogContent>
       </Dialog>
     </WorkspaceShell>

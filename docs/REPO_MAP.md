@@ -1030,3 +1030,9 @@ listener verifier experiment: `docs/experiments/`.
 ## 2026-10-15 — Room 214 read-only self-code inspection (owner feature)
 
 - `backend/routes/self_code_identity.py` (verified Room 214 session only: canonical kiosk/resident record + live backend-written lease + loopback origin; fail closed), `self_code_source.py` (fixed allow-list, traversal/symlink/secret/binary denies, bounded read/search, inspected-vs-loaded SHA truth), `self_code_inspection.py` (`POST /api/aria/self-code/{inspect,search,read}`, one receipt per attempt), `self_code_tools.py` (schemas + prompt block declared only at a Room 214 mint). `frontend/src/lib/realtimeSelfCodeTools.js` relays the three tools; `room-node/aria_wake/ctl.sh` embeds `REACT_APP_BUILD_SHA`. Contract: `docs/ROOM214_SELF_CODE_INSPECTION.md`. Tests: `backend/tests/test_room214_self_code_{gate,session}.py`, `frontend/src/lib/__tests__/selfCodeDispatch.test.js`.
+
+## 2026-10-15 — Public home redesign + workspace without Customize Layout (owner review)
+
+- `frontend/src/pages/Landing.jsx` composes `components/landing/LandingNav.jsx` (public links), `ProductShot.jsx` (real screen + provenance caption), `LandingFlow.jsx` (resident → staff → receipt), `LandingStatus.jsx` (status board read from `lib/capabilities/status.js`), `LandingPaths.jsx`, and the existing `ExperienceVideoLibrary.jsx`. Images: `frontend/public/media/product/` (simulated community / sample resident only).
+- `frontend/src/components/brand/CaosCareMark.jsx`: the one brand mark (sidebar + public nav).
+- `frontend/src/pages/OperationsWorkspace.jsx`: no Customize Layout button; arranging is on the page (drag, eye, ⋮, Add a widget / Restore hidden); "Reset to default layout" lives in the Add-a-widget dialog. Tests: `src/pages/__tests__/{operationsWorkspaceLayout,landingPage}.test.jsx`.
