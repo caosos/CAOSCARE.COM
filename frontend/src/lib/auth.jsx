@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { api } from "./api";
+import { clearWorkContext } from "./workContext";
 
 const AuthContext = createContext(null);
 
@@ -69,6 +70,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
+    clearWorkContext();
     localStorage.removeItem("caos_token");
     try {
       await api.post("/auth/logout");

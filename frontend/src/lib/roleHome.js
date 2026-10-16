@@ -29,7 +29,7 @@ const WORKSPACE_DEPARTMENTS = new Set([
 export function roleHomePath(user) {
   const role = user?.role;
   if (role === "front_desk") return "/front-desk";
-  if (role === "owner" || role === "admin") return "/admin";
+  if (role === "owner" || role === "admin") return "/operations";   // the approved workspace (owner, 2026-10-14)
   // Plain staff: route by department.
   if (WORKSPACE_DEPARTMENTS.has(user?.department)) return "/workspace";
   // care/nursing, administration, or no department -> resident-assistance board

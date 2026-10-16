@@ -24,8 +24,10 @@ jest.mock("../../components/ui/textarea", () => {
 const Queue = require("../../pages/DepartmentQueue").default;
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const flush = () => act(async () => { await Promise.resolve(); await Promise.resolve(); });
+// Rows are compact; their actions show when a row is expanded (CO-008).
+const expandAll = (root0) => act(async () => { (root0 || document).querySelectorAll("[data-testid^=wo-row-]").forEach((b) => { if (b.getAttribute("aria-expanded") !== "true") b.click(); }); });
 const open = { task_id: "t1", title: "Help to the bathroom", status: "pending", priority: "high", visibility_role: "nursing",
-  created_at: new Date().toISOString() };
+  created_at: new Date().toISOString(), simulated: true };
 let root, el;
 beforeEach(() => {
   el = document.createElement("div"); document.body.appendChild(el); root = createRoot(el);
@@ -34,9 +36,17 @@ beforeEach(() => {
 afterEach(async () => { await act(async () => root.unmount()); el.remove(); });
 
 test("a re-render keeps the same card element", async () => {
-  await act(async () => root.render(<Queue department="nursing" title="Nursing requests" adminMode />)); await flush();
+  await act(async () => root.render(<Queue department="nursing" title="Nursing requests" adminMode />)); await flush(); await expandAll();
   const card = el.querySelector("[data-testid=wo-t1]");
   expect(card).not.toBeNull();
-  await act(async () => root.render(<Queue department="nursing" title="Nursing requests" adminMode />)); await flush();
+  await act(async () => root.render(<Queue department="nursing" title="Nursing requests" adminMode />)); await flush(); await expandAll();
   expect(el.querySelector("[data-testid=wo-t1]")).toBe(card);
+});
+
+test("a simulated department ticket is unmistakably marked in the actionable queue", async () => {
+  await act(async () => root.render(<Queue department="nursing" title="Nursing requests" />)); await flush(); await expandAll();
+  const card = el.querySelector("[data-testid=wo-t1]");
+  expect(card).not.toBeNull();
+  expect(card.textContent).toContain("SIM");
+  expect(card.querySelector("[data-testid=wo-start-t1]")).not.toBeNull();
 });

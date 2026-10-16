@@ -140,8 +140,24 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
     if simulation_run_id:
         if not marker:
             raise HTTPException(status_code=400, detail="A simulation run may only raise requests for a synthetic resident")
-        if not await db.sim_runs.find_one({"run_id": simulation_run_id}, {"_id": 1}):
+        run = await db.sim_runs.find_one(
+            {"run_id": simulation_run_id},
+            {"_id": 0, "simulation_scope": 1, "simulation_community_id": 1},
+        )
+        # A demo-room run has neither projected field, so it comes back as {} - present, not missing.
+        if run is None:
             raise HTTPException(status_code=400, detail=f"Unknown simulation run {simulation_run_id}")
+        # Demo-room runs predate explicit run scope and remain compatible.
+        # Any other synthetic world must bind the run to the resident's exact
+        # server-owned scope/community markers; a request body cannot supply them.
+        if marker.get("simulation_scope") != "demo_room" and (
+            run.get("simulation_scope") != marker.get("simulation_scope")
+            or run.get("simulation_community_id") != marker.get("simulation_community_id")
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="Simulation run does not match the synthetic resident scope",
+            )
         source = "simulator"
         actor = actor_resident_claim(data.resident_id, data.room, "simulator", synthetic=True)
         authority = "simulation_run"
@@ -171,6 +187,11 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
     # A run's requests dedup only within that run (SC-17).
     dup_q: dict = {"category": data.category, "status": {"$in": OPEN_TASK_STATUSES},
                    "simulation_run_id": simulation_run_id}
+    if simulation_run_id:
+        # One scheduled simulator routine is one request: only a retry of the
+        # same event merges.  An earlier routine still open (a truthful
+        # backlog) must not absorb the next one as a "repeat ask".
+        dup_q["conversation_session_id"] = data.conversation_session_id
     if data.resident_id:
         dup_q["resident_id"] = data.resident_id
     elif data.room:

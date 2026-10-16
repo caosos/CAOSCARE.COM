@@ -7,7 +7,15 @@ import SimActors from "../components/simulator/SimActors";
 import SimActivity from "../components/simulator/SimActivity";
 import SimEventStream from "../components/simulator/SimEventStream";
 import SimReceiptTrace from "../components/simulator/SimReceiptTrace";
+import SimCommunityOverview from "../components/simulator/SimCommunityOverview";
+import SimCommunityObserved from "../components/simulator/SimCommunityObserved";
+import { fetchCommunityObservedSnapshot } from "../lib/communityObservedLoad";
+import SimCommunityRuntime from "../components/simulator/SimCommunityRuntime";
+import SimCommunityControls from "../components/simulator/SimCommunityControls";
+import SimCommunityResetControl from "../components/simulator/SimCommunityResetControl";
+import { communityRuntimeIntro, fetchCommunityRuntimeSnapshot } from "../lib/communityRuntimeLoad";
 import RequestDetailDialog from "./RequestDetailDialog";
+import LiveDashboard from "../components/dashboard/LiveDashboard";
 
 // Live Operations (SIM-2): watch and control the Operations Simulator
 // without a terminal. Holds no simulator state of its own - every value is
@@ -23,12 +31,51 @@ export default function LiveOperations() {
   const [requestId, setRequestId] = useState(null);
   const [scenarios, setScenarios] = useState([]);
   const [scenario, setScenario] = useState("");
+  const [community, setCommunity] = useState(null);
+  const [observed, setObserved] = useState({ loadState: "loading", snapshot: null, refreshFailed: false });
+  const [runtime, setRuntime] = useState({ loadState: "loading", snapshot: null, refreshFailed: false });
 
   useEffect(() => {
     api.get("/simulator/scenarios").then(({ data }) => {
       setScenarios(data);
       setScenario((cur) => cur || data[0]?.id || "");
     }).catch(() => setScenarios([]));
+  }, []);
+
+  const loadObserved = useCallback(async () => {
+    const result = await fetchCommunityObservedSnapshot(api);
+    setObserved((previous) => result.loadState === "ready"
+      ? { ...result, refreshFailed: false }
+      : previous.snapshot
+        ? { loadState: "error", snapshot: previous.snapshot, refreshFailed: true }
+        : { loadState: "error", snapshot: null, refreshFailed: false });
+  }, []);
+
+  useEffect(() => {
+    loadObserved();
+    const timer = setInterval(loadObserved, 30000);
+    return () => clearInterval(timer);
+  }, [loadObserved]);
+
+  const loadRuntime = useCallback(async () => {
+    const result = await fetchCommunityRuntimeSnapshot(api);
+    setRuntime((previous) => result.loadState === "ready"
+      ? { ...result, refreshFailed: false }
+      : previous.snapshot
+        ? { loadState: "error", snapshot: previous.snapshot, refreshFailed: true }
+        : { loadState: "error", snapshot: null, refreshFailed: false });
+  }, []);
+
+  useEffect(() => {
+    loadRuntime();
+    const timer = setInterval(loadRuntime, runtime.snapshot?.run?.state === SIM_STATES.RUNNING ? 2000 : 10000);
+    return () => clearInterval(timer);
+  }, [loadRuntime, runtime.snapshot?.run?.state]);
+
+  useEffect(() => {
+    api.get("/simulator/community/overview", { params: { day_index: 0, minute: 480 } })
+      .then(({ data }) => setCommunity(data))
+      .catch(() => setCommunity(null));
   }, []);
 
   const load = useCallback(async () => {
@@ -78,30 +125,41 @@ export default function LiveOperations() {
     <div className="space-y-4" data-testid="live-operations">
       <div>
         <h2 className="font-display text-2xl text-caos-forest">Live operations</h2>
-        <p className="text-sm text-caos-mute">
-          The Operations Simulator, demo room only. Simulated actors act through the same request and task
-          services as real staff; a staff role can be handed to a real person, who then works the request in
-          the normal staff screens. Every action has a receipt you can trace back to where it started.
-        </p>
+        <p className="text-sm text-caos-mute">The running community: who is working, what is waiting, and what got done.</p>
       </div>
-      <SimControls state={state} busy={busy} onControl={control}
-                   scenarios={scenarios} scenario={scenario} onScenario={setScenario} />
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="space-y-4 min-w-0">
-          <SimActors cast={cast} startedBy={state?.started_by} onChanged={load}
-                     active={state?.state === SIM_STATES.RUNNING || state?.state === SIM_STATES.PAUSED}
-                     onSelect={(a) => {
-                       const id = a.filled_by?.mode === "real" ? a.filled_by.user_id : a.actor_id;
-                       const r = stream.find((x) => x.actor_id === id);
-                       if (r) setTrace(r);
-                     }} />
-          <SimActivity current={current} requests={requests} failed={failed}
-                       onOpenReceipt={setTrace} onOpenRequest={setRequestId} />
+      <LiveDashboard onOpenRequest={setRequestId} />
+      <details className="rounded-lg border border-caos-line bg-white p-3" data-testid="engineering-details">
+        <summary className="cursor-pointer text-sm font-semibold text-caos-mute">
+          Engineering details — plan, run controls, raw runtime, receipts and the demo-room simulator
+        </summary>
+        <div className="mt-4 space-y-4">
+          <p className="text-sm text-caos-mute">{communityRuntimeIntro(runtime.snapshot)}</p>
+          <SimCommunityOverview community={community || {}} />
+          <SimCommunityObserved {...observed} onRetry={loadObserved} />
+          <SimCommunityControls snapshot={runtime.snapshot} onRuntimeRefresh={loadRuntime} />
+          <SimCommunityResetControl snapshot={runtime.snapshot} onRuntimeRefresh={loadRuntime} />
+          <SimCommunityRuntime {...runtime} onRetry={loadRuntime} onOpenRequest={setRequestId} />
+          <h3 className="text-xs font-bold uppercase tracking-widest text-caos-mute">Demo-room simulator (legacy)</h3>
+          <SimControls state={state} busy={busy} onControl={control}
+                       scenarios={scenarios} scenario={scenario} onScenario={setScenario} />
+          <div className="grid gap-4 lg:grid-cols-3">
+            <div className="space-y-4 min-w-0">
+              <SimActors cast={cast} startedBy={state?.started_by} onChanged={load}
+                         active={state?.state === SIM_STATES.RUNNING || state?.state === SIM_STATES.PAUSED}
+                         onSelect={(a) => {
+                           const id = a.filled_by?.mode === "real" ? a.filled_by.user_id : a.actor_id;
+                           const r = stream.find((x) => x.actor_id === id);
+                           if (r) setTrace(r);
+                         }} />
+              <SimActivity current={current} requests={requests} failed={failed}
+                           onOpenReceipt={setTrace} onOpenRequest={setRequestId} />
+            </div>
+            <div className="lg:col-span-2 min-w-0">
+              <SimEventStream rows={stream} currentId={current?.receipt_id} onSelect={setTrace} />
+            </div>
+          </div>
         </div>
-        <div className="lg:col-span-2 min-w-0">
-          <SimEventStream rows={stream} currentId={current?.receipt_id} onSelect={setTrace} />
-        </div>
-      </div>
+      </details>
       <SimReceiptTrace receipt={trace} cast={cast} onClose={() => setTrace(null)}
                        onOpenRequest={(id) => { setTrace(null); setRequestId(id); }} />
       <RequestDetailDialog taskId={requestId} open={!!requestId}

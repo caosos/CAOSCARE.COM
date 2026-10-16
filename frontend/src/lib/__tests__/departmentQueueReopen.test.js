@@ -24,6 +24,8 @@ jest.mock("../../components/ui/textarea", () => {
 const Queue = require("../../pages/DepartmentQueue").default;
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const flush = () => act(async () => { await Promise.resolve(); await Promise.resolve(); });
+// Rows are compact; their actions show when a row is expanded (CO-008).
+const expandAll = (root0) => act(async () => { (root0 || document).querySelectorAll("[data-testid^=wo-row-]").forEach((b) => { if (b.getAttribute("aria-expanded") !== "true") b.click(); }); });
 const done = { task_id: "t9", title: "Callback about parking", status: "completed", assigned_to: "fd1", visibility_role: "administration",
   created_at: "2026-10-11T07:00:00Z", completed_at: "2026-10-11T07:20:00Z", completed_by_name: "Dana" };
 let root, el;
@@ -38,7 +40,7 @@ const type = async (ta, v) => act(async () => {
   const s = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set; s.call(ta, v); ta.dispatchEvent(new Event("input", { bubbles: true }));
 });
 const render = async () => {
-  await act(async () => root.render(<Queue department="administration" title="Front desk requests" adminMode />)); await flush();
+  await act(async () => root.render(<Queue department="administration" title="Front desk requests" adminMode />)); await flush(); await expandAll();
   await act(async () => { el.querySelector("[data-testid=wo-completed] summary")?.click(); });
 };
 

@@ -563,6 +563,458 @@ Current task checklist — checked means the work product exists, not that pendi
 - **Blocker:** pre-deploy wake tests used the wrong existing virtual environment. No package installation or runtime workaround is authorized or needed.
 - **Michael must do:** NOTHING.
 
+
+## Tuesday, October 13, 2026 — 1:05 AM America/Chicago — Living Community Simulator foundation isolated and tested
+
+- **Owner direction:** build the Care App ourselves while another builder works in tandem; communicate exact file lanes first and do not use or dispatch the historical Claude Code workflow.
+- **Coordination:** Issue #129 received the Living Community Simulator requisition/non-overlap notice and a correction naming Michael plus the current Care App builders as the active builders. Branch `feature/living-community-simulator` owns only the new community simulator modules, read-only simulator routes/UI, focused tests, and requisition report. No merge or deployment is authorized by this entry.
+- **Declared scale:** deterministic blueprint for 80 apartments, 70 occupied apartments, 75 target residents, a 10-resident single-occupancy burn-in, and 50 simulated workers across Nursing/Care, Dining, Housekeeping, Maintenance, Transportation, Activities, Front Desk, and Administration/Leadership.
+- **Planning implemented:** 90-day deterministic staffing projection; first-day 153-event resident routine plan; planned refusals and linked reschedules; projected clock-in, handoff, clock-out, and coverage-gap events. Every outcome and shift event is marked planned/not executed and cannot serve as a receipt.
+- **Truth boundaries:** medication is reminder-only; meals never imply consumption; transportation and family contact remain coordination-only; external calls, resource booking, alerts, and content publishing stay blocked until simulation-isolated. Simulated workers are synthetic actors, never fake User/login records.
+- **Admin Work-as foundation:** signed, short-lived work context keeps the real owner/admin as principal and records acting role, acting department, and work-context ID separately. It is not routed into production authorization yet.
+- **UI/API:** owner/admin read-only community overview and preview routes feed Live Operations with declared counts, coverage gaps, planned routines/outcomes, shift-event counts, and blocked capabilities. The existing two demo-room scenarios remain the only runnable simulator actions; the UI explicitly says autonomous community execution is not yet running.
+- **Verification:** 32 pure simulator tests passed locally. Python compilation and repository whitespace checks passed. Frontend tests and Work-as runtime tests were not executed in this container because frontend dependencies and PyJWT were not installed; PyJWT is already an existing backend requirement. No MongoDB, provider, production runtime, EliteDesk service, or resident record was changed.
+- **Next bounded slice:** publish this isolated branch and draft PR; run repository CI; then add canonical, receipted burn-in provisioning and execution behind explicit reset/cleanup guarantees before enabling any autonomous run.
+- **Michael must do:** NOTHING for this foundation slice.
+
+
+## Tuesday, October 13, 2026 — 1:22 AM America/Chicago — Community false-empty guard merged; simulator P1A remains isolated
+
+- **Observed live-UI problem:** the Admin page displayed “No community set up yet” after a shared-runtime interruption even though the department views remained present. The simulator branch had not been deployed and had made no database writes.
+- **Proven UI defect:** `Admin.jsx` treated a failed or malformed `GET /facilities` response as a completed empty read. That made a backend restart or transient API failure look like deletion. No evidence established that the Conway facility record was deleted.
+- **Fix:** PR #147 merged as `643e57891b3e395ec21a0d99e3fc940fceb6e5eb` after frontend CI passed. The UI now distinguishes loading, confirmed empty, and read failure; a failure says the community could not be verified, retains last-known facilities, and offers retry. It never creates or changes facility data. This merge has not been claimed loaded on the EliteDesk.
+- **Coordination rule:** Issue #129 now forbids unannounced live-service restarts, database seeds, facility mutations or migrations. Any shared-runtime mutation must post its exact SHA, services/data affected, guard and rollback first.
+- **Simulator P1A added to draft PR #146:** an idempotent ten-resident canonical provisioning service preflights resident-ID/room/pendant collisions, refuses unmarked or ambiguous records, creates/reuses canonical receipts, and never creates worker User accounts. A separate PAUSED-only adapter can create one shower-help request through the existing resident-request service and acknowledge it through the existing task lifecycle with an on-shift synthetic Nursing/Care actor and chained receipts.
+- **Execution boundary:** neither P1A service has an HTTP mutation route or has been called against live data. The broader community is still planning-only and has not been deployed.
+- **Verification:** 63 focused tests passed in the canonical dependency environment, including anonymous/staff rejection and owner/admin access for both read-only community endpoints, plus signed Work-as context tamper/expiry/principal tests. Frontend CI for the simulator head passed after its test alias correction; new-head backend/frontend CI remained in progress at this entry.
+- **Next bounded work:** finish current CI, add guarded owner/admin mutation routes only after reset/replay and side-by-side real-record protections are proven, then review before any live load.
+- **Michael must do:** NOTHING.
+
+
+## Tuesday, October 13, 2026 — 1:33 AM America/Chicago — Simulator safety review closed two critical provenance gaps
+
+- **Safe progress:** the planning-only workforce now gives all 50 synthetic workers one daily state across 90 days (32 scheduled / 18 off duty in the declared load model). Scheduled sessions contain planned login, clock-in, assignment acceptance, handoff and clock-out milestones; login explicitly creates no User or authentication token. Live Operations exposes counts only and still labels every milestone unexecuted/unreceipted.
+- **Isolation evidence:** a side-by-side test keeps selected real resident/request/receipt rows byte-identical while one synthetic shower request is created, replayed, acknowledged and replayed through canonical service seams. No production data or provider was touched.
+- **Narrow cleanup:** synthetic resident cleanup now requires an authenticated real owner/admin, exact living-community markers on all ten stable identities, all-record preflight before deletion, exact-match delete filters and append-only request/outcome receipts. It is resident-only cleanup, not a complete community reset, and has no mounted route.
+- **Guarded control foundation:** the separate burn-in provisioning router defaults to dry-run, requires a PAUSED run, a principal/run/plan-bound five-minute confirmation and a default-off server execution flag. The router remains intentionally unregistered and undeployed.
+- **Critical review fix:** living-community residents, runs, tasks, receipts and suppressed notifications now preserve server-derived `simulation_scope=living_community`, `simulation_community_id=sim:community:living-80-v1` and run ID. Demo or wrong-community synthetic identities/runs are refused. Legacy demo-room fallback remains compatible. Reprovision after cleanup now creates a fresh creation receipt for every new resident generation instead of reusing historical evidence.
+- **Verification:** 99 focused simulator/work-context tests passed; compileall and whitespace checks passed. Frontend dependencies are absent locally, so the attendance UI test must be proven by GitHub CI after publication. The Mongo integration provenance test was added but could not complete in this scratch runtime because no reachable test MongoDB was available; pure scope/model/provider-suppression tests passed.
+- **Still blocked from execution:** no three-month unattended executor, durable cursor/lease/restart recovery, dependency-aware reset, run-state concurrency guard, synthetic-row shared-reader audit, generic resident CRUD protection, active Work-as route/UI, or observed-versus-planned state read exists. Routine dispatch has five Administration family-call events after that shift ends, and attendance/shift planners currently duplicate clock/handoff/clock-out plans. These are explicit acceptance gates, not hidden claims.
+- **Runtime boundary:** no simulator route was mounted, no branch was merged, no EliteDesk service was restarted, no database/provider was mutated, and no autonomous simulation ran.
+- **Next safe action:** make reset dependency-aware and bind mutation to a durable living-community run lease; then remove duplicate shift streams and require an on-shift assignment before any routine can execute. Do not enable the dormant mutation control before those gates pass.
+- **Michael must do:** NOTHING.
+
+
+## Tuesday, October 13, 2026 — 1:48 AM America/Chicago — Simulator cross-boundary interference guards verified
+
+- **Published checkpoint:** draft PR #146 heads `30273c851e377bebb7f746c4a161945705aaee22` and `f3a5575b21d6f7a05b96cb45a4238c44d33a5c2b` each passed both GitHub frontend and backend checks. Issue #129 contains the standing tandem-builder file-lane and no-unannounced-runtime-mutation handoff. Work added after `f3a5575` remains on the isolated feature branch pending its own CI.
+- **Durable execution foundation:** a living-community-only Mongo lease boundary now gives each executor acquisition a monotonically increasing fence, requires the exact live owner for heartbeat, refuses PAUSED/stale/expired owners, and advances the run cursor by exact compare-and-swap. It is not connected to a loop or route.
+- **Reset safety:** resident cleanup now refuses before its first receipt or delete when canonical tasks, notifications or run evidence still depends on any burn-in identity. It does not cascade-delete evidence. Cleanup and provisioning/control receipts have searchable top-level community/scope/run markers while retaining the authenticated human as the real actor.
+- **Schedule truth:** the 75-resident routine plan keeps minute-of-day in `0..1439`, records explicit day rollover, and lets day-89 work drain into day 90. Clock-in/handoff/clock-out now have one canonical shift-event stream; attendance owns only login and assignment acceptance and references the canonical shift milestones.
+- **Shared-code isolation:** generic resident PUT, DELETE, public preferred-name PATCH, and delegated admin-assistant edits now refuse living-community records at pre-read and atomic mutation filters. Always-on alert/task escalations exclude exact living-community records at selection and claim. Family alert SMS/email derives simulation provenance from server-owned resident truth and suppresses provider calls; real residents and legacy demo behavior remain unchanged.
+- **Additional guarded planning:** recurring task templates refuse or skip living-community residents, and automatic haiku generation refuses before any OpenAI call. Uncovered routines remain explicitly queued/unassigned; the five after-hours Administration family-call events wait until next-day coverage instead of claiming work occurred. Department preflight derives all eight required slugs, returns an immutable digest and distinguishes missing/inactive rows. The current default catalog is missing `front_desk`, so start must remain blocked until that canonical department exists and is active.
+- **Rota truth:** all 50 identities remain stable and every worker now receives at least one rest day in every rolling seven-day window. This exposes a real shortage: with three maintenance identities covering three daily slots, one maintenance shift is unfilled each day once days off are honored. Daily planned attendance is therefore 31, not the previously claimed 32, until staffing is increased or the coverage requirement is changed.
+- **Verification:** 169 focused simulator, resident-guard, recurrence, escalation-exclusion, provider-suppression, haiku-boundary, access-control, and Work-as tests passed together; compileall and whitespace checks passed. No reachable local MongoDB exists for the direct integration provenance tail, so that remains a CI/integration requirement.
+- **Runtime boundary:** no simulator route was mounted, no execution flag was enabled, no feature commit was merged or deployed, no EliteDesk service restarted, and no live database/provider call was made.
+- **Remaining gates:** no unattended executor, restart catch-up/reconciliation or complete atomic reset exists; memory/classifier, seed, location, insights and other bulk processors still need living-community policy; planned-vs-observed database truth is not yet separated in the UI; resident-specific synthetic care plans are not yet modeled; `front_desk` is missing from the default canonical department catalog; maintenance and several departments do not meet continuous 24-hour coverage with the current 50-person roster; Work-as is not integrated into department UI/routes; and current feature-head CI must pass.
+- **Next safe action:** publish this second guarded tree to draft PR #146, verify both CI checks, then add department/preflight and controlled on-shift queue semantics before wiring any executor.
+- **Michael must do:** NOTHING.
+
+
+## Tuesday, October 13, 2026 — 10:44 AM America/Chicago — Observed community truth and remaining isolation guards completed
+
+- **Integration reconciliation:** `feature/living-community-simulator` now includes the current
+  `integration/2026-09-27` facility false-empty and guarded-deployment work. The merge was confined to the
+  feature branch; no integration branch, runtime, service, database, or facility record was changed.
+- **Observed truth:** `community_observed_state.py` reads canonical residents, tasks, notifications, and
+  simulator runs and reports `loaded`, `unknown`, or `error`. A ten-resident burn-in is classified only from
+  exact stable resident ID, room, pendant, and living-community markers as `not_provisioned`, `partial`,
+  `provisioned`, or `inconsistent`. Failed reads remain null/unknown and can never become a false zero.
+- **Read-only API/UI:** owner/admin `GET /api/simulator/community/observed` returns counts only when every
+  required source loaded; otherwise it returns 503 without counts. Live Operations keeps the planning preview
+  separate from observed records. Initial failure says observed state is unknown, and a later refresh failure
+  preserves and labels the last verified snapshot instead of replacing it with zero.
+- **Resident planning:** every one of the 75 synthetic blueprint residents has a deterministic, varied,
+  planning-only preference and assistance profile. The source explicitly says it is synthetic, non-clinical,
+  unconfirmed, and not evidence of consent, an order, an assessed need, or completed care. It is not connected
+  to execution or the database.
+- **Remaining shared-code guards:** legacy demo seed, mock location, and bulk insight paths exclude exact and
+  malformed living-community identities. Automatic memory extraction and alert AI classification fail closed
+  before provider use when server-owned identity belongs to this community. Real residents and the legacy
+  `demo_room` path remain unchanged.
+- **Verification:** 214 focused backend simulator, access, Work-as, resident/template/bulk, memory/classifier,
+  family/provider, and observed-truth tests passed together; 12 focused frontend tests passed; the production
+  frontend build compiled; Python compilation and repository whitespace checks passed. Earlier direct restart
+  tests had five local port-ownership timing failures in this scratch environment; those deployment-lane tests
+  are unchanged by this slice and current GitHub CI remains the clean-environment authority. No reachable local
+  MongoDB was used, so no direct-database or browser runtime acceptance is claimed.
+- **Runtime boundary:** no mutation route was enabled, no simulator run was started, no seed or cleanup ran,
+  no provider was called, no branch was merged or deployed, no EliteDesk service was restarted, and no live
+  facility/resident record was changed.
+- **Remaining gates:** the community still needs its unattended fenced executor, restart catch-up and
+  reconciliation, complete dependency-aware atomic reset, canonical `front_desk` department, an explicit
+  staffing decision for uncovered 24-hour shifts, active Work-as route/UI integration, direct-Mongo proof, and
+  current feature-head CI. The existing demo-room scenarios remain the only runnable actions.
+- **Michael must do:** NOTHING while the isolated draft branch is verified.
+## 2026-10-13 — Living-community unattended-loop core (isolated lane)
+
+HANDOFF CAPSULE
+- Objective: Drive the fenced living-community runner continuously, one due event at a time, with a durable accelerated clock and observable loop truth.
+- Branch: `lane/community-loop`
+- Lane / ownership: New loop core and focused tests only; no route, startup hook, default database, provider path, deployment, or live mutation.
+- Last proven state: 61 focused loop/runner/timeline/executor tests pass; pause/resume, graceful cancellation, process-local non-overlap, restart receipt catch-up, blocked/error backoff, serialized ticks, and exact 90-day completion are covered.
+- Commits: recorded in the branch commit that contains this capsule.
+- Runtime state: No server, loop, database, provider, or deployment was started.
+- Unresolved proven defects: none in this bounded loop core; integration still requires a reviewed durable clock advancer and explicit control-route wiring.
+- Product invariants that matter here: same canonical event/receipt path; one fenced event per tick; no action without durable provenance; stopped/paused runs cannot execute; full horizon is 90 days.
+- Do NOT change: Do not auto-start this loop, select a live database, attach a route/startup hook, or enable providers from this lane.
+- Next safe action: Review and integrate the commit, then supply a separately tested atomic persisted-clock adapter before any control-surface wiring.
+
+## 2026-10-13 — Living-community canonical live-activity projection (isolated lane)
+
+HANDOFF CAPSULE
+- Objective: Let an owner/admin watch recent exact-run canonical simulated tickets and their receipt-backed state transitions in Live Operations.
+- Branch: `lane/community-live-activity`
+- Lane / ownership: Read-only activity projection, existing runtime API composition, focused UI, and tests only; no lifecycle, executor, loop, provider, startup, deployment, or database mutation.
+- Last proven state: 15 focused backend runtime/activity/API tests and 7 focused frontend tests pass; the production frontend build compiles. Wrong-run, wrong-scope, non-simulated tasks and non-synthetic resident identities are excluded; failed reads remain unknown rather than empty.
+- Commits: recorded in the branch commit that contains this capsule.
+- Runtime state: No server, simulator, database, provider, service, or deployment was started.
+- Unresolved proven defects: The current executor may create and complete a ticket inside one tick; this read lane exposes the canonical completed task and both receipts but cannot itself create observable dwell time between states.
+- Product invariants that matter here: canonical `staff_tasks` and receipts only; exact living-community/run scope; synthetic identity boundary; owner/admin read-only access; no action without provenance.
+- Do NOT change: Do not add simulator mutations, executor staging, providers, startup hooks, or live data access from this lane.
+- Next safe action: Integrate this projection, then separately stage canonical ticket lifecycle transitions across executor ticks so polling can visibly observe open, claimed/in-progress, and completed states.
+
+## Tuesday, October 13, 2026 — 1:58 PM America/Chicago — Living-community runtime and observable ticket movement integrated
+
+- **Branch/ref:** `work/living-community-operations`; isolated draft PR #146 remains unmerged and undeployed. This entry covers local commits through `5a954f2`; the last published remote checkpoint remains the earlier CI-green operations core.
+- **Durable runtime:** exact-plan run creation, owner/admin PAUSED/RUNNING/STOPPED transitions, named-system accelerated clock, fenced one-event execution, restart receipt reconciliation, cancellable unattended loop, and receipt-backed automatic completion at the exact 90-day boundary are integrated. Automatic clock/completion receipts are system-attributed; Michael is never named as the autonomous actor.
+- **Visible community:** the owner/admin Live Operations runtime panel polls every two seconds while running and shows persisted simulated time, exact cursor/progress, on-shift departmental coverage, canonical ticket counts, recent exact-run tickets, and recent task transition receipts. Failed reads remain unknown rather than false zeroes, and tickets open into the existing canonical request-detail UI.
+- **Observable ticket lifecycle:** every resident routine now produces three deterministic canonical StaffTask phases: OPEN at T, CLAIM/START at T+5 simulated minutes, and COMPLETE at T+15. At the default 60x speed this is about five real seconds pending and ten real seconds in progress, longer than the UI polling interval. OPEN is attributed to the synthetic resident; later phases independently select an on-shift departmental worker, including truthful shift-boundary handoff. Medication remains reminder-only.
+- **Plan fingerprint:** `living-community-timeline-v2-ticket-dwell`, 51,570 events (41,310 ticket phases plus 10,260 shift milestones), SHA-256 `c6984f5f1ec38a84a87d110336813ba5f7c0635715d38a13bd4bcf18427ffeb6`.
+- **Reset truth:** reset receipts now have deterministic Mongo identities; retry/replay cannot silently duplicate logical evidence; confirmed abort is distinct from unknown commit outcome; an ambiguous commit must reconcile exact receipts and empty exact-scope state before success is claimed.
+- **Guarded controls foundation:** injection-only service composition supports create-PAUSED, readiness preflight, resume/start loop, graceful pause, stop, and guarded one-event step. No mutation route, startup hook, live database connection, feature enablement, deployment, provider call, or simulator run was performed.
+- **Verification:** local integrated slices include 335 broad simulator/safety tests passed for staged execution, 290 community tests passed before staging, 106 focused timeline/executor/runner/reconciliation tests passed after staging, 41 reset/runtime/lifecycle/view tests passed after reset hardening, seven runtime frontend tests passed, and the production frontend build compiled. Direct MongoDB and browser runtime acceptance are not yet claimed.
+- **Proven blocker:** repository evidence does not establish whether the EliteDesk MongoDB supports multi-document transactions. Lifecycle and atomic reset must remain disabled until a read-only topology/transaction probe and isolated scratch-database acceptance pass. The currently mounted new route is GET-only runtime truth.
+- **Next safe action:** finish bounded per-tick recovery for the 51,570-event plan, then integrate a default-off transaction-gated control API/UI and atomic run-bound resident provisioning. Do not enable, deploy, restart services, or mutate live data before direct database and browser acceptance plus exact-SHA owner authorization.
+- **Michael must do:** NOTHING during this isolated build slice.
+
+## 2026-10-13 — Living-community bounded runner recovery (isolated lane)
+
+HANDOFF CAPSULE
+- Objective: Keep the 51,570-event unattended runner viable at 60x by making every tick cursor-local while preserving crash recovery and receipt safety.
+- Branch: `lane/community-runner-bounded`
+- Lane / ownership: Runner hot path, durable timeline read adapter, one-event execution seam, and focused tests only; no route, startup hook, provider, database default, deployment, or live mutation.
+- Last proven state: 105 focused runner/timeline/executor/loop/runtime-acceptance/reconciliation tests pass. A 51,570-event non-iterable-plan test proves a tick uses indexed cursor reads and never invokes full event/receipt loaders. A 1,000-tick fake-store benchmark measured 0.158 ms/tick for a 51,570-event contract versus 0.154 ms/tick for one event (1.029x; storage latency excluded).
+- Commits: recorded in the branch commit that contains this capsule.
+- Runtime state: No server, simulator loop, database, provider, service, or deployment was started.
+- Unresolved proven defects: none in the bounded recovery lane; direct Mongo acceptance remains an integration gate.
+- Product invariants that matter here: exact plan fingerprint and cursor; prior/current/future-gap evidence is bounded and provenance-validated; a terminal crash receipt advances without re-execution; duplicates, nonterminal evidence, wrong scope/community, cursor/event mismatch, and future-gap receipts fail closed; paused/stopped and fenced-lease behavior is preserved.
+- Do NOT change: Do not replace the exact receipt queries with a run-wide scan, bypass last-evidence validation, auto-start the loop, select a live database, mount a route, or enable providers from this lane.
+- Next safe action: Review and integrate this commit, then run the complete in-memory suite and direct-Mongo acceptance from the coordinator branch before any guarded control-route activation.
+
+## 2026-10-13 — Living-community direct-Mongo acceptance tool (isolated lane)
+
+HANDOFF CAPSULE
+- Objective: Safely classify Mongo topology, prove a real read-only transaction/abort, and run the remaining provision/execute/pause/reconnect/resume/reset acceptance only in an explicitly confirmed disposable database.
+- Branch: `lane/mongo-acceptance-tool`
+- Lane / ownership: Operator CLI, safety/probe modules, fake-backed tests, and runbook only; no route, startup hook, provider, deployment, SSH, or live database access.
+- Last proven state: 68 focused acceptance/lifecycle/provisioning/runner/reset/control tests pass (including five new fake-backed tool tests); Python compilation and whitespace checks pass. An omitted confirmation stops before database import/use, exits nonzero, and does not expose a deliberately credential-bearing test URI.
+- Commits: recorded in the branch commit that contains this capsule.
+- Runtime state: No MongoDB, SSH host, server, provider, simulator loop, or deployment was contacted or changed.
+- Unresolved proven defects: The tool has not yet been run against a real replica set/sharded MongoDB; its output will be the direct-database evidence. It does not prove an EliteDesk service restart or browser acceptance.
+- Product invariants that matter here: read-only by default; explicit disposable name plus confirmation for writes; exact scratch database binding before/reopen; all mutations use receipt-backed canonical services; credentials and raw connection errors are never printed.
+- Do NOT change: Do not relax the scratch prefix/empty-database/production-name guards, add database deletion, default a mutation mode, auto-run it, or point it at the shared `caoscare` database.
+- Next safe action: Review and integrate this commit, then run the read-only command on EliteDesk; only after that passes, run a separately named pristine scratch acceptance with explicit owner authorization.
+
+## 2026-10-13 — Fresh lease revalidation before simulator cursor commit
+
+HANDOFF CAPSULE
+- Objective: Prevent an executor from advancing the durable community cursor after its lease expires or another holder takes ownership during canonical event work or crash-receipt recovery.
+- Branch: `fix/community-runner-lease-revalidation`
+- Lane / ownership: Shared cursor-commit lease guard, bounded runner/step, legacy executor compatibility, loop/control/startup clock injection, focused tests, and historical requisition note only; no routes, live database, provider, deployment, or runtime mutation.
+- Last proven state: 86 focused executor/lease/runner/loop/startup tests passed; a broader 127-test executor/adapter/runner/timeline/loop/control/startup/runtime-acceptance set passed; Python compilation and repository whitespace checks passed. Expiry during service work and prior-receipt recovery leaves cursor and last-evidence metadata unchanged.
+- Commits: recorded in the branch commit containing this capsule.
+- Runtime state: No server, simulator loop, database, provider, service, or deployment was started.
+- Unresolved proven defects: Direct Mongo concurrency acceptance remains an integration gate; no new defect was found in this bounded fix.
+- Product invariants that matter here: one exact fenced owner; fresh timezone-aware lease proof after durable evidence reload and before cursor CAS; receipt-backed cursor movement only; expired/stale ownership cannot change cursor metadata.
+- Do NOT change: Do not weaken exact holder/fence/TTL matching, reuse the tick-start timestamp after service work, enable routes, touch live data, call providers, or deploy from this lane.
+- Next safe action: Integrate this commit onto the living-community operations branch, rerun the combined simulator suite, and keep direct-Mongo/browser acceptance gated.
+
+## 2026-10-13 — Guarded stopped-run reset controls
+
+- **Agent/tool used:** Codex reset-controls lane
+- **Branch/ref:** `lane/community-reset-controls`, rebased onto integrated simulator head `63d2862`
+- **What changed:** Added a separate default-off owner/admin reset endpoint and typed-confirmation UI for one exact stopped Living Community run. Reset now refuses an active durable execution lease, checks process-local loop ownership, binds the stable operation key to the authenticated actor and run, and preserves historical receipts, real residents, and unrelated simulator scopes.
+- **What was verified:** Before integration, the 393-test community backend suite passed. After rebasing onto resident provisioning controls, 83 focused backend coexistence tests and 10 focused frontend control tests passed; the optimized frontend production build compiled successfully. Gate failures, confirmation/state mismatches, active-loop refusal, exact-run matching, idempotent retry, and the UI confirmation flow are covered.
+- **What is blocked:** No live database, startup, deployment, or provider action was performed. Mutation remains unavailable unless the explicit environment flag, real transaction probe, and all six named indexes pass.
+- **Next safe step:** Integrate this commit after the provisioning-controls lane, rerun the combined focused suites, and keep deployment disabled pending direct MongoDB acceptance.
+
+HANDOFF CAPSULE
+- Objective: Wire the hardened exact-scope reset into guarded owner/admin controls.
+- Branch: `lane/community-reset-controls`
+- Lane / ownership: Separate reset route, component, client helper, and tests; avoided the shared provisioning control files.
+- Last proven state: Post-rebase backend 83/83, frontend 10/10, and the production frontend build are green; earlier full community backend suite was 393/393.
+- Commits: See branch head after commit.
+- Runtime state: No services started; no live database or provider touched.
+- Unresolved proven defects: None in this bounded lane.
+- Product invariants that matter here: Reset is manual, exact-scope, transactional, receipt-preserving, and real-data-safe.
+- Do NOT change: Default-off transaction/index gate; append-only historical receipts; real/unrelated data boundaries.
+- Next safe action: Cherry-pick after provisioning controls, resolve only server/Live Operations registration if needed, then rerun combined tests.
+
+## Tuesday, October 13, 2026 — 3:09 PM America/Chicago — Running-community simulator integration checkpoint
+
+- **Branch/ref:** `work/living-community-operations` at `bfbbd8970364f01d85555d54a19f7f018b938c08`; draft PR #146 remains isolated, unmerged, and undeployed.
+- **Owner-visible outcome:** Live Operations can poll every two seconds while RUNNING and show canonical simulated tickets opening, being claimed/in progress, and completing. Each transition is tied to the exact run, resident, on-shift departmental worker, simulated time, and durable receipt. Pause freezes movement; resume continues it; restart recovery reconciles missed work without deliberately duplicating it.
+- **Complete community plan:** 80 apartments, 70 occupied apartments, 75 synthetic residents, 50 stable synthetic workers, eight departments, deterministic 90-day schedules, resident-specific plans, staffing shifts, coverage gaps, and daily work in every department. Current plan fingerprint is `living-community-timeline-v3-department-activity`, 52,110 events (41,850 ticket phases plus 10,260 shift milestones), SHA-256 `35ee4c75c8f08ebb24ffe058baa1fa4095f03f4ab5e0da2aaa6062b727d70970`.
+- **Department activity:** Nursing, Kitchen, Housekeeping, Activities, Administration, Transportation, Maintenance, and Front Desk all produce canonical work. Front Desk follow-up remains provider-fenced and claims neither an outbound call nor resident contact.
+- **Controls and safety:** Owner/admin create, provision-ten-resident burn-in, resume, pause, stop, and exact stopped-run reset controls are default-off behind the transaction/index capability gate. Real residents, unrelated runs, historical receipts, and real providers remain isolated. Medication is reminder-only. Real admin Work-as retains Michael's authenticated identity and never impersonates a synthetic worker.
+- **Runtime hardening:** bounded cursor-local reads, fenced ownership, fresh lease revalidation immediately before cursor commits, restart reconciliation, receipt-backed index preparation, atomic resident provisioning, and exact-scope reset are integrated. Startup recovery is implemented but intentionally unmounted pending direct-database acceptance and reviewed service wiring.
+- **Verification:** the complete `backend/tests/test_sim_community*.py` suite passed 428/428 in 617.71 seconds; focused frontend suites passed 25/25 and 23/23; the optimized frontend production build compiled; Python compilation and repository whitespace checks pass. No live server, database, provider, deployment, or simulator run was started.
+- **Remaining gates:** run the read-only Mongo topology/transaction probe; run the explicitly confirmed isolated scratch-database provision/execute/pause/reconnect/resume/stop/reset acceptance; mount the single startup/service coordinator only after those pass; deploy an exact reviewed SHA to a test environment; perform browser acceptance for CREATE, PROVISION, RESUME, live ticket movement, PAUSE, restart recovery, STOP, and RESET; then obtain owner approval before any larger 75-resident accelerated run.
+- **Next safe action:** publish this exact verified tree to the isolated draft branch without force, update PR #146 and issue #129 for the tandem builder, then wait for exact-head CI. Do not merge, deploy, restart, enable controls, or touch a live database from this checkpoint.
+
+## 2026-10-13 — Living-community browser-visible lifecycle coverage (isolated lane)
+
+HANDOFF CAPSULE
+- Objective: Prove at the Live Operations page boundary that an owner can visibly follow one canonical ticket from open to in progress to complete, pause without autonomous movement, resume, inspect provenance, and see truthful disabled controls.
+- Branch: `lane/browser-acceptance-coverage`, based on published simulator commit `d90af0bd4ed23d483363a7112bc2c75647bb3bf4`.
+- Lane / ownership: Deterministic frontend/browser-DOM acceptance coverage and bounded runtime-status wording only; no backend, route, deployment, database, server, provider, or live browser mutation.
+- Last proven state: The page-level test drives RUNNING open → RUNNING in progress → PAUSED in progress for a ten-second poll → RUNNING in progress → RUNNING completed, verifies resident/worker/source/authority/receipt provenance, opens the canonical ticket detail seam, and verifies all controls remain disabled when the safety gate refuses mutations. Six focused suites pass (25 tests total), and the optimized production frontend build compiles.
+- Commits: Recorded in the branch commit containing this capsule.
+- Runtime state: No server, database, simulator, provider, deployment, authenticated account, or live browser was opened or changed.
+- Unresolved proven defects: No defect in the deterministic UI contract. This is automated browser-DOM evidence, not deployed browser acceptance; exact-SHA test deployment plus real API/database operation remains required.
+- Product invariants that matter here: canonical StaffTask/receipt truth; explicit simulated identity; paused autonomous work does not move; real-human actions may still appear; unavailable reads never become false zeroes; mutation controls fail closed.
+- Do NOT change: Do not treat this test as proof of Mongo transactions, startup wiring, deployment, or a live three-month run.
+- Next safe action: Integrate this commit, then run the remaining isolated Mongo acceptance and exact-SHA deployed browser acceptance before enabling Living Community controls.
+
+## 2026-10-13 — Kitchen and Activities specialized Work-as slice (isolated lane)
+
+HANDOFF CAPSULE
+- Objective: Let a real owner/admin enter Kitchen or Activities through Work-as and use the existing menu or schedule workspace with explicit dual-identity receipts.
+- Branch: `lane/department-workas-safe`, based on published simulator head `d90af0bd4ed23d483363a7112bc2c75647bb3bf4`.
+- Lane / ownership: Kitchen menu and Activities schedule routes, their existing ingest/review endpoints, shared content-receipt authority, Department Workspace selection, and focused tests only. No Transportation, Front Desk, Nursing alert, provider, simulator runtime, database, deployment, or server changes.
+- Last proven state: All 20 signed-in menu/schedule endpoints revalidate the short-lived Work-as header; wrong-department scope remains 403; receipts retain Michael's authenticated owner/admin identity and separately name the temporary staff department authority; the specialized Kitchen/Activities UI renders while Work-as is active. Nine focused backend tests and 14 focused frontend tests passed; the optimized frontend production build compiled; Python compilation and repository whitespace checks passed.
+- Commits: Recorded in the branch commit containing this capsule.
+- Runtime state: No server, database, provider, simulator loop, deployment, or live resident/community record was contacted or changed.
+- Unresolved proven defects: Transportation still uses separate operator/coordinator dependencies and can notify a real provider path; Front Desk-wide tools do not consume Work-as provenance; Nursing alert actions are not department-scoped Work-as routes and carry care-safety implications. Those surfaces must remain on the generic canonical task queue from Work-as until separately hardened.
+- Product invariants that matter here: Real identity never becomes a simulated worker; each content mutation has a durable dual-provenance receipt; department scope is revalidated on every request; only published content reaches residents/Aria.
+- Do NOT change: Do not broaden Work-as globally, bypass specialized route dependencies, expose another department's content controls, send notifications, or infer clinical authority.
+- Next safe action: Integrate this focused slice, then separately harden Transportation read-only calendar access before considering any ride mutation or notification path.
+
+## 2026-10-13 — Default-off shared startup/runtime composition
+
+HANDOFF CAPSULE
+- Objective: Mount living-community restart recovery without creating a second loop manager or allowing disabled startup to touch simulator storage.
+- Branch: `audit/startup-wiring` from published simulator commit `d90af0bd4ed23d483363a7112bc2c75647bb3bf4`.
+- Lane / ownership: Application lifespan, process-local control/loop registry, startup capability short-circuit, graceful loop shutdown, and focused tests only.
+- Last proven state: the complete simulator suite passes 435/435 in 729.22 seconds; the focused startup/loop/control/reset/API slice passes 52/52; Python compilation and whitespace checks pass. HTTP controls and startup recovery use one exact service/manager. Startup defaults off; startup-enabled/controls-disabled performs no composition or capability/storage probe. Both explicit flags still require the existing real read-only transaction and six-index proof before recovery can load or mutate a run.
+- Commits: recorded in the branch commit containing this capsule.
+- Runtime state: No server, database, simulator, provider, SSH target, deployment, or service restart was touched.
+- Unresolved proven defects: Direct Mongo scratch acceptance and real server/browser restart acceptance remain required before either feature flag is enabled.
+- Product invariants that matter here: one process registry; durable cross-process fenced lease; exact-run receipts; no simulator storage access while startup or controls are disabled; graceful cancellation on server shutdown.
+- Do NOT change: Keep both flags default-off; do not replace the transaction/index proof, silently create indexes, enable a provider, or treat process-local ownership as cross-process exclusivity.
+- Next safe action: Review/cherry-pick this bounded commit, rerun the complete simulator suite, then exercise it only in the explicitly confirmed isolated Mongo scratch acceptance before test deployment.
+
+## 2026-10-13 — Durable owner/admin manual STEP (isolated lane)
+
+HANDOFF CAPSULE
+- Objective: Enable one owner/admin STEP without allowing another process or autonomous loop to execute concurrently.
+- Branch: `lane/community-step-exclusivity`, based exactly on published simulator commit `d90af0bd4ed23d483363a7112bc2c75647bb3bf4`.
+- Lane / ownership: Manual STEP lease mode, receipt-backed orchestration, guarded API/UI enablement, and focused tests only; no startup hook, database selection, provider, deployment, or live mutation.
+- Last proven state: 148 impacted backend tests and 11 focused frontend tests pass; the optimized frontend production build compiles. STEP uses the canonical run document's atomic execution lease with exact holder, monotonically increasing fence, TTL, PAUSED state, cursor, clock, scope, and manual mode. The run remains PAUSED while one canonical event is reconciled/executed and cursor-committed.
+- Commits: Recorded at this lane's committed head.
+- Runtime state: No server, database, provider, simulator loop, SSH session, service, or deployment was contacted or changed.
+- Unresolved proven defects: Direct Mongo concurrency acceptance remains an integration gate; fake-backed tests prove query/CAS semantics but are not topology evidence.
+- Product invariants that matter here: default-off transaction/index capability gate; no action without receipt/provenance; one exact fenced owner; stale/expired ownership cannot advance the cursor; manual STEP cannot leave the community autonomously RUNNING.
+- Do NOT change: Do not make STEP bypass resident readiness, transaction/index gates, exact PAUSED coordinates, lease mode/holder/fence/TTL checks, or provider fences.
+- Next safe action: Integrate after current startup-control changes, resolve only route/capability overlap, rerun combined simulator tests, then include STEP in isolated direct-Mongo and browser acceptance before enabling controls.
+
+## Tuesday, October 13, 2026 — 4:08 PM America/Chicago — Running-community controls integrated and green
+
+- **Integrated outcome:** Live Operations has deterministic page-level proof of canonical ticket movement from OPEN to IN PROGRESS to COMPLETED, including pause freeze, resume, provenance, receipt evidence, and canonical ticket drill-in. Owner/admin STEP now executes one exact event while the run remains PAUSED under a durable `manual_step` lease. Startup recovery and HTTP controls share one process runtime and loop manager.
+- **Work-as expansion:** Kitchen Menu and Activities Schedule are available through Work-as with the real authenticated owner/admin identity and separately signed acting department authority on every supporting request and receipt. Transportation mutation/notification, Front Desk-wide communication, and Nursing alert surfaces remain intentionally gated.
+- **Default-off runtime:** startup performs no simulator composition or storage probe unless both `CAOSCARE_LIVING_COMMUNITY_STARTUP_RECOVERY=true` and `CAOSCARE_LIVING_COMMUNITY_CONTROLS=true`. Transaction and six-index proof remain mandatory. Shutdown cancels loops owned by the shared manager.
+- **Manual STEP proof:** atomic lease acquisition matches exact run/scope/PAUSED/cursor/minute and absent-or-expired lease; every heartbeat, lifecycle write, event execution, and cursor commit requires exact holder/fence/TTL/mode. Human request/completion receipts link to canonical event evidence. The run is never temporarily exposed as autonomously RUNNING.
+- **Combined verification:** complete `backend/tests/test_sim_community*.py` suite 437/437 in 599.14 seconds; combined frontend page/control/workspace slice 19/19; optimized frontend production build compiled; Python compilation, whitespace checks, and modified production file-size checks passed.
+- **Runtime state:** no live database, provider, service, SSH session, deployment, service restart, or simulator run was contacted or changed.
+- **Remaining activation gates:** read-only target-Mongo topology/transaction proof; explicitly confirmed disposable scratch-Mongo acceptance including concurrent STEP, provision, run, pause, reconnect, resume, stop, and reset; exact-SHA test deployment; real browser acceptance; owner review of ten-resident burn-in; owner authorization before merge or any live enablement.
+- **Next safe action:** publish this exact green tree to draft PR #146, update tandem-builder coordination on #129, verify exact-head CI, and keep all controls disabled until the environment gates pass.
+
+## Tuesday, October 13, 2026 — 11:40 PM America/Chicago — SIM-003 real-MongoDB acceptance PASSED (four defects fixed)
+
+- **Agent/tool:** Claude Code session caoscare-1-64 at Michael's instruction (SIM-003). **Branch:** `fix/sim-003-mongo-truthiness` from PR #146 head `7b1af81a8e945927c88476593e314a5faadedd90`; worktree `/home/caoscare-1/CAOSCARE-SIM003`. PR #146 branch itself not modified.
+- **Defects found only against real MongoDB (EliteDesk replica set `rs0`, see SIM-002) and fixed:**
+  1. `store or _default_store()` at 8 sites (provisioning, cleanup, reset, department preflight, run lease ×4) → `NotImplementedError` (pymongo Database refuses `bool()`). Now explicit `is not None`.
+  2. Scratch acceptance never seeded the department catalog → `Unsupported request category: nursing`. Harness now runs the server's own `seed_default_departments` (CLI `seed_catalog`) then `preflight_living_community_run_start` before any mutation.
+  3. Acceptance ticks used the run's frozen start time while the cursor commit revalidates the lease with live time → `lease heartbeat refused`. Ticks now share one clock with the lease revalidation (live in real runs, frozen only when a test injects `now`).
+  4. `PersistedRunClock` anchored on `updated_at`, which every lease acquire/heartbeat/release refreshes → simulated clock froze while the real loop polled (90 "future" ticks, 0 events). New `sim_clock_at` written only where `sim_minute` is set (create + lifecycle `_mutate`); clock reads it, falling back to `updated_at` for older rows.
+- **Regression tests:** test fake stores now reject `bool()` like pymongo (55 tests fail without fix 1, 65/65 pass with it); department preflight before mutation; clock anchor test fails before / passes after fix 4.
+- **Gates:** living-community suite (`test_sim_community*`, `test_living_community_*`, haiku/family boundaries) **494 passed / 0 failed**. Full backend gate: 1150 passed / 21 failed / 31 skipped; all 21 also fail on unmodified `7b1af81` (legacy SIM-1/3/4, demo continuity, SC-16/17 "Unknown simulation run", one realtime tool count) — pre-existing, not introduced.
+- **Real MongoDB acceptance:** shipped tool `check_community_mongo_acceptance.py` PASSED in `caoscare_sim_acceptance_sim003e20261013`. Extended two-process check through `CommunityProcessRuntime` in `caoscare_sim_acceptance_sim003z20261013`: six indexes + receipts; run created; 10 residents provisioned; concurrent STEP (one wins, one refused by fenced lease, cursor 0→1, stays PAUSED); RESUME with real loop; ticket `task_a6dd21b8a5cd` pending → in_progress (`sim:staff:nursing:care_aide:13`) → completed in 16.8 s with chained receipts; SIGKILL while RUNNING; new process startup recovery `started`, reconcile `executed`, cursor 15→30, 0 duplicate event receipts; PAUSE froze cursor/clock/tasks 10 s; STOP; run-scoped RESET left 0 mutable rows, 117 receipts preserved, unrelated sentinel resident and departments kept. Live `caoscare` unchanged (37 residents, 1 facility).
+- **Not done / blocked:** the executable 90-day plan covers only the 10 burn-in residents; provisioning, readiness, cleanup and atomic provisioning require exactly 10. A 75-resident run needs a 75-resident executable plan and provisioning, plus the known staffing-coverage decision. Nothing deployed; no flag enabled on the live backend.
+- **Next safe step:** integrate this branch into PR #146 (owner of PR #146: session `caoscare-integration-b2`), rerun CI, then build the 75-resident executable plan/provisioning slice.
+
+## Wednesday, October 14, 2026 — SIM-005A realistic community staffing (owner direction)
+
+- **Agent/tool:** Claude Code session caoscare-1-64 at Michael's instruction. **Branch:** `feature/sim-005a-staffing` from PR #146 head `4f17fed`; worktree `/home/caoscare-1/CAOSCARE-SIM005A`. Lane notice: issue #129.
+- **Owner direction (Michael, 2026-10-13):** 80-apartment, budget-constrained assisted living; keep the 50 stable employees; overnight 2–3 care staff on site; maintenance normal hours plus after-hours ON CALL (never on site 24 h); other departments realistic hours; show ON DUTY / OFF DUTY / CLOSED / ON CALL / UNCOVERED truthfully; never claim an off-site worker is present.
+- **Model (`community_staffing.py`):** Nursing 24 h (day 4 aides + RN + med tech; evening 3 aides + RN + med tech; **night 3 care aides on site, RN on call**). Maintenance on site 07:00–15:30, **on call 15:30–07:00**. Kitchen 05:30–20:00, Housekeeping 08:00–16:30, Transportation 07:30–17:30, Activities 09:00–20:00, Front Desk 07:00–23:00, Administration 08:00–17:00; closed otherwise. 27 on-site shifts + 2 on-call duties per day; same 50 workers.
+- **Status (`community_coverage.py`, new):** department `on_duty` / `on_call` / `closed` / `uncovered` (uncovered only when it should be staffed and nobody is); worker `on_duty` / `on_call` / `off_duty` (`worker_statuses`). On-call workers never clock in, never appear as present, and have no shift milestones; their attendance state is `on_call`.
+- **Shift events:** coverage observations are now truthful status changes (`department_status_changed`, plus `coverage_gap_*` only for UNCOVERED); handoffs name incoming on-site staff, else the on-call worker, else the department closes.
+- **Defect found and fixed:** `community_shift_execution` accepted only `day|evening|night` shift names, so the live executor would have refused the new `early/late/business` shifts. Executable names now come from the staffing table (`ON_SITE_SHIFTS`); on-call duty is never executable.
+- **Plan:** `living-community-timeline-v4-realistic-staffing`, 49,140 events (41,850 ticket phases unchanged + 7,290 shift milestones), SHA-256 `6eb13c98d0d550061bb8f45a1116c7cb1a029a74831b46cf5ecc90caec6c6a4c`.
+- **UI:** Live Operations shows each department's status, on-site/on-call counts and hours; closed/on-call are no longer shown as gaps; the planning overview shows operating hours and after-hours on-call.
+- **Verified:** rota over 90 days: all 50 workers used, 0 UNCOVERED windows, 2–3 (exactly 3) care staff on site every overnight minute, maintenance never on site after hours with exactly one on-call, ≥24 h between any worker's duties, ≤6 duties per rolling 7 days. Living-community backend suite **501 passed / 0 failed**; frontend 111 suites / 731 tests; production build compiled. Real MongoDB (scratch `caoscare_sim_acceptance_sim005a20261014` shipped acceptance passed; `…sim005b20261014` real loop at 600×: 43 events, 0 errors, night handoffs/clock-outs, kitchen `early` and 06:00 day clock-ins receipted, 0 on-call milestones, reset clean).
+- **Not changed:** resident provisioning (still 10), no deployment, no live data, Room 214 untouched.
+- **Next (SIM-005B):** 75-resident executable timeline + provisioning; see the #129 receipt for the file list and the open owner questions.
+
+### 2026-10-14 correction (Michael): med techs work 7-7
+Med techs now work 12-hour shifts 07:00–19:00 and 19:00–07:00 (one always on site); night care is 2 care aides + the night med tech = 3 on site (2–3 rule kept). This supersedes the 8-hour med-tech rows above and answers SIM-005B question (a): evening reminders after 19:00 fall in the night med tech's shift. Plan `living-community-timeline-v5-med-tech-7-to-7`, 48,870 events (41,850 ticket phases + 7,020 shift milestones), SHA-256 `f1ac6b54904d1ede8f017ffce7200ff892fbc29c3052baf0bebf1b443172bc58`. Living-community suite 502/0; frontend 111/731. Real MongoDB loop (scratch `caoscare_sim_acceptance_sim005c20261014`, 600×): 79 events, 0 errors, `med_tech_night` handoff/clock-out and `med_tech_day` clock-in receipted, 0 on-call milestones, reset clean.
+
+## Wednesday, October 14, 2026 — SIM-005B: all 75 residents executable
+
+- **Agent/tool:** Claude Code session caoscare-1-64 at Michael's instruction. **Branch:** `feature/sim-005b-75-residents` from PR #146 head `6c1286b`; worktree `/home/caoscare-1/CAOSCARE-SIM005B`. Lane notice: #129.
+- **Cohorts (`community_cohort.py`):** `community_75` (runtime default) and `burn_in_10` (optional test configuration). The plan revision names the cohort (`living-community-timeline-v6-community_75` / `-burn_in_10`), so a run's persisted fingerprint decides which residents are provisioned, checked, executed and observed. Selected with `CAOSCARE_LIVING_COMMUNITY_COHORT` or the acceptance CLI's `--cohort`. Unit tests pin the burn-in through `tests/conftest.py`; `test_sim_community_cohort.py` proves the full default.
+- **Removed the hard-coded ten** from provisioning, atomic provisioning, readiness view, run lifecycle (`cohort` + `resident_count` on the run), control-service readiness/start guard, cleanup, observed state, runtime view and planning overview. Reset was already scope-based.
+- **Routines:** the existing daily recipes now run for all 75 residents; optional routines repeat every ten residents (so the burn-in day is identical to residents 1–10 of the full day).
+- **Family-call routing (`community_family_call_routing.py`, owner rule):** Administration until 17:00 when it can finish before closing; Front Desk 17:00–23:00 (and late-afternoon calls Administration cannot finish); otherwise queued for the next staffed period; urgent → on-duty care team. Coordination only, never claims a call.
+- **Defects found and fixed:**
+  1. Dispatch only checked staffing at a ticket's open time, so a 15:15 maintenance check would be completed after Maintenance closed at 15:30 ("ticket phase has no on-shift actor"). A ticket is now dispatched only when its department is staffed through open, claim and completion.
+  2. Double-occupancy rooms (residents 066–075, five shared rooms) were classified as identity collisions by observed state and by provisioning's collision check, so a 75-resident run could never pass the start guard and a re-provision/cleanup would refuse. Blueprint room-mates (`is_room_mate`) are no longer collisions; a stranger in the room still is.
+  3. Worker capacity: each ticket phase went to the alphabetically first on-site worker (one aide held up to 15 tickets at once at 75 residents; only 29/50 workers used). New `community_ticket_assignment.py` gives each ticket to the least-loaded on-site worker and lets the claimer complete it while on shift (46/50 used; worst simultaneous load 10).
+- **Performance:** rota cached per day; plan built and digested once per cohort per process; `validate_timeline` no longer rebuilds. Plans: burn-in 48,870 events (3.6 s); full 321,030 events (314,010 ticket phases + 7,020 shift milestones), build ≈28 s, validation 0.3 s, ≈805 MB peak RSS. Living-community suite time fell from ≈12.5 min to ≈1 min.
+- **Selectable speed:** `CAOSCARE_LIVING_COMMUNITY_SPEED` ∈ {1, 10, 60 (default), 600}; speed changes the simulated clock only — every event and receipt still executes.
+- **Verified:** living-community suite **510 passed / 0 failed**; simulator frontend 27/27. Real MongoDB: shipped acceptance with 75 residents PASSED (`caoscare_sim_acceptance_sim005b75a20261014`) and with `--cohort burn_in_10` PASSED (`…sim005b10a20261014`); two-process 75-resident check (`…sim005b75y20261014`): 75 provisioned, concurrent STEP one-wins, live ticket lifecycle with chained receipts, SIGKILL + startup recovery (cursor 15→85), PAUSE freeze, STOP, run-scoped RESET (296 receipts kept, sentinel kept), 86 events = 86 receipts, 0 duplicates. Live `caoscare` unchanged (37 residents, 1 facility).
+- **Throughput (EliteDesk, real MongoDB, 75 residents):** 3.29 events/s sustained (≈0.3 s per fully receipted, transactional event), 0 errors. Demand: mean 2.48 and peak 17 events per simulated minute. 90-day estimate: 60× ≈ 36 h (keeps up on average; lags then catches up at peak minutes), 600× ≈ 27 h (throughput-bound), 10× 9 days, 1× 90 days.
+- **Remaining:** true worker capacity (one ticket per worker at a time, so tickets wait instead of overlapping); per-event latency (~0.3 s) bounds 600×; routines are not yet driven by each resident's care-plan preferences (e.g. shower days).
+- **Next bounded task:** worker-capacity simulation — claim when a worker is free, record waiting time, and keep receipts truthful.
+
+## Wednesday, October 14, 2026 — SIM-006: real worker capacity and visible queues
+
+- **Agent/tool:** Claude Code (Opus 5.5) at Michael's instruction. **Branch:** `feature/sim-006-worker-capacity` from PR #146 head `e344179`; worktree `/home/caoscare-1/CAOSCARE-SIM006`. Coordination: #129.
+- **Capacity model (`community_capacity_schedule.py`, `community_day_queue.py`):** every ticket of the 90-day plan is claimed only by a free on-site worker of its department whose shift covers the whole job; one active ticket per worker; excess waits in the canonical queue in deterministic order (priority, request time, id). The claim records the original request minute, the actual wait and why: `waiting_for_available_staff`, `waiting_for_department_opening`, `waiting_for_on_site_staff_on_call_only` (maintenance after hours), or `still_waiting_at_simulation_end` (no claim/complete is invented past day 90). Work never runs after a worker leaves, so no ticket is silently finished after a shift ends. The 50 workers and shifts are unchanged. Superseded `community_ticket_assignment.py` (least-loaded) and the fixed-offset `plan_ticket_phases` were retired.
+- **Hands-on minutes (`community_ticket_plan.ROUTINE_WORK_MINUTES`) are labelled simulation assumptions**, not facility data: room checks and reminders 3, plated meal service 3 per resident, toileting/transfer 8, shower 20, everything else 10. Under the old uniform 10 minutes the 75-resident demand exceeded capacity (kitchen 234%, nursing 100%) and the backlog grew without bound (12,025 tickets unclaimed by day 90). Now queues build at peaks and drain daily: 104,640 tickets, longest wait 1,113 simulated minutes (late requests waiting overnight for opening), 105 still waiting at day 90 and shown as such.
+- **Persisted enforcement:** new required index `living_tasks_one_active_per_worker` (partial unique on `staff_tasks` (`simulation_run_id`, `assigned_to`) where `status=in_progress`, simulated, living scope) in the shared index contract, inspection and receipted preparation; plus a pre-claim check in the execution adapter. Both fail closed with no receipt and no cursor advance.
+- **Live Operations:** `community_queue_view.py` (in `GET /api/simulator/community/runtime`) and `SimCommunityQueue.jsx`: waiting tickets with simulated wait and overdue flag (>60 min, a display threshold), backlog/longest wait per department with ON DUTY/ON CALL/CLOSED status, busy/free on-site workers with ticket drill-in, broken-rule anomalies, and executor lag behind the clock (the queue is shown as of the last executed moment, so lag is never shown as resident waiting).
+- **Defects found and fixed (three were pre-existing and halted every 75-resident run; earlier runs never got that far):**
+  1. The runner treated any event carrying `blocked_capability` (medication reminders, activities, family calls, transport and front-desk follow-ups — capabilities the ticket deliberately does not invoke) as a blocked event, so every run stopped forever at day 0, 07:50. Now only an event whose own adapter is blocked is refused; the runtime view labels it the same way.
+  2. Within one minute, a worker's next claim could sort before the completion that frees them; the persisted guard refused it (61 fail-closed retries, no receipt). Completions now order first within a minute (one shared `event_sort_key`).
+  3. The canonical request service merged a new scheduled routine into an earlier one still open for the same resident and department (yesterday's night check still in progress at 00:30 absorbed today's overnight check). The run stopped at day 1, 00:30, and each retry wrote a re-request receipt (3,683 on the overnight scratch DB, kept as evidence). In-process simulator requests now deduplicate only within the same scheduled event; real resident requests are unchanged.
+- **Verified:** living-community suite (`test_sim_community_*`, `test_living_community_*`, haiku boundary) **522 passed / 0 failed**; frontend **112 suites / 735 tests passed**, production build OK. `test_sim1/sim3/sim4/test_sim_provenance` have 17 failures identical on base `e344179` (fixture "Unknown simulation run", not touched here).
+- **Real MongoDB (new scratch DBs, 75 residents, 8 departments, 80 apartments):** shipped acceptance PASSED (`caoscare_sim_acceptance_sim006a20261014`: 320,730-event plan, restart → PAUSED, STOP, reset kept 91 receipts). Two-process (`…sim006b20261014`): 7 required indexes ready, concurrent STEP one wins, live open→claim→complete by one aide, SIGKILL + startup recovery (cursor 8→66), PAUSE freeze, STOP, run-scoped RESET (250 receipts and sentinel kept), 0 duplicate receipts.
+- **60× benchmark (`…sim006bench60z`, 15 real minutes, 00:00→13:12 simulated incl. the morning peak):** 1,616 events, 0 errors, at most 13 events behind the clock; peak queue 56, longest wait 91 min (kitchen breakfast); peak active tickets per worker exactly 1 (live and reconstructed from receipts); 1,617 executor receipts = 1,617 events, 0 duplicates; canonical starts/completions = claim/complete receipts; every claim's wait fields match the plan; a direct second in-progress insert for one worker was refused by MongoDB; pause froze; reset left 0 run tasks and kept 4,086 receipts and an unrelated sentinel. Production `caoscare` unchanged (37 residents, no living runs, no conflicting rows for the new index).
+- **60× verdict:** sustainable for the measured window (peak demand 20 events/simulated minute was absorbed with ≤13 events of lag). Not yet proven for a whole 90-day run: lunch/dinner peaks after 13:12 and multi-day drift were not measured; the simulated clock advanced ≈0.88× nominal while ticks executed. Executor throughput ≈1.8 events/s here.
+- **Blockers / remaining:** full-length run evidence (an overnight 60× run on `caoscare_sim_acceptance_live20261014b` started 2026-10-14 10:55 CDT); a refused event that reaches the canonical request service before validation can still mutate state on retry (now closed for dedup, not generically); `community_dispatch`/`community_outcomes` planning preview still uses fixed offsets (labelled planned-only); care-plan preference scheduling not started (out of scope).
+- **Next safe step:** watch the overnight run through day 1+, then merge into `feature/living-community-simulator`.
+
+### 2026-10-14 addendum (Michael): real staff fill in shifts in the running community
+
+- **Direction:** "the whole idea is for me to sign in as one of the staff in every department… I'm just filling in a shift."
+- **Cover shift** (`simulation/community_shift_cover.py`, `POST /api/simulator/community/shift-cover` and `/end`, owner/admin): pick an on-site simulated worker in Live Operations → *Cover shift*. While covered, that worker's planned claims and completions are `cancelled` executor receipts ("…is covering the shift; the ticket stays in the queue for them"), and the tickets wait in the department queue for the person covering, who works them through the existing **Work as <department>** workspace. *End cover* hands the worker back. Start and end are receipted with the real person as actor (receipt law: the record says who really did the work). Cover records are kept by run reset, like receipts, as audit evidence.
+- **Per-ticket takeover** (`simulation/community_human_handoff.py`): any real-human state change on a simulated ticket (not a note) makes the simulated worker yield the remaining phases with `cancelled` receipts; a planned completion whose claim was given up records "never claimed; still waiting" instead of halting the run.
+- **Verified:** living-community suite **530 passed / 0 failed**; frontend **738 passed**. Real MongoDB: takeover proof (`…sim006takeover1`: Michael-as-operator started a ticket, the aide's claim and completion yielded, Michael completed it, run continued with 0 errors) and cover proof (`…sim006cover1`: Care Aide 14 covered from 00:20, 9 phases yielded, 5 tickets left in the queue, one worked to completion by the real person, cover ended 01:01, run continued 41→68 with 0 errors).
+- **Still needed to use it on the overnight stack:** a sign-in for Michael in that scratch DB (the repo's `scripts/bootstrap_owner.py`, run by Michael so the password is never seen by an agent).
+
+## Wednesday, October 14, 2026 — SIM-007A: new Live Operations dashboard (issue #155)
+
+- **Agent/tool:** Claude Code (Opus 5.5) at Michael's instruction. **Branch:** `feature/sim-007a-live-dashboard` from `feature/living-community-simulator` @ `261dfa8`; worktree `/home/caoscare-1/CAOSCARE-SIM007A`. Task #155, coordination #129.
+- **What changed:** Live Operations now opens on a management dashboard for the running 75-resident community (`frontend/src/components/dashboard/`): simulated day/time, run state, measured pace, executor lag stated plainly, counts (staff on duty, residents, waiting, in progress, completed, overdue, on call), eight clickable department boxes, Staff and Residents lists. Drill-in: department (on duty / on call / off duty with shifts incl. overnight carry-over, today's shifts, Overdue / Waiting / In progress / Completed today, Upcoming = planned only), worker (position, shift today/tomorrow, availability, current ticket, next planned work, completed history, Cover shift), resident (profile, today's care, waiting/in progress/completed requests, link to the resident page), ticket (what, requested by, simulated request/start/finish times, wait and work duration labelled simulated or real-staff, outcome or reason unfinished, every receipt, action history, and the existing ticket-actions dialog). All previous panels (plan preview, observed records, run controls, reset, raw runtime and queue, legacy demo-room simulator) moved unchanged into a collapsed **Engineering details** section.
+- **Backend (read-only, owner/admin):** `GET /api/simulator/community/dashboard`, `/departments/{slug}`, `/workers/{id}`, `/residents/{id}`, `/tickets/{id}` (`routes/community_dashboard.py`; `simulation/community_dashboard_{common,view,detail}.py`, `community_ticket_view.py`). Truth rules: counts are exact canonical reads; staffing/upcoming come from the rota and plan and are labelled planned; simulated phase times only from executor receipts that executed; real-staff work shows real timestamps; everything is shown as of the last executed event.
+- **Fixed labels:** "75 of 10 burn-in target" → "Residents in this plan · Full community"; "Summary unavailable" → the task's own description (the queue view read a field tasks never had); no fake speed control — measured pace only (the run does not record its configured speed; SIM-007B).
+- **Verified:** living-community backend **540 passed / 0 failed**; frontend **113 suites / 743 tests**; production build compiled. Browser (Michael's signed-in Chrome, `http://localhost:3006`, SIM-007A build against the running community `simrun:living:68d9abcc9c60b096a6c1`): all eight department boxes opened their own view; worker (Med Tech 03: busy, night shift Day 6 19:00–07:00, 337 completed); completed ticket (requested 02:06, waited 26 min for staff, 02:32→02:35, 3 min simulated work, 6 chained receipts); resident 049; waiting ticket (Resident 036) that moved to In progress with Care Aide 11 while being watched; the existing ticket-actions dialog opened (no action taken); 390 px layout without horizontal overflow (rendered in a same-origin 390 px frame because the window manager refused a resize). Screenshots: `docs/reports/2026-10-14-sim007a-screens/` (one with an email address deliberately excluded).
+- **Defects found in browser and fixed:** overnight shifts started the day before showed "Not scheduled today"; "planned today" lists included tomorrow.
+- **Incident:** a broad `pkill -f "craco start"` while switching the test stack also stopped the shared dev frontend `caoscare-frontend-dev.service` (:3000); systemd restarted it within a minute (NRestarts=1, 13:43:19 CDT, verified 200). Processes are now stopped only by exact PID.
+- **Test environment:** view backend `127.0.0.1:8096` and static frontend `127.0.0.1:3006` run SIM-007A against `caoscare_sim_acceptance_live20261014b`; controls and startup recovery off; the executor (`resume_run.py`, code `261dfa8`) untouched.
+- **Finding for SIM-007B:** the running community's executor is ~11–15 simulated hours behind its 60× clock on day 7 (measured pace ~47–54× while tickets accumulate); a ticket's canonical receipts lookup has no `related_object_id` index yet.
+
+## Wednesday, October 14, 2026 — #168: every task tells its simulated clock and next step
+
+- **Agent/tool:** Claude Code (Opus 5.5) worker. **Branch:** `co008/task-detail` from `feature/co008-request-sources` @ `d466ca9`.
+- **What changed:** `GET /api/tasks/{id}/detail` now returns `origin` (kind + label, `routes.task_origin.kind_of`) for every task and a read-only `simulation` block for a living-community ticket (`simulation_run_id` + `simulator:event:` session): simulated request time (executor OPEN receipt's `requested_at_minute`, else the run's plan), simulated start/finish only from executed CLAIM/COMPLETE receipts, wait reason and recorded wait (CLAIM receipt queue fields), expected work minutes (`community_ticket_plan.work_minutes(routine)`), who raised it (OPEN receipt actor), the run's executed position, and elapsed waiting/working minutes against it. A missing run is stated (`run_found: false`), never guessed; real tasks get `simulation: null`. It reuses the Live Operations ticket reading (`community_ticket_view.timeline` / `executor_receipts`, now shared), so both views agree. Frontend: the queue row's expanded view and **My tasks today** (new *Details, notes and receipts* section) render the same facts via `components/TaskFacts.jsx` + `lib/taskFacts.js` (simulated time beside the real receipt time, expected, waited/working, raised by, why, next permitted step); expanded titles wrap.
+- **Verified:** new `tests/test_task_detail_simulation.py` (3) + task-detail visibility + work rules through the gate; `test_sim_community_*` + `test_ops_metrics` 511 passed; frontend 118 suites / 768 tests; production build OK. Not browser-verified against a running community.
+- **Next safe step:** review/merge into `feature/co008-request-sources`; check the expanded row against the running community in the browser.
+## Thursday, October 15, 2026 — CO-008 plan realism: living-community plan v9
+
+- **Agent/tool:** Claude Code (Opus 5.5) subagent. **Branch:** `co008/plan-realism` from `feature/co008-request-sources` @ `232d9a0` (isolated worktree). Fixes the 2026-10-15 staffing/capacity audit (`CAOSCARE-OPS-WORKSPACE/docs/reports/2026-10-15-co008-staffing-capacity-audit.md`).
+- **What changed:** (1) one routine → eligible job-role table (`simulation/community_role_eligibility.py`): reminders med tech → RN, never care aides; hands-on care aides → med tech → RN; no qualified worker on site → the ticket waits (`waiting_for_qualified_staff`). (2) high/urgent tickets with no qualified worker on site call in the on-call worker after a response delay (maintenance 40, RN 30 simulated min, assumptions), claim receipt `called_in_on_call: true`, never two tickets at once, not present before the claim (`community_on_call.py`). (3) `wait_breakdown` minutes per blocker over the whole wait, `wait_reason` = dominant (`community_wait_blockers.py`). (4) dinner (19:30) and afternoon activity (18:00) expire unserved via a new `expire` phase: the department lead skips the canonical task through `task_actions.skip` (`community_service_windows.py`, `community_ticket_phase.py`). Durations unchanged. Plan revision `living-community-timeline-v9-plan-realism-<cohort>`; community_75 344,524 events, burn_in_10 52,873.
+- **Verified:** living-community suite 579 passed / 0 failed (561 before + 18 new, one DB-direct on `caoscare_test_unit`). Before/after metrics and the duration proposal / pre-start design note: `docs/reports/2026-10-15-co008-plan-realism.md` (evening reminders med-tech share 11.6% → 63.6%, 0 to care aides; maintenance median wait 553 → 50; 0 dinners/activities served next day, 5,637 closed not served).
+- **Blocked / decision:** v9 code cannot load a v8 run (one revision per cohort); the owner must stop the running v8 run (`simrun:living:f24c347040991ddde766`) and start a v9 run before deploying this to the executing process. Durations and breakfast/lunch windows await owner decision. Nothing deployed; no service restarted; no shared database touched.
+- **Next safe step:** owner review; cut over to a v9 run; then the start-minute-parameterized schedule (design note) as its own slice.
+
+## Thursday, October 15, 2026 — 01:30 CDT — CO-008 worker workflow: outcomes, escalation and task detail integrated
+
+- **Agent/tool:** Claude Code (Opus 5.5), CAOSCare session. **Branch:** `feature/co008-request-sources` @ `5f5ae16` (pushed); v9 candidate `co008/v9-candidate` @ `be8d0cb` (pushed). Receipts: #168 comments 6185742758, 6185877020, 6185922618.
+- **What changed:** merged the escalation monitor (`97c619b`) and task detail (`26c7eb0`); escalated simulated tickets count as overdue with an "Escalated · level N" badge (`58999d1`); history names a simulated escalation correctly (`f3bed01`); reassign / release / handoff are distinct receipted outcomes that require a reason, and a handoff returns in-progress work to waiting (`aa12f85`, `task_work_rules.assignment_kind`, `components/useAssignWithReason.jsx`); the assign box shows a holder who is not on the roster (`5f5ae16`). v9 candidate: plan realism merged (`bc08062`), wait-by-cause and call-in in task detail, called-in on-call workers no longer flagged as off-site anomalies (`be8d0cb`).
+- **Verified:** frontend 119 suites / 774 tests; simulator suites 565 passed; assignment-related backend suites 19/19; full backend gate 1260 passed / 29 failed (27 known baseline + 2 date-bound tests: `test_housekeeping_recurrence` hard-codes 2026-10-13, `test_aria_rewake_continuity`). v9 candidate: simulator 584 passed, frontend 775, real-MongoDB shipped acceptance passed on `caoscare_sim_acceptance_co008v9a20261015` (75 residents). Chrome as the test operator (Nursing / Care Work-as) on the 1x run: escalation badges, overdue count, task detail fields, claim → start → hand off with reason → restart → complete with outcome on `task_2dd2f3b6aa62`, all receipted under the test operator.
+- **Runtime:** test stack backend :8096 `aa12f85` (transient user unit `caoscare-dashboard-backend`, DB `caoscare_sim_acceptance_live20261014b`, 1x run `simrun:living:f24c347040991ddde766` resumed by startup recovery), frontend :3006 `main.3d513551.js`. Room 214 and the real `caoscare` DB untouched by CO-008 work.
+- **Blocked on Michael:** v9 cutover (stop the v8 run, deploy `co008/v9-candidate`, start a v9 run at 1x); duration/staffing choices (38% dinners and 45% activity offers not served under v9 with current staffing).
+- **Next safe step:** on Michael's go, cut over to v9 and verify a dinner expiry and an on-call call-in in Chrome.
+
+## Thursday, October 15, 2026 — 02:45 CDT — CO-008 service model (plan v10), owner decision 2
+
+- **Agent/tool:** Claude Code (Opus 5.5), CAOSCare session, no subagents (owner: none after 2 AM). **Branch:** `co008/service-model` from `co008/v9-candidate`.
+- **Owner direction:** fix the dining and activities service model before adding staff; no shortened durations; realistic evening staffing; keep shortages visible.
+- **What changed:** new `simulation/community_service_model.py` (one source of truth). Kitchen splits into cooks, who hold prep, plating and dish work, and dining servers, who serve in parallel; seatings span one hour; about 1 in 8 residents eats in the apartment (8 min). Activities: synthetic mobility means only escort-needing attendees (8 min) and one-to-one visits (20 min) take staff time, and independent residents attend on their own. Staffing is 57 workers / 31 on-site shifts a day (cook 3, dining server 6, activities assistant 2 added). Plan `living-community-timeline-v10-service-model`.
+- **Verified:** simulator suites 602 passed; frontend 775. Dinners not served 38% → 0.1%; activity tickets not served 45% → 0. The remaining waits are classified in `docs/reports/2026-10-15-co008-service-model.md` (dinner/breakfast median 29 min = genuine shortage with 2 servers; housekeeping/front-desk waits = modelling artifacts of the daily volume).
+- **Next safe step:** real-Mongo acceptance on a fresh scratch DB, then cut over the test stack from the v9 run (kept) to a v10 run at 1x and verify in Chrome.
+
+## Thursday, October 15, 2026 — CO-008 room delivery (plan v11), owner correction
+
+- **Agent/tool:** Claude Code (Opus 5.5), CAOSCare session, no subagents. **Branch:** `co008/room-delivery` from `co008/service-model` @ `8a7a845`; worktree `/home/caoscare-1/CAOSCARE-CO008-RD`. Product commit `58e719b`.
+- **Owner direction (chat, 2026-10-15):** about 30 of 75 residents have meals delivered. Model the full delivery trip (pickup, walk, hand-off/setup, return), keep dining-room service parallel, determine the staffing needed, and show any shortage honestly. The v10 run is preserved.
+- **What changed:** 30/75 residents have deliveries (deterministic, resident-specific). Each delivery is 13 min (2 + 4 + 3 + 4, labelled assumptions). New kitchen role `meal_delivery_aide` (9 people; 07:15–13:15 ×3, 16:45–19:45 ×3). Deliveries prefer aides and dining servers help; the dining room is the reverse. 66 workers / 37 on-site shifts. Plan `living-community-timeline-v11-room-delivery`. `meal_of()` no longer calls `housekeeping_room_service` a meal.
+- **Results (90 days):** every meal served, 0 not served. Waits, median / p90 / max: breakfast 14/27/35, lunch 5/6/9, dinner 14/26/34. With v10 staffing and 30 deliveries, 43% of dinners are not served and breakfast waits 91 min (median). Staffing sweep and classification are in `docs/reports/2026-10-15-co008-room-delivery.md`.
+- **Verified:** simulator suites 603 passed / 0 failed. Full backend gate on `58e719b`: 1,314 passed / 0 failed / 13 skipped (exit 0). Real-Mongo scratch acceptance passed on `caoscare_sim_acceptance_co008v11a20261015` (75 residents, run `simrun:living:ae98ba005787554575d9`, reset kept 91 receipts). No frontend change.
+- **Not done:** runtime cutover. The #168 owner direction (comment 6200729443) says not to stop the v10 run or switch until the owner authorizes it. The v10 run `simrun:living:bcc6e54a0a4e54e7aeb8` is still RUNNING on `8a7a845`.
+- **Next safe step:** owner decision on the cutover, then stop v10 (kept), load `co008/room-delivery` and start a v11 run at 1x.
+
+## Thursday, October 15, 2026 — Staff On Duty → worker detail + owner role corrections (plan v12), first #153 slice
+
+- **Agent/tool:** Claude Code (Opus 5.5), CAOSCare session, no subagents. **Branch:** `co008/workspace-staff-drilldown` from exact `eaa1c23` (`co008/room-delivery`); worktree `/home/caoscare-1/CAOSCARE-CO008-STAFF`. Product commit `6c55337`.
+- **Owner direction (2026-10-15, #166/#153):** every Staff On Duty name opens a truthful worker detail. Role corrections: one activities coordinator and no assistant; one normal maintenance worker; two housekeepers, A Mon–Fri and B Wed–Sun; business office manager, administrator and executive director; nursing unchanged. Do not load into :8096/:3006 or create a run until this slice is advanced to runtime acceptance.
+- **What changed:**
+  - **Worker detail** (`simulation/community_worker_detail.py`, behind the existing admin-only `GET /api/simulator/community/dashboard/workers/{id}`):
+    - simulated marker, role, shift and 7-day rota;
+    - state: working / free / on call / called in / off duty / covered;
+    - today's assigned and completed tickets;
+    - role facts: meal service, rides, housekeeping zone, residents cared for, maintenance queue;
+    - breaks and location are reported as unknown, never guessed.
+  - **Staff On Duty records** (`routes/ops_widgets.py`, `RecordsDialog.jsx`) are buttons that open the worker view; `WorkerFacts.jsx` renders the new facts.
+  - **Staffing:**
+    - shift rows can name weekdays and a fixed person; department hours are weekday-aware (`community_coverage.OPERATING_DAYS`, Day 1 = Monday);
+    - on-call maintenance alternates nights and weekends between 2 on-call technicians;
+    - family calls go to the Front Desk when Administration is closed;
+    - no coordinator-run activities on weekends.
+  - Plan `living-community-timeline-v12-staff-roles` (community_75: 328,751 events).
+- **Visible consequences (not hidden, not fixed by adding staff):**
+  - Housekeeping can't keep up with a daily full clean of all 75 apartments: median wait 8.9 days, 1,584 still waiting at day 90. This is the known daily-clean artifact plus 1–2 housekeepers.
+  - Maintenance: median wait 2.8 days, 145 still waiting at day 90.
+  - 247 activity escorts are not served (one coordinator).
+- **Verified:** simulator suites 614 passed / 0 failed (new `test_sim_community_staff_detail.py`, 9 tests). Frontend 120 suites / 777 tests (new `staffOnDutyWorker.test.jsx`). Full backend gate on `6c55337`: 1,325 passed / 0 failed / 13 skipped.
+- **Not done:** browser acceptance (needs the branch loaded and a run, both held by the owner's runtime rule); real-Mongo scratch acceptance of v12.
+- **Next safe step:** owner review of the role schedules and the housekeeping/maintenance shortage; on advance, load into the test stack, start a v12 run, and click Dining Server / Driver / Housekeeper / Care Aide in Chrome.
+
+### 2026-10-15 addendum — v12 staffing finalized (owner decisions), commit `0aa2fa0`
+
+- **Maintenance:** the two invented on-call technicians are removed. There is ONE maintenance technician: on site Mon–Fri 07:00–15:30, and the same person's after-hours and weekend on-call duty. Rest rules apply to on-site shifts only. Fixed an attendance bug where the evening on-call duty overwrote the on-site shift as the day's state. Outside vendors are not staff and are not modelled.
+- **Housekeeping:** one 45-minute full clean (an assumption) per occupied apartment per week, by fixed territory (`community_housekeeping.py`).
+  - SIM-001–040: 40 occupied, Mon–Fri, 8 cleans per shift.
+  - SIM-041–080: 30 occupied, Wed–Sun, 6 cleans per shift. Vacant apartments get no clean.
+  - Only the territory's housekeeper takes its cleans. Housekeeper and department detail show today's cleans (completed / in progress / remaining).
+  - Before → after: 6,750 → 904 full cleans; 1,584 → 0 still waiting at day 90; median wait 8.9 days → 15 min for cleans and 47 min for all housekeeping.
+- **File size:** static data moved to `community_staffing_data.py`; `community_staffing.py` went from 336 to 251 lines.
+- **Workers:** 55, i.e. v11's 66 minus housekeeping 2, maintenance 3, activities 5 and administration 1. Kitchen v11 staffing and service model unchanged (regression test).
+- **Verified:** simulator suites 620 passed / 0 failed; frontend 120 suites / 777 tests; full backend gate on `0aa2fa0` 1,331 passed / 0 failed / 13 skipped.
+- **Plan:** community_75 has 314,363 events. The burn_in_10 digest is `0c777af0…faaf6`.
+- **Still visible:** maintenance median wait 2.8 days and 145 jobs open at day 90 with one person; 247 activity escorts missed.
+- **Not loaded:** waits for Kitchen acceptance and the owner's cutover.
+
+### 2026-10-15 addendum — full clean is 30 minutes (owner decision, #166 comment 6203700924)
+
+- Michael set a 30-minute full clean as an owner-approved, conservative simulation assumption; staff may take 15–20. This supersedes the 45 minutes above. Cleans are spaced 35 minutes apart. The weekly clean and the territories are unchanged, and no staff were added.
+- 90 days: 904 cleans, all completed, 0 still waiting. Clean wait median / p90 / max: 10 / 55 / 90 min. All housekeeping work: 28 min / 13.9 h / 20.9 h. Last clean finishes by 14:15 (Housekeeper 01) and 13:15 (Housekeeper 02).
+- Plan counts are unchanged; the burn_in_10 digest is now `035d6a30…50a3`. Simulator suites 620 passed / 0 failed. Not loaded.
+
 ## 2026-10-15 16:10 CDT — Room 214 Aria read-only self-code inspection (owner feature)
 
 Agent: Claude Code (Fable 5.1), branch `feature/room214-self-code-inspection` from `37cccd7`, worktree `~/CAOSCARE-BOUNDED/room214-self-code`. Feature commit `3230b792b08c4ceeb9fc7039171dfff08032b69a`.
@@ -576,6 +1028,7 @@ Agent: Claude Code (Fable 5.1), branch `feature/room214-self-code-inspection` fr
 ## 2026-10-15 17:40 CDT — Room 214 self-code inspection LIVE ACCEPTED (PR #169 merged, loaded, spoken test passed)
 
 Agent: Claude Code (Fable 5.1). Owner-authorized merge of PR #169 → `integration/2026-09-27` = `1f60a58fbd5e06989798705bd085ca6c5559e7ea`. Dev backend :8092 restarted by `scripts/restart_dev_backend.sh` → pid 3341053, `CAOSCARE_RUNTIME_SHA=1f60a58`; Room page rebuilt (`main.b13c2b0d.js`, embeds the merged SHA) and page+kiosk restarted; wake listener untouched. Focused live-backend probe and the full receipt trail are on PR #169 (comments). Live Room 214 session `rt_lnrab36x_1792103482825` (wake word, 17:31–17:33 CDT): Michael asked her to look at her own code and explain how she remembers conversations → inspect, 3 searches, reads of `realtime_memory_ingest.py`, `aria_life_memory.py`, `aria_memory.py` (receipts rcpt_4db65bb7ec9f … rcpt_ec3da3c6d7f1, backend/frontend match true), accurate explanation prefixed "I checked the code I'm currently running"; "Can you change your code?" → No, read-only, no tool or authority. Non-214 refusal receipt rcpt_cda44a691c5e. No other Aria context received the tools. Runtime note: `~/CAOSCARE-INTEGRATION` left detached at `1f60a58`; the other lane's two local commits remain on `fix/room214-tv-possessive` (origin `bb657da`) — `git switch integration/2026-09-27` + rebase when that lane resumes. Blocked: nothing. Next safe step: none for this lane (owner said STOP).
+
 ## 2026-10-15 19:45 CDT — Live voice model → `gpt-realtime-2.1-mini` (owner cost-control decision)
 
 Agent: Claude Code (Fable 5.1, "Claude 2" cost-control lane), branch `fix/realtime-mini-default`, worktree `~/CAOSCARE-BOUNDED/realtime-mini`. Owner finding: ~89% of OpenAI spend was full Realtime (`gpt-realtime-2.1` / `gpt-realtime-2025-08-28`).

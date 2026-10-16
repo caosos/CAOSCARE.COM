@@ -881,6 +881,78 @@ listener verifier experiment: `docs/experiments/`.
 
 - `backend/simulation/scenario.py` `sink_leak` ("Maintenance: leaking sink") is the Maintenance scenario; resident words "The bathroom sink keeps leaking."
 - Test: `backend/tests/test_sim4_maintenance.py` (owner takeover, staged status truth, dedup, no provider calls).
+
+## 2026-10-13 — Living Community Simulator foundation (draft PR #146)
+
+- `backend/simulation/community_blueprint.py`, `community_staffing.py`, `community_routines.py`, and
+  `community_care_plans.py`: deterministic 80-apartment / 75-resident / 50-worker planning sources. Care plans
+  are synthetic, non-clinical and unconfirmed; planned events are not execution receipts.
+- `backend/simulation/community_provisioning.py`, `community_cleanup.py`, `community_run_lease.py`, and
+  `community_burnin_adapter.py`: exact-marker provisioning, dependency-refusing cleanup, fenced run ownership,
+  and the canonical-service ten-resident burn-in seam. Mutation control remains guarded and unregistered.
+- `backend/simulation/community_observed_state.py` and `GET /api/simulator/community/observed`: read-only
+  canonical resident/task/notification/run truth. Failed reads remain unknown; exact burn-in identity and
+  markers distinguish not provisioned, partial, provisioned and inconsistent states.
+- `frontend/src/components/simulator/SimCommunityOverview.jsx` is the declared planning view;
+  `SimCommunityObserved.jsx` is the separate verified-record view. `communityObservedLoad.js` rejects malformed
+  responses, and `LiveOperations.jsx` preserves the last verified snapshot when a refresh fails.
+- `frontend/src/components/simulator/SimCommunityRuntime.jsx` presents the exact-run clock, canonical ticket
+  counts, recent tickets and receipt-backed transitions. `frontend/src/pages/LiveOperations.community.test.jsx`
+  deterministically exercises the page through open, in-progress, paused, resumed and completed browser-visible
+  states while checking provenance, ticket drill-in and default-off control gates.
+- `backend/living_community_boundary.py` and `backend/routes/living_community_ai_guard.py`: shared boundaries
+  for legacy bulk processors, memory extraction and alert AI classification. Resident CRUD, task templates,
+  escalation, family notifications and haiku provider paths have their own server-owned living-community guards.
+- `backend/simulation/community_coverage.py` (department ON DUTY / ON CALL / CLOSED / UNCOVERED from operating hours and the rota) and
+  `community_runtime_staffing.py` (runtime staffing projection); the shift table in `community_staffing.py` follows the
+  owner's 2026-10-13 staffing direction (overnight 3 care staff on site, maintenance hours + on-call).
+- Worker capacity (SIM-006): `backend/simulation/community_capacity_schedule.py` schedules every ticket of the
+  90-day plan so each on-site worker holds one active ticket at a time (claimed only by a free worker whose shift
+  covers the whole job; excess waits with a recorded reason); `community_day_queue.py` turns that schedule into one
+  day's executor events; `community_ticket_plan.py` holds the open-queue dwell and the per-routine hands-on minutes
+  (labelled simulation assumptions). The rule is also enforced against persisted state: the partial unique index
+  `living_tasks_one_active_per_worker` (`community_index_contract.py`) plus a pre-claim check in
+  `community_execution_adapter.py`. `community_queue_view.py` (part of `GET /api/simulator/community/runtime`)
+  and `frontend/src/components/simulator/SimCommunityQueue.jsx` show waiting tickets with simulated wait, overdue
+  and backlog per department, busy/free workers with ticket drill-in, and executor lag behind the clock.
+- Simulated escalation (CO-008, #164/#168): `backend/simulation/community_response_thresholds.py` (the one
+  department x priority pickup/complete threshold table in simulated minutes, labelled simulation assumptions;
+  optional JSON override via `CAOSCARE_SIM_RESPONSE_THRESHOLDS`), `community_escalation.py` (level 1 = threshold ->
+  department lead, level 2 = twice -> supervisor; each level once per phase with a receipt
+  `simulated_ticket_escalated`, a `simulated` notification record and an `escalated` task event_log entry; minutes
+  proven from the executor open/claim receipts), `community_escalation_leads.py` (who is reachable from the roster
+  at that simulated minute; "no lead reachable" recorded truthfully) and `community_escalation_monitor.py` (loop
+  hook, at most once per simulated minute, failures logged and never stop the loop; wired in
+  `community_control_composition.py`). Real escalation (`routes/escalation_tick.py`) still excludes the community.
+- Plan realism (CO-008, plan v9): `backend/simulation/community_role_eligibility.py` (routine → eligible job roles, preference
+  order), `community_on_call.py` (high/urgent call-in of on-call cover after a response delay), `community_wait_blockers.py`
+  (minutes per blocker over a ticket's whole wait), `community_service_windows.py` (dinner/activity windows; expired work is
+  closed not served) and `community_ticket_phase.py` (one canonical lifecycle transition per ticket phase, incl. `expire`).
+  Report: `docs/reports/2026-10-15-co008-plan-realism.md`.
+- Service model (CO-008, plan v10): `backend/simulation/community_service_model.py` (dining seatings, cooks vs dining servers,
+  apartment meals, synthetic mobility, escorts only for residents who need them, one-to-one visits; work minutes and
+  windows read it). Report: `docs/reports/2026-10-15-co008-service-model.md`. Test: `backend/tests/test_sim_community_service_model.py`.
+- Room delivery (CO-008, plan v11): 30 of 75 residents get meals delivered (`community_service_model.ROOM_DELIVERY_STEPS`, 13 min per tray); kitchen role `meal_delivery_aide` (`community_staffing.py`, `community_role_eligibility._KITCHEN_ROUTINES`). Report: `docs/reports/2026-10-15-co008-room-delivery.md`.
+- Worker detail and role corrections (#153, plan v12): `backend/simulation/community_worker_detail.py` (state, today, week, role facts) behind `GET /api/simulator/community/dashboard/workers/{id}`; weekly/fixed-person shift rows in `community_staffing.py`, weekday-aware hours in `community_coverage.py` (`OPERATING_DAYS`). UI: Staff On Duty rows in `frontend/src/components/workspace/RecordsDialog.jsx` open `components/dashboard/DashboardWorker.jsx` + `WorkerFacts.jsx`. Tests: `backend/tests/test_sim_community_staff_detail.py`, `frontend/src/components/workspace/__tests__/staffOnDutyWorker.test.jsx`.
+- Weekly housekeeping (plan v12): `backend/simulation/community_housekeeping.py` (territories, one full clean per occupied apartment per week, territory-only claims); static staffing data in `community_staffing_data.py`. Test: `backend/tests/test_sim_community_housekeeping.py`.
+- Real staff in the simulated community: `backend/simulation/community_shift_cover.py` +
+  `backend/routes/community_shift_cover.py` (owner/admin covers an on-site simulated worker's shift; the worker's
+  planned phases yield with receipts and their tickets wait for the person, worked via Work as <department>) and
+  `backend/simulation/community_human_handoff.py` (a real person who changes a simulated ticket takes it over).
+- Live Operations dashboard (SIM-007A): `backend/routes/community_dashboard.py` (read-only owner/admin endpoints) over
+  `backend/simulation/community_dashboard_common.py` (run, plan lookup, ticket rows), `community_dashboard_view.py`
+  (summary), `community_dashboard_detail.py` (department / worker / resident) and `community_ticket_view.py` (one ticket's
+  times, outcome and receipts). UI: `frontend/src/components/dashboard/` (`LiveDashboard` + drill-in views),
+  `frontend/src/lib/dashboardFormat.js`, `useDashboardResource.js`; the older panels live under Engineering details in
+  `frontend/src/pages/LiveOperations.jsx`. `components/simulator/CoverShiftButton.jsx` is the one Cover shift control.
+- Task facts on the workspace (#168): `backend/simulation/community_task_simulation.py` builds the `simulation` block of
+  `GET /api/tasks/{id}/detail` (`routes/task_detail.py`) from `community_ticket_view.timeline`; the UI renders it, the
+  origin and the next permitted step through `frontend/src/components/TaskFacts.jsx` + `frontend/src/lib/taskFacts.js`
+  (queue row expanded view and `MyTasksCard.jsx`). Test: `backend/tests/test_task_detail_simulation.py`.
+- Tests: `backend/tests/test_sim_community_*.py`, `test_living_community_*`,
+  `test_haiku_community_provider_boundary.py`, and
+  `frontend/src/components/simulator/__tests__/{SimCommunityOverview,SimCommunityObserved}.test.jsx` plus
+  `frontend/src/pages/LiveOperations.community.test.jsx`.
 ## 2026-09-27 — Community services (Lane D, branch pilot/community-services)
 
 - `backend/routes/service_content_access.py`: who may change the menu (Kitchen/Administration/admin) and the schedule (Activities/Administration/admin).

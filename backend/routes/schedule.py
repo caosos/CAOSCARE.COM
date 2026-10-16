@@ -11,10 +11,11 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends
 
 from models import ScheduleItem, ScheduleItemCreate, ScheduleItemUpdate, now_utc
-from deps import db, get_current_user
+from deps import db
 from routes.realtime_facility import today_facility_date
 from routes.content_receipts import record_content_change, staff_actor, summarize
 from routes.service_content_access import SCHEDULE_DEPARTMENTS, require_content_editor
+from routes.work_context import get_department_user
 
 router = APIRouter(prefix="/schedule", tags=["schedule"])
 
@@ -61,14 +62,14 @@ async def _get(schedule_id: str) -> dict:
 
 
 @router.get("")
-async def list_schedule(date: Optional[str] = None, user=Depends(get_current_user)):
+async def list_schedule(date: Optional[str] = None, user=Depends(get_department_user)):
     """Staff view - every entry for a date (default today), any status."""
     items = await db.schedule_items.find({"date": date or today_facility_date()}, {"_id": 0}).to_list(200)
     return [_iso(i) for i in _sorted(items)]
 
 
 @router.get("/drafts")
-async def list_drafts(user=Depends(get_current_user)):
+async def list_drafts(user=Depends(get_department_user)):
     """Every unpublished row, any date - the review queue for emailed or
     pasted calendars."""
     items = await db.schedule_items.find({"status": "draft"}, {"_id": 0}).sort("date", 1).to_list(500)
@@ -76,7 +77,7 @@ async def list_drafts(user=Depends(get_current_user)):
 
 
 @router.post("")
-async def create_schedule_item(data: ScheduleItemCreate, user=Depends(get_current_user)):
+async def create_schedule_item(data: ScheduleItemCreate, user=Depends(get_department_user)):
     require_content_editor(user, SCHEDULE_DEPARTMENTS)
     now = now_utc()
     item = ScheduleItem(**data.model_dump(), created_by=user["user_id"],
@@ -93,7 +94,7 @@ async def create_schedule_item(data: ScheduleItemCreate, user=Depends(get_curren
 
 
 @router.patch("/{schedule_id}")
-async def update_schedule_item(schedule_id: str, data: ScheduleItemUpdate, user=Depends(get_current_user)):
+async def update_schedule_item(schedule_id: str, data: ScheduleItemUpdate, user=Depends(get_department_user)):
     """A correction. A published row stays published (the editor is the
     reviewer) and residents see the change on their next read."""
     require_content_editor(user, SCHEDULE_DEPARTMENTS)
@@ -111,7 +112,7 @@ async def update_schedule_item(schedule_id: str, data: ScheduleItemUpdate, user=
 
 
 @router.post("/{schedule_id}/publish")
-async def publish_schedule_item(schedule_id: str, user=Depends(get_current_user)):
+async def publish_schedule_item(schedule_id: str, user=Depends(get_department_user)):
     require_content_editor(user, SCHEDULE_DEPARTMENTS)
     existing = await _get(schedule_id)
     if existing.get("status") == "superseded":
@@ -128,7 +129,7 @@ async def publish_schedule_item(schedule_id: str, user=Depends(get_current_user)
 
 
 @router.post("/batches/{ingest_id}/publish")
-async def publish_batch(ingest_id: str, user=Depends(get_current_user)):
+async def publish_batch(ingest_id: str, user=Depends(get_department_user)):
     """Publish every draft one emailed/pasted calendar produced. A newer
     calendar replaces the earlier emailed/pasted rows for the same dates
     (status -> "superseded", kept for history) so residents never see an
@@ -166,7 +167,7 @@ async def publish_batch(ingest_id: str, user=Depends(get_current_user)):
 
 
 @router.delete("/{schedule_id}")
-async def delete_schedule_item(schedule_id: str, user=Depends(get_current_user)):
+async def delete_schedule_item(schedule_id: str, user=Depends(get_department_user)):
     require_content_editor(user, SCHEDULE_DEPARTMENTS)
     existing = await db.schedule_items.find_one({"schedule_id": schedule_id}, {"_id": 0})
     r = await db.schedule_items.delete_one({"schedule_id": schedule_id})

@@ -12,10 +12,11 @@ Workflow
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends
 from models import StaffTask, StaffTaskCreate, StaffTaskUpdate
-from deps import db, get_current_user
-from routes import task_actions, task_lifecycle, task_ride_link
+from deps import db
+from routes import task_actions, task_lifecycle, task_ride_link, task_work_rules
 from routes.actor_context import actor_from_user
-from routes.task_lifecycle import record_origin, simulation_marker
+from routes.task_lifecycle import record_origin, simulation_marker, work_as_authority
+from routes.work_context import get_department_user
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -45,9 +46,9 @@ async def _resolve_denorms(data: dict) -> dict:
 
 def staff_visibility_query(user) -> dict:
     """The one definition of which tasks a user may see in a list: a staff user sees their department's requests
-    plus all_staff ones (no department: only all_staff); owner, admin and front desk see everything. Used by the
-    task list and by task detail so the two cannot drift."""
-    if user.get("role") != "staff":
+    plus all_staff ones (no department: only all_staff); owner, admin and front desk see everything unless they
+    explicitly entered a department Work-as context. Used by the task list and task detail so they cannot drift."""
+    if user.get("role") != "staff" and not user.get("_work_context_id"):
         return {}
     dept = user.get("department")
     return {"visibility_role": {"$in": [dept, "all_staff"]} if dept else "all_staff"}
@@ -63,13 +64,15 @@ async def list_tasks(
     visibility_role: Optional[str] = None,
     resident_id: Optional[str] = None,
     view: Optional[str] = None,   # current | review (operations_currency); default: everything
-    user=Depends(get_current_user),
+    user=Depends(get_department_user),
 ):
     q: dict = {}
     if resident_id:
         q["resident_id"] = resident_id
     if mine_only:
         q["assigned_to"] = user["user_id"]
+        if user.get("_work_context_id"):
+            q.update(staff_visibility_query(user))
     else:
         q.update(staff_visibility_query(user))
     if status:
@@ -91,7 +94,7 @@ async def list_tasks(
 
 
 @router.post("")
-async def create_task(data: StaffTaskCreate, user=Depends(get_current_user)):
+async def create_task(data: StaffTaskCreate, user=Depends(get_department_user)):
     role = user.get("role")
     if role in ("owner", "admin"):
         authority = f"admin_override:{role}"
@@ -105,7 +108,7 @@ async def create_task(data: StaffTaskCreate, user=Depends(get_current_user)):
         if role == "staff" and dept:
             data.visibility_role = dept
             data.category = dept
-            authority = f"dept_member:{dept}"
+            authority = work_as_authority(user, f"dept_member:{dept}")
         else:
             raise HTTPException(status_code=403, detail="Not allowed to create work here")
     payload = data.model_dump()
@@ -123,7 +126,7 @@ async def create_task(data: StaffTaskCreate, user=Depends(get_current_user)):
 
 
 @router.patch("/{task_id}")
-async def update_task(task_id: str, data: StaffTaskUpdate, user=Depends(get_current_user)):
+async def update_task(task_id: str, data: StaffTaskUpdate, user=Depends(get_department_user)):
     """A note and/or the planned service window. Status and assignment are
     not settable here (StaffTaskUpdate forbids them): they go through the
     lifecycle endpoints, which authorize and receipt each step."""
@@ -168,50 +171,53 @@ async def update_task(task_id: str, data: StaffTaskUpdate, user=Depends(get_curr
 
 
 @router.post("/{task_id}/acknowledge")
-async def acknowledge_task(task_id: str, user=Depends(get_current_user)):
+async def acknowledge_task(task_id: str, user=Depends(get_department_user)):
     """Distinct from /start - 'someone has seen this' vs 'work has begun'."""
     task, _ = await task_actions.acknowledge(task_id, actor_from_user(user), user)
     return _iso(task)
 
 
 @router.post("/{task_id}/start")
-async def start_task(task_id: str, user=Depends(get_current_user)):
+async def start_task(task_id: str, user=Depends(get_department_user)):
     task, _ = await task_actions.start(task_id, actor_from_user(user), user)
     return _iso(task)
 
 
 @router.post("/{task_id}/complete")
-async def complete_task(task_id: str, body: dict = None, user=Depends(get_current_user)):
-    task, _ = await task_actions.complete(task_id, (body or {}).get("notes"), actor_from_user(user), user)
+async def complete_task(task_id: str, body: dict = None, user=Depends(get_department_user)):
+    body = body or {}
+    task, _ = await task_actions.complete(task_id, body.get("notes"), actor_from_user(user), user,
+                                          override_reason=body.get("override_reason"))
     return _iso(task)
 
 
 @router.post("/{task_id}/skip")
-async def skip_task(task_id: str, body: dict = None, user=Depends(get_current_user)):
+async def skip_task(task_id: str, body: dict = None, user=Depends(get_department_user)):
+    await task_work_rules.check_cancel(task_id, (body or {}).get("notes"), actor_from_user(user), user)
     task, _ = await task_actions.skip(task_id, (body or {}).get("notes"), actor_from_user(user), user)
     await task_ride_link.cancel_linked(task, user, (body or {}).get("notes"))   # a linked open ride is cancelled too
     return _iso(task)
 
 
 @router.post("/{task_id}/ride")
-async def request_ride_for_task(task_id: str, user=Depends(get_current_user)):
+async def request_ride_for_task(task_id: str, user=Depends(get_department_user)):
     """Create-or-attach exactly one transportation request for a planned request."""
     return await task_ride_link.request_ride(task_id, actor_from_user(user), user)
 
 
 @router.get("/{task_id}/ride")
-async def ride_for_task(task_id: str, user=Depends(get_current_user)):
+async def ride_for_task(task_id: str, user=Depends(get_department_user)):
     return await task_ride_link.get_ride(task_id, actor_from_user(user), user)
 
 
 @router.post("/{task_id}/reopen")
-async def reopen_task(task_id: str, body: dict = None, user=Depends(get_current_user)):
+async def reopen_task(task_id: str, body: dict = None, user=Depends(get_department_user)):
     """Reopen a completed/skipped request with a stated reason (receipted)."""
     task, _ = await task_actions.reopen(task_id, (body or {}).get("reason"), actor_from_user(user), user)
     return _iso(task)
 
 
 @router.delete("/{task_id}")
-async def delete_task(task_id: str, user=Depends(get_current_user)):
+async def delete_task(task_id: str, user=Depends(get_department_user)):
     await task_actions.delete(task_id, actor_from_user(user), user)
     return {"ok": True}

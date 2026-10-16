@@ -19,6 +19,7 @@ import httpx
 
 from models import Notification, now_utc
 from deps import db
+from simulation.community_blueprint import COMMUNITY_ID, RESIDENTS, SIMULATION_SCOPE
 
 # Provider event type -> NotificationStatus. email.sent is omitted on
 # purpose: our own record is already "sent" from the API response.
@@ -36,6 +37,7 @@ _TERMINAL = {"delivered", "bounced", "complained", "failed"}
 
 
 SIMULATED_RESPONSE = "simulated request - recorded only, never sent to a provider"
+COMMUNITY_RESIDENT_IDS = frozenset(recipe.resident_id for recipe in RESIDENTS)
 
 
 def _simulated(doc: dict, simulation: dict) -> dict:
@@ -195,6 +197,8 @@ async def notify_alert_phone(kind: str, to: str, message: str, alert: dict, *,
             "actor_id": actor_id, "actor_type": "system", "actor_name": actor_id,
             "authority": authority, "channel": kind,
             "simulated": bool(simulation),
+            "simulation_scope": (simulation or {}).get("simulation_scope"),
+            "simulation_community_id": (simulation or {}).get("simulation_community_id"),
             "simulation_run_id": (simulation or {}).get("simulation_run_id"),
             "after_state": {"notification_id": note["notification_id"], "notification_status": status},
             "result_label": _RESULT_LABEL.get(status, "unverified"),
@@ -210,14 +214,39 @@ async def notify_alert_phone(kind: str, to: str, message: str, alert: dict, *,
 
 async def alert_provenance_flag(alert: dict) -> Optional[dict]:
     """SC-16 for alerts: an alert is simulated if it says so or belongs to a
-    synthetic resident (server-set marker); never decided by a caller."""
-    synthetic = bool(alert.get("simulated"))
-    if not synthetic and alert.get("resident_id"):
-        r = await db.residents.find_one({"resident_id": alert["resident_id"]}, {"_id": 0, "synthetic": 1})
-        synthetic = bool(r and r.get("synthetic"))
+    synthetic resident (server-set marker); never decided by a caller.
+
+    Exact living-community markers are fail-closed even if a malformed legacy
+    row omitted ``synthetic``. Legacy synthetic residents without a scope keep
+    the existing ``demo_room`` behavior.
+    """
+    resident = None
+    if alert.get("resident_id"):
+        resident = await db.residents.find_one(
+            {"resident_id": alert["resident_id"]},
+            {"_id": 0, "synthetic": 1, "simulation_scope": 1,
+             "simulation_community_id": 1},
+        )
+    living_community = bool(
+        alert.get("resident_id") in COMMUNITY_RESIDENT_IDS
+        or (
+            resident
+            and resident.get("simulation_scope") == SIMULATION_SCOPE
+            and resident.get("simulation_community_id") == COMMUNITY_ID
+        )
+        or (
+            alert.get("simulation_scope") == SIMULATION_SCOPE
+            and alert.get("simulation_community_id") == COMMUNITY_ID
+        )
+    )
+    synthetic = bool(alert.get("simulated") or (resident or {}).get("synthetic") or living_community)
     if not synthetic:
         return None
-    return {"simulated": True, "simulation_scope": alert.get("simulation_scope") or "demo_room",
+    return {"simulated": True,
+            "simulation_scope": SIMULATION_SCOPE if living_community else
+            (resident or {}).get("simulation_scope") or alert.get("simulation_scope") or "demo_room",
+            "simulation_community_id": COMMUNITY_ID if living_community else
+            (resident or {}).get("simulation_community_id") or alert.get("simulation_community_id"),
             "simulation_run_id": alert.get("simulation_run_id")}
 
 

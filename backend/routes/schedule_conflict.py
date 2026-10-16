@@ -27,8 +27,9 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends
 
-from deps import db, get_current_user
+from deps import db
 from routes.actor_context import actor_from_user
+from routes.work_context import get_department_user
 from routes.task_lifecycle import LifecycleError, authority_for, load
 from routes.planned_time import UNTIMED, time_minutes
 
@@ -109,7 +110,7 @@ async def _staff_overlaps(task: dict, date: str, provider: str, assignee: Option
 
 @router.get("/{task_id}/conflicts")
 async def conflicts_for(task_id: str, requested_for_date: Optional[str] = None,
-                        requested_for_time_label: Optional[str] = None, user=Depends(get_current_user)):
+                        requested_for_time_label: Optional[str] = None, user=Depends(get_department_user)):
     """What would overlap if this request were planned at the given window
     (defaults to its current one). Same authority as the other read views."""
     task = await load(task_id)

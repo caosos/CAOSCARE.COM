@@ -21,10 +21,11 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends
 
 from models import MenuItem, MenuUpload, now_utc
-from deps import db, get_current_user
+from deps import db
 from routes.actor_context import ActorContext
 from routes.content_receipts import inbound_email_actor, record_content_change, staff_actor
 from routes.service_content_access import MENU_DEPARTMENTS, require_content_editor
+from routes.work_context import get_department_user
 
 router = APIRouter(prefix="/menu", tags=["menu"])
 
@@ -140,7 +141,7 @@ async def create_menu_upload(
 
 
 @router.post("/ingest/dev-test")
-async def ingest_dev_test(body: dict, user=Depends(get_current_user)):
+async def ingest_dev_test(body: dict, user=Depends(get_department_user)):
     """Simulates 'an email arrived' for development/acceptance testing,
     without needing a real inbound email. Body: {service_date, raw_text,
     source_ref?}. service_date is required explicitly rather than guessed
@@ -163,7 +164,7 @@ async def ingest_dev_test(body: dict, user=Depends(get_current_user)):
 
 
 @router.post("/ingest/paste")
-async def ingest_paste(body: dict, user=Depends(get_current_user)):
+async def ingest_paste(body: dict, user=Depends(get_department_user)):
     """Kitchen staff paste menu text (the menu screen's "Paste a menu"). Same parser and draft batch as an
     emailed menu - only the provenance differs (source="staff_paste"). Body: {service_date, raw_text}.
     A whole week can be pasted at once with dated headers ("Monday 2026-10-12:" - the same header format
@@ -197,7 +198,7 @@ async def ingest_paste(body: dict, user=Depends(get_current_user)):
 
 
 @router.get("/uploads")
-async def list_uploads(service_date: Optional[str] = None, user=Depends(get_current_user)):
+async def list_uploads(service_date: Optional[str] = None, user=Depends(get_department_user)):
     if user.get("role") not in ("admin", "owner", "staff"):
         raise HTTPException(status_code=403, detail="Staff required")
     q: dict = {}
@@ -213,7 +214,7 @@ async def list_uploads(service_date: Optional[str] = None, user=Depends(get_curr
 
 
 @router.post("/uploads/{upload_id}/approve")
-async def approve_upload(upload_id: str, user=Depends(get_current_user)):
+async def approve_upload(upload_id: str, user=Depends(get_department_user)):
     """Approves the upload AND every MenuItem it produced in one action -
     the batch-level convenience the staff-view requirement asks for.
 

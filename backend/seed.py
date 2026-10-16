@@ -6,6 +6,9 @@ from datetime import datetime, timezone
 
 from deps import db
 from models import User, Resident, Kiosk, Zone, Pendant, RoadmapItem, SmartDevice, now_utc
+from living_community_boundary import (eligible_bulk_residents,
+                                       is_living_community_resident,
+                                       protected_resident_ids)
 
 
 ROADMAP_SEED = [
@@ -195,6 +198,8 @@ async def seed():
     ]
     for full_name, pref_name, room, pid, notes, prefs, memory in residents_data:
         existing_r = await db.residents.find_one({"room": room}, {"_id": 0})
+        if existing_r and is_living_community_resident(existing_r):
+            continue
         if not existing_r:
             r = Resident(
                 name=full_name,
@@ -225,7 +230,10 @@ async def seed():
                 await db.residents.update_one({"room": room}, {"$set": patch})
 
     # Kiosks - one per resident room + one central nurse station
-    residents = await db.residents.find({}, {"_id": 0}).to_list(100)
+    resident_rows = await db.residents.find({}, {"_id": 0}).to_list(1000)
+    residents = eligible_bulk_residents(resident_rows)
+    protected_ids = sorted(protected_resident_ids(resident_rows))
+    outside_community = {"resident_id": {"$nin": protected_ids}}
     for r in residents:
         room = r["room"]
         if not await db.kiosks.find_one({"room": room}, {"_id": 0}):
@@ -257,7 +265,7 @@ async def seed():
 
     # Pendants - assign a unique frequency to each resident
     base_freq = 916.000
-    for idx, r in enumerate(await db.residents.find({}, {"_id": 0}).sort("room", 1).to_list(100)):
+    for idx, r in enumerate(sorted(residents, key=lambda row: row.get("room") or "")):
         freq = round(base_freq + idx * 0.0125, 4)
         if not await db.pendants.find_one({"frequency_mhz": freq}, {"_id": 0}):
             p = Pendant(
@@ -275,8 +283,8 @@ async def seed():
             d.pop("_id", None)
 
     # Sample family contacts (for Margaret and Dorothy)
-    residents_for_family = await db.residents.find({}, {"_id": 0}).to_list(100)
-    existing_fam_count = await db.family_contacts.count_documents({})
+    residents_for_family = residents
+    existing_fam_count = await db.family_contacts.count_documents(outside_community)
     if existing_fam_count == 0 and residents_for_family:
         import random as _r
         samples = [
@@ -300,8 +308,8 @@ async def seed():
     # Seed historical alerts + locations so Insights has something to analyze
     from datetime import timedelta
     import random as _r
-    if await db.alerts.count_documents({}) < 5 and residents_for_family:
-        now_dt = now_utc()
+    now_dt = now_utc()
+    if await db.alerts.count_documents(outside_community) < 5 and residents_for_family:
         for i, r in enumerate(residents_for_family[:4]):
             base_count = 3 + (i % 3)  # 3..5
             current_count = base_count + (2 if i < 2 else 0)  # a couple of residents trend up
@@ -369,12 +377,13 @@ async def seed():
                 loc.pop("_id", None)
 
     # Backfill portal_token on any existing family contacts that don't have one
-    async for fc in db.family_contacts.find({"portal_token": {"$in": [None, ""]}}, {"_id": 0}):
+    async for fc in db.family_contacts.find(
+            {"portal_token": {"$in": [None, ""]}, **outside_community}, {"_id": 0}):
         tok = f"ptok_{_r.randint(10**11, 10**12-1):x}"
         await db.family_contacts.update_one({"contact_id": fc["contact_id"]}, {"$set": {"portal_token": tok}})
 
     # Seed a sample wearable for the first resident (demo)
-    if residents_for_family and await db.wearables.count_documents({}) == 0:
+    if residents_for_family and await db.wearables.count_documents(outside_community) == 0:
         first = residents_for_family[0]
         w_doc = {
             "wearable_id": f"wear_demo_{_r.randint(100000, 999999)}",
@@ -392,7 +401,8 @@ async def seed():
         w_doc.pop("_id", None)
 
     # Seed a few bathroom-zone pings so the insights bathroom metric has data
-    if residents_for_family and await db.locations.count_documents({"zone": {"$regex": "Bathroom"}}) == 0:
+    bathroom_query = {"zone": {"$regex": "Bathroom"}, **outside_community}
+    if residents_for_family and await db.locations.count_documents(bathroom_query) == 0:
         bathroom_names = ["Communal Bathroom - East", "Communal Bathroom - West"]
         for i, r in enumerate(residents_for_family[:4]):
             # Baseline window: 2 pings
@@ -422,7 +432,7 @@ async def seed():
                 })
 
     # Seed smart-room devices for the first 2 residents (demo)
-    if residents_for_family and await db.smart_devices.count_documents({}) == 0:
+    if residents_for_family and await db.smart_devices.count_documents(outside_community) == 0:
         for r in residents_for_family[:2]:
             room = r["room"]
             sample_devs = [
@@ -482,6 +492,8 @@ async def seed():
     end_iso = f"{today}T23:59:59+00:00"
     staff_pool = await db.users.find({"role": "staff"}, {"_id": 0, "user_id": 1, "name": 1}).to_list(20)
     async for tpl in db.task_templates.find({"active": True}, {"_id": 0}):
+        if tpl.get("resident_id") in protected_ids:
+            continue
         existing_task = await db.staff_tasks.find_one({
             "template_id": tpl["template_id"],
             "created_at": {"$gte": start_iso, "$lte": end_iso},
@@ -510,7 +522,7 @@ async def seed():
         await record_origin(task_doc, actor_system("seed"), action_type="task_seeded", authority="system:seed")
 
     # Seed medication reminders (1-2 per resident)
-    if residents_for_family and await db.med_reminders.count_documents({}) == 0:
+    if residents_for_family and await db.med_reminders.count_documents(outside_community) == 0:
         med_samples = [
             ("Blood pressure pill", "08:00", "One white tablet with water"),
             ("Morning vitamins", "08:30", "Multivitamin + calcium"),
@@ -532,7 +544,7 @@ async def seed():
             })
 
     # Seed a couple of historical pager events for demo
-    if await db.pager_events.count_documents({}) == 0 and residents_for_family:
+    if await db.pager_events.count_documents(outside_community) == 0 and residents_for_family:
         sample_pages = [
             ("Call bell — Room 101", "page", residents_for_family[0]),
             ("Assist bathroom — Room 108", "page", residents_for_family[1] if len(residents_for_family) > 1 else None),

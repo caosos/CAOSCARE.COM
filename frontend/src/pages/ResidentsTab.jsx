@@ -1,15 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { api } from "../lib/api";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "../components/ui/table";
 import { Trash2, Plus, Volume2, DoorOpen, BookOpen } from "lucide-react";
-import { toast } from "sonner";
 import ResidentRecordDialog from "./ResidentRecordDialog";
 import ResidentFormDialog from "./ResidentFormDialog";
 import ResidentQuickFind from "./ResidentQuickFind";
 import ResidentsCards from "./ResidentsCards";
 import { useIsCompact } from "../lib/useIsCompact";
+import { useResidentActions } from "../lib/useResidentActions";
 
 /* -------------- Residents -------------- */
 export default function ResidentsTab({ residents, kiosks, onChange, focusResidentId, onFocusHandled }) {
@@ -29,73 +28,8 @@ export default function ResidentsTab({ residents, kiosks, onChange, focusResiden
   const open_new = () => { setEditingResident(null); setFormOpen(true); };
   const open_edit = (r) => { setEditingResident(r); setFormOpen(true); };
 
-  const remove = async (id) => {
-    if (!window.confirm("Delete this resident?")) return;
-    await api.delete(`/residents/${id}`);
-    toast.success("Deleted");
-    onChange();
-  };
-
-  // Voice briefing — fetches the narrative then streams the pre-composed line
-  // through OpenAI TTS so the nurse can literally hear the resident's
-  // clinical bands + open alerts + cheat-sheet memories without reading.
-  const [briefingId, setBriefingId] = useState(null); // resident_id currently speaking
-  const audioRef = React.useRef(null);
-  const speakBriefing = async (r) => {
-    try {
-      // Stop any in-flight playback
-      if (audioRef.current) { try { audioRef.current.pause(); } catch {} audioRef.current = null; }
-      setBriefingId(r.resident_id);
-      const { data: brief } = await api.get(`/residents/${r.resident_id}/briefing`);
-      const { data: tts } = await api.post("/ai/tts", { text: brief.narrative, voice: "sage" });
-      const audio = new Audio(`data:audio/mp3;base64,${tts.audio_base64}`);
-      audioRef.current = audio;
-      audio.onended = () => { if (audioRef.current === audio) { audioRef.current = null; setBriefingId(null); } };
-      audio.onerror = () => { setBriefingId(null); toast.error("Briefing playback failed"); };
-      await audio.play();
-      toast.success(`Briefing: ${r.name}`);
-    } catch (err) {
-      setBriefingId(null);
-      toast.error(err?.response?.data?.detail || "Briefing failed");
-    }
-  };
-
-  // Enter Room — the resident↔kiosk link is a room-string match (Kiosk.room
-  // === Resident.room), the same lookup /residents/public/by-kiosk/{id} does
-  // server-side. Resolved client-side from the kiosks list Admin.jsx already
-  // fetches, so a resident with no matching kiosk shows that plainly instead
-  // of silently opening an unrelated room's kiosk.
-  const kioskForRoom = (room) => (kiosks || []).find((k) => k.room === room);
-  const enterRoom = (r) => {
-    const kiosk = kioskForRoom(r.room);
-    if (!kiosk) {
-      toast.error(`No kiosk mapped to room "${r.room}" — nothing to open.`);
-      return;
-    }
-    window.open(`/kiosk/${kiosk.kiosk_id}`, "_blank", "noopener");
-  };
-
-  // "Set up room" — creates the real logical kiosk record for this room via
-  // the same POST /kiosks Admin → Kiosks' own "Add kiosk" uses (no separate
-  // provisioning system). Once it exists, Enter Room resolves it immediately
-  // via the same room-string match above - real path, not a simulator.
-  // Physical tablet install (Admin → Kiosks → Install) is a later, separate
-  // step; this only creates the logical room/kiosk association a browser
-  // acceptance test needs.
-  const [settingUpRoom, setSettingUpRoom] = useState(null); // room currently being set up
-  const setUpRoom = async (room) => {
-    if (!room || settingUpRoom) return;
-    setSettingUpRoom(room);
-    try {
-      await api.post("/kiosks", { name: room, room, zone: "" });
-      toast.success(`Room ${room} is set up — Enter room is now available.`);
-      onChange();
-    } catch (err) {
-      toast.error(err?.response?.data?.detail || "Could not set up the room");
-    } finally {
-      setSettingUpRoom(null);
-    }
-  };
+  const { kioskForRoom, enterRoom, setUpRoom, settingUpRoom, speakBriefing, briefingId, remove } =
+    useResidentActions({ kiosks, onChange });
 
   const isCompact = useIsCompact();
 

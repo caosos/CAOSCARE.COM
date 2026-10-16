@@ -28,6 +28,8 @@ jest.mock("../../components/ui/label", () => { const R = require("react"); retur
 const Queue = require("../../pages/DepartmentQueue").default;
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const flush = () => act(async () => { await Promise.resolve(); await Promise.resolve(); });
+// Rows are compact; their actions show when a row is expanded (CO-008).
+const expandAll = (root0) => act(async () => { (root0 || document).querySelectorAll("[data-testid^=wo-row-]").forEach((b) => { if (b.getAttribute("aria-expanded") !== "true") b.click(); }); });
 const appt = { task_id: "a1", title: "Physical therapy session (knee)", status: "pending", assigned_to: null, visibility_role: "therapy",
   created_at: "2026-10-11T07:00:00Z", requested_for_date: "2026-10-14", requested_for_time_label: "10:00 AM" };
 let root, el;
@@ -41,7 +43,7 @@ const q = (id) => el.querySelector(`[data-testid=${id}]`);
 const setVal = async (node, v, proto) => act(async () => {
   const s = Object.getOwnPropertyDescriptor(proto, "value").set; s.call(node, v); node.dispatchEvent(new Event("input", { bubbles: true }));
 });
-const render = async () => { await act(async () => root.render(<Queue department="therapy" title="Therapy requests" />)); await flush(); };
+const render = async () => { await act(async () => root.render(<Queue department="therapy" title="Therapy requests" />)); await flush(); await expandAll(); };
 
 test("the planned window is shown on the card", async () => {
   await render();

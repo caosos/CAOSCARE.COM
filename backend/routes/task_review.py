@@ -28,9 +28,9 @@ from typing import Optional
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
-from deps import get_current_user
 from models import now_utc
 from routes.actor_context import ActorContext, actor_from_user
+from routes.work_context import get_department_user
 from routes.staff_scope import ADMIN_ROLES
 from routes.task_history import task_event
 from routes import task_actions
@@ -126,21 +126,21 @@ async def inspect(task_id: str, result: str, note: Optional[str], actor: ActorCo
 
 
 @router.post("/{task_id}/inspect")
-async def inspect_route(task_id: str, body: InspectInput, user: dict = Depends(get_current_user)):
+async def inspect_route(task_id: str, body: InspectInput, user: dict = Depends(get_department_user)):
     task, receipt = await inspect(task_id, body.result, body.note, actor_from_user(user), user)
     return {"ok": True, "task_id": task["task_id"], "status": task["status"],
             "inspection_result": task.get("inspection_result"), "receipt_id": (receipt or {}).get("receipt_id")}
 
 
 @router.post("/{task_id}/escalate")
-async def escalate_route(task_id: str, body: ReasonInput, user: dict = Depends(get_current_user)):
+async def escalate_route(task_id: str, body: ReasonInput, user: dict = Depends(get_department_user)):
     task, receipt = await escalate(task_id, body.reason, actor_from_user(user), user)
     return {"ok": True, "task_id": task["task_id"], "needs_review": task.get("needs_review"),
             "receipt_id": (receipt or {}).get("receipt_id")}
 
 
 @router.post("/{task_id}/review")
-async def review_route(task_id: str, body: ReasonInput, user: dict = Depends(get_current_user)):
+async def review_route(task_id: str, body: ReasonInput, user: dict = Depends(get_department_user)):
     task, receipt = await review(task_id, body.reason, actor_from_user(user), user)
     return {"ok": True, "task_id": task["task_id"], "needs_review": task.get("needs_review"),
             "receipt_id": receipt["receipt_id"]}

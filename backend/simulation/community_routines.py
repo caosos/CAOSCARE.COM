@@ -1,0 +1,298 @@
+"""Pure first-day routine plan for the living-community simulator.
+
+This module describes *intent* only.  It does not import the database, call a
+provider, or mutate CAOSCare state.  A scheduler may dispatch ``safe_now``
+events through the canonical StaffTask origin/lifecycle.  Blocked adapters are
+listed explicitly so a future driver cannot accidentally use an unsafe path.
+
+Medication events are reminders, never medication administration or evidence
+of ingestion/adherence.  Transportation and family-call events coordinate a
+human workflow; they never book a vehicle or place a call.
+"""
+
+from dataclasses import dataclass, field, replace
+from typing import Optional
+
+from simulation.community_coverage import opens_on
+from simulation.community_family_call_routing import family_call_department
+from simulation import community_housekeeping as hk
+from simulation import community_service_model as svc
+
+
+BURN_IN_RESIDENT_KEYS = tuple(f"resident-{index:03d}" for index in range(1, 11))
+
+SAFE_NOW = "safe_now"
+BLOCKED = "blocked"
+
+# Adapter status is repository truth at the time this plan was introduced.
+# The plan uses only canonical_staff_task; related blocked capabilities are
+# attached to events so the execution layer knows where it must stop.
+ADAPTER_CAPABILITIES = {
+    "canonical_staff_task": {
+        "status": SAFE_NOW,
+        "reason": "Uses the receipted StaffTask request and lifecycle services.",
+    },
+    "medication_kiosk": {
+        "status": BLOCKED,
+        "reason": "Reminder acknowledgements lack simulator provenance and facility-local timing.",
+    },
+    "transport_resource_booking": {
+        "status": BLOCKED,
+        "reason": "Runs, drivers, and vehicles are not partitioned from real resources.",
+    },
+    "outbound_family_call": {
+        "status": BLOCKED,
+        "reason": "Outbound room calling is not configured or simulation-isolated.",
+    },
+    "outbound_front_desk_call": {
+        "status": BLOCKED,
+        "reason": "Front-desk outbound calling is not configured or simulation-isolated.",
+    },
+    "menu_content_publish": {
+        "status": BLOCKED,
+        "reason": "Menu content writes do not accept a simulated actor and run provenance.",
+    },
+    "activity_schedule_publish": {
+        "status": BLOCKED,
+        "reason": "Schedule content writes do not accept a simulated actor and run provenance.",
+    },
+    "resident_alert": {
+        "status": BLOCKED,
+        "reason": "Alert delivery can reach real escalation and family notification providers.",
+    },
+}
+
+
+@dataclass(frozen=True)
+class RoutineEvent:
+    """One planned intent with an explicit, bounded execution coordinate.
+
+    ``plan_day_index`` is the day whose routine recipe produced the event.
+    ``day_index`` and ``minute`` are the event's scheduled day and minute of
+    that day.  A staggered event may therefore drain into the following day
+    without producing an invalid clock time or losing its source-day identity.
+    """
+
+    plan_day_index: int
+    day_index: int
+    minute: int
+    resident_key: str
+    routine: str
+    department: str
+    summary: str
+    priority: str = "normal"
+    adapter: str = "canonical_staff_task"
+    blocked_adapter: Optional[str] = None
+    truth_boundary: str = "Completion records only the described simulated work."
+    possible_outcomes: tuple[str, ...] = field(
+        default=("completed", "resident_refused", "resident_requested_reschedule")
+    )
+    event_id: str = field(default="", compare=False)
+    # Who raises the ticket (Michael, 2026-10-14: every simulated request comes
+    # from a player in the system). "resident": the resident asks; "staff": an
+    # on-site worker of ``opener_department`` opens it (rounds, preventive
+    # maintenance, a problem they noticed). Nobody on site -> not raised.
+    opened_by: str = "resident"
+    opener_department: Optional[str] = None
+    resident_words: Optional[str] = None
+
+    @property
+    def time_hhmm(self) -> str:
+        return f"{self.minute // 60:02d}:{self.minute % 60:02d}"
+
+    @property
+    def absolute_minute(self) -> int:
+        return self.day_index * 24 * 60 + self.minute
+
+    @property
+    def rollover_days(self) -> int:
+        return self.day_index - self.plan_day_index
+
+    @property
+    def adapter_status(self) -> str:
+        return ADAPTER_CAPABILITIES[self.adapter]["status"]
+
+
+@dataclass(frozen=True)
+class _RoutineSpec:
+    routine: str
+    department: str
+    base_minute: int
+    summary: str
+    priority: str = "normal"
+    stagger: int = 2
+    blocked_adapter: Optional[str] = None
+    truth_boundary: str = "Completion records only the described simulated work."
+    opened_by: str = "staff"
+
+
+_DAILY_ROUTINES = (
+    _RoutineSpec("overnight_room_check", "nursing", 30,
+                 "Perform the scheduled overnight room check."),
+    _RoutineSpec("toileting_transfer_support", "nursing", 390,
+                 "Offer scheduled toileting or transfer support.", "high"),
+    _RoutineSpec("morning_room_check", "nursing", 435,
+                 "Perform the scheduled morning resident room check."),
+    _RoutineSpec(
+        "morning_medication_reminder", "nursing", 470,
+        "Offer the scheduled morning medication reminder.", "high", blocked_adapter="medication_kiosk",
+        truth_boundary="Records reminder delivery only; never medication administration, ingestion, or adherence.",
+    ),
+    _RoutineSpec("shower_assistance", "nursing", 540,
+                 "Offer scheduled shower assistance; the resident may decline or reschedule.", "high", stagger=5),
+    _RoutineSpec("afternoon_toileting_transfer_support", "nursing", 780,
+                 "Offer scheduled toileting or transfer support.", "high"),
+    _RoutineSpec(
+        "evening_medication_reminder", "nursing", 1185,
+        "Offer the scheduled evening medication reminder.", "high", blocked_adapter="medication_kiosk",
+        truth_boundary="Records reminder delivery only; never medication administration, ingestion, or adherence.",
+    ),
+    _RoutineSpec("evening_toileting_transfer_support", "nursing", 1260,
+                 "Offer scheduled toileting or transfer support.", "high"),
+    _RoutineSpec("night_room_check", "nursing", 1350,
+                 "Perform the scheduled night resident room check."),
+)
+
+
+def _event(spec: _RoutineSpec, resident_key: str, resident_index: int, day_index: int) -> RoutineEvent:
+    scheduled_offset = spec.base_minute + (resident_index - 1) * spec.stagger
+    rollover_days, minute = divmod(scheduled_offset, 24 * 60)
+    return RoutineEvent(
+        plan_day_index=day_index,
+        day_index=day_index + rollover_days,
+        minute=minute,
+        resident_key=resident_key,
+        routine=spec.routine,
+        department=spec.department,
+        summary=spec.summary,
+        priority=spec.priority,
+        blocked_adapter=spec.blocked_adapter,
+        truth_boundary=spec.truth_boundary,
+        event_id=f"day-{day_index:03d}:{resident_key}:{spec.routine}",
+        opened_by=spec.opened_by,
+        opener_department=spec.department if spec.opened_by == "staff" else None,
+    )
+
+
+def plan_first_24_hours(
+    resident_keys: tuple[str, ...] = BURN_IN_RESIDENT_KEYS,
+    *,
+    day_index: int = 0,
+) -> tuple[RoutineEvent, ...]:
+    """Return one source day's deterministic plan without performing actions.
+
+    The returned plan includes its complete drain: resident staggering may put
+    late work on the next scheduled day, but ``minute`` always remains a valid
+    minute-of-day value.
+    """
+    if day_index < 0:
+        raise ValueError("day_index must be non-negative")
+    if not resident_keys or len(set(resident_keys)) != len(resident_keys):
+        raise ValueError("resident_keys must be a non-empty unique sequence")
+
+    events: list[RoutineEvent] = []
+    for resident_index, resident_key in enumerate(resident_keys, start=1):
+        if not resident_key:
+            raise ValueError("resident keys must be non-empty")
+        events.extend(_event(spec, resident_key, resident_index, day_index) for spec in _DAILY_ROUTINES)
+        events.extend(_service_events(resident_key, resident_index, day_index))
+        # Housekeeping: one scheduled full clean per occupied apartment per week (owner 2026-10-15).
+        clean_at = hk.clean_minute(resident_key, day_index)
+        if clean_at is not None:
+            events.append(_event(_RoutineSpec(
+                hk.FULL_CLEAN, "housekeeping", clean_at,
+                "Weekly full clean of the apartment by its territory housekeeper.", stagger=0,
+            ), resident_key, resident_index, day_index))
+
+        # Optional routines repeat every ten residents, so the 75-resident
+        # community scales them while the ten-resident burn-in plan is unchanged.
+        cycle = (resident_index - 1) % 10 + 1
+        # A subset has a planned appointment.  These are coordination tasks,
+        # deliberately not calls to the unpartitioned transport booking engine.
+        if cycle in (2, 5, 8):
+            events.append(_event(_RoutineSpec(
+                "appointment_coordination", "administration", 555,
+                "Confirm the simulated appointment details with staff; do not claim provider confirmation.",
+                stagger=4,
+            ), resident_key, resident_index, day_index))
+            events.append(_event(_RoutineSpec(
+                "transport_coordination", "transportation", 645,
+                "Coordinate requested ride details for the appointment.",
+                blocked_adapter="transport_resource_booking", stagger=4,
+                truth_boundary="Records coordination only; never claims a driver, vehicle, pickup, or booking.",
+            ), resident_key, resident_index, day_index))
+
+        if cycle in (1, 6):
+            events.append(_event(_RoutineSpec(
+                "preventive_maintenance_check", "maintenance", 690,
+                "Inspect the simulated room fixture listed for preventive maintenance.", stagger=5,
+            ), resident_key, resident_index, day_index))
+
+        if resident_index % 2 == 0:
+            family = _event(_RoutineSpec(
+                "family_call_coordination", "administration", 960,
+                "Coordinate an approved family-call request for the resident.",
+                blocked_adapter="outbound_family_call", stagger=3, opened_by="resident",
+                truth_boundary="Records coordination only; never claims that a call was placed, rang, or connected.",
+            ), resident_key, resident_index, day_index)
+            # Owner rule: Administration before 17:00, Front Desk 17:00-23:00.
+            events.append(replace(family, department=family_call_department(family.minute, day_index=family.day_index)))
+
+        if cycle in (3, 7):
+            events.append(_event(_RoutineSpec(
+                "front_desk_message_follow_up", "front_desk", 900,
+                "Review and route the simulated resident message for staff follow-up.",
+                blocked_adapter="outbound_front_desk_call", stagger=4, opened_by="resident",
+                truth_boundary=(
+                    "Records message coordination only; never claims that the resident "
+                    "was contacted or that an outbound call was placed."
+                ),
+            ), resident_key, resident_index, day_index))
+
+    return tuple(sorted(events, key=lambda item: (
+        item.day_index, item.minute, item.resident_key, item.routine, item.event_id,
+    )))
+
+
+_MEAL_TRUTH = "Records meal service only; never claims that the resident ate or how much was consumed."
+
+
+def _service_events(resident_key: str, resident_index: int, day_index: int) -> list:
+    """Meals and activity work under the service model (community_service_model)."""
+    out = []
+    for meal, seating in svc.MEAL_SEATING.items():
+        routine = svc.meal_routine(meal, resident_index)
+        where = "in the apartment" if routine != meal else "in the dining room"
+        out.append(_event(_RoutineSpec(
+            routine, "kitchen", seating, f"Serve the resident's {meal} {where}.",
+            truth_boundary=_MEAL_TRUTH, stagger=1,
+        ), resident_key, resident_index, day_index))
+    # The group session and one-to-one visits are the activities coordinator's work;
+    # on days the coordinator is off (owner: one coordinator) no session is planned.
+    if not svc.attends_activity(resident_index, day_index) or not opens_on("activities", day_index):
+        return out
+    if svc.activity_style_for(resident_index) == "one_to_one_offer":
+        order = sum(1 for i in range(1, resident_index)
+                    if svc.activity_style_for(i) == "one_to_one_offer" and svc.attends_activity(i, day_index))
+        minute = svc.ONE_TO_ONE_FIRST + order * svc.ONE_TO_ONE_SPACING
+        out.append(_event(_RoutineSpec(
+            svc.ACTIVITY_VISIT, "activities", minute,
+            "One-to-one activity visit in the resident's apartment; attendance is recorded only when completed.",
+            blocked_adapter="activity_schedule_publish", stagger=0,
+        ), resident_key, resident_index, day_index))
+    elif svc.needs_escort(resident_index):
+        order = sum(1 for i in range(1, resident_index)
+                    if svc.needs_escort(i) and svc.activity_style_for(i) != "one_to_one_offer"
+                    and svc.attends_activity(i, day_index))
+        minute = svc.ACTIVITY_SESSION_START - svc.ESCORT_LEAD_MINUTES + order
+        out.append(_event(_RoutineSpec(
+            svc.ACTIVITY_ESCORT, "activities", minute,
+            "Escort the resident to the group activity; residents who move independently attend on their own.",
+            blocked_adapter="activity_schedule_publish", stagger=0,
+        ), resident_key, resident_index, day_index))
+    return out
+
+
+def blocked_adapters() -> tuple[str, ...]:
+    """Stable list for UI/tests; blocked capabilities are never dispatchable."""
+    return tuple(sorted(name for name, info in ADAPTER_CAPABILITIES.items() if info["status"] == BLOCKED))

@@ -47,6 +47,15 @@ def inbound_email_actor() -> ActorContext:
 def _authority(actor: ActorContext, kind: str) -> str:
     if actor.actor_type == "system":
         return "system:inbound_email"
+    if actor.work_context_id:
+        allowed = MENU_DEPARTMENTS if kind == "menu" else SCHEDULE_DEPARTMENTS
+        seat = (f"acts_for:{actor.acting_department}"
+                if actor.acting_role == "staff" and actor.acting_department in allowed
+                else "content_editor")
+        return (
+            f"admin_work_as:{actor.role}:as:{actor.acting_role}:"
+            f"{actor.acting_department}:{seat}"
+        )
     if actor.role in ("owner", "admin"):
         return f"admin_override:{actor.role}"
     allowed = MENU_DEPARTMENTS if kind == "menu" else SCHEDULE_DEPARTMENTS

@@ -129,11 +129,14 @@ async def _run():
         assert "taken care of" not in s["spoken"] and names["fd"] in s["spoken"]
 
         # admin reopen after a second completion, then complete again: chain unbroken
+        # a reopened request is pending again: it is started before it is completed (#168)
+        _ok(requests.post(f"{API}/tasks/{t}/start", headers=H["fd"], timeout=5))
         _ok(requests.post(f"{API}/tasks/{t}/complete", headers=H["fd"], json={"notes": "done twice"}, timeout=5))
         again = _ok(requests.post(f"{API}/tasks/{t}/reopen", headers=H["admin"], json={"reason": "audit"}, timeout=5))
         assert again["reopen_count"] == 2
         rec2 = await db.receipts.find_one({"related_object_id": t, "action_type": "task_reopened", "result": "audit"}, {"_id": 0})
         assert rec2["authority"] == "admin_override:admin"
+        _ok(requests.post(f"{API}/tasks/{t}/start", headers=H["fd"], timeout=5))
         _ok(requests.post(f"{API}/tasks/{t}/complete", headers=H["fd"], json={"notes": "final"}, timeout=5))
         chain = [r async for r in db.receipts.find({"related_object_id": t, "action_type": {"$not": {"$regex": "_refused$"}}}, {"_id": 0}).sort("created_at", 1)]
         for prev, cur in zip(chain, chain[1:]):

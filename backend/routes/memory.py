@@ -39,6 +39,7 @@ from models import (
     ResidentMemory, ResidentMemoryCreate, ResidentMemoryUpdate, now_utc, uid,
     default_bin_for_category,
 )
+from routes.living_community_ai_guard import provider_excluded_for_resident
 
 router = APIRouter(prefix="/memory", tags=["memory"])
 
@@ -270,6 +271,11 @@ async def extract_and_store_memories(resident_id: str, session_id: str, user_tex
     if not resident_id or not user_text:
         return 0
     try:
+        # Last common boundary before the automatic extractor reaches OpenAI.
+        # Trust the server-owned resident row, never caller-provided markers.
+        if await provider_excluded_for_resident(db.residents, resident_id):
+            logging.info("Memory extraction skipped for living-community resident %s", resident_id)
+            return 0
         prompt = (
             f"User said: \"{user_text}\"\nCAOS replied: \"{assistant_text}\"\n\n"
             f"Return JSON array of new durable memories."

@@ -25,6 +25,7 @@ entry carries its receipt_id, so a missing receipt is detectable.
 from typing import Callable, Optional
 
 from fastapi import HTTPException
+from pymongo.errors import DuplicateKeyError
 
 from deps import db
 from models import uid
@@ -69,16 +70,32 @@ def authority_for(task: dict, actor: ActorContext, user: Optional[dict]) -> Opti
     if not user:
         return None
     role = user.get("role")
-    if role in ADMIN_ROLES:
-        return f"admin_override:{role}"
-    if task.get("assigned_to") and task.get("assigned_to") == user.get("user_id"):
-        return "assignee"
     vis = task.get("visibility_role")
+    if user.get("_work_context_id") and vis != "all_staff" and not acts_for(user, vis):
+        return None
+    if role in ADMIN_ROLES:
+        authority = f"admin_override:{role}"
+        return authority
+    if task.get("assigned_to") and task.get("assigned_to") == user.get("user_id"):
+        authority = "assignee"
+        return work_as_authority(user, authority)
     if acts_for(user, vis):
-        return f"acts_for:{vis}"
+        authority = f"acts_for:{vis}"
+        return work_as_authority(user, authority)
     if vis == "all_staff" and role in ("staff", "front_desk"):
-        return "all_staff"
+        authority = "all_staff"
+        return work_as_authority(user, authority)
     return None
+
+
+def work_as_authority(user: dict, base: str) -> str:
+    """Name the authenticated admin grant as well as the staff rule used."""
+    if not user.get("_work_context_id"):
+        return base
+    return (
+        f"admin_work_as:{user.get('_principal_role')}:as:{user.get('role')}:"
+        f"{user.get('department')}:{base}"
+    )
 
 
 def _chain_query(task_id: str) -> dict:
@@ -102,8 +119,14 @@ async def load(task_id: str) -> dict:
 
 
 def _run_link(task: dict) -> dict:
-    """SC-17: every receipt on a simulator-raised request names its run."""
-    return {"simulation_run_id": task["simulation_run_id"]} if task.get("simulation_run_id") else {}
+    """SC-17: every receipt preserves the task's server-set simulation scope."""
+    if not task.get("simulation_run_id"):
+        return {}
+    return {
+        key: task[key]
+        for key in ("simulation_run_id", "simulation_scope", "simulation_community_id")
+        if task.get(key)
+    }
 
 
 def _receipt_context(task: dict, actor: ActorContext) -> dict:
@@ -190,7 +213,15 @@ async def transition(task_id: str, actor: ActorContext, user: Optional[dict], *,
         first = await db.receipts.find_one(_chain_query(task_id), {"_id": 0, "receipt_id": 1},
                                            sort=[("created_at", 1)])
         correlation = first["receipt_id"]
-    await update_task_with_history(task_id, set_fields, entries)
+    try:
+        await update_task_with_history(task_id, set_fields, entries)
+    except DuplicateKeyError:
+        # The persisted one-active-ticket-per-worker index refused the write
+        # (a race the work rules did not see): a clear refusal, not a 500.
+        await record_refusal(task, actor, auth, action,
+                             "the worker already holds another in-progress request; nothing changed")
+        raise LifecycleError(409, "You are already working on another request. Complete it, hand it "
+                                  "off or mark it blocked first. Nothing was changed; the attempt was recorded.")
     after = await load(task_id)
     receipt = await create_receipt(
         action_type=action_type, related_object_type="task", related_object_id=task_id,
@@ -214,9 +245,17 @@ async def simulation_marker(resident_id: Optional[str], simulation_run_id: Optio
     and is recorded only on a synthetic resident's work."""
     if not resident_id:
         return {}
-    r = await db.residents.find_one({"resident_id": resident_id}, {"_id": 0, "synthetic": 1})
+    r = await db.residents.find_one(
+        {"resident_id": resident_id},
+        {"_id": 0, "synthetic": 1, "simulation_scope": 1, "simulation_community_id": 1},
+    )
     if r and r.get("synthetic"):
-        marker = {"simulated": True, "simulation_scope": "demo_room"}
+        marker = {
+            "simulated": True,
+            "simulation_scope": r.get("simulation_scope") or "demo_room",
+        }
+        if r.get("simulation_community_id"):
+            marker["simulation_community_id"] = r["simulation_community_id"]
         if simulation_run_id:
             marker["simulation_run_id"] = simulation_run_id
         return marker

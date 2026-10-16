@@ -92,6 +92,7 @@ async def _run():
         # reassign to another nurse, complete; truthful status at each step
         _ok(requests.post(f"{API}/tasks/{tid}/assign", headers=H["admin"], json={"assigned_to": ids["n2"]}, timeout=5))
         assert "has taken it on" in status()["spoken"]
+        _ok(requests.post(f"{API}/tasks/{tid}/start", headers=H["n2"], timeout=5))
         _ok(requests.post(f"{API}/tasks/{tid}/complete", headers=H["n2"], json={"notes": "Done with an aide"}, timeout=5))
         hist = _ok(requests.get(f"{API}/tasks/resident-request/history", params={"resident_id": rid}, timeout=5))
         assert hist["requests"][0]["task_id"] == tid

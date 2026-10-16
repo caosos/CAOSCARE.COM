@@ -13,6 +13,7 @@ load_dotenv(ROOT_DIR / ".env")
 
 from deps import db  # noqa: E402
 from routes import content_coverage as content_coverage_routes
+from routes import community_reset_controls as community_reset_control_routes
 from routes import auth as auth_routes  # noqa: E402
 from routes import auth_password as auth_password_routes  # noqa: E402
 from routes import residents as resident_routes  # noqa: E402
@@ -43,6 +44,7 @@ from routes import resident_request_overview  # noqa: E402
 from routes import upcoming_schedule  # noqa: E402
 from routes import schedule_conflict  # noqa: E402
 from routes import department_board  # noqa: E402
+from routes import department_roster  # noqa: E402
 from routes import operations_currency  # noqa: E402
 from routes import routing_exceptions  # noqa: E402
 from routes import delivery_exceptions  # noqa: E402
@@ -110,6 +112,16 @@ from routes import aria_conversation_state as aria_conversation_state_routes  # 
 from routes import aria_interpretation_patterns as aria_interpretation_patterns_routes  # noqa: E402
 from routes import aria_turn_taking as aria_turn_taking_routes  # noqa: E402
 from routes import simulation as simulation_routes  # noqa: E402
+from routes import community_runtime as community_runtime_routes  # noqa: E402
+from routes import community_controls as community_control_routes  # noqa: E402
+from routes import community_shift_cover as community_shift_cover_routes  # noqa: E402
+from routes import community_dashboard as community_dashboard_routes  # noqa: E402
+from routes import ops_metrics as ops_metrics_routes  # noqa: E402
+from routes import user_layout as user_layout_routes  # noqa: E402
+from routes import ops_widgets as ops_widgets_routes  # noqa: E402
+from routes import documents as documents_routes  # noqa: E402
+from routes import community_runtime_registry  # noqa: E402
+from routes import work_context as work_context_routes  # noqa: E402
 from routes import demo_continuity as demo_continuity_routes  # noqa: E402
 from seed import demo_seed_enabled, seed  # noqa: E402
 
@@ -162,10 +174,14 @@ async def lifespan(app: FastAPI):
     # Escalation schedule (independent of any simulator); CAOSCARE_ESCALATION_AUTO=0 disables.
     from routes.escalation_schedule import start_schedule, stop_schedule
     await start_schedule()
-    yield
-    if ari_task:
-        ari_task.cancel()
-    await stop_schedule()
+    await community_runtime_registry.recover_community_on_startup(db)
+    try:
+        yield
+    finally:
+        await community_runtime_registry.stop_community_on_shutdown(db)
+        if ari_task:
+            ari_task.cancel()
+        await stop_schedule()
 
 
 app = FastAPI(title="CAOS Care", lifespan=lifespan)
@@ -228,6 +244,7 @@ api.include_router(resident_request_routes.router)
 api.include_router(resident_request_overview.router)
 api.include_router(upcoming_schedule.router)
 api.include_router(schedule_conflict.router)
+api.include_router(department_roster.router)
 api.include_router(department_board.router)
 api.include_router(operations_currency.router)
 api.include_router(routing_exceptions.router)
@@ -292,6 +309,16 @@ api.include_router(aria_conversation_state_routes.router)
 api.include_router(aria_interpretation_patterns_routes.router)
 api.include_router(aria_turn_taking_routes.router)
 api.include_router(simulation_routes.router)
+api.include_router(community_runtime_routes.router)
+api.include_router(community_control_routes.router)
+api.include_router(community_shift_cover_routes.router)
+api.include_router(community_dashboard_routes.router)
+api.include_router(ops_widgets_routes.router)
+api.include_router(ops_metrics_routes.router)
+api.include_router(user_layout_routes.router)
+api.include_router(documents_routes.router)
+api.include_router(community_reset_control_routes.router)
+api.include_router(work_context_routes.router)
 api.include_router(demo_continuity_routes.router)
 
 app.include_router(api)
