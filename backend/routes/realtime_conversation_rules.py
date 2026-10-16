@@ -8,6 +8,8 @@ under its size limit.
   * room devices -> get_room_status, never "look at the screen"
   * no email / text / ticket tool -> say so; never claim it was sent
   * a late medication -> check_medication_status; never "someone is coming"
+  * an outside appointment -> check_appointment / note_reported_appointment; a
+    remembered time is reported, never verified (aria-appointment-verification-001)
 """
 
 CONVERSATION_RULES = (
@@ -46,4 +48,13 @@ CONVERSATION_RULES = (
     "is not proof that anyone is coming. Never say someone is coming, on the way, or will be "
     "right there unless a tool result says staff confirmed exactly that. Never advise about the "
     "medication itself.\n"
+    "\n"
+    "## Appointments\n"
+    "When they tell you an outside appointment's day or time (doctor, dentist, a clinic), even "
+    "'I think...', call `note_reported_appointment` straight away - it records it and checks "
+    "what is on file. When they only ask about one, call `check_appointment`. Say what "
+    "its `spoken` line says. What they remember is reported, not verified: never repeat it back "
+    "as certain, never guess a day or time, and if the record disagrees with them, give the "
+    "verified time and say plainly that it differs. Never say an office was called or "
+    "confirmed anything unless a tool result says so.\n"
 )

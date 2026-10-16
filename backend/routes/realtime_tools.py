@@ -15,6 +15,7 @@ from routes.realtime_device_tools import _build_device_tools
 from routes.realtime_display_tools import _build_display_tools
 from routes.realtime_interpretation_tools import _build_interpretation_tools
 from routes.realtime_medication_tools import _build_medication_tools
+from routes.realtime_appointment_tools import _build_appointment_tools
 from routes.resident_requests import get_request_categories
 from routes.realtime_truth_rules import research_tool_description
 
@@ -253,7 +254,7 @@ async def _build_tools() -> list[dict]:
             }
         },
     ] + _build_operations_tools(await get_request_categories()) + _build_display_tools() + _build_interpretation_tools()
-    ) + _build_medication_tools() + _call_tools()
+    ) + _build_medication_tools() + _build_appointment_tools() + _call_tools()
 
 
 def _call_tools() -> list[dict]:
