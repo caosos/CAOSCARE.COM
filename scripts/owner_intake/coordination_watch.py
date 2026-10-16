@@ -138,8 +138,13 @@ def tick(st: dict, q: dict) -> dict:
                     base_fields(q, hs, task_id=task, state=cl["state"] + (" / BOUNDARY" if cl["boundary"] else ""),
                                 branch_sha=", ".join(cl["shas"]) or "UNKNOWN", evidence=cl["url"],
                                 next_action="reconcile queue; dispatch next item at boundary" if cl["state"] == "DONE" else "keep watching"))
-            # ACK detection for our own deliveries
+            # ACK / DONE detection for our own deliveries
             for item_id, d in st["dispatched"].items():
+                if item_id in cl["items"] and cl["state"] == "DONE" and d.get("done_url") is None:
+                    d["done_url"], d["done_at"] = cl["url"], cl["created_at"]      # task boundary for the next real item
+                    publish(st, q, f"done-{item_id}", f"DONE DETECTED for {item_id} — task boundary",
+                            base_fields(q, hs, task_id=item_id, state="DONE (task boundary; next authorized item may dispatch)",
+                                        evidence=cl["url"], next_action="dispatch the next READY queue item when the coordinator is idle"))
                 if d.get("ack_url") is None and item_id in cl["items"] and cl["state"] in ("ACK", "WORKING", "DONE", "BLOCKED"):
                     d["ack_url"], d["ack_at"], d["ack_state"] = cl["url"], cl["created_at"], cl["state"]
                     publish(st, q, f"ack-{item_id}", f"ACK DETECTED for {item_id}",
@@ -181,9 +186,11 @@ def tick(st: dict, q: dict) -> dict:
     else:
         ok, why = cq.gate_open(q, st["boundary_seen"], hs)
         nxt = cq.next_ready(q, dispatched_ids)
-        if nxt and ok and all(d.get("ack_url") for d in st["dispatched"].values()):   # every earlier delivery (test included) ACKed
+        # serial rule: every earlier delivery ACKed, and every earlier REAL item DONE (the task boundary), before the next real item
+        prior_done = all(d.get("done_url") for d in st["dispatched"].values() if d.get("kind") != "coordination_test")
+        if nxt and ok and prior_done and all(d.get("ack_url") for d in st["dispatched"].values()):
             deliver(st, q, hs, nxt, why)
-        summary["gate"] = why
+        summary["gate"] = why if (ok and prior_done) or not ok else "waiting for DONE of the active item (task boundary)"
         summary["prepared_next"] = nxt["id"] if nxt else None
     return summary
 

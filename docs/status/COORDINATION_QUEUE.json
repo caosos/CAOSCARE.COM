@@ -3,8 +3,15 @@
   "repo": "caosos/CAOSCARE.COM",
   "branch": "integration/2026-09-27",
   "authoritative_issue": 166,
-  "watch_issues": [166, 153, 168],
-  "boundary_issues": [166, 168],
+  "watch_issues": [
+    166,
+    153,
+    168
+  ],
+  "boundary_issues": [
+    166,
+    168
+  ],
   "mirror_pr": 131,
   "coordinator": {
     "session_name": "caoscare-1-ec",
@@ -12,7 +19,11 @@
     "cwd_prefix": "/home/caoscare-1",
     "receipt_marker": "<!-- claude-caoscare-session -->"
   },
-  "timers": {"poll_seconds": 60, "ack_minutes": 30, "stall_minutes": 45},
+  "timers": {
+    "poll_seconds": 60,
+    "ack_minutes": 30,
+    "stall_minutes": 45
+  },
   "dispatch_gate": {
     "enabled": true,
     "require_boundary": "Main Claude's verified DONE/boundary receipt for the EliteDesk -> GitHub -> Linode release (DONE/DEPLOYED with the Main Claude marker on #166 or #168)",
@@ -33,6 +44,15 @@
       "text": "#153 slice 2 (owner comment on #153, 2026-10-16T00:37Z): truthful click-through for exactly Nursing Done Today, Nursing Open and Kitchen Done Today; each numerator reconciles to complete canonical run-scoped rows (no 4,000-row cap) and discloses facility/run, real wall date vs simulated day, status, origin, synthetic vs real actor, timezone; click/keyboard opens the exact records with task IDs and linked receipts; UNVERIFIED with the precise reason instead of a fabricated zero; role permissions and resident privacy preserved; card movement stays on the existing drag handle. Same existing CO-008 coordinator on co008/workspace-staff-drilldown; preserve the accepted v11 runtime; do not load/cut over v12 without separate owner authorization. Post ACK/WORKING/DONE on #166 with the item id.",
       "source": "https://github.com/caosos/CAOSCARE.COM/issues/153 comment 2026-10-16T00:37:31Z; #166 queue update 2026-10-15T21:11:42Z item 3",
       "not_before": "Main Claude release boundary receipt"
+    },
+    {
+      "id": "public-162-site-redesign-001",
+      "kind": "task",
+      "status": "READY",
+      "after": "careops-153-drilldown-truth-002",
+      "text": "#162 superseding PUBLIC-SITE design direction (owner comment on #162, 2026-10-16T03:27:32Z; authorized as the next item on #166, comment 6207408504): rework ALL public/marketing/onboarding surfaces (/, /for-residents, /for-communities, /experience, linked public room/demo surfaces, shared public nav/footer/capability-card components) as one coherent product-first system aligned with the current authenticated Care App UI. Do NOT redesign the authenticated Care App / Operations workspace. Replace the old gray/tan/orange/pink language and stale old-dashboard screenshots with current truthful product screenshots; no repeated generic lifestyle photos on unrelated capability cards; every capability card demonstrates the actual capability or uses a clearly labeled capability-specific concept image; voice-first/hands-free resident experience is the primary story (room screen = ambient display/control surface, review public use of 'kiosk'); show the real low-vision treatment where claimed; wearables/pendants show the physical device concept and truthful support; distinguish authorized-family communication (planned) from phone/calling (actual), no redundant cards; staff-response and /for-communities department cards use current Operations/My CAOSCare Workspace evidence; planned cards get capability-specific visuals and honest status; re-audit every public capability status against the canonical status registry and accepted evidence (do not keep stale In Pilot/In Development/Planned labels by habit); pages visually answer what the resident experiences, what staff sees, what happens next, what is proven today. PR #175 (ui/owner-polish-2026-10-15 @ 5bf97537) is STAGED ONLY: reconcile it into this work, do not deploy it as-is. Same existing Main Claude coordinator; no other worker. Post ACK/WORKING/DONE on #166 with this item id; receipts with provenance.",
+      "source": "https://github.com/caosos/CAOSCARE.COM/issues/162#issuecomment-6207407972; https://github.com/caosos/CAOSCARE.COM/issues/166#issuecomment-6207408504",
+      "not_before": "DONE of careops-153-drilldown-truth-002 (verified Main Claude DONE receipt)"
     }
   ]
 }
