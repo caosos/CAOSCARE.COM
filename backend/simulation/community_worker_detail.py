@@ -56,30 +56,35 @@ def weekly_schedule(actor_id: str, day: int) -> list[dict]:
     return rows
 
 
-async def housekeeping_today(store, run_id: str, day: int, actor_id=None) -> list[dict]:
+async def housekeeping_today(store, run: dict, day: int, actor_id=None) -> list[dict]:
     """Each full clean scheduled today, its housekeeper and its canonical status.
 
     ``remaining`` means not completed yet: requested and waiting, or not yet due.
+    ``not_simulated`` means it was due before this run started, so it never ran.
     """
     planned = hk.cleans_on(day, actor_id=actor_id)
+    started = int(run.get("started_at_minute") or 0)
     sessions = {f"simulator:event:{hk.clean_workflow(day, row['resident_key'])}": row for row in planned}
     tasks = await store.staff_tasks.find(
-        {**scoped(run_id), "conversation_session_id": {"$in": list(sessions)}},
+        {**scoped(run["run_id"]), "conversation_session_id": {"$in": list(sessions)}},
         {"_id": 0, "task_id": 1, "status": 1, "conversation_session_id": 1, "assigned_name": 1}).to_list(None)
     by_session = {t["conversation_session_id"]: t for t in tasks}
     out = []
     for session, row in sessions.items():
         task = by_session.get(session)
         status = (task or {}).get("status")
+        due = day * 1440 + row["minute"]
+        state = {"completed": "completed", "in_progress": "in_progress"}.get(status) or (
+            "not_simulated" if task is None and due < started else "remaining")
         out.append({"room": row["room"], "housekeeper": row["housekeeper"],
                     "housekeeper_name": next(w["name"] for w in WORKERS if w["actor_id"] == row["housekeeper"]),
-                    "planned": sim_time(day * 1440 + row["minute"]), "task_id": (task or {}).get("task_id"),
-                    "state": {"completed": "completed", "in_progress": "in_progress"}.get(status, "remaining")})
+                    "planned": sim_time(due), "task_id": (task or {}).get("task_id"), "state": state})
     return out
 
 
 def clean_counts(rows: list[dict]) -> dict:
-    return {state: sum(r["state"] == state for r in rows) for state in ("completed", "in_progress", "remaining")}
+    return {state: sum(r["state"] == state for r in rows)
+            for state in ("completed", "in_progress", "remaining", "not_simulated")}
 
 
 def _finished_day(task: dict, plan: dict):
@@ -141,7 +146,7 @@ async def worker_detail(actor_id: str, *, run: dict, as_of: int, plan: dict, sto
     state = worker_state(status["status"], bool(current), bool(cover))
     details = _role_details(worker, current, today)
     if details["kind"] == "housekeeping":
-        cleans = await housekeeping_today(store, run["run_id"], day, actor_id)
+        cleans = await housekeeping_today(store, run, day, actor_id)
         details.update({"cleans_today": cleans, "cleans_today_counts": clean_counts(cleans)})
     if details["kind"] == "maintenance_queue":
         pending = await store.staff_tasks.find(

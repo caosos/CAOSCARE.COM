@@ -2,14 +2,17 @@ import React from "react";
 import { titleCase } from "../../lib/dashboardFormat";
 import { Section, TicketList } from "./DashboardParts";
 
-const CLEAN_STATE = { completed: "Completed", in_progress: "In progress", remaining: "Remaining" };
+const CLEAN_STATE = {
+  completed: "Completed", in_progress: "In progress", remaining: "Remaining",
+  not_simulated: "Not simulated (due before this run started)",
+};
 
 // Today's scheduled full cleans: room, housekeeper and canonical state (also used by the department view).
 export function CleansToday({ rows, counts, onTicket }) {
   if (!rows) return null;
   return (
     <Section title="Full cleans scheduled today" count={rows.length} testId="cleans-today">
-      {counts && <p className="text-sm">{counts.completed} completed · {counts.in_progress} in progress · {counts.remaining} remaining</p>}
+      {counts && <p className="text-sm">{counts.completed} completed · {counts.in_progress} in progress · {counts.remaining} remaining{counts.not_simulated ? ` · ${counts.not_simulated} not simulated (before run start)` : ""}</p>}
       {rows.length ? (
         <ul className="divide-y divide-caos-line rounded-lg border border-caos-line bg-white text-sm">
           {rows.map((r) => (

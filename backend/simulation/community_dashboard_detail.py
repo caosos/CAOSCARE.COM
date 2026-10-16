@@ -116,7 +116,7 @@ async def department_detail(slug: str, *, store=None) -> dict:
 
 
 async def _cleans(store, run: dict, as_of: int) -> dict:
-    rows = await community_worker_detail.housekeeping_today(store, run["run_id"], min(as_of, HORIZON - 1) // 1440)
+    rows = await community_worker_detail.housekeeping_today(store, run, min(as_of, HORIZON - 1) // 1440)
     return {"rows": rows, "counts": community_worker_detail.clean_counts(rows)}
 
 
