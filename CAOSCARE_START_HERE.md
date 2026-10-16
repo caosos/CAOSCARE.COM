@@ -34,6 +34,8 @@ the complete rule and exceptions.
 
 ## Current execution priority
 
+> **2026-10-15:** the Pilot 1 (2026-10-10) files listed below are historical; read them for evidence, not for the current task. The current queue is owner issue **#166**; the current truth/runtime is the header of **`docs/PROJECT_STATE.md`**; the current philosophy is department-by-department commissioning (`docs/CURRENT_PRIORITY.md` status note). Issue #129 is the historical Care-Operations dispatch thread.
+
 Immediately after repository-wide hydration, read in this order:
 
 1. **`AGENTS.md`** (already part of hydration).

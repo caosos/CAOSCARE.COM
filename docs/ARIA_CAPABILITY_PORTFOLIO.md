@@ -83,6 +83,17 @@ implemented but **not yet wired into `routes/realtime.py`** — that happens
 once Aria's tool routing is connected to this registry (Terminal 5A's ordered
 step 3), which comes after the voice foundation itself is proven.
 
+## Status note (2026-10-15)
+
+The registry below is the 2026-08-02 seed and is **not** what Aria actually
+uses to decide what she can do today. Her real tool surface is the Realtime
+function-tool catalog assembled at session mint (`backend/routes/realtime_tools.py`
+and its `realtime_*_tools.py` siblings: room devices, staff requests,
+transportation, menu/schedule, research, timers, preferred name, end call), plus
+the Room 214-only read-only self-code tools (`docs/ROOM214_SELF_CODE_INSPECTION.md`).
+`get_capability_summary()` is wired into the owner `/aria` build only. Treat the
+seed table's blockers (e.g. "no OPENAI_API_KEY") as historical.
+
 ## Initial portfolio (seeded 2026-08-02)
 
 | Capability | Status | Blocker |

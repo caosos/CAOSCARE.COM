@@ -1,5 +1,7 @@
 # Michael action runbook (RQ-017)
 
+> **HISTORICAL SNAPSHOT (written 2026-10-08 against integration `3ebd54f`).** The "state found today" table and the start-the-backend steps below are stale: the dev backend now runs through the guarded `scripts/restart_dev_backend.sh`, the Room 214 page through `room-node/aria_wake/ctl.sh`, production is `06e7e2b`, and the Voice PE items are superseded (rejected 2026-10-14). Current runtime: `docs/CURRENT_NODE_STATUS.md`; current truth: `docs/PROJECT_STATE.md` header. The decision format and the demo-room test script remain usable.
+
 One page that turns the **NEEDS MICHAEL** list (`docs/PILOT1_READY_QUEUE.md`, RECONCILED STATE) into exact steps and yes/no decisions. Ordered by Pilot 1 value (target 2026-10-10). Written against integration `3ebd54f`, checked on the EliteDesk 2026-10-08 ~00:50 CDT.
 
 Every item has: **Unblocks · Do · Expect · Roll back · Paste back**. Anything I could not verify is marked **UNVERIFIED**. Nothing here has been run for you. Read-only checks are safe at any time.

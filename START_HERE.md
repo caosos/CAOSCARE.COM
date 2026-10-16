@@ -29,9 +29,11 @@ After the mandatory sequence, load only the overlay needed for the task:
   `docs/PILOT1_ACTIVE_WORK.md`
   `docs/PILOT1_READY_QUEUE.md`
   `docs/MICHAEL_ACTION_RUNBOOK.md` (Michael-only steps and decisions)
-- Room audio / Voice PE:
+- Room audio / wake path (Voice PE rejected 2026-10-14; Room 214 eMeet + "Hey Aria" listener is current):
   `docs/ROOM_AUDIO_ARCHITECTURE.md`
   `docs/ARIA_WAKE_WORD_ARCHITECTURE.md`
+- Room 214 Aria self-code inspection (read-only, Room 214 only):
+  `docs/ROOM214_SELF_CODE_INSPECTION.md`
 - Shared operational service-layer changes:
   `docs/ENGINEERING_CONTRACT.md`
 - Troubleshooting / known failures:

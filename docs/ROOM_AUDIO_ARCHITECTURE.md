@@ -1,3 +1,5 @@
+> **Status 2026-10-15 — Voice PE decision reversed (owner, 2026-10-14).** The Voice PE was removed ("voicepe sucks"); Room 214 is back on the eMeet speakerphone + local "Hey Aria" listener, which is the accepted room voice endpoint today. Future appliance direction: CAOSCare Home One (#165). The 2026-10-03 Voice PE entries below are HISTORICAL; the 2026-08-27 acoustic reasoning (single AEC path, eMeet near the resident, TV ducking) is CURRENT again and is what runs. Canonical: `docs/CAOSCARE_PRODUCT_BASELINE.md` §2.
+
 # Room Audio Architecture — decision record
 
 > **Correction 2026-10-03 (Michael) — supersedes the earlier 2026-10-03 Voice PE / eMeet entry (commit `444e297`).**

@@ -325,3 +325,21 @@ It is not done if:
 - simulated and real actors/data are ambiguous;
 - an agent can silently modify state;
 - "done" depends on agent self-report rather than system evidence.
+
+## 11. Owner-approved simulation assumptions (2026-10-15) — single source
+
+These are **simulation planning assumptions approved by the owner**, not measured facility data. Every other document cross-references this section instead of restating numbers. Change them only with a dated owner decision.
+
+**Community and sequence.** 75 simulated residents. Department commissioning order: Kitchen → Nursing/Care → Housekeeping → Maintenance → Activities → Transportation → Front Office/Administration. Kitchen v11 is the accepted model; v12 staffing/workspace work is a candidate until its runtime acceptance is proven (PR #167 draft on the CO-008 chain).
+
+**Kitchen (v11, accepted).** 30 routine room-delivery residents and 45 dining-room residents; a conservative 13-minute room-delivery trip; cooks, dining servers, and nine meal-delivery aides.
+
+**Housekeeping (owner direction 2026-10-15; supersedes the earlier 45-minute assumption).** One scheduled FULL apartment clean per occupied apartment per week at **30 minutes** (the owner notes real-world cleans may commonly run 15–20 minutes; 30 is the deliberate conservative baseline). Two full-time housekeepers: Housekeeper 01 Mon–Fri, Housekeeper 02 Wed–Sun, with deterministic separate room territories; other housekeeping duties consume the rest of each shift.
+
+**Maintenance.** ONE building maintenance person on a normal weekday shift who is also the primary after-hours on-call; urgent escalation goes through the Administrator/Executive Director and then an outside contractor/vendor. Do not invent extra maintenance employees to hide workload.
+
+**Activities.** ONE Activities Coordinator; no Activities Assistant in the current baseline.
+
+**Administration.** Recognizable roles: Business Office Manager, Administrator, Executive Director.
+
+**Truth rule.** Simulated staff and residents are always labelled simulated; simulation metrics are never presented as real resident-care metrics; runs use scratch databases, never the shared `caoscare` dev database.
