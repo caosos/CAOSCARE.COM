@@ -147,3 +147,34 @@ def test_real_ack_implicitly_acks_earlier_test_delivery(tmp_path, monkeypatch):
     w.tick(st, q)
     assert st["dispatched"]["careops-153-drilldown-truth-002"]["ack_state"] == "ACK"
     assert st["dispatched"]["coord-test-001"]["ack_state"] == "IMPLICIT"
+
+
+def test_next_real_item_waits_for_done_of_previous(tmp_path, monkeypatch):
+    import coordination_watch as w
+    monkeypatch.setattr(w, "DRY", True)
+    monkeypatch.setattr(w, "STATE_FILE", tmp_path / "state.json")
+    q = {"repo": "r", "authoritative_issue": 166, "watch_issues": [166], "mirror_pr": None, "branch": "b",
+         "coordinator": {"session_name": "x", "session_id": "y", "cwd_prefix": str(tmp_path)},
+         "timers": {"poll_seconds": 60, "ack_minutes": 30, "stall_minutes": 45},
+         "dispatch_gate": {"enabled": True, "require_boundary": "release"},
+         "items": [{"id": "careops-153-drilldown-truth-002", "kind": "task", "status": "READY", "text": "a"},
+                   {"id": "public-162-site-redesign-001", "kind": "task", "status": "READY", "text": "b"}]}
+    st = w.load_state(); st["cursor"] = "2026-10-16T03:00:00Z"; st["boundary_seen"] = True
+    st["dispatched"] = {"careops-153-drilldown-truth-002": {"at": "2026-10-16T03:12:44Z", "url": "u", "kind": "task",
+                                                             "ack_url": "a", "ack_state": "ACK"}}
+    idle = {"verdict": "LIVE_IDLE", "live": True, "busy": False, "evidence": []}
+    monkeypatch.setattr(w.host, "coordinator_state", lambda pin, m: idle)
+    monkeypatch.setattr(w.host, "duplicate_guard", lambda pin: {"interactive_sessions_in_cwd": []})
+    monkeypatch.setattr(w.gh, "comments_since", lambda repo, n, since: [])
+    s1 = w.tick(st, q)
+    assert "public-162-site-redesign-001" not in st["dispatched"]          # ACK alone is not a task boundary
+    assert "DONE" in s1["gate"]
+    done = {"id": 9, "html_url": "d", "created_at": "2026-10-16T04:00:00Z", "user": {"login": "caosos"},
+            "body": gh.MAIN + "\n## careops-153-drilldown-truth-002 DONE — slice 2 accepted\n"}
+    monkeypatch.setattr(w.gh, "comments_since", lambda repo, n, since: [done])
+    w.tick(st, q)
+    assert st["dispatched"]["careops-153-drilldown-truth-002"]["done_url"] == "d"
+    assert "public-162-site-redesign-001" in st["dispatched"]              # DONE boundary -> next authorized item
+    monkeypatch.setattr(w.gh, "comments_since", lambda repo, n, since: [])
+    w.tick(st, q)
+    assert len(st["dispatched"]) == 2                                      # no re-dispatch
