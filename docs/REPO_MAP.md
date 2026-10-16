@@ -69,7 +69,7 @@ backend/                                       FastAPI backend and domain routes
 android-companion/                             Android companion / RF bridge companion surface
 android-bridge/                                Android RF bridge / protocol support surface
 android-vision/                                Android vision / voice assistance surface
-room-node/                                     room-node/aria_wake/ = LEGACY development/fallback Aria voice endpoint (not standard apartment hardware; off unless ARIA_WAKE_ENABLE_LEGACY=1)
+room-node/                                     room-node/aria_wake/ = the LIVE Room 214 "Hey Aria" wake endpoint (eMeet; user units via ctl.sh; accepted 2026-10-12/13); room-node/ir_mate/ = IR blaster firmware; room-node/ha_lan_proxy/ = HA LAN relay. (The 2026-10-03 "legacy, Voice PE primary" label is historical — Voice PE rejected 2026-10-14.)
 tools/wakelab/                                 Wake Phrase Lab - research tooling, isolated from runtime (docs/WAKE_PHRASE_LAB.md)
 .emergent/                                     Emergent-generated summary/metadata surface
 ```
@@ -98,7 +98,7 @@ Public onboarding and sales preview (2026-09-27):
 frontend/src/pages/ForCommunities.jsx          Public staff-dashboard preview and community service catalog (sample data)
 frontend/src/pages/ForResidents.jsx            Resident/family experience, video, phone and device groups
 frontend/src/components/landing/PublicCatalog.jsx Shared expandable service/device cards and status labels
-frontend/src/lib/publicOnboarding.js           Public service/device inventory with capability stages
+frontend/src/lib/publicOnboarding.js           (HISTORICAL — file since removed; the public status registry is frontend/src/lib/capabilities/)
 docs/PUBLIC_ONBOARDING_PACKAGE.md              Audience paths, full feature inventory, phone/mailbox design, ten-second films
 ```
 
@@ -331,7 +331,7 @@ android-vision/app/src/main/java/care/caos/vision/AudioPlayback.kt
 Device direction currently spans (see `docs/CAOSCARE_PRODUCT_BASELINE.md` §2/§3):
 
 ```text
-resident room node (EliteDesk-class PC behind the TV) + eMeet audio + TV visual surface
+central EliteDesk (CAOSCare + Home Assistant) + eMeet audio + local "Hey Aria" listener + TV (Room 214 proven path; Voice PE rejected 2026-10-14; Home One = future appliance, #165)
   — NOT a resident tablet; that concept is HISTORICAL / SUPERSEDED
 staff clients (tablet / phone / computer) running the role/department workspace
 pendant / RF decode (android-bridge/, being consolidated into the room node)
@@ -361,6 +361,7 @@ AGENTS.md
 docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md
 docs/CCE_LITE_TRUST_LAYER_PROPOSAL.md
 docs/REPO_MAP.md
+docs/CAOSCARE_ENGINEERING_HISTORY.md         The one chronological engineering story (eras 2026-04 → now; decision → implementation → evidence → supersession)
 docs/BUILD_STATUS.md                         First runnable/deployment-prep status and blockers
 docs/DEPLOYMENT_RUNBOOK.md                   First non-Docker /opt/caoscare server path
 docs/ROOM_AUDIO_ARCHITECTURE.md              Room audio hardware topology decision (2026-08-27): EliteDesk=compute/TV routing, eMeet=single room audio endpoint, TV audio to eventually share one AEC path via the eMeet, handset=fallback. Explicitly marks TV-audio-routing/AEC-under-load as unverified pending hardware.

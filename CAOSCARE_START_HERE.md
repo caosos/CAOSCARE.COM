@@ -34,6 +34,8 @@ the complete rule and exceptions.
 
 ## Current execution priority
 
+> **2026-10-15:** the Pilot 1 (2026-10-10) files listed below are historical; read them for evidence, not for the current task. The current queue is owner issue **#166**; the current truth/runtime is the header of **`docs/PROJECT_STATE.md`**; the current philosophy is department-by-department commissioning (`docs/CURRENT_PRIORITY.md` status note). Issue #129 is the historical Care-Operations dispatch thread.
+
 Immediately after repository-wide hydration, read in this order:
 
 1. **`AGENTS.md`** (already part of hydration).
@@ -56,6 +58,10 @@ Do not start lower-priority work when the checklist has an active unfinished tas
 Do not let lower-priority feature expansion displace an active deadline in `docs/CURRENT_PRIORITY.md` unless Michael explicitly changes priority.
 
 After every meaningful work block, update the checklist before declaring the task complete, following its **Update protocol**.
+
+## The five files a new engineer reads
+
+1. this file; 2. `docs/PROJECT_STATE.md` (its header is current truth); 3. `docs/CAOSCARE_ENGINEERING_HISTORY.md` (how it got here); 4. `docs/CAOSCARE_PRODUCT_BASELINE.md` (durable architecture); 5. `docs/REPO_MAP.md` (where code lives). Nothing else is required to understand the project; everything else is detail or history.
 
 ## Re-ground before advising
 

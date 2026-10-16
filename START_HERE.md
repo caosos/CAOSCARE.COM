@@ -10,6 +10,7 @@ It is intentionally a **pointer map, not a doctrine copy**. The authoritative ru
 2. `docs/CAOSCARE_PRODUCT_BASELINE.md` — canonical durable product truth and current architecture/invariants.
 3. `docs/PROJECT_STATE.md` — recent changing build state and handoff capsules. Read the latest relevant entries; do not treat old entries as current truth.
 4. `docs/REPO_MAP.md` — implementation/source orientation.
+4a. `docs/CAOSCARE_ENGINEERING_HISTORY.md` — the one chronological engineering story (why each decision was made, what was tried, what was superseded, what is proven); read it once, then trust the current docs.
 5. `docs/BUILD_STATUS.md` and `docs/CURRENT_NODE_STATUS.md` — point-in-time runtime/build snapshots; verify runtime directly when it matters.
 6. `README.md` and `docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md` — product/context doctrine; where they conflict with the Product Baseline, the Product Baseline wins.
 7. Task-specific contracts, TSBs, lane onboarding files, and acceptance docs.
@@ -29,9 +30,11 @@ After the mandatory sequence, load only the overlay needed for the task:
   `docs/PILOT1_ACTIVE_WORK.md`
   `docs/PILOT1_READY_QUEUE.md`
   `docs/MICHAEL_ACTION_RUNBOOK.md` (Michael-only steps and decisions)
-- Room audio / Voice PE:
+- Room audio / wake path (Voice PE rejected 2026-10-14; Room 214 eMeet + "Hey Aria" listener is current):
   `docs/ROOM_AUDIO_ARCHITECTURE.md`
   `docs/ARIA_WAKE_WORD_ARCHITECTURE.md`
+- Room 214 Aria self-code inspection (read-only, Room 214 only):
+  `docs/ROOM214_SELF_CODE_INSPECTION.md`
 - Shared operational service-layer changes:
   `docs/ENGINEERING_CONTRACT.md`
 - Troubleshooting / known failures:

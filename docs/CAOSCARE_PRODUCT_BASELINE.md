@@ -11,6 +11,7 @@ This document holds the current architecture and product invariants. It is
 | `docs/CAOSCARE_PRODUCT_BASELINE.md` (this) | durable truth · architecture · product invariants |
 | `docs/PROJECT_STATE.md` | changing build state (append-only dated entries) |
 | `docs/REPO_MAP.md` | where the implementation lives |
+| `docs/CAOSCARE_ENGINEERING_HISTORY.md` | chronological engineering history: why, what was tried, what was superseded, what is proven (history, not status) |
 | `docs/BUILD_STATUS.md`, `docs/CURRENT_NODE_STATUS.md` | operational / runtime snapshots (point-in-time) |
 | `docs/*_CONTRACT.md`, `docs/ROOM_AUDIO_ARCHITECTURE.md`, TSBs | task- and domain-specific rules and incident records |
 
@@ -43,12 +44,25 @@ interface is **obsolete** (`HISTORICAL / SUPERSEDED`).
 
 Current resident-room architecture:
 
+- **Correction (owner, 2026-10-14, recorded 2026-10-15; supersedes the two
+  2026-10-03 Voice PE lines below)** — the Home Assistant **Voice Preview
+  Edition is rejected** as the Aria room endpoint ("get rid of the whole
+  Voice PE integration"); its HA integration was removed and
+  `feature/voice-pe-aria-bridge` is kept unmerged as history. The central
+  EliteDesk still runs CAOSCare + Home Assistant. The **proven, accepted room
+  path is Room 214's eMeet speakerphone + the local "Hey Aria" listener
+  (`room-node/aria_wake/`)** — physically accepted 2026-10-12/13 (wake, TV
+  mute, conversation, goodbye, restore) and in daily use; it is the current
+  room voice endpoint, not a legacy fallback. The future room appliance
+  direction is **CAOSCare Home One** (issue #165): one universal appliance,
+  feasibility/prototype only, nothing built or purchased. Room 214 is
+  Michael's home test room; changes are built platform-wide.
 - **Room node** — a local CAOSCare computer per resident room. Current
   proven hardware baseline: an **HP EliteDesk-class small-form-factor PC**
   (the bring-up host is `caoscare1-hp-elitedesk`, an HP EliteDesk 705 G4
   DM). It is meant to sit **hidden behind or near the resident's TV**. The
   resident does not operate or see a conventional computer.
-- **Architecture correction (Michael, 2026-10-03; supersedes the per-room
+- *(HISTORICAL 2026-10-03 → 2026-10-14; Voice PE part superseded by the correction above)* **Architecture correction (Michael, 2026-10-03; supersedes the per-room
   room-node and eMeet lines in this section)** — the HP EliteDesk is the
   **central community server** running Home Assistant and CAOSCare;
   apartments get no EliteDesk. The **Voice PE** is the room voice endpoint
@@ -61,7 +75,7 @@ Current resident-room architecture:
   EliteDesk. SIP/front-desk calling stays a separate handset/telephony
   function. Assistant: Aria; wake phrase "Hey Aria" ("Aria" a test
   candidate). Canonical detail: `docs/ROOM_AUDIO_ARCHITECTURE.md`.
-- **Aria room voice endpoint (Michael, 2026-10-03)** — the Home Assistant
+- *(HISTORICAL 2026-10-03 → 2026-10-14; superseded by the correction above)* **Aria room voice endpoint (Michael, 2026-10-03)** — the Home Assistant
   **Voice Preview Edition** is the primary Aria room voice endpoint (custom
   firmware wake phrase "Hey Aria"; "Aria" a test candidate). CAOSCare stays
   the conversation/memory/workflow/receipt authority; Home Assistant is the
@@ -117,8 +131,8 @@ transmit, full room-automation surface, multi-room fleet.
   continuous room audio sent to a cloud service to find the wake phrase.
   **Aria is the assistant's name; the single word "Aria" is not accepted as
   the production wake phrase** (2026-09-24: "air-ee-uh" is identical to the
-  common word "area"; overnight false wakes). 2026-10-03 (Michael): production wake phrase **"Hey Aria"** on
-  the Voice PE; "Aria" alone is only a test candidate; "Nabu"/"Naboo" phrases
+  common word "area"; overnight false wakes). 2026-10-03 (Michael): production wake phrase **"Hey Aria"** (the Voice PE
+  endpoint named here was rejected 2026-10-14; the phrase stands on the Room 214 listener); "Aria" alone is only a test candidate; "Nabu"/"Naboo" phrases
   are not product identity. Earlier: the wake phrase was being chosen
   by evidence (`docs/WAKE_PHRASE_LAB.md`); none selected yet. Status:
   `docs/ARIA_WAKE_WORD_ARCHITECTURE.md`.

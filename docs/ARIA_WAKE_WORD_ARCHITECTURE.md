@@ -1,3 +1,5 @@
+> **Status 2026-10-15.** `room-node/aria_wake/` is the **live Room 214 wake endpoint** ("Hey Aria" on the eMeet; user units `aria-wake`, `aria-wake-page`, `aria-wake-kiosk`; physically accepted 2026-10-12/13; negative test: "Aria" alone does not wake). The "legacy / off by default / Voice PE primary" framing in the 2026-10-03 note below is HISTORICAL: the Voice PE was rejected by the owner on 2026-10-14. Current wake tuning 0.05 / 1.5 with a shadow detector logging at 0.01 / 3.5. Canonical: `docs/CAOSCARE_PRODUCT_BASELINE.md` §2.
+
 # Aria Wake-Word — Smallest Viable Architecture
 
 > **Decision 2026-10-03 (Michael) — Aria on Home Assistant Voice PE.**

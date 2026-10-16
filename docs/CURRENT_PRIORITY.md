@@ -1,5 +1,7 @@
 # CAOSCARE Current Priority
 
+> **Status 2026-10-15 (owner direction, recorded in docs PR #170).** The Pilot 1 target date (2026-10-10) has passed; the Pilot 1 files below and `docs/PILOT1_*.md` are HISTORICAL evidence. **Current operating philosophy:** the major structure is built; work is now department-by-department trim, realism and commissioning in the order Kitchen → Nursing/Care → Housekeeping → Maintenance → Activities → Transportation → Front Office/Administration. **Current queue:** owner master queue issue #166 (one ACTIVE change order at a time; CO-008 active), not #129. **Current truth/runtime:** the header of `docs/PROJECT_STATE.md`. **Room endpoint:** the Voice PE decision below was reversed 2026-10-14 (Product Baseline §2). Voice is no longer PARKED as a whole: resident Aria conversation work resumed 2026-10-12 and read-only self-code inspection shipped 2026-10-15; wake tuning and audio-path tuning remain parked. The `main.18cb3cf4.js` bundle note below is stale — the Room 214 page is rebuilt on each guarded load (`docs/CURRENT_NODE_STATUS.md`). **2026-10-16:** Kitchen v11 engineering-accepted; next authorized slice is #153 slice 2 on the existing CO-008 session. History of how the priorities evolved: `docs/CAOSCARE_ENGINEERING_HISTORY.md`.
+
 **Status:** Active execution priority  
 **Set by Michael:** 2026-09-26  
 **Target:** **CAOSCare Pilot 1 operational by 2026-10-10**
