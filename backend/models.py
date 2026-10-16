@@ -555,6 +555,7 @@ class Notification(BaseModel):
     # SC-16: set only for a notification produced by a simulated request.
     simulated: bool = False
     simulation_scope: Optional[str] = None
+    simulation_community_id: Optional[str] = None
     simulation_run_id: Optional[str] = None
     task_id: Optional[str] = None
     receipt_id: Optional[str] = None
@@ -931,10 +932,11 @@ class StaffTask(BaseModel):
     transport_run_id: Optional[str] = None
     # Simulation provenance (ENGINEERING_CONTRACT decision 4). Set only by the
     # canonical creation paths from the server-side resident record, never
-    # from a request body. simulation_scope: "demo_room" today.
+    # from a request body.
     # simulation_run_id: the operations-simulator run that raised it (SC-17).
     simulated: bool = False
     simulation_scope: Optional[str] = None
+    simulation_community_id: Optional[str] = None
     simulation_run_id: Optional[str] = None
     created_at: datetime = Field(default_factory=now_utc)
 
@@ -1063,7 +1065,22 @@ class Receipt(BaseModel):
     channel: Optional[str] = None
     identity_basis: Optional[str] = None       # authenticated / unverified_room_claim / synthetic / system
     simulated: bool = False
+    simulation_scope: Optional[str] = None
+    simulation_community_id: Optional[str] = None
     simulation_run_id: Optional[str] = None    # simulator run that produced it (SC-17)
+    # Exact executor provenance for restart-safe living-community work.  These
+    # stay optional so every pre-executor receipt remains readable, but when a
+    # simulator event claims execution the core requires all three and matches
+    # them to the fenced run before advancing its cursor.
+    simulation_event_id: Optional[str] = None
+    execution_cursor: Optional[int] = None
+    execution_fence: Optional[int] = None
+    # A real owner/admin may temporarily exercise an ordinary department
+    # seat.  The authenticated principal remains actor_* above; these fields
+    # record the narrower signed authorization context without impersonation.
+    acting_role: Optional[str] = None
+    acting_department: Optional[str] = None
+    work_context_id: Optional[str] = None
     authority: Optional[str] = None            # the rule that allowed it, e.g. "acts_for:maintenance"
     parent_receipt_id: Optional[str] = None
     correlation_id: Optional[str] = None       # the workflow's origin receipt

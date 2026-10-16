@@ -35,7 +35,16 @@ DEFAULT_DEPARTMENTS = [
     ("kitchen", "Kitchen"),
     ("administration", "Administration"),
     ("activities", "Activities"),
+    ("front_desk", "Front Desk"),
 ]
+
+# These defaults were added after some real facilities already had a
+# department catalog.  Backfill only missing rows: an existing label or
+# inactive state is an administrator decision and must not be overwritten.
+DEFAULT_DEPARTMENT_BACKFILLS = (
+    ("activities", "Activities"),
+    ("front_desk", "Front Desk"),
+)
 
 
 def _slugify(label: str) -> str:
@@ -46,22 +55,25 @@ def _slugify(label: str) -> str:
 async def seed_default_departments() -> None:
     """Idempotent - called once at server startup. Inserts the default set
     only if the collection is empty, so it never overwrites anything Michael
-    has already edited (renamed, deactivated, etc.). Also runs one cheap
-    label-normalization for the historical "Nursing" -> "Nursing / Care"
-    rename, which touches only a row still carrying the exact old default
-    label (a hand-renamed one is left alone)."""
+    has already edited (renamed, deactivated, etc.). Missing defaults added
+    after the first catalog release are backfilled explicitly without changing
+    an existing row. Also runs one cheap label-normalization for the historical
+    "Nursing" -> "Nursing / Care" rename, which touches only a row still
+    carrying the exact old default label (a hand-renamed one is left alone)."""
     if await db.departments.count_documents({}) == 0:
         for slug, label in DEFAULT_DEPARTMENTS:
             dept = Department(slug=slug, label=label)
             doc = dept.model_dump()
             doc["created_at"] = doc["created_at"].isoformat()
             await db.departments.insert_one(doc)
-    # Communities that were seeded before "activities" joined the defaults
-    # would otherwise have no Activities workspace; add just that one row.
-    if not await db.departments.find_one({"slug": "activities"}, {"_id": 1}):
-        doc = Department(slug="activities", label="Activities").model_dump()
-        doc["created_at"] = doc["created_at"].isoformat()
-        await db.departments.insert_one(doc)
+    # Communities seeded before these defaults joined the catalog need the
+    # missing canonical rows too.  Existing rows are deliberately untouched,
+    # including an inactive row; administrators can reactivate it explicitly.
+    for slug, label in DEFAULT_DEPARTMENT_BACKFILLS:
+        if not await db.departments.find_one({"slug": slug}, {"_id": 1}):
+            doc = Department(slug=slug, label=label).model_dump()
+            doc["created_at"] = doc["created_at"].isoformat()
+            await db.departments.insert_one(doc)
     await db.departments.update_one(
         {"slug": "nursing", "label": "Nursing"}, {"$set": {"label": "Nursing / Care"}}
     )

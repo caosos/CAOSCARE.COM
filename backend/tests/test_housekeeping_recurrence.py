@@ -54,7 +54,9 @@ async def _scenario():
             await create_template(StaffTaskTemplateCreate(title="x", recur="weekly", weekday=1, department="nope"), user=admin)
         assert e.value.status_code == 422
 
-        today = date(2026, 10, 12)               # a Monday
+        # the next Monday from the real date, so "upcoming" stays in the future (was fixed 2026-10-12)
+        today = date.today() + timedelta(days=(7 - date.today().weekday()) % 7 or 7)
+        tue, next_tue = (today + timedelta(days=1)).isoformat(), (today + timedelta(days=8)).isoformat()
         tpl = await create_template(StaffTaskTemplateCreate(
             title=f"{TAG} weekly room clean", recur="weekly", weekday=1, time_label="9:00 AM",
             department="housekeeping", resident_id=rid), user=admin)
@@ -67,7 +69,7 @@ async def _scenario():
         occ = await db.staff_tasks.find({"template_id": tid}).to_list(20)
         assert len(occ) == 1          # one occurrence for this series despite three runs (two concurrent)
         o = occ[0]
-        assert o["occurrence_date"] == "2026-10-13" and o["requested_for_date"] == "2026-10-13"
+        assert o["occurrence_date"] == tue and o["requested_for_date"] == tue
         assert o["requested_for_time_label"] == "9:00 AM" and o["visibility_role"] == "housekeeping"
         assert o["status"] == "pending" and o["resident_id"] == rid
         origin = await db.receipts.find_one({"related_object_id": o["task_id"], "action_type": "task_spawned_from_template"})
@@ -76,15 +78,15 @@ async def _scenario():
         # the next week: a second occurrence on the following Tuesday, not another for this week
         await generate((today + timedelta(days=7)).isoformat())
         dates = sorted(x["occurrence_date"] for x in await db.staff_tasks.find({"template_id": tid}).to_list(20))
-        assert dates == ["2026-10-13", "2026-10-20"]
+        assert dates == [tue, next_tue]
 
         # reschedule one occurrence; the series does not refill its slot
-        await task_actions.set_schedule(o["task_id"], {"requested_for_date": "2026-10-14", "requested_for_time_label": "2:00 PM"},
+        await task_actions.set_schedule(o["task_id"], {"requested_for_date": (today + timedelta(days=2)).isoformat(), "requested_for_time_label": "2:00 PM"},
                                         actor_from_user(hk), hk)
         await generate(today.isoformat())
         assert await db.staff_tasks.count_documents({"template_id": tid}) == 2
         with pytest.raises(HTTPException) as e:
-            await task_actions.set_schedule(o["task_id"], {"requested_for_date": "2026-10-15"}, actor_from_user(nurse), nurse)
+            await task_actions.set_schedule(o["task_id"], {"requested_for_date": (today + timedelta(days=3)).isoformat()}, actor_from_user(nurse), nurse)
         assert e.value.status_code == 403
 
         up = await upcoming_for_resident(resident_id=rid, days=30)

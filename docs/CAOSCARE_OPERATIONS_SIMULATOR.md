@@ -171,6 +171,23 @@ The operator needs visible controls for:
 
 Stopping the simulator stops new simulated actions. It must not erase history.
 
+### Process startup and shutdown boundary
+
+Living-community recovery is mounted in the application lifespan but remains
+inert unless both `CAOSCARE_LIVING_COMMUNITY_STARTUP_RECOVERY=true` and
+`CAOSCARE_LIVING_COMMUNITY_CONTROLS=true` are set explicitly. The startup flag
+is checked first, then the controls flag; neither disabled path composes the
+control service or probes simulator storage. When both flags are enabled, the
+existing read-only transaction and exact-index capability proof runs before a
+run is loaded or any receipt/state mutation is attempted.
+
+HTTP controls and startup recovery must resolve through the same process-owned
+control service and `CommunityLoopManager`. This lets pause/stop and server
+shutdown address the exact loop recovered at startup. Cross-process ownership
+continues to rely on the durable fenced lease; the process registry is not a
+substitute for that database boundary. Startup recovery failure is logged and
+fails closed without silently starting a loop.
+
 ## 6. Scenario engine
 
 Scenarios should generate ordinary community operations, not scripted demos.

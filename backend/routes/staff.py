@@ -6,6 +6,7 @@ from models import User, UserPublic
 from deps import db, require_admin, get_current_user
 from routes.staff_scope import acts_for, members_query
 from routes.departments import department_slug_exists
+from routes.work_context import get_department_user
 import bcrypt
 
 
@@ -55,7 +56,7 @@ async def list_staff(user=Depends(require_admin)):
 
 
 @router.get("/assignable")
-async def list_assignable(department: Optional[str] = None, user=Depends(get_current_user)):
+async def list_assignable(department: Optional[str] = None, user=Depends(get_department_user)):
     """Names-only roster for an assignment picker: {user_id, name,
     department} for members of `department` (defaults to the caller's own).
     Any admin/owner, or a staff member querying their OWN department - so a

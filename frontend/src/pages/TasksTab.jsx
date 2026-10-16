@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Checkbox } from "../components/ui/checkbox";
 import { Badge } from "../components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs";
-import { Plus, Trash2, Play, Check, Repeat } from "lucide-react";
+import { Plus, Trash2, Repeat } from "lucide-react";
 import { toast } from "sonner";
 import { CATEGORIES, SHIFTS } from "../lib/taskConstants";
 import TaskTemplatesBoard from "./TaskTemplatesBoard";
@@ -248,105 +248,6 @@ function TasksBoard({ tasks, residents, staff, onChange, todayOnly }) {
   );
 }
 
-// Exported for StaffDashboard
-export function MyTasksCard() {
-  const [tasks, setTasks] = useState([]);
-  const [notesFor, setNotesFor] = useState(null);
-  const [notes, setNotes] = useState("");
-
-  const fetchMine = async () => {
-    try {
-      const { data } = await api.get("/tasks", { params: { mine_only: true } });
-      setTasks(data);
-    } catch { /* silent */ }
-  };
-  useEffect(() => {
-    fetchMine();
-    const t = setInterval(fetchMine, 10000);
-    return () => clearInterval(t);
-  }, []);
-
-  const start = async (id) => {
-    try { await api.post(`/tasks/${id}/start`); toast.success("Started"); fetchMine(); }
-    catch { toast.error("Could not start"); }
-  };
-  const complete = async () => {
-    if (!notesFor) return;
-    try {
-      await api.post(`/tasks/${notesFor}/complete`, { notes });
-      toast.success("Completed");
-      setNotesFor(null);
-      setNotes("");
-      fetchMine();
-    } catch { toast.error("Could not complete"); }
-  };
-
-  const pending = tasks.filter((t) => t.status !== "completed" && t.status !== "skipped");
-  const done = tasks.filter((t) => t.status === "completed" || t.status === "skipped");
-
-  return (
-    <Card className="border-caos-line bg-white p-5" data-testid="my-tasks-card">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="font-display text-xl font-medium text-caos-forest">My tasks today</h3>
-        <span className="text-xs font-bold uppercase tracking-widest text-caos-mute">{pending.length} open · {done.length} done</span>
-      </div>
-
-      <div className="space-y-2" data-testid="my-tasks-list">
-        {pending.map((t) => (
-          <div key={t.task_id} data-testid={`my-task-${t.task_id}`} className="flex items-center justify-between p-3 rounded-xl border border-caos-line hover:bg-caos-ambient/40">
-            <div className="min-w-0">
-              <div className="font-semibold text-caos-forest truncate">{t.title}</div>
-              <div className="text-xs text-caos-mute uppercase tracking-wider">
-                {t.category} · {t.shift} {t.resident_name && `· ${t.resident_name}`}
-                {t.status === "in_progress" && <span className="ml-2 text-caos-amber">● in progress</span>}
-              </div>
-            </div>
-            <div className="flex gap-2 shrink-0">
-              {t.status === "pending" && (
-                <Button size="sm" onClick={() => start(t.task_id)} data-testid={`start-task-${t.task_id}`} className="bg-caos-forest hover:bg-caos-forest-hover">
-                  <Play className="w-4 h-4 mr-1" /> Start
-                </Button>
-              )}
-              <Button size="sm" variant="outline" onClick={() => { setNotesFor(t.task_id); setNotes(""); }} data-testid={`complete-task-${t.task_id}`} className="border-2">
-                <Check className="w-4 h-4 mr-1" /> Complete
-              </Button>
-            </div>
-          </div>
-        ))}
-        {pending.length === 0 && (
-          <div className="text-center text-caos-mute py-6 italic">All caught up.</div>
-        )}
-      </div>
-
-      {done.length > 0 && (
-        <details className="mt-4">
-          <summary className="text-xs font-bold uppercase tracking-widest text-caos-mute cursor-pointer">Completed ({done.length})</summary>
-          <div className="mt-2 space-y-1 text-sm">
-            {done.map((t) => (
-              <div key={t.task_id} className="flex justify-between text-caos-mute">
-                <span className="line-through">{t.title}</span>
-                <span>{t.duration_minutes != null ? `${t.duration_minutes}m` : ""}</span>
-              </div>
-            ))}
-          </div>
-        </details>
-      )}
-
-      <Dialog open={!!notesFor} onOpenChange={(o) => { if (!o) setNotesFor(null); }}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle className="font-display">Complete task</DialogTitle></DialogHeader>
-          <Textarea
-            placeholder="Notes (optional)…"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            data-testid="complete-notes-input"
-            rows={4}
-          />
-          <DialogFooter>
-            <Button onClick={complete} className="bg-caos-forest" data-testid="complete-submit">Mark complete</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </Card>
-  );
-}
+// "My tasks today" lives in its own component (worker workflow, #168); kept
+// exported here because the staff dashboard and workspace import it from here.
+export { default as MyTasksCard } from "../components/MyTasksCard";

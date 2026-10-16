@@ -79,6 +79,11 @@ _REQUIRED_ENV = {
 
 
 def pytest_configure(config):
+    # Living-community unit tests run against the fast ten-resident burn-in
+    # cohort unless a test (or the operator) selects otherwise; the runtime
+    # default is the full 75-resident community (see community_cohort and
+    # test_sim_community_cohort.py, which proves that default explicitly).
+    os.environ.setdefault("CAOSCARE_LIVING_COMMUNITY_COHORT", "burn_in_10")
     missing = [name for name in _REQUIRED_ENV if not os.environ.get(name)]
     if missing:
         lines = ["\nMissing required test-environment variable(s):"]

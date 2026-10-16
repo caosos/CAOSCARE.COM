@@ -11,12 +11,14 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends
 from deps import db, get_current_user
 from models import now_utc, uid
+from simulation.community_blueprint import COMMUNITY_ID, RESIDENTS, SIMULATION_SCOPE
 
 router = APIRouter(prefix="/haiku", tags=["haiku"])
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
 OPENAI_TEXT_MODEL = os.environ.get("OPENAI_TEXT_MODEL", "gpt-4o-mini").strip() or "gpt-4o-mini"
 OPENAI_API_BASE = os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1").rstrip("/")
+COMMUNITY_RESIDENT_IDS = frozenset(recipe.resident_id for recipe in RESIDENTS)
 
 
 def _openai_unavailable() -> HTTPException:
@@ -59,7 +61,27 @@ RULES
 - Output ONLY the three lines separated by newlines."""
 
 
+def _living_community_resident(resident: dict) -> bool:
+    """Fail closed on exact or partial server-owned community identity."""
+    return bool(
+        resident.get("resident_id") in COMMUNITY_RESIDENT_IDS
+        or resident.get("simulation_scope") == SIMULATION_SCOPE
+        or resident.get("simulation_community_id") == COMMUNITY_ID
+    )
+
+
+def _community_generation_refused() -> HTTPException:
+    return HTTPException(
+        status_code=409,
+        detail="Haiku generation is disabled for living-community simulation residents.",
+    )
+
+
 async def _generate_one(resident: dict) -> dict:
+    # This is the last common boundary before OpenAI. Keep the guard here so
+    # new internal callers cannot bypass the bulk/direct route checks.
+    if _living_community_resident(resident):
+        raise _community_generation_refused()
     pref_name = resident.get("preferred_name") or resident.get("name", "")
     prefs = resident.get("preferences") or ""
     memory = resident.get("memory") or ""
@@ -94,13 +116,15 @@ async def generate_today(user=Depends(get_current_user)):
     """Idempotent — skips residents who already have a haiku dated today."""
     if user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin required")
-    if not OPENAI_API_KEY:
+    residents = [resident async for resident in db.residents.find({}, {"_id": 0})]
+    eligible = [resident for resident in residents if not _living_community_resident(resident)]
+    if eligible and not OPENAI_API_KEY:
         raise _openai_unavailable()
     today = now_utc().date().isoformat()
     created = 0
-    skipped = 0
+    skipped = len(residents) - len(eligible)
     failed = 0
-    async for r in db.residents.find({}, {"_id": 0}):
+    for r in eligible:
         existing = await db.haikus.find_one(
             {"resident_id": r["resident_id"], "day": today}, {"_id": 0}
         )

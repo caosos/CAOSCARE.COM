@@ -13,12 +13,13 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from deps import db, get_current_user
+from deps import db
 from routes.aria_operational_state import task_lifecycle
 from routes.ops_overview_util import local_date
 from routes.realtime_facility import today_facility_date
 from routes.request_delivery import delivery_for
 from routes.staff_scope import acts_for, members_query
+from routes.work_context import get_department_user
 
 router = APIRouter(prefix="/departments", tags=["departments"])
 OPEN = ("pending", "in_progress")
@@ -59,7 +60,7 @@ def _row(t: dict, receipts: Optional[int] = None) -> dict:
 
 
 @router.get("/{slug}/board")
-async def department_board(slug: str, completed_limit: int = 30, user=Depends(get_current_user)):
+async def department_board(slug: str, completed_limit: int = 30, user=Depends(get_department_user)):
     """Members and roles, open work by named worker with its dispatch trail,
     and the completed history with receipts. Readable by owner/admin and by
     anyone who acts for the department (its staff; front desk for
@@ -108,4 +109,9 @@ async def department_board(slug: str, completed_limit: int = 30, user=Depends(ge
                    "closed_shown": len(history),
                    "not_notified": sum(1 for r in work if r.get("delivery") and not r["delivery"]["reached"])},
         "can_assign": acts_for(user, slug),
+        "work_context": ({"work_context_id": user["_work_context_id"],
+                          "principal_role": user.get("_principal_role"),
+                          "acting_role": user.get("role"),
+                          "acting_department": user.get("department")}
+                         if user.get("_work_context_id") else None),
     }

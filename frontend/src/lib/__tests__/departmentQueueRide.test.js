@@ -20,6 +20,8 @@ jest.mock("../../components/ui/textarea", () => { const R = require("react"); re
 
 const Queue = require("../../pages/DepartmentQueue").default;
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+// Rows are compact; their actions show when a row is expanded (CO-008).
+const expandAll = () => act(async () => { document.querySelectorAll("[data-testid^=wo-row-]").forEach((b) => { if (b.getAttribute("aria-expanded") !== "true") b.click(); }); });
 const flush = () => act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); });
 const planned = { task_id: "a1", title: "PT (knee)", status: "pending", resident_id: "r1", visibility_role: "therapy", created_at: "2026-10-11T07:00:00Z", requested_for_date: "2026-10-15", requested_for_time_label: "2:00 PM" };
 const withRide = { ...planned, task_id: "a2", linked_ride_task_id: "t9" };
@@ -37,7 +39,7 @@ afterEach(async () => { await act(async () => root.unmount()); el.remove(); });
 const q = (id) => el.querySelector(`[data-testid=${id}]`);
 
 test("the linked ride's line is shown and the Ride button appears only where no open ride is linked", async () => {
-  await act(async () => root.render(<Queue department="therapy" title="Therapy requests" />)); await flush(); await flush();
+  await act(async () => root.render(<Queue department="therapy" title="Therapy requests" />)); await flush(); await expandAll(); await flush();
   expect(q("wo-ride-status-a2").textContent).toBe("Ride: booked 13:30 with Pete, Van (2026-10-15)");
   expect(q("wo-ride-a2")).toBeNull();
   expect(q("wo-ride-a1")).not.toBeNull();

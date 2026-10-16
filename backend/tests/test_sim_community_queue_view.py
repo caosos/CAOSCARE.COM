@@ -1,0 +1,132 @@
+"""SIM-006 Live Operations queue: waits, worker availability and backlog."""
+import asyncio
+
+from simulation import community_queue_view as view
+from simulation.community_runtime_staffing import staffing_at
+from simulation.community_timeline import PLAN_REVISIONS
+
+
+class Cursor:
+    def __init__(self, rows):
+        self.rows = rows
+
+    async def to_list(self, _limit):
+        return list(self.rows)
+
+
+class Tasks:
+    def __init__(self, rows, fail=False):
+        self.rows, self.fail = rows, fail
+
+    def find(self, query, _projection):
+        if self.fail:
+            raise RuntimeError("database address hidden")
+        return Cursor([row for row in self.rows if row["status"] == query["status"]
+                       and row["simulation_run_id"] == query["simulation_run_id"]])
+
+
+class Runs:
+    async def find_one(self, _query, _projection):
+        return {"plan_revision": PLAN_REVISIONS["burn_in_10"]}
+
+
+class Covers:
+    def __init__(self, rows=()):
+        self.rows = list(rows)
+
+    def find(self, _query, _projection):
+        return Cursor(self.rows)
+
+
+class Store:
+    def __init__(self, rows, fail=False, covers=()):
+        self.staff_tasks, self.sim_runs = Tasks(rows, fail), Runs()
+        self.sim_shift_covers = Covers(covers)
+
+
+MINUTE = 7 * 60 + 30 + 90           # breakfast seating for resident-001 opens at 07:30
+ON_SITE = staffing_at(MINUTE)["workers"]
+AIDE = next(row for row in ON_SITE if row["job_role"] == "care_aide")
+COOK = next(row for row in ON_SITE if row["department"] == "kitchen")
+
+
+def _task(task_id, status, workflow, category, assigned_to=None, run="run-1"):
+    return {"task_id": task_id, "status": status, "category": category, "priority": "normal",
+            "description": "s", "resident_id": "sim:resident:001", "assigned_to": assigned_to,
+            "simulation_run_id": run, "conversation_session_id": f"simulator:event:{workflow}"}
+
+
+def _snapshot(rows, minute, fail=False, next_event=None, covers=()):
+    return asyncio.run(view.queue_snapshot(run_id="run-1", clock_minute=minute,
+                                           next_event_minute=next_event, store=Store(rows, fail, covers)))
+
+
+def test_queued_tickets_show_simulated_wait_and_worker_availability():
+    breakfast = "day-000:resident-001:breakfast"   # requested 07:30
+    rows = [_task("t-wait", "pending", breakfast, "kitchen"),
+            _task("t-work", "in_progress", "day-000:resident-001:morning_room_check",
+                  "nursing", AIDE["actor_id"]),
+            _task("t-other-run", "pending", breakfast, "kitchen", run="run-0")]
+    out = _snapshot(rows, MINUTE)
+    (queued,) = out["queued"]
+    assert queued["task_id"] == "t-wait" and queued["requested_at_minute"] == 450
+    assert queued["waiting_minutes"] == 90 and queued["overdue"] is True
+    assert out["departments"]["kitchen"]["queued"] == 1
+    assert out["departments"]["kitchen"]["longest_wait_minutes"] == 90
+    nursing = out["departments"]["nursing"]
+    assert (nursing["busy"], nursing["in_progress"]) == (1, 1)
+    assert nursing["free"] == nursing["on_site"] - 1
+    by_id = {row["actor_id"]: row for row in out["workers"]}
+    assert by_id[AIDE["actor_id"]]["availability"] == "busy"
+    assert by_id[AIDE["actor_id"]]["task_id"] == "t-work"
+    assert by_id[COOK["actor_id"]]["availability"] == "free"
+    assert out["anomalies"] == [] and out["executor_behind_clock_minutes"] == 0
+
+
+def test_a_second_active_ticket_or_off_site_holder_is_shown_as_an_anomaly():
+    rows = [_task("a", "in_progress", "w1", "nursing", AIDE["actor_id"]),
+            _task("b", "in_progress", "w2", "nursing", AIDE["actor_id"]),
+            _task("c", "in_progress", "w3", "kitchen", "sim:staff:kitchen:gone")]
+    kinds = {row["kind"] for row in _snapshot(rows, MINUTE)["anomalies"]}
+    assert kinds == {"worker_holds_multiple_active_tickets", "active_ticket_held_by_off_site_worker"}
+
+
+def test_failed_reads_stay_unknown_not_zero():
+    out = _snapshot([], 600, fail=True)
+    assert out["status"] == "error" and out["queued"] is None and out["workers"] is None
+    assert "address" not in str(out)
+
+
+def test_executor_lag_is_reported_not_shown_as_longer_waits():
+    rows = [_task("t-wait", "pending", "day-000:resident-001:breakfast", "kitchen")]
+    out = _snapshot(rows, MINUTE + 600, next_event=MINUTE)
+    assert out["as_of_minute"] == MINUTE and out["executor_behind_clock_minutes"] == 600
+    assert out["queued"][0]["waiting_minutes"] == 90
+
+
+def test_real_staff_holding_a_ticket_is_listed_not_flagged():
+    rows = [_task("t-real", "in_progress", "w9", "nursing", "user_michael")]
+    out = _snapshot(rows, MINUTE)
+    assert out["anomalies"] == []
+    assert out["real_staff_working"] == [{"actor_id": "user_michael", "task_id": "t-real",
+                                          "department": "nursing", "summary": "s"}]
+
+
+def test_a_covered_shift_is_shown_with_who_covers_it():
+    cover = {"worker_actor_id": AIDE["actor_id"], "covered_by_name": "Michael"}
+    by_id = {row["actor_id"]: row for row in _snapshot([], MINUTE, covers=[cover])["workers"]}
+    assert by_id[AIDE["actor_id"]]["availability"] == "covered"
+    assert by_id[AIDE["actor_id"]]["covered_by"] == "Michael"
+
+
+def test_an_on_call_worker_called_in_is_working_not_an_off_site_anomaly():
+    """v9 (#168): a high/urgent ticket calls in the on-call worker; they are busy, not off site."""
+    evening = 20 * 60
+    tech = next(row for row in staffing_at(evening)["on_call_workers"] if row["department"] == "maintenance")
+    rows = [_task("t-call", "in_progress", "w-call", "maintenance", tech["actor_id"])]
+    out = _snapshot(rows, evening)
+    assert out["anomalies"] == []
+    called = [row for row in out["workers"] if row["actor_id"] == tech["actor_id"]]
+    assert called and called[0]["availability"] == "called_in" and called[0]["task_id"] == "t-call"
+    assert out["departments"]["maintenance"]["called_in"] == 1
+    assert out["departments"]["maintenance"]["on_site"] == 0

@@ -86,6 +86,7 @@ CURRENT_RESIDENT_TOOLS = {
     "check_request_history", "request_transportation", "check_transportation_availability",
     "check_transportation_status", "change_transportation_request", "cancel_transportation_request",
     "confirm_interpretation_pattern",
+    "configure_tv_remote",  # PR #141: governed TV remote setup
 }
 
 

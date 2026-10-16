@@ -13,6 +13,7 @@ from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends
 from models import Insight, now_utc
 from deps import db, get_current_user
+from living_community_boundary import eligible_bulk_residents, protected_resident_ids
 
 router = APIRouter(prefix="/insights", tags=["insights"])
 
@@ -218,9 +219,11 @@ async def compute_for_resident(resident: dict):
 
 @router.post("/compute")
 async def compute_all(user=Depends(get_current_user)):
-    """Wipes old insights and recomputes for every resident. Returns count."""
-    await db.insights.delete_many({})
-    residents = await db.residents.find({}, {"_id": 0}).to_list(1000)
+    """Recompute insights without crossing the living-community boundary."""
+    resident_rows = await db.residents.find({}, {"_id": 0}).to_list(1000)
+    protected_ids = protected_resident_ids(resident_rows)
+    residents = eligible_bulk_residents(resident_rows)
+    await db.insights.delete_many({"resident_id": {"$nin": sorted(protected_ids)}})
     count = 0
     for r in residents:
         items = await compute_for_resident(r)
@@ -230,7 +233,11 @@ async def compute_all(user=Depends(get_current_user)):
             doc["created_at"] = doc["created_at"].isoformat()
             await db.insights.insert_one(doc)
             count += 1
-    return {"computed": count, "residents": len(residents)}
+    return {
+        "computed": count,
+        "residents": len(residents),
+        "living_community_skipped": len(resident_rows) - len(residents),
+    }
 
 
 @router.get("")

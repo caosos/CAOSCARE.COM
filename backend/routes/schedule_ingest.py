@@ -55,10 +55,11 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends
 
 from models import ScheduleItem, ScheduleCategory, uid
-from deps import db, get_current_user
+from deps import db
 from routes.actor_context import ActorContext
 from routes.content_receipts import inbound_email_actor, record_content_change, staff_actor
 from routes.service_content_access import SCHEDULE_DEPARTMENTS, require_content_editor
+from routes.work_context import get_department_user
 
 router = APIRouter(prefix="/schedule/ingest", tags=["schedule"])
 
@@ -213,7 +214,7 @@ async def create_schedule_items(
 
 
 @router.post("/dev-test")
-async def ingest_dev_test(body: dict, user=Depends(get_current_user)):
+async def ingest_dev_test(body: dict, user=Depends(get_department_user)):
     """Simulates 'a weekly activities calendar email arrived' for
     development/acceptance testing, without needing a real inbound
     email. Body: {raw_text, source_ref?}. See module docstring for the
@@ -236,7 +237,7 @@ async def ingest_dev_test(body: dict, user=Depends(get_current_user)):
 
 
 @router.post("/paste")
-async def ingest_paste(body: dict, user=Depends(get_current_user)):
+async def ingest_paste(body: dict, user=Depends(get_department_user)):
     """Activities staff paste a weekly calendar (the schedule screen's
     "Paste a calendar"). Same parser and draft batch as an emailed
     calendar; source="staff_paste". Body: {raw_text}."""

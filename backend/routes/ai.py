@@ -17,6 +17,7 @@ from routes.memory import (
     extract_and_store_memories,
     MAX_HISTORY_MESSAGES,
 )
+from routes.living_community_ai_guard import provider_excluded_for_resident
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -326,6 +327,10 @@ async def classify_alert_background(alert_id: str) -> None:
         # window around the alert's timestamps.
         rid = a.get("resident_id")
         if not rid:
+            return
+        # Provider boundary: derive simulator identity from canonical resident
+        # truth (or the blueprint's reserved IDs), never from alert input.
+        if await provider_excluded_for_resident(db.residents, rid):
             return
         turns = await db.conversations.find(
             {"resident_id": rid}, {"_id": 0}

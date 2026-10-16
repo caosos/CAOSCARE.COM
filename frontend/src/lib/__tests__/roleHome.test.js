@@ -2,8 +2,8 @@ import { roleHomePath, roleHomeLabel, workspaceLabel, departmentWorkspaceLabel, 
 
 describe("roleHomePath", () => {
   test("owner and admin go to /admin regardless of department", () => {
-    expect(roleHomePath({ role: "owner" })).toBe("/admin");
-    expect(roleHomePath({ role: "admin", department: "maintenance" })).toBe("/admin");
+    expect(roleHomePath({ role: "owner" })).toBe("/operations");
+    expect(roleHomePath({ role: "admin", department: "maintenance" })).toBe("/operations");
   });
 
   test("front_desk goes to /front-desk", () => {

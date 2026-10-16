@@ -17,15 +17,16 @@ from typing import Optional
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from deps import get_current_user
 from routes import task_actions
 from routes.actor_context import actor_from_user
+from routes.work_context import get_department_user
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
 class AssignInput(BaseModel):
     assigned_to: Optional[str] = None   # a user_id, or null / "" to unassign
+    reason: Optional[str] = None        # required to reassign, release or hand off (task_work_rules)
 
 
 def _iso(doc: dict) -> dict:
@@ -37,10 +38,10 @@ def _iso(doc: dict) -> dict:
 
 
 @router.post("/{task_id}/assign")
-async def assign_task(task_id: str, data: AssignInput, user=Depends(get_current_user)):
+async def assign_task(task_id: str, data: AssignInput, user=Depends(get_department_user)):
     """Claim (assign to self), re-assign, or unassign. Admin/owner may
     assign anyone. A department member may claim a task in their own
     department or hand it to a co-worker in that SAME department - never
     across the department boundary. Rules and receipt: task_actions.assign."""
-    task, _ = await task_actions.assign(task_id, data.assigned_to, actor_from_user(user), user)
+    task, _ = await task_actions.assign(task_id, data.assigned_to, actor_from_user(user), user, data.reason)
     return _iso(task)

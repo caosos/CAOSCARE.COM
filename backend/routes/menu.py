@@ -12,10 +12,11 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends
 
 from models import MenuItem, MenuItemCreate, MenuItemUpdate, now_utc
-from deps import db, get_current_user
+from deps import db
 from routes.realtime_facility import today_facility_date
 from routes.content_receipts import record_content_change, staff_actor, summarize
 from routes.service_content_access import MENU_DEPARTMENTS, require_content_editor
+from routes.work_context import get_department_user
 
 router = APIRouter(prefix="/menu", tags=["menu"])
 
@@ -29,7 +30,7 @@ def _iso(doc: dict) -> dict:
 
 
 @router.get("")
-async def list_menu(date: Optional[str] = None, status: Optional[str] = None, user=Depends(get_current_user)):
+async def list_menu(date: Optional[str] = None, status: Optional[str] = None, user=Depends(get_department_user)):
     """Admin/staff view - every status, so staff can see what's still a draft."""
     q: dict = {"date": date or today_facility_date()}
     if status:
@@ -39,7 +40,7 @@ async def list_menu(date: Optional[str] = None, status: Optional[str] = None, us
 
 
 @router.post("")
-async def create_menu_item(data: MenuItemCreate, user=Depends(get_current_user)):
+async def create_menu_item(data: MenuItemCreate, user=Depends(get_department_user)):
     require_content_editor(user, MENU_DEPARTMENTS)
     item = MenuItem(**data.model_dump(), created_by=user["user_id"])
     doc = item.model_dump()
@@ -90,7 +91,7 @@ async def _correct_published(existing: dict, fields: dict, publish: bool, user: 
 
 
 @router.patch("/{menu_id}")
-async def update_menu_item(menu_id: str, data: MenuItemUpdate, user=Depends(get_current_user)):
+async def update_menu_item(menu_id: str, data: MenuItemUpdate, user=Depends(get_department_user)):
     """A correction. A published item is never overwritten: the correction is
     a new item that `replaces` it - a draft unless the editor publishes it in
     the same action (`publish: true`, editor = reviewer). The original stays
@@ -123,7 +124,7 @@ async def update_menu_item(menu_id: str, data: MenuItemUpdate, user=Depends(get_
 
 
 @router.post("/{menu_id}/approve")
-async def approve_menu_item(menu_id: str, user=Depends(get_current_user)):
+async def approve_menu_item(menu_id: str, user=Depends(get_department_user)):
     require_content_editor(user, MENU_DEPARTMENTS)
     existing = await db.menu_items.find_one({"menu_id": menu_id}, {"_id": 0})
     if not existing:
@@ -150,7 +151,7 @@ async def approve_menu_item(menu_id: str, user=Depends(get_current_user)):
 
 
 @router.delete("/{menu_id}")
-async def delete_menu_item(menu_id: str, user=Depends(get_current_user)):
+async def delete_menu_item(menu_id: str, user=Depends(get_department_user)):
     require_content_editor(user, MENU_DEPARTMENTS)
     existing = await db.menu_items.find_one({"menu_id": menu_id}, {"_id": 0})
     r = await db.menu_items.delete_one({"menu_id": menu_id})

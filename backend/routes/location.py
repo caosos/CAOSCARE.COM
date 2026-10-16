@@ -4,6 +4,7 @@ from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Request
 from models import LocationUpdate, LocationUpdateCreate, now_utc
 from deps import db, get_current_user
+from living_community_boundary import eligible_bulk_residents
 
 router = APIRouter(prefix="/locations", tags=["locations"])
 
@@ -121,7 +122,8 @@ DEFAULT_ZONES = [
 @router.post("/mock/generate")
 async def generate_mock_location(user=Depends(get_current_user)):
     """Generate a random location update for every resident (simulates mesh network ping)."""
-    residents = await db.residents.find({}, {"_id": 0}).to_list(1000)
+    resident_rows = await db.residents.find({}, {"_id": 0}).to_list(1000)
+    residents = eligible_bulk_residents(resident_rows)
     if not residents:
         return {"generated": 0}
     created = []

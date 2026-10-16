@@ -34,6 +34,20 @@ def _schedule_fields(tpl: dict) -> dict:
                                     "provider_name", "discipline", "location", "active")}
 
 
+def _refuse_living_community(resident: dict) -> None:
+    reason = task_recurrence.living_community_block_reason(resident)
+    if reason:
+        raise HTTPException(status_code=409, detail=f"{reason}; no template was created")
+
+
+async def _template_resident(resident_id: str) -> dict:
+    resident = await db.residents.find_one({"resident_id": resident_id}, {"_id": 0})
+    if not resident:
+        raise HTTPException(status_code=422, detail="Unknown resident")
+    _refuse_living_community(resident)
+    return resident
+
+
 @router.get("/templates/all")
 async def list_templates(user=Depends(get_current_user)):
     items = await db.task_templates.find({}, {"_id": 0}).sort("title", 1).to_list(500)
@@ -52,13 +66,16 @@ async def create_template(data: StaffTaskTemplateCreate, user=Depends(get_curren
     fields = data.model_dump()
     for k in ("provider_name", "discipline", "location", "time_label"):
         fields[k] = (fields.get(k) or "").strip() or None
-    if fields.get("resident_id") and not fields.get("room"):
-        r = await db.residents.find_one({"resident_id": fields["resident_id"]}, {"_id": 0, "room": 1})
-        if not r:
-            raise HTTPException(status_code=422, detail="Unknown resident")
-        fields["room"] = r.get("room")
+    if fields.get("resident_id"):
+        resident = await _template_resident(fields["resident_id"])
+        if not fields.get("room"):
+            fields["room"] = resident.get("room")
     doc = StaffTaskTemplate(**fields).model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
+    # A cross-collection insert cannot carry a Mongo predicate on residents;
+    # repeat the server-owned check immediately before the template write.
+    if fields.get("resident_id"):
+        await _template_resident(fields["resident_id"])
     await db.task_templates.insert_one(doc)
     doc.pop("_id", None)
     await _receipt("task_template_created", doc, user, after=_schedule_fields(doc))

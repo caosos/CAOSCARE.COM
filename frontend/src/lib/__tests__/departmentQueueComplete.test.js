@@ -23,6 +23,8 @@ jest.mock("../../components/ui/textarea", () => {
 const Queue = require("../../pages/DepartmentQueue").default;
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const flush = () => act(async () => { await Promise.resolve(); await Promise.resolve(); });
+// Rows are compact; their actions show when a row is expanded (CO-008).
+const expandAll = (root0) => act(async () => { (root0 || document).querySelectorAll("[data-testid^=wo-row-]").forEach((b) => { if (b.getAttribute("aria-expanded") !== "true") b.click(); }); });
 let root, el;
 beforeEach(() => {
   el = document.createElement("div"); document.body.appendChild(el); root = createRoot(el);
@@ -32,7 +34,7 @@ beforeEach(() => {
 afterEach(async () => { await act(async () => root.unmount()); el.remove(); });
 const q = (id) => el.querySelector(`[data-testid=${id}]`);
 const open = async () => {
-  await act(async () => root.render(<Queue department="nursing" title="Nursing" />)); await flush();
+  await act(async () => root.render(<Queue department="nursing" title="Nursing" />)); await flush(); await expandAll();
   await act(async () => { q("wo-complete-t1").click(); });
   const ta = q("wo-complete-notes");
   await act(async () => { const s = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set; s.call(ta, "did the thing"); ta.dispatchEvent(new Event("input", { bubbles: true })); });

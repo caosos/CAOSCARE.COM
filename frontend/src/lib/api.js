@@ -1,4 +1,5 @@
 import axios from "axios";
+import { clearWorkContext, workContextToken } from "./workContext";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL?.trim();
 
@@ -28,14 +29,21 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  const workToken = workContextToken();
+  if (workToken) config.headers["X-CAOS-Work-Context"] = workToken;
   return config;
 });
 
 api.interceptors.response.use(
   (r) => r,
   (err) => {
+    const workCode = err?.response?.data?.detail?.code;
+    if (workCode === "unknown_department" || workCode === "expired_context" || workCode === "invalid_token") {
+      clearWorkContext();
+    }
     if (err?.response?.status === 401) {
       // stay silent; caller can redirect
+      if (err?.config?.headers?.["X-CAOS-Work-Context"]) clearWorkContext();
     }
     return Promise.reject(err);
   }

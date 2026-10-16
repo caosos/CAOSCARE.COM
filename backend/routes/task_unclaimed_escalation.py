@@ -31,7 +31,7 @@ ACTOR = actor_system("escalation")
 
 
 async def escalate_unclaimed(now: datetime, rules_by_fac: dict) -> dict:
-    from routes.escalation_tick import rule_for
+    from routes.escalation_tick import outside_living_community_filter, rule_for
     out = {"unclaimed_flagged": 0, "unclaimed_examined": 0}
     # widest window any facility could need; each request is then held to its own rule
     shortest = min([int(r.get("nursing_unclaimed_seconds", 600)) for r in rules_by_fac.values()] +
@@ -39,6 +39,7 @@ async def escalate_unclaimed(now: datetime, rules_by_fac: dict) -> dict:
     tasks = await db.staff_tasks.find(
         {"visibility_role": {"$in": list(DEPARTMENTS)}, "status": "pending",
          "assigned_to": None, "unclaimed_claimed_at": None,
+         **outside_living_community_filter(),
          "created_at": {"$lte": (now - timedelta(seconds=shortest)).isoformat()},
          # planned for a later day (e.g. a recurring occurrence made ahead): not due yet
          "$or": [{"requested_for_date": None}, {"requested_for_date": {"$lte": now.date().isoformat()}}]},
@@ -54,7 +55,8 @@ async def escalate_unclaimed(now: datetime, rules_by_fac: dict) -> dict:
         if classify(t, "task", rid, now)["bucket"] not in ("current", "sim_current"):
             continue
         claimed = await db.staff_tasks.update_one(
-            {"task_id": t["task_id"], "status": "pending", "assigned_to": None, "unclaimed_claimed_at": None},
+            {"task_id": t["task_id"], "status": "pending", "assigned_to": None,
+             "unclaimed_claimed_at": None, **outside_living_community_filter()},
             {"$set": {"unclaimed_claimed_at": now.isoformat()}})
         if claimed.modified_count == 0:
             continue

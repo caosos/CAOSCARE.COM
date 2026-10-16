@@ -153,3 +153,25 @@ test("inspection steps read plainly", () => {
   const ev = buildRequestTimeline({ ...base, status: "completed", event_log: [{ at: "2026-10-12T09:00:00Z", field: "inspected", text: "Passed", by: "a", by_name: "Admin" }] });
   expect(ev[1].label).toBe("Inspection by Admin");
 });
+
+test("a simulated escalation reads as escalated, not as couldn't complete (#168)", () => {
+  const rows = buildRequestTimeline({ ...base, status: "pending", event_log: [
+    { at: "2026-10-15T06:07:17Z", field: "escalated", from: 0, to: 1, sim_level: 1, sim_phase: "pickup", text: "unclaimed 146 simulated min", by: "sim:system:escalation_monitor", by_name: "SIM - Escalation monitor" },
+  ] });
+  const r = rows.find((x) => (x.label || "").startsWith("Escalated"));
+  expect(r.label).toBe("Escalated (simulated) · level 1, not picked up in time");
+  expect(rows.some((x) => (x.label || "").includes("Couldn't complete"))).toBe(false);
+});
+
+test("reassign, hand off and release read as distinct outcomes with their reason (#168)", () => {
+  const ev = buildRequestTimeline({ ...base, status: "pending", event_log: [
+    { at: "2026-10-15T06:00:00Z", field: "assigned_to", from: "u1", to: "u2", to_name: "Pat", assignment: "reassign", text: "Going on break", by: "u1", by_name: "Ana" },
+    { at: "2026-10-15T06:10:00Z", field: "assigned_to", from: "u2", to: "u1", to_name: "Ana", assignment: "handoff", text: "Shift ended", by: "u2", by_name: "Pat" },
+    { at: "2026-10-15T06:20:00Z", field: "assigned_to", from: "u1", to: null, assignment: "release", text: "Emergency", by: "u1", by_name: "Ana" },
+  ] });
+  const labels = ev.map((e) => e.label);
+  expect(labels).toContain("Reassigned to Pat by Ana");
+  expect(labels).toContain("Handed off to Ana by Pat");
+  expect(labels).toContain("Put back in the queue by Ana");
+  expect(ev.find((e) => e.label === "Handed off to Ana by Pat").text).toBe("Shift ended");
+});
