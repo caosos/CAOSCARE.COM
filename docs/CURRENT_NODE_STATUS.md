@@ -16,11 +16,11 @@ Generated: 2026-08-09. Last reconciled: **2026-08-29 (live physical-pendant test
 
 | Port / thing | What | Source / revision | Notes |
 |---|---|---|---|
-| `:8092` | Dev backend (uvicorn) | `~/CAOSCARE-INTEGRATION/backend` @ `1f60a58` (checkout detached at the merged SHA), PID 3341053, `CAOSCARE_RUNTIME_SHA=1f60a58` | Log `/tmp/room214_backend_1f60a58.log`. Restart only via `scripts/restart_dev_backend.sh` (refuses while a lease is live or a call happened in the last 60 s). |
+| `:8092` | Dev backend (uvicorn) | `~/CAOSCARE-INTEGRATION/backend` @ `1f60a58`, PID 3391399 (restarted 2026-10-15 18:45 CDT for the `.env` change `OPENAI_REALTIME_MODEL=gpt-realtime-2.1-mini`; backup `~/caoscare-config-backups/backend.env.20261015T234446Z.before-realtime-mini`), `CAOSCARE_RUNTIME_SHA=1f60a58`; integration tip is `e69cb69` (PR #171, code default = mini) — not yet loaded, no behaviour difference while `.env` sets the model | Log `/tmp/room214_backend_1f60a58.log`. Restart only via `scripts/restart_dev_backend.sh` (refuses while a lease is live or a call happened in the last 60 s). |
 | `:3002` | Room 214 page (`aria-wake-page`) | build `main.b13c2b0d.js` @ `1f60a58` (embeds `REACT_APP_BUILD_SHA`) | `ctl.sh rebuild` + `ctl.sh restart-page`; the page reports its build SHA to the self-code inspection. |
 | `aria-wake` | "Hey Aria" listener (eMeet) | live 0.05/1.5 + shadow 0.01/3.5; service up since 2026-10-14 20:19 CDT | Not restarted on 2026-10-15 loads. |
 | `:3000` | Frontend dev server (`caoscare-frontend-dev`) | proxies `/api` → `:8092` | Owner/admin/staff UI for dev. |
-| `:8096` / `:3006` | Living Community Simulator dashboard stack (user unit `caoscare-dashboard-backend`) | `~/CAOSCARE-CO008-V11` @ `eaa1c23` / `~/CAOSCARE-OPS-WORKSPACE` @ `2d006d6` | Scratch DB only (`caoscare_sim_acceptance_live20261014b`); CO-008 lane — do not touch from other lanes. |
+| `:8096` / `:3006` | Living Community Simulator dashboard stack (user unit `caoscare-dashboard-backend`) | `~/CAOSCARE-CO008-V11` @ `eaa1c23` / `~/CAOSCARE-OPS-WORKSPACE` @ `2d006d6` | Scratch DB only (`caoscare_sim_acceptance_live20261014b`); v11 Kitchen run `simrun:living:ebe800685588c1283a63` at 1× (engineering-accepted 2026-10-16T00:30Z); CO-008 lane — do not touch from other lanes. |
 | `:8123` (LAN) | `ha-lan-proxy` → HA VM | unchanged | — |
 | Production | caoscare.com (Linode) | `06e7e2b` (2026-10-12 17:03 CDT) | Not re-verified 2026-10-15. |
 

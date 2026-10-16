@@ -98,7 +98,7 @@ Public onboarding and sales preview (2026-09-27):
 frontend/src/pages/ForCommunities.jsx          Public staff-dashboard preview and community service catalog (sample data)
 frontend/src/pages/ForResidents.jsx            Resident/family experience, video, phone and device groups
 frontend/src/components/landing/PublicCatalog.jsx Shared expandable service/device cards and status labels
-frontend/src/lib/publicOnboarding.js           Public service/device inventory with capability stages
+frontend/src/lib/publicOnboarding.js           (HISTORICAL — file since removed; the public status registry is frontend/src/lib/capabilities/)
 docs/PUBLIC_ONBOARDING_PACKAGE.md              Audience paths, full feature inventory, phone/mailbox design, ten-second films
 ```
 
@@ -361,6 +361,7 @@ AGENTS.md
 docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md
 docs/CCE_LITE_TRUST_LAYER_PROPOSAL.md
 docs/REPO_MAP.md
+docs/CAOSCARE_ENGINEERING_HISTORY.md         The one chronological engineering story (eras 2026-04 → now; decision → implementation → evidence → supersession)
 docs/BUILD_STATUS.md                         First runnable/deployment-prep status and blockers
 docs/DEPLOYMENT_RUNBOOK.md                   First non-Docker /opt/caoscare server path
 docs/ROOM_AUDIO_ARCHITECTURE.md              Room audio hardware topology decision (2026-08-27): EliteDesk=compute/TV routing, eMeet=single room audio endpoint, TV audio to eventually share one AEC path via the eMeet, handset=fallback. Explicitly marks TV-audio-routing/AEC-under-load as unverified pending hardware.

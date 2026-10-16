@@ -10,6 +10,7 @@ It is intentionally a **pointer map, not a doctrine copy**. The authoritative ru
 2. `docs/CAOSCARE_PRODUCT_BASELINE.md` — canonical durable product truth and current architecture/invariants.
 3. `docs/PROJECT_STATE.md` — recent changing build state and handoff capsules. Read the latest relevant entries; do not treat old entries as current truth.
 4. `docs/REPO_MAP.md` — implementation/source orientation.
+4a. `docs/CAOSCARE_ENGINEERING_HISTORY.md` — the one chronological engineering story (why each decision was made, what was tried, what was superseded, what is proven); read it once, then trust the current docs.
 5. `docs/BUILD_STATUS.md` and `docs/CURRENT_NODE_STATUS.md` — point-in-time runtime/build snapshots; verify runtime directly when it matters.
 6. `README.md` and `docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md` — product/context doctrine; where they conflict with the Product Baseline, the Product Baseline wins.
 7. Task-specific contracts, TSBs, lane onboarding files, and acceptance docs.

@@ -39,6 +39,9 @@ source **for this work**, not licence to fill in unrelated placeholder content.
 12. `docs/ARIA_SUBSTRATE_IMPLEMENTATION_PLAN.md` — the minimal implementation
     design derived from 10 + 11 (layers → modules, what's built, what's next)
 
+### 2b. How it got here
+12b. `docs/CAOSCARE_ENGINEERING_HISTORY.md` §3–§4 (voice/wake and conversation/memory eras) — read once
+
 ### 3. Current runtime & repo state (handoff, not proof)
 13. `docs/PROJECT_STATE.md` — dated history; **read the tail**, append when done
 14. `docs/CURRENT_NODE_STATUS.md` — EliteDesk runtime handoff

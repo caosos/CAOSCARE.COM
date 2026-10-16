@@ -59,6 +59,10 @@ Do not let lower-priority feature expansion displace an active deadline in `docs
 
 After every meaningful work block, update the checklist before declaring the task complete, following its **Update protocol**.
 
+## The five files a new engineer reads
+
+1. this file; 2. `docs/PROJECT_STATE.md` (its header is current truth); 3. `docs/CAOSCARE_ENGINEERING_HISTORY.md` (how it got here); 4. `docs/CAOSCARE_PRODUCT_BASELINE.md` (durable architecture); 5. `docs/REPO_MAP.md` (where code lives). Nothing else is required to understand the project; everything else is detail or history.
+
 ## Re-ground before advising
 
 Before giving architecture, implementation, integration, status, or next-step advice:

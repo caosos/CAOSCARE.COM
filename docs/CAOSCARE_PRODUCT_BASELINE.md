@@ -11,6 +11,7 @@ This document holds the current architecture and product invariants. It is
 | `docs/CAOSCARE_PRODUCT_BASELINE.md` (this) | durable truth · architecture · product invariants |
 | `docs/PROJECT_STATE.md` | changing build state (append-only dated entries) |
 | `docs/REPO_MAP.md` | where the implementation lives |
+| `docs/CAOSCARE_ENGINEERING_HISTORY.md` | chronological engineering history: why, what was tried, what was superseded, what is proven (history, not status) |
 | `docs/BUILD_STATUS.md`, `docs/CURRENT_NODE_STATUS.md` | operational / runtime snapshots (point-in-time) |
 | `docs/*_CONTRACT.md`, `docs/ROOM_AUDIO_ARCHITECTURE.md`, TSBs | task- and domain-specific rules and incident records |
 

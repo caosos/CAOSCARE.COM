@@ -2,7 +2,9 @@
 
 Start here. Updated by Claude Code and ChatGPT-Aria as shared project state changes — this is the fastest way to reconstruct current CAOSCARE state without asking Michael to relay prior conversations.
 
-_Last updated: 2026-10-15_
+_Last updated: 2026-10-16_
+
+Reports are historical evidence. The chronological story that ties them together is `../CAOSCARE_ENGINEERING_HISTORY.md`; current truth is the header of `../PROJECT_STATE.md`.
 
 ## Room 214 read-only self-code inspection (2026-10-15) — CURRENT, OWNER ACCEPTED
 Contract `../ROOM214_SELF_CODE_INSPECTION.md`; receipts on PR #169; ideas extracted from Michael's last Room 214 conversations: `../status/ROOM214_LAST_CONVERSATION_IDEAS_2026-10-15.md`.
