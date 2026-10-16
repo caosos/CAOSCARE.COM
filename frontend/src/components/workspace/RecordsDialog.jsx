@@ -22,7 +22,28 @@ function WorldBadge({ world }) {
 }
 
 // What a box's number is, and every record behind it.
-export default function RecordsDialog({ widget, view, open, onOpenChange }) {
+const ACTOR = { real: "real person", simulated: "simulated worker", none: "not claimed" };
+
+// What a number covers: facility, world/run, period, timezone, status, origin (#153 slice 2).
+function Disclosure({ data, origin }) {
+  const facts = [
+    ["Facility", data.facility ? (data.facility.name || "—") + (data.facility.basis ? ` (${data.facility.basis})` : "") : null],
+    ["World", data.world === "simulated" ? `Simulated run ${data.run?.run_id || "?"}` : "Live records only (simulated excluded)"],
+    ["Period", data.period?.kind === "sim_day" ? `${data.period.label} (simulated day, not a wall date)` : `${data.period?.label || "—"} (real wall date)`],
+    ["Timezone", data.timezone],
+    ["Status", data.status_filter?.length ? data.status_filter.join(" or ") : "any"],
+    ["Origin", origin || "all origins"],
+  ].filter(([, v]) => v);
+  return (
+    <dl className="grid grid-cols-1 gap-x-4 gap-y-1 rounded-lg bg-[#F9FAFB] p-3 text-[13px] sm:grid-cols-2" data-testid="ws-disclosure">
+      {facts.map(([k, v]) => (
+        <div key={k} className="flex gap-2"><dt className="font-semibold text-[#374151]">{k}</dt><dd className="text-[#4B5563]">{v}</dd></div>
+      ))}
+    </dl>
+  );
+}
+
+export default function RecordsDialog({ widget, view, open, onOpenChange, expectedTotal }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
@@ -70,6 +91,12 @@ export default function RecordsDialog({ widget, view, open, onOpenChange }) {
                 {data && <p><span className="font-semibold">{data.value ?? data.total}</span> · {data.period?.label}</p>}
                 {data?.explanation && <p data-testid="ws-explanation">{data.explanation}</p>}
                 {data?.unverified && <p className="text-[#B42318]">{data.unverified}</p>}
+                {data?.kind === "tasks" && expectedTotal != null && origin === undefined && !q && data.total !== expectedTotal && (
+                  <p className="font-semibold text-[#B42318]" data-testid="ws-unverified">
+                    UNVERIFIED: the box showed {expectedTotal} but {data.total} records match now — the records changed
+                    after the box loaded. Refresh to see a matching pair.
+                  </p>
+                )}
                 {data?.run?.clock && (
                   <p className="text-[#6B7280]">Run clock: day {data.run.clock.day}, {data.run.clock.hh_mm}
                     {data.run.executed_through_day ? ` · records reflect day ${data.run.executed_through_day}` : ""}</p>
@@ -77,6 +104,7 @@ export default function RecordsDialog({ widget, view, open, onOpenChange }) {
               </div>
             </DialogDescription>
           </DialogHeader>
+          {data?.kind === "tasks" && <Disclosure data={data} origin={origin ?? fixedOrigin} />}
           {isMetric && !fixedOrigin && (
             <div className="flex flex-wrap gap-2">
               <button type="button" onClick={() => { setOrigin(undefined); setPage(1); }}
@@ -103,7 +131,7 @@ export default function RecordsDialog({ widget, view, open, onOpenChange }) {
             <div className="overflow-x-auto">
               <table className="w-full text-left text-[13px]">
                 <thead className="text-[#6B7280]">
-                  <tr><th className="py-2 pr-3">Task</th><th className="pr-3">Origin</th><th className="pr-3">Resident</th>
+                  <tr><th className="py-2 pr-3">Task</th><th className="pr-3">Task ID · receipts</th><th className="pr-3">Origin</th><th className="pr-3">Resident</th>
                     <th className="pr-3">Worker</th><th className="pr-3">Status</th><th className="pr-3">Created</th><th>Finished</th></tr>
                 </thead>
                 <tbody>
@@ -112,15 +140,23 @@ export default function RecordsDialog({ widget, view, open, onOpenChange }) {
                         className="cursor-pointer border-t border-[#F3F4F6] hover:bg-[#F9FAFB]">
                       <td className="py-2 pr-3"><div className="font-medium text-[#111827]">{r.summary}</div>
                         <div className="text-[#9CA3AF]">{r.department}{r.routine ? ` · ${r.routine.replace(/_/g, " ")}` : ""}</div></td>
+                      <td className="pr-3">
+                        {/* A real button: Tab + Enter opens this task's detail with its receipts. */}
+                        <button type="button" data-testid="ws-record-open" aria-label={`Open task ${r.task_id} and its receipts`}
+                                onClick={(e) => { e.stopPropagation(); setTaskId(r.task_id); }}
+                                className="rounded font-mono text-[12px] text-[#1D4ED8] underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1D72D8]">
+                          {r.task_id}
+                        </button>
+                      </td>
                       <td className="pr-3">{r.origin_label}{r.world === "simulated" ? " · sim" : ""}</td>
                       <td className="pr-3">{r.resident_name || "—"}{r.room ? ` · ${r.room}` : ""}</td>
-                      <td className="pr-3">{r.worker || "—"}</td>
+                      <td className="pr-3">{r.worker || "—"}{r.actor_kind ? <div className="text-[#9CA3AF]">{ACTOR[r.actor_kind] || r.actor_kind}</div> : null}</td>
                       <td className="pr-3">{r.status}</td>
                       <td className="pr-3">{when(r.created_at)}</td>
                       <td>{when(r.completed_at)}</td>
                     </tr>
                   ))}
-                  {!rows.length && <tr><td colSpan={7} className="py-6 text-center text-[#6B7280]">No records match.</td></tr>}
+                  {!rows.length && <tr><td colSpan={8} className="py-6 text-center text-[#6B7280]">No records match.</td></tr>}
                 </tbody>
               </table>
               <div className="mt-3 flex items-center justify-between text-sm text-[#4B5563]">

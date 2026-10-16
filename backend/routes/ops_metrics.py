@@ -20,6 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from deps import db, get_current_user
 from routes.facility_local_time import facility_tz
 from routes.ops_metrics_query import METRICS, NO_DEPARTMENT, TILE_METRICS, Scope, count_by_department, explain, match_for
+from routes.ops_overview_exact import facility_disclosure
 from routes.ops_overview_util import dept_label
 from routes.staff_scope import ADMIN_ROLES, acting_departments
 from routes.task_origin import KIND_LABELS, KINDS, kind_of, routine_name, world_of
@@ -118,9 +119,17 @@ async def metrics(world: str = "live", date: Optional[str] = None, run_id: Optio
             "totals_by_origin": by_origin}
 
 
+def actor_kind(t: dict) -> str:
+    """Who did the work: a synthetic worker (sim:* id), a real person, or nobody yet."""
+    worker = t.get("assigned_to") or ""
+    if not worker:
+        return "none"
+    return "simulated" if worker.startswith("sim:") else "real"
+
+
 def _row(t: dict, by_slug: dict) -> dict:
     kind = kind_of(t)
-    return {"task_id": t["task_id"], "summary": t.get("title") or t.get("description") or "",
+    return {"task_id": t["task_id"], "actor_kind": actor_kind(t), "summary": t.get("title") or t.get("description") or "",
             "status": t.get("status"), "department": dept_label(t.get("visibility_role"), by_slug),
             "origin": kind, "origin_label": KIND_LABELS[kind], "routine": routine_name(t),
             "world": world_of(t), "source": t.get("source"), "priority": t.get("priority"),
@@ -159,8 +168,11 @@ async def metric_records(metric: str, world: str = "live", department: Optional[
     by_slug = {d["slug"]: d for d in departments}
     label = None if not department else ("No department" if department == NO_DEPARTMENT
                                           else dept_label(department, by_slug))
+    status = METRICS[metric]["status"]
     return {"metric": metric, "metric_label": METRICS[metric]["label"], "world": scope.world,
             "period": scope.period(), "run": _run_summary(run), "department": department,
+            "facility": await facility_disclosure(db), "timezone": scope.tz,
+            "status_filter": status if isinstance(status, list) else ([status] if status else []),
             "origin": origin, "explanation": explain(metric, scope, label, origin),
             "total": total, "matched": matched, "page": page, "page_size": page_size,
             "rows": [_row(t, by_slug) for t in docs]}

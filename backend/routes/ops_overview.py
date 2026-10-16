@@ -21,6 +21,7 @@ from fastapi import APIRouter, Depends, Query
 
 from deps import db, require_admin
 from routes.realtime_facility import today_facility_date
+from routes.ops_overview_exact import exact_department_counts, general_count
 from routes.ops_overview_util import (
     EPOCH, parse_dt, age_seconds, local_date, dept_label, task_link_hint, short_duration,
     task_is_open, task_is_unassigned, task_is_overdue, task_completed_on,
@@ -34,6 +35,7 @@ OPEN_ALERT = ("active", "acknowledged")
 ATTENTION_CAP = 50
 LIST_CAP = 15
 STALE_HOURS = STALE_ALERT_HOURS  # single shared threshold - see ops_overview_util.py
+TASK_LIST_CAP = 4000   # the attention/ownership lists; department open/done-today are exact (ops_overview_exact)
 
 COUNTS_CAVEAT = (
     "Open resident-assistance events include historical RF/pendant test "
@@ -53,7 +55,8 @@ async def operations_overview(
     departments = await db.departments.find({}, {"_id": 0}).sort("label", 1).to_list(100)
     by_slug = {d["slug"]: d for d in departments}
 
-    tasks = await db.staff_tasks.find({}, {"_id": 0}).to_list(4000)
+    tasks = await db.staff_tasks.find({}, {"_id": 0}).to_list(TASK_LIST_CAP)
+    exact, department_scope = await exact_department_counts(db, len(tasks), TASK_LIST_CAP)
     open_alerts = await db.alerts.find(
         {"status": {"$in": list(OPEN_ALERT)}}, {"_id": 0},
     ).sort("created_at", 1).to_list(2000)
@@ -79,13 +82,16 @@ async def operations_overview(
         return task_completed_on(t, facility_date)
 
     def dept_row(label, slug, dt_tasks, *, active=True, is_general=False):
+        # open / completed_today: exact live-world counts, equal to GET /ops/metrics/records
+        # (metric open / done, this department). The rest come from the loaded list.
+        exact_of = (lambda col: general_count(exact[col])) if is_general else (lambda col: exact[col].get(slug, 0))
         return {
             "slug": slug, "label": label, "active": active, "is_general": is_general,
-            "open": sum(1 for t in dt_tasks if is_open(t)),
+            "open": exact_of("open"),
             "overdue": sum(1 for t in dt_tasks if is_overdue(t)),
             "unassigned": sum(1 for t in dt_tasks if is_unassigned(t)),
             "in_progress": sum(1 for t in dt_tasks if t.get("status") == "in_progress"),
-            "completed_today": sum(1 for t in dt_tasks if done_today(t)),
+            "completed_today": exact_of("completed_today"),
         }
 
     # ---------- 2. DEPARTMENT STATUS ----------
@@ -256,6 +262,7 @@ async def operations_overview(
         "attention": attention,
         "attention_total": len(items),
         "departments": dept_rows,
+        "department_scope": department_scope,
         "assistance": assistance,
         "tasks": tasks_section,
         "transportation": transportation,

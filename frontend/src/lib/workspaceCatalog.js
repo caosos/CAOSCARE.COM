@@ -48,6 +48,8 @@ export const WIDGETS = [
     icon: CheckCircle2, source: metric("done"), optional: true },
   { id: "nursing_waiting", title: "Nursing", subtitle: "Waiting for care staff", tint: "rose",
     icon: HeartPulse, source: metric("waiting", { department: "nursing" }), optional: true },
+  { id: "nursing_open", title: "Nursing", subtitle: "Open requests", tint: "rose",
+    icon: HeartPulse, source: metric("open", { department: "nursing" }), optional: true },
   { id: "nursing_done", title: "Nursing", subtitle: "Completed today", tint: "sky",
     icon: HeartPulse, source: metric("done", { department: "nursing" }), optional: true },
   { id: "kitchen_done", title: "Kitchen", subtitle: "Completed today", tint: "violet",
