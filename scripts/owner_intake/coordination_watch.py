@@ -145,6 +145,10 @@ def tick(st: dict, q: dict) -> dict:
                     publish(st, q, f"ack-{item_id}", f"ACK DETECTED for {item_id}",
                             base_fields(q, hs, task_id=item_id, state=f"{cl['state']} (coordinator acknowledged the automatic delivery)",
                                         evidence=cl["url"], next_action="watch for WORKING/DONE"))
+                    if d.get("kind") != "coordination_test":   # a real ACK proves the intake: earlier tests are implicitly ACKed
+                        for t_id, t in st["dispatched"].items():
+                            if t.get("kind") == "coordination_test" and t.get("ack_url") is None and t["at"] <= d["at"]:
+                                t["ack_url"], t["ack_at"], t["ack_state"] = cl["url"], cl["created_at"], "IMPLICIT"
         summary["events"].append({"kind": cl["kind"], "state": cl["state"], "url": cl["url"]})
     st["cursor"] = newest
     # --- exceptions: missed ACK on owner directives, stale/stopped host

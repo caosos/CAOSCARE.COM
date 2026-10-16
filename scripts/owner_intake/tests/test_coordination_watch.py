@@ -125,3 +125,25 @@ def test_boundary_needs_release_header_and_ignores_negation():
     assert release["boundary"] is True
     plan = gh.classify(c(gh.MAIN + "\n## Release plan (not deployed)\n\nDEPLOY later."))
     assert plan["boundary"] is False
+
+
+def test_real_ack_implicitly_acks_earlier_test_delivery(tmp_path, monkeypatch):
+    import coordination_watch as w
+    monkeypatch.setattr(w, "DRY", True)
+    q = {"repo": "r", "authoritative_issue": 166, "watch_issues": [166], "mirror_pr": None, "branch": "b",
+         "coordinator": {"session_name": "x", "session_id": "y", "cwd_prefix": str(tmp_path)},
+         "timers": {"poll_seconds": 60, "ack_minutes": 30, "stall_minutes": 45},
+         "dispatch_gate": {"enabled": True, "require_boundary": "release"}, "items": []}
+    monkeypatch.setattr(w, "STATE_FILE", tmp_path / "state.json")
+    st = w.load_state()
+    st["cursor"] = "2026-10-16T03:00:00Z"
+    st["dispatched"] = {"coord-test-001": {"at": "2026-10-16T03:09:27Z", "url": "u1", "kind": "coordination_test"},
+                        "careops-153-drilldown-truth-002": {"at": "2026-10-16T03:12:44Z", "url": "u2", "kind": "task"}}
+    ack = {"id": 5, "html_url": "ack", "created_at": "2026-10-16T03:25:19Z", "user": {"login": "caosos"},
+           "body": gh.MAIN + "\nACK careops-153-drilldown-truth-002\n"}
+    monkeypatch.setattr(w.gh, "comments_since", lambda repo, n, since: [ack])
+    monkeypatch.setattr(w.host, "coordinator_state", lambda pin, m: {"verdict": "LIVE_BUSY", "live": True, "busy": True, "evidence": []})
+    monkeypatch.setattr(w.host, "duplicate_guard", lambda pin: {"interactive_sessions_in_cwd": []})
+    w.tick(st, q)
+    assert st["dispatched"]["careops-153-drilldown-truth-002"]["ack_state"] == "ACK"
+    assert st["dispatched"]["coord-test-001"]["ack_state"] == "IMPLICIT"
