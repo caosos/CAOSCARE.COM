@@ -1,0 +1,17 @@
+[Unit]
+Description=CAOSCare coordination watch (GitHub #166 + local host evidence + DONE->next handoff; one process, $0 API)
+Documentation=file:///home/caoscare-1/CAOSCARE-COORDINATION/docs/COORDINATION_WATCH.md
+After=default.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/caoscare-1/CAOSCARE-COORDINATION
+ExecStart=/usr/bin/python3 /home/caoscare-1/CAOSCARE-COORDINATION/scripts/owner_intake/coordination_watch.py --loop
+Restart=on-failure
+RestartSec=20
+TimeoutStopSec=15
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=default.target
