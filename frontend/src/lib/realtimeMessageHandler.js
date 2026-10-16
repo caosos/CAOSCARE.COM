@@ -348,7 +348,7 @@ export function createRealtimeHandlers({
     }
     if (msg.type === "response.created" && typedTurnRef?.current) onTypedResponseCreated(typedTurnRef.current);
     if (msg.type === "response.created") {
-      endCtl.noteResponseCreated();
+      endCtl.noteResponseCreated(msg.response?.id);
       hangup.onResponseCreated();
       claimInterrupter.onResponseCreated(msg.response?.id);
       logRealtimeEvent(sessionIdRef.current, "response_created", { responseId: msg.response?.id });
@@ -410,7 +410,12 @@ export function createRealtimeHandlers({
     // connection test that logged every actual event type/name OpenAI
     // sent, not by guessing.
     if (msg.type === "response.output_audio_transcript.delta") { deltaLead.onDelta(msg); claimInterrupter.onTranscriptDelta(msg); }
-    if (msg.type === "response.output_audio_transcript.done") {
+    if (msg.type === "response.output_audio_transcript.done" && endCtl.wasCut(msg.response_id)) {
+      // Cut off by the resident's goodbye: diagnostics only, never her turn (endController.js).
+      logRealtimeEvent(sessionIdRef.current, "assistant_transcript_cut_by_goodbye", {
+        text: msg.transcript || "", responseId: msg.response_id,
+      });
+    } else if (msg.type === "response.output_audio_transcript.done") {
       const aiText = msg.transcript || "";
       setTranscript((t) => [...t, { role: "assistant", text: aiText, ts: Date.now() }]);
       logRealtimeEvent(sessionIdRef.current, "assistant_transcript", { text: aiText });

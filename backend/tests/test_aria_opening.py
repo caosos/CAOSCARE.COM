@@ -22,7 +22,7 @@ def test_wake_word_opening_is_a_short_answer_to_their_name():
 
 def test_previous_opening_is_named_so_it_is_not_repeated():
     b = render_opening_block({"wake": True, "last_opening": "Good afternoon, Michael. I'm here with you."}, "Michael")
-    assert "Good afternoon, Michael. I'm here with you." in b and "do not open the same way" in b.lower()
+    assert "Good afternoon, Michael. I'm here with you." in b and "start differently from every one of these" in b.lower()
 
 
 def test_tap_start_keeps_the_normal_greeting_but_still_avoids_repeating():
@@ -55,7 +55,8 @@ def test_resolve_reads_the_previous_sessions_first_assistant_line():
             assert (o["wake"], o["last_opening"]) == (True, "Good afternoon, Michael."), o
             o2 = await resolve_opening(rid, "rt_b", "manual_kiosk")   # a reconnect of rt_b does not quote itself
             assert (o2["wake"], o2["last_opening"]) == (False, "Old first line."), o2
-            assert await resolve_opening(None, "rt_x", "wake_word") == {"wake": True, "last_opening": None, "minutes_since_last": None}
+            assert await resolve_opening(None, "rt_x", "wake_word") == {"wake": True, "last_opening": None,
+                                                                         "recent_openings": [], "minutes_since_last": None}
         finally:
             await db.conversations.delete_many({"resident_id": rid})
     asyncio.get_event_loop().run_until_complete(go())

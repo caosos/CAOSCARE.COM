@@ -88,7 +88,7 @@ def greeting_note(part_of_day: str) -> str:
     me?" 'night' stays valid for general time-of-day awareness elsewhere,
     just not as how the call opens."""
     if part_of_day == "night":
-        return "greet warmly WITHOUT 'good night' (it reads as a farewell) - try 'I'm here' instead"
+        return "greet warmly by name WITHOUT 'good night' (it reads as a farewell)"
     return f"greet appropriately ('good {part_of_day}')"
 
 
