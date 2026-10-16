@@ -1,6 +1,5 @@
 """Iteration 6 backend tests: haiku, paging, medications."""
 import os
-from datetime import datetime, timezone
 import pytest
 import requests
 
@@ -165,15 +164,17 @@ class TestMedications:
         assert dl2.status_code == 404
 
     def test_due_by_room_public_then_ack(self, admin_token):
-        """Create a reminder for current UTC minute in room 101, confirm public
-        /due/by-room/101 returns it, ack, then confirm it's filtered out."""
+        """Create a reminder for the current FACILITY-local minute in room 101,
+        confirm public /due/by-room/101 returns it, ack, then confirm it's
+        filtered out (reminder times are facility-local, not server UTC)."""
         # Find resident in room 101
         rr = requests.get(f"{API}/residents", headers=_h(admin_token), timeout=15)
         target = next(x for x in rr.json() if x.get("room") == "101")
 
-        now = datetime.now(timezone.utc)
-        hhmm = now.strftime("%H:%M")
-        day_short = now.strftime("%a").lower()[:3]
+        import asyncio
+        from routes.facility_local_time import facility_clock, facility_tz
+        clock = facility_clock(asyncio.get_event_loop().run_until_complete(facility_tz()))
+        hhmm, day_short = clock["hhmm"], clock["weekday"]
 
         payload = {
             "resident_id": target["resident_id"],

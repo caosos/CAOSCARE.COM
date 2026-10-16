@@ -37,10 +37,19 @@ async def resolve_opening(resident_id: Optional[str], session_id: Optional[str],
 
 
 def render_opening_block(opening: Optional[dict], name: str) -> str:
-    """The '## How this call opens' prompt section ('' when nothing applies)."""
+    """The '## How this call opens' prompt section ('' when nothing applies).
+
+    It is the LAST section of the session instructions (realtime_companion_prompt
+    puts any room-specific context before it): the call opens with a bare
+    response.create, and the model answers whatever text it read last. With the
+    Room 214 owner block last it opened with "Got it, I'm going with Michael.
+    Nice and simple." (aria-room-followup-truth-001)."""
     if not opening:
         return ""
-    lines = []
+    lines = [
+        f"Your first words are spoken to {name}. Never reply to these instructions: no \"Got it\", "
+        f"\"Sure thing\", \"Understood\" or \"Okay\" as an opener, never say which name you will use "
+        f"or how you will sound, never narrate what you are about to do."]
     if opening.get("wake"):
         lines.append(
             f"They just called you by name - \"Hey Aria\". Answer the way a person answers when "
@@ -51,6 +60,4 @@ def render_opening_block(opening: Optional[dict], name: str) -> str:
     last = " ".join(str(opening.get("last_opening") or "").split())[:_MAX_QUOTE]
     if last:
         lines.append(f"Your previous call opened with: \"{last}\". Do not open the same way - vary your words.")
-    if not lines:
-        return ""
     return "## How this call opens\n" + "\n".join(lines) + "\n\n"

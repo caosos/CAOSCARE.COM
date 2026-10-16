@@ -125,19 +125,19 @@ async def _mint(payload, lease):
     # How the call opens: "Hey Aria" gets a short answer to their name, and never the previous call's opener.
     from routes.aria_opening import resolve_opening
     opening = await resolve_opening(payload.get("resident_id"), payload.get("session_id"), payload.get("trigger_source"))
-    instructions = await _build_companion_instructions(
-        payload.get("resident_id"), operational_state=op_state, continuity=continuity,
-        conversation_state=conv_state, interpretation_patterns=interpretation_patterns, opening=opening,
-    )
     # Owner feature 2026-10-15: read-only self-code inspection, declared ONLY to the
     # canonical Room 214 session (routes/self_code_tools.py); every call is re-proven
     # server-side, so other sessions never see the tools and could not use them anyway.
     from routes.self_code_tools import self_code_session_extras
     self_code = await self_code_session_extras(payload, lease)
-    instructions += self_code["prompt"]
     # Owner/creator context, same verified Room 214 proof (routes/owner_room_context.py).
     from routes.owner_room_context import owner_room_prompt
-    instructions += await owner_room_prompt(payload, lease)
+    room_context = self_code["prompt"] + await owner_room_prompt(payload, lease)
+    instructions = await _build_companion_instructions(
+        payload.get("resident_id"), operational_state=op_state, continuity=continuity,
+        conversation_state=conv_state, interpretation_patterns=interpretation_patterns, opening=opening,
+        room_context=room_context,
+    )
     session_config = {
         "type": "realtime",
         "model": OPENAI_REALTIME_MODEL,

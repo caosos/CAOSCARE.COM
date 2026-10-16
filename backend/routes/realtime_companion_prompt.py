@@ -21,6 +21,7 @@ async def _build_companion_instructions(
     resident_id: str | None, operational_state: dict | None = None,
     continuity: dict | None = None, conversation_state: dict | None = None,
     interpretation_patterns: list | None = None, opening: dict | None = None,
+    room_context: str = "",
 ) -> str:
     """System prompt the resident-facing companion (Aria) speaks under.
 
@@ -34,6 +35,10 @@ async def _build_companion_instructions(
     a senior who has come to trust her. The anti-hallucination block is
     structured so that an empty memory bin produces an explicit "I don't know
     that yet" answer, never an improvised one.
+
+    `room_context` (room-specific sections such as Room 214's self-code and
+    owner blocks) goes before the opening block, which always closes the
+    prompt - see routes/aria_opening.py.
     """
     rn = await _facility_now()
     where = f"{rn['label']}, in {rn['place']}" if rn.get("place") else rn["label"]
@@ -275,7 +280,8 @@ async def _build_companion_instructions(
     ) + CONVERSATION_RULES
     if not resident_id:
         return (_system_self_knowledge() + time_anchor + persona
-                + render_context_tail("them", operational_state) + render_opening_block(opening, "there"))
+                + render_context_tail("them", operational_state) + room_context
+                + render_opening_block(opening, "there"))
 
     r = await db.residents.find_one(
         {"resident_id": resident_id},
@@ -284,7 +290,8 @@ async def _build_companion_instructions(
     )
     if not r:
         return (_system_self_knowledge() + time_anchor + persona
-                + render_context_tail("them", operational_state) + render_opening_block(opening, "there"))
+                + render_context_tail("them", operational_state) + room_context
+                + render_opening_block(opening, "there"))
 
     full_name = (r.get("name") or "").strip()
     preferred = (r.get("preferred_name") or "").strip()
@@ -295,6 +302,6 @@ async def _build_companion_instructions(
                                conversation_state, interpretation_patterns)
     guidance = render_guidance_profile(r.get("aria_guidance_profile"))
     return (_system_self_knowledge() + time_anchor + persona + guidance + profile_and_memory + tail
-            + render_opening_block(opening, name or "there"))
+            + room_context + render_opening_block(opening, name or "there"))
 
 
