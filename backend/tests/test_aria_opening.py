@@ -20,21 +20,21 @@ def test_wake_word_opening_is_a_short_answer_to_their_name():
     assert "one short line" in b and "good afternoon" not in b.lower()
 
 
-def test_previous_opening_is_named_so_it_is_not_repeated():
-    b = render_opening_block({"wake": True, "last_opening": "Good afternoon, Michael. I'm here with you."}, "Michael")
-    assert "Good afternoon, Michael. I'm here with you." in b and "start differently from every one of these" in b.lower()
-
-
-def test_tap_start_keeps_the_normal_greeting_but_still_avoids_repeating():
+def test_previous_openings_are_history_not_quoted_into_the_prompt():
+    """aria-room-opening-context-regression-003: quoted at the end of the prompt, a prior opening was
+    answered and repeated; rotation already keeps its lead out of the suggestions."""
+    prior = "Good afternoon, Michael. I'm here with you."
+    b = render_opening_block({"wake": True, "last_opening": prior, "recent_openings": [prior]}, "Michael")
+    assert prior not in b and "most recent calls opened" not in b
     tap = render_opening_block({"wake": False, "last_opening": None}, "Michael")
     assert "Hey Aria" not in tap and "one short line" not in tap         # the normal greeting rules apply
-    b = render_opening_block({"wake": False, "last_opening": "Hi Michael."}, "Michael")
-    assert "Hey Aria" not in b and "Hi Michael." in b
+    b = render_opening_block({"wake": False, "last_opening": "Hi Michael.", "recent_openings": ["Hi Michael."]}, "Michael")
+    assert "Hey Aria" not in b and "Hi Michael." not in b
 
 
-def test_opening_text_is_bounded():
-    b = render_opening_block({"wake": True, "last_opening": "x" * 900}, "Michael")
-    assert "x" * 200 in b and "x" * 201 not in b and len(b) < 1200
+def test_opening_block_is_bounded():
+    b = render_opening_block({"wake": True, "last_opening": "x" * 900, "recent_openings": ["x" * 900]}, "Michael")
+    assert "x" * 20 not in b and len(b) < 1200
 
 
 @pytest.mark.skipif(os.environ.get("DB_NAME") in ("caoscare", "", None), reason="writes conversation rows; scratch DB only")
@@ -55,8 +55,9 @@ def test_resolve_reads_the_previous_sessions_first_assistant_line():
             assert (o["wake"], o["last_opening"]) == (True, "Good afternoon, Michael."), o
             o2 = await resolve_opening(rid, "rt_b", "manual_kiosk")   # a reconnect of rt_b does not quote itself
             assert (o2["wake"], o2["last_opening"]) == (False, "Old first line."), o2
-            assert await resolve_opening(None, "rt_x", "wake_word") == {"wake": True, "last_opening": None,
-                                                                         "recent_openings": [], "minutes_since_last": None}
+            none = await resolve_opening(None, "rt_x", "wake_word")
+            assert {k: none[k] for k in ("wake", "last_opening", "recent_openings", "minutes_since_last", "name")} == {
+                "wake": True, "last_opening": None, "recent_openings": [], "minutes_since_last": None, "name": None}
         finally:
             await db.conversations.delete_many({"resident_id": rid})
     asyncio.get_event_loop().run_until_complete(go())

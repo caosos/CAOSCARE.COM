@@ -61,6 +61,14 @@ describe("typed input goes into the same Realtime conversation", () => {
     expect(state.replyPending).toBe(false);
   });
 
+  test("the greeting carries its own response instructions when the mint gave them (aria-room-opening-context-regression-003)", () => {
+    const sent = [];
+    const greeting = { instructions: 'Say exactly this: "Yes, Michael?"', tool_choice: "none" };
+    markResponseRequested(createTypedTurnState(), (e) => sent.push(e), greeting);
+    markResponseRequested(createTypedTurnState(), (e) => sent.push(e));   // no greeting from the mint: bare, as before
+    expect(sent).toEqual([{ type: "response.create", response: greeting }, { type: "response.create" }]);
+  });
+
   test("a response finishing with nothing typed sends nothing", () => {
     const sent = [];
     const state = createTypedTurnState();

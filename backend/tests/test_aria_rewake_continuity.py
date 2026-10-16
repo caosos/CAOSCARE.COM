@@ -45,7 +45,8 @@ async def _scenario(monkeypatch):
         p = await _prompt(rid, "rt_rewake")
         assert "same conversation picking back up" in p and "Carry the thread forward silently" in p
         assert "I want to see how the Cubs did" in p                       # the last exchange is there
-        assert "Didn't I just talk to you, Michael?" not in p and "Good afternoon, Michael. I'm here with you." in p
+        assert "Didn't I just talk to you, Michael?" not in p
+        assert "Good afternoon, Michael. I'm here with you." not in p        # a prior opening is not quoted back
         assert "back again" not in p.lower() and "sit quietly" not in p.lower()
         assert "follow 'How this call opens' below" in p and "greet appropriately" not in p
 

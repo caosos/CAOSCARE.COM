@@ -17,7 +17,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from routes.aria_opening import (TAP_OPENINGS, WAKE_OPENINGS, opening_lead, render_opening_block,  # noqa: E402
+from routes.aria_opening import (TAP_OPENINGS, WAKE_OPENINGS, greeting_response, opening_lead, render_opening_block,  # noqa: E402
                                  resolve_opening, suggested_openings)
 from routes.realtime_companion_prompt import _build_companion_instructions  # noqa: E402
 from routes.realtime_facility import greeting_note  # noqa: E402
@@ -37,7 +37,7 @@ def test_the_scratch_repeat_is_not_suggested_again():
     sug = suggested_openings(o, "Michael", "night")
     assert sug and all(not s.startswith("I'm here") for s in sug)
     block = render_opening_block(o, "Michael", "night")
-    assert "Start differently from every one of these" in block and "I'm here, Michael." in block  # quoted, not offered
+    assert "I'm here, Michael." not in block                              # neither offered nor quoted back
     assert "Good night" not in block                                      # an opening "good night" reads as goodbye
 
 
@@ -78,7 +78,8 @@ def test_consecutive_calls_rotate_through_real_resolve_and_render(resident, wake
         assert opening_lead(line, "Michael") not in recent_leads, (i, line, said[-3:])
         block = render_opening_block(o, "Michael", "night")
         for prev in said[-3:]:
-            assert f'"{prev}"' in block                                   # the last three are quoted
+            assert f'"{prev}"' not in block                               # history is not quoted back
+        assert f'"{line}"' in greeting_response({**o, "name": "Michael", "part_of_day": "night"})["instructions"]
         said.append(line)
         run(db.conversations.insert_many([
             {"resident_id": rid, "session_id": sid, "role": "assistant", "content": line,
