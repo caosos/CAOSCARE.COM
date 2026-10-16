@@ -1,13 +1,13 @@
 // Mouse/pen/touch rearranging for the workspace boxes.
-// Press anywhere on a box (not on a button, link or field) and move a few
-// pixels: the box lifts and follows the pointer, the other boxes shuffle
+// Press a box's drag handle (data-drag-handle) and move a few pixels - only
+// the handle moves a box, so the box's numbers and controls stay clickable
+// (owner rule, #153 slice 2): the box lifts and follows the pointer, the other boxes shuffle
 // live to show where it will land, and releasing saves that order. Releasing
 // over a gap keeps the last position shown. Escape cancels.
 import { useCallback, useRef, useState } from "react";
 import { moveBox } from "./useWorkspaceLayout";
 
 const THRESHOLD = 6;   // px before a press becomes a drag (clicks stay clicks)
-const INTERACTIVE = "button, a, input, select, textarea, [role='menuitem'], [data-no-drag]";
 
 export function useBoxDrag(boxes, commit) {
   const [drag, setDrag] = useState(null);   // {id, x, y, w, h, ox, oy}
@@ -15,7 +15,7 @@ export function useBoxDrag(boxes, commit) {
   const previewRef = useRef(null);
 
   const onPointerDown = useCallback((id) => (e) => {
-    if (e.button !== 0 || (e.target.closest(INTERACTIVE) && !e.target.closest("[data-drag-handle]"))) return;
+    if (e.button !== 0 || !e.target.closest("[data-drag-handle]")) return;
     const card = e.currentTarget.getBoundingClientRect();
     const start = { x: e.clientX, y: e.clientY };
     let started = false;

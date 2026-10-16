@@ -16,7 +16,7 @@ function Value({ state }) {
   return <div className="mt-1 text-[34px] font-bold leading-none tracking-tight text-[#111827]">{state.value}</div>;
 }
 
-// One box. Drag the handle (or use the menu) to move it; the eye hides it;
+// One box. Only the handle drags it (or use the menu / arrow keys on the handle); the eye hides it;
 // the menu also sets its width. Clicking the box opens its records.
 export default function WorkspaceCard({ widget, box, state, children, onOpen, onHide, onResize, onStep,
                                         onPointerDown, placeholder }) {
@@ -29,7 +29,7 @@ export default function WorkspaceCard({ widget, box, state, children, onOpen, on
       onPointerDown={onPointerDown}
       data-testid={`ws-box-${widget.id}`}
       className={`group relative flex flex-col rounded-2xl border p-6 pt-5 shadow-[0_1px_2px_rgba(16,24,40,0.04)]
-        cursor-grab transition-shadow active:cursor-grabbing ${tint.card}
+        transition-shadow ${tint.card}
         ${placeholder ? "border-2 border-dashed !border-[#2F80ED] opacity-40" : ""}`}
       style={{ gridColumn: `span ${box.w} / span ${box.w}` }}
     >
