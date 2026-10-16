@@ -26,14 +26,15 @@ def test_previous_opening_is_named_so_it_is_not_repeated():
 
 
 def test_tap_start_keeps_the_normal_greeting_but_still_avoids_repeating():
-    assert render_opening_block({"wake": False, "last_opening": None}, "Michael") == ""
+    tap = render_opening_block({"wake": False, "last_opening": None}, "Michael")
+    assert "Hey Aria" not in tap and "one short line" not in tap         # the normal greeting rules apply
     b = render_opening_block({"wake": False, "last_opening": "Hi Michael."}, "Michael")
     assert "Hey Aria" not in b and "Hi Michael." in b
 
 
 def test_opening_text_is_bounded():
     b = render_opening_block({"wake": True, "last_opening": "x" * 900}, "Michael")
-    assert len(b) < 900
+    assert "x" * 200 in b and "x" * 201 not in b and len(b) < 1200
 
 
 @pytest.mark.skipif(os.environ.get("DB_NAME") in ("caoscare", "", None), reason="writes conversation rows; scratch DB only")

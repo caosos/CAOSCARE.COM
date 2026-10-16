@@ -1055,3 +1055,9 @@ _Public parts superseded by the 2026-10-16 public-site entry below (`ProductShot
 - `backend/routes/realtime_call_quality.py`: `POST/GET /api/realtime-diagnostics/call-quality` — graded GOOD/DEGRADED/BAD windows and one receipt per call (`db.realtime_call_quality[_windows]`); browser side `frontend/src/lib/callQualityMonitor.js`.
 - `frontend/src/lib/callAudioDuck.js` (persisted, idempotent duck/restore ledger; `recover()` on mount), `callAudioOptions.js` (localStorage + `call_audio_*` activation events); `endIntent.js` comma-joined farewells ("I'll talk to you later, goodbye.").
 - Tests: `backend/tests/test_{room_device_inventory,medication_status,aria_self_memory_and_owner,realtime_call_quality}.py`; `frontend/src/lib/__tests__/{callAudioLedger,callQualityMonitor,roomInventoryAndMedication}.test.js`, `endIntent.test.js`.
+
+## 2026-10-16 — Room Aria follow-up (aria-room-followup-truth-001, branch `runtime/aria-room-followup-truth`)
+
+- `backend/routes/facility_local_time.py`: `facility_clock(tz, now)` — facility-local `hhmm` / `weekday` / `date` plus that local day's UTC bounds; the one clock medication reminders use (`routes/medications.py` `due_reminders` / `acked_on`, `routes/medication_status.py`).
+- `backend/routes/aria_opening.py` + `realtime_companion_prompt.py` (`room_context=`): room-specific prompt sections go before `## How this call opens`, which always closes the session instructions.
+- Tests: `backend/tests/test_medication_facility_clock.py`, `test_aria_opening_is_last.py`; `test_aria_opening.py`, `iter6_test.py` updated.

@@ -3,16 +3,20 @@
 Flow:
   - Admin creates a MedReminder for a resident: title, time "HH:MM", days list
     ("mon".."sun" or "daily"), active flag.
-  - Each kiosk, when idle, polls /api/medications/due/{room} every 60s.
-  - If a reminder matches the current local clock window (±1 minute) and hasn't
-    been acknowledged today, the kiosk speaks the message and logs acknowledgement.
+  - Each kiosk, when idle, polls /api/medications/due/by-room/{room} every 60s.
+  - If a reminder matches the current minute on the FACILITY's clock (its
+    configured timezone, routes/facility_local_time.py) and hasn't been
+    acknowledged that facility-local day, the kiosk speaks the message and logs
+    acknowledgement. Until aria-room-followup-truth-001 this compared against
+    server UTC, so an 18:00 reminder in Chicago fired at 13:00 or 12:00 local.
 """
-from datetime import datetime, timezone, timedelta
+from datetime import datetime
 from typing import Optional, List, Literal
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field, ConfigDict
 from deps import db, get_current_user
 from models import now_utc, uid
+from routes.facility_local_time import facility_clock, facility_tz
 
 router = APIRouter(prefix="/medications", tags=["medications"])
 
@@ -87,45 +91,45 @@ async def delete_reminder(reminder_id: str, user=Depends(get_current_user)):
     return {"ok": True}
 
 
-@router.get("/due/by-room/{room}")
-async def due_for_room(room: str):
-    """Kiosk calls this without auth. Returns reminders matching the current
-    minute (server UTC time) for residents in `room`, filtered to those NOT
-    already acknowledged today."""
-    now_dt = now_utc()
-    hhmm = now_dt.strftime("%H:%M")
-    day_short = now_dt.strftime("%a").lower()[:3]  # mon/tue/...
-    today = now_dt.date().isoformat()
+async def acked_on(reminder_id: str, clock: dict) -> Optional[dict]:
+    """The reminder's acknowledgement within the facility-local day of `clock`,
+    matched on the UTC `at` timestamp so rows written before `day` was
+    facility-local (it was the server's UTC date) are judged correctly."""
+    return await db.med_ack.find_one({"reminder_id": reminder_id,
+                                      "at": {"$gte": clock["day_start_utc"], "$lt": clock["day_end_utc"]}},
+                                     {"_id": 0})
 
+
+async def due_reminders(room: str, clock: dict) -> list:
+    """Active reminders for `room` scheduled at this facility-local minute and
+    weekday, not yet acknowledged this facility-local day."""
     candidates = await db.med_reminders.find({
         "room": room,
         "active": True,
-        "time_hhmm": hhmm,
-        "days": day_short,
+        "time_hhmm": clock["hhmm"],
+        "days": clock["weekday"],
     }, {"_id": 0}).to_list(20)
+    return [_iso(c) for c in candidates if not await acked_on(c["reminder_id"], clock)]
 
-    out = []
-    for c in candidates:
-        already = await db.med_ack.find_one({
-            "reminder_id": c["reminder_id"],
-            "day": today,
-        }, {"_id": 0})
-        if not already:
-            out.append(_iso(c))
-    return out
+
+@router.get("/due/by-room/{room}")
+async def due_for_room(room: str):
+    """Kiosk calls this without auth."""
+    return await due_reminders(room, facility_clock(await facility_tz()))
 
 
 @router.post("/ack/{reminder_id}")
 async def ack_reminder(reminder_id: str):
     """Kiosk calls this the moment it speaks the reminder so it doesn't repeat."""
-    today = now_utc().date().isoformat()
-    existing = await db.med_ack.find_one({"reminder_id": reminder_id, "day": today}, {"_id": 0})
+    clock = facility_clock(await facility_tz())
+    existing = await acked_on(reminder_id, clock)
     if existing:
         return {"ok": True, "already": True}
     doc = {
         "ack_id": uid("ack"),
         "reminder_id": reminder_id,
-        "day": today,
+        "day": clock["date"],              # facility-local date
+        "tz": clock["tz"],
         "at": now_utc().isoformat(),
     }
     await db.med_ack.insert_one(doc)

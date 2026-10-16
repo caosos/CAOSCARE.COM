@@ -15,16 +15,15 @@ anyone is "on the way". This is the one truthful read + action path:
      is coming or on the way, because no part of the system can prove that.
 """
 import re
-from datetime import datetime
 from typing import Optional
-from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter
 from pydantic import BaseModel
 
 from deps import db
 from routes.aria_operational_state import task_lifecycle
-from routes.facility_local_time import facility_tz
+from routes.facility_local_time import facility_clock, facility_tz
+from routes.medications import acked_on
 from routes.resident_requests import ResidentRequestInput, create_resident_request, OPEN_TASK_STATUSES
 
 router = APIRouter(prefix="/medications", tags=["medications"])
@@ -51,19 +50,16 @@ def _clock(hhmm: str) -> str:
     return f"{h % 12 or 12}:{m:02d} {'AM' if h < 12 else 'PM'}"
 
 
-async def _schedule_today(resident_id: str, now_local: datetime) -> list:
-    day = now_local.strftime("%a").lower()[:3]
+async def _schedule_today(resident_id: str, clock: dict) -> list:
     rows = await db.med_reminders.find(
-        {"resident_id": resident_id, "active": True, "days": day},
+        {"resident_id": resident_id, "active": True, "days": clock["weekday"]},
         {"_id": 0, "reminder_id": 1, "title": 1, "time_hhmm": 1},
     ).sort("time_hhmm", 1).to_list(20)
-    # med_ack.day was written from the server's UTC date; accept either key.
-    days = {now_local.date().isoformat(), datetime.utcnow().date().isoformat()}
     out = []
     for r in rows:
-        ack = await db.med_ack.find_one({"reminder_id": r["reminder_id"], "day": {"$in": list(days)}}, {"_id": 0, "at": 1})
+        ack = await acked_on(r["reminder_id"], clock)
         out.append({"title": r.get("title"), "time": _clock(r["time_hhmm"]), "time_hhmm": r["time_hhmm"],
-                    "due": r["time_hhmm"] <= now_local.strftime("%H:%M"),
+                    "due": r["time_hhmm"] <= clock["hhmm"],
                     "reminder_announced": bool(ack)})
     return out
 
@@ -80,9 +76,8 @@ def _staff_line(task: dict) -> Optional[str]:
 
 
 async def check_medication_status(data: MedicationStatusInput) -> dict:
-    tz = await facility_tz()
-    now_local = datetime.now(ZoneInfo(tz))
-    schedule = await _schedule_today(data.resident_id, now_local) if data.resident_id else []
+    clock = facility_clock(await facility_tz())
+    schedule = await _schedule_today(data.resident_id, clock) if data.resident_id else []
     scope = {"resident_id": data.resident_id} if data.resident_id else {"room": data.room}
     # Only an open MEDICATION request can confirm anything about medication;
     # an unrelated open nursing request (toileting, a fall check) never does.
@@ -92,7 +87,7 @@ async def check_medication_status(data: MedicationStatusInput) -> dict:
     open_task = next((t for t in open_rows if _is_medication_request(t)), None)
     confirmed = _staff_line(open_task) if open_task else None
     result = {
-        "ok": True, "source": "medication_status_check", "facility_time": now_local.strftime("%H:%M"),
+        "ok": True, "source": "medication_status_check", "facility_time": clock["hhmm"],
         "scheduled_today": schedule,
         # Nothing in CAOSCare observes a staff member walking to the room.
         "someone_confirmed_on_the_way": False,
