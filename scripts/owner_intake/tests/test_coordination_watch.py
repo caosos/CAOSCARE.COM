@@ -28,6 +28,19 @@ def test_classify_main_claude_states_and_boundary():
     assert r["state"] == "BLOCKED"
 
 
+def test_state_comes_from_the_leading_keyword_not_body_words():
+    # the two real 2026-10-16 #166 receipts: neither is DONE, though their bodies say "Done Today" / "PASSED"
+    r = gh.classify(c(gh.MAIN + "\nWORKING careops-153-drilldown-truth-002 \u2014 READY FOR OWNER REVIEW (not DONE)\n\n"
+                      "- **Scope delivered:** Nursing Open, Nursing Done Today, Kitchen Done Today."))
+    assert r["state"] == "WORKING"
+    r = gh.classify(c(gh.MAIN + "\nWORKING careops-153-drilldown-truth-002 \u2014 BROWSER ACCEPTANCE PASSED; MERGE NEEDS MICHAEL"))
+    assert r["state"] == "WORKING"
+    r = gh.classify(c(gh.MAIN + "\nDONE careops-153-drilldown-truth-002\n\n- **Merged:** PR #177"))
+    assert r["state"] == "DONE"
+    r = gh.classify(c(gh.MAIN + "\nACK public-162-site-redesign-001\n\n- blocked on nothing; BLOCKED words below are history"))
+    assert r["state"] == "ACK"
+
+
 def test_classify_owner_watcher_and_others():
     assert gh.classify(c("QUEUE UPDATE - OWNER DIRECTION"))["kind"] == "owner_directive"
     assert gh.classify(c(gh.WATCH + gh.MAIN + "\n**anything**"))["kind"] == "watcher"
