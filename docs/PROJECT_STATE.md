@@ -1141,7 +1141,7 @@ Agent: Claude Code (Fable 5.1, "Claude 2" cost-control lane), branch `fix/realti
   - Aria speaks the backend's `spoken` line. A new "## Appointments" conversation rule applies.
 - **Staff API:** `POST /api/appointments/sources`, `GET /api/appointments` (signed-in staff). Facility timezone comes from `facility_clock`, and instants are DST-correct.
 - **Verified:**
-  - Backend gate (before the final steering and result-label edits): 1426 passed / 3 failed / 31 skipped. The 3 are the same as the #182–#184 baseline: `test_ops_metrics` ×2 and `test_therapy_recurrence` weekly.
+  - Backend gate on the final code: 1425 passed / 4 failed / 31 skipped. `test_room214_self_code_session` failed only because HEAD moved mid-run (`d6f42aa` → `3a8280e`, the known commit-during-gate case) and passes on rerun (self-code + appointment 65/65). The other 3 are the #182–#184 baseline: `test_ops_metrics` ×2 and `test_therapy_recurrence` weekly.
   - New `test_appointment_verification.py`: 17 DB-direct tests covering A–G plus an HTTP test.
   - Frontend: 132 suites / 858 tests; production build OK.
 - **Scratch live acceptance** on the scratch Room 214 copy (`caoscare_aria_accept_e7`, simulated devices, headless Chrome with a fake microphone, real `gpt-realtime-2.1-mini`). Sources after call 1 were added through `record_source()` as the labelled process `system:scratch_acceptance_email`.
