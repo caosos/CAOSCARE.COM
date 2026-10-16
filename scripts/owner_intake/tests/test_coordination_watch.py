@@ -115,3 +115,13 @@ def test_tick_dedups_and_dispatches_test_item_only_while_live(tmp_path, monkeypa
     monkeypatch.setattr(host, "coordinator_state", lambda pin, stall: {"verdict": "LIVE_IDLE", "live": True, "busy": False, "evidence": ["e"]})
     cw.tick(st, q)
     assert "task-a" in st["dispatched"]
+
+
+def test_boundary_needs_release_header_and_ignores_negation():
+    c = lambda body: {"body": body, "user": {"login": "caosos"}, "id": 1, "html_url": "u", "created_at": "t"}
+    not_deployed = gh.classify(c(gh.MAIN + "\n## #153 - Customize Layout removed - IMPLEMENTED / TESTED / BROWSER VERIFIED, not deployed\n\nStart c4225221 (production release)."))
+    assert not_deployed["boundary"] is False and not_deployed["state"] != "DONE"
+    release = gh.classify(c(gh.MAIN + "\n## FINAL PRODUCTION RELEASE RECEIPT - 2026-10-15 21:50 CDT\n\nEngineering acceptance by Claude."))
+    assert release["boundary"] is True
+    plan = gh.classify(c(gh.MAIN + "\n## Release plan (not deployed)\n\nDEPLOY later."))
+    assert plan["boundary"] is False

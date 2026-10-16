@@ -4,6 +4,7 @@
   "branch": "integration/2026-09-27",
   "authoritative_issue": 166,
   "watch_issues": [166, 153, 168],
+  "boundary_issues": [166, 168],
   "mirror_pr": 131,
   "coordinator": {
     "session_name": "caoscare-1-ec",

@@ -130,8 +130,9 @@ def tick(st: dict, q: dict) -> dict:
         elif cl["kind"] in ("coordinator_receipt", "receiver_status", "da_delivery"):
             st["owner_open"] = {k: v for k, v in st["owner_open"].items() if v["at"] > cl["created_at"]}   # any coordinator post answers earlier directives
             st["last"] = {"state": cl["state"], "at": cl["created_at"], "url": cl["url"], "items": cl["items"], "header": cl["header"]}
-            if cl["boundary"]:
+            if cl["boundary"] and cl["issue"] in q.get("boundary_issues", [q["authoritative_issue"]]):
                 st["boundary_seen"] = True
+                st["boundary_url"] = cl["url"]
             task = ", ".join(cl["items"]) or "UNKNOWN"
             publish(st, q, key, f"COORDINATOR {cl['state']}: {cl['header'][:90]}",
                     base_fields(q, hs, task_id=task, state=cl["state"] + (" / BOUNDARY" if cl["boundary"] else ""),
@@ -176,7 +177,7 @@ def tick(st: dict, q: dict) -> dict:
     else:
         ok, why = cq.gate_open(q, st["boundary_seen"], hs)
         nxt = cq.next_ready(q, dispatched_ids)
-        if nxt and ok and all(d.get("ack_url") for d in st["dispatched"].values() if d.get("kind") != "coordination_test"):
+        if nxt and ok and all(d.get("ack_url") for d in st["dispatched"].values()):   # every earlier delivery (test included) ACKed
             deliver(st, q, hs, nxt, why)
         summary["gate"] = why
         summary["prepared_next"] = nxt["id"] if nxt else None
@@ -205,7 +206,7 @@ def main():
     if a.status:
         hs = host.coordinator_state(q["coordinator"], q["timers"]["stall_minutes"])
         print(json.dumps({"host": hs, "duplicates": host.duplicate_guard(q["coordinator"]), "cursor": st["cursor"],
-                          "last": st["last"], "boundary_seen": st["boundary_seen"], "dispatched": st["dispatched"],
+                          "last": st["last"], "boundary_seen": st["boundary_seen"], "boundary_url": st.get("boundary_url"), "dispatched": st["dispatched"],
                           "published": len(st["published"]), "gate": cq.gate_open(q, st["boundary_seen"], hs)[1]}, indent=1))
         return
     while True:

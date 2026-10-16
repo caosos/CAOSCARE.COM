@@ -31,6 +31,8 @@ STATE_RX = [
     ("RECEIPT", re.compile(r"\bRECEIPT\b")),
 ]
 BOUNDARY_RX = re.compile(r"\b(LINODE|PRODUCTION|RELEASE|DEPLOY(ED|MENT)?)\b")
+BOUNDARY_DONE_RX = re.compile(r"\b(RECEIPT|DONE|DEPLOYED|COMPLETE[D]?|ACCEPTED)\b")
+NEGATED_RX = re.compile(r"\b(NOT|NO|NEVER|UN)[ -]?(YET[ -])?(DEPLOYED|RELEASED|DONE|COMPLETE[D]?|ACCEPTED|LIVE|LOADED|MERGED)\b")
 ITEM_RX = re.compile(r"\b(da-[0-9a-f]{10}|coord-[a-z0-9-]+|careops-[a-z0-9-]+-\d{3}|CO-\d{3})\b")
 SHA_RX = re.compile(r"\b[0-9a-f]{7,40}\b")
 
@@ -65,13 +67,16 @@ def classify(c: dict, owner_logins=("caosos",)) -> dict:
         kind = "receiver_status"
     elif (c.get("user") or {}).get("login") in owner_logins:
         kind = "owner_directive"
+    head_up = NEGATED_RX.sub(" ", head.upper())          # "not deployed" is not DEPLOYED
     state = "none"
     for name, rx in STATE_RX:
-        if rx.search(head.upper()):
+        if rx.search(head_up):
             state = name
             break
-    boundary = kind == "coordinator_receipt" and state == "DONE" and bool(BOUNDARY_RX.search(head.upper()))
     first = next((ln for ln in body.strip().splitlines() if ln.strip() and not ln.strip().startswith("<!--")), "")
+    header_up = NEGATED_RX.sub(" ", first.upper())
+    # a release boundary is a coordinator receipt whose HEADER names the release/production/deploy AND a completion word
+    boundary = kind == "coordinator_receipt" and bool(BOUNDARY_RX.search(header_up)) and bool(BOUNDARY_DONE_RX.search(header_up))
     return {"kind": kind, "state": state, "boundary": boundary, "items": sorted(set(ITEM_RX.findall(body[:2000]))),
             "shas": SHA_RX.findall(head)[:3], "url": c.get("html_url"), "created_at": c.get("created_at"),
             "id": c.get("id"), "header": re.sub(r"<!--.*?-->", "", first)[:160].strip()}
