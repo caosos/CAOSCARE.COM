@@ -34,7 +34,9 @@ LEAD_RX = re.compile(r"^[\W_]*(ACK|WORKING|DONE|BLOCKED)\b")
 BOUNDARY_RX = re.compile(r"\b(LINODE|PRODUCTION|RELEASE|DEPLOY(ED|MENT)?)\b")
 BOUNDARY_DONE_RX = re.compile(r"\b(RECEIPT|DONE|DEPLOYED|COMPLETE[D]?|ACCEPTED)\b")
 NEGATED_RX = re.compile(r"\b(NOT|NO|NEVER|UN)[ -]?(YET[ -])?(DEPLOYED|RELEASED|DONE|COMPLETE[D]?|ACCEPTED|LIVE|LOADED|MERGED)\b")
-ITEM_RX = re.compile(r"\b(da-[0-9a-f]{10}|coord-[a-z0-9-]+|careops-[a-z0-9-]+-\d{3}|CO-\d{3})\b")
+# Queue item ids: <lane>-<words...>-NNN (careops-153-drilldown-truth-002, public-162-site-redesign-001),
+# plus coord-*, Desktop-Agent da-<hex> and CO-NNN. A missing lane here silently drops ACK/DONE (2026-10-16).
+ITEM_RX = re.compile(r"\b(da-[0-9a-f]{10}|coord-[a-z0-9-]+|[a-z][a-z0-9]*(?:-[a-z0-9]+)+-\d{3}|CO-\d{3})\b")
 SHA_RX = re.compile(r"\b[0-9a-f]{7,40}\b")
 
 

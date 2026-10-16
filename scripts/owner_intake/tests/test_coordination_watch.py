@@ -191,3 +191,11 @@ def test_next_real_item_waits_for_done_of_previous(tmp_path, monkeypatch):
     monkeypatch.setattr(w.gh, "comments_since", lambda repo, n, since: [])
     w.tick(st, q)
     assert len(st["dispatched"]) == 2                                      # no re-dispatch
+
+
+def test_item_ids_from_any_queue_lane_are_recognised():
+    # 2026-10-16: the #162 ACK was seen but not linked, because only careops-/coord- ids matched
+    r = gh.classify(c(gh.MAIN + "\nACK public-162-site-redesign-001\n\n- Room 214 and room-214 are not items"))
+    assert r["state"] == "ACK" and r["items"] == ["public-162-site-redesign-001"]
+    r = gh.classify(c(gh.MAIN + "\nDONE careops-153-drilldown-truth-002"))
+    assert r["items"] == ["careops-153-drilldown-truth-002"]
