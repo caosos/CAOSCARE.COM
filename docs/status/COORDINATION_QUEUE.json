@@ -1,0 +1,37 @@
+{
+  "_about": "Dispatch mirror read by scripts/owner_intake/coordination_watch.py. Issue #166 stays authoritative; an item here is dispatchable only while #166 says it is next. Edited by commit, never by the watcher.",
+  "repo": "caosos/CAOSCARE.COM",
+  "branch": "integration/2026-09-27",
+  "authoritative_issue": 166,
+  "watch_issues": [166, 153, 168],
+  "mirror_pr": 131,
+  "coordinator": {
+    "session_name": "caoscare-1-ec",
+    "session_id": "11ef0ad5-1ee5-4ac4-8da0-a299aa6471f3",
+    "cwd_prefix": "/home/caoscare-1",
+    "receipt_marker": "<!-- claude-caoscare-session -->"
+  },
+  "timers": {"poll_seconds": 60, "ack_minutes": 30, "stall_minutes": 45},
+  "dispatch_gate": {
+    "enabled": true,
+    "require_boundary": "Main Claude's verified DONE/boundary receipt for the EliteDesk -> GitHub -> Linode release (DONE/DEPLOYED with the Main Claude marker on #166 or #168)",
+    "reason": "owner rule 2026-10-15/16: no implementation dispatch until the release posts a verified completion/boundary receipt"
+  },
+  "items": [
+    {
+      "id": "coord-test-001",
+      "kind": "coordination_test",
+      "status": "READY",
+      "text": "TEST ONLY — NO PRODUCT ACTION. This is the local coordination watch (systemd user service caoscare-coordination-watch) proving automatic delivery to the existing coordinator through this issue. Do not change, build, load or deploy anything because of this message. Please post one comment here containing `ACK coord-test-001` at your next convenient tool round, then continue your current release work.",
+      "source": "owner directive 2026-10-16, acceptance items 4-5"
+    },
+    {
+      "id": "careops-153-drilldown-truth-002",
+      "kind": "task",
+      "status": "READY",
+      "text": "#153 slice 2 (owner comment on #153, 2026-10-16T00:37Z): truthful click-through for exactly Nursing Done Today, Nursing Open and Kitchen Done Today; each numerator reconciles to complete canonical run-scoped rows (no 4,000-row cap) and discloses facility/run, real wall date vs simulated day, status, origin, synthetic vs real actor, timezone; click/keyboard opens the exact records with task IDs and linked receipts; UNVERIFIED with the precise reason instead of a fabricated zero; role permissions and resident privacy preserved; card movement stays on the existing drag handle. Same existing CO-008 coordinator on co008/workspace-staff-drilldown; preserve the accepted v11 runtime; do not load/cut over v12 without separate owner authorization. Post ACK/WORKING/DONE on #166 with the item id.",
+      "source": "https://github.com/caosos/CAOSCARE.COM/issues/153 comment 2026-10-16T00:37:31Z; #166 queue update 2026-10-15T21:11:42Z item 3",
+      "not_before": "Main Claude release boundary receipt"
+    }
+  ]
+}

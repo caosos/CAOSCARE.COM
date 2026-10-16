@@ -52,11 +52,15 @@ def load_state() -> dict:
 
 
 def save_state(st: dict) -> None:
+    if DRY:  # a dry run never persists: it must not mark items dispatched or receipts published
+        return
     STATE_DIR.mkdir(parents=True, exist_ok=True)
     STATE_FILE.write_text(json.dumps(st, indent=1))
 
 
 def record(kind: str, **fields) -> None:
+    if DRY:
+        return
     STATE_DIR.mkdir(parents=True, exist_ok=True)
     with EVENTS.open("a") as f:
         f.write(json.dumps({"at": _iso(), "kind": kind, **fields}) + "\n")

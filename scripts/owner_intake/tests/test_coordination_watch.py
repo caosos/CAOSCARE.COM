@@ -37,15 +37,15 @@ def test_classify_owner_watcher_and_others():
 
 
 def test_receipt_bodies_have_required_fields_and_wake_semantics():
-    f = {"timestamp": "t", "project": "CAOSCARE", "task_id": "x"}
+    f = {"timestamp": "t", "task": "x", "coordinator": "caoscare-1-ec"}
     quiet = gh.receipt_body("T", f)
     assert gh.WATCH in quiet and gh.MAIN in quiet                       # routine: must NOT wake Main Claude
     wake = gh.receipt_body("T", f, wake=True)
     assert gh.WATCH in wake and gh.MAIN not in wake                     # delivery: must wake it
     mirror = gh.receipt_body("T", f, mirror=True)
     assert mirror.splitlines()[1].startswith("CAOSCARE RECEIPT:")      # ChatGPT supervisor wake line
-    for k in ("timestamp", "project", "task_id", "coordinator", "state", "branch_sha", "tested_sha", "loaded_sha",
-              "evidence", "eta", "next_check_at", "blocker", "next_action"):
+    for k in ("timestamp", "task", "coordinator", "state", "branch", "head_sha", "tested_sha", "loaded_sha",
+              "host_state", "last_host_evidence", "receipt/evidence", "eta", "next_check_at", "blocker", "next_action"):
         assert f"**{k}:**" in quiet
     assert "**eta:** UNKNOWN" in quiet                                  # no invented ETA
 
