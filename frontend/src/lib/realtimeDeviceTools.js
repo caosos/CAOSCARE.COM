@@ -14,7 +14,10 @@
  */
 import { checkEnding, ENDING_PHRASES } from "./endingPhrases";
 import { API } from "./api";
-import { nearestColorName, colorTempLabel, handleToggleLight } from "./realtimeLightControl";
+import { handleToggleLight } from "./realtimeLightControl";
+import { roomStatusResult } from "./realtimeRoomStatus";
+
+export { describeDevice } from "./realtimeRoomStatus";
 import { findDeviceGuarded } from "./deviceAmbiguity";
 import { VOLUME_PHRASES, ROOM_CONTROL_TOOLS, executeRoomControlTool } from "./realtimeRoomControls";
 import { shapeResearchResult } from "./researchShape";
@@ -90,41 +93,6 @@ export function tvPowerRequestIsGrounded(text, state) {
   return TV_POWER_PATTERNS[state].some((pattern) => pattern.test(heard));
 }
 
-// One human-readable sentence per device, driven entirely by that device's
-// OWN declared capabilities/state - not a hardcoded thermostat/TV special
-// case - so a light, fan, or blinds device registered later is described
-// correctly without a code change here. Shared logic for get_room_status
-// (spoken) - the resident-facing device panel builds its own visual cards
-// from the same raw device list, not this sentence.
-export function describeDevice(d) {
-  const s = d.state || {};
-  const caps = d.capabilities || [];
-  const name = d.room ? d.label.replace(`Room ${d.room} `, "") : d.label;
-  if (d.online === false) return `the ${name} is offline`;
-  const bits = [];
-  if (caps.includes("power")) bits.push(s.power === "on" ? "on" : "off");
-  if (caps.includes("temperature") && typeof s.temperature === "number") bits.push(`set to ${s.temperature} degrees`);
-  if (caps.includes("input") && s.input) bits.push(`on ${s.input}`);
-  // One-way IR state is the last command/estimate, not a device observation.
-  // Never speak that number as though the TV reported it. A state-reporting
-  // adapter may expose a numeric volume without volume_estimated.
-  if (caps.includes("volume") && typeof s.volume === "number" && s.power === "on"
-      && d.protocol !== "ir_blaster" && s.volume_estimated !== true) bits.push(`volume ${s.volume}`);
-  if (caps.includes("brightness") && typeof s.brightness === "number" && s.power === "on") bits.push(`brightness ${s.brightness}`);
-  if (caps.includes("color") && s.color && s.power === "on") {
-    const name = nearestColorName(s.color);
-    if (name) bits.push(name);
-  }
-  if (caps.includes("color_temp") && s.color_temp && s.power === "on") {
-    const label = colorTempLabel(s.color_temp);
-    if (label) bits.push(label);
-  }
-  if (caps.includes("fan_speed") && s.fan_speed != null) bits.push(`fan speed ${s.fan_speed}`);
-  if (caps.includes("position") && s.position != null) bits.push(`position ${s.position}`);
-  if (!bits.length) return null;
-  return `the ${name} is ${bits.join(", ")}`;
-}
-
 // 2026-08-23: "echo_like" (short, resembles Aria's own speech) genuinely
 // suggests mishearing - ask to repeat. Other suspect reasons (a short but
 // non-echoing fragment) are less about mishearing and more about wanting
@@ -146,12 +114,9 @@ export async function executeDeviceTool({ name, args, ctx }) {
 
   if (name === "get_room_status") {
     if (!room) return { ok: false, message: "no room context — I can't check the room devices here." };
-    const r = await fetch(`${API}/devices/public/by-room/${encodeURIComponent(room)}`);
+    const r = await fetch(`${API}/devices/public/room/${encodeURIComponent(room)}/inventory`);
     if (!r.ok) return { ok: false, message: `couldn't reach the room devices (${r.status}).` };
-    const list = await r.json();
-    if (!list.length) return { ok: true, message: "there's nothing to read yet — no devices are set up in this room." };
-    const parts = list.map(describeDevice).filter(Boolean);
-    return { ok: true, message: parts.length ? parts.join("; ") + "." : "I don't have a reading for that yet." };
+    return roomStatusResult(await r.json());
   }
   if (name === "configure_tv_remote") {
     return executeTvRemoteSetup(args, ctx);

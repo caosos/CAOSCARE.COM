@@ -6,6 +6,7 @@ import { API } from "./api";
 import { logRealtimeEvent } from "./realtimeDiagnostics";
 import { clientInstanceId, logActivationClientEvent } from "./activationClient";
 import { createRealtimeHandlers } from "./realtimeMessageHandler";
+import { startCallQualityMonitor } from "./callQualityMonitor";
 import { attachLifecycleDiagnostics } from "./realtimeLifecycleDiagnostics";
 import { buildSessionUpdate } from "./realtimeSessionUpdate";
 import { createLeaseWatchdog } from "./realtimeLeaseWatchdog";
@@ -252,9 +253,9 @@ export async function connectRealtimeVoice({
       pcRef.current = pc;
       dcRef.current = dc;
       localStreamRef.current = stream;
-      lifecycleCleanupRef.current = attachLifecycleDiagnostics({
-        pc, dc, sessionId: sid, onTerminal: recover,
-      });
+      const detachLifecycle = attachLifecycleDiagnostics({ pc, dc, sessionId: sid, onTerminal: recover });
+      const quality = startCallQualityMonitor({ pc, dc, sessionId: sid, room }); // callQualityMonitor.js
+      lifecycleCleanupRef.current = (reason) => { detachLifecycle(); quality.stop(reason); };
     } catch (e) {
       clearTimeout(setupTimer);
       try { pc?.close(); } catch {}

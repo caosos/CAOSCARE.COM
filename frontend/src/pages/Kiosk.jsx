@@ -20,6 +20,7 @@ import DemoSiteBar from "../components/kiosk/demo/DemoSiteBar";
 import RoomScreenPreview from "../components/public/RoomScreenPreview";
 import { sendRoomDeviceCommand } from "../lib/kioskDeviceControl";
 import { createCallAudioCoordinator } from "../lib/callAudioDuck";
+import { callAudioOptions } from "../lib/callAudioOptions";
 import { logActivationClientEvent } from "../lib/activationClient";
 import { useKioskMediaPrime, openInFullTab, inSandboxedIframe } from "../lib/useKioskMediaPrime";
 import { useWakeWord } from "../lib/useWakeWord";
@@ -95,7 +96,9 @@ export default function Kiosk() {
   // One serialized audio queue owns call duck + restore. A rapid new wake
   // cannot race an old call's restore and leave a one-way TV too loud.
   const callAudioRef = useRef(null);
-  if (!callAudioRef.current) callAudioRef.current = createCallAudioCoordinator(sendRoomDeviceCommand);
+  if (!callAudioRef.current) callAudioRef.current = createCallAudioCoordinator(sendRoomDeviceCommand, callAudioOptions());
+  // Undo a duck an earlier page load never restored; restore on unmount (lib/callAudioDuck.js).
+  useEffect(() => { const c = callAudioRef.current; c.recover(); return () => { c.end("kiosk_unmount"); }; }, []);
 
   // Load kiosk + resident
   useEffect(() => {
@@ -249,8 +252,8 @@ export default function Kiosk() {
     await beginConversation(a);
   };
 
-  const restoreAudioAfterCall = async () => {
-    await callAudioRef.current.end();
+  const restoreAudioAfterCall = async (reason) => {
+    await callAudioRef.current.end(reason);
   };
 
   const beginConversation = async (a) => {
@@ -350,7 +353,7 @@ export default function Kiosk() {
       });
       activationGateRef.current.accept(data, true);
       setAlert(data);
-      setCallState("chatting");
+      beginConversation(data);   // same TV/speaker duck as every other call start (2026-10-16)
     } catch {
       toast.error("Could not send the call. Please try again.");
       setCallState("idle");
@@ -358,7 +361,7 @@ export default function Kiosk() {
   };
 
   const cancelCall = async () => {
-    await restoreAudioAfterCall();
+    await restoreAudioAfterCall("cancel_call");
     setAlert(null);
     setCallState("idle");
   };
@@ -609,7 +612,7 @@ export default function Kiosk() {
           setCallState("idle");
           setAlert(null);
           setInitialTypedText(null);
-          restoreAudioAfterCall();
+          restoreAudioAfterCall(result?.reason || "call_end");
         }}
       />
       {voicePickerDialog}
