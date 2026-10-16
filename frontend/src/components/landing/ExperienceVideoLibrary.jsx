@@ -13,12 +13,12 @@ export function ExperienceVideo({ video, featured }) {
   return (
     <figure className="m-0" data-testid={`experience-video-${video.id}`}>
       <div
-        className={`overflow-hidden bg-caos-forest ${
-          featured ? "rounded-[32px] shadow-2xl" : "rounded-2xl shadow-lg"
+        className={`overflow-hidden bg-[#111827] ${
+          featured ? "rounded-xl shadow-[0_12px_40px_-12px_rgba(17,24,39,0.35)]" : "rounded-xl shadow-md"
         }`}
       >
         <video
-          className="block w-full aspect-video bg-caos-forest"
+          className="block w-full aspect-video bg-[#111827]"
           controls
           preload="none"
           playsInline
@@ -33,13 +33,13 @@ export function ExperienceVideo({ video, featured }) {
         </video>
       </div>
       <figcaption className="mt-4">
-        <p className="text-xs font-bold uppercase tracking-[0.22em] text-caos-mute">
+        <p className="text-[12px] font-semibold uppercase tracking-[0.1em] text-[#6B7280]">
           Video {video.number} · {video.duration} · {video.kind}
         </p>
-        <p id={titleId} className="font-display text-xl font-medium text-caos-forest mt-1">
+        <p id={titleId} className="mt-1 text-[19px] font-semibold text-[#111827]">
           {video.title}
         </p>
-        <p id={summaryId} className="text-caos-mute mt-1 leading-relaxed">
+        <p id={summaryId} className="mt-1 text-[15px] leading-relaxed text-[#4B5563]">
           {video.summary}
         </p>
       </figcaption>
@@ -52,28 +52,28 @@ export default function ExperienceVideoLibrary() {
   if (!featured) return null;
   return (
     <section
-      className="px-6 md:px-12 py-20 border-t border-caos-line"
+      className="border-t border-[#E5E7EB] px-4 py-16 sm:px-6 lg:px-8"
       aria-labelledby="experience-library-heading"
       data-testid="experience-video-library"
     >
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-12 items-center">
         <div className="md:col-span-4">
-          <p className="text-xs font-bold uppercase tracking-[0.22em] text-caos-mute mb-4">
+          <p className="text-[13px] font-semibold uppercase tracking-[0.14em] text-[#2F80ED]">
             Video library
           </p>
           <h2
             id="experience-library-heading"
-            className="font-display text-3xl md:text-5xl font-light tracking-tight text-caos-forest"
+            className="mt-2 text-[28px] font-bold leading-tight tracking-tight text-[#111827] sm:text-[36px]"
           >
             See CAOSCare in everyday life.
           </h2>
-          <p className="text-lg text-caos-ink mt-6 leading-relaxed">
+          <p className="mt-4 text-[17px] leading-relaxed text-[#4B5563]">
             Aria isn't a device the resident has to operate. The room is Aria.
           </p>
-          <ul className="mt-6 space-y-3 text-caos-ink">
-            <li className="flex gap-3"><span className="w-1 bg-caos-terracotta" />No complicated interface</li>
-            <li className="flex gap-3"><span className="w-1 bg-caos-terracotta" />No new device to learn</li>
-            <li className="flex gap-3"><span className="w-1 bg-caos-terracotta" />Just talk naturally to the room</li>
+          <ul className="mt-6 space-y-3 text-[16px] text-[#111827]">
+            <li className="flex gap-3"><span className="w-1 rounded bg-[#2F80ED]" />No complicated interface</li>
+            <li className="flex gap-3"><span className="w-1 rounded bg-[#2F80ED]" />No new device to learn</li>
+            <li className="flex gap-3"><span className="w-1 rounded bg-[#2F80ED]" />Just talk naturally to the room</li>
           </ul>
         </div>
         <div className="md:col-span-8">

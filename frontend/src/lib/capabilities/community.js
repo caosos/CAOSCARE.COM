@@ -4,14 +4,14 @@
 // environment are In pilot with their limits stated; none has real-shift
 // staff acceptance yet, so none is Working (see status.js).
 import { statusOf } from "./status";
-import { PHOTOS, SCREENS, PLACEHOLDERS } from "./visuals";
+import { ILLUSTRATIONS, SCREENS } from "./visuals";
 
 export const COMMUNITY_WORKFLOWS = [
   {
     id: "staff_dashboard", name: "Staff dashboard", department: "All staff",
     summary: "The live board where staff see open calls, requests and device status.",
     limitation: "Proven in the CAOSCare test environment with test staff accounts. Not yet used by a community's staff during a real shift.",
-    visuals: [SCREENS.staffDashboard, SCREENS.requestsBoard],
+    visuals: [SCREENS.workspace, SCREENS.overview, SCREENS.recordsDrilldown],
     flow: {
       does: "A resident asks Aria for help or presses the help button.",
       caos: "Creates the call or request and routes it to the right department.",
@@ -25,7 +25,7 @@ export const COMMUNITY_WORKFLOWS = [
     id: "nursing", name: "Nursing & care requests", department: "Nursing",
     summary: "A resident asks Aria for help and nursing gets one request in the resident's own words.",
     limitation: "Proven in the CAOSCare test environment with test staff accounts. Not yet used by a community's staff during a real shift.",
-    visuals: [SCREENS.requestDetail, SCREENS.requestsBoard, PHOTOS.caregiver],
+    visuals: [SCREENS.nursing, SCREENS.recordsDrilldown],
     flow: {
       does: "Resident: \"Could you ask someone to help me to the bathroom?\"",
       caos: "Creates one high-priority nursing request with the resident's words. A repeat request joins the open one.",
@@ -39,7 +39,7 @@ export const COMMUNITY_WORKFLOWS = [
     id: "maintenance", name: "Maintenance", department: "Maintenance",
     summary: "Repairs become work orders that are claimed, started and completed with notes.",
     limitation: "Proven in the CAOSCare test environment with test staff accounts. Not yet used by a community's staff during a real shift.",
-    visuals: [SCREENS.maintenance, PHOTOS.maintenance],
+    visuals: [SCREENS.maintenance, SCREENS.routing],
     flow: {
       does: "Resident: \"The faucet in my bathroom keeps dripping.\"",
       caos: "Creates a maintenance work order with the resident's words.",
@@ -53,7 +53,7 @@ export const COMMUNITY_WORKFLOWS = [
     id: "transportation", name: "Transportation", department: "Transportation",
     summary: "Ride requests that stay pending until a driver and vehicle are assigned.",
     limitation: "Proven in the CAOSCare test environment with test staff accounts. Not yet used by a community's staff during a real shift.",
-    visuals: [SCREENS.transportCalendar, SCREENS.transportWorkspace],
+    visuals: [SCREENS.transportation],
     flow: {
       does: "Resident: \"I need a ride to the eye doctor tomorrow around two.\"",
       caos: "Records the ride request. If a time is missing, Aria asks instead of guessing one.",
@@ -67,7 +67,7 @@ export const COMMUNITY_WORKFLOWS = [
     id: "dining", name: "Kitchen, dining & menus", department: "Kitchen",
     summary: "The kitchen publishes the menu once and residents hear and see the same answer.",
     limitation: "Proven in the CAOSCare test environment with test staff accounts. Not yet used by a community's staff during a real shift.",
-    visuals: [SCREENS.menu, SCREENS.roomToday, SCREENS.kitchen],
+    visuals: [SCREENS.kitchen],
     flow: {
       does: "Resident: \"What's for lunch?\"",
       caos: "Reads the approved menu; says so if none has been published.",
@@ -81,7 +81,7 @@ export const COMMUNITY_WORKFLOWS = [
     id: "activities", name: "Activities & resident programs", department: "Resident programs",
     summary: "Programs published once, available by voice and on the room screen.",
     limitation: "Proven in the CAOSCare test environment with test staff accounts. Not yet used by a community's staff during a real shift.",
-    visuals: [SCREENS.schedule, SCREENS.roomToday],
+    visuals: [SCREENS.schedule],
     flow: {
       does: "Resident: \"What's happening this afternoon?\"",
       caos: "Reads today's published schedule.",
@@ -102,8 +102,8 @@ export const COMMUNITY_WORKFLOWS = [
       sees: "The housekeeping workspace shows it; staff acknowledge, start and complete it.",
       next: "The resident's request status updates on the room screen.",
     },
-    built: "Requests route to a general housekeeping queue and workspace.",
-    pending: "No housekeeping-specific workflow yet (for example room rounds), and not accepted by staff.",
+    built: "Requests route to the housekeeping queue and workspace, including requests that repeat on a schedule.",
+    pending: "Room rounds are not built yet, and housekeeping has not been accepted by staff in a real shift.",
   },
   {
     id: "front_desk", name: "Front desk", department: "Front desk",
@@ -117,20 +117,7 @@ export const COMMUNITY_WORKFLOWS = [
       next: "Desk staff follow up; the request status updates for the resident.",
     },
     built: "A front desk workspace with requests, the ride calendar and the resident directory.",
-    pending: "Not yet used and accepted by front desk staff. Live calls to the desk are planned (see the next card).",
-  },
-  {
-    id: "front_desk_calls", name: "Calls to the front desk", department: "Front desk",
-    summary: "\"Aria, call the front desk\" as a real two-way call.",
-    visuals: [SCREENS.frontDesk],
-    flow: {
-      does: "Would say \"Aria, call the front desk.\"",
-      caos: "Would place a real call to the desk.",
-      sees: "The desk would receive a normal call, logged with the room.",
-      next: "Aria would never claim a call connected unless the phone system confirms it.",
-    },
-    built: "The desk workspace only (shown). Voice calling is not built.",
-    pending: "Planned: real calls to the desk with a clear call status.",
+    pending: "Not yet used and accepted by front desk staff. Requests reach the desk as records, not phone calls: no phone system is connected.",
   },
   {
     id: "administration", name: "Administration & reporting", department: "Leadership",
@@ -150,7 +137,7 @@ export const COMMUNITY_WORKFLOWS = [
     id: "escalation", name: "Alerts & escalation", department: "Nursing",
     summary: "Unanswered calls raised to the next level after set times.",
     limitation: "Proven in the CAOSCare test environment with test staff accounts. Not yet used by a community's staff during a real shift.",
-    visuals: [SCREENS.alertsBoard, SCREENS.escalation],
+    visuals: [SCREENS.alerts, SCREENS.escalation, SCREENS.routing],
     flow: {
       does: "Resident presses for help and nobody acknowledges it.",
       caos: "Raises the call's level after the set times and notifies the next contact.",
@@ -164,7 +151,7 @@ export const COMMUNITY_WORKFLOWS = [
     id: "therapy", name: "Therapy", department: "Therapy",
     summary: "Therapy visits planned, tracked and shown in the resident's own schedule.",
     limitation: "Proven in the CAOSCare test environment with test staff accounts. Not yet used by a community's staff during a real shift.",
-    visuals: [PLACEHOLDERS.therapy],
+    visuals: [SCREENS.therapy],
     flow: {
       does: "Asks Aria \"When is my therapy today?\"",
       caos: "Reads the resident's planned therapy visits, including repeating visits and any linked ride.",
@@ -173,19 +160,6 @@ export const COMMUNITY_WORKFLOWS = [
     },
     built: "Therapy requests, planning, repeating visits, double-booking checks, linked rides and a resident \"Coming up\" list.",
     pending: "Not yet used by a community's therapy staff.",
-  },
-  {
-    id: "beauty", name: "Beauty shop", department: "Salon",
-    summary: "Salon requests that are only booked once the salon confirms.",
-    visuals: [PLACEHOLDERS.beauty],
-    flow: {
-      does: "Would ask \"Can I get my hair done Friday?\"",
-      caos: "Would record an appointment request.",
-      sees: "The salon would confirm or offer another time.",
-      next: "Aria would say it isn't booked until the salon confirms.",
-    },
-    built: "Not built yet.",
-    pending: "Planned.",
   },
 ].map((c) => ({ ...c, status: statusOf(c.id) }));
 

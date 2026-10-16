@@ -1,6 +1,11 @@
 import React, { useState } from "react";
 
-const TAG = { screen: "CAOSCare screen · sample data", photo: "Illustrative photo", placeholder: "Placeholder · no photo yet" };
+// What every public picture is, said on the picture itself (#162: a capability
+// card shows the real capability, or a clearly labelled illustration of it).
+export const VISUAL_TAG = {
+  screen: "CAOSCare screen · sample data",
+  illustration: "Illustration · how it is used",
+};
 
 export function VisualImage({ visual, className = "" }) {
   return (
@@ -9,20 +14,19 @@ export function VisualImage({ visual, className = "" }) {
   );
 }
 
-// Main image plus selectable thumbnails. Screens are real CAOSCare software
-// with sample data; photos are labelled illustrative.
+// Main image plus selectable thumbnails.
 export default function CapabilityVisuals({ visuals }) {
   const [index, setIndex] = useState(0);
   const main = visuals[index] || visuals[0];
   if (!main) return null;
   return (
     <div>
-      <figure className="rounded-2xl border border-caos-line bg-white overflow-hidden">
-        <div className="bg-caos-ambient flex justify-center">
-          <VisualImage visual={main} className="w-full max-h-[60vh] object-contain object-top" />
+      <figure className="m-0 overflow-hidden rounded-xl border border-[#E5E7EB] bg-white">
+        <div className="flex justify-center bg-[#F9FAFB]">
+          <VisualImage visual={main} className="max-h-[60vh] w-full object-contain object-top" />
         </div>
-        <figcaption className="px-4 py-3 text-sm text-caos-ink">
-          <span className="block text-[11px] font-bold uppercase tracking-widest text-caos-mute" data-visual-kind={main.kind}>{TAG[main.kind]}</span>
+        <figcaption className="border-t border-[#E5E7EB] px-4 py-3 text-[14px] text-[#374151]">
+          <span className="block text-[12px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]" data-visual-kind={main.kind}>{VISUAL_TAG[main.kind]}</span>
           {main.alt}
         </figcaption>
       </figure>
@@ -31,8 +35,8 @@ export default function CapabilityVisuals({ visuals }) {
           {visuals.map((v, i) => (
             <li key={v.src}>
               <button type="button" onClick={() => setIndex(i)} aria-pressed={i === index} aria-label={`Show image ${i + 1}: ${v.alt}`}
-                      className={`w-24 h-16 rounded-lg overflow-hidden border-2 bg-caos-ambient ${i === index ? "border-caos-forest" : "border-caos-line"}`}>
-                <VisualImage visual={v} className={`w-full h-full object-cover ${v.kind === "screen" ? "object-left-top" : "object-center"}`} />
+                      className={`h-16 w-24 overflow-hidden rounded-lg border-2 bg-[#F9FAFB] ${i === index ? "border-[#2F80ED]" : "border-[#E5E7EB]"}`}>
+                <VisualImage visual={v} className={`h-full w-full object-cover ${v.kind === "screen" ? "object-left-top" : "object-center"}`} />
               </button>
             </li>
           ))}
