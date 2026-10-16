@@ -1061,3 +1061,9 @@ _Public parts superseded by the 2026-10-16 public-site entry below (`ProductShot
 - `backend/routes/facility_local_time.py`: `facility_clock(tz, now)` — facility-local `hhmm` / `weekday` / `date` plus that local day's UTC bounds; the one clock medication reminders use (`routes/medications.py` `due_reminders` / `acked_on`, `routes/medication_status.py`).
 - `backend/routes/aria_opening.py` + `realtime_companion_prompt.py` (`room_context=`): room-specific prompt sections go before `## How this call opens`, which always closes the session instructions.
 - Tests: `backend/tests/test_medication_facility_clock.py`, `test_aria_opening_is_last.py`; `test_aria_opening.py`, `iter6_test.py` updated.
+
+## 2026-10-16 — Room Aria conversation cleanup (aria-room-conversation-cleanup-002, branch `runtime/aria-room-conversation-cleanup`)
+
+- `backend/routes/aria_opening.py`: `recent_openings` (last three calls), `suggested_openings()` / `opening_lead()` — short natural openings minus any a recent call used.
+- `frontend/src/lib/endController.js` `wasCut()` + `realtimeMessageHandler.js`: a reply cut off by the resident's goodbye is logged as `assistant_transcript_cut_by_goodbye`, never shown or saved as Aria's turn.
+- Tests: `backend/tests/test_aria_opening_rotation.py`, `frontend/src/lib/__tests__/goodbyeCutResponse.test.js`.

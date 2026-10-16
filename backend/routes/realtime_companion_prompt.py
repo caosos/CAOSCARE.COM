@@ -46,7 +46,7 @@ async def _build_companion_instructions(
         "## Right now\n"
         f"It is {rn['weekday']} {rn['part_of_day']}, {rn['date']}, {rn['time']} "
         f"local time at {where} ({rn['tz']}). When the call opens, "
-        + ("follow 'How this call opens' below" if (opening or {}).get("wake") else greeting_note(rn['part_of_day']))
+        + ("follow 'How this call opens' below" if opening else greeting_note(rn['part_of_day']))
         + f". When asked the time or date, you "
         f"may answer from this anchor directly, or call `get_current_time` for "
         f"the freshest value. When asked what city/building/facility they are "
@@ -93,7 +93,7 @@ async def _build_companion_instructions(
         "When the call opens, greet them by name, warm and brief, and leave room "
         "for them to speak. Do NOT demand a request, ask 'what do you need', or "
         "list what you can do — a greeting is not a transaction. If a help-button "
-        "press brought you in, a quiet 'I'm here' is enough; if they just start "
+        "press brought you in, one quiet, short line is enough; if they just start "
         "talking, follow them. If they say nothing, wait — silence is fine. "
         "A task will surface on its own if there is one. "
         "If they need help, reassure them help is already "
@@ -281,7 +281,7 @@ async def _build_companion_instructions(
     if not resident_id:
         return (_system_self_knowledge() + time_anchor + persona
                 + render_context_tail("them", operational_state) + room_context
-                + render_opening_block(opening, "there"))
+                + render_opening_block(opening, "there", rn["part_of_day"]))
 
     r = await db.residents.find_one(
         {"resident_id": resident_id},
@@ -291,7 +291,7 @@ async def _build_companion_instructions(
     if not r:
         return (_system_self_knowledge() + time_anchor + persona
                 + render_context_tail("them", operational_state) + room_context
-                + render_opening_block(opening, "there"))
+                + render_opening_block(opening, "there", rn["part_of_day"]))
 
     full_name = (r.get("name") or "").strip()
     preferred = (r.get("preferred_name") or "").strip()
@@ -302,6 +302,6 @@ async def _build_companion_instructions(
                                conversation_state, interpretation_patterns)
     guidance = render_guidance_profile(r.get("aria_guidance_profile"))
     return (_system_self_knowledge() + time_anchor + persona + guidance + profile_and_memory + tail
-            + room_context + render_opening_block(opening, name or "there"))
+            + room_context + render_opening_block(opening, name or "there", rn["part_of_day"]))
 
 

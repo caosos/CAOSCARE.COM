@@ -10,6 +10,14 @@
  * hook's real stop() ran (data channel, peer, mic tracks, timers, lease).
  * While CLOSING/ENDED the handler ignores tools, transcripts and new speech.
  * A new conversation needs a new handler: a deliberate new wake or UI start.
+ *
+ * The response CUT by the goodbye is not something Aria said: the server's
+ * auto-response to "Thanks, that will be all. Goodbye." had started before the
+ * transcript arrived, the model was narrating its end_call ("Okay, thanks for
+ * the chat - let me take care of that for you now."), ~200 ms of it played
+ * before the clear, and its full text was still shown and saved as her turn
+ * (scratch Room 214 rt_10s3ng43_1792142773769, aria-room-conversation-cleanup-002).
+ * wasCut(responseId) lets the handler keep that text out of the conversation.
  */
 import { createEndCorroboration, transcriptIsOutOfScript, turnMayEnd } from "./endIntent";
 
@@ -18,6 +26,8 @@ const FALLBACK_SPEECH_MS = 1500;
 
 export function createEndController({ send, stop, onEndCall, log, speak = defaultSpeak }) {
   let ended = false, ending = false;
+  let currentId = null;
+  const cut = new Set();   // response ids cancelled because the call is ending
   let inFlight = false, pending = false, requested = false, retried = false, audioPlayed = false, fallbackUsed = false;
   const corroboration = createEndCorroboration();
   // Tool calls the model is still waiting on. Answered before the goodbye is requested, or the model
@@ -54,13 +64,19 @@ export function createEndController({ send, stop, onEndCall, log, speak = defaul
       if (ending || ended) return false;
       ending = true;
       log("local_end", { meta: { via, acknowledged: true, ...detail } });
-      if (inFlight) { pending = true; send({ type: "response.cancel" }); send({ type: "output_audio_buffer.clear" }); }
+      if (inFlight) {
+        pending = true;
+        if (currentId) cut.add(currentId);
+        send({ type: "response.cancel" }); send({ type: "output_audio_buffer.clear" });
+      }
       else { send({ type: "output_audio_buffer.clear" }); requestGoodbye(); }
       return true;
     },
     noteCallOpened(callId) { if (callId) openCalls.add(callId); },
     noteCallAnswered(callId) { openCalls.delete(callId); },
-    noteResponseCreated() { inFlight = true; },
+    noteResponseCreated(id = null) { inFlight = true; currentId = id; },
+    /** True for a response the goodbye cancelled: its words were cut, not said. */
+    wasCut(responseId) { return Boolean(responseId) && cut.has(responseId); },
     noteResponseDone() {
       inFlight = false;
       if (!ending || ended) return;
