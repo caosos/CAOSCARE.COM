@@ -38,6 +38,13 @@ NEGATED_RX = re.compile(r"\b(NOT|NO|NEVER|UN)[ -]?(YET[ -])?(DEPLOYED|RELEASED|D
 # plus coord-*, Desktop-Agent da-<hex> and CO-NNN. A missing lane here silently drops ACK/DONE (2026-10-16).
 ITEM_RX = re.compile(r"\b(da-[0-9a-f]{10}|coord-[a-z0-9-]+|[a-z][a-z0-9]*(?:-[a-z0-9]+)+-\d{3}|CO-\d{3})\b")
 SHA_RX = re.compile(r"\b[0-9a-f]{7,40}\b")
+# A coordinator receipt posted WITHOUT the MAIN marker (2026-10-16: c6219240110 "ACK — aria-appointment-verification-001
+# (session caoscare-1-e7)", c6219463449 "DONE — ... (session caoscare-1-e7)") is recognised only by its exact shape: the
+# FIRST line starts with the state keyword (no quote marker), names an item id, and names a session that exists in Claude
+# Code's own session registry. Owner prose that merely contains ACK/DONE, or quotes a receipt ("> ACK ..."), is not one.
+UNMARKED_RECEIPT_RX = re.compile(r"^(ACK|WORKING|DONE|BLOCKED)\b[^\n]{0,8}?" + ITEM_RX.pattern + r"[^\n]*\(session (?P<session>caoscare-1-[0-9a-z]+)\)")
+SESSION_RX = re.compile(r"\bsession[\s:`*]+(caoscare-1-[0-9a-z]+)\b")
+CMD_RX = re.compile(r"(?:\bc|issuecomment-)(\d{9,12})\b")   # an owner command cited as c6222902220 or by its URL
 
 
 def gh_json(args: list, timeout: int = 60):
@@ -47,8 +54,15 @@ def gh_json(args: list, timeout: int = 60):
     return json.loads(r.stdout or "null")
 
 
-def comments_since(repo: str, number: int, since_iso: str) -> list:
-    return gh_json([f"repos/{repo}/issues/{number}/comments?since={since_iso}&per_page=100"]) or []
+def comments_since(repo: str, number: int, since_iso: str, max_pages: int = 20) -> list:
+    """Every comment updated since `since_iso`, all pages (a burst of >100 comments must not be dropped)."""
+    out = []
+    for page in range(1, max_pages + 1):
+        batch = gh_json([f"repos/{repo}/issues/{number}/comments?since={since_iso}&per_page=100&page={page}"]) or []
+        out.extend(batch)
+        if len(batch) < 100:
+            break
+    return out
 
 
 def post_comment(repo: str, number: int, body: str) -> str:
@@ -56,7 +70,7 @@ def post_comment(repo: str, number: int, body: str) -> str:
     return out.get("html_url", "")
 
 
-def classify(c: dict, owner_logins=("caosos",)) -> dict:
+def classify(c: dict, owner_logins=("caosos",), known_sessions=None) -> dict:
     body = c.get("body") or ""
     head = body[:400]
     kind = "other"
@@ -70,6 +84,10 @@ def classify(c: dict, owner_logins=("caosos",)) -> dict:
         kind = "receiver_status"
     elif (c.get("user") or {}).get("login") in owner_logins:
         kind = "owner_directive"
+    first_raw = next((ln.strip() for ln in body.strip().splitlines() if ln.strip() and not ln.strip().startswith("<!--")), "")
+    unmarked = UNMARKED_RECEIPT_RX.match(first_raw)
+    if kind == "owner_directive" and unmarked and known_sessions is not None and unmarked.group("session") in known_sessions:
+        kind = "coordinator_receipt"            # verified provenance: registry-known session named in the receipt line
     head_up = NEGATED_RX.sub(" ", head.upper())          # "not deployed" is not DEPLOYED
     first = next((ln for ln in body.strip().splitlines() if ln.strip() and not ln.strip().startswith("<!--")), "")
     header_up = NEGATED_RX.sub(" ", first.upper())
@@ -87,7 +105,13 @@ def classify(c: dict, owner_logins=("caosos",)) -> dict:
                 break
     # a release boundary is a coordinator receipt whose HEADER names the release/production/deploy AND a completion word
     boundary = kind == "coordinator_receipt" and bool(BOUNDARY_RX.search(header_up)) and bool(BOUNDARY_DONE_RX.search(header_up))
+    lines = [ln for ln in body.strip().splitlines() if ln.strip() and not ln.strip().startswith("<!--")]
+    sess = SESSION_RX.search("\n".join(lines[:3]))
     return {"kind": kind, "state": state, "boundary": boundary, "items": sorted(set(ITEM_RX.findall(body[:2000]))),
+            # an owner command's own task ids come from its heading: the first line that names an item (the body may cite
+            # other items as examples, e.g. c6222902220 cites aria-appointment-verification-001)
+            "tasks": sorted(set(next((ITEM_RX.findall(ln) for ln in lines[:12] if ITEM_RX.search(ln)), []))), "commands": sorted(set(CMD_RX.findall(body[:3000]))),
+            "session": sess.group(1) if sess else None, "unmarked": kind == "coordinator_receipt" and MAIN not in body,
             "shas": SHA_RX.findall(head)[:3], "url": c.get("html_url"), "created_at": c.get("created_at"),
             "id": c.get("id"), "header": re.sub(r"<!--.*?-->", "", first)[:160].strip()}
 

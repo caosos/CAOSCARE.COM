@@ -48,6 +48,10 @@ def coordinator_state(pin: dict, stall_minutes: float = 45.0) -> dict:
                              f"live sessions: {alive_others}"]}
     r = match[0]
     pid = r.get("pid")
+    if pin.get("session_id") and r.get("sessionId") != pin.get("session_id") or pin.get("session_name") and r.get("name") != pin.get("session_name"):
+        # stale pin: the name now belongs to another session (or the id to another name) - never deliver on a guess
+        return {"verdict": "PIN_MISMATCH", "live": False, "pid": pid, "name": r.get("name"), "session_id": r.get("sessionId"),
+                "evidence": [f"pin {pin.get('session_name')}/{pin.get('session_id')} but registry has {r.get('name')}/{r.get('sessionId')} (pid {pid})"]}
     ev = [f"registry {SESSIONS / (str(pid) + '.json')}",
           f"name {r.get('name')} session {r.get('sessionId')} cwd {r.get('cwd')}"]
     if not _alive(pid):
@@ -65,6 +69,11 @@ def coordinator_state(pin: dict, stall_minutes: float = 45.0) -> dict:
         ev.append(f"pid {pid} alive; registry status {r.get('status')}; no status stamp")
     return {"verdict": verdict, "live": True, "busy": busy, "pid": pid, "name": r.get("name"),
             "session_id": r.get("sessionId"), "cwd": r.get("cwd"), "activity_age_sec": age, "evidence": ev}
+
+
+def known_sessions() -> set:
+    """Every session name Claude Code's registry has recorded on this host (live or not): provenance for unmarked receipts."""
+    return {r.get("name") for r in (_records() or []) if r.get("name")}
 
 
 def duplicate_guard(pin: dict) -> dict:

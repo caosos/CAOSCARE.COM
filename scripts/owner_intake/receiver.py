@@ -8,6 +8,7 @@ Standard library + the authenticated `gh` CLI. No polling, no model calls.
   receiver.py received <item_id> --issue N [--note T]
   receiver.py status <item_id> ACK|WORKING|BLOCKED|DONE --issue N [--note T] [--post]
   receiver.py list [--open]
+  receiver.py pickup <command_id> --task T --session S   -> NEW | DUPLICATE | COMPLETED (act only on NEW)
 """
 import argparse, json, os, socket, subprocess, sys
 from datetime import datetime, timezone
@@ -99,10 +100,30 @@ def cmd_status(a):
     return 0 if ok else 1
 
 
+def cmd_pickup(a):
+    """Idempotent intake: the coordinator records every delivery (comment or peer message) BEFORE acting. Only the first
+    pickup of a command is NEW; a replayed/duplicate delivery prints DUPLICATE, and a command whose task already has a DONE
+    status prints COMPLETED - neither may start or restart work. The row's time is the observed pickup timestamp."""
+    rows = read()
+    cmd = a.command_id if a.command_id.startswith("c") else "c" + a.command_id
+    if any(e["item_id"] == a.task and e["kind"] == "status" and e["status"] == "DONE" for e in rows):
+        verdict = "COMPLETED"
+    elif any(e["kind"] == "pickup" and e.get("command") == cmd for e in rows):
+        verdict = "DUPLICATE"
+    else:
+        verdict = "NEW"
+    append(dict(kind="pickup" if verdict == "NEW" else "pickup_replay", item_id=a.task, command=cmd, session=a.session,
+                issue=a.issue, status=verdict))
+    first = next((e for e in read() if e["kind"] == "pickup" and e.get("command") == cmd), None)
+    print(json.dumps({"verdict": verdict, "command": cmd, "task": a.task, "session": a.session,
+                      "first_pickup_at": first and first["time"]}))
+    return 0
+
+
 def cmd_list(a):
     items = {}
     for e in read():
-        if e["kind"] in ("received", "status"):
+        if e["kind"] in ("received", "status", "pickup"):
             items[e["item_id"]] = e
     for iid, e in items.items():
         if a.open and e["status"] == "DONE":
@@ -120,10 +141,13 @@ def main(argv=None):
     s.add_argument("item_id"); s.add_argument("status", choices=STATUSES)
     s.add_argument("--issue", type=int, required=True); s.add_argument("--note", default="")
     s.add_argument("--post", action="store_true")
+    k = sub.add_parser("pickup")
+    k.add_argument("command_id"); k.add_argument("--task", required=True); k.add_argument("--session", required=True)
+    k.add_argument("--issue", type=int, default=166)
     l = sub.add_parser("list")
     l.add_argument("--open", action="store_true")
     a = ap.parse_args(argv)
-    return {"received": cmd_received, "status": cmd_status, "list": cmd_list}[a.cmd](a)
+    return {"received": cmd_received, "status": cmd_status, "list": cmd_list, "pickup": cmd_pickup}[a.cmd](a)
 
 
 if __name__ == "__main__":
