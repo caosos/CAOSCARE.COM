@@ -35,7 +35,7 @@ export const ROOM_FEATURES = [
     label: "Television",
     fixtures: ["tv"],
     phrase: "Aria, turn on the TV.",
-    what: "Power and input by voice.",
+    what: "Power, volume and mute by voice, and quiet while Aria talks.",
   },
   {
     id: "climate",
@@ -50,13 +50,6 @@ export const ROOM_FEATURES = [
     fixtures: ["window"],
     phrase: "Aria, open the blinds.",
     what: "Daylight and privacy without reaching for a cord.",
-  },
-  {
-    id: "family_call",
-    label: "Calling family",
-    fixtures: ["room"],
-    phrase: "Aria, call my daughter.",
-    what: "Reach family by name, hands-free.",
   },
 ].map((f) => ({ ...f, status: statusOf(f.id) }));
 

@@ -354,7 +354,7 @@ Acceptance: the second room is a repeatable deployment rather than a second cust
 ## PHASE 10 — Public resident / family experience
 
 - [x] Featured original 30-second Video #001 — restored 2026-09-27 (integration `2961ade`, PR #41 `9f7dc4c`, PR #42 `b4934ce`); plays on localhost:3000.
-- [~] Resident imagery — four supplied images organized, merged at `e70fbce` (`frontend/public/media/marketing/`).
+- [~] Resident imagery — four supplied images organized, merged at `e70fbce` (`frontend/public/media/marketing/`); retired 2026-10-16 by #162 in favour of current screens and capability illustrations.
 - [~] Resident actual UI — room-screen screenshots, merged at `e70fbce`.
 - [ ] Morning experience
 - [~] Voice interaction — panel in WIP.

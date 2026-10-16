@@ -166,6 +166,24 @@ h1, h2, h3, h4, h5, h6, .font-display {
 .kiosk-text-xl .caos-emergency-btn { font-size: 4.5rem; }
 .kiosk-text-xl .caos-kiosk-btn { font-size: 3rem; min-height: 170px; }
 
+/* The public demo room screen (/kiosk/demo, #162 owner review 2026-10-16)
+   in the public site's palette: white/gray ground, ink text, CAOSCare blue,
+   a red help button. Real room screens keep the palette above. */
+.kiosk-public {
+  --caos-bone: #F9FAFB;
+  --caos-ambient: #F9FAFB;
+  --caos-forest: #111827;
+  --caos-forest-hover: #1F2937;
+  --caos-terracotta: #DC2626;
+  --caos-terracotta-dark: #B91C1C;
+  --caos-amber: #D97706;
+  --caos-moss: #16A34A;
+  --caos-ink: #111827;
+  --caos-mute: #4B5563;
+  --caos-line: #E5E7EB;
+}
+.kiosk-public .kiosk-hello { font-weight: 700; letter-spacing: -0.03em; }
+
 /* High-contrast amber-on-black — built for residents with low vision or
    cataracts. Overrides the forest/bone palette with a WCAG-AAA pairing. */
 .kiosk-hc { background: #000 !important; color: #FFC857 !important; }
@@ -173,6 +191,20 @@ h1, h2, h3, h4, h5, h6, .font-display {
 .kiosk-hc p,
 .kiosk-hc span { color: #FFC857 !important; }
 .kiosk-hc [data-testid="kiosk-label"] { color: #FFC857 !important; opacity: 0.8; }
+.kiosk-hc .kiosk-demo-bar { background: #000 !important; border-color: #FFC857 !important; }
+.kiosk-hc .kiosk-demo-bar a,
+.kiosk-hc .kiosk-demo-bar button { background: #000 !important; color: #FFC857 !important; border: 2px solid #FFC857 !important; }
+/* High contrast on the public demo covers every panel on the screen. */
+.kiosk-public.kiosk-hc [data-testid="resident-profile-header"],
+.kiosk-public.kiosk-hc [data-testid="kiosk-a11y-magnification"],
+.kiosk-public.kiosk-hc .bg-white { background: #000 !important; border-color: #FFC857 !important; }
+.kiosk-public.kiosk-hc h2,
+.kiosk-public.kiosk-hc h3,
+.kiosk-public.kiosk-hc label,
+.kiosk-public.kiosk-hc input { color: #FFC857 !important; }
+.kiosk-public.kiosk-hc input { background: #000 !important; border: 2px solid #FFC857 !important; }
+.kiosk-public.kiosk-hc input::placeholder { color: #C9A043 !important; }
+.kiosk-public.kiosk-hc .bg-white .lucide { color: #FFC857 !important; }
 .kiosk-hc .caos-emergency-btn {
   background: #FFC857 !important;
   color: #000 !important;

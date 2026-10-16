@@ -5,37 +5,28 @@
 // Rule (docs/CURRENT_PRIORITY.md): the website never claims or demonstrates a
 // capability beyond its current acceptance evidence. Change a status only
 // when that evidence changes, and record the evidence beside the entry.
+//
+// Owner policy 2026-10-16 (PR #181): a capability is In pilot once it is proven
+// to work in the CAOSCare product/pilot architecture; it need not be installed
+// in every room. The public site lists only Working and In pilot capabilities.
+// Anything without that proof is not listed at all (never shown as Planned or
+// In development, and never promoted to Pilot without its evidence).
 
 export const STATUS_META = {
   working: {
     label: "Working",
-    tone: "forest",
     meaning: "Usable in real resident, staff or administrator work, and acceptance-tested.",
   },
   pilot: {
     label: "In pilot",
-    tone: "moss",
-    meaning: "Proven in the CAOSCare test room. Its limits are stated.",
-  },
-  in_development: {
-    label: "In development",
-    tone: "amber",
-    meaning: "Partly built. The full loop with real users has not been accepted yet.",
-  },
-  planned: {
-    label: "Planned",
-    tone: "mute",
-    meaning: "Not available yet.",
+    meaning: "Proven to work in CAOSCare's pilot system, not yet in everyday use everywhere. Its limits are stated.",
   },
 };
 
-export const STATUS_ORDER = ["working", "pilot", "in_development", "planned"];
+export const STATUS_ORDER = ["working", "pilot"];
 
-// Statuses that may show a step-by-step demonstration.
-export const DEMONSTRABLE = new Set(["working", "pilot"]);
-
-// Capability id -> status, with the evidence behind it (2026-09-27 audit; 2026-10-12 owner direction:
-// everything proven in the test room/environment is In pilot with its limits stated).
+// Capability id -> status, with the evidence behind it (2026-09-27 audit; re-audited 2026-10-16 for #162; 2026-10-12 owner direction:
+// everything proven in the test room/environment is In pilot with its limits stated; 2026-10-16 owner policy above).
 export const CAPABILITY_STATUS = {
   // Resident room
   voice: "pilot", // live Room 214 conversations; "Hey Aria" wake live since 10-08 (recall tuning in progress)
@@ -45,13 +36,9 @@ export const CAPABILITY_STATUS = {
   help: "pilot", // spoken requests -> department requests, staff/resident/Aria status; dev-accepted 10-11/12, owner direction 10-12
   one_press: "pilot", // press -> one event -> Aria; canonical ack/close receipts dev-accepted 10-12; owner direction 10-12
   low_vision: "pilot", // magnification (touch/voice) + high-contrast button on the room screen; owner direction 10-12
-  tv: "in_development", // mock devices only; no real TV connected
-  climate: "in_development", // test AC's Matter connection unreliable; no verified voice change
-  blinds: "planned",
-  location: "planned",
-  family_call: "planned",
-  phone: "planned", // handset, calls within the community, answering machine; no voice telephony yet
-  wearables: "planned",
+  tv: "pilot", // Room 214 Sony TV by infrared since 10-12 (ffeca1a, ir_blaster); call-start mute/restore physically accepted 10-12 (816f5f2); one-way IR, no read-back
+  climate: "pilot", // owner policy 10-16: Aria adjust_room_temperature + room-screen thermostat with read-back, proven on the demo room's thermostat (demo_kiosk DEMO_BASELINE); Room 214's test AC connection unreliable
+  blinds: "pilot", // owner policy 10-16: Aria set_blinds + room command path, proven on the demo room's blinds (demo_kiosk DEMO_BASELINE); no blinds installed in Room 214
   // Community workflows: implementation exists, no real staff acceptance yet
   nursing: "pilot", // dev-accepted incl. unclaimed escalation, exception review; owner direction 10-12
   maintenance: "pilot", // dev-accepted department workspace; owner direction 10-12
@@ -63,9 +50,7 @@ export const CAPABILITY_STATUS = {
   administration: "pilot", // operations overview, reports, activity log; owner direction 10-12
   staff_dashboard: "pilot", // live board, current vs older split dev-accepted 10-12; owner direction 10-12
   escalation: "pilot", // automatic timer, receipted policy editor, liveness; Alerts dev-accepted 10-12; owner direction 10-12
-  front_desk_calls: "planned", // no voice telephony yet
   therapy: "pilot", // Therapy READY_FOR_OWNER_REVIEW 10-12 (32/32 dev checks); owner direction 10-12
-  beauty: "planned",
 };
 
 export function statusOf(id) {
@@ -73,5 +58,3 @@ export function statusOf(id) {
   if (!s) throw new Error(`Unknown capability: ${id}`);
   return s;
 }
-
-export const isDemonstrable = (status) => DEMONSTRABLE.has(status);

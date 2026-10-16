@@ -10,12 +10,14 @@ export const EXPERIENCE_VIDEOS = [
   {
     id: "resident-experience-01",
     number: "001",
-    title: "The room is Aria",
+    // Owner 2026-10-16 (#162 c6209371153): "Aria — your personal helper" framing. These are
+    // generated scenes with visibly artificial motion in places: never product proof.
+    title: "Aria — your personal helper",
     summary:
-      "A resident's day, spoken naturally to the room — no screen to find, no device to learn.",
+      "A room that hears you and can help you: speak naturally, with no screen to find and no device to learn.",
     src: "/media/caoscare-resident-experience-01.mp4",
     poster: "/media/caoscare-resident-experience-01-poster.jpg",
     duration: "0:30",
-    kind: "Illustrative scenes",
+    kind: "Illustrative film · generated scenes, not product footage",
   },
 ];
