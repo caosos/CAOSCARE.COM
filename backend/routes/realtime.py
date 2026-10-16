@@ -35,19 +35,27 @@ from routes.realtime_audio_config import DEFAULT_VAD, DEFAULT_NOISE_REDUCTION
 router = APIRouter(prefix="/realtime", tags=["realtime"])
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
-OPENAI_REALTIME_MODEL = os.environ.get("OPENAI_REALTIME_MODEL", "gpt-realtime").strip() or "gpt-realtime"
+# Ordinary live conversation runs on the inexpensive Realtime model (owner cost decision 2026-10-15:
+# ~89% of API spend was full Realtime). OPENAI_REALTIME_MODEL still overrides; an empty value falls
+# back to mini, never silently to the full model. Reasoning/text routes (OPENAI_TEXT_MODEL,
+# OPENAI_RESEARCH_MODEL) are separate and unchanged.
+DEFAULT_REALTIME_MODEL = "gpt-realtime-2.1-mini"
+OPENAI_REALTIME_MODEL = os.environ.get("OPENAI_REALTIME_MODEL", DEFAULT_REALTIME_MODEL).strip() or DEFAULT_REALTIME_MODEL
 OPENAI_API_BASE = os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1").rstrip("/")
 
 
-def _prompt_diagnostics(instructions: str, route: str) -> dict:
+def _prompt_diagnostics(instructions: str, route: str, provider_session: dict | None = None) -> dict:
     """Non-secret identity canary (2026-08-09 debugging). Lets a live session
     be proven to have received the current instructions without guessing -
-    reveals no resident data, just a hash of the prompt text actually sent."""
+    reveals no resident data, just a hash of the prompt text actually sent.
+    `provider_model` (2026-10-15) is the model name the provider itself
+    returned for the minted session - runtime evidence, not configuration."""
     return {
         "prompt_version": "2026-08-09-sensitive-topics-language-v1",
         "prompt_hash": hashlib.sha256(instructions.encode()).hexdigest()[:16],
         "route": route,
         "model": OPENAI_REALTIME_MODEL,
+        "provider_model": ((provider_session or {}).get("session") or {}).get("model"),
     }
 
 
@@ -223,7 +231,7 @@ async def create_aria_session(payload: dict = Body(default={}), user=Depends(req
         "turn_detection": DEFAULT_VAD,
         "temperature": DEFAULT_TEMPERATURE,
         "context": await owner_context_v2(owner_user_id) if v2 else {"owner_user_id": owner_user_id},
-        "diagnostics": _prompt_diagnostics(instructions, "aria_operator"),
+        "diagnostics": _prompt_diagnostics(instructions, "aria_operator", session),
     }
     return JSONResponse(content=session)
 
