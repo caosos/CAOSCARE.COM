@@ -1,9 +1,11 @@
 # CAOSCare coordination watch — runbook (owner-authorized 2026-10-16)
 
-**Status (2026-10-15 22:09 CDT):** INSTALLED and RUNNING as `caoscare-coordination-watch.service` (user unit,
-enabled, linger `yes`) from `feature/coordination-watch`. One local `systemd --user` service, no model calls, `gh`
-only ($0 API). First live tick delivered the `TEST ONLY — NO PRODUCT ACTION` item `coord-test-001` to #166 and
-Main Claude's own intake (`gh_watch.sh`) consumed it (its cursor advanced, the session re-invoked).
+**Status (2026-10-15 22:30 CDT):** INSTALLED and RUNNING as `caoscare-coordination-watch.service` (user unit,
+enabled, linger `yes`), one process, no model calls, `gh` only ($0 API). Proven live: `coord-test-001` (TEST ONLY — NO
+PRODUCT ACTION) delivered to #166 and consumed by Main Claude's own intake; after the release boundary the real next item
+`careops-153-drilldown-truth-002` was delivered and ACKed by Main Claude (#166 comment 6207381341), and the watcher
+detected the ACK. Boundary detection is header-based and negation-aware ("not deployed" is not DEPLOYED) and only
+counts receipts on #166/#168; a real item is dispatched only when every earlier delivery is ACKed.
 
 | Question | Answer |
 |---|---|
