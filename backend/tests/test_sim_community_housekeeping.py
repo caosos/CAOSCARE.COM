@@ -47,7 +47,7 @@ def test_over_90_days_each_clean_is_taken_only_by_its_territory_housekeeper():
         assert row.complete_at - row.claim_at == 30
 
 
-def test_today_answers_scheduled_assigned_completed_in_progress_remaining():
+def test_today_answers_scheduled_assigned_completed_in_progress_remaining_not_simulated():
     async def case():
         db = AsyncIOMotorClient(os.environ["MONGO_URL"])[f"{os.environ['DB_NAME']}_hk_{uuid.uuid4().hex[:6]}"]
         try:
@@ -60,11 +60,15 @@ def test_today_answers_scheduled_assigned_completed_in_progress_remaining():
                 {**scope, "task_id": "t2", "status": "in_progress",
                  "conversation_session_id": f"simulator:event:{hk.clean_workflow(0, second['resident_key'])}"},
             ])
-            rows = await housekeeping_today(db, "run-hk", 0, A)
+            rows = await housekeeping_today(db, {"run_id": "run-hk"}, 0, A)
             assert len(rows) == 8 and {r["housekeeper"] for r in rows} == {A}
-            assert clean_counts(rows) == {"completed": 1, "in_progress": 1, "remaining": 6}
+            assert clean_counts(rows) == {"completed": 1, "in_progress": 1, "remaining": 6, "not_simulated": 0}
             assert rows[0]["room"] == first["room"] and rows[0]["task_id"] == "t1"
-            everyone = await housekeeping_today(db, "run-hk", 2, None)   # Wednesday: both work
+            # A run started at 10:00 never ran the 09:25 clean: it is not "remaining".
+            late = await housekeeping_today(db, {"run_id": "run-hk", "started_at_minute": 600}, 0, A)
+            assert [r["state"] for r in late][:4] == ["completed", "in_progress", "not_simulated", "remaining"]
+            assert clean_counts(late) == {"completed": 1, "in_progress": 1, "remaining": 5, "not_simulated": 1}
+            everyone = await housekeeping_today(db, {"run_id": "run-hk"}, 2, None)   # Wednesday: both work
             assert Counter(r["housekeeper"] for r in everyone) == {A: 8, B: 6}
         finally:
             await db.client.drop_database(db.name)
