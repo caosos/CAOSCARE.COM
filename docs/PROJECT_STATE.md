@@ -1115,3 +1115,46 @@ Agent: Claude Code (Fable 5.1, "Claude 2" cost-control lane), branch `fix/realti
 - **Goodbye cut-off:** in `rt_10s3ng43_1792142773769` the server auto-response to "Thanks, that will be all. Goodbye." started before the transcript arrived; the model was narrating its `end_call` ("Okay, thanks for the chat—let me take care of that for you now."). The local goodbye cancelled it ~200 ms in, but its full text was shown and saved as Aria's turn (also feeding memory summaries and the next opening hint). `endController` now records the response it cut (`wasCut`); the handler logs that text as `assistant_transcript_cut_by_goodbye` (diagnostics) and never shows or saves it. The close itself was already deterministic (scripted "Okay, bye for now.", hang-up, `stop()` releases the lease, `onEndCall` restores TV/speaker).
 - **Verified:** frontend 131 suites / 855 tests; production build compiled; backend gate 1408 passed / 3 failed / 31 skipped (the same 3 as the #182/#183 baseline: `test_ops_metrics` ×2, `test_therapy_recurrence` weekly). Regression tests: `backend/tests/test_aria_opening_rotation.py` (six consecutive tap and wake calls through real `resolve_opening` + render never reuse a recent lead; the real triple repeat), `frontend/src/lib/__tests__/goodbyeCutResponse.test.js` (the scratch sequence replayed through the real hook + handler; eight goodbye phrasings; all 10 fail on the unfixed handler). Scratch Room 214 (branch backend :8098 on `caoscare_aria_accept_e7`, simulated devices): three consecutive tap calls `rt_tkjlgm00_1792149900857`, `rt_r7hvalv0_1792149942710`, `rt_xx21o2yd_1792149984797` opened "Good morning, Michael." / "Hi, Michael." / "There you are, Michael."; "Thanks, that will be all. Goodbye." / "Okay, goodnight." / "Alright, talk to you later." each ended with one "Okay, bye for now.", lease released (`resident_end_call`), TV duck/restore pair simulated, final TV unmuted.
 - **Not done:** merge; Room 214 load (needs merge + owner authorization).
+
+## 2026-10-16 11:00 CDT — Appointment verification / provenance (aria-appointment-verification-001)
+
+- **Agent/tool:** Claude Code session `caoscare-1-e7`. **Branch:** `runtime/aria-appointment-verification` from `d6f42aa` (PR #184 merge), worktree `~/CAOSCARE-ARIA-APPT`. Owner requirement #166 c6213933229.
+- **What changed:** one canonical outside-appointment record, `db.resident_appointments`. Every source is appended as a claim with its provenance: resident speech, staff entry, family entry, confirmation email / calendar / uploaded document, and a provider call. Status, date and time are derived from all claims (`routes/appointment_truth.py`):
+  - REPORTED: only unverified claims, and they agree.
+  - NEEDS_CONFIRMATION: unverified claims disagree, or a newer unverified claim says a verified appointment moved or was cancelled.
+  - VERIFIED: authoritative claims agree.
+  - CONFLICT: authoritative claims disagree; no date or time is asserted.
+  - CHANGED: an authoritative change superseded earlier claims.
+  - CANCELLED: an authoritative cancellation.
+- **What counts as authoritative:**
+  - a confirmation with an evidence reference;
+  - a staff entry that the staff member marks as verified;
+  - a provider call, only if a connected `call_sessions` record exists. Without it the call is refused ("the office was not reached").
+  - Resident and family claims are reports only.
+- **Record keeping:**
+  - Superseded claims stay on the record.
+  - Every write is one receipt (`appointment_created / _verified / _conflict / _conflict_resolved / _changed / _cancelled / _needs_confirmation / _source_added`). Each receipt carries actor, authority, before and after state, evidence refs and the per-appointment parent/correlation chain.
+  - `result_label` is `verified` only when the outcome is verified.
+- **Aria:** two new tools.
+  - `note_reported_appointment` records what the resident said as REPORTED and compares it with what is on file. It keeps the existing past-date and unconfirmed-time guards.
+  - `check_appointment` answers "what time", "definitely tomorrow?", "did my doctor change it?" and "do I have a ride?" (a real open transportation request that day, plus any transport note).
+  - Aria speaks the backend's `spoken` line. A new "## Appointments" conversation rule applies.
+- **Staff API:** `POST /api/appointments/sources`, `GET /api/appointments` (signed-in staff). Facility timezone comes from `facility_clock`, and instants are DST-correct.
+- **Verified:**
+  - Backend gate (before the final steering and result-label edits): 1426 passed / 3 failed / 31 skipped. The 3 are the same as the #182–#184 baseline: `test_ops_metrics` ×2 and `test_therapy_recurrence` weekly.
+  - New `test_appointment_verification.py`: 17 DB-direct tests covering A–G plus an HTTP test.
+  - Frontend: 132 suites / 858 tests; production build OK.
+- **Scratch live acceptance** on the scratch Room 214 copy (`caoscare_aria_accept_e7`, simulated devices, headless Chrome with a fake microphone, real `gpt-realtime-2.1-mini`). Sources after call 1 were added through `record_source()` as the labelled process `system:scratch_acceptance_email`.
+  - First attempt: Aria called `check_appointment` instead of recording the report, so the tool and rule steering were tightened.
+  - `rt_71agriek_1792165332869`: "I think my cardiologist appointment is Tuesday at ten" → REPORTED, "isn't verified yet".
+  - `rt_2uh30rsj_1792165437289`: after an email saying 10:30, Aria said 10:30 at Conway Heart Clinic and "You'd originally mentioned 10 AM", confirmed Tuesday, and said there was no ride request.
+  - `rt_xjxt66of_1792165592382`: after a calendar entry for Wed 9:00, Aria said she couldn't say for certain and gave both.
+  - `rt_4ai8dgb4_1792165681109`: after a change email for Thu 2 PM, Aria said "it was changed … Thursday, October 22 at 2 PM", verified.
+  - Every call ended "Okay, bye for now." with its lease released. 4 chained receipts; 0 notifications or staff tasks.
+- **Not done:** merge and Room 214 load. Not built:
+  - a staff UI for entering sources (API only);
+  - automatic email/calendar parsing into `record_source()`;
+  - authorized provider calling.
+- **Known limits:**
+  - Location is the latest one any source gave.
+  - The public resident bus accepts a room claim (recorded as `unverified_room_claim`), like the other resident-bus routes.

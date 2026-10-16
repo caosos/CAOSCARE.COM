@@ -34,6 +34,7 @@ from routes import family_portal as family_portal_routes  # noqa: E402
 from routes import devices as device_routes  # noqa: E402
 from routes import room_device_inventory as room_device_inventory_routes  # noqa: E402
 from routes import medication_status as medication_status_routes  # noqa: E402
+from routes import appointments as appointment_routes  # noqa: E402
 from routes import tv_remote_setup as tv_remote_setup_routes  # noqa: E402
 from routes import vision as vision_routes  # noqa: E402
 from routes import tasks as task_routes  # noqa: E402
@@ -165,6 +166,11 @@ async def lifespan(app: FastAPI):
         await _ensure_continuity_indexes()
     except Exception as e:
         logging.warning(f"continuity index setup skipped: {e}")
+    from routes.resident_appointments import ensure_indexes as _ensure_appointment_indexes
+    try:
+        await _ensure_appointment_indexes()
+    except Exception as e:
+        logging.warning(f"appointment index setup skipped: {e}")
     # RQ-001: demo room catch-up. Background only; does nothing unless
     # CAOSCARE_DEMO_CONTINUITY_AUTO is set.
     from demo_continuity import catch_up_in_background
@@ -238,6 +244,7 @@ api.include_router(family_portal_routes.router)
 api.include_router(device_routes.router)
 api.include_router(room_device_inventory_routes.router)
 api.include_router(medication_status_routes.router)
+api.include_router(appointment_routes.router)
 api.include_router(tv_remote_setup_routes.router)
 api.include_router(vision_routes.router)
 api.include_router(task_routes.router)

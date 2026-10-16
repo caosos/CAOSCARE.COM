@@ -1067,3 +1067,16 @@ _Public parts superseded by the 2026-10-16 public-site entry below (`ProductShot
 - `backend/routes/aria_opening.py`: `recent_openings` (last three calls), `suggested_openings()` / `opening_lead()` — short natural openings minus any a recent call used.
 - `frontend/src/lib/endController.js` `wasCut()` + `realtimeMessageHandler.js`: a reply cut off by the resident's goodbye is logged as `assistant_transcript_cut_by_goodbye`, never shown or saved as Aria's turn.
 - Tests: `backend/tests/test_aria_opening_rotation.py`, `frontend/src/lib/__tests__/goodbyeCutResponse.test.js`.
+
+## 2026-10-16 — Appointment verification / provenance (aria-appointment-verification-001, branch `runtime/aria-appointment-verification`)
+
+- `backend/routes/appointment_truth.py`: the pure truth model. It holds source types and authority, `derive()` (REPORTED / NEEDS_CONFIRMATION / VERIFIED / CONFLICT / CHANGED / CANCELLED from all claims), DST-correct `starts_at_utc`, and what Aria says (`spoken_answer`, `ride_line`).
+- `backend/routes/resident_appointments.py`: the canonical `db.resident_appointments` record. `record_source()` appends a claim, re-derives, writes history and one chained receipt; `match_appointment()` and `find_ride()` are here too, plus the startup indexes.
+- `backend/routes/appointments.py`:
+  - `POST /api/appointments/public/{check,report}` (resident bus);
+  - `POST /api/appointments/sources` and `GET /api/appointments[/{id}]` (staff).
+- Tools and wiring:
+  - `backend/routes/realtime_appointment_tools.py`: the `check_appointment` / `note_reported_appointment` tool schemas;
+  - the "## Appointments" rule in `realtime_conversation_rules.py`;
+  - the relay in `frontend/src/lib/realtimeAppointmentTools.js`, dispatched from `realtimeCareControl.js`.
+- Tests: `backend/tests/test_appointment_verification.py`, `frontend/src/lib/__tests__/appointmentTools.test.js`.
