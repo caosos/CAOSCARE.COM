@@ -95,6 +95,7 @@ Before meaningful CAOSCare work, in order:
 2. `docs/CAOSCARE_PRODUCT_BASELINE.md` — canonical durable product truth
 3. `docs/PROJECT_STATE.md` — recent dated entries (changing state)
 4. `docs/REPO_MAP.md` — where implementation lives
+4a. `docs/CAOSCARE_ENGINEERING_HISTORY.md` — the canonical chronological engineering story (decisions, failures, supersessions); read once
 5. `docs/BUILD_STATUS.md` / `docs/CURRENT_NODE_STATUS.md` — runtime snapshot, where runtime matters
 6. `README.md` and `docs/CAOS_CARE_AGENT_ONBOARDING_CONTRACT.md` — product/onboarding context (note: the onboarding contract's hardware section is `HISTORICAL / SUPERSEDED` by the Product Baseline)
 7. task-specific contracts / TSBs
