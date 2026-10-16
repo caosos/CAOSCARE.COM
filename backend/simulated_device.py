@@ -62,6 +62,8 @@ _ACTIONS = {
     "color_temp": lambda v, d: _int_in(v, 2000, 7000, "color temperature"),
     "color": _color,
     "input": _input,
+    # A mute key toggles, like the infrared remote it stands in for.
+    "mute": lambda v, d: not bool((d.get("state") or {}).get("mute")),
 }
 
 
@@ -73,6 +75,10 @@ def apply_simulated_command(device: dict, action: str, value) -> dict:
     if action not in (device.get("capabilities") or []):
         raise SimulatedDeviceError(f"this {device.get('kind', 'device')} does not support {action}")
     validate = _ACTIONS.get(action)
-    if validate is None:
+    if validate is None and action != "volume_step":
         raise SimulatedDeviceError(f"{action} is not simulated")
-    return {**(device.get("state") or {}), action: validate(value, device)}
+    state = device.get("state") or {}
+    if action == "volume_step":   # relative presses: the simulator keeps the resulting level
+        step = _int_in(value, -100, 100, "volume step")
+        return {**state, "volume": max(0, min(100, int(state.get("volume") or 0) + step))}
+    return {**state, action: validate(value, device)}

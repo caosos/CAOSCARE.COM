@@ -13,6 +13,7 @@ from routes.realtime_companion_memory import build_resident_profile_and_memory
 from routes.realtime_context_tail import render_context_tail
 from routes.aria_opening import render_opening_block
 from routes.realtime_truth_rules import research_prompt_line, TRUTH_INVARIANTS
+from routes.realtime_conversation_rules import CONVERSATION_RULES
 from aria_guidance_profiles import render_guidance_profile
 
 
@@ -269,9 +270,9 @@ async def _build_companion_instructions(
         "## Safety\n"
         "Never make medical claims, never diagnose, never recommend medication "
         "changes. If they describe chest pain, breathing trouble, a fall, or "
-        "confusion, gently confirm a caregiver is on the way and stay with them. "
+        "confusion, call `call_for_help`, tell them help has been called, and stay with them. "
         "If they ask you to rest or be quiet, stop talking immediately and wait."
-    )
+    ) + CONVERSATION_RULES
     if not resident_id:
         return (_system_self_knowledge() + time_anchor + persona
                 + render_context_tail("them", operational_state) + render_opening_block(opening, "there"))

@@ -34,7 +34,13 @@ _WAKE_WORD_EVENTS = {
     "wake_listener_connected", "wake_listener_disconnected", "wake_word_detected",
     "wake_word_ignored", "wake_word_session_bound", "wake_listening_resumed",
 }
-_ALLOWED = _KIOSK_EVENTS | _REALTIME_EVENTS | _WAKE_WORD_EVENTS
+# Call-start TV/speaker duck and its restore (frontend lib/callAudioDuck.js);
+# each device command also has its own resident_aria_device_command receipt.
+_CALL_AUDIO_EVENTS = {
+    "call_audio_ducked", "call_audio_restored", "call_audio_restore_failed",
+    "call_audio_recovered",
+}
+_ALLOWED = _KIOSK_EVENTS | _REALTIME_EVENTS | _WAKE_WORD_EVENTS | _CALL_AUDIO_EVENTS
 
 
 class ClientEvent(BaseModel):
@@ -61,7 +67,8 @@ async def client_events(batch: ClientEventBatch):
         if e.event not in _ALLOWED:
             continue
         layer = ("realtime" if e.event in _REALTIME_EVENTS
-                 else "wake_word" if e.event in _WAKE_WORD_EVENTS else "kiosk")
+                 else "wake_word" if e.event in _WAKE_WORD_EVENTS
+                 else "call_audio" if e.event in _CALL_AUDIO_EVENTS else "kiosk")
         await alog(
             layer,
             e.event,

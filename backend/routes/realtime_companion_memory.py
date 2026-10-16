@@ -6,6 +6,7 @@ repo's 300-line cap - pure extraction, no behavior changed. Builds the
 moments with <name>' blocks appended after the fixed persona text.
 """
 from deps import db
+from routes.realtime_memory_recall import render_usual_asks
 
 
 async def build_resident_profile_and_memory(resident_id: str, r: dict, name: str, full_name: str) -> str:
@@ -74,8 +75,13 @@ async def build_resident_profile_and_memory(resident_id: str, r: dict, name: str
             {"_id": 0, "text": 1, "category": 1, "event_at": 1, "pinned": 1},
         ).sort([("pinned", -1), ("event_at", -1), ("created_at", -1)]).limit(20)
         events = [m async for m in events_cur]
+        convo_cur = db.memories.find(
+            {"resident_id": resident_id, "category": "conversation", "archived": {"$ne": True}},
+            {"_id": 0, "text": 1},
+        ).sort([("event_at", -1)]).limit(60)
+        summaries = [m.get("text") or "" async for m in convo_cur]
     except Exception:
-        life_story, facts, events = None, [], []
+        life_story, facts, events, summaries = None, [], [], []
 
     bins = []
     if life_story and life_story.get("text"):
@@ -115,6 +121,6 @@ async def build_resident_profile_and_memory(resident_id: str, r: dict, name: str
     profile = ""
     if profile_lines:
         profile = "\n## About this person\n" + "\n".join(profile_lines)
-    bin_block = "\n\n" + "\n".join(bins)
+    bin_block = "\n\n" + "\n".join(bins) + render_usual_asks(name or "them", summaries)
 
     return profile + bin_block

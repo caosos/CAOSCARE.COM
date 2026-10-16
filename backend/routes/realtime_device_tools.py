@@ -38,13 +38,17 @@ def _build_device_tools() -> list[dict]:
             "type": "function",
             "name": "get_room_status",
             "description": (
-                "Read the current state reported by the resident's room devices - "
-                "thermostat reading/target and, for state-reporting TVs, power/volume. "
-                "One-way infrared TVs cannot verify power or report an exact volume; "
-                "a last command or estimated value is not an observed state. Use this "
-                "whenever they ask 'what's the temperature in here', 'is the "
-                "TV on', or similar - answer ONLY from what this returns, "
-                "never guess. Cheap to call."
+                "Your inventory of THIS room: which devices are actually connected, "
+                "what you can do with each one, which device types you support but "
+                "this room does not have (for example motorized blinds), and the "
+                "state each device reports. One-way infrared TVs cannot verify power or "
+                "report an exact volume; a last command or estimated value is not an "
+                "observed state. Simulated test devices are not physical hardware - "
+                "say so. Call it "
+                "whenever they ask what you can control, what is connected, whether "
+                "they have blinds/a TV/etc., the temperature, or whether the TV is "
+                "on - answer ONLY from what it returns, never guess, and never tell "
+                "them to look at a screen. Cheap to call."
             ),
             "parameters": {
                 "type": "object",

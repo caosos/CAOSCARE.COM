@@ -44,3 +44,13 @@ import { classifyEndIntent as _cei } from "../endIntent";
 test.each(["Turn it off.", "Turn this off", "Shut it off", "shut that off", "Stop.", "please stop"])(
   "%s is not an end-the-call command", (t) => expect(_cei(t)).toBe("none"));
 test.each(["Turn yourself off.", "Shut yourself off"])("%s still ends the call", (t) => expect(_cei(t)).toBe("explicit"));
+
+// Room 214, 2026-10-16 (aria-room-runtime-fixes-001): "I'll talk to you later, goodbye." was one five-word
+// sentence after the comma, nothing matched, and Aria kept talking. Every owner-listed phrase ends the call.
+const owner = ["I'll talk to you later. Goodbye.", "I'll talk to you later, goodbye.", "Okay, I'll talk to you later, goodbye.",
+  "Talk to you later.", "Bye.", "That'll be all.", "That's all.", "I'm done.", "End the call.", "Thanks, bye.",
+  "Alright, take care, bye.", "See you tomorrow, goodbye Aria.", "Have a good night, bye bye."];
+test.each(owner)("owner goodbye phrase ends the call: %s", (t) => expect(classifyEndIntent(t)).toBe("explicit"));
+const notEnding = ["I'll talk to you later about the news, goodbye for real is not yet.", "Turn on the light, then later goodbye?",
+  "Talk to you later about my medicine", "I'll talk to you later, can you dim the lights first?", "Don't say goodbye, talk to you later"];
+test.each(notEnding)("a clause that is not an ending keeps the call open: %s", (t) => expect(classifyEndIntent(t)).toBe("none"));
