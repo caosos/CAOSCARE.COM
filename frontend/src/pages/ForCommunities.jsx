@@ -2,67 +2,73 @@ import React, { useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { COMMUNITY_WORKFLOWS } from "../lib/capabilities/community";
 import { CAPABILITIES_BY_ID } from "../lib/capabilities";
+import { SCREENS } from "../lib/capabilities/visuals";
 import CapabilityCard from "../components/capabilities/CapabilityCard";
 import CapabilityPanel from "../components/capabilities/CapabilityPanel";
-import StaffDashboardShowcase from "../components/capabilities/StaffDashboardShowcase";
 import StatusLegend from "../components/capabilities/StatusLegend";
 import useCapabilityPanel from "../components/capabilities/useCapabilityPanel";
+import PublicPage, { PublicSection } from "../components/public/PublicPage";
+import PublicVisual from "../components/public/PublicVisual";
+import RequestJourney from "../components/public/RequestJourney";
+import StaffShowcase from "../components/public/StaffShowcase";
 
-// The staff dashboard has its own section; the grid holds the departments.
+// Communities (#162): what staff and leaders actually use, shown with the
+// current Operations product (simulated community, synthetic data). The staff
+// workspace has its own section; the grid holds the departments.
 const DEPARTMENTS = COMMUNITY_WORKFLOWS.filter((c) => c.id !== "staff_dashboard");
 
 export default function ForCommunities() {
   const { hash } = useLocation();
   const panel = useCapabilityPanel(CAPABILITIES_BY_ID);
   useEffect(() => {
-    if (hash === "#dashboard") document.getElementById("dashboard")?.scrollIntoView();
+    // "#dashboard" is the old anchor for the staff section; keep links to it working.
+    const id = hash === "#dashboard" ? "staff" : hash.slice(1);
+    if (id) document.getElementById(id)?.scrollIntoView();
   }, [hash]);
   return (
-    <div className="min-h-screen bg-caos-bone text-caos-ink" data-testid="for-communities">
-      <nav className="px-6 md:px-12 py-6 border-b border-caos-line flex flex-wrap items-center justify-between gap-4">
-        <Link to="/" className="text-2xl text-caos-forest"><span className="font-display font-bold tracking-tighter">CAOS</span><span className="font-display font-light">Care</span></Link>
-        <div className="flex flex-wrap gap-5 text-caos-forest">
-          <Link to="/for-residents">Residents & families</Link>
-          <Link to="/experience">Explore a room</Link>
-          <Link to="/login">Staff sign in</Link>
-        </div>
-      </nav>
-      <main className="max-w-7xl mx-auto px-6 md:px-12 py-14 space-y-20">
-        <header className="max-w-4xl">
-          <p className="text-xs font-bold uppercase tracking-widest text-caos-mute">For communities</p>
-          <h1 className="font-display text-4xl md:text-6xl font-light text-caos-forest mt-4">See how the community works together.</h1>
-          <p className="text-lg leading-relaxed mt-6">
-            A resident speaks to Aria. A request reaches the right staff workspace.
-            The front desk and community leaders see what has been requested,
-            acknowledged, assigned and completed. Each step stays tied to the resident's real record.
-          </p>
-          <a href="#dashboard" className="inline-block mt-7 rounded-full bg-caos-forest text-white px-6 py-3">Open the staff dashboard demo</a>
-        </header>
-
-        <section id="dashboard" aria-labelledby="dashboard-heading" className="scroll-mt-28">
-          <p className="text-xs font-bold uppercase tracking-widest text-caos-mute">Public demonstration</p>
-          <h2 id="dashboard-heading" className="font-display text-3xl md:text-5xl text-caos-forest mt-3">Staff dashboard demo</h2>
-          <p className="mt-4 mb-8 max-w-3xl">Screens from the actual CAOSCare staff software, captured with sample data. Nothing here is a live record and it does not sign anyone in. Staff at a community use <Link to="/login" className="underline underline-offset-4">Staff sign in</Link>.</p>
-          <StaffDashboardShowcase onOpen={panel.open} />
-        </section>
-
-        <section aria-labelledby="workflows-heading">
-          <h2 id="workflows-heading" className="font-display text-3xl md:text-4xl text-caos-forest mb-4">Every department, and where it stands</h2>
-          <p className="mb-6 max-w-3xl">Open a department to see its real screens, what happens at each step, and what has not yet been accepted in real staff use.</p>
-          <div className="mb-8"><StatusLegend items={DEPARTMENTS} /></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {DEPARTMENTS.map((c) => <CapabilityCard key={c.id} capability={c} onOpen={panel.open} />)}
+    <PublicPage testid="for-communities">
+      <header className="px-4 pb-14 pt-12 sm:px-6 lg:px-8 lg:pt-16">
+        <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 lg:grid-cols-12">
+          <div className="min-w-0 lg:col-span-5">
+            <p className="text-[13px] font-semibold uppercase tracking-[0.14em] text-[#2F80ED]">For communities</p>
+            <h1 className="mt-3 text-[34px] font-bold leading-[1.1] tracking-tight sm:text-[46px]">Every request reaches the right department, with an owner and a clock.</h1>
+            <p className="mt-5 text-[18px] leading-relaxed text-[#374151]">
+              A resident speaks to Aria. The request lands in the right department's workspace. The front desk and
+              leaders see what was requested, claimed, started and finished, and every step is tied to the resident's record.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <a href="#staff" data-testid="communities-staff" className="rounded-lg bg-[#2F80ED] px-5 py-3 text-[16px] font-semibold text-white hover:bg-[#1F6FD9]">See what staff see</a>
+              <a href="#departments" data-testid="communities-departments" className="rounded-lg border border-[#D1D5DB] px-5 py-3 text-[16px] font-semibold text-[#111827] hover:border-[#111827]">Every department</a>
+            </div>
+            <p className="mt-4 text-[14px] text-[#6B7280]">In pilot: proven with test staff accounts and a simulated 75-resident community. Not yet used by a community's staff in a real shift.</p>
           </div>
-        </section>
+          <PublicVisual className="lg:col-span-7" eager visual={SCREENS.overview}
+            caption="Operations overview · simulated 75-resident community, synthetic residents and staff" />
+        </div>
+      </header>
 
-        <section className="rounded-3xl bg-caos-forest text-white p-8 md:p-12">
-          <h2 className="font-display text-3xl">Bring the experience into a community</h2>
-          <p className="mt-4 max-w-3xl">Introduce the room to residents and families locally. Set up authorized staff roles, the front desk, departments, room profiles and approved devices before offering a resident package. Community data and capabilities must be verified for each installation.</p>
-          <Link to="/for-residents" className="inline-block mt-6 underline underline-offset-4">See the resident and family experience</Link>
-        </section>
-      </main>
-      <CapabilityPanel capability={panel.capability} open={panel.isOpen} onClose={panel.close}
-        onCloseAutoFocus={panel.onCloseAutoFocus} />
-    </div>
+      <RequestJourney eyebrow="The workflow" title="From the resident's words to a finished, recorded job." />
+
+      <PublicSection id="staff" eyebrow="What staff see" title="One workspace, the same records Aria uses"
+        lead="Real CAOSCare screens, captured from a simulated community. Nothing here is a live record and it does not sign anyone in.">
+        <StaffShowcase onOpen={panel.open} />
+      </PublicSection>
+
+      <PublicSection id="departments" tone="gray" eyebrow="Departments" title="Every department, and where it stands"
+        lead="Open a department to see its current screen, what happens at each step, and what has not yet been accepted in real staff use.">
+        <div className="mb-8"><StatusLegend items={DEPARTMENTS} /></div>
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+          {DEPARTMENTS.map((c) => <CapabilityCard key={c.id} capability={c} onOpen={panel.open} />)}
+        </div>
+      </PublicSection>
+
+      <PublicSection id="start" eyebrow="Getting started" title="Bring CAOSCare into a community">
+        <div className="max-w-3xl text-[17px] leading-relaxed text-[#374151]">
+          <p>Introduce the room to residents and families locally. Set up staff roles, the front desk, departments, room profiles and approved devices before offering it to residents. Every installation's data and capabilities are verified on site.</p>
+          <Link to="/for-residents" className="mt-5 inline-block font-semibold text-[#1D4ED8] hover:underline">See the resident and family experience →</Link>
+        </div>
+      </PublicSection>
+      <CapabilityPanel capability={panel.capability} open={panel.isOpen} onClose={panel.close} onCloseAutoFocus={panel.onCloseAutoFocus} />
+    </PublicPage>
   );
 }

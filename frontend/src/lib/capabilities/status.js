@@ -9,22 +9,18 @@
 export const STATUS_META = {
   working: {
     label: "Working",
-    tone: "forest",
     meaning: "Usable in real resident, staff or administrator work, and acceptance-tested.",
   },
   pilot: {
     label: "In pilot",
-    tone: "moss",
     meaning: "Proven in the CAOSCare test room. Its limits are stated.",
   },
   in_development: {
     label: "In development",
-    tone: "amber",
     meaning: "Partly built. The full loop with real users has not been accepted yet.",
   },
   planned: {
     label: "Planned",
-    tone: "mute",
     meaning: "Not available yet.",
   },
 };
@@ -34,7 +30,7 @@ export const STATUS_ORDER = ["working", "pilot", "in_development", "planned"];
 // Statuses that may show a step-by-step demonstration.
 export const DEMONSTRABLE = new Set(["working", "pilot"]);
 
-// Capability id -> status, with the evidence behind it (2026-09-27 audit; 2026-10-12 owner direction:
+// Capability id -> status, with the evidence behind it (2026-09-27 audit; re-audited 2026-10-16 for #162; 2026-10-12 owner direction:
 // everything proven in the test room/environment is In pilot with its limits stated).
 export const CAPABILITY_STATUS = {
   // Resident room
@@ -45,12 +41,12 @@ export const CAPABILITY_STATUS = {
   help: "pilot", // spoken requests -> department requests, staff/resident/Aria status; dev-accepted 10-11/12, owner direction 10-12
   one_press: "pilot", // press -> one event -> Aria; canonical ack/close receipts dev-accepted 10-12; owner direction 10-12
   low_vision: "pilot", // magnification (touch/voice) + high-contrast button on the room screen; owner direction 10-12
-  tv: "in_development", // mock devices only; no real TV connected
+  tv: "pilot", // Room 214 Sony TV by infrared since 10-12 (ffeca1a, ir_blaster); call-start mute/restore physically accepted 10-12 (816f5f2); one-way IR, no read-back
   climate: "in_development", // test AC's Matter connection unreliable; no verified voice change
   blinds: "planned",
   location: "planned",
-  family_call: "planned",
-  phone: "planned", // handset, calls within the community, answering machine; no voice telephony yet
+  family_call: "planned", // authorized-family updates and messages; no family-sharing feature built
+  phone: "in_development", // call code exists (call_lifecycle, Asterisk ARI listener, room_call_request); no phone system connected, no call ever placed (2026-10-16 audit)
   wearables: "planned",
   // Community workflows: implementation exists, no real staff acceptance yet
   nursing: "pilot", // dev-accepted incl. unclaimed escalation, exception review; owner direction 10-12
@@ -63,7 +59,7 @@ export const CAPABILITY_STATUS = {
   administration: "pilot", // operations overview, reports, activity log; owner direction 10-12
   staff_dashboard: "pilot", // live board, current vs older split dev-accepted 10-12; owner direction 10-12
   escalation: "pilot", // automatic timer, receipted policy editor, liveness; Alerts dev-accepted 10-12; owner direction 10-12
-  front_desk_calls: "planned", // no voice telephony yet
+  front_desk_calls: "in_development", // same call code as phone; no live call to the desk yet (CURRENT_PRIORITY)
   therapy: "pilot", // Therapy READY_FOR_OWNER_REVIEW 10-12 (32/32 dev checks); owner direction 10-12
   beauty: "planned",
 };

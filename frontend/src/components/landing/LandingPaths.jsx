@@ -9,7 +9,7 @@ const PATHS = [
   { to: "/experience", icon: DoorOpen, title: "Explore a room",
     body: "Pick an apartment and see which room features exist today and which are planned.", testid: "path-experience" },
   { to: "/kiosk/demo", icon: MonitorSmartphone, title: "Room screen demo",
-    body: "Try the resident room screen in a demo room with a sample resident.", testid: "path-kiosk" },
+    body: "The real room screen in a demo room: a sample resident and simulated light, TV and thermostat.", testid: "path-kiosk" },
 ];
 
 export default function LandingPaths({ authedDest, authedLabel }) {

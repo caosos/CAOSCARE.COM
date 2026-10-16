@@ -7,15 +7,15 @@
 // capabilities describes the design ("would"), never a working feature.
 // All names and rooms in screenshots are sample data.
 import { statusOf } from "./status";
-import { PHOTOS, SCREENS } from "./visuals";
+import { ILLUSTRATIONS, SCREENS } from "./visuals";
 
 export const RESIDENT_CAPABILITIES = [
   {
     id: "voice",
     name: "Talk to Aria",
     summary: "Talk with Aria naturally from a chair or bed.",
-    limitation: "Proven in the CAOSCare test room. A conversation starts with \"Hey Aria\" or a tap on the room screen; the spoken phrase is still being tuned so it is heard every time.",
-    visuals: [SCREENS.roomScreen, SCREENS.conversation, PHOTOS.morning],
+    limitation: "Proven in the CAOSCare test room. A conversation starts with \"Hey Aria\" or a tap on the room screen; it can still take more than one try to be heard.",
+    visuals: [ILLUSTRATIONS.talk, SCREENS.roomScreen, SCREENS.nursing],
     flow: {
       does: "Says \"Hey Aria\" or taps \"I just want to talk\" on the room screen, then speaks normally.",
       caos: "Knows which resident and room it is, and the name they prefer. Aria answers in her own voice through the room's speakerphone.",
@@ -30,7 +30,7 @@ export const RESIDENT_CAPABILITIES = [
     name: "Ask for staff help",
     summary: "Ask Aria for help and the request goes to the right department in the resident's own words.",
     limitation: "Proven in the CAOSCare test room with test staff accounts. Staff handling these requests during a real shift has not been accepted yet.",
-    visuals: [SCREENS.roomRequests, SCREENS.requestDetail, PHOTOS.caregiver],
+    visuals: [SCREENS.overview, SCREENS.recordsDrilldown, SCREENS.nursing],
     flow: {
       does: "Asks Aria for something, for example help getting to the bathroom.",
       caos: "Turns it into one request for the right department, with the resident's words and priority. A repeat request joins the open one.",
@@ -45,7 +45,7 @@ export const RESIDENT_CAPABILITIES = [
     name: "One-press call for help",
     summary: "A single press brings Aria in and puts the call in front of staff.",
     limitation: "Proven in the CAOSCare test room. Staff acknowledging and closing calls during a real shift, and recovery if the connection drops, are still being tested.",
-    visuals: [SCREENS.roomScreen, SCREENS.staffDashboard],
+    visuals: [SCREENS.alerts, SCREENS.roomScreen, ILLUSTRATIONS.pendant],
     flow: {
       does: "Presses the help button on the room screen or a paired pendant.",
       caos: "Opens one assistance call for the room; repeat presses join it. Aria starts talking with the resident.",
@@ -60,7 +60,7 @@ export const RESIDENT_CAPABILITIES = [
     name: "Paired pendant",
     summary: "A compatible help pendant paired to a resident and room.",
     limitation: "Proven with one pendant model (319.5 MHz) in the CAOSCare test room. It listens alongside the community's existing call system and never replaces it.",
-    visuals: [SCREENS.pendants, SCREENS.staffDashboard],
+    visuals: [ILLUSTRATIONS.pendant, SCREENS.pendants, SCREENS.alerts],
     flow: {
       does: "Presses their paired pendant.",
       caos: "The room's radio receiver decodes the press and matches it to this resident's pendant.",
@@ -75,7 +75,7 @@ export const RESIDENT_CAPABILITIES = [
     name: "Lights",
     summary: "Lights on, off or to a brightness by voice or on the room screen.",
     limitation: "Proven with two smart bulbs in the CAOSCare test room. Other light models need testing before installation.",
-    visuals: [SCREENS.roomControls, PHOTOS.morning],
+    visuals: [SCREENS.roomControls, SCREENS.roomDemoDevices],
     flow: {
       does: "Says \"Aria, set the overhead light to fifty percent\", or uses the light control on the room screen.",
       caos: "Sends the command to that light, then reads back the light's actual state.",
@@ -88,22 +88,23 @@ export const RESIDENT_CAPABILITIES = [
   {
     id: "tv",
     name: "Television",
-    summary: "TV power, volume and input by voice or on the room screen.",
-    visuals: [SCREENS.roomControls],
+    summary: "TV power, volume and mute by voice, and the TV quiets itself when Aria talks.",
+    limitation: "Proven with one Sony TV in the CAOSCare test room, controlled by infrared. Infrared only sends commands, so CAOSCare cannot read back what the TV actually did.",
+    visuals: [ILLUSTRATIONS.tv, SCREENS.roomControls],
     flow: {
-      does: "Would say \"Aria, turn on the TV\" or tap the TV control.",
-      caos: "Would send the command to the TV and read back what it did.",
-      sees: "The device record would show the TV's state.",
-      next: "Aria would confirm only what the TV actually reports.",
+      does: "Says \"Aria, turn on my TV\" or \"turn it down\", or uses the TV control on the room screen.",
+      caos: "Sends the infrared command for that TV. When a conversation starts it mutes the TV, and restores the sound afterwards.",
+      sees: "The device record shows the command that was sent.",
+      next: "Aria says she sent the command; she doesn't claim the TV changed, because infrared can't confirm it.",
     },
-    built: "The TV control on the room screen and Aria's TV commands (shown here on a demo device).",
-    pending: "No real TV is connected yet; the control hardware for the test room still has to be chosen.",
+    built: "Power, volume and mute for one TV model by infrared, plus automatic mute while Aria talks.",
+    pending: "Other TV models, input switching, and confirming the TV's real state.",
   },
   {
     id: "climate",
     name: "Heating and cooling",
     summary: "Comfort requests turned into a temperature change.",
-    visuals: [SCREENS.roomControls],
+    visuals: [SCREENS.roomDemoDevices, SCREENS.roomControls],
     flow: {
       does: "Would say \"Aria, I'm cold\" or tap the thermostat control.",
       caos: "Would set the temperature and read back the unit's actual setting.",
@@ -116,37 +117,38 @@ export const RESIDENT_CAPABILITIES = [
   {
     id: "family_call",
     name: "Family connection",
-    summary: "Calling approved family members by name.",
-    visuals: [PHOTOS.familyCall],
+    summary: "Updates, messages and photos shared only with family the resident has authorized.",
+    visuals: [ILLUSTRATIONS.family],
     flow: {
-      does: "Would say \"Aria, call my daughter.\"",
-      caos: "Would call only contacts on the resident's approved list.",
-      sees: "Family would receive a normal call.",
-      next: "Aria would say whether the call actually connected, never guessing.",
+      does: "Would choose which family members may hear about their day, and say \"Aria, tell my daughter I'm going to the concert.\"",
+      caos: "Would share only what the resident allows, only with authorized family, and keep a record of what was sent.",
+      sees: "Staff would see who is authorized and what was shared; family would get a message, not access to the resident's record.",
+      next: "Aria would say whether the message was actually delivered.",
     },
-    built: "Not built yet.",
-    pending: "Planned: calls to approved family contacts, and messages and photos where the resident chooses.",
+    built: "Not built yet. Calling a family member is a separate capability: see Phone and calling.",
+    pending: "Planned: authorized-family updates, messages and photos, chosen by the resident.",
   },
   {
     id: "phone",
     name: "Phone and calling",
-    summary: "A familiar handset, calls within the community, and an answering machine.",
-    visuals: [PHOTOS.familyCall],
+    summary: "Calls by voice to approved family, the front desk or a neighbor, and later a familiar handset.",
+    limitation: "Partly built: the call records and the approved-contact checks exist, but no phone system is connected, so no call can be placed yet.",
+    visuals: [ILLUSTRATIONS.phone],
     flow: {
-      does: "Would pick up a simple handset to talk to Aria, or ask Aria to call the front desk or a neighbor.",
+      does: "Would say \"Aria, call my daughter\" or \"call the front desk\", or later pick up a simple handset.",
       caos: "Would place the call and follow each person's preferences and staff routing.",
       sees: "The person called would receive a normal call; messages would carry the sender's name.",
       next: "Aria would report only calls and messages that really happened.",
     },
-    built: "Not built yet; there is no voice calling in CAOSCare today.",
-    pending: "Planned: handset and cradle, calls within the community, and a room answering machine.",
+    built: "Call records, approved-contact checks and call status tracking. Aria says honestly that calling isn't set up yet.",
+    pending: "Connecting a phone system and placing a first real call; then the handset and an answering machine.",
   },
   {
     id: "low_vision",
     name: "Built for low vision",
     summary: "Voice first, with a room screen that can be enlarged.",
     limitation: "Proven in the CAOSCare test room: screen magnification by touch and voice, and a high-contrast mode. Not yet tested with residents who have low vision.",
-    visuals: [SCREENS.roomScreen],
+    visuals: [SCREENS.roomContrast, SCREENS.roomEnlarged, SCREENS.roomScreen],
     flow: {
       does: "Uses the + and − buttons at the top of the room screen, asks Aria to make it bigger, or turns on high contrast.",
       caos: "Enlarges the whole room screen, from 50% to 200%, or switches it to high-contrast amber on black.",
@@ -160,8 +162,8 @@ export const RESIDENT_CAPABILITIES = [
     id: "room_screen",
     name: "The room screen",
     summary: "One simple screen for help, talking to Aria, requests, today's plan and the room.",
-    limitation: "Used in the CAOSCare test room. The TV and thermostat shown are demo devices.",
-    visuals: [SCREENS.roomScreen, SCREENS.roomToday, SCREENS.roomRequests],
+    limitation: "Used in the CAOSCare test room. The TV there is real; the thermostat shown is a demo device.",
+    visuals: [SCREENS.roomScreen, SCREENS.roomControls, SCREENS.roomDemoDevices],
     flow: {
       does: "Sees their name, the time, a large help button and a talk button, with their requests, today's activities and menu, and room controls below.",
       caos: "Fills the screen from the same records Aria and staff use.",
@@ -169,13 +171,13 @@ export const RESIDENT_CAPABILITIES = [
       next: "The TV stays the resident's TV; the screen is a companion, not a menu to learn.",
     },
     built: "The room screen with help, talk, requests, activities, menu and room controls.",
-    pending: "Real TV and heating/cooling controls; see those cards.",
+    pending: "Real heating and cooling control; see that card.",
   },
   {
     id: "location",
     name: "Building-wide location",
     summary: "Help calls that show where in the building the resident is.",
-    visuals: [SCREENS.staffDashboard],
+    visuals: [ILLUSTRATIONS.location],
     flow: {
       does: "Would press for help anywhere in the building, wearing an approved device.",
       caos: "Would attach the resident's last known area, only with consent.",
@@ -189,7 +191,7 @@ export const RESIDENT_CAPABILITIES = [
     id: "blinds",
     name: "Motorized blinds",
     summary: "Opening and closing blinds by voice.",
-    visuals: [PHOTOS.morning],
+    visuals: [ILLUSTRATIONS.blinds],
     flow: {
       does: "Would say \"Aria, open the blinds.\"",
       caos: "Would send the command and read back the result.",
@@ -203,7 +205,7 @@ export const RESIDENT_CAPABILITIES = [
     id: "wearables",
     name: "Approved wearables",
     summary: "Supported wearable devices chosen for each community.",
-    visuals: [PHOTOS.morning],
+    visuals: [ILLUSTRATIONS.wearable, ILLUSTRATIONS.pendant],
     flow: {
       does: "Would wear an approved device from a small supported list.",
       caos: "Would read only the data the resident has consented to share.",

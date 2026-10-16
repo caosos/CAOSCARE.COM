@@ -30,10 +30,13 @@ test("public paths, staff sign in, and every product picture says whose data it 
   for (const to of ["/for-residents", "/for-communities", "/experience", "/kiosk/demo", "/login"]) expect(hrefs).toContain(to);
   expect(host.textContent).toMatch("Staff sign in");
   const imgs = [...host.querySelectorAll("figure img")];
-  expect(imgs.length).toBeGreaterThanOrEqual(4);
+  expect(imgs.length).toBeGreaterThanOrEqual(6);
   for (const img of imgs) {
-    expect(img.getAttribute("src")).toMatch(/^\/media\/product\//);
-    expect(img.closest("figure").querySelector("figcaption").textContent).toMatch(/simulated|sample/);
+    expect(img.getAttribute("src")).toMatch(/^\/media\/(screens|illustrations)\//);
+    const caption = img.closest("figure").querySelector("figcaption").textContent;
+    // every picture says what it is; every product screen also says whose data it shows
+    expect(caption).toMatch(/CAOSCare screen|Illustration|Concept/);
+    if (img.getAttribute("src").startsWith("/media/screens/")) expect(caption).toMatch(/simulated|sample/);
   }
   await done();
 });

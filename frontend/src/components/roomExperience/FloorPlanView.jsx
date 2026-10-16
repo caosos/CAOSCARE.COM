@@ -17,8 +17,8 @@ export default function FloorPlanView({ model, selected }) {
     return (
       <figure className="m-0" data-testid="floorplan-image">
         <img src={model.floorPlan.imageUrl} alt={model.floorPlan.imageAlt}
-             className="w-full rounded-2xl border border-caos-line bg-caos-surface" />
-        <figcaption className="text-xs text-caos-mute mt-2">Published floor plan</figcaption>
+             className="w-full rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB]" />
+        <figcaption className="text-xs text-[#6B7280] mt-2">Published floor plan</figcaption>
       </figure>
     );
   }
@@ -26,7 +26,7 @@ export default function FloorPlanView({ model, selected }) {
   const { rooms, fixtures } = model.schematic;
   return (
     <figure className="m-0" data-testid="floorplan-schematic">
-      <svg viewBox="-2 -2 104 74" className="w-full rounded-2xl border border-caos-line bg-caos-surface"
+      <svg viewBox="-2 -2 104 74" className="w-full rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB]"
            role="img" aria-label={`Schematic of ${model.name}: ${rooms.map((r) => r.label).join(", ")}`}>
         {rooms.map((r) => (
           <g key={r.id}>
@@ -45,7 +45,7 @@ export default function FloorPlanView({ model, selected }) {
           );
         })}
       </svg>
-      <figcaption className="text-xs text-caos-mute mt-2">
+      <figcaption className="text-xs text-[#6B7280] mt-2">
         Schematic, not to scale — filled markers are room objects with a CAOSCare feature switched on.
       </figcaption>
     </figure>

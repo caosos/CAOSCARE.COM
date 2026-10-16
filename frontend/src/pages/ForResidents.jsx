@@ -2,70 +2,89 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { RESIDENT_CAPABILITIES } from "../lib/capabilities/resident";
 import { CAPABILITIES_BY_ID } from "../lib/capabilities";
+import { ILLUSTRATIONS } from "../lib/capabilities/visuals";
 import { ExperienceVideo } from "../components/landing/ExperienceVideoLibrary";
 import { EXPERIENCE_VIDEOS } from "../lib/experienceVideos";
 import CapabilityCard from "../components/capabilities/CapabilityCard";
 import CapabilityPanel from "../components/capabilities/CapabilityPanel";
 import StatusLegend from "../components/capabilities/StatusLegend";
-import StaffDashboardShowcase from "../components/capabilities/StaffDashboardShowcase";
 import useCapabilityPanel from "../components/capabilities/useCapabilityPanel";
+import PublicPage, { PublicSection } from "../components/public/PublicPage";
+import PublicVisual from "../components/public/PublicVisual";
+import RequestJourney from "../components/public/RequestJourney";
+import StaffShowcase from "../components/public/StaffShowcase";
+import LowVisionProof from "../components/public/LowVisionProof";
 
-// Cards in two groups: what exists today (any stage) and what is planned.
+// Residents and families (#162): voice first. Aria is the way in; the room
+// screen supports her. Cards come from lib/capabilities (one status registry).
 const AVAILABLE = RESIDENT_CAPABILITIES.filter((c) => c.status !== "planned");
 const PLANNED = RESIDENT_CAPABILITIES.filter((c) => c.status === "planned");
 
 export default function ForResidents() {
   const panel = useCapabilityPanel(CAPABILITIES_BY_ID);
   return (
-    <div className="min-h-screen bg-caos-bone text-caos-ink" data-testid="for-residents">
-      <nav className="px-6 md:px-12 py-6 border-b border-caos-line flex flex-wrap items-center justify-between gap-4">
-        <Link to="/" className="text-2xl text-caos-forest"><span className="font-display font-bold tracking-tighter">CAOS</span><span className="font-display font-light">Care</span></Link>
-        <div className="flex flex-wrap gap-5 text-caos-forest">
-          <Link to="/for-communities">For communities</Link>
-          <Link to="/experience">Explore a room</Link>
-          <Link to="/login">Staff sign in</Link>
+    <PublicPage testid="for-residents">
+      <header className="px-4 pb-14 pt-12 sm:px-6 lg:px-8 lg:pt-16">
+        <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 lg:grid-cols-12">
+          <div className="min-w-0 lg:col-span-5">
+            <p className="text-[13px] font-semibold uppercase tracking-[0.14em] text-[#2F80ED]">For residents & families</p>
+            <h1 className="mt-3 text-[34px] font-bold leading-[1.1] tracking-tight sm:text-[46px]">Just say "Hey Aria."</h1>
+            <p className="mt-5 text-[18px] leading-relaxed text-[#374151]">
+              Aria lives in the room. Talk from your chair or bed and she answers out loud, sends what you ask for to
+              the right staff, and tells you its real status. The room screen only shows supporting information,
+              and your TV stays your TV.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <a href="#how" data-testid="residents-how" className="rounded-lg bg-[#2F80ED] px-5 py-3 text-[16px] font-semibold text-white hover:bg-[#1F6FD9]">See a request travel</a>
+              <Link to="/kiosk/demo" data-testid="residents-demo" className="rounded-lg border border-[#D1D5DB] px-5 py-3 text-[16px] font-semibold text-[#111827] hover:border-[#111827]">Try the room screen</Link>
+            </div>
+            <p className="mt-4 text-[14px] text-[#6B7280]">In pilot in the CAOSCare test room. Not a medical device or emergency service.</p>
+          </div>
+          <PublicVisual className="lg:col-span-7" eager visual={ILLUSTRATIONS.talk} />
         </div>
-      </nav>
-      <main className="max-w-7xl mx-auto px-6 md:px-12 py-14 space-y-20">
-        <header className="max-w-4xl">
-          <p className="text-xs font-bold uppercase tracking-widest text-caos-mute">For residents & families</p>
-          <h1 className="font-display text-4xl md:text-6xl font-light text-caos-forest mt-4">The room is Aria.</h1>
-          <p className="text-lg leading-relaxed mt-6">Speak naturally from your chair or bed. The room has a small computer and audio device, while your TV remains your TV. A familiar handset is also part of the design for residents who prefer a phone.</p>
-          <Link to="/experience" className="inline-block mt-7 rounded-full bg-caos-forest text-white px-6 py-3">Explore a sample room</Link>
-        </header>
-        {EXPERIENCE_VIDEOS[0] && (
-          <section className="max-w-3xl" aria-label="Resident experience video">
-            <ExperienceVideo video={EXPERIENCE_VIDEOS[0]} featured />
-          </section>
-        )}
-        <section aria-labelledby="resident-heading">
-          <h2 id="resident-heading" className="font-display text-3xl md:text-4xl text-caos-forest mb-4">What Aria can help with</h2>
-          <p className="mb-6 max-w-3xl">Open any card to see what it looks like, what happens at each step, and exactly how far it has been built and tested.</p>
-          <div className="mb-8"><StatusLegend items={RESIDENT_CAPABILITIES} /></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {AVAILABLE.map((c) => <CapabilityCard key={c.id} capability={c} onOpen={panel.open} />)}
-          </div>
-        </section>
-        <section aria-labelledby="staff-respond-heading">
-          <h2 id="staff-respond-heading" className="font-display text-3xl md:text-4xl text-caos-forest mb-4">How staff respond</h2>
-          <p className="mb-6 max-w-3xl">A resident's request reaches the staff software with their own words. These are real CAOSCare screens with sample data.</p>
-          <StaffDashboardShowcase onOpen={panel.open} compact />
-        </section>
-        <section aria-labelledby="design-heading">
-          <h2 id="design-heading" className="font-display text-3xl md:text-4xl text-caos-forest mb-4">Planned</h2>
-          <p className="mb-6 max-w-3xl">Designed but not available yet. Devices will come from a small list approved for each community; availability, setup and pricing will be shown once verified.</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {PLANNED.map((c) => <CapabilityCard key={c.id} capability={c} onOpen={panel.open} />)}
-          </div>
-        </section>
-        <section className="rounded-3xl bg-caos-ambient p-8 md:p-12">
-          <h2 className="font-display text-3xl text-caos-forest">A local introduction, together</h2>
-          <p className="mt-4 max-w-3xl">A resident and family member can see a short video, hear Aria in a sample room, try a normal request, and learn which services and devices the community has actually enabled. Staff can explain who receives each request and how to call the front desk.</p>
-          <Link to="/for-communities" className="inline-block mt-5 text-caos-forest underline underline-offset-4">How the community uses CAOSCare</Link>
-        </section>
-      </main>
-      <CapabilityPanel capability={panel.capability} open={panel.isOpen} onClose={panel.close}
-        onCloseAutoFocus={panel.onCloseAutoFocus} />
-    </div>
+      </header>
+
+      <RequestJourney eyebrow="A request, start to finish" title="You ask once. Aria and the staff take it from there." />
+
+      {EXPERIENCE_VIDEOS[0] && (
+        <PublicSection id="video" eyebrow="The room is Aria" title="A day with Aria"
+          lead="Illustrative scenes of a resident's day, spoken naturally to the room.">
+          <div className="max-w-4xl"><ExperienceVideo video={EXPERIENCE_VIDEOS[0]} featured /></div>
+        </PublicSection>
+      )}
+
+      <PublicSection id="low-vision" tone="gray" eyebrow="Built for low vision" title="Easy to see, and easy to skip."
+        lead="Aria is reached by voice, so nobody has to read the screen. When the screen is used, this is what it looks like.">
+        <LowVisionProof onOpen={panel.open} />
+      </PublicSection>
+
+      <PublicSection id="capabilities" eyebrow="What Aria can help with" title="What exists today, and how far each has been tested"
+        lead="Open any card for what it looks like, what happens at each step, and its stated limits.">
+        <div className="mb-8"><StatusLegend items={AVAILABLE} /></div>
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+          {AVAILABLE.map((c) => <CapabilityCard key={c.id} capability={c} onOpen={panel.open} />)}
+        </div>
+      </PublicSection>
+
+      <PublicSection id="staff" tone="gray" eyebrow="How staff respond" title="Your request, on the staff side"
+        lead="A request reaches the staff software in your own words. These are real CAOSCare screens with simulated data.">
+        <StaffShowcase compact onOpen={panel.open} />
+      </PublicSection>
+
+      <PublicSection id="planned" eyebrow="Planned" title="Designed, not available yet"
+        lead="Drawings, not product photos. Devices will come from a small list approved for each community; availability will be shown once verified.">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+          {PLANNED.map((c) => <CapabilityCard key={c.id} capability={c} onOpen={panel.open} />)}
+        </div>
+      </PublicSection>
+
+      <PublicSection id="introduction" tone="gray" eyebrow="Getting started" title="A local introduction, together">
+        <div className="max-w-3xl text-[17px] leading-relaxed text-[#374151]">
+          <p>A resident and a family member can watch a short video, hear Aria in a sample room, try a normal request, and learn which services and devices the community has actually switched on. Staff can explain who receives each request.</p>
+          <Link to="/for-communities" className="mt-5 inline-block font-semibold text-[#1D4ED8] hover:underline">How the community uses CAOSCare →</Link>
+        </div>
+      </PublicSection>
+      <CapabilityPanel capability={panel.capability} open={panel.isOpen} onClose={panel.close} onCloseAutoFocus={panel.onCloseAutoFocus} />
+    </PublicPage>
   );
 }

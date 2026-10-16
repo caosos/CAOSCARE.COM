@@ -4,7 +4,7 @@ import { CAPABILITY_STATUS, STATUS_META, isDemonstrable, statusOf } from "../cap
 import { RESIDENT_CAPABILITIES } from "../capabilities/resident";
 import { COMMUNITY_WORKFLOWS } from "../capabilities/community";
 import { ALL_CAPABILITIES, CAPABILITIES_BY_ID } from "../capabilities";
-import { PHOTOS, SCREENS, PLACEHOLDERS } from "../capabilities/visuals";
+import { ILLUSTRATIONS, SCREENS } from "../capabilities/visuals";
 import { ROOM_FEATURES } from "../roomExperience/features";
 
 const PUBLIC = path.join(__dirname, "..", "..", "..", "public");
@@ -30,14 +30,16 @@ describe("capability status registry", () => {
     expect(accepted).toEqual([
       "activities", "administration", "dining", "escalation", "front_desk", "help", "housekeeping", "lighting",
       "low_vision", "maintenance", "nursing", "one_press", "rf_pendant", "room_screen", "staff_dashboard",
-      "therapy", "transportation", "voice",
+      "therapy", "transportation", "tv", "voice",
     ]);
   });
 
   test("capabilities without test-room evidence stay below pilot", () => {
     const expected = {
-      tv: "in_development", climate: "in_development",   // no real TV; AC commands unverified/failing
-      front_desk_calls: "planned", family_call: "planned", phone: "planned", location: "planned",
+      // 2026-10-16 re-audit (#162): climate's AC read-back is unverified; calling code exists but no
+      // phone system is connected and no call was ever placed; the rest has no hardware or feature yet.
+      climate: "in_development", front_desk_calls: "in_development", phone: "in_development",
+      family_call: "planned", location: "planned",
       blinds: "planned", wearables: "planned", beauty: "planned",
     };
     for (const [id, s] of Object.entries(expected)) expect([id, statusOf(id)]).toEqual([id, s]);
@@ -61,18 +63,41 @@ describe("capability panels", () => {
   });
 
   test("every visual file exists and carries alt text", () => {
-    for (const v of [...Object.values(SCREENS), ...Object.values(PHOTOS), ...Object.values(PLACEHOLDERS)]) {
+    for (const v of [...Object.values(SCREENS), ...Object.values(ILLUSTRATIONS)]) {
       expect([v.src, fs.existsSync(path.join(PUBLIC, v.src))]).toEqual([v.src, true]);
       expect(v.alt.length).toBeGreaterThan(15);
-      expect(["screen", "photo", "placeholder"]).toContain(v.kind);
+      expect(["screen", "illustration", "concept"]).toContain(v.kind);
     }
   });
 
-  test("therapy and beauty shop show honest placeholders, not unrelated photos", () => {
-    // Michael's 2026-09-27 review: the caregiver and bedroom photos did not
-    // represent therapy or a salon.
-    expect(CAPABILITIES_BY_ID.therapy.visuals).toEqual([PLACEHOLDERS.therapy]);
-    expect(CAPABILITIES_BY_ID.beauty.visuals).toEqual([PLACEHOLDERS.beauty]);
+  test("no stale or orphan public media: every screen and illustration file is in the registry", () => {
+    // #162: the 2026-09 command-centre screens and stock photos are retired, not left behind.
+    const used = new Set([...Object.values(SCREENS), ...Object.values(ILLUSTRATIONS)].map((v) => v.src));
+    for (const dir of ["screens", "illustrations"]) {
+      for (const f of fs.readdirSync(path.join(PUBLIC, "media", dir))) expect(used).toContain(`/media/${dir}/${f}`);
+    }
+    for (const gone of ["marketing", "placeholders", "product"]) expect(fs.existsSync(path.join(PUBLIC, "media", gone))).toBe(false);
+  });
+
+  test("each card leads with its own picture, never a shared filler image", () => {
+    // Michael 2026-10-15: no repeated generic room photo across unrelated capability cards.
+    for (const group of [RESIDENT_CAPABILITIES, COMMUNITY_WORKFLOWS]) {
+      const leads = group.map((c) => c.visuals[0].src);
+      expect(new Set(leads).size).toBe(leads.length);
+    }
+  });
+
+  test("planned capabilities lead with a labelled concept, built ones never do", () => {
+    for (const c of ALL_CAPABILITIES) {
+      const lead = c.visuals[0].kind;
+      if (c.status === "planned") expect([c.id, lead]).toEqual([c.id, "concept"]);
+      if (c.status === "pilot" || c.status === "working") expect([c.id, lead === "concept"]).toEqual([c.id, false]);
+    }
+  });
+
+  test("the low-vision card shows the real low-vision screen first", () => {
+    expect([SCREENS.roomContrast, SCREENS.roomEnlarged]).toContain(CAPABILITIES_BY_ID.low_vision.visuals[0]);
+    expect(SCREENS.roomContrast.kind).toBe("screen");
   });
 
   test("staff departments show actual CAOSCare screens, not only photos", () => {

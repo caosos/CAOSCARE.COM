@@ -1,14 +1,10 @@
 import { ALL_CAPABILITIES } from "../../lib/capabilities";
-import { STATUS_META, statusOf } from "../../lib/capabilities/status";
+import { STATUS_META, STATUS_ORDER, statusOf } from "../../lib/capabilities/status";
+import { STATUS_STYLE } from "../capabilities/StatusPill";
 
 // "What works today": grouped straight from the one public status registry
 // (lib/capabilities/status.js), so this page can never claim more than the others.
-const GROUPS = [
-  { key: "working", tone: "border-[#BFDBFE] bg-[#EFF6FF]", dot: "bg-[#2F80ED]" },
-  { key: "pilot", tone: "border-[#BBF7D0] bg-[#F0FDF4]", dot: "bg-[#16A34A]" },
-  { key: "in_development", tone: "border-[#FDE68A] bg-[#FFFBEB]", dot: "bg-[#D97706]" },
-  { key: "planned", tone: "border-[#E5E7EB] bg-white", dot: "bg-[#9CA3AF]" },
-];
+const GROUPS = STATUS_ORDER.map((key) => ({ key, tone: STATUS_STYLE[key].panel, dot: STATUS_STYLE[key].dot }));
 
 export default function LandingStatus({ onOpen }) {
   const byStatus = (key) => ALL_CAPABILITIES.filter((c) => statusOf(c.id) === key);

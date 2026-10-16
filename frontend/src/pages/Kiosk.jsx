@@ -16,6 +16,7 @@ import RequestsPanel from "../components/kiosk/RequestsPanel";
 import UpcomingPanel from "../components/kiosk/UpcomingPanel";
 import RoomDevicePanel from "../components/kiosk/RoomDevicePanel";
 import DemoKioskPanel from "../components/kiosk/demo/DemoKioskPanel";
+import RoomScreenPreview from "../components/public/RoomScreenPreview";
 import { sendRoomDeviceCommand } from "../lib/kioskDeviceControl";
 import { createCallAudioCoordinator } from "../lib/callAudioDuck";
 import { logActivationClientEvent } from "../lib/activationClient";
@@ -127,8 +128,7 @@ export default function Kiosk() {
     }, { shouldStop: () => stopped }).catch((e) => {
       if (stopped) return;
       if (kioskId === "demo" && e?.response?.status === 404) {
-        toast.error("No public demo kiosk is configured yet.");
-        setDemoSetupError(true);
+        setDemoSetupError(true);   // the public preview below, never a dead end (#162)
       } else {
         toast.error("Could not load kiosk");
       }
@@ -436,14 +436,7 @@ export default function Kiosk() {
     </Dialog>
   );
 
-  if (demoSetupError) {
-    return (
-      <div className="min-h-screen bg-caos-ambient text-caos-ink p-8 flex flex-col items-center justify-center text-center gap-3" data-testid="kiosk-demo-setup-error">
-        <span className="font-display font-bold tracking-tighter text-caos-forest text-2xl">CAOSCare</span>
-        <p className="text-caos-mute max-w-md">No public demo kiosk is configured yet. An admin needs to mark one as the public demo in Kiosks.</p>
-      </div>
-    );
-  }
+  if (demoSetupError) return <RoomScreenPreview />;
 
   if (callState === "idle") {
     return (
