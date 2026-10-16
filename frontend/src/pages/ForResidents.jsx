@@ -17,8 +17,6 @@ import LowVisionProof from "../components/public/LowVisionProof";
 
 // Residents and families (#162): voice first. Aria is the way in; the room
 // screen supports her. Cards come from lib/capabilities (one status registry).
-const AVAILABLE = RESIDENT_CAPABILITIES.filter((c) => c.status !== "planned");
-const PLANNED = RESIDENT_CAPABILITIES.filter((c) => c.status === "planned");
 
 export default function ForResidents() {
   const panel = useCapabilityPanel(CAPABILITIES_BY_ID);
@@ -60,9 +58,9 @@ export default function ForResidents() {
 
       <PublicSection id="capabilities" eyebrow="What Aria can help with" title="What exists today, and how far each has been tested"
         lead="Open any card for what it looks like, what happens at each step, and its stated limits.">
-        <div className="mb-8"><StatusLegend items={AVAILABLE} /></div>
+        <div className="mb-8"><StatusLegend items={RESIDENT_CAPABILITIES} /></div>
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {AVAILABLE.map((c) => <CapabilityCard key={c.id} capability={c} onOpen={panel.open} />)}
+          {RESIDENT_CAPABILITIES.map((c) => <CapabilityCard key={c.id} capability={c} onOpen={panel.open} />)}
         </div>
       </PublicSection>
 
@@ -71,12 +69,6 @@ export default function ForResidents() {
         <StaffShowcase compact onOpen={panel.open} />
       </PublicSection>
 
-      <PublicSection id="planned" eyebrow="Planned" title="Designed, not available yet"
-        lead="Drawings, not product photos. Devices will come from a small list approved for each community; availability will be shown once verified.">
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {PLANNED.map((c) => <CapabilityCard key={c.id} capability={c} onOpen={panel.open} />)}
-        </div>
-      </PublicSection>
 
       <PublicSection id="introduction" tone="gray" eyebrow="Getting started" title="A local introduction, together">
         <div className="max-w-3xl text-[17px] leading-relaxed text-[#374151]">

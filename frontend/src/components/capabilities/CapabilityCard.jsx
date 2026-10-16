@@ -3,7 +3,7 @@ import StatusPill from "./StatusPill";
 import { VisualImage, VISUAL_TAG } from "./CapabilityVisuals";
 
 // Every capability card opens its on-page panel. The thumbnail is the
-// capability's own first visual (a real screen or a labelled concept), never
+// capability's own first visual (a real screen or a labelled illustration), never
 // a shared filler image; the label on it says which it is.
 export default function CapabilityCard({ capability, onOpen }) {
   const thumb = capability.visuals.find((v) => v.height / v.width > 0.3) || capability.visuals[0];

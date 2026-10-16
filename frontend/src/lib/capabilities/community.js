@@ -117,20 +117,7 @@ export const COMMUNITY_WORKFLOWS = [
       next: "Desk staff follow up; the request status updates for the resident.",
     },
     built: "A front desk workspace with requests, the ride calendar and the resident directory.",
-    pending: "Not yet used and accepted by front desk staff. Live calls to the desk are planned (see the next card).",
-  },
-  {
-    id: "front_desk_calls", name: "Calls to the front desk", department: "Front desk",
-    summary: "\"Aria, call the front desk\" as a real two-way call.",
-    visuals: [ILLUSTRATIONS.phone, SCREENS.frontDesk],
-    flow: {
-      does: "Would say \"Aria, call the front desk.\"",
-      caos: "Would place a real call to the desk.",
-      sees: "The desk would receive a normal call, logged with the room.",
-      next: "Aria would never claim a call connected unless the phone system confirms it.",
-    },
-    built: "The desk workspace (shown), and call records and status tracking in the software. No phone system is connected, so no call can reach the desk yet.",
-    pending: "Connecting a phone system and accepting a first real call to the desk.",
+    pending: "Not yet used and accepted by front desk staff. Requests reach the desk as records, not phone calls: no phone system is connected.",
   },
   {
     id: "administration", name: "Administration & reporting", department: "Leadership",
@@ -173,19 +160,6 @@ export const COMMUNITY_WORKFLOWS = [
     },
     built: "Therapy requests, planning, repeating visits, double-booking checks, linked rides and a resident \"Coming up\" list.",
     pending: "Not yet used by a community's therapy staff.",
-  },
-  {
-    id: "beauty", name: "Beauty shop", department: "Salon",
-    summary: "Salon requests that are only booked once the salon confirms.",
-    visuals: [ILLUSTRATIONS.beauty],
-    flow: {
-      does: "Would ask \"Can I get my hair done Friday?\"",
-      caos: "Would record an appointment request.",
-      sees: "The salon would confirm or offer another time.",
-      next: "Aria would say it isn't booked until the salon confirms.",
-    },
-    built: "Not built yet.",
-    pending: "Planned.",
   },
 ].map((c) => ({ ...c, status: statusOf(c.id) }));
 

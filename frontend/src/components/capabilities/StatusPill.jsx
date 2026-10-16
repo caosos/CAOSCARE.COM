@@ -6,8 +6,6 @@ import { STATUS_META } from "../../lib/capabilities/status";
 export const STATUS_STYLE = {
   working: { pill: "bg-[#EFF6FF] text-[#1D4ED8] border-[#BFDBFE]", panel: "border-[#BFDBFE] bg-[#EFF6FF]", dot: "bg-[#2F80ED]" },
   pilot: { pill: "bg-[#F0FDF4] text-[#15803D] border-[#BBF7D0]", panel: "border-[#BBF7D0] bg-[#F0FDF4]", dot: "bg-[#16A34A]" },
-  in_development: { pill: "bg-[#FFFBEB] text-[#B45309] border-[#FDE68A]", panel: "border-[#FDE68A] bg-[#FFFBEB]", dot: "bg-[#D97706]" },
-  planned: { pill: "bg-white text-[#4B5563] border-[#D1D5DB]", panel: "border-[#E5E7EB] bg-white", dot: "bg-[#9CA3AF]" },
 };
 
 // The single status badge for every public page.

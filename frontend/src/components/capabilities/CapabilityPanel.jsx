@@ -6,9 +6,7 @@ import { STATUS_META } from "../../lib/capabilities/status";
 
 const FLOW_HEADING = {
   working: "How it works",
-  pilot: "How it works in the test room",
-  in_development: "How it is designed to work · the full loop is not accepted yet",
-  planned: "Planned design · not available yet",
+  pilot: "How it works in the pilot",
 };
 
 const FLOW = [
@@ -55,7 +53,7 @@ export default function CapabilityPanel({ capability, open, onClose, onCloseAuto
               </div>
               <div className="rounded-xl border border-[#E5E7EB] p-4">
                 <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
-                  {capability.status === "planned" ? "Still planned" : "Not yet accepted"}
+                  Not yet accepted
                 </p>
                 <p className="mt-2 text-[15px] text-[#111827]">{capability.pending}</p>
               </div>

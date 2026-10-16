@@ -2,7 +2,7 @@ import React from "react";
 import { VisualImage, VISUAL_TAG } from "../capabilities/CapabilityVisuals";
 
 // One framed public picture from lib/capabilities/visuals.js, always saying
-// what it is (real screen with sample data, illustration or concept) and,
+// what it is (real screen with sample data, or illustration) and,
 // optionally, where the data came from.
 export default function PublicVisual({ visual, caption, className = "", eager = false, framed = false }) {
   return (

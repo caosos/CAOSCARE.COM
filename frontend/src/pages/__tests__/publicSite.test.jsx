@@ -19,6 +19,7 @@ import ForResidents from "../ForResidents";
 import ForCommunities from "../ForCommunities";
 import RoomExperience from "../RoomExperience";
 import RoomScreenPreview from "../../components/public/RoomScreenPreview";
+import DemoSiteBar from "../../components/kiosk/demo/DemoSiteBar";
 import { PUBLIC_LINKS } from "../../components/landing/LandingNav";
 import { SCREENS } from "../../lib/capabilities/visuals";
 
@@ -54,6 +55,8 @@ describe.each(Object.entries(PAGES))("%s", (name, Page) => {
     }
     expect([name, host.querySelectorAll('[class*="caos-"], [class*="font-display"]').length]).toEqual([name, 0]);
     expect(host.textContent).not.toMatch(/kiosk/i);
+    // Owner 2026-10-16: no public page shows a Planned or In development capability.
+    expect([name, host.textContent.match(/\b(Planned|In development|Not available yet)\b/)]).toEqual([name, null]);
     await done();
   });
 });
@@ -83,4 +86,18 @@ test("the room screen demo never dead-ends: with no demo room switched on it sho
   const kiosk = fs.readFileSync(path.join(__dirname, "..", "Kiosk.jsx"), "utf8");
   expect(kiosk).toMatch("if (demoSetupError) return <RoomScreenPreview />;");
   expect(kiosk).not.toMatch("No public demo kiosk is configured");
+});
+
+test("the room screen demo has a way back to the site and shows high contrast as something to try", async () => {
+  const toggles = [];
+  const Bar = () => <DemoSiteBar highContrast={false} onToggleContrast={() => toggles.push(1)} />;
+  const { host, done } = await render(Bar);
+  expect(host.querySelector("[data-testid=demo-back-experience]").getAttribute("href")).toBe("/experience");
+  expect(host.querySelector("[data-testid=demo-back-home]").getAttribute("href")).toBe("/");
+  const hc = host.querySelector("[data-testid=demo-try-contrast]");
+  expect(hc.textContent).toMatch(/high contrast/i);
+  expect(hc.getAttribute("aria-pressed")).toBe("false");
+  await act(async () => hc.click());
+  expect(toggles.length).toBe(1);
+  await done();
 });

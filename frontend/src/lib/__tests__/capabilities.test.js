@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { CAPABILITY_STATUS, STATUS_META, isDemonstrable, statusOf } from "../capabilities/status";
+import { CAPABILITY_STATUS, STATUS_META, STATUS_ORDER, statusOf } from "../capabilities/status";
 import { RESIDENT_CAPABILITIES } from "../capabilities/resident";
 import { COMMUNITY_WORKFLOWS } from "../capabilities/community";
 import { ALL_CAPABILITIES, CAPABILITIES_BY_ID } from "../capabilities";
@@ -22,27 +22,29 @@ describe("capability status registry", () => {
     for (const c of [...ALL_CAPABILITIES, ...ROOM_FEATURES]) expect([c.id, c.status]).toEqual([c.id, CAPABILITY_STATUS[c.id]]);
   });
 
-  // 2026-09-27 audit, 2026-10-12 owner direction (test-room/test-environment
-  // evidence in status.js). Changing this list needs new acceptance evidence
-  // recorded in status.js and docs/PROJECT_STATE.md.
-  test("only evidence-backed capabilities are Working or In pilot", () => {
-    const accepted = Object.entries(CAPABILITY_STATUS).filter(([, s]) => isDemonstrable(s)).map(([id]) => id).sort();
-    expect(accepted).toEqual([
-      "activities", "administration", "dining", "escalation", "front_desk", "help", "housekeeping", "lighting",
-      "low_vision", "maintenance", "nursing", "one_press", "rf_pendant", "room_screen", "staff_dashboard",
-      "therapy", "transportation", "tv", "voice",
-    ]);
+  // 2026-09-27 audit, 2026-10-12 owner direction, 2026-10-16 owner policy (PR #181): only
+  // capabilities proven in the pilot architecture are public, all In pilot, with evidence in
+  // status.js. Changing this list needs that evidence recorded in status.js and docs/PROJECT_STATE.md.
+  test("the public site shows only Working and In pilot, never Planned or In development", () => {
+    expect(STATUS_ORDER).toEqual(["working", "pilot"]);
+    expect(Object.keys(STATUS_META).sort()).toEqual(["pilot", "working"]);
   });
 
-  test("capabilities without test-room evidence stay below pilot", () => {
-    const expected = {
-      // 2026-10-16 re-audit (#162): climate's AC read-back is unverified; calling code exists but no
-      // phone system is connected and no call was ever placed; the rest has no hardware or feature yet.
-      climate: "in_development", front_desk_calls: "in_development", phone: "in_development",
-      family_call: "planned", location: "planned",
-      blinds: "planned", wearables: "planned", beauty: "planned",
-    };
-    for (const [id, s] of Object.entries(expected)) expect([id, statusOf(id)]).toEqual([id, s]);
+  test("exactly the evidence-backed capabilities are public, all In pilot", () => {
+    expect(Object.keys(CAPABILITY_STATUS).sort()).toEqual([
+      "activities", "administration", "blinds", "climate", "dining", "escalation", "front_desk", "help",
+      "housekeeping", "lighting", "low_vision", "maintenance", "nursing", "one_press", "rf_pendant",
+      "room_screen", "staff_dashboard", "therapy", "transportation", "tv", "voice",
+    ]);
+    for (const [id, s] of Object.entries(CAPABILITY_STATUS)) expect([id, s]).toEqual([id, "pilot"]);
+  });
+
+  test("unproven capabilities are not listed at all", () => {
+    // Owner 2026-10-16: removed, not relabelled. No phone system, family sharing, wearables,
+    // building location or salon booking is built.
+    for (const id of ["phone", "family_call", "front_desk_calls", "location", "wearables", "beauty"]) {
+      expect([id, id in CAPABILITY_STATUS, !!CAPABILITIES_BY_ID[id]]).toEqual([id, false, false]);
+    }
   });
 });
 
@@ -66,7 +68,7 @@ describe("capability panels", () => {
     for (const v of [...Object.values(SCREENS), ...Object.values(ILLUSTRATIONS)]) {
       expect([v.src, fs.existsSync(path.join(PUBLIC, v.src))]).toEqual([v.src, true]);
       expect(v.alt.length).toBeGreaterThan(15);
-      expect(["screen", "illustration", "concept"]).toContain(v.kind);
+      expect(["screen", "illustration"]).toContain(v.kind);
     }
   });
 
@@ -87,14 +89,6 @@ describe("capability panels", () => {
     }
   });
 
-  test("planned capabilities lead with a labelled concept, built ones never do", () => {
-    for (const c of ALL_CAPABILITIES) {
-      const lead = c.visuals[0].kind;
-      if (c.status === "planned") expect([c.id, lead]).toEqual([c.id, "concept"]);
-      if (c.status === "pilot" || c.status === "working") expect([c.id, lead === "concept"]).toEqual([c.id, false]);
-    }
-  });
-
   test("the low-vision card shows the real low-vision screen first", () => {
     expect([SCREENS.roomContrast, SCREENS.roomEnlarged]).toContain(CAPABILITIES_BY_ID.low_vision.visuals[0]);
     expect(SCREENS.roomContrast.kind).toBe("screen");
@@ -110,24 +104,18 @@ describe("capability panels", () => {
   test("For Communities covers every required department", () => {
     const ids = COMMUNITY_WORKFLOWS.map((c) => c.id);
     for (const id of ["staff_dashboard", "nursing", "maintenance", "transportation", "dining", "activities",
-      "housekeeping", "therapy", "beauty", "front_desk", "administration", "escalation"]) expect(ids).toContain(id);
+      "housekeeping", "therapy", "front_desk", "administration", "escalation"]) expect(ids).toContain(id);
   });
 
   test("the resident side covers every required capability", () => {
     const ids = RESIDENT_CAPABILITIES.map((c) => c.id);
-    for (const id of ["voice", "help", "lighting", "tv", "climate", "rf_pendant", "family_call", "phone", "room_screen"]) {
+    for (const id of ["voice", "help", "lighting", "tv", "climate", "blinds", "rf_pendant", "low_vision", "room_screen"]) {
       expect(ids).toContain(id);
     }
   });
 
   test("every /experience room feature has a panel", () => {
     for (const f of ROOM_FEATURES) expect([f.id, !!CAPABILITIES_BY_ID[f.id]]).toEqual([f.id, true]);
-  });
-
-  test("planned capabilities are described as designs, not working features", () => {
-    for (const c of ALL_CAPABILITIES.filter((x) => x.status === "planned")) {
-      expect([c.id, /would|planned|not built/i.test(`${c.flow.caos} ${c.built} ${c.pending}`)]).toEqual([c.id, true]);
-    }
   });
 
   test("no panel claims help is on the way", () => {

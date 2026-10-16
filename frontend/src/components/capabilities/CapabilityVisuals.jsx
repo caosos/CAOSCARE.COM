@@ -1,11 +1,10 @@
 import React, { useState } from "react";
 
 // What every public picture is, said on the picture itself (#162: a capability
-// card shows the real capability, or a clearly labelled concept of it).
+// card shows the real capability, or a clearly labelled illustration of it).
 export const VISUAL_TAG = {
   screen: "CAOSCare screen · sample data",
   illustration: "Illustration · how it is used",
-  concept: "Concept illustration · not a product screen",
 };
 
 export function VisualImage({ visual, className = "" }) {

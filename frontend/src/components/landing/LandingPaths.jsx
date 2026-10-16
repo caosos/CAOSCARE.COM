@@ -7,7 +7,7 @@ const PATHS = [
   { to: "/for-communities", icon: Building2, title: "Communities",
     body: "Every department's workspace, the staff dashboard and how requests are tracked.", testid: "path-communities" },
   { to: "/experience", icon: DoorOpen, title: "Explore a room",
-    body: "Pick an apartment and see which room features exist today and which are planned.", testid: "path-experience" },
+    body: "Pick an apartment and see which room features are in pilot today.", testid: "path-experience" },
   { to: "/kiosk/demo", icon: MonitorSmartphone, title: "Room screen demo",
     body: "The real room screen in a demo room: a sample resident and simulated light, TV and thermostat.", testid: "path-kiosk" },
 ];

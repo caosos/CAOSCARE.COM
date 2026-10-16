@@ -16,6 +16,7 @@ import RequestsPanel from "../components/kiosk/RequestsPanel";
 import UpcomingPanel from "../components/kiosk/UpcomingPanel";
 import RoomDevicePanel from "../components/kiosk/RoomDevicePanel";
 import DemoKioskPanel from "../components/kiosk/demo/DemoKioskPanel";
+import DemoSiteBar from "../components/kiosk/demo/DemoSiteBar";
 import RoomScreenPreview from "../components/public/RoomScreenPreview";
 import { sendRoomDeviceCommand } from "../lib/kioskDeviceControl";
 import { createCallAudioCoordinator } from "../lib/callAudioDuck";
@@ -67,7 +68,6 @@ export default function Kiosk() {
   const { scale: magnification, setScale: setMagnification } = useMagnification();
   const [highContrast, setHighContrast] = useState(() => localStorage.getItem("caos_kiosk_hc") === "1");
   useEffect(() => { localStorage.setItem("caos_kiosk_hc", highContrast ? "1" : "0"); }, [highContrast]);
-  const a11yRootClass = highContrast ? "kiosk-hc" : "";
 
   // Voice preference (OpenAI TTS voice). Persisted per-kiosk so each room
   // can match its resident's preference.
@@ -268,6 +268,9 @@ export default function Kiosk() {
   // Public demo kiosk: typing starts the same no-event conversation, then the
   // call screen sends the text into it (realtimeTypedTurn.js).
   const isDemo = kiosk?.public_demo === true;
+  // The public demo wears the public site's palette (kiosk-public, index.css);
+  // real room screens keep theirs. High contrast overrides both.
+  const a11yRootClass = [highContrast && "kiosk-hc", isDemo && "kiosk-public ws-root"].filter(Boolean).join(" ");
   const [initialTypedText, setInitialTypedText] = useState(null);
   const startTypedConversation = async (text) => {
     if (callStateRef.current !== "idle" || !(await primeMedia())) return false;
@@ -441,6 +444,7 @@ export default function Kiosk() {
   if (callState === "idle") {
     return (
       <div className={`min-h-screen bg-caos-ambient text-caos-ink p-8 md:p-12 flex flex-col ${a11yRootClass}`}>
+        {isDemo && <DemoSiteBar highContrast={highContrast} onToggleContrast={() => setHighContrast((v) => !v)} />}
         {inSandboxedIframe() && (
           <button
             onClick={openInFullTab}

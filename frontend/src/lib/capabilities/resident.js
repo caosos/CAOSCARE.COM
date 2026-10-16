@@ -1,10 +1,9 @@
 // Resident / family capabilities for the public site. Every card opens a
 // panel (CapabilityPanel) with: visuals, the flow (what the resident does,
 // what CAOSCare does, what staff see, what happens next), what is built
-// today, and what is not yet accepted or still planned.
+// today, and what is not yet accepted.
 //
-// Status comes from status.js. Flow text for in-development and planned
-// capabilities describes the design ("would"), never a working feature.
+// Status comes from status.js; only proven capabilities are listed here.
 // All names and rooms in screenshots are sample data.
 import { statusOf } from "./status";
 import { ILLUSTRATIONS, SCREENS } from "./visuals";
@@ -103,45 +102,17 @@ export const RESIDENT_CAPABILITIES = [
   {
     id: "climate",
     name: "Heating and cooling",
-    summary: "Comfort requests turned into a temperature change.",
+    summary: "Comfort requests turned into a temperature change, by voice or on the room screen.",
+    limitation: "Proven on the CAOSCare demo room's thermostat. The test room's own air conditioner doesn't stay reliably connected, and each community's heating and cooling has to be connected and tested before it is switched on.",
     visuals: [SCREENS.roomDemoDevices, SCREENS.roomControls],
     flow: {
-      does: "Would say \"Aria, I'm cold\" or tap the thermostat control.",
-      caos: "Would set the temperature and read back the unit's actual setting.",
-      sees: "The device record would show the setting and the room's temperature.",
-      next: "Aria would never say the room is warmer just because the setting changed.",
+      does: "Says \"Aria, I'm cold\" or \"set it to 72\", or taps the thermostat control on the room screen.",
+      caos: "Sends the new setting to the room's thermostat, then reads back the setting it actually has.",
+      sees: "The device record shows the setting that was read back.",
+      next: "Aria never says the room is warmer just because the setting changed.",
     },
-    built: "Temperature commands with read-back, and the thermostat control on the room screen (shown on a demo device).",
-    pending: "The test room's air conditioner doesn't stay reliably connected, so no voice temperature change has been confirmed.",
-  },
-  {
-    id: "family_call",
-    name: "Family connection",
-    summary: "Updates, messages and photos shared only with family the resident has authorized.",
-    visuals: [ILLUSTRATIONS.family],
-    flow: {
-      does: "Would choose which family members may hear about their day, and say \"Aria, tell my daughter I'm going to the concert.\"",
-      caos: "Would share only what the resident allows, only with authorized family, and keep a record of what was sent.",
-      sees: "Staff would see who is authorized and what was shared; family would get a message, not access to the resident's record.",
-      next: "Aria would say whether the message was actually delivered.",
-    },
-    built: "Not built yet. Calling a family member is a separate capability: see Phone and calling.",
-    pending: "Planned: authorized-family updates, messages and photos, chosen by the resident.",
-  },
-  {
-    id: "phone",
-    name: "Phone and calling",
-    summary: "Calls by voice to approved family, the front desk or a neighbor, and later a familiar handset.",
-    limitation: "Partly built: the call records and the approved-contact checks exist, but no phone system is connected, so no call can be placed yet.",
-    visuals: [ILLUSTRATIONS.phone],
-    flow: {
-      does: "Would say \"Aria, call my daughter\" or \"call the front desk\", or later pick up a simple handset.",
-      caos: "Would place the call and follow each person's preferences and staff routing.",
-      sees: "The person called would receive a normal call; messages would carry the sender's name.",
-      next: "Aria would report only calls and messages that really happened.",
-    },
-    built: "Call records, approved-contact checks and call status tracking. Aria says honestly that calling isn't set up yet.",
-    pending: "Connecting a phone system and placing a first real call; then the handset and an answering machine.",
+    built: "Temperature commands by voice and touch, confirmed by read-back, shown here on the demo room's thermostat.",
+    pending: "A real room's heating and cooling that stays connected; the test room's air conditioner drops off.",
   },
   {
     id: "low_vision",
@@ -162,7 +133,7 @@ export const RESIDENT_CAPABILITIES = [
     id: "room_screen",
     name: "The room screen",
     summary: "One simple screen for help, talking to Aria, requests, today's plan and the room.",
-    limitation: "Used in the CAOSCare test room. The TV there is real; the thermostat shown is a demo device.",
+    limitation: "Used in the CAOSCare test room. The TV there is real; the thermostat shown is the demo room's.",
     visuals: [SCREENS.roomScreen, SCREENS.roomControls, SCREENS.roomDemoDevices],
     flow: {
       does: "Sees their name, the time, a large help button and a talk button, with their requests, today's activities and menu, and room controls below.",
@@ -171,49 +142,22 @@ export const RESIDENT_CAPABILITIES = [
       next: "The TV stays the resident's TV; the screen is a companion, not a menu to learn.",
     },
     built: "The room screen with help, talk, requests, activities, menu and room controls.",
-    pending: "Real heating and cooling control; see that card.",
-  },
-  {
-    id: "location",
-    name: "Building-wide location",
-    summary: "Help calls that show where in the building the resident is.",
-    visuals: [ILLUSTRATIONS.location],
-    flow: {
-      does: "Would press for help anywhere in the building, wearing an approved device.",
-      caos: "Would attach the resident's last known area, only with consent.",
-      sees: "Staff would see where to go on the live board.",
-      next: "Staff would go to the right place.",
-    },
-    built: "A live-locations panel on the staff board (shown here with no location data).",
-    pending: "No building sensors or wearables are connected.",
+    pending: "A real room's heating and cooling on the screen; see that card.",
   },
   {
     id: "blinds",
     name: "Motorized blinds",
-    summary: "Opening and closing blinds by voice.",
-    visuals: [ILLUSTRATIONS.blinds],
+    summary: "Open, close or set the blinds by voice.",
+    limitation: "Proven on the CAOSCare demo room's blinds. No blinds are installed in the test room yet, and each blind model has to be connected and tested before it is switched on.",
+    visuals: [ILLUSTRATIONS.blinds, SCREENS.roomDemoDevices],
     flow: {
-      does: "Would say \"Aria, open the blinds.\"",
-      caos: "Would send the command and read back the result.",
-      sees: "The device record would show the blinds' position.",
-      next: "Aria would confirm only what the blinds report.",
+      does: "Says \"Aria, open the blinds\" or \"close them halfway\".",
+      caos: "Sends the command to the room's blinds and reads back their position.",
+      sees: "The device record shows the position the blinds report.",
+      next: "Aria confirms only the position the blinds report; if the room has no blinds, she says so.",
     },
-    built: "Not built yet.",
-    pending: "Planned room option.",
-  },
-  {
-    id: "wearables",
-    name: "Approved wearables",
-    summary: "Supported wearable devices chosen for each community.",
-    visuals: [ILLUSTRATIONS.wearable, ILLUSTRATIONS.pendant],
-    flow: {
-      does: "Would wear an approved device from a small supported list.",
-      caos: "Would read only the data the resident has consented to share.",
-      sees: "Staff and family would see what the resident has agreed to share.",
-      next: "What's available depends on the approved device and consent.",
-    },
-    built: "Not built yet.",
-    pending: "Planned: a small approved-device list per community.",
+    built: "Open, close and set-to-a-percent by voice, confirmed by the reported position, proven on the demo room's blinds.",
+    pending: "Installing and testing real motorized blinds in a resident's room.",
   },
 ].map((c) => ({ ...c, status: statusOf(c.id) }));
 
