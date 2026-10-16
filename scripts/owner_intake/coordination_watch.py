@@ -26,6 +26,8 @@ sys.path.insert(0, str(HERE))
 import coord_github as gh  # noqa: E402
 import coord_host as host  # noqa: E402
 import coord_queue as cq  # noqa: E402
+import intake_inbox as inbox  # noqa: E402
+import receiver  # noqa: E402
 
 STATE_DIR = Path(os.environ.get("CAOS_COORD_STATE", Path.home() / ".local/state/caoscare-coordination"))
 STATE_FILE = STATE_DIR / "state.json"
@@ -48,7 +50,7 @@ def load_state() -> dict:
         except ValueError:
             pass
     return {"cursor": _iso(_now() - timedelta(minutes=10)), "published": {}, "dispatched": {}, "last": {},
-            "boundary_seen": False, "owner_open": {}}
+            "boundary_seen": False, "owner_open": {}, "owner_acked": {}, "seen_ids": [], "known_sessions": []}
 
 
 def save_state(st: dict) -> None:
@@ -98,6 +100,54 @@ def base_fields(q: dict, hs: dict, task_id="UNKNOWN", state="observed", **extra)
     return f
 
 
+ACK_STATES = ("ACK", "WORKING", "DONE", "BLOCKED")
+RECEIPT_KINDS = ("coordinator_receipt", "receiver_status")     # DELIVERED / watcher / DA posts never answer anything
+
+
+def _ack_seconds(timers: dict) -> int:
+    return int(timers.get("ack_seconds", timers.get("ack_minutes", 30) * 60))
+
+
+def _age(iso: str) -> float:
+    return (_now() - datetime.fromisoformat(iso.replace("Z", "+00:00"))).total_seconds()
+
+
+def correlated(od: dict, cl: dict) -> bool:
+    """A receipt answers an owner command only if it is a coordinator receipt posted after it, in an ACK/WORKING/DONE/
+    BLOCKED state, that cites the command id (c<id> / its URL) or one of the command's own task ids."""
+    return (cl["kind"] in RECEIPT_KINDS and cl["state"] in ACK_STATES and cl["created_at"] > od["at"]
+            and (str(od.get("id")) in cl.get("commands", []) or bool(set(od.get("tasks") or []) & set(cl["items"]))))
+
+
+def pickup_rows(command: str) -> list:
+    try:
+        return [r for r in receiver.read() if r.get("kind") == "pickup" and r.get("command") == command]
+    except (OSError, ValueError):
+        return []
+
+
+def intake_text(q: dict, command: str, task: str, url: str, why: str) -> str:
+    pin = q["coordinator"]["session_name"]
+    return (f"CAOSCARE INTAKE {why} — owner command {command} on #{q['authoritative_issue']} ({url}), task {task}. "
+            f"Step 1: `python3 {HERE}/receiver.py pickup {command} --task {task} --session {pin}`; act ONLY on NEW "
+            f"(DUPLICATE/COMPLETED = do nothing). Then post a receipt whose first line is `ACK — {task} (session {pin})` citing {command}, "
+            f"and re-arm `intake_inbox.py listen --session {pin}`.")
+
+
+def send(q: dict, hs: dict, command: str, tasks: list, url: str, reason: str) -> dict:
+    """Queue one entry for the EXISTING pinned coordinator's armed in-session listener (its exit wakes the session).
+    Starts nothing. Reports honestly whether the listener is armed under the pinned session's own pid."""
+    pin = q["coordinator"]
+    task = (tasks or [command])[0]
+    arm = inbox.armed(pin["session_name"], hs.get("pid")) if hs.get("live") else {"armed": False, "why": f"coordinator {hs.get('verdict')}"}
+    if DRY:
+        return {"at": _iso(), "ok": None, "armed": arm.get("armed"), "note": "dry run: not queued"}
+    r = inbox.deliver(pin["session_name"], command, task, intake_text(q, command, task, url, reason.upper()), reason)
+    note = f"queued (seq {r.get('seq', 'dup')}) for listener pid {arm['pid']}" if arm.get("armed") else f"queued, but NOT armed: {arm.get('why')}"
+    record("intake", command=command, task=task, reason=reason, armed=arm.get("armed"), note=note)
+    return {"at": _iso(), "ok": bool(arm.get("armed")), "armed": arm.get("armed"), "note": note}
+
+
 def tick(st: dict, q: dict) -> dict:
     pin, timers = q["coordinator"], q["timers"]
     hs = host.coordinator_state(pin, timers["stall_minutes"])
@@ -106,29 +156,48 @@ def tick(st: dict, q: dict) -> dict:
     # --- GitHub transitions since the cursor
     newest = st["cursor"]
     seen = []
+    known = host.known_sessions() | set(st.setdefault("known_sessions", []))
+    st["known_sessions"] = sorted(known)
+    seen_ids = set(st.setdefault("seen_ids", []))
+    # overlap window: a comment created in the same second as the cursor (or listed late by GitHub) is still read once;
+    # comment ids, not timestamps, decide what is new. No overlap until ids are tracked (upgrade from an older state).
+    floor = _iso(datetime.fromisoformat(st["cursor"].replace("Z", "+00:00")) - timedelta(minutes=5)) if seen_ids else st["cursor"]
     for n in q["watch_issues"]:
         try:
-            for c in gh.comments_since(q["repo"], n, st["cursor"]):
-                if c.get("created_at", "") <= st["cursor"]:
+            for c in gh.comments_since(q["repo"], n, floor):
+                if c.get("id") in seen_ids or c.get("created_at", "") <= floor:
                     continue
-                cl = gh.classify(c)
+                seen_ids.add(c.get("id"))
+                cl = gh.classify(c, known_sessions=known)
                 cl["issue"] = n
                 seen.append(cl)
                 newest = max(newest, c["created_at"])
         except RuntimeError as e:
             summary["events"].append({"github_error": str(e)[:120]})
+    st["seen_ids"] = sorted(i for i in seen_ids if i is not None)[-5000:]
     seen.sort(key=lambda x: x["created_at"])
     for cl in seen:
         if cl["kind"] == "watcher":
             continue
         key = f"c{cl['id']}"
         if cl["kind"] == "owner_directive":
-            st["owner_open"][key] = {"at": cl["created_at"], "url": cl["url"], "issue": cl["issue"]}
+            st["owner_open"][key] = {"at": cl["created_at"], "url": cl["url"], "issue": cl["issue"], "id": str(cl["id"]),
+                                     "tasks": cl["tasks"], "recipient": pin["session_name"]}
+            st["owner_open"][key]["delivery"] = send(q, hs, key, cl["tasks"], cl["url"], "delivery")
             publish(st, q, key, f"OWNER DIRECTIVE observed on #{cl['issue']}",
                     base_fields(q, hs, state="DELIVERED (owner comment awaiting coordinator ACK/response)",
-                                evidence=cl["url"], next_action="expect ACK/WORKING within %d min" % timers["ack_minutes"]))
+                                evidence=cl["url"], next_action="expect a correlated ACK/WORKING within %d s" % _ack_seconds(timers)))
         elif cl["kind"] in ("coordinator_receipt", "receiver_status", "da_delivery"):
-            st["owner_open"] = {k: v for k, v in st["owner_open"].items() if v["at"] > cl["created_at"]}   # any coordinator post answers earlier directives
+            for k, od in list(st["owner_open"].items()):          # only a correlated receipt answers a command
+                if correlated(od, cl):
+                    st.setdefault("owner_acked", {})[k] = {**st["owner_open"].pop(k), "ack_url": cl["url"], "ack_at": cl["created_at"],
+                                                           "ack_state": cl["state"], "ack_session": cl.get("session")}
+                    publish(st, q, f"ack-{k}", f"ACK DETECTED for owner command {k}",
+                            base_fields(q, hs, task_id=", ".join(od.get("tasks") or []) or k, state=f"{cl['state']} (correlated to {k})",
+                                        evidence=cl["url"], coordinator=cl.get("session") or pin["session_name"], next_action="watch for WORKING/DONE"))
+            if cl["kind"] not in RECEIPT_KINDS:
+                summary["events"].append({"kind": cl["kind"], "state": cl["state"], "url": cl["url"]})
+                continue
             st["last"] = {"state": cl["state"], "at": cl["created_at"], "url": cl["url"], "items": cl["items"], "header": cl["header"]}
             if cl["boundary"] and cl["issue"] in q.get("boundary_issues", [q["authoritative_issue"]]):
                 st["boundary_seen"] = True
@@ -140,12 +209,12 @@ def tick(st: dict, q: dict) -> dict:
                                 next_action="reconcile queue; dispatch next item at boundary" if cl["state"] == "DONE" else "keep watching"))
             # ACK / DONE detection for our own deliveries
             for item_id, d in st["dispatched"].items():
-                if item_id in cl["items"] and cl["state"] == "DONE" and d.get("done_url") is None:
+                if item_id in cl["items"] and cl["state"] == "DONE" and d.get("done_url") is None and cl["created_at"] > d["at"]:
                     d["done_url"], d["done_at"] = cl["url"], cl["created_at"]      # task boundary for the next real item
                     publish(st, q, f"done-{item_id}", f"DONE DETECTED for {item_id} — task boundary",
                             base_fields(q, hs, task_id=item_id, state="DONE (task boundary; next authorized item may dispatch)",
                                         evidence=cl["url"], next_action="dispatch the next READY queue item when the coordinator is idle"))
-                if d.get("ack_url") is None and item_id in cl["items"] and cl["state"] in ("ACK", "WORKING", "DONE", "BLOCKED"):
+                if d.get("ack_url") is None and item_id in cl["items"] and cl["state"] in ACK_STATES and cl["created_at"] > d["at"]:
                     d["ack_url"], d["ack_at"], d["ack_state"] = cl["url"], cl["created_at"], cl["state"]
                     publish(st, q, f"ack-{item_id}", f"ACK DETECTED for {item_id}",
                             base_fields(q, hs, task_id=item_id, state=f"{cl['state']} (coordinator acknowledged the automatic delivery)",
@@ -156,24 +225,49 @@ def tick(st: dict, q: dict) -> dict:
                                 t["ack_url"], t["ack_at"], t["ack_state"] = cl["url"], cl["created_at"], "IMPLICIT"
         summary["events"].append({"kind": cl["kind"], "state": cl["state"], "url": cl["url"]})
     st["cursor"] = newest
-    # --- exceptions: missed ACK on owner directives, stale/stopped host
-    cutoff = _iso(_now() - timedelta(minutes=timers["ack_minutes"]))
+    # --- exceptions: missed ACK -> ONE redelivery through the armed in-session listener -> ONE NEED if still unanswered
+    limit = _ack_seconds(timers)
     for key, od in list(st["owner_open"].items()):
-        if od["at"] < cutoff:
-            publish(st, q, f"missed-ack-{key}", "EXCEPTION: no coordinator response to an owner comment",
-                    base_fields(q, hs, state="MISSED ACK" if hs["live"] else "MISSED ACK — APPEARS STALE — HOST STATE UNVERIFIED",
-                                evidence=od["url"], blocker="coordinator has not acknowledged within %d min" % timers["ack_minutes"],
-                                next_action="coordinator: respond on the issue; owner notified only if the host is proven stopped", _to_issue=True), wake=False)
+        od.setdefault("id", key[1:]); od.setdefault("tasks", [])   # entries written before 2026-10-16 correlate by command id only
+        rows = pickup_rows(key)
+        if rows and not od.get("pickup_at"):
+            od["pickup_at"], od["pickup_session"] = rows[0]["time"], rows[0].get("session")
+            publish(st, q, f"pickup-{key}", f"PICKUP OBSERVED for owner command {key}",
+                    base_fields(q, hs, task_id=", ".join(od.get("tasks") or []) or key, state=f"PICKED UP by {od['pickup_session']} at {od['pickup_at']} (intake ledger)",
+                                evidence=od["url"], next_action="expect a correlated ACK/WORKING within %d s" % limit))
+        if od.get("pickup_at") or _age(od["at"]) < limit:
+            continue
+        if not od.get("recovery"):
+            od["recovery"] = send(q, hs, key, od.get("tasks"), od["url"], "redelivery")
+            publish(st, q, f"missed-ack-{key}", "EXCEPTION: no correlated ACK to an owner command — one redelivery",
+                    base_fields(q, hs, task_id=", ".join(od.get("tasks") or []) or key,
+                                state="MISSED ACK — REDELIVERED to the armed listener" if od["recovery"].get("ok") else "MISSED ACK — COORDINATOR NOT REACHABLE",
+                                evidence=od["url"], blocker="no correlated ACK within %d s; %s" % (limit, od["recovery"].get("note")),
+                                next_action=("coordinator: receiver.py pickup %s, then ACK citing it" % key) if od["recovery"].get("ok") else
+                                ("in session %s run (background): python3 %s/intake_inbox.py listen --session %s" % (pin["session_name"], HERE, pin["session_name"])),
+                                _to_issue=True), wake=False)
+        elif _age(od["recovery"]["at"]) >= limit and not od.get("need_owner"):
+            od["need_owner"] = True
+            publish(st, q, f"need-{key}", "NEED_OWNER: owner command still unanswered after one redelivery",
+                    base_fields(q, hs, task_id=", ".join(od.get("tasks") or []) or key, state="BLOCKED",
+                                evidence=od["url"], blocker="redelivery: %s; no pickup or ACK %d s later" % (od["recovery"].get("note"), limit),
+                                next_action="owner: paste the command URL into the %s terminal (never a second session)" % pin["session_name"], _to_issue=True))
     for item_id, d in list(st["dispatched"].items()):
-        if d.get("ack_url") is None and d["at"] < cutoff and not d.get("missed_ack"):
+        if d.get("ack_url") is None and _age(d["at"]) >= limit and not d.get("missed_ack"):
             d["missed_ack"] = True
-            publish(st, q, f"missed-ack-dispatch-{item_id}", f"EXCEPTION: delivery {item_id} not acknowledged",
-                    base_fields(q, hs, task_id=item_id, state="MISSED ACK" if hs["live"] else "APPEARS STALE — HOST STATE UNVERIFIED",
-                                evidence=d["url"], blocker="no ACK within %d min" % timers["ack_minutes"], next_action="hold; re-deliver only at owner instruction", _to_issue=True))
+            d["recovery"] = send(q, hs, item_id, [item_id], d["url"], "redelivery")
+            publish(st, q, f"missed-ack-dispatch-{item_id}", f"EXCEPTION: delivery {item_id} not acknowledged — one redelivery",
+                    base_fields(q, hs, task_id=item_id, state="MISSED ACK — REDELIVERED to the armed listener" if d["recovery"].get("ok") else "MISSED ACK — COORDINATOR NOT REACHABLE",
+                                evidence=d["url"], blocker="no ACK within %d s; %s" % (limit, d["recovery"].get("note")),
+                                next_action="coordinator: receiver.py pickup, then ACK %s" % item_id, _to_issue=True))
     if hs["verdict"] == "STOPPED":
         publish(st, q, f"stopped-{hs.get('pid')}", "NEED_OWNER: coordinator process is not running (host evidence)",
                 base_fields(q, hs, state="BLOCKED", evidence="; ".join(hs["evidence"]), blocker="Main Claude session stopped; no automatic restart (duplicate-worker rule)",
                             next_action="owner: `claude --resume %s` in the coordinator tmux/terminal, then the watcher resumes" % pin["session_id"], _to_issue=True))
+    elif hs["verdict"] == "PIN_MISMATCH":
+        publish(st, q, f"pin-mismatch-{hs.get('session_id')}", "NEED: coordinator pin is stale (registry name/id disagree)",
+                base_fields(q, hs, state="BLOCKED", evidence="; ".join(hs["evidence"]), blocker="pinned identity does not match the registry; nothing is delivered on a guess",
+                            next_action="verify the legitimate coordinator by session id/cwd/receipts, then update coordinator in COORDINATION_QUEUE.json by commit", _to_issue=True))
     elif hs["verdict"] in ("STALE", "UNVERIFIED") and st["last"].get("state") == "WORKING":
         publish(st, q, f"stale-{st['last'].get('url')}", "EXCEPTION: APPEARS STALE — HOST STATE UNVERIFIED" if hs["verdict"] == "UNVERIFIED" else "EXCEPTION: coordinator idle while WORKING",
                 base_fields(q, hs, state="APPEARS STALE — HOST STATE UNVERIFIED" if hs["verdict"] == "UNVERIFIED" else "STALE",

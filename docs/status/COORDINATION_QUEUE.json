@@ -22,6 +22,7 @@
   "timers": {
     "poll_seconds": 60,
     "ack_minutes": 30,
+    "ack_seconds": 300,
     "stall_minutes": 45
   },
   "dispatch_gate": {

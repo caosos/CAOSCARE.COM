@@ -13,6 +13,11 @@ import coord_host as host  # noqa: E402
 import coord_queue as cq  # noqa: E402
 
 
+def later(iso, seconds=1):
+    from datetime import datetime, timedelta
+    return (datetime.strptime(iso, "%Y-%m-%dT%H:%M:%SZ") + timedelta(seconds=seconds)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def c(body, login="caosos", cid=1, at="2026-10-15T20:00:00Z"):
     return {"body": body, "user": {"login": login}, "id": cid, "html_url": f"https://x/{cid}", "created_at": at}
 
@@ -121,7 +126,8 @@ def test_tick_dedups_and_dispatches_test_item_only_while_live(tmp_path, monkeypa
     s2 = cw.tick(st, q)                                                        # same comments again (cursor moved; none new)
     assert len(st["published"]) == n_pub and s2["events"] == []                # no duplicate receipts
     # ACK arrives for the test item
-    comments.append(c(gh.MAIN + "\nACK coord-test-001 received", cid=12, at="2026-10-15T21:05:00Z"))
+    # (an ACK only counts when posted AFTER the delivery it answers)
+    comments.append(c(gh.MAIN + "\nACK coord-test-001 received", cid=12, at=later(st["dispatched"]["coord-test-001"]["at"])))
     cw.tick(st, q)
     assert st["dispatched"]["coord-test-001"]["ack_url"] == "https://x/12"
     # idle now and test ACKed -> real item dispatched through the open gate
