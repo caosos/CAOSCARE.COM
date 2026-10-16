@@ -1046,3 +1046,22 @@ Agent: Claude Code (Fable 5.1, "Claude 2" cost-control lane), branch `fix/realti
 - **Live handoff proof (03:09–03:25Z):** `coord-test-001` delivered (#166 comment 6207165097) and consumed by Main Claude's `gh_watch.sh`; at 03:12Z the gate opened on a mis-matched #153 comment ("not deployed" matched DEPLOYED) and delivered the real next item `careops-153-drilldown-truth-002` (#166 comment 6207212820). The genuine release boundary (#168 FINAL PRODUCTION RELEASE RECEIPT, comment 6206912205, 02:48Z) had already passed, so the dispatch matched the #166 order; the matching was corrected in 25ee0fa (header-based, negation-aware, #166/#168 only, every earlier delivery ACKed first) and the state re-grounded on the #168 receipt. Main Claude ACKed the real item at 03:25:19Z (#166 comment 6207381341); the watcher detected it (`ack-careops-153-drilldown-truth-002`, mirror on PR #131) and a real ACK now implicitly acknowledges earlier test deliveries (ab69493). 8/8 tests.
 - **Blocked:** `gh pr edit/ready` was refused by the classifier earlier (retried at close-out).
 - **Next safe step:** merge PR #173 (coordination tooling/docs only) into `integration/2026-09-27` after reconciling onto c4225221; the installed service keeps running the merged code from `~/CAOSCARE-COORDINATION`. The watcher, not an interactive session, owns future monitoring. Status: `python3 scripts/owner_intake/coordination_watch.py --status`.
+
+## 2026-10-15 22:15 CDT — Owner polish: Customize Layout removed (#153) + public landing redesign (#162)
+
+- **Agent/tool:** Claude Code (Opus 5.5), CAOSCare session. **Branch:** `ui/owner-polish-2026-10-15` from release `c4225221`; worktree `~/CAOSCARE-UI-POLISH`. Frontend/public UI only; no simulator, Room 214, Aria model, database or deploy-infrastructure change.
+- **Owner direction (2026-10-15 review of caoscare.com):** remove the visible "Customize Layout" button (supersedes "shrink it"); redesign the public landing page product-first and truthfully.
+- **Operations:** the button and its dialog are gone. Hide (card eye), resize (⋮), drag, Add a widget and Restore hidden boxes were already on the page; "Reset to default layout" is now a small link inside the existing Add-a-widget dialog. Saved layout and drag are unchanged code.
+- **Landing:** a product-first hero with a real Operations workspace screenshot, then resident → staff → receipt with real screens, then a status board read from `lib/capabilities/status.js`, the existing video library, and paths (Residents & families, Communities, Explore a room, Room screen demo, Staff sign in). Every image is captioned with its data source: the simulated community (synthetic) or the public demo room. The stale stock photo is retired, and so is the old room-screen image, whose wording the live screen no longer uses. The brand mark is now one shared component.
+- **Verified:** frontend 124 suites / 788 tests (2 new suites); production build OK.
+  - Chrome on the test stack (:3006 serving this branch against :8096 scratch DB):
+    - desktop and 390 px: no horizontal overflow, 0 console errors;
+    - every public link loads;
+    - Customize Layout absent at desktop and 390 px;
+    - drag reorders, the save survives a reload, original order restored;
+    - Staff On Duty "View details" opens normally.
+  - Evidence: `docs/reports/2026-10-15-owner-polish-screens/`.
+- **Findings, not fixed (out of scope):**
+  1. Simulated ticket "task created" receipts name a different worker as actor than the requester or the assignee (e.g. Care Aide 06 on Resident 020's ticket worked by Care Aide 07). This is a simulator provenance-display question.
+  2. Public status `tv: in_development` predates the 2026-10-12 IR TV control in Room 214. This is an owner status decision.
+- **Not deployed.** Next: owner review of the staged page, then the normal GitHub → Linode release path.
