@@ -30,6 +30,7 @@ STATE_RX = [
     ("WORKING", re.compile(r"\b(WORKING|IN PROGRESS|STARTED)\b")),
     ("RECEIPT", re.compile(r"\bRECEIPT\b")),
 ]
+LEAD_RX = re.compile(r"^[\W_]*(ACK|WORKING|DONE|BLOCKED)\b")
 BOUNDARY_RX = re.compile(r"\b(LINODE|PRODUCTION|RELEASE|DEPLOY(ED|MENT)?)\b")
 BOUNDARY_DONE_RX = re.compile(r"\b(RECEIPT|DONE|DEPLOYED|COMPLETE[D]?|ACCEPTED)\b")
 NEGATED_RX = re.compile(r"\b(NOT|NO|NEVER|UN)[ -]?(YET[ -])?(DEPLOYED|RELEASED|DONE|COMPLETE[D]?|ACCEPTED|LIVE|LOADED|MERGED)\b")
@@ -68,13 +69,20 @@ def classify(c: dict, owner_logins=("caosos",)) -> dict:
     elif (c.get("user") or {}).get("login") in owner_logins:
         kind = "owner_directive"
     head_up = NEGATED_RX.sub(" ", head.upper())          # "not deployed" is not DEPLOYED
-    state = "none"
-    for name, rx in STATE_RX:
-        if rx.search(head_up):
-            state = name
-            break
     first = next((ln for ln in body.strip().splitlines() if ln.strip() and not ln.strip().startswith("<!--")), "")
     header_up = NEGATED_RX.sub(" ", first.upper())
+    # State comes from the receipt's leading keyword ("WORKING <item> ..."), then its header line, and only
+    # then from the first 400 chars: body text like "Nursing Done Today" or "acceptance passed" must not
+    # turn a WORKING receipt into DONE (2026-10-16: a not-DONE receipt was recorded as the slice's DONE).
+    lead = LEAD_RX.match(header_up)
+    state = lead.group(1) if lead else "none"
+    for text in (header_up, head_up):
+        if state != "none":
+            break
+        for name, rx in STATE_RX:
+            if rx.search(text):
+                state = name
+                break
     # a release boundary is a coordinator receipt whose HEADER names the release/production/deploy AND a completion word
     boundary = kind == "coordinator_receipt" and bool(BOUNDARY_RX.search(header_up)) and bool(BOUNDARY_DONE_RX.search(header_up))
     return {"kind": kind, "state": state, "boundary": boundary, "items": sorted(set(ITEM_RX.findall(body[:2000]))),
