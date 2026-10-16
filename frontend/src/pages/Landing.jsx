@@ -1,20 +1,25 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { CAPABILITIES_BY_ID } from "../lib/capabilities";
-import { SCREENS } from "../lib/capabilities/visuals";
 import CapabilityPanel from "../components/capabilities/CapabilityPanel";
 import useCapabilityPanel from "../components/capabilities/useCapabilityPanel";
-import ExperienceVideoLibrary from "../components/landing/ExperienceVideoLibrary";
+import { ExperienceVideo } from "../components/landing/ExperienceVideoLibrary";
+import { EXPERIENCE_VIDEOS } from "../lib/experienceVideos";
+import CapabilityTiles from "../components/public/CapabilityTiles";
 import LandingStatus from "../components/landing/LandingStatus";
 import LandingPaths from "../components/landing/LandingPaths";
 import PublicPage, { PublicSection } from "../components/public/PublicPage";
-import PublicVisual from "../components/public/PublicVisual";
 import RequestJourney from "../components/public/RequestJourney";
 import StaffShowcase from "../components/public/StaffShowcase";
 
-// Public home (#162). In order: what CAOSCare is, the request journey, what
-// staff see, why receipts matter, what works today, where to go next. Every
-// picture says whose data it is; every status comes from lib/capabilities/status.js.
+// Public home (#162; owner 2026-10-16 c6209415088). In order: Aria, your personal
+// helper; everyday room life; community help; the platform proof (request ->
+// department -> owner -> update -> receipt); what staff see; why receipts; what
+// works today. Convenience first, then the leap: Aria is connected to the
+// community's operating system. Every status comes from lib/capabilities/status.js,
+// never from a consumer-assistant benchmark.
+const EVERYDAY = ["voice", "lighting", "tv", "climate", "blinds", "low_vision"];
+const COMMUNITY = ["help", "one_press", "nursing", "maintenance", "housekeeping", "dining", "transportation", "activities", "front_desk"];
 const PROOF = [
   ["Who asked, in their words", "The request keeps the resident's own words, room and time."],
   ["Who owns it, and since when", "Each claim, start and finish is stamped with the person and the minute."],
@@ -30,14 +35,13 @@ export default function Landing() {
           <header className="px-4 pb-16 pt-12 sm:px-6 lg:px-8 lg:pt-16">
             <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 lg:grid-cols-12">
               <div className="min-w-0 lg:col-span-5">
-                <p className="text-[13px] font-semibold uppercase tracking-[0.14em] text-[#2F80ED]">Resident support and care coordination</p>
-                <h1 className="mt-3 text-[34px] font-bold leading-[1.1] tracking-tight sm:text-[46px]">
-                  Residents talk to Aria. Staff see the work. Every step is on record.
-                </h1>
+                <p className="text-[13px] font-semibold uppercase tracking-[0.14em] text-[#2F80ED]">CAOSCare for senior living</p>
+                <h1 className="mt-3 text-[38px] font-bold leading-[1.08] tracking-tight sm:text-[50px]">Aria — your personal helper.</h1>
+                <p className="mt-4 text-[22px] font-medium leading-snug text-[#111827]">A room that hears you and can help you.</p>
                 <p className="mt-5 text-[18px] leading-relaxed text-[#374151]">
-                  CAOSCare is the operating system for a senior-living community. A resident says "Hey Aria" from
-                  their chair; the request reaches the right department with who owns it and how long it has waited,
-                  and the resident hears its real status.
+                  Like a good room voice assistant, Aria answers and helps with the room. Unlike one, she is connected
+                  to the community's operating system: ask for help and it reaches the right department, someone owns it,
+                  you hear its real status, and every step leaves a receipt.
                 </p>
                 <div className="mt-8 flex flex-wrap gap-3">
                   <a href="#how" data-testid="hero-how"
@@ -51,12 +55,23 @@ export default function Landing() {
                 </p>
                 <p className="mt-4 text-[14px] text-[#6B7280]">In pilot · assistive and staff-supervised, not a medical device or emergency service.</p>
               </div>
-              <PublicVisual className="lg:col-span-7" eager visual={SCREENS.workspace}
-                caption="My CAOSCare Workspace · simulated 75-resident community, synthetic residents and staff" />
+              {EXPERIENCE_VIDEOS[0] && (
+                <div className="min-w-0 lg:col-span-7" data-testid="hero-video"><ExperienceVideo video={EXPERIENCE_VIDEOS[0]} featured /></div>
+              )}
             </div>
           </header>
 
-          <RequestJourney />
+          <PublicSection id="room" tone="gray" eyebrow="Everyday room life" title="The convenience you'd expect from a room voice assistant"
+            lead="Talk naturally, run the room, read it easily. Each item shows how far it has really been tested today; open one for its limits.">
+            <CapabilityTiles ids={EVERYDAY} onOpen={panel.open} testid="tiles-room" />
+          </PublicSection>
+
+          <PublicSection id="community-help" eyebrow="Community help" title="Then the part no consumer assistant can do"
+            lead="Aria knows the community's own departments. A request goes to the people who can actually do it.">
+            <CapabilityTiles ids={COMMUNITY} onOpen={panel.open} testid="tiles-community" />
+          </PublicSection>
+
+          <RequestJourney eyebrow="Platform proof" title="Aria is connected to the community's operating system." />
 
           <PublicSection id="staff" eyebrow="What staff see" title="The work, the owner and the clock, in one place."
             lead="Staff work in their department's view of the same records Aria uses. Leaders see what needs attention across the community.">
@@ -76,7 +91,6 @@ export default function Landing() {
           </PublicSection>
 
           <LandingStatus onOpen={panel.open} />
-          <ExperienceVideoLibrary />
           <LandingPaths authedDest={authedDest} authedLabel={authedLabel} />
           <CapabilityPanel capability={panel.capability} open={panel.isOpen} onClose={panel.close}
             onCloseAutoFocus={panel.onCloseAutoFocus} />

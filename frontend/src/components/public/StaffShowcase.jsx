@@ -13,7 +13,7 @@ const SHOTS = [
 ];
 
 export default function StaffShowcase({ compact = false, onOpen }) {
-  const shots = compact ? SHOTS.slice(0, 1) : SHOTS;
+  const shots = compact ? [SHOTS[0], SHOTS[2]] : SHOTS;
   return (
     <div data-testid="staff-showcase">
       <div className="mb-6 flex flex-wrap items-center gap-3 text-[14px] text-[#4B5563]">
@@ -25,7 +25,7 @@ export default function StaffShowcase({ compact = false, onOpen }) {
           </button>
         )}
       </div>
-      <ul className={`grid grid-cols-1 gap-8 ${compact ? "" : "lg:grid-cols-3"}`}>
+      <ul className={`grid grid-cols-1 gap-8 ${compact ? "md:grid-cols-2" : "lg:grid-cols-3"}`}>
         {shots.map((s) => (
           <li key={s.title} className="min-w-0">
             <h3 className="text-[19px] font-semibold text-[#111827]">{s.title}</h3>

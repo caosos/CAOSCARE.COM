@@ -35,7 +35,7 @@ export default function RequestJourney({ id = "how", eyebrow = "How it works", t
               </div>
               <h3 className="mt-3 text-[20px] font-semibold text-[#111827]">{s.title}</h3>
               <p className="mt-2 flex-1 text-[16px] leading-relaxed text-[#4B5563]">{s.body}</p>
-              <PublicVisual className="mt-5" visual={s.visual} caption={s.caption} />
+              <PublicVisual className="mt-5" framed visual={s.visual} caption={s.caption} />
             </li>
           ))}
         </ol>

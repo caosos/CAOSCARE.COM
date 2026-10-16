@@ -8,7 +8,7 @@ jest.mock("react-router-dom", () => ({
 jest.mock("../../lib/auth", () => ({ useAuth: () => ({ user: null }) }));
 jest.mock("../../components/capabilities/CapabilityPanel", () => ({ capability }) => (
   capability ? <div data-testid="panel">{capability.name}</div> : null));
-jest.mock("../../components/landing/ExperienceVideoLibrary", () => () => null);
+jest.mock("../../components/landing/ExperienceVideoLibrary", () => ({ __esModule: true, default: () => null, ExperienceVideo: ({ video }) => <div data-testid="video">{video.title}</div> }));
 
 import Landing from "../Landing";
 import { ALL_CAPABILITIES } from "../../lib/capabilities";
@@ -50,5 +50,20 @@ test("status board lists every public capability under its registry status and o
   }
   await act(async () => host.querySelector("[data-testid=status-voice]").click());
   expect(host.querySelector("[data-testid=panel]").textContent).toBe("Talk to Aria");
+  await done();
+});
+
+test("owner message order: Aria the helper, everyday room life, community help, then the platform proof", async () => {
+  // #162 owner direction 2026-10-16 (c6209415088, c6209371153)
+  const { host, done } = await render();
+  expect(host.querySelector("h1").textContent).toBe("Aria — your personal helper.");
+  expect(host.querySelector("[data-testid=hero-video]").textContent).toMatch("Aria — your personal helper");
+  const order = ["tiles-room", "tiles-community", "request-journey", "staff-showcase"]
+    .map((id) => [...host.querySelectorAll("[data-testid]")].findIndex((e) => e.dataset.testid === id));
+  expect(order.every((v, i) => v >= 0 && (i === 0 || v > order[i - 1]))).toBe(true);
+  // every tile shows its registry status, never a benchmark claim
+  for (const tile of host.querySelectorAll("[data-testid^=tile-]")) {
+    expect(tile.querySelector("[data-status]").dataset.status).toBe(statusOf(tile.dataset.testid.slice(5)));
+  }
   await done();
 });

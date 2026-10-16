@@ -25,9 +25,9 @@ export const SCREENS = {
   overview: screen("operations-overview", 1084, 900, "The Operations overview: what needs attention now, who owns it and how long it has waited"),
   nursing: screen("nursing", 1084, 900, "The Nursing department: requests by state, who is on duty, and overdue work"),
   maintenance: screen("maintenance", 1084, 900, "The Maintenance department: work orders, who is on call, and overdue requests"),
-  housekeeping: screen("housekeeping", 1084, 647, "The Housekeeping department: requests and who is working"),
-  kitchen: screen("kitchen", 1084, 652, "The Kitchen department: who is working, and a closed meal-tray request"),
-  transportation: screen("transportation", 1084, 890, "The Transportation department: daily operations, rides and who is working"),
+  housekeeping: screen("housekeeping", 1084, 645, "The Housekeeping department: requests and who is working"),
+  kitchen: screen("kitchen", 1084, 671, "The Kitchen department: who is working, and a closed meal-tray request"),
+  transportation: screen("transportation", 1084, 900, "The Transportation department: daily operations, rides and who is working"),
   schedule: screen("activity-schedule", 1084, 643, "The activity schedule that feeds the room screen and Aria"),
   reports: screen("operations-reports", 1084, 900, "Operations reports: the daily exceptions list with owner, age and reason"),
   activityLog: screen("activity-log", 1084, 900, "The activity log: every recorded action with who, what, where and the result"),
@@ -35,8 +35,8 @@ export const SCREENS = {
   escalation: screen("escalation", 1084, 569, "Escalation settings: when an unanswered alert goes to level 2 and level 3"),
   pendants: screen("pendants", 1084, 540, "The pendant list: resident, frequency, signal, battery and last press"),
   routing: screen("routing", 1084, 900, "Routing exceptions: requests whose department notification did not go through, with Re-send"),
-  frontDesk: screen("front-desk", 1084, 667, "The Front Desk department queue"),
-  therapy: screen("therapy", 1084, 641, "Therapy appointments: open, unassigned and upcoming visits"),
+  frontDesk: screen("front-desk", 1084, 685, "The Front Desk department queue"),
+  therapy: screen("therapy", 1084, 575, "Therapy appointments: open, unassigned and upcoming visits"),
 };
 
 export const ILLUSTRATIONS = {
