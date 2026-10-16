@@ -214,7 +214,7 @@ export async function connectRealtimeVoice({
         }
         greetingCreateResponseOffRef.current = true;
         send(buildSessionUpdate({ caos, voice }));
-        markResponseRequested(typedTurn, send); // the greeting
+        markResponseRequested(typedTurn, send, caos.greeting); // the greeting: its own turn, not the prompt's tail
         setStatus("live");
 
         postAriaEvent("activated");

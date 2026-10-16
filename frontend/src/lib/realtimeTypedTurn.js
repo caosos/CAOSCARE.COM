@@ -36,9 +36,10 @@ export function sendTypedTurn(state, send, text) {
 }
 
 // Any response.create we send (greeting or typed) counts as active at once,
-// before the server's response.created arrives.
-export function markResponseRequested(state, send) {
-  send({ type: "response.create" });
+// before the server's response.created arrives. `response` carries the
+// greeting's own instructions (backend routes/aria_opening.py greeting_response).
+export function markResponseRequested(state, send, response) {
+  send(response ? { type: "response.create", response } : { type: "response.create" });
   state.responseActive = true;
 }
 

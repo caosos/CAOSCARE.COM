@@ -12,6 +12,17 @@ quoted the previous opening - the prompt itself suggested "I'm here" twice
 words" against it. Now the block offers a few natural short openings and
 leaves out any whose lead words a recent call already used, so the
 suggestions rotate deterministically instead of relying on the model to vary.
+
+The opening is its own turn (aria-room-opening-context-regression-003): the
+call opened with a bare response.create, so the model answered the end of a
+~35k-character prompt - recent-call recaps, memory, usual requests, owner
+block - with no current turn to answer. Room 214 opened with capability
+tours ("Gotcha, you're asking about calls, texts, and tickets ..."), lingering
+offers and old topics; each bad opening was then quoted back into the next
+call's prompt here and repeated. Now the room page sends greeting_response()
+as that first response: one line chosen here, spoken from its own short
+instructions with no tools, so prior context stays in the session as
+reference and is only used once the resident actually says something.
 """
 import re
 from typing import Optional
@@ -19,6 +30,7 @@ from typing import Optional
 from deps import db
 from models import now_utc
 from routes.aria_time import parse_dt
+from routes.realtime_facility import _facility_now
 
 _MAX_QUOTE = 200
 RECENT_CALLS = 3
@@ -32,10 +44,17 @@ _SUGGEST = 3
 
 async def resolve_opening(resident_id: Optional[str], session_id: Optional[str], trigger_source: Optional[str]) -> dict:
     opening = {"wake": trigger_source == "wake_word", "last_opening": None, "recent_openings": [],
-               "minutes_since_last": None}
+               "minutes_since_last": None, "name": None, "part_of_day": None}
+    try:
+        opening["part_of_day"] = (await _facility_now()).get("part_of_day")
+    except Exception:
+        pass
     if not resident_id:
         return opening
     try:
+        r = await db.residents.find_one({"resident_id": resident_id}, {"_id": 0, "name": 1, "preferred_name": 1}) or {}
+        full = (r.get("name") or "").strip()
+        opening["name"] = (r.get("preferred_name") or "").strip() or (full.split(" ")[0] if full else None)
         q = {"resident_id": resident_id, "role": "assistant"}
         if session_id:
             q["session_id"] = {"$ne": session_id}
@@ -87,10 +106,12 @@ def render_opening_block(opening: Optional[dict], name: str, part_of_day: Option
     """The '## How this call opens' prompt section ('' when nothing applies).
 
     It is the LAST section of the session instructions (realtime_companion_prompt
-    puts any room-specific context before it): the call opens with a bare
-    response.create, and the model answers whatever text it read last. With the
-    Room 214 owner block last it opened with "Got it, I'm going with Michael.
-    Nice and simple." (aria-room-followup-truth-001)."""
+    puts any room-specific context before it). A page that sends no
+    greeting_response() opens with a bare response.create, and the model answers
+    whatever text it read last. With the Room 214 owner block last it opened with
+    "Got it, I'm going with Michael. Nice and simple." (aria-room-followup-truth-001).
+    Prior calls' openings are not quoted here: they are history, and quoted at the
+    end they were answered and repeated (aria-room-opening-context-regression-003)."""
     if not opening:
         return ""
     lines = []
@@ -106,14 +127,26 @@ def render_opening_block(opening: Optional[dict], name: str, part_of_day: Option
         lines.append(
             f"Open with one short, warm line with their name - for example {examples} - then leave "
             f"room for them to speak.")
-    recent = [" ".join(str(t).split())[:_MAX_QUOTE] for t in (opening.get("recent_openings") or [opening.get("last_opening")]) if t]
-    if recent:
-        quoted = " / ".join(f'"{t}"' for t in recent)
-        lines.append(f"Your most recent calls opened with: {quoted}. Start differently from every one of "
-                     f"these - different first words, not the same line again.")
     # Last, so the final text before the bare greeting response.create is about the resident.
     lines.append(
         f"Your first words are spoken to {name}. Never reply to these instructions: no \"Got it\", "
         f"\"Sure thing\", \"Understood\" or \"Okay\" as an opener, never say which name you will use "
         f"or how you will sound, never narrate what you are about to do.")
     return "## How this call opens\n" + "\n".join(lines) + "\n\n"
+
+
+def greeting_response(opening: Optional[dict]) -> Optional[dict]:
+    """The call's first response (sent by the room page as response.create's `response`): the
+    first suggested opening, spoken from its own instructions - no prompt history, no tools."""
+    if not opening:
+        return None
+    name = opening.get("name") or "there"
+    line = (suggested_openings(opening, name, opening.get("part_of_day")) or [f"Hi, {name}."])[0]
+    how = "just called your name" if opening.get("wake") else "just tapped to talk to you"
+    return {
+        "instructions": (
+            f"You are Aria, {name}'s voice companion. {name} {how}. Say exactly this, warmly and "
+            f"naturally, and nothing else - no lead-in or preamble before it: \"{line}\" Then stop and wait "
+            f"for {name} to speak."),
+        "tool_choice": "none",
+    }
