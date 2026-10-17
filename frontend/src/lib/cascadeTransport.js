@@ -88,12 +88,13 @@ async function echoCancelledOutput(ctx, audioEl, RTC, waitMs) {
 
 const LEAD = 0.05;                 // s: how far ahead of the audio clock a piece is scheduled
 export const PREBUFFER_MS = 200;   // audio held back before (re)starting after the player ran dry; never dropped
+const DUCK = 0.3;                  // her volume while sound over her voice is checked for words
 
 /** Plays PCM16 back to back on the audio clock; stop() cuts playback at once. With an audio element and WebRTC
  * available, the sound goes through the echo-cancelled path above, else (or if it never connects) to the speakers. */
 export function createPlayer({ AudioCtx = typeof window !== "undefined" && (window.AudioContext || window.webkitAudioContext),
   audioEl = null, RTC = typeof window !== "undefined" && window.RTCPeerConnection, loopbackWaitMs = 1500 } = {}) {
-  let ctx = null, out = null, sink = null, next = 0, live = [], onIdle = null;
+  let ctx = null, out = null, sink = null, gain = null, next = 0, live = [], onIdle = null;
   const ready = () => {
     if (!ctx) {
       ctx = new AudioCtx();
@@ -102,6 +103,13 @@ export function createPlayer({ AudioCtx = typeof window !== "undefined" && (wind
     }
     return out;
   };
+  const output = () => {                  // her volume control, in front of the (echo-cancelled) output
+    const to = sink ? sink.node : ctx.destination;
+    if (!ctx.createGain) return to;
+    if (!gain) { gain = ctx.createGain(); gain.connect(to); }
+    return gain;
+  };
+  const level = (v) => gain && gain.gain.setTargetAtTime(v, ctx.currentTime, 0.03);
   return {
     set onIdle(fn) { onIdle = fn; },
     get playing() { return live.length > 0; },
@@ -119,14 +127,16 @@ export function createPlayer({ AudioCtx = typeof window !== "undefined" && (wind
       buf.copyToChannel(f, 0);
       const src = ctx.createBufferSource();
       src.buffer = buf;
-      src.connect(sink ? sink.node : ctx.destination);
+      src.connect(output());
       const start = Math.max(next, ctx.currentTime + LEAD), gap = next > 0 ? start - next : 0;
       src.start(start); next = start + buf.duration;
       live.push(src);
       src.onended = () => { live = live.filter((x) => x !== src); if (!live.length) onIdle?.(); };
       return { start, end: next, gap };
     },
-    stop() { const was = live.length > 0; live.forEach((x) => { try { x.onended = null; x.stop(); } catch {} }); live = []; next = 0; return was; },
+    /** Lowers (or restores) her voice without stopping it. */
+    duck(on) { level(on ? DUCK : 1); },
+    stop() { const was = live.length > 0; live.forEach((x) => { try { x.onended = null; x.stop(); } catch {} }); live = []; next = 0; level(1); return was; },
     close() { this.stop(); out?.then((x) => x?.close()); try { ctx?.close(); } catch {} },
   };
 }
@@ -167,7 +177,11 @@ export function createCascadeConnection({ session, caos, stream, api, audioEl = 
   const headers = { "X-Aria-Voice-Token": session.token };
   const rate = session.audio_sample_rate || 24000;
   const items = [];                         // the conversation, as chat messages
-  let n = 0, autoRespond = true, resp = null, stopMic = null, closed = false, bargeIn = null;
+  let n = 0, autoRespond = true, resp = null, stopMic = null, closed = false;
+  // Sound over her voice: {r, outcome}. Her own voice from the room speaker reaches the microphone too (Room 214
+  // 2026-10-17 rt_sf8ft3v6: 7 of 9 interruptions had no words), so while she is audible sound only lowers her
+  // voice; words - at the speaker's first pause or turn end - stop her. Silent, she stops at once, as before.
+  let barge = null;
   const id = (p) => `${p}_${Date.now().toString(36)}_${++n}`;
   const dc = { readyState: "connecting", onopen: null, onmessage: null, onclose: null, send: (s) => onClient(JSON.parse(s)), close };
   const emit = (obj) => { if (!closed) setTimeout(() => dc.onmessage?.({ data: JSON.stringify(obj) }), 0); };
@@ -305,7 +319,6 @@ export function createCascadeConnection({ session, caos, stream, api, audioEl = 
     const wasPlaying = player.stop();
     if (wasPlaying || r.speaking) emit({ type: "output_audio_buffer.cleared", response_id: r.id });
     receipt(r, "cancelled", reason, a);
-    if (reason === "turn_detected") bargeIn = { response_id: r.id, was_playing: wasPlaying, heard_ms: ms(r.stats.audio) };
     // Only what played to the end counts as said; queued, failed or cut-off speech is not in the conversation.
     const heard = a.heard.join(" ").trim();
     if (!r.done) {
@@ -390,14 +403,30 @@ export function createCascadeConnection({ session, caos, stream, api, audioEl = 
     const pending = early; early = null;    // still valid only if the speaker did not carry on after the pause
     const text = await (pending || transcribe(wavB64));
     if (closed) return;
-    if (text) items.push({ role: "user", content: text });
-    if (bargeIn) {                          // did the speech that interrupted her carry any words? (echo shows as none)
-      log("cascade_barge_in", { responseId: bargeIn.response_id, meta: { transport: "cascade", ...bargeIn,
-        words: text ? text.split(/\s+/).length : 0 } });
-      bargeIn = null;
+    const b = barge; barge = null;
+    if (b) {
+      stopFor(b, text);
+      if (!b.outcome) { b.outcome = "ignored"; player.duck?.(false); }
+      log("cascade_barge_in", { responseId: b.r.id, meta: { transport: "cascade", outcome: b.outcome,
+        was_playing: b.was_playing, heard_ms: ms(b.r.stats.audio), words: wordCount(text) } });
     }
+    if (b?.outcome === "ignored") {         // no words: not a turn - she carries on
+      emit({ type: "conversation.item.input_audio_transcription.completed", item_id: item, transcript: "" });
+      return;
+    }
+    if (text) items.push({ role: "user", content: text });
     emit({ type: "conversation.item.input_audio_transcription.completed", item_id: item, transcript: text });
-    if (text && autoRespond) respond();
+    if (text && autoRespond) {
+      if (resp && !resp.done) cancel("next_turn");   // a reply still being written gives way to the newer turn
+      respond();
+    }
+  }
+
+  const wordCount = (text) => (text.match(/[\p{L}\p{N}]+/gu) || []).length;
+  function stopFor(b, text) {               // words over her voice stop her
+    if (b.outcome || !wordCount(text)) return;
+    b.outcome = "stopped";
+    if (resp === b.r) cancel("turn_detected"); else player.duck?.(false);
   }
 
   function onService(ev) {
@@ -412,9 +441,12 @@ export function createCascadeConnection({ session, caos, stream, api, audioEl = 
       setTimeout(() => dc.onopen?.(), 0);
     } else if (m.type === "speech_started") {
       emit({ type: "input_audio_buffer.speech_started" });
-      if (resp) cancel("turn_detected");    // barge-in, as the room session's interrupt_response
+      if (!resp || barge) return;
+      if (player.playing) { barge = { r: resp, outcome: null, was_playing: true }; player.duck?.(true); }
+      else { barge = { r: resp, outcome: "stopped", was_playing: false }; cancel("turn_detected"); }
     } else if (m.type === "speech_paused") {
       early = transcribe(m.wav);
+      if (barge && !barge.outcome) { const b = barge; early.then((t) => { if (!closed) stopFor(b, t); }); }
     } else if (m.type === "speech_resumed") {
       early = null;
     } else if (m.type === "speech_stopped") {

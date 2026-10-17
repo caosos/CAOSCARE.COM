@@ -24,8 +24,12 @@ Swapping the text provider means a new `_stream()` in `routes/aria_voice.py`; no
 - Turn end: Silero VAD with `silence_duration_ms` from `realtime_audio_config.DEFAULT_VAD` (same as Realtime).
 - Early transcription at a 400 ms pause; reused if the turn ends there, discarded if Michael carries on.
 - Reply text streams; each finished sentence (the first clause at its comma) is voiced at once, played in order.
-- Barge-in: speech over Aria stops playback immediately and cancels queued speech; late chunks of cancelled
-  speech are discarded. Only sentences played to their end (read off the audio clock) remain in the conversation;
+- Barge-in: while she is audible, sound over her voice only lowers it (to 30%); words - from the early transcription
+  at the speaker's first pause, or at turn end - stop her and cancel queued speech. No words (her own voice from
+  the room speaker, noise) and she carries on at full volume and nothing is answered. Before she is audible, speech
+  stops her at once. (Room 214 2026-10-17 rt_sf8ft3v6: 7 of 9 interruptions had no words. Same idea as LiveKit's
+  false-interruption resume and Pipecat's minimum-words turn start.) A new turn arriving while a reply is still
+  being written replaces that reply. Late chunks of cancelled speech are discarded. Only sentences played to their end (read off the audio clock) remain in the conversation;
   queued, failed or cut-off speech does not.
 - Playback: through a local WebRTC loopback into the page's audio element so Chrome's AEC removes her voice; nothing
   plays until that loopback is connected (else direct, recorded as `output: direct`). After the player runs dry it
