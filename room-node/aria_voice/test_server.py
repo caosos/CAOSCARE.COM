@@ -152,3 +152,24 @@ def test_diag_is_off_unless_the_page_asks_and_its_failure_never_stops_turn_detec
 def asyncio_run(coro):
     import asyncio
     return asyncio.run(coro)
+
+
+@pytest.mark.skipif(not HAVE_MODELS, reason="local speech models / clip not installed")
+def test_early_ok_only_when_nothing_was_said_after_the_pause():
+    clip = read_clip()
+
+    def run(x):
+        call = server.Call(FakeWs())
+        events = []
+        for i in range(0, len(x), 2048):
+            events += call.on_mic(x[i:i + 2048].tobytes())
+        return events
+
+    lead, tail = np.zeros(8000, "<i2"), np.zeros(32000, "<i2")
+    alone = [e for e in run(np.concatenate([lead, clip, tail])) if e["type"] == "speech_stopped"]
+    assert alone and alone[-1]["early_ok"] is True            # the turn ended at its pause: reuse that transcript
+    # A pause, then more words quieter than the pause rule counts as sound: the VAD keeps one turn going.
+    quieter = (clip * 0.12).astype("<i2")
+    events = run(np.concatenate([lead, clip, np.zeros(9600, "<i2"), quieter, tail]))
+    stops = [e for e in events if e["type"] == "speech_stopped"]
+    assert len(stops) == 1 and stops[0]["early_ok"] is False  # words after the pause: transcribe the whole turn

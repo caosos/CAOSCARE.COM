@@ -215,12 +215,64 @@ test("a reply already in flight when 'Goodbye' is heard is cancelled first; the 
   expect(logged("call_closed")[0][2].meta.goodbye_audio_played).toBe(true);
 });
 
-test("a goodbye response that produced no audio is retried once", async () => {
+const BYE = { caos_goodbye: "1" };
+const creates = () => mockConn.sent.filter((m) => m.type === "response.create");
+
+test("a goodbye response that produced no audio is retried once, after a grace for its audio", async () => {
   await said("Goodbye.");
-  await msg({ type: "response.created", response: { id: "r1" } });
-  await msg({ type: "response.done", response: { id: "r1" } });               // no output_audio_buffer.started
-  expect(mockConn.sent.filter((m) => m.type === "response.create")).toHaveLength(2);
+  expect(creates()[0].response.metadata).toEqual(BYE);
+  await msg({ type: "response.created", response: { id: "r1", metadata: BYE } });
+  await msg({ type: "response.done", response: { id: "r1", metadata: BYE } });   // no output_audio_buffer.started
+  expect(creates()).toHaveLength(1);                                            // done can come before the audio
+  await settle(2500);
+  expect(creates()).toHaveLength(2);
   await finishGoodbye();
+  expect(onEndCall).toHaveBeenCalledTimes(1);
+});
+
+test("goodbye while waiting for its audio: done before audio is not retried (one goodbye, said once)", async () => {
+  await said("That will be all for now.");
+  await msg({ type: "response.created", response: { id: "r_auto" } });        // the reply the goodbye cut
+  await msg({ type: "response.done", response: { id: "r_auto", status: "cancelled" } });
+  await msg({ type: "response.created", response: { id: "r1", metadata: BYE } });
+  await msg({ type: "response.done", response: { id: "r1", metadata: BYE } });
+  await settle(200);
+  await msg({ type: "output_audio_buffer.started" });                         // its audio, 200 ms after done
+  await settle(3000);
+  expect(creates()).toHaveLength(1);
+  await msg({ type: "output_audio_buffer.stopped" });
+  await settle(500);
+  expect(onEndCall).toHaveBeenCalledTimes(1);
+  expect(logged("call_closed")).toHaveLength(1);
+});
+
+test("goodbye while a reply is being composed: the goodbye waits for it, then is asked for once", async () => {
+  await msg({ type: "response.created", response: { id: "r_reply" } });       // composing, nothing audible yet
+  await said("Goodbye.");
+  expect(creates()).toHaveLength(0);
+  expect(types()).toContain("response.cancel");
+  await msg({ type: "response.done", response: { id: "r_reply", status: "cancelled" } });
+  await msg({ type: "response.done", response: { id: "r_reply", status: "cancelled" } });   // a repeated done
+  expect(creates()).toHaveLength(1);
+  await finishGoodbye();
+  expect(onEndCall).toHaveBeenCalledTimes(1);
+});
+
+test("goodbye while she is speaking: her speech is cleared and one goodbye follows", async () => {
+  await msg({ type: "response.created", response: { id: "r_reply" } });
+  await msg({ type: "output_audio_buffer.started" });
+  await said("Goodbye.");
+  expect(types()).toEqual(expect.arrayContaining(["response.cancel", "output_audio_buffer.clear"]));
+  await msg({ type: "response.done", response: { id: "r_reply", status: "cancelled" } });
+  await msg({ type: "output_audio_buffer.cleared" });
+  expect(creates()).toHaveLength(1);
+  await msg({ type: "response.created", response: { id: "r1", metadata: BYE } });
+  await msg({ type: "response.done", response: { id: "r1", metadata: BYE } });
+  await msg({ type: "output_audio_buffer.started" });
+  await settle(3000);
+  expect(creates()).toHaveLength(1);
+  await msg({ type: "output_audio_buffer.stopped" });
+  await settle(500);
   expect(onEndCall).toHaveBeenCalledTimes(1);
 });
 

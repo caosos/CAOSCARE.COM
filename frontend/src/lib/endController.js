@@ -4,7 +4,11 @@
  * says goodbye (or the model's end_call is granted): Aria's current speech is
  * cancelled, ONE short spoken goodbye is requested (only after the response
  * that was in flight has finished, so the request cannot collide with it),
- * retried once if it produced no audio, and the connection closes after that
+ * retried once only if THAT goodbye (marked by response metadata) finished
+ * and no audio started within RETRY_GRACE_MS - a goodbye's response.done can
+ * come before its audio (low-cost voice: Room 214 rt_lcnze2u9, 2026-10-17, the
+ * early retry replaced the first goodbye and both were saved as said) - and
+ * never while a goodbye is still open; the connection closes after that
  * audio (hang-up scheduler, 7 s ceiling). If no goodbye audio ever played, a
  * local "Goodbye." (browser speech) is spoken before closing. ENDED = the
  * hook's real stop() ran (data channel, peer, mic tracks, timers, lease).
@@ -24,12 +28,17 @@ import { createEndCorroboration, transcriptIsOutOfScript, turnMayEnd } from "./e
 export const GOODBYE_LINE = "Okay, bye for now.";
 export const GOODBYE_INSTRUCTIONS = `The resident said goodbye and ended the conversation. Say exactly and only: "${GOODBYE_LINE}" Say nothing else. No explanation, offer, question, or extra availability sentence.`;
 const FALLBACK_SPEECH_MS = 1500;
+export const RETRY_GRACE_MS = 2500;   // a spoken goodbye starts well within this (low-cost voice: ~0.2-2.5 s)
+export const GOODBYE_METADATA = { caos_goodbye: "1" };
+const isGoodbye = (response) => response?.metadata?.caos_goodbye === "1";
 
-export function createEndController({ send, stop, onEndCall, log, speak = defaultSpeak }) {
+export function createEndController({ send, stop, onEndCall, log, speak = defaultSpeak,
+  setTimer = setTimeout, clearTimer = clearTimeout }) {
   let ended = false, ending = false;
   let currentId = null;
   const cut = new Set();   // response ids cancelled because the call is ending
   let inFlight = false, pending = false, requested = false, retried = false, audioPlayed = false, fallbackUsed = false;
+  let goodbyeOpen = false, retryT = null;   // a goodbye requested and not yet done; the delayed retry check
   const corroboration = createEndCorroboration();
   // Tool calls the model is still waiting on. Answered before the goodbye is requested, or the model
   // says "I'm still waiting on that to finish" (Room 214, 2026-10-12 12:56).
@@ -41,13 +50,16 @@ export function createEndController({ send, stop, onEndCall, log, speak = defaul
     openCalls.clear();
   };
   const requestGoodbye = () => {
-    pending = false; requested = true;
+    pending = false;
+    if (goodbyeOpen || ended) return;      // one goodbye at a time
+    requested = true; goodbyeOpen = true;
     answerOpenCalls();
-    send({ type: "response.create", response: { instructions: GOODBYE_INSTRUCTIONS } });
+    send({ type: "response.create", response: { instructions: GOODBYE_INSTRUCTIONS, metadata: GOODBYE_METADATA } });
   };
+  const stopRetry = () => { if (retryT) { clearTimer(retryT); retryT = null; } };
   const endNow = (kind, via, detail = {}) => {
     if (ended) return;
-    ended = true;
+    ended = true; stopRetry();
     log("call_closed", { meta: { via, goodbye_audio_played: audioPlayed, local_fallback_used: fallbackUsed, ...detail } });
     send({ type: "response.cancel" });
     send({ type: "output_audio_buffer.clear" });
@@ -78,13 +90,17 @@ export function createEndController({ send, stop, onEndCall, log, speak = defaul
     noteResponseCreated(id = null) { inFlight = true; currentId = id; },
     /** True for a response the goodbye cancelled: its words were cut, not said. */
     wasCut(responseId) { return Boolean(responseId) && cut.has(responseId); },
-    noteResponseDone() {
+    noteResponseDone(response = null) {
       inFlight = false;
       if (!ending || ended) return;
-      if (pending) requestGoodbye();
-      else if (requested && !audioPlayed && !retried) { retried = true; requestGoodbye(); }
+      if (pending) return requestGoodbye();
+      if (!isGoodbye(response)) return;    // another response ending (e.g. the one the goodbye cut) is not the goodbye
+      goodbyeOpen = false;
+      if (requested && !audioPlayed && !retried && !retryT) {
+        retryT = setTimer(() => { retryT = null; if (!audioPlayed && !ended) { retried = true; requestGoodbye(); } }, RETRY_GRACE_MS);
+      }
     },
-    noteAudioStarted() { if (ending) audioPlayed = true; },
+    noteAudioStarted() { if (ending) { audioPlayed = true; stopRetry(); } },
     /** Close now; if the goodbye was never heard, say it locally first. */
     finish(kind, via, detail = {}) {
       if (ended) return;

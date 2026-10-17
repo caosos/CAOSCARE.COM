@@ -22,23 +22,34 @@ Swapping the text provider means a new `_stream()` in `routes/aria_voice.py`; no
 
 ## Turn taking
 - Turn end: Silero VAD with `silence_duration_ms` from `realtime_audio_config.DEFAULT_VAD` (same as Realtime).
-- Early transcription at a 400 ms pause; reused if the turn ends there, discarded if Michael carries on.
-- Reply text streams; each finished sentence (the first clause at its comma) is voiced at once, played in order.
-- Barge-in: while she is audible, sound over her voice only lowers it (to 30%); words - from the early transcription
-  at the speaker's first pause, or at turn end - stop her and cancel queued speech. No words (her own voice from
-  the room speaker, noise) and she carries on at full volume and nothing is answered. Before she is audible, speech
-  stops her at once. (Room 214 2026-10-17 rt_sf8ft3v6: 7 of 9 interruptions had no words. Same idea as LiveKit's
-  false-interruption resume and Pipecat's minimum-words turn start.) A new turn arriving while a reply is still
-  being written replaces that reply. Late chunks of cancelled speech are discarded. Only sentences played to their end (read off the audio clock) remain in the conversation;
-  queued, failed or cut-off speech does not.
+- Early transcription at a 400 ms pause; used for the turn only when the voice service reports nothing was said after
+  that pause (`speech_stopped.early_ok`), else the complete utterance is transcribed. A failed early result falls back
+  to the full turn.
+- Turn ownership: each detected utterance owns its early and final transcription and its part in an interruption from
+  its speech start. Finished utterances are applied strictly in spoken order (a later one finishing first waits), and
+  a reply is asked for only when no newer utterance is being spoken or waiting - so an older result never answers
+  over Michael. Words from several utterances are answered together.
+- Reply text streams; each finished sentence (the first clause at its comma) is voiced at once, played in order. Once
+  a reply is cancelled its late text and tool calls are dropped.
+- Barge-in: speech over her voice (the detector's speech start) PAUSES her at once - the audio clock stops, nothing is
+  dropped, the echo-cancelled output stays connected. Words in it (early or final transcript) stop her and cancel
+  queued speech; no words (her own voice or noise reaching the microphone) and she resumes where she paused, nothing
+  answered. A failed transcription is not silence: she stays stopped. Before she is audible, speech stops her at once
+  and her reply waits for the new turn. Overlapping sounds share one check. (Room 214 2026-10-17 rt_sf8ft3v6: 7 of 9
+  interruptions had no words; rt_lcnze2u9: stopping waited for words, 1.4 s after speech start.) Only sentences played
+  to their end (read off the audio clock) remain in the conversation; queued, failed or cut-off speech does not.
+- Transcription: `{ok, text}`; HTTP, network and malformed results are failures - `cascade_transcribe_failed` (stage,
+  reason, status) and `input_audio_transcription.failed`, never an empty turn. No retries.
+- Closing: the goodbye is marked with response metadata (`caos_goodbye`); it is requested once and retried only if
+  that goodbye finished with no audio within 2.5 s (its `response.done` can precede its audio).
 - Playback: through a local WebRTC loopback into the page's audio element so Chrome's AEC removes her voice; nothing
   plays until that loopback is connected (else direct, recorded as `output: direct`). After the player runs dry it
   holds 200 ms (or the sentence's end) before resuming - one rebuffer instead of a stutter; no audio is dropped.
 - Speech failures: `/speak` answers 502 when the provider gives no audio (never an empty 200); the page records
   each failed / empty / unreachable / interrupted sentence (`cascade_speech_failed`).
 - Receipts (metadata only, `realtime_diagnostics`): `cascade_playback` per reply (first audio, underruns, sentence
-  gaps, queue depth, buffered ms, heard vs partial, outcome) and `cascade_barge_in` (words in the interrupting turn
-  - 0 points to echo or noise).
+  gaps, queue depth, buffered ms, heard vs partial, outcome) and `cascade_barge_in` (outcome, words, confirmed_by,
+  held_ms - 0 words points to echo or noise).
 - Measurement (Room 214 only, owner-approved 2026-10-17, off by default): `ARIA_WAKE_DIAG_KIOSKS=<kiosk ids>` in
   `aria-wake.env` + `ctl.sh rebuild` turns on, for those kiosks only, `mic_level` (processed-track level per speech
   segment, `micLevelTelemetry.js`) and `cascade_vad_diag` from the voice service (`Diag`): per level segment of the

@@ -345,7 +345,7 @@ export function createRealtimeHandlers({
       // Fallback for a greeting that completed with no audio at all - see
       // createGreetingResponseGate's docstring in realtimeAutoResponseGate.js.
       greetingGate.onResponseDone();
-      endCtl.noteResponseDone();
+      endCtl.noteResponseDone(msg.response);
       hangup.onResponseDone();
       farewellWatch.onResponseDone(msg.response);
       claimGuard.onResponseDone(msg.response);

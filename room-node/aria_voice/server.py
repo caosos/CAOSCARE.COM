@@ -6,7 +6,8 @@ WebSocket ws://127.0.0.1:8794 - one client is one call:
   in   binary                       mic PCM16 mono 16 kHz (the page's echo-cancelled microphone)
   in   {"type":"config", "silence_ms", "threshold"}   turn detection, from the room session's own settings
   out  {"type":"ready"}
-  out  {"type":"speech_started"} / {"type":"speech_stopped", "wav": base64 16 kHz WAV of the utterance}
+  out  {"type":"speech_started"} / {"type":"speech_stopped", "wav": base64 16 kHz WAV of the utterance,
+                                         "early_ok": the speech_paused audio is the whole turn}
   out  {"type":"speech_paused", "wav"}   speech went quiet for PAUSE_MS inside a turn: the page may transcribe
                                          early; {"type":"speech_resumed"} if the speaker carries on
   in   config "diagnostics": true        (page opts in; Room 214 measurement only - micLevelTelemetry.js gate)
@@ -130,6 +131,7 @@ class Call:
         self.vad, self.speaking = make_vad(), False
         self.pending = np.zeros(0, dtype=np.float32)
         self.utt, self.peak, self.quiet_ms, self.paused = [], 0.0, 0, False
+        self.silence_ms, self.pause_len = 1000, 0
         self.preroll = collections.deque(maxlen=PREROLL_WINDOWS)
         self.diag = None                            # Diag, when the page opts in
 
@@ -155,9 +157,14 @@ class Call:
             self.preroll.extend(block.reshape(-1, 512))
         while not self.vad.empty():
             seg = np.asarray(self.vad.front.samples, dtype=np.float32); self.vad.pop()
+            # The pause transcript is the whole turn only if nothing was said after that pause: the turn then ended
+            # one silence after it. Anything longer - even speech quieter than the pause rule's "sound" - means
+            # words came after it, and the page transcribes the complete utterance instead.
+            early_ok = bool(self.paused and (len(self.utt) - self.pause_len) * WIN_MS <= self.silence_ms + 300)
             self.speaking = False
             pcm = (np.clip(seg, -1, 1) * 32767).astype("<i2")
-            out.append({"type": "speech_stopped", "wav": base64.b64encode(wav_bytes(pcm, MIC_RATE)).decode()})
+            out.append({"type": "speech_stopped", "early_ok": early_ok,
+                        "wav": base64.b64encode(wav_bytes(pcm, MIC_RATE)).decode()})
         if self.diag:
             try:
                 out += self.diag.feed(block, vad_speech, started)
@@ -180,7 +187,7 @@ class Call:
                     out.append({"type": "speech_resumed"})
                 self.quiet_ms, self.paused = 0, False
             if not self.paused and self.quiet_ms >= PAUSE_MS and len(self.utt) * WIN_MS > 300 + PAUSE_MS:
-                self.paused = True
+                self.paused, self.pause_len = True, len(self.utt)
                 pcm = (np.clip(np.concatenate(self.utt), -1, 1) * 32767).astype("<i2")
                 out.append({"type": "speech_paused", "wav": base64.b64encode(wav_bytes(pcm, MIC_RATE)).decode()})
         return out
@@ -192,7 +199,8 @@ class Call:
             return
         m = json.loads(msg)
         if m.get("type") == "config":
-            self.vad = make_vad(int(m.get("silence_ms") or 1000), float(m.get("threshold") or 0.5))
+            self.silence_ms = int(m.get("silence_ms") or 1000)
+            self.vad = make_vad(self.silence_ms, float(m.get("threshold") or 0.5))
             self.diag = Diag() if m.get("diagnostics") is True else None
 
 

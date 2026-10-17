@@ -156,7 +156,7 @@ test("transcription starts at the first pause and is reused when the turn ends t
   t.send({ type: "session.update", session: { audio: { input: { turn_detection: { create_response: false } } } } });
   t.ws.serve({ type: "speech_started" });
   t.ws.serve({ type: "speech_paused", wav: btoa("RIFFearly") });
-  t.ws.serve({ type: "speech_stopped", wav: btoa("RIFFfull") });
+  t.ws.serve({ type: "speech_stopped", wav: btoa("RIFFfull"), early_ok: true });
   await flush(); await flush();
   expect(t.calls.filter((c) => c.url.endsWith("/transcribe"))).toHaveLength(1);
   expect(t.events.find((e) => e.type === "conversation.item.input_audio_transcription.completed").transcript).toBe("I need some water");

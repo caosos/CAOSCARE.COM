@@ -88,13 +88,13 @@ async function echoCancelledOutput(ctx, audioEl, RTC, waitMs) {
 
 const LEAD = 0.05;                 // s: how far ahead of the audio clock a piece is scheduled
 export const PREBUFFER_MS = 200;   // audio held back before (re)starting after the player ran dry; never dropped
-const DUCK = 0.3;                  // her volume while sound over her voice is checked for words
+const DUCK = 0.3;                  // her volume while sound is checked for words, where the clock cannot pause
 
 /** Plays PCM16 back to back on the audio clock; stop() cuts playback at once. With an audio element and WebRTC
  * available, the sound goes through the echo-cancelled path above, else (or if it never connects) to the speakers. */
 export function createPlayer({ AudioCtx = typeof window !== "undefined" && (window.AudioContext || window.webkitAudioContext),
   audioEl = null, RTC = typeof window !== "undefined" && window.RTCPeerConnection, loopbackWaitMs = 1500 } = {}) {
-  let ctx = null, out = null, sink = null, gain = null, next = 0, live = [], onIdle = null;
+  let ctx = null, out = null, sink = null, gain = null, next = 0, live = [], onIdle = null, held = false;
   const ready = () => {
     if (!ctx) {
       ctx = new AudioCtx();
@@ -136,7 +136,20 @@ export function createPlayer({ AudioCtx = typeof window !== "undefined" && (wind
     },
     /** Lowers (or restores) her voice without stopping it. */
     duck(on) { level(on ? DUCK : 1); },
-    stop() { const was = live.length > 0; live.forEach((x) => { try { x.onended = null; x.stop(); } catch {} }); live = []; next = 0; level(1); return was; },
+    /** Pauses her voice where it is (the audio clock stops, nothing is dropped, the echo-cancelled output stays
+     * connected) or resumes it. Where the clock cannot be paused she is only lowered. */
+    hold(on) {
+      if (!ctx || held === on) return;
+      held = on;
+      if (!ctx.suspend) return level(on ? DUCK : 1);
+      try { (on ? ctx.suspend() : ctx.resume())?.catch?.(() => {}); } catch {}
+    },
+    stop() {
+      const was = live.length > 0;
+      live.forEach((x) => { try { x.onended = null; x.stop(); } catch {} }); live = []; next = 0; level(1);
+      if (held) this.hold(false);
+      return was;
+    },
     close() { this.stop(); out?.then((x) => x?.close()); try { ctx?.close(); } catch {} },
   };
 }
@@ -179,10 +192,11 @@ export function createCascadeConnection({ session, caos, stream, api, audioEl = 
   const rate = session.audio_sample_rate || 24000;
   const items = [];                         // the conversation, as chat messages
   let n = 0, autoRespond = true, resp = null, stopMic = null, closed = false;
-  // Sound over her voice: {r, outcome}. Her own voice from the room speaker reaches the microphone too (Room 214
-  // 2026-10-17 rt_sf8ft3v6: 7 of 9 interruptions had no words), so while she is audible sound only lowers her
-  // voice; words - at the speaker's first pause or turn end - stop her. Silent, she stops at once, as before.
-  let barge = null;
+  // Speech over her voice pauses her at once (the detector's speech start, not a transcript); words in it - from the
+  // speaker's first pause or the whole turn - stop her, and no words (her own voice or noise reaching the microphone,
+  // Room 214 2026-10-17 rt_sf8ft3v6) let her carry on from where she paused. A failed transcription is not
+  // silence: she stays stopped. Not yet audible, she stops at once. hold = {r, utts, outcome, at, by}.
+  let hold = null;
   const id = (p) => `${p}_${Date.now().toString(36)}_${++n}`;
   const dc = { readyState: "connecting", onopen: null, onmessage: null, onclose: null, send: (s) => onClient(JSON.parse(s)), close };
   const emit = (obj) => { if (!closed) setTimeout(() => dc.onmessage?.({ data: JSON.stringify(obj) }), 0); };
@@ -327,7 +341,7 @@ export function createCascadeConnection({ session, caos, stream, api, audioEl = 
         items.push({ role: "assistant", content: heard });
         emit({ type: "response.output_audio_transcript.done", response_id: r.id, item_id: r.item, transcript: heard });
       }
-      emit({ type: "response.done", response: { id: r.id, status: "cancelled", status_details: { reason }, usage: null } });
+      emit({ type: "response.done", response: { id: r.id, status: "cancelled", status_details: { reason }, usage: null, metadata: r.metadata } });
     } else settle(r, heard);
     return true;
   }
@@ -337,10 +351,10 @@ export function createCascadeConnection({ session, caos, stream, api, audioEl = 
     if (resp) cancel("superseded");         // a finished reply still playing gives way to the next one
     const r = resp = { id: id("resp"), item: id("item"), queue: [], sentences: [], said: 0, text: "", buf: "", calls: [],
       done: false, speaking: false, pump: null, wakePump: null, itemIndex: null, abort: new AbortController(),
-      t0: player.now?.() ?? 0, logged: false,
+      t0: player.now?.() ?? 0, logged: false, metadata: opts.metadata || null,
       stats: { firstStart: null, audio: 0, underruns: 0, underrunS: 0, maxSentenceGap: 0, maxQueue: 0, maxAhead: 0 } };
-    emit({ type: "response.created", response: { id: r.id } });
-    const delta = (d) => { r.text += d; emit({ type: "response.output_audio_transcript.delta", response_id: r.id, item_id: r.item, delta: d });
+    emit({ type: "response.created", response: { id: r.id, metadata: r.metadata } });
+    const delta = (d) => { if (resp !== r) return; r.text += d; emit({ type: "response.output_audio_transcript.delta", response_id: r.id, item_id: r.item, delta: d });
       const [done, rest] = takeSentences(r.buf + d, r.said === 0); r.buf = rest; done.forEach((s) => say(r, s)); };
     // The greeting and the routine goodbye are fixed lines: spoken (and cached) with no reasoning call.
     const fixed = opts.instructions && (opts.instructions === caos.greeting?.instructions ? caos.greeting_line
@@ -363,7 +377,7 @@ export function createCascadeConnection({ session, caos, stream, api, audioEl = 
     if (text) emit({ type: "response.output_audio_transcript.done", response_id: r.id, item_id: r.item, transcript: text });
     r.calls.forEach((c) => emit({ type: "response.function_call_arguments.done", response_id: r.id, call_id: c.id, name: c.name, arguments: c.arguments }));
     r.done = true;
-    emit({ type: "response.done", response: { id: r.id, status: "completed", usage: null } });
+    emit({ type: "response.done", response: { id: r.id, status: "completed", usage: null, metadata: r.metadata } });
     if (r.pump) wake(r, "wakePump"); else if (!player.playing) finish(r);
   }
 
@@ -383,6 +397,7 @@ export function createCascadeConnection({ session, caos, stream, api, audioEl = 
       while ((i = buf.indexOf("\n\n")) >= 0) {
         const line = buf.slice(0, i); buf = buf.slice(i + 2);
         if (!line.startsWith("data: ")) continue;
+        if (resp !== r) return;              // cancelled: late text and tool calls belong to no one
         const ev = JSON.parse(line.slice(6));
         if (ev.type === "text") delta(ev.delta);
         else if (ev.type === "tool_call") r.calls.push(ev);
@@ -391,43 +406,101 @@ export function createCascadeConnection({ session, caos, stream, api, audioEl = 
     }
   }
 
-  let early = null;                         // transcription started at the speaker's first pause (speech_paused)
-  function transcribe(wavB64) {
+  /** Speech to text. {ok, text} - text "" is a successful empty result; {ok: false, reason, status} is a failure,
+   * receipted and never taken for silence. No retries here. */
+  function transcribe(wavB64, stage) {
     const bytes = Uint8Array.from(atob(wavB64), (c) => c.charCodeAt(0));
     return fetchImpl(`${api}/aria-voice/transcribe`, { method: "POST", headers: { ...headers, "Content-Type": "audio/wav" }, body: bytes })
-      .then((res) => (res.ok ? res.json() : {})).then((j) => j.text || "").catch(() => "");
+      .then((res) => (!res.ok ? { ok: false, reason: "http_error", status: res.status }
+        : res.json().then((j) => (typeof j?.text === "string" ? { ok: true, text: j.text.trim() } : { ok: false, reason: "bad_response" }),
+          () => ({ ok: false, reason: "bad_json" }))))
+      .catch(() => ({ ok: false, reason: "network" }))
+      .then((t) => {
+        if (!t.ok) log("cascade_transcribe_failed", { meta: { transport: "cascade", stage, reason: t.reason, ...(t.status ? { status: t.status } : {}) } });
+        return t;
+      });
   }
 
-  async function heard(wavB64) {
-    const item = id("item");
-    emit({ type: "input_audio_buffer.speech_stopped", item_id: item });
-    const pending = early; early = null;    // still valid only if the speaker did not carry on after the pause
-    const text = await (pending || transcribe(wavB64));
-    if (closed) return;
-    const b = barge; barge = null;
-    if (b) {
-      stopFor(b, text);
-      if (!b.outcome) { b.outcome = "ignored"; player.duck?.(false); }
-      log("cascade_barge_in", { responseId: b.r.id, meta: { transport: "cascade", outcome: b.outcome,
-        was_playing: b.was_playing, heard_ms: ms(b.r.stats.audio), words: wordCount(text) } });
-    }
-    if (b?.outcome === "ignored") {         // no words: not a turn - she carries on
-      emit({ type: "conversation.item.input_audio_transcription.completed", item_id: item, transcript: "" });
-      return;
-    }
-    if (text) items.push({ role: "user", content: text });
-    emit({ type: "conversation.item.input_audio_transcription.completed", item_id: item, transcript: text });
-    if (text && autoRespond) {
-      if (resp && !resp.done) cancel("next_turn");   // a reply still being written gives way to the newer turn
-      respond();
-    }
-  }
-
+  // One utterance per detected speech segment. Each owns its early (first pause) and final transcription and its
+  // part in an interruption, from its speech start - nothing is shared across awaits. Finished utterances are applied
+  // strictly in the order they were spoken, and none answers while a newer one is still being spoken.
+  let cur = null;                           // the utterance being spoken now
+  let applied = Promise.resolve();          // the in-order chain of finished utterances
+  let unanswered = false;                   // the resident's words wait for a reply (a newer utterance came first)
+  let waiting = 0;                          // finished utterances not yet applied
   const wordCount = (text) => (text.match(/[\p{L}\p{N}]+/gu) || []).length;
-  function stopFor(b, text) {               // words over her voice stop her
-    if (b.outcome || !wordCount(text)) return;
-    b.outcome = "stopped";
-    if (resp === b.r) cancel("turn_detected"); else player.duck?.(false);
+
+  function begin() {
+    const u = { id: id("utt"), item: id("item"), early: null, stale: false };
+    cur = u;
+    emit({ type: "input_audio_buffer.speech_started", item_id: u.item });
+    if (hold) hold.utts.add(u.id);          // more sound while she is paused: the same check, one more utterance
+    else if (resp?.speaking) {              // audible: pause her while the speech is checked for words
+      hold = { r: resp, utts: new Set([u.id]), outcome: null, at: Date.now(), by: null, words: 0, was_playing: true };
+      player.hold?.(true);
+    } else if (resp) {                      // not yet audible: stop at once, her reply waits for this turn
+      if (!resp.done) unanswered = true;
+      resolveHold({ r: resp, utts: new Set(), outcome: null, at: Date.now(), was_playing: false }, "stopped", "speech_start", 0);
+    }
+    return u;
+  }
+
+  /** Ends an interruption check: stopped (words, or a failed transcription), or ignored (no words). Once. */
+  function resolveHold(h, outcome, by, words) {
+    if (h.outcome) return;
+    h.outcome = outcome;
+    if (hold === h) hold = null;
+    if (outcome === "ignored") player.hold?.(false);
+    else if (resp === h.r) { if (!h.r.done) unanswered = true; cancel("turn_detected"); }
+    else player.hold?.(false);
+    log("cascade_barge_in", { responseId: h.r.id, meta: { transport: "cascade", outcome, was_playing: h.was_playing,
+      heard_ms: ms(h.r.stats.audio), words, confirmed_by: by, held_ms: h.was_playing ? Date.now() - h.at : 0 } });
+  }
+
+  /** A transcription result for utterance u while it is part of the open interruption check. */
+  function judge(u, t, by) {
+    const h = hold;
+    if (!h || h.outcome) return;
+    if (h.utts.has(u.id)) {
+      if (!t.ok) return resolveHold(h, "stopped", `${by}_failed`, 0);    // failure is not evidence of silence
+      if (wordCount(t.text)) return resolveHold(h, "stopped", by, wordCount(t.text));
+      if (by === "final") h.utts.delete(u.id);
+    }
+    if (by === "final" && !h.utts.size && !cur) resolveHold(h, "ignored", by, 0);   // nobody spoke: carry on
+  }
+
+  function finished(m) {
+    const u = cur || { id: id("utt"), item: id("item"), early: null, stale: true };
+    if (cur === u) cur = null;
+    emit({ type: "input_audio_buffer.speech_stopped", item_id: u.item });
+    // The pause transcript stands for the turn only if the service says nothing was said after that pause.
+    const useEarly = u.early && !u.stale && m.early_ok === true;
+    u.final = useEarly ? u.early.then((t) => (t.ok ? t : transcribe(m.wav, "final"))) : transcribe(m.wav, "final");
+    u.final.then((t) => { if (!closed) judge(u, t, "final"); });
+    const was = hold?.utts.has(u.id) ? hold : null;
+    waiting += 1;
+    applied = applied.then(() => apply(u, was)).catch(() => {}).finally(() => { waiting -= 1; });
+  }
+
+  async function apply(u, h) {
+    const t = await u.final;
+    if (closed) return;
+    if (h && h.outcome === "ignored" && h.utts.size === 0 && !(t.ok && wordCount(t.text))) {
+      emit({ type: "conversation.item.input_audio_transcription.completed", item_id: u.item, transcript: "" });
+      return;                               // no words over her voice: not a turn - she carried on
+    }
+    if (!t.ok) {
+      emit({ type: "conversation.item.input_audio_transcription.failed", item_id: u.item,
+        error: { message: `transcription ${t.reason}${t.status ? ` ${t.status}` : ""}` } });
+    } else {
+      if (t.text) { items.push({ role: "user", content: t.text }); unanswered = true; }
+      emit({ type: "conversation.item.input_audio_transcription.completed", item_id: u.item, transcript: t.text });
+    }
+    if (!autoRespond) { unanswered = false; return; }   // the handler decides (rest, greeting window)
+    if (!unanswered || cur || hold || waiting > 1) return;   // newer speech under way or waiting: it answers
+    unanswered = false;
+    if (resp && !resp.done) cancel("next_turn");   // a reply still being written gives way to the newer turn
+    respond();
   }
 
   function onService(ev) {
@@ -442,17 +515,15 @@ export function createCascadeConnection({ session, caos, stream, api, audioEl = 
       emit({ type: "session.created", session: { id: id("cascade"), model: session.session?.model } });
       setTimeout(() => dc.onopen?.(), 0);
     } else if (m.type === "speech_started") {
-      emit({ type: "input_audio_buffer.speech_started" });
-      if (!resp || barge) return;
-      if (player.playing) { barge = { r: resp, outcome: null, was_playing: true }; player.duck?.(true); }
-      else { barge = { r: resp, outcome: "stopped", was_playing: false }; cancel("turn_detected"); }
-    } else if (m.type === "speech_paused") {
-      early = transcribe(m.wav);
-      if (barge && !barge.outcome) { const b = barge; early.then((t) => { if (!closed) stopFor(b, t); }); }
-    } else if (m.type === "speech_resumed") {
-      early = null;
+      begin();
+    } else if (m.type === "speech_paused" && cur) {
+      const u = cur;                          // this utterance's own early transcription (the latest pause)
+      u.early = transcribe(m.wav, "early"); u.stale = false;
+      u.early.then((t) => { if (!closed) judge(u, t, "early"); });
+    } else if (m.type === "speech_resumed" && cur) {
+      cur.stale = true;                       // words after the pause: that transcript is not the turn
     } else if (m.type === "speech_stopped") {
-      heard(m.wav);
+      finished(m);
     } else if (m.type === "diag" && diagnostics) {   // numbers only (aria_voice Diag); never affects the call
       try { Promise.resolve(log("cascade_vad_diag", { meta: { transport: "cascade", ...m.data } })).catch(() => {}); } catch {}
     }
