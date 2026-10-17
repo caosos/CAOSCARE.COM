@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import WorkspaceShell from "../components/workspace/WorkspaceShell";
 import WorkspaceGrid from "../components/workspace/WorkspaceGrid";
 import RecordsDialog from "../components/workspace/RecordsDialog";
@@ -7,6 +7,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { WIDGETS, WIDGET_BY_ID } from "../lib/workspaceCatalog";
 import { useWorkspaceLayout } from "../lib/useWorkspaceLayout";
 import { useBoxValues } from "../lib/useWorkspaceData";
+import { useAuth } from "../lib/auth";
+import { navFor } from "../lib/workspaceNav";
 
 const SAVE_LABEL = { saving: "Saving…", saved: "Layout saved", error: "Layout not saved — check connection",
                      conflict: "Layout changed in another window — reloaded", loading: "" };
@@ -72,6 +74,10 @@ export default function OperationsWorkspace() {
   const { values } = useBoxValues(visibleIds, view);
   const run = Object.values(values).find((v) => v?.run)?.run;
   const placed = new Set((boxes || []).map((b) => b.id));
+  // The sidebar's Dashboard entries (alerts, live board, overview...) shown under the boxes too, so they are found
+  // without opening the menu (owner 2026-10-17). Same list as the sidebar (workspaceNav.js), never a second copy.
+  const { user } = useAuth();
+  const shortcuts = (navFor(user?.role).find((sec) => sec.id === "dashboard")?.items || []).filter((i) => i.to !== "/operations");
 
   const addBox = (id) => update((prev) => (prev.some((b) => b.id === id)
     ? prev.map((b) => (b.id === id ? { ...b, hidden: false } : b))
@@ -94,6 +100,20 @@ export default function OperationsWorkspace() {
                          onRestore={() => update((prev) => prev.map((b) => ({ ...b, hidden: false })))} />
         ) : <p className="text-[#6B7280]">Loading your workspace…</p>}
       </div>
+      {shortcuts.length > 0 && (
+        <nav aria-label="Dashboard" data-testid="ws-dashboard-links" className="mt-8 border-t border-[#EEF0F3] pt-5">
+          <h2 className="text-[17px] font-semibold text-[#111827]">Dashboard</h2>
+          <ul className="mt-3 flex flex-wrap gap-2">
+            {shortcuts.map((i) => (
+              <li key={i.to}>
+                <Link to={i.to} className="inline-block rounded-lg border border-[#E5E7EB] bg-white px-4 py-2 text-[15px] font-medium text-[#111827] hover:bg-[#F9FAFB]">
+                  {i.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
       <RecordsDialog widget={openWidget} view={view} open={!!openWidget} onOpenChange={(o) => !o && setOpenWidget(null)} />
       <Dialog open={adding} onOpenChange={setAdding}>
         <DialogContent className="max-w-lg">
