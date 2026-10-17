@@ -9,8 +9,9 @@ Instructions and tools are the ones the room session already builds (realtime_re
 stored here at session start and never accepted from the client. No Realtime model is used. Models and voice are
 configuration (ARIA_VOICE_*); a different text provider only needs its own _stream().
 
-Prototype only: off unless ARIA_VOICE_CASCADE=1, and every session needs an open owner-approved paid-test budget
-(CAOSCARE_PAID_TEST_BUDGET_ID) that accepts its worst case first - fail closed.
+Off unless ARIA_VOICE_CASCADE=1. ARIA_VOICE_DEFAULT_TRANSPORT (cascade|realtime) is the room page's default; the
+kiosk's switch overrides it. Paid tests (CAOSCARE_PAID_TEST_BUDGET_ID set): each session first reserves its bounded
+worst case against the owner-approved budget, fail closed. Live rooms: receipted, never blocked (as Realtime).
 """
 import base64
 import hashlib
@@ -48,8 +49,22 @@ MAX_INPUT_CHARS = BOUNDS["max_text_input_tokens"] * 3               # conservati
 _ROLES = {"user", "assistant", "tool"}
 
 
+LIVE_IDLE_SECONDS = 1800   # a live session stays valid while it is used; idle this long and its token expires
+
+
 def enabled() -> bool:
     return os.environ.get("ARIA_VOICE_CASCADE", "").strip() == "1"
+
+
+def default_transport() -> str:
+    t = os.environ.get("ARIA_VOICE_DEFAULT_TRANSPORT", "").strip().lower()
+    return "cascade" if enabled() and t == "cascade" else "realtime"
+
+
+@router.get("/config")
+async def config():
+    """What the room page may offer: whether the low-cost voice is available, and the room's default."""
+    return {"cascade_enabled": enabled(), "default_transport": default_transport()}
 
 
 def _base() -> str:
@@ -103,12 +118,28 @@ async def create_cascade_session(*, session_id, purpose, room, kiosk_id, instruc
     """Called by the room session builder instead of a Realtime mint when the page asks for transport=cascade."""
     if not enabled():
         raise HTTPException(status_code=404, detail="Low-cost voice prototype is not enabled.")
+    tts_model, tts_voice = TTS_MODEL, voice_or_default(voice)
+    reservation_id = await _reserve_paid_test(purpose, session_id, tts_model)
+    token = secrets.token_urlsafe(32)
+    expires = now_utc() + timedelta(seconds=BOUNDS["max_session_seconds"] if reservation_id else LIVE_IDLE_SECONDS)
+    await db.aria_voice_sessions.insert_one({
+        "token_sha256": _sha(token), "session_id": session_id, "purpose": purpose, "room": room,
+        "kiosk_id": kiosk_id, "instructions": instructions, "tools": chat_tools(tools),
+        "temperature": temperature, "reservation_id": reservation_id, "responses": 0,
+        "tts_model": tts_model, "tts_voice": tts_voice, "spoken_chars": 0,
+        "created_at": now_utc().isoformat(), "expires_at": expires.isoformat(), "ended_at": None})
+    return {"transport": "cascade", "token": token, "expires_at": expires.isoformat(),
+            "stt_model": STT_MODEL, "tts": f"{tts_model}:{tts_voice}", "audio_sample_rate": 24000,
+            "session": {"model": TEXT_MODEL}}
+
+
+async def _reserve_paid_test(purpose, session_id, tts_model):
+    """Paid test: reserve the bounded worst case or refuse (fail closed). Live room: nothing to reserve."""
     import paid_api_ledger as L
     from routes.paid_api_receipts import ledger, test_budget_id
     budget_id = test_budget_id()
     if not budget_id:
-        raise HTTPException(status_code=503, detail="Low-cost voice refused: no owner-approved paid-test budget.")
-    tts_model, tts_voice = TTS_MODEL, voice_or_default(voice)
+        return None
     try:
         out = ledger().budget.reserve_cascade(budget_id, stt_model=STT_MODEL, text_model=TEXT_MODEL, tts_model=tts_model,
                                               provenance=L.provenance(purpose, session_id=session_id), **BOUNDS)
@@ -117,17 +148,7 @@ async def create_cascade_session(*, session_id, purpose, room, kiosk_id, instruc
     if not out.get("ok"):
         raise HTTPException(status_code=503, detail=f"Low-cost voice refused: {out.get('reason')}")
     ledger().budget.bind_session(out["reservation_id"], session_id)
-    token = secrets.token_urlsafe(32)
-    expires = now_utc() + timedelta(seconds=BOUNDS["max_session_seconds"])
-    await db.aria_voice_sessions.insert_one({
-        "token_sha256": _sha(token), "session_id": session_id, "purpose": purpose, "room": room,
-        "kiosk_id": kiosk_id, "instructions": instructions, "tools": chat_tools(tools),
-        "temperature": temperature, "reservation_id": out["reservation_id"], "responses": 0,
-        "tts_model": tts_model, "tts_voice": tts_voice, "spoken_chars": 0,
-        "created_at": now_utc().isoformat(), "expires_at": expires.isoformat(), "ended_at": None})
-    return {"transport": "cascade", "token": token, "expires_at": expires.isoformat(),
-            "stt_model": STT_MODEL, "tts": f"{tts_model}:{tts_voice}", "audio_sample_rate": 24000,
-            "session": {"model": TEXT_MODEL}}
+    return out["reservation_id"]
 
 
 async def _session(request: Request) -> dict:
@@ -135,6 +156,9 @@ async def _session(request: Request) -> dict:
     s = await db.aria_voice_sessions.find_one({"token_sha256": _sha(token), "ended_at": None}) if token else None
     if not s or s["expires_at"] < now_utc().isoformat():
         raise HTTPException(status_code=401, detail="No live low-cost voice session.")
+    if not s.get("reservation_id"):   # live: valid while in use
+        await db.aria_voice_sessions.update_one({"_id": s["_id"]}, {"$set": {
+            "expires_at": (now_utc() + timedelta(seconds=LIVE_IDLE_SECONDS)).isoformat()}})
     return s
 
 
@@ -184,8 +208,8 @@ def _messages(s: dict, items, instructions=None) -> list:
 @router.post("/respond")
 async def respond(request: Request, payload: dict):
     s = await _session(request)
-    n = await db.aria_voice_sessions.find_one_and_update(
-        {"_id": s["_id"], "responses": {"$lt": BOUNDS["max_responses"]}}, {"$inc": {"responses": 1}})
+    cap = {"responses": {"$lt": BOUNDS["max_responses"]}} if s.get("reservation_id") else {}   # paid tests only
+    n = await db.aria_voice_sessions.find_one_and_update({"_id": s["_id"], **cap}, {"$inc": {"responses": 1}})
     if not n:
         raise HTTPException(status_code=429, detail="This session reached its response bound.")
     body = {"model": TEXT_MODEL, "messages": _messages(s, payload.get("items"), payload.get("instructions")),
@@ -251,9 +275,9 @@ async def speak(request: Request, payload: dict):
             f"{s['tts_model']}|{s['tts_voice']}|{SPEED}|{SPEECH_STYLE}|{say}".encode()).hexdigest() + ".pcm")
         if os.path.exists(cache):
             return StreamingResponse(_file(cache), media_type="audio/pcm")
-    n = await db.aria_voice_sessions.find_one_and_update(
-        {"_id": s["_id"], "spoken_chars": {"$lte": BOUNDS["max_responses"] * BOUNDS["max_speech_chars"] - len(say)}},
-        {"$inc": {"spoken_chars": len(say)}})
+    cap = ({"spoken_chars": {"$lte": BOUNDS["max_responses"] * BOUNDS["max_speech_chars"] - len(say)}}
+           if s.get("reservation_id") else {})   # paid tests only
+    n = await db.aria_voice_sessions.find_one_and_update({"_id": s["_id"], **cap}, {"$inc": {"spoken_chars": len(say)}})
     if not n:
         raise HTTPException(status_code=429, detail="This session reached its speech bound.")
     return StreamingResponse(_speech(s, say, cache), media_type="audio/pcm")
@@ -321,5 +345,6 @@ async def end(request: Request):
     await db.aria_voice_sessions.update_one({"_id": s["_id"]}, {"$set": {"ended_at": now_utc().isoformat()}})
     from routes.paid_api_receipts import ledger
     from routes.paid_api_receipts import _safe
-    await _safe(ledger().budget.close, s["reservation_id"], "session_ended")
+    if s.get("reservation_id"):
+        await _safe(ledger().budget.close, s["reservation_id"], "session_ended")
     return {"ok": True}

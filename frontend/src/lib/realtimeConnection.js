@@ -14,9 +14,9 @@ import { createInactivityTimer } from "./realtimeInactivityTimer";
 import { startMicLevelTelemetry } from "./micLevelTelemetry";
 
 import { createTypedTurnState, markResponseRequested } from "./realtimeTypedTurn";
-import { createCascadeConnection, requestedTransport } from "./cascadeTransport";
+import { createCascadeConnection } from "./cascadeTransport";
 export async function connectRealtimeVoice({
-  attemptRef, voice, residentId, kioskId, room, alertId, activationId, sessionEndpoint,
+  attemptRef, voice, transport, residentId, kioskId, room, alertId, activationId, sessionEndpoint,
   sessionPayload, sessionAuth, triggerSource, onEndCall, pcRef, dcRef, localStreamRef,
   audioElRef, leaseHeartbeatRef, leaseRoomRef, startGenRef, sessionIdRef,
   ctxRef, endReasonLoggedRef, lifecycleCleanupRef, assistantSpeakingRef,
@@ -78,7 +78,7 @@ export async function connectRealtimeVoice({
             session_id: sessionIdRef.current,
             ts_client: new Date().toISOString(),
             trigger_source: triggerSource || "manual_kiosk",
-            ...(requestedTransport() ? { transport: requestedTransport() } : {}),   // side-by-side audition only
+            transport: transport || "realtime",   // the kiosk's choice (useVoiceTransport.js)
           }
         ),
       });

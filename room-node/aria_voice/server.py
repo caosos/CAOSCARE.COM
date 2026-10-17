@@ -22,7 +22,7 @@ import wave
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-MODELS = os.environ.get("ARIA_VOICE_MODELS", os.path.expanduser("~/aria-local-lab/speech-models/sherpa"))
+MODELS = os.environ.get("ARIA_VOICE_MODELS", os.path.join(HERE, "model"))   # silero_vad.onnx (installed by ctl.sh)
 PORT = int(os.environ.get("ARIA_VOICE_PORT", "8794"))
 MIC_RATE = 16000
 PAUSE_MS = int(os.environ.get("ARIA_VOICE_PAUSE_MS", "400"))   # early-transcription point (turn end stays silence_ms)

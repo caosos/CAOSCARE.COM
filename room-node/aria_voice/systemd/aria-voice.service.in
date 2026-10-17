@@ -1,0 +1,16 @@
+# Low-cost Aria voice - local turn detection (Silero VAD) for the room page. Installed by
+# room-node/aria_wake/ctl.sh (paths filled in). Localhost only; no provider key; no outbound calls.
+[Unit]
+StartLimitIntervalSec=0
+Description=Aria low-cost voice: local turn detection for the room page (ws://127.0.0.1:8794)
+
+[Service]
+Type=simple
+WorkingDirectory=@VOICE_DIR@
+Environment=PYTHONUNBUFFERED=1
+ExecStart=@DIR@/.venv/bin/python @VOICE_DIR@/server.py
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

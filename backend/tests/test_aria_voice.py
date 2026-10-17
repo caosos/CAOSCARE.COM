@@ -131,16 +131,42 @@ def data(lines):
     return ["data: " + json.dumps(x) for x in lines] + ["data: [DONE]"]
 
 
-def test_off_by_default_and_needs_a_budget(lg, monkeypatch):
+def test_off_by_default(lg, monkeypatch):
     monkeypatch.delenv("ARIA_VOICE_CASCADE", raising=False)
     with pytest.raises(HTTPException) as e:
         new_session()
     assert e.value.status_code == 404
+    assert run(V.config()) == {"cascade_enabled": False, "default_transport": "realtime"}
+
+
+def test_room_default_transport_is_configuration(lg, monkeypatch):
+    monkeypatch.setenv("ARIA_VOICE_CASCADE", "1")
+    monkeypatch.setenv("ARIA_VOICE_DEFAULT_TRANSPORT", "cascade")
+    assert run(V.config()) == {"cascade_enabled": True, "default_transport": "cascade"}
+    monkeypatch.delenv("ARIA_VOICE_CASCADE")
+    assert V.default_transport() == "realtime"            # never a default that cannot run
+
+
+def test_live_room_session_is_receipted_never_blocked_or_capped(lg, monkeypatch):
     monkeypatch.setenv("ARIA_VOICE_CASCADE", "1")
     monkeypatch.delenv("CAOSCARE_PAID_TEST_BUDGET_ID", raising=False)
-    with pytest.raises(HTTPException) as e:
-        new_session()
-    assert e.value.status_code == 503 and "budget" in e.value.detail
+    sid, out = new_session(voice="nova")
+    from deps import db
+    s = run(db.aria_voice_sessions.find_one({"session_id": sid}))
+    assert s["reservation_id"] is None and lg.db.reservations.count_documents({}) == 0
+    run(db.aria_voice_sessions.update_one({"_id": s["_id"]}, {"$set": {"responses": 500, "spoken_chars": 10 ** 7}}))
+    sent = fake_provider(monkeypatch, stream=Lines(200, []))
+    resp = run(V.respond(Req(out["token"]), {"items": [{"role": "user", "content": "hi"}]}))   # no response cap
+    run(drain_bytes_iter(resp))
+    drain_bytes(run(V.speak(Req(out["token"]), {"text": "Sure."})))                          # no speech cap
+    assert len(sent) == 2 and lg.db.receipts.count_documents({"session_id": sid, "kind": "provider_request"}) == 2
+    assert run(V.end(Req(out["token"]))) == {"ok": True}
+
+
+def drain_bytes_iter(resp):
+    async def go():
+        return [x async for x in resp.body_iterator]
+    return go()
 
 
 def test_session_reserves_worst_case_and_keeps_server_side_prompt_and_tools(budget):

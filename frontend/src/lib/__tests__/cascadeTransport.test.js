@@ -1,6 +1,7 @@
 /** Low-cost voice transport (cascadeTransport.js): emits the Realtime events the room handler already uses. */
 import { TextEncoder, TextDecoder } from "util";
-import { chatMessage, createCascadeConnection, requestItems, requestedTransport, takeSentences } from "../cascadeTransport";
+import { chatMessage, createCascadeConnection, requestItems, takeSentences } from "../cascadeTransport";
+import { chosenTransport } from "../useVoiceTransport";
 import { GOODBYE_INSTRUCTIONS, GOODBYE_LINE } from "../endController";
 
 global.TextEncoder = global.TextEncoder || TextEncoder;
@@ -52,10 +53,14 @@ function setup({ replies = [], transcript = "I need some water", speakImpl = () 
   return { dc, pc, ws, events, calls, send, player, spoken, types: () => events.map((e) => e.type) };
 }
 
-test("chosen only by ?aria_voice=cascade", () => {
-  expect(requestedTransport("?aria_voice=cascade")).toBe("cascade");
-  expect(requestedTransport("")).toBeNull();
-  expect(requestedTransport("?aria_voice=other")).toBeNull();
+test("the kiosk's choice: URL override, else the switch's saved choice, else the room default (null)", () => {
+  localStorage.removeItem("caos_kiosk_transport");
+  expect(chosenTransport("")).toBeNull();
+  expect(chosenTransport("?aria_voice=other")).toBeNull();
+  localStorage.setItem("caos_kiosk_transport", "realtime");
+  expect(chosenTransport("")).toBe("realtime");
+  expect(chosenTransport("?aria_voice=cascade")).toBe("cascade");
+  localStorage.removeItem("caos_kiosk_transport");
 });
 
 test("sentences are spoken as soon as they are complete", () => {

@@ -1,6 +1,6 @@
-# Aria low-cost voice — prototype (aria-low-cost-streaming-voice-001, draft PR #192)
+# Aria low-cost voice (aria-low-cost-streaming-voice-001, PR #192)
 
-Status: side-by-side audition only. Not the Room 214 default. No Realtime model. Owner decides by listening.
+Status: owner-approved for Room 214 (2026-10-17: "load", with a switch to Realtime). No Realtime model on this path.
 Owner rule: Michael's genuine personal use ≤ $10/month (≤ $15 acceptable for clearly better, hard ceiling $20).
 
 ## One Aria, another transport
@@ -48,6 +48,16 @@ cascade session never add a second receipt.
   (tool turns ~2.2 s, local voice). Per response ~$0.0012 (15k-token prompt, 97–99% cached).
 - Michael's genuine use (Room 214 sessions 10-13…10-17, classified): ~9.7 min/day (12.7 with unknowns); the rest
   of that week was testing.
+
+## Choosing the transport (per room / per kiosk)
+- `ARIA_VOICE_CASCADE=1` makes the low-cost voice available; `ARIA_VOICE_DEFAULT_TRANSPORT=cascade` makes it the
+  room's default (`GET /api/aria-voice/config`). The kiosk's "Low-cost / Realtime" button (next to VOICE) switches
+  and remembers the choice on that device (`useVoiceTransport.js`); `?aria_voice=<mode>` overrides for a test.
+- Live rooms: every provider call receipted, never blocked or capped (as Realtime); a session stays valid while in
+  use (30 min idle). Paid tests (`CAOSCARE_PAID_TEST_BUDGET_ID`): bounded sessions reserved against the owner's
+  budget, fail closed.
+- Room node: `aria-voice.service` (installed by `room-node/aria_wake/ctl.sh install-voice`, VAD model in
+  `room-node/aria_voice/model/`). Future (owner): residents choose their experience and see the cost difference.
 
 ## Audition
 Prototype backend :8097 on a DB snapshot (`caoscare_aria_voice_audition`, escalations off), page :3005, voice

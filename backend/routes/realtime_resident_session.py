@@ -151,7 +151,8 @@ async def _mint(payload, lease):
     sid = (lease or {}).get("session_id") or payload.get("session_id")
     purpose = session_purpose(payload.get("room"))
     tools = await _build_tools() + self_code["tools"]
-    if payload.get("transport") == "cascade":
+    from routes.aria_voice import default_transport
+    if (payload.get("transport") or default_transport()) == "cascade":
         # Low-cost voice prototype (routes/aria_voice.py): same instructions and tools, no Realtime session.
         from routes.aria_voice import create_cascade_session
         session = await create_cascade_session(session_id=sid, purpose=purpose, room=payload.get("room"),
