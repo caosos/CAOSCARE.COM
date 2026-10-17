@@ -8,7 +8,8 @@ import { API } from "./api";
 // starting point, not calibrated against this deployment's real data yet.
 export const LOW_CONFIDENCE_THRESHOLD = 0.5;
 
-const count = (value) => Number.isInteger(value) && value >= 0 ? value : 0;
+// A counter the provider did not report stays null (unknown), never 0 - the paid API ledger relies on it.
+const count = (value) => Number.isInteger(value) && value >= 0 ? value : null;
 
 // Keep only provider billing counters. Never persist the full response:
 // it may contain generated text, audio/tool payloads, or future secrets.

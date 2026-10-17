@@ -15,6 +15,10 @@ test("keeps only nonnegative numerical realtime usage counters", () => {
     output_token_details: { text_tokens: 2, audio_tokens: 8 },
   });
   expect(JSON.stringify(got)).not.toContain("persist");
-  expect(sanitizeRealtimeUsage({ input_tokens: -2, output_tokens: "9" })).toMatchObject({ input_tokens: 0, output_tokens: 0 });
+  // Invalid or missing counters are unknown (null), never a silent 0 that would read as "free".
+  expect(sanitizeRealtimeUsage({ input_tokens: -2, output_tokens: "9" })).toMatchObject({
+    input_tokens: null, output_tokens: null, total_tokens: null,
+    input_token_details: { text_tokens: null, cached_tokens_details: { audio_tokens: null } },
+  });
   expect(sanitizeRealtimeUsage(null)).toBeNull();
 });

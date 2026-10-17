@@ -8,6 +8,7 @@ import asyncio
 import httpx
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
+from models import now_utc
 from routes.realtime import (
     _require_openai_key, DEFAULT_VOICE, ALLOWED_VOICES,
     OPENAI_REALTIME_MODEL, OPENAI_API_BASE, DEFAULT_VAD,
@@ -145,6 +146,11 @@ async def _mint(payload, lease):
         "audio": {"output": {"voice": voice}},
     }
 
+    # Paid API receipt for this mint, and the paid-test budget gate (routes/paid_api_receipts.py).
+    from routes.paid_api_receipts import reserve_for_test, record_mint
+    sid = (lease or {}).get("session_id") or payload.get("session_id")
+    reservation_id = await reserve_for_test(OPENAI_REALTIME_MODEL, "resident_room_session", sid)
+    started_at, resp = now_utc().isoformat(), None
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:
             resp = await client.post(
@@ -159,6 +165,10 @@ async def _mint(payload, lease):
         raise
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"OpenAI Realtime session error: {e}")
+    finally:
+        await record_mint(resp, requested_model=OPENAI_REALTIME_MODEL, purpose="resident_room_session",
+                          session_id=sid, started_at=started_at, key=key, reservation_id=reservation_id,
+                          room=payload.get("room"), kiosk_id=payload.get("kiosk_id"))
     # Runtime truth (2026-10-15): record the model the PROVIDER says this session runs on,
     # next to the model we asked for, so cost/model claims rest on provider evidence.
     provider_model = (session.get("session") or {}).get("model")
