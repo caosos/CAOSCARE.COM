@@ -30,7 +30,8 @@ import { createFarewellWatch } from "./farewellWatch";
 import { createClaimGuard } from "./claimGuard";
 import { createDeltaLead } from "./deltaLead";
 import { createClaimInterrupter, claimInterrupterMode, verifiedConfirmationEvent } from "./claimInterrupter";
-import { logRealtimeEvent, sanitizeRealtimeUsage, transcriptionConfidence, LOW_CONFIDENCE_THRESHOLD } from "./realtimeDiagnostics";
+import { logRealtimeEvent, logTranscriptionUsage, sanitizeRealtimeUsage, transcriptionConfidence, LOW_CONFIDENCE_THRESHOLD } from "./realtimeDiagnostics";
+import { TRANSCRIPTION_MODEL } from "./realtimeSessionUpdate";
 import { reenableAutoResponse, createGreetingResponseGate } from "./realtimeAutoResponseGate";
 import { createHangupScheduler } from "./endCallHangup";
 import { classifyEndIntent, turnMayEnd } from "./endIntent";
@@ -368,6 +369,7 @@ export function createRealtimeHandlers({
       logRealtimeEvent(sessionIdRef.current, "user_transcript", { text: typed.text, meta: { typed: true } });
     }
     if (msg.type === "conversation.item.input_audio_transcription.completed") {
+      if (typeof logTranscriptionUsage === "function") logTranscriptionUsage(sessionIdRef.current, msg, TRANSCRIPTION_MODEL);   // paid usage receipt, no text
       const userText = msg.transcript || "";
       setTranscript((t) => [...t, { role: "user", text: userText, ts: Date.now() }]);
       // logprobs -> confidence, when the API actually returns them (it

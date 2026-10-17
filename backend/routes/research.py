@@ -101,10 +101,16 @@ async def _ask_openai(question: str) -> ResearchOutput:
         "Authorization": f"Bearer {OPENAI_API_KEY}",
         "Content-Type": "application/json",
     }
-    async with httpx.AsyncClient(timeout=25.0) as client:
-        r = await client.post(f"{OPENAI_API_BASE}/chat/completions", json=payload, headers=headers)
-        r.raise_for_status()
-        data = r.json()
+    from routes.paid_api_receipts import record_request_async, now_iso   # paid API receipt (paid_api_ledger.py)
+    _t0, r = now_iso(), None
+    try:
+        async with httpx.AsyncClient(timeout=25.0) as client:
+            r = await client.post(f"{OPENAI_API_BASE}/chat/completions", json=payload, headers=headers)
+            r.raise_for_status()
+            data = r.json()
+    finally:
+        await record_request_async(r, started_at=_t0, purpose="research_answer", endpoint="chat/completions",
+                                   model_requested=OPENAI_TEXT_MODEL, key=OPENAI_API_KEY)
     text = (data.get("choices") or [{}])[0].get("message", {}).get("content", "").strip()
     return ResearchOutput(answer=text, citations=[], source="openai", live=False)
 

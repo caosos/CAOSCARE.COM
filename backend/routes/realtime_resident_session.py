@@ -147,9 +147,10 @@ async def _mint(payload, lease):
     }
 
     # Paid API receipt for this mint, and the paid-test budget gate (routes/paid_api_receipts.py).
-    from routes.paid_api_receipts import reserve_for_test, record_mint
+    from routes.paid_api_receipts import reserve_for_test, record_mint, session_purpose
     sid = (lease or {}).get("session_id") or payload.get("session_id")
-    reservation_id = await reserve_for_test(OPENAI_REALTIME_MODEL, "resident_room_session", sid)
+    purpose = session_purpose(payload.get("room"))
+    reservation_id = await reserve_for_test(OPENAI_REALTIME_MODEL, purpose, sid)
     started_at, resp = now_utc().isoformat(), None
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:
@@ -166,7 +167,7 @@ async def _mint(payload, lease):
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"OpenAI Realtime session error: {e}")
     finally:
-        await record_mint(resp, requested_model=OPENAI_REALTIME_MODEL, purpose="resident_room_session",
+        await record_mint(resp, requested_model=OPENAI_REALTIME_MODEL, purpose=purpose,
                           session_id=sid, started_at=started_at, key=key, reservation_id=reservation_id,
                           room=payload.get("room"), kiosk_id=payload.get("kiosk_id"))
     # Runtime truth (2026-10-15): record the model the PROVIDER says this session runs on,

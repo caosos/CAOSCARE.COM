@@ -6,6 +6,7 @@ import tempfile
 import logging
 import base64
 import requests
+from routes.paid_api_receipts import record_request, now_iso   # one receipt per paid request (paid_api_ledger.py)
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from models import ChatInput, TTSInput, ChatMessage, now_utc
 from deps import db, get_current_user, require_admin
@@ -37,20 +38,25 @@ def _require_openai_key() -> str:
     return OPENAI_API_KEY
 
 
-def _post_openai(path: str, payload: dict, *, timeout: int = 60) -> dict:
+def _post_openai(path: str, payload: dict, *, timeout: int = 60, purpose: str = "ai_text") -> dict:
     key = _require_openai_key()
-    resp = requests.post(
-        f"{OPENAI_API_BASE}{path}",
-        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-        json=payload,
-        timeout=timeout,
-    )
+    _t0, resp = now_iso(), None
+    try:
+        resp = requests.post(
+            f"{OPENAI_API_BASE}{path}",
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+            json=payload,
+            timeout=timeout,
+        )
+    finally:
+        record_request(resp, started_at=_t0, purpose=purpose, endpoint=path.lstrip("/"), model_requested=payload.get("model"), key=key)
     if resp.status_code >= 400:
         raise HTTPException(status_code=502, detail=f"OpenAI request failed: {resp.text[:300]}")
     return resp.json()
 
 
-async def _openai_chat(system_message: str, user_message: str, *, response_format: dict | None = None) -> str:
+async def _openai_chat(system_message: str, user_message: str, *, response_format: dict | None = None,
+                       purpose: str = "admin_ai_chat") -> str:
     payload = {
         "model": OPENAI_TEXT_MODEL,
         "messages": [
@@ -60,7 +66,7 @@ async def _openai_chat(system_message: str, user_message: str, *, response_forma
     }
     if response_format:
         payload["response_format"] = response_format
-    data = await asyncio.to_thread(_post_openai, "/chat/completions", payload)
+    data = await asyncio.to_thread(_post_openai, "/chat/completions", payload, purpose=purpose)
     return (data.get("choices") or [{}])[0].get("message", {}).get("content", "")
 
 CAOS_SYSTEM_PROMPT = """Your name is Aria. You are the resident-facing AI companion present in this resident's room at a senior living community, running on the CAOS Care platform (CAOS Care is the platform/company; Aria is your own name, the same way a person has their own name while working somewhere). Your name is not a placeholder or negotiable — you know it the way a person knows their own name. If asked your name, say "I'm Aria" plainly; never say you don't have a name or that they can call you whatever they like. You are NOT a chatbot, a voice assistant, or a customer-service agent. You are closer to a grandchild who stops by every day: familiar, unhurried, genuinely curious about the person in front of you, and someone they've come to trust over months and years.
@@ -348,7 +354,8 @@ async def classify_alert_background(alert_id: str) -> None:
             f"Close notes: {a.get('close_notes') or ''}\n"
             f"Conversation:\n{transcript}\n"
         )
-        raw = (await _openai_chat(CLASSIFIER_SYSTEM, prompt, response_format={"type": "json_object"})) or ""
+        raw = (await _openai_chat(CLASSIFIER_SYSTEM, prompt, response_format={"type": "json_object"},
+                                  purpose="alert_classification")) or ""
         import re as _re, json as _json
         m = _re.search(r"\{.*\}", raw, flags=_re.DOTALL)
         if not m:
@@ -390,12 +397,16 @@ async def tts(data: TTSInput):
     _require_openai_key()
 
     def _request_tts() -> str:
-        resp = requests.post(
-            f"{OPENAI_API_BASE}/audio/speech",
-            headers={"Authorization": f"Bearer {OPENAI_API_KEY}"},
-            json={"model": "tts-1", "voice": voice, "input": text, "response_format": "mp3"},
-            timeout=60,
-        )
+        _t0, resp = now_iso(), None
+        try:
+            resp = requests.post(
+                f"{OPENAI_API_BASE}/audio/speech",
+                headers={"Authorization": f"Bearer {OPENAI_API_KEY}"},
+                json={"model": "tts-1", "voice": voice, "input": text, "response_format": "mp3"},
+                timeout=60,
+            )
+        finally:
+            record_request(resp, started_at=_t0, purpose="speech_generation", endpoint="audio/speech", model_requested="tts-1", key=OPENAI_API_KEY, chars=len(text))
         if resp.status_code >= 400:
             raise HTTPException(status_code=502, detail=f"OpenAI TTS failed: {resp.text[:300]}")
         return base64.b64encode(resp.content).decode("ascii")
@@ -423,13 +434,17 @@ async def stt(audio: UploadFile = File(...), user=Depends(require_admin)):
 
     def _request_stt() -> dict:
         with open(tmp_path, "rb") as f:
-            resp = requests.post(
-                f"{OPENAI_API_BASE}/audio/transcriptions",
-                headers={"Authorization": f"Bearer {OPENAI_API_KEY}"},
-                files={"file": (audio.filename or f"audio{suffix}", f)},
-                data={"model": "whisper-1", "language": "en", "response_format": "json"},
-                timeout=60,
-            )
+            _t0, resp = now_iso(), None
+            try:
+                resp = requests.post(
+                    f"{OPENAI_API_BASE}/audio/transcriptions",
+                    headers={"Authorization": f"Bearer {OPENAI_API_KEY}"},
+                    files={"file": (audio.filename or f"audio{suffix}", f)},
+                    data={"model": "whisper-1", "language": "en", "response_format": "json"},
+                    timeout=60,
+                )
+            finally:
+                record_request(resp, started_at=_t0, purpose="speech_transcription", endpoint="audio/transcriptions", model_requested="whisper-1", key=OPENAI_API_KEY)
         if resp.status_code >= 400:
             raise HTTPException(status_code=502, detail=f"OpenAI STT failed: {resp.text[:300]}")
         return resp.json()

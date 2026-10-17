@@ -22,3 +22,18 @@ test("keeps only nonnegative numerical realtime usage counters", () => {
   });
   expect(sanitizeRealtimeUsage(null)).toBeNull();
 });
+
+test("transcription usage is forwarded with the provider's counters, unknown ones null, and never the transcript", () => {
+  const { logTranscriptionUsage } = require("../realtimeDiagnostics");
+  const sent = [];
+  global.fetch = jest.fn((url, opts) => { sent.push(JSON.parse(opts.body)); return Promise.resolve({}); });
+  logTranscriptionUsage("rt_1", { item_id: "item_9", transcript: "private words",
+    usage: { type: "tokens", input_tokens: 40, output_tokens: 6, input_token_details: { audio_tokens: 38 } } }, "gpt-4o-transcribe");
+  logTranscriptionUsage("rt_1", { item_id: "item_10", transcript: "more words" }, "gpt-4o-transcribe");
+  expect(sent[0]).toMatchObject({ session_id: "rt_1", event_type: "transcription_usage", response_id: "item_9",
+    meta: { model: "gpt-4o-transcribe", provider: "openai",
+      usage: { type: "tokens", input_tokens: 40, output_tokens: 6, total_tokens: null,
+        input_token_details: { audio_tokens: 38, text_tokens: null } } } });
+  expect(sent[1].meta.usage).toBeNull();
+  expect(JSON.stringify(sent)).not.toContain("words");
+});
