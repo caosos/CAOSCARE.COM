@@ -33,7 +33,7 @@ Swapping the text provider means a new `_stream()` in `routes/aria_voice.py`; no
 ## Voice
 The kiosk's existing voice picker chooses it (marin and cedar added); every voice runs on one speech model,
 `ARIA_VOICE_TTS_MODEL` (gpt-4o-mini-tts), so all cost the same. In low-cost mode the picker's preview plays through
-the same speech path. Audition history: tts-1 sage was slow to first audio; owner chose alloy (2026-10-17), the default.
+the same speech path. Audition history: tts-1 sage was slow to first audio; owner chose nova (2026-10-17), the default.
 
 ## Accounting
 Every provider call is receipted in `caoscare_paid_api_ledger` with purpose, session, model, provider ids, usage and
