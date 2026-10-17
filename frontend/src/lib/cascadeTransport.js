@@ -154,13 +154,16 @@ export function createPlayer({ AudioCtx = typeof window !== "undefined" && (wind
   };
 }
 
-/** Streams the page's (echo-cancelled) microphone to the voice service as PCM16 16 kHz. */
-function startMic(stream, ws, AudioCtx) {
+/** Streams the page's (echo-cancelled) microphone to the voice service as PCM16 16 kHz. onFirstFrame(state) reports
+ * when the first captured frame is sent, with the capture context's state then (startup measurement). */
+function startMic(stream, ws, AudioCtx, onFirstFrame = () => {}) {
   const ctx = new AudioCtx({ sampleRate: 16000 });
   const src = ctx.createMediaStreamSource(stream);
   const proc = ctx.createScriptProcessor(2048, 1, 1);
+  let first = true;
   proc.onaudioprocess = (e) => {
     if (ws.readyState !== 1) return;
+    if (first) { first = false; onFirstFrame(ctx.state); }
     const f = e.inputBuffer.getChannelData(0), out = new Int16Array(f.length);
     for (let i = 0; i < f.length; i++) out[i] = Math.max(-1, Math.min(1, f[i])) * 32767;
     ws.send(out.buffer);
@@ -201,6 +204,17 @@ export function createCascadeConnection({ session, caos, stream, api, audioEl = 
   const dc = { readyState: "connecting", onopen: null, onmessage: null, onclose: null, send: (s) => onClient(JSON.parse(s)), close };
   const emit = (obj) => { if (!closed) setTimeout(() => dc.onmessage?.({ data: JSON.stringify(obj) }), 0); };
   const ws = new WebSocketImpl(wsUrl);
+  // Startup milestones, ms from this connection's creation (metadata only; one cascade_startup receipt at the first
+  // audible reply, or after 10 s with what is known - null = not observed).
+  const born = Date.now();
+  const boot = { ws_open_ms: null, service_ready_ms: null, first_frame_ms: null, mic_state: null, output_ready_ms: null,
+    output: null, first_audio_ms: null, logged: false };
+  const since = () => Date.now() - born;
+  const logBoot = () => { if (boot.logged || closed) return; boot.logged = true; const { logged, ...meta } = boot;
+    log("cascade_startup", { meta: { transport: "cascade", ...meta } }); };
+  setTimeout(logBoot, 10000);
+  /** ms since reply r was asked for, kept once per milestone. */
+  const mark = (r, k) => { if (r.tm[k] == null) r.tm[k] = Date.now() - r.tm.at; };
   player.onIdle = () => {                   // the player also runs dry between sentences: only the reply's end counts
     const r = resp;
     if (r?.speaking && r.done && !r.queue.length && !r.pump) finish(r);
@@ -233,7 +247,9 @@ export function createCascadeConnection({ session, caos, stream, api, audioEl = 
       failed: r.sentences.filter((e) => e.failure && e.failure !== "interrupted").length,
       first_audio_ms: st.firstStart == null ? null : ms(st.firstStart - r.t0), audio_ms: ms(st.audio),
       underruns: st.underruns, underrun_ms: ms(st.underrunS), max_sentence_gap_ms: ms(st.maxSentenceGap),
-      max_queue_depth: st.maxQueue, max_buffered_ms: ms(st.maxAhead) } });
+      max_queue_depth: st.maxQueue, max_buffered_ms: ms(st.maxAhead),
+      timing: { first_text_ms: r.tm.first_text ?? null, first_sentence_ms: r.tm.first_sentence ?? null,
+        first_pcm_ms: r.tm.first_pcm ?? null, done_event_ms: r.tm.done_event ?? null, stream_end_ms: r.tm.stream_end ?? null } } });
   }
 
   /** The reply has finished playing: only what was heard stays in the conversation. */
@@ -263,6 +279,7 @@ export function createCascadeConnection({ session, caos, stream, api, audioEl = 
   // Every finished sentence is requested at once; sentences play strictly in order as their audio streams in.
   function say(r, text, fixed = false) {
     if (!text || resp !== r) return;
+    mark(r, "first_sentence");
     const e = { text, chunks: [], ended: false, wake: null, bytes: 0, complete: false, failure: null, startAt: null, endAt: null };
     r.queue.push(e); r.sentences.push(e); r.said += 1;
     r.stats.maxQueue = Math.max(r.stats.maxQueue, r.queue.length);
@@ -282,7 +299,7 @@ export function createCascadeConnection({ session, caos, stream, api, audioEl = 
           let bytes = carry ? joinBytes(carry, value) : value;
           carry = null;
           if (bytes.length % 2) { carry = bytes.slice(-1); bytes = bytes.slice(0, -1); }
-          if (bytes.length) { e.chunks.push(new Int16Array(bytes.slice().buffer)); wake(e, "wake"); }
+          if (bytes.length) { mark(r, "first_pcm"); e.chunks.push(new Int16Array(bytes.slice().buffer)); wake(e, "wake"); }
         }
         if (e.complete && !e.bytes) failed(r, e, "empty");
       })
@@ -306,7 +323,10 @@ export function createCascadeConnection({ session, caos, stream, api, audioEl = 
       while (resp === r) {
         const held = e.chunks.reduce((k, c) => k + c.length, 0) / rate * 1000;
         if (held && (e.ended || player.ahead() > 0 || held >= PREBUFFER_MS)) {
-          if (!r.speaking) { r.speaking = true; emit({ type: "output_audio_buffer.started", response_id: r.id }); }
+          if (!r.speaking) {
+            r.speaking = true; emit({ type: "output_audio_buffer.started", response_id: r.id });
+            if (boot.first_audio_ms == null) { boot.first_audio_ms = since(); logBoot(); }
+          }
           const t = player.play(joinSamples(e.chunks.splice(0)), rate);
           if (st.firstStart == null) st.firstStart = t.start;
           else if (e.startAt == null) st.maxSentenceGap = Math.max(st.maxSentenceGap, t.gap);
@@ -351,17 +371,17 @@ export function createCascadeConnection({ session, caos, stream, api, audioEl = 
     if (resp) cancel("superseded");         // a finished reply still playing gives way to the next one
     const r = resp = { id: id("resp"), item: id("item"), queue: [], sentences: [], said: 0, text: "", buf: "", calls: [],
       done: false, speaking: false, pump: null, wakePump: null, itemIndex: null, abort: new AbortController(),
-      t0: player.now?.() ?? 0, logged: false, metadata: opts.metadata || null,
+      t0: player.now?.() ?? 0, logged: false, tm: { at: Date.now() }, metadata: opts.metadata || null,
       stats: { firstStart: null, audio: 0, underruns: 0, underrunS: 0, maxSentenceGap: 0, maxQueue: 0, maxAhead: 0 } };
     emit({ type: "response.created", response: { id: r.id, metadata: r.metadata } });
-    const delta = (d) => { if (resp !== r) return; r.text += d; emit({ type: "response.output_audio_transcript.delta", response_id: r.id, item_id: r.item, delta: d });
+    const delta = (d) => { if (resp !== r) return; mark(r, "first_text"); r.text += d; emit({ type: "response.output_audio_transcript.delta", response_id: r.id, item_id: r.item, delta: d });
       const [done, rest] = takeSentences(r.buf + d, r.said === 0); r.buf = rest; done.forEach((s) => say(r, s)); };
     // The greeting and the routine goodbye are fixed lines: spoken (and cached) with no reasoning call.
     const fixed = opts.instructions && (opts.instructions === caos.greeting?.instructions ? caos.greeting_line
       : opts.instructions === GOODBYE_INSTRUCTIONS ? GOODBYE_LINE : null);
     try {
       if (fixed) { r.text = fixed; emit({ type: "response.output_audio_transcript.delta", response_id: r.id, item_id: r.item, delta: fixed }); say(r, fixed, true); }
-      else await streamReply(r, opts, delta);
+      else { await streamReply(r, opts, delta); mark(r, "stream_end"); }
     } catch (e) {
       if (r.abort.signal.aborted) return;
       emit({ type: "error", error: { message: `Low-cost voice: ${e.message}` } });
@@ -401,6 +421,7 @@ export function createCascadeConnection({ session, caos, stream, api, audioEl = 
         const ev = JSON.parse(line.slice(6));
         if (ev.type === "text") delta(ev.delta);
         else if (ev.type === "tool_call") r.calls.push(ev);
+        else if (ev.type === "done") mark(r, "done_event");
         else if (ev.type === "error") throw new Error(`provider ${ev.status}`);
       }
     }
@@ -509,8 +530,10 @@ export function createCascadeConnection({ session, caos, stream, api, audioEl = 
       const td = caos.turn_detection || {};
       ws.send(JSON.stringify({ type: "config", silence_ms: td.silence_duration_ms, threshold: td.threshold,
         ...(diagnostics ? { diagnostics: true } : {}) }));
-      stopMic = startMic(stream, ws, AudioCtx);
-      player.prepare?.();                     // set up the echo-cancelled output before the greeting plays
+      boot.service_ready_ms = since();
+      stopMic = startMic(stream, ws, AudioCtx, (state) => { boot.first_frame_ms = since(); boot.mic_state = state; });
+      Promise.resolve(player.prepare?.())     // set up the echo-cancelled output before the greeting plays
+        .then(() => { boot.output_ready_ms = since(); boot.output = player.output ?? null; }, () => {});
       dc.readyState = "open";
       emit({ type: "session.created", session: { id: id("cascade"), model: session.session?.model } });
       setTimeout(() => dc.onopen?.(), 0);
@@ -556,6 +579,7 @@ export function createCascadeConnection({ session, caos, stream, api, audioEl = 
     fetchImpl(`${api}/aria-voice/end`, { method: "POST", headers, keepalive: true }).catch(() => {});
   }
 
+  ws.onopen = () => { boot.ws_open_ms = since(); };
   ws.onmessage = onService;
   ws.onclose = () => { if (!closed) dc.onclose?.(); };
   ws.onerror = () => emit({ type: "error", error: { message: "Local voice service unavailable." } });
