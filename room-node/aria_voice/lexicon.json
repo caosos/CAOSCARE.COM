@@ -1,0 +1,6 @@
+{
+  "_comment": "Spoken forms applied before local TTS (server.py). One place for how Aria pronounces names.",
+  "CAOSCare": "Kay-oss Care",
+  "CAOS Care": "Kay-oss Care",
+  "CAOS": "Kay-oss"
+}
