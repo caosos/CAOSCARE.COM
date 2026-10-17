@@ -52,3 +52,23 @@ response.cancel, output_audio_buffer.clear.
 | Piper en_US-lessac-medium, 4 threads | 12x | 0.21 s |
 Kokoro cannot stream on this CPU (no headroom for wake/VAD). Piper is the prototype voice; the TTS sits behind one
 interface so Kokoro (faster host) or a paid voice can replace it.
+
+## Measured, room-node half (same box)
+- First audio per sentence (Piper, 4 threads, service warm): 0.11–0.29 s.
+- Barge-in: after `stop`, no frame of the interrupted reply is sent (generation-tagged frames, synthesis aborted).
+- Turn end on a recorded room clip: ~1.1 s after speech ends (silence_ms 1000 from DEFAULT_VAD).
+
+## Cost projection (before audition receipts replace it)
+Michael's real Room 214 profile on Realtime mini since 2026-10-15 23:44Z (realtime_diagnostics): 24 sessions,
+49.4 min, 4.86 responses/min, 3.34 user turns/min; measured mini cost $0.031/min.
+Cascade per response: ~15.2k input tokens (measured Realtime prompt size: half tools, half instructions), ~79%
+cached → ~$0.0014 at gpt-4o-mini prices; transcription ~3 user turns/min of short speech → ~$0.001/min.
+Projection ≈ $0.008/min (≈4x below mini). At ~33 min/day ≈ $8/month; at 48 min/day ≈ $11.5/month — the main
+lever is the tool-schema half of the prompt. The audition's ledger receipts are the measurement of record.
+
+## Audition (side-by-side, nothing live touched)
+- Prototype backend 127.0.0.1:8097 on a DB snapshot (`caoscare_aria_voice_audition`), escalations off,
+  ARIA_VOICE_CASCADE=1, owner budget `aria-low-cost-voice-001` ($1 cap). Receipts go to the real ledger.
+- Prototype page :3005 (`serve_built.js` with its own build dir); voice service :8794.
+- Open `http://localhost:3005/kiosk/<kiosk>?aria_voice=cascade` and tap to talk. The live wake listener drives
+  the live page, so the audition does not use "Hey Aria"; wiring wake to the cascade waits for acceptance.
