@@ -54,6 +54,10 @@ def test_vad_finds_one_utterance_in_a_room_clip():
     assert kinds[0] == "speech_started" and "speech_stopped" in kinds
     # the early pause comes before the turn's end, so transcription can start sooner
     assert "speech_paused" in kinds and kinds.index("speech_paused") < kinds.index("speech_stopped")
+    # the early-pause audio starts before the VAD confirmed speech, so no opening syllable is lost
+    early = next(e for e in events if e["type"] == "speech_paused")
+    with wave.open(io.BytesIO(base64.b64decode(early["wav"]))) as w:
+        assert w.getnframes() >= 16000 * 2.6     # 2.38 s of speech + 0.4 s pause; without pre-roll it was 2.27 s
     seg = next(e for e in events if e["type"] == "speech_stopped")
     with wave.open(io.BytesIO(base64.b64decode(seg["wav"]))) as w:
         assert w.getnframes() / 16000 > 1.0

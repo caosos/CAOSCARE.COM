@@ -12,6 +12,7 @@ WebSocket ws://127.0.0.1:8794 - one client is one call:
 """
 import asyncio
 import base64
+import collections
 import io
 import json
 import os
@@ -26,6 +27,7 @@ PORT = int(os.environ.get("ARIA_VOICE_PORT", "8794"))
 MIC_RATE = 16000
 PAUSE_MS = int(os.environ.get("ARIA_VOICE_PAUSE_MS", "400"))   # early-transcription point (turn end stays silence_ms)
 WIN_MS = 512 * 1000 // MIC_RATE
+PREROLL_WINDOWS = 600 // WIN_MS            # the VAD confirms speech ~0.25 s in: keep what came just before
 
 
 def wav_bytes(samples_i16: np.ndarray, rate: int) -> bytes:
@@ -54,6 +56,7 @@ class Call:
         self.vad, self.speaking = make_vad(), False
         self.pending = np.zeros(0, dtype=np.float32)
         self.utt, self.peak, self.quiet_ms, self.paused = [], 0.0, 0, False
+        self.preroll = collections.deque(maxlen=PREROLL_WINDOWS)
 
     async def send(self, obj):
         await self.ws.send(json.dumps(obj))
@@ -69,9 +72,11 @@ class Call:
         out = []
         if self.vad.is_speech_detected() and not self.speaking:
             self.speaking = True; out.append({"type": "speech_started"})
-            self.utt, self.peak, self.quiet_ms, self.paused = [], 0.0, 0, False
+            self.utt, self.peak, self.quiet_ms, self.paused = list(self.preroll), 0.0, 0, False
         if self.speaking:
             out += self._pause_watch(block)
+        else:
+            self.preroll.extend(block.reshape(-1, 512))
         while not self.vad.empty():
             seg = np.asarray(self.vad.front.samples, dtype=np.float32); self.vad.pop()
             self.speaking = False

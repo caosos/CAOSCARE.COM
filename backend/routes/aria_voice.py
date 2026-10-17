@@ -35,7 +35,8 @@ TEXT_MODEL = os.environ.get("ARIA_VOICE_TEXT_MODEL", "gpt-4o-mini").strip()
 VOICES = {"tts-1:sage": ("tts-1", "sage"), "tts-1:shimmer": ("tts-1", "shimmer"),
           "gpt-4o-mini-tts:marin": ("gpt-4o-mini-tts", "marin")}
 DEFAULT_VOICE = os.environ.get("ARIA_VOICE_TTS", "tts-1:sage").strip()
-SPEECH_STYLE = "Warm, calm and natural, like a friend in the room. Unhurried, never announcer-like."
+SPEECH_STYLE = ("Everyday conversational voice at a normal, lively pace - a friendly person chatting in the room. "
+                "Bright and relaxed; not dramatic, not hushed or whispery, not slow, not a storyteller.")   # owner 2026-10-17
 BOUNDS = dict(max_responses=16, max_audio_seconds=30, max_text_input_tokens=32000, max_output_tokens=250,
               max_session_seconds=900, max_speech_chars=1000)
 GREETING_CACHE = os.path.expanduser(os.environ.get("ARIA_VOICE_GREETING_CACHE", "~/.cache/caoscare/aria_voice_greetings"))
