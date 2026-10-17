@@ -193,7 +193,7 @@ def drain_bytes_iter(resp):
 
 def test_session_reserves_worst_case_and_keeps_server_side_prompt_and_tools(budget):
     sid, out = new_session()
-    assert out["transport"] == "cascade" and out["session"]["model"] == "gpt-4o-mini" and len(out["token"]) > 30
+    assert out["transport"] == "cascade" and out["session"]["model"] == "gpt-4.1-mini" and len(out["token"]) > 30
     res = budget.db.reservations.find_one({"session_id": sid})
     assert res["status"] == "open" and res["reserved_usd"] > 0
     from deps import db
@@ -247,7 +247,7 @@ def test_respond_streams_text_and_tool_calls_with_one_receipt(budget, monkeypatc
                          "arguments": "{\"category\":\"water\"}"}
     body = sent[0][2]["json"]
     assert body["messages"][0] == {"role": "system", "content": "You are Aria."}   # the server's prompt
-    assert body["tools"][0]["function"]["name"] == "create_care_request" and body["model"] == "gpt-4o-mini"
+    assert body["tools"][0]["function"]["name"] == "create_care_request" and body["model"] == "gpt-4.1-mini"
     r = budget.db.receipts.find_one({"kind": "provider_request", "session_id": sid})
     assert r["provider_response_id"] == "chatcmpl_v1" and r["usage"] == CHAT_USAGE
     assert r["provenance"]["purpose"] == "room214_conversation" and r["model_provider"] == "gpt-4o-mini-2024-07-18"
