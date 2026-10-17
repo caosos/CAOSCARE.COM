@@ -12,6 +12,7 @@ const RATE = 24000;
 function clockCtx() {
   const ctx = { currentTime: 0, destination: { name: "speakers" }, sources: [],
     createMediaStreamDestination: () => ({ name: "loopback", stream: { getTracks: () => [{ kind: "audio" }] } }),
+    createGain() { const g = { gain: { value: 1, setTargetAtTime(v) { g.gain.value = v; } }, connect(n) { g.node = n; } }; ctx.gains = [...(ctx.gains || []), g]; return g; },
     createBuffer: (_c, length, rate) => ({ length, duration: length / rate, copyToChannel() {} }),
     createBufferSource() {
       const s = { connect(n) { s.node = n; s.connectedAt = ctx.currentTime; }, start(t) { s.at = Math.max(t, ctx.currentTime); },
@@ -57,7 +58,8 @@ function setup({ reply = ["Hello there. ", "How are you today? "], speak, ctx = 
       if (speak) return speak(JSON.parse(opts.body).text, opts);
       const s = speechStream(); s.signal = opts.signal; s.text = JSON.parse(opts.body).text; streams.push(s); return s.res;
     }
-    if (url.endsWith("/transcribe")) return { ok: true, json: async () => ({ text: setup.transcript ?? "" }) };
+    if (url.endsWith("/transcribe")) { const text = setup.transcripts?.length ? setup.transcripts.shift() : (setup.transcript ?? "");
+      return { ok: true, json: async () => ({ text }) }; }
     return { ok: true, json: async () => ({}) };
   });
   const player = createPlayer({ AudioCtx: function () { return ctx; }, audioEl: rtc ? {} : null, RTC: rtc });
@@ -104,7 +106,7 @@ test("nothing plays before the echo-cancelled output is connected (no lost start
   expect(t.ctx.samples()).toBe(400 * 24);
   const lost = t.ctx.sources.reduce((n, s) => n + Math.max(0, Math.min(up, s.at + s.buffer.duration) - s.at), 0);
   expect(lost).toBe(0);
-  expect(t.ctx.sources.every((s) => s.node?.name === "loopback")).toBe(true);
+  expect(t.ctx.sources.every((s) => s.node?.node?.name === "loopback")).toBe(true);   // via her volume control
 });
 
 test("failed, empty and unreachable speech is reported, never silently skipped", async () => {
@@ -140,13 +142,16 @@ test("a sentence queued but not yet played is not counted as heard when Aria is 
   t.streams[1].push(ms(600)); t.streams[1].end();
   await flush();
   t.ctx.advance(0.7); await flush();          // first sentence fully played, second just started
+  setup.transcript = "wait a second";
   t.serve({ type: "speech_started" });
-  await flush();
+  t.serve({ type: "speech_stopped", wav: btoa("RIFF") });
+  await flush(); await flush();
+  setup.transcript = undefined;
   const r = t.logs.find((l) => l.type === "cascade_playback").meta;
   expect(r).toMatchObject({ outcome: "cancelled", reason: "turn_detected", sentences_heard: 1 });
   expect(r.partial_ms).toBeGreaterThan(0);
-  t.send({ type: "response.create" }); await flush(); await flush();
-  expect(nextItems(t)).toEqual([{ role: "assistant", content: "Hello there." }]);
+  // the words that stopped her are the next turn; only the sentence she finished counts as said
+  expect(nextItems(t)).toEqual([{ role: "assistant", content: "Hello there." }, { role: "user", content: "wait a second" }]);
 });
 
 test("interruption flushes at once and rejects late chunks of the cancelled speech", async () => {
@@ -155,7 +160,11 @@ test("interruption flushes at once and rejects late chunks of the cancelled spee
   await flush();
   t.streams[0].push(ms(300)); await flush();
   t.ctx.advance(0.1);
+  setup.transcript = "stop";
   t.serve({ type: "speech_started" });
+  t.serve({ type: "speech_stopped", wav: btoa("RIFF") });
+  await flush(); await flush();
+  setup.transcript = undefined;
   expect(t.streams[0].signal.aborted).toBe(true);
   const scheduled = t.ctx.sources.length;
   expect(t.ctx.sources.every((s) => s.stoppedAt != null || s.done)).toBe(true);   // all sound stopped
@@ -190,17 +199,69 @@ test("receipts carry timing, depth and outcome but no words", async () => {
   expect(JSON.stringify(r)).not.toMatch(/Hello|How are you/);
 });
 
-test("lead 4 (kept): any detected speech interrupts her; an interruption with no words is recorded", async () => {
+// Room 214 2026-10-17 rt_sf8ft3v6: 7 of 9 interruptions while she spoke had no words - her own voice from the TV.
+// Sound alone now only lowers her voice; words stop her.
+test("her own echo (no words) only dips her voice; she carries on and nothing is answered", async () => {
   setup.transcript = "";
   const t = setup({ reply: ["Hello there. "] });
   t.send({ type: "response.create" });
   await flush();
-  t.streams[0].push(ms(600)); await flush();
-  t.ctx.advance(0.2);
-  t.serve({ type: "speech_started" });                       // e.g. her own echo
+  t.streams[0].push(ms(3000)); await flush();
+  t.ctx.advance(0.5);
+  t.serve({ type: "speech_started" });
+  expect(t.ctx.gains[0].gain.value).toBeLessThan(0.5);          // ducked at once
   t.serve({ type: "speech_stopped", wav: btoa("RIFF") });
   await flush(); await flush();
-  expect(t.events.map((e) => e.type)).toContain("output_audio_buffer.cleared");   // she stopped mid-sentence
-  expect(t.logs.find((l) => l.type === "cascade_barge_in").meta).toMatchObject({ words: 0 });
+  expect(t.streams[0].signal.aborted).toBe(false);              // still speaking
+  expect(t.events.map((e) => e.type)).not.toContain("output_audio_buffer.cleared");
+  expect(t.ctx.gains[0].gain.value).toBe(1);                    // back to full voice
+  expect(t.fetchImpl.mock.calls.filter(([u]) => u.endsWith("/respond"))).toHaveLength(1);
+  expect(t.logs.find((l) => l.type === "cascade_barge_in").meta).toMatchObject({ words: 0, outcome: "ignored" });
   setup.transcript = undefined;
+});
+
+test("real words stop her and are answered - at the first pause, before the turn ends", async () => {
+  setup.transcripts = ["hold on Aria", "hold on Aria, what time is it"];
+  const t = setup({ reply: ["Hello there. ", "And more. "] });
+  t.send({ type: "response.create" });
+  await flush();
+  t.streams[0].push(ms(3000)); await flush();
+  t.ctx.advance(0.5);
+  t.serve({ type: "speech_started" });
+  t.serve({ type: "speech_paused", wav: btoa("RIFF") });
+  await flush(); await flush();
+  expect(t.streams[0].signal.aborted).toBe(true);               // stopped on the early words
+  expect(t.events.map((e) => e.type)).toContain("output_audio_buffer.cleared");
+  t.serve({ type: "speech_resumed" });
+  t.serve({ type: "speech_stopped", wav: btoa("RIFF") });
+  await flush(); await flush();
+  expect(t.logs.find((l) => l.type === "cascade_barge_in").meta).toMatchObject({ outcome: "stopped" });
+  expect(nextItems(t).pop()).toEqual({ role: "user", content: "hold on Aria, what time is it" });
+  setup.transcripts = undefined;
+});
+
+test("speaking while she is still composing (not yet audible) stops her at once, as before", async () => {
+  setup.transcript = "and also";
+  let abort;
+  const t = setup({ reply: ["Hello there. "] });
+  t.fetchImpl.mockImplementationOnce(async (url, opts) => { abort = opts.signal; return new Promise(() => {}); });
+  t.send({ type: "response.create" });
+  await flush();
+  t.serve({ type: "speech_started" });
+  expect(abort.aborted).toBe(true);
+  setup.transcript = undefined;
+});
+
+test("a second turn arriving while a reply is still being written replaces it, never an 'already active' error", async () => {
+  setup.transcripts = ["fluidity and", "smoothness"];
+  const t = setup({ reply: ["Hello there. "] });
+  t.fetchImpl.mockImplementation(((orig) => async (url, opts) => (url.endsWith("/respond") ? new Promise(() => {}) : orig(url, opts)))(t.fetchImpl.getMockImplementation()));
+  t.serve({ type: "speech_stopped", wav: btoa("RIFF") });
+  await flush(); await flush();
+  t.serve({ type: "speech_stopped", wav: btoa("RIFF") });
+  await flush(); await flush();
+  expect(t.events.filter((e) => e.type === "error")).toHaveLength(0);
+  const asked = t.fetchImpl.mock.calls.filter(([u]) => u.endsWith("/respond")).map(([, o]) => JSON.parse(o.body).items);
+  expect(asked.pop()).toEqual([{ role: "user", content: "fluidity and" }, { role: "user", content: "smoothness" }]);
+  setup.transcripts = undefined;
 });

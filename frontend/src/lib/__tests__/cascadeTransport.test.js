@@ -187,14 +187,12 @@ test("interrupted mid-reply: only the sentences that reached the speaker stay in
   await flush(); await flush();
   t.player.playing = true; t.player.stop.mockReturnValue(true);
   t.player.now = () => 1;                                // the first sentence has played to its end
-  t.ws.serve({ type: "speech_started" });
-  await flush();
-  expect(speakAbort.aborted).toBe(true);                 // the unplayed sentence's audio request is cancelled
-  t.player.playing = false;
-  t.send({ type: "response.create" });
+  t.ws.serve({ type: "speech_started" });                // while she is audible, words decide
+  t.ws.serve({ type: "speech_stopped", wav: btoa("RIFFfake") });
   await flush(); await flush();
+  expect(speakAbort.aborted).toBe(true);                 // the unplayed sentence's audio request is cancelled
   const items = JSON.parse(t.calls.filter((c) => c.url.endsWith("/respond"))[1].opts.body).items;
-  expect(items).toEqual([{ role: "assistant", content: "First I'll tell you this." }]);
+  expect(items).toEqual([{ role: "assistant", content: "First I'll tell you this." }, { role: "user", content: "I need some water" }]);
 });
 
 test("the routine goodbye is a fixed line: no reasoning call, spoken at once in Aria's voice", async () => {
