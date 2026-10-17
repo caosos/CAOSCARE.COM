@@ -84,6 +84,9 @@ def pytest_configure(config):
     # default is the full 75-resident community (see community_cohort and
     # test_sim_community_cohort.py, which proves that default explicitly).
     os.environ.setdefault("CAOSCARE_LIVING_COMMUNITY_COHORT", "burn_in_10")
+    # In-process tests fake the provider: their paid API receipts go to a unit ledger, never the real one
+    # (paid_api_ledger.py). A gate's own backend process keeps the real ledger - its mints are real requests.
+    os.environ.setdefault("CAOSCARE_LEDGER_DB", "caoscare_paid_api_ledger_unit")
     missing = [name for name in _REQUIRED_ENV if not os.environ.get(name)]
     if missing:
         lines = ["\nMissing required test-environment variable(s):"]

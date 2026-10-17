@@ -22,6 +22,7 @@ from fastapi import APIRouter, HTTPException, Request, Body, Depends
 from fastapi.responses import JSONResponse
 
 from deps import db, require_owner
+from models import now_utc
 from routes.aria_memory import build_aria_context_block
 from routes.realtime_room_lease import claim_or_reuse_room_lease
 from routes.capabilities import get_capability_summary
@@ -208,6 +209,8 @@ async def create_aria_session(payload: dict = Body(default={}), user=Depends(req
         "audio": {"output": {"voice": voice}},
     }
 
+    from routes.paid_api_receipts import record_mint   # one receipt per paid request (paid_api_ledger.py)
+    started_at, resp = now_utc().isoformat(), None
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:
             resp = await client.post(
@@ -222,6 +225,9 @@ async def create_aria_session(payload: dict = Body(default={}), user=Depends(req
         raise
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"OpenAI Realtime session error: {e}")
+    finally:
+        await record_mint(resp, requested_model=OPENAI_REALTIME_MODEL, purpose="owner_aria_session",
+                          session_id=None, started_at=started_at, key=key, owner_session=True)
 
     session["_caos"] = {
         "voice": voice,
@@ -269,6 +275,8 @@ async def negotiate(request: Request):
     ephemeral_key = request.headers.get("x-caos-ephemeral-key")
     if not ephemeral_key:
         raise HTTPException(status_code=400, detail="Missing ephemeral session key")
+    from routes.paid_api_receipts import record_connect   # the session goes live (and billable) here
+    started_at, resp = now_utc().isoformat(), None
     try:
         sdp_offer = (await request.body()).decode()
         files = {"sdp": (None, sdp_offer)}
@@ -285,3 +293,5 @@ async def negotiate(request: Request):
         raise
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"OpenAI Realtime negotiate error: {e}")
+    finally:
+        await record_connect(resp, ephemeral_key=ephemeral_key, started_at=started_at)
