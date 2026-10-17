@@ -42,10 +42,29 @@ class PaidTestBudget:
                 max_output_tokens, max_session_seconds, provenance, retry_of=None):
         """Reserve one bounded paid session's worst case, atomically. Returns {"ok": True, reservation_id,
         reserved_usd} or {"ok": False, reason}. Each retry is its own reservation, linked by retry_of."""
+        amount = L.worst_case_usd(model, max_responses, max_text_input_tokens, max_audio_input_tokens, max_output_tokens)
+        return self._reserve(budget_id, model=model, amount=amount, max_responses=max_responses,
+                             max_session_seconds=max_session_seconds, provenance=provenance, retry_of=retry_of,
+                             bounds=dict(max_responses=max_responses, max_text_input_tokens=max_text_input_tokens,
+                                         max_audio_input_tokens=max_audio_input_tokens,
+                                         max_output_tokens=max_output_tokens, max_session_seconds=max_session_seconds))
+
+    def reserve_cascade(self, budget_id, *, stt_model, text_model, max_responses, max_audio_seconds,
+                        max_text_input_tokens, max_output_tokens, max_session_seconds, provenance):
+        """Reserve a bounded transcription -> text-model session (no Realtime) the same way, atomically."""
+        amount = L.cascade_worst_case_usd(stt_model, text_model, max_responses=max_responses,
+                                          max_audio_seconds=max_audio_seconds,
+                                          max_text_input_tokens=max_text_input_tokens, max_output_tokens=max_output_tokens)
+        return self._reserve(budget_id, model=text_model, amount=amount, max_responses=max_responses,
+                             max_session_seconds=max_session_seconds, provenance=provenance, retry_of=None,
+                             bounds=dict(stt_model=stt_model, max_responses=max_responses,
+                                         max_audio_seconds=max_audio_seconds, max_text_input_tokens=max_text_input_tokens,
+                                         max_output_tokens=max_output_tokens, max_session_seconds=max_session_seconds))
+
+    def _reserve(self, budget_id, *, model, amount, max_responses, max_session_seconds, provenance, retry_of, bounds):
         self._expire_stale(budget_id)
         why = None
         b = self.db.budgets.find_one({"budget_id": budget_id})
-        amount = L.worst_case_usd(model, max_responses, max_text_input_tokens, max_audio_input_tokens, max_output_tokens)
         if not b:
             why = "no owner-approved budget exists (the cap is unknown)"
         elif b.get("pricing_version") != L.PRICING_VERSION:
@@ -76,9 +95,7 @@ class PaidTestBudget:
             "deadline": deadline.isoformat(), "retry_of": retry_of})
         self.ledger.record("budget_reserved", budget_id=budget_id, reservation_id=rid, model_requested=model,
                     reserved_usd=amount, deadline=deadline.isoformat(), provenance=provenance, retry_of=retry_of,
-                    bounds=dict(max_responses=max_responses, max_text_input_tokens=max_text_input_tokens,
-                                max_audio_input_tokens=max_audio_input_tokens, max_output_tokens=max_output_tokens,
-                                max_session_seconds=max_session_seconds))
+                    bounds=bounds)
         return {"ok": True, "reservation_id": rid, "reserved_usd": amount}
 
     def bind_session(self, reservation_id, session_id):

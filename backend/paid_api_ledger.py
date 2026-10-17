@@ -33,7 +33,7 @@ import pymongo
 from pymongo.errors import DuplicateKeyError
 
 # Prices and estimation live in one place (paid_api_pricing.py); re-exported here for callers.
-from paid_api_pricing import PRICING_VERSION, estimate_usd, usage_complete, worst_case_usd  # noqa: E402,F401
+from paid_api_pricing import PRICING_VERSION, estimate_usd, usage_complete, worst_case_usd, cascade_worst_case_usd  # noqa: E402,F401
 UNKNOWN = "unknown"
 STALE_GRACE_S = 300   # a reservation still open this long after its own deadline is stale: its usage is unknown
 

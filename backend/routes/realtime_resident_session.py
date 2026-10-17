@@ -147,29 +147,18 @@ async def _mint(payload, lease):
     }
 
     # Paid API receipt for this mint, and the paid-test budget gate (routes/paid_api_receipts.py).
-    from routes.paid_api_receipts import reserve_for_test, record_mint, session_purpose
+    from routes.paid_api_receipts import session_purpose
     sid = (lease or {}).get("session_id") or payload.get("session_id")
     purpose = session_purpose(payload.get("room"))
-    reservation_id = await reserve_for_test(OPENAI_REALTIME_MODEL, purpose, sid)
-    started_at, resp = now_utc().isoformat(), None
-    try:
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            resp = await client.post(
-                f"{OPENAI_API_BASE}/realtime/client_secrets",
-                headers={"Authorization": f"Bearer {key}"},
-                json={"session": session_config},
-            )
-        if resp.status_code >= 400:
-            raise HTTPException(status_code=502, detail=f"OpenAI Realtime session error: {resp.text[:300]}")
-        session = resp.json()
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"OpenAI Realtime session error: {e}")
-    finally:
-        await record_mint(resp, requested_model=OPENAI_REALTIME_MODEL, purpose=purpose,
-                          session_id=sid, started_at=started_at, key=key, reservation_id=reservation_id,
-                          room=payload.get("room"), kiosk_id=payload.get("kiosk_id"))
+    tools = await _build_tools() + self_code["tools"]
+    if payload.get("transport") == "cascade":
+        # Low-cost voice prototype (routes/aria_voice.py): same instructions and tools, no Realtime session.
+        from routes.aria_voice import create_cascade_session
+        session = await create_cascade_session(session_id=sid, purpose=purpose, room=payload.get("room"),
+                                               kiosk_id=payload.get("kiosk_id"), instructions=instructions,
+                                               tools=tools, temperature=DEFAULT_TEMPERATURE)
+    else:
+        session = await _mint_realtime(session_config, key, purpose, sid, payload)
     # Runtime truth (2026-10-15): record the model the PROVIDER says this session runs on,
     # next to the model we asked for, so cost/model claims rest on provider evidence.
     provider_model = (session.get("session") or {}).get("model")
@@ -188,7 +177,7 @@ async def _mint(payload, lease):
         "voice": voice,
         "instructions": instructions,
         "greeting": greeting_response(opening),   # the call's first response (routes/aria_opening.py)
-        "tools": await _build_tools() + self_code["tools"],
+        "tools": tools,
         "tool_choice": "auto",
         "turn_detection": DEFAULT_VAD,
         "noise_reduction": DEFAULT_NOISE_REDUCTION,
@@ -221,3 +210,25 @@ async def _mint(payload, lease):
     return JSONResponse(content=session)
 
 
+async def _mint_realtime(session_config, key, purpose, sid, payload):
+    from routes.paid_api_receipts import reserve_for_test, record_mint
+    reservation_id = await reserve_for_test(OPENAI_REALTIME_MODEL, purpose, sid)
+    started_at, resp = now_utc().isoformat(), None
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.post(
+                f"{OPENAI_API_BASE}/realtime/client_secrets",
+                headers={"Authorization": f"Bearer {key}"},
+                json={"session": session_config},
+            )
+        if resp.status_code >= 400:
+            raise HTTPException(status_code=502, detail=f"OpenAI Realtime session error: {resp.text[:300]}")
+        return resp.json()
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"OpenAI Realtime session error: {e}")
+    finally:
+        await record_mint(resp, requested_model=OPENAI_REALTIME_MODEL, purpose=purpose,
+                          session_id=sid, started_at=started_at, key=key, reservation_id=reservation_id,
+                          room=payload.get("room"), kiosk_id=payload.get("kiosk_id"))

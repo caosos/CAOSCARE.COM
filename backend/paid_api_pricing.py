@@ -116,3 +116,22 @@ def worst_case_usd(model, max_responses, max_text_input_tokens, max_audio_input_
     per = (max_text_input_tokens * p["text_in"] + max_audio_input_tokens * p["audio_in"]
            + max_output_tokens * max(p["audio_out"], p["text_out"])) / 1e6
     return round(per * max_responses, 8)
+
+
+# Upper bound on audio tokens per second of uploaded speech, for reservations only (never for an estimate).
+# Deliberately above the provider's observed audio token rate, so a reservation over-covers rather than under.
+AUDIO_TOKENS_PER_SECOND_BOUND = 50
+
+
+def cascade_worst_case_usd(stt_model, text_model, *, max_responses, max_audio_seconds, max_text_input_tokens,
+                           max_output_tokens, max_transcript_tokens=500):
+    """Reservation for a bounded speech-to-text -> text-model session (no Realtime): every turn at its bounds,
+    nothing cached; every text-model request (tool hops included) is one response with one transcription. Local TTS costs nothing. None when a model has no price or a bound is missing."""
+    s, t = _model_key(stt_model, TRANSCRIBE), _model_key(text_model, TEXT)
+    if not s or not t or not all(isinstance(v, int) and v > 0 for v in
+                                 (max_responses, max_audio_seconds, max_text_input_tokens, max_output_tokens)):
+        return None
+    stt = (max_audio_seconds * AUDIO_TOKENS_PER_SECOND_BOUND * TRANSCRIBE[s]["input"]
+           + max_transcript_tokens * TRANSCRIBE[s]["output"]) / 1e6
+    text = (max_text_input_tokens * TEXT[t]["input"] + max_output_tokens * TEXT[t]["output"]) / 1e6
+    return round((stt + text) * max_responses, 8)
