@@ -28,6 +28,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 MODELS = os.environ.get("ARIA_VOICE_MODELS", os.path.expanduser("~/aria-local-lab/speech-models/sherpa"))
 PORT = int(os.environ.get("ARIA_VOICE_PORT", "8794"))
 TTS_THREADS = int(os.environ.get("ARIA_VOICE_TTS_THREADS", "4"))
+SPEED = float(os.environ.get("ARIA_VOICE_SPEED", "0.9"))   # owner 2026-10-16: "slow the voice just a bit"
 MIC_RATE = 16000
 CHUNK_S = 0.25                                  # TTS audio is sent in pieces this long
 
@@ -112,7 +113,7 @@ class Call:
                 loop.call_soon_threadsafe(frames.put_nowait, np.asarray(samples, dtype=np.float32).copy())
                 return 1
 
-            job = loop.run_in_executor(None, lambda: self.tts.generate(self.say(text), sid=0, speed=1.0, callback=cb))
+            job = loop.run_in_executor(None, lambda: self.tts.generate(self.say(text), sid=0, speed=SPEED, callback=cb))
             job.add_done_callback(lambda _: loop.call_soon_threadsafe(frames.put_nowait, None))
             rate, step = self.tts.sample_rate, int(self.tts.sample_rate * CHUNK_S)
             while (x := await frames.get()) is not None:
