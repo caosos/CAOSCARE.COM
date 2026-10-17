@@ -119,11 +119,11 @@ def fake_provider(monkeypatch, *, post=None, stream=None):
     return sent
 
 
-def new_session(sid=None, voice=None, greeting="Hey, Michael."):
+def new_session(sid=None, voice=None):
     sid = sid or f"rt_{uuid.uuid4().hex[:8]}"
     out = run(V.create_cascade_session(session_id=sid, purpose="room214_conversation", room="214", kiosk_id="k214",
                                        instructions="You are Aria.", tools=TOOLS, temperature=0.8,
-                                       voice=voice, greeting_line=greeting))
+                                       voice=voice))
     return sid, out
 
 
@@ -273,7 +273,8 @@ def test_tts1_sentence_is_streamed_receipted_per_character_and_settles_the_budge
     audio = drain_bytes(run(V.speak(Req(out["token"]), {"text": "Welcome to CAOSCare, Michael."})))
     assert len(audio) == 300
     body = sent[0][2]["json"]
-    assert body == {"model": "tts-1", "voice": "sage", "input": "Welcome to Kay-oss Care, Michael.", "response_format": "pcm"}
+    assert body == {"model": "tts-1", "voice": "sage", "input": "Welcome to Kay-oss Care, Michael.", "response_format": "pcm",
+                    "speed": V.SPEED}
     r = budget.db.receipts.find_one({"kind": "provider_request", "session_id": sid, "endpoint": "audio/speech"})
     assert r["provenance"]["purpose"] == "speech_generation" and r["provenance"]["conversation_purpose"] == "room214_conversation"
     assert r["estimate"]["basis"] == "request_size" and r["estimate"]["usd"] == round(len(body["input"]) * 15 / 1e6, 8)
@@ -295,16 +296,17 @@ def test_mini_tts_takes_provider_usage_over_sse(budget, monkeypatch):
     assert r["usage"] == usage and r["usage_status"] == "reported" and r["estimate"]["usd"] == round((20 * 0.6 + 90 * 12) / 1e6, 8)
 
 
-def test_only_the_greeting_is_cached_and_replayed_without_a_provider_call(budget, monkeypatch, tmp_path):
-    monkeypatch.setattr(V, "GREETING_CACHE", str(tmp_path))
-    _, out = new_session(voice="cedar", greeting="Hey, Michael.")
+def test_only_fixed_lines_are_cached_and_replayed_without_a_provider_call(budget, monkeypatch, tmp_path):
+    monkeypatch.setattr(V, "FIXED_CACHE", str(tmp_path))
+    _, out = new_session(voice="cedar")
     lines = ["data: " + json.dumps({"type": "speech.audio.delta", "audio": "BQA="}),
              "data: " + json.dumps({"type": "speech.audio.done", "usage": {"input_tokens": 5, "output_tokens": 9}})]
     sent = fake_provider(monkeypatch, stream=Lines(200, lines))
-    first = drain_bytes(run(V.speak(Req(out["token"]), {"text": "Hey, Michael."})))
-    again = drain_bytes(run(V.speak(Req(out["token"]), {"text": "Hey, Michael."})))
-    assert first == again and len(sent) == 1                         # second greeting: no provider request
+    first = drain_bytes(run(V.speak(Req(out["token"]), {"text": "Okay, bye for now.", "fixed": True})))
+    again = drain_bytes(run(V.speak(Req(out["token"]), {"text": "Okay, bye for now.", "fixed": True})))
+    assert first == again and len(sent) == 1                         # second goodbye: no provider request
     drain_bytes(run(V.speak(Req(out["token"]), {"text": "Your nurse is on the way."})))
+    drain_bytes(run(V.speak(Req(out["token"]), {"text": "x" * 120, "fixed": True})))   # too long to be a fixed line
     assert len(list(tmp_path.iterdir())) == 1                        # conversation audio is never stored
 
 
@@ -325,3 +327,16 @@ def test_voice_picker_preview_uses_the_same_speech_path_and_is_receipted(lg, mon
     assert sent[0][2]["json"]["input"] == "Hello from Kay-oss Care."
     r = lg.db.receipts.find_one({"endpoint": "audio/speech"})
     assert r["provenance"]["purpose"] == "speech_generation" and r["usage_status"] == "reported"
+
+
+def test_speech_cut_off_before_usage_is_priced_at_its_upper_bound_and_never_blocks_the_budget(budget, monkeypatch):
+    import paid_api_pricing as P
+    sid, out = new_session(voice="nova")
+    cut = ["data: " + json.dumps({"type": "speech.audio.delta", "audio": "AAEAAQ=="})]   # no speech.audio.done
+    fake_provider(monkeypatch, stream=Lines(200, cut))
+    drain_bytes(run(V.speak(Req(out["token"]), {"text": "I'll let the nurse know right away."})))
+    r = budget.db.receipts.find_one({"session_id": sid, "endpoint": "audio/speech"})
+    assert r["usage"] is None and r["usage_status"] == "unknown"                       # never shown as provider usage
+    assert r["estimate"]["basis"] == "request_size"
+    assert r["estimate"]["usd"] == round(P.speech_worst_case_usd("gpt-4o-mini-tts", len("I'll let the nurse know right away.")), 8)
+    assert budget.db.reservations.find_one({"session_id": sid})["unknown_usage"] is False

@@ -1,6 +1,7 @@
 /** Low-cost voice transport (cascadeTransport.js): emits the Realtime events the room handler already uses. */
 import { TextEncoder, TextDecoder } from "util";
-import { chatMessage, createCascadeConnection, requestedTransport, takeSentences } from "../cascadeTransport";
+import { chatMessage, createCascadeConnection, requestItems, requestedTransport, takeSentences } from "../cascadeTransport";
+import { GOODBYE_INSTRUCTIONS, GOODBYE_LINE } from "../endController";
 
 global.TextEncoder = global.TextEncoder || TextEncoder;
 global.TextDecoder = global.TextDecoder || TextDecoder;
@@ -86,6 +87,7 @@ test("opens like a data channel; the greeting needs no reasoning call", async ()
   await flush();
   expect(t.calls.filter((c) => c.url.endsWith("/respond"))).toHaveLength(0);
   expect(t.spoken()).toEqual(["Hi, Michael."]);
+  expect(JSON.parse(t.calls.find((c) => c.url.endsWith("/speak")).opts.body).fixed).toBe(true);   // cached line
   expect(t.calls.find((c) => c.url.endsWith("/speak")).opts.headers["X-Aria-Voice-Token"]).toBe("tok_secret_value");
   expect(t.player.play).toHaveBeenCalledWith(expect.any(Int16Array), 24000);
   expect(t.types()).toContain("output_audio_buffer.started");
@@ -189,4 +191,31 @@ test("interrupted mid-reply: only the sentences that reached the speaker stay in
   await flush(); await flush();
   const items = JSON.parse(t.calls.filter((c) => c.url.endsWith("/respond"))[1].opts.body).items;
   expect(items).toEqual([{ role: "assistant", content: "First I'll tell you this." }]);
+});
+
+test("the routine goodbye is a fixed line: no reasoning call, spoken at once in Aria's voice", async () => {
+  const t = setup();
+  t.ws.serve({ type: "ready" });
+  t.send({ type: "response.create", response: { instructions: GOODBYE_INSTRUCTIONS } });
+  await flush(); await flush();
+  expect(t.calls.filter((c) => c.url.endsWith("/respond"))).toHaveLength(0);
+  expect(t.spoken()).toEqual([GOODBYE_LINE]);
+  expect(t.types()).toEqual(expect.arrayContaining(["output_audio_buffer.started", "response.output_audio_transcript.done"]));
+});
+
+test("a reply asked for while a tool call is unanswered still sends a valid conversation", () => {
+  const call = (id) => ({ id, type: "function", function: { name: "end_call", arguments: "{}" } });
+  expect(requestItems([
+    { role: "user", content: "That's all." },
+    { role: "assistant", content: "Okay.", tool_calls: [call("c1")] },          // no result yet
+    { role: "assistant", content: null, tool_calls: [call("c2")] },            // no result, no words
+    { role: "tool", tool_call_id: "c9", content: "{}" },                       // result for no call
+    { role: "assistant", content: null, tool_calls: [call("c3")] },
+    { role: "tool", tool_call_id: "c3", content: "{\"ok\":true}" },
+  ])).toEqual([
+    { role: "user", content: "That's all." },
+    { role: "assistant", content: "Okay." },
+    { role: "assistant", content: null, tool_calls: [call("c3")] },
+    { role: "tool", tool_call_id: "c3", content: "{\"ok\":true}" },
+  ]);
 });

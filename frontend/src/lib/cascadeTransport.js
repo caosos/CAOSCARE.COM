@@ -7,6 +7,8 @@
  * Side-by-side audition only: chosen by ?aria_voice=cascade on the room page, never by default. The voice is the
  * one chosen in the kiosk's voice picker.
  */
+import { GOODBYE_INSTRUCTIONS, GOODBYE_LINE } from "./endController";
+
 export const VOICE_SERVICE_URL = "ws://127.0.0.1:8794";
 const SENTENCE_END = /[.!?…]["')\]]?\s+/;
 const FIRST_CLAUSE = /^.{24,}?[,;:—]\s+/;   // a reply's opening clause is spoken without waiting for its full stop
@@ -23,6 +25,26 @@ export function chatMessage(item) {
     return text ? { role: item.role, content: text } : null;
   }
   return null;
+}
+
+/** The conversation as the chat API accepts it: a tool call goes with its result. Realtime lets a reply be asked for
+ * while a call is still unanswered (e.g. end_call during the goodbye); here such a call - and a result whose call
+ * is not in the conversation - is left out of that request, never invented. */
+export function requestItems(items) {
+  const answered = new Set(items.filter((m) => m.role === "tool").map((m) => m.tool_call_id));
+  const asked = new Set();
+  const out = [];
+  for (const m of items) {
+    if (m.role === "assistant" && m.tool_calls) {
+      const calls = m.tool_calls.filter((c) => answered.has(c.id));
+      calls.forEach((c) => asked.add(c.id));
+      if (calls.length) out.push({ ...m, tool_calls: calls });
+      else if (m.content) out.push({ role: "assistant", content: m.content });
+    } else if (m.role === "tool") {
+      if (asked.has(m.tool_call_id)) out.push(m);
+    } else out.push(m);
+  }
+  return out;
 }
 
 /** Splits streamed text into finished sentences; returns [sentences, remainder]. */
@@ -105,12 +127,12 @@ export function createCascadeConnection({ session, caos, stream, api, wsUrl = VO
   const wake = (o, k) => { const w = o[k]; o[k] = null; w?.(); };
 
   // Every finished sentence is requested at once; sentences play strictly in order as their audio streams in.
-  function say(r, text) {
+  function say(r, text, fixed = false) {
     if (!text) return;
     const e = { text, chunks: [], ended: false, wake: null };
     r.queue.push(e); r.said += 1;
     fetchImpl(`${api}/aria-voice/speak`, { method: "POST", signal: r.abort.signal,
-      headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ text }) })
+      headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ text, fixed }) })
       .then(async (res) => {
         if (!res.ok || !res.body) return;
         const reader = res.body.getReader();
@@ -181,8 +203,11 @@ export function createCascadeConnection({ session, caos, stream, api, wsUrl = VO
     emit({ type: "response.created", response: { id: r.id } });
     const delta = (d) => { r.text += d; emit({ type: "response.output_audio_transcript.delta", response_id: r.id, item_id: r.item, delta: d });
       const [done, rest] = takeSentences(r.buf + d, r.said === 0); r.buf = rest; done.forEach((s) => say(r, s)); };
+    // The greeting and the routine goodbye are fixed lines: spoken (and cached) with no reasoning call.
+    const fixed = opts.instructions && (opts.instructions === caos.greeting?.instructions ? caos.greeting_line
+      : opts.instructions === GOODBYE_INSTRUCTIONS ? GOODBYE_LINE : null);
     try {
-      if (caos.greeting_line && opts.instructions && opts.instructions === caos.greeting?.instructions) delta(caos.greeting_line + " ");
+      if (fixed) { r.text = fixed; emit({ type: "response.output_audio_transcript.delta", response_id: r.id, item_id: r.item, delta: fixed }); say(r, fixed, true); }
       else await streamReply(r, opts, delta);
     } catch (e) {
       if (r.abort.signal.aborted) return;
@@ -206,7 +231,7 @@ export function createCascadeConnection({ session, caos, stream, api, wsUrl = VO
   async function streamReply(r, opts, delta) {
     const res = await fetchImpl(`${api}/aria-voice/respond`, { method: "POST", signal: r.abort.signal,
       headers: { ...headers, "Content-Type": "application/json" },
-      body: JSON.stringify({ items, ...(opts.instructions ? { instructions: opts.instructions } : {}),
+      body: JSON.stringify({ items: requestItems(items), ...(opts.instructions ? { instructions: opts.instructions } : {}),
         ...(opts.tool_choice ? { tool_choice: opts.tool_choice } : {}) }) });
     if (!res.ok) throw new Error(`respond ${res.status}`);
     const reader = res.body.getReader(), dec = new TextDecoder();

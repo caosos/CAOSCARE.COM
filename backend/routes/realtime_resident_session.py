@@ -157,7 +157,7 @@ async def _mint(payload, lease):
         session = await create_cascade_session(session_id=sid, purpose=purpose, room=payload.get("room"),
                                                kiosk_id=payload.get("kiosk_id"), instructions=instructions,
                                                tools=tools, temperature=DEFAULT_TEMPERATURE,
-                                               voice=payload.get("voice"), greeting_line=greeting_line(opening))
+                                               voice=payload.get("voice"))
     else:
         session = await _mint_realtime(session_config, key, purpose, sid, payload)
     # Runtime truth (2026-10-15): record the model the PROVIDER says this session runs on,
@@ -178,7 +178,7 @@ async def _mint(payload, lease):
         "voice": voice,
         "instructions": instructions,
         "greeting": greeting_response(opening),   # the call's first response (routes/aria_opening.py)
-        "greeting_line": greeting_line(opening),  # its exact words: the low-cost transport speaks them locally
+        "greeting_line": greeting_line(opening),  # its exact words: the low-cost transport needs no reasoning call
         "transport": session.get("transport") or "webrtc",
         "tools": tools,
         "tool_choice": "auto",

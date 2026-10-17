@@ -36,11 +36,13 @@ TTS_MODEL = os.environ.get("ARIA_VOICE_TTS_MODEL", "gpt-4o-mini-tts").strip()
 TTS_VOICES = {"alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer", "verse",
               "marin", "cedar"}
 DEFAULT_VOICE = os.environ.get("ARIA_VOICE_DEFAULT_VOICE", "nova").strip()   # owner choice 2026-10-17
+SPEED = float(os.environ.get("ARIA_VOICE_SPEED", "1.1"))   # owner 2026-10-17: "speed up the voice one notch"
+FIXED_MAX_CHARS = 80   # fixed lines (greeting, routine goodbye) are cached; conversation audio never is
 SPEECH_STYLE = ("Everyday conversational voice at a normal, lively pace - a friendly person chatting in the room. "
                 "Bright and relaxed; not dramatic, not hushed or whispery, not slow, not a storyteller.")   # owner 2026-10-17
 BOUNDS = dict(max_responses=16, max_audio_seconds=30, max_text_input_tokens=32000, max_output_tokens=250,
               max_session_seconds=900, max_speech_chars=1000)
-GREETING_CACHE = os.path.expanduser(os.environ.get("ARIA_VOICE_GREETING_CACHE", "~/.cache/caoscare/aria_voice_greetings"))
+FIXED_CACHE = os.path.expanduser(os.environ.get("ARIA_VOICE_FIXED_CACHE", "~/.cache/caoscare/aria_voice_fixed_lines"))
 MAX_AUDIO_BYTES = BOUNDS["max_audio_seconds"] * 16000 * 2 + 1024    # 16 kHz mono PCM16 WAV
 MAX_INPUT_CHARS = BOUNDS["max_text_input_tokens"] * 3               # conservative chars-per-token bound
 _ROLES = {"user", "assistant", "tool"}
@@ -97,7 +99,7 @@ def chat_tools(realtime_tools: list) -> list:
 
 
 async def create_cascade_session(*, session_id, purpose, room, kiosk_id, instructions, tools, temperature,
-                                 voice=None, greeting_line=None) -> dict:
+                                 voice=None) -> dict:
     """Called by the room session builder instead of a Realtime mint when the page asks for transport=cascade."""
     if not enabled():
         raise HTTPException(status_code=404, detail="Low-cost voice prototype is not enabled.")
@@ -121,7 +123,7 @@ async def create_cascade_session(*, session_id, purpose, room, kiosk_id, instruc
         "token_sha256": _sha(token), "session_id": session_id, "purpose": purpose, "room": room,
         "kiosk_id": kiosk_id, "instructions": instructions, "tools": chat_tools(tools),
         "temperature": temperature, "reservation_id": out["reservation_id"], "responses": 0,
-        "tts_model": tts_model, "tts_voice": tts_voice, "greeting_line": greeting_line, "spoken_chars": 0,
+        "tts_model": tts_model, "tts_voice": tts_voice, "spoken_chars": 0,
         "created_at": now_utc().isoformat(), "expires_at": expires.isoformat(), "ended_at": None})
     return {"transport": "cascade", "token": token, "expires_at": expires.isoformat(),
             "stt_model": STT_MODEL, "tts": f"{tts_model}:{tts_voice}", "audio_sample_rate": 24000,
@@ -235,17 +237,18 @@ async def _stream(s: dict, body: dict):
 
 @router.post("/speak")
 async def speak(request: Request, payload: dict):
-    """One sentence of Aria's reply as raw PCM16 24 kHz mono, streamed as the provider produces it. Only the
-    session's own greeting line is cached (the call opens without a provider request after its first use)."""
+    """One sentence of Aria's reply as raw PCM16 24 kHz mono, streamed as the provider produces it. A short line the
+    page marks `fixed` (its greeting, the routine goodbye) is cached, so it plays with no provider request after
+    its first use; conversation audio is never stored."""
     s = await _session(request)
     text = (payload.get("text") or "").strip()
     if not text or len(text) > BOUNDS["max_speech_chars"]:
         raise HTTPException(status_code=413, detail="Nothing to say, or longer than the session bound.")
     say = spoken(text)
     cache = None
-    if s.get("greeting_line") and text == s["greeting_line"].strip():
-        cache = os.path.join(GREETING_CACHE, hashlib.sha256(
-            f"{s['tts_model']}|{s['tts_voice']}|{SPEECH_STYLE}|{say}".encode()).hexdigest() + ".pcm")
+    if payload.get("fixed") is True and len(say) <= FIXED_MAX_CHARS:
+        cache = os.path.join(FIXED_CACHE, hashlib.sha256(
+            f"{s['tts_model']}|{s['tts_voice']}|{SPEED}|{SPEECH_STYLE}|{say}".encode()).hexdigest() + ".pcm")
         if os.path.exists(cache):
             return StreamingResponse(_file(cache), media_type="audio/pcm")
     n = await db.aria_voice_sessions.find_one_and_update(
@@ -277,7 +280,7 @@ async def speech_stream(model, voice, say, *, session_id=None, **where):
     tts-1 is billed per character (no usage in the response); gpt-4o-mini-tts reports usage over SSE."""
     from routes.paid_api_receipts import record_request_async, now_iso
     sse = model != "tts-1"
-    body = {"model": model, "voice": voice, "input": say, "response_format": "pcm"}
+    body = {"model": model, "voice": voice, "input": say, "response_format": "pcm", "speed": SPEED}
     if sse:
         body.update(stream_format="sse", instructions=SPEECH_STYLE)
     key, t0, resp, summary = _key(), now_iso(), None, {}
@@ -305,7 +308,7 @@ async def speech_stream(model, voice, say, *, session_id=None, **where):
     finally:
         await record_request_async(resp, purpose="speech_generation", endpoint="audio/speech", model_requested=model,
                                    started_at=t0, key=key, session_id=session_id, body=summary,
-                                   chars=None if sse else len(say), voice=voice, **where)
+                                   chars=None if summary.get("usage") else len(say), voice=voice, **where)
 
 
 def _sse(obj: dict) -> str:

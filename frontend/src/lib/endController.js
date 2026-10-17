@@ -21,7 +21,8 @@
  */
 import { createEndCorroboration, transcriptIsOutOfScript, turnMayEnd } from "./endIntent";
 
-export const GOODBYE_INSTRUCTIONS = "The resident said goodbye and ended the conversation. Say exactly and only: \"Okay, bye for now.\" Say nothing else. No explanation, offer, question, or extra availability sentence.";
+export const GOODBYE_LINE = "Okay, bye for now.";
+export const GOODBYE_INSTRUCTIONS = `The resident said goodbye and ended the conversation. Say exactly and only: "${GOODBYE_LINE}" Say nothing else. No explanation, offer, question, or extra availability sentence.`;
 const FALLBACK_SPEECH_MS = 1500;
 
 export function createEndController({ send, stop, onEndCall, log, speak = defaultSpeak }) {

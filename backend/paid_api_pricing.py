@@ -98,6 +98,10 @@ def estimate_usd(model, usage, *, chars=None, search_calls=0):
     if k and isinstance(usage, dict) and _ints(usage.get("input_tokens"), usage.get("output_tokens")):
         p = SPEECH[k]
         return round((usage["input_tokens"] * p["input"] + usage["output_tokens"] * p["output"]) / 1e6, 8)
+    if k and usage is None and isinstance(chars, int) and chars >= 0:
+        # Speech cut off before the provider reported usage (barge-in, hang-up): the most it can cost, labelled
+        # basis request_size - an upper bound, never presented as provider usage.
+        return round(speech_worst_case_usd(model, chars), 8)
     k = _model_key(model, PER_MINUTE)
     if k and isinstance(usage, dict) and isinstance(usage.get("seconds"), (int, float)) and usage["seconds"] >= 0:
         return round(usage["seconds"] / 60 * PER_MINUTE[k], 8)
