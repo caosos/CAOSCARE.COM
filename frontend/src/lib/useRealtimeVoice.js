@@ -178,6 +178,13 @@ export function useRealtimeVoice({
   }, [logSessionEnded, postAriaEvent]);
 
   useEffect(() => () => stop("component_unmount"), [stop]);
+  // A reload or closed tab never unmounts: hang up anyway, so the room is free at once (not after the stale-lease
+  // grace) and the call's paid session ends (releaseLease / the transport's close both use keepalive requests).
+  useEffect(() => {
+    const onHide = (e) => { if (!e.persisted) stop("page_hide"); };
+    window.addEventListener("pagehide", onHide);
+    return () => window.removeEventListener("pagehide", onHide);
+  }, [stop]);
 
   const start = useCallback(() => connectRealtimeVoice({
     attemptRef, voice, residentId, kioskId, room, alertId, activationId, sessionEndpoint,
