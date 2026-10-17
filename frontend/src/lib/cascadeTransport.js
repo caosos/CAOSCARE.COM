@@ -359,6 +359,7 @@ export function createCascadeConnection({ session, caos, stream, api, audioEl = 
     // The greeting and the routine goodbye are fixed lines: spoken (and cached) with no reasoning call.
     const fixed = opts.instructions && (opts.instructions === caos.greeting?.instructions ? caos.greeting_line
       : opts.instructions === GOODBYE_INSTRUCTIONS ? GOODBYE_LINE : null);
+    if (!fixed) unanswered = false;         // a model reply sees, and answers, everything said so far
     try {
       if (fixed) { r.text = fixed; emit({ type: "response.output_audio_transcript.delta", response_id: r.id, item_id: r.item, delta: fixed }); say(r, fixed, true); }
       else await streamReply(r, opts, delta);
@@ -431,7 +432,7 @@ export function createCascadeConnection({ session, caos, stream, api, audioEl = 
   const wordCount = (text) => (text.match(/[\p{L}\p{N}]+/gu) || []).length;
 
   function begin() {
-    const u = { id: id("utt"), item: id("item"), early: null, stale: false };
+    const u = { id: id("utt"), item: id("item"), early: null, stale: false, interrupted: Boolean(resp) };
     cur = u;
     emit({ type: "input_audio_buffer.speech_started", item_id: u.item });
     if (hold) hold.utts.add(u.id);          // more sound while she is paused: the same check, one more utterance
@@ -479,7 +480,7 @@ export function createCascadeConnection({ session, caos, stream, api, audioEl = 
     u.final.then((t) => { if (!closed) judge(u, t, "final"); });
     const was = hold?.utts.has(u.id) ? hold : null;
     waiting += 1;
-    applied = applied.then(() => apply(u, was)).catch(() => {}).finally(() => { waiting -= 1; });
+    applied = applied.then(() => { waiting -= 1; return apply(u, was); }).catch(() => {});
   }
 
   async function apply(u, h) {
@@ -493,12 +494,17 @@ export function createCascadeConnection({ session, caos, stream, api, audioEl = 
       emit({ type: "conversation.item.input_audio_transcription.failed", item_id: u.item,
         error: { message: `transcription ${t.reason}${t.status ? ` ${t.status}` : ""}` } });
     } else {
-      if (t.text) { items.push({ role: "user", content: t.text }); unanswered = true; }
+      // Words that cut a reply (the greeting) wait for replies to come back on; words while she rests do not.
+      if (t.text) { items.push({ role: "user", content: t.text }); unanswered = autoRespond || u.interrupted || unanswered; }
       emit({ type: "conversation.item.input_audio_transcription.completed", item_id: u.item, transcript: t.text });
     }
-    if (!autoRespond) { unanswered = false; return; }   // the handler decides (rest, greeting window)
-    if (!unanswered || cur || hold || waiting > 1) return;   // newer speech under way or waiting: it answers
-    unanswered = false;
+    answerPending();
+  }
+
+  /** Answers the resident's waiting words once nobody is speaking and replies are allowed. Words heard while replies
+   * are off (the greeting window, rest) wait for them to come back on, rather than being dropped. */
+  function answerPending() {
+    if (!autoRespond || !unanswered || cur || hold || waiting > 0) return;
     if (resp && !resp.done) cancel("next_turn");   // a reply still being written gives way to the newer turn
     respond();
   }
@@ -532,7 +538,11 @@ export function createCascadeConnection({ session, caos, stream, api, audioEl = 
   function onClient(e) {
     if (e.type === "session.update") {
       const td = e.session?.audio?.input?.turn_detection;
-      if (td && typeof td.create_response === "boolean") autoRespond = td.create_response;
+      if (td && typeof td.create_response === "boolean") {
+        const reopened = td.create_response && !autoRespond;
+        autoRespond = td.create_response;
+        if (reopened) setTimeout(answerPending, 0);   // after session.updated, like a server-side turn
+      }
       emit({ type: "session.updated", session: { model: session.session?.model } });
     } else if (e.type === "conversation.item.create") {
       const msg = chatMessage(e.item);

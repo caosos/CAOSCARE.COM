@@ -256,3 +256,104 @@ test("the player pauses on the audio clock and resumes; stopping always resumes 
   p.stop();
   expect(calls).toEqual(["suspend", "resume", "suspend", "resume"]);
 });
+
+// --- startup: the greeting window (create_response off until the greeting's audio stops) ---
+const gate = (t, on) => t.dc.send(JSON.stringify({ type: "session.update",
+  session: { audio: { input: { turn_detection: { create_response: on } } } } }));
+const greet = async (t) => {
+  gate(t, false);
+  t.dc.send(JSON.stringify({ type: "response.create", response: { instructions: "greet" } }));
+  await flush();
+  const r = t.replies[t.replies.length - 1];
+  r.s.event({ type: "text", delta: "Hey, Michael. " }); r.s.end();
+  await flush(8);
+  return r;
+};
+
+test("an immediate first reply after the greeting is kept and answered exactly once", async () => {
+  const t = harness();
+  await greet(t);
+  t.player.stop(); gate(t, true);                         // greeting audio over: the gate re-enables replies
+  t.ws.serve({ type: "speech_started" }); t.say("RIFFquick");
+  t.stt[0].d.resolve(ok("that was quick"));
+  await flush();
+  expect(t.users()).toEqual(["that was quick"]);
+  expect(t.replies).toHaveLength(2);                      // greeting + one answer
+});
+
+test("words over the greeting stop it and are answered once the greeting window closes", async () => {
+  const t = harness();
+  await greet(t);
+  t.ws.serve({ type: "speech_started" });                 // over the greeting's audio
+  t.say("RIFFquick"); t.stt[0].d.resolve(ok("that was quick"));
+  await flush();
+  expect(t.users()).toEqual(["that was quick"]);
+  expect(t.player.stop).toHaveBeenCalled();
+  expect(t.replies).toHaveLength(1);                      // no reply while the window is closed
+  gate(t, true);                                          // the gate re-enables after the cleared greeting
+  await flush();
+  expect(t.replies).toHaveLength(2);                      // answered - once
+  gate(t, true);
+  await flush();
+  expect(t.replies).toHaveLength(2);
+  expect(t.replies[1].body.items.filter((m) => m.role === "user").map((m) => m.content)).toEqual(["that was quick"]);
+});
+
+test("a reply still being spoken when the window reopens is answered when it ends, once", async () => {
+  const t = harness();
+  await greet(t);
+  t.ws.serve({ type: "speech_started" });
+  t.say("RIFFa"); t.stt[0].d.resolve(ok("that was quick"));
+  t.ws.serve({ type: "speech_started" });                 // he keeps talking
+  await flush();
+  gate(t, true);
+  await flush();
+  expect(t.replies).toHaveLength(1);                      // not over his speech
+  t.say("RIFFb"); t.stt[1].d.resolve(ok("can you hear me"));
+  await flush();
+  expect(t.replies).toHaveLength(2);
+  expect(t.replies[1].body.items.filter((m) => m.role === "user").map((m) => m.content)).toEqual(["that was quick", "can you hear me"]);
+});
+
+test("delayed voice-service start: nothing opens or plays before it is ready, and the first turn is answered once", async () => {
+  const stt = [], replies = [];
+  const fetchImpl = jest.fn((url, opts) => {
+    if (url.endsWith("/transcribe")) { const d = deferred(); stt.push(d); return d.p; }
+    if (url.endsWith("/respond")) { const s = stream(); replies.push(s); return Promise.resolve(s.res); }
+    return Promise.resolve(pcm());
+  });
+  const player = { playing: false, now: () => 0, ahead: () => 0, prepare: jest.fn(async () => null),
+    play: jest.fn(() => ({ start: 0, end: 1, gap: 0 })), stop: jest.fn(() => false), hold: jest.fn(), close: jest.fn() };
+  const { dc } = createCascadeConnection({ session: { token: "tok", session: { model: "m" } },
+    caos: { turn_detection: { silence_duration_ms: 1000, threshold: 0.5 } }, stream: {}, api: "/api",
+    WebSocketImpl: FakeWs, fetchImpl, player, AudioCtx: FakeAudioCtx });
+  const opened = jest.fn();
+  dc.onopen = opened;
+  await flush();
+  expect(dc.readyState).toBe("connecting");                // the room handler greets only on open
+  expect(opened).not.toHaveBeenCalled();
+  expect(player.prepare).not.toHaveBeenCalled();
+  const ws = FakeWs.last;
+  ws.serve({ type: "ready" });                            // service ready: config + microphone + output
+  await flush();
+  expect(JSON.parse(ws.sent[0]).type).toBe("config");
+  expect(player.prepare).toHaveBeenCalled();
+  expect(opened).toHaveBeenCalledTimes(1);
+  ws.serve({ type: "speech_started" }); ws.serve({ type: "speech_stopped", wav: btoa("RIFFx") });
+  stt[0].resolve(ok("hello"));
+  await flush();
+  expect(replies).toHaveLength(1);
+});
+
+test("words while she rests are kept but not answered when replies come back on; new words are", async () => {
+  const t = harness();
+  gate(t, false);                                         // resting: replies off, nothing in progress
+  t.ws.serve({ type: "speech_started" }); t.say("RIFFtv"); t.stt[0].d.resolve(ok("the weather tomorrow"));
+  await flush();
+  gate(t, true);                                          // she wakes
+  await flush();
+  expect(t.replies).toHaveLength(0);
+  t.ws.serve({ type: "speech_started" }); t.say("RIFFhi"); t.stt[1].d.resolve(ok("Aria, are you there"));
+  await flush();
+  expect(t.replies).toHaveLength(1);
+});
