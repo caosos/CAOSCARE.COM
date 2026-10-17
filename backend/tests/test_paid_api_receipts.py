@@ -141,3 +141,11 @@ def test_a_broken_ledger_never_breaks_a_live_call(monkeypatch):
             raise RuntimeError("ledger down")
     monkeypatch.setattr(R, "_ledger", Broken())
     mint(MINTED)   # no exception
+
+
+def test_a_self_test_event_is_never_an_openai_charge(lg):
+    run(R.record_diagnostic("response_done", "selftest_1", "selftest_resp_1",
+                            {"usage": USAGE, "provider": "caoscare-selftest", "model": "gpt-realtime-2.1-mini"}))
+    r = lg.db.receipts.find_one({"provider_response_id": "selftest_resp_1"})
+    assert r["provider"] == "caoscare-selftest" and r["dedupe_key"] == "caoscare-selftest:response:selftest_resp_1"
+    assert lg.db.receipts.count_documents({"kind": "provider_usage", "provider": "openai"}) == 0
