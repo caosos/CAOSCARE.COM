@@ -8,6 +8,8 @@ WebSocket ws://127.0.0.1:8794 - one client is one call:
   in   {"type":"stop"}                                 drop current + queued speech now (barge-in)
   out  {"type":"ready", "sample_rate"}
   out  {"type":"speech_started"} / {"type":"speech_stopped", "wav": base64 16 kHz WAV of the utterance}
+  out  {"type":"speech_paused", "wav"}   speech went quiet for PAUSE_MS inside a turn: the page may transcribe
+                                         early; {"type":"speech_resumed"} if the speaker carries on
   out  binary                       Aria's audio: 4-byte little-endian generation + PCM16 mono at sample_rate
   out  {"type":"spoken", "id", "gen"}                  that sentence's audio has all been sent
   out  {"type":"stopped", "gen"}                       frames of an older generation must be dropped
@@ -31,6 +33,8 @@ TTS_THREADS = int(os.environ.get("ARIA_VOICE_TTS_THREADS", "4"))
 SPEED = float(os.environ.get("ARIA_VOICE_SPEED", "0.9"))   # owner 2026-10-16: "slow the voice just a bit"
 MIC_RATE = 16000
 CHUNK_S = 0.25                                  # TTS audio is sent in pieces this long
+PAUSE_MS = int(os.environ.get("ARIA_VOICE_PAUSE_MS", "400"))   # early-transcription point (turn end stays silence_ms)
+WIN_MS = 512 * 1000 // MIC_RATE
 
 
 def load_lexicon(path=os.path.join(HERE, "lexicon.json")):
@@ -77,6 +81,7 @@ class Call:
         self.vad, self.speaking, self.gen = make_vad(), False, 0
         self.queue: asyncio.Queue = asyncio.Queue()
         self.pending = np.zeros(0, dtype=np.float32)
+        self.utt, self.peak, self.quiet_ms, self.paused = [], 0.0, 0, False
 
     async def send(self, obj):
         await self.ws.send(json.dumps(obj))
@@ -87,15 +92,38 @@ class Call:
         n = len(self.pending) // 512 * 512          # silero window
         if not n:
             return []
-        self.vad.accept_waveform(self.pending[:n]); self.pending = self.pending[n:]
+        block, self.pending = self.pending[:n], self.pending[n:]
+        self.vad.accept_waveform(block)
         out = []
         if self.vad.is_speech_detected() and not self.speaking:
             self.speaking = True; out.append({"type": "speech_started"})
+            self.utt, self.peak, self.quiet_ms, self.paused = [], 0.0, 0, False
+        if self.speaking:
+            out += self._pause_watch(block)
         while not self.vad.empty():
             seg = np.asarray(self.vad.front.samples, dtype=np.float32); self.vad.pop()
             self.speaking = False
             pcm = (np.clip(seg, -1, 1) * 32767).astype("<i2")
             out.append({"type": "speech_stopped", "wav": base64.b64encode(wav_bytes(pcm, MIC_RATE)).decode()})
+        return out
+
+    def _pause_watch(self, block):
+        """Energy-based early pause inside a VAD turn (the VAD itself only reports the turn's end)."""
+        out = []
+        for w in block.reshape(-1, 512):
+            self.utt.append(w)
+            rms = float(np.sqrt(np.mean(w * w)))
+            self.peak = max(self.peak, rms)
+            if rms < max(0.004, 0.15 * self.peak):
+                self.quiet_ms += WIN_MS
+            else:
+                if self.paused:
+                    out.append({"type": "speech_resumed"})
+                self.quiet_ms, self.paused = 0, False
+            if not self.paused and self.quiet_ms >= PAUSE_MS and len(self.utt) * WIN_MS > 300 + PAUSE_MS:
+                self.paused = True
+                pcm = (np.clip(np.concatenate(self.utt), -1, 1) * 32767).astype("<i2")
+                out.append({"type": "speech_paused", "wav": base64.b64encode(wav_bytes(pcm, MIC_RATE)).decode()})
         return out
 
     async def speaker(self):

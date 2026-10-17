@@ -8,6 +8,7 @@
  */
 export const VOICE_SERVICE_URL = "ws://127.0.0.1:8794";
 const SENTENCE_END = /[.!?…]["')\]]?\s+/;
+const FIRST_CLAUSE = /^.{24,}?[,;:—]\s+/;   // a reply's opening clause is spoken without waiting for its full stop
 
 export function requestedTransport(search = typeof window !== "undefined" ? window.location.search : "") {
   return new URLSearchParams(search).get("aria_voice") === "cascade" ? "cascade" : null;
@@ -24,9 +25,13 @@ export function chatMessage(item) {
 }
 
 /** Splits streamed text into finished sentences; returns [sentences, remainder]. */
-export function takeSentences(buf) {
+export function takeSentences(buf, first = false) {
   const out = [];
   let m;
+  if (first && !SENTENCE_END.test(buf) && (m = FIRST_CLAUSE.exec(buf))) {
+    out.push(m[0].trim());
+    buf = buf.slice(m[0].length);
+  }
   while ((m = SENTENCE_END.exec(buf))) {
     out.push(buf.slice(0, m.index + m[0].length).trim());
     buf = buf.slice(m.index + m[0].length);
@@ -112,7 +117,7 @@ export function createCascadeConnection({ session, caos, stream, api, wsUrl = VO
     const r = resp = { id: id("resp"), item: id("item"), spoken: [], pending: 0, text: "", buf: "", calls: [], done: false, speaking: false, gen };
     emit({ type: "response.created", response: { id: r.id } });
     const delta = (d) => { r.text += d; emit({ type: "response.output_audio_transcript.delta", response_id: r.id, item_id: r.item, delta: d });
-      const [done, rest] = takeSentences(r.buf + d); r.buf = rest; done.forEach((s) => say(r, s)); };
+      const [done, rest] = takeSentences(r.buf + d, r.spoken.length === 0); r.buf = rest; done.forEach((s) => say(r, s)); };
     try {
       if (caos.greeting_line && opts.instructions && opts.instructions === caos.greeting?.instructions) delta(caos.greeting_line + " ");
       else await streamReply(r, opts, delta);
@@ -157,15 +162,18 @@ export function createCascadeConnection({ session, caos, stream, api, wsUrl = VO
     }
   }
 
+  let early = null;                         // transcription started at the speaker's first pause (speech_paused)
+  function transcribe(wavB64) {
+    const bytes = Uint8Array.from(atob(wavB64), (c) => c.charCodeAt(0));
+    return fetchImpl(`${api}/aria-voice/transcribe`, { method: "POST", headers: { ...headers, "Content-Type": "audio/wav" }, body: bytes })
+      .then((res) => (res.ok ? res.json() : {})).then((j) => j.text || "").catch(() => "");
+  }
+
   async function heard(wavB64) {
     const item = id("item");
     emit({ type: "input_audio_buffer.speech_stopped", item_id: item });
-    const bytes = Uint8Array.from(atob(wavB64), (c) => c.charCodeAt(0));
-    let text = "";
-    try {
-      const res = await fetchImpl(`${api}/aria-voice/transcribe`, { method: "POST", headers: { ...headers, "Content-Type": "audio/wav" }, body: bytes });
-      if (res.ok) text = (await res.json()).text || "";
-    } catch {}
+    const pending = early; early = null;    // still valid only if the speaker did not carry on after the pause
+    const text = await (pending || transcribe(wavB64));
     if (closed) return;
     if (text) items.push({ role: "user", content: text });
     emit({ type: "conversation.item.input_audio_transcription.completed", item_id: item, transcript: text });
@@ -192,6 +200,10 @@ export function createCascadeConnection({ session, caos, stream, api, wsUrl = VO
     } else if (m.type === "speech_started") {
       emit({ type: "input_audio_buffer.speech_started" });
       if (resp) cancel("turn_detected");    // barge-in, as the room session's interrupt_response
+    } else if (m.type === "speech_paused") {
+      early = transcribe(m.wav);
+    } else if (m.type === "speech_resumed") {
+      early = null;
     } else if (m.type === "speech_stopped") {
       heard(m.wav);
     } else if (m.type === "spoken" && resp && m.id === resp.id) {

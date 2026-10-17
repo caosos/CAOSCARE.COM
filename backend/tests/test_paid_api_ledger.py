@@ -199,3 +199,12 @@ def test_running_past_a_bound_is_receipted(ledger):
     usage_event(ledger, "resp_b1", session="rt_b")
     usage_event(ledger, "resp_b2", session="rt_b")
     assert ledger.db.receipts.count_documents({"kind": "budget_bound_exceeded"}) >= 1
+
+
+def test_model_names_match_prices_only_through_a_date_suffix():
+    # gpt-4o-mini-tts / -transcribe were once priced as gpt-4o-mini text (a prefix match); never again.
+    import paid_api_pricing as P
+    assert P._model_key("gpt-4o-mini-2024-07-18", P.TEXT) == "gpt-4o-mini"
+    assert P._model_key("gpt-4o-mini-tts", P.TEXT) is None and P._model_key("gpt-4o-mini-transcribe", P.TEXT) is None
+    assert P.estimate_usd("gpt-4o-mini-tts", {"input_tokens": 55, "output_tokens": 255}) == round((55 * 0.60 + 255 * 12.00) / 1e6, 8)
+    assert P.estimate_usd("gpt-4o-mini-transcribe", {"input_tokens": 25, "output_tokens": 10}) == round((25 * 1.25 + 10 * 5.00) / 1e6, 8)
