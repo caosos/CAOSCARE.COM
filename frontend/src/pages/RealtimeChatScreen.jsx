@@ -7,6 +7,7 @@
  * can chime in any time without breaking the flow.
  */
 import React, { useEffect, useRef } from "react";
+import { urlTransport } from "../lib/useVoiceTransport";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Mic, X, Volume2, AlertCircle } from "lucide-react";
@@ -20,6 +21,7 @@ export default function RealtimeChatScreen({
   resident,
   kiosk,
   voiceId,
+  transport = "realtime",   // what the kiosk shows (label)
   onEnd,
   onOpenVoicePicker,
   a11yRootClass,
@@ -31,6 +33,7 @@ export default function RealtimeChatScreen({
 }) {
   const { status, error, transcript, resting, micLabel, start, stop, sendText, audioElRef } = useRealtimeVoice({
     voice: voiceId,
+    transport: urlTransport(),
     residentId: resident?.resident_id,
     kioskId: kiosk?.kiosk_id,
     room: kiosk?.room || resident?.room,
@@ -85,7 +88,7 @@ export default function RealtimeChatScreen({
       <div className="flex items-start justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.3em] text-caos-mute">
-            Full-duplex · OpenAI Realtime
+            {transport === "cascade" ? "Low-cost voice" : "Full-duplex · OpenAI Realtime"}
           </p>
           <h2 className="font-display text-3xl md:text-5xl font-light text-caos-forest mt-2">
             Aria is here with you.

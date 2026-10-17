@@ -123,6 +123,8 @@ async def record_diagnostic(event_type, session_id, response_id, meta, room=None
     meta = meta or {}
     if event_type not in ("response_done", "transcription_usage", "session_ended"):
         return
+    if meta.get("transport") == "cascade" and event_type != "session_ended":
+        return   # the low-cost voice transport's provider calls are receipted where they are made (routes/aria_voice.py)
     origin = await _safe(_session_origin, session_id) or ("realtime_conversation", None)
     room = room or origin[1]
     if event_type == "response_done":
@@ -162,12 +164,13 @@ def now_iso():
 
 
 def record_request(resp, *, purpose, endpoint, model_requested, started_at, key, attempt=1, retry_of=None,
-                   failure=None, chars=None, session_id=None, **where):
+                   failure=None, chars=None, session_id=None, body=None, **where):
     """One receipt per paid HTTP request, successful or not. Sync - call it from the thread that made the
     request. Keeps the provider's own usage; with none, the estimate (if any) comes from what we sent (chars)
-    and says so. Never stores request/response content or provider error bodies - only an error type/code."""
+    and says so. Never stores request/response content or provider error bodies - only an error type/code.
+    `body`: for a streamed response, the {id, model, usage} gathered from its chunks (the stream has no JSON body)."""
     try:
-        body = _json(resp) if resp is not None else {}
+        body = body if body is not None else _json(resp) if resp is not None else {}
         body = body if isinstance(body, dict) else {}
         err = body.get("error") if isinstance(body.get("error"), dict) else {}
         out = body.get("output") if isinstance(body.get("output"), list) else []

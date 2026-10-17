@@ -26,6 +26,7 @@ import { useKioskMediaPrime, openInFullTab, inSandboxedIframe } from "../lib/use
 import { useWakeWord } from "../lib/useWakeWord";
 import { wakeUrlFromSearch } from "../lib/wakeWordClient";
 import { retryKioskBootstrap } from "../lib/kioskBootstrapRetry";
+import { useVoiceTransport } from "../lib/useVoiceTransport";
 
 // Kiosk is PUBLIC - no login. Selected/identified by kiosk_id in URL.
 // /kiosk/:kioskId  (use "demo" to pick an arbitrary kiosk automatically)
@@ -73,6 +74,8 @@ export default function Kiosk() {
   // Voice preference (OpenAI TTS voice). Persisted per-kiosk so each room
   // can match its resident's preference.
   const VOICES = [
+    { id: "marin",   label: "Marin",   desc: "Natural & warm" },
+    { id: "cedar",   label: "Cedar",   desc: "Natural & grounded" },
     { id: "shimmer", label: "Shimmer", desc: "Soft & gentle" },
     { id: "coral",   label: "Coral",   desc: "Warm & inviting" },
     { id: "nova",    label: "Nova",    desc: "Bright & kind" },
@@ -86,6 +89,8 @@ export default function Kiosk() {
     { id: "verse",   label: "Verse",   desc: "Expressive & friendly" },
   ];
   const [voiceId, setVoiceId] = useState(() => localStorage.getItem("caos_kiosk_voice") || "shimmer");
+  const voiceMode = useVoiceTransport(kiosk?.kiosk_id);   // low-cost voice or Realtime, and the voice: kept per kiosk
+  useEffect(() => { if (voiceMode.voice) setVoiceId(voiceMode.voice); }, [voiceMode.voice]);
   const voiceIdRef = useRef(voiceId);
   useEffect(() => {
     voiceIdRef.current = voiceId;
@@ -410,8 +415,9 @@ export default function Kiosk() {
                       const { data } = await axios.post(`${API}/ai/tts`, {
                         text: "Hello. This is how I sound. I'll be right here with you.",
                         voice: v.id,
+                        ...(voiceMode.transport === "cascade" ? { model: "aria_voice" } : {}),   // preview what that path speaks with
                       }, { timeout: 10000 });
-                      const a = new Audio(`data:audio/mp3;base64,${data.audio_base64}`);
+                      const a = new Audio(`data:${data.mime || "audio/mp3"};base64,${data.audio_base64}`);
                       await a.play();
                     } catch { toast.error("Couldn't preview this voice"); }
                   }}
@@ -422,7 +428,7 @@ export default function Kiosk() {
                   <Play className="w-4 h-4" />
                 </button>
                 <button
-                  onClick={() => { setVoiceId(v.id); toast.success(`Voice set to ${v.label}`); }}
+                  onClick={() => { setVoiceId(v.id); voiceMode.setVoice(v.id); toast.success(`Voice set to ${v.label}`); }}
                   data-testid={`voice-select-${v.id}`}
                   className="flex-1 text-left"
                 >
@@ -500,6 +506,17 @@ export default function Kiosk() {
               <span className="opacity-80">Voice:</span>
               <span>{voiceId}</span>
             </button>
+            {voiceMode.available && (
+              <button
+                onClick={voiceMode.toggle}
+                data-testid="kiosk-a11y-transport"
+                aria-label={`Aria talks with ${voiceMode.transport === "cascade" ? "the low-cost voice" : "Realtime"}. Tap to switch.`}
+                title="Switch how Aria talks: low-cost voice or Realtime"
+                className="px-4 py-2 rounded-full bg-caos-forest text-white hover:bg-caos-forest-hover text-sm font-bold uppercase tracking-wider shadow-sm"
+              >
+                {voiceMode.transport === "cascade" ? "Low-cost" : "Realtime"}
+              </button>
+            )}
             <button
               onClick={() => setHighContrast((v) => !v)}
               data-testid="kiosk-a11y-contrast"
@@ -599,6 +616,7 @@ export default function Kiosk() {
         resident={resident}
         kiosk={kiosk}
         voiceId={voiceId}
+        transport={voiceMode.transport}
         a11yRootClass={a11yRootClass}
         triggerSource={triggerSourceRef.current}
         alertId={alert?.alert_id}

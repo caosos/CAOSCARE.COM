@@ -4,6 +4,7 @@
 #   ctl.sh install             venv + units + env file, enable and start the services
 #   ctl.sh rebuild [--force]   build the frontend into ~/.cache/aria-wake/build and swap it in
 #   ctl.sh restart-page [--force]   restart the static server + headless page
+#   ctl.sh install-voice       install/start only the low-cost voice turn detector (aria-voice.service)
 #   ctl.sh status | logs [-f] | restart | uninstall
 # The Room page is a PRODUCTION BUILD served on ARIA_WAKE_PAGE_PORT (default 3002), not the
 # CRA dev server, so frontend merges do not touch a live call until 'rebuild'.
@@ -77,6 +78,20 @@ build_page() {
 
 need() { command -v "$1" >/dev/null || { echo "missing: $1 ($2)" >&2; exit 1; }; }
 
+# Low-cost Aria voice: local turn detection (room-node/aria_voice), same venv packages as the wake listener.
+VOICE_DIR="$(cd "$DIR/../aria_voice" && pwd)"
+install_voice() {
+  if [ ! -f "$VOICE_DIR/model/silero_vad.onnx" ]; then
+    if [ -n "${ARIA_VOICE_MODEL_SRC:-}" ] && [ -f "$ARIA_VOICE_MODEL_SRC/silero_vad.onnx" ]; then
+      mkdir -p "$VOICE_DIR/model"; cp "$ARIA_VOICE_MODEL_SRC/silero_vad.onnx" "$VOICE_DIR/model/"
+    else
+      echo "VAD model missing: set ARIA_VOICE_MODEL_SRC=<dir with silero_vad.onnx>" >&2; exit 1
+    fi
+  fi
+  mkdir -p "$UNITS"
+  sed -e "s#@DIR@#$DIR#g" -e "s#@VOICE_DIR@#$VOICE_DIR#g" "$VOICE_DIR/systemd/aria-voice.service.in" > "$UNITS/aria-voice.service"
+}
+
 install_all() {
   need systemctl "systemd"; need pactl "pulseaudio-utils"; need curl "curl"
   [ -n "$CHROME" ] || { echo "missing: google-chrome or chromium" >&2; exit 1; }
@@ -97,8 +112,9 @@ install_all() {
   sed "s#@DIR@#$DIR#g" "$DIR/systemd/aria-wake.service.in" > "$UNITS/aria-wake.service"
   sed -e "s#@DIR@#$DIR#g" -e "s#@NODE@#$(command -v node)#g" "$DIR/systemd/aria-wake-page.service.in" > "$UNITS/aria-wake-page.service"
   sed "s#@CHROME@#$CHROME#g" "$DIR/systemd/aria-wake-kiosk.service.in" > "$UNITS/aria-wake-kiosk.service"
+  install_voice
   systemctl --user daemon-reload
-  systemctl --user enable --now aria-wake.service aria-wake-page.service aria-wake-kiosk.service
+  systemctl --user enable --now aria-wake.service aria-wake-page.service aria-wake-kiosk.service aria-voice.service
   echo "installed. Edit $CONF/aria-wake.env (PULSE_SOURCE/PULSE_SINK/ARIA_WAKE_SOURCE) and 'ctl.sh restart'."
   echo "To start at boot without a login:  loginctl enable-linger $(id -un)"
 }
@@ -106,14 +122,16 @@ install_all() {
 case "${1:-}" in
   test-audio-access) audio_access ;;
   install) install_all ;;
-  status) systemctl --user --no-pager status aria-wake.service aria-wake-page.service aria-wake-kiosk.service || true ;;
-  logs) shift; journalctl --user -u aria-wake.service -u aria-wake-page.service -u aria-wake-kiosk.service -o cat "${@:--n 100}" ;;
-  restart) shift; live_call_guard "${1:-}" && systemctl --user restart aria-wake.service aria-wake-page.service aria-wake-kiosk.service ;;
+  install-voice) install_voice && systemctl --user daemon-reload && systemctl --user enable --now aria-voice.service ;;
+  status) systemctl --user --no-pager status aria-wake.service aria-wake-page.service aria-wake-kiosk.service aria-voice.service || true ;;
+  logs) shift; journalctl --user -u aria-wake.service -u aria-wake-page.service -u aria-wake-kiosk.service -u aria-voice.service -o cat "${@:--n 100}" ;;
+  restart) shift; live_call_guard "${1:-}" && systemctl --user restart aria-wake.service aria-wake-page.service aria-wake-kiosk.service aria-voice.service ;;
   rebuild) shift; live_call_guard "${1:-}" && build_page ;;
   restart-page) shift; live_call_guard "${1:-}" && systemctl --user restart aria-wake-page.service aria-wake-kiosk.service ;;
   uninstall)
-    systemctl --user disable --now aria-wake-kiosk.service aria-wake-page.service aria-wake.service 2>/dev/null || true
-    rm -f "$UNITS/aria-wake.service" "$UNITS/aria-wake-page.service" "$UNITS/aria-wake-kiosk.service"; systemctl --user daemon-reload
+    systemctl --user disable --now aria-wake-kiosk.service aria-wake-page.service aria-wake.service aria-voice.service 2>/dev/null || true
+    rm -f "$UNITS/aria-wake.service" "$UNITS/aria-wake-page.service" "$UNITS/aria-wake-kiosk.service" "$UNITS/aria-voice.service"
+    systemctl --user daemon-reload
     echo "uninstalled (left $CONF and $DIR/.venv in place)" ;;
   *) sed -n 2,6p "$0"; exit 2 ;;
 esac

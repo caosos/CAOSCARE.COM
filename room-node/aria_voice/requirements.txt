@@ -1,0 +1,3 @@
+sherpa-onnx==1.13.8   # Silero VAD only
+numpy
+websockets>=13

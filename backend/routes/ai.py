@@ -395,6 +395,15 @@ async def tts(data: TTSInput):
         raise HTTPException(status_code=400, detail="Empty text")
     voice = data.voice or OPENAI_VOICE
     _require_openai_key()
+    from routes import aria_voice
+    if data.model == "aria_voice":
+        # The low-cost Aria voice (voice picker preview): the same speech path the conversation uses.
+        pcm = b"".join([c async for c in aria_voice.speech_stream(
+            aria_voice.TTS_MODEL, aria_voice.voice_or_default(voice), aria_voice.spoken(text), preview=True)])
+        if not pcm:
+            raise HTTPException(status_code=502, detail="Speech preview failed.")
+        return {"audio_base64": base64.b64encode(aria_voice.wav_bytes(pcm)).decode("ascii"), "mime": "audio/wav",
+                "source": "openai"}
 
     def _request_tts() -> str:
         _t0, resp = now_iso(), None

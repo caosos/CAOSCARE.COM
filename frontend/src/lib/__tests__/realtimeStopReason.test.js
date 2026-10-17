@@ -24,3 +24,13 @@ test("connection loss never reports resident dismissal", () => {
   act(() => voice.stop("webrtc_connection_failed"));
   expect(fetch.mock.calls.filter(([url]) => url.endsWith("/aria-event"))).toHaveLength(0);
 });
+test("closing or reloading the page hangs up the call (room and paid session freed at once)", async () => {
+  const { connectRealtimeVoice } = require("../realtimeConnection");
+  const pc = { close: jest.fn(), getSenders: () => [] };
+  connectRealtimeVoice.mockImplementation(async ({ pcRef }) => { pcRef.current = pc; });
+  await act(async () => { await voice.start(); });
+  act(() => { window.dispatchEvent(Object.assign(new Event("pagehide"), { persisted: true })); });
+  expect(pc.close).not.toHaveBeenCalled();             // kept in the back/forward cache: the call stays
+  act(() => { window.dispatchEvent(Object.assign(new Event("pagehide"), { persisted: false })); });
+  expect(pc.close).toHaveBeenCalled();
+});

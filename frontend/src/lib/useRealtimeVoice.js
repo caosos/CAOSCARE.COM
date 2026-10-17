@@ -29,7 +29,7 @@ const REASON_TO_ARIA_EVENT = {
   };
 
 export function useRealtimeVoice({
-  voice = "shimmer", residentId, kioskId, room, onEndCall,
+  voice = "shimmer", transport = null, residentId, kioskId, room, onEndCall,
   sessionEndpoint = "/realtime/session", sessionPayload, sessionAuth = false, triggerSource, alertId, activationId,
 } = {}) {
   const attemptRef = useRef(null);
@@ -178,9 +178,16 @@ export function useRealtimeVoice({
   }, [logSessionEnded, postAriaEvent]);
 
   useEffect(() => () => stop("component_unmount"), [stop]);
+  // A reload or closed tab never unmounts: hang up anyway, so the room is free at once (not after the stale-lease
+  // grace) and the call's paid session ends (releaseLease / the transport's close both use keepalive requests).
+  useEffect(() => {
+    const onHide = (e) => { if (!e.persisted) stop("page_hide"); };
+    window.addEventListener("pagehide", onHide);
+    return () => window.removeEventListener("pagehide", onHide);
+  }, [stop]);
 
   const start = useCallback(() => connectRealtimeVoice({
-    attemptRef, voice, residentId, kioskId, room, alertId, activationId, sessionEndpoint,
+    attemptRef, voice, transport, residentId, kioskId, room, alertId, activationId, sessionEndpoint,
   sessionPayload, sessionAuth, triggerSource, onEndCall, pcRef, dcRef, localStreamRef,
   audioElRef, leaseHeartbeatRef, leaseRoomRef, startGenRef, sessionIdRef,
   ctxRef, endReasonLoggedRef, lifecycleCleanupRef, assistantSpeakingRef,
@@ -188,7 +195,7 @@ export function useRealtimeVoice({
   awaitingAnswerTimerRef, inviteSilenceTimerRef, companionTimeoutTimerRef,
   setStatus, setError, setMicLabel, setResting, setTranscript,
   stop, releaseLease, postAriaEvent, startAwaitingAnswerTimer, logSessionEnded, typedTurnRef
-  }), [voice, residentId, kioskId, room, alertId, activationId, sessionEndpoint,
+  }), [voice, transport, residentId, kioskId, room, alertId, activationId, sessionEndpoint,
     sessionPayload, sessionAuth, triggerSource, onEndCall, stop, postAriaEvent, logSessionEnded, startAwaitingAnswerTimer]);
 
   // Typed input into this same live session (realtimeTypedTurn.js).

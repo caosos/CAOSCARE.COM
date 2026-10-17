@@ -6,7 +6,9 @@ Where the page lists one price for a category, that one price is used (e.g. a si
 gpt-4o transcribe models - no separate audio rate is invented here).
 """
 
-PRICING_VERSION = "openai-public-2026-10-17.2"
+import re
+
+PRICING_VERSION = "openai-public-2026-10-17.3"
 
 # Realtime, per 1M tokens.
 _MINI = dict(text_in=0.60, text_cached=0.06, text_out=2.40, audio_in=10.00, audio_cached=0.30, audio_out=20.00)
@@ -24,17 +26,24 @@ TEXT = {
 # Token-billed transcription, per 1M tokens (one listed input price).
 TRANSCRIBE = {"gpt-4o-transcribe": dict(input=2.50, output=10.00),
               "gpt-4o-mini-transcribe": dict(input=1.25, output=5.00)}
+# Token-billed speech generation, per 1M tokens (text in, audio out).
+SPEECH = {"gpt-4o-mini-tts": dict(input=0.60, output=12.00)}
 PER_MINUTE = {"whisper-1": 0.006}              # listed as "Whisper"
 PER_MILLION_CHARS = {"tts-1": 15.00}
 WEB_SEARCH_PER_CALL = 10.00 / 1000             # web search tool, non-preview; search-content tokens billed in usage
 
 
+_DATE_SUFFIX = re.compile(r"-\d{4}(-\d{2}-\d{2})?$")
+
+
 def _model_key(model, table):
-    """Provider-confirmed names carry a date suffix (gpt-4.1-mini-2025-04-14): match the listed base name."""
+    """Provider-confirmed names carry a date suffix (gpt-4.1-mini-2025-04-14): match the listed base name.
+    Only a date may follow the base name - gpt-4o-mini-tts and gpt-4o-mini-transcribe are not gpt-4o-mini."""
     m = (model or "").strip()
     if m in table:
         return m
-    return next((k for k in sorted(table, key=len, reverse=True) if m.startswith(k + "-")), None)
+    base = _DATE_SUFFIX.sub("", m)
+    return base if base != m and base in table else None
 
 
 def _ints(*vals):
@@ -85,6 +94,14 @@ def estimate_usd(model, usage, *, chars=None, search_calls=0):
     if k and isinstance(usage, dict) and _ints(usage.get("input_tokens"), usage.get("output_tokens")):
         p = TRANSCRIBE[k]
         return round((usage["input_tokens"] * p["input"] + usage["output_tokens"] * p["output"]) / 1e6, 8)
+    k = _model_key(model, SPEECH)
+    if k and isinstance(usage, dict) and _ints(usage.get("input_tokens"), usage.get("output_tokens")):
+        p = SPEECH[k]
+        return round((usage["input_tokens"] * p["input"] + usage["output_tokens"] * p["output"]) / 1e6, 8)
+    if k and usage is None and isinstance(chars, int) and chars >= 0:
+        # Speech cut off before the provider reported usage (barge-in, hang-up): the most it can cost, labelled
+        # basis request_size - an upper bound, never presented as provider usage.
+        return round(speech_worst_case_usd(model, chars), 8)
     k = _model_key(model, PER_MINUTE)
     if k and isinstance(usage, dict) and isinstance(usage.get("seconds"), (int, float)) and usage["seconds"] >= 0:
         return round(usage["seconds"] / 60 * PER_MINUTE[k], 8)
@@ -99,7 +116,7 @@ def usage_complete(model, usage):
     if not isinstance(usage, dict):
         return False
     if _model_key(model, REALTIME) or not _model_key(model, TEXT) and not _model_key(model, TRANSCRIBE) \
-            and not _model_key(model, PER_MINUTE):
+            and not _model_key(model, SPEECH) and not _model_key(model, PER_MINUTE):
         return realtime_parts(usage) is not None or _text_tokens(usage) is not None
     return estimate_usd(model, usage) is not None
 
@@ -116,3 +133,41 @@ def worst_case_usd(model, max_responses, max_text_input_tokens, max_audio_input_
     per = (max_text_input_tokens * p["text_in"] + max_audio_input_tokens * p["audio_in"]
            + max_output_tokens * max(p["audio_out"], p["text_out"])) / 1e6
     return round(per * max_responses, 8)
+
+
+# Upper bound on audio tokens per second of uploaded speech, for reservations only (never for an estimate).
+# Deliberately above the provider's observed audio token rate, so a reservation over-covers rather than under.
+AUDIO_TOKENS_PER_SECOND_BOUND = 50
+
+
+SPEECH_TOKENS_PER_CHAR_BOUND = 2      # gpt-4o-mini-tts measured 1.6 audio tokens per character (2026-10-17); reservations only
+
+
+def speech_worst_case_usd(tts_model, chars):
+    """Upper bound for speaking `chars` characters; 0 for local speech (tts_model None); None if unpriced."""
+    if not tts_model:
+        return 0.0
+    k = _model_key(tts_model, PER_MILLION_CHARS)
+    if k:
+        return chars * PER_MILLION_CHARS[k] / 1e6
+    k = _model_key(tts_model, SPEECH)
+    if k:
+        return chars * (SPEECH[k]["input"] + SPEECH_TOKENS_PER_CHAR_BOUND * SPEECH[k]["output"]) / 1e6
+    return None
+
+
+def cascade_worst_case_usd(stt_model, text_model, *, max_responses, max_audio_seconds, max_text_input_tokens,
+                           max_output_tokens, max_transcript_tokens=500, tts_model=None, max_speech_chars=0):
+    """Reservation for a bounded speech-to-text -> text-model session (no Realtime): every turn at its bounds,
+    nothing cached; every text-model request (tool hops included) is one response with one transcription. Local TTS costs nothing. None when a model has no price or a bound is missing."""
+    s, t = _model_key(stt_model, TRANSCRIBE), _model_key(text_model, TEXT)
+    if not s or not t or not all(isinstance(v, int) and v > 0 for v in
+                                 (max_responses, max_audio_seconds, max_text_input_tokens, max_output_tokens)):
+        return None
+    stt = (max_audio_seconds * AUDIO_TOKENS_PER_SECOND_BOUND * TRANSCRIBE[s]["input"]
+           + max_transcript_tokens * TRANSCRIBE[s]["output"]) / 1e6
+    text = (max_text_input_tokens * TEXT[t]["input"] + max_output_tokens * TEXT[t]["output"]) / 1e6
+    speech = speech_worst_case_usd(tts_model, max_speech_chars)
+    if speech is None:
+        return None
+    return round((stt + text + speech) * max_responses, 8)

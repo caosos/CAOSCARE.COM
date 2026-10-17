@@ -135,13 +135,21 @@ def render_opening_block(opening: Optional[dict], name: str, part_of_day: Option
     return "## How this call opens\n" + "\n".join(lines) + "\n\n"
 
 
+def greeting_line(opening: Optional[dict]) -> Optional[str]:
+    """The exact words the call opens with (the first suggested opening)."""
+    if not opening:
+        return None
+    name = opening.get("name") or "there"
+    return (suggested_openings(opening, name, opening.get("part_of_day")) or [f"Hi, {name}."])[0]
+
+
 def greeting_response(opening: Optional[dict]) -> Optional[dict]:
     """The call's first response (sent by the room page as response.create's `response`): the
     first suggested opening, spoken from its own instructions - no prompt history, no tools."""
     if not opening:
         return None
     name = opening.get("name") or "there"
-    line = (suggested_openings(opening, name, opening.get("part_of_day")) or [f"Hi, {name}."])[0]
+    line = greeting_line(opening)
     how = "just called your name" if opening.get("wake") else "just tapped to talk to you"
     return {
         "instructions": (

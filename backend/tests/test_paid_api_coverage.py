@@ -92,7 +92,7 @@ def only_receipt(lg, **q):
 
 # -- the inventory: no provider call site in routes/ without a receipt -------------------------------------
 
-PROVIDER_CALL = re.compile(r"(requests\.post|client\.post|websockets\.connect)\(")
+PROVIDER_CALL = re.compile(r"(requests\.post|client\.post|client\.stream|websockets\.connect)\(")
 RECORDERS = re.compile(r"record_(request|request_async|mint|connect|phone_call|realtime_event)\(")
 
 

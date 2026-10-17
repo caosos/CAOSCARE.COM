@@ -54,3 +54,11 @@ test.each(owner)("owner goodbye phrase ends the call: %s", (t) => expect(classif
 const notEnding = ["I'll talk to you later about the news, goodbye for real is not yet.", "Turn on the light, then later goodbye?",
   "Talk to you later about my medicine", "I'll talk to you later, can you dim the lights first?", "Don't say goodbye, talk to you later"];
 test.each(notEnding)("a clause that is not an ending keeps the call open: %s", (t) => expect(classifyEndIntent(t)).toBe("none"));
+
+test("a declining 'No,' before the ending still ends the call; negation still never does", () => {
+  // Owner audition 2026-10-17 (rt_h61yw3tu): "No, that'll be all for now. Thank you." left the call open.
+  expect(classifyEndIntent("No, that'll be all for now. Thank you.")).toBe("explicit");
+  expect(classifyEndIntent("Nope, that's all.")).toBe("explicit");
+  expect(classifyEndIntent("No, I'm not done.")).toBe("none");
+  expect(classifyEndIntent("No, turn the TV down.")).toBe("none");
+});

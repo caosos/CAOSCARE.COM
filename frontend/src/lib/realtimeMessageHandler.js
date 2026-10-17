@@ -339,7 +339,7 @@ export function createRealtimeHandlers({
           provider_model: providerSession.model || null,
           model: caos?.diagnostics?.model || null,
           provider: "openai",
-          transport: "webrtc",
+          transport: caos?.transport || "webrtc",
         },
       });
       // Fallback for a greeting that completed with no audio at all - see
@@ -369,7 +369,7 @@ export function createRealtimeHandlers({
       logRealtimeEvent(sessionIdRef.current, "user_transcript", { text: typed.text, meta: { typed: true } });
     }
     if (msg.type === "conversation.item.input_audio_transcription.completed") {
-      if (typeof logTranscriptionUsage === "function") logTranscriptionUsage(sessionIdRef.current, msg, TRANSCRIPTION_MODEL);   // paid usage receipt, no text
+      if (typeof logTranscriptionUsage === "function") logTranscriptionUsage(sessionIdRef.current, msg, TRANSCRIPTION_MODEL, caos?.transport || "webrtc");   // paid usage receipt, no text
       const userText = msg.transcript || "";
       setTranscript((t) => [...t, { role: "user", text: userText, ts: Date.now() }]);
       // logprobs -> confidence, when the API actually returns them (it

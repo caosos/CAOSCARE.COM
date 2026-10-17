@@ -33,7 +33,7 @@ import pymongo
 from pymongo.errors import DuplicateKeyError
 
 # Prices and estimation live in one place (paid_api_pricing.py); re-exported here for callers.
-from paid_api_pricing import PRICING_VERSION, estimate_usd, usage_complete, worst_case_usd  # noqa: E402,F401
+from paid_api_pricing import PRICING_VERSION, estimate_usd, usage_complete, worst_case_usd, cascade_worst_case_usd  # noqa: E402,F401
 UNKNOWN = "unknown"
 STALE_GRACE_S = 300   # a reservation still open this long after its own deadline is stale: its usage is unknown
 
@@ -108,6 +108,9 @@ class PaidApiLedger:
         if key is None:   # no provider id: kept, but it cannot be deduplicated, so it is never counted
             self.budget.mark_unknown(session_id)
             return {"receipt_id": rid, "counted": False, "duplicate_of": None}
-        self.budget.settle(session_id, fields["estimate"]["usd"], unknown=fields["usage_status"] != "reported",
-                           usage=fields["usage"])
+        # Known cost: the provider reported usage, or the model is billed by request size alone (tts-1 per
+        # character), so what we sent is what is billed. usage_status still says the provider reported nothing.
+        known = fields["usage_status"] == "reported" or (fields["estimate"]["basis"] == "request_size"
+                                                         and fields["estimate"]["usd"] is not None and not usage)
+        self.budget.settle(session_id, fields["estimate"]["usd"], unknown=not known, usage=fields["usage"])
         return {"receipt_id": rid, "counted": True, "duplicate_of": None}

@@ -1115,3 +1115,27 @@ Agent: Claude Code (Fable 5.1, "Claude 2" cost-control lane), branch `fix/realti
 - **Goodbye cut-off:** in `rt_10s3ng43_1792142773769` the server auto-response to "Thanks, that will be all. Goodbye." started before the transcript arrived; the model was narrating its `end_call` ("Okay, thanks for the chat—let me take care of that for you now."). The local goodbye cancelled it ~200 ms in, but its full text was shown and saved as Aria's turn (also feeding memory summaries and the next opening hint). `endController` now records the response it cut (`wasCut`); the handler logs that text as `assistant_transcript_cut_by_goodbye` (diagnostics) and never shows or saves it. The close itself was already deterministic (scripted "Okay, bye for now.", hang-up, `stop()` releases the lease, `onEndCall` restores TV/speaker).
 - **Verified:** frontend 131 suites / 855 tests; production build compiled; backend gate 1408 passed / 3 failed / 31 skipped (the same 3 as the #182/#183 baseline: `test_ops_metrics` ×2, `test_therapy_recurrence` weekly). Regression tests: `backend/tests/test_aria_opening_rotation.py` (six consecutive tap and wake calls through real `resolve_opening` + render never reuse a recent lead; the real triple repeat), `frontend/src/lib/__tests__/goodbyeCutResponse.test.js` (the scratch sequence replayed through the real hook + handler; eight goodbye phrasings; all 10 fail on the unfixed handler). Scratch Room 214 (branch backend :8098 on `caoscare_aria_accept_e7`, simulated devices): three consecutive tap calls `rt_tkjlgm00_1792149900857`, `rt_r7hvalv0_1792149942710`, `rt_xx21o2yd_1792149984797` opened "Good morning, Michael." / "Hi, Michael." / "There you are, Michael."; "Thanks, that will be all. Goodbye." / "Okay, goodnight." / "Alright, talk to you later." each ended with one "Okay, bye for now.", lease released (`resident_end_call`), TV duck/restore pair simulated, final TV unmuted.
 - **Not done:** merge; Room 214 load (needs merge + owner authorization).
+
+## 2026-10-17 — Low-cost Aria voice (draft PR #192), audition stage
+
+- **Agent/tool:** Claude Code (Opus 5.5), solo.
+- **Branch:** `proto/aria-low-cost-streaming-voice-001` (draft PR #192, not merged, not loaded). Paid-API receipt coverage merged first: PR #191 `4cb892e` (not loaded).
+- **What changed:** cascade transport behind the room page's data-channel seam (mic → local Silero VAD → gpt-4o-mini-transcribe → gpt-4o-mini with the room session's own instructions + 34 tools → gpt-4o-mini-tts in the kiosk-picker voice). No Realtime model, no second prompt; the old Turn mode is not revived (`docs/ARIA_LOW_COST_VOICE_PROTOTYPE.md`). Kiosk voice picker drives the voice (marin/cedar added; preview plays the same speech path). Reload/close of the page now hangs up (room lease + paid session freed at once) — this also applies to the Realtime path.
+- **Owner decisions (Michael, 2026-10-17):** Piper rejected ("robotic"); voice chosen by listening — nova is the default; Realtime set aside for now; future: people choose their experience (Realtime vs low-cost) with the cost difference shown. Cost rule: genuine personal use ≤ $10/month (≤ $15 acceptable, $20 hard ceiling), not a resident-facing cutoff.
+- **Verified:** real calls on a DB snapshot (`caoscare_aria_voice_audition`): care-request tool used, speech end → audio 1.7–2.0 s (gpt-4o-mini-tts), barge-in clears playback in ~5 ms after detection; every call receipted (test budgets `aria-low-cost-voice-001`/`001b`, $0.0168 + $0.0826, no unknowns). Backend aria_voice/paid_api suites pass; frontend 868/868; room-node 2/2. Genuine use (classified sessions 10-13…10-17) ≈ 9.7 min/day → ≈ $5–7/month.
+- **Blocked / open:** the cheaper text model tends to close replies with "anything else… I'm here to chat" (canonical prompt unchanged); found and fixed a model-price prefix bug that under-priced gpt-4o-mini-tts/-transcribe (correction receipts in the ledger).
+- **Next safe step:** owner audition via SSH tunnel (ports 3005 + 8794); load on Room 214 only on explicit owner approval.
+
+```
+HANDOFF CAPSULE
+- Objective:        low-cost Aria (same Aria, cheaper transport) ready for owner audition
+- Branch:           proto/aria-low-cost-streaming-voice-001 (draft PR #192)
+- Lane / ownership: aria_voice backend route, cascadeTransport.js, room-node/aria_voice, paid-API pricing for these models
+- Last proven state:real-call runs on the audition snapshot; tests listed above
+- Commits:          see PR #192
+- Runtime state:    audition backend 127.0.0.1:8097 (snapshot DB), page :3005, VAD :8794; live :8092/:3002/wake untouched
+- Unresolved proven defects: repeated closing line on gpt-4o-mini
+- Product invariants that matter here: one Aria prompt; receipts for every paid call; no change to live Room 214 without owner approval
+- Do NOT change:    live Room 214 runtime, wake thresholds, Drive exporter, simulator, Linode
+- Next safe action: owner listens and decides whether to load the low-cost path on Room 214
+```
