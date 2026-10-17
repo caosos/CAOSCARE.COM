@@ -106,7 +106,8 @@ async def record_diagnostic(event_type, session_id, response_id, meta, room=None
     """Called for every room-page diagnostic event; only billing-relevant ones become receipts."""
     meta = meta or {}
     if event_type == "response_done":
-        await _safe(ledger().record_usage, provider="openai", provider_response_id=response_id,
+        # The page names its provider ("openai"); a self-test names itself and is never an OpenAI charge.
+        await _safe(ledger().record_usage, provider=meta.get("provider") or "openai", provider_response_id=response_id,
                     usage=meta.get("usage"), model_requested=meta.get("model"),
                     model_provider=meta.get("provider_model"), status=meta.get("status"),
                     session_id=session_id, provider_session_id=meta.get("provider_session_id"),
