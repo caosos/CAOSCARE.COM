@@ -47,7 +47,7 @@ def test_receipt_carries_attribution_and_no_secrets_or_content(ledger, monkeypat
     assert r["usage"] == USAGE and r["usage_status"] == "reported"          # provider fields kept as reported
     # 1000 uncached text, 14000 cached text, 100 audio in, 50 text out, 100 audio out at mini prices
     assert r["estimate"] == {"usd": round((1000 * .6 + 14000 * .06 + 100 * 10 + 50 * 2.4 + 100 * 20) / 1e6, 8),
-                             "pricing_version": L.PRICING_VERSION}
+                             "pricing_version": L.PRICING_VERSION, "basis": "provider_usage"}
     assert "provider_billed_usd" not in r                                      # billing is never inferred
     flat = repr(r).lower()
     assert not any(w in flat for w in ("transcript", "instructions", "audio_b64", "sk-", "bearer"))

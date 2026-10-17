@@ -60,3 +60,18 @@ export function logRealtimeEvent(sessionId, eventType, { assistantSpeaking, text
     // never let a diagnostics failure touch the live call
   }
 }
+
+// Input-audio transcription is billed apart from the conversation: forward the provider's own usage counters
+// for that transcription (null when the provider sent none - never a guessed zero). No transcript text.
+export function logTranscriptionUsage(sessionId, msg, model) {
+  const u = msg?.usage && typeof msg.usage === "object" ? msg.usage : null;
+  const d = u?.input_token_details || {};
+  const usage = u && {
+    type: typeof u.type === "string" ? u.type : null,
+    input_tokens: count(u.input_tokens), output_tokens: count(u.output_tokens), total_tokens: count(u.total_tokens),
+    seconds: typeof u.seconds === "number" && u.seconds >= 0 ? u.seconds : null,
+    input_token_details: { text_tokens: count(d.text_tokens), audio_tokens: count(d.audio_tokens) },
+  };
+  logRealtimeEvent(sessionId, "transcription_usage", { responseId: msg?.item_id, meta: { usage, model, provider: "openai" } });
+}
+

@@ -129,6 +129,8 @@ async def ask(question: str, instructions: str) -> dict:
     effort = os.environ.get("OPENAI_RESEARCH_REASONING_EFFORT", "").strip()
     if effort:
         body["reasoning"] = {"effort": effort}
+    from routes.paid_api_receipts import record_request_async, now_iso   # paid API receipt (paid_api_ledger.py)
+    _t0, r = now_iso(), None
     try:
         async with httpx.AsyncClient(timeout=_timeout()) as client:
             r = await client.post(f"{base}/responses", json=body,
@@ -138,6 +140,9 @@ async def ask(question: str, instructions: str) -> dict:
         raise ResearchProviderError(502, "Research provider timed out.")
     except httpx.HTTPError as e:
         raise ResearchProviderError(502, f"Research provider unreachable ({type(e).__name__}).")
+    finally:
+        await record_request_async(r, started_at=_t0, purpose="live_research", endpoint="responses",
+                                   model_requested=model, key=key)
     if r.status_code >= 400:
         raise ResearchProviderError(502, f"Research provider returned HTTP {r.status_code}.")
     try:

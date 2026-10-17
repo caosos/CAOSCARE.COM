@@ -25,7 +25,9 @@ LIFE_STORY_MAX_CHARS = 1500
 SETTLE_SECONDS = 120          # a session whose last turn is newer than this may still be going
 _MAX_TRANSCRIPT_CHARS = 6000
 
-_chat = _openai_chat          # patched in tests
+async def _chat(system, user):   # patched in tests
+    """Per-call summaries and the life-story fold, receipted as conversation_summary (paid_api_ledger.py)."""
+    return await _openai_chat(system, user, purpose="conversation_summary")
 
 _SUMMARY_SYSTEM = """You summarize one voice conversation between a senior-living resident and
 Aria, their companion. Output ONLY JSON: {"summary": "...", "substantive": true|false}.

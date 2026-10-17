@@ -32,15 +32,8 @@ from datetime import datetime, timedelta, timezone
 import pymongo
 from pymongo.errors import DuplicateKeyError
 
-# USD per 1M tokens: developers.openai.com/api/docs/pricing as read 2026-10-17. A new price is a new version.
-PRICING_VERSION = "openai-public-2026-10-17"
-_MINI = dict(text_in=0.60, text_cached=0.06, text_out=2.40, audio_in=10.00, audio_cached=0.30, audio_out=20.00)
-_GA = dict(text_in=4.00, text_cached=0.40, text_out=16.00, audio_in=32.00, audio_cached=0.40, audio_out=64.00)
-PRICES = {
-    "gpt-realtime-2.1-mini": _MINI, "gpt-realtime-mini": _MINI,
-    "gpt-realtime-2.1": dict(_GA, text_out=24.00),
-    "gpt-realtime": _GA, "gpt-realtime-2025-08-28": _GA,
-}
+# Prices and estimation live in one place (paid_api_pricing.py); re-exported here for callers.
+from paid_api_pricing import PRICING_VERSION, estimate_usd, usage_complete, worst_case_usd  # noqa: E402,F401
 UNKNOWN = "unknown"
 STALE_GRACE_S = 300   # a reservation still open this long after its own deadline is stale: its usage is unknown
 
@@ -68,43 +61,6 @@ def provenance(purpose, **extra):
     }
 
 
-def _usage_parts(usage):
-    """Provider usage -> billable parts. None when usage is missing or any counter in it is (unknown, not zero)."""
-    if not isinstance(usage, dict):
-        return None
-    i = usage.get("input_token_details") or {}
-    c = i.get("cached_tokens_details") or {}
-    o = usage.get("output_token_details") or {}
-    raw = dict(text=i.get("text_tokens"), cached_text=c.get("text_tokens"), audio=i.get("audio_tokens"),
-               cached_audio=c.get("audio_tokens"), text_out=o.get("text_tokens"), audio_out=o.get("audio_tokens"))
-    if any(not isinstance(v, int) or v < 0 for v in raw.values()):
-        return None
-    return dict(text_in=raw["text"] - raw["cached_text"], text_cached=raw["cached_text"],
-                audio_in=raw["audio"] - raw["cached_audio"], audio_cached=raw["cached_audio"],
-                text_out=raw["text_out"], audio_out=raw["audio_out"])
-
-
-def estimate_usd(model, usage):
-    """Calculated cost of reported usage at PRICING_VERSION; None when usage or the model's price is unknown."""
-    parts, price = _usage_parts(usage), PRICES.get(model or "")
-    if parts is None or price is None:
-        return None
-    return round(sum(parts[k] * price[k] for k in parts) / 1e6, 8)
-
-
-def worst_case_usd(model, max_responses, max_text_input_tokens, max_audio_input_tokens, max_output_tokens):
-    """Reservation for a bounded session: every response at its input bounds with nothing cached, every output
-    token priced as audio. Risk not covered: a runner that does not enforce its own bounds, provider-side
-    behaviour beyond them (e.g. a session left open past max_session_seconds), or a price change."""
-    p = PRICES.get(model or "")
-    if p is None or any(not isinstance(v, int) or v <= 0 for v in
-                        (max_responses, max_text_input_tokens, max_audio_input_tokens, max_output_tokens)):
-        return None
-    per = (max_text_input_tokens * p["text_in"] + max_audio_input_tokens * p["audio_in"]
-           + max_output_tokens * max(p["audio_out"], p["text_out"])) / 1e6
-    return round(per * max_responses, 8)
-
-
 class PaidApiLedger:
     def __init__(self, mongo_url=None, db_name=None):
         url = mongo_url or os.environ.get("MONGO_URL") or "mongodb://localhost:27017"
@@ -125,7 +81,8 @@ class PaidApiLedger:
         return doc["receipt_id"]
 
     def record_usage(self, *, provider, provider_response_id, usage, model_requested, model_provider,
-                     status, session_id=None, provider_session_id=None, provenance=None, **extra):
+                     status, session_id=None, provider_session_id=None, provenance=None, kind="provider_usage",
+                     pricing_inputs=None, **extra):
         """One provider usage event (e.g. a Realtime response.done). Counted once per provider response id;
         a repeat is kept as counted=False with duplicate_of. Missing usage stays unknown and marks the
         session's reservation, which then blocks further paid tests until reconciled."""
@@ -134,16 +91,18 @@ class PaidApiLedger:
                       session_id=session_id, provider_session_id=provider_session_id or UNKNOWN,
                       model_requested=model_requested or UNKNOWN, model_provider=model_provider or UNKNOWN,
                       status=status or UNKNOWN, usage=usage if isinstance(usage, dict) else None,
-                      usage_status=("reported" if _usage_parts(usage) else "incomplete") if isinstance(usage, dict) else UNKNOWN,
-                      estimate={"usd": estimate_usd(model, usage), "pricing_version": PRICING_VERSION},
+                      usage_status=("reported" if usage_complete(model, usage) else "incomplete") if isinstance(usage, dict) else UNKNOWN,
+                      estimate={"usd": estimate_usd(model, usage, **(pricing_inputs or {})), "pricing_version": PRICING_VERSION,
+                                "basis": "provider_usage" if usage_complete(model, usage) else
+                                         ("request_size" if pricing_inputs else None)},
                       billable_activity=True if isinstance(usage, dict) else UNKNOWN,
                       provenance=provenance or {}, **extra)
         key = f"{provider}:response:{provider_response_id}" if provider_response_id else None
         try:
-            rid = self.record("provider_usage", dedupe_key=key, counted=key is not None, **fields)
+            rid = self.record(kind, dedupe_key=key, counted=key is not None, **fields)
         except DuplicateKeyError:
             first = self.db.receipts.find_one({"dedupe_key": key, "counted": True}, {"receipt_id": 1})
-            rid = self.record("provider_usage", dedupe_key=key, counted=False,
+            rid = self.record(kind, dedupe_key=key, counted=False,
                               duplicate_of=(first or {}).get("receipt_id"), **fields)
             return {"receipt_id": rid, "counted": False, "duplicate_of": (first or {}).get("receipt_id")}
         if key is None:   # no provider id: kept, but it cannot be deduplicated, so it is never counted

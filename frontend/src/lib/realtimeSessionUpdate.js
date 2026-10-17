@@ -1,3 +1,4 @@
+
 /**
  * Builds the session.update payload sent once the data channel opens.
  * Split out of useRealtimeVoice.js 2026-08-23 to keep that file under the
@@ -32,6 +33,9 @@
  * rather than guessing at a new location, since it's not audio-related
  * like the other three fields that just moved.
  */
+
+// The session's input-audio transcription model; usage receipts name the same one (realtimeDiagnostics.js).
+export const TRANSCRIPTION_MODEL = "gpt-4o-transcribe";
 // Conversation between a person and a home voice assistant named Aria. English or Spanish. Short commands are common.
 export const TRANSCRIPTION_HINT = "A person talking with their home voice assistant, Aria. Mostly English, sometimes Spanish. Short commands are common: goodbye, end the call, go away, hang up, that's all, stop, yes, no, thank you.";
 
@@ -67,7 +71,7 @@ export function buildSessionUpdate({ caos, voice }) {
           // REACT_APP_TRANSCRIPTION_LANGUAGE=en to pin recognition to English.
           // Evidence: Room 214 rt_t07bct8g, short English commands such as
           // "end the call" were written as Lithuanian/Arabic/Korean/Hindi text.
-          transcription: { model: "gpt-4o-transcribe", ...(process.env.REACT_APP_TRANSCRIPTION_LANGUAGE ? { language: process.env.REACT_APP_TRANSCRIPTION_LANGUAGE } : {}),
+          transcription: { model: TRANSCRIPTION_MODEL, ...(process.env.REACT_APP_TRANSCRIPTION_LANGUAGE ? { language: process.env.REACT_APP_TRANSCRIPTION_LANGUAGE } : {}),
             // RQ-056 (OFF by default; build with REACT_APP_TRANSCRIPTION_HINT=1): `prompt` is a documented optional
             // field (max 1024 chars) that biases vocabulary WITHOUT pinning the language, so Spanish still works.
             ...(process.env.REACT_APP_TRANSCRIPTION_HINT === "1" ? { prompt: TRANSCRIPTION_HINT } : {}) },

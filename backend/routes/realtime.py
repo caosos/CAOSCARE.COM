@@ -226,7 +226,7 @@ async def create_aria_session(payload: dict = Body(default={}), user=Depends(req
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"OpenAI Realtime session error: {e}")
     finally:
-        await record_mint(resp, requested_model=OPENAI_REALTIME_MODEL, purpose="owner_aria_session",
+        await record_mint(resp, requested_model=OPENAI_REALTIME_MODEL, purpose="owner_aria",
                           session_id=None, started_at=started_at, key=key, owner_session=True)
 
     session["_caos"] = {

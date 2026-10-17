@@ -21,6 +21,7 @@ import json
 import os
 import time
 import httpx
+from routes.paid_api_receipts import record_request_async, now_iso   # paid API receipt (paid_api_ledger.py)
 from fastapi import APIRouter, Depends, HTTPException, Body
 
 from deps import require_admin
@@ -97,11 +98,15 @@ async def _build_system_prompt(current_section: str | None) -> str:
 async def _chat_completion(messages: list[dict], tools: list[dict]) -> dict:
     key = _require_openai_key()
     async with httpx.AsyncClient(timeout=30.0) as client:
-        resp = await client.post(
-            f"{OPENAI_API_BASE}/chat/completions",
-            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-            json={"model": OPENAI_TEXT_MODEL, "messages": messages, "tools": tools, "tool_choice": "auto"},
-        )
+        _t0, resp = now_iso(), None
+        try:
+            resp = await client.post(
+                f"{OPENAI_API_BASE}/chat/completions",
+                headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                json={"model": OPENAI_TEXT_MODEL, "messages": messages, "tools": tools, "tool_choice": "auto"},
+            )
+        finally:
+            await record_request_async(resp, started_at=_t0, purpose="admin_assistant", endpoint="chat/completions", model_requested=OPENAI_TEXT_MODEL, key=key)
     if resp.status_code >= 400:
         raise HTTPException(status_code=502, detail=f"OpenAI request failed: {resp.text[:300]}")
     return resp.json()

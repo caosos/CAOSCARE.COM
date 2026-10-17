@@ -8,6 +8,7 @@ import os
 import asyncio
 import requests
 from datetime import datetime, timezone
+from routes.paid_api_receipts import record_request, now_iso   # one receipt per paid request (paid_api_ledger.py)
 from fastapi import APIRouter, HTTPException, Depends
 from deps import db, get_current_user
 from models import now_utc, uid
@@ -31,18 +32,22 @@ def _openai_unavailable() -> HTTPException:
 def _post_openai_chat(system_message: str, user_message: str) -> str:
     if not OPENAI_API_KEY:
         raise _openai_unavailable()
-    resp = requests.post(
-        f"{OPENAI_API_BASE}/chat/completions",
-        headers={"Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json"},
-        json={
-            "model": OPENAI_TEXT_MODEL,
-            "messages": [
-                {"role": "system", "content": system_message},
-                {"role": "user", "content": user_message},
-            ],
-        },
-        timeout=60,
-    )
+    _t0, resp = now_iso(), None
+    try:
+        resp = requests.post(
+            f"{OPENAI_API_BASE}/chat/completions",
+            headers={"Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json"},
+            json={
+                "model": OPENAI_TEXT_MODEL,
+                "messages": [
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": user_message},
+                ],
+            },
+            timeout=60,
+        )
+    finally:
+        record_request(resp, started_at=_t0, purpose="haiku_generation", endpoint="chat/completions", model_requested=OPENAI_TEXT_MODEL, key=OPENAI_API_KEY)
     if resp.status_code >= 400:
         raise HTTPException(status_code=502, detail=f"OpenAI haiku failed: {resp.text[:300]}")
     data = resp.json()

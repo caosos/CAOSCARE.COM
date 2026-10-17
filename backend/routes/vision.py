@@ -10,6 +10,7 @@ import base64
 import binascii
 import asyncio
 import requests
+from routes.paid_api_receipts import record_request, now_iso   # one receipt per paid request (paid_api_ledger.py)
 from fastapi import APIRouter, Depends, HTTPException
 from routes.paid_endpoint_guard import limit as _limit
 from models import VisionFrameInput
@@ -32,24 +33,28 @@ def _require_openai_key() -> str:
 
 def _post_openai_vision(prompt: str, image_base64: str) -> str:
     key = _require_openai_key()
-    resp = requests.post(
-        f"{OPENAI_API_BASE}/chat/completions",
-        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-        json={
-            "model": OPENAI_TEXT_MODEL,
-            "messages": [
-                {"role": "system", "content": VISION_SYSTEM_PROMPT},
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt},
-                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}},
-                    ],
-                },
-            ],
-        },
-        timeout=60,
-    )
+    _t0, resp = now_iso(), None
+    try:
+        resp = requests.post(
+            f"{OPENAI_API_BASE}/chat/completions",
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+            json={
+                "model": OPENAI_TEXT_MODEL,
+                "messages": [
+                    {"role": "system", "content": VISION_SYSTEM_PROMPT},
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}},
+                        ],
+                    },
+                ],
+            },
+            timeout=60,
+        )
+    finally:
+        record_request(resp, started_at=_t0, purpose="vision_description", endpoint="chat/completions", model_requested=OPENAI_TEXT_MODEL, key=key)
     if resp.status_code >= 400:
         raise HTTPException(status_code=502, detail=f"OpenAI vision failed: {resp.text[:300]}")
     data = resp.json()
@@ -62,12 +67,16 @@ async def _openai_vision(prompt: str, image_base64: str) -> str:
 
 def _post_openai_tts(text: str) -> str:
     key = _require_openai_key()
-    resp = requests.post(
-        f"{OPENAI_API_BASE}/audio/speech",
-        headers={"Authorization": f"Bearer {key}"},
-        json={"model": "tts-1", "voice": OPENAI_VOICE, "input": text, "response_format": "mp3"},
-        timeout=60,
-    )
+    _t0, resp = now_iso(), None
+    try:
+        resp = requests.post(
+            f"{OPENAI_API_BASE}/audio/speech",
+            headers={"Authorization": f"Bearer {key}"},
+            json={"model": "tts-1", "voice": OPENAI_VOICE, "input": text, "response_format": "mp3"},
+            timeout=60,
+        )
+    finally:
+        record_request(resp, started_at=_t0, purpose="speech_generation", endpoint="audio/speech", model_requested="tts-1", key=key, chars=len(text))
     if resp.status_code >= 400:
         raise HTTPException(status_code=502, detail=f"OpenAI vision TTS failed: {resp.text[:300]}")
     return base64.b64encode(resp.content).decode("ascii")

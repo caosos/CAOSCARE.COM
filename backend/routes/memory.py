@@ -31,6 +31,7 @@ import asyncio
 import requests
 from datetime import timedelta
 from typing import Optional, List
+from routes.paid_api_receipts import record_request, now_iso   # one receipt per paid request (paid_api_ledger.py)
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
@@ -55,29 +56,33 @@ def _openai_unavailable() -> HTTPException:
     )
 
 
-def _post_openai_chat(system_message: str, user_message: str) -> str:
+def _post_openai_chat(system_message: str, user_message: str, purpose: str = "memory_extraction") -> str:
     if not OPENAI_API_KEY:
         raise _openai_unavailable()
-    resp = requests.post(
-        f"{OPENAI_API_BASE}/chat/completions",
-        headers={"Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json"},
-        json={
-            "model": OPENAI_TEXT_MODEL,
-            "messages": [
-                {"role": "system", "content": system_message},
-                {"role": "user", "content": user_message},
-            ],
-        },
-        timeout=60,
-    )
+    _t0, resp = now_iso(), None
+    try:
+        resp = requests.post(
+            f"{OPENAI_API_BASE}/chat/completions",
+            headers={"Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json"},
+            json={
+                "model": OPENAI_TEXT_MODEL,
+                "messages": [
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": user_message},
+                ],
+            },
+            timeout=60,
+        )
+    finally:
+        record_request(resp, started_at=_t0, purpose=purpose, endpoint="chat/completions", model_requested=OPENAI_TEXT_MODEL, key=OPENAI_API_KEY)
     if resp.status_code >= 400:
         raise HTTPException(status_code=502, detail=f"OpenAI memory extraction failed: {resp.text[:300]}")
     data = resp.json()
     return (data.get("choices") or [{}])[0].get("message", {}).get("content", "")
 
 
-async def _openai_chat(system_message: str, user_message: str) -> str:
-    return await asyncio.to_thread(_post_openai_chat, system_message, user_message)
+async def _openai_chat(system_message: str, user_message: str, purpose: str = "memory_extraction") -> str:
+    return await asyncio.to_thread(_post_openai_chat, system_message, user_message, purpose)
 
 # OpenAI text models have a large context window. We previously capped history
 # at 40 to keep prompts cheap, but that meant rich conversations aged out

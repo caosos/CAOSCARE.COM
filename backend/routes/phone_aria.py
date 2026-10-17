@@ -35,9 +35,15 @@ def _openai_base() -> str:
 
 
 async def openai_post(path: str, body: dict) -> int:
+    from routes.paid_api_receipts import record_phone_call, now_iso   # paid API receipt (paid_api_ledger.py)
     key = os.environ.get("OPENAI_API_KEY", "")
-    async with httpx.AsyncClient(timeout=10) as client:
-        r = await client.post(f"{_openai_base()}{path}", json=body, headers={"Authorization": f"Bearer {key}"})
+    t0, r = now_iso(), None
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.post(f"{_openai_base()}{path}", json=body, headers={"Authorization": f"Bearer {key}"})
+    finally:
+        await record_phone_call(getattr(r, "status_code", None), path=path, model=body.get("model"), started_at=t0,
+                                key=key)
     if r.status_code >= 300:
         log.warning("OpenAI %s -> %s %s", path, r.status_code, r.text[:200])
     return r.status_code

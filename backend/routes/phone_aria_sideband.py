@@ -64,9 +64,14 @@ async def run_sideband(call: dict, *, connect: Optional[Callable] = None,
     await send(session_update(tools))
     await send({"type": "response.create"})  # greet
     try:
+        from routes.paid_api_receipts import record_realtime_event   # usage receipts (paid_api_ledger.py)
+        from routes.realtime import OPENAI_REALTIME_MODEL
+        usage_state: dict = {}
         async for raw in ws:
             msg = json.loads(raw)
             t = msg.get("type")
+            await record_realtime_event(msg, session_id=call.get("call_id"), purpose="phone_aria",
+                                        model=OPENAI_REALTIME_MODEL, state=usage_state)
             if t == "input_audio_buffer.speech_stopped":
                 state["awaiting_transcript"] = True
                 transcript_ready.clear()
