@@ -25,17 +25,22 @@ const sse = (events) => {
   return { ok: true, body: { getReader: () => ({ read: async () => (chunks.length ? { value: chunks.shift(), done: false } : { done: true }) }) } };
 };
 
-function setup({ replies = [], transcript = "I need some water" } = {}) {
+const pcm = (n = 480) => ({ ok: true, body: { getReader: () => { let sent = false;
+  return { read: async () => (sent ? { done: true } : (sent = true, { value: new Uint8Array(n * 2), done: false })) }; } } });
+
+function setup({ replies = [], transcript = "I need some water", speakImpl = () => pcm() } = {}) {
   const calls = [];
   const fetchImpl = jest.fn(async (url, opts) => {
     calls.push({ url, opts });
     if (url.endsWith("/transcribe")) return { ok: true, json: async () => ({ text: transcript }) };
     if (url.endsWith("/respond")) return replies.length ? replies.shift()(opts) : sse([{ type: "done" }]);
+    if (url.endsWith("/speak")) return speakImpl(opts);
     return { ok: true, json: async () => ({ ok: true }) };
   });
   const player = { playing: false, play: jest.fn(), stop: jest.fn(() => false), close: jest.fn() };
+  const spoken = () => calls.filter((c) => c.url.endsWith("/speak")).map((c) => JSON.parse(c.opts.body).text);
   const { dc, pc } = createCascadeConnection({
-    session: { token: "tok_secret_value", session: { model: "gpt-4o-mini" } },
+    session: { token: "tok_secret_value", audio_sample_rate: 24000, session: { model: "gpt-4o-mini" } },
     caos: { greeting: GREETING, greeting_line: "Hi, Michael.", turn_detection: { silence_duration_ms: 1000, threshold: 0.5 } },
     stream: {}, api: "/api", WebSocketImpl: FakeWs, fetchImpl, player, AudioCtx: FakeAudioCtx,
   });
@@ -43,7 +48,7 @@ function setup({ replies = [], transcript = "I need some water" } = {}) {
   dc.onmessage = (ev) => events.push(JSON.parse(ev.data));
   const ws = FakeWs.last;
   const send = (e) => dc.send(JSON.stringify(e));
-  return { dc, pc, ws, events, calls, send, player, types: () => events.map((e) => e.type) };
+  return { dc, pc, ws, events, calls, send, player, spoken, types: () => events.map((e) => e.type) };
 }
 
 test("chosen only by ?aria_voice=cascade", () => {
@@ -67,7 +72,7 @@ test("Realtime items map to chat messages", () => {
   expect(chatMessage({ type: "message", role: "system", content: [{ text: "x" }] })).toBeNull();
 });
 
-test("opens like a data channel; the greeting is spoken locally with no model call", async () => {
+test("opens like a data channel; the greeting needs no reasoning call", async () => {
   const t = setup();
   let opened = false;
   t.dc.onopen = () => { opened = true; };
@@ -80,7 +85,10 @@ test("opens like a data channel; the greeting is spoken locally with no model ca
   t.send({ type: "response.create", response: GREETING });
   await flush();
   expect(t.calls.filter((c) => c.url.endsWith("/respond"))).toHaveLength(0);
-  expect(t.ws.json().find((m) => m.type === "speak").text).toBe("Hi, Michael.");
+  expect(t.spoken()).toEqual(["Hi, Michael."]);
+  expect(t.calls.find((c) => c.url.endsWith("/speak")).opts.headers["X-Aria-Voice-Token"]).toBe("tok_secret_value");
+  expect(t.player.play).toHaveBeenCalledWith(expect.any(Int16Array), 24000);
+  expect(t.types()).toContain("output_audio_buffer.started");
   expect(t.types()).toEqual(expect.arrayContaining(["response.created", "response.output_audio_transcript.done", "response.done"]));
 });
 
@@ -108,7 +116,7 @@ test("a spoken turn is transcribed, answered, and its tool call goes through the
     { role: "assistant", content: "Okay.", tool_calls: [{ id: "call_1", type: "function", function: { name: "create_care_request", arguments: "{\"category\":\"water\"}" } }] },
     { role: "tool", tool_call_id: "call_1", content: "{\"ok\":true}" },
   ]);
-  expect(t.ws.json().filter((m) => m.type === "speak").map((m) => m.text)).toEqual(["Okay.", "I've asked the nurse."]);
+  expect(t.spoken()).toEqual(["Okay.", "I've asked the nurse."]);
 });
 
 test("barge-in: speaking over Aria stops her at once and cancels the reply", async () => {
@@ -121,12 +129,8 @@ test("barge-in: speaking over Aria stops her at once and cancels the reply", asy
   t.ws.serve({ type: "speech_started" });
   await flush();
   expect(aborted.aborted).toBe(true);
-  expect(t.ws.json().some((m) => m.type === "stop")).toBe(true);
   expect(t.types()).toEqual(expect.arrayContaining(["input_audio_buffer.speech_started", "output_audio_buffer.cleared"]));
   expect(t.events.find((e) => e.type === "response.done").response.status).toBe("cancelled");
-  // audio of the interrupted reply that was already in flight is dropped
-  const frame = new ArrayBuffer(8); new DataView(frame).setUint32(0, 0, true);
-  t.ws.onmessage({ data: frame });
   expect(t.player.play).not.toHaveBeenCalled();
 });
 
@@ -164,4 +168,25 @@ test("speaking on after a pause discards the early transcription", async () => {
   await flush(); await flush();
   const sent = t.calls.filter((c) => c.url.endsWith("/transcribe")).map((c) => new TextDecoder().decode(c.opts.body));
   expect(sent).toEqual(["RIFFearly", "RIFFfull"]);
+});
+
+test("interrupted mid-reply: only the sentences that reached the speaker stay in the conversation", async () => {
+  let speakAbort = null;
+  const t = setup({
+    replies: [() => sse([{ type: "text", delta: "First I'll tell you this. " }, { type: "text", delta: "Then a long second part. " }, { type: "done" }]),
+      () => sse([{ type: "done" }])],
+    speakImpl: (opts) => (JSON.parse(opts.body).text.startsWith("First") ? pcm() : (speakAbort = opts.signal, new Promise(() => {}))),
+  });
+  t.ws.serve({ type: "ready", sample_rate: 24000 });
+  t.send({ type: "response.create" });
+  await flush(); await flush();
+  t.player.playing = true; t.player.stop.mockReturnValue(true);
+  t.ws.serve({ type: "speech_started" });
+  await flush();
+  expect(speakAbort.aborted).toBe(true);                 // the unplayed sentence's audio request is cancelled
+  t.player.playing = false;
+  t.send({ type: "response.create" });
+  await flush(); await flush();
+  const items = JSON.parse(t.calls.filter((c) => c.url.endsWith("/respond"))[1].opts.body).items;
+  expect(items).toEqual([{ role: "assistant", content: "First I'll tell you this." }]);
 });

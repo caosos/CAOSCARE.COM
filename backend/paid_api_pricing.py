@@ -136,8 +136,24 @@ def worst_case_usd(model, max_responses, max_text_input_tokens, max_audio_input_
 AUDIO_TOKENS_PER_SECOND_BOUND = 50
 
 
+SPEECH_TOKENS_PER_CHAR_BOUND = 2      # gpt-4o-mini-tts measured 1.6 audio tokens per character (2026-10-17); reservations only
+
+
+def speech_worst_case_usd(tts_model, chars):
+    """Upper bound for speaking `chars` characters; 0 for local speech (tts_model None); None if unpriced."""
+    if not tts_model:
+        return 0.0
+    k = _model_key(tts_model, PER_MILLION_CHARS)
+    if k:
+        return chars * PER_MILLION_CHARS[k] / 1e6
+    k = _model_key(tts_model, SPEECH)
+    if k:
+        return chars * (SPEECH[k]["input"] + SPEECH_TOKENS_PER_CHAR_BOUND * SPEECH[k]["output"]) / 1e6
+    return None
+
+
 def cascade_worst_case_usd(stt_model, text_model, *, max_responses, max_audio_seconds, max_text_input_tokens,
-                           max_output_tokens, max_transcript_tokens=500):
+                           max_output_tokens, max_transcript_tokens=500, tts_model=None, max_speech_chars=0):
     """Reservation for a bounded speech-to-text -> text-model session (no Realtime): every turn at its bounds,
     nothing cached; every text-model request (tool hops included) is one response with one transcription. Local TTS costs nothing. None when a model has no price or a bound is missing."""
     s, t = _model_key(stt_model, TRANSCRIBE), _model_key(text_model, TEXT)
@@ -147,4 +163,7 @@ def cascade_worst_case_usd(stt_model, text_model, *, max_responses, max_audio_se
     stt = (max_audio_seconds * AUDIO_TOKENS_PER_SECOND_BOUND * TRANSCRIBE[s]["input"]
            + max_transcript_tokens * TRANSCRIBE[s]["output"]) / 1e6
     text = (max_text_input_tokens * TEXT[t]["input"] + max_output_tokens * TEXT[t]["output"]) / 1e6
-    return round((stt + text) * max_responses, 8)
+    speech = speech_worst_case_usd(tts_model, max_speech_chars)
+    if speech is None:
+        return None
+    return round((stt + text + speech) * max_responses, 8)

@@ -156,7 +156,8 @@ async def _mint(payload, lease):
         from routes.aria_voice import create_cascade_session
         session = await create_cascade_session(session_id=sid, purpose=purpose, room=payload.get("room"),
                                                kiosk_id=payload.get("kiosk_id"), instructions=instructions,
-                                               tools=tools, temperature=DEFAULT_TEMPERATURE)
+                                               tools=tools, temperature=DEFAULT_TEMPERATURE,
+                                               voice=payload.get("aria_voice_tts"), greeting_line=greeting_line(opening))
     else:
         session = await _mint_realtime(session_config, key, purpose, sid, payload)
     # Runtime truth (2026-10-15): record the model the PROVIDER says this session runs on,

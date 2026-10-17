@@ -50,14 +50,17 @@ class PaidTestBudget:
                                          max_output_tokens=max_output_tokens, max_session_seconds=max_session_seconds))
 
     def reserve_cascade(self, budget_id, *, stt_model, text_model, max_responses, max_audio_seconds,
-                        max_text_input_tokens, max_output_tokens, max_session_seconds, provenance):
+                        max_text_input_tokens, max_output_tokens, max_session_seconds, provenance,
+                        tts_model=None, max_speech_chars=0):
         """Reserve a bounded transcription -> text-model session (no Realtime) the same way, atomically."""
         amount = L.cascade_worst_case_usd(stt_model, text_model, max_responses=max_responses,
                                           max_audio_seconds=max_audio_seconds,
-                                          max_text_input_tokens=max_text_input_tokens, max_output_tokens=max_output_tokens)
+                                          max_text_input_tokens=max_text_input_tokens, max_output_tokens=max_output_tokens,
+                                          tts_model=tts_model, max_speech_chars=max_speech_chars)
         return self._reserve(budget_id, model=text_model, amount=amount, max_responses=max_responses,
                              max_session_seconds=max_session_seconds, provenance=provenance, retry_of=None,
-                             bounds=dict(stt_model=stt_model, max_responses=max_responses,
+                             bounds=dict(stt_model=stt_model, tts_model=tts_model, max_speech_chars=max_speech_chars,
+                                         max_responses=max_responses,
                                          max_audio_seconds=max_audio_seconds, max_text_input_tokens=max_text_input_tokens,
                                          max_output_tokens=max_output_tokens, max_session_seconds=max_session_seconds))
 

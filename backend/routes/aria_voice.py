@@ -4,15 +4,19 @@ The room page keeps Aria's handler, tools and memory; only the transport changes
 that transport that touches the provider, so the provider key, the receipts and the budget stay in the backend:
   speech -> text   POST /aria-voice/transcribe   gpt-4o-mini-transcribe   purpose speech_transcription
   text   -> reply  POST /aria-voice/respond      gpt-4o-mini, streamed    purpose = the session's purpose
+  text   -> speech POST /aria-voice/speak      the session's voice (VOICES), streamed  purpose speech_generation
 Instructions and tools are the ones the room session already builds (realtime_resident_session._mint); they are
-stored here at session start and never accepted from the client. No Realtime model is used.
+stored here at session start and never accepted from the client. No Realtime model is used. Models and voice are
+configuration (ARIA_VOICE_*); a different text provider only needs its own _stream().
 
 Prototype only: off unless ARIA_VOICE_CASCADE=1, and every session needs an open owner-approved paid-test budget
 (CAOSCARE_PAID_TEST_BUDGET_ID) that accepts its worst case first - fail closed.
 """
+import base64
 import hashlib
 import json
 import os
+import re
 import secrets
 from datetime import timedelta
 
@@ -25,10 +29,16 @@ from models import now_utc
 
 router = APIRouter(prefix="/aria-voice", tags=["realtime"])
 
-STT_MODEL = "gpt-4o-mini-transcribe"
-TEXT_MODEL = "gpt-4o-mini"
-BOUNDS = dict(max_responses=40, max_audio_seconds=30, max_text_input_tokens=32000, max_output_tokens=400,
-              max_session_seconds=900)
+STT_MODEL = os.environ.get("ARIA_VOICE_STT_MODEL", "gpt-4o-mini-transcribe").strip()
+TEXT_MODEL = os.environ.get("ARIA_VOICE_TEXT_MODEL", "gpt-4o-mini").strip()
+# Audition voices (owner order 2026-10-17: at most three). key -> (model, voice)
+VOICES = {"tts-1:sage": ("tts-1", "sage"), "tts-1:shimmer": ("tts-1", "shimmer"),
+          "gpt-4o-mini-tts:marin": ("gpt-4o-mini-tts", "marin")}
+DEFAULT_VOICE = os.environ.get("ARIA_VOICE_TTS", "tts-1:sage").strip()
+SPEECH_STYLE = "Warm, calm and natural, like a friend in the room. Unhurried, never announcer-like."
+BOUNDS = dict(max_responses=16, max_audio_seconds=30, max_text_input_tokens=32000, max_output_tokens=250,
+              max_session_seconds=900, max_speech_chars=1000)
+GREETING_CACHE = os.path.expanduser(os.environ.get("ARIA_VOICE_GREETING_CACHE", "~/.cache/caoscare/aria_voice_greetings"))
 MAX_AUDIO_BYTES = BOUNDS["max_audio_seconds"] * 16000 * 2 + 1024    # 16 kHz mono PCM16 WAV
 MAX_INPUT_CHARS = BOUNDS["max_text_input_tokens"] * 3               # conservative chars-per-token bound
 _ROLES = {"user", "assistant", "tool"}
@@ -51,13 +61,27 @@ def _sha(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
+def _load_lexicon():
+    """Spoken forms (one file: backend/aria_voice_lexicon.json), applied only to what is sent to speech."""
+    path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "aria_voice_lexicon.json")
+    with open(path) as f:
+        lex = {k: v for k, v in json.load(f).items() if not k.startswith("_")}
+    rx = re.compile(r"\b(" + "|".join(re.escape(k) for k in sorted(lex, key=len, reverse=True)) + r")\b", re.I)
+    low = {k.lower(): v for k, v in lex.items()}
+    return lambda text: rx.sub(lambda m: low[m.group(0).lower()], text)
+
+
+spoken = _load_lexicon()
+
+
 def chat_tools(realtime_tools: list) -> list:
     """Realtime function tools -> chat-completions tools (same names, descriptions and schemas)."""
     return [{"type": "function", "function": {k: t[k] for k in ("name", "description", "parameters") if k in t}}
             for t in realtime_tools or [] if t.get("type") == "function" and t.get("name")]
 
 
-async def create_cascade_session(*, session_id, purpose, room, kiosk_id, instructions, tools, temperature) -> dict:
+async def create_cascade_session(*, session_id, purpose, room, kiosk_id, instructions, tools, temperature,
+                                 voice=None, greeting_line=None) -> dict:
     """Called by the room session builder instead of a Realtime mint when the page asks for transport=cascade."""
     if not enabled():
         raise HTTPException(status_code=404, detail="Low-cost voice prototype is not enabled.")
@@ -66,8 +90,10 @@ async def create_cascade_session(*, session_id, purpose, room, kiosk_id, instruc
     budget_id = test_budget_id()
     if not budget_id:
         raise HTTPException(status_code=503, detail="Low-cost voice refused: no owner-approved paid-test budget.")
+    voice = voice if voice in VOICES else DEFAULT_VOICE
+    tts_model, tts_voice = VOICES[voice]
     try:
-        out = ledger().budget.reserve_cascade(budget_id, stt_model=STT_MODEL, text_model=TEXT_MODEL,
+        out = ledger().budget.reserve_cascade(budget_id, stt_model=STT_MODEL, text_model=TEXT_MODEL, tts_model=tts_model,
                                               provenance=L.provenance(purpose, session_id=session_id), **BOUNDS)
     except Exception as e:   # noqa: BLE001 - the guard fails closed
         raise HTTPException(status_code=503, detail=f"Low-cost voice refused: budget guard unavailable ({e})")
@@ -80,9 +106,10 @@ async def create_cascade_session(*, session_id, purpose, room, kiosk_id, instruc
         "token_sha256": _sha(token), "session_id": session_id, "purpose": purpose, "room": room,
         "kiosk_id": kiosk_id, "instructions": instructions, "tools": chat_tools(tools),
         "temperature": temperature, "reservation_id": out["reservation_id"], "responses": 0,
+        "tts_model": tts_model, "tts_voice": tts_voice, "greeting_line": greeting_line, "spoken_chars": 0,
         "created_at": now_utc().isoformat(), "expires_at": expires.isoformat(), "ended_at": None})
     return {"transport": "cascade", "token": token, "expires_at": expires.isoformat(),
-            "stt_model": STT_MODEL, "session": {"model": TEXT_MODEL}}
+            "stt_model": STT_MODEL, "tts": voice, "audio_sample_rate": 24000, "session": {"model": TEXT_MODEL}}
 
 
 async def _session(request: Request) -> dict:
@@ -188,6 +215,76 @@ async def _stream(s: dict, body: dict):
         await record_request_async(resp, purpose=s["purpose"], endpoint="chat/completions",
                                    model_requested=TEXT_MODEL, started_at=t0, key=key, session_id=s["session_id"],
                                    body=summary, room=s["room"], transport="cascade")
+
+
+@router.post("/speak")
+async def speak(request: Request, payload: dict):
+    """One sentence of Aria's reply as raw PCM16 24 kHz mono, streamed as the provider produces it. Only the
+    session's own greeting line is cached (the call opens without a provider request after its first use)."""
+    s = await _session(request)
+    text = (payload.get("text") or "").strip()
+    if not text or len(text) > BOUNDS["max_speech_chars"]:
+        raise HTTPException(status_code=413, detail="Nothing to say, or longer than the session bound.")
+    say = spoken(text)
+    cache = None
+    if s.get("greeting_line") and text == s["greeting_line"].strip():
+        cache = os.path.join(GREETING_CACHE, hashlib.sha256(
+            f"{s['tts_model']}|{s['tts_voice']}|{SPEECH_STYLE}|{say}".encode()).hexdigest() + ".pcm")
+        if os.path.exists(cache):
+            return StreamingResponse(_file(cache), media_type="audio/pcm")
+    n = await db.aria_voice_sessions.find_one_and_update(
+        {"_id": s["_id"], "spoken_chars": {"$lte": BOUNDS["max_responses"] * BOUNDS["max_speech_chars"] - len(say)}},
+        {"$inc": {"spoken_chars": len(say)}})
+    if not n:
+        raise HTTPException(status_code=429, detail="This session reached its speech bound.")
+    return StreamingResponse(_speech(s, say, cache), media_type="audio/pcm")
+
+
+async def _file(path):
+    with open(path, "rb") as f:
+        yield f.read()
+
+
+async def _speech(s: dict, say: str, cache):
+    """tts-1 is billed per character (no usage in the response); gpt-4o-mini-tts reports usage over SSE."""
+    from routes.paid_api_receipts import record_request_async, now_iso
+    model, voice = s["tts_model"], s["tts_voice"]
+    sse = model != "tts-1"
+    body = {"model": model, "voice": voice, "input": say, "response_format": "pcm"}
+    if sse:
+        body.update(stream_format="sse", instructions=SPEECH_STYLE)
+    key, t0, resp, summary, kept = _key(), now_iso(), None, {}, []
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=10.0)) as client:
+            async with client.stream("POST", f"{_base()}/audio/speech", json=body,
+                                     headers={"Authorization": f"Bearer {key}"}) as resp:
+                if resp.status_code >= 400:
+                    await resp.aread()
+                    return
+                if not sse:
+                    async for chunk in resp.aiter_bytes():
+                        kept.append(chunk); yield chunk
+                    return
+                async for line in resp.aiter_lines():
+                    if not line.startswith("data: ") or line.strip() == "data: [DONE]":
+                        continue
+                    ev = json.loads(line[6:])
+                    if ev.get("type") == "speech.audio.delta":
+                        pcm = base64.b64decode(ev.get("audio") or "")
+                        kept.append(pcm); yield pcm
+                    elif ev.get("type") == "speech.audio.done":
+                        summary = {"model": model, "usage": ev.get("usage")}
+    except httpx.HTTPError:
+        return
+    finally:
+        await record_request_async(resp, purpose="speech_generation", endpoint="audio/speech", model_requested=model,
+                                   started_at=t0, key=key, session_id=s["session_id"], body=summary,
+                                   chars=None if sse else len(say), voice=voice,
+                                   conversation_purpose=s["purpose"], room=s["room"], transport="cascade")
+        if cache and kept and resp is not None and resp.status_code < 400:
+            os.makedirs(os.path.dirname(cache), exist_ok=True)
+            with open(cache, "wb") as f:
+                f.write(b"".join(kept))
 
 
 def _sse(obj: dict) -> str:

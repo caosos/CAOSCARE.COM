@@ -2,9 +2,10 @@
  * Low-cost voice transport (docs/ARIA_LOW_COST_VOICE_PROTOTYPE.md). Stands where the WebRTC peer connection
  * and its "oai-events" data channel stand in realtimeConnection.js, and produces the same Realtime events the
  * handler (realtimeMessageHandler.js) already understands - so Aria's tools, grounding, memory and receipts
- * are unchanged. Behind it: local VAD + TTS (room-node/aria_voice, ws://127.0.0.1:8794) and the backend's
- * receipted speech-to-text and text model (routes/aria_voice.py). No Realtime model is used.
- * Side-by-side audition only: chosen by ?aria_voice=cascade on the room page, never by default.
+ * are unchanged. Behind it: local turn detection (room-node/aria_voice, ws://127.0.0.1:8794) and the backend's
+ * receipted speech-to-text, text model and voice (routes/aria_voice.py). No Realtime model is used.
+ * Side-by-side audition only: chosen by ?aria_voice=cascade on the room page, never by default;
+ * &aria_voice_tts=<key> picks one of the backend's audition voices (routes/aria_voice.py VOICES).
  */
 export const VOICE_SERVICE_URL = "ws://127.0.0.1:8794";
 const SENTENCE_END = /[.!?…]["')\]]?\s+/;
@@ -12,6 +13,10 @@ const FIRST_CLAUSE = /^.{24,}?[,;:—]\s+/;   // a reply's opening clause is spo
 
 export function requestedTransport(search = typeof window !== "undefined" ? window.location.search : "") {
   return new URLSearchParams(search).get("aria_voice") === "cascade" ? "cascade" : null;
+}
+
+export function requestedVoice(search = typeof window !== "undefined" ? window.location.search : "") {
+  return new URLSearchParams(search).get("aria_voice_tts") || null;
 }
 
 /** Realtime conversation items -> chat messages (what the backend's text model takes). */
@@ -78,67 +83,131 @@ function startMic(stream, ws, AudioCtx) {
   return () => { try { proc.disconnect(); src.disconnect(); ctx.close(); } catch {} };
 }
 
+function joinBytes(a, b) {
+  const out = new Uint8Array(a.length + b.length);
+  out.set(a, 0); out.set(b, a.length);
+  return out;
+}
+
 export function createCascadeConnection({ session, caos, stream, api, wsUrl = VOICE_SERVICE_URL,
   WebSocketImpl = WebSocket, fetchImpl = (...a) => fetch(...a), player = createPlayer(),
   AudioCtx = typeof window !== "undefined" && (window.AudioContext || window.webkitAudioContext) }) {
   const headers = { "X-Aria-Voice-Token": session.token };
+  const rate = session.audio_sample_rate || 24000;
   const items = [];                         // the conversation, as chat messages
-  let n = 0, rate = 22050, gen = 0, autoRespond = true, resp = null, stopMic = null, closed = false;
+  let n = 0, autoRespond = true, resp = null, stopMic = null, closed = false;
   const id = (p) => `${p}_${Date.now().toString(36)}_${++n}`;
   const dc = { readyState: "connecting", onopen: null, onmessage: null, onclose: null, send: (s) => onClient(JSON.parse(s)), close };
   const emit = (obj) => { if (!closed) setTimeout(() => dc.onmessage?.({ data: JSON.stringify(obj) }), 0); };
   const ws = new WebSocketImpl(wsUrl);
-  ws.binaryType = "arraybuffer";
-  player.onIdle = () => {               // between sentences the player idles too: only the reply's real end counts
-    if (resp?.speaking && resp.done && resp.pending === 0) { finishAudio(resp); resp = null; }
+  player.onIdle = () => {                   // the player also runs dry between sentences: only the reply's end counts
+    const r = resp;
+    if (r?.speaking && r.done && !r.queue.length && !r.pump) { finishAudio(r); resp = null; }
   };
 
   function finishAudio(r) { r.speaking = false; emit({ type: "output_audio_buffer.stopped", response_id: r.id }); }
+  const wake = (o, k) => { const w = o[k]; o[k] = null; w?.(); };
 
+  // Every finished sentence is requested at once; sentences play strictly in order as their audio streams in.
   function say(r, text) {
     if (!text) return;
-    r.spoken.push(text); r.pending += 1;
-    ws.send(JSON.stringify({ type: "speak", id: r.id, text }));
+    const e = { text, chunks: [], ended: false, wake: null };
+    r.queue.push(e); r.said += 1;
+    fetchImpl(`${api}/aria-voice/speak`, { method: "POST", signal: r.abort.signal,
+      headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ text }) })
+      .then(async (res) => {
+        if (!res.ok || !res.body) return;
+        const reader = res.body.getReader();
+        let carry = null;
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          let bytes = carry ? joinBytes(carry, value) : value;
+          carry = null;
+          if (bytes.length % 2) { carry = bytes.slice(-1); bytes = bytes.slice(0, -1); }
+          if (bytes.length) { e.chunks.push(new Int16Array(bytes.slice().buffer)); wake(e, "wake"); }
+        }
+      })
+      .catch(() => {})
+      .finally(() => { e.ended = true; wake(e, "wake"); });
+    if (r.pump) wake(r, "wakePump"); else r.pump = pump(r);
+  }
+
+  async function pump(r) {
+    while (resp === r) {
+      const e = r.queue[0];
+      if (!e) { if (r.done) break; await new Promise((ok) => { r.wakePump = ok; }); continue; }
+      while (resp === r) {
+        if (e.chunks.length) {
+          if (!r.speaking) { r.speaking = true; emit({ type: "output_audio_buffer.started", response_id: r.id }); }
+          if (!e.heard) { e.heard = true; r.heard.push(e.text); }   // reached the speaker
+          player.play(e.chunks.shift(), rate);
+          continue;
+        }
+        if (e.ended) break;
+        await new Promise((ok) => { e.wake = ok; });
+      }
+      r.queue.shift();
+    }
+    r.pump = null;
+    if (resp === r && r.done && !player.playing) { if (r.speaking) finishAudio(r); resp = null; }
   }
 
   function cancel(reason) {
     const r = resp;
     if (!r) return false;
-    resp = null; r.abort?.abort(); gen += 1;
-    ws.send(JSON.stringify({ type: "stop" }));
+    resp = null; r.abort.abort();
+    wake(r, "wakePump"); r.queue.forEach((e) => wake(e, "wake"));
     const wasPlaying = player.stop();
     if (wasPlaying || r.speaking) emit({ type: "output_audio_buffer.cleared", response_id: r.id });
-    if (!r.done) emit({ type: "response.done", response: { id: r.id, status: "cancelled", status_details: { reason }, usage: null } });
+    // Only what reached the speaker counts as said; the unheard rest of the reply is not in the conversation.
+    const heard = r.heard.join(" ").trim();
+    if (!r.done) {
+      if (heard) {
+        items.push({ role: "assistant", content: heard });
+        emit({ type: "response.output_audio_transcript.done", response_id: r.id, item_id: r.item, transcript: heard });
+      }
+      emit({ type: "response.done", response: { id: r.id, status: "cancelled", status_details: { reason }, usage: null } });
+    } else if (r.itemIndex != null) {
+      const it = items[r.itemIndex];
+      if (it.tool_calls) it.content = heard || null;
+      else if (heard) it.content = heard;
+      else items.splice(r.itemIndex, 1);
+    }
     return true;
   }
 
   async function respond(opts = {}) {
     if (resp && !resp.done) return emit({ type: "error", error: { message: "Conversation already has an active response." } });
-    const r = resp = { id: id("resp"), item: id("item"), spoken: [], pending: 0, text: "", buf: "", calls: [], done: false, speaking: false, gen };
+    if (resp) cancel("superseded");         // a finished reply still playing gives way to the next one
+    const r = resp = { id: id("resp"), item: id("item"), queue: [], heard: [], said: 0, text: "", buf: "", calls: [],
+      done: false, speaking: false, pump: null, wakePump: null, itemIndex: null, abort: new AbortController() };
     emit({ type: "response.created", response: { id: r.id } });
     const delta = (d) => { r.text += d; emit({ type: "response.output_audio_transcript.delta", response_id: r.id, item_id: r.item, delta: d });
-      const [done, rest] = takeSentences(r.buf + d, r.spoken.length === 0); r.buf = rest; done.forEach((s) => say(r, s)); };
+      const [done, rest] = takeSentences(r.buf + d, r.said === 0); r.buf = rest; done.forEach((s) => say(r, s)); };
     try {
       if (caos.greeting_line && opts.instructions && opts.instructions === caos.greeting?.instructions) delta(caos.greeting_line + " ");
       else await streamReply(r, opts, delta);
     } catch (e) {
-      if (r.abort?.signal.aborted) return;
+      if (r.abort.signal.aborted) return;
       emit({ type: "error", error: { message: `Low-cost voice: ${e.message}` } });
     }
     if (resp !== r) return;                 // cancelled meanwhile
     say(r, r.buf.trim()); r.buf = "";
     const text = r.text.trim();
-    if (text || r.calls.length) items.push({ role: "assistant", content: text || null,
-      ...(r.calls.length ? { tool_calls: r.calls.map((c) => ({ id: c.id, type: "function", function: { name: c.name, arguments: c.arguments } })) } : {}) });
+    if (text || r.calls.length) {
+      r.itemIndex = items.length;
+      items.push({ role: "assistant", content: text || null,
+        ...(r.calls.length ? { tool_calls: r.calls.map((c) => ({ id: c.id, type: "function", function: { name: c.name, arguments: c.arguments } })) } : {}) });
+    }
     if (text) emit({ type: "response.output_audio_transcript.done", response_id: r.id, item_id: r.item, transcript: text });
     r.calls.forEach((c) => emit({ type: "response.function_call_arguments.done", response_id: r.id, call_id: c.id, name: c.name, arguments: c.arguments }));
     r.done = true;
     emit({ type: "response.done", response: { id: r.id, status: "completed", usage: null } });
-    if (!r.pending && !player.playing) resp = null;
+    if (r.pump) wake(r, "wakePump"); else if (!player.playing) resp = null;
   }
 
   async function streamReply(r, opts, delta) {
-    r.abort = new AbortController();
     const res = await fetchImpl(`${api}/aria-voice/respond`, { method: "POST", signal: r.abort.signal,
       headers: { ...headers, "Content-Type": "application/json" },
       body: JSON.stringify({ items, ...(opts.instructions ? { instructions: opts.instructions } : {}),
@@ -181,16 +250,8 @@ export function createCascadeConnection({ session, caos, stream, api, wsUrl = VO
   }
 
   function onService(ev) {
-    if (typeof ev.data !== "string") {
-      const view = new DataView(ev.data);
-      if (view.getUint32(0, true) !== gen || !resp) return;      // audio of an interrupted reply
-      if (!resp.speaking) { resp.speaking = true; emit({ type: "output_audio_buffer.started", response_id: resp.id }); }
-      player.play(new Int16Array(ev.data.slice(4)), rate);
-      return;
-    }
     const m = JSON.parse(ev.data);
     if (m.type === "ready") {
-      rate = m.sample_rate; gen = m.gen || 0;
       const td = caos.turn_detection || {};
       ws.send(JSON.stringify({ type: "config", silence_ms: td.silence_duration_ms, threshold: td.threshold }));
       stopMic = startMic(stream, ws, AudioCtx);
@@ -206,8 +267,6 @@ export function createCascadeConnection({ session, caos, stream, api, wsUrl = VO
       early = null;
     } else if (m.type === "speech_stopped") {
       heard(m.wav);
-    } else if (m.type === "spoken" && resp && m.id === resp.id) {
-      resp.pending -= 1;
     }
   }
 
@@ -231,6 +290,7 @@ export function createCascadeConnection({ session, caos, stream, api, wsUrl = VO
   function close() {
     if (closed) return;
     closed = true; dc.readyState = "closed";
+    if (resp) { resp.abort.abort(); resp = null; }
     try { stopMic?.(); } catch {}
     player.close();
     try { ws.close(); } catch {}
