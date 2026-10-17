@@ -161,6 +161,7 @@ export function createRealtimeHandlers({
   // Several tool calls in one turn (e.g. seven schedule lookups): ask for ONE
   // reply after the last finishes - one per call collided ("active response").
   let toolsInFlight = 0;
+  let providerSession = {};   // the provider's own session id/model (session.created/updated), for paid API receipts
   let deferredReply = null;
   const handleFunctionCall = async (fn) => {
     if (endCtl.ending) return;
@@ -325,12 +326,16 @@ export function createRealtimeHandlers({
       hangup.onAudioStopped();
     }
     if (msg.type === "response.done" && typedTurnRef?.current) onTypedResponseDone(typedTurnRef.current, send, msg.response);
+    if (msg.type === "session.created" || msg.type === "session.updated") providerSession = { id: msg.session?.id || providerSession.id, model: msg.session?.model || providerSession.model };
     if (msg.type === "response.done") {
       setStatus("live");
       logRealtimeEvent(sessionIdRef.current, "response_done", {
         responseId: msg.response?.id,
         meta: {
           usage: typeof sanitizeRealtimeUsage === "function" ? sanitizeRealtimeUsage(msg.response?.usage) : null,
+          status: msg.response?.status || null,
+          provider_session_id: providerSession.id || null,
+          provider_model: providerSession.model || null,
           model: caos?.diagnostics?.model || null,
           provider: "openai",
           transport: "webrtc",

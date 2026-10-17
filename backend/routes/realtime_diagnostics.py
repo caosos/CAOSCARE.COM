@@ -47,6 +47,9 @@ async def log_event(data: DiagnosticEvent):
         "client_instance_id": data.client_instance_id,
         "created_at": now_utc().isoformat(),
     })
+    # Billing evidence (provider usage, session end) also goes to the durable paid API ledger.
+    from routes.paid_api_receipts import record_diagnostic
+    await record_diagnostic(data.event_type, data.session_id, data.response_id, data.meta, room=data.room)
     return {"ok": True}
 
 
