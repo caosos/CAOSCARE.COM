@@ -15,6 +15,7 @@ import CopyTranscriptButton from "../components/CopyTranscriptButton";
 import DemoRoomVisual from "../components/kiosk/demo/DemoRoomVisual";
 import DemoStaffChips from "../components/kiosk/demo/DemoStaffChips";
 import { DemoTypedInput, DemoResetButton } from "../components/kiosk/demo/DemoControls";
+import { requestedTransport } from "../lib/cascadeTransport";
 
 export default function RealtimeChatScreen({
   resident,
@@ -85,7 +86,7 @@ export default function RealtimeChatScreen({
       <div className="flex items-start justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.3em] text-caos-mute">
-            Full-duplex · OpenAI Realtime
+            {requestedTransport() ? "Low-cost voice · audition" : "Full-duplex · OpenAI Realtime"}
           </p>
           <h2 className="font-display text-3xl md:text-5xl font-light text-caos-forest mt-2">
             Aria is here with you.
