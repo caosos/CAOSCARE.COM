@@ -30,7 +30,7 @@ const sse = (events) => {
 const pcm = (n = 480) => ({ ok: true, body: { getReader: () => { let sent = false;
   return { read: async () => (sent ? { done: true } : (sent = true, { value: new Uint8Array(n * 2), done: false })) }; } } });
 
-function setup({ replies = [], transcript = "I need some water", speakImpl = () => pcm() } = {}) {
+function setup({ replies = [], transcript = "I need some water", speakImpl = () => pcm(), extra = {} } = {}) {
   const calls = [];
   const fetchImpl = jest.fn(async (url, opts) => {
     calls.push({ url, opts });
@@ -45,7 +45,7 @@ function setup({ replies = [], transcript = "I need some water", speakImpl = () 
   const { dc, pc } = createCascadeConnection({
     session: { token: "tok_secret_value", audio_sample_rate: 24000, session: { model: "gpt-4o-mini" } },
     caos: { greeting: GREETING, greeting_line: "Hi, Michael.", turn_detection: { silence_duration_ms: 1000, threshold: 0.5 } },
-    stream: {}, api: "/api", WebSocketImpl: FakeWs, fetchImpl, player, AudioCtx: FakeAudioCtx,
+    stream: {}, api: "/api", WebSocketImpl: FakeWs, fetchImpl, player, AudioCtx: FakeAudioCtx, ...extra,
   });
   const events = [];
   dc.onmessage = (ev) => events.push(JSON.parse(ev.data));
@@ -247,4 +247,36 @@ test("Aria's voice plays through a WebRTC loopback into the page's audio element
   expect(peers[0].added).toEqual(tracks);                 // her audio goes into the peer connection...
   expect(audioEl.srcObject).toBe("loopback-stream");      // ...and is played by the page's audio element
   expect(audioEl.play).toHaveBeenCalled();
+});
+
+const DIAG = { kind: "energy_segment", start_epoch_ms: 1, duration_s: 1.2, peak_dbfs: -9, mean_dbfs: -28,
+  vad_speech_frames: 0, vad_turn_started: false, no_speech_detected: true };
+
+test("detector diagnostics: asked for and logged only on a measured page", async () => {
+  const log = jest.fn();
+  const { ws } = setup({ extra: { log } });
+  ws.serve({ type: "ready" });
+  expect(ws.json()[0]).toEqual({ type: "config", silence_ms: 1000, threshold: 0.5 });   // nothing asked
+  ws.serve({ type: "diag", data: DIAG });                                                // an old/odd service
+  expect(log.mock.calls.filter(([t]) => t === "cascade_vad_diag")).toHaveLength(0);
+
+  const log2 = jest.fn();
+  const b = setup({ extra: { log: log2, diagnostics: true } });
+  b.ws.serve({ type: "ready" });
+  expect(b.ws.json()[0]).toMatchObject({ type: "config", diagnostics: true, threshold: 0.5, silence_ms: 1000 });
+  b.ws.serve({ type: "diag", data: DIAG });
+  expect(log2).toHaveBeenCalledWith("cascade_vad_diag", { meta: { transport: "cascade", ...DIAG } });
+});
+
+test("a failing diagnostic log never affects the call", async () => {
+  const log = jest.fn((t) => { if (t === "cascade_vad_diag") throw new Error("diagnostics down"); });
+  const rejecting = jest.fn((t) => (t === "cascade_vad_diag" ? Promise.reject(new Error("offline")) : undefined));
+  for (const l of [log, rejecting]) {
+    const { ws, types } = setup({ extra: { log: l, diagnostics: true } });
+    ws.serve({ type: "ready" });
+    expect(() => ws.serve({ type: "diag", data: DIAG })).not.toThrow();
+    ws.serve({ type: "speech_started" });
+    await flush();
+    expect(types()).toContain("input_audio_buffer.speech_started");
+  }
 });

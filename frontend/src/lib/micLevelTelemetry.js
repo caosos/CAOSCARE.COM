@@ -1,7 +1,8 @@
 // Event-only level telemetry for the PROCESSED microphone track - the audio
 // the browser actually sends to OpenAI (after echo cancellation, noise
 // suppression and auto-gain). Numbers only: no samples, no transcripts.
-// Off unless REACT_APP_MIC_LEVEL_TELEMETRY=1 at build time. See
+// Off unless REACT_APP_MIC_LEVEL_TELEMETRY=1 at build time AND the page's kiosk
+// is listed in REACT_APP_MIC_LEVEL_TELEMETRY_KIOSKS (micDiagnosticsAllowed). See
 // docs/reports/2026-10-09-audio-turn-triage.md for why it exists: the wake
 // listener sees the RAW eMeet signal, the server sees this one, and the
 // difference between them is the unanswered question.
@@ -40,8 +41,17 @@ export function createLevelSegmenter(t0 = Date.now()) {
   };
 }
 
-export function startMicLevelTelemetry(stream, log) {
-  if (process.env.REACT_APP_MIC_LEVEL_TELEMETRY !== "1") return () => {};
+// Who may be measured: the build flag AND this kiosk named in the build's
+// REACT_APP_MIC_LEVEL_TELEMETRY_KIOSKS (comma-separated). No list means no one,
+// so a flag set on a shared build never measures another resident's room. The
+// same answer gates the voice service's detector diagnostics (cascadeTransport).
+export function micDiagnosticsAllowed(kioskId, env = process.env) {
+  if (env.REACT_APP_MIC_LEVEL_TELEMETRY !== "1" || !kioskId) return false;
+  return (env.REACT_APP_MIC_LEVEL_TELEMETRY_KIOSKS || "").split(",").map((k) => k.trim()).includes(kioskId);
+}
+
+export function startMicLevelTelemetry(stream, log, { allowed = false } = {}) {
+  if (!allowed) return () => {};
   let ctx, timer;
   try {
     ctx = new (window.AudioContext || window.webkitAudioContext)();

@@ -39,6 +39,13 @@ Swapping the text provider means a new `_stream()` in `routes/aria_voice.py`; no
 - Receipts (metadata only, `realtime_diagnostics`): `cascade_playback` per reply (first audio, underruns, sentence
   gaps, queue depth, buffered ms, heard vs partial, outcome) and `cascade_barge_in` (words in the interrupting turn
   - 0 points to echo or noise).
+- Measurement (Room 214 only, owner-approved 2026-10-17, off by default): `ARIA_WAKE_DIAG_KIOSKS=<kiosk ids>` in
+  `aria-wake.env` + `ctl.sh rebuild` turns on, for those kiosks only, `mic_level` (processed-track level per speech
+  segment, `micLevelTelemetry.js`) and `cascade_vad_diag` from the voice service (`Diag`): per level segment of the
+  audio Silero read, its levels, VAD-flagged 100 ms frames, whether a turn started, and `no_speech_detected` when
+  there was energy but no detected speech; every 30 s, frame arrival (`wall_s`/`audio_s`/gaps). Numbers only,
+  at most 30 per minute. sherpa-onnx does not expose Silero's probability, so flagged frames are the score.
+  `mic_diagnostics_enabled` marks a measured session. Off: remove the line, rebuild.
 - Greeting: `_caos.greeting_line`, spoken with no reasoning call; its audio is cached after first use (only the
   greeting is ever cached — conversation audio is never stored).
 - Pronunciation: `backend/aria_voice_lexicon.json` (KAY-oss Care), applied only to text sent to speech.

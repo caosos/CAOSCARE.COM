@@ -173,6 +173,7 @@ const ms = (s) => Math.round(s * 1000);
 
 export function createCascadeConnection({ session, caos, stream, api, audioEl = null, wsUrl = VOICE_SERVICE_URL,
   WebSocketImpl = WebSocket, fetchImpl = (...a) => fetch(...a), player = createPlayer({ audioEl }), log = () => {},
+  diagnostics = false,
   AudioCtx = typeof window !== "undefined" && (window.AudioContext || window.webkitAudioContext) }) {
   const headers = { "X-Aria-Voice-Token": session.token };
   const rate = session.audio_sample_rate || 24000;
@@ -433,7 +434,8 @@ export function createCascadeConnection({ session, caos, stream, api, audioEl = 
     const m = JSON.parse(ev.data);
     if (m.type === "ready") {
       const td = caos.turn_detection || {};
-      ws.send(JSON.stringify({ type: "config", silence_ms: td.silence_duration_ms, threshold: td.threshold }));
+      ws.send(JSON.stringify({ type: "config", silence_ms: td.silence_duration_ms, threshold: td.threshold,
+        ...(diagnostics ? { diagnostics: true } : {}) }));
       stopMic = startMic(stream, ws, AudioCtx);
       player.prepare?.();                     // set up the echo-cancelled output before the greeting plays
       dc.readyState = "open";
@@ -451,6 +453,8 @@ export function createCascadeConnection({ session, caos, stream, api, audioEl = 
       early = null;
     } else if (m.type === "speech_stopped") {
       heard(m.wav);
+    } else if (m.type === "diag" && diagnostics) {   // numbers only (aria_voice Diag); never affects the call
+      try { Promise.resolve(log("cascade_vad_diag", { meta: { transport: "cascade", ...m.data } })).catch(() => {}); } catch {}
     }
   }
 

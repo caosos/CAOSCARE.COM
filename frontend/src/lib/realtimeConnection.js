@@ -11,7 +11,7 @@ import { attachLifecycleDiagnostics } from "./realtimeLifecycleDiagnostics";
 import { buildSessionUpdate } from "./realtimeSessionUpdate";
 import { createLeaseWatchdog } from "./realtimeLeaseWatchdog";
 import { createInactivityTimer } from "./realtimeInactivityTimer";
-import { startMicLevelTelemetry } from "./micLevelTelemetry";
+import { micDiagnosticsAllowed, startMicLevelTelemetry } from "./micLevelTelemetry";
 
 import { createTypedTurnState, markResponseRequested } from "./realtimeTypedTurn";
 import { createCascadeConnection } from "./cascadeTransport";
@@ -152,12 +152,14 @@ export async function connectRealtimeVoice({
         }
         setMicLabel(track?.label || null);
       } catch { /* diagnostic only - never let this affect the call */ }
-      startMicLevelTelemetry(stream, (type, o) => logRealtimeEvent(sessionIdRef.current, type, o));
+      const diagnostics = micDiagnosticsAllowed(kioskId);   // Room 214 measurement build only
+      if (diagnostics) logRealtimeEvent(sessionIdRef.current, "mic_diagnostics_enabled", { meta: { mic_level: true, detector: cascade } });
+      startMicLevelTelemetry(stream, (type, o) => logRealtimeEvent(sessionIdRef.current, type, o), { allowed: diagnostics });
 
       if (!current()) throw new Error("canceled");
       let dc;
       if (cascade) {
-        ({ pc, dc } = createCascadeConnection({ session, caos, stream, api: API, audioEl: audioElRef.current,
+        ({ pc, dc } = createCascadeConnection({ session, caos, stream, api: API, audioEl: audioElRef.current, diagnostics,
           log: (type, d) => logRealtimeEvent(sessionIdRef.current, type, d) }));
         dc.onclose = () => recover("voice_service_closed");
       } else {
