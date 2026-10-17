@@ -221,3 +221,30 @@ test("a reply asked for while a tool call is unanswered still sends a valid conv
     { role: "tool", tool_call_id: "c3", content: "{\"ok\":true}" },
   ]);
 });
+
+test("Aria's voice plays through a WebRTC loopback into the page's audio element, so echo cancellation removes it", async () => {
+  const { createPlayer } = require("../cascadeTransport");
+  const tracks = [{ kind: "audio" }];
+  const ctx = { currentTime: 0, destination: "speakers",
+    createMediaStreamDestination: () => ({ stream: { getTracks: () => tracks } }),
+    createBuffer: () => ({ duration: 0.02, copyToChannel() {} }),
+    createBufferSource: () => ({ connect: jest.fn(), start: jest.fn(), stop() {} }), close() {} };
+  const peers = [];
+  class FakeRTC {
+    constructor() { peers.push(this); this.added = []; }
+    addTrack(t) { this.added.push(t); }
+    async createOffer() { return { type: "offer", sdp: "o" }; }
+    async createAnswer() { return { type: "answer", sdp: "a" }; }
+    async setLocalDescription(d) { this.localDescription = d; }
+    async setRemoteDescription(d) { this.remoteDescription = d; if (d.type === "offer") setTimeout(() => this.ontrack?.({ streams: ["loopback-stream"] }), 0); }
+    close() {}
+  }
+  const audioEl = { play: jest.fn(() => Promise.resolve()) };
+  const player = createPlayer({ AudioCtx: function () { return ctx; }, audioEl, RTC: FakeRTC });
+  await player.prepare();
+  await new Promise((r) => setTimeout(r, 5));
+  expect(peers).toHaveLength(2);
+  expect(peers[0].added).toEqual(tracks);                 // her audio goes into the peer connection...
+  expect(audioEl.srcObject).toBe("loopback-stream");      // ...and is played by the page's audio element
+  expect(audioEl.play).toHaveBeenCalled();
+});

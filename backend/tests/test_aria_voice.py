@@ -387,3 +387,10 @@ def test_speech_cut_off_before_usage_is_priced_at_its_upper_bound_and_never_bloc
     assert r["estimate"]["basis"] == "request_size"
     assert r["estimate"]["usd"] == round(P.speech_worst_case_usd("gpt-4o-mini-tts", len("I'll let the nurse know right away.")), 8)
     assert budget.db.reservations.find_one({"session_id": sid})["unknown_usage"] is False
+
+
+def test_speech_never_reads_markdown_and_says_names_right():
+    assert V.spoken("- **Saturday, October 17**: High 67 in Conway, AR.\n- **Sunday**: see [the forecast](http://x).") == \
+        "Saturday, October 17: High 67 in Conway, Arkansas. Sunday: see the forecast."
+    assert V.spoken("Welcome to CAOSCare. I'm Aria.") == "Welcome to Kay-oss Care. I'm Aria."   # her name: SPEECH_STYLE
+    assert "AR-ee-uh" in V.SPEECH_STYLE

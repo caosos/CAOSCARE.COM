@@ -57,27 +57,55 @@ export function takeSentences(buf, first = false) {
   return [out, buf];
 }
 
-/** Plays PCM16 chunks back to back; stop() cuts playback at once. */
-export function createPlayer(AudioCtx = typeof window !== "undefined" && (window.AudioContext || window.webkitAudioContext)) {
-  let ctx = null, next = 0, live = [], onIdle = null;
+/** Chrome's echo canceller only subtracts audio it plays for WebRTC. Aria's voice is therefore sent through a local
+ * loopback peer connection into the page's audio element (as the Realtime call audio is), so the microphone's AEC
+ * removes her own voice and it never reads as the resident barging in (Room 214, 2026-10-17 rt_hyovgwag). */
+async function echoCancelledOutput(ctx, audioEl, RTC) {
+  const dest = ctx.createMediaStreamDestination();
+  const a = new RTC(), b = new RTC();
+  a.onicecandidate = (e) => e.candidate && b.addIceCandidate(e.candidate).catch(() => {});
+  b.onicecandidate = (e) => e.candidate && a.addIceCandidate(e.candidate).catch(() => {});
+  b.ontrack = (e) => { audioEl.srcObject = e.streams[0]; audioEl.play?.().catch(() => {}); };
+  dest.stream.getTracks().forEach((t) => a.addTrack(t, dest.stream));
+  await a.setLocalDescription(await a.createOffer());
+  await b.setRemoteDescription(a.localDescription);
+  await b.setLocalDescription(await b.createAnswer());
+  await a.setRemoteDescription(b.localDescription);
+  return { node: dest, close: () => { try { a.close(); b.close(); audioEl.srcObject = null; } catch {} } };
+}
+
+/** Plays PCM16 chunks back to back; stop() cuts playback at once. With an audio element and WebRTC available, the
+ * sound goes through the echo-cancelled path above; otherwise straight to the speakers. */
+export function createPlayer({ AudioCtx = typeof window !== "undefined" && (window.AudioContext || window.webkitAudioContext),
+  audioEl = null, RTC = typeof window !== "undefined" && window.RTCPeerConnection } = {}) {
+  let ctx = null, out = null, next = 0, live = [], onIdle = null;
+  const ready = () => {
+    if (!ctx) {
+      ctx = new AudioCtx();
+      out = audioEl && RTC ? echoCancelledOutput(ctx, audioEl, RTC).catch(() => null) : Promise.resolve(null);
+    }
+    return out;
+  };
   return {
     set onIdle(fn) { onIdle = fn; },
     get playing() { return live.length > 0; },
+    prepare() { return ready(); },
     play(pcm16, rate) {
-      ctx = ctx || new AudioCtx();
+      ready();
       const f = new Float32Array(pcm16.length);
       for (let i = 0; i < pcm16.length; i++) f[i] = pcm16[i] / 32768;
       const buf = ctx.createBuffer(1, f.length, rate);
       buf.copyToChannel(f, 0);
       const src = ctx.createBufferSource();
-      src.buffer = buf; src.connect(ctx.destination);
-      next = Math.max(next, ctx.currentTime + 0.03);
+      src.buffer = buf;
+      out.then((sink) => src.connect(sink ? sink.node : ctx.destination));
+      next = Math.max(next, ctx.currentTime + 0.05);
       src.start(next); next += buf.duration;
       live.push(src);
       src.onended = () => { live = live.filter((s) => s !== src); if (!live.length) onIdle?.(); };
     },
     stop() { const was = live.length > 0; live.forEach((s) => { try { s.onended = null; s.stop(); } catch {} }); live = []; next = 0; return was; },
-    close() { this.stop(); try { ctx?.close(); } catch {} },
+    close() { this.stop(); out?.then((sink) => sink?.close()); try { ctx?.close(); } catch {} },
   };
 }
 
@@ -102,8 +130,8 @@ function joinBytes(a, b) {
   return out;
 }
 
-export function createCascadeConnection({ session, caos, stream, api, wsUrl = VOICE_SERVICE_URL,
-  WebSocketImpl = WebSocket, fetchImpl = (...a) => fetch(...a), player = createPlayer(),
+export function createCascadeConnection({ session, caos, stream, api, audioEl = null, wsUrl = VOICE_SERVICE_URL,
+  WebSocketImpl = WebSocket, fetchImpl = (...a) => fetch(...a), player = createPlayer({ audioEl }),
   AudioCtx = typeof window !== "undefined" && (window.AudioContext || window.webkitAudioContext) }) {
   const headers = { "X-Aria-Voice-Token": session.token };
   const rate = session.audio_sample_rate || 24000;
@@ -271,6 +299,7 @@ export function createCascadeConnection({ session, caos, stream, api, wsUrl = VO
       const td = caos.turn_detection || {};
       ws.send(JSON.stringify({ type: "config", silence_ms: td.silence_duration_ms, threshold: td.threshold }));
       stopMic = startMic(stream, ws, AudioCtx);
+      player.prepare?.();                     // set up the echo-cancelled output before the greeting plays
       dc.readyState = "open";
       emit({ type: "session.created", session: { id: id("cascade"), model: session.session?.model } });
       setTimeout(() => dc.onopen?.(), 0);
