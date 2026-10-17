@@ -28,6 +28,13 @@ def test_lexicon_says_kay_oss_care():
     assert say("CAOS runs here; chaos does not change.") == "Kay-oss runs here; chaos does not change."
 
 
+def test_lexicon_says_ah_ree_uh_not_area():
+    say = server.load_lexicon()
+    assert say("Hi Michael, it's Aria.") == "Hi Michael, it's Ah-ree-uh."
+    assert say("Ask ARIA or aria") == "Ask Ah-ree-uh or Ah-ree-uh"
+    assert say("the Arian area") == "the Arian area"          # whole words only
+
+
 def test_wav_round_trip():
     pcm = (np.sin(np.arange(1600) / 5) * 1000).astype("<i2")
     with wave.open(io.BytesIO(server.wav_bytes(pcm, 16000))) as w:

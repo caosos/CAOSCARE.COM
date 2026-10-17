@@ -27,7 +27,7 @@ router = APIRouter(prefix="/aria-voice", tags=["realtime"])
 
 STT_MODEL = "gpt-4o-mini-transcribe"
 TEXT_MODEL = "gpt-4o-mini"
-BOUNDS = dict(max_responses=40, max_audio_seconds=30, max_text_input_tokens=16000, max_output_tokens=400,
+BOUNDS = dict(max_responses=40, max_audio_seconds=30, max_text_input_tokens=32000, max_output_tokens=400,
               max_session_seconds=900)
 MAX_AUDIO_BYTES = BOUNDS["max_audio_seconds"] * 16000 * 2 + 1024    # 16 kHz mono PCM16 WAV
 MAX_INPUT_CHARS = BOUNDS["max_text_input_tokens"] * 3               # conservative chars-per-token bound
