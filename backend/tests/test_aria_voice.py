@@ -132,19 +132,40 @@ def data(lines):
 
 
 def test_off_by_default(lg, monkeypatch):
+    from routes import aria_voice_prefs as P
     monkeypatch.delenv("ARIA_VOICE_CASCADE", raising=False)
     with pytest.raises(HTTPException) as e:
         new_session()
     assert e.value.status_code == 404
-    assert run(V.config()) == {"cascade_enabled": False, "default_transport": "realtime"}
+    assert run(P.config()) == {"cascade_enabled": False, "default_transport": "realtime", "transport": "realtime", "voice": None}
 
 
-def test_room_default_transport_is_configuration(lg, monkeypatch):
+def test_the_kiosk_setting_switches_the_room_from_any_screen_and_is_logged(lg, monkeypatch):
+    from deps import db
+    from routes import aria_voice_prefs as P
     monkeypatch.setenv("ARIA_VOICE_CASCADE", "1")
     monkeypatch.setenv("ARIA_VOICE_DEFAULT_TRANSPORT", "cascade")
-    assert run(V.config()) == {"cascade_enabled": True, "default_transport": "cascade"}
-    monkeypatch.delenv("ARIA_VOICE_CASCADE")
-    assert V.default_transport() == "realtime"            # never a default that cannot run
+    kid = f"kio_test_{uuid.uuid4().hex[:6]}"
+    run(db.kiosks.insert_one({"kiosk_id": kid, "name": "t", "room": "999", "zone": "z"}))
+    try:
+        assert run(P.config(kid))["transport"] == "cascade"                       # room default
+        assert run(P.session_choice({"kiosk_id": kid, "voice": "shimmer"})) == ("cascade", "shimmer")
+        out = run(P.set_prefs(kid, {"transport": "realtime", "voice": "Nova"}))
+        assert out["transport"] == "realtime" and out["voice"] == "nova"
+        assert run(P.session_choice({"kiosk_id": kid, "voice": "shimmer"})) == ("realtime", "nova")
+        assert run(P.session_choice({"kiosk_id": kid, "transport": "cascade"}))[0] == "cascade"   # test URL override
+        for bad in ({"transport": "fax"}, {"voice": "robot"}, {}):
+            with pytest.raises(HTTPException):
+                run(P.set_prefs(kid, bad))
+        with pytest.raises(HTTPException) as e:
+            run(P.set_prefs("kio_missing", {"transport": "realtime"}))
+        assert e.value.status_code == 404
+        ev = run(db.activation_events.find_one({"kiosk_id": kid, "layer": "aria_voice", "event": "prefs_changed"}))
+        assert ev["data"] == {"aria_transport": "realtime", "aria_voice": "nova"}
+        monkeypatch.delenv("ARIA_VOICE_CASCADE")
+        assert run(P.session_choice({"kiosk_id": kid, "transport": "cascade"}))[0] == "realtime"   # never one that cannot run
+    finally:
+        run(db.kiosks.delete_one({"kiosk_id": kid})); run(db.activation_events.delete_many({"kiosk_id": kid}))
 
 
 def test_live_room_session_is_receipted_never_blocked_or_capped(lg, monkeypatch):

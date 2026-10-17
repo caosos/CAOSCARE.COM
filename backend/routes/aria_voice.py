@@ -9,8 +9,7 @@ Instructions and tools are the ones the room session already builds (realtime_re
 stored here at session start and never accepted from the client. No Realtime model is used. Models and voice are
 configuration (ARIA_VOICE_*); a different text provider only needs its own _stream().
 
-Off unless ARIA_VOICE_CASCADE=1. ARIA_VOICE_DEFAULT_TRANSPORT (cascade|realtime) is the room page's default; the
-kiosk's switch overrides it. Paid tests (CAOSCARE_PAID_TEST_BUDGET_ID set): each session first reserves its bounded
+Off unless ARIA_VOICE_CASCADE=1. Which rooms use it, and with which voice: routes/aria_voice_prefs.py. Paid tests (CAOSCARE_PAID_TEST_BUDGET_ID set): each session first reserves its bounded
 worst case against the owner-approved budget, fail closed. Live rooms: receipted, never blocked (as Realtime).
 """
 import base64
@@ -55,16 +54,6 @@ LIVE_IDLE_SECONDS = 1800   # a live session stays valid while it is used; idle t
 def enabled() -> bool:
     return os.environ.get("ARIA_VOICE_CASCADE", "").strip() == "1"
 
-
-def default_transport() -> str:
-    t = os.environ.get("ARIA_VOICE_DEFAULT_TRANSPORT", "").strip().lower()
-    return "cascade" if enabled() and t == "cascade" else "realtime"
-
-
-@router.get("/config")
-async def config():
-    """What the room page may offer: whether the low-cost voice is available, and the room's default."""
-    return {"cascade_enabled": enabled(), "default_transport": default_transport()}
 
 
 def _base() -> str:

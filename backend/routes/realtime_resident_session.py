@@ -151,14 +151,15 @@ async def _mint(payload, lease):
     sid = (lease or {}).get("session_id") or payload.get("session_id")
     purpose = session_purpose(payload.get("room"))
     tools = await _build_tools() + self_code["tools"]
-    from routes.aria_voice import default_transport
-    if (payload.get("transport") or default_transport()) == "cascade":
+    from routes.aria_voice_prefs import session_choice
+    transport, voice_choice = await session_choice(payload)   # the kiosk's setting, else the room default
+    if transport == "cascade":
         # Low-cost voice prototype (routes/aria_voice.py): same instructions and tools, no Realtime session.
         from routes.aria_voice import create_cascade_session
         session = await create_cascade_session(session_id=sid, purpose=purpose, room=payload.get("room"),
                                                kiosk_id=payload.get("kiosk_id"), instructions=instructions,
                                                tools=tools, temperature=DEFAULT_TEMPERATURE,
-                                               voice=payload.get("voice"))
+                                               voice=voice_choice)
     else:
         session = await _mint_realtime(session_config, key, purpose, sid, payload)
     # Runtime truth (2026-10-15): record the model the PROVIDER says this session runs on,

@@ -29,7 +29,7 @@ const REASON_TO_ARIA_EVENT = {
   };
 
 export function useRealtimeVoice({
-  voice = "shimmer", transport = "realtime", residentId, kioskId, room, onEndCall,
+  voice = "shimmer", transport = null, residentId, kioskId, room, onEndCall,
   sessionEndpoint = "/realtime/session", sessionPayload, sessionAuth = false, triggerSource, alertId, activationId,
 } = {}) {
   const attemptRef = useRef(null);

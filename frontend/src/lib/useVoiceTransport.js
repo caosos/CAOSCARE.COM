@@ -1,31 +1,37 @@
 /**
- * How Aria talks on this kiosk: "cascade" (low-cost voice, cascadeTransport.js) or "realtime" (OpenAI Realtime).
- * The room's default is the backend's (GET /aria-voice/config); the kiosk's switch remembers a choice on this
- * device; ?aria_voice=<mode> in the URL overrides both. Without the low-cost voice enabled it is always Realtime.
+ * How Aria talks in this kiosk's room: "cascade" (low-cost voice, cascadeTransport.js) or "realtime". The setting
+ * and the voice live on the Kiosk record (backend routes/aria_voice_prefs.py), so a change made from any screen -
+ * the room's own page or the owner's laptop - switches the room. ?aria_voice=<mode> overrides for one test page.
  */
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { API } from "./api";
 
-const KEY = "caos_kiosk_transport";
 const MODES = new Set(["cascade", "realtime"]);
 
-export function chosenTransport(search = typeof window !== "undefined" ? window.location.search : "") {
-  const fromUrl = new URLSearchParams(search).get("aria_voice");
-  if (MODES.has(fromUrl)) return fromUrl;
-  try { const saved = localStorage.getItem(KEY); return MODES.has(saved) ? saved : null; } catch { return null; }
+export function urlTransport(search = typeof window !== "undefined" ? window.location.search : "") {
+  const m = new URLSearchParams(search).get("aria_voice");
+  return MODES.has(m) ? m : null;
 }
 
-export function useVoiceTransport() {
-  const [config, setConfig] = useState({ cascade_enabled: false, default_transport: "realtime" });
-  const [choice, setChoice] = useState(chosenTransport);
+export function useVoiceTransport(kioskId) {
+  const [config, setConfig] = useState({ cascade_enabled: false, transport: "realtime", voice: null });
+  const load = useCallback((c) => c && setConfig(c), []);
   useEffect(() => {
-    fetch(`${API}/aria-voice/config`).then((r) => (r.ok ? r.json() : null)).then((c) => c && setConfig(c)).catch(() => {});
-  }, []);
-  const transport = config.cascade_enabled ? choice || config.default_transport : "realtime";
-  const toggle = () => {
-    const next = transport === "cascade" ? "realtime" : "cascade";
-    try { localStorage.setItem(KEY, next); } catch { /* the choice lasts for this page only */ }
-    setChoice(next);
+    const q = kioskId ? `?kiosk_id=${encodeURIComponent(kioskId)}` : "";
+    fetch(`${API}/aria-voice/config${q}`).then((r) => (r.ok ? r.json() : null)).then(load).catch(() => {});
+  }, [kioskId, load]);
+  const save = useCallback((prefs) => {
+    if (!kioskId) return;
+    fetch(`${API}/aria-voice/kiosks/${encodeURIComponent(kioskId)}/prefs`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(prefs),
+    }).then((r) => (r.ok ? r.json() : null)).then(load).catch(() => {});
+  }, [kioskId, load]);
+  const transport = urlTransport() || config.transport;
+  return {
+    transport,
+    voice: config.voice,
+    available: config.cascade_enabled,
+    toggle: () => save({ transport: transport === "cascade" ? "realtime" : "cascade" }),
+    setVoice: (voice) => config.cascade_enabled && save({ voice }),
   };
-  return { transport, available: config.cascade_enabled, toggle };
 }

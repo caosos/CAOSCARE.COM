@@ -49,10 +49,12 @@ cascade session never add a second receipt.
 - Michael's genuine use (Room 214 sessions 10-13…10-17, classified): ~9.7 min/day (12.7 with unknowns); the rest
   of that week was testing.
 
-## Choosing the transport (per room / per kiosk)
+## Choosing the transport (per room)
 - `ARIA_VOICE_CASCADE=1` makes the low-cost voice available; `ARIA_VOICE_DEFAULT_TRANSPORT=cascade` makes it the
-  room's default (`GET /api/aria-voice/config`). The kiosk's "Low-cost / Realtime" button (next to VOICE) switches
-  and remembers the choice on that device (`useVoiceTransport.js`); `?aria_voice=<mode>` overrides for a test.
+  rooms' default. Each kiosk's setting and voice live on its Kiosk record (`routes/aria_voice_prefs.py`,
+  `GET /api/aria-voice/config`, `POST /api/aria-voice/kiosks/{id}/prefs`, changes logged): the kiosk's
+  "Low-cost / Realtime" button and voice picker change the room from any screen showing that kiosk.
+  `?aria_voice=<mode>` overrides for one test page.
 - Live rooms: every provider call receipted, never blocked or capped (as Realtime); a session stays valid while in
   use (30 min idle). Paid tests (`CAOSCARE_PAID_TEST_BUDGET_ID`): bounded sessions reserved against the owner's
   budget, fail closed.

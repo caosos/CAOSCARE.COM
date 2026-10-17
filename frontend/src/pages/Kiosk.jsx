@@ -89,7 +89,8 @@ export default function Kiosk() {
     { id: "verse",   label: "Verse",   desc: "Expressive & friendly" },
   ];
   const [voiceId, setVoiceId] = useState(() => localStorage.getItem("caos_kiosk_voice") || "shimmer");
-  const voiceMode = useVoiceTransport();   // low-cost voice or Realtime, per kiosk
+  const voiceMode = useVoiceTransport(kiosk?.kiosk_id);   // low-cost voice or Realtime, and the voice: kept per kiosk
+  useEffect(() => { if (voiceMode.voice) setVoiceId(voiceMode.voice); }, [voiceMode.voice]);
   const voiceIdRef = useRef(voiceId);
   useEffect(() => {
     voiceIdRef.current = voiceId;
@@ -427,7 +428,7 @@ export default function Kiosk() {
                   <Play className="w-4 h-4" />
                 </button>
                 <button
-                  onClick={() => { setVoiceId(v.id); toast.success(`Voice set to ${v.label}`); }}
+                  onClick={() => { setVoiceId(v.id); voiceMode.setVoice(v.id); toast.success(`Voice set to ${v.label}`); }}
                   data-testid={`voice-select-${v.id}`}
                   className="flex-1 text-left"
                 >

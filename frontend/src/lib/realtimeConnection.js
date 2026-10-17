@@ -78,7 +78,7 @@ export async function connectRealtimeVoice({
             session_id: sessionIdRef.current,
             ts_client: new Date().toISOString(),
             trigger_source: triggerSource || "manual_kiosk",
-            transport: transport || "realtime",   // the kiosk's choice (useVoiceTransport.js)
+            ...(transport ? { transport } : {}),   // a test URL's override; otherwise the kiosk's setting decides
           }
         ),
       });
