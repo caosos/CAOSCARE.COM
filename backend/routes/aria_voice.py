@@ -104,7 +104,7 @@ async def transcribe(request: Request):
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:
             r = await client.post(f"{_base()}/audio/transcriptions", headers={"Authorization": f"Bearer {key}"},
-                                  data={"model": STT_MODEL, "language": "en", "response_format": "json"},
+                                  data={"model": STT_MODEL, "response_format": "json"},   # no forced language, as the room session
                                   files={"file": ("speech.wav", audio, "audio/wav")})
     except httpx.HTTPError as e:
         raise HTTPException(status_code=502, detail=f"Transcription unreachable ({type(e).__name__}).")
@@ -117,10 +117,16 @@ async def transcribe(request: Request):
     return {"text": (r.json().get("text") or "").strip()}
 
 
-def _messages(s: dict, items) -> list:
-    if not isinstance(items, list) or not items:
-        raise HTTPException(status_code=422, detail="items must be a non-empty list.")
-    msgs = [{"role": "system", "content": s["instructions"]}]
+MAX_RESPONSE_INSTRUCTIONS = 4000
+
+
+def _messages(s: dict, items, instructions=None) -> list:
+    """Realtime semantics: a response's own `instructions` replace the session's for that one response."""
+    if not isinstance(items, list):
+        raise HTTPException(status_code=422, detail="items must be a list.")
+    if instructions is not None and (not isinstance(instructions, str) or len(instructions) > MAX_RESPONSE_INSTRUCTIONS):
+        raise HTTPException(status_code=422, detail="response instructions must be a short string.")
+    msgs = [{"role": "system", "content": instructions or s["instructions"]}]
     for it in items:
         if not isinstance(it, dict) or it.get("role") not in _ROLES:
             raise HTTPException(status_code=422, detail="items may only carry user, assistant and tool turns.")
@@ -137,10 +143,10 @@ async def respond(request: Request, payload: dict):
         {"_id": s["_id"], "responses": {"$lt": BOUNDS["max_responses"]}}, {"$inc": {"responses": 1}})
     if not n:
         raise HTTPException(status_code=429, detail="This session reached its response bound.")
-    body = {"model": TEXT_MODEL, "messages": _messages(s, payload.get("items")), "stream": True,
-            "stream_options": {"include_usage": True}, "max_completion_tokens": BOUNDS["max_output_tokens"],
-            "temperature": s.get("temperature") or 0.8}
-    if s["tools"]:
+    body = {"model": TEXT_MODEL, "messages": _messages(s, payload.get("items"), payload.get("instructions")),
+            "stream": True, "stream_options": {"include_usage": True},
+            "max_completion_tokens": BOUNDS["max_output_tokens"], "temperature": s.get("temperature") or 0.8}
+    if s["tools"] and payload.get("tool_choice") != "none":
         body.update(tools=s["tools"], tool_choice="auto")
     return StreamingResponse(_stream(s, body), media_type="text/event-stream")
 

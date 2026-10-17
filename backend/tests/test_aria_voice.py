@@ -201,6 +201,20 @@ def test_respond_streams_text_and_tool_calls_with_one_receipt(budget, monkeypatc
     assert budget.db.reservations.find_one({"session_id": sid})["responses"] == 1   # settled against the reservation
 
 
+def test_response_instructions_replace_the_prompt_for_one_response_only(budget, monkeypatch):
+    _, out = new_session()
+    sent = fake_provider(monkeypatch, stream=Lines(200, []))
+    resp = run(V.respond(Req(out["token"]), {"items": [], "instructions": "Say exactly: Okay.", "tool_choice": "none"}))
+
+    async def drain():
+        return [x async for x in resp.body_iterator]
+    run(drain())
+    body = sent[0][2]["json"]
+    assert body["messages"] == [{"role": "system", "content": "Say exactly: Okay."}] and "tools" not in body
+    with pytest.raises(HTTPException):
+        run(V.respond(Req(out["token"]), {"items": [], "instructions": "x" * 5000}))
+
+
 def test_respond_refuses_a_client_system_prompt(budget, monkeypatch):
     _, out = new_session()
     sent = fake_provider(monkeypatch, stream=Lines(200, []))
@@ -230,3 +244,11 @@ def test_end_closes_the_reservation_and_the_token(budget, monkeypatch):
     with pytest.raises(HTTPException) as e:
         run(V.transcribe(Req(out["token"], b"RIFF")))
     assert e.value.status_code == 401
+
+
+def test_cascade_page_diagnostics_never_add_a_second_receipt(budget):
+    sid, _ = new_session()
+    run(R.record_diagnostic("response_done", sid, "resp_local_1", {"usage": None, "transport": "cascade"}))
+    run(R.record_diagnostic("transcription_usage", sid, "item_1", {"usage": None, "transport": "cascade"}))
+    assert budget.db.receipts.count_documents({"session_id": sid, "kind": "provider_usage"}) == 0
+    assert budget.db.reservations.find_one({"session_id": sid})["unknown_usage"] is False

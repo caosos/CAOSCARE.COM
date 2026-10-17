@@ -14,6 +14,7 @@ import { createInactivityTimer } from "./realtimeInactivityTimer";
 import { startMicLevelTelemetry } from "./micLevelTelemetry";
 
 import { createTypedTurnState, markResponseRequested } from "./realtimeTypedTurn";
+import { createCascadeConnection, requestedTransport } from "./cascadeTransport";
 export async function connectRealtimeVoice({
   attemptRef, voice, residentId, kioskId, room, alertId, activationId, sessionEndpoint,
   sessionPayload, sessionAuth, triggerSource, onEndCall, pcRef, dcRef, localStreamRef,
@@ -77,6 +78,7 @@ export async function connectRealtimeVoice({
             session_id: sessionIdRef.current,
             ts_client: new Date().toISOString(),
             trigger_source: triggerSource || "manual_kiosk",
+            ...(requestedTransport() ? { transport: requestedTransport() } : {}),   // side-by-side audition only
           }
         ),
       });
@@ -113,8 +115,9 @@ export async function connectRealtimeVoice({
         leaseHeartbeatRef.current = watchdog;
         if (!(await watchdog.beat()) || !current()) throw new Error("Room ownership could not be verified");
       }
+      const cascade = session?.transport === "cascade";   // low-cost voice (cascadeTransport.js)
       const ephemeral = session?.value || session?.client_secret?.value;
-      if (!ephemeral) throw new Error("no ephemeral key");
+      if (!ephemeral && !cascade) throw new Error("no ephemeral key");
       if (caos.context) ctxRef.current = { ...ctxRef.current, ...caos.context };
 
       const _mic = { room, kiosk_id: kioskId, alert_id: alertId,
@@ -152,15 +155,20 @@ export async function connectRealtimeVoice({
       startMicLevelTelemetry(stream, (type, o) => logRealtimeEvent(sessionIdRef.current, type, o));
 
       if (!current()) throw new Error("canceled");
-      pc = new RTCPeerConnection();
+      let dc;
+      if (cascade) {
+        ({ pc, dc } = createCascadeConnection({ session, caos, stream, api: API }));
+        dc.onclose = () => recover("voice_service_closed");
+      } else {
+        pc = new RTCPeerConnection();
+        pc.ontrack = (ev) => {
+          const el = audioElRef.current;
+          if (el) el.srcObject = ev.streams[0];
+        };
+        stream.getTracks().forEach((t) => pc.addTrack(t, stream));
+        dc = pc.createDataChannel("oai-events");
+      }
       pcRef.current = pc;
-      pc.ontrack = (ev) => {
-        const el = audioElRef.current;
-        if (el) el.srcObject = ev.streams[0];
-      };
-      stream.getTracks().forEach((t) => pc.addTrack(t, stream));
-
-      const dc = pc.createDataChannel("oai-events");
       dcRef.current = dc;
 
       const send = (obj) => {
@@ -231,6 +239,11 @@ export async function connectRealtimeVoice({
       };
 
       dc.onmessage = onMessage;
+      if (cascade) {
+        localStreamRef.current = stream;
+        lifecycleCleanupRef.current = () => {};
+        return;
+      }
 
       const offer = await pc.createOffer();
       if (myGen !== startGenRef.current) throw new Error("canceled");

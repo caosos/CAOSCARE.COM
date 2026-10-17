@@ -123,6 +123,8 @@ async def record_diagnostic(event_type, session_id, response_id, meta, room=None
     meta = meta or {}
     if event_type not in ("response_done", "transcription_usage", "session_ended"):
         return
+    if meta.get("transport") == "cascade" and event_type != "session_ended":
+        return   # the low-cost voice transport's provider calls are receipted where they are made (routes/aria_voice.py)
     origin = await _safe(_session_origin, session_id) or ("realtime_conversation", None)
     room = room or origin[1]
     if event_type == "response_done":

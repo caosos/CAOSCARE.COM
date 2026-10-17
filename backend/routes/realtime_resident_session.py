@@ -124,7 +124,7 @@ async def _mint(payload, lease):
     from routes.aria_life_memory import summarize_pending_sessions
     asyncio.create_task(summarize_pending_sessions(payload.get("resident_id"), payload.get("session_id")))
     # How the call opens: "Hey Aria" gets a short answer to their name, and never the previous call's opener.
-    from routes.aria_opening import resolve_opening, greeting_response
+    from routes.aria_opening import resolve_opening, greeting_response, greeting_line
     opening = await resolve_opening(payload.get("resident_id"), payload.get("session_id"), payload.get("trigger_source"))
     # Owner feature 2026-10-15: read-only self-code inspection, declared ONLY to the
     # canonical Room 214 session (routes/self_code_tools.py); every call is re-proven
@@ -177,6 +177,8 @@ async def _mint(payload, lease):
         "voice": voice,
         "instructions": instructions,
         "greeting": greeting_response(opening),   # the call's first response (routes/aria_opening.py)
+        "greeting_line": greeting_line(opening),  # its exact words: the low-cost transport speaks them locally
+        "transport": session.get("transport") or "webrtc",
         "tools": tools,
         "tool_choice": "auto",
         "turn_detection": DEFAULT_VAD,
