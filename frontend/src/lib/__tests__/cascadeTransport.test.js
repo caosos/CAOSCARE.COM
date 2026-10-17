@@ -39,7 +39,8 @@ function setup({ replies = [], transcript = "I need some water", speakImpl = () 
     if (url.endsWith("/speak")) return speakImpl(opts);
     return { ok: true, json: async () => ({ ok: true }) };
   });
-  const player = { playing: false, play: jest.fn(), stop: jest.fn(() => false), close: jest.fn() };
+  const player = { playing: false, now: () => 0, ahead: () => 0, prepare: async () => null,
+    play: jest.fn(() => ({ start: 0, end: 0.02, gap: 0 })), stop: jest.fn(() => false), close: jest.fn() };
   const spoken = () => calls.filter((c) => c.url.endsWith("/speak")).map((c) => JSON.parse(c.opts.body).text);
   const { dc, pc } = createCascadeConnection({
     session: { token: "tok_secret_value", audio_sample_rate: 24000, session: { model: "gpt-4o-mini" } },
@@ -185,6 +186,7 @@ test("interrupted mid-reply: only the sentences that reached the speaker stay in
   t.send({ type: "response.create" });
   await flush(); await flush();
   t.player.playing = true; t.player.stop.mockReturnValue(true);
+  t.player.now = () => 1;                                // the first sentence has played to its end
   t.ws.serve({ type: "speech_started" });
   await flush();
   expect(speakAbort.aborted).toBe(true);                 // the unplayed sentence's audio request is cancelled
@@ -231,7 +233,7 @@ test("Aria's voice plays through a WebRTC loopback into the page's audio element
     createBufferSource: () => ({ connect: jest.fn(), start: jest.fn(), stop() {} }), close() {} };
   const peers = [];
   class FakeRTC {
-    constructor() { peers.push(this); this.added = []; }
+    constructor() { peers.push(this); this.added = []; this.connectionState = "connected"; }
     addTrack(t) { this.added.push(t); }
     async createOffer() { return { type: "offer", sdp: "o" }; }
     async createAnswer() { return { type: "answer", sdp: "a" }; }

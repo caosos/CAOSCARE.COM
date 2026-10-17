@@ -59,37 +59,58 @@ export function takeSentences(buf, first = false) {
 
 /** Chrome's echo canceller only subtracts audio it plays for WebRTC. Aria's voice is therefore sent through a local
  * loopback peer connection into the page's audio element (as the Realtime call audio is), so the microphone's AEC
- * removes her own voice and it never reads as the resident barging in (Room 214, 2026-10-17 rt_hyovgwag). */
-async function echoCancelledOutput(ctx, audioEl, RTC) {
+ * removes her own voice and it never reads as the resident barging in (Room 214, 2026-10-17 rt_hyovgwag).
+ * Ready only once the peers are connected - audio sent before that goes nowhere. */
+async function echoCancelledOutput(ctx, audioEl, RTC, waitMs) {
   const dest = ctx.createMediaStreamDestination();
   const a = new RTC(), b = new RTC();
-  a.onicecandidate = (e) => e.candidate && b.addIceCandidate(e.candidate).catch(() => {});
-  b.onicecandidate = (e) => e.candidate && a.addIceCandidate(e.candidate).catch(() => {});
-  b.ontrack = (e) => { audioEl.srcObject = e.streams[0]; audioEl.play?.().catch(() => {}); };
-  dest.stream.getTracks().forEach((t) => a.addTrack(t, dest.stream));
-  await a.setLocalDescription(await a.createOffer());
-  await b.setRemoteDescription(a.localDescription);
-  await b.setLocalDescription(await b.createAnswer());
-  await a.setRemoteDescription(b.localDescription);
-  return { node: dest, close: () => { try { a.close(); b.close(); audioEl.srcObject = null; } catch {} } };
+  const close = () => { try { a.close(); b.close(); audioEl.srcObject = null; } catch {} };
+  try {
+    a.onicecandidate = (e) => e.candidate && b.addIceCandidate(e.candidate).catch(() => {});
+    b.onicecandidate = (e) => e.candidate && a.addIceCandidate(e.candidate).catch(() => {});
+    b.ontrack = (e) => { audioEl.srcObject = e.streams[0]; audioEl.play?.().catch(() => {}); };
+    dest.stream.getTracks().forEach((t) => a.addTrack(t, dest.stream));
+    await a.setLocalDescription(await a.createOffer());
+    await b.setRemoteDescription(a.localDescription);
+    await b.setLocalDescription(await b.createAnswer());
+    await a.setRemoteDescription(b.localDescription);
+    await new Promise((ok, no) => {
+      const timer = setTimeout(() => no(new Error("loopback not connected")), waitMs);
+      const check = () => {
+        if (a.connectionState === "connected") { clearTimeout(timer); ok(); }
+        else if (a.connectionState === "failed") { clearTimeout(timer); no(new Error("loopback failed")); }
+      };
+      a.onconnectionstatechange = check; check();
+    });
+  } catch (e) { close(); throw e; }
+  return { node: dest, close };
 }
 
-/** Plays PCM16 chunks back to back; stop() cuts playback at once. With an audio element and WebRTC available, the
- * sound goes through the echo-cancelled path above; otherwise straight to the speakers. */
+const LEAD = 0.05;                 // s: how far ahead of the audio clock a piece is scheduled
+export const PREBUFFER_MS = 200;   // audio held back before (re)starting after the player ran dry; never dropped
+
+/** Plays PCM16 back to back on the audio clock; stop() cuts playback at once. With an audio element and WebRTC
+ * available, the sound goes through the echo-cancelled path above, else (or if it never connects) to the speakers. */
 export function createPlayer({ AudioCtx = typeof window !== "undefined" && (window.AudioContext || window.webkitAudioContext),
-  audioEl = null, RTC = typeof window !== "undefined" && window.RTCPeerConnection } = {}) {
-  let ctx = null, out = null, next = 0, live = [], onIdle = null;
+  audioEl = null, RTC = typeof window !== "undefined" && window.RTCPeerConnection, loopbackWaitMs = 1500 } = {}) {
+  let ctx = null, out = null, sink = null, next = 0, live = [], onIdle = null;
   const ready = () => {
     if (!ctx) {
       ctx = new AudioCtx();
-      out = audioEl && RTC ? echoCancelledOutput(ctx, audioEl, RTC).catch(() => null) : Promise.resolve(null);
+      out = (audioEl && RTC ? echoCancelledOutput(ctx, audioEl, RTC, loopbackWaitMs).catch(() => null) : Promise.resolve(null))
+        .then((s) => (sink = s));
     }
     return out;
   };
   return {
     set onIdle(fn) { onIdle = fn; },
     get playing() { return live.length > 0; },
+    get output() { return sink ? "echo_cancelled" : "direct"; },
     prepare() { return ready(); },
+    now() { return ctx ? ctx.currentTime : 0; },
+    ahead() { return ctx ? Math.max(0, next - ctx.currentTime) : 0; },
+    /** Schedules after what is already queued (call once prepare() has resolved). Returns where it sits on the
+     * audio clock and the silence before it - an underrun when the queue ran dry first. */
     play(pcm16, rate) {
       ready();
       const f = new Float32Array(pcm16.length);
@@ -98,14 +119,15 @@ export function createPlayer({ AudioCtx = typeof window !== "undefined" && (wind
       buf.copyToChannel(f, 0);
       const src = ctx.createBufferSource();
       src.buffer = buf;
-      out.then((sink) => src.connect(sink ? sink.node : ctx.destination));
-      next = Math.max(next, ctx.currentTime + 0.05);
-      src.start(next); next += buf.duration;
+      src.connect(sink ? sink.node : ctx.destination);
+      const start = Math.max(next, ctx.currentTime + LEAD), gap = next > 0 ? start - next : 0;
+      src.start(start); next = start + buf.duration;
       live.push(src);
-      src.onended = () => { live = live.filter((s) => s !== src); if (!live.length) onIdle?.(); };
+      src.onended = () => { live = live.filter((x) => x !== src); if (!live.length) onIdle?.(); };
+      return { start, end: next, gap };
     },
-    stop() { const was = live.length > 0; live.forEach((s) => { try { s.onended = null; s.stop(); } catch {} }); live = []; next = 0; return was; },
-    close() { this.stop(); out?.then((sink) => sink?.close()); try { ctx?.close(); } catch {} },
+    stop() { const was = live.length > 0; live.forEach((x) => { try { x.onended = null; x.stop(); } catch {} }); live = []; next = 0; return was; },
+    close() { this.stop(); out?.then((x) => x?.close()); try { ctx?.close(); } catch {} },
   };
 }
 
@@ -130,99 +152,179 @@ function joinBytes(a, b) {
   return out;
 }
 
+function joinSamples(chunks) {
+  if (chunks.length === 1) return chunks[0];
+  const out = new Int16Array(chunks.reduce((n, c) => n + c.length, 0));
+  let at = 0;
+  chunks.forEach((c) => { out.set(c, at); at += c.length; });
+  return out;
+}
+const ms = (s) => Math.round(s * 1000);
+
 export function createCascadeConnection({ session, caos, stream, api, audioEl = null, wsUrl = VOICE_SERVICE_URL,
-  WebSocketImpl = WebSocket, fetchImpl = (...a) => fetch(...a), player = createPlayer({ audioEl }),
+  WebSocketImpl = WebSocket, fetchImpl = (...a) => fetch(...a), player = createPlayer({ audioEl }), log = () => {},
   AudioCtx = typeof window !== "undefined" && (window.AudioContext || window.webkitAudioContext) }) {
   const headers = { "X-Aria-Voice-Token": session.token };
   const rate = session.audio_sample_rate || 24000;
   const items = [];                         // the conversation, as chat messages
-  let n = 0, autoRespond = true, resp = null, stopMic = null, closed = false;
+  let n = 0, autoRespond = true, resp = null, stopMic = null, closed = false, bargeIn = null;
   const id = (p) => `${p}_${Date.now().toString(36)}_${++n}`;
   const dc = { readyState: "connecting", onopen: null, onmessage: null, onclose: null, send: (s) => onClient(JSON.parse(s)), close };
   const emit = (obj) => { if (!closed) setTimeout(() => dc.onmessage?.({ data: JSON.stringify(obj) }), 0); };
   const ws = new WebSocketImpl(wsUrl);
   player.onIdle = () => {                   // the player also runs dry between sentences: only the reply's end counts
     const r = resp;
-    if (r?.speaking && r.done && !r.queue.length && !r.pump) { finishAudio(r); resp = null; }
+    if (r?.speaking && r.done && !r.queue.length && !r.pump) finish(r);
   };
 
   function finishAudio(r) { r.speaking = false; emit({ type: "output_audio_buffer.stopped", response_id: r.id }); }
   const wake = (o, k) => { const w = o[k]; o[k] = null; w?.(); };
 
+  /** What actually reached the speaker, read off the audio clock: sentences played to their end, and how far into
+   * the one playing now. Queued or failed audio is not "heard". */
+  function account(r) {
+    const now = player.now?.() ?? Infinity;
+    const heard = [];
+    let partial = 0;
+    r.sentences.forEach((e) => {
+      if (e.startAt == null || e.startAt >= now) return;
+      if (e.ended && !e.failure && !e.chunks.length && e.endAt <= now + 1e-6) heard.push(e.text);
+      else partial = ms(Math.min(now, e.endAt) - e.startAt);
+    });
+    return { heard, partial };
+  }
+
+  /** One metadata-only playback receipt per reply: timing, buffering, failures and outcome - never its words. */
+  function receipt(r, outcome, reason, { heard, partial }) {
+    if (r.logged || !r.sentences.length) return;
+    r.logged = true;
+    const st = r.stats;
+    log("cascade_playback", { responseId: r.id, meta: { transport: "cascade", outcome, ...(reason ? { reason } : {}),
+      output: player.output ?? null, sentences: r.sentences.length, sentences_heard: heard.length, partial_ms: partial,
+      failed: r.sentences.filter((e) => e.failure && e.failure !== "interrupted").length,
+      first_audio_ms: st.firstStart == null ? null : ms(st.firstStart - r.t0), audio_ms: ms(st.audio),
+      underruns: st.underruns, underrun_ms: ms(st.underrunS), max_sentence_gap_ms: ms(st.maxSentenceGap),
+      max_queue_depth: st.maxQueue, max_buffered_ms: ms(st.maxAhead) } });
+  }
+
+  /** The reply has finished playing: only what was heard stays in the conversation. */
+  function finish(r) {
+    const a = account(r);
+    if (r.speaking) finishAudio(r);
+    if (r.sentences.some((e) => e.failure)) settle(r, a.heard.join(" ").trim());
+    receipt(r, "completed", null, a);
+    if (resp === r) resp = null;
+  }
+
+  function settle(r, heard) {
+    if (r.itemIndex == null) return;
+    const it = items[r.itemIndex];
+    if (it.tool_calls) it.content = heard || null;
+    else if (heard) it.content = heard;
+    else { items.splice(r.itemIndex, 1); r.itemIndex = null; }
+  }
+
+  function failed(r, e, reason, extra = {}) {
+    if (e.failure) return;
+    e.failure = reason;
+    log("cascade_speech_failed", { responseId: r.id, meta: { transport: "cascade", reason, chars: e.text.length,
+      bytes: e.bytes, ...extra } });
+  }
+
   // Every finished sentence is requested at once; sentences play strictly in order as their audio streams in.
   function say(r, text, fixed = false) {
-    if (!text) return;
-    const e = { text, chunks: [], ended: false, wake: null };
-    r.queue.push(e); r.said += 1;
+    if (!text || resp !== r) return;
+    const e = { text, chunks: [], ended: false, wake: null, bytes: 0, complete: false, failure: null, startAt: null, endAt: null };
+    r.queue.push(e); r.sentences.push(e); r.said += 1;
+    r.stats.maxQueue = Math.max(r.stats.maxQueue, r.queue.length);
+    let late = 0;
     fetchImpl(`${api}/aria-voice/speak`, { method: "POST", signal: r.abort.signal,
       headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ text, fixed }) })
       .then(async (res) => {
-        if (!res.ok || !res.body) return;
+        if (!res.ok) return failed(r, e, "http_error", { status: res.status });
+        if (!res.body) return failed(r, e, "no_body");
         const reader = res.body.getReader();
         let carry = null;
         for (;;) {
           const { value, done } = await reader.read();
-          if (done) break;
+          if (done) { e.complete = true; break; }
+          if (resp !== r) { late += 1; try { reader.cancel?.()?.catch?.(() => {}); } catch {} break; }   // cancelled speech
+          e.bytes += value.length;
           let bytes = carry ? joinBytes(carry, value) : value;
           carry = null;
           if (bytes.length % 2) { carry = bytes.slice(-1); bytes = bytes.slice(0, -1); }
           if (bytes.length) { e.chunks.push(new Int16Array(bytes.slice().buffer)); wake(e, "wake"); }
         }
+        if (e.complete && !e.bytes) failed(r, e, "empty");
       })
-      .catch(() => {})
-      .finally(() => { e.ended = true; wake(e, "wake"); });
+      .catch(() => { if (!r.abort.signal.aborted) failed(r, e, "network"); })
+      .finally(() => {
+        if (!e.complete && !e.failure) failed(r, e, "interrupted", { late_chunks: late });
+        e.ended = true; wake(e, "wake");
+      });
     if (r.pump) wake(r, "wakePump"); else r.pump = pump(r);
   }
 
+  // Audio is scheduled as it arrives while the player still has some queued; once it has run dry (reply start, or an
+  // underrun) it waits for PREBUFFER_MS - or the sentence's end - so a slow stream rebuffers once instead of
+  // stuttering after every chunk. Nothing is dropped to catch up.
   async function pump(r) {
+    await player.prepare?.();               // never play before the echo-cancelled output carries sound
+    const st = r.stats;
     while (resp === r) {
       const e = r.queue[0];
       if (!e) { if (r.done) break; await new Promise((ok) => { r.wakePump = ok; }); continue; }
       while (resp === r) {
-        if (e.chunks.length) {
+        const held = e.chunks.reduce((k, c) => k + c.length, 0) / rate * 1000;
+        if (held && (e.ended || player.ahead() > 0 || held >= PREBUFFER_MS)) {
           if (!r.speaking) { r.speaking = true; emit({ type: "output_audio_buffer.started", response_id: r.id }); }
-          if (!e.heard) { e.heard = true; r.heard.push(e.text); }   // reached the speaker
-          player.play(e.chunks.shift(), rate);
+          const t = player.play(joinSamples(e.chunks.splice(0)), rate);
+          if (st.firstStart == null) st.firstStart = t.start;
+          else if (e.startAt == null) st.maxSentenceGap = Math.max(st.maxSentenceGap, t.gap);
+          else if (t.gap > 1e-6) { st.underruns += 1; st.underrunS += t.gap; }
+          if (e.startAt == null) e.startAt = t.start;
+          e.endAt = t.end; st.audio += t.end - t.start;
+          st.maxAhead = Math.max(st.maxAhead, player.ahead());
           continue;
         }
-        if (e.ended) break;
+        if (e.ended && !e.chunks.length) break;
         await new Promise((ok) => { e.wake = ok; });
       }
       r.queue.shift();
     }
     r.pump = null;
-    if (resp === r && r.done && !player.playing) { if (r.speaking) finishAudio(r); resp = null; }
+    if (resp === r && r.done && !player.playing) finish(r);
   }
 
   function cancel(reason) {
     const r = resp;
     if (!r) return false;
+    const a = account(r);
     resp = null; r.abort.abort();
     wake(r, "wakePump"); r.queue.forEach((e) => wake(e, "wake"));
     const wasPlaying = player.stop();
     if (wasPlaying || r.speaking) emit({ type: "output_audio_buffer.cleared", response_id: r.id });
-    // Only what reached the speaker counts as said; the unheard rest of the reply is not in the conversation.
-    const heard = r.heard.join(" ").trim();
+    receipt(r, "cancelled", reason, a);
+    if (reason === "turn_detected") bargeIn = { response_id: r.id, was_playing: wasPlaying, heard_ms: ms(r.stats.audio) };
+    // Only what played to the end counts as said; queued, failed or cut-off speech is not in the conversation.
+    const heard = a.heard.join(" ").trim();
     if (!r.done) {
       if (heard) {
         items.push({ role: "assistant", content: heard });
         emit({ type: "response.output_audio_transcript.done", response_id: r.id, item_id: r.item, transcript: heard });
       }
       emit({ type: "response.done", response: { id: r.id, status: "cancelled", status_details: { reason }, usage: null } });
-    } else if (r.itemIndex != null) {
-      const it = items[r.itemIndex];
-      if (it.tool_calls) it.content = heard || null;
-      else if (heard) it.content = heard;
-      else items.splice(r.itemIndex, 1);
-    }
+    } else settle(r, heard);
     return true;
   }
 
   async function respond(opts = {}) {
     if (resp && !resp.done) return emit({ type: "error", error: { message: "Conversation already has an active response." } });
     if (resp) cancel("superseded");         // a finished reply still playing gives way to the next one
-    const r = resp = { id: id("resp"), item: id("item"), queue: [], heard: [], said: 0, text: "", buf: "", calls: [],
-      done: false, speaking: false, pump: null, wakePump: null, itemIndex: null, abort: new AbortController() };
+    const r = resp = { id: id("resp"), item: id("item"), queue: [], sentences: [], said: 0, text: "", buf: "", calls: [],
+      done: false, speaking: false, pump: null, wakePump: null, itemIndex: null, abort: new AbortController(),
+      t0: player.now?.() ?? 0, logged: false,
+      stats: { firstStart: null, audio: 0, underruns: 0, underrunS: 0, maxSentenceGap: 0, maxQueue: 0, maxAhead: 0 } };
     emit({ type: "response.created", response: { id: r.id } });
     const delta = (d) => { r.text += d; emit({ type: "response.output_audio_transcript.delta", response_id: r.id, item_id: r.item, delta: d });
       const [done, rest] = takeSentences(r.buf + d, r.said === 0); r.buf = rest; done.forEach((s) => say(r, s)); };
@@ -248,7 +350,7 @@ export function createCascadeConnection({ session, caos, stream, api, audioEl = 
     r.calls.forEach((c) => emit({ type: "response.function_call_arguments.done", response_id: r.id, call_id: c.id, name: c.name, arguments: c.arguments }));
     r.done = true;
     emit({ type: "response.done", response: { id: r.id, status: "completed", usage: null } });
-    if (r.pump) wake(r, "wakePump"); else if (!player.playing) resp = null;
+    if (r.pump) wake(r, "wakePump"); else if (!player.playing) finish(r);
   }
 
   async function streamReply(r, opts, delta) {
@@ -289,6 +391,11 @@ export function createCascadeConnection({ session, caos, stream, api, audioEl = 
     const text = await (pending || transcribe(wavB64));
     if (closed) return;
     if (text) items.push({ role: "user", content: text });
+    if (bargeIn) {                          // did the speech that interrupted her carry any words? (echo shows as none)
+      log("cascade_barge_in", { responseId: bargeIn.response_id, meta: { transport: "cascade", ...bargeIn,
+        words: text ? text.split(/\s+/).length : 0 } });
+      bargeIn = null;
+    }
     emit({ type: "conversation.item.input_audio_transcription.completed", item_id: item, transcript: text });
     if (text && autoRespond) respond();
   }

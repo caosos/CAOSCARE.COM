@@ -179,8 +179,9 @@ def test_live_room_session_is_receipted_never_blocked_or_capped(lg, monkeypatch)
     sent = fake_provider(monkeypatch, stream=Lines(200, []))
     resp = run(V.respond(Req(out["token"]), {"items": [{"role": "user", "content": "hi"}]}))   # no response cap
     run(drain_bytes_iter(resp))
-    drain_bytes(run(V.speak(Req(out["token"]), {"text": "Sure."})))                          # no speech cap
-    assert len(sent) == 2 and lg.db.receipts.count_documents({"session_id": sid, "kind": "provider_request"}) == 2
+    spoke = fake_provider(monkeypatch, stream=Lines(200, data([{"type": "speech.audio.delta", "audio": "AAEAAQ=="}])))
+    assert drain_bytes(run(V.speak(Req(out["token"]), {"text": "Sure."})))                   # no speech cap
+    assert len(sent) == len(spoke) == 1 and lg.db.receipts.count_documents({"session_id": sid, "kind": "provider_request"}) == 2
     assert run(V.end(Req(out["token"]))) == {"ok": True}
 
 
@@ -394,3 +395,14 @@ def test_speech_never_reads_markdown_and_says_names_right():
         "Saturday, October 17: High 67 in Conway, Arkansas. Sunday: see the forecast."
     assert V.spoken("Welcome to CAOSCare. I'm Aria.") == "Welcome to Kay-oss Care. I'm Aria."   # her name: SPEECH_STYLE
     assert "AR-ee-uh" in V.SPEECH_STYLE
+
+
+def test_failed_or_empty_speech_is_an_explicit_502_never_an_empty_200(budget, monkeypatch):
+    from fastapi import HTTPException
+    sid, out = new_session(voice="nova")
+    for provider in (Lines(500, []), Lines(200, ["data: [DONE]"])):          # refused; answered with no audio
+        fake_provider(monkeypatch, stream=provider)
+        with pytest.raises(HTTPException) as e:
+            run(V.speak(Req(out["token"]), {"text": "I'll let the nurse know."}))
+        assert e.value.status_code == 502
+    assert budget.db.receipts.count_documents({"session_id": sid, "endpoint": "audio/speech"}) == 2   # each still receipted

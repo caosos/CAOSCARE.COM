@@ -24,8 +24,17 @@ Swapping the text provider means a new `_stream()` in `routes/aria_voice.py`; no
 - Turn end: Silero VAD with `silence_duration_ms` from `realtime_audio_config.DEFAULT_VAD` (same as Realtime).
 - Early transcription at a 400 ms pause; reused if the turn ends there, discarded if Michael carries on.
 - Reply text streams; each finished sentence (the first clause at its comma) is voiced at once, played in order.
-- Barge-in: speech over Aria stops playback immediately and cancels queued speech; only sentences that reached
-  the speaker remain in the conversation.
+- Barge-in: speech over Aria stops playback immediately and cancels queued speech; late chunks of cancelled
+  speech are discarded. Only sentences played to their end (read off the audio clock) remain in the conversation;
+  queued, failed or cut-off speech does not.
+- Playback: through a local WebRTC loopback into the page's audio element so Chrome's AEC removes her voice; nothing
+  plays until that loopback is connected (else direct, recorded as `output: direct`). After the player runs dry it
+  holds 200 ms (or the sentence's end) before resuming - one rebuffer instead of a stutter; no audio is dropped.
+- Speech failures: `/speak` answers 502 when the provider gives no audio (never an empty 200); the page records
+  each failed / empty / unreachable / interrupted sentence (`cascade_speech_failed`).
+- Receipts (metadata only, `realtime_diagnostics`): `cascade_playback` per reply (first audio, underruns, sentence
+  gaps, queue depth, buffered ms, heard vs partial, outcome) and `cascade_barge_in` (words in the interrupting turn
+  - 0 points to echo or noise).
 - Greeting: `_caos.greeting_line`, spoken with no reasoning call; its audio is cached after first use (only the
   greeting is ever cached — conversation audio is never stored).
 - Pronunciation: `backend/aria_voice_lexicon.json` (KAY-oss Care), applied only to text sent to speech.

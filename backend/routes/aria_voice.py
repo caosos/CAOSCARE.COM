@@ -281,7 +281,19 @@ async def speak(request: Request, payload: dict):
     n = await db.aria_voice_sessions.find_one_and_update({"_id": s["_id"], **cap}, {"$inc": {"spoken_chars": len(say)}})
     if not n:
         raise HTTPException(status_code=429, detail="This session reached its speech bound.")
-    return StreamingResponse(_speech(s, say, cache), media_type="audio/pcm")
+    # The provider's answer is awaited before replying, so a refusal or an empty result is an explicit 502 - never an
+    # empty 200 the page would take for silence. (A stream cut later ends short; its receipt shows it.)
+    audio = _speech(s, say, cache)
+    first = await anext(audio, None)
+    if first is None:
+        raise HTTPException(status_code=502, detail="Speech generation returned no audio; see its receipt.")
+    return StreamingResponse(_then(first, audio), media_type="audio/pcm")
+
+
+async def _then(first, rest):
+    yield first
+    async for chunk in rest:
+        yield chunk
 
 
 async def _file(path):
