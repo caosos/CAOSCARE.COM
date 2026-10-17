@@ -34,7 +34,7 @@ TEXT_MODEL = os.environ.get("ARIA_VOICE_TEXT_MODEL", "gpt-4o-mini").strip()
 # Audition voices (owner order 2026-10-17: at most three). key -> (model, voice)
 VOICES = {"tts-1:sage": ("tts-1", "sage"), "tts-1:shimmer": ("tts-1", "shimmer"),
           "gpt-4o-mini-tts:marin": ("gpt-4o-mini-tts", "marin")}
-DEFAULT_VOICE = os.environ.get("ARIA_VOICE_TTS", "tts-1:sage").strip()
+DEFAULT_VOICE = os.environ.get("ARIA_VOICE_TTS", "gpt-4o-mini-tts:marin").strip()   # owner choice 2026-10-17
 SPEECH_STYLE = ("Everyday conversational voice at a normal, lively pace - a friendly person chatting in the room. "
                 "Bright and relaxed; not dramatic, not hushed or whispery, not slow, not a storyteller.")   # owner 2026-10-17
 BOUNDS = dict(max_responses=16, max_audio_seconds=30, max_text_input_tokens=32000, max_output_tokens=250,

@@ -32,7 +32,8 @@ Swapping the text provider means a new `_stream()` in `routes/aria_voice.py`; no
 
 ## Audition voices (at most three)
 `tts-1:sage` (Aria 2026-04-19/20), `tts-1:shimmer` (04-21, just before Realtime), `gpt-4o-mini-tts:marin` (today's
-voice). Chosen per session with `&aria_voice_tts=<key>`; default `ARIA_VOICE_TTS`.
+voice). Owner chose marin after the audition (2026-10-17): the default (`ARIA_VOICE_TTS`); the others stay
+selectable per session with `&aria_voice_tts=<key>`.
 
 ## Accounting
 Every provider call is receipted in `caoscare_paid_api_ledger` with purpose, session, model, provider ids, usage and
