@@ -39,7 +39,8 @@ DEFAULT_VOICE = os.environ.get("ARIA_VOICE_DEFAULT_VOICE", "nova").strip()   # o
 SPEED = float(os.environ.get("ARIA_VOICE_SPEED", "1.1"))   # owner 2026-10-17: "speed up the voice one notch"
 FIXED_MAX_CHARS = 80   # fixed lines (greeting, routine goodbye) are cached; conversation audio never is
 SPEECH_STYLE = ("Everyday conversational voice at a normal, lively pace - a friendly person chatting in the room. "
-                "Bright and relaxed; not dramatic, not hushed or whispery, not slow, not a storyteller.")   # owner 2026-10-17
+                "Bright and relaxed; not dramatic, not hushed or whispery, not slow, not a storyteller. "
+                "Say the name Aria as AR-ee-uh (first syllable like 'are'), never like the word 'area'.")   # owner 2026-10-17
 BOUNDS = dict(max_responses=16, max_audio_seconds=30, max_text_input_tokens=32000, max_output_tokens=250,
               max_session_seconds=900, max_speech_chars=1000)
 FIXED_CACHE = os.path.expanduser(os.environ.get("ARIA_VOICE_FIXED_CACHE", "~/.cache/caoscare/aria_voice_fixed_lines"))
@@ -69,14 +70,25 @@ def _sha(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
+_MARKDOWN = [(re.compile(r"\*\*|__|`|^#+\s*", re.M), ""),           # bold, code, headings
+             (re.compile(r"^\s*(?:[-*•]|\d+[.)])\s+", re.M), ""),      # list markers
+             (re.compile(r"\[([^\]]+)\]\([^)]+\)"), r"\1"),          # links -> their words
+             (re.compile(r"\s*\n+\s*"), " ")]                          # lines -> one spoken stream
+
+
 def _load_lexicon():
-    """Spoken forms (one file: backend/aria_voice_lexicon.json), applied only to what is sent to speech."""
+    """Spoken forms (one file: backend/aria_voice_lexicon.json), applied only to what is sent to speech, after the
+    text model's markdown is removed - a voice never reads "**" or list dashes."""
     path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "aria_voice_lexicon.json")
     with open(path) as f:
         lex = {k: v for k, v in json.load(f).items() if not k.startswith("_")}
     rx = re.compile(r"\b(" + "|".join(re.escape(k) for k in sorted(lex, key=len, reverse=True)) + r")\b", re.I)
     low = {k.lower(): v for k, v in lex.items()}
-    return lambda text: rx.sub(lambda m: low[m.group(0).lower()], text)
+    def say(text):
+        for pat, sub in _MARKDOWN:
+            text = pat.sub(sub, text)
+        return rx.sub(lambda m: low[m.group(0).lower()], text).strip()
+    return say
 
 
 spoken = _load_lexicon()
@@ -269,7 +281,19 @@ async def speak(request: Request, payload: dict):
     n = await db.aria_voice_sessions.find_one_and_update({"_id": s["_id"], **cap}, {"$inc": {"spoken_chars": len(say)}})
     if not n:
         raise HTTPException(status_code=429, detail="This session reached its speech bound.")
-    return StreamingResponse(_speech(s, say, cache), media_type="audio/pcm")
+    # The provider's answer is awaited before replying, so a refusal or an empty result is an explicit 502 - never an
+    # empty 200 the page would take for silence. (A stream cut later ends short; its receipt shows it.)
+    audio = _speech(s, say, cache)
+    first = await anext(audio, None)
+    if first is None:
+        raise HTTPException(status_code=502, detail="Speech generation returned no audio; see its receipt.")
+    return StreamingResponse(_then(first, audio), media_type="audio/pcm")
+
+
+async def _then(first, rest):
+    yield first
+    async for chunk in rest:
+        yield chunk
 
 
 async def _file(path):

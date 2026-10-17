@@ -157,7 +157,8 @@ export async function connectRealtimeVoice({
       if (!current()) throw new Error("canceled");
       let dc;
       if (cascade) {
-        ({ pc, dc } = createCascadeConnection({ session, caos, stream, api: API }));
+        ({ pc, dc } = createCascadeConnection({ session, caos, stream, api: API, audioEl: audioElRef.current,
+          log: (type, d) => logRealtimeEvent(sessionIdRef.current, type, d) }));
         dc.onclose = () => recover("voice_service_closed");
       } else {
         pc = new RTCPeerConnection();

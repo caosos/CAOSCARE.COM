@@ -1,7 +1,7 @@
 {
-  "_comment": "Spoken forms applied before local TTS (server.py). One place for how Aria pronounces names.",
+  "_comment": "Spoken forms applied to text sent to speech (routes/aria_voice.py). One place for how Aria says names and abbreviations. Her own name's pronunciation is in SPEECH_STYLE (a respelling sounds wrong on a neural voice).",
   "CAOSCare": "Kay-oss Care",
   "CAOS Care": "Kay-oss Care",
   "CAOS": "Kay-oss",
-  "Aria": "Ah-ree-uh"
+  "AR": "Arkansas"
 }
