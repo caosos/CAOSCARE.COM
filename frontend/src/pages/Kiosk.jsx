@@ -26,6 +26,7 @@ import { useKioskMediaPrime, openInFullTab, inSandboxedIframe } from "../lib/use
 import { useWakeWord } from "../lib/useWakeWord";
 import { wakeUrlFromSearch } from "../lib/wakeWordClient";
 import { retryKioskBootstrap } from "../lib/kioskBootstrapRetry";
+import { requestedTransport } from "../lib/cascadeTransport";
 
 // Kiosk is PUBLIC - no login. Selected/identified by kiosk_id in URL.
 // /kiosk/:kioskId  (use "demo" to pick an arbitrary kiosk automatically)
@@ -73,6 +74,8 @@ export default function Kiosk() {
   // Voice preference (OpenAI TTS voice). Persisted per-kiosk so each room
   // can match its resident's preference.
   const VOICES = [
+    { id: "marin",   label: "Marin",   desc: "Natural & warm" },
+    { id: "cedar",   label: "Cedar",   desc: "Natural & grounded" },
     { id: "shimmer", label: "Shimmer", desc: "Soft & gentle" },
     { id: "coral",   label: "Coral",   desc: "Warm & inviting" },
     { id: "nova",    label: "Nova",    desc: "Bright & kind" },
@@ -410,8 +413,9 @@ export default function Kiosk() {
                       const { data } = await axios.post(`${API}/ai/tts`, {
                         text: "Hello. This is how I sound. I'll be right here with you.",
                         voice: v.id,
+                        ...(requestedTransport() ? { model: "aria_voice" } : {}),   // preview what that path speaks with
                       }, { timeout: 10000 });
-                      const a = new Audio(`data:audio/mp3;base64,${data.audio_base64}`);
+                      const a = new Audio(`data:${data.mime || "audio/mp3"};base64,${data.audio_base64}`);
                       await a.play();
                     } catch { toast.error("Couldn't preview this voice"); }
                   }}

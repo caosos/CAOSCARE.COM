@@ -441,6 +441,7 @@ class ChatInput(BaseModel):
 class TTSInput(BaseModel):
     text: str
     voice: Optional[str] = "sage"
+    model: Optional[str] = None      # "aria_voice": the low-cost Aria speech model (routes/aria_voice.py); else tts-1
 
 
 # ---------- Sessions ----------

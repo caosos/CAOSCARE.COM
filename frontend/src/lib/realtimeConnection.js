@@ -14,7 +14,7 @@ import { createInactivityTimer } from "./realtimeInactivityTimer";
 import { startMicLevelTelemetry } from "./micLevelTelemetry";
 
 import { createTypedTurnState, markResponseRequested } from "./realtimeTypedTurn";
-import { createCascadeConnection, requestedTransport, requestedVoice } from "./cascadeTransport";
+import { createCascadeConnection, requestedTransport } from "./cascadeTransport";
 export async function connectRealtimeVoice({
   attemptRef, voice, residentId, kioskId, room, alertId, activationId, sessionEndpoint,
   sessionPayload, sessionAuth, triggerSource, onEndCall, pcRef, dcRef, localStreamRef,
@@ -78,7 +78,7 @@ export async function connectRealtimeVoice({
             session_id: sessionIdRef.current,
             ts_client: new Date().toISOString(),
             trigger_source: triggerSource || "manual_kiosk",
-            ...(requestedTransport() ? { transport: requestedTransport(), aria_voice_tts: requestedVoice() } : {}),   // audition only
+            ...(requestedTransport() ? { transport: requestedTransport() } : {}),   // side-by-side audition only
           }
         ),
       });

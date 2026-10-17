@@ -30,10 +30,10 @@ Swapping the text provider means a new `_stream()` in `routes/aria_voice.py`; no
   greeting is ever cached — conversation audio is never stored).
 - Pronunciation: `backend/aria_voice_lexicon.json` (KAY-oss Care), applied only to text sent to speech.
 
-## Audition voices (at most three)
-`tts-1:sage` (Aria 2026-04-19/20), `tts-1:shimmer` (04-21, just before Realtime), `gpt-4o-mini-tts:marin` (today's
-voice). Owner chose marin after the audition (2026-10-17): the default (`ARIA_VOICE_TTS`); the others stay
-selectable per session with `&aria_voice_tts=<key>`.
+## Voice
+The kiosk's existing voice picker chooses it (marin and cedar added); every voice runs on one speech model,
+`ARIA_VOICE_TTS_MODEL` (gpt-4o-mini-tts), so all cost the same. In low-cost mode the picker's preview plays through
+the same speech path. Audition history: tts-1 sage was slow to first audio; marin preferred (2026-10-17).
 
 ## Accounting
 Every provider call is receipted in `caoscare_paid_api_ledger` with purpose, session, model, provider ids, usage and
@@ -52,5 +52,5 @@ cascade session never add a second receipt.
 ## Audition
 Prototype backend :8097 on a DB snapshot (`caoscare_aria_voice_audition`, escalations off), page :3005, voice
 service :8794 — live :8092/:3002, wake, kiosk untouched. Open
-`http://localhost:3005/kiosk/<kiosk>?aria_voice=cascade&aria_voice_tts=<voice>` and tap to talk; the live wake
+`http://localhost:3005/kiosk/<kiosk>?aria_voice=cascade` and tap to talk; the live wake
 listener drives the live page, so the audition does not use "Hey Aria" until the owner approves loading.

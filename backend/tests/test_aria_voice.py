@@ -266,7 +266,8 @@ def drain_bytes(resp):
 
 
 def test_tts1_sentence_is_streamed_receipted_per_character_and_settles_the_budget(budget, monkeypatch):
-    sid, out = new_session(voice="tts-1:sage")
+    monkeypatch.setattr(V, "TTS_MODEL", "tts-1")              # the speech model is configuration
+    sid, out = new_session(voice="Sage")
     assert out["tts"] == "tts-1:sage" and out["audio_sample_rate"] == 24000
     sent = fake_provider(monkeypatch, stream=Lines(200, [b"\x01\x00" * 100, b"\x02\x00" * 50]))
     audio = drain_bytes(run(V.speak(Req(out["token"]), {"text": "Welcome to CAOSCare, Michael."})))
@@ -282,7 +283,8 @@ def test_tts1_sentence_is_streamed_receipted_per_character_and_settles_the_budge
 
 def test_mini_tts_takes_provider_usage_over_sse(budget, monkeypatch):
     import base64
-    sid, out = new_session(voice="gpt-4o-mini-tts:marin")
+    sid, out = new_session(voice="marin")
+    assert out["tts"] == "gpt-4o-mini-tts:marin"
     usage = {"input_tokens": 20, "output_tokens": 90, "total_tokens": 110}
     lines = ["data: " + json.dumps({"type": "speech.audio.delta", "audio": base64.b64encode(b"\x00\x01" * 40).decode()}),
              "data: " + json.dumps({"type": "speech.audio.done", "usage": usage}), "data: [DONE]"]
@@ -295,8 +297,10 @@ def test_mini_tts_takes_provider_usage_over_sse(budget, monkeypatch):
 
 def test_only_the_greeting_is_cached_and_replayed_without_a_provider_call(budget, monkeypatch, tmp_path):
     monkeypatch.setattr(V, "GREETING_CACHE", str(tmp_path))
-    _, out = new_session(voice="tts-1:sage", greeting="Hey, Michael.")
-    sent = fake_provider(monkeypatch, stream=Lines(200, [b"\x05\x00" * 10]))
+    _, out = new_session(voice="cedar", greeting="Hey, Michael.")
+    lines = ["data: " + json.dumps({"type": "speech.audio.delta", "audio": "BQA="}),
+             "data: " + json.dumps({"type": "speech.audio.done", "usage": {"input_tokens": 5, "output_tokens": 9}})]
+    sent = fake_provider(monkeypatch, stream=Lines(200, lines))
     first = drain_bytes(run(V.speak(Req(out["token"]), {"text": "Hey, Michael."})))
     again = drain_bytes(run(V.speak(Req(out["token"]), {"text": "Hey, Michael."})))
     assert first == again and len(sent) == 1                         # second greeting: no provider request
@@ -305,5 +309,19 @@ def test_only_the_greeting_is_cached_and_replayed_without_a_provider_call(budget
 
 
 def test_unknown_voice_falls_back_to_the_configured_default(budget):
-    _, out = new_session(voice="some-other:voice")
-    assert out["tts"] == V.DEFAULT_VOICE
+    _, out = new_session(voice="not-a-voice")
+    assert out["tts"] == f"{V.TTS_MODEL}:{V.DEFAULT_VOICE}"
+
+
+def test_voice_picker_preview_uses_the_same_speech_path_and_is_receipted(lg, monkeypatch):
+    from models import TTSInput
+    from routes import ai
+    monkeypatch.setattr(ai, "OPENAI_API_KEY", KEY)
+    lines = ["data: " + json.dumps({"type": "speech.audio.delta", "audio": "AAEAAQ=="}),
+             "data: " + json.dumps({"type": "speech.audio.done", "usage": {"input_tokens": 12, "output_tokens": 40}})]
+    sent = fake_provider(monkeypatch, stream=Lines(200, lines))
+    out = run(ai.tts(TTSInput(text="Hello from CAOSCare.", voice="cedar", model="aria_voice")))
+    assert out["mime"] == "audio/wav" and sent[0][2]["json"]["voice"] == "cedar"
+    assert sent[0][2]["json"]["input"] == "Hello from Kay-oss Care."
+    r = lg.db.receipts.find_one({"endpoint": "audio/speech"})
+    assert r["provenance"]["purpose"] == "speech_generation" and r["usage_status"] == "reported"

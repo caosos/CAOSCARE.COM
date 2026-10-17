@@ -4,8 +4,8 @@
  * handler (realtimeMessageHandler.js) already understands - so Aria's tools, grounding, memory and receipts
  * are unchanged. Behind it: local turn detection (room-node/aria_voice, ws://127.0.0.1:8794) and the backend's
  * receipted speech-to-text, text model and voice (routes/aria_voice.py). No Realtime model is used.
- * Side-by-side audition only: chosen by ?aria_voice=cascade on the room page, never by default;
- * &aria_voice_tts=<key> picks one of the backend's audition voices (routes/aria_voice.py VOICES).
+ * Side-by-side audition only: chosen by ?aria_voice=cascade on the room page, never by default. The voice is the
+ * one chosen in the kiosk's voice picker.
  */
 export const VOICE_SERVICE_URL = "ws://127.0.0.1:8794";
 const SENTENCE_END = /[.!?…]["')\]]?\s+/;
@@ -13,10 +13,6 @@ const FIRST_CLAUSE = /^.{24,}?[,;:—]\s+/;   // a reply's opening clause is spo
 
 export function requestedTransport(search = typeof window !== "undefined" ? window.location.search : "") {
   return new URLSearchParams(search).get("aria_voice") === "cascade" ? "cascade" : null;
-}
-
-export function requestedVoice(search = typeof window !== "undefined" ? window.location.search : "") {
-  return new URLSearchParams(search).get("aria_voice_tts") || null;
 }
 
 /** Realtime conversation items -> chat messages (what the backend's text model takes). */

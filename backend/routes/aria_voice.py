@@ -4,7 +4,7 @@ The room page keeps Aria's handler, tools and memory; only the transport changes
 that transport that touches the provider, so the provider key, the receipts and the budget stay in the backend:
   speech -> text   POST /aria-voice/transcribe   gpt-4o-mini-transcribe   purpose speech_transcription
   text   -> reply  POST /aria-voice/respond      gpt-4o-mini, streamed    purpose = the session's purpose
-  text   -> speech POST /aria-voice/speak      the session's voice (VOICES), streamed  purpose speech_generation
+  text   -> speech POST /aria-voice/speak      the kiosk picker's voice, streamed       purpose speech_generation
 Instructions and tools are the ones the room session already builds (realtime_resident_session._mint); they are
 stored here at session start and never accepted from the client. No Realtime model is used. Models and voice are
 configuration (ARIA_VOICE_*); a different text provider only needs its own _stream().
@@ -31,10 +31,11 @@ router = APIRouter(prefix="/aria-voice", tags=["realtime"])
 
 STT_MODEL = os.environ.get("ARIA_VOICE_STT_MODEL", "gpt-4o-mini-transcribe").strip()
 TEXT_MODEL = os.environ.get("ARIA_VOICE_TEXT_MODEL", "gpt-4o-mini").strip()
-# Audition voices (owner order 2026-10-17: at most three). key -> (model, voice)
-VOICES = {"tts-1:sage": ("tts-1", "sage"), "tts-1:shimmer": ("tts-1", "shimmer"),
-          "gpt-4o-mini-tts:marin": ("gpt-4o-mini-tts", "marin")}
-DEFAULT_VOICE = os.environ.get("ARIA_VOICE_TTS", "gpt-4o-mini-tts:marin").strip()   # owner choice 2026-10-17
+# Speech: one model, the voice the room page's picker chose (Kiosk.jsx VOICES). Every voice costs the same.
+TTS_MODEL = os.environ.get("ARIA_VOICE_TTS_MODEL", "gpt-4o-mini-tts").strip()
+TTS_VOICES = {"alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer", "verse",
+              "marin", "cedar"}
+DEFAULT_VOICE = os.environ.get("ARIA_VOICE_DEFAULT_VOICE", "marin").strip()
 SPEECH_STYLE = ("Everyday conversational voice at a normal, lively pace - a friendly person chatting in the room. "
                 "Bright and relaxed; not dramatic, not hushed or whispery, not slow, not a storyteller.")   # owner 2026-10-17
 BOUNDS = dict(max_responses=16, max_audio_seconds=30, max_text_input_tokens=32000, max_output_tokens=250,
@@ -75,6 +76,20 @@ def _load_lexicon():
 spoken = _load_lexicon()
 
 
+def wav_bytes(pcm: bytes, rate: int = 24000) -> bytes:
+    import io
+    import wave
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1); w.setsampwidth(2); w.setframerate(rate); w.writeframes(pcm)
+    return buf.getvalue()
+
+
+def voice_or_default(voice) -> str:
+    v = (voice or "").strip().lower()
+    return v if v in TTS_VOICES else DEFAULT_VOICE
+
+
 def chat_tools(realtime_tools: list) -> list:
     """Realtime function tools -> chat-completions tools (same names, descriptions and schemas)."""
     return [{"type": "function", "function": {k: t[k] for k in ("name", "description", "parameters") if k in t}}
@@ -91,8 +106,7 @@ async def create_cascade_session(*, session_id, purpose, room, kiosk_id, instruc
     budget_id = test_budget_id()
     if not budget_id:
         raise HTTPException(status_code=503, detail="Low-cost voice refused: no owner-approved paid-test budget.")
-    voice = voice if voice in VOICES else DEFAULT_VOICE
-    tts_model, tts_voice = VOICES[voice]
+    tts_model, tts_voice = TTS_MODEL, voice_or_default(voice)
     try:
         out = ledger().budget.reserve_cascade(budget_id, stt_model=STT_MODEL, text_model=TEXT_MODEL, tts_model=tts_model,
                                               provenance=L.provenance(purpose, session_id=session_id), **BOUNDS)
@@ -110,7 +124,8 @@ async def create_cascade_session(*, session_id, purpose, room, kiosk_id, instruc
         "tts_model": tts_model, "tts_voice": tts_voice, "greeting_line": greeting_line, "spoken_chars": 0,
         "created_at": now_utc().isoformat(), "expires_at": expires.isoformat(), "ended_at": None})
     return {"transport": "cascade", "token": token, "expires_at": expires.isoformat(),
-            "stt_model": STT_MODEL, "tts": voice, "audio_sample_rate": 24000, "session": {"model": TEXT_MODEL}}
+            "stt_model": STT_MODEL, "tts": f"{tts_model}:{tts_voice}", "audio_sample_rate": 24000,
+            "session": {"model": TEXT_MODEL}}
 
 
 async def _session(request: Request) -> dict:
@@ -247,14 +262,25 @@ async def _file(path):
 
 
 async def _speech(s: dict, say: str, cache):
-    """tts-1 is billed per character (no usage in the response); gpt-4o-mini-tts reports usage over SSE."""
+    kept = []
+    async for pcm in speech_stream(s["tts_model"], s["tts_voice"], say, session_id=s["session_id"],
+                                   conversation_purpose=s["purpose"], room=s["room"], transport="cascade"):
+        kept.append(pcm); yield pcm
+    if cache and kept:
+        os.makedirs(os.path.dirname(cache), exist_ok=True)
+        with open(cache, "wb") as f:
+            f.write(b"".join(kept))
+
+
+async def speech_stream(model, voice, say, *, session_id=None, **where):
+    """The one place Aria's speech is requested: PCM16 24 kHz chunks as the provider produces them, one receipt.
+    tts-1 is billed per character (no usage in the response); gpt-4o-mini-tts reports usage over SSE."""
     from routes.paid_api_receipts import record_request_async, now_iso
-    model, voice = s["tts_model"], s["tts_voice"]
     sse = model != "tts-1"
     body = {"model": model, "voice": voice, "input": say, "response_format": "pcm"}
     if sse:
         body.update(stream_format="sse", instructions=SPEECH_STYLE)
-    key, t0, resp, summary, kept = _key(), now_iso(), None, {}, []
+    key, t0, resp, summary = _key(), now_iso(), None, {}
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=10.0)) as client:
             async with client.stream("POST", f"{_base()}/audio/speech", json=body,
@@ -264,28 +290,22 @@ async def _speech(s: dict, say: str, cache):
                     return
                 if not sse:
                     async for chunk in resp.aiter_bytes():
-                        kept.append(chunk); yield chunk
+                        yield chunk
                     return
                 async for line in resp.aiter_lines():
                     if not line.startswith("data: ") or line.strip() == "data: [DONE]":
                         continue
                     ev = json.loads(line[6:])
                     if ev.get("type") == "speech.audio.delta":
-                        pcm = base64.b64decode(ev.get("audio") or "")
-                        kept.append(pcm); yield pcm
+                        yield base64.b64decode(ev.get("audio") or "")
                     elif ev.get("type") == "speech.audio.done":
                         summary = {"model": model, "usage": ev.get("usage")}
     except httpx.HTTPError:
         return
     finally:
         await record_request_async(resp, purpose="speech_generation", endpoint="audio/speech", model_requested=model,
-                                   started_at=t0, key=key, session_id=s["session_id"], body=summary,
-                                   chars=None if sse else len(say), voice=voice,
-                                   conversation_purpose=s["purpose"], room=s["room"], transport="cascade")
-        if cache and kept and resp is not None and resp.status_code < 400:
-            os.makedirs(os.path.dirname(cache), exist_ok=True)
-            with open(cache, "wb") as f:
-                f.write(b"".join(kept))
+                                   started_at=t0, key=key, session_id=session_id, body=summary,
+                                   chars=None if sse else len(say), voice=voice, **where)
 
 
 def _sse(obj: dict) -> str:
