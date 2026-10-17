@@ -397,10 +397,12 @@ export function createCascadeConnection({ session, caos, stream, api, audioEl = 
       .then((res) => (res.ok ? res.json() : {})).then((j) => j.text || "").catch(() => "");
   }
 
-  async function heard(wavB64) {
+  async function heard(wavB64, earlyOk) {
     const item = id("item");
     emit({ type: "input_audio_buffer.speech_stopped", item_id: item });
-    const pending = early; early = null;    // still valid only if the speaker did not carry on after the pause
+    // The pause transcript is used only when the service says nothing was said after the pause; otherwise it
+    // holds just the start of the turn ("Are you able to...", Room 214 2026-10-17) and the whole turn is sent.
+    const pending = earlyOk === true ? early : null; early = null;
     const text = await (pending || transcribe(wavB64));
     if (closed) return;
     const b = barge; barge = null;
@@ -450,7 +452,7 @@ export function createCascadeConnection({ session, caos, stream, api, audioEl = 
     } else if (m.type === "speech_resumed") {
       early = null;
     } else if (m.type === "speech_stopped") {
-      heard(m.wav);
+      heard(m.wav, m.early_ok);
     }
   }
 

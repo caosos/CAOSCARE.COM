@@ -15,7 +15,7 @@ room page: handler + tools (unchanged) ◀── Realtime event subset ──▶
    mic (browser AEC) ─PCM─▶ room-node/aria_voice  (localhost :8794, Silero VAD: pause, turn end, barge-in)
                             backend routes/aria_voice.py  (key, receipts, budget; models/voice = configuration)
                               /transcribe  ARIA_VOICE_STT_MODEL  (gpt-4o-mini-transcribe)   speech_transcription
-                              /respond     ARIA_VOICE_TEXT_MODEL (gpt-4o-mini, streamed, 34 tools)  room purpose
+                              /respond     ARIA_VOICE_TEXT_MODEL (gpt-4.1-mini, streamed, 34 tools)  room purpose
                               /speak       session voice, streamed PCM 24 kHz                speech_generation
 ```
 Swapping the text provider means a new `_stream()` in `routes/aria_voice.py`; nothing else changes.

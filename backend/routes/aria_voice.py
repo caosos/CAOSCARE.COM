@@ -3,7 +3,7 @@
 The room page keeps Aria's handler, tools and memory; only the transport changes. This module is the part of
 that transport that touches the provider, so the provider key, the receipts and the budget stay in the backend:
   speech -> text   POST /aria-voice/transcribe   gpt-4o-mini-transcribe   purpose speech_transcription
-  text   -> reply  POST /aria-voice/respond      gpt-4o-mini, streamed    purpose = the session's purpose
+  text   -> reply  POST /aria-voice/respond      gpt-4.1-mini, streamed    purpose = the session's purpose
   text   -> speech POST /aria-voice/speak      the kiosk picker's voice, streamed       purpose speech_generation
 Instructions and tools are the ones the room session already builds (realtime_resident_session._mint); they are
 stored here at session start and never accepted from the client. No Realtime model is used. Models and voice are
@@ -30,7 +30,7 @@ from models import now_utc
 router = APIRouter(prefix="/aria-voice", tags=["realtime"])
 
 STT_MODEL = os.environ.get("ARIA_VOICE_STT_MODEL", "gpt-4o-mini-transcribe").strip()
-TEXT_MODEL = os.environ.get("ARIA_VOICE_TEXT_MODEL", "gpt-4o-mini").strip()
+TEXT_MODEL = os.environ.get("ARIA_VOICE_TEXT_MODEL", "gpt-4.1-mini").strip()   # owner 2026-10-17: smarter, +~20% per call
 # Speech: one model, the voice the room page's picker chose (Kiosk.jsx VOICES). Every voice costs the same.
 TTS_MODEL = os.environ.get("ARIA_VOICE_TTS_MODEL", "gpt-4o-mini-tts").strip()
 TTS_VOICES = {"alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer", "verse",

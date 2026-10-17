@@ -156,10 +156,23 @@ test("transcription starts at the first pause and is reused when the turn ends t
   t.send({ type: "session.update", session: { audio: { input: { turn_detection: { create_response: false } } } } });
   t.ws.serve({ type: "speech_started" });
   t.ws.serve({ type: "speech_paused", wav: btoa("RIFFearly") });
-  t.ws.serve({ type: "speech_stopped", wav: btoa("RIFFfull") });
+  t.ws.serve({ type: "speech_stopped", early_ok: true, wav: btoa("RIFFfull") });
   await flush(); await flush();
   expect(t.calls.filter((c) => c.url.endsWith("/transcribe"))).toHaveLength(1);
   expect(t.events.find((e) => e.type === "conversation.item.input_audio_transcription.completed").transcript).toBe("I need some water");
+});
+
+test("speech after the pause: the whole turn is transcribed, not just its start (Room 214 2026-10-17)", async () => {
+  const t = setup();
+  t.ws.serve({ type: "ready", sample_rate: 22050, gen: 0 });
+  t.send({ type: "session.update", session: { audio: { input: { turn_detection: { create_response: false } } } } });
+  t.ws.serve({ type: "speech_started" });
+  t.ws.serve({ type: "speech_paused", wav: btoa("RIFFearly") });
+  t.ws.serve({ type: "speech_stopped", early_ok: false, wav: btoa("RIFFfull") });
+  await flush(); await flush();
+  const sent = t.calls.filter((c) => c.url.endsWith("/transcribe")).map((c) => String.fromCharCode(...c.opts.body));
+  expect(sent).toEqual(["RIFFearly", "RIFFfull"]);
+  expect(t.events.filter((e) => e.type === "conversation.item.input_audio_transcription.completed")).toHaveLength(1);
 });
 
 test("speaking on after a pause discards the early transcription", async () => {
