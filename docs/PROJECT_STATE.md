@@ -1139,3 +1139,24 @@ HANDOFF CAPSULE
 - Do NOT change:    live Room 214 runtime, wake thresholds, Drive exporter, simulator, Linode
 - Next safe action: owner listens and decides whether to load the low-cost path on Room 214
 ```
+
+## 2026-10-19 — Wake broadcast send timestamp prepared for EliteDesk call correlation (not loaded)
+
+- **Agent/tool:** Codex, owner-directed EliteDesk wake-to-call latency investigation. **Branch:** `measure/elite-wake-call-correlation` from `9fe4ce9`; isolated clone `/home/caoscare-1/CAOSCARE-wake-call-correlation`. Live Room 214/EliteDesk listener, EMEET route, thresholds, page, backend, Home Assistant and Linode were not changed or restarted.
+- **Change:** `aria_wake.Server.broadcast()` now adds metadata-only `sent_at` to wake frames and logs `wake_send_started` / `wake_sent` with only wake id, timestamp and client count. This supplies the missing source-side timestamp that the separate Desktop Agent helper correlates with recognition, receipt, readiness, click and LIVE evidence. No audio, speech, page text or credentials are recorded.
+- **Verified offline:** wake listener unit suite `17 passed in 0.65 s`, including exact frame/log correlation. No microphone, socket service, call, approval or paid provider was exercised.
+- **Boundary/rollback:** not loaded or pushed. Rollback remains `9fe4ce9`; loading later must occur only as part of the reviewed two-branch instrumentation change while the call state is freshly verified idle. The six-tool CAOSCare Home Assistant lane remains untouched.
+
+```text
+HANDOFF CAPSULE
+- Objective:        provide the exact listener event-send timestamp for wake-to-call correlation
+- Branch:           measure/elite-wake-call-correlation from 9fe4ce9
+- Lane / ownership: metadata-only wake listener instrumentation; Desktop Agent owns call control
+- Last proven state:17/17 offline listener tests; no live validation
+- Commits:          local review commit recorded at final handoff; nothing loaded
+- Runtime state:    live listener untouched
+- Unresolved proven defects: source timestamp is not available live until this reviewed commit is staged
+- Product invariants that matter here: EMEET route and wake detection unchanged; localhost-only; no audio/content logging
+- Do NOT change:    thresholds, model, runtime service, Room 214 page/backend, HA six-tool lane, Linode
+- Next safe action: review alongside the Desktop Agent latency commit; do not stage without verified idle
+```

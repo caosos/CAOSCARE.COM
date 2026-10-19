@@ -121,12 +121,19 @@ class Server:
                 "audio_input_device": self.device, "sample_rate": SAMPLE_RATE}
 
     async def broadcast(self, msg):
+        if msg.get("type") == "wake":
+            msg = {**msg, "sent_at": now_iso()}
+            log("wake_send_started", wake_id=msg.get("wake_id"), sent_at=msg["sent_at"], clients=len(self.clients))
         data = json.dumps(msg)
+        sent = 0
         for ws in list(self.clients):
             try:
                 await ws.send(data)
+                sent += 1
             except Exception:
                 self.clients.discard(ws)
+        if msg.get("type") == "wake":
+            log("wake_sent", wake_id=msg.get("wake_id"), sent_at=msg["sent_at"], clients=sent)
 
     async def remove_client(self, ws):
         """Drop a page and recover the detector if the last page vanished mid-call.

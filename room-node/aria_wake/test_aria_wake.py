@@ -62,6 +62,24 @@ def test_one_of_two_disconnects_does_not_reset_and_final_pending_does(monkeypatc
     assert server.state.mode == "listening"
 
 
+def test_wake_broadcast_carries_and_logs_correlated_send_time(monkeypatch):
+    events = []
+    monkeypatch.setattr(aw, "log", lambda event, **fields: events.append((event, fields)))
+
+    class Client:
+        async def send(self, raw):
+            self.message = __import__("json").loads(raw)
+
+    server, client = aw.Server("test"), Client()
+    server.clients.add(client)
+    asyncio.run(server.broadcast({"type": "wake", "wake_id": "wake_trace", "detected_at": "detected"}))
+
+    assert client.message["wake_id"] == "wake_trace" and client.message["sent_at"]
+    assert [event for event, _ in events] == ["wake_send_started", "wake_sent"]
+    assert events[0][1]["sent_at"] == client.message["sent_at"] == events[1][1]["sent_at"]
+    assert events[1][1]["clients"] == 1
+
+
 def test_silence_reset_fires_once_after_speech_then_pause():
     r = aw.SilenceReset()
     quiet = np.full(1600, 0.0005, dtype=np.float32)
