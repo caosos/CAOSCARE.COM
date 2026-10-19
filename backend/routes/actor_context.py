@@ -76,3 +76,17 @@ def actor_system(name: str) -> ActorContext:
     """A named CAOSCare process acting on its own authority."""
     return ActorContext(actor_id=f"system:{name}", actor_type="system", identity_basis="system",
                         channel="system", name=name, role="system")
+
+
+def actor_service_delegate(owner: dict, name: str, channel: str) -> ActorContext:
+    """An external assistant acting through a narrow owner-approved service credential.
+
+    This is not an interactive owner login and must never be described as one.
+    The caller's route decides the credential's bounded authority; receipts keep
+    the owner whose authority was delegated and the assistant channel separate.
+    """
+    return ActorContext(
+        actor_id=owner["user_id"], actor_type="external-provider",
+        identity_basis="service_credential", channel=channel, name=name,
+        role=owner.get("role"), department=owner.get("department"),
+    )

@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field, field_validator
 from models import RESIDENT_ORIGIN_SOURCES, StaffTask, TaskPriority, normalize_callback_phone, now_utc
 from deps import db, get_current_user
 from routes import task_lifecycle
-from routes.actor_context import actor_from_user, actor_resident_claim
+from routes.actor_context import ActorContext, actor_from_user, actor_resident_claim
 from routes.task_history import task_event, latest_note_at, times_asked
 from routes.task_lifecycle import simulation_marker
 from routes.notifications import notify_department, task_notice
@@ -82,7 +82,7 @@ class ResidentRequestInput(BaseModel):
     resident_words: Optional[str] = None
     summary: str
     priority: TaskPriority = "normal"
-    source: str = "aria_voice"  # "aria_voice" | "kiosk_button" | "front_desk" (auth required for front_desk)
+    source: str = "aria_voice"  # public: aria_voice/kiosk_button; trusted in-process: front_desk/dot_aria
     conversation_session_id: Optional[str] = None
     items: Optional[List[RequestItem]] = Field(None, max_length=10)   # supplies/linens: item + quantity
     # Staff entry only (source front_desk): how and when to call back. Refused on the public bus.
@@ -92,7 +92,9 @@ class ResidentRequestInput(BaseModel):
 
 
 async def create_resident_request(data: ResidentRequestInput, *, user: Optional[dict] = None,
-                                  simulation_run_id: Optional[str] = None) -> dict:
+                                  simulation_run_id: Optional[str] = None,
+                                  trusted_actor: Optional[ActorContext] = None,
+                                  trusted_authority: Optional[str] = None) -> dict:
     """Public (no auth) for "aria_voice"/"kiosk_button" - same trust model
     as /alerts and the other resident-facing endpoints called from the
     kiosk during a live call. Creates a real StaffTask (so it appears in
@@ -165,6 +167,13 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
         if not user or user.get("role") not in ("owner", "admin", "staff", "front_desk"):
             raise HTTPException(status_code=403, detail="Not authorized to create resident requests")
         actor, authority = actor_from_user(user, channel="front_desk"), "front_desk_entry"
+    elif data.source == "dot_aria":
+        # Only the private integration route may provide this server-built
+        # actor. A public caller can put "dot_aria" in JSON, but cannot mint
+        # the trusted actor/authority and is therefore refused before a write.
+        if not trusted_actor or trusted_actor.channel != "dot_aria" or not trusted_authority:
+            raise HTTPException(status_code=403, detail="Not authorized to create Dot Aria requests")
+        actor, authority = trusted_actor, trusted_authority
     elif data.source in ("aria_voice", "kiosk_button"):
         # The room is known; who spoke is a claim, not a verified identity (D3).
         actor = actor_resident_claim(data.resident_id, data.room, data.source, synthetic=bool(marker))
@@ -401,6 +410,16 @@ async def resident_request_status(
     if not task:
         return {"found": False, "scope": "current"}
     return {"found": True, "scope": "current", **_resident_safe_view(task, await _facility_tz())}
+
+
+async def resident_request_status_by_id(resident_id: str, task_id: str) -> dict:
+    """Return a resident-safe view of one exact request, open or closed."""
+    q = _scope_query(resident_id, None, None, allow_session=False)
+    q["task_id"] = task_id
+    task = await db.staff_tasks.find_one(q, {"_id": 0})
+    if not task:
+        return {"found": False, "scope": "exact_request", "request_id": task_id}
+    return {"found": True, "scope": "exact_request", **_resident_safe_view(task, await _facility_tz())}
 
 
 @router.get("/resident-request/history")

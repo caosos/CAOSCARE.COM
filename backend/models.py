@@ -811,7 +811,7 @@ TaskPriority = Literal["low", "normal", "high", "urgent"]
 # Who/what originated this task/request - lets Aria-initiated and
 # resident-initiated items be distinguished from staff-scheduled work.
 TaskSource = Literal["staff", "aria_voice", "kiosk_button", "family", "system", "front_desk", "aria_admin",
-                     "simulator"]
+                     "dot_aria", "simulator"]
 # Requests that originate with a resident (the resident-request bus).
 # "simulator" = a simulated resident in an operations-simulator run (SC-17);
 # only ever set server-side, never accepted from a request body.
@@ -820,7 +820,7 @@ TaskSource = Literal["staff", "aria_voice", "kiosk_button", "family", "system", 
 # resident's request, so the resident's Home screen and Aria's status see it
 # (careops-therapy-appointment-001, 2026-10-11: an appointment entered at the
 # desk must be visible to the resident).
-RESIDENT_ORIGIN_SOURCES = ("aria_voice", "kiosk_button", "simulator", "front_desk")
+RESIDENT_ORIGIN_SOURCES = ("aria_voice", "kiosk_button", "simulator", "front_desk", "dot_aria")
 # Coarse role gate for who should see this in their queue/dashboard.
 # Enforced backend-side wherever tasks are listed for a given role - see
 # ENGINEERING_CONTRACT.md (once written) for the authorization pattern.

@@ -1160,3 +1160,27 @@ HANDOFF CAPSULE
 - Do NOT change:    thresholds, model, runtime service, Room 214 page/backend, HA six-tool lane, Linode
 - Next safe action: review alongside the Desktop Agent latency commit; do not stage without verified idle
 ```
+
+## 2026-10-19 03:17 CDT — Dot Aria bounded CAOSCare channel (review package, default off)
+
+- **Agent/tool:** Codex, direct Michael session. **Checkout:** `/home/michaelos/CAOSCARE-arya-call-integration`. **Branch:** `feature/dot-aria-caoscare-channel`, based on unchanged `bc79f9eb0dbe02735e2d9b5d7b49994e1a96f01c`. No push, merge, load, Home Assistant change, credential, resident-production action, paid model call or Linode action.
+- **Built:** default-off `/api/dot-aria/*` channel plus a review-only Home Assistant package with six response-returning scripts: configured test profile, departments, approved menu, published schedule/services, receipted request creation and exact-ID request status. Backend authorization requires a dedicated token hash, exact Home Assistant source IP, an existing owner account and one server-configured approved test profile. No tool input can select a resident by name, room or resident ID.
+- **Write truth:** request acceptance returns a request ID, receipt ID, status, duplicate marker and notification delivery evidence. It explicitly does not claim that service started or completed. Duplicate open requests reuse the same task while each delivery gets a distinct receipt. Exact status is restricted to the configured profile and covers open or closed tasks.
+- **Verified:** focused canonical gate **10 passed / 1,517 deselected**; HA package parsed as 6 REST commands + 6 scripts; health script syntax valid. Final full backend gate **1,472 passed / 11 failed / 31 skipped / 13 deselected**. A matching run on detached unchanged base `bc79f9e` reproduced the exact 11: `test_ops_metrics` ×2 (5 expected, 4 observed), `test_restart_dev_backend` ×8 (`/tmp/restart_dev_backend.candidate.log` owned by `caoscare-1`, unwritable by `michaelos`), and weekly therapy recurrence ×1. These are baseline failures, not hidden and not called green.
+- **Production-file sizes:** new `routes/dot_aria_channel.py` 166 lines; modified `routes/actor_context.py` 92; `routes/task_lifecycle.py` 263; legacy `server.py` 350 (+2); legacy `resident_requests.py` 463 (+19 net); schema-heavy legacy `models.py` 1,881 (+0 net). No new oversized implementation file was created.
+- **Not installed/live:** no HA package, secret, Assist exposure, backend environment or runtime was changed; Arya is not connected to these tools. Existing wake, Playwright call control, EMEET audio and spoken hang-up remain outside this change.
+- **Review/activation:** `docs/ops/dot-aria/START_HERE.md` is the canonical checklist, including secure local credential entry, exact six entity IDs, health checks, rollback and one supervised meal → test maintenance request → same-ID status acceptance.
+
+```text
+HANDOFF CAPSULE
+- Objective:        activate and prove the six bounded Dot Aria CAOSCare tools after owner review
+- Branch:           feature/dot-aria-caoscare-channel from bc79f9eb0dbe02735e2d9b5d7b49994e1a96f01c
+- Lane / ownership: Dot Aria backend channel + review-only HA package; do not alter the live wake/call stack or another checkout
+- Last proven state:focused 10/10 green; HA package 6+6 parses; full gate has 11 exact base-reproduced failures
+- Commits:          local review commit recorded by the final handoff; nothing pushed
+- Runtime state:    no integration loaded; no credential created; live CAOSCare/HA/call stack untouched
+- Unresolved proven defects: baseline test failures listed above; live HA/Arya discovery and request acceptance untested
+- Product invariants that matter here: backend identity/profile scope; published/read-safe data; receipts and truthful status; human-supervised non-emergency use
+- Do NOT change:    resident scope from speech; live services overnight; firewall/tunnels; Linode; call-control retry/wake behavior
+- Next safe action: Michael reviews START_HERE step 1 and selects the exact existing synthetic/test resident_id for activation
+```

@@ -38,7 +38,8 @@ STATE_KEYS = ("status", "assigned_to", "acknowledged_by", "started_at", "complet
               "requested_for_date", "requested_for_time_label",
               "provider_name", "discipline", "location", "needs_review", "inspection_result")   # appointment details ride in before/after too
 _SOURCE_BY_CHANNEL = {"staff_ui": "staff", "front_desk": "front_desk", "system": "system",
-                      "aria_voice": "aria_voice", "kiosk_button": "kiosk_button", "simulator": "simulator"}
+                      "aria_voice": "aria_voice", "kiosk_button": "kiosk_button", "simulator": "simulator",
+                      "dot_aria": "dot_aria"}
 
 
 class LifecycleError(HTTPException):

@@ -1,0 +1,208 @@
+# Review-ready Home Assistant package. Default off: do not install or expose
+# until Michael completes START_HERE.md. The bearer value belongs only in
+# Home Assistant secrets.yaml under caoscare_dot_aria_authorization.
+rest_command:
+  caoscare_dot_aria_profile:
+    url: "http://192.168.122.1:8092/api/dot-aria/profile"
+    method: GET
+    headers:
+      authorization: !secret caoscare_dot_aria_authorization
+    timeout: 10
+
+  caoscare_dot_aria_departments:
+    url: "http://192.168.122.1:8092/api/dot-aria/departments"
+    method: GET
+    headers:
+      authorization: !secret caoscare_dot_aria_authorization
+    timeout: 10
+
+  caoscare_dot_aria_menu:
+    url: "http://192.168.122.1:8092/api/dot-aria/menu"
+    method: POST
+    headers:
+      authorization: !secret caoscare_dot_aria_authorization
+    content_type: "application/json"
+    payload: >-
+      {{ {"date": date | default(none), "meal_period": meal_period | default(none)} | to_json }}
+    timeout: 10
+
+  caoscare_dot_aria_schedule:
+    url: "http://192.168.122.1:8092/api/dot-aria/schedule"
+    method: POST
+    headers:
+      authorization: !secret caoscare_dot_aria_authorization
+    content_type: "application/json"
+    payload: >-
+      {{ {"date": date | default(none)} | to_json }}
+    timeout: 10
+
+  caoscare_dot_aria_request:
+    url: "http://192.168.122.1:8092/api/dot-aria/requests"
+    method: POST
+    headers:
+      authorization: !secret caoscare_dot_aria_authorization
+    content_type: "application/json"
+    payload: >-
+      {{ {"category": category, "summary": summary,
+          "priority": priority | default("normal")} | to_json }}
+    timeout: 10
+
+  caoscare_dot_aria_request_status:
+    url: "http://192.168.122.1:8092/api/dot-aria/requests/status"
+    method: POST
+    headers:
+      authorization: !secret caoscare_dot_aria_authorization
+    content_type: "application/json"
+    payload: >-
+      {{ {"request_id": request_id} | to_json }}
+    timeout: 10
+
+# Every script returns transport_ok, http_status and the exact CAOSCare body.
+# continue_on_error is deliberate: a timeout/unavailable backend becomes an
+# explicit transport_ok:false result instead of a false conversational success.
+script:
+  caoscare_get_my_profile:
+    alias: CAOSCare my approved test profile
+    icon: mdi:account-check
+    description: Read only the single CAOSCare test profile configured by the owner. It cannot search by spoken name or room.
+    mode: single
+    sequence:
+      - action: rest_command.caoscare_dot_aria_profile
+        continue_on_error: true
+        response_variable: reply
+      - variables:
+          result:
+            transport_ok: "{{ reply is defined }}"
+            http_status: "{{ reply.status | default(0) if reply is defined else 0 }}"
+            response: "{{ reply.content if reply is defined else {'ok': false, 'error': 'CAOSCare unavailable or timed out'} }}"
+      - stop: CAOSCare profile lookup finished
+        response_variable: result
+
+  caoscare_get_departments:
+    alias: CAOSCare request departments
+    icon: mdi:account-group
+    description: List active CAOSCare departments that can receive a non-emergency request.
+    mode: single
+    sequence:
+      - action: rest_command.caoscare_dot_aria_departments
+        continue_on_error: true
+        response_variable: reply
+      - variables:
+          result:
+            transport_ok: "{{ reply is defined }}"
+            http_status: "{{ reply.status | default(0) if reply is defined else 0 }}"
+            response: "{{ reply.content if reply is defined else {'ok': false, 'error': 'CAOSCare unavailable or timed out'} }}"
+      - stop: CAOSCare department lookup finished
+        response_variable: result
+
+  caoscare_get_menu:
+    alias: CAOSCare menu
+    icon: mdi:silverware-fork-knife
+    description: Read staff-approved CAOSCare meals. Report an empty result as unavailable information; never invent a meal.
+    mode: single
+    fields:
+      date:
+        name: Date
+        description: Optional ISO date, YYYY-MM-DD. Omit for the facility date.
+        selector: {text: {}}
+      meal_period:
+        name: Meal
+        description: Optional breakfast, lunch, or dinner.
+        selector: {select: {options: [breakfast, lunch, dinner]}}
+    sequence:
+      - action: rest_command.caoscare_dot_aria_menu
+        continue_on_error: true
+        data: {date: "{{ date | default(none) }}", meal_period: "{{ meal_period | default(none) }}"}
+        response_variable: reply
+      - variables:
+          result:
+            transport_ok: "{{ reply is defined }}"
+            http_status: "{{ reply.status | default(0) if reply is defined else 0 }}"
+            response: "{{ reply.content if reply is defined else {'ok': false, 'error': 'CAOSCare unavailable or timed out'} }}"
+      - stop: CAOSCare menu lookup finished
+        response_variable: result
+
+  caoscare_get_schedule:
+    alias: CAOSCare community services and activities
+    icon: mdi:calendar-clock
+    description: Read published resident-facing CAOSCare activities and community services. Staff-only and draft rows are excluded.
+    mode: single
+    fields:
+      date:
+        name: Date
+        description: Optional ISO date, YYYY-MM-DD. Omit for the facility date.
+        selector: {text: {}}
+    sequence:
+      - action: rest_command.caoscare_dot_aria_schedule
+        continue_on_error: true
+        data: {date: "{{ date | default(none) }}"}
+        response_variable: reply
+      - variables:
+          result:
+            transport_ok: "{{ reply is defined }}"
+            http_status: "{{ reply.status | default(0) if reply is defined else 0 }}"
+            response: "{{ reply.content if reply is defined else {'ok': false, 'error': 'CAOSCare unavailable or timed out'} }}"
+      - stop: CAOSCare schedule lookup finished
+        response_variable: result
+
+  caoscare_make_request:
+    alias: CAOSCare make test-profile request
+    icon: mdi:account-hard-hat
+    description: Create one non-emergency CAOSCare request for the server-configured approved test profile. A request receipt is not proof that service started or completed.
+    mode: queued
+    max: 3
+    fields:
+      category:
+        name: Department
+        description: Exact active department slug returned by CAOSCare request departments.
+        required: true
+        selector: {text: {}}
+      summary:
+        name: Request
+        description: Concrete request in the owner's words. Do not invent a time, identity, room, or medical fact.
+        required: true
+        selector: {text: {multiline: true}}
+      priority:
+        name: Priority
+        description: Use normal unless the owner explicitly indicates another level.
+        default: normal
+        selector: {select: {options: [low, normal, high, urgent]}}
+    sequence:
+      - action: rest_command.caoscare_dot_aria_request
+        continue_on_error: true
+        data:
+          category: "{{ category }}"
+          summary: "{{ summary }}"
+          priority: "{{ priority | default('normal') }}"
+        response_variable: reply
+      - variables:
+          result:
+            transport_ok: "{{ reply is defined }}"
+            http_status: "{{ reply.status | default(0) if reply is defined else 0 }}"
+            response: "{{ reply.content if reply is defined else {'ok': false, 'accepted': false, 'error': 'CAOSCare unavailable or timed out'} }}"
+      - stop: CAOSCare request operation finished
+        response_variable: result
+
+  caoscare_check_request_status:
+    alias: CAOSCare check exact request
+    icon: mdi:clipboard-text-clock
+    description: Retrieve the resident-safe current state of the exact CAOSCare request ID returned when it was created.
+    mode: single
+    fields:
+      request_id:
+        name: Request ID
+        description: Exact CAOSCare request_id returned by caoscare_make_request.
+        required: true
+        selector: {text: {}}
+    sequence:
+      - action: rest_command.caoscare_dot_aria_request_status
+        continue_on_error: true
+        data: {request_id: "{{ request_id }}"}
+        response_variable: reply
+      - variables:
+          result:
+            transport_ok: "{{ reply is defined }}"
+            http_status: "{{ reply.status | default(0) if reply is defined else 0 }}"
+            response: "{{ reply.content if reply is defined else {'ok': false, 'error': 'CAOSCare unavailable or timed out'} }}"
+      - stop: CAOSCare exact request status lookup finished
+        response_variable: result

@@ -128,6 +128,7 @@ from routes import documents as documents_routes  # noqa: E402
 from routes import community_runtime_registry  # noqa: E402
 from routes import work_context as work_context_routes  # noqa: E402
 from routes import demo_continuity as demo_continuity_routes  # noqa: E402
+from routes import dot_aria_channel as dot_aria_channel_routes  # noqa: E402
 from seed import demo_seed_enabled, seed  # noqa: E402
 
 
@@ -330,6 +331,7 @@ api.include_router(documents_routes.router)
 api.include_router(community_reset_control_routes.router)
 api.include_router(work_context_routes.router)
 api.include_router(demo_continuity_routes.router)
+api.include_router(dot_aria_channel_routes.router)
 
 app.include_router(api)
 
