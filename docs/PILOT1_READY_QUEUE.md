@@ -2,6 +2,27 @@
 
 # CAOSCare Pilot 1 Ready Queue
 
+<a id="readiness-gauge-queue"></a>
+## 2026-10-20 local owner capture — shared readiness/history gauge
+
+Task `arya-readiness-history` is **PARKED behind the current wake-reliability fix**.
+Michael requested the same measured readiness/resource/history capability in
+Desktop Agent and CAOSCare, using one measurement source and project-appropriate
+views. The single authoritative requirements are
+[Desktop Agent IDEA_BOOK §6](../../Desktop-Agent-arya-regular-chat/docs/IDEA_BOOK.md#readiness-gauge-spec).
+Read that specification for gauges, freshness/UNKNOWN rules, privacy, continuous
+history, retention/storage bounds and synthetic/supervised acceptance; do not
+create a competing copy or collector.
+
+This is a local documentation receipt, not implementation, activation, a new
+connector or a revival of the historical Pilot 1 queue below. Preserve the
+six-tool connector preparation and live voice services. No runtime settings,
+credentials or resident records are changed. Future integration must carry this
+pointer forward with the existing queue; no remote issue or push is required to
+preserve this capture.
+
+## Historical Pilot 1 queue
+
 Target: 2026-10-10  
 Integration branch: `integration/2026-09-27`  
 Owner: Pilot 1 integration coordinator  
