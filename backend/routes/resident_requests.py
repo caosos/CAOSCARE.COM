@@ -94,7 +94,8 @@ class ResidentRequestInput(BaseModel):
 async def create_resident_request(data: ResidentRequestInput, *, user: Optional[dict] = None,
                                   simulation_run_id: Optional[str] = None,
                                   trusted_actor: Optional[ActorContext] = None,
-                                  trusted_authority: Optional[str] = None) -> dict:
+                                  trusted_authority: Optional[str] = None,
+                                  trusted_operation_id: Optional[str] = None) -> dict:
     """Public (no auth) for "aria_voice"/"kiosk_button" - same trust model
     as /alerts and the other resident-facing endpoints called from the
     kiosk during a live call. Creates a real StaffTask (so it appears in
@@ -173,6 +174,8 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
         # the trusted actor/authority and is therefore refused before a write.
         if not trusted_actor or trusted_actor.channel != "dot_aria" or not trusted_authority:
             raise HTTPException(status_code=403, detail="Not authorized to create Dot Aria requests")
+        if not trusted_operation_id:
+            raise HTTPException(status_code=403, detail="Dot Aria requests require a server-validated operation ID")
         actor, authority = trusted_actor, trusted_authority
     elif data.source in ("aria_voice", "kiosk_button"):
         # The room is known; who spoke is a claim, not a verified identity (D3).
@@ -221,6 +224,7 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
             existing, receipt = await task_lifecycle.transition(
                 existing["task_id"], actor, user, action="re_request", authority=authority,
                 action_type="resident_request_re_requested", status="created",
+                provider_refs=[trusted_operation_id] if trusted_operation_id else None,
                 build=lambda t, rid: (
                     {"re_request_count": t.get("re_request_count", 0) + 1,
                      "last_re_requested_at": now_utc().isoformat()},
@@ -237,7 +241,7 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
         same_issue = True
         count = existing.get("re_request_count", 0)
         asked = times_asked({"re_request_count": count})
-        await notify_department(
+        notices = await notify_department(
             visibility_role,
             f"CAOS Care: REPEAT request (asked {asked}x) — {data.category}",
             f"Asked {asked} times now — {data.summary}\n"
@@ -249,6 +253,8 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
         # Speak the duplicate from Layer E's lifecycle vocabulary + real age,
         # so it cannot contradict "What's actually happening right now".
         auth = request_status_view(existing, await _facility_tz())
+        from routes.request_delivery import summarize
+        delivery = summarize(notices or [])
         return {
             "task_id": existing["task_id"], "receipt_id": receipt["receipt_id"],
             "status": existing["status"], "duplicate": True, "re_request_count": count,
@@ -259,6 +265,8 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
             "scheduled_time_label": existing.get("requested_for_time_label"),
             "lifecycle": auth["lifecycle"], "opened_age": auth["opened_age"],
             "spoken": auth["spoken"],
+            "delivery": delivery["state"],
+            "delivery_evidence": {k: delivery[k] for k in ("state", "label", "reached", "attempts")},
         }
 
     payload = {
@@ -283,18 +291,24 @@ async def create_resident_request(data: ResidentRequestInput, *, user: Optional[
     doc["created_at"] = doc["created_at"].isoformat()
     await db.staff_tasks.insert_one(doc)
     doc.pop("_id", None)
-    receipt = await task_lifecycle.record_origin(doc, actor, action_type="resident_request_created",
-                                                 authority=authority)
-    await notify_department(
+    receipt = await task_lifecycle.record_origin(
+        doc, actor, action_type="resident_request_created", authority=authority,
+        provider_refs=[trusted_operation_id] if trusted_operation_id else None,
+    )
+    notices = await notify_department(
         visibility_role,
         f"CAOS Care: new {data.category} request",
         f"{data.summary}\nRoom: {data.room or 'unknown'}\nPriority: {data.priority}",
         **task_notice(doc, receipt["receipt_id"]),
     )
-    from routes.request_delivery import delivery_for  # was the department really told?
-    delivery = (await delivery_for([doc["task_id"]]))[doc["task_id"]]
+    from routes.request_delivery import summarize
+    delivery = summarize(notices or [])
+    auth = request_status_view(doc, await _facility_tz())
     return {"task_id": doc["task_id"], "receipt_id": receipt["receipt_id"], "status": doc["status"],
-            "duplicate": False, "delivery": delivery["state"]}
+            "duplicate": False, "delivery": delivery["state"],
+            "delivery_evidence": {k: delivery[k] for k in ("state", "label", "reached", "attempts")},
+            "lifecycle": auth["lifecycle"],
+            "opened_age": auth["opened_age"], "spoken": auth["spoken"]}
 
 
 @router.post("/resident-request")

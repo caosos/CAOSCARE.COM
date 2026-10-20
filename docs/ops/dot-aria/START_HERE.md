@@ -2,6 +2,8 @@
 
 Checkpoint date: 2026-10-19 (America/Chicago)
 
+**October 20 update:** the original review/evidence below is historical. Current connection preparation is in `/home/caoscare-1/CAOSCARE-DOT-ARIA-CONNECT`, branch `feature/dot-aria-caoscare-connect`; see README's October 20 section for the actual 30-test gate and runtime checks. No activation has occurred. The original Michael-owned checkout is preserved. Current Voice target is regular ChatGPT, not the dot page.
+
 ## Review target
 
 - Checkout: `/home/michaelos/CAOSCARE-arya-call-integration`
@@ -27,7 +29,7 @@ The six-tool backend and Home Assistant package are built. They are **not instal
 2. `script.caoscare_get_departments` — no input; active non-emergency routing labels/slugs.
 3. `script.caoscare_get_menu` — optional ISO date and meal period; approved menu rows.
 4. `script.caoscare_get_schedule` — optional ISO date; published activities/community services.
-5. `script.caoscare_make_request` — category, summary and priority; returns `request_id`, `receipt_id`, status, duplicate and delivery evidence. It does not claim service completion.
+5. `script.caoscare_make_request` — stable operation ID, category, summary and priority; returns task/request ID, receipt ID, lifecycle status, duplicate/replay flags and delivery evidence. It does not claim service completion.
 6. `script.caoscare_check_request_status` — exact returned `request_id`; returns the same request's safe open or closed state.
 
 Only these six script entities are to be exposed to Assist. Never expose the underlying `rest_command.*` entities or any additional CAOSCare entity as part of this activation.
@@ -61,8 +63,8 @@ Use the selected test profile and one clearly labeled test request. Do not use a
 1. Say: “What is for dinner today?” Verify Arya uses `caoscare_get_menu` and speaks only returned approved rows.
 2. Say: “Ask maintenance to check the **test lamp** for my test profile.” Verify exactly one `caoscare_make_request` delivery. Capture its `request_id`, `receipt_id`, `status`, duplicate flag and delivery evidence. Arya must say it was filed/pending, never that maintenance completed it or is on the way.
 3. Say: “Check the status of that exact request.” Verify `caoscare_check_request_status` is called with the same `request_id`, and its returned `task_id`/state match the created request.
-4. Repeat the same create wording once to verify the same task ID is reused, `duplicate:true`, a new receipt is returned, and only one operational task exists.
-5. End the call through the already-proven Hang-up route, then verify idle and another wake without reopening or reapproving. This continuity check is separate from CAOSCare request acceptance.
+4. Distinguish two cases: retry the same operation ID and payload to get the original task/receipt with no new notification or repeat count; make a genuine repeat ask with a new operation ID to follow the existing repeat-request policy. Different issues in the same department must remain distinct.
+5. Use the current regular ChatGPT conversation's natural goodbye, then verify idle and another wake without reopening or reapproving. Do not send an old Home Assistant End event. This continuity check is separate from CAOSCare request acceptance.
 
 Arya is not connected to CAOSCare until steps 1–3 pass live. A tool invocation, HA `action_done`, HTTP 200, or request receipt alone does not prove the service itself was completed.
 
@@ -83,6 +85,6 @@ Rollback does not modify the Playwright extension, wake listener, EMEET route, S
 ## Known limits and resume point
 
 - No live HA package parse, restart, exposure, credential authentication or Arya call was performed. Those need Michael.
-- The existing spoken Hang-up path can succeed, but Arya sometimes says goodbye without issuing its HA tool call. No HA event means assistant tool selection/delivery failed; it is separate from the local helper.
+- Correction: missing HA/helper receipts do not prove a missed assistant invocation. Owner evidence includes actual tool invocations followed by network errors. The current regular ChatGPT Voice goodbye path is separate; do not replay earlier End requests.
 - During this work, the live call helper entered its documented uncertainty lock after a Playwright `driver:connection` error. Read-only probes showed idle; the documented verified-idle reset restored `listening` without restarting either service. Persistence after browser restart/logout remains unproven and requires normal browser approval.
 - Resume at activation step 1. Do not rebuild a messaging bridge, add a second microphone consumer, create a second CAOSCare business-logic path, or touch Linode/production.

@@ -22,7 +22,7 @@ TOKEN = f"token-{TAG}"
 OWNER = f"{TAG}_owner"
 RESIDENT = f"{TAG}_approved_profile"
 OTHER = f"{TAG}_unrelated_profile"
-ROOM = f"{TAG}_room"
+ROOM = "214"
 DEPT = f"{TAG}_maintenance"
 DATE = "2026-10-19"
 
@@ -67,6 +67,7 @@ def setup(monkeypatch):
     ]))
     yield
     run(db.receipts.delete_many({"$or": [{"requested_by": OWNER}, {"resident_id": {"$regex": f"^{TAG}"}}]}))
+    run(db.dot_aria_operations.delete_many({"_id": {"$regex": f"^{TAG}"}}))
     run(db.staff_tasks.delete_many({"resident_id": {"$in": [RESIDENT, OTHER]}}))
     run(db.schedule_items.delete_many({"schedule_id": {"$regex": f"^{TAG}"}}))
     run(db.menu_items.delete_many({"menu_id": {"$regex": f"^{TAG}"}}))
@@ -89,9 +90,10 @@ async def request(method, path, *, token=TOKEN, client_ip="192.168.122.137", jso
         return await client.request(method, path, headers=headers, json=json)
 
 
-def create_request(summary="Fix the test lamp"):
+def create_request(summary="Fix the test lamp", operation_id=None):
     return run(request("POST", "/api/dot-aria/requests", json={
         "category": DEPT, "summary": summary, "priority": "normal",
+        "operation_id": operation_id or f"{TAG}:{uuid.uuid4().hex}",
     }))
 
 
@@ -134,7 +136,7 @@ def test_invalid_input_and_unavailable_backend_are_evidence_bearing(monkeypatch)
     assert run(request("POST", "/api/dot-aria/menu", json={"meal_period": "midnight"})).status_code == 422
     assert create_request(summary="   ").status_code == 422
     invalid_department = run(request("POST", "/api/dot-aria/requests", json={
-        "category": "not-a-department", "summary": "Test request",
+        "category": "not-a-department", "summary": "Test request", "operation_id": f"{TAG}:bad-dept",
     }))
     assert invalid_department.status_code == 400
     monkeypatch.setenv("CAOSCARE_DOT_ARIA_PROFILE_RESIDENT_ID", "missing-profile")
@@ -157,7 +159,10 @@ def test_write_returns_request_and_receipt_not_a_completed_service_claim():
     assert task["source"] == "dot_aria" and task["resident_id"] == RESIDENT
     assert receipt["source"] == "dot_aria" and receipt["channel"] == "dot_aria"
     assert receipt["identity_basis"] == "service_credential"
-    assert receipt["authority"] == "owner_delegated:home_assistant_mcp:approved_profile"
+    assert receipt["authority"] == "owner_delegated:home_assistant_mcp:room_214"
+    assert body["task_id"] == body["request_id"]
+    assert body["operation_id"] in receipt["provider_refs"]
+    assert body["delivery"]["reached"] is False
 
 
 def test_duplicate_delivery_is_idempotent_and_each_delivery_has_a_receipt():
@@ -169,6 +174,66 @@ def test_duplicate_delivery_is_idempotent_and_each_delivery_has_a_receipt():
     assert repeated["outcome"] == "existing_request_updated"
     assert repeated["receipt_id"] != first["receipt_id"]
     assert run(db.staff_tasks.count_documents({"resident_id": RESIDENT, "category": DEPT})) == 1
+
+
+def test_same_operation_retry_returns_original_without_repeat_or_notification():
+    operation_id = f"{TAG}:transport-retry"
+    first = create_request(operation_id=operation_id)
+    retry = create_request(operation_id=operation_id)
+    assert first.status_code == retry.status_code == 200
+    assert retry.json()["idempotent_replay"] is True
+    assert retry.json()["request_id"] == first.json()["request_id"]
+    assert retry.json()["receipt_id"] == first.json()["receipt_id"]
+    task = run(db.staff_tasks.find_one({"task_id": first.json()["request_id"]}, {"_id": 0}))
+    assert task["re_request_count"] == 0
+    assert run(db.receipts.count_documents({"related_object_id": task["task_id"]})) == 1
+
+
+def test_operation_id_conflict_rejects_changed_request_without_second_write():
+    operation_id = f"{TAG}:conflict"
+    first = create_request("Fix the test lamp", operation_id)
+    conflict = create_request("Bring a clean towel", operation_id)
+    assert first.status_code == 200 and conflict.status_code == 409
+    assert run(db.staff_tasks.count_documents({"resident_id": RESIDENT})) == 1
+
+
+def test_timeout_after_create_recovery_returns_committed_result():
+    operation_id = f"{TAG}:caller-timeout"
+    committed = create_request("Fix the timeout test lamp", operation_id).json()
+    # The caller lost the first HTTP response after the server committed it.
+    recovered = create_request("Fix the timeout test lamp", operation_id)
+    assert recovered.status_code == 200
+    assert recovered.json()["idempotent_replay"] is True
+    assert recovered.json()["task_id"] == committed["task_id"]
+    assert recovered.json()["receipt_id"] == committed["receipt_id"]
+
+
+def test_response_preserves_truthful_notification_delivery(monkeypatch):
+    async def delivered(*args, **kwargs):
+        return [{"status": "delivered", "to": "test-department@example.invalid", "route": "stub"}]
+
+    monkeypatch.setattr(resident_requests, "notify_department", delivered)
+    body = create_request("Fix the delivery evidence lamp").json()
+    assert body["delivery"] == {
+        "state": "delivered",
+        "label": "Department notified (delivery confirmed)",
+        "reached": True,
+        "attempts": 1,
+    }
+    assert "test-department@example.invalid" not in str(body)
+
+
+def test_configured_profile_must_remain_in_server_bound_room_214():
+    run(db.residents.update_one({"resident_id": RESIDENT}, {"$set": {"room": "215"}}))
+    denied = create_request("Fix the lamp")
+    assert denied.status_code == 503
+    assert "Room 214" in denied.text
+    assert run(db.staff_tasks.count_documents({"resident_id": RESIDENT})) == 0
+    for method, path, body in (
+        ("GET", "/capabilities", None), ("GET", "/departments", None),
+        ("POST", "/menu", {}), ("POST", "/schedule", {}),
+    ):
+        assert run(request(method, "/api/dot-aria" + path, json=body)).status_code == 503
 
 
 def test_exact_status_correlates_open_and_closed_request_and_denies_other_profile():
@@ -190,3 +255,35 @@ def test_exact_status_correlates_open_and_closed_request_and_denies_other_profil
     }))
     denied = run(request("POST", "/api/dot-aria/requests/status", json={"request_id": f"{TAG}_other_task"}))
     assert denied.status_code == 200 and denied.json()["request"]["found"] is False
+
+
+def test_existing_request_bus_keeps_string_delivery_and_adds_safe_evidence():
+    result = run(resident_requests.create_resident_request(resident_requests.ResidentRequestInput(
+        category=DEPT, summary="Fix the compatibility test lamp", resident_id=RESIDENT,
+        room=ROOM, source="aria_voice",
+    )))
+    assert result["delivery"] == "none"
+    assert result["delivery_evidence"]["reached"] is False
+    assert set(result["delivery_evidence"]) == {"state", "label", "reached", "attempts"}
+
+
+def test_different_issues_in_same_department_are_not_merged():
+    first = create_request("Fix the broken lamp").json()
+    second = create_request("Repair the leaking sink").json()
+    assert first["task_id"] != second["task_id"] and second["duplicate"] is False
+
+
+def test_concurrent_same_operation_has_only_one_write_and_notification(monkeypatch):
+    calls = []
+    async def notice(*args, **kwargs):
+        calls.append(True)
+        return []
+    monkeypatch.setattr(resident_requests, "notify_department", notice)
+    body = {"operation_id": f"{TAG}:concurrent", "category": DEPT, "summary": "Fix the concurrent lamp"}
+    async def both():
+        return await asyncio.gather(*(request("POST", "/api/dot-aria/requests", json=body) for _ in range(2)))
+    results = run(both())
+    assert all(r.status_code in (200, 409) for r in results)
+    replay = run(request("POST", "/api/dot-aria/requests", json=body))
+    assert replay.status_code == 200 and replay.json()["idempotent_replay"] is True
+    assert len(calls) == 1 and run(db.staff_tasks.count_documents({"resident_id": RESIDENT})) == 1

@@ -44,7 +44,7 @@ rest_command:
     content_type: "application/json"
     payload: >-
       {{ {"category": category, "summary": summary,
-          "priority": priority | default("normal")} | to_json }}
+          "priority": priority | default("normal"), "operation_id": operation_id} | to_json }}
     timeout: 10
 
   caoscare_dot_aria_request_status:
@@ -152,6 +152,11 @@ script:
     mode: queued
     max: 3
     fields:
+      operation_id:
+        name: Operation ID
+        description: Stable unique ID for this one tool invocation. Reuse it only when retrying the same transport attempt; use a new ID for a genuine repeat request.
+        required: true
+        selector: {text: {}}
       category:
         name: Department
         description: Exact active department slug returned by CAOSCare request departments.
@@ -171,6 +176,7 @@ script:
       - action: rest_command.caoscare_dot_aria_request
         continue_on_error: true
         data:
+          operation_id: "{{ operation_id }}"
           category: "{{ category }}"
           summary: "{{ summary }}"
           priority: "{{ priority | default('normal') }}"

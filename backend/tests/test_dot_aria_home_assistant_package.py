@@ -39,3 +39,5 @@ def test_package_uses_secret_reference_and_cannot_target_spoken_person_or_room()
     assert "resident_id" not in TEXT
     assert "Bearer " not in TEXT
     assert '{"request_id": request_id}' in TEXT
+    assert '"operation_id": operation_id' in TEXT
+    assert 'operation_id: "{{ operation_id }}"' in TEXT

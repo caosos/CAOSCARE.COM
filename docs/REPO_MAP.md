@@ -1067,3 +1067,11 @@ _Public parts superseded by the 2026-10-16 public-site entry below (`ProductShot
 - `backend/routes/aria_opening.py`: `recent_openings` (last three calls), `suggested_openings()` / `opening_lead()` — short natural openings minus any a recent call used.
 - `frontend/src/lib/endController.js` `wasCut()` + `realtimeMessageHandler.js`: a reply cut off by the resident's goodbye is logged as `assistant_transcript_cut_by_goodbye`, never shown or saved as Aria's turn.
 - Tests: `backend/tests/test_aria_opening_rotation.py`, `frontend/src/lib/__tests__/goodbyeCutResponse.test.js`.
+
+## 2026-10-20 — existing six-tool Home Assistant channel, isolated preparation only
+
+- `backend/routes/dot_aria_channel.py`: default-off owner-delegated API bound server-side to one approved Room 214 profile; published-content reads and canonical request/status calls.
+- `backend/routes/dot_aria_operations.py`: atomic operation-ID claim, payload conflict detection, exact committed-response replay and fail-closed unresolved operations; no independent task-writing path.
+- `backend/routes/resident_requests.py`: canonical task/lifecycle/notification handling retained; operation provenance and additive safe delivery evidence, legacy string-valued delivery preserved.
+- `docs/ops/dot-aria/`: original six REST commands and six HA scripts, updated stable operation-ID input, activation and rollback package; not loaded.
+- Tests: `backend/tests/test_dot_aria_channel.py`, `backend/tests/test_dot_aria_home_assistant_package.py`. Current isolated-gate evidence and remaining activation boundaries: `docs/PROJECT_STATE.md`, October 20.

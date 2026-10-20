@@ -17,6 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from deps import db
 from routes.actor_context import actor_service_delegate
 from routes.departments import get_active_departments
+from routes.dot_aria_operations import claim, complete, mark_failed_unknown, request_fingerprint
 from routes.menu import public_today as public_menu
 from routes.realtime_facility import today_facility_date
 from routes.resident_requests import (
@@ -27,6 +28,7 @@ from routes.resident_requests import (
 from routes.schedule import public_today as public_schedule
 
 router = APIRouter(prefix="/dot-aria", tags=["dot-aria"])
+APPROVED_ROOM = "214"
 
 
 def _configured_hosts() -> set[str]:
@@ -55,6 +57,7 @@ async def require_dot_aria(request: Request) -> dict:
     owner = await db.users.find_one({"user_id": owner_id, "role": "owner"}, {"_id": 0, "password_hash": 0})
     if not owner:
         raise HTTPException(503, "Configured Dot Aria owner is unavailable")
+    await _approved_profile()
     return owner
 
 
@@ -71,6 +74,7 @@ class MenuLookup(DateLookup):
 
 
 class RequestCreate(StrictInput):
+    operation_id: str = Field(min_length=8, max_length=128, pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]+$")
     category: str = Field(min_length=1, max_length=60)
     summary: str = Field(min_length=1, max_length=500)
     priority: Literal["low", "normal", "high", "urgent"] = "normal"
@@ -89,6 +93,8 @@ async def _approved_profile() -> dict:
     )
     if not resident:
         raise HTTPException(503, "Configured Dot Aria test profile is unavailable")
+    if str(resident.get("room") or "").strip() != APPROVED_ROOM:
+        raise HTTPException(503, "Configured Dot Aria profile is outside the approved Room 214 scope")
     return resident
 
 
@@ -131,32 +137,50 @@ async def departments(owner=Depends(require_dot_aria)):
 @router.post("/requests")
 async def make_request(data: RequestCreate, owner=Depends(require_dot_aria)):
     resident = await _approved_profile()
-    actor = actor_service_delegate(owner, "Dot Aria via Home Assistant", "dot_aria")
-    result = await create_resident_request(
-        ResidentRequestInput(
-            category=data.category,
-            resident_id=resident["resident_id"],
-            room=resident.get("room"),
-            summary=data.summary,
-            priority=data.priority,
-            source="dot_aria",
-        ),
-        trusted_actor=actor,
-        trusted_authority="owner_delegated:home_assistant_mcp:approved_profile",
+    fingerprint = request_fingerprint(
+        resident_id=resident["resident_id"], room=APPROVED_ROOM, category=data.category,
+        summary=data.summary, priority=data.priority,
     )
+    replay = await claim(data.operation_id, fingerprint)
+    if replay is not None:
+        return replay
+    actor = actor_service_delegate(owner, "Dot Aria via Home Assistant", "dot_aria")
+    try:
+        result = await create_resident_request(
+            ResidentRequestInput(
+                category=data.category,
+                resident_id=resident["resident_id"],
+                room=APPROVED_ROOM,
+                summary=data.summary,
+                priority=data.priority,
+                source="dot_aria",
+            ),
+            trusted_actor=actor,
+            trusted_authority="owner_delegated:home_assistant_mcp:room_214",
+            trusted_operation_id=data.operation_id,
+        )
+    except Exception as exc:
+        await mark_failed_unknown(data.operation_id, type(exc).__name__)
+        raise
     duplicate = bool(result.get("duplicate"))
     status = result.get("status")
-    return {
+    response = {
         "ok": True,
         "accepted": True,
         "outcome": "existing_request_updated" if duplicate else "request_created",
         "request_id": result.get("task_id"),
+        "task_id": result.get("task_id"),
         "receipt_id": result.get("receipt_id"),
         "status": status,
+        "lifecycle": result.get("lifecycle"),
         "duplicate": duplicate,
-        "delivery": result.get("delivery"),
+        "delivery": result.get("delivery_evidence"),
+        "operation_id": data.operation_id,
+        "idempotent_replay": False,
         "message": f"Request accepted with status {status}. This does not mean service has started or completed.",
     }
+    await complete(data.operation_id, response)
+    return response
 
 
 @router.post("/requests/status")
