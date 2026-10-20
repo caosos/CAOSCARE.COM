@@ -1083,3 +1083,22 @@ profile mapping through its server-owned physical-room kiosk pin, invalidation
 after pin removal/change, and rejection of other room labels. The production
 guard stays in `backend/routes/dot_aria_channel.py`; no new resident or control
 path is introduced.
+
+## 2026-10-20 — authorized-profile request discovery
+
+- `backend/routes/resident_request_lookup.py`: bounded read-only search over the
+  canonical resident-request scope, lifecycle view, facility clock and delivery
+  aggregation; literal issue/department filters, recent/open pagination, unknown
+  timestamps preserved, no staff-private notes or delivery addresses.
+- `backend/routes/dot_aria_channel.py`: guarded `/requests/find` with server-owned
+  profile binding and strict inputs; existing creation and exact-ID routes retained.
+- `backend/tests/test_dot_aria_request_lookup.py`: synthetic scope, multiple-match,
+  timestamps, delivery, no-write/replay, unavailable-query and pagination tests.
+- `docs/ops/dot-aria/caoscare_dot_aria_package.yaml.example`: seventh response-
+  preserving read-only REST command/script; existing six unchanged. Current load
+  evidence and bounded rollback are in the accompanying README and PROJECT_STATE.
+
+Public-site check during this bounded channel work (October 20): `https://caoscare.com`
+returned HTTP 200; page title is “CAOS Care — Resident Support and Care Coordination
+for Senior Living.” No website content or production deployment changed; this
+availability/title check is not a full website audit.

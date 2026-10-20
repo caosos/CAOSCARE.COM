@@ -25,6 +25,7 @@ from routes.resident_requests import (
     create_resident_request,
     resident_request_status_by_id,
 )
+from routes.resident_request_lookup import MAX_OFFSET, find_resident_requests
 from routes.schedule import public_today as public_schedule
 
 router = APIRouter(prefix="/dot-aria", tags=["dot-aria"])
@@ -84,6 +85,14 @@ class RequestStatus(StrictInput):
     request_id: str = Field(min_length=1, max_length=100)
 
 
+class RequestLookup(StrictInput):
+    department: Optional[str] = Field(default=None, min_length=1, max_length=60)
+    issue: Optional[str] = Field(default=None, min_length=1, max_length=120)
+    scope: Literal["recent", "open"] = "recent"
+    limit: int = Field(default=10, ge=1, le=20, strict=True)
+    offset: int = Field(default=0, ge=0, le=MAX_OFFSET, strict=True)
+
+
 async def _approved_profile() -> dict:
     """Resolve only the server-configured profile; speech cannot select it."""
     resident_id = os.environ.get("CAOSCARE_DOT_ARIA_PROFILE_RESIDENT_ID", "").strip()
@@ -118,6 +127,7 @@ async def capabilities(owner=Depends(require_dot_aria)):
     return {"ok": True, "channel": "home_assistant_mcp", "profile_scope": "configured_one_profile", "tools": [
         "caoscare_get_my_profile", "caoscare_get_departments", "caoscare_get_menu",
         "caoscare_get_schedule", "caoscare_make_request", "caoscare_check_request_status",
+        "caoscare_find_my_requests",
     ]}
 
 
@@ -199,3 +209,9 @@ async def request_status(data: RequestStatus, owner=Depends(require_dot_aria)):
     resident = await _approved_profile()
     result = await resident_request_status_by_id(resident["resident_id"], data.request_id)
     return {"ok": True, "request_id": data.request_id, "request": result}
+
+
+@router.post("/requests/find")
+async def find_requests(data: RequestLookup, owner=Depends(require_dot_aria)):
+    resident = await _approved_profile()
+    return await find_resident_requests(resident["resident_id"], **data.model_dump())

@@ -1,17 +1,17 @@
 # Dot Aria → CAOSCare bounded channel
 
-**State, October 20:** scoped credential created with Michael's explicit approval;
-backend `6b96741` loaded locally; six Home Assistant scripts loaded and exposed.
-Local HA MCP discovery advertises all six parameterized tools and read-only
-calls return actual CAOSCare data. ChatGPT's existing connection still needs its
-tool-list refresh and owner acceptance; no live staff request has been made.
-See [current activation receipt](#october-20-activation-receipt).
+**State, October 20:** the original six tools are loaded and Michael now confirms
+they are visible in his regular ChatGPT conversation. He reports creating a
+maintenance request; an independent scoped read verified the existing record.
+The new seventh, read-only request finder is prepared below; see the latest
+deployment receipt in `docs/PROJECT_STATE.md` for its loaded/exposed status.
+Do not repeat credential provisioning or the original six-tool activation.
 
 This is one integration with two layers. The reusable CAOSCare HTTP layer owns authentication, one-profile authorization, filtering, routing, deduplication and receipts. The first adapter is six Home Assistant scripts, because Dot Aria already has an owner-approved Home Assistant MCP connection. A future direct MCP adapter can call the same HTTP contracts; it must not create a second business-logic path.
 
 It does not change or restart the wake listener, Playwright browser relay, call Start/retry logic, EMEET routing, or `input_button.end_call`. The existing `caoscare-dot-export.service` remains owned by the `caoscare-1` account and is not duplicated.
 
-## Six tools and exact results
+## Existing six tools plus read-only request discovery
 
 | Stable Home Assistant service/action | HTTP contract | Inputs | Evidence returned |
 |---|---|---|---|
@@ -21,6 +21,7 @@ It does not change or restart the wake listener, Playwright browser relay, call 
 | `script.caoscare_get_schedule` | `POST /api/dot-aria/schedule` | optional ISO date | Published resident-facing activities/community services only. Draft and staff-only rows are filtered. |
 | `script.caoscare_make_request` | `POST /api/dot-aria/requests` | stable operation ID, department slug, concrete summary, priority | `accepted`, `outcome`, exact `request_id`/`task_id`, `receipt_id`, lifecycle status, duplicate/replay flags and delivery evidence. Acceptance never claims service started or completed. |
 | `script.caoscare_check_request_status` | `POST /api/dot-aria/requests/status` | exact returned `request_id` | Resident-safe state for that same request, open or closed, or `found:false`. |
+| `script.caoscare_find_my_requests` | `POST /api/dot-aria/requests/find` | optional department slug, issue words, scope (`recent`/`open`), limit (1–20), offset (0–1000) | Separate matches with exact request IDs, summaries, department, recorded timestamps/timezone, lifecycle and notification evidence; explicit coverage and pagination limits. No write or repeat event. |
 
 Every Home Assistant response has `transport_ok`, `http_status`, and CAOSCare's response body. The adapter has a 10-second timeout. A transport error or timeout becomes `transport_ok:false` with an unavailable result. Home Assistant accepting a script action is therefore not used as proof of a CAOSCare read or write.
 
@@ -47,7 +48,7 @@ spoken room alone cannot authorize the mapping.
 
 `caoscare_make_request` also requires a stable operation ID. Home Assistant reuses that ID only for a transport retry of the same tool invocation. The backend atomically returns the original task, receipt, lifecycle and delivery result without another task, repeat count or notification. A changed payload with the same ID is rejected; a genuine repeat ask uses a new ID and follows the existing re-request policy.
 
-The raw token belongs only in Home Assistant `secrets.yaml` as `caoscare_dot_aria_authorization: "Bearer …"`. CAOSCare stores only its SHA-256 hash. This service credential is not an owner JWT and routes only under `/api/dot-aria/*`. Code-level routing does not narrow Home Assistant's own MCP OAuth grant; only the six script entities must be exposed to Assist.
+The raw token belongs only in Home Assistant `secrets.yaml` as `caoscare_dot_aria_authorization: "Bearer …"`. CAOSCare stores only its SHA-256 hash. This service credential is not an owner JWT and routes only under `/api/dot-aria/*`. Code-level routing does not narrow Home Assistant's own MCP OAuth grant. Preserve the existing six exposed scripts; the only additional exposure for this change is the new request finder.
 
 Returned profile details, menus, services and request state can pass from Home Assistant to the connected assistant. That is the privacy expansion Michael must review before activation. Administrative configuration, clinical data, arbitrary resident browsing, staff-private notes, task assignment/completion, emergency judgment, credentials and raw receipt records are absent.
 
@@ -63,10 +64,63 @@ A timeout after the operation result is durably committed can recover the exact 
 
 ## Package contents
 
-- `caoscare_dot_aria_package.yaml.example` — six REST commands and six response-returning scripts; loaded locally after the selector correction.
+- `caoscare_dot_aria_package.yaml.example` — seven REST commands and seven response-returning scripts, including the new read-only finder. Existing six definitions retained.
 - `caoscare-dot-aria.env.example` — variable names only; no values or secret.
 - `health_check.sh` — read-only authenticated checks; prompts without echo and never writes.
 - `START_HERE.md` — activation, supervised acceptance, rollback and resume checkpoint.
+
+## Finding an existing request without its ID
+
+Use the finder first when the owner asks whether an issue was already reported.
+`recent` includes retained open and closed requests, newest first, with no age
+cutoff; `open` uses the existing canonical pending/in-progress status query.
+The server supplies the authorized profile, reusing the canonical resident
+request predicate; neither GPT nor HA script input can choose a resident or room.
+Different issues remain separate rows, not a department-level merge.
+
+Issue matching requires all supplied literal words, case-insensitively; it is
+not semantic search. Department filtering uses the registered routing slug.
+Filters apply before pagination. The response reports `has_more`, `next_offset`,
+and `pagination_limit_reached`; page boundaries are not a snapshot. An empty
+filtered page does not prove that no request exists. Broaden issue/department
+filters or inspect additional pages; at the offset cap, refine the query.
+Never create a request merely to check whether one exists.
+
+Creation/update evidence includes UTC ISO timestamps and local ISO timestamps
+with numeric offset plus the facility timezone name. Missing, invalid or
+timezone-less times remain null/unknown. The update is the latest actually
+recorded update/lifecycle/event timestamp, with its source labeled; creation
+time is not substituted for an absent update. Staff-private event text and
+notification addresses/routes are not returned.
+
+`delivery` is the canonical aggregate notification evidence for the task.
+`sent` is not confirmed delivery; `none`, `not_sent`, `failed` and `simulated`
+must not be described as staff notified. Recording a request does not establish
+that staff acknowledged it or began work. Exact-ID lookup and atomic creation
+replay protection are unchanged.
+
+### Bounded load and rollback for the finder only
+
+Preserve the pre-finder integration commit and a private copy of the currently
+installed HA package. Load the clean reviewed backend through
+`scripts/restart_dev_backend.sh` with its existing idle/activity guards.
+No Voice, microphone, browser, tunnel or credential change is required.
+HA Core 2026.10.2 supports `rest_command.reload` and `script.reload` once those
+integrations are loaded; verify the service registry and no running scripts
+first, validate the package with `ha core check`, then reload those two domains.
+A whole HA restart is not needed for this addition.
+
+Resolve the new script by registry `unique_id`, expose only that actual entity,
+and verify local MCP discovery plus the read-only finder. Owner-side ChatGPT
+metadata adoption remains a separate gate; use Refresh tools on the existing
+connection, not recreation or automatic credential rotation.
+
+Rollback only the addition: unexpose the new finder, restore the exact saved
+six-tool package after comparing for subsequent edits, reload the two domains,
+and restore the recorded pre-finder backend in a safe window through the guarded
+procedure. Keep the installed six tools, credentials, request/receipt history
+and Voice runtime. The original full-channel rollback below is not the rollback
+for this small addition.
 
 ## Voice path is separate
 

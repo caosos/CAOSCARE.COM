@@ -57,6 +57,18 @@ rest_command:
       {{ {"request_id": request_id} | to_json }}
     timeout: 10
 
+  caoscare_dot_aria_find_requests:
+    url: "http://192.168.122.1:8092/api/dot-aria/requests/find"
+    method: POST
+    headers:
+      authorization: !secret caoscare_dot_aria_authorization
+    content_type: "application/json"
+    payload: >-
+      {{ {"department": department | default(none), "issue": issue | default(none),
+          "scope": scope | default("recent"), "limit": limit | default(10) | int,
+          "offset": offset | default(0) | int} | to_json }}
+    timeout: 10
+
 # Every script returns transport_ok, http_status and the exact CAOSCare body.
 # continue_on_error is deliberate: a timeout/unavailable backend becomes an
 # explicit transport_ok:false result instead of a false conversational success.
@@ -211,4 +223,56 @@ script:
             http_status: "{{ reply.status | default(0) if reply is defined else 0 }}"
             response: "{{ reply.content if reply is defined else {'ok': false, 'error': 'CAOSCare unavailable or timed out'} }}"
       - stop: CAOSCare exact request status lookup finished
+        response_variable: result
+
+  caoscare_find_my_requests:
+    alias: CAOSCare find my requests
+    icon: mdi:clipboard-text-search
+    description: >-
+      Read-only search of the owner's authorized CAOSCare test profile's requests;
+      no request ID needed. Use for "did I already ask", open requests, or recent history.
+      Returns IDs, summaries, departments, recorded timestamps with timezone, lifecycle
+      and notification evidence. Recent includes closed requests. Multiple matches must
+      be distinguished. An empty result is not proof no request exists; broaden filters
+      and check has_more/next_offset. Never create a request to test this lookup.
+    mode: single
+    fields:
+      department:
+        name: Department
+        description: Optional department slug, for example maintenance. Omit to search all authorized-profile departments.
+        selector: {text: {multiline: false}}
+      issue:
+        name: Issue
+        description: Optional literal words, for example sink. All words must match; not semantic search. Omit to broaden.
+        selector: {text: {multiline: false}}
+      scope:
+        name: Scope
+        description: Recent includes open and closed retained requests; open includes only currently open requests.
+        default: recent
+        selector: {select: {options: [recent, open]}}
+      limit:
+        name: Page size
+        default: 10
+        selector: {number: {min: 1, max: 20, step: 1, mode: box}}
+      offset:
+        name: Page offset
+        description: Start at zero; use only the returned next_offset for another page with the same filters.
+        default: 0
+        selector: {number: {min: 0, max: 1000, step: 1, mode: box}}
+    sequence:
+      - action: rest_command.caoscare_dot_aria_find_requests
+        continue_on_error: true
+        data:
+          department: "{{ department | default(none) }}"
+          issue: "{{ issue | default(none) }}"
+          scope: "{{ scope | default('recent') }}"
+          limit: "{{ limit | default(10) | int }}"
+          offset: "{{ offset | default(0) | int }}"
+        response_variable: reply
+      - variables:
+          result:
+            transport_ok: "{{ reply is defined }}"
+            http_status: "{{ reply.status | default(0) if reply is defined else 0 }}"
+            response: "{{ reply.content if reply is defined else {'ok': false, 'error': 'CAOSCare unavailable or timed out'} }}"
+      - stop: CAOSCare read-only request discovery finished
         response_variable: result

@@ -2,15 +2,16 @@
 
 Checkpoint date: 2026-10-19 (America/Chicago)
 
-**October 20 current checkpoint:** the original review/evidence below is
-historical. The approved credential, backend `6b96741`, six HA scripts and their
-Assist exposure are now loaded locally. Read-only local MCP calls passed.
-See [the authoritative activation receipt](README.md#october-20-activation-receipt)
-for exact running versions, actual entity/tool names, 45-test gate and rollback.
-The existing ChatGPT connection still needs its tool metadata refreshed and
-owner acceptance. No real staff request has been sent. Do not rerun activation
-or generate another credential. Original Michael-owned checkout preserved;
-current Voice target remains regular ChatGPT.
+**October 20 current checkpoint:** the original instructions below are historical,
+not instructions to repeat setup. Michael completed the legitimate connection
+step on the EliteDesk and confirms the six Care tools are now visible in Arya.
+An independent read verified the maintenance request he reported creating.
+The remaining gap is discovery without remembering a request ID. A seventh,
+read-only finder is prepared; see
+[finder semantics and bounded rollback](README.md#finding-an-existing-request-without-its-id)
+and the latest `docs/PROJECT_STATE.md` receipt for built/loaded/exposed evidence.
+Do not rerun provisioning, create a test request, replay End call, or replace
+the connection. Original Michael checkout and regular ChatGPT Voice preserved.
 
 ## Historical review target and pre-activation instructions
 
