@@ -32,6 +32,14 @@ CAOSCARE_DOT_ARIA_ALLOWED_HOSTS=192.168.122.137
 
 CAOSCare verifies the exact Home Assistant VM source IP, bearer-token hash, existing owner role and exact configured Room 214 profile on every request. Tool inputs contain no name, room or resident ID. A spoken claim cannot choose or change the profile. Tests use synthetic Room 214 data only; activation binds to Michael's specifically approved development/test profile.
 
+The existing home-test identity deliberately has room label `214-HOME`, not
+`214` (see `docs/ROOM_214_HOME_TEST_IDENTITY.md`). The channel accepts that label
+only while an existing server-owned kiosk for physical room `214` is pinned to
+the exact configured profile. Removing/changing that pin disables access on the
+next request. The adapter never changes the profile's room label or repins a
+kiosk; requests retain that profile ID and the physical room `214`. A label or
+spoken room alone cannot authorize the mapping.
+
 `caoscare_make_request` also requires a stable operation ID. Home Assistant reuses that ID only for a transport retry of the same tool invocation. The backend atomically returns the original task, receipt, lifecycle and delivery result without another task, repeat count or notification. A changed payload with the same ID is rejected; a genuine repeat ask uses a new ID and follows the existing re-request policy.
 
 The raw token belongs only in Home Assistant `secrets.yaml` as `caoscare_dot_aria_authorization: "Bearer …"`. CAOSCare stores only its SHA-256 hash. This service credential is not an owner JWT and routes only under `/api/dot-aria/*`. Code-level routing does not narrow Home Assistant's own MCP OAuth grant; only the six script entities must be exposed to Assist.
@@ -66,3 +74,11 @@ The recovered original six-tool channel is imported into `/home/caoscare-1/CAOSC
 Focused canonical gate on October 20: **30 passed, 1,505 deselected, one deprecation warning, 13.14 seconds**, using scratch database `caoscare_dot_aria_connect_gate5`, port 8074, stubbed channel notifications. These are isolated tests, not live request acceptance or a full-suite pass.
 
 Read-only runtime checks: existing Care app health HTTP 200; its channel capabilities path HTTP 404 (not loaded). Home Assistant 2026.10.2 has MCP loaded but no `rest_command` component and none of these script services. The existing ChatGPT-to-Home-Assistant connector successfully returned light discovery; no device was actuated. The dedicated channel credential hash and exact approved-profile/owner binding are absent. No credential, live config, exposure, service, tunnel or resident record was changed.
+
+Activation preflight at approximately 01:30 CDT found and corrected the original
+strict `room == "214"` guard, which would have rejected Michael's existing
+`214-HOME` test identity. Read-only lookup confirmed that identity is already
+pinned to the Room 214 kiosk; no new profile or record change is needed. Focused
+request/channel/lifecycle gate after the correction: **40 passed, 1,501 deselected,
+one deprecation warning, 12.29 s**, scratch data and stubbed notifications only.
+Credential creation remains awaiting Michael's specific answer; nothing loaded.

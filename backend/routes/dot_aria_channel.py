@@ -93,7 +93,18 @@ async def _approved_profile() -> dict:
     )
     if not resident:
         raise HTTPException(503, "Configured Dot Aria test profile is unavailable")
-    if str(resident.get("room") or "").strip() != APPROVED_ROOM:
+    room = str(resident.get("room") or "").strip()
+    if room == f"{APPROVED_ROOM}-HOME":
+        # Preserve the established test identity's separate room label. Only
+        # an existing server-owned physical-room pin authorizes that mapping;
+        # a spoken room/name or the label alone cannot grant access.
+        pin = await db.kiosks.find_one(
+            {"room": APPROVED_ROOM, "resident_id": resident_id},
+            {"_id": 0, "kiosk_id": 1},
+        )
+        if not pin:
+            raise HTTPException(503, "Configured Dot Aria home-test profile is not pinned to Room 214")
+    elif room != APPROVED_ROOM:
         raise HTTPException(503, "Configured Dot Aria profile is outside the approved Room 214 scope")
     return resident
 

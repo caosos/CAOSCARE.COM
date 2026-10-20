@@ -1075,3 +1075,11 @@ _Public parts superseded by the 2026-10-16 public-site entry below (`ProductShot
 - `backend/routes/resident_requests.py`: canonical task/lifecycle/notification handling retained; operation provenance and additive safe delivery evidence, legacy string-valued delivery preserved.
 - `docs/ops/dot-aria/`: original six REST commands and six HA scripts, updated stable operation-ID input, activation and rollback package; not loaded.
 - Tests: `backend/tests/test_dot_aria_channel.py`, `backend/tests/test_dot_aria_home_assistant_package.py`. Current isolated-gate evidence and remaining activation boundaries: `docs/PROJECT_STATE.md`, October 20.
+
+## 2026-10-20 — Room 214 home-test channel scope
+
+`backend/tests/test_dot_aria_home_scope.py` covers the established `214-HOME`
+profile mapping through its server-owned physical-room kiosk pin, invalidation
+after pin removal/change, and rejection of other room labels. The production
+guard stays in `backend/routes/dot_aria_channel.py`; no new resident or control
+path is introduced.

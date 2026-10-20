@@ -37,6 +37,11 @@ Only these six script entities are to be exposed to Assist. Never expose the und
 ## Morning activation — owner-required
 
 1. Review `README.md`, the six entity descriptions, and the real privacy expansion. Choose one existing **test** resident profile in CAOSCare and record its exact internal `resident_id`. A spoken name or room must not be used as authorization.
+   October 20 preflight located the existing Michael home-test identity
+   `res_2425767f4a51`, label `214-HOME`, already pinned to Room 214 kiosk
+   `kio_dc8c06a19608`. Use that established binding within Michael's approved
+   home-test scope; do not create a replacement profile or move it to label
+   `214`. The corrected channel verifies the matching pin on every request.
 2. With no active call, have the authorized `caoscare-1` checkout owner bring this private commit into the coordinator-owned integration checkout using the normal reviewed handoff. Do not copy over that checkout or change account permissions. Keep the prior integration commit as rollback.
 3. Create the dedicated credential locally only when activating. Use a terminal with `umask 077`; generate at least 32 random bytes into a mode-0600 file without printing it. Put only its SHA-256 hex digest in `backend/.env` as `CAOSCARE_DOT_ARIA_TOKEN_SHA256`. Add the existing Michael owner ID, the exact approved test profile ID and the verified HA VM IP using the four names in `caoscare-dot-aria.env.example`. Never paste the raw token into chat, logs, Git, or a command-line argument.
 4. In Home Assistant's local File Editor/terminal, add the raw token once to `secrets.yaml` as `caoscare_dot_aria_authorization: "Bearer <local value>"`. The secret must stay in HA's local secret store. Remove the temporary raw-token file after both sides are configured.
