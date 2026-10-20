@@ -2,9 +2,17 @@
 
 Checkpoint date: 2026-10-19 (America/Chicago)
 
-**October 20 update:** the original review/evidence below is historical. Current connection preparation is in `/home/caoscare-1/CAOSCARE-DOT-ARIA-CONNECT`, branch `feature/dot-aria-caoscare-connect`; see README's October 20 section for the actual 30-test gate and runtime checks. No activation has occurred. The original Michael-owned checkout is preserved. Current Voice target is regular ChatGPT, not the dot page.
+**October 20 current checkpoint:** the original review/evidence below is
+historical. The approved credential, backend `6b96741`, six HA scripts and their
+Assist exposure are now loaded locally. Read-only local MCP calls passed.
+See [the authoritative activation receipt](README.md#october-20-activation-receipt)
+for exact running versions, actual entity/tool names, 45-test gate and rollback.
+The existing ChatGPT connection still needs its tool metadata refreshed and
+owner acceptance. No real staff request has been sent. Do not rerun activation
+or generate another credential. Original Michael-owned checkout preserved;
+current Voice target remains regular ChatGPT.
 
-## Review target
+## Historical review target and pre-activation instructions
 
 - Checkout: `/home/michaelos/CAOSCARE-arya-call-integration`
 - Branch: `feature/dot-aria-caoscare-channel`
@@ -87,7 +95,21 @@ Rollback:
 
 Rollback does not modify the Playwright extension, wake listener, EMEET route, Start/Hang-up helper or browser consent.
 
-## Known limits and resume point
+Actual October 20 rollback locations: the HA VM holds original
+`configuration.yaml` and `secrets.yaml` under
+`/config/.caoscare-dot-aria-rollback-20261020`. The EliteDesk holds the original
+backend environment at
+`/home/caoscare-1/.config/caoscare/dot-aria-activation-20261020/backend.before.env`.
+Never print these private files. First unexpose the six **actual entity IDs**
+in the README mapping, not the historical assumed IDs above. Restore the exact
+prior configuration only after checking for subsequent edits and a fresh idle
+window; do not clobber later owner changes. Validate HA configuration before
+its restart. Restore the backend environment using its original permissions
+and the guarded dev restart. Source rollback ref is
+`rollback/dot-aria-before-20261020` (`59b6546`); prior runtime SHA was `d777641`.
+Keep request/receipt history and all working Voice configuration intact.
+
+## Historical known limits (superseded by October 20 receipt)
 
 - No live HA package parse, restart, exposure, credential authentication or Arya call was performed. Those need Michael.
 - Correction: missing HA/helper receipts do not prove a missed assistant invocation. Owner evidence includes actual tool invocations followed by network errors. The current regular ChatGPT Voice goodbye path is separate; do not replay earlier End requests.

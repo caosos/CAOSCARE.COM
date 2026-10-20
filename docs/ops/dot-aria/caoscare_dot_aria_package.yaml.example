@@ -104,7 +104,7 @@ script:
       date:
         name: Date
         description: Optional ISO date, YYYY-MM-DD. Omit for the facility date.
-        selector: {text: {}}
+        selector: {text: {multiline: false}}
       meal_period:
         name: Meal
         description: Optional breakfast, lunch, or dinner.
@@ -131,7 +131,7 @@ script:
       date:
         name: Date
         description: Optional ISO date, YYYY-MM-DD. Omit for the facility date.
-        selector: {text: {}}
+        selector: {text: {multiline: false}}
     sequence:
       - action: rest_command.caoscare_dot_aria_schedule
         continue_on_error: true
@@ -156,12 +156,12 @@ script:
         name: Operation ID
         description: Stable unique ID for this one tool invocation. Reuse it only when retrying the same transport attempt; use a new ID for a genuine repeat request.
         required: true
-        selector: {text: {}}
+        selector: {text: {multiline: false}}
       category:
         name: Department
         description: Exact active department slug returned by CAOSCare request departments.
         required: true
-        selector: {text: {}}
+        selector: {text: {multiline: false}}
       summary:
         name: Request
         description: Concrete request in the owner's words. Do not invent a time, identity, room, or medical fact.
@@ -199,7 +199,7 @@ script:
         name: Request ID
         description: Exact CAOSCare request_id returned by caoscare_make_request.
         required: true
-        selector: {text: {}}
+        selector: {text: {multiline: false}}
     sequence:
       - action: rest_command.caoscare_dot_aria_request_status
         continue_on_error: true

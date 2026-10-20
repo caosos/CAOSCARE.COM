@@ -1225,3 +1225,30 @@ HANDOFF CAPSULE
 - Status at this checkpoint: candidates rendered, not yet installed/restarted/exposed. The existing six-script package will be loaded via a single named HA package; current `scripts.yaml` and all existing exposures retained. Official HA 2026.10.2 source confirms the supported `homeassistant/expose_entity` API for exactly the six scripts and response-preserving MCP dispatch. Source: `https://raw.githubusercontent.com/home-assistant/core/2026.10.2/homeassistant/components/homeassistant/exposed_entities.py`, `https://raw.githubusercontent.com/home-assistant/core/2026.10.2/homeassistant/components/mcp_server/server.py`.
 - Fresh accessibility inspection could not expose regular-Voice controls, so it is not asserted as idle proof. Owner's current idle confirmation plus continued listening/no newer helper event is the operational load gate; fresh call-related activity must abort. No extra Playwright connection or reset signal was used.
 - Next: preserve integration ref/config rollback, install checked candidates, run HA configuration validation, then bounded reload and read-only discovery. A later entry must record actual loaded versions/results rather than treating this checkpoint as completion.
+
+## 2026-10-20 01:48 CDT — scoped Care channel loaded; ChatGPT metadata refresh remains
+
+- Agent/tool: Codex; isolated branch `feature/dot-aria-caoscare-connect`. Michael explicitly authorized the scoped credential and confirmed "its free" for the idle load. No public push, Linode, resident-production action, test call, device toggle or real staff request.
+- Loaded: integration checkout fast-forwarded `59b6546`→`6b96741` with rollback branch `rollback/dot-aria-before-20261020`; guarded backend restart proved runtime `6b96741`, PID 651391, port 8092. Previous running backend SHA was `d777641`, distinct from previous source SHA. Scoped config uses existing owner/profile/Room-214 kiosk pin and exact HA VM source; no resident record changed.
+- HA: preserved original configuration/secrets, installed one named package, passed core config check, restarted once at 01:39 CDT. Runtime script validation nevertheless rejected four scripts because their empty text-selector maps were invalid after package processing. Corrected five fields to `text: {multiline: false}` and reloaded scripts only; all six services now present. No second HA restart.
+- Focused regression: **45 passed / 1,501 deselected / one deprecation warning / 12.42 s**, exit 0. Run `02e6ccf8-2823-4098-9f3e-88b2e13e1b97`, scratch DB `caoscare_dot_aria_selector_gate`, port 8074, log `/tmp/caoscare_backend_test_gate.KdEZKo.log`. Scratch backend cleaned up. No claim of full-suite green.
+- Exposure correction: live HA registry generated four entity IDs from aliases, not service names. Resolved the six `unique_id` mappings, revoked the four nonexistent assumed exposures, exposed only actual six, and asserted unrelated exposures unchanged. Complete map and tool schemas/receipt interpretation in `docs/ops/dot-aria/README.md`; no entity renamed/deleted.
+- Live read-only verified: HA-origin capabilities/profile/departments/menu/schedule all HTTP 200 with correct approved identity; four HA script responses preserve actual backend data; local MCP lists all six parameterized tools and department/menu/schedule calls return successful response payloads. Ten departments; October 20 menu/schedule empty. Initial MCP verifier incorrectly looked outside JSON's `result` wrapper; corrected interpretation against the actual response, not a server failure.
+- Remote connector: ChatGPT→HA light discovery succeeded after load; both lights remain on and untouched. `GetLiveContext(domain=script)` returns no entities by design in HA 2026.10.2, not proof of absent script tools. Current chat tool catalog still has no CAOSCare tools; the supported next step is Refresh on the **existing** ChatGPT Home Assistant connection, then owner read-only acceptance. No app/key recreation or broadened permissions. Plugin Management confirmed reuse of the available connection; OpenAI Docs identified the supported metadata-refresh workflow.
+- Wake listener/helper/browser/tunnel PIDs `571938`/`616161`/`616165`/`559440` unchanged; services active, zero restarts. This proves process preservation, not a new live audio cycle or restart recovery. TV work and readiness-gauge queue intact.
+- Code sizes: package 214 lines (configuration); selector tests 52. Prior provisioning scripts 52/70; channel 201; operation module 73. No new oversized implementation. Rollback private directories: EliteDesk `/home/caoscare-1/.config/caoscare/dot-aria-activation-20261020`, HA `/config/.caoscare-dot-aria-rollback-20261020`. No secrets in Git/output.
+- Credential cleanup after verified authenticated reads: removed only `channel.token` and `ha-secrets.candidate.yaml` from the exact private activation directory. Active HA secret and backend hash remain installed; original configuration backups retained. Do not rerun provisioning or rotate the credential as part of metadata refresh.
+
+```text
+HANDOFF CAPSULE
+- Objective:        finish owner-side discovery/acceptance of existing six-tool Care channel
+- Branch:           feature/dot-aria-caoscare-connect; loaded backend 6b96741
+- Lane / ownership: six-tool channel only; do not touch working Voice/TV/gauge lanes
+- Last proven state:45 focused tests pass; six local MCP schemas; real read-only Care data
+- Commits:          local only; no push; activation selector/docs receipt follows 6b96741
+- Runtime state:   backend 8092; HA package/exposure loaded; original Voice/tunnel PIDs unchanged
+- Unresolved proven defects: ChatGPT session catalog not yet refreshed; live writes untested
+- Product invariants that matter here: one owner-bound test profile; atomic retry guard; real receipts; truthful notification evidence
+- Do NOT change:    credentials again, other resident scope, Voice controls, TV, real staff records
+- Next safe action: owner clicks Refresh on existing Home Assistant connection in laptop ChatGPT; then read departments only
+```

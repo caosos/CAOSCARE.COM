@@ -41,3 +41,12 @@ def test_package_uses_secret_reference_and_cannot_target_spoken_person_or_room()
     assert '{"request_id": request_id}' in TEXT
     assert '"operation_id": operation_id' in TEXT
     assert 'operation_id: "{{ operation_id }}"' in TEXT
+
+
+def test_text_selectors_survive_home_assistant_package_merge():
+    # HA 2026.10.2 loaded the two fieldless scripts but stripped text: {}
+    # during package processing, disabling the other four at runtime.
+    # An explicit supported option keeps each selector mapping nonempty.
+    assert not re.search(r"text:\s*\{\s*\}", TEXT)
+    assert TEXT.count("selector: {text: {multiline: false}}") == 5
+    assert TEXT.count("selector: {text: {multiline: true}}") == 1
