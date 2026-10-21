@@ -22,19 +22,29 @@
  * before the clear, and its full text was still shown and saved as her turn
  * (scratch Room 214 rt_10s3ng43_1792142773769, aria-room-conversation-cleanup-002).
  * wasCut(responseId) lets the handler keep that text out of the conversation.
+ *
+ * Once CLOSING starts the server's own turn-taking is switched off (quietServer:
+ * create_response and interrupt_response false). Room 214 rt_52ayqcen, 2026-10-21:
+ * after "goodbye" the resident's next words made server VAD cancel "Okay, bye for
+ * now" after "Okay," and auto-create a normal reply ("No worries... do you want to
+ * just chat?"), which became her last words before the hang-up.
  */
 import { createEndCorroboration, transcriptIsOutOfScript, turnMayEnd } from "./endIntent";
 
 export const GOODBYE_LINE = "Okay, bye for now.";
-export const GOODBYE_INSTRUCTIONS = `The resident said goodbye and ended the conversation. Say exactly and only: "${GOODBYE_LINE}" Say nothing else. No explanation, offer, question, or extra availability sentence.`;
+// A room can carry its own closing words (caos.context.goodbye_line, owner room only: routes/owner_room_context.py).
+export const goodbyeInstructions = (line = GOODBYE_LINE) => `The resident said goodbye and ended the conversation. Say exactly and only: "${line}" Say nothing else. No explanation, offer, question, or extra availability sentence.`;
+export const GOODBYE_INSTRUCTIONS = goodbyeInstructions();
 const FALLBACK_SPEECH_MS = 1500;
 export const RETRY_GRACE_MS = 2500;   // a spoken goodbye starts well within this (low-cost voice: ~0.2-2.5 s)
 export const GOODBYE_METADATA = { caos_goodbye: "1" };
 const isGoodbye = (response) => response?.metadata?.caos_goodbye === "1";
 
 export function createEndController({ send, stop, onEndCall, log, speak = defaultSpeak,
-  setTimer = setTimeout, clearTimer = clearTimeout }) {
-  let ended = false, ending = false;
+  setTimer = setTimeout, clearTimer = clearTimeout, quietServer = () => {}, goodbyeLine = GOODBYE_LINE }) {
+  const instructions = goodbyeInstructions(goodbyeLine);
+  let ended = false, ending = false, quieted = false;
+  const quiet = () => { if (!quieted) { quieted = true; try { quietServer(); } catch { /* best-effort */ } } };
   let currentId = null;
   const cut = new Set();   // response ids cancelled because the call is ending
   let inFlight = false, pending = false, requested = false, retried = false, audioPlayed = false, fallbackUsed = false;
@@ -54,7 +64,7 @@ export function createEndController({ send, stop, onEndCall, log, speak = defaul
     if (goodbyeOpen || ended) return;      // one goodbye at a time
     requested = true; goodbyeOpen = true;
     answerOpenCalls();
-    send({ type: "response.create", response: { instructions: GOODBYE_INSTRUCTIONS, metadata: GOODBYE_METADATA } });
+    send({ type: "response.create", response: { instructions, metadata: GOODBYE_METADATA } });
   };
   const stopRetry = () => { if (retryT) { clearTimer(retryT); retryT = null; } };
   const endNow = (kind, via, detail = {}) => {
@@ -72,10 +82,10 @@ export function createEndController({ send, stop, onEndCall, log, speak = defaul
     get ending() { return ending || ended; },
     /** The model's own granted end_call is already speaking its goodbye: just mark the state. */
     /** speakingNow: her goodbye is already playing (it started before the end was granted). */
-    markEnding(speakingNow = false) { ending = true; if (speakingNow) audioPlayed = true; },
+    markEnding(speakingNow = false) { ending = true; quiet(); if (speakingNow) audioPlayed = true; },
     beginEnding(via, detail = {}) {
       if (ending || ended) return false;
-      ending = true;
+      ending = true; quiet();
       log("local_end", { meta: { via, acknowledged: true, ...detail } });
       if (inFlight) {
         pending = true;
@@ -118,7 +128,7 @@ export function createEndController({ send, stop, onEndCall, log, speak = defaul
       const outOfScript = turnMayEnd(reason) && transcriptIsOutOfScript(heardText);
       if (!corroboration.onRefusedAttempt(reason) && !outOfScript) return null;
       log("end_call_corroborated", { meta: { reason, via: outOfScript ? "out_of_script_transcript" : "second_attempt" } });
-      return { ok: true, message: "Okay, bye for now.", corroborated: true };
+      return { ok: true, message: goodbyeLine, corroborated: true };
     },
   };
 }

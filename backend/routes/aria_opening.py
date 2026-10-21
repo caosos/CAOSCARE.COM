@@ -38,6 +38,9 @@ _SCAN_ROWS = 200
 
 # Natural short openings, in preference order. {n} is the resident's name.
 WAKE_OPENINGS = ("Hey, {n}.", "Yes, {n}?", "I'm here, {n}.", "Hi, {n}.", "Mm-hm, {n}?")
+# Owner room (owner 2026-10-21: "when she wakes say hello or hi or something so I know she's there"):
+# a clear hello on a wake, never "Yes?" / "Mm-hm?". Other rooms keep WAKE_OPENINGS.
+OWNER_WAKE_OPENINGS = ("Hi, {n}.", "Hello, {n}.", "Hey, {n}.")
 TAP_OPENINGS = ("Hi, {n}.", "There you are, {n}.", "Hey there, {n}.", "Hello, {n}.", "I'm here, {n}.")
 _SUGGEST = 3
 
@@ -94,7 +97,8 @@ def opening_lead(text: str, name: str) -> str:
 
 def suggested_openings(opening: dict, name: str, part_of_day: Optional[str] = None) -> list:
     """Up to three short openings whose lead differs from every recent call's opening."""
-    pool = list(WAKE_OPENINGS) if opening.get("wake") else list(TAP_OPENINGS)
+    wake_pool = OWNER_WAKE_OPENINGS if opening.get("owner_room") else WAKE_OPENINGS
+    pool = list(wake_pool) if opening.get("wake") else list(TAP_OPENINGS)
     if not opening.get("wake") and part_of_day and part_of_day != "night":
         pool.insert(1, f"Good {part_of_day}, {{n}}.")      # never "good night": it reads as a farewell
     used = {opening_lead(t, name) for t in (opening.get("recent_openings") or [opening.get("last_opening")]) if t}

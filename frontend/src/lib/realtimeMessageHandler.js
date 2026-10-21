@@ -116,7 +116,11 @@ export function createRealtimeHandlers({
   const greetingGate = createGreetingResponseGate({ send, caos, greetingCreateResponseOffRef });
   let endCallKind = "resident_end_call";
   // RQ-055 ending state machine (endController.js): after endNow() every later event is ignored.
-  const endCtl = createEndController({ send, stop, onEndCall, log: (type, d) => logRealtimeEvent(sessionIdRef.current, type, d) });
+  const endCtl = createEndController({ send, stop, onEndCall, log: (type, d) => logRealtimeEvent(sessionIdRef.current, type, d),
+    goodbyeLine: caos.context?.goodbye_line || undefined,
+    // Closing: no server auto-reply and no barge-in cancel of the goodbye (endController.js).
+    quietServer: () => caos.turn_detection && send({ type: "session.update", session: { type: "realtime",
+      audio: { input: { turn_detection: { ...caos.turn_detection, create_response: false, interrupt_response: false } } } } }) });
   const hangup = createHangupScheduler({ // waits for the goodbye audio (endCallHangup.js)
     onClose: () => endCtl.finish(endCallKind, "end_call_tool"),
   });

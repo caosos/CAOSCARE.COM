@@ -10,6 +10,7 @@ import os
 import sys
 import uuid
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -117,3 +118,34 @@ def test_owner_block_needs_the_verified_room_214_mint():
     # No lease / a claimed room=214 with no backend lease never proves the owner room.
     assert run(owner_room_prompt({"room": "214", "resident_id": "res_x", "kiosk_id": "kio_x"}, None)) == ""
     assert run(owner_room_prompt({"room": "215", "resident_id": "res_x"}, {"claimed": True, "session_id": "s"})) == ""
+
+
+def test_owner_goodbye_line_and_scope(resident):
+    # Owner 2026-10-21: "she needs to say goodnight or goodbye" - owner room only.
+    from routes.owner_room_context import owner_goodbye_line
+    tz = "America/Chicago"
+    at = lambda h: datetime(2026, 10, 21, h, 30, tzinfo=ZoneInfo(tz))
+    assert [owner_goodbye_line(tz, at(h)) for h in (4, 5, 12, 19, 20, 23)] == [
+        "Goodnight.", "Goodbye.", "Goodbye.", "Goodbye.", "Goodnight.", "Goodnight."]
+    block = owner_room_block("Michael Chambers", "Michael", "Goodnight.")
+    assert 'your goodbye is exactly "Goodnight."' in block
+    assert "your goodbye is exactly" not in owner_room_block("Michael Chambers", "Michael")
+    assert "your goodbye is exactly" not in run(_build_companion_instructions(resident))
+
+
+def test_owner_style_block_has_the_builder_rule_and_examples():
+    block = owner_room_block("Michael Chambers", "Michael")
+    for phrase in ("Michael is building you", "Never say you can't or won't become something",
+                   "No lead-ins", "say it in your greeting only", "Examples from real calls in this room",
+                   "RIGHT - stop after the answer."):
+        assert phrase in block, phrase
+
+
+def test_owner_wake_opens_with_a_clear_hello():
+    # Owner 2026-10-21: "when she wakes say hello or hi or something so I know she's there".
+    from routes.aria_opening import suggested_openings, greeting_line, WAKE_OPENINGS
+    owner = {"wake": True, "owner_room": True, "name": "Michael", "recent_openings": []}
+    assert suggested_openings(owner, "Michael") == ["Hi, Michael.", "Hello, Michael.", "Hey, Michael."]
+    assert greeting_line({**owner, "recent_openings": ["Hi, Michael.", "Hello, Michael.", "Hey, Michael."]}) == "Hi, Michael."
+    other = {"wake": True, "name": "Rose", "recent_openings": []}
+    assert suggested_openings(other, "Rose") == [o.format(n="Rose") for o in WAKE_OPENINGS][:3]   # unchanged

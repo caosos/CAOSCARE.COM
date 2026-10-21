@@ -125,15 +125,19 @@ async def _mint(payload, lease):
     asyncio.create_task(summarize_pending_sessions(payload.get("resident_id"), payload.get("session_id")))
     # How the call opens: "Hey Aria" gets a short answer to their name, and never the previous call's opener.
     from routes.aria_opening import resolve_opening, greeting_response, greeting_line
-    opening = await resolve_opening(payload.get("resident_id"), payload.get("session_id"), payload.get("trigger_source"))
     # Owner feature 2026-10-15: read-only self-code inspection, declared ONLY to the
     # canonical Room 214 session (routes/self_code_tools.py); every call is re-proven
     # server-side, so other sessions never see the tools and could not use them anyway.
     from routes.self_code_tools import self_code_session_extras
     self_code = await self_code_session_extras(payload, lease)
     # Owner/creator context, same verified Room 214 proof (routes/owner_room_context.py).
-    from routes.owner_room_context import owner_room_prompt
-    room_context = self_code["prompt"] + await owner_room_prompt(payload, lease)
+    from routes.owner_room_context import owner_room_prompt, owner_goodbye_line
+    owner_bye = owner_goodbye_line(facility_tz)
+    owner_block = await owner_room_prompt(payload, lease, owner_bye)
+    goodbye_line = owner_bye if owner_block else None   # None: the page keeps its own "Okay, bye for now."
+    room_context = self_code["prompt"] + owner_block
+    opening = await resolve_opening(payload.get("resident_id"), payload.get("session_id"), payload.get("trigger_source"))
+    opening["owner_room"] = bool(owner_block)   # the owner's wake opens with a clear hello (aria_opening.py)
     instructions = await _build_companion_instructions(
         payload.get("resident_id"), operational_state=op_state, continuity=continuity,
         conversation_state=conv_state, interpretation_patterns=interpretation_patterns, opening=opening,
@@ -195,6 +199,7 @@ async def _mint(payload, lease):
             "alert_id": payload.get("alert_id"),
             "activation_id": payload.get("activation_id"),
             "self_code_inspection": self_code["enabled"],
+            "goodbye_line": goodbye_line,
             "facility_label": facility_label,
             "facility_tz": facility_tz,
             "aria_companion_timeout_sec": assist_cfg.get("aria_companion_timeout_sec", 300),

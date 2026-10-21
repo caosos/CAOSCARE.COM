@@ -378,7 +378,7 @@ export function createCascadeConnection({ session, caos, stream, api, audioEl = 
       const [done, rest] = takeSentences(r.buf + d, r.said === 0); r.buf = rest; done.forEach((s) => say(r, s)); };
     // The greeting and the routine goodbye are fixed lines: spoken (and cached) with no reasoning call.
     const fixed = opts.instructions && (opts.instructions === caos.greeting?.instructions ? caos.greeting_line
-      : opts.instructions === GOODBYE_INSTRUCTIONS ? GOODBYE_LINE : null);
+      : (opts.metadata?.caos_goodbye === "1" || opts.instructions === GOODBYE_INSTRUCTIONS) ? (caos.context?.goodbye_line || GOODBYE_LINE) : null);
     try {
       if (fixed) { r.text = fixed; emit({ type: "response.output_audio_transcript.delta", response_id: r.id, item_id: r.item, delta: fixed }); say(r, fixed, true); }
       else { await streamReply(r, opts, delta); mark(r, "stream_end"); }
