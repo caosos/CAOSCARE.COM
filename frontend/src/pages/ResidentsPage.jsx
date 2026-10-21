@@ -6,6 +6,8 @@ import { useResidentActions } from "../lib/useResidentActions";
 import WorkspaceShell from "../components/workspace/WorkspaceShell";
 import ResidentRecordDialog from "./ResidentRecordDialog";
 import ResidentFormDialog from "./ResidentFormDialog";
+import RoomCallCost from "../components/RoomCallCost";
+import useRoomCallCosts from "../lib/useRoomCallCosts";
 
 const PARTICIPATION = { room_only: "Room only", pendant_enhanced: "Pendant", wearable_enhanced: "Wearable", family_connected: "Family connected", full: "Full" };   // models.ParticipationLevel
 const initials = (n) => (n || "?").split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0].toUpperCase()).join("");
@@ -33,6 +35,7 @@ export default function ResidentsPage() {
   const [editing, setEditing] = useState(null);
   const [recordFor, setRecordFor] = useState(null);
   const [sp, setSp] = useSearchParams();
+  const roomCallCosts = useRoomCallCosts();
 
   const load = useCallback(async () => {
     try {
@@ -117,6 +120,7 @@ export default function ResidentsPage() {
                       Room {r.room || "—"}{r.pendant_id ? ` · Pendant ${r.pendant_id}` : ""}
                       {r.participation_level ? ` · ${PARTICIPATION[r.participation_level] || r.participation_level}` : ""}
                     </span>
+                    <RoomCallCost room={r.room} call={roomCallCosts?.[String(r.room)]} />
                   </span>
                 </button>
                 <div className="flex flex-wrap items-center gap-1">

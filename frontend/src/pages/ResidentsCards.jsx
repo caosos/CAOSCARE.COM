@@ -1,6 +1,7 @@
 import React from "react";
 import { Button } from "../components/ui/button";
 import { Trash2, Volume2, DoorOpen, BookOpen, ChevronDown } from "lucide-react";
+import RoomCallCost from "../components/RoomCallCost";
 
 // Compact (phone/tablet) presentation for the Residents list - same data,
 // same handlers, same data-testids as ResidentsTab.jsx's <Table>, just
@@ -13,7 +14,7 @@ import { Trash2, Volume2, DoorOpen, BookOpen, ChevronDown } from "lucide-react";
 // with no extra JS state per card.
 export default function ResidentsCards({
   residents, kioskForRoom, enterRoom, setUpRoom, settingUpRoom,
-  speakBriefing, briefingId, openEdit, remove, setRecordFor,
+  speakBriefing, briefingId, openEdit, remove, setRecordFor, roomCallCosts,
 }) {
   return (
     <div className="space-y-3" data-testid="residents-cards">
@@ -26,8 +27,11 @@ export default function ResidentsCards({
                 <div className="font-medium text-caos-forest truncate">{r.name}</div>
                 {r.preferred_name && <div className="text-caos-mute text-xs">"{r.preferred_name}"</div>}
               </div>
-              <div className="shrink-0 rounded-full bg-caos-ambient px-3 py-1 text-xs font-bold uppercase tracking-wider text-caos-forest">
-                Room {r.room}
+              <div className="shrink-0 text-right">
+                <div className="rounded-full bg-caos-ambient px-3 py-1 text-xs font-bold uppercase tracking-wider text-caos-forest">
+                  Room {r.room}
+                </div>
+                <RoomCallCost room={r.room} call={roomCallCosts?.[String(r.room)]} />
               </div>
             </div>
 

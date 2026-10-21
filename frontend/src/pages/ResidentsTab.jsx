@@ -9,6 +9,8 @@ import ResidentQuickFind from "./ResidentQuickFind";
 import ResidentsCards from "./ResidentsCards";
 import { useIsCompact } from "../lib/useIsCompact";
 import { useResidentActions } from "../lib/useResidentActions";
+import useRoomCallCosts from "../lib/useRoomCallCosts";
+import RoomCallCost from "../components/RoomCallCost";
 
 /* -------------- Residents -------------- */
 export default function ResidentsTab({ residents, kiosks, onChange, focusResidentId, onFocusHandled }) {
@@ -32,6 +34,7 @@ export default function ResidentsTab({ residents, kiosks, onChange, focusResiden
     useResidentActions({ kiosks, onChange });
 
   const isCompact = useIsCompact();
+  const roomCallCosts = useRoomCallCosts();
 
   return (
     <Card className="border-caos-line p-6">
@@ -54,6 +57,7 @@ export default function ResidentsTab({ residents, kiosks, onChange, focusResiden
           openEdit={open_edit}
           remove={remove}
           setRecordFor={setRecordFor}
+          roomCallCosts={roomCallCosts}
         />
       ) : (
       <Table>
@@ -71,7 +75,10 @@ export default function ResidentsTab({ residents, kiosks, onChange, focusResiden
                   <span className="font-medium">{r.name}</span>
                   {r.preferred_name && <span className="text-caos-mute text-xs block">"{r.preferred_name}"</span>}
                 </TableCell>
-                <TableCell>{r.room}</TableCell>
+                <TableCell>
+                  {r.room}
+                  <RoomCallCost room={r.room} call={roomCallCosts?.[String(r.room)]} />
+                </TableCell>
                 <TableCell className="font-mono text-xs">{r.pendant_id}</TableCell>
                 <TableCell className="text-xs uppercase tracking-wider font-bold text-caos-forest">{r.participation_level?.replace("_", " ") || "—"}</TableCell>
                 <TableCell className="text-caos-mute text-sm max-w-xs truncate" title={r.preferences}>

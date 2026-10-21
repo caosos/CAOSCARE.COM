@@ -95,6 +95,7 @@ from routes import timers as timer_routes  # noqa: E402
 from routes import capabilities as capability_routes  # noqa: E402
 from routes import aria_memory as aria_memory_routes  # noqa: E402
 from routes import receipts as receipt_routes  # noqa: E402
+from routes import paid_api_call_costs as paid_api_call_cost_routes  # noqa: E402
 from routes import realtime_diagnostics as realtime_diagnostics_routes  # noqa: E402
 from routes import realtime_call_quality as realtime_call_quality_routes  # noqa: E402
 from routes import aria_voice as aria_voice_routes  # noqa: E402
@@ -283,6 +284,7 @@ api.include_router(medication_routes.router)
 api.include_router(memory_routes.router)
 api.include_router(realtime_memory_ingest_routes.router)
 api.include_router(audit_routes.router)
+api.include_router(paid_api_call_cost_routes.router)
 api.include_router(realtime_routes.router)
 api.include_router(self_code_inspection_routes.router)
 api.include_router(realtime_room_lease_routes.router)
