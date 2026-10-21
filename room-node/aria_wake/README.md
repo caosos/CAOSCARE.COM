@@ -216,6 +216,20 @@ conversation, so 0/h on the soak is NOT a prediction of the real false-wake rate
 
 Rule applied: recall must improve materially, soak false wakes <= 0.2 per hour, adversarial false wakes <= 2x the previous setting (8 -> 16). 0.05 / 1.5 gives 75% vs 68%, far-field 74 vs 52, 12 adversarial false (all `hey area`/`hay area`/`hey Ari` class), 0 soak false wakes. 0.05 / 2.0 gives 76% but 13 adversarial false. The listener reads these from `ARIA_WAKE_KEYWORDS_THRESHOLD` / `ARIA_WAKE_KEYWORDS_SCORE`; the live values are set in `~/.config/aria-wake/aria-wake.env`, not in code defaults (defaults remain 0.15 / 1.0).
 
+### Low-threshold sweep (2026-10-21, same audio and detector)
+
+Owner ask after missed wakes ("I want it to be a little better"). `eval_sweep.py --thresholds 0.02,0.03,0.05 --scores 1.5,2.0,2.5,3.0 --gains 0`, then a 5.6 h soak on the pick.
+
+| threshold | score | all /924 | quiet | far | TV speech | adversarial false /952 | soak false wakes |
+|---|---|---|---|---|---|---|---|
+| 0.05 | 1.5 | 75% | 67% | 56% | 39% | 12 | 0 (previous live) |
+| 0.02 | 2.0 | 77% | 70% | 62% | 40% | 14 | - |
+| 0.02 | 2.5 | 80% | 73% | 66% | 44% | 16 | 0 in 5.62 h | **(live since 2026-10-21 22:39 UTC)**
+| 0.02 | 3.0 | 81% | 73% | 70% | 48% | 18 | - (breaks the 16 cap) |
+| 0.03 | 2.5 | 79% | 72% | 64% | 44% | 16 | - |
+
+Same rule as 10-08 (adversarial <= 16, soak <= 0.2/h). Week of live logs before the change: the 0.01/3.5 shadow fired 55 times on its own, 20 of them followed within 30 s by a real wake (a real miss and a retry), so the shadow setting itself is too loose to adopt. Rollback: `~/.config/aria-wake/aria-wake.env.bak-20261021-wake-0.05-1.5` (or set 0.05 / 1.5) and `systemctl --user restart aria-wake` between calls. Physical false-wake rate at the new setting: not yet observed.
+
 ## Level logging
 
 The listener emits one `audio_level` JSON line per active-speech segment (peak/mean dBFS, speech frames, noise floor, gain in force, detections inside the segment, mode). Numbers only; no samples are kept. The sherpa-onnx result has no per-keyword score (checked, v1.13.8), so a near-miss cannot be scored; the level tells a quiet attempt from a loud one. `wake_stats.py summary` includes them.
