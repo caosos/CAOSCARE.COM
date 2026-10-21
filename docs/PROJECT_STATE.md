@@ -1356,3 +1356,18 @@ HANDOFF CAPSULE
 
 ### 2026-10-21 22:39 UTC — Room 214 wake sensitivity raised one notch (LOADED)
 Owner: "i want it to be a little better" after 3 missed "Hey Aria"s (wake_stats miss mark 22:04Z). Offline sweep + 5.6 h soak (README "Low-threshold sweep"): 0.05/1.5 → 0.02/2.5 = 75% → 80% synthetic recall, far-field 56% → 66%, adversarial false 12 → 16 (at the cap), soak 0 false wakes. Applied in `~/.config/aria-wake/aria-wake.env` between calls (0 active leases), listener restarted, kiosk reconnected. Backup `aria-wake.env.bak-20261021-wake-0.05-1.5`. Live false-wake rate: not yet observed. Room 214 only (the env is this node's).
+
+### 2026-10-21 23:16 UTC — Room 214 talking fixes LOADED (7679104)
+Owner: "start with the talking part … for my room only", "she needs to say goodnight or goodbye", "when she wakes say hello or hi". Evidence: Room 214 calls rt_2l3ty0zy (said she "can't become a global voice assistant", "Interesting question… let me think" + second answer, offers, name every turn) and rt_52ayqcen (goodbye cut after "Okay,"; server auto-reply "No worries… do you want to just chat?" became her last words).
+- Owner room only (verified Room 214 mint): style block + no lead-ins, name in greeting only, "Michael is building you" (say what is not wired up yet, never "can't become"), WRONG/RIGHT examples; wake greeting from Hi/Hello/Hey; closing line "Goodnight." 20:00–05:00 room time else "Goodbye." (`caos.context.goodbye_line`; other rooms keep "Okay, bye for now.").
+- All rooms (bug fix, no style change): when a call starts closing the page sets server VAD `create_response:false, interrupt_response:false`, so a barge-in cannot cancel the goodbye or auto-create a reply.
+- Checks: frontend 930/930; backend focused tests pass; the 8 full-gate failures all fail identically on the unchanged base 35093a3 (pre-existing). Loaded: backend pid 1231762 sha 7679104, page build main.bf7cf1fb.js, kiosk reconnected, `ctl.sh start` READY (mini). Live: not yet observed on a real call.
+
+### Room 214 queue (owner 2026-10-21: "it all needs done … the rest goes in the queue"), in order
+1. Light on/off mismatch: rt_tbfytpqr "turn on the overhead light" → model called toggle_light off; guard refused. Make the tool follow the unambiguous spoken state.
+2. Switch on tools that already exist for the owner room's voice session (family/phone call path, staff request clarity) so she stops saying "I can't".
+3. Music / video through the TV (check what the TV / Home Assistant supports first).
+4. Email and texts — needs a provider account Michael sets up (credentials are owner-only).
+5. Large-number reading (247,392 read as "two hundred forty-seven million…").
+6. Job 2 from the takeover directive: per-room call-cost counter under every room (00fff9b loaded, browser verification pending).
+7. Watch the 0.02/2.5 wake setting for real false wakes.
