@@ -98,6 +98,26 @@ An Android endpoint implements the same protocol from a native foreground
 service (e.g. sherpa-onnx Android KWS, or an openWakeWord Android port) and
 loads the same room page.
 
+## Start / recover the Room 214 endpoint (one command)
+
+As `caoscare-1` on the EliteDesk, from any directory:
+
+```bash
+~/CAOSCARE-INTEGRATION/room-node/aria_wake/ctl.sh start
+```
+
+Checks no live call (a live call → `IN_CALL`, nothing changed), then brings up only what is down, in order:
+MongoDB reachable → backend `:8092` (via `scripts/restart_dev_backend.sh`, only if nothing serves it) →
+page `:3002` → eMeet source + sink in this account's PulseAudio (reloads this account's audio once if missing) →
+listener `:8765` → kiosk with `?wake=1` → exactly one wake consumer → transport `realtime`. Prints
+`READY` / `IN_CALL` / `NOT_READY: <exact blocker>`, `PAID_CALL_STARTED=false`, and a receipt path under
+`~/.local/state/caoscare-room-start/`. Sends no TV/device command. Safe to re-run.
+
+**One account owns the eMeet.** A USB speakerphone's capture device can be held by only one PulseAudio
+daemon. The Room endpoint runs under `caoscare-1`; no listener, kiosk or browser helper for Room 214 may run
+under another account (2026-10-19 → 10-21 outage: a `michaelos` listener held `:8765` and the eMeet;
+`docs/PROJECT_STATE.md` 2026-10-21).
+
 ## Always on (systemd --user), evidence, offline evaluation
 
 `./ctl.sh test-audio-access` (can this user open the eMeet; prints the one `sudo`

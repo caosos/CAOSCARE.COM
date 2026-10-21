@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Control script for the EliteDesk home wake endpoint (systemd --user).
+#   ctl.sh start               start whatever is down, in order, and prove readiness (safe to re-run)
 #   ctl.sh test-audio-access   can this user see the eMeet? (prints the fix if not)
 #   ctl.sh install             venv + units + env file, enable and start the services
 #   ctl.sh rebuild [--force]   build the frontend into ~/.cache/aria-wake/build and swap it in
@@ -123,7 +124,77 @@ install_all() {
   echo "To start at boot without a login:  loginctl enable-linger $(id -un)"
 }
 
+# One idempotent start for this EliteDesk's Room endpoint, as the account that owns the units (caoscare-1).
+# Order: MongoDB -> backend :8092 -> page :3002 -> eMeet in this user's audio -> listener :8765 -> kiosk.
+# Starts only what is down; restarts nothing that is up. A live call is never touched. Sends no TV/device
+# command and starts no paid call. Every run writes a receipt; a failure names the exact blocker.
+start_all() {
+  local ts state rcpt port_owner since n src snk url clients cfg transport model
+  ts="$(date +%Y%m%dT%H%M%S%z)"; state="$HOME/.local/state/caoscare-room-start"; mkdir -p "$state"
+  rcpt="$state/$ts.json"; local -a done_steps=()
+  finish() {   # finish RESULT DETAIL
+    python3 - "$rcpt" "$1" "$2" "$(git -C "$REPO" rev-parse --short HEAD)" "${done_steps[@]}" <<'PY'
+import datetime, json, os, sys
+p, result, detail, sha, *steps = sys.argv[1:]
+json.dump({"at": datetime.datetime.now(datetime.timezone.utc).isoformat(), "action": "ctl.sh start",
+           "account": os.environ.get("USER"), "checkout_sha": sha, "result": result, "detail": detail,
+           "steps": steps, "paid_call_started": False, "tv_command_sent": False}, open(p, "w"), indent=2)
+os.chmod(p, 0o600)
+PY
+    echo "$1: $2"; echo "PAID_CALL_STARTED=false"; echo "RECEIPT=$rcpt"
+    [ "$1" = READY ] || [ "$1" = IN_CALL ]
+  }
+  set -a; . "$CONF/aria-wake.env"; set +a
+  src="$ARIA_WAKE_SOURCE"; snk="$PULSE_SINK"; url="$ARIA_WAKE_PAGE_URL"
+  since="$(date -u -d '-45 seconds' +%Y-%m-%dT%H:%M:%S)"
+  n="$(mongosh --quiet "mongodb://localhost:27017/caoscare" --eval \
+    "db.resident_aria_leases.countDocuments({status:{\$in:['activating','active']}, last_seen_at:{\$gte:'$since'}})" 2>/dev/null | tail -1)" || n=""
+  case "$n" in
+    0) done_steps+=("no live call") ;;
+    ''|*[!0-9]*) finish NOT_READY "MongoDB not answering (mongod is a system service; check: systemctl status mongod)"; return ;;
+    *) finish IN_CALL "$n live Aria call(s); nothing changed"; return ;;
+  esac
+  if ! curl -fsS -m 3 http://127.0.0.1:8092/api/health >/dev/null; then
+    ss -ltn '( sport = :8092 )' | grep -q 8092 && { finish NOT_READY "something listens on :8092 but /api/health fails; not killing it"; return; }
+    "$REPO/scripts/restart_dev_backend.sh" || { finish NOT_READY "backend :8092 would not start (see scripts/restart_dev_backend.sh output)"; return; }
+    done_steps+=("backend started")
+  else done_steps+=("backend healthy"); fi
+  systemctl --user start aria-wake-page.service || { finish NOT_READY "aria-wake-page.service would not start"; return; }
+  for _ in $(seq 1 20); do curl -fsS -m 2 "http://localhost:$PAGE_PORT/" >/dev/null && break; sleep 0.5; done
+  curl -fsS -m 2 "http://localhost:$PAGE_PORT/" >/dev/null || { finish NOT_READY "room page :$PAGE_PORT not answering"; return; }
+  done_steps+=("page :$PAGE_PORT up")
+  if ! { pactl list short sources | grep -Fq "$src" && pactl list short sinks | grep -Fq "$snk"; }; then
+    # No call can be using a device this user cannot see, so reloading this user's audio is safe here.
+    systemctl --user restart pulseaudio; sleep 3; done_steps+=("pulseaudio restarted to pick up the eMeet")
+    pactl list short sources | grep -Fq "$src" && pactl list short sinks | grep -Fq "$snk" || {
+      finish NOT_READY "eMeet not available to $(id -un); another account's audio may hold it (check: sudo fuser -v /dev/snd/*)"; return; }
+  fi
+  done_steps+=("eMeet source+sink present")
+  port_owner="$(ss -ltnp '( sport = :8765 )' | tail -n +2)"
+  if [ -n "$port_owner" ] && ! grep -q 'pid=' <<<"$port_owner"; then
+    finish NOT_READY ":8765 is held by another account's process (e.g. a second wake listener); stop it first"; return
+  fi
+  systemctl --user start aria-wake.service || { finish NOT_READY "aria-wake.service would not start"; return; }
+  for _ in $(seq 1 30); do ss -ltn '( sport = :8765 )' | grep -q 8765 && break; sleep 0.5; done
+  ss -ltn '( sport = :8765 )' | grep -q 8765 || { finish NOT_READY "wake listener did not bind :8765 (ctl.sh logs)"; return; }
+  done_steps+=("listener on :8765")
+  case "$url" in *wake=1*) ;; *) finish NOT_READY "ARIA_WAKE_PAGE_URL in $CONF/aria-wake.env lacks ?wake=1"; return ;; esac
+  systemctl --user start aria-wake-kiosk.service || { finish NOT_READY "aria-wake-kiosk.service would not start"; return; }
+  for _ in $(seq 1 60); do clients="$(ss -Htnp state established '( dport = :8765 )' | grep -c chrome || true)"; [ "$clients" -ge 1 ] && break; sleep 0.5; done
+  clients="$(ss -Htn state established '( sport = :8765 )' | wc -l)"
+  [ "$clients" -eq 1 ] && [ "$(ss -Htnp state established '( dport = :8765 )' | grep -c chrome || true)" -eq 1 ] || {
+    finish NOT_READY "expected exactly one wake consumer (this user's kiosk); found $clients"; return; }
+  done_steps+=("one wake consumer: kiosk")
+  cfg="$(curl -fsS -m 3 "http://localhost:$PAGE_PORT/api/aria-voice/config?kiosk_id=$ARIA_WAKE_KIOSK_ID")" || cfg="{}"
+  transport="$(python3 -c 'import json,sys; print(json.load(sys.stdin).get("transport") or "unknown")' <<<"$cfg")"
+  model="$(sed -n 's/^OPENAI_REALTIME_MODEL=//p' "$REPO/backend/.env" | tail -1)"; model="${model:-gpt-realtime-2.1-mini (code default)}"
+  done_steps+=("transport=$transport" "realtime_model=$model")
+  [ "$transport" = realtime ] || { finish NOT_READY "room voice transport is $transport, expected realtime"; return; }
+  finish READY "Room endpoint ready (transport realtime, model $model)"
+}
+
 case "${1:-}" in
+  start) start_all ;;
   test-audio-access) audio_access ;;
   install) install_all ;;
   install-voice) install_voice && systemctl --user daemon-reload && systemctl --user enable --now aria-voice.service ;;
@@ -137,5 +208,5 @@ case "${1:-}" in
     rm -f "$UNITS/aria-wake.service" "$UNITS/aria-wake-page.service" "$UNITS/aria-wake-kiosk.service" "$UNITS/aria-voice.service"
     systemctl --user daemon-reload
     echo "uninstalled (left $CONF and $DIR/.venv in place)" ;;
-  *) sed -n 2,6p "$0"; exit 2 ;;
+  *) sed -n 2,9p "$0"; exit 2 ;;
 esac

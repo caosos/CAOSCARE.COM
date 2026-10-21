@@ -1285,3 +1285,47 @@ HANDOFF CAPSULE
 - Size review: production lookup 130 lines, channel 217, HA configuration 278; new lookup tests 193 and package tests 63. No newly oversized implementation file. `git diff --check` passes. Existing HA package matches the reviewed six-tool baseline SHA-256 `d78cc01b834e678b3a701d758c649868f30e6d566e50fa3d730fc6ee989dc8ad`.
 - Pre-load runtime: Care backend `6b96741`, PID 651391; listener/helper/tunnel PIDs 571938/616161/559440 remain untouched. HA's actual service registry has both `rest_command.reload` and `script.reload`; no scripts were running at the check. Whole HA restart is unnecessary. Preserve the package and prior backend ref before loading; respect guarded Care backend lease/activity checks.
 - Built/tested, **not yet loaded at this checkpoint**. Next bounded step: reviewed local commit, guarded dev-backend load, package backup/check/two-domain reload, expose only the new actual script entity, then local MCP read of the existing request. ChatGPT metadata adoption remains separate. No push, new credential, extra listener/browser client, device operation, paid API call or production deployment.
+
+## 2026-10-21 05:20 CDT — Room 214 CAOSCare voice restored under caoscare-1; one start command
+
+- **Agent/tool:** Claude Code (claude-opus-5-5), OS user `caoscare-1`, takeover from Codex at Michael's direction. **Branch:** `fix/room214-caoscare1-start` from runtime `00fff9b` (local; `00fff9b` is the paused cost-counter commit on `local/room-cost-d191acf-2686c8c`).
+- **Owner directive (2026-10-21):** restore the existing CAOSCare API voice on Realtime Mini only, before any cost-counter work. Do not use the browser/ChatGPT helper. Nothing under `michaelos` ("there should be no michaelos").
+- **Proven root cause** (activation events, listener journal, `/dev/snd` holders):
+  - From 2026-10-19 15:53 CDT, a second wake listener under `michaelos` (Desktop-Agent route) held `127.0.0.1:8765` and the eMeet capture device. The `caoscare-1` listener then failed 1,674 times with `EADDRINUSE`.
+  - The `caoscare-1` kiosk URL lost `?wake=1` at 2026-10-18 04:41.
+  - At 03:34 today `caoscare-1` PulseAudio restarted while the device was held, so it lost the eMeet.
+  - Failed owner test at 03:35: the Mini session minted, then `mic_failed NotFoundError` → `setup_failed`.
+  - The 04:54 call on the `michaelos` route used the generic "Default" microphone, which clipped (peak 0 dBFS). The owner heard nothing, and a short phrase was taken as an explicit goodbye.
+  - The last good CAOSCare calls had been 2026-10-16/17 (Realtime Mini) and 2026-10-18 05:05 (cascade).
+- **Restore (owner-approved, receipt `~/.local/state/caoscare-room214-restore-claude/receipt-20261021T1008.json`, rollback `rollback.sh` beside it):**
+  - Precheck: 0 live leases.
+  - `michaelos` `aria-wake` and `aria-wake-kiosk` disabled with `--now`.
+  - `caoscare-1` PulseAudio restarted; the eMeet source and sink are present.
+  - `aria-wake.env` `ARIA_WAKE_PAGE_URL` now ends in `?wake=1`. This is the only line changed; the backup is beside the receipt.
+  - `caoscare-1` `aria-wake` and `aria-wake-kiosk` started: one wake consumer, `capture_alive` on the eMeet, 0 restarts.
+  - Transport `realtime`, `OPENAI_REALTIME_MODEL=gpt-realtime-2.1-mini`. No TV command, no paid call.
+- **Owner verified (2026-10-21 05:09:38–05:11:36 CDT, session `rt_6ewog9gy_1792577378209`):**
+  - Michael: "ahh thats much better."
+  - Events: wake → Mini minted (provider `gpt-realtime-2.1-mini`) → `mic_acquired` → conversation → `resident_end_call` → `call_audio_restored` → `wake_listening_resumed`.
+  - Ledger estimate $0.066: Realtime $0.064 and `gpt-4o-transcribe` $0.002. 16 usage receipts, none unknown, pricing `openai-public-2026-10-17.3`.
+  - Physical TV behaviour was not separately reported.
+- **Start command:** `room-node/aria_wake/ctl.sh start` (new subcommand; README section "Start / recover").
+  - Runs in order: live-call check (`IN_CALL`, no changes) → MongoDB → backend `:8092`, via `scripts/restart_dev_backend.sh` only when nothing serves it → page `:3002` → eMeet in this account's audio (one PulseAudio reload if missing) → listener `:8765`, refusing when another account holds the port → kiosk `?wake=1` → exactly one consumer → transport `realtime`.
+  - Writes a receipt under `~/.local/state/caoscare-room-start/`.
+  - Live runs 05:15:30 and 05:15:37: `READY` both times, same PIDs, 0 restarts.
+  - Untested live branches: backend down, page down, eMeet missing, port held elsewhere, `IN_CALL`. Each would need a disruptive test.
+  - `ctl.sh` is 212 lines.
+- **Superseded:** Codex's `room-node/aria_wake/start_room214_home.sh` on `/home/michaelos/CAOSCARE-realtime-mini-selection` (`d191acf`, unmerged, runs as `michaelos`). Do not use it. Its checkout was left untouched.
+- **Not done:** per-room cost counter (`00fff9b` loaded, paused, not accepted); PROJECT_STATE header reconciliation.
+
+HANDOFF CAPSULE
+- Objective:        Room 214 voice on caoscare-1 (done, owner-verified); next: per-room cost counter acceptance
+- Branch:           fix/room214-caoscare1-start (local) on runtime 00fff9b
+- Lane / ownership: Room 214 endpoint + ctl.sh start; cost counter next
+- Last proven state:owner-verified Realtime Mini call 05:09 CDT; ctl.sh start READY x2
+- Commits:          this entry's commit (local, not pushed)
+- Runtime state:    :8092 00fff9b pid 1049225; :3002 page 9fe4ce9; caoscare-1 aria-wake/kiosk active; michaelos aria-wake* disabled
+- Unresolved proven defects: none in the voice path; untested start-command failure branches listed above
+- Product invariants that matter here: one wake consumer; one account owns the eMeet; Mini only; receipts
+- Do NOT change:    michaelos audio/browser route, TV toggles without state, Linode/production
+- Next safe action: cost counter: inspect 00fff9b UI under every room in the browser before any change
