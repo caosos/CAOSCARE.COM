@@ -1352,3 +1352,4 @@ HANDOFF CAPSULE
   - Frontend `endIntentAddressee.test.js` plus `endIntent.test.js`: 78/78.
   - Offline full-prompt build: `PROFILE: concise_natural` → owner block → style block → opening.
 - **Status:** profile live from the next mint. The style block is prepared and offline-tested; it is loaded only after the guarded backend restart recorded below. It is not live-verified: that needs Michael's next ordinary call. No paid test was run.
+- **Loaded 2026-10-21 05:28 CDT:** `scripts/restart_dev_backend.sh` (preflight: leases 0, recent activity 0, candidate healthy) → PID 1067642, `CAOSCARE_RUNTIME_SHA=4c2d545`, log `/tmp/room214_backend_4c2d545.log`; prior `00fff9b` PID 1049225. Rollback: the script's manual recovery at `00fff9b` (state `/tmp/restart_dev_backend.last`). `ctl.sh start` → READY; the kiosk is polling the new backend (200). Live verification is still pending Michael's next ordinary call.
