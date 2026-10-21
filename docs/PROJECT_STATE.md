@@ -1329,3 +1329,26 @@ HANDOFF CAPSULE
 - Product invariants that matter here: one wake consumer; one account owns the eMeet; Mini only; receipts
 - Do NOT change:    michaelos audio/browser route, TV toggles without state, Linode/production
 - Next safe action: cost counter: inspect 00fff9b UI under every room in the browser before any change
+
+## 2026-10-21 05:40 CDT — Room 214 conversation style for Michael (owner directive "HOME ARYA BEHAVIOR CORRECTION")
+
+- **Agent/tool:** Claude Code (claude-opus-5-5), `caoscare-1`, branch `fix/room214-caoscare1-start`.
+- **Evidence:** session `rt_y6k2od0z_1792577883921` (05:18:07–05:19:13 CDT).
+  - An unfinished thought got a paragraph of ideas and offers.
+  - After "Stop, I don't need you to talk that much like that." and "Okay", one response (`resp_EbNgtwQ…`) produced two message items. Both were spoken: 219 provider audio tokens, about 11 s of audio. This is not a recording duplicate.
+  - Every barge-in cut her audio within about 7 ms (`output_audio_buffer_stopped cleared:true`), so interruption mechanics worked. The over-talking was a prompt/profile problem.
+- **Precise conflict:**
+  - Michael's resident record had no `aria_guidance_profile`, so every call loaded the default `supportive_guided` ("say what was confirmed and give one simple next step", "at most two concrete choices"). 0 receipts show it was ever set.
+  - The Room 214 owner block said "be direct, skip hand-holding", which contradicts that profile.
+  - The shared persona adds "ask if they want to hear more", "offer to tell a story, share a joke…" and "Anything on your mind?".
+  - Reconstructed offline from loaded code `00fff9b` plus the unchanged record; the prompt hash is not persisted.
+- **Change (Michael's room only):**
+  - `owner_style_block` added to the Room 214 owner block. It is listed in `docs/ROOM_214_HOME_TEST_IDENTITY.md`.
+  - Michael's profile set to `concise_natural`, receipt `rcpt_73c488f7d8b6`. The record update preceded the receipt by about 1 minute because the first receipt attempt failed validation (`actor_type` "agent" is not allowed); it was re-recorded as `system` with the agent named.
+  - Shared persona, other residents, model, temperature, VAD and audio are unchanged.
+- **Tests:**
+  - New `test_owner_style_block_is_in_the_owner_room_block_only`: 5 passed in the owner/profile group.
+  - Focused group: 26 passed, 3 failed. The 3 failures (`test_minted_room_214_session_ends_with_the_opening`, `test_minted_session_carries_the_greeting_for_the_page`, `test_resident_mint_records_provider_model`) fail identically on the unchanged base `2df109b`, so they predate this change.
+  - Frontend `endIntentAddressee.test.js` plus `endIntent.test.js`: 78/78.
+  - Offline full-prompt build: `PROFILE: concise_natural` → owner block → style block → opening.
+- **Status:** profile live from the next mint. The style block is prepared and offline-tested; it is loaded only after the guarded backend restart recorded below. It is not live-verified: that needs Michael's next ordinary call. No paid test was run.

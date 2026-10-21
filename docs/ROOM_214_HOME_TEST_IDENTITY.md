@@ -60,3 +60,10 @@ Helen's real pendant events still raise alerts for Helen as before; they just
 do not launch this screen while it is pinned. The demo kiosk is unaffected
 (unpinned). A device credential for kiosks (so a screen cannot claim another
 identity) is separate security work.
+
+## Conversation style for Michael (Room 214 only, 2026-10-21)
+
+- **Where it lives:** `routes/owner_room_context.py::owner_style_block`, inside the verified owner-room block. It is added only on a verified Room 214 mint, just before `## How this call opens`, and it explicitly overrides the shared persona's offer/next-step/fill-silence suggestions for Michael.
+- **What it says:** answer what was asked; match detail to the task; no offers or menus; use his name rarely; an unfinished thought gets at most "Mm?"; "stop"/"chill" gets one or two words; follow a barge-in and a change of topic; silence is fine; one reply per turn; a goodbye that is quoted or said to dot/ChatGPT does not close the call.
+- **Profile:** Michael's resident record is `aria_guidance_profile: concise_natural`, receipt `rcpt_73c488f7d8b6`. Before 2026-10-21 it was unset, so he got the default `supportive_guided` hand-holding profile, which contradicted the owner block's "skip hand-holding".
+- **Unchanged:** the shared persona and every other resident's profile. Interruption is mechanical (server VAD cuts Aria's audio when he speaks) and is untouched. The local goodbye detector already ignores quoted and other-addressee goodbyes (`frontend/src/lib/__tests__/endIntentAddressee.test.js`).

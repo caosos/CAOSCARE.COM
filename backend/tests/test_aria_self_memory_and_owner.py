@@ -96,6 +96,23 @@ def test_owner_block_text_and_scope():
     assert "cannot send email or open tickets" in block and "Never mention any of this outside this room" in block
 
 
+def test_owner_style_block_is_in_the_owner_room_block_only(resident):
+    # Owner directive 2026-10-21 (Room 214 session rt_y6k2od0z): answer what was asked, no offers/menus,
+    # let an unfinished thought finish, "stop"/"chill" -> one or two words, follow his change of topic,
+    # silence is fine, a goodbye to dot/ChatGPT or a quoted one is not for Aria.
+    block = owner_room_block("Michael Chambers", "Michael")
+    for phrase in ("## How to talk with Michael (this room only)", "Match the detail to the task",
+                   "No closing offers or menus", "'Mm?' or 'Go on', then wait",
+                   "you have already been cut off", "including a change of topic",
+                   "reply with one or two words ('Sure.') or nothing - never explain how you'll change",
+                   "Silence is fine", "One reply per turn", "said to someone else (dot, ChatGPT",
+                   "don't call `end_call`", "never claim you do", "Safety, truth, tool and end-call rules still apply"):
+        assert phrase in block, phrase
+    assert block.index("Who you are talking to") < block.index("How to talk with Michael")
+    # Every other resident's prompt is unchanged: no owner style block without the verified Room 214 mint.
+    assert "How to talk with" not in run(_build_companion_instructions(resident))
+
+
 def test_owner_block_needs_the_verified_room_214_mint():
     # No lease / a claimed room=214 with no backend lease never proves the owner room.
     assert run(owner_room_prompt({"room": "214", "resident_id": "res_x", "kiosk_id": "kio_x"}, None)) == ""
