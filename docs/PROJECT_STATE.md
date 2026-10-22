@@ -1442,3 +1442,18 @@ Owner: "Do A … Report results before loading; do not restart services or start
   - `CI=true yarn build` compiles (scratch output; served build untouched).
 - **Found, not fixed:** in `endCallControl.test.js` the "goodbye that overtakes…" test leaves state that keeps a later test's call open. It reproduces on the unchanged page code; the new tests sit before it.
 - **Running system:** unchanged (backend 2367979 pid 1304870, page main.50fe8f2e.js). Load = `ctl.sh rebuild` + `restart-page` (page-only change; the backend restart is not needed). Rollback = rebuild at 2367979/ddd5819.
+
+### 2026-10-22 00:19 CDT — Option A LOADED (page only); acceptance PENDING
+- **Pre-load:** tree clean at 0918fd8; 0 activating/active leases; last activation = the 23:22 call's `call_audio_restored`; listener `listening`.
+- **Rollback copy:** `~/caoscare-config-backups/page-build-ddd5819-main.50fe8f2e/` (43 files + `page-build.sha256`).
+- **Load:**
+  - `ctl.sh rebuild` → `main.1d64f293.js` (contains `soft_ending_overlap_held`), served at :3002.
+  - `ctl.sh restart-page` (00:19:15).
+  - Kiosk reconnected 00:19:44 with 1 client.
+  - `ctl.sh start` READY, mini, `PAID_CALL_STARTED=false`; receipt `~/.local/state/caoscare-room-start/20261022T001924-0500.json`.
+- **Untouched:**
+  - Backend pid 1304870 (`CAOSCARE_RUNTIME_SHA=2367979`, health 200). There are no backend/room-node changes between 2367979 and 0918fd8.
+  - Wake 0.02/2.5 (+ shadow 0.01/3.5).
+  - Model, voice, VAD.
+- **Rollback:** `rm -rf ~/.cache/aria-wake/build && cp -a <rollback copy> ~/.cache/aria-wake/build`, then `ctl.sh restart-page`.
+- **Next:** Michael's own call; a load is not acceptance.
