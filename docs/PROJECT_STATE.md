@@ -1371,3 +1371,27 @@ Owner: "start with the talking part … for my room only", "she needs to say goo
 5. Large-number reading (247,392 read as "two hundred forty-seven million…").
 6. Job 2 from the takeover directive: per-room call-cost counter under every room (00fff9b loaded, browser verification pending).
 7. Watch the 0.02/2.5 wake setting for real false wakes.
+
+### 2026-10-21 20:30 CDT — Room 214 conversation review after rt_d3ahe1bf (PREPARED 1b3c5c2, NOT LOADED)
+Evidence: all 12 Michael sessions of 2026-10-21 CDT (173 turns; same set as dot's 19:34 export; none newer) read from `caoscare.conversations` + `realtime_diagnostics`. No other resident's data read.
+
+**What served rt_d3ahe1bf_1792628935442 (19:28:59–19:33:58 CDT).** Direct receipts: activation_events `session_provider_model` requested = provider = `gpt-realtime-2.1-mini`; resident `res_2425767f4a51` (`aria_guidance_profile: concise_natural`, the only resident with it), room 214, kiosk `kio_dc8c06a19608`, trigger `wake_word`; backend pid 1231762 `CAOSCARE_RUNTIME_SHA=7679104` (started 18:14:59). Reconstruction (not a receipt): page build `main.bf7cf1fb.js` (7679104) — index.html swapped 18:15:33, kiosk started 18:15:37; prompt text rebuilt offline from 7679104 (the minted prompt/hash is not persisted).
+
+**Why 7679104 did not change the behavior.** concise_natural was one paragraph appended AFTER the shared persona, whose style sections ("warm, deeply present companion", "Brighter if they want company", "keep talking, ask about their day", "Storyteller mode", "Then ask if they want to hear more") stayed in force; the owner block that said "these replace…" sat ~30k chars later. Mini followed the persona.
+
+| Owner correction / call | Observed failure | Responsible layer | Correction (1b3c5c2) | Regression test |
+|---|---|---|---|---|
+| "I just need you to be normal" 19:32:29; "Stop… chill" 05:18 | speech promising change, offers | prompt precedence (persona vs profile) | concise_natural REPLACES who/sound, what-to-do, research sections; supportive byte-identical (diffed) | test_aria_concise_profile_style.py |
+| "That was simple, I was being sarcastic" 19:31:02 | "next time I'll keep it even simpler" | same | banter rule + WRONG/RIGHT example | same + owner block test |
+| "…menus to your" / "Information" / "That's all." 19:33 | call hung up; Michael had not said goodbye | page end-intent on a VAD-split segment (gap ~350 ms, no Aria audio) | soft ending continuing a sentence ≠ goodbye (`sentenceTail.js`); hard goodbyes unchanged | sentenceTail.test.js |
+| goodbye after the 7679104 load | "Goodbye." cleared 0.3 s in | server VAD still active while closing (inferred; its reply was filtered out of the log) | closing sets `turn_detection: null`; logs `closing_session_updated` / `closing_realtime_error` | endControllerQuietServer.test.js |
+| "Turn on the desk lamp" 07:11:54; overhead 15:52:56 | model sent OFF twice | model's audio reading vs transcript; guard refused (correct), vague refusal → same retry | refusal kept, nothing sent; for a plain command it names the heard direction | toggleLightControl + roomCallRegressions1021 |
+| "Give me a turn" 06:14 | thermostat set 72 | no grounding on adjust_room_temperature; missing target defaulted to 72 | needs a temperature word/number/yes; no default | roomCallRegressions1021 |
+| weather "rest of the week" 19:30 | three "let me check" + duplicate call + research | get_weather was 1-day only (`forecast_days: 1`) | optional `days` 1–7 in one call; "One sec." at most | test_weather_next_days_line |
+| "what's for dinner" 19:33 | recited the tool's policy | tool message mixed spoken fact and instructions | separated; dev DB menus end 2026-10-03 (true "none"); sim scratch DBs have none | roomCallRegressions1021 |
+| 247,392 × 50 | operand read "247 million" | model speech rendering (arithmetic correct) | number rule in concise profile only | concise profile test (text only; rendering needs a live call) |
+| "You can, because I'm designing you" 17:36 | "I can't become…" | prompt | builder rule (7679104), kept | owner block test |
+
+**Not changed:** model (mini only), temperature, VAD config, wake listener/sensitivity, audio, IR/TV, cost-counter work, other residents' profiles. **Traced, not fixed:** replies that start before a thought ends ("Do you know how to" 17:05, "I wish there was some kind of like" 05:18) — server VAD `silence_duration_ms: 1000` creates the response at speech_stopped, ~0.4 s before the final transcript; in rt_d3ahe1bf the server's own barge-in cancelled those responses before audio. semantic_vad was reverted 08-23 (38 s dead zone). A dangling-word cancel for the owner profile is the next candidate; not built.
+**Checks:** frontend 937/937; backend 1557 passed, the same 8 pre-existing failures as base 35093a3. Line counts: realtimeMessageHandler.js 476 (already over 400 before today; new logic kept in sentenceTail.js 31), realtime_companion_prompt.py 311.
+**Load (when approved):** verify 0 leases → `scripts/restart_dev_backend.sh` → `room-node/aria_wake/ctl.sh rebuild` → `ctl.sh restart-page` → `ctl.sh start` READY. **Rollback:** `git checkout 7679104` of these files (or the branch at fa0b240) and the same three commands. Conversational acceptance: pending a real call.

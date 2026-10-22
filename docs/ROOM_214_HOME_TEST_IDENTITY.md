@@ -67,3 +67,10 @@ identity) is separate security work.
 - **What it says:** answer what was asked; match detail to the task; no offers or menus; use his name rarely; an unfinished thought gets at most "Mm?"; "stop"/"chill" gets one or two words; follow a barge-in and a change of topic; silence is fine; one reply per turn; a goodbye that is quoted or said to dot/ChatGPT does not close the call.
 - **Profile:** Michael's resident record is `aria_guidance_profile: concise_natural`, receipt `rcpt_73c488f7d8b6`. Before 2026-10-21 it was unset, so he got the default `supportive_guided` hand-holding profile, which contradicted the owner block's "skip hand-holding".
 - **Unchanged:** the shared persona and every other resident's profile. Interruption is mechanical (server VAD cuts Aria's audio when he speaks) and is untouched. The local goodbye detector already ignores quoted and other-addressee goodbyes (`frontend/src/lib/__tests__/endIntentAddressee.test.js`).
+
+### Update 2026-10-21 20:30 CDT (prepared 1b3c5c2)
+The general adult-to-adult style now lives in the `concise_natural` profile (`backend/aria_guidance_profiles.py`
+`CONCISE_STYLE`), which REPLACES the persona's style sections for that profile only; `supportive_guided`
+residents get the persona word for word. `owner_room_context.owner_style_block` keeps only what is specific to
+Michael (unfinished thoughts, barge-in, builder rule, goodbyes to other assistants) plus real WRONG/RIGHT examples.
+Closing line Goodnight./Goodbye. and Hi/Hello/Hey wake greeting are Room 214 only (7679104, loaded).
