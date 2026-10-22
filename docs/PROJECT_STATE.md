@@ -1586,3 +1586,25 @@ Owner: "whys it on hold if its better then lets do it". This overrides the HOLD 
 - **Not verified live:** the session.updated echo of 1800 ms. That needs Michael's next call: speech_stopped should land ≈1.8 s after he stops (median response_created→speech_stopped gap is ~9 ms today).
 - **Tradeoff:** every reply in Room 214 starts ≈0.8 s later (≈2.5 s after he stops).
 - **Rollback:** `git revert 734cff9`, then `scripts/restart_dev_backend.sh` (prior runtime 2367979; log `/tmp/room214_backend_2367979.log`).
+
+### 2026-10-22 04:30 CDT — Wake reliability, rt_9jy1lwm6_1792659801937 (04:03:26–47 CDT): read-only trace
+Owner report: roughly six "Hey Aria" attempts before the call connected. Sources: `aria-wake` user journal (listener pid 1219269, running since 2026-10-21 17:39:54) and `activation_events` / `realtime_diagnostics` for Room 214 only. No audio is kept. Nothing was changed or restarted.
+- **Effective config (process environ):** threshold 0.02, score 2.5 (shadow 0.01/3.5). Matches the 10-21 receipt. Env file mtime 17:39:54 = process start.
+- **Mic/device:** the eMeet `…mono-fallback` source throughout; `capture_alive` every ~5 s with 49–51 frames; no device change; no listener errors. The only non-JSON lines are the kiosk browser's GCM MCS -105, which is unrelated.
+- **Listener state:** mode `listening` from 03:56 to 04:03:21; no `detection_suppressed`; no cooldown; client connected (1) since 03:11:28 with no disconnect.
+- **Detections:** one live `wake_detected` at 04:03:21.911. One `shadow_only` at 04:01:16.6: the looser shadow fired, the live detector did not.
+- **After detection, every step worked:**
+  - `wake_sent` 0 ms later to 1 client;
+  - mint 22.017 → model receipt mini 23.437;
+  - session bound and mic 23.74;
+  - peer connected 24.708;
+  - greeting audio 26.057 → 26.838 (4.1 s after detection).
+  - No rejected start, no cancelled greeting; one session.
+  - The two `session_mint_started` rows share one client ts: a duplicate log row, not a second start.
+- **Failed step = detection (scoring).** Six short, loud raw segments sat ~3–5 s apart just before the call, each 1.4–2.2 s with peak −7.9 to −10.6 dBFS (segment close times 04:02:54.9, 03:03.3, 03:09.2, 03:14.2, 03:19.0, 03:21.9). Only the last scored as a detection.
+  - **Inference:** these are the six attempts. Their loudness matches the attempt that worked, so the misses were not a quiet-voice problem.
+  - **Not provable:** the words spoken. The KWS gives no per-attempt score and no audio is kept.
+  - **Background:** continuous quieter sound (−21 to −34 dBFS) between the attempts suggests background audio (e.g. TV), but its source is not established. The 2026-10-21 sweep put 0.02/2.5 at 98% clean vs 44% with TV at 5 dB.
+- **Since listener start (16 h):** 6 live detections, 5 `shadow_only`. At 07:32:52, `shadow_only` was followed 3 s later by a live wake, i.e. the shadow does catch some real misses. The 0.01/3.5 shadow would not have caught the 5 misses here.
+- **Missing diagnostic:** attempt ground truth. `wake_stats.py mark` exists for owner-marked attempts; a near-miss score would need a detector change. No threshold change is supported by this evidence (sweep: 0.02–0.05 × 1.5–3.0 all 39–48% under TV).
+- **Next proposed:** owner-marked attempt session (`wake_stats.py mark`) to measure the miss rate with and without TV before any wake change.
