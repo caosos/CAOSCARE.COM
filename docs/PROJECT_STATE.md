@@ -1572,7 +1572,11 @@ Owner: "whys it on hold if its better then lets do it". This overrides the HOLD 
   - New `test_owner_room_waits_1800_ms_and_every_other_room_keeps_the_default` passes.
   - Full backend gate: 8 failed / 1558 passed. Of the 8:
     - 5 mint tests fail identically on the unchanged code: backend/.env sets `ARIA_VOICE_DEFAULT_TRANSPORT=cascade`, so the test mint takes the cascade path and never calls client_secrets (pre-existing, environment-dependent).
-    - `test_therapy_recurrence::test_weekly_therapy_series` and 2 others sit in modules this change does not touch (names: see gate log below).
+    - Rerun at 734cff9 (9 failed / 1557 passed). Besides those 5:
+      - `iter10::test_session_default` and `iter11::test_session_has_nine_tools_and_anchors`: tool-list drift (`check_medication_status` not in the expected set).
+      - `test_room214_self_code_session::test_room_214_session_can_inspect_search_read`: HEAD moved to the docs commit 56c9130 during the run (artifact of this session).
+      - `test_therapy_recurrence::test_weekly_therapy_series`: date-dependent.
+      - None of these touches turn detection.
 - **Load:**
   - `scripts/restart_dev_backend.sh`: preflight leases=0, recent=0, candidate start OK.
   - → pid 1379029, `CAOSCARE_RUNTIME_SHA=734cff9`, cwd backend, health 200, log `/tmp/room214_backend_734cff9.log`.
