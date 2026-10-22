@@ -12,15 +12,15 @@ Generated: 2026-08-09. Last reconciled: **2026-08-29 (live physical-pendant test
 
 **If you are a fresh Claude Code or Codex instance on ANY machine, read this file in full before touching resident-voice, RF/pendant, or Realtime-session code.**
 
-## Runtime snapshot — 2026-10-21 05:15 CDT (supersedes the 2026-10-15 table below)
+## Runtime snapshot — 2026-10-21 23:00 CDT (supersedes the 2026-10-15 table below)
 
 Start/recover: `~/CAOSCARE-INTEGRATION/room-node/aria_wake/ctl.sh start` as `caoscare-1` (README there).
 
 | Port / thing | What | Source / revision | Notes |
 |---|---|---|---|
-| `:8092` | Dev backend | `~/CAOSCARE-INTEGRATION/backend` @ `00fff9b` (PID 1049225, loaded 2026-10-21 04:43 CDT) | `00fff9b` includes the per-room cost route, loaded but **not accepted**. `OPENAI_REALTIME_MODEL=gpt-realtime-2.1-mini`. |
-| `:3002` | Room 214 page (`aria-wake-page`) | build `9fe4ce9` | Kiosk transport `realtime` (kiosk preference, set 2026-10-21 02:46). |
-| `aria-wake` / `aria-wake-kiosk` | listener + headless kiosk, **user `caoscare-1`** | listener 0.05/1.5 + shadow 0.01/3.5; kiosk URL `?wake=1` | One wake consumer. Owner-verified call 2026-10-21 05:09 CDT. |
+| `:8092` | Dev backend | `~/CAOSCARE-INTEGRATION/backend` @ `2367979` (code `1b3c5c2`; PID 1304870, loaded 2026-10-21 22:59 CDT; rollback `7679104`) | Includes the per-room cost route (from `00fff9b`), loaded but **not accepted**. `OPENAI_REALTIME_MODEL=gpt-realtime-2.1-mini`. |
+| `:3002` | Room 214 page (`aria-wake-page`) | build `2367979` → `main.50fe8f2e.js` (restarted 22:59:58 CDT; rollback build `7679104` = `main.bf7cf1fb.js`) | Kiosk transport `realtime` (kiosk preference, set 2026-10-21 02:46). |
+| `aria-wake` / `aria-wake-kiosk` | listener + headless kiosk, **user `caoscare-1`** | listener 0.02/2.5 (since 2026-10-21 17:39 CDT) + shadow 0.01/3.5; kiosk URL `?wake=1` | One wake consumer (kiosk reconnected 23:00:27 CDT). Owner-verified call 2026-10-21 05:09 CDT. |
 | eMeet | `caoscare-1` PulseAudio | `alsa_input/output.usb-EMEET…mono-fallback` | Must not be held by another account. `michaelos` `aria-wake*` units are **disabled**. |
 | `:3000` | Frontend dev server | `~/CAOSCARE-INTEGRATION/frontend` working tree | Unchanged. |
 
