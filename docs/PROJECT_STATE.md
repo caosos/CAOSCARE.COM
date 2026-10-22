@@ -1457,3 +1457,27 @@ Owner: "Do A … Report results before loading; do not restart services or start
   - Model, voice, VAD.
 - **Rollback:** `rm -rf ~/.cache/aria-wake/build && cp -a <rollback copy> ~/.cache/aria-wake/build`, then `ctl.sh restart-page`.
 - **Next:** Michael's own call; a load is not acceptance.
+
+### 2026-10-22 00:40 CDT — Premature replies: read-only trace (rt_qppzkpzp + Michael's 13 realtime sessions since 10-20)
+- **Effective turn detection** (code path; the live `session.updated` echo is not logged outside closing):
+  - The mint sends `_caos.turn_detection = DEFAULT_VAD` (`backend/routes/realtime_audio_config.py`): server_vad, threshold 0.5, prefix 300 ms, silence 1000 ms, create_response true, interrupt_response true.
+  - The page's first `session.update` sets create_response false for the greeting window. `realtimeAutoResponseGate` restores DEFAULT_VAD when the greeting audio stops, or on response.done with no audio. In rt_qppzkpzp the greeting was cancelled with 0 audio, so auto-response came back at once.
+  - Timing corroborates: response_created 5–18 ms after every speech_stopped (median 9 ms over 85 turns).
+- **23:22:31 order:**
+  1. Raw and processed mic segments end ≈30.1 s.
+  2. speech_stopped 31.419 (≈1.0 s silence + latency).
+  3. response_created 31.437.
+  4. Aria audio 31.955.
+  5. The transcript "…in the beginning when you" lands at 32.053, after her audio had started.
+  6. Michael resumes at 32.147, which clears her audio.
+  - The pause was ≈1.73 s.
+- **Why before the transcript:** with create_response true the server commits the buffer at speech_stopped and the speech-to-speech model answers the AUDIO. gpt-4o-transcribe runs separately: 414/553/736 ms after speech_stopped (p10/p50/p90, n=84). No transcript-based client check can act before first audio (515/683/1480 ms).
+- **Pauses (13 sessions since 10-20):** 19 resumptions, i.e. Michael spoke again before Aria's reply finished; 7 of them after her audio had begun. These include some deliberate interruptions, so the coverage figures are upper bounds.
+  - Estimated pauses (gap + 1000 ms): 1030–3257 ms.
+  - A silence setting of 1200 / 1500 / 1800 / 2000 ms would cover 4 / 9 / 14 / 16 of 19. 1500 would NOT have covered the 23:22 case.
+- **Latency today:** ≈1.0 s silence + 0.68 s median to first audio ≈ 1.7 s after he stops talking.
+- **Options (none applied):**
+  - **Proposed — owner-room-only silence 1800 ms:** a named constant beside DEFAULT_VAD, chosen at the verified Room 214 mint. +0.8 s on every reply in that room; other rooms unchanged.
+  - 1500 ms: +0.5 s, covers about half, misses 23:22.
+  - semantic_vad: adaptive, but reverted on 08-23 after a 38 s dead zone.
+  - Client-held replies with a dangling-word check: create_response off, the page decides after the transcript. About +0.55 s, but it touches the greeting, resting and tool paths. Not the smallest.
