@@ -1531,3 +1531,16 @@ Sources: this session's `realtime_diagnostics` / `activation_events` / `conversa
   - Meter unit tests.
   - **On the loaded code:** the 4 new hold/question cases fail, i.e. they reproduce the event.
 - **Not achieved:** false-hangup acceptance. Green offline tests are not acceptance. Loading needs owner approval plus a fresh no-active-call check; rollback = the current page (main.1d64f293.js).
+
+### 2026-10-22 03:11 CDT — Still-talking hang-up fix LOADED (page only); acceptance PENDING
+Owner: "fix it already."
+- **Pre-load:** tree clean at 00e34bc; 0 active/activating leases; last activation = the 02:33 call's `call_audio_restored`.
+- **Rollback copy:** `~/caoscare-config-backups/page-build-0918fd8-main.1d64f293/` (43 files + `page-build.sha256`).
+- **Load:**
+  - `ctl.sh rebuild` → `main.d3f4fa7c.js`. It contains `ending_held_still_talking`, `REACT_APP_BUILD_SHA` 00e34bc and the Room 214 meter kiosk.
+  - `ctl.sh restart-page` (03:11:02).
+  - The listener logged `client_connected` with 1 client at 03:11:28.
+  - `ctl.sh start` READY, mini, `PAID_CALL_STARTED=false`; receipt `~/.local/state/caoscare-room-start/20261022T031157-0500.json`.
+- **Untouched:** backend pid 1304870 (2367979, health 200), wake, model, VAD, prompts.
+- **Rollback:** `rm -rf ~/.cache/aria-wake/build && cp -a <rollback copy> ~/.cache/aria-wake/build`, then `ctl.sh restart-page`.
+- **Acceptance:** NOT achieved until Michael's own calls show no false hang-up; look for `ending_held_still_talking` in the logs.
