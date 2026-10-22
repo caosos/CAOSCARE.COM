@@ -1608,3 +1608,36 @@ Owner report: roughly six "Hey Aria" attempts before the call connected. Sources
 - **Since listener start (16 h):** 6 live detections, 5 `shadow_only`. At 07:32:52, `shadow_only` was followed 3 s later by a live wake, i.e. the shadow does catch some real misses. The 0.01/3.5 shadow would not have caught the 5 misses here.
 - **Missing diagnostic:** attempt ground truth. `wake_stats.py mark` exists for owner-marked attempts; a near-miss score would need a detector change. No threshold change is supported by this evidence (sweep: 0.02–0.05 × 1.5–3.0 all 39–48% under TV).
 - **Next proposed:** owner-marked attempt session (`wake_stats.py mark`) to measure the miss rate with and without TV before any wake change.
+
+### 2026-10-22 04:40–05:30 CDT — Overnight queue (owner: "do what you can on the queued items"); nothing loaded
+**Live evidence from Michael's 04:37 call rt_n271loel_1792661821011:**
+- The 1.8 s owner-room silence is effective: the gap from the last voiced mic frame to speech_stopped is 1.93–2.09 s on all 13 turns (≈1.1–1.3 s before).
+- No false hang-up. The call ended on his own "Good night." (transcript).
+- The model called end_call on "…I'm going to go to bed now." Grounding refused it, so Aria said "If you're done, you can say goodbye…".
+- One 1-word turn came back as "Okay។" (Khmer punctuation).
+- **Status:** one call; still LOADED, NOT USER-VERIFIED.
+
+**CORRECTION to the "why now" record (CCR-20261022-10/-11):** the transcription hint was NOT live since 10-15.
+- bb657da (10-15) put it in `ctl.sh`, but transcription usage shows 0 prompt tokens on every turn 10-17/18. The first hinted transcription was 2026-10-21 04:54 CDT (rt_uhq0rlwt), after the caoscare-1 restore rebuilt the page with `ctl.sh`.
+- Every disputed hang-up ran with the hint and transcribed as one of its listed words: rt_r7yjpasv "Goodbye", rt_qppzkpzp "That's all", rt_4ze7jvrt "go away".
+- **Inference (not proven):** the goodbye list biased short scraps toward hang-up words.
+- **Also observed:** wrong-script transcripts were ≈4–6% on 10-15/16 (no hint) vs 1/106 since 10-21. Whether the language sentence or the word list did that is not separable.
+
+**PREPARED, committed, NOT loaded:**
+- **Hint:** "A person talking with their home voice assistant, Aria. Mostly English, sometimes Spanish." The goodbye/command list is removed; the language guidance stays. It reaches only builds with `REACT_APP_TRANSCRIPTION_HINT=1`, i.e. the Room 214 page.
+- **Bedtime:** `endingPhrases.checkEnding` grounds the model's end_call on "go/going/head/heading/off to bed", unless the sentence is negated or a question. The page matcher does not hang up on it.
+- **Tests:** frontend 982/982; scratch build compiles and contains the new hint.
+- **Load** = `ctl.sh rebuild` + `restart-page` (page only), after owner approval and a no-call check.
+
+**Not prepared (owner decision):** pin transcription to English (`REACT_APP_TRANSCRIPTION_LANGUAGE=en`). It would stop wrong-script output but drops Spanish (Michael's "dos savor" case).
+
+**Checked, no change supported:**
+- **Hello cancelled:** 1 of 18 wake calls since 10-21 (rt_qppzkpzp, he spoke 168 ms after the greeting was created).
+- **Long-turn word loss:** 3 of 55 turns ≥3 s since 10-21. Clipping does not explain it: 1 of 9 clipped turns vs 2 of 46 others.
+- **Processed-mic peaks above −1 dBFS:** 36 of 400 segments since 10-15 (AGC on). Noted, not acted on.
+
+**Per-room cost counter (00fff9b):**
+- `_read_latest` read-only: Room 214's latest call shows complete, $0.102 (32 usage receipts, the 04:37 call); rooms with no mints show none.
+- The UI under every room still needs an admin browser session (owner login). Not done; no credentials used.
+
+**endCallControl test leak:** narrowed to a stale `onEndCall` in the next test's connection (`p.onEndCall !== onEndCall`). Root cause not found; time-boxed; tests unchanged.
