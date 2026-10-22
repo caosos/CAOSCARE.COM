@@ -13,6 +13,7 @@
  * durable profile fact.
  */
 import { checkEnding, ENDING_PHRASES } from "./endingPhrases";
+import { isSoftEnding } from "./endIntent";
 import { API } from "./api";
 import { handleToggleLight } from "./realtimeLightControl";
 import { roomStatusResult } from "./realtimeRoomStatus";
@@ -342,7 +343,9 @@ export async function executeDeviceTool({ name, args, ctx }) {
     // overlapped Aria and does NOT resemble her own words) is accepted when
     // its words are an explicit ending ("Goodnight, goodbye."). echo_like /
     // repeated_tiny_fragments stay refused - the 2026-08-22 phantom "and".
-    const heardEnding = ctx?.turn_suspect_reason === "uncertain_fragment" && ENDING_PHRASES.test((ctx?.last_user_text || "").trim());
+    // Not for a soft ending ("That's all") - Room 214 rt_qppzkpzp: an uncertain overlap heard as "That's all" is not a goodbye.
+    const heardEnding = ctx?.turn_suspect_reason === "uncertain_fragment" && ENDING_PHRASES.test((ctx?.last_user_text || "").trim())
+      && !isSoftEnding(ctx?.last_user_text);
     if (ctx?.turn_suspect && !heardEnding) {
       return { ok: false, message: "Just to double-check — did you want me to end our conversation?" };
     }

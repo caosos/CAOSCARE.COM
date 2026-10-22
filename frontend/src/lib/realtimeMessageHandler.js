@@ -116,6 +116,7 @@ export function createRealtimeHandlers({
   let lastPlaybackStoppedAt = null;
   const greetingGate = createGreetingResponseGate({ send, caos, greetingCreateResponseOffRef });
   let endCallKind = "resident_end_call";
+  let endVia = "end_call_tool";   // what armed the hangup: "transcript" (local match) or "end_call_tool" (the model)
   // RQ-055 ending state machine (endController.js): after endNow() every later event is ignored.
   const endCtl = createEndController({ send, stop, onEndCall, log: (type, d) => logRealtimeEvent(sessionIdRef.current, type, d),
     goodbyeLine: caos.context?.goodbye_line || undefined,
@@ -124,7 +125,7 @@ export function createRealtimeHandlers({
     // goodbye was still cleared 0.3 s in, and the server's answer to the update was not on record).
     quietServer: () => send({ type: "session.update", session: { type: "realtime", audio: { input: { turn_detection: null } } } }) });
   const hangup = createHangupScheduler({ // waits for the goodbye audio (endCallHangup.js)
-    onClose: () => endCtl.finish(endCallKind, "end_call_tool"),
+    onClose: () => endCtl.finish(endCallKind, endVia),
   });
   const turnGrounding = createTurnGroundingTracker(); // see realtimeTurnGrounding.js
   const sentenceTail = createSentenceTail();   // a VAD-split "...that's all." is not a goodbye (sentenceTail.js)
@@ -236,6 +237,7 @@ export function createRealtimeHandlers({
       send({ type: "response.create" });
       if (result.ok) {
         endCallKind = fn.name === "end_call" ? "resident_end_call" : "resident_end_conversation";
+        endVia = "end_call_tool";
         hangup.arm();
         endCtl.markEnding(assistantSpeakingRef.current);
       }
@@ -406,7 +408,11 @@ export function createRealtimeHandlers({
       postTurn("user", userText, msg.item_id, !cls.suspect);
       const heardEnd = classifyEndIntent(userText);
       const sentenceGoesOn = heardEnd === "explicit" && isSoftEnding(userText) && sentenceTail.continues(msg.item_id);
-      const endIntent = sentenceGoesOn ? "none" : heardEnd;
+      // Room 214 rt_qppzkpzp (2026-10-21 23:22): a ~0.2 s sound under Aria's speech came back as "That's all"
+      // (uncertain_fragment) and hung up. A soft ending heard only as an uncertain overlap is not a goodbye;
+      // "goodbye", "bye", "goodnight", "hang up" still end the call from the same kind of turn.
+      const overlapHeld = heardEnd === "explicit" && !sentenceGoesOn && cls.reason === "uncertain_fragment" && isSoftEnding(userText);
+      const endIntent = sentenceGoesOn || overlapHeld ? "none" : heardEnd;
       logRealtimeEvent(sessionIdRef.current, "user_transcript", {
         text: userText, assistantSpeaking: cls.suspect,
         meta: {
@@ -414,12 +420,14 @@ export function createRealtimeHandlers({
           speech_segment_ms: lastSpeechSegmentMs,
           ms_since_assistant_stopped: lastPlaybackStoppedAt ? Date.now() - lastPlaybackStoppedAt : null,
           end_intent: endIntent, ...(sentenceGoesOn ? { soft_ending_continues_sentence: true } : {}),
+          ...(overlapHeld ? { soft_ending_overlap_held: true } : {}),
         },
       });
       // RQ-055: a clear spoken ending ends the call here, without asking the
       // model to choose a tool. Echo of Aria's own words never ends it.
       if (endIntent === "explicit" && turnMayEnd(cls.reason) && endCtl.beginEnding("transcript", { turn_class_reason: cls.reason })) {
         endCallKind = "resident_end_call";
+        endVia = "transcript";
         farewellWatch.noteEndCallOk();   // the goodbye that follows is intended
         hangup.arm();   // closes after the goodbye audio finishes (endCallHangup.js)
       }

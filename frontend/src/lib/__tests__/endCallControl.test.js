@@ -304,6 +304,103 @@ test("the goodbye transcript is still recorded while closing", async () => {
 // "That'll be all for now." transcript. The transcript began the goodbye while end_call had no
 // output, so Aria said "Okay, I'm still waiting on that to finish." The open call must be
 // answered before the goodbye is requested, and the goodbye just echoes theirs.
+// Room 214 rt_qppzkpzp_1792642914139 (2026-10-21 23:22 CDT): a ~0.2 s sound under Aria's speech came back
+// as "That's all" (uncertain_fragment) and the page hung up. Timings below are that call's, in ms.
+const turn = async ({ id, text, gapMs = null, ariaBetween = false, overlap = false, segmentMs = 1200 }) => {
+  if (gapMs !== null) {
+    await msg({ type: "input_audio_buffer.speech_stopped", item_id: `${id}_prev` });
+    if (ariaBetween) { await msg({ type: "output_audio_buffer.started" }); await msg({ type: "output_audio_buffer.stopped" }); }
+    await settle(gapMs);
+  }
+  if (overlap) await msg({ type: "output_audio_buffer.started" });
+  await msg({ type: "input_audio_buffer.speech_started", item_id: id });
+  if (overlap) await msg({ type: "output_audio_buffer.stopped" });
+  await settle(segmentMs);
+  await msg({ type: "input_audio_buffer.speech_stopped", item_id: id });
+  await msg({ type: "conversation.item.input_audio_transcription.completed", transcript: text, item_id: id });
+};
+const lastUserMeta = () => logged("user_transcript").slice(-1)[0][2].meta;
+
+test("rt_qppzkpzp: 'That's all' heard only as an uncertain overlap of Aria's speech does not end the call", async () => {
+  await msg({ type: "input_audio_buffer.speech_stopped", item_id: "i_prev" });                       // 43.826
+  await said("that you say so, that way I'm not wondering if it actually connected or not.");     // 44.449
+  await msg({ type: "response.created", response: { id: "r_fair" } });
+  await settle(690);
+  await msg({ type: "output_audio_buffer.started" });                                              // 44.516
+  await settle(1567);
+  await msg({ type: "input_audio_buffer.speech_started", item_id: "i_x" });                        // 46.083, Aria still playing
+  await msg({ type: "output_audio_buffer.stopped" });                                              // 46.086 cleared
+  await msg({ type: "response.output_audio_transcript.done", transcript: "Fair point, Michael. I can do that." });
+  await settle(1117);
+  await msg({ type: "input_audio_buffer.speech_stopped", item_id: "i_x" });                        // 47.203 (1,120 ms segment)
+  await msg({ type: "conversation.item.input_audio_transcription.completed", transcript: "That's all", item_id: "i_x" });
+  const meta = lastUserMeta();
+  expect(meta.turn_class_reason).toBe("uncertain_fragment");
+  expect(meta.end_intent).toBe("none");
+  expect(meta.soft_ending_overlap_held).toBe(true);
+  expect(logged("local_end")).toHaveLength(0);
+  await settle(8000);
+  expect(closed()).toEqual({ track: false, pc: false, dc: false });
+  expect(onEndCall).not.toHaveBeenCalled();
+});
+
+test("rt_qppzkpzp: the model's end_call on that same uncertain 'That's all' is questioned, not granted", async () => {
+  await turn({ id: "i_x", text: "That's all", overlap: true, segmentMs: 1120 });
+  await toolCall("end_call");
+  await settle(8000);
+  expect(closed().track).toBe(false);
+  expect(onEndCall).not.toHaveBeenCalled();
+});
+
+test.each(["Goodbye.", "Bye.", "Goodnight.", "Hang up."])(
+  "a clear '%s' in the same uncertain overlap still ends the call, recorded as via transcript", async (text) => {
+    await turn({ id: "i_x", text, overlap: true, segmentMs: 1120 });
+    expect(lastUserMeta().turn_class_reason).toBe("uncertain_fragment");
+    expect(logged("local_end")).toHaveLength(1);
+    await finishGoodbye();
+    expect(onEndCall).toHaveBeenCalledTimes(1);
+    expect(logged("call_closed")[0][2].meta.via).toBe("transcript");
+  });
+
+test("a granted model end_call is still recorded as via end_call_tool", async () => {
+  await said("안녕하세요.");   // no local match; the model's end_call is granted (out-of-script transcript)
+  await toolCall("end_call", 1);
+  await finishGoodbye();
+  expect(logged("local_end")).toHaveLength(0);
+  expect(onEndCall).toHaveBeenCalledTimes(1);
+  expect(logged("call_closed")[0][2].meta.via).toBe("end_call_tool");
+});
+
+// Michael's 15 most recent genuine transcript endings in Room 214 (2026-10-18..21), with their recorded
+// turn class, segment length, gap after the previous segment and whether Aria's audio played in between.
+const GENUINE = [
+  ["goodbye", "no_overlap", 969, 2308, true],
+  ["That'll be all for now, thank you.", "no_overlap", 3145, 29101, true],
+  ["No, that'll be all for now. Hang up.", "no_overlap", 3340, 5617, true],
+  ["That'll be all, goodnight.", "no_overlap", 4226, 4775, true],
+  ["Go away.", "no_overlap", 1055, 12775, true],
+  ["Alright, that'll be all for now, thank you.", "coherent_barge_in", 3967, 1239, true],
+  ["Goodbye", "no_overlap", 1114, 12493, true],
+  ["That'll be all for now.", "coherent_barge_in", 3062, 858, true],
+  ["Okay, well that'll be all for now. I appreciate it.", "coherent_barge_in", 4169, 16921, true],
+  ["That's all.", "no_overlap", 1726, null, false],
+  ["Goodbye.", "no_overlap", 3851, null, false],
+  ["That'll be all for now. Thank you.", "no_overlap", 2065, 8193, true],
+  ["That'll be all.", "no_overlap", 1270, 18284, true],
+  ["Aria, good night.", "no_overlap", 2174, 4187, false],
+  ["Goodbye.", "no_overlap", 1155, 27394, true],
+];
+test.each(GENUINE)("genuine ending %p (%s) still ends the call", async (text, cls, segmentMs, gapMs, ariaBetween) => {
+  await turn({ id: "i_end", text, gapMs, ariaBetween, overlap: cls === "coherent_barge_in", segmentMs });
+  expect(lastUserMeta().turn_class_reason).toBe(cls);
+  expect(lastUserMeta().end_intent).toBe("explicit");
+  await finishGoodbye();
+  expect(onEndCall).toHaveBeenCalledTimes(1);
+  expect(logged("call_closed")[0][2].meta.via).toBe("transcript");
+});
+
+// Keep the overtakes test LAST: it leaves state behind that stops a later test's call from closing
+// (pre-existing, seen with a plain "Goodbye." on the unchanged page code too).
 test("a goodbye that overtakes Aria's own end_call answers that call first, then says a brief goodbye", async () => {
   await msg({ type: "input_audio_buffer.speech_stopped" });   // transcript for this turn is pending
   const pendingTool = toolCall("end_call", 7);                  // waits for the transcript (grounding)
