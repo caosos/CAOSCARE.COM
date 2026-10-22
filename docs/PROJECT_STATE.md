@@ -1641,3 +1641,14 @@ Owner report: roughly six "Hey Aria" attempts before the call connected. Sources
 - The UI under every room still needs an admin browser session (owner login). Not done; no credentials used.
 
 **endCallControl test leak:** narrowed to a stale `onEndCall` in the next test's connection (`p.onEndCall !== onEndCall`). Root cause not found; time-boxed; tests unchanged.
+
+## 2026-10-22 — Room 214 hint-only hearing change prepared (86915de), bedtime trigger dropped; NOT loaded
+
+- **Owner directive:** separate the goodbye-heavy hint removal from b2d6e2f's "going to bed" end_call trigger; prepare only the hint; no new hang-up triggers.
+- **86915de:** `endingPhrases.js` and its test return to 00e34bc exactly. Versus the served page source (00e34bc), the only change is `TRANSCRIPTION_HINT` → "A person talking with their home voice assistant, Aria. Mostly English, sometimes Spanish." plus one test assertion. Only `room-node/aria_wake/ctl.sh rebuild` builds with `REACT_APP_TRANSCRIPTION_HINT=1`, so this reaches the Room 214 wake page only.
+- **Hypothesis, not proven cause:** the goodbye list in the hint biased short speech scraps toward farewell words.
+- **Tests:** focused 106/106 (hint, ending phrases, endCallControl incl. rt_4ze7jvrt/rt_r7yjpasv held, "Goodnight?" asked back, 16 metered genuine goodbyes, mic voice); full frontend 981/981; scratch HINT=1 build compiles, bundle has the new hint and not the old goodbye list.
+- **Unchanged:** Mini model, owner-room 1.8 s (backend 734cff9), wake 0.02/2.5, still-talking protection, IR/hardware controls, language guidance (no pinned language).
+- **Served (unchanged):** page main.d3f4fa7c.js (00e34bc), backend 734cff9 pid 1379029.
+- **Load:** no-call check; copy `~/.cache/aria-wake/build` to `~/caoscare-config-backups/page-build-00e34bc-main.d3f4fa7c/`; `room-node/aria_wake/ctl.sh rebuild` + `restart-page`; confirm bundle hint; listener reconnect; `ctl.sh start` receipt. **Rollback:** restore that copy into `~/.cache/aria-wake/build`, then `ctl.sh restart-page` (page-only; backend untouched).
+- **Cost counter display:** still unverified (needs owner admin login); tracked separately.
