@@ -1652,3 +1652,11 @@ Owner report: roughly six "Hey Aria" attempts before the call connected. Sources
 - **Served (unchanged):** page main.d3f4fa7c.js (00e34bc), backend 734cff9 pid 1379029.
 - **Load:** no-call check; copy `~/.cache/aria-wake/build` to `~/caoscare-config-backups/page-build-00e34bc-main.d3f4fa7c/`; `room-node/aria_wake/ctl.sh rebuild` + `restart-page`; confirm bundle hint; listener reconnect; `ctl.sh start` receipt. **Rollback:** restore that copy into `~/.cache/aria-wake/build`, then `ctl.sh restart-page` (page-only; backend untouched).
 - **Cost counter display:** still unverified (needs owner admin login); tracked separately.
+
+## 2026-10-22 18:24 CDT — Room 214 hint-only change LOADED (page main.2d4cbab5.js), NOT USER-VERIFIED
+
+- **Pre-checks:** no leases, 0 lease events/diagnostics in the last 5 min (last call activity 19:17Z), listener in `listening`. Served before: `main.d3f4fa7c.js`, build SHA 00e34bc.
+- **Rollback copy:** `~/caoscare-config-backups/page-build-00e34bc-main.d3f4fa7c/` (43 files, `sha256sum -c` OK against `…d3f4fa7c.sha256`). Restore: `rm -rf ~/.cache/aria-wake/build && cp -a <copy> ~/.cache/aria-wake/build`, then `room-node/aria_wake/ctl.sh restart-page`.
+- **Load:** `ctl.sh rebuild` at HEAD 1a93b29 (frontend and room-node identical to 86915de) → `main.2d4cbab5.js`, which contains the new hint and not the old goodbye list. `ctl.sh restart-page` 23:24:21Z; listener `client_connected` 23:24:47Z; `:3002` serves `main.2d4cbab5.js`; `ctl.sh start` READY (realtime, gpt-realtime-2.1-mini, PAID_CALL_STARTED=false), receipt `~/.local/state/caoscare-room-start/20261022T182448-0500.json`.
+- **Unchanged:** backend 734cff9 pid 1379029 (1.8 s owner-room wait), wake listener pid 1219269 (0.02/2.5), Mini, language guidance, still-talking hold, IR/hardware controls. No paid call.
+- **Status:** LOADED, NOT USER-VERIFIED; the hint-bias cause stays a hypothesis. Cost-counter display is tracked separately (unverified).
