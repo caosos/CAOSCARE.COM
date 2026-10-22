@@ -11,9 +11,10 @@ from fastapi.responses import JSONResponse
 from models import now_utc
 from routes.realtime import (
     _require_openai_key, DEFAULT_VOICE, ALLOWED_VOICES,
-    OPENAI_REALTIME_MODEL, OPENAI_API_BASE, DEFAULT_VAD,
+    OPENAI_REALTIME_MODEL, OPENAI_API_BASE,
     DEFAULT_NOISE_REDUCTION, DEFAULT_TEMPERATURE, _prompt_diagnostics,
 )
+from routes.realtime_audio_config import turn_detection_for
 from routes.realtime_companion_prompt import _build_companion_instructions
 from routes.realtime_facility import get_active_facility, FACILITY_LABEL, FACILITY_TZ
 from routes.realtime_tools import _build_tools
@@ -188,7 +189,7 @@ async def _mint(payload, lease):
         "transport": session.get("transport") or "webrtc",
         "tools": tools,
         "tool_choice": "auto",
-        "turn_detection": DEFAULT_VAD,
+        "turn_detection": turn_detection_for(bool(owner_block)),   # owner room waits 1.8 s (realtime_audio_config)
         "noise_reduction": DEFAULT_NOISE_REDUCTION,
         "temperature": DEFAULT_TEMPERATURE,
         "lease": lease,

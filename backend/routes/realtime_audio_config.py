@@ -15,6 +15,18 @@ DEFAULT_VAD = {
     "interrupt_response": True,
 }
 
+# Owner 2026-10-22 ("whys it on hold if its better then lets do it"): the verified owner room (Room 214) waits
+# 1.8 s of silence before its turn ends. Michael's 19 resumptions since 10-20 paused 1.0-3.3 s; 1.8 s covers 14
+# of them, including rt_qppzkpzp 23:22 (1.73 s); 1.5 s would not. Cost: every reply in that room starts ~0.8 s
+# later. Every other room keeps DEFAULT_VAD. Chosen at the verified owner-room mint (realtime_resident_session).
+OWNER_ROOM_SILENCE_MS = 1800
+OWNER_ROOM_VAD = {**DEFAULT_VAD, "silence_duration_ms": OWNER_ROOM_SILENCE_MS}
+
+
+def turn_detection_for(owner_room: bool) -> dict:
+    return OWNER_ROOM_VAD if owner_room else DEFAULT_VAD
+
+
 # 2026-08-22: a real acceptance test showed short phantom transcripts
 # ("Thank you.", "Cheers, bye.") appearing during genuine silence - VAD
 # picking up room/ambient noise, not echo. far_field is OpenAI's own

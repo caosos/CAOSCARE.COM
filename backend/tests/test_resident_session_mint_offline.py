@@ -90,3 +90,27 @@ def test_client_config_returned_with_tools_vad_and_noise_reduction(mint):
     assert caos["turn_detection"]["interrupt_response"] is True
     assert caos["noise_reduction"] == DEFAULT_NOISE_REDUCTION == {"type": "far_field"}
     assert caos["tool_choice"] == "auto"
+
+
+def test_owner_room_waits_1800_ms_and_every_other_room_keeps_the_default(monkeypatch):
+    # Owner 2026-10-22: the verified owner room (Room 214) waits 1.8 s of silence; nothing else changes.
+    from routes import owner_room_context
+    from routes.realtime_audio_config import OWNER_ROOM_VAD, turn_detection_for
+
+    async def owner_block(payload, lease, goodbye_line=None):
+        return "\n## Who you are talking to (verified owner test room)\n"
+    assert turn_detection_for(False) == DEFAULT_VAD and DEFAULT_VAD["silence_duration_ms"] == 1000
+    assert OWNER_ROOM_VAD == {**DEFAULT_VAD, "silence_duration_ms": 1800}
+    fake = types.SimpleNamespace(AsyncClient=Recorder)
+    monkeypatch.setattr(realtime_routes, "httpx", fake)
+    monkeypatch.setattr(realtime_resident_session, "httpx", fake)
+    monkeypatch.setattr(realtime_resident_session, "_require_openai_key", lambda: "sk-test-not-real")
+    monkeypatch.setattr(owner_room_context, "owner_room_prompt", owner_block)
+    app = FastAPI(); app.include_router(realtime_routes.router, prefix="/api")
+
+    async def go():
+        async with REAL(transport=httpx.ASGITransport(app=app), base_url="http://test") as c:
+            return await c.post("/api/realtime/session", json={"resident_id": "res_offline_mint_none"})
+    td = run(go()).json()["_caos"]["turn_detection"]
+    assert td["silence_duration_ms"] == 1800
+    assert td["create_response"] is True and td["interrupt_response"] is True and td["threshold"] == 0.5
