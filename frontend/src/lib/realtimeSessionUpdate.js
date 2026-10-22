@@ -36,8 +36,11 @@
 
 // The session's input-audio transcription model; usage receipts name the same one (realtimeDiagnostics.js).
 export const TRANSCRIPTION_MODEL = "gpt-4o-transcribe";
-// Conversation between a person and a home voice assistant named Aria. English or Spanish. Short commands are common.
-export const TRANSCRIPTION_HINT = "A person talking with their home voice assistant, Aria. Mostly English, sometimes Spanish. Short commands are common: goodbye, end the call, go away, hang up, that's all, stop, yes, no, thank you.";
+// Conversation between a person and a home voice assistant named Aria. English or Spanish.
+// 2026-10-22: no list of goodbye words. The hint went live in Room 214 on 2026-10-21 (first hinted transcription
+// 04:54 CDT); every disputed hang-up since came back as a word from that list ("Goodbye" rt_r7yjpasv, "That's all"
+// rt_qppzkpzp, "go away" rt_4ze7jvrt) from 0.1-0.2 s of detected speech. The language guidance stays.
+export const TRANSCRIPTION_HINT = "A person talking with their home voice assistant, Aria. Mostly English, sometimes Spanish.";
 
 export function buildSessionUpdate({ caos, voice }) {
   const update = {

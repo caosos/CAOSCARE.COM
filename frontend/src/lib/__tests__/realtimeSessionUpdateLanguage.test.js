@@ -77,5 +77,8 @@ test("the vocabulary hint is off by default and, when built in, never pins the l
     const t = build().session.audio.input.transcription;
     expect(t.prompt.length).toBeLessThanOrEqual(1024);
     expect(t).not.toHaveProperty("language");
+    // Room 214 2026-10-21/22: a primed goodbye list turned scraps of speech into "go away" / "That's all".
+    for (const w of ["goodbye", "go away", "that's all", "hang up", "end the call"]) expect(t.prompt.toLowerCase()).not.toContain(w);
+    expect(t.prompt).toContain("Mostly English, sometimes Spanish");
   } finally { delete process.env.REACT_APP_TRANSCRIPTION_HINT; }
 });
