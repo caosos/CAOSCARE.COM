@@ -41,6 +41,10 @@ export const ENDING_PHRASES = new RegExp(
   "i",
 );
 
+// Owner 2026-10-22 (rt_4ze7jvrt): "when i did say goodnight that was a question because that's what she said".
+// A bare farewell asked back ("Goodnight?") questions Aria's words; it does not ask her to hang up.
+const ASKED_BACK = /^[\s,.]*(good\s*night|good\s*bye|bye( bye)?)[\s,.]*\?[\s?]*$/i;
+
 const AFFIRMATIVE = /^\s*(yes|yeah|yep|yup|please|sure|go ahead|do it|that(?:'|’)?s right|that is right|correct|okay|ok)\b[\s,.!a-z']{0,20}$/i;
 const NEGATIVE = /^\s*(no|nope|nah|not yet|don(?:'|’)?t)\b/i;
 
@@ -63,7 +67,7 @@ const FINAL = "The resident has not asked to end the conversation, and you have 
 export function checkEnding(sid, heard) {
   const st = stateFor(sid);
   const text = (heard || "").trim();
-  if (text && ENDING_PHRASES.test(text)) {
+  if (text && ENDING_PHRASES.test(text) && !ASKED_BACK.test(text)) {
     st.refusals = 0; st.pendingText = null;
     return { ok: true };
   }

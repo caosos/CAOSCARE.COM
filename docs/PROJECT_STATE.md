@@ -1481,3 +1481,53 @@ Owner: "Do A … Report results before loading; do not restart services or start
   - 1500 ms: +0.5 s, covers about half, misses 23:22.
   - semantic_vad: adaptive, but reverted on 08-23 after a 38 s dead zone.
   - Client-held replies with a dangling-word check: create_response off, the page decides after the transcript. About +0.55 s, but it touches the greeting, resting and tool paths. Not the smallest.
+
+### 2026-10-22 02:33 CDT — False hang-up in rt_4ze7jvrt_1792654375803 ("go away"); correction PREPARED, not loaded
+Owner report: he was still talking and said nothing close to a goodbye. Owner testimony: "when i did say goodnight that was a question because that's what she said" (questioning Aria's farewell). The machine transcript "go away" is treated as disputed. The 1.8 s timing change is ON HOLD (not built).
+Sources: this session's `realtime_diagnostics` / `activation_events` / `conversations`; the `aria-wake` journal (raw eMeet levels); page code at 0918fd8. No audio is retained, so the actual spoken words cannot be established.
+- **Served for this call (receipts):**
+  - Page main.1d64f293.js (Option A, code 07c6740). `call_closed.meta.via = "transcript"` exists only in that build.
+  - Backend pid 1304870 at 2367979.
+  - `session_provider_model` gpt-realtime-2.1-mini, voice marin.
+- **Observed order (CDT 02:33):**
+  1. Aria's "Fair, Michael… What's on your mind tonight?" ended at 13.632.
+  2. Server speech_started at 15.311; speech_stopped at 16.468 (segment 1,157 ms ≈ 0.16 s of detected speech + the 1 s silence rule). The auto-response was created at 16.476.
+  3. Transcription: 14 audio tokens + 46 hint tokens. "go away" arrived at 17.009 as `no_overlap` (Aria silent for 3.4 s), `end_intent: explicit`.
+  4. `local_end via transcript` at 17.013. `closing_session_updated {turn_detection:null}` at 17.194. The in-flight reply was cancelled (12 text tokens, 0 audio).
+  5. "Goodnight." played 18.285–19.083. `call_closed via transcript` at 19.488; `session_ended resident_end_call`.
+  - **Termination origin:** the page's own phrase matcher (`classifyEndIntent`, hard closer `/^go away$/`, in place since 2fa0075 on 2026-10-09).
+  - **Not involved:** the model tool (no function call), the helper, Option A's guard (applies only to soft endings on `uncertain_fragment`; this was a hard closer on `no_overlap`), the sentence-tail rule (soft endings only), and the 90 s second-attempt exception (no tool call).
+- **Mic evidence (observed):**
+  - Processed track (page meter): one voice segment ≈15.13–17.43, 23 voiced frames, peak −9.1 dBFS.
+  - Raw eMeet (listener): ≈15.16–17.36, 22 frames, peak −8.5.
+  - So his voice ran continuously through the server's speech_stopped (16.47) and was still on the mic 0.4 s after the page hung up (17.01). The server VAD (threshold 0.5) treated ≈1 s of that voice as silence.
+  - Later sound:
+    - Processed ≈17.93–18.63 (6 frames, −14), during her goodbye.
+    - Raw ≈17.84–18.84 (9 frames, −20.1).
+    - Raw ≈20.65–21.35 (7 frames, −9.6), after the call closed.
+  - Michael's "Goodnight?" fits one of these. Either way it came after the close was decided at 17.013, when server turn detection was already off, so nothing transcribed it. His account and the export do not conflict.
+- **Inference (not proven):** the server cut his turn mid-speech and transcribed a ~1.2 s slice. Given the transcription hint (which lists "go away"), it came back as "go away". Echo is not indicated: Aria had been silent for 1.7 s when speech started.
+- **History check, all 103 explicit endings in Michael's realtime sessions since 10-08 (21 with the level meter on):**
+  - "Voice segment that began ≥0.5 s before speech_stopped and is still voiced at the transcript": 2 of 21.
+    - rt_4ze7jvrt.
+    - rt_r7yjpasv (2026-10-21 06:14, "Goodbye"). The model, answering the audio, replied "Oh, you'd like me to sound like I'm actually you?" — inferred false close, not owner-confirmed.
+  - None of the other 19.
+  - **CORRECTION to the record:** the Option A "15 genuine endings" list included rt_r7yjpasv; it is now listed as disputed.
+  - rt_km0bxmpy (02:08 CDT 10-22, "that's all", closed) is the only other close since A loaded; whether it was intended is not established.
+- **Why now (answer to owner):** the matcher, phrase list, hint, VAD and mic settings are unchanged since 10-15/10-17; the per-day rate of short (<1.3 s) turns is not up (≈9–14%). Not established why it struck twice in one day. Fact: any 1–2 word cut of a still-running sentence that transcribes as a hard closer hangs up, and nothing checked whether he was still talking.
+- **PREPARED (committed locally, NOT loaded), smallest supported correction:**
+  - `micLevelTelemetry.createMicVoice().stillTalking(stoppedAt)`: true when the meter's open voice segment began ≥500 ms before the server's speech_stopped and was voiced in the last 300 ms.
+  - On such a turn a transcript ending is held (`end_intent none`, `ending_held_still_talking: true`), and the grounding turn is marked suspect (`ending_while_talking`). The model's end_call then gets the existing "did you want me to end our conversation?"; the existing 90 s second-attempt grant is unchanged.
+  - `endingPhrases.checkEnding`: a bare farewell asked back ("Goodnight?", "Goodbye?", "Bye?") no longer grounds end_call. The page matcher already ignored questions.
+  - **Reach:** only where the level meter runs (build flag + kiosk list = Room 214). Elsewhere stillTalking is always false (unchanged behaviour). Extending it to every room is a separate decision.
+  - **Untouched:** model, VAD, wake, prompts, barge-in, transcription hint.
+- **Tests:** frontend 981/981; the CI=true build compiles to scratch, so the served build is untouched. New cases:
+  - rt_4ze7jvrt exact timing, transcript path: held.
+  - rt_4ze7jvrt, model end_call: questioned.
+  - Same "go away" after his voice stopped: closes.
+  - "Goodnight?" after Aria's "Goodnight.": no close; end_call questioned.
+  - rt_r7yjpasv shape: held.
+  - 16 metered endings replayed with their recorded meter segments: all close.
+  - Meter unit tests.
+  - **On the loaded code:** the 4 new hold/question cases fail, i.e. they reproduce the event.
+- **Not achieved:** false-hangup acceptance. Green offline tests are not acceptance. Loading needs owner approval plus a fresh no-active-call check; rollback = the current page (main.1d64f293.js).

@@ -11,7 +11,7 @@ import { attachLifecycleDiagnostics } from "./realtimeLifecycleDiagnostics";
 import { buildSessionUpdate } from "./realtimeSessionUpdate";
 import { createLeaseWatchdog } from "./realtimeLeaseWatchdog";
 import { createInactivityTimer } from "./realtimeInactivityTimer";
-import { micDiagnosticsAllowed, startMicLevelTelemetry } from "./micLevelTelemetry";
+import { createMicVoice, micDiagnosticsAllowed, startMicLevelTelemetry } from "./micLevelTelemetry";
 
 import { createTypedTurnState, markResponseRequested } from "./realtimeTypedTurn";
 import { createCascadeConnection } from "./cascadeTransport";
@@ -154,7 +154,8 @@ export async function connectRealtimeVoice({
       } catch { /* diagnostic only - never let this affect the call */ }
       const diagnostics = micDiagnosticsAllowed(kioskId);   // Room 214 measurement build only
       if (diagnostics) logRealtimeEvent(sessionIdRef.current, "mic_diagnostics_enabled", { meta: { mic_level: true, detector: cascade } });
-      startMicLevelTelemetry(stream, (type, o) => logRealtimeEvent(sessionIdRef.current, type, o), { allowed: diagnostics });
+      const micVoice = createMicVoice();   // still-talking check for a transcript goodbye (micLevelTelemetry.js)
+      startMicLevelTelemetry(stream, (type, o) => logRealtimeEvent(sessionIdRef.current, type, o), { allowed: diagnostics, micVoice });
 
       if (!current()) throw new Error("canceled");
       let dc;
@@ -203,7 +204,7 @@ export async function connectRealtimeVoice({
         turnSuspectRef, assistantSpeakingRef, restingRef,
         greetingCreateResponseOffRef,
         setStatus, setResting, setTranscript, setError,
-        startAwaitingAnswerTimer, typedTurnRef,
+        startAwaitingAnswerTimer, typedTurnRef, micVoice,
         onSpeechEvent: (kind) => { if (myGen === startGenRef.current) SPEECH[kind]?.(); },
         onFirstSpeechStarted: () => {
           if (awaitingAnswerTimerRef.current) { clearTimeout(awaitingAnswerTimerRef.current); awaitingAnswerTimerRef.current = null; }

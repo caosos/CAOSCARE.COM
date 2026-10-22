@@ -96,7 +96,7 @@ export function createRealtimeHandlers({
   myGen, startGenRef, sessionIdRef, ctxRef, caos, send, stop, onEndCall,
   turnSuspectRef, assistantSpeakingRef, restingRef, greetingCreateResponseOffRef,
   setStatus, setResting, setTranscript, setError, onFirstSpeechStarted,
-  startAwaitingAnswerTimer, onSpeechEvent, typedTurnRef,
+  startAwaitingAnswerTimer, onSpeechEvent, typedTurnRef, micVoice,
 }) {
   // Speech-lifecycle -> the companion INACTIVITY state machine
   // (realtimeInactivityTimer.js via realtimeConnection.js). ACTIVE SPEECH =
@@ -113,6 +113,7 @@ export function createRealtimeHandlers({
   // Logged only, no classification behavior change.
   let lastSpeechStartedAt = null;
   let lastSpeechSegmentMs = null;
+  let lastSpeechStoppedAt = null;
   let lastPlaybackStoppedAt = null;
   const greetingGate = createGreetingResponseGate({ send, caos, greetingCreateResponseOffRef });
   let endCallKind = "resident_end_call";
@@ -300,6 +301,7 @@ export function createRealtimeHandlers({
     if (msg.type === "input_audio_buffer.speech_stopped") {
       setStatus("live");
       lastSpeechSegmentMs = lastSpeechStartedAt ? Date.now() - lastSpeechStartedAt : null;
+      lastSpeechStoppedAt = Date.now();
       sentenceTail.onSpeechStopped();
       turnGrounding.onSpeechStopped();
       speech("resident_stop");    // resident silent -> arm the window IF Aria is also silent
@@ -397,8 +399,13 @@ export function createRealtimeHandlers({
       const overlapped = turnSuspectRef.current === true || lowConfidence;
       const cls = classifyUserTurn({ overlapped, text: userText, lastAssistantText, tinyStreak: tinyFragmentStreak });
       tinyFragmentStreak = (cls.reason === "echo_like" || cls.reason === "uncertain_fragment" || cls.reason === "repeated_tiny_fragments") ? tinyFragmentStreak + 1 : 0;
+      const heardEnd = classifyEndIntent(userText);
+      // Room 214 rt_4ze7jvrt (2026-10-22 02:33): the server cut Michael's turn while the mic still carried his
+      // voice and the cut came back "go away". An ending heard while the speaker is still talking is not their
+      // goodbye: no local close, and the model's end_call on it gets the usual "did you want me to end...?".
+      const stillTalking = heardEnd === "explicit" && micVoice?.stillTalking(lastSpeechStoppedAt) === true;
       // Ground for tool grounding (TSB-001) - NOT turnSuspectRef, see realtimeTurnGrounding.js.
-      turnGrounding.onTranscriptionCompleted(cls, userText);
+      turnGrounding.onTranscriptionCompleted(stillTalking ? { ...cls, suspect: true, reason: "ending_while_talking" } : cls, userText);
       // 2026-08-22 (real bug, confirmed live): saved IMMEDIATELY now, not
       // stashed in a scalar "pending" ref to wait for the assistant reply.
       // A real ~15-second resident correction was silently lost when a
@@ -406,13 +413,12 @@ export function createRealtimeHandlers({
       // ever persisted. Every real turn is now durably saved the moment
       // it's known, independent of whatever arrives next.
       postTurn("user", userText, msg.item_id, !cls.suspect);
-      const heardEnd = classifyEndIntent(userText);
       const sentenceGoesOn = heardEnd === "explicit" && isSoftEnding(userText) && sentenceTail.continues(msg.item_id);
       // Room 214 rt_qppzkpzp (2026-10-21 23:22): a ~0.2 s sound under Aria's speech came back as "That's all"
       // (uncertain_fragment) and hung up. A soft ending heard only as an uncertain overlap is not a goodbye;
       // "goodbye", "bye", "goodnight", "hang up" still end the call from the same kind of turn.
       const overlapHeld = heardEnd === "explicit" && !sentenceGoesOn && cls.reason === "uncertain_fragment" && isSoftEnding(userText);
-      const endIntent = sentenceGoesOn || overlapHeld ? "none" : heardEnd;
+      const endIntent = sentenceGoesOn || overlapHeld || stillTalking ? "none" : heardEnd;
       logRealtimeEvent(sessionIdRef.current, "user_transcript", {
         text: userText, assistantSpeaking: cls.suspect,
         meta: {
@@ -421,6 +427,7 @@ export function createRealtimeHandlers({
           ms_since_assistant_stopped: lastPlaybackStoppedAt ? Date.now() - lastPlaybackStoppedAt : null,
           end_intent: endIntent, ...(sentenceGoesOn ? { soft_ending_continues_sentence: true } : {}),
           ...(overlapHeld ? { soft_ending_overlap_held: true } : {}),
+          ...(stillTalking ? { ending_held_still_talking: true } : {}),
         },
       });
       // RQ-055: a clear spoken ending ends the call here, without asking the

@@ -9,6 +9,7 @@ import { createRoot } from "react-dom/client";
 
 const mockLog = jest.fn();
 const mockConn = { onMessage: null, sent: [], dc: null, pc: null, track: null, creates: 0 };
+const mockMicSeg = { current: null };   // the level meter's open voice segment (micLevelTelemetry.js), or null
 
 jest.mock("../api", () => ({ API: "http://api.test/api" }));
 jest.mock("../activationClient", () => ({ logActivationClientEvent: jest.fn() }));
@@ -20,6 +21,7 @@ jest.mock("../realtimeDisplayTools", () => ({ executeDisplayTool: jest.fn(async 
 jest.mock("../realtimeCareControl", () => ({ executeCareTool: jest.fn(async () => null), ringLiveLineOnSilence: jest.fn() }));
 jest.mock("../realtimeConnection", () => {
   const { createRealtimeHandlers } = require("../realtimeMessageHandler");
+  const { createMicVoice } = jest.requireActual("../micLevelTelemetry");
   return {
     connectRealtimeVoice: async (p) => {
       const myGen = ++p.startGenRef.current;
@@ -31,6 +33,8 @@ jest.mock("../realtimeConnection", () => {
       p.dcRef.current = mockConn.dc; p.pcRef.current = mockConn.pc;
       p.localStreamRef.current = { getTracks: () => [mockConn.track] };
       p.sessionIdRef.current = `rt_test_${mockConn.creates}`;
+      const micVoice = createMicVoice();
+      micVoice.attach(() => mockMicSeg.current);
       const { onMessage } = createRealtimeHandlers({
         myGen, startGenRef: p.startGenRef, sessionIdRef: p.sessionIdRef, ctxRef: p.ctxRef,
         caos: { turn_detection: { type: "server_vad" } }, send: (m) => mockConn.sent.push(m),
@@ -39,7 +43,7 @@ jest.mock("../realtimeConnection", () => {
         greetingCreateResponseOffRef: p.greetingCreateResponseOffRef, setStatus: p.setStatus,
         setResting: p.setResting, setTranscript: p.setTranscript, setError: p.setError,
         startAwaitingAnswerTimer: p.startAwaitingAnswerTimer, onSpeechEvent: jest.fn(),
-        onFirstSpeechStarted: jest.fn(), typedTurnRef: p.typedTurnRef,
+        onFirstSpeechStarted: jest.fn(), typedTurnRef: p.typedTurnRef, micVoice,
       });
       mockConn.onMessage = onMessage;
     },
@@ -70,7 +74,7 @@ const logged = (name) => mockLog.mock.calls.filter((c) => c[1] === name);
 beforeEach(async () => {
   jest.useFakeTimers();
   global.fetch = jest.fn(async () => ({ ok: true, json: async () => ({}) }));
-  mockLog.mockClear(); resetEndingState(); onEndCall = jest.fn(); mockConn.creates = 0;
+  mockLog.mockClear(); resetEndingState(); onEndCall = jest.fn(); mockConn.creates = 0; mockMicSeg.current = null;
   container = document.createElement("div"); root = createRoot(container);
   await act(async () => { root.render(<Harness />); });
   await act(async () => { await api.start(); });
@@ -371,8 +375,9 @@ test("a granted model end_call is still recorded as via end_call_tool", async ()
   expect(logged("call_closed")[0][2].meta.via).toBe("end_call_tool");
 });
 
-// Michael's 15 most recent genuine transcript endings in Room 214 (2026-10-18..21), with their recorded
-// turn class, segment length, gap after the previous segment and whether Aria's audio played in between.
+// Michael's most recent transcript endings in Room 214 (2026-10-18..21), with their recorded turn class,
+// segment length, gap after the previous segment and whether Aria's audio played in between. 2026-10-22: the
+// 10-21 06:14 "Goodbye" (rt_r7yjpasv) left this list - its mic record matches rt_4ze7jvrt (DISPUTED below).
 const GENUINE = [
   ["goodbye", "no_overlap", 969, 2308, true],
   ["That'll be all for now, thank you.", "no_overlap", 3145, 29101, true],
@@ -380,7 +385,6 @@ const GENUINE = [
   ["That'll be all, goodnight.", "no_overlap", 4226, 4775, true],
   ["Go away.", "no_overlap", 1055, 12775, true],
   ["Alright, that'll be all for now, thank you.", "coherent_barge_in", 3967, 1239, true],
-  ["Goodbye", "no_overlap", 1114, 12493, true],
   ["That'll be all for now.", "coherent_barge_in", 3062, 858, true],
   ["Okay, well that'll be all for now. I appreciate it.", "coherent_barge_in", 4169, 16921, true],
   ["That's all.", "no_overlap", 1726, null, false],
@@ -392,6 +396,110 @@ const GENUINE = [
 ];
 test.each(GENUINE)("genuine ending %p (%s) still ends the call", async (text, cls, segmentMs, gapMs, ariaBetween) => {
   await turn({ id: "i_end", text, gapMs, ariaBetween, overlap: cls === "coherent_barge_in", segmentMs });
+  expect(lastUserMeta().turn_class_reason).toBe(cls);
+  expect(lastUserMeta().end_intent).toBe("explicit");
+  await finishGoodbye();
+  expect(onEndCall).toHaveBeenCalledTimes(1);
+  expect(logged("call_closed")[0][2].meta.via).toBe("transcript");
+});
+
+
+// Room 214 rt_4ze7jvrt_1792654375803 (2026-10-22 02:33 CDT). Owner: he was still talking and said nothing like
+// a goodbye. Server speech_started 15.311, speech_stopped 16.468 (1,157 ms: ~0.16 s of speech + 1 s "silence"),
+// transcript "go away" (no_overlap) 17.009, page hung up 17.013. The eMeet and the processed track both carried
+// his voice continuously from ~15.13 to ~17.43. ms below are relative to the transcript.
+const cutTurn = async ({ id, text, segmentMs, stoppedBeforeMs, voice = null, overlap = false }) => {
+  const T = Date.now() + segmentMs + stoppedBeforeMs;   // the moment the transcript lands
+  mockMicSeg.current = null;
+  if (overlap) await msg({ type: "output_audio_buffer.started" });
+  await msg({ type: "input_audio_buffer.speech_started", item_id: id });
+  if (overlap) await msg({ type: "output_audio_buffer.stopped" });
+  await settle(segmentMs);
+  await msg({ type: "input_audio_buffer.speech_stopped", item_id: id });
+  await settle(stoppedBeforeMs);
+  // voice = [startMs, lastVoicedMs] of the meter segment open at T (lastVoicedMs 0 = voiced right now)
+  if (voice) mockMicSeg.current = { startAt: T + voice[0], voiceAt: T + voice[1] };
+  await msg({ type: "conversation.item.input_audio_transcription.completed", transcript: text, item_id: id });
+};
+
+test("rt_4ze7jvrt: 'go away' cut from a turn he was still speaking does not end the call", async () => {
+  await cutTurn({ id: "i_go", text: "go away", segmentMs: 1157, stoppedBeforeMs: 540, voice: [-1880, 0] });
+  const meta = lastUserMeta();
+  expect(meta.turn_class_reason).toBe("no_overlap");
+  expect(meta.end_intent).toBe("none");
+  expect(meta.ending_held_still_talking).toBe(true);
+  expect(logged("local_end")).toHaveLength(0);
+  await settle(8000);
+  expect(closed()).toEqual({ track: false, pc: false, dc: false });
+  expect(onEndCall).not.toHaveBeenCalled();
+});
+
+test("rt_4ze7jvrt: the model's end_call on that held 'go away' is questioned, not granted", async () => {
+  await cutTurn({ id: "i_go", text: "go away", segmentMs: 1157, stoppedBeforeMs: 540, voice: [-1880, 0] });
+  await toolCall("end_call", 1);
+  await settle(8000);
+  expect(logged("tool_result").slice(-1)[0][2].meta.result.ok).toBe(false);
+  expect(closed().track).toBe(false);
+  expect(onEndCall).not.toHaveBeenCalled();
+});
+
+test("the same 'go away' after his voice stopped (no open meter segment) still ends the call", async () => {
+  await cutTurn({ id: "i_go", text: "go away", segmentMs: 1157, stoppedBeforeMs: 540, voice: null });
+  expect(lastUserMeta().end_intent).toBe("explicit");
+  await finishGoodbye();
+  expect(onEndCall).toHaveBeenCalledTimes(1);
+  expect(logged("call_closed")[0][2].meta.via).toBe("transcript");
+});
+
+// Owner 2026-10-22: "when i did say goodnight that was a question because that's what she said". In
+// rt_4ze7jvrt it came after the hang-up was already decided; asked back at any point it is not a goodbye.
+test("'Goodnight?' asked back after Aria's own 'Goodnight.' is a question: no close, and end_call is questioned", async () => {
+  await msg({ type: "response.created", response: { id: "r_gn" } });
+  await msg({ type: "output_audio_buffer.started" });
+  await msg({ type: "response.output_audio_transcript.done", transcript: "Goodnight." });
+  await msg({ type: "output_audio_buffer.stopped" });
+  await settle(1500);
+  await cutTurn({ id: "i_gn", text: "Goodnight?", segmentMs: 1300, stoppedBeforeMs: 500 });
+  expect(lastUserMeta().end_intent).toBe("none");
+  expect(logged("local_end")).toHaveLength(0);
+  await toolCall("end_call", 1);
+  await settle(8000);
+  expect(logged("tool_result").slice(-1)[0][2].meta.result.ok).toBe(false);
+  expect(onEndCall).not.toHaveBeenCalled();
+});
+
+// Disputed: same mic shape as rt_4ze7jvrt. rt_r7yjpasv (2026-10-21 06:14 CDT): "Goodbye" closed the call while
+// the model, answering his audio, replied "Oh, you'd like me to sound like I'm actually you?" - inferred, not
+// owner-confirmed, to be a false close.
+test("rt_r7yjpasv shape: a one-word 'Goodbye' cut while he was still speaking is held", async () => {
+  await cutTurn({ id: "i_gb", text: "Goodbye", segmentMs: 1114, stoppedBeforeMs: 550, voice: [-2500, 0] });
+  expect(lastUserMeta().ending_held_still_talking).toBe(true);
+  await settle(8000);
+  expect(onEndCall).not.toHaveBeenCalled();
+});
+
+// Every other ending recorded with the level meter on (Room 214, 2026-10-17..21): text, class, segment ms,
+// speech_stopped -> transcript ms, and the meter segment still open at the transcript (null = closed).
+const METERED_GENUINE = [
+  ["rt_lcnze2u9", "That will be all for now.", "no_overlap", 1799, 20, [-180, 0]],
+  ["rt_dla0ej4s", "Okay, that will be all for now, Aria. Thank you.", "no_overlap", 4252, 30, null],
+  ["rt_w2yogkau", "Goodbye.", "no_overlap", 1155, 400, null],
+  ["rt_3t61un35", "Aria, good night.", "no_overlap", 2174, 340, null],
+  ["rt_tacnqxsf", "That'll be all.", "no_overlap", 1270, 310, [-140, 0]],
+  ["rt_6it6vqvv", "That'll be all for now. Thank you.", "no_overlap", 2065, 370, null],
+  ["rt_uc18ftek", "Goodbye.", "no_overlap", 3851, 760, null],
+  ["rt_uhq0rlwt", "That's all.", "no_overlap", 1726, 820, null],
+  ["rt_6ewog9gy", "Okay, well that'll be all for now. I appreciate it.", "coherent_barge_in", 4169, 840, null],
+  ["rt_y6k2od0z", "That'll be all for now.", "coherent_barge_in", 3062, 550, null],
+  ["rt_2vlr67fs", "Alright, that'll be all for now, thank you.", "coherent_barge_in", 3967, 640, null],
+  ["rt_7k7c1m3s", "Go away.", "no_overlap", 1055, 530, null],
+  ["rt_3bfuhkov", "That'll be all, goodnight.", "no_overlap", 4226, 730, null],
+  ["rt_tbfytpqr", "No, that'll be all for now. Hang up.", "no_overlap", 3340, 630, null],
+  ["rt_sp1ebszy", "That'll be all for now, thank you.", "no_overlap", 3145, 710, null],
+  ["rt_52ayqcen", "goodbye", "no_overlap", 969, 550, null],
+];
+test.each(METERED_GENUINE)("metered ending %s %p still ends the call", async (sid, text, cls, segmentMs, stoppedBeforeMs, voice) => {
+  await cutTurn({ id: "i_end", text, segmentMs, stoppedBeforeMs, voice, overlap: cls === "coherent_barge_in" });
   expect(lastUserMeta().turn_class_reason).toBe(cls);
   expect(lastUserMeta().end_intent).toBe("explicit");
   await finishGoodbye();

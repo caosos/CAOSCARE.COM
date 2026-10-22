@@ -1,4 +1,4 @@
-import { createLevelSegmenter, micDiagnosticsAllowed, startMicLevelTelemetry } from "../micLevelTelemetry";
+import { createLevelSegmenter, createMicVoice, micDiagnosticsAllowed, startMicLevelTelemetry } from "../micLevelTelemetry";
 
 const run = (frames) => {
   const seg = createLevelSegmenter(0);
@@ -65,4 +65,41 @@ test("when allowed it logs processed-track numbers only; a broken audio API neve
   expect(typeof startMicLevelTelemetry(stream, log, { allowed: true })).toBe("function");
   jest.useRealTimers();
   delete window.AudioContext;
+});
+
+// Room 214 rt_4ze7jvrt (2026-10-22 02:33 CDT), ms relative to the transcript: voice from -1,880 through +420,
+// server speech_stopped at -540. The meter's open segment says he was still talking when "go away" came back.
+test("rt_4ze7jvrt: voice that runs through the server's speech_stopped is still talking", () => {
+  let t = 100000;
+  const seg = createLevelSegmenter(0);
+  const voice = createMicVoice(() => t);
+  voice.attach(seg.open);
+  const feed = (frames) => frames.forEach((f) => { seg(f, f, t); t += 100; });
+  feed(quiet(20));
+  const voiceStart = t;
+  feed(speech(14));                        // -1,880 .. -480
+  const stoppedAt = voiceStart + 1340;     // server speech_stopped -540 (inside his voice)
+  feed(speech(5));                         // .. +20: the transcript lands now
+  expect(voice.stillTalking(stoppedAt)).toBe(true);
+  feed(quiet(5));                          // 0.5 s of quiet closes the segment
+  expect(voice.stillTalking(stoppedAt)).toBe(false);
+});
+
+test("a goodbye whose voice ended before the server's second of silence is not still talking", () => {
+  let t = 100000;
+  const seg = createLevelSegmenter(0);
+  const voice = createMicVoice(() => t);
+  voice.attach(seg.open);
+  const feed = (frames) => frames.forEach((f) => { seg(f, f, t); t += 100; });
+  feed([...quiet(20), ...speech(8)]);
+  const lastVoice = t;
+  feed(quiet(4));                          // still open (needs 5 quiet frames to close) but not voiced lately
+  expect(voice.stillTalking(lastVoice + 1100)).toBe(false);
+  feed(quiet(20));
+  // rt_lcnze2u9 / rt_tacnqxsf: a faint sound that starts near speech_stopped is not talking through it
+  const stoppedAt = t;
+  feed(speech(3));
+  expect(voice.stillTalking(stoppedAt)).toBe(false);
+  expect(voice.stillTalking(null)).toBe(false);
+  expect(createMicVoice().stillTalking(stoppedAt)).toBe(false);   // no meter attached (other rooms): never
 });
