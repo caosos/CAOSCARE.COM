@@ -1544,3 +1544,41 @@ Owner: "fix it already."
 - **Untouched:** backend pid 1304870 (2367979, health 200), wake, model, VAD, prompts.
 - **Rollback:** `rm -rf ~/.cache/aria-wake/build && cp -a <rollback copy> ~/.cache/aria-wake/build`, then `ctl.sh restart-page`.
 - **Acceptance:** NOT achieved until Michael's own calls show no false hang-up; look for `ending_held_still_talking` in the logs.
+
+### 2026-10-22 03:20 CDT — Still-talking fix load re-verified against the owner directive (CCR-20261022-10)
+Status: **LOADED, NOT USER-VERIFIED.** It was loaded at 03:11:02 (entry above); this entry re-checks it against the directive.
+- **Diff:** 0918fd8→00e34bc touches only:
+  - `endingPhrases.js`, `micLevelTelemetry.js`, `realtimeConnection.js`, `realtimeMessageHandler.js`;
+  - two test files;
+  - docs.
+- **Tests:** frontend 981/981.
+- **Workers:** the worktree is clean; no other worker has changes in CAOSCARE-INTEGRATION.
+- **Rollback:** `page-build-0918fd8-main.1d64f293` passes `sha256sum -c`.
+- **Served:** main.d3f4fa7c.js contains `ending_held_still_talking`.
+- **Owner acceptance needs:**
+  - continuing speech does not hang up;
+  - "Goodnight?" asked back does not hang up;
+  - an intentional goodbye still does.
+- **Evidence limit:** mic energy shows that audio continued, not which words were spoken.
+
+### 2026-10-22 03:56 CDT — Owner-room 1.8 s silence LOADED (backend), NOT USER-VERIFIED
+Owner: "whys it on hold if its better then lets do it". This overrides the HOLD in the pasted directive.
+- **Change (734cff9):**
+  - `realtime_audio_config.OWNER_ROOM_VAD` = DEFAULT_VAD with `silence_duration_ms` 1800.
+  - `turn_detection_for(owner_room)` is chosen at the mint by `bool(owner_block)`, i.e. the verified Room 214 owner proof.
+  - Every other room keeps 1000.
+  - The page replays `_caos.turn_detection` unchanged, so no page change is needed.
+- **Tests:**
+  - New `test_owner_room_waits_1800_ms_and_every_other_room_keeps_the_default` passes.
+  - Full backend gate: 8 failed / 1558 passed. Of the 8:
+    - 5 mint tests fail identically on the unchanged code: backend/.env sets `ARIA_VOICE_DEFAULT_TRANSPORT=cascade`, so the test mint takes the cascade path and never calls client_secrets (pre-existing, environment-dependent).
+    - `test_therapy_recurrence::test_weekly_therapy_series` and 2 others sit in modules this change does not touch (names: see gate log below).
+- **Load:**
+  - `scripts/restart_dev_backend.sh`: preflight leases=0, recent=0, candidate start OK.
+  - → pid 1379029, `CAOSCARE_RUNTIME_SHA=734cff9`, cwd backend, health 200, log `/tmp/room214_backend_734cff9.log`.
+  - No other backend/room-node change between 2367979 and 734cff9 (`git diff --stat` empty apart from this commit).
+  - `ctl.sh start` READY, mini, `PAID_CALL_STARTED=false`; receipt `20261022T035616-0500.json`.
+  - Page main.d3f4fa7c.js unchanged; the listener client from 03:11:28 stays connected.
+- **Not verified live:** the session.updated echo of 1800 ms. That needs Michael's next call: speech_stopped should land ≈1.8 s after he stops (median response_created→speech_stopped gap is ~9 ms today).
+- **Tradeoff:** every reply in Room 214 starts ≈0.8 s later (≈2.5 s after he stops).
+- **Rollback:** `git revert 734cff9`, then `scripts/restart_dev_backend.sh` (prior runtime 2367979; log `/tmp/room214_backend_2367979.log`).
