@@ -11,6 +11,7 @@ Returns a SHORT spoken-friendly summary because the AI just reads the
 import os
 import logging
 import httpx
+from datetime import date
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
@@ -87,16 +88,17 @@ async def current_weather(
     lat: float = DEFAULT_LAT,
     lon: float = DEFAULT_LON,
     label: str = DEFAULT_LABEL,
+    days: int = 1,
 ) -> WeatherSnapshot:
     url = "https://api.open-meteo.com/v1/forecast"
     params = {
         "latitude": lat,
         "longitude": lon,
         "current": "temperature_2m,apparent_temperature,weather_code,precipitation",
-        "daily": "temperature_2m_max,temperature_2m_min,precipitation_probability_max",
+        "daily": "temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code",
         "temperature_unit": "celsius",
         "timezone": DEFAULT_TZ,
-        "forecast_days": 1,
+        "forecast_days": max(1, min(7, int(days or 1))),
     }
     async with httpx.AsyncClient(timeout=10.0) as client:
         r = await client.get(url, params=params)
@@ -125,6 +127,7 @@ async def current_weather(
     if pop is not None and pop >= 30:
         parts.append(f"with about a {int(pop)} percent chance of precipitation")
     narrative = " ".join(parts).rstrip(", ") + "."
+    narrative += _next_days(daily)
     # Light cleanup — collapse double spaces, ensure single period
     narrative = " ".join(narrative.split())
 
@@ -140,11 +143,31 @@ async def current_weather(
     )
 
 
+def _next_days(daily: dict) -> str:
+    """" Then Thursday: a high of 82 and a low of 48, clear; ..." for days after today (none when days=1).
+    Room 214 rt_d3ahe1bf 2026-10-21: one-day data made "the rest of the week" a second identical call and
+    then a web search, each announced aloud."""
+    dates = daily.get("time") or []
+    out = []
+    for i in range(1, len(dates)):
+        try:
+            name = date.fromisoformat(dates[i]).strftime("%A")
+            hi = int(_c_to_f(daily["temperature_2m_max"][i])); lo = int(_c_to_f(daily["temperature_2m_min"][i]))
+        except (KeyError, IndexError, TypeError, ValueError):
+            continue
+        cond = WEATHER_CODES.get(int((daily.get("weather_code") or [0] * len(dates))[i] or 0), "")
+        pop = (daily.get("precipitation_probability_max") or [None] * len(dates))[i]
+        rain = f", {int(pop)} percent chance of rain" if pop is not None and pop >= 30 else ""
+        out.append(f"{name}: a high of {hi} and a low of {lo}{', ' + cond if cond else ''}{rain}")
+    return (" Then " + "; ".join(out) + ".") if out else ""
+
+
 @router.get("/current", response_model=WeatherSnapshot)
 async def get_current_weather(
     lat: Optional[float] = Query(None),
     lon: Optional[float] = Query(None),
     label: Optional[str] = Query(None),
+    days: int = Query(1, ge=1, le=7),
 ):
     """Public endpoint — used by the kiosk Realtime tool dispatcher.
     If both lat and lon are provided they take precedence. If only `label` is
@@ -167,6 +190,7 @@ async def get_current_weather(
             lat=lat if lat is not None else facility_lat,
             lon=lon if lon is not None else facility_lon,
             label=label or facility_label,
+            days=days,
         )
     except Exception as e:
         logger.error(f"weather error: {e}")

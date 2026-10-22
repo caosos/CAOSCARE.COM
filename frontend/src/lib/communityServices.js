@@ -79,9 +79,13 @@ export function parseMenuLabels(text) {
 export function menuToolMessage(items, { mealPeriod = null, date = null } = {}) {
   const what = mealPeriod || "menu";
   if (!items || !items.length) {
-    return `No approved ${what} is on file for ${dayWords(date)}. Tell the resident that honestly. ` +
-      "Nothing has been requested from the kitchen - if they want, offer to ask the kitchen with " +
-      "request_staff_help (category kitchen) and only say it was asked after that succeeds.";
+    // Room 214 rt_d3ahe1bf 2026-10-21: the rules below were read aloud ("I can only promise that it was
+    // requested if the tool says it was submitted"). The spoken fact and the instructions are now separate.
+    return `No approved ${what} is on file for ${dayWords(date)}. ` +
+      `Say only that, in your own words (e.g. "I don't have tonight's ${what} yet."). ` +
+      "Instructions for you, never to be said aloud: nothing has been requested from the kitchen; if they " +
+      "want, you may offer once to ask the kitchen (request_staff_help, category kitchen) and say it was asked " +
+      "only after that succeeds.";
   }
   const lines = items.map((i) => {
     const labels = menuLabelsText(i);

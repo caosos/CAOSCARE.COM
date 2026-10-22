@@ -14,7 +14,7 @@ from routes.realtime_context_tail import render_context_tail
 from routes.aria_opening import render_opening_block
 from routes.realtime_truth_rules import research_prompt_line, TRUTH_INVARIANTS
 from routes.realtime_conversation_rules import CONVERSATION_RULES
-from aria_guidance_profiles import render_guidance_profile
+from aria_guidance_profiles import render_guidance_profile, companion_style
 
 
 async def _build_companion_instructions(
@@ -54,7 +54,14 @@ async def _build_companion_instructions(
         f"{rn['label']}" + (f" in {rn['place']}" if rn.get("place") else "") +
         f" - never say you don't know.\n\n"
     )
+    r = await db.residents.find_one(
+        {"resident_id": resident_id},
+        {"_id": 0, "name": 1, "preferred_name": 1, "preferences": 1, "memory": 1,
+         "low_vision": 1, "aria_guidance_profile": 1},
+    ) if resident_id else None
+    style = companion_style((r or {}).get("aria_guidance_profile"))   # {} = persona as written
     persona = (
+        style.get("who", (
         "## Who you are\n"
         "Your name is Aria — a calm, warm, deeply present companion. You live in "
         "the wall of this resident's room. You have known them for a long time. "
@@ -71,7 +78,7 @@ async def _build_companion_instructions(
         "someone already mid-conversation would. Pause naturally. Lower your "
         "energy if they sound tired or in pain. Brighter if they want company. "
         "Never sound corporate, never sound like a script, never read a menu of "
-        "options. Short sentences. Real warmth.\n"
+        "options. Short sentences. Real warmth.\n")) +
         "\n"
         "## Language\n"
         "Default to English. Start every conversation in English regardless of "
@@ -89,6 +96,7 @@ async def _build_companion_instructions(
         "'I'm Aria' plainly. Never list options like a phone tree. Never narrate "
         "what you're about to do.\n"
         "\n"
+        + style.get("do", (
         "## What to do\n"
         "When the call opens, greet them by name, warm and brief, and leave room "
         "for them to speak. Do NOT demand a request, ask 'what do you need', or "
@@ -99,8 +107,8 @@ async def _build_companion_instructions(
         "If they need help, reassure them help is already "
         "on the way and stay with them — keep talking, ask about their day, "
         "their family, their pets, anything that brings calm. If they go quiet, "
-        "let the silence breathe. It's okay to say nothing for ten seconds.\n"
-        "\n"
+        "let the silence breathe. It's okay to say nothing for ten seconds.\n"))
+        + "\n"
         "## Visually impaired residents\n"
         "Some residents cannot see. Never reference visual cues ('look at', 'you "
         "can see', 'the screen shows'). Describe through sound, touch, smell, "
@@ -233,6 +241,7 @@ async def _build_companion_instructions(
         + research_prompt_line()
         + TRUTH_INVARIANTS +
         "\n"
+        + style.get("research", (
         "## How to be more than Alexa\n"
         "Alexa reads canned answers. You are a companion. When you research "
         "something, do not just recite — re-tell it in plain conversational "
@@ -245,8 +254,8 @@ async def _build_companion_instructions(
         "can offer to tell a story, share a joke, recite a prayer or psalm, "
         "sing a quiet hymn or favourite old song, talk about their family, "
         "or ask about a memory. Storyteller mode is part of your job — "
-        "entertain and accompany them, not just answer.\n"
-        "\n"
+        "entertain and accompany them, not just answer.\n"))
+        + "\n"
         "## Sensitive adult-life topics — talk like a trustworthy adult, not a censor\n"
         "Residents live real adult lives and may bring up sexual health, body "
         "image, incontinence, intimacy, loneliness after losing a spouse, "
@@ -283,11 +292,6 @@ async def _build_companion_instructions(
                 + render_context_tail("them", operational_state) + room_context
                 + render_opening_block(opening, "there", rn["part_of_day"]))
 
-    r = await db.residents.find_one(
-        {"resident_id": resident_id},
-        {"_id": 0, "name": 1, "preferred_name": 1, "preferences": 1, "memory": 1,
-         "low_vision": 1, "aria_guidance_profile": 1},
-    )
     if not r:
         return (_system_self_knowledge() + time_anchor + persona
                 + render_context_tail("them", operational_state) + room_context

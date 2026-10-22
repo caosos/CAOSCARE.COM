@@ -228,7 +228,8 @@ test("an off command for 'Turn on my overhead light' is refused and nothing is s
   const r = await executeDeviceTool({ name: "toggle_light", args: { state: "off", device: "overhead light" },
     ctx: ctx({ last_user_text: "Turn on my overhead light, please." }) });
   expect(r.ok).toBe(false);
-  expect(r.message).toMatch(/overhead light on or off/);
+  // 2026-10-21 (rt_3bfuhkov): still refused, and the result names what was heard so the model re-sends ON.
+  expect(r.message).toMatch(/Nothing was changed: they said "Turn on my overhead light, please\." \(ON\), but you sent OFF\. Call toggle_light again now with state "on"/);
   expect(global.fetch.mock.calls.filter(([u]) => String(u).includes("/command"))).toHaveLength(0);
 });
 

@@ -33,3 +33,15 @@ export function powerDirectionMismatch(state, text, label = "light", { answering
   if (!contradicts && !unasked) return null;
   return `I want to be sure I heard you right - did you want the ${label} on or off? (Nothing was changed.)`;
 }
+
+// A direct, unambiguous spoken light command ("Turn on the desk lamp, please.", "Switch the overhead light
+// off"). Room 214 rt_3bfuhkov 07:11 and rt_tbfytpqr 15:52 CDT, 2026-10-21 (as on 10-10 and 10-12): the
+// transcript said ON, the model sent OFF from its own reading of the audio, the guard refused, and the model
+// retried OFF. The refusal stays; for a command this plain it names the heard direction (realtimeLightControl.js).
+const DIRECT = /\b(turn|switch|shut)\b/i;
+const LIGHT_WORD = /\b(light|lights|lamp|lamps)\b/i;
+export function spokenLightCommand(text) {
+  const t = String(text || "").trim();
+  if (!t || t.split(/\s+/).length > 10 || !DIRECT.test(t) || !LIGHT_WORD.test(t) || /\?|\b(if|when|should|maybe)\b/i.test(t)) return null;
+  return heardPowerDirection(t);
+}

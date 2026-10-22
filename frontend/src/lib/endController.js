@@ -23,8 +23,8 @@
  * (scratch Room 214 rt_10s3ng43_1792142773769, aria-room-conversation-cleanup-002).
  * wasCut(responseId) lets the handler keep that text out of the conversation.
  *
- * Once CLOSING starts the server's own turn-taking is switched off (quietServer:
- * create_response and interrupt_response false). Room 214 rt_52ayqcen, 2026-10-21:
+ * Once CLOSING starts the server's own turn-taking is switched off (quietServer: server VAD
+ * off, turn_detection null - create/interrupt false still let rt_d3ahe1bf clear the goodbye). rt_52ayqcen, 2026-10-21:
  * after "goodbye" the resident's next words made server VAD cancel "Okay, bye for
  * now" after "Okay," and auto-create a normal reply ("No worries... do you want to
  * just chat?"), which became her last words before the hang-up.

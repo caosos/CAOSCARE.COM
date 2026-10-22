@@ -41,7 +41,7 @@ describe("Aria menu/schedule answers", () => {
   test("an empty menu is honest and promises nothing", () => {
     const m = menuToolMessage([], { mealPeriod: "dinner", date: "2026-10-05" });
     expect(m).toMatch(/No approved dinner is on file for 2026-10-05/);
-    expect(m).toMatch(/Nothing has been requested from the kitchen/);
+    expect(m).toMatch(/nothing has been requested from the kitchen/i);
     expect(m).not.toMatch(/get back to you/i);
   });
 

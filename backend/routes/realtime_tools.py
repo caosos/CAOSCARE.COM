@@ -133,7 +133,7 @@ async def _build_tools() -> list[dict]:
             "type": "function",
             "name": "get_weather",
             "description": (
-                "Get the current weather and today's forecast for the facility (or "
+                "Get the current weather and the forecast (today, or up to 7 days) for the facility (or "
                 "another city if the resident asks). Use when they ask about weather, "
                 "whether to wear a sweater, if it'll rain, etc. Returns a short "
                 "spoken-friendly summary you should read aloud naturally."
@@ -148,6 +148,10 @@ async def _build_tools() -> list[dict]:
                             "own location. Use the resident's hometown if they ask about "
                             "'home' or where their family lives."
                         )
+                    },
+                    "days": {
+                        "type": "integer", "minimum": 1, "maximum": 7,
+                        "description": "Days of forecast: 1 = today (default); for 'this week' or 'the rest of the week' use 7, once."
                     }
                 },
                 "required": [],

@@ -87,6 +87,15 @@ const TV_POWER_PATTERNS = {
   ],
 };
 
+// A thermostat change needs a temperature word, a number, or a plain yes (to Aria's own "seventy-two?").
+// No transcript at all is not blocked (no evidence either way), the same as the light guard.
+const TEMPERATURE_WORDS = /\b(temp|temperature|thermostat|heat|heater|ac|a\/c|air|cool|cooler|cold|colder|warm|warmer|hot|hotter|degrees?|chilly|freezing|stuffy|up|down)\b|\d/i;
+const PLAIN_YES = /\b(yes|yeah|yep|sure|okay|ok|please|do it|go ahead)\b/i;
+export function temperatureRequestIsGrounded(text) {
+  const heard = String(text || "").trim();
+  return !heard || TEMPERATURE_WORDS.test(heard) || PLAIN_YES.test(heard);
+}
+
 export function tvPowerRequestIsGrounded(text, state) {
   const heard = String(text || "").trim();
   if (!TV_POWER_PATTERNS[state] || TV_POWER_NEGATION.test(heard)) return false;
@@ -123,7 +132,12 @@ export async function executeDeviceTool({ name, args, ctx }) {
   }
   if (name === "adjust_room_temperature") {
     if (!room) return { ok: false, message: "no room context — I can't reach the climate control here." };
-    const targetF = Math.max(60, Math.min(85, Number(args.target_f) || 72));
+    // Room 214 rt_r7yjpasv 06:14 CDT 2026-10-21: "Give me a turn." became "set 72" - nothing in the sentence
+    // asked for a temperature, and a missing target used to default to 72. Both now ask instead.
+    if (!Number.isFinite(Number(args.target_f)) || !temperatureRequestIsGrounded(ctx?.last_user_text)) {
+      return { ok: false, message: "I didn't hear a clear temperature request, so I didn't change the thermostat. Ask what temperature they want." };
+    }
+    const targetF = Math.max(60, Math.min(85, Number(args.target_f)));
     const found = await findDeviceGuarded({ room, kind: "thermostat", noun: "thermostat", tool: name, args, ctx });
     if (found.fail) return found.fail;
     const r = await postRoomCommand(room, "temperature", targetF, "thermostat", ctx?.session_id, found.device?.device_id);
@@ -254,7 +268,10 @@ export async function executeDeviceTool({ name, args, ctx }) {
     }
   }
   if (name === "get_weather") {
-    const qs = args.location ? `?label=${encodeURIComponent(args.location)}` : "";
+    const q = new URLSearchParams();
+    if (args.location) q.set("label", args.location);
+    if (Number(args.days) > 1) q.set("days", String(Math.min(7, Math.round(Number(args.days)))));
+    const qs = q.toString() ? `?${q}` : "";
     const r = await fetch(`${API}/weather/current${qs}`);
     if (!r.ok) return { ok: false, message: `couldn't reach the weather service (${r.status}).` };
     const w = await r.json();

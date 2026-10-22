@@ -34,8 +34,9 @@ import { logRealtimeEvent, logTranscriptionUsage, sanitizeRealtimeUsage, transcr
 import { TRANSCRIPTION_MODEL } from "./realtimeSessionUpdate";
 import { reenableAutoResponse, createGreetingResponseGate } from "./realtimeAutoResponseGate";
 import { createHangupScheduler } from "./endCallHangup";
-import { classifyEndIntent, turnMayEnd } from "./endIntent";
+import { classifyEndIntent, isSoftEnding, turnMayEnd } from "./endIntent";
 import { createEndController } from "./endController";
+import { createSentenceTail } from "./sentenceTail";
 import { createTurnGroundingTracker } from "./realtimeTurnGrounding";
 import { typedTurnFromMessage, TYPED_TURN_CLASS, onTypedEcho, onTypedResponseCreated, onTypedResponseDone } from "./realtimeTypedTurn";
 
@@ -119,12 +120,14 @@ export function createRealtimeHandlers({
   const endCtl = createEndController({ send, stop, onEndCall, log: (type, d) => logRealtimeEvent(sessionIdRef.current, type, d),
     goodbyeLine: caos.context?.goodbye_line || undefined,
     // Closing: no server auto-reply and no barge-in cancel of the goodbye (endController.js).
-    quietServer: () => caos.turn_detection && send({ type: "session.update", session: { type: "realtime",
-      audio: { input: { turn_detection: { ...caos.turn_detection, create_response: false, interrupt_response: false } } } } }) });
+    // turn_detection null = no server VAD at all while closing (rt_d3ahe1bf: with create/interrupt false the
+    // goodbye was still cleared 0.3 s in, and the server's answer to the update was not on record).
+    quietServer: () => send({ type: "session.update", session: { type: "realtime", audio: { input: { turn_detection: null } } } }) });
   const hangup = createHangupScheduler({ // waits for the goodbye audio (endCallHangup.js)
     onClose: () => endCtl.finish(endCallKind, "end_call_tool"),
   });
   const turnGrounding = createTurnGroundingTracker(); // see realtimeTurnGrounding.js
+  const sentenceTail = createSentenceTail();   // a VAD-split "...that's all." is not a goodbye (sentenceTail.js)
   const farewellWatch = createFarewellWatch((type, d) => logRealtimeEvent(sessionIdRef.current, type, d));
   const deltaLead = createDeltaLead((type, d) => logRealtimeEvent(sessionIdRef.current, type, d));
   const claimGuard = createClaimGuard((type, d) => logRealtimeEvent(sessionIdRef.current, type, d));
@@ -259,6 +262,11 @@ export function createRealtimeHandlers({
     if (myGen !== startGenRef.current || endCtl.ended) return;
     let msg;
     try { msg = JSON.parse(ev.data); } catch { return; }
+    // While closing, keep the server's answer to quietServer on record (it is otherwise filtered out below).
+    if (endCtl.ending && (msg.type === "session.updated" || msg.type === "error")) {
+      logRealtimeEvent(sessionIdRef.current, msg.type === "error" ? "closing_realtime_error" : "closing_session_updated", {
+        text: msg.error?.message || "", meta: { turn_detection: msg.session?.audio?.input?.turn_detection ?? null } });
+    }
     // ENDING: only the goodbye's own audio/response events matter (they time the hang-up); nothing else may restart the call.
     if (endCtl.ending && !/^(output_audio_buffer\.|response\.(created|done|output_audio_transcript\.done))/.test(msg.type || "")) return;
 
@@ -276,6 +284,7 @@ export function createRealtimeHandlers({
       // classifyUserTurn() above, applied once the transcript resolves.
       turnSuspectRef.current = assistantSpeakingRef.current;
       lastSpeechStartedAt = Date.now();
+      sentenceTail.onSpeechStarted(msg.item_id);
       claimGuard.onUserTurn();
       claimInterrupter.onUserTurn();
       speech("resident_start");   // resident speaking -> cancel any pending inactivity window
@@ -289,6 +298,7 @@ export function createRealtimeHandlers({
     if (msg.type === "input_audio_buffer.speech_stopped") {
       setStatus("live");
       lastSpeechSegmentMs = lastSpeechStartedAt ? Date.now() - lastSpeechStartedAt : null;
+      sentenceTail.onSpeechStopped();
       turnGrounding.onSpeechStopped();
       speech("resident_stop");    // resident silent -> arm the window IF Aria is also silent
       logRealtimeEvent(sessionIdRef.current, "speech_stopped", { assistantSpeaking: assistantSpeakingRef.current });
@@ -311,6 +321,7 @@ export function createRealtimeHandlers({
     if (msg.type === "output_audio_buffer.started") {
       deltaLead.onAudioStarted(msg);
       endCtl.noteAudioStarted();
+      sentenceTail.onAriaAudio();
       assistantSpeakingRef.current = true;
       greetingGate.onAudioStarted();
       hangup.onAudioStarted();
@@ -393,14 +404,16 @@ export function createRealtimeHandlers({
       // ever persisted. Every real turn is now durably saved the moment
       // it's known, independent of whatever arrives next.
       postTurn("user", userText, msg.item_id, !cls.suspect);
-      const endIntent = classifyEndIntent(userText);
+      const heardEnd = classifyEndIntent(userText);
+      const sentenceGoesOn = heardEnd === "explicit" && isSoftEnding(userText) && sentenceTail.continues(msg.item_id);
+      const endIntent = sentenceGoesOn ? "none" : heardEnd;
       logRealtimeEvent(sessionIdRef.current, "user_transcript", {
         text: userText, assistantSpeaking: cls.suspect,
         meta: {
           confidence, low_confidence: lowConfidence, turn_class_reason: cls.reason,
           speech_segment_ms: lastSpeechSegmentMs,
           ms_since_assistant_stopped: lastPlaybackStoppedAt ? Date.now() - lastPlaybackStoppedAt : null,
-          end_intent: endIntent,
+          end_intent: endIntent, ...(sentenceGoesOn ? { soft_ending_continues_sentence: true } : {}),
         },
       });
       // RQ-055: a clear spoken ending ends the call here, without asking the

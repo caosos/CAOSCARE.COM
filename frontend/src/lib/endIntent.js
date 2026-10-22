@@ -45,6 +45,16 @@ function clausesEnd(sentence) {
   return clauses.length > 1 && clauses.every(isEnding) && CORE.some((re) => re.test(clauses[clauses.length - 1]));
 }
 
+// Endings that also finish an ordinary sentence ("...that's all."), unlike "goodbye" or "hang up".
+const SOFT = [/^that(?:'|’)?s all$/, /^that(?:'|’)?ll be all$/, /^that will be all$/, /^that is all$/,
+  /^we(?:'|’)?re done$/, /^we are done$/, /^i(?:'|’)?m done$/, /^i am done$/];
+/** True when every ending in the utterance is a soft one (see sentenceTail.js). */
+export function isSoftEnding(text) {
+  const parts = (text || "").split(/(?<=[.!?])\s+|[,;]+/).map(normal).filter(Boolean);
+  const endings = parts.filter((c) => [...CORE, ...LEADS].some((re) => re.test(c)));
+  return endings.length > 0 && endings.every((c) => SOFT.some((re) => re.test(c)));
+}
+
 /** "explicit" when some sentence of the utterance is, after filler words, only an ending phrase. */
 export function classifyEndIntent(text) {
   const raw = (text || "").trim();

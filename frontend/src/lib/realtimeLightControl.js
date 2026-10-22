@@ -8,7 +8,7 @@
  */
 import { API } from "./api";
 import { priorAmbiguity, recordAmbiguity, clearAmbiguity, hasPendingAmbiguity, pickDevice, shortLabel, resetDeviceAmbiguity } from "./deviceAmbiguity";
-import { powerDirectionMismatch } from "./powerDirection";
+import { powerDirectionMismatch, spokenLightCommand } from "./powerDirection";
 
 // Color vocabulary shared both directions: naming a color for a command
 // (toggle_light's `color` arg -> RGB the adapter sends to the real device)
@@ -54,7 +54,15 @@ export async function handleToggleLight(room, args, ctx, postRoomCommand) {
   const hasAny = args.state || args.brightness != null || args.brightness_delta != null || args.color || args.color_temp;
   if (!hasAny) return { ok: false, message: "I didn't catch what you'd like me to change about the light." };
   const mismatch = powerDirectionMismatch(args.state, heardNow, args.device || "light", { answering: hasPendingAmbiguity(ctx, TOOL) });
-  if (mismatch) return { ok: false, message: mismatch };
+  if (mismatch) {
+    // Still refused (nothing is sent). For a plain spoken command the result says what was heard, so the model
+    // corrects itself instead of re-sending its own direction (rt_3bfuhkov: OFF, refused, OFF again).
+    const spoken = spokenLightCommand(heardNow);
+    if (spoken && spoken !== args.state) {
+      return { ok: false, message: `Nothing was changed: they said "${heardNow}" (${spoken.toUpperCase()}), but you sent ${String(args.state).toUpperCase()}. Call toggle_light again now with state "${spoken}" - do not ask them.` };
+    }
+    return { ok: false, message: mismatch };
+  }
 
   const listR = await fetch(`${API}/devices/public/by-room/${encodeURIComponent(room)}`);
   const list = listR.ok ? await listR.json() : [];

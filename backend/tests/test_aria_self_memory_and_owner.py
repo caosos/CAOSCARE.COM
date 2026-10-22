@@ -98,20 +98,16 @@ def test_owner_block_text_and_scope():
 
 
 def test_owner_style_block_is_in_the_owner_room_block_only(resident):
-    # Owner directive 2026-10-21 (Room 214 session rt_y6k2od0z): answer what was asked, no offers/menus,
-    # let an unfinished thought finish, "stop"/"chill" -> one or two words, follow his change of topic,
-    # silence is fine, a goodbye to dot/ChatGPT or a quoted one is not for Aria.
+    # Owner directives 2026-10-21 (Room 214 rt_y6k2od0z, rt_2l3ty0zy, rt_d3ahe1bf): what ONLY the owner room
+    # adds; the general adult-to-adult style lives in the concise_natural profile (aria_guidance_profiles.py).
     block = owner_room_block("Michael Chambers", "Michael")
-    for phrase in ("## How to talk with Michael (this room only)", "Match the detail to the task",
-                   "No closing offers or menus", "'Mm?' or 'Go on', then wait",
-                   "you have already been cut off", "including a change of topic",
-                   "reply with one or two words ('Sure.') or nothing - never explain how you'll change",
-                   "Silence is fine", "One reply per turn", "said to someone else (dot, ChatGPT",
-                   "don't call `end_call`", "never claim you do", "Safety, truth, tool and end-call rules still apply"):
+    for phrase in ("## Talking with Michael (this room only)", "'Mm?' or 'Go on', then wait",
+                   "you have already been cut off", "including a change of topic", "never claim you do",
+                   "said to someone else (dot, ChatGPT", "don't call `end_call`"):
         assert phrase in block, phrase
-    assert block.index("Who you are talking to") < block.index("How to talk with Michael")
+    assert block.index("Who you are talking to") < block.index("Talking with Michael")
     # Every other resident's prompt is unchanged: no owner style block without the verified Room 214 mint.
-    assert "How to talk with" not in run(_build_companion_instructions(resident))
+    assert "Talking with" not in run(_build_companion_instructions(resident))
 
 
 def test_owner_block_needs_the_verified_room_214_mint():
@@ -133,11 +129,13 @@ def test_owner_goodbye_line_and_scope(resident):
     assert "your goodbye is exactly" not in run(_build_companion_instructions(resident))
 
 
-def test_owner_style_block_has_the_builder_rule_and_examples():
+def test_owner_style_block_has_the_builder_rule_and_the_real_examples():
     block = owner_room_block("Michael Chambers", "Michael")
     for phrase in ("Michael is building you", "Never say you can't or won't become something",
-                   "No lead-ins", "say it in your greeting only", "Examples from real calls in this room",
-                   "RIGHT - stop after the answer."):
+                   "Examples from real calls in this room",
+                   "'That was simple, I was being sarcastic.'", "RIGHT - You: 'Yeah, I walked into that one.'",
+                   "'I don't really need enthusiasm, I just need you to be normal.'", "RIGHT - You: 'Fair.'",
+                   "'Well, this plum's pretty good.'"):
         assert phrase in block, phrase
 
 
@@ -149,3 +147,14 @@ def test_owner_wake_opens_with_a_clear_hello():
     assert greeting_line({**owner, "recent_openings": ["Hi, Michael.", "Hello, Michael.", "Hey, Michael."]}) == "Hi, Michael."
     other = {"wake": True, "name": "Rose", "recent_openings": []}
     assert suggested_openings(other, "Rose") == [o.format(n="Rose") for o in WAKE_OPENINGS][:3]   # unchanged
+
+
+def test_weather_next_days_line():
+    # Room 214 rt_d3ahe1bf: "the rest of the week" needs more than today's data in ONE get_weather call.
+    from routes.weather import _next_days
+    daily = {"time": ["2026-10-21", "2026-10-22", "2026-10-23"], "temperature_2m_max": [26.7, 28.0, 29.0],
+             "temperature_2m_min": [7.2, 9.0, 10.0], "precipitation_probability_max": [0, 10, 40], "weather_code": [0, 0, 61]}
+    line = _next_days(daily)
+    assert line.startswith(" Then Thursday: a high of 82 and a low of 48")
+    assert "Friday: a high of 84 and a low of 50" in line and "40 percent chance of rain" in line
+    assert _next_days({"time": ["2026-10-21"], "temperature_2m_max": [26.7], "temperature_2m_min": [7.2]}) == ""
