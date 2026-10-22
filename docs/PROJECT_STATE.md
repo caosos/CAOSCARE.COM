@@ -1427,3 +1427,18 @@ Owner report: the call ended at "That's all", which he did not intend; he suspec
   - **A (recommended):** a soft ending ("that's all" family) on an `uncertain_fragment` turn does not close — neither via the transcript path nor via the RQ-041 end_call grant (`realtimeDeviceTools.js:345`). Hard closers (goodbye/bye/goodnight/hang up) are unchanged. Plus the correct `call_closed.via`.
   - **B (not recommended without A's evidence):** remove "that's all" from the transcription hint.
   - **VAD changes:** need separate approval.
+
+### 2026-10-22 00:15 CDT — Option A PREPARED (not loaded): uncertain-overlap soft ending + true close label
+Owner: "Do A … Report results before loading; do not restart services or start a paid call yet."
+- **Change:** a soft ending ("that's all" family, `endIntent.isSoftEnding`) on an `uncertain_fragment` turn no longer closes.
+  - It is held in the transcript path (logged `soft_ending_overlap_held: true`), and the RQ-041 end_call grant does not apply to it. The model's end_call on such a turn gets the existing "did you want me to end our conversation?" check. A second attempt within 90 s is still granted (existing corroboration).
+  - Goodbye/bye/goodnight/hang up from the same kind of turn still close.
+  - `call_closed.meta.via` now records `transcript` vs `end_call_tool`.
+- **Tests:** frontend 959/959, i.e. 937 + 22 new in `endCallControl.test.js`:
+  - rt_qppzkpzp's exact timing, for both the transcript path and the model's end_call path;
+  - 4 clear closers in the same overlap;
+  - both close labels;
+  - Michael's 15 most recent genuine transcript endings, each replayed with its recorded class, segment, gap and Aria-between flag; all still close.
+  - `CI=true yarn build` compiles (scratch output; served build untouched).
+- **Found, not fixed:** in `endCallControl.test.js` the "goodbye that overtakes…" test leaves state that keeps a later test's call open. It reproduces on the unchanged page code; the new tests sit before it.
+- **Running system:** unchanged (backend 2367979 pid 1304870, page main.50fe8f2e.js). Load = `ctl.sh rebuild` + `restart-page` (page-only change; the backend restart is not needed). Rollback = rebuild at 2367979/ddd5819.
