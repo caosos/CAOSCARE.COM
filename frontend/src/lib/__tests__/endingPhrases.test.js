@@ -65,14 +65,3 @@ test("turn_suspect guard still wins, and sessions are independent", async () => 
   checkEnding("other", "a"); checkEnding("other", "b");
   expect(checkEnding(sid, "c").final).toBeUndefined();
 });
-
-test("bedtime grounds end_call unless negated or asked (Room 214 rt_n271loel)", () => {
-  const sid = "s_bed";
-  resetEndingState(sid);
-  expect(checkEnding(sid, "Okay, well, tomorrow we have a lot to do, so I'll let you get at it. I'm going to go to bed now.").ok).toBe(true);
-  for (const t of ["I'm heading to bed.", "Off to bed."]) expect(checkEnding(sid, t).ok).toBe(true);
-  for (const t of ["I'm not going to bed yet.", "Are you going to bed?", "I can't go to bed until the laundry is done."]) {
-    resetEndingState(sid);
-    expect(checkEnding(sid, t).ok).toBe(false);
-  }
-});

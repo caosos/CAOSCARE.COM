@@ -41,13 +41,6 @@ export const ENDING_PHRASES = new RegExp(
   "i",
 );
 
-// Room 214 rt_n271loel (2026-10-22 04:39): "...I'm going to go to bed now." - the model's end_call was refused and
-// Aria said "If you're done, you can say goodbye". Bedtime grounds the model's end_call (the page never hangs up on
-// it), unless negated or asked ("I'm not going to bed yet", "Are you going to bed?").
-const BEDTIME = /\b(go|going|head|heading|off) to bed\b/i;
-const NOT_BEDTIME = /\?|\b(not|never|won(?:'|’)?t|don(?:'|’)?t|can(?:'|’)?t|isn(?:'|’)?t|aren(?:'|’)?t|yet)\b/i;
-const saysBedtime = (t) => BEDTIME.test(t) && !NOT_BEDTIME.test(t);
-
 // Owner 2026-10-22 (rt_4ze7jvrt): "when i did say goodnight that was a question because that's what she said".
 // A bare farewell asked back ("Goodnight?") questions Aria's words; it does not ask her to hang up.
 const ASKED_BACK = /^[\s,.]*(good\s*night|good\s*bye|bye( bye)?)[\s,.]*\?[\s?]*$/i;
@@ -74,7 +67,7 @@ const FINAL = "The resident has not asked to end the conversation, and you have 
 export function checkEnding(sid, heard) {
   const st = stateFor(sid);
   const text = (heard || "").trim();
-  if (text && ((ENDING_PHRASES.test(text) && !ASKED_BACK.test(text)) || saysBedtime(text))) {
+  if (text && ENDING_PHRASES.test(text) && !ASKED_BACK.test(text)) {
     st.refusals = 0; st.pendingText = null;
     return { ok: true };
   }
