@@ -80,7 +80,8 @@ def test_prompt_carries_memory_usual_asks_and_the_rules(resident):
     assert "three to five concrete, specific examples" in text
     assert "never answer with a generic description of their personality" in text.lower()
     assert "## Say a limitation once" in text
-    assert "you can't send emails or open tickets" in text
+    assert "you can't send emails or open tickets for the developers" in text
+    assert "never say you can't do that" in text                             # staff requests are filed, not denied
     assert "`check_medication_status`" in text and "Never say someone is coming" in text
     assert "never tell them to look at a screen" in text.lower()
     assert "I'll let the team know you asked" not in text                   # old over-promise removed

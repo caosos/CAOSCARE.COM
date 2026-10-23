@@ -44,3 +44,13 @@ def test_persona_states_no_sight_and_routing():
 def test_self_knowledge_does_not_imply_sight():
     text = _system_self_knowledge()
     assert "no camera" in text
+
+
+def test_self_knowledge_lists_staff_requests_and_no_unproven_paging():
+    # CCI-20261023-1 / Room 214 2026-10-23 00:48 CDT: Aria denied ticket tools, then described staff requests.
+    text = _system_self_knowledge()
+    assert "`request_staff_help`" in text and "`check_request_status`" in text
+    assert "not the same as someone coming" in text
+    assert "opening a ticket" not in text and "opening a \"" not in text
+    assert "tablets/pagers" not in text and "Page a nurse" not in text
+    assert "`call_for_help`" in text
