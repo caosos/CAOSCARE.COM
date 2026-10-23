@@ -19,7 +19,7 @@ Start/recover: `~/CAOSCARE-INTEGRATION/room-node/aria_wake/ctl.sh start` as `cao
 | Port / thing | What | Source / revision | Notes |
 |---|---|---|---|
 | `:8092` | Dev backend | `~/CAOSCARE-INTEGRATION/backend` @ `734cff9` (owner-room 1.8 s silence; PID 1379029, loaded 2026-10-22 03:56 CDT; rollback `2367979`) | Includes the per-room cost route (from `00fff9b`), loaded but **not accepted**. `OPENAI_REALTIME_MODEL=gpt-realtime-2.1-mini`. |
-| `:3002` | Room 214 page (`aria-wake-page`) | build `1a93b29` (frontend = `86915de`: hint without goodbye words, on Option A + still-talking hold) → `main.2d4cbab5.js` (restarted 2026-10-22 18:24:21 CDT; LOADED, NOT USER-VERIFIED; rollback copy `~/caoscare-config-backups/page-build-00e34bc-main.d3f4fa7c/`) | Kiosk transport `realtime` (kiosk preference, set 2026-10-21 02:46). |
+| `:3002` | Room 214 page (`aria-wake-page`) | build `614c83e` (English-locked transcription + hint without goodbye words, on Option A + still-talking hold) → `main.f3a37d2e.js` (restarted 2026-10-22 20:12:08 CDT; LOADED, NOT USER-VERIFIED; rollback copy `~/caoscare-config-backups/page-build-86915de-main.2d4cbab5/`) | Kiosk transport `realtime` (kiosk preference, set 2026-10-21 02:46). |
 | `aria-wake` / `aria-wake-kiosk` | listener + headless kiosk, **user `caoscare-1`** | listener 0.02/2.5 (since 2026-10-21 17:39 CDT) + shadow 0.01/3.5; kiosk URL `?wake=1` | One wake consumer (kiosk reconnected 2026-10-22 00:19:44 CDT). Owner-verified call 2026-10-21 05:09 CDT. |
 | eMeet | `caoscare-1` PulseAudio | `alsa_input/output.usb-EMEET…mono-fallback` | Must not be held by another account. `michaelos` `aria-wake*` units are **disabled**. |
 | `:3000` | Frontend dev server | `~/CAOSCARE-INTEGRATION/frontend` working tree | Unchanged. |

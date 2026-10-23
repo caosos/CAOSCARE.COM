@@ -1675,3 +1675,11 @@ Owner report: roughly six "Hey Aria" attempts before the call connected. Sources
 - **Root cause (demonstrated):** the "overtakes" test started `toolCall("end_call")` (an async `act()`) and, before awaiting it, called `said()` (another `act()`). React logged "overlapping act() calls". After that, the next test's `root.render(<Harness/>)` never rendered (instance trace: no second instance), so `api.start` was still the previous hook's and connected with the previous test's `onEndCall`.
 - **Fix:** each `act()` is awaited in order, and the "keep this test LAST" comment is removed. Product code is unchanged; nothing loaded.
 - **Proof:** a temporary probe test placed after "overtakes" (plain "Goodbye." must close) passes, with no overlap warning; probe removed. Full frontend suite 981/981.
+
+## 2026-10-22 20:12 CDT — Room 214 English lock LOADED (page main.f3a37d2e.js), NOT USER-VERIFIED
+
+- **Owner:** "lock english i will continue to improve the voice where we can".
+- **Change (614c83e):** `ctl.sh build_page` adds `REACT_APP_TRANSCRIPTION_LANGUAGE=en` (the existing RQ-055 switch), so the Room 214 page's transcription is `language: "en"`. With the lock, the hint becomes "A person talking with their home voice assistant, Aria. English." Every other build stays unpinned. Spanish speech is no longer transcribed as Spanish.
+- **Tests:** realtimeSessionUpdateLanguage + endCallControl + endingPhrases 99/99 (new: locked build pins en, hint has no Spanish or goodbye words).
+- **Load:** leases 0, 0 call events in the last 5 min. Rollback copy `~/caoscare-config-backups/page-build-86915de-main.2d4cbab5/` (43 files, sha256 OK). `ctl.sh rebuild` → `main.f3a37d2e.js` (bundle has `language:"en"` and the English hint); `restart-page` 01:12:08Z; listener reconnected 01:12:34Z; `ctl.sh start` READY (realtime, mini, PAID_CALL_STARTED=false), receipt `20261022T201236-0500.json`. Backend 734cff9 pid 1379029 and listener pid 1219269 unchanged.
+- **Rollback:** restore the copy into `~/.cache/aria-wake/build` and run `ctl.sh restart-page`; to keep the source revertible, `git revert 614c83e`.
