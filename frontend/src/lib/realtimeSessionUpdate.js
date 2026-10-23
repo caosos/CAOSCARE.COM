@@ -42,6 +42,10 @@ export const TRANSCRIPTION_MODEL = "gpt-4o-transcribe";
 // rt_qppzkpzp, "go away" rt_4ze7jvrt) from 0.1-0.2 s of detected speech. Hint bias is a hypothesis, not proven.
 // The language guidance stays.
 export const TRANSCRIPTION_HINT = "A person talking with their home voice assistant, Aria. Mostly English, sometimes Spanish.";
+// Owner 2026-10-22 "lock english": with recognition pinned to English the hint does not mention Spanish.
+export const TRANSCRIPTION_HINT_ENGLISH = "A person talking with their home voice assistant, Aria. English.";
+const transcriptionHint = () =>
+  process.env.REACT_APP_TRANSCRIPTION_LANGUAGE === "en" ? TRANSCRIPTION_HINT_ENGLISH : TRANSCRIPTION_HINT;
 
 export function buildSessionUpdate({ caos, voice }) {
   const update = {
@@ -78,7 +82,7 @@ export function buildSessionUpdate({ caos, voice }) {
           transcription: { model: TRANSCRIPTION_MODEL, ...(process.env.REACT_APP_TRANSCRIPTION_LANGUAGE ? { language: process.env.REACT_APP_TRANSCRIPTION_LANGUAGE } : {}),
             // RQ-056 (OFF by default; build with REACT_APP_TRANSCRIPTION_HINT=1): `prompt` is a documented optional
             // field (max 1024 chars) that biases vocabulary WITHOUT pinning the language, so Spanish still works.
-            ...(process.env.REACT_APP_TRANSCRIPTION_HINT === "1" ? { prompt: TRANSCRIPTION_HINT } : {}) },
+            ...(process.env.REACT_APP_TRANSCRIPTION_HINT === "1" ? { prompt: transcriptionHint() } : {}) },
           ...(caos.noise_reduction ? { noise_reduction: caos.noise_reduction } : {}),
           ...(caos.turn_detection ? { turn_detection: { ...caos.turn_detection, create_response: false } } : {}),
         },

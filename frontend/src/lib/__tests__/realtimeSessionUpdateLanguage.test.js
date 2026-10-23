@@ -82,3 +82,13 @@ test("the vocabulary hint is off by default and, when built in, never pins the l
     expect(t.prompt).toContain("Mostly English, sometimes Spanish");
   } finally { delete process.env.REACT_APP_TRANSCRIPTION_HINT; }
 });
+
+test("Room 214 English lock: language pinned to en, hint without Spanish or goodbye words", () => {
+  process.env.REACT_APP_TRANSCRIPTION_HINT = "1"; process.env.REACT_APP_TRANSCRIPTION_LANGUAGE = "en";
+  try {
+    const t = build().session.audio.input.transcription;
+    expect(t.language).toBe("en");
+    expect(t.prompt).toBe("A person talking with their home voice assistant, Aria. English.");
+    for (const w of ["spanish", "goodbye", "go away", "that's all"]) expect(t.prompt.toLowerCase()).not.toContain(w);
+  } finally { delete process.env.REACT_APP_TRANSCRIPTION_HINT; delete process.env.REACT_APP_TRANSCRIPTION_LANGUAGE; }
+});
