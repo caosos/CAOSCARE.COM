@@ -4,7 +4,7 @@ import { CAPABILITY_STATUS, STATUS_META, STATUS_ORDER, statusOf } from "../capab
 import { RESIDENT_CAPABILITIES } from "../capabilities/resident";
 import { COMMUNITY_WORKFLOWS } from "../capabilities/community";
 import { ALL_CAPABILITIES, CAPABILITIES_BY_ID } from "../capabilities";
-import { ILLUSTRATIONS, SCREENS } from "../capabilities/visuals";
+import { CONCEPTS, ILLUSTRATIONS, SCREENS } from "../capabilities/visuals";
 import { ROOM_FEATURES } from "../roomExperience/features";
 
 const PUBLIC = path.join(__dirname, "..", "..", "..", "public");
@@ -74,8 +74,8 @@ describe("capability panels", () => {
 
   test("no stale or orphan public media: every screen and illustration file is in the registry", () => {
     // #162: the 2026-09 command-centre screens and stock photos are retired, not left behind.
-    const used = new Set([...Object.values(SCREENS), ...Object.values(ILLUSTRATIONS)].map((v) => v.src));
-    for (const dir of ["screens", "illustrations"]) {
+    const used = new Set([...Object.values(SCREENS), ...Object.values(ILLUSTRATIONS), ...Object.values(CONCEPTS)].map((v) => v.src));
+    for (const dir of ["screens", "illustrations", "concepts"]) {
       for (const f of fs.readdirSync(path.join(PUBLIC, "media", dir))) expect(used).toContain(`/media/${dir}/${f}`);
     }
     for (const gone of ["marketing", "placeholders", "product"]) expect(fs.existsSync(path.join(PUBLIC, "media", gone))).toBe(false);

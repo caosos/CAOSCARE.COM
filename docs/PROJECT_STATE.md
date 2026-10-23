@@ -1732,3 +1732,11 @@ Owner report: roughly six "Hey Aria" attempts before the call connected. Sources
   - On caoscare-prod, run `scripts/deploy_caoscare.sh <merged main sha>`. It takes a pre-deploy Mongo backup.
   - Rollback: `deploy_caoscare.sh 2125e677…`.
 - **Stays off the EliteDesk/production boundary:** wake listener, `aria_wake` page build, IR/HA endpoints and `.env` are host config, not deployed by the script.
+
+## 2026-10-23 04:55 CDT — Home One concept added to docs and the public home page (owner request); not deployed
+
+- Owner: "add them in the system and showcase it. home one is good". Name: **Home One**. The images are concepts, not devices (owner: "these are not actual devices yet").
+- `docs/hardware/home-one/`: concept render, blueprint (old name "CAOSCare One"), and two parts-candidate sheets dated 2026-10-23. The sheets are marked "power chain and wiring not validated" and "Electrical hold — not order ready". They were resized to JPEG from the owner's laptop folder, copied to `~/home-one-photos`. The README states that nothing is built or tested.
+- Public home: a new "What we're designing next — Home One" section after "What works today". It shows one render captioned "Design concept · not built or tested" and says the pilot today runs on the conference speakerphone + central computer. It is not added to the capability status registry. The four lifestyle pictures in the same folder (Sep 27) were not used.
+- Verified: frontend 140 suites / 983 tests; production build compiles; dev site :3000 (this worktree) renders the section with no horizontal overflow at desktop width. 390 px was not checked in a browser; the layout is single-column below `lg`.
+- Production only after the release PR is merged and deployed.

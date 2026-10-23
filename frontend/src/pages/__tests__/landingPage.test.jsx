@@ -32,11 +32,12 @@ test("public paths, staff sign in, and every product picture says whose data it 
   const imgs = [...host.querySelectorAll("figure img")];
   expect(imgs.length).toBeGreaterThanOrEqual(6);
   for (const img of imgs) {
-    expect(img.getAttribute("src")).toMatch(/^\/media\/(screens|illustrations)\//);
+    expect(img.getAttribute("src")).toMatch(/^\/media\/(screens|illustrations|concepts)\//);
     const caption = img.closest("figure").querySelector("figcaption").textContent;
     // every picture says what it is; every product screen also says whose data it shows
-    expect(caption).toMatch(/CAOSCare screen|Illustration|Concept/);
+    expect(caption).toMatch(/CAOSCare screen|Illustration|Design concept/);
     if (img.getAttribute("src").startsWith("/media/screens/")) expect(caption).toMatch(/simulated|sample/);
+    if (img.getAttribute("src").startsWith("/media/concepts/")) expect(caption).toMatch("Design concept · not built or tested");
   }
   await done();
 });
@@ -65,5 +66,16 @@ test("owner message order: Aria the helper, everyday room life, community help, 
   for (const tile of host.querySelectorAll("[data-testid^=tile-]")) {
     expect(tile.querySelector("[data-status]").dataset.status).toBe(statusOf(tile.dataset.testid.slice(5)));
   }
+  await done();
+});
+
+test("Home One is shown only as a labelled design concept, after what works today", async () => {
+  // Owner 2026-10-23: showcase Home One; it is not built, so it is never a capability or status.
+  const { host, done } = await render();
+  const section = host.querySelector("#home-one");
+  expect(section.textContent).toMatch("none has been built or tested yet");
+  expect(section.querySelector("figcaption").textContent).toMatch("Design concept · not built or tested");
+  expect(host.querySelector("[data-testid=landing-status]").compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(host.querySelector("[data-testid=status-home_one]")).toBeNull();
   await done();
 });

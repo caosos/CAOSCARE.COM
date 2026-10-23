@@ -1102,3 +1102,8 @@ Public-site check during this bounded channel work (October 20): `https://caosca
 returned HTTP 200; page title is “CAOS Care — Resident Support and Care Coordination
 for Senior Living.” No website content or production deployment changed; this
 availability/title check is not a full website audit.
+
+## 2026-10-23 — Home One concept (#165, not built)
+
+- `docs/hardware/home-one/`: owner-supplied design renders and two parts-candidate sheets, with a README that labels them concept only, not validated. `parts_catalog/manifest.json`, which the sheets cite, is not in the repo.
+- `frontend/src/components/landing/HomeOneConcept.jsx`: public home section "What we're designing next", shown after the status board, with image `/media/concepts/home-one.jpg` registered as kind `concept` in `lib/capabilities/visuals.js` and captioned "Design concept · not built or tested". It is not a capability and is not in `status.js`. Test: `src/pages/__tests__/landingPage.test.jsx`.

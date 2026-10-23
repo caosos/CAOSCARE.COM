@@ -8,6 +8,7 @@ import { EXPERIENCE_VIDEOS } from "../lib/experienceVideos";
 import CapabilityTiles from "../components/public/CapabilityTiles";
 import LandingStatus from "../components/landing/LandingStatus";
 import LandingPaths from "../components/landing/LandingPaths";
+import HomeOneConcept from "../components/landing/HomeOneConcept";
 import PublicPage, { PublicSection } from "../components/public/PublicPage";
 import RequestJourney from "../components/public/RequestJourney";
 import StaffShowcase from "../components/public/StaffShowcase";
@@ -91,6 +92,7 @@ export default function Landing() {
           </PublicSection>
 
           <LandingStatus onOpen={panel.open} />
+          <HomeOneConcept />
           <LandingPaths authedDest={authedDest} authedLabel={authedLabel} />
           <CapabilityPanel capability={panel.capability} open={panel.isOpen} onClose={panel.close}
             onCloseAutoFocus={panel.onCloseAutoFocus} />

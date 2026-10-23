@@ -5,6 +5,7 @@ import React, { useState } from "react";
 export const VISUAL_TAG = {
   screen: "CAOSCare screen · sample data",
   illustration: "Illustration · how it is used",
+  concept: "Design concept · not built or tested",
 };
 
 export function VisualImage({ visual, className = "" }) {
