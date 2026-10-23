@@ -50,21 +50,24 @@ async def _scenario():
         tid = tpl["template_id"]
         assert tpl["provider_name"] == "Pat Lee, PT" and tpl["location"] is None
 
-        week = date(2026, 10, 12)        # Monday; Wednesday occurrences
+        # Next week's Monday, so the moved visit is always within upcoming_for_resident's 30 days
+        # (fixed 2026-10 dates failed once they were in the past).
+        today = date.today()
+        week = today + timedelta(days=7 - today.weekday())   # Monday; Wednesday occurrences
         for d in (week, week + timedelta(days=7)):
             await asyncio.gather(generate(d.isoformat()), generate(d.isoformat()))
         occ = sorted(await db.staff_tasks.find({"template_id": tid}).to_list(20), key=lambda x: x["occurrence_date"])
-        assert [o["occurrence_date"] for o in occ] == ["2026-10-14", "2026-10-21"]
+        assert [o["occurrence_date"] for o in occ] == [(week + timedelta(days=2)).isoformat(), (week + timedelta(days=9)).isoformat()]
         for o in occ:
             assert (o["provider_name"], o["discipline"], o["location"], o["visibility_role"]) == \
                    ("Pat Lee, PT", "Physical therapy", None, "therapy")
         a, b = occ
 
-        await task_actions.set_schedule(a["task_id"], {"requested_for_date": "2026-10-15", "requested_for_time_label": "2:00 PM"},
+        await task_actions.set_schedule(a["task_id"], {"requested_for_date": (week + timedelta(days=3)).isoformat(), "requested_for_time_label": "2:00 PM"},
                                         actor_from_user(pt), pt)
         await task_actions.skip(b["task_id"], "Resident away that week", actor_from_user(pt), pt)
         with pytest.raises(HTTPException) as e:
-            await task_actions.set_schedule(a["task_id"], {"requested_for_date": "2026-10-16"}, actor_from_user(hk), hk)
+            await task_actions.set_schedule(a["task_id"], {"requested_for_date": (week + timedelta(days=4)).isoformat()}, actor_from_user(hk), hk)
         assert e.value.status_code == 403
         for d in (week, week + timedelta(days=7)):
             await generate(d.isoformat())
