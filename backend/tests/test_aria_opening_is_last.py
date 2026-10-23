@@ -57,7 +57,7 @@ def test_minted_room_214_session_ends_with_the_opening(monkeypatch):
     async def extras(payload, lease):
         return {"prompt": "\n## Looking at your own code (Room 214)\nSelf-code text.\n", "tools": [], "enabled": True}
 
-    async def owner(payload, lease):
+    async def owner(payload, lease, goodbye_line=None):   # 7679104 added the owner goodbye line argument
         return OWNER
 
     class Resp:
