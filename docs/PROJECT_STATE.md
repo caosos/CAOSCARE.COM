@@ -1703,3 +1703,4 @@ Owner report: roughly six "Hey Aria" attempts before the call connected. Sources
 **Docs gap:** there is no "technical manual" file in the repo; the model/memory facts above are the canonical record until one exists.
 
 **Release (not done).** Mechanism from the 10-15/10-16 releases: the SHA must be on origin/main, then `deploy_caoscare.sh <sha>` on caoscare-prod (run by Michael); rollback `deploy_caoscare.sh 2125e677…`. Before release: push this branch, review, merge to main, run the full backend gate, and keep EliteDesk-only parts (wake listener, `aria_wake` page build, IR/HA endpoints, `.env`) out of production.
+- **Backend gate at 7a1ef29:** 1559 passed, 8 failed, 13 skipped. The 8 are the same pre-existing set as the 734cff9 gate (5 mint tests from `ARIA_VOICE_DEFAULT_TRANSPORT=cascade` in the dev `.env`, iter10/iter11 tool-list drift, date-dependent therapy_recurrence); none from 2d24ab6/8874e67. Log: session scratchpad `gate_7a1ef29.log`.
