@@ -1669,3 +1669,9 @@ Owner report: roughly six "Hey Aria" attempts before the call connected. Sources
 - **Queue item 3 (music/video via TV):** the Room 214 TV is IR-only (`esphome.xiao_smart_ir_mate_812dfc`: power, volume, mute, channel, input). Home Assistant (102 entities, read-only list) has one `media_player`, the removed Voice PE, unavailable. No playable media device exists; it needs hardware or a networked TV/streaming device. Owner decision.
 - **Queue items 1 and 5** were addressed in 1b3c5c2 (loaded 10-21). Item 4 (email/texts) needs an owner-set-up provider account. Item 7 (wake watch) is ongoing.
 - **endCallControl test leak, narrowed further:** in the test after "overtakes", Harness renders with the current `onEndCall`, but `api.start()` connects with the PREVIOUS test's `onEndCall` (probe: `cur false, prev true`), and only one connect happens. So a stale `start` closure from the previous hook instance is what runs. Root cause still open; tests unchanged; the probe file was removed.
+
+## 2026-10-22 20:15 CDT — endCallControl test leak fixed (test-only)
+
+- **Root cause (demonstrated):** the "overtakes" test started `toolCall("end_call")` (an async `act()`) and, before awaiting it, called `said()` (another `act()`). React logged "overlapping act() calls". After that, the next test's `root.render(<Harness/>)` never rendered (instance trace: no second instance), so `api.start` was still the previous hook's and connected with the previous test's `onEndCall`.
+- **Fix:** each `act()` is awaited in order, and the "keep this test LAST" comment is removed. Product code is unchanged; nothing loaded.
+- **Proof:** a temporary probe test placed after "overtakes" (plain "Goodbye." must close) passes, with no overlap warning; probe removed. Full frontend suite 981/981.
