@@ -87,6 +87,7 @@ CURRENT_RESIDENT_TOOLS = {
     "check_transportation_status", "change_transportation_request", "cancel_transportation_request",
     "confirm_interpretation_pattern",
     "configure_tv_remote",  # PR #141: governed TV remote setup
+    "check_medication_status",  # 7a4cec2: "is my medicine coming" truth tool
 }
 
 
