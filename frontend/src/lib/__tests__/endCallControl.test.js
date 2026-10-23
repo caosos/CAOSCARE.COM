@@ -507,13 +507,13 @@ test.each(METERED_GENUINE)("metered ending %s %p still ends the call", async (si
   expect(logged("call_closed")[0][2].meta.via).toBe("transcript");
 });
 
-// Keep the overtakes test LAST: it leaves state behind that stops a later test's call from closing
-// (pre-existing, seen with a plain "Goodbye." on the unchanged page code too).
 test("a goodbye that overtakes Aria's own end_call answers that call first, then says a brief goodbye", async () => {
   await msg({ type: "input_audio_buffer.speech_stopped" });   // transcript for this turn is pending
-  const pendingTool = toolCall("end_call", 7);                  // waits for the transcript (grounding)
+  // Each act() is awaited before the next: an overlapping act() left React unable to render the next test's
+  // harness, so that test drove the previous call's hook (the old "keep this test LAST" leak).
+  await toolCall("end_call", 7);                                // waits for the transcript (grounding)
   await said("That'll be all for now.");
-  await pendingTool;
+  await settle();
   const iOutput = mockConn.sent.findIndex((m) => m.type === "conversation.item.create" && m.item?.call_id === "c7");
   const iBye = mockConn.sent.findIndex((m) => m.type === "response.create");
   expect(iOutput).toBeGreaterThanOrEqual(0);
