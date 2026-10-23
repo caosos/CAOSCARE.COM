@@ -1713,3 +1713,22 @@ Owner report: roughly six "Hey Aria" attempts before the call connected. Sources
 - **Final gate (realtime env, HEAD after the opening-test fix):** 1565 passed, 2 failed (iter10/iter11 only), 13 skipped. Frontend 982/982, production build OK (no frontend change since).
 - **Push:** `git push` refused by the permission classifier; owner runs it.
 - **Release gate not met:** the release is not green until iter10/iter11 are resolved; no merge or deploy command is issued until then.
+
+## 2026-10-23 04:35 CDT — Release gate GREEN for fix/room214-caoscare1-start; not merged, not deployed
+
+- **Push:** Michael pushed the branch (origin `fix/room214-caoscare1-start` = 6234146).
+- **iter10/iter11:** with Michael's approval, `2d0b98d` adds `check_medication_status` (added on purpose in 7a4cec2) to `CURRENT_RESIDENT_TOOLS`. This is test-only.
+- **Full backend gate at 2d0b98d** (`ARIA_VOICE_DEFAULT_TRANSPORT=realtime`, scratch DB `caoscare_release_gate_2d0b98d`, port 8197): **1567 passed, 0 failed, 13 skipped, 13 deselected**, exit 0, in 8 min 22 s. No frontend changes since the 982/982 run and the passing production build.
+- **The 8 earlier failures are all resolved:**
+  - 5 mint tests: dev `.env` transport. They pass with realtime, which is the production default.
+  - opening-is-last stub: fixed in 6750055.
+  - therapy recurrence dates: fixed in 405e80d.
+  - self_code HEAD-moved: an artifact of committing during the run.
+  - iter10/iter11 tool list: fixed in 2d0b98d.
+- **Next steps:**
+  - Michael pushes 2d0b98d and this docs commit.
+  - Open a PR to main and review it.
+  - Merge.
+  - On caoscare-prod, run `scripts/deploy_caoscare.sh <merged main sha>`. It takes a pre-deploy Mongo backup.
+  - Rollback: `deploy_caoscare.sh 2125e677…`.
+- **Stays off the EliteDesk/production boundary:** wake listener, `aria_wake` page build, IR/HA endpoints and `.env` are host config, not deployed by the script.
