@@ -1740,3 +1740,27 @@ Owner report: roughly six "Hey Aria" attempts before the call connected. Sources
 - Public home: a new "What we're designing next — Home One" section after "What works today". It shows one render captioned "Design concept · not built or tested" and says the pilot today runs on the conference speakerphone + central computer. It is not added to the capability status registry. The four lifestyle pictures in the same folder (Sep 27) were not used.
 - Verified: frontend 140 suites / 983 tests; production build compiles; dev site :3000 (this worktree) renders the section with no horizontal overflow at desktop width. 390 px was not checked in a browser; the layout is single-column below `lg`.
 - Production only after the release PR is merged and deployed.
+
+## 2026-10-23 19:45 CDT — Public findability (owner: "make it findable everywhere"); not deployed
+
+- **Agent/tool:** Claude Code (Opus 5.5). **Branch:** `feat/public-findability` from main `1f9afab` (production).
+- **Defect found on the live site:** every page served the same `index.html` with `<link rel="canonical" href="https://caoscare.com/">`, and nothing changed it per page. That tells search engines /for-residents, /for-communities and /experience are copies of the home page, so they get dropped from results. Other gaps:
+  - one title and description for every page;
+  - no link-preview tags (no image or title when shared);
+  - no structured data;
+  - a sitemap last modified in September.
+- **Change:**
+  - per-page title, description, canonical and `og:` tags from one list (`lib/publicPages.js`), set by `usePageMeta` in `PublicPage`;
+  - `index.html` site-wide share tags, `og-image.jpg`, and Organization/WebSite JSON-LD, with the fixed canonical removed;
+  - sitemap dates updated;
+  - robots comment corrected (it said only the home page was for search engines).
+- **Wording:** stays within the site's own claims, "In pilot". Home One is not in search text.
+- **Verified:**
+  - frontend 141 suites / 990 tests; production build compiles;
+  - dev server :3000 in Chrome: /for-communities and then / (client navigation) each show their own title, description, a single canonical and `og:url`.
+- **Not done (owner's steps or accounts):**
+  - merge and deploy;
+  - `www.caoscare.com` serves the site with 200 instead of redirecting to caoscare.com, which needs an nginx change on the Linode;
+  - Google Search Console and Bing Webmaster sign-up and sitemap submission;
+  - business and social profiles.
+- **Known limit:** link-preview crawlers that don't run JavaScript see the site-wide title and description on every page. Serving per-page HTML needs an nginx change; not done.

@@ -1,7 +1,9 @@
 import React from "react";
+import { useLocation } from "react-router-dom";
 import { useAuth } from "../../lib/auth";
 import { roleHomePath, roleHomeLabel } from "../../lib/roleHome";
 import LandingNav from "../landing/LandingNav";
+import usePageMeta from "./usePageMeta";
 
 // The one shell for every public page (/, /for-residents, /for-communities,
 // /experience): the same nav, type, colours and footer as the landing page,
@@ -9,6 +11,7 @@ import LandingNav from "../landing/LandingNav";
 // A signed-in visitor gets a way back into the app instead of "Staff sign in".
 export default function PublicPage({ children, testid }) {
   const { user } = useAuth();
+  usePageMeta(useLocation().pathname);
   const authedDest = user ? roleHomePath(user) : "/login";
   const authedLabel = user ? roleHomeLabel(user) : "Staff sign in";
   return (

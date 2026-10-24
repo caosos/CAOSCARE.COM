@@ -1107,3 +1107,10 @@ availability/title check is not a full website audit.
 
 - `docs/hardware/home-one/`: owner-supplied design renders and two parts-candidate sheets, with a README that labels them concept only, not validated. `parts_catalog/manifest.json`, which the sheets cite, is not in the repo.
 - `frontend/src/components/landing/HomeOneConcept.jsx`: public home section "What we're designing next", shown after the status board, with image `/media/concepts/home-one.jpg` registered as kind `concept` in `lib/capabilities/visuals.js` and captioned "Design concept · not built or tested". It is not a capability and is not in `status.js`. Test: `src/pages/__tests__/landingPage.test.jsx`.
+
+## 2026-10-23 — Public findability (search and link previews)
+
+- `frontend/src/lib/publicPages.js`: the one list of public pages, each with its title, description and canonical address. `frontend/public/sitemap.xml` must list exactly these paths.
+- `frontend/src/components/public/usePageMeta.js`, called by `PublicPage`: sets the title, description, canonical and `og:` tags per page from that list.
+- `frontend/public/index.html`: site-wide defaults, i.e. description, Open Graph/Twitter tags, `og-image.jpg` (1200×630, cropped from the resident video poster) and Organization/WebSite JSON-LD. It has no fixed canonical or `og:url`, because nginx serves this one file for every path.
+- Test: `src/lib/__tests__/publicPages.test.js`.

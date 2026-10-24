@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 jest.mock("@/lib/utils", () => ({ cn: (...values) => values.filter(Boolean).join(" ") }), { virtual: true });
 jest.mock("react-router-dom", () => ({
   Link: ({ to, children, ...rest }) => <a href={to} {...rest}>{children}</a>,
+  useLocation: () => ({ pathname: "/", hash: "" }),
 }), { virtual: true });
 jest.mock("../../lib/auth", () => ({ useAuth: () => ({ user: null }) }));
 jest.mock("../../components/capabilities/CapabilityPanel", () => ({ capability }) => (

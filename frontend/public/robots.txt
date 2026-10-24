@@ -1,4 +1,4 @@
-# CAOS Care - only the public home page is meant for search engines.
+# CAOS Care - the public pages (listed in sitemap.xml) are for search engines.
 # App surfaces are private (login-protected or resident/family links).
 User-agent: *
 Allow: /$
